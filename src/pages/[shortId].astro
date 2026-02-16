@@ -46,6 +46,9 @@ const availablePlatforms: Platform[] = links
   .map((l) => l.service as Platform)
   .filter((s) => s in PLATFORM_CONFIG);
 
+// Get current page URL (works with localhost and production domains)
+const currentUrl = Astro.url.origin;
+
 const og = generateOGMeta({
   title: track.title,
   artist: artistDisplay,
@@ -53,6 +56,7 @@ const og = generateOGMeta({
   albumArtUrl: track.artworkUrl ?? "/og/default.jpg",
   shortId,
   availablePlatforms,
+  origin: currentUrl,
 });
 ---
 

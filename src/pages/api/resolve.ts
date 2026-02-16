@@ -34,23 +34,26 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   }
 
   try {
+    // Get request origin for generating correct short URLs (localhost vs production)
+    const origin = new URL(request.url).origin;
+
     // Flow 1: User selected a candidate from disambiguation list
     if (selectedCandidate) {
       const result = await resolveSelectedCandidate(selectedCandidate);
-      return persistAndRespond(result);
+      return persistAndRespond(result, origin);
     }
 
     // Flow 2: URL input - resolve directly
     if (isUrl(query!)) {
       const result = await resolveQuery(query!);
-      return persistAndRespond(result);
+      return persistAndRespond(result, origin);
     }
 
     // Flow 3: Text search with disambiguation
     const textResult = await resolveTextSearchWithDisambiguation(query!);
 
     if (textResult.kind === "resolved" && textResult.result) {
-      return persistAndRespond(textResult.result);
+      return persistAndRespond(textResult.result, origin);
     }
 
     // Return disambiguation candidates (no DB persistence yet)
@@ -94,7 +97,7 @@ function jsonError(code: ErrorCode, status: number, customMessage?: string): Res
   );
 }
 
-function persistAndRespond(result: ResolutionResult): Response {
+function persistAndRespond(result: ResolutionResult, origin: string): Response {
   const sourceTrack = result.sourceTrack;
 
   const trackId = generateTrackId();
@@ -145,10 +148,13 @@ function persistAndRespond(result: ResolutionResult): Response {
     createdAt: now,
   }).run();
 
+  // Generate short URL with request origin (localhost for dev, production domain for prod)
+  const shortUrl = `${origin}/${shortId}`;
+
   return new Response(
     JSON.stringify({
       id: trackId,
-      shortUrl: `/${shortId}`,
+      shortUrl,
       track: {
         title: sourceTrack.title,
         artists: sourceTrack.artists,

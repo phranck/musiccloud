@@ -8,6 +8,7 @@ interface OGMetaInput {
   albumArtUrl: string;
   shortId: string;
   availablePlatforms: Platform[];
+  origin?: string;
 }
 
 export interface OGMeta {
@@ -28,7 +29,7 @@ function truncate(text: string, maxLength: number): string {
 }
 
 export function generateOGMeta(input: OGMetaInput): OGMeta {
-  const { title, artist, album, albumArtUrl, shortId, availablePlatforms } =
+  const { title, artist, album, albumArtUrl, shortId, availablePlatforms, origin = "https://music.cloud" } =
     input;
 
   // og:title - "{title} - {artist}" truncated to 60 chars
@@ -69,7 +70,7 @@ export function generateOGMeta(input: OGMetaInput): OGMeta {
     ogTitle,
     ogDescription,
     ogImageUrl,
-    ogUrl: `https://music.cloud/${shortId}`,
+    ogUrl: `${origin}/${shortId}`,
     twitterCard: "summary_large_image",
   };
 }
