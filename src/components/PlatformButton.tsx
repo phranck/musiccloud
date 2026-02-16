@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { cn, type Platform, PLATFORM_CONFIG } from "../lib/utils";
 import { PlatformIcon } from "./PlatformIcon";
 
@@ -14,7 +15,7 @@ interface PlatformButtonProps {
  * Platform button for available services only.
  * Unavailable platforms are not rendered (see ResultsPanel).
  */
-export function PlatformButton({
+export const PlatformButton = memo(function PlatformButton({
   platform,
   url,
   songTitle,
@@ -75,4 +76,4 @@ export function PlatformButton({
       </svg>
     </a>
   );
-}
+});

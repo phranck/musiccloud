@@ -6,6 +6,7 @@ import type {
   SearchResultWithCandidates,
 } from "../types.js";
 import { calculateConfidence } from "../../lib/normalize.js";
+import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
 
 const SPOTIFY_TRACK_REGEX =
   /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?track\/([a-zA-Z0-9]+)/;
@@ -234,7 +235,7 @@ export const spotifyAdapter = {
       }
     }
 
-    if (!bestMatch || bestConfidence < 0.6) {
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }
 
@@ -314,7 +315,7 @@ export const spotifyAdapter = {
     scored.sort((a, b) => b.confidence - a.confidence);
 
     const best = scored[0];
-    const bestMatch: MatchResult = best.confidence >= 0.6
+    const bestMatch: MatchResult = best.confidence >= MATCH_MIN_CONFIDENCE
       ? { found: true, track: best.track, confidence: best.confidence, matchMethod: "search" }
       : { found: false, confidence: best.confidence, matchMethod: "search" };
 

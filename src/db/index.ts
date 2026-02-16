@@ -162,3 +162,31 @@ export function findExistingByIsrc(isrc: string): { trackId: string; shortId: st
 
   return { trackId: row.track_id, shortId: row.short_id };
 }
+
+/**
+ * Remove cached tracks (and their service links) older than the given TTL.
+ * Short URLs are preserved to avoid breaking shared links.
+ * Tracks with short URLs are kept; only orphaned cache entries are removed.
+ */
+export function cleanupStaleCache(ttlMs: number = 7 * 24 * 60 * 60 * 1000): number {
+  const cutoff = Date.now() - ttlMs;
+  const result = sqlite.prepare(`
+    DELETE FROM service_links
+    WHERE track_id IN (
+      SELECT t.id FROM tracks t
+      LEFT JOIN short_urls su ON su.track_id = t.id
+      WHERE t.updated_at < ? AND su.id IS NULL
+    )
+  `).run(cutoff);
+
+  sqlite.prepare(`
+    DELETE FROM tracks
+    WHERE updated_at < ?
+    AND id NOT IN (SELECT track_id FROM short_urls)
+  `).run(cutoff);
+
+  return result.changes;
+}
+
+// Schedule cache cleanup every 6 hours
+setInterval(() => cleanupStaleCache(), 6 * 60 * 60 * 1000);

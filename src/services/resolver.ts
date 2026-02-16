@@ -41,9 +41,25 @@ function mapCachedLinks(links: Array<{ service: string; url: string; confidence:
     }));
 }
 
+/**
+ * Confidence scoring constants (unified strategy).
+ *
+ * MATCH_MIN_CONFIDENCE: Minimum score for an adapter to consider a result "found".
+ * LINK_QUALITY_THRESHOLD: Minimum score for inclusion in final cross-service results.
+ * AUTO_SELECT_THRESHOLD: Above this, text search auto-selects without disambiguation.
+ * CANDIDATE_MIN_CONFIDENCE: Minimum score to appear in disambiguation list.
+ * ODESLI_CONFIDENCE: Confidence assigned to Odesli-sourced links.
+ * CACHE_CONFIDENCE: Confidence assigned to DB-cached search results.
+ * SEARCH_FALLBACK_CONFIDENCE: Confidence for generic "search on X" fallback links.
+ */
+export const MATCH_MIN_CONFIDENCE = 0.6;
+export const LINK_QUALITY_THRESHOLD = 0.7;
 const AUTO_SELECT_THRESHOLD = 0.9;
 const CANDIDATE_MIN_CONFIDENCE = 0.4;
 const MAX_CANDIDATES = 5;
+const ODESLI_CONFIDENCE = 0.85;
+const CACHE_CONFIDENCE = 0.8;
+const SEARCH_FALLBACK_CONFIDENCE = 0.5;
 
 /**
  * Main entry point: accepts a URL or free-text query, returns cross-service links.
@@ -199,7 +215,7 @@ export async function resolveTextSearchWithDisambiguation(
         albumName: t.albumName,
         artworkUrl: t.artworkUrl,
         durationMs: t.durationMs,
-        confidence: 0.8, // Cached results get 0.8 confidence
+        confidence: CACHE_CONFIDENCE,
       }));
 
     return { kind: "disambiguation", candidates };
@@ -347,7 +363,7 @@ async function resolveAcrossServices(
         service: serviceId,
         displayName: PLATFORM_CONFIG[serviceId].label,
         url: link.url,
-        confidence: 0.8,
+        confidence: ODESLI_CONFIDENCE,
         matchMethod: "odesli",
       });
     }
@@ -366,7 +382,7 @@ async function resolveAcrossServices(
       service: "youtube",
       displayName: "YouTube Music",
       url: `https://music.youtube.com/search?q=${searchQuery}`,
-      confidence: 0.5, // Below threshold for "direct match", but UI shows as "Search on YouTube Music"
+      confidence: SEARCH_FALLBACK_CONFIDENCE,
       matchMethod: "search",
       isSearchFallback: true,
     });
@@ -376,7 +392,7 @@ async function resolveAcrossServices(
   links.sort((a, b) => b.confidence - a.confidence);
 
   // Filter out low-confidence matches (but keep search fallbacks)
-  return links.filter((l) => l.confidence >= 0.7 || l.isSearchFallback);
+  return links.filter((l) => l.confidence >= LINK_QUALITY_THRESHOLD || l.isSearchFallback);
 }
 
 async function resolveOnService(
@@ -456,7 +472,7 @@ async function resolveUrlViaOdesli(inputUrl: string): Promise<ResolutionResult> 
       service: serviceId,
       displayName: PLATFORM_CONFIG[serviceId].label,
       url: link.url,
-      confidence: 0.9,
+      confidence: ODESLI_CONFIDENCE,
       matchMethod: "odesli",
     });
   }

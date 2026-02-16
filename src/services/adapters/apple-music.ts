@@ -128,7 +128,7 @@ function mapTrack(raw: AppleMusicSongResource): NormalizedTrack {
     isrc: attrs.isrc,
     title: attrs.name,
     artists: attrs.artistName
-      .split(/[,&]/)
+      .split(/,\s*/)
       .map((a) => a.trim())
       .filter(Boolean),
     albumName: attrs.albumName,

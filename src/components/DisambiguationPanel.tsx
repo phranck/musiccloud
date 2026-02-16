@@ -61,7 +61,10 @@ export function DisambiguationPanel({
                     src={candidate.artworkUrl}
                     alt={`"${candidate.title}" by ${candidate.artists.join(", ")} - album artwork`}
                     className="w-full h-full object-cover"
+                    width={64}
+                    height={64}
                     loading="lazy"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-surface-elevated">

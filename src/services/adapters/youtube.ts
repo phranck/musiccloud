@@ -5,6 +5,7 @@ import type {
   MatchResult,
 } from "../types.js";
 import { calculateConfidence, normalizeTitle } from "../../lib/normalize.js";
+import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
 
 const YOUTUBE_REGEX =
   /(?:https?:\/\/)?(?:www\.|music\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -161,7 +162,7 @@ export const youtubeAdapter: ServiceAdapter = {
   }): Promise<MatchResult> {
     const searchQuery = encodeURIComponent(`${query.artist} ${query.title} official`);
     const response = await youtubeFetch(
-      `/search?part=snippet&type=video&videoCategoryId=10&q=${searchQuery}&maxResults=5`,
+      `/search?part=snippet&type=video&videoCategoryId=10&q=${searchQuery}&maxResults=3`,
     );
 
     if (!response.ok) {
@@ -203,7 +204,7 @@ export const youtubeAdapter: ServiceAdapter = {
       }
     }
 
-    if (!bestMatch || bestConfidence < 0.6) {
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }
 

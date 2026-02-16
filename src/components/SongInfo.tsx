@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 interface SongInfoProps {
   title: string;
   artist: string;
@@ -6,7 +8,7 @@ interface SongInfoProps {
   onAlbumArtLoad?: (img: HTMLImageElement) => void;
 }
 
-export function SongInfo({
+export const SongInfo = memo(function SongInfo({
   title,
   artist,
   album,
@@ -20,8 +22,11 @@ export function SongInfo({
           src={albumArtUrl}
           alt={`"${title}" by ${artist} - album artwork`}
           className="w-full h-full object-cover"
+          width={128}
+          height={128}
           crossOrigin="anonymous"
           onLoad={(e) => onAlbumArtLoad?.(e.currentTarget)}
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
         />
       </div>
 
@@ -40,4 +45,4 @@ export function SongInfo({
       </div>
     </div>
   );
-}
+});
