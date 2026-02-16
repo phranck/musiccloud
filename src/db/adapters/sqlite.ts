@@ -15,6 +15,7 @@ interface TrackRow {
   isrc: string | null;
   artwork_url: string | null;
   duration_ms: number | null;
+  release_date: string | null;
 }
 
 interface TrackWithLinkRow extends TrackRow {
@@ -93,12 +94,11 @@ export class SqliteAdapter implements TrackRepository {
   async findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
     const stmt = this.sqlite.prepare(`
       SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
-             t.artwork_url, t.duration_ms, t.created_at, t.updated_at,
+             t.artwork_url, t.duration_ms, t.release_date, t.created_at, t.updated_at,
              sl.url, sl.service, sl.confidence, sl.match_method
       FROM tracks t
       LEFT JOIN service_links sl ON t.id = sl.track_id
-      WHERE sl.url = ?
-      LIMIT 1
+      WHERE t.id = (SELECT track_id FROM service_links WHERE url = ? LIMIT 1)
     `);
 
     const rows = stmt.all(url) as TrackWithLinkRow[];
@@ -110,12 +110,11 @@ export class SqliteAdapter implements TrackRepository {
   async findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
     const stmt = this.sqlite.prepare(`
       SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
-             t.artwork_url, t.duration_ms, t.created_at, t.updated_at,
+             t.artwork_url, t.duration_ms, t.release_date, t.created_at, t.updated_at,
              sl.url, sl.service, sl.confidence, sl.match_method
       FROM tracks t
       LEFT JOIN service_links sl ON t.id = sl.track_id
       WHERE t.isrc = ?
-      LIMIT 1
     `);
 
     const rows = stmt.all(isrc) as TrackWithLinkRow[];
@@ -336,6 +335,7 @@ export class SqliteAdapter implements TrackRepository {
       isrc: r.isrc ?? undefined,
       artworkUrl: r.artwork_url ?? undefined,
       durationMs: r.duration_ms ?? undefined,
+      releaseDate: r.release_date ?? undefined,
       webUrl,
     };
   }

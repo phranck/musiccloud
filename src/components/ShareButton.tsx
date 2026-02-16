@@ -60,13 +60,16 @@ export function ShareButton({
         aria-label="Copy share link to clipboard"
         className={cn(
           "flex-1 flex items-center justify-center gap-2",
-          "px-5 py-3 rounded-xl font-semibold tracking-[-0.01em]",
+          "px-5 py-3.5 rounded-xl font-semibold text-[15px] tracking-[-0.01em]",
           "transition-all duration-[250ms]",
-          "min-h-[48px]",
+          "min-h-[50px]",
+          "shadow-sm",
           state === "idle"
             ? [
                 "bg-accent text-[var(--color-accent-contrast)]",
-                "hover:bg-accent-hover hover:shadow-[0_0_12px_var(--color-accent-glow)]",
+                "border border-white/20",
+                "hover:bg-accent-hover hover:shadow-[0_0_16px_var(--color-accent-glow)]",
+                "hover:scale-[1.02]",
                 "active:scale-[0.97]",
               ]
             : "bg-success/20 text-success border border-success/30",
@@ -75,7 +78,7 @@ export function ShareButton({
         {state === "idle" ? (
           <>
             <svg
-              className="w-4 h-4"
+              className="w-5 h-5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -84,10 +87,10 @@ export function ShareButton({
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
               />
             </svg>
-            Copy Link
+            Share Link
           </>
         ) : (
           <>

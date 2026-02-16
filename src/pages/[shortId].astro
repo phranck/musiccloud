@@ -10,6 +10,7 @@ export const prerender = false;
 import { loadByShortId } from "../lib/share-page";
 import { PLATFORM_CONFIG, type Platform } from "../lib/utils";
 import { PlatformIcon } from "../components/PlatformIcon";
+import { GradientBackground } from "../components/GradientBackground";
 import "../styles/global.css";
 
 const { shortId } = Astro.params;
@@ -76,15 +77,17 @@ const metaLine = metaItems.join(" \u00B7 ");
   <body class="bg-background text-text-primary antialiased">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">Skip to content</a>
 
+    <GradientBackground client:load />
+
     <main id="main-content" class="min-h-screen flex flex-col items-center justify-center px-4 pb-20">
       {/* Album Art */}
       {track.artworkUrl && (
         <img
           src={track.artworkUrl}
           alt={`${track.title} by ${artistDisplay}`}
-          class="mb-6 h-72 w-72 md:h-80 md:w-80 rounded-2xl shadow-2xl object-cover"
-          width="320"
-          height="320"
+          class="mb-6 w-full max-w-sm aspect-square rounded-2xl shadow-2xl object-cover"
+          width="384"
+          height="384"
         />
       )}
 
