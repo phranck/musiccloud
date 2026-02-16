@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { PLATFORM_CONFIG, type Platform } from "../lib/utils";
-import { SiSpotify, SiApplemusic, SiYoutube, SiSoundcloud } from "react-icons/si";
+import { SiSpotify, SiApplemusic, SiYoutube, SiSoundcloud, SiTidal } from "react-icons/si";
+import { FaDeezer } from "react-icons/fa6";
 
 interface PlatformIconProps {
   platform: Platform;
@@ -20,5 +21,9 @@ export const PlatformIcon = memo(function PlatformIcon({ platform, className = "
       return <SiYoutube className={className} color={color} />;
     case "soundcloud":
       return <SiSoundcloud className={className} color={color} />;
+    case "tidal":
+      return <SiTidal className={className} color={color} />;
+    case "deezer":
+      return <FaDeezer className={className} color={color} />;
   }
 });

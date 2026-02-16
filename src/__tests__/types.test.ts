@@ -18,8 +18,12 @@ describe("isValidServiceId", () => {
     expect(isValidServiceId("soundcloud")).toBe(true);
   });
 
-  it("should reject 'tidal'", () => {
-    expect(isValidServiceId("tidal")).toBe(false);
+  it("should accept 'tidal'", () => {
+    expect(isValidServiceId("tidal")).toBe(true);
+  });
+
+  it("should accept 'deezer'", () => {
+    expect(isValidServiceId("deezer")).toBe(true);
   });
 
   it("should reject empty string", () => {

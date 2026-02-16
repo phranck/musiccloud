@@ -38,17 +38,25 @@ describe("isMusicUrl", () => {
     it("should detect YouTube Shorts URL", () => {
       expect(isMusicUrl("https://www.youtube.com/shorts/abc123")).toBe(true);
     });
+
+    it("should detect Tidal track URL", () => {
+      expect(isMusicUrl("https://tidal.com/browse/track/12345")).toBe(true);
+    });
+
+    it("should detect Tidal listen URL", () => {
+      expect(isMusicUrl("https://listen.tidal.com/track/12345")).toBe(true);
+    });
+
+    it("should detect Deezer track URL", () => {
+      expect(isMusicUrl("https://www.deezer.com/track/12345")).toBe(true);
+    });
+
+    it("should detect Deezer track URL with locale", () => {
+      expect(isMusicUrl("https://www.deezer.com/en/track/12345")).toBe(true);
+    });
   });
 
   describe("invalid/unsupported URLs", () => {
-    it("should reject Tidal URL", () => {
-      expect(isMusicUrl("https://tidal.com/track/12345")).toBe(false);
-    });
-
-    it("should reject Deezer URL", () => {
-      expect(isMusicUrl("https://www.deezer.com/track/12345")).toBe(false);
-    });
-
     it("should reject Amazon Music URL", () => {
       expect(isMusicUrl("https://music.amazon.com/albums/B07QJR")).toBe(false);
     });
@@ -96,8 +104,24 @@ describe("detectPlatform", () => {
     expect(detectPlatform("https://music.youtube.com/watch?v=fJ9rUzIMcZQ")).toBe("youtube");
   });
 
+  it("should identify Tidal platform", () => {
+    expect(detectPlatform("https://tidal.com/browse/track/12345")).toBe("tidal");
+  });
+
+  it("should identify Tidal listen URL as Tidal", () => {
+    expect(detectPlatform("https://listen.tidal.com/track/12345")).toBe("tidal");
+  });
+
+  it("should identify Deezer platform", () => {
+    expect(detectPlatform("https://www.deezer.com/track/12345")).toBe("deezer");
+  });
+
+  it("should identify Deezer URL with locale", () => {
+    expect(detectPlatform("https://www.deezer.com/en/track/12345")).toBe("deezer");
+  });
+
   it("should return null for unsupported platform", () => {
-    expect(detectPlatform("https://tidal.com/track/12345")).toBeNull();
+    expect(detectPlatform("https://music.amazon.com/albums/B07QJR")).toBeNull();
   });
 
   it("should return null for non-URL input", () => {

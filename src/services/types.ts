@@ -1,9 +1,9 @@
-export type ServiceId = "spotify" | "apple-music" | "youtube" | "soundcloud";
+export type ServiceId = "spotify" | "apple-music" | "youtube" | "soundcloud" | "tidal" | "deezer";
 
 /** ServiceId plus "cached" for tracks loaded from the database cache */
 export type TrackSource = ServiceId | "cached";
 
-const VALID_SERVICE_IDS: readonly ServiceId[] = ["spotify", "apple-music", "youtube", "soundcloud"];
+const VALID_SERVICE_IDS: readonly ServiceId[] = ["spotify", "apple-music", "youtube", "soundcloud", "tidal", "deezer"];
 
 export function isValidServiceId(value: unknown): value is ServiceId {
   return typeof value === "string" && VALID_SERVICE_IDS.includes(value as ServiceId);

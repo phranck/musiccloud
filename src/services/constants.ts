@@ -5,4 +5,6 @@ export const SERVICE_DISPLAY_NAMES: Record<ServiceId, string> = {
   "apple-music": "Apple Music",
   "youtube": "YouTube",
   "soundcloud": "SoundCloud",
+  "tidal": "Tidal",
+  "deezer": "Deezer",
 };
