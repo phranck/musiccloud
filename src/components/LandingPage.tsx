@@ -205,16 +205,16 @@ export function LandingPage() {
       <GradientBackground albumColors={albumColors} />
 
       {/* Logo */}
-      <h1 className="text-2xl font-bold text-text-primary mb-2">
+      <h1 className="text-3xl font-bold tracking-[-0.04em] text-text-primary mb-3">
         music.cloud
       </h1>
 
       {/* Tagline */}
       {!result && !candidates && (
-        <p className="text-2xl md:text-3xl font-bold text-text-primary text-center mb-8">
+        <p className="text-3xl md:text-4xl font-semibold tracking-[-0.02em] text-text-primary text-center mb-12">
           Paste a link or search by name.
           <br />
-          <span className="bg-gradient-to-r from-white to-accent-hover bg-clip-text text-transparent">
+          <span className="text-text-secondary">
             Share it everywhere.
           </span>
         </p>

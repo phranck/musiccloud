@@ -16,33 +16,31 @@ export const SongInfo = memo(function SongInfo({
   onAlbumArtLoad,
 }: SongInfoProps) {
   return (
-    <div className="flex gap-5 p-5">
-      <div className="w-24 h-24 md:w-32 md:h-32 rounded-lg overflow-hidden shadow-lg flex-shrink-0">
+    <div className="flex flex-col items-center p-6 pb-4">
+      <div className="w-40 h-40 md:w-[200px] md:h-[200px] rounded-xl overflow-hidden shadow-2xl mb-5">
         <img
           src={albumArtUrl}
           alt={`"${title}" by ${artist} - album artwork`}
           className="w-full h-full object-cover"
-          width={128}
-          height={128}
+          width={200}
+          height={200}
           crossOrigin="anonymous"
           onLoad={(e) => onAlbumArtLoad?.(e.currentTarget)}
           onError={(e) => { e.currentTarget.src = "/og/default.jpg"; }}
         />
       </div>
 
-      <div className="flex flex-col justify-center min-w-0">
-        <h2 className="text-xl md:text-2xl font-semibold text-text-primary truncate">
-          {title}
-        </h2>
-        <p className="text-base text-text-secondary truncate mt-1">
-          {artist}
+      <h2 className="text-xl md:text-2xl font-semibold tracking-[-0.02em] text-text-primary text-center">
+        {title}
+      </h2>
+      <p className="text-base text-text-secondary mt-1 text-center">
+        {artist}
+      </p>
+      {album && (
+        <p className="text-sm text-text-muted mt-0.5 text-center">
+          {album}
         </p>
-        {album && (
-          <p className="text-sm text-text-muted truncate mt-0.5">
-            {album}
-          </p>
-        )}
-      </div>
+      )}
     </div>
   );
 });

@@ -29,7 +29,7 @@ export function DisambiguationPanel({
     >
       {/* Header */}
       <div className="text-center mb-4">
-        <h2 className="text-lg font-semibold text-text-primary">
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
           Did you mean?
         </h2>
         <p className="text-sm text-text-secondary mt-1">
@@ -46,8 +46,8 @@ export function DisambiguationPanel({
               onClick={() => onSelect(candidate)}
               className={cn(
                 "w-full flex items-center gap-4 p-4 text-left",
-                "transition-all duration-200",
-                "rounded-xl",
+                "transition-all duration-150",
+                "rounded-2xl",
                 "hover:bg-white/[0.04]",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
               )}
@@ -87,7 +87,7 @@ export function DisambiguationPanel({
 
               {/* Track info */}
               <div className="flex-1 min-w-0">
-                <p className="text-base font-medium text-text-primary truncate">
+                <p className="text-base font-medium tracking-[-0.01em] text-text-primary truncate">
                   {candidate.title}
                 </p>
                 <p className="text-sm text-text-secondary truncate mt-0.5">
@@ -107,7 +107,7 @@ export function DisambiguationPanel({
                   "flex items-center justify-center",
                   "bg-accent/10 text-accent",
                   "group-hover:bg-accent group-hover:text-white",
-                  "transition-all duration-200",
+                  "transition-all duration-150",
                 )}
               >
                 <svg
@@ -136,7 +136,7 @@ export function DisambiguationPanel({
           onClick={onCancel}
           className={cn(
             "text-sm text-text-muted hover:text-text-secondary",
-            "transition-colors duration-100",
+            "transition-colors duration-150",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
           )}
         >

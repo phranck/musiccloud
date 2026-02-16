@@ -110,7 +110,7 @@ export function HeroInput({
       {/* Loading message above input */}
       {state === "loading" && (
         <p
-          className="text-sm text-text-secondary text-center mb-3"
+          className="text-sm text-text-secondary text-center mb-3 animate-fade-in"
           aria-live="polite"
         >
           {loadingMessage}
@@ -120,28 +120,26 @@ export function HeroInput({
       {/* Input wrapper */}
       <div
         className={cn(
-          "relative flex items-center rounded-2xl",
-          "bg-surface/60 backdrop-blur-[20px]",
+          "relative flex items-center rounded-[20px]",
+          "bg-surface/40 backdrop-blur-[20px]",
           "border",
-          "transition-all duration-200",
+          "transition-all duration-[250ms]",
           state === "idle" && "border-white/10",
           state === "focused" && [
             "border-accent",
-            "shadow-[0_0_20px_rgba(124,92,252,0.3)]",
-            "scale-[1.02]",
+            "shadow-[0_0_15px_rgba(110,110,247,0.25)]",
           ],
           state === "loading" && [
             "border-accent",
             "animate-pulse-glow",
           ],
           state === "success" && [
-            "border-green-400",
-            "shadow-[0_0_20px_rgba(74,222,128,0.3)]",
+            "border-success",
+            "shadow-[0_0_12px_rgba(48,209,88,0.25)]",
           ],
           state === "error" && [
-            "border-red-400",
-            "shadow-[0_0_20px_rgba(248,113,113,0.3)]",
-            "animate-shake",
+            "border-error",
+            "shadow-[0_0_12px_rgba(255,69,58,0.25)]",
           ],
         )}
       >
@@ -158,8 +156,8 @@ export function HeroInput({
           placeholder="Paste a link or search by name..."
           readOnly={state === "loading" || state === "success"}
           className={cn(
-            "flex-1 bg-transparent px-6 text-lg font-medium text-text-primary",
-            "placeholder:text-text-muted outline-none",
+            "flex-1 bg-transparent px-6 text-lg font-medium text-text-primary tracking-[-0.01em]",
+            "placeholder:text-text-muted placeholder:tracking-normal outline-none",
             "h-14 md:h-16",
             state === "loading" && "opacity-50",
           )}
@@ -175,7 +173,7 @@ export function HeroInput({
             className={cn(
               "p-2 mr-1 rounded-full",
               "text-text-muted hover:text-text-primary",
-              "transition-colors duration-100",
+              "transition-colors duration-150",
             )}
             aria-label="Clear search"
           >
@@ -204,15 +202,15 @@ export function HeroInput({
             "flex items-center justify-center",
             "w-11 h-11 md:w-12 md:h-12 mr-2",
             "rounded-full",
-            "transition-all duration-200",
+            "transition-all duration-[250ms]",
             state === "loading"
               ? "bg-accent/50 cursor-wait"
               : state === "success"
-                ? "bg-green-500"
+                ? "bg-success"
                 : [
                     "bg-accent text-white",
-                    "hover:scale-110 hover:shadow-[0_0_20px_rgba(124,92,252,0.4)]",
-                    "active:scale-95",
+                    "hover:scale-[1.08] hover:shadow-[0_0_12px_rgba(110,110,247,0.35)]",
+                    "active:scale-[0.97]",
                     "disabled:opacity-30 disabled:hover:scale-100 disabled:hover:shadow-none",
                   ],
           )}
@@ -273,7 +271,7 @@ export function HeroInput({
       {/* Error message */}
       {state === "error" && errorMessage && (
         <p
-          className="mt-3 text-sm text-red-400 text-center"
+          className="mt-3 text-sm text-error text-center animate-fade-in"
           role="alert"
         >
           {errorMessage}

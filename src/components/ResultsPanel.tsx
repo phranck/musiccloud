@@ -62,7 +62,7 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
       />
 
       {/* Share action (PRIMARY - most prominent) */}
-      <div className="px-5 pb-3">
+      <div className="px-6 pb-4">
         <ShareButton
           shareUrl={result.shareUrl}
           songTitle={result.title}
@@ -73,12 +73,12 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
       {/* Platform buttons - only available platforms shown */}
       {result.platforms.length > 0 && (
         <>
-          <div className="px-5 pb-2">
-            <p className="text-xs text-text-muted mb-2">
+          <div className="px-6 pb-2">
+            <p className="text-sm text-text-muted mb-2">
               Open in your favorite app
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5 px-5 pb-5">
+          <div className="grid grid-cols-2 gap-3 px-6 pb-6">
             {result.platforms.map((p) => (
               <PlatformButton
                 key={p.platform}
@@ -95,8 +95,8 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
 
       {/* Partial results message */}
       {platformsInfo && (
-        <div className="px-5 pb-5 pt-2">
-          <p className="text-xs text-text-secondary text-center">
+        <div className="px-6 pb-6 pt-2">
+          <p className="text-sm text-text-secondary text-center">
             {platformsInfo}
           </p>
         </div>

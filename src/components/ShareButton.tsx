@@ -60,16 +60,16 @@ export function ShareButton({
         aria-label="Copy share link to clipboard"
         className={cn(
           "flex-1 flex items-center justify-center gap-2",
-          "px-5 py-3 rounded-xl font-medium",
-          "transition-all duration-200",
+          "px-5 py-3 rounded-xl font-semibold tracking-[-0.01em]",
+          "transition-all duration-[250ms]",
           "min-h-[48px]",
           state === "idle"
             ? [
                 "bg-accent text-white",
-                "hover:bg-accent-hover hover:shadow-[0_0_20px_rgba(124,92,252,0.3)]",
-                "active:scale-95",
+                "hover:bg-accent-hover hover:shadow-[0_0_12px_rgba(110,110,247,0.25)]",
+                "active:scale-[0.97]",
               ]
-            : "bg-green-500/20 text-green-400 border border-green-400/30",
+            : "bg-success/20 text-success border border-success/30",
         )}
       >
         {state === "idle" ? (
@@ -116,10 +116,10 @@ export function ShareButton({
           className={cn(
             "px-4 py-3 rounded-xl",
             "bg-surface-elevated/80 backdrop-blur-sm",
-            "border border-white/[0.08]",
-            "hover:bg-surface-elevated hover:scale-105",
-            "active:scale-95",
-            "transition-all duration-100",
+            "border border-white/[0.06]",
+            "hover:bg-surface-elevated hover:scale-[1.03]",
+            "active:scale-[0.97]",
+            "transition-all duration-150",
           )}
           aria-label={`Share ${songTitle ? `"${songTitle}"` : "this song"}`}
         >

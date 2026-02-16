@@ -14,17 +14,17 @@ export function GlassCard({
   return (
     <div
       className={cn(
-        "rounded-xl overflow-hidden",
+        "rounded-2xl overflow-hidden",
         "glass-fallback",
         elevated
           ? [
               "bg-surface-elevated/80 backdrop-blur-[24px]",
-              "border border-white/[0.12]",
+              "border border-white/[0.08]",
               "shadow-xl",
             ]
           : [
               "bg-surface/70 backdrop-blur-[20px]",
-              "border border-white/[0.08]",
+              "border border-white/[0.05]",
               "shadow-lg",
             ],
         className,

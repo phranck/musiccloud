@@ -1,4 +1,4 @@
-/* Essential animations only (3 core + 2 utility) */
+/* Core animations - deliberate, Apple-inspired */
 
 /* 1. Background gradient float - continuous, GPU-accelerated */
 @keyframes gradient-float {
@@ -17,7 +17,7 @@
   }
 }
 
-/* 2. Results card entrance - the main reveal moment */
+/* 2. Results card entrance - smooth reveal */
 @keyframes slide-up {
   from {
     opacity: 0;
@@ -29,19 +29,13 @@
   }
 }
 
-/* 3. Input error shake - brief feedback */
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
+/* 3. Fade in - for error messages and subtle reveals */
+@keyframes fade-in {
+  from {
+    opacity: 0;
   }
-  20%,
-  60% {
-    transform: translateX(-4px);
-  }
-  40%,
-  80% {
-    transform: translateX(4px);
+  to {
+    opacity: 1;
   }
 }
 
@@ -52,21 +46,21 @@
   }
 }
 
-/* Utility: input focus glow pulse */
+/* Utility: input focus glow pulse - subtle */
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 20px rgba(124, 92, 252, 0.2);
+    box-shadow: 0 0 15px rgba(110, 110, 247, 0.15);
   }
   50% {
-    box-shadow: 0 0 40px rgba(124, 92, 252, 0.4);
+    box-shadow: 0 0 30px rgba(110, 110, 247, 0.3);
   }
 }
 
 /* Glassmorphism fallback for browsers without backdrop-filter */
 @supports not (backdrop-filter: blur(1px)) {
   .glass-fallback {
-    background-color: rgba(20, 20, 31, 0.95) !important;
+    background-color: rgba(22, 22, 24, 0.95) !important;
   }
 }
 

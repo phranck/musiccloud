@@ -67,14 +67,6 @@ const { track, artists, artistDisplay, links, og } = data;
     <link rel="canonical" href={og.ogUrl} />
 
     {track.artworkUrl && <link rel="preload" as="image" href={track.artworkUrl} />}
-
-    <!-- Preload Inter font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
   </head>
   <body class="bg-background text-text-primary antialiased">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">Skip to content</a>
@@ -83,14 +75,14 @@ const { track, artists, artistDisplay, links, og } = data;
         <img
           src={track.artworkUrl}
           alt={`${track.title} by ${artistDisplay}`}
-          class="mx-auto mb-6 h-48 w-48 rounded-2xl shadow-lg"
-          width="192"
-          height="192"
+          class="mx-auto mb-6 h-56 w-56 md:h-64 md:w-64 rounded-2xl shadow-2xl"
+          width="256"
+          height="256"
         />
       )}
 
-      <h1 class="mb-1 text-2xl font-bold">{track.title}</h1>
-      <p class="mb-8 text-text-secondary">{artistDisplay}</p>
+      <h1 class="mb-1 text-3xl font-bold tracking-[-0.02em]">{track.title}</h1>
+      <p class="mb-8 text-lg text-text-secondary">{artistDisplay}</p>
 
       <div class="space-y-3">
         {links.map((link) => {
@@ -102,7 +94,7 @@ const { track, artists, artistDisplay, links, og } = data;
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"
-              class="block rounded-xl bg-surface/60 px-6 py-4 font-medium backdrop-blur transition-colors hover:bg-surface"
+              class="flex items-center justify-center gap-3 rounded-xl bg-surface-elevated/60 px-5 py-4 font-medium tracking-[-0.01em] backdrop-blur border border-white/[0.06] transition-all duration-150 hover:bg-surface-elevated"
             >
               Listen on {label}
             </a>
@@ -111,8 +103,9 @@ const { track, artists, artistDisplay, links, og } = data;
       </div>
 
       <p class="mt-12 text-sm text-text-muted">
-        <a href="/" class="text-accent hover:underline">
-          Create your own link on music.cloud
+        powered by
+        <a href="/" class="text-accent hover:underline ml-1">
+          music.cloud
         </a>
       </p>
     </main>
