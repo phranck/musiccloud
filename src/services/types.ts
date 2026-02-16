@@ -1,5 +1,8 @@
 export type ServiceId = "spotify" | "apple-music" | "youtube" | "soundcloud";
 
+/** ServiceId plus "cached" for tracks loaded from the database cache */
+export type TrackSource = ServiceId | "cached";
+
 const VALID_SERVICE_IDS: readonly ServiceId[] = ["spotify", "apple-music", "youtube", "soundcloud"];
 
 export function isValidServiceId(value: unknown): value is ServiceId {
@@ -8,7 +11,7 @@ export function isValidServiceId(value: unknown): value is ServiceId {
 
 export interface NormalizedTrack {
   isrc?: string;
-  sourceService: ServiceId;
+  sourceService: TrackSource;
   sourceId: string;
   title: string;
   artists: string[];
