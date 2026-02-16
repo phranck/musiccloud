@@ -65,7 +65,7 @@ export function ShareButton({
           "min-h-[48px]",
           state === "idle"
             ? [
-                "bg-accent text-white",
+                "bg-accent text-[var(--color-accent-contrast)]",
                 "hover:bg-accent-hover hover:shadow-[0_0_12px_rgba(110,110,247,0.25)]",
                 "active:scale-[0.97]",
               ]

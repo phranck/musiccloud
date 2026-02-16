@@ -17,6 +17,7 @@ interface DynamicAccent {
   base: string;
   hover: string;
   glow: string;
+  contrastText: string;
 }
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
@@ -61,10 +62,14 @@ function extractAccent(r: number, g: number, b: number): DynamicAccent | null {
   // Normalize: ensure vibrant saturation and consistent lightness
   const [ar, ag, ab] = hslToRgb(h, Math.max(s, 0.5), 0.55);
   const [hr, hg, hb] = hslToRgb(h, Math.max(s, 0.5), 0.65);
+  // WCAG perceived brightness to pick contrast text color
+  const brightness = (0.299 * ar + 0.587 * ag + 0.114 * ab) / 255;
+  const contrastText = brightness > 0.55 ? "#000000" : "#ffffff";
   return {
     base: `rgb(${ar}, ${ag}, ${ab})`,
     hover: `rgb(${hr}, ${hg}, ${hb})`,
     glow: `rgba(${ar}, ${ag}, ${ab}, 0.25)`,
+    contrastText,
   };
 }
 
@@ -326,6 +331,7 @@ export function LandingPage() {
         "--color-accent": dynamicAccent.base,
         "--color-accent-hover": dynamicAccent.hover,
         "--color-accent-glow": dynamicAccent.glow,
+        "--color-accent-contrast": dynamicAccent.contrastText,
       } as React.CSSProperties : undefined}
     >
       <GradientBackground albumColors={albumColors} />

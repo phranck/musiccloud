@@ -213,7 +213,7 @@ export function HeroInput({
               : state === "success"
                 ? "bg-accent"
                 : [
-                    "bg-accent text-white",
+                    "bg-accent text-[var(--color-accent-contrast)]",
                     "hover:scale-[1.08] hover:shadow-[0_0_12px_rgba(110,110,247,0.35)]",
                     "active:scale-[0.97]",
                     "disabled:opacity-30 disabled:hover:scale-100 disabled:hover:shadow-none",
@@ -223,7 +223,7 @@ export function HeroInput({
         >
           {state === "loading" ? (
             <svg
-              className="w-5 h-5 text-white animate-spin"
+              className="w-5 h-5 text-[var(--color-accent-contrast)] animate-spin"
               fill="none"
               viewBox="0 0 24 24"
             >
@@ -243,7 +243,7 @@ export function HeroInput({
             </svg>
           ) : state === "success" ? (
             <svg
-              className="w-5 h-5 text-white"
+              className="w-5 h-5 text-[var(--color-accent-contrast)]"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -257,7 +257,7 @@ export function HeroInput({
             </svg>
           ) : (
             <svg
-              className="w-5 h-5 text-white"
+              className="w-5 h-5 text-[var(--color-accent-contrast)]"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
