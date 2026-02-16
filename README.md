@@ -1,11 +1,11 @@
-![music.cloud](https://img.shields.io/badge/music.cloud-MVP-blue?style=flat-square)
-[![GitHub License](https://img.shields.io/github/license/phranck/music.cloud?style=flat-square)](LICENSE)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-green?style=flat-square)](https://nodejs.org)
-[![Test Coverage](https://img.shields.io/badge/tests-112%2F112-brightgreen?style=flat-square)](#testing)
-[![WCAG Accessibility](https://img.shields.io/badge/accessibility-WCAG%20AA-blue?style=flat-square)](#accessibility)
-[![Code Style](https://img.shields.io/badge/code%20style-TypeScript-blue?style=flat-square)](#code-quality)
-[![Astro](https://img.shields.io/badge/astro-5.3.0-purple?style=flat-square)](https://astro.build)
-[![React](https://img.shields.io/badge/react-19.0.0-61dafb?style=flat-square)](https://react.dev)
+![music.cloud](https://img.shields.io/badge/music.cloud-MVP-blue?style=flat)
+[![GitHub License](https://img.shields.io/github/license/phranck/music.cloud?style=flat)](LICENSE)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-green?style=flat)](https://nodejs.org)
+[![Test Coverage](https://img.shields.io/badge/tests-112%2F112-brightgreen?style=flat)](#testing)
+[![WCAG Accessibility](https://img.shields.io/badge/accessibility-WCAG%20AA-blue?style=flat)](#accessibility)
+[![Code Style](https://img.shields.io/badge/code%20style-TypeScript-blue?style=flat)](#code-quality)
+[![Astro](https://img.shields.io/badge/astro-5.3.0-purple?style=flat)](https://astro.build)
+[![React](https://img.shields.io/badge/react-19.0.0-61dafb?style=flat)](https://react.dev)
 
 # 🎵 music.cloud
 
