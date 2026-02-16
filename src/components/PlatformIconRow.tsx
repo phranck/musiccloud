@@ -44,8 +44,15 @@ export function PlatformIconRow() {
           WebkitMaskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
         }}
       >
-        <div className="flex w-max will-change-transform animate-marquee">
+        {/*
+          Seamless loop: 4 identical strips, each with trailing pr-12.
+          Total width = 4 * strip. translateX(-25%) = exactly 1 strip.
+          When reset, strip 2 is exactly where strip 1 was. No gap, no stutter.
+        */}
+        <div className="flex w-max will-change-transform animate-marquee-seamless">
           <MarqueeStrip label />
+          <MarqueeStrip />
+          <MarqueeStrip />
           <MarqueeStrip />
         </div>
       </div>

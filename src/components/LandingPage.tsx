@@ -162,7 +162,8 @@ export function LandingPage() {
 
   const [state, dispatch] = useReducer(appReducer, { type: "idle" });
 
-  // Independent state: albumColors, dynamicAccent and toast don't participate in the state machine
+  // Independent state: these don't participate in the state machine
+  const [isFocused, setIsFocused] = useState(false);
   const [albumColors, setAlbumColors] = useState<AlbumColors | undefined>();
   const [dynamicAccent, setDynamicAccent] = useState<DynamicAccent | undefined>();
   const [toast, setToast] = useState<{
@@ -174,7 +175,8 @@ export function LandingPage() {
   // Derive values from discriminated state
   const isDisambiguating = state.type === "disambiguation" || state.type === "disambiguation_loading";
   const isClearing = state.type === "clearing";
-  const inputState: InputState = isDisambiguating || isClearing ? "idle" : state.type;
+  const baseInputState: InputState = isDisambiguating || isClearing ? "idle" : state.type;
+  const inputState: InputState = baseInputState === "idle" && isFocused ? "focused" : baseInputState;
   const result = state.type === "success" ? state.result : state.type === "clearing" ? state.result : null;
   const candidates = isDisambiguating ? state.candidates : null;
   const selectedCandidateId = state.type === "disambiguation_loading" ? state.selectedId : null;
@@ -362,6 +364,8 @@ export function LandingPage() {
         <HeroInput
           onSubmit={handleSubmit}
           onClear={handleClear}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           state={inputState}
           compact={showCompact}
           songName={

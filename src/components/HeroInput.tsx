@@ -6,6 +6,8 @@ export type InputState = "idle" | "focused" | "loading" | "success" | "error";
 interface HeroInputProps {
   onSubmit: (url: string) => void;
   onClear: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   state: InputState;
   compact?: boolean;
   songName?: string;
@@ -20,6 +22,8 @@ const LOADING_MESSAGES = [
 export function HeroInput({
   onSubmit,
   onClear,
+  onFocus,
+  onBlur,
   state,
   compact = false,
   songName,
@@ -28,6 +32,7 @@ export function HeroInput({
   const [value, setValue] = useState("");
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0].text);
   const inputRef = useRef<HTMLInputElement>(null);
+  const ambilightRef = useRef<HTMLDivElement>(null);
   const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -46,6 +51,85 @@ export function HeroInput({
     loadingTimers.current = timers;
 
     return () => timers.forEach(clearTimeout);
+  }, [state]);
+
+  // Ambilight: Siri-style waves - concentrated light blobs traveling around the border
+  const waveSeeds = useRef({
+    hues: [Math.random() * 360, Math.random() * 360, Math.random() * 360],
+    speeds: [
+      0.7 + Math.random() * 0.4,        // wave 1: moderate forward
+      -0.5 + Math.random() * -0.3,       // wave 2: moderate reverse
+      0.2 + Math.random() * 0.1,         // wave 3: slow full-orbit, broad glow circling the ring
+    ],
+    widths: [
+      35 + Math.random() * 15,           // wave 1: narrow blob
+      25 + Math.random() * 15,           // wave 2: narrow blob
+      80 + Math.random() * 30,           // wave 3: wide arc (~quarter ring), overlaps others
+    ],
+    alphas: [0.8, 0.8, 0.4],            // wave 3: softer so it blends under the narrow ones
+  });
+  useEffect(() => {
+    if (state !== "focused") return;
+    const el = ambilightRef.current;
+    if (!el) return;
+
+    let raf: number;
+    const startTime = performance.now();
+    const { hues, speeds, widths, alphas } = waveSeeds.current;
+
+    // Sample the gradient at fixed angle steps for a seamless closed loop
+    const STEPS = 72; // every 5 degrees
+    const DEG_STEP = 360 / STEPS;
+
+    function animate(now: number) {
+      const t = (now - startTime) / 1000;
+
+      // Wave center positions, hues, and per-wave peak alpha
+      const wavePos = hues.map((baseHue, i) => ({
+        center: ((speeds[i] * t * 60) % 360 + 360) % 360,
+        hue: (baseHue + t * 8) % 360,
+        halfWidth: widths[i] / 2,
+        peakAlpha: alphas[i],
+      }));
+
+      // For each sample angle, additively blend all waves
+      const stops: string[] = [];
+      for (let i = 0; i <= STEPS; i++) {
+        const angle = i * DEG_STEP;
+        let totalAlpha = 0;
+        let hueX = 0;
+        let hueY = 0;
+
+        for (const wave of wavePos) {
+          // Shortest angular distance (wraps correctly around 0/360)
+          let dist = Math.abs(angle - wave.center);
+          if (dist > 180) dist = 360 - dist;
+
+          if (dist < wave.halfWidth) {
+            // Smooth cosine falloff from center to edge
+            const a = wave.peakAlpha * Math.cos((dist / wave.halfWidth) * Math.PI * 0.5);
+            // Weighted hue blending via circular mean
+            hueX += a * Math.cos(wave.hue * Math.PI / 180);
+            hueY += a * Math.sin(wave.hue * Math.PI / 180);
+            totalAlpha += a;
+          }
+        }
+
+        if (totalAlpha < 0.01) {
+          stops.push(`transparent ${angle.toFixed(0)}deg`);
+        } else {
+          const blendedAlpha = Math.min(totalAlpha, 1);
+          const blendedHue = ((Math.atan2(hueY, hueX) * 180 / Math.PI) + 360) % 360;
+          stops.push(`hsla(${blendedHue.toFixed(0)}, 75%, 60%, ${blendedAlpha.toFixed(2)}) ${angle.toFixed(0)}deg`);
+        }
+      }
+
+      if (el) el.style.background = `conic-gradient(from 0deg, ${stops.join(", ")})`;
+      raf = requestAnimationFrame(animate);
+    }
+
+    raf = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(raf);
   }, [state]);
 
   const cancelAutoSubmit = useCallback(() => {
@@ -122,18 +206,29 @@ export function HeroInput({
         </p>
       )}
 
+      {/* Ambilight glow - ring behind the input border, only when focused */}
+      {state === "focused" && (
+        <div
+          ref={ambilightRef}
+          className="absolute inset-[-6px] rounded-full blur-[10px] opacity-90 pointer-events-none"
+          aria-hidden="true"
+          style={{
+            maskImage: "radial-gradient(farthest-side at 50% 50%, transparent calc(100% - 12px), black calc(100% - 4px))",
+            WebkitMaskImage: "radial-gradient(farthest-side at 50% 50%, transparent calc(100% - 12px), black calc(100% - 4px))",
+          }}
+        />
+      )}
+
       {/* Input wrapper */}
       <div
         className={cn(
           "relative flex items-center rounded-full",
-          "bg-surface/60 backdrop-blur-[20px]",
+          state === "focused" ? "bg-surface" : "bg-surface/60",
+          "backdrop-blur-[20px]",
           "border",
           "transition-all duration-[250ms]",
           state === "idle" && "border-white/15",
-          state === "focused" && [
-            "border-accent",
-            "shadow-[0_0_15px_var(--color-accent-glow)]",
-          ],
+          state === "focused" && "border-white/10",
           state === "loading" && [
             "border-accent",
             "animate-pulse-glow",
@@ -155,9 +250,8 @@ export function HeroInput({
           onChange={handleChange}
           onPaste={handlePaste}
           onKeyDown={handleKeyDown}
-          onFocus={() => {
-            /* parent manages state */
-          }}
+          onFocus={() => onFocus?.()}
+          onBlur={() => onBlur?.()}
           placeholder="Paste a link or album and search by artist or title..."
           readOnly={state === "loading" || state === "success"}
           className={cn(

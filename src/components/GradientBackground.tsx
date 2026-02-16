@@ -35,7 +35,6 @@ function generateStarfield(): string {
     const x = rand() * 100;
     const y = rand() * 100;
     const brightness = rand();
-    // Most stars dim, a few brighter
     const opacity = brightness > 0.85 ? 0.2 + rand() * 0.15 : 0.04 + rand() * 0.1;
     const size = brightness > 0.85 ? 1.5 : 1;
     stars.push(
@@ -47,16 +46,12 @@ function generateStarfield(): string {
 }
 
 // Orion constellation - positioned upper-right of center
-// Relative positions within a bounding box, then mapped to screen coordinates
 const ORION_STARS: { name: string; rx: number; ry: number; brightness: number; warm?: boolean }[] = [
-  // Shoulders - wide apart
   { name: "Betelgeuse", rx: 0.18, ry: 0.08, brightness: 0.7, warm: true },
   { name: "Bellatrix", rx: 0.65, ry: 0.14, brightness: 0.5 },
-  // Belt - nearly horizontal, evenly spaced
   { name: "Alnitak", rx: 0.33, ry: 0.48, brightness: 0.4 },
   { name: "Alnilam", rx: 0.41, ry: 0.48, brightness: 0.45 },
   { name: "Mintaka", rx: 0.49, ry: 0.47, brightness: 0.4 },
-  // Legs - spread wide again
   { name: "Saiph", rx: 0.22, ry: 0.85, brightness: 0.35 },
   { name: "Rigel", rx: 0.70, ry: 0.90, brightness: 0.6 },
 ];
@@ -88,14 +83,103 @@ function generateConstellationShadow(
   }).join(", ");
 }
 
+// Layered sine waves for organic, never-repeating blob movement
+// Random parameters on each page load = unique path every time
+interface WaveParams {
+  freqX: number[];
+  freqY: number[];
+  ampX: number[];
+  ampY: number[];
+  phaseX: number[];
+  phaseY: number[];
+  freqScale: number;
+  phaseScale: number;
+  freqRot: number;
+  phaseRot: number;
+}
+
+function randomWaveParams(): WaveParams {
+  const r = () => Math.random();
+  const TAU = Math.PI * 2;
+  return {
+    // 3 layered sine waves per axis for complex paths
+    freqX: [0.8 + r() * 0.4, 1.6 + r() * 0.8, 2.5 + r() * 1.5],
+    freqY: [0.7 + r() * 0.5, 1.4 + r() * 0.9, 2.3 + r() * 1.2],
+    ampX: [35 + r() * 25, 15 + r() * 15, 5 + r() * 10],
+    ampY: [30 + r() * 25, 15 + r() * 15, 5 + r() * 10],
+    phaseX: [r() * TAU, r() * TAU, r() * TAU],
+    phaseY: [r() * TAU, r() * TAU, r() * TAU],
+    freqScale: 0.5 + r() * 0.5,
+    phaseScale: r() * TAU,
+    freqRot: 0.3 + r() * 0.4,
+    phaseRot: r() * TAU,
+  };
+}
+
+function computeBlobTransform(params: WaveParams, t: number): string {
+  // t is in radians, one full cycle = TAU
+  let x = 0;
+  let y = 0;
+  for (let i = 0; i < 3; i++) {
+    x += params.ampX[i] * Math.sin(params.freqX[i] * t + params.phaseX[i]);
+    y += params.ampY[i] * Math.sin(params.freqY[i] * t + params.phaseY[i]);
+  }
+  const scale = 0.85 + 0.3 * Math.sin(params.freqScale * t + params.phaseScale);
+  const rotate = 12 * Math.sin(params.freqRot * t + params.phaseRot);
+  return `translate(${x}vw, ${y}vh) scale(${scale.toFixed(3)}) rotate(${rotate.toFixed(1)}deg)`;
+}
+
+// Speed: one full base cycle takes ~10 minutes
+const CYCLE_DURATION_MS = 600_000;
+
 export function GradientBackground({ albumColors }: GradientBackgroundProps) {
   const colors = albumColors ?? DEFAULT_COLORS;
   const flashRef = useRef<HTMLDivElement>(null);
+  const blobRefs = useRef<(HTMLDivElement | null)[]>([null, null, null]);
 
   const starfieldShadow = useMemo(() => generateStarfield(), []);
   const orionShadow = useMemo(() => generateConstellationShadow(ORION_STARS, 58, 10, 16, 28), []);
   const canisMajorShadow = useMemo(() => generateConstellationShadow(CANIS_MAJOR_STARS, 12, 55, 14, 28), []);
 
+  // Generate random wave params once per page load
+  const waveParams = useMemo(() => [randomWaveParams(), randomWaveParams(), randomWaveParams()], []);
+
+  // Blob drift animation via requestAnimationFrame
+  useEffect(() => {
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (motionQuery.matches) return;
+
+    let raf: number;
+    const startTime = performance.now();
+
+    function animate(now: number) {
+      const elapsed = now - startTime;
+      const t = (elapsed / CYCLE_DURATION_MS) * Math.PI * 2;
+
+      for (let i = 0; i < 3; i++) {
+        const el = blobRefs.current[i];
+        if (el) {
+          el.style.transform = computeBlobTransform(waveParams[i], t);
+        }
+      }
+
+      raf = requestAnimationFrame(animate);
+    }
+
+    raf = requestAnimationFrame(animate);
+
+    const handleMotionChange = () => {
+      if (motionQuery.matches) cancelAnimationFrame(raf);
+    };
+    motionQuery.addEventListener("change", handleMotionChange);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      motionQuery.removeEventListener("change", handleMotionChange);
+    };
+  }, [waveParams]);
+
+  // Lightning flash effect
   useEffect(() => {
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (motionQuery.matches) return;
@@ -178,36 +262,36 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
         }}
       />
 
+      {/* Blob 1 */}
       <div
+        ref={(el) => { blobRefs.current[0] = el; }}
         className={cn(
-          "absolute rounded-full blur-[120px] w-[35vw] h-[35vw]",
+          "absolute rounded-full blur-[150px] w-[50vw] h-[50vw]",
           "will-change-transform",
-          "animate-blob-drift-1",
           "top-[-5%] left-[-5%]",
           "transition-[background-color] duration-800 ease-in-out",
-          "motion-reduce:animate-none",
         )}
         style={{ backgroundColor: colors.primary }}
       />
+      {/* Blob 2 */}
       <div
+        ref={(el) => { blobRefs.current[1] = el; }}
         className={cn(
-          "absolute rounded-full blur-[130px] w-[30vw] h-[30vw]",
+          "absolute rounded-full blur-[160px] w-[45vw] h-[45vw]",
           "will-change-transform",
-          "animate-blob-drift-2",
           "top-[30%] right-[-10%]",
           "transition-[background-color] duration-800 ease-in-out",
-          "motion-reduce:animate-none",
         )}
         style={{ backgroundColor: colors.secondary }}
       />
+      {/* Blob 3 */}
       <div
+        ref={(el) => { blobRefs.current[2] = el; }}
         className={cn(
-          "absolute rounded-full blur-[140px] w-[40vw] h-[40vw]",
+          "absolute rounded-full blur-[170px] w-[55vw] h-[55vw]",
           "will-change-transform",
-          "animate-blob-drift-3",
           "bottom-[-10%] left-[30%]",
           "transition-[background-color] duration-800 ease-in-out",
-          "motion-reduce:animate-none",
         )}
         style={{ backgroundColor: colors.tertiary }}
       />

@@ -30,16 +30,14 @@
   --font-mono: "SF Mono", "Fira Code", monospace;
 
   /* Animations - Apple ease-out curves */
-  --animate-blob-drift-1: blob-drift-1 25s ease-in-out infinite;
-  --animate-blob-drift-2: blob-drift-2 30s ease-in-out infinite;
-  --animate-blob-drift-3: blob-drift-3 35s ease-in-out infinite;
   --animate-slide-up: slide-up 0.4s cubic-bezier(0, 0, 0.2, 1) both;
   --animate-zoom-in: zoom-in 0.5s cubic-bezier(0, 0, 0.2, 1) both;
   --animate-slide-out-down: slide-out-down 0.4s cubic-bezier(0.42, 0, 1, 1) both;
   --animate-fade-in: fade-in 0.25s cubic-bezier(0, 0, 0.2, 1) both;
   --animate-spin: spin 1s linear infinite;
   --animate-pulse-glow: pulse-glow 2.5s ease-in-out infinite;
-  --animate-marquee: marquee 30s linear infinite;
+  --animate-cosmic-glow: cosmic-glow 12s ease-in-out infinite;
+  --animate-marquee-seamless: marquee-seamless 40s linear infinite;
 }
 
 @import "./animations.css";
