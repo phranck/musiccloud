@@ -69,7 +69,7 @@ export function HeroInput({
     alphas: [0.8, 0.8, 0.4],            // wave 3: softer so it blends under the narrow ones
   });
   useEffect(() => {
-    if (state !== "focused") return;
+    if (state !== "focused" && state !== "loading") return;
     const el = ambilightRef.current;
     if (!el) return;
 
@@ -206,8 +206,10 @@ export function HeroInput({
         </p>
       )}
 
-      {/* Ambilight glow - ring behind the input border, only when focused */}
-      {state === "focused" && (
+      {/* Input + Ambilight wrapper */}
+      <div className="relative">
+      {/* Ambilight glow - ring behind the input border, when focused or loading */}
+      {(state === "focused" || state === "loading") && (
         <div
           ref={ambilightRef}
           className="absolute inset-[-6px] rounded-full blur-[10px] opacity-90 pointer-events-none"
@@ -223,7 +225,7 @@ export function HeroInput({
       <div
         className={cn(
           "relative flex items-center rounded-full",
-          state === "focused" ? "bg-surface" : "bg-surface/60",
+          (state === "focused" || state === "loading") ? "bg-surface" : "bg-surface/60",
           "backdrop-blur-[20px]",
           "border",
           "transition-all duration-[250ms]",
@@ -365,6 +367,7 @@ export function HeroInput({
             </svg>
           )}
         </button>
+      </div>
       </div>
 
       {/* Error message */}
