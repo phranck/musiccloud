@@ -67,10 +67,10 @@
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 15px rgba(44, 185, 200, 0.15);
+    box-shadow: 0 0 15px rgba(40, 168, 216, 0.15);
   }
   50% {
-    box-shadow: 0 0 30px rgba(44, 185, 200, 0.3);
+    box-shadow: 0 0 30px rgba(40, 168, 216, 0.3);
   }
 }
 
@@ -137,6 +137,19 @@
   100% {
     opacity: 0;
     transform: translate(var(--drift-x), var(--drift-y)) scale(0.3);
+  }
+}
+
+/* Lightning flash - brief illumination behind clouds */
+@keyframes lightning-flash {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
   }
 }
 

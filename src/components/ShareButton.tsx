@@ -66,7 +66,7 @@ export function ShareButton({
           state === "idle"
             ? [
                 "bg-accent text-[var(--color-accent-contrast)]",
-                "hover:bg-accent-hover hover:shadow-[0_0_12px_rgba(110,110,247,0.25)]",
+                "hover:bg-accent-hover hover:shadow-[0_0_12px_var(--color-accent-glow)]",
                 "active:scale-[0.97]",
               ]
             : "bg-success/20 text-success border border-success/30",

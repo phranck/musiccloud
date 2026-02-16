@@ -132,7 +132,7 @@ export function HeroInput({
           state === "idle" && "border-white/15",
           state === "focused" && [
             "border-accent",
-            "shadow-[0_0_15px_rgba(110,110,247,0.25)]",
+            "shadow-[0_0_15px_var(--color-accent-glow)]",
           ],
           state === "loading" && [
             "border-accent",
@@ -140,7 +140,7 @@ export function HeroInput({
           ],
           state === "success" && [
             "border-accent",
-            "shadow-[0_0_12px_rgba(110,110,247,0.25)]",
+            "shadow-[0_0_12px_var(--color-accent-glow)]",
           ],
           state === "error" && [
             "border-error",
@@ -214,7 +214,7 @@ export function HeroInput({
                 ? "bg-accent"
                 : [
                     "bg-accent text-[var(--color-accent-contrast)]",
-                    "hover:scale-[1.08] hover:shadow-[0_0_12px_rgba(110,110,247,0.35)]",
+                    "hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]",
                     "active:scale-[0.97]",
                     "disabled:opacity-30 disabled:hover:scale-100 disabled:hover:shadow-none",
                   ],
