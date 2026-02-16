@@ -1,20 +1,37 @@
 /* Core animations - deliberate, Apple-inspired */
 
-/* 1. Background gradient float - continuous, GPU-accelerated */
-@keyframes gradient-float {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  25% {
-    transform: translate(10%, -5%) scale(1.05);
-  }
-  50% {
-    transform: translate(-5%, 10%) scale(0.95);
-  }
-  75% {
-    transform: translate(-10%, -10%) scale(1.02);
-  }
+/* 1. Lava-lamp blob drifts - 3 unique paths, GPU-accelerated */
+@keyframes blob-drift-1 {
+  0%    { transform: translate(0, 0) scale(1) rotate(0deg); }
+  14%   { transform: translate(25%, 15%) scale(1.15) rotate(5deg); }
+  28%   { transform: translate(40%, -10%) scale(0.9) rotate(-3deg); }
+  42%   { transform: translate(10%, -30%) scale(1.1) rotate(8deg); }
+  57%   { transform: translate(-20%, -15%) scale(0.85) rotate(-5deg); }
+  71%   { transform: translate(-35%, 20%) scale(1.2) rotate(3deg); }
+  85%   { transform: translate(-10%, 35%) scale(0.95) rotate(-8deg); }
+  100%  { transform: translate(0, 0) scale(1) rotate(0deg); }
+}
+
+@keyframes blob-drift-2 {
+  0%    { transform: translate(0, 0) scale(1) rotate(0deg); }
+  16%   { transform: translate(-30%, -20%) scale(1.1) rotate(-6deg); }
+  33%   { transform: translate(-15%, 25%) scale(0.85) rotate(4deg); }
+  50%   { transform: translate(20%, 35%) scale(1.2) rotate(-3deg); }
+  66%   { transform: translate(35%, 5%) scale(0.9) rotate(7deg); }
+  83%   { transform: translate(10%, -30%) scale(1.1) rotate(-5deg); }
+  100%  { transform: translate(0, 0) scale(1) rotate(0deg); }
+}
+
+@keyframes blob-drift-3 {
+  0%    { transform: translate(0, 0) scale(1) rotate(0deg); }
+  12%   { transform: translate(20%, -25%) scale(1.15) rotate(4deg); }
+  25%   { transform: translate(-10%, -40%) scale(0.9) rotate(-7deg); }
+  37%   { transform: translate(-35%, -10%) scale(1.1) rotate(3deg); }
+  50%   { transform: translate(-25%, 25%) scale(0.85) rotate(-4deg); }
+  62%   { transform: translate(5%, 40%) scale(1.2) rotate(6deg); }
+  75%   { transform: translate(30%, 20%) scale(0.9) rotate(-3deg); }
+  87%   { transform: translate(35%, -15%) scale(1.1) rotate(5deg); }
+  100%  { transform: translate(0, 0) scale(1) rotate(0deg); }
 }
 
 /* 2. Results card entrance - smooth reveal */
@@ -50,10 +67,10 @@
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 15px rgba(110, 110, 247, 0.15);
+    box-shadow: 0 0 15px rgba(44, 185, 200, 0.15);
   }
   50% {
-    box-shadow: 0 0 30px rgba(110, 110, 247, 0.3);
+    box-shadow: 0 0 30px rgba(44, 185, 200, 0.3);
   }
 }
 
@@ -88,6 +105,38 @@
   }
   to {
     transform: translateX(-50%);
+  }
+}
+
+/* Sparkling stars - brief flash then fade */
+@keyframes sparkle-fade {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  20% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+/* Sparkling stars - flash then drift toward center while fading */
+@keyframes sparkle-drift {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0);
+  }
+  20% {
+    opacity: 0.9;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift-x), var(--drift-y)) scale(0.3);
   }
 }
 

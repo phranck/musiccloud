@@ -5,6 +5,7 @@ import { GradientBackground } from "./GradientBackground";
 import { HeroInput, type InputState } from "./HeroInput";
 import { PlatformIconRow } from "./PlatformIconRow";
 import { ResultsPanel, type SongResult } from "./ResultsPanel";
+import { SparklingStars } from "./SparklingStars";
 import { Toast } from "./Toast";
 
 interface AlbumColors {
@@ -335,6 +336,7 @@ export function LandingPage() {
       } as React.CSSProperties : undefined}
     >
       <GradientBackground albumColors={albumColors} />
+      <SparklingStars />
 
       {/* Hero */}
       {!result && !candidates && (

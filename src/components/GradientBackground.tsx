@@ -11,9 +11,9 @@ interface GradientBackgroundProps {
 }
 
 const DEFAULT_COLORS = {
-  primary: "rgba(110, 110, 247, 0.18)",
-  secondary: "rgba(252, 92, 156, 0.12)",
-  tertiary: "rgba(59, 130, 246, 0.08)",
+  primary: "rgba(44, 185, 200, 0.18)",
+  secondary: "rgba(212, 168, 67, 0.12)",
+  tertiary: "rgba(24, 150, 164, 0.08)",
 };
 
 export function GradientBackground({ albumColors }: GradientBackgroundProps) {
@@ -26,10 +26,10 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
     >
       <div
         className={cn(
-          "absolute rounded-full blur-[100px] w-[30vw] h-[30vw] max-w-[500px] max-h-[500px]",
+          "absolute rounded-full blur-[120px] w-[35vw] h-[35vw]",
           "will-change-transform",
-          "animate-gradient-float",
-          "top-[10%] left-[15%]",
+          "animate-blob-drift-1",
+          "top-[-5%] left-[-5%]",
           "transition-[background-color] duration-800 ease-in-out",
           "motion-reduce:animate-none",
         )}
@@ -37,10 +37,10 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
       />
       <div
         className={cn(
-          "absolute rounded-full blur-[100px] w-[25vw] h-[25vw] max-w-[500px] max-h-[500px]",
+          "absolute rounded-full blur-[130px] w-[30vw] h-[30vw]",
           "will-change-transform",
-          "animate-gradient-float [animation-delay:-7s]",
-          "top-[50%] right-[10%]",
+          "animate-blob-drift-2",
+          "top-[30%] right-[-10%]",
           "transition-[background-color] duration-800 ease-in-out",
           "motion-reduce:animate-none",
         )}
@@ -48,10 +48,10 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
       />
       <div
         className={cn(
-          "absolute rounded-full blur-[100px] w-[35vw] h-[35vw] max-w-[500px] max-h-[500px]",
+          "absolute rounded-full blur-[140px] w-[40vw] h-[40vw]",
           "will-change-transform",
-          "animate-gradient-float [animation-delay:-14s]",
-          "bottom-[5%] left-[40%]",
+          "animate-blob-drift-3",
+          "bottom-[-10%] left-[30%]",
           "transition-[background-color] duration-800 ease-in-out",
           "motion-reduce:animate-none",
         )}
