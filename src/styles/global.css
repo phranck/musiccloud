@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Nasalization";
+  src: url("/fonts/nasalization-rg.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+
 /* Design System tokens - Dark Premium (Apple-inspired) */
 @theme {
   /* Core palette - neutral grays, no blue tint */

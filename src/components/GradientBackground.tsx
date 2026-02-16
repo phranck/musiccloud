@@ -129,8 +129,8 @@ function computeBlobTransform(params: WaveParams, t: number): string {
   return `translate(${x}vw, ${y}vh) scale(${scale.toFixed(3)}) rotate(${rotate.toFixed(1)}deg)`;
 }
 
-// Speed: one full base cycle takes ~10 minutes
-const CYCLE_DURATION_MS = 600_000;
+// Speed: one full base cycle takes ~3 minutes
+const CYCLE_DURATION_MS = 180_000;
 
 export function GradientBackground({ albumColors }: GradientBackgroundProps) {
   const colors = albumColors ?? DEFAULT_COLORS;

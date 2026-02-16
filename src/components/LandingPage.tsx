@@ -7,6 +7,7 @@ import { PlatformIconRow } from "./PlatformIconRow";
 import { ResultsPanel, type SongResult } from "./ResultsPanel";
 import { SparklingStars } from "./SparklingStars";
 import { Toast } from "./Toast";
+import { BrandName } from "./BrandName";
 
 interface AlbumColors {
   primary: string;
@@ -346,7 +347,7 @@ export function LandingPage() {
       {!result && !candidates && (
         <div className="text-center mb-10">
           <h1 className="text-5xl md:text-6xl font-bold tracking-[-0.04em] text-text-primary mb-2">
-            music.cloud
+            <BrandName />
           </h1>
           <p className="text-xl md:text-2xl font-medium tracking-[-0.02em] text-text-secondary">
             share it everywhere
@@ -357,7 +358,7 @@ export function LandingPage() {
       {/* Compact logo when results/disambiguation shown (not during clearing) */}
       {showCompact && (
         <h1 className="text-3xl font-bold tracking-[-0.04em] text-text-primary mb-6">
-          music.cloud
+          <BrandName />
         </h1>
       )}
 
