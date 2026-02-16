@@ -1,4 +1,4 @@
-CREATE TABLE tracks (
+CREATE TABLE IF NOT EXISTS tracks (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   artists TEXT NOT NULL,
@@ -10,9 +10,9 @@ CREATE TABLE tracks (
   updated_at BIGINT NOT NULL
 );
 
-CREATE INDEX idx_tracks_isrc ON tracks(isrc);
+CREATE INDEX IF NOT EXISTS idx_tracks_isrc ON tracks(isrc);
 
-CREATE TABLE service_links (
+CREATE TABLE IF NOT EXISTS service_links (
   id TEXT PRIMARY KEY,
   track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
   service TEXT NOT NULL,
@@ -23,11 +23,11 @@ CREATE TABLE service_links (
   created_at BIGINT NOT NULL
 );
 
-CREATE UNIQUE INDEX idx_service_links_track_service ON service_links(track_id, service);
-CREATE INDEX idx_service_links_service_external ON service_links(service, external_id);
-CREATE INDEX idx_service_links_url ON service_links(url);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_service_links_track_service ON service_links(track_id, service);
+CREATE INDEX IF NOT EXISTS idx_service_links_service_external ON service_links(service, external_id);
+CREATE INDEX IF NOT EXISTS idx_service_links_url ON service_links(url);
 
-CREATE TABLE short_urls (
+CREATE TABLE IF NOT EXISTS short_urls (
   id TEXT PRIMARY KEY,
   track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
   created_at BIGINT NOT NULL
