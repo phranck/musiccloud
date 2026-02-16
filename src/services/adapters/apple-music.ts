@@ -76,9 +76,17 @@ async function getDevToken(): Promise<string> {
 
 async function appleMusicFetch(endpoint: string): Promise<Response> {
   const token = await getDevToken();
-  return fetch(`${API_BASE}${endpoint}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    return await fetch(`${API_BASE}${endpoint}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 interface AppleMusicSongAttributes {

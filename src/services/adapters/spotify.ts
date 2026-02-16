@@ -20,58 +20,75 @@ interface SpotifyToken {
 }
 
 let cachedToken: SpotifyToken | null = null;
+let tokenPromise: Promise<string> | null = null;
 
 async function getAccessToken(): Promise<string> {
   if (cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
     return cachedToken.accessToken;
   }
 
+  // Promise coalescing: prevent parallel token refresh requests
+  if (tokenPromise) return tokenPromise;
+
+  tokenPromise = fetchNewToken().finally(() => {
+    tokenPromise = null;
+  });
+  return tokenPromise;
+}
+
+async function fetchNewToken(): Promise<string> {
   const clientId = import.meta.env.SPOTIFY_CLIENT_ID;
   const clientSecret = import.meta.env.SPOTIFY_CLIENT_SECRET;
 
-  console.log("[Spotify] getAccessToken - clientId exists:", !!clientId, "clientSecret exists:", !!clientSecret);
-
   if (!clientId || !clientSecret) {
-    console.error("[Spotify] Missing credentials - clientId:", clientId, "clientSecret:", clientSecret);
+    console.error("[Spotify] Missing required credentials");
     throw new Error("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set");
   }
 
-  const response = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
-    },
-    body: "grant_type=client_credentials",
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
 
-  if (!response.ok) {
-    throw new Error(`Spotify token request failed: ${response.status}`);
+  try {
+    const response = await fetch(TOKEN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+      },
+      body: "grant_type=client_credentials",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Spotify token request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    cachedToken = {
+      accessToken: data.access_token,
+      expiresAt: Date.now() + data.expires_in * 1000,
+    };
+
+    return cachedToken.accessToken;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const data = await response.json();
-
-  cachedToken = {
-    accessToken: data.access_token,
-    expiresAt: Date.now() + data.expires_in * 1000,
-  };
-
-  return cachedToken.accessToken;
 }
 
 async function spotifyFetch(endpoint: string): Promise<Response> {
-  console.log("[Spotify] spotifyFetch called for:", endpoint);
+  const token = await getAccessToken();
+  const url = `${API_BASE}${endpoint}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
   try {
-    const token = await getAccessToken();
-    console.log("[Spotify] Got token, making fetch request...");
-    const url = `${API_BASE}${endpoint}`;
-    console.log("[Spotify] Fetch URL:", url);
-    return fetch(url, {
+    return await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
     });
-  } catch (error) {
-    console.error("[Spotify] spotifyFetch error:", error);
-    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

@@ -5,7 +5,7 @@ import * as schema from "./schema";
 import type { NormalizedTrack } from "../services/types.js";
 
 const dbPath = import.meta.env.DATABASE_PATH || "data/music.db";
-const sqlite = new Database(dbPath);
+export const sqlite = new Database(dbPath);
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");
 
@@ -57,13 +57,14 @@ export function findTrackByUrl(url: string): { track: NormalizedTrack; links: an
  * Find cached tracks by full-text search (title + artists)
  * Returns up to maxResults tracks sorted by FTS5 rank
  */
+function escapeFts5(query: string): string {
+  return `"${query.replace(/"/g, '""')}"`;
+}
+
 export function findTracksByTextSearch(query: string, maxResults: number = 10): NormalizedTrack[] {
   try {
-    console.log("[DB] findTracksByTextSearch called with:", query);
-
-    // FTS5 query: search title and artists with prefix matching
-    const ftsQuery = `${query}*`;
-    console.log("[DB] FTS5 query:", ftsQuery);
+    // Escape FTS5 metacharacters to prevent injection
+    const ftsQuery = `${escapeFts5(query)}*`;
 
     const stmt = sqlite.prepare(`
       SELECT t.id, t.title, t.artists, t.album_name, t.isrc,
@@ -135,4 +136,24 @@ export function findTrackByIsrc(isrc: string): { track: NormalizedTrack; links: 
     }));
 
   return { track, links };
+}
+
+/**
+ * Find an existing track + short URL by ISRC.
+ * Used for deduplication: if a track with this ISRC already exists,
+ * we reuse the existing short URL instead of creating a new one.
+ */
+export function findExistingByIsrc(isrc: string): { trackId: string; shortId: string } | null {
+  const stmt = sqlite.prepare(`
+    SELECT t.id AS track_id, su.id AS short_id
+    FROM tracks t
+    JOIN short_urls su ON t.id = su.track_id
+    WHERE t.isrc = ?
+    LIMIT 1
+  `);
+
+  const row = stmt.get(isrc) as { track_id: string; short_id: string } | undefined;
+  if (!row) return null;
+
+  return { trackId: row.track_id, shortId: row.short_id };
 }

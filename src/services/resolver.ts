@@ -153,33 +153,32 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
     }
   }
 
-  // 2. Service search: Use Spotify as the primary search engine
-  const spotifyAdapter = adapters.find((a) => a.id === "spotify");
-  if (!spotifyAdapter || !spotifyAdapter.isAvailable()) {
-    throw new ResolveError("SERVICE_DOWN", "Spotify is not available for text search");
+  // 2. Service search: try all available adapters with search capability
+  const searchAdapters = adapters.filter((a) => a.isAvailable());
+  for (const adapter of searchAdapters) {
+    try {
+      const result = await adapter.searchTrack({
+        title: query,
+        artist: query,
+      });
+
+      if (result.found && result.track) {
+        const links = await resolveAcrossServices(result.track, adapter);
+        links.unshift({
+          service: adapter.id,
+          displayName: adapter.displayName,
+          url: result.track.webUrl,
+          confidence: result.confidence,
+          matchMethod: "search",
+        });
+        return { sourceTrack: result.track, links };
+      }
+    } catch {
+      continue;
+    }
   }
 
-  const result = await spotifyAdapter.searchTrack({
-    title: query,
-    artist: query,
-  });
-
-  if (!result.found || !result.track) {
-    throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
-  }
-
-  // Use the found track as the source and resolve across services
-  const links = await resolveAcrossServices(result.track, spotifyAdapter);
-
-  links.unshift({
-    service: "spotify",
-    displayName: "Spotify",
-    url: result.track.webUrl,
-    confidence: result.confidence,
-    matchMethod: "search",
-  });
-
-  return { sourceTrack: result.track, links };
+  throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
 }
 
 /**
@@ -213,67 +212,79 @@ export async function resolveTextSearchWithDisambiguation(
     return { kind: "disambiguation", candidates };
   }
 
-  // 2. Service search: Spotify search if not in cache
-  const spotifyAdapter = adapters.find((a) => a.id === "spotify") as
-    | (ServiceAdapter & { searchTrackWithCandidates: (q: { title: string; artist: string }) => Promise<import("./types.js").SearchResultWithCandidates> })
-    | undefined;
+  // 2. Service search: try adapters that support searchTrackWithCandidates, then fall back
+  const searchAdapters = adapters.filter((a) => a.isAvailable());
 
-  console.log("[Resolver] Spotify adapter found:", !!spotifyAdapter);
-  console.log("[Resolver] Spotify adapter available:", spotifyAdapter?.isAvailable());
+  for (const adapter of searchAdapters) {
+    try {
+      // Use searchTrackWithCandidates if available (e.g. Spotify)
+      if ("searchTrackWithCandidates" in adapter && typeof (adapter as Record<string, unknown>).searchTrackWithCandidates === "function") {
+        const adapterWithCandidates = adapter as ServiceAdapter & {
+          searchTrackWithCandidates: (q: { title: string; artist: string }) => Promise<import("./types.js").SearchResultWithCandidates>;
+        };
 
-  if (!spotifyAdapter || !spotifyAdapter.isAvailable()) {
-    throw new ResolveError("SERVICE_DOWN", "Spotify is not available for text search");
+        const searchResult = await adapterWithCandidates.searchTrackWithCandidates({
+          title: query,
+          artist: query,
+        });
+
+        if (searchResult.candidates.length === 0) continue;
+
+        const topCandidate = searchResult.candidates[0];
+
+        // Auto-select when confidence is high enough
+        if (topCandidate.confidence >= AUTO_SELECT_THRESHOLD) {
+          const links = await resolveAcrossServices(topCandidate.track, adapter);
+          links.unshift({
+            service: adapter.id,
+            displayName: adapter.displayName,
+            url: topCandidate.track.webUrl,
+            confidence: topCandidate.confidence,
+            matchMethod: "search",
+          });
+          return { kind: "resolved", result: { sourceTrack: topCandidate.track, links } };
+        }
+
+        // Return candidates for disambiguation
+        const candidates: SearchCandidate[] = searchResult.candidates
+          .filter((c) => c.confidence >= CANDIDATE_MIN_CONFIDENCE)
+          .slice(0, MAX_CANDIDATES)
+          .map((c) => ({
+            id: `${c.track.sourceService}:${c.track.sourceId}`,
+            title: c.track.title,
+            artists: c.track.artists,
+            albumName: c.track.albumName,
+            artworkUrl: c.track.artworkUrl,
+            durationMs: c.track.durationMs,
+            confidence: c.confidence,
+          }));
+
+        return { kind: "disambiguation", candidates };
+      }
+
+      // Fallback: use regular searchTrack
+      const result = await adapter.searchTrack({
+        title: query,
+        artist: query,
+      });
+
+      if (result.found && result.track) {
+        const links = await resolveAcrossServices(result.track, adapter);
+        links.unshift({
+          service: adapter.id,
+          displayName: adapter.displayName,
+          url: result.track.webUrl,
+          confidence: result.confidence,
+          matchMethod: "search",
+        });
+        return { kind: "resolved", result: { sourceTrack: result.track, links } };
+      }
+    } catch {
+      continue;
+    }
   }
 
-  if (typeof spotifyAdapter.searchTrackWithCandidates !== "function") {
-    console.log("[Resolver] searchTrackWithCandidates not a function, falling back to resolveTextSearch");
-    // Fallback to old behavior if adapter doesn't support candidates
-    const result = await resolveTextSearch(query);
-    return { kind: "resolved", result };
-  }
-
-  console.log("[Resolver] Calling searchTrackWithCandidates...");
-  const searchResult = await spotifyAdapter.searchTrackWithCandidates({
-    title: query,
-    artist: query,
-  });
-
-  console.log("[Resolver] Search result - bestMatch found:", searchResult.bestMatch.found, "candidates:", searchResult.candidates.length);
-
-  if (searchResult.candidates.length === 0) {
-    throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
-  }
-
-  const topCandidate = searchResult.candidates[0];
-
-  // Auto-select when confidence is high enough
-  if (topCandidate.confidence >= AUTO_SELECT_THRESHOLD) {
-    const links = await resolveAcrossServices(topCandidate.track, spotifyAdapter);
-    links.unshift({
-      service: "spotify",
-      displayName: "Spotify",
-      url: topCandidate.track.webUrl,
-      confidence: topCandidate.confidence,
-      matchMethod: "search",
-    });
-    return { kind: "resolved", result: { sourceTrack: topCandidate.track, links } };
-  }
-
-  // Return candidates for disambiguation
-  const candidates: SearchCandidate[] = searchResult.candidates
-    .filter((c) => c.confidence >= CANDIDATE_MIN_CONFIDENCE)
-    .slice(0, MAX_CANDIDATES)
-    .map((c) => ({
-      id: `${c.track.sourceService}:${c.track.sourceId}`,
-      title: c.track.title,
-      artists: c.track.artists,
-      albumName: c.track.albumName,
-      artworkUrl: c.track.artworkUrl,
-      durationMs: c.track.durationMs,
-      confidence: c.confidence,
-    }));
-
-  return { kind: "disambiguation", candidates };
+  throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
 }
 
 /**

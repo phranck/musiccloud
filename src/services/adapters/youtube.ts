@@ -81,7 +81,16 @@ async function youtubeFetch(endpoint: string): Promise<Response> {
   }
 
   const separator = endpoint.includes("?") ? "&" : "?";
-  return fetch(`${API_BASE}${endpoint}${separator}key=${apiKey}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    return await fetch(`${API_BASE}${endpoint}${separator}key=${apiKey}`, {
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function mapVideoToTrack(video: YouTubeVideoResource): NormalizedTrack {

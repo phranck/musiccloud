@@ -4,10 +4,12 @@ import type { ResolutionResult } from "../../services/resolver.js";
 import { ResolveError, ERROR_STATUS_MAP, USER_MESSAGES } from "../../lib/errors.js";
 import type { ErrorCode } from "../../lib/errors.js";
 import { isUrl, stripTrackingParams } from "../../lib/url-parser.js";
-import { db } from "../../db/index.js";
+import { db, sqlite, findExistingByIsrc } from "../../db/index.js";
 import { tracks, serviceLinks, shortUrls } from "../../db/schema.js";
 import { generateTrackId, generateShortId } from "../../lib/short-id.js";
 import { apiRateLimiter } from "../../lib/rate-limiter.js";
+
+const ALLOWED_ORIGINS = ["http://localhost:4321", "http://localhost:4322", "https://music.cloud"];
 
 export const prerender = false;
 
@@ -34,8 +36,9 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   }
 
   try {
-    // Get request origin for generating correct short URLs (localhost vs production)
-    const origin = new URL(request.url).origin;
+    // Validate origin against whitelist for short URL generation
+    const requestOrigin = new URL(request.url).origin;
+    const origin = ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0];
 
     // Flow 1: User selected a candidate from disambiguation list
     if (selectedCandidate) {
@@ -74,11 +77,9 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       return jsonError(code, status, error.message);
     }
 
-    console.error("Resolve failed:", error);
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Stack:", error.stack);
+    console.error("[Resolve] Unexpected error:", error instanceof Error ? error.message : "Unknown error");
+    if (import.meta.env.DEV && error instanceof Error) {
+      console.error("[Resolve] Stack:", error.stack);
     }
     return jsonError("NETWORK_ERROR", 500);
   }
@@ -99,56 +100,71 @@ function jsonError(code: ErrorCode, status: number, customMessage?: string): Res
 
 function persistAndRespond(result: ResolutionResult, origin: string): Response {
   const sourceTrack = result.sourceTrack;
-
-  const trackId = generateTrackId();
-  const shortId = generateShortId();
   const now = Date.now();
 
-  const trackData = {
-    id: trackId,
-    title: sourceTrack.title,
-    artists: JSON.stringify(sourceTrack.artists),
-    albumName: sourceTrack.albumName ?? null,
-    isrc: sourceTrack.isrc ?? null,
-    artworkUrl: sourceTrack.artworkUrl ?? null,
-    durationMs: sourceTrack.durationMs ? Math.floor(sourceTrack.durationMs) : null,
-    createdAt: now,
-    updatedAt: now,
-  };
-  console.log("[DB] Inserting track with fields:");
-  for (const [key, value] of Object.entries(trackData)) {
-    console.log(`  ${key}: ${JSON.stringify(value)} (${typeof value})`);
-  }
+  // Wrap all DB read-then-write in a transaction to prevent race conditions
+  const { trackId, shortId } = sqlite.transaction(() => {
+    // ISRC deduplication: reuse existing track + short URL if same ISRC
+    const existing = sourceTrack.isrc ? findExistingByIsrc(sourceTrack.isrc) : null;
 
-  try {
-    db.insert(tracks).values(trackData).run();
-  } catch (err) {
-    console.error("[DB] Insert tracks failed:", err);
-    throw err;
-  }
+    if (existing) {
+      // Update service links (add new ones, skip existing via onConflictDoNothing)
+      for (const link of result.links) {
+        const cleanUrl = stripTrackingParams(link.url);
+        db.insert(serviceLinks).values({
+          id: generateTrackId(),
+          trackId: existing.trackId,
+          service: link.service,
+          externalId: "",
+          url: cleanUrl,
+          confidence: link.confidence,
+          matchMethod: link.matchMethod,
+          createdAt: now,
+        }).onConflictDoNothing().run();
+      }
 
-  // Store links with cleaned URLs (no tracking parameters)
-  for (const link of result.links) {
-    const cleanUrl = stripTrackingParams(link.url);
-    db.insert(serviceLinks).values({
-      id: generateTrackId(),
-      trackId,
-      service: link.service,
-      externalId: "",
-      url: cleanUrl,
-      confidence: link.confidence,
-      matchMethod: link.matchMethod,
+      return { trackId: existing.trackId, shortId: existing.shortId };
+    }
+
+    // New track: create fresh track + short URL
+    const newTrackId = generateTrackId();
+    const newShortId = generateShortId();
+
+    db.insert(tracks).values({
+      id: newTrackId,
+      title: sourceTrack.title,
+      artists: JSON.stringify(sourceTrack.artists),
+      albumName: sourceTrack.albumName ?? null,
+      isrc: sourceTrack.isrc ?? null,
+      artworkUrl: sourceTrack.artworkUrl ?? null,
+      durationMs: sourceTrack.durationMs ? Math.floor(sourceTrack.durationMs) : null,
       createdAt: now,
-    }).onConflictDoNothing().run();
-  }
+      updatedAt: now,
+    }).run();
 
-  db.insert(shortUrls).values({
-    id: shortId,
-    trackId,
-    createdAt: now,
-  }).run();
+    for (const link of result.links) {
+      const cleanUrl = stripTrackingParams(link.url);
+      db.insert(serviceLinks).values({
+        id: generateTrackId(),
+        trackId: newTrackId,
+        service: link.service,
+        externalId: "",
+        url: cleanUrl,
+        confidence: link.confidence,
+        matchMethod: link.matchMethod,
+        createdAt: now,
+      }).onConflictDoNothing().run();
+    }
 
-  // Generate short URL with request origin (localhost for dev, production domain for prod)
+    db.insert(shortUrls).values({
+      id: newShortId,
+      trackId: newTrackId,
+      createdAt: now,
+    }).run();
+
+    return { trackId: newTrackId, shortId: newShortId };
+  })();
+
   const shortUrl = `${origin}/${shortId}`;
 
   return new Response(
