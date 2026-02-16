@@ -8,7 +8,12 @@ import { getRepository } from "../../db/index.js";
 import { apiRateLimiter } from "../../lib/rate-limiter.js";
 import { log } from "../../lib/logger.js";
 
-const ALLOWED_ORIGINS = ["http://localhost:4321", "http://localhost:4322", "https://music.cloud"];
+const ALLOWED_ORIGINS = [
+  "http://localhost:4321",
+  "http://localhost:4322",
+  "https://music.cloud",
+  "https://music-cloud-three.vercel.app",
+];
 
 export const prerender = false;
 
