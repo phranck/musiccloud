@@ -6,6 +6,7 @@ interface PlatformButtonProps {
   url: string;
   songTitle: string;
   displayName?: string;
+  matchMethod?: "isrc" | "search" | "odesli" | "cache";
   className?: string;
 }
 
@@ -18,10 +19,15 @@ export function PlatformButton({
   url,
   songTitle,
   displayName,
+  matchMethod,
   className,
 }: PlatformButtonProps) {
   const config = PLATFORM_CONFIG[platform];
   const label = displayName || config.label;
+  const isDev = typeof window !== "undefined" && !window.location.hostname.includes("music.cloud");
+
+  // Map matchMethod to display text
+  const sourceLabel = matchMethod === "odesli" ? "via Odesli" : matchMethod === "isrc" ? "direct (ISRC)" : matchMethod === "search" ? "via search" : matchMethod === "cache" ? "cached" : null;
 
   return (
     <a
@@ -48,11 +54,18 @@ export function PlatformButton({
       }}
     >
       <PlatformIcon platform={platform} className="w-8 h-8 flex-shrink-0" colored={true} />
-      <span className="font-medium text-base text-text-primary">
-        Listen on {label}
-      </span>
+      <div className="flex-1">
+        <span className="font-medium text-base text-text-primary">
+          Listen on {label}
+        </span>
+        {isDev && sourceLabel && (
+          <div className="text-xs text-text-muted">
+            {sourceLabel}
+          </div>
+        )}
+      </div>
       <svg
-        className="ml-auto w-4 h-4 text-text-muted"
+        className="w-4 h-4 text-text-muted flex-shrink-0"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"

@@ -8,6 +8,7 @@ export interface PlatformLink {
   platform: Platform;
   url: string;
   displayName?: string;
+  matchMethod?: "isrc" | "search" | "odesli" | "cache";
 }
 
 export interface SongResult {
@@ -85,6 +86,7 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
                 url={p.url}
                 songTitle={result.title}
                 displayName={p.displayName}
+                matchMethod={p.matchMethod}
               />
             ))}
           </div>

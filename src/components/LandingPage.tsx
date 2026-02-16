@@ -35,6 +35,7 @@ export function LandingPage() {
         platform: link.service as Platform,
         url: link.url as string,
         displayName: link.displayName as string | undefined,
+        matchMethod: link.matchMethod as "isrc" | "search" | "odesli" | "cache" | undefined,
       }));
 
     const track = data.track as Record<string, unknown>;
