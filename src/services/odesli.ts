@@ -44,7 +44,7 @@ export async function resolveViaOdesli(url: string): Promise<OdesliResult> {
     spotify: "spotify",
     appleMusic: "apple-music",
     youtube: "youtube",
-    youtubeMusic: "youtube",
+    youtubeMusic: "youtube-music",
     soundcloud: "soundcloud",
     tidal: "tidal",
     deezer: "deezer",

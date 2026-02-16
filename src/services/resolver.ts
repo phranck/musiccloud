@@ -363,7 +363,10 @@ async function resolveAcrossServices(
   );
 
   // Start Odesli resolve in parallel (for YouTube quota savings and SoundCloud)
-  const odesliPromise = resolveViaOdesli(sourceTrack.webUrl).catch(() => null);
+  const odesliPromise = resolveViaOdesli(sourceTrack.webUrl).catch((error) => {
+    log.error("Resolver", `Odesli failed: ${error instanceof Error ? error.message : error}`);
+    return null;
+  });
 
   // Resolve on each target service
   const results = await Promise.allSettled(
@@ -378,6 +381,23 @@ async function resolveAcrossServices(
 
     if (result.status === "fulfilled" && result.value) {
       links.push(result.value);
+    } else if (result.status === "rejected") {
+      log.error("Resolver", `[${adapter.id}] resolve failed: ${result.reason instanceof Error ? result.reason.message : result.reason}`);
+    }
+  }
+
+  // Derive YouTube Music link from YouTube result (same video ID, different domain)
+  const youtubeLink = links.find((l) => l.service === "youtube");
+  if (youtubeLink) {
+    const videoIdMatch = /[?&]v=([^&]+)/.exec(youtubeLink.url);
+    if (videoIdMatch) {
+      links.push({
+        service: "youtube-music",
+        displayName: "YouTube Music",
+        url: `https://music.youtube.com/watch?v=${videoIdMatch[1]}`,
+        confidence: youtubeLink.confidence,
+        matchMethod: youtubeLink.matchMethod,
+      });
     }
   }
 
@@ -402,7 +422,7 @@ async function resolveAcrossServices(
     }
   }
 
-  // For services with no direct or Odesli match, add YouTube Music search fallback
+  // For services with no direct or Odesli match, add YouTube search fallback
   const coveredAfterOdesli = new Set([
     excludeAdapter.id,
     ...links.map((l) => l.service),
@@ -412,7 +432,7 @@ async function resolveAcrossServices(
     const searchQuery = encodeURIComponent(`${sourceTrack.artists[0]} ${sourceTrack.title}`);
     links.push({
       service: "youtube",
-      displayName: "YouTube Music",
+      displayName: "YouTube",
       url: `https://music.youtube.com/search?q=${searchQuery}`,
       confidence: SEARCH_FALLBACK_CONFIDENCE,
       matchMethod: "search",

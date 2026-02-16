@@ -6,10 +6,10 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // SoundCloud kept in type for backend compatibility (Phase 2)
-export type Platform = "spotify" | "apple-music" | "youtube" | "soundcloud" | "tidal" | "deezer" | "audius" | "napster";
+export type Platform = "spotify" | "apple-music" | "youtube" | "youtube-music" | "soundcloud" | "tidal" | "deezer" | "audius" | "napster";
 
 /** Platforms with URL detection support (SoundCloud uses Odesli fallback only) */
-type DetectablePlatform = Exclude<Platform, "soundcloud">;
+type DetectablePlatform = Exclude<Platform, "soundcloud" | "youtube-music">;
 
 const MUSIC_URL_PATTERNS: Record<DetectablePlatform, RegExp> = {
   spotify: /^https?:\/\/(open\.)?spotify\.com\/(track|album|intl-\w+\/track)\//,
@@ -42,6 +42,7 @@ export const PLATFORM_CONFIG: Record<
   spotify: { label: "Spotify", color: "#1DB954" },
   "apple-music": { label: "Apple Music", color: "#FC3C44" },
   youtube: { label: "YouTube", color: "#FF0000" },
+  "youtube-music": { label: "YouTube Music", color: "#FF0000" },
   soundcloud: { label: "SoundCloud", color: "#FF5500" },
   tidal: { label: "Tidal", color: "#00FFFF" },
   deezer: { label: "Deezer", color: "#A238FF" },

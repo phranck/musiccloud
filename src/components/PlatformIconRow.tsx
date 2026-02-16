@@ -5,6 +5,7 @@ const platforms: Platform[] = [
   "spotify",
   "apple-music",
   "youtube",
+  "youtube-music",
   "soundcloud",
   "deezer",
   "tidal",
