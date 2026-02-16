@@ -23,6 +23,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Sync Astro types
+        run: npx astro sync
+
       - name: Typecheck
         run: npx tsc --noEmit
 
