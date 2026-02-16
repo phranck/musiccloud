@@ -3,6 +3,26 @@ import { eq } from "drizzle-orm";
 import Database from "better-sqlite3";
 import * as schema from "./schema";
 import type { NormalizedTrack } from "../services/types.js";
+import { log } from "../lib/logger.js";
+
+interface TrackRow {
+  id: string;
+  title: string;
+  artists: string;
+  album_name: string | null;
+  isrc: string | null;
+  artwork_url: string | null;
+  duration_ms: number | null;
+}
+
+interface TrackWithLinkRow extends TrackRow {
+  created_at: number;
+  updated_at: number;
+  url: string | null;
+  service: string | null;
+  confidence: number | null;
+  match_method: string | null;
+}
 
 const dbPath = import.meta.env.DATABASE_PATH || "data/music.db";
 export const sqlite = new Database(dbPath);
@@ -30,7 +50,7 @@ export function findTrackByUrl(url: string): { track: NormalizedTrack; links: an
     LIMIT 1
   `);
 
-  const rows = stmt.all(url) as any[];
+  const rows = stmt.all(url) as TrackWithLinkRow[];
   if (rows.length === 0) return null;
 
   const firstRow = rows[0];
@@ -39,15 +59,15 @@ export function findTrackByUrl(url: string): { track: NormalizedTrack; links: an
     sourceId: firstRow.id,
     title: firstRow.title,
     artists: safeParseArray(firstRow.artists, ["Unknown Artist"]),
-    albumName: firstRow.album_name,
-    isrc: firstRow.isrc,
-    artworkUrl: firstRow.artwork_url,
-    durationMs: firstRow.duration_ms,
+    albumName: firstRow.album_name ?? undefined,
+    isrc: firstRow.isrc ?? undefined,
+    artworkUrl: firstRow.artwork_url ?? undefined,
+    durationMs: firstRow.duration_ms ?? undefined,
     webUrl: url,
   };
 
   const links = rows
-    .filter((r) => r.url)
+    .filter((r): r is TrackWithLinkRow & { url: string; service: string; confidence: number; match_method: string } => r.url != null)
     .map((r) => ({
       service: r.service,
       url: r.url,
@@ -81,22 +101,22 @@ export function findTracksByTextSearch(query: string, maxResults: number = 10): 
       LIMIT ?
     `);
 
-    const rows = stmt.all(ftsQuery, maxResults) as any[];
-    console.log("[DB] FTS5 returned", rows.length, "rows");
+    const rows = stmt.all(ftsQuery, maxResults) as TrackRow[];
+    log.debug("DB", "FTS5 returned", rows.length, "rows");
 
     return rows.map((r) => ({
       sourceService: "cached",
       sourceId: r.id,
       title: r.title,
       artists: safeParseArray(r.artists, ["Unknown Artist"]),
-      albumName: r.album_name,
-      isrc: r.isrc,
-      artworkUrl: r.artwork_url,
-      durationMs: r.duration_ms,
+      albumName: r.album_name ?? undefined,
+      isrc: r.isrc ?? undefined,
+      artworkUrl: r.artwork_url ?? undefined,
+      durationMs: r.duration_ms ?? undefined,
       webUrl: "",
     }));
   } catch (error) {
-    console.error("[DB] findTracksByTextSearch error:", error);
+    log.error("DB", "findTracksByTextSearch error:", error);
     return [];
   }
 }
@@ -104,7 +124,7 @@ export function findTracksByTextSearch(query: string, maxResults: number = 10): 
 /**
  * Find a cached track by ISRC
  */
-export function findTrackByIsrc(isrc: string): { track: NormalizedTrack; links: any[] } | null {
+export function findTrackByIsrc(isrc: string): { track: NormalizedTrack; links: Array<{ service: string; url: string; confidence: number; matchMethod: string }> } | null {
   const stmt = sqlite.prepare(`
     SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
            t.artwork_url, t.duration_ms,
@@ -115,7 +135,7 @@ export function findTrackByIsrc(isrc: string): { track: NormalizedTrack; links: 
     LIMIT 1
   `);
 
-  const rows = stmt.all(isrc) as any[];
+  const rows = stmt.all(isrc) as TrackWithLinkRow[];
   if (rows.length === 0) return null;
 
   const firstRow = rows[0];
@@ -124,15 +144,15 @@ export function findTrackByIsrc(isrc: string): { track: NormalizedTrack; links: 
     sourceId: firstRow.id,
     title: firstRow.title,
     artists: safeParseArray(firstRow.artists, ["Unknown Artist"]),
-    albumName: firstRow.album_name,
-    isrc: firstRow.isrc,
-    artworkUrl: firstRow.artwork_url,
-    durationMs: firstRow.duration_ms,
+    albumName: firstRow.album_name ?? undefined,
+    isrc: firstRow.isrc ?? undefined,
+    artworkUrl: firstRow.artwork_url ?? undefined,
+    durationMs: firstRow.duration_ms ?? undefined,
     webUrl: "",
   };
 
   const links = rows
-    .filter((r) => r.url)
+    .filter((r): r is TrackWithLinkRow & { url: string; service: string; confidence: number; match_method: string } => r.url != null)
     .map((r) => ({
       service: r.service,
       url: r.url,

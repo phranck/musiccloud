@@ -26,7 +26,7 @@ export const SongInfo = memo(function SongInfo({
           height={128}
           crossOrigin="anonymous"
           onLoad={(e) => onAlbumArtLoad?.(e.currentTarget)}
-          onError={(e) => { e.currentTarget.style.display = "none"; }}
+          onError={(e) => { e.currentTarget.src = "/og/default.jpg"; }}
         />
       </div>
 

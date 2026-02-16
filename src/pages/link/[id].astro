@@ -77,7 +77,8 @@ const { track, artists, artistDisplay, links, og } = data;
     />
   </head>
   <body class="bg-background text-text-primary antialiased">
-    <main class="mx-auto max-w-md px-4 py-12 text-center">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">Skip to content</a>
+    <main id="main-content" class="mx-auto max-w-md px-4 py-12 text-center">
       {track.artworkUrl && (
         <img
           src={track.artworkUrl}

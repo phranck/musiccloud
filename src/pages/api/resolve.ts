@@ -8,6 +8,7 @@ import { db, sqlite, findExistingByIsrc } from "../../db/index.js";
 import { tracks, serviceLinks, shortUrls } from "../../db/schema.js";
 import { generateTrackId, generateShortId } from "../../lib/short-id.js";
 import { apiRateLimiter } from "../../lib/rate-limiter.js";
+import { log } from "../../lib/logger.js";
 
 const ALLOWED_ORIGINS = ["http://localhost:4321", "http://localhost:4322", "https://music.cloud"];
 
@@ -77,9 +78,9 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       return jsonError(code, status, error.message);
     }
 
-    console.error("[Resolve] Unexpected error:", error instanceof Error ? error.message : "Unknown error");
+    log.error("Resolve", "Unexpected error:", error instanceof Error ? error.message : "Unknown error");
     if (import.meta.env.DEV && error instanceof Error) {
-      console.error("[Resolve] Stack:", error.stack);
+      log.error("Resolve", "Stack:", error.stack);
     }
     return jsonError("NETWORK_ERROR", 500);
   }

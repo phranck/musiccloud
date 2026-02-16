@@ -7,6 +7,7 @@ import { PLATFORM_CONFIG } from "../lib/utils.js";
 import { ResolveError } from "../lib/errors.js";
 import type { ErrorCode } from "../lib/errors.js";
 import { findTrackByUrl, findTrackByIsrc, findTracksByTextSearch } from "../db/index.js";
+import { log } from "../lib/logger.js";
 
 export interface ResolvedLink {
   service: ServiceId;
@@ -86,10 +87,10 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   const cleanUrl = stripTrackingParams(inputUrl);
 
   // 1. DB-First: Check if we have this URL cached
-  console.log("[Resolver] DB-First: Checking for cached URL...");
+  log.debug("Resolver", "DB-First: Checking for cached URL...");
   const cached = findTrackByUrl(cleanUrl);
   if (cached) {
-    console.log("[Resolver] Cache hit! Returning cached result");
+    log.debug("Resolver", "Cache hit! Returning cached result");
     return { sourceTrack: cached.track, links: mapCachedLinks(cached.links) };
   }
 
@@ -106,19 +107,19 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
 
   // 3. Check DB by ISRC if we have it
   if (sourceAdapter.capabilities.supportsIsrc) {
-    console.log("[Resolver] Trying to fetch track metadata for ISRC lookup...");
+    log.debug("Resolver", "Trying to fetch track metadata for ISRC lookup...");
     try {
       const sourceTrack = await sourceAdapter.getTrack(trackId);
       if (sourceTrack.isrc) {
         const cachedByIsrc = findTrackByIsrc(sourceTrack.isrc);
         if (cachedByIsrc) {
-          console.log("[Resolver] Cache hit by ISRC! Returning cached result");
+          log.debug("Resolver", "Cache hit by ISRC! Returning cached result");
           return { sourceTrack: cachedByIsrc.track, links: mapCachedLinks(cachedByIsrc.links) };
         }
       }
     } catch (error) {
       // Continue with normal flow if metadata fetch fails
-      console.log("[Resolver] Metadata fetch failed, continuing with normal flow");
+      log.debug("Resolver", "Metadata fetch failed, continuing with normal flow");
     }
   }
 
@@ -151,10 +152,10 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
 
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
   // 1. DB-First: Check if we have similar tracks cached
-  console.log("[Resolver] resolveTextSearch - DB-First: Searching FTS5...");
+  log.debug("Resolver", "resolveTextSearch - DB-First: Searching FTS5...");
   const cachedTracks = findTracksByTextSearch(query, 1);
   if (cachedTracks.length > 0) {
-    console.log("[Resolver] DB cache hit for text search!");
+    log.debug("Resolver", "DB cache hit for text search!");
     const track = cachedTracks[0];
     const isrcMatch = track.isrc ? findTrackByIsrc(track.isrc) : null;
     if (isrcMatch) {
@@ -198,13 +199,13 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
 export async function resolveTextSearchWithDisambiguation(
   query: string,
 ): Promise<TextSearchResult> {
-  console.log("[Resolver] resolveTextSearchWithDisambiguation called with:", query);
+  log.debug("Resolver", "resolveTextSearchWithDisambiguation called with:", query);
 
   // 1. DB-First: Check if we have similar tracks cached
-  console.log("[Resolver] DB-First: Searching FTS5 for similar tracks...");
+  log.debug("Resolver", "DB-First: Searching FTS5 for similar tracks...");
   const cachedTracks = findTracksByTextSearch(query, MAX_CANDIDATES);
   if (cachedTracks.length > 0) {
-    console.log("[Resolver] DB cache hit! Found", cachedTracks.length, "cached tracks");
+    log.debug("Resolver", "DB cache hit! Found", cachedTracks.length, "cached tracks");
     // Return as candidates (user can select or we can auto-select if high confidence)
     const candidates: SearchCandidate[] = cachedTracks
       .slice(0, MAX_CANDIDATES)
@@ -370,7 +371,6 @@ async function resolveAcrossServices(
   }
 
   // For services with no direct or Odesli match, add YouTube Music search fallback
-  const allServiceIds: ServiceId[] = ["spotify", "apple-music", "youtube", "soundcloud"];
   const coveredAfterOdesli = new Set([
     excludeAdapter.id,
     ...links.map((l) => l.service),

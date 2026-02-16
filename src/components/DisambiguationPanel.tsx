@@ -64,7 +64,7 @@ export function DisambiguationPanel({
                     width={64}
                     height={64}
                     loading="lazy"
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    onError={(e) => { e.currentTarget.src = "/og/default.jpg"; }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-surface-elevated">

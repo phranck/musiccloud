@@ -7,6 +7,7 @@ import type {
 } from "../types.js";
 import { calculateConfidence } from "../../lib/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
+import { log } from "../../lib/logger.js";
 
 const SPOTIFY_TRACK_REGEX =
   /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?track\/([a-zA-Z0-9]+)/;
@@ -252,7 +253,7 @@ export const spotifyAdapter = {
     artist: string;
     album?: string;
   }): Promise<SearchResultWithCandidates> {
-    console.log("[Spotify] searchTrackWithCandidates called with:", query);
+    log.debug("Spotify", "searchTrackWithCandidates called with:", query);
     const isFreeText = query.title === query.artist;
     let q: string;
 
@@ -268,15 +269,15 @@ export const spotifyAdapter = {
       q = encodeURIComponent(parts.join(" "));
     }
 
-    console.log("[Spotify] Search query string:", q);
+    log.debug("Spotify", "Search query string:", q);
 
     const response = await spotifyFetch(`/search?type=track&q=${q}&limit=10`);
 
-    console.log("[Spotify] API response status:", response.status, response.ok);
+    log.debug("Spotify", "API response status:", response.status, response.ok);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[Spotify] Search failed:", response.status, errorText);
+      log.error("Spotify", "Search failed:", response.status, errorText);
       return {
         bestMatch: { found: false, confidence: 0, matchMethod: "search" },
         candidates: [],

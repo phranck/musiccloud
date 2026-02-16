@@ -41,7 +41,7 @@ export function SharePage({ data }: SharePageProps) {
           className="w-full h-full object-cover"
           width={256}
           height={256}
-          onError={(e) => { e.currentTarget.style.display = "none"; }}
+          onError={(e) => { e.currentTarget.src = "/og/default.jpg"; }}
         />
       </div>
 
