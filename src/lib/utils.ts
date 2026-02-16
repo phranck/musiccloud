@@ -5,17 +5,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// SoundCloud kept in type for backend compatibility (Phase 2)
+// All supported music platforms
 export type Platform = "spotify" | "apple-music" | "youtube" | "youtube-music" | "soundcloud" | "tidal" | "deezer" | "audius" | "napster";
 
-/** Platforms with URL detection support (SoundCloud uses Odesli fallback only) */
-type DetectablePlatform = Exclude<Platform, "soundcloud" | "youtube-music">;
+/** Platforms with URL detection support (YouTube Music is derived from YouTube) */
+type DetectablePlatform = Exclude<Platform, "youtube-music">;
 
 const MUSIC_URL_PATTERNS: Record<DetectablePlatform, RegExp> = {
   spotify: /^https?:\/\/(open\.)?spotify\.com\/(track|album|intl-\w+\/track)\//,
   "apple-music": /^https?:\/\/music\.apple\.com\//,
   youtube:
     /^https?:\/\/(www\.)?(youtube\.com\/(watch|shorts)|youtu\.be\/|music\.youtube\.com\/)/,
+  soundcloud: /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/[^/]+/,
   tidal: /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?track\//,
   deezer: /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?track\//,
   audius: /^https?:\/\/audius\.co\/[^/]+\/[^/]+/,

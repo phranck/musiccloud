@@ -4,6 +4,7 @@ import { appleMusicAdapter } from "../services/adapters/apple-music";
 import { youtubeAdapter } from "../services/adapters/youtube";
 import { audiusAdapter } from "../services/adapters/audius";
 import { napsterAdapter } from "../services/adapters/napster";
+import { soundcloudAdapter } from "../services/adapters/soundcloud";
 
 // =============================================================================
 // Spotify adapter: detectUrl
@@ -185,6 +186,54 @@ describe("Napster: detectUrl (adapter-urls)", () => {
   it("should return null for non-Napster URL", () => {
     expect(
       napsterAdapter.detectUrl("https://open.spotify.com/track/abc123"),
+    ).toBeNull();
+  });
+});
+
+// =============================================================================
+// SoundCloud adapter: detectUrl
+// =============================================================================
+
+describe("SoundCloud: detectUrl (adapter-urls)", () => {
+  it("should extract path from standard URL", () => {
+    expect(
+      soundcloudAdapter.detectUrl("https://soundcloud.com/taylorswift/shake-it-off"),
+    ).toBe("taylorswift/shake-it-off");
+  });
+
+  it("should extract path from www URL", () => {
+    expect(
+      soundcloudAdapter.detectUrl("https://www.soundcloud.com/taylorswift/shake-it-off"),
+    ).toBe("taylorswift/shake-it-off");
+  });
+
+  it("should extract path from mobile URL", () => {
+    expect(
+      soundcloudAdapter.detectUrl("https://m.soundcloud.com/taylorswift/shake-it-off"),
+    ).toBe("taylorswift/shake-it-off");
+  });
+
+  it("should strip query parameters", () => {
+    expect(
+      soundcloudAdapter.detectUrl("https://soundcloud.com/taylorswift/shake-it-off?si=abc"),
+    ).toBe("taylorswift/shake-it-off");
+  });
+
+  it("should return null for set/playlist URL", () => {
+    expect(
+      soundcloudAdapter.detectUrl("https://soundcloud.com/taylorswift/sets/1989"),
+    ).toBeNull();
+  });
+
+  it("should return null for user profile URL", () => {
+    expect(
+      soundcloudAdapter.detectUrl("https://soundcloud.com/taylorswift"),
+    ).toBeNull();
+  });
+
+  it("should return null for non-SoundCloud URL", () => {
+    expect(
+      soundcloudAdapter.detectUrl("https://open.spotify.com/track/abc123"),
     ).toBeNull();
   });
 });
