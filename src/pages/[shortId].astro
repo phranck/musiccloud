@@ -9,6 +9,7 @@ export const prerender = false;
 
 import { loadByShortId } from "../lib/share-page";
 import { PLATFORM_CONFIG, type Platform } from "../lib/utils";
+import { PlatformIcon } from "../components/PlatformIcon";
 import "../styles/global.css";
 
 const { shortId } = Astro.params;
@@ -55,21 +56,25 @@ const { track, artistDisplay, links, og } = data;
   </head>
   <body class="bg-background text-text-primary antialiased">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">Skip to content</a>
-    <main id="main-content" class="mx-auto max-w-md px-4 py-12 text-center">
+
+    <main id="main-content" class="min-h-screen flex flex-col items-center justify-center px-4 pb-20">
+      {/* Album Art */}
       {track.artworkUrl && (
         <img
           src={track.artworkUrl}
           alt={`${track.title} by ${artistDisplay}`}
-          class="mx-auto mb-6 h-56 w-56 md:h-64 md:w-64 rounded-2xl shadow-2xl"
-          width="256"
-          height="256"
+          class="mb-6 h-72 w-72 md:h-80 md:w-80 rounded-2xl shadow-2xl object-cover"
+          width="320"
+          height="320"
         />
       )}
 
-      <h1 class="mb-1 text-3xl font-bold tracking-[-0.02em]">{track.title}</h1>
-      <p class="mb-8 text-lg text-text-secondary">{artistDisplay}</p>
+      {/* Song Info */}
+      <h1 class="mb-1 text-2xl md:text-3xl font-bold tracking-[-0.02em] text-center">{track.title}</h1>
+      <p class="mb-8 text-lg text-text-secondary text-center">{artistDisplay}</p>
 
-      <div class="space-y-3">
+      {/* Platform Buttons */}
+      <div class="w-full max-w-sm space-y-3">
         {links.map((link) => {
           const platform = link.service as Platform;
           const config = PLATFORM_CONFIG[platform];
@@ -79,20 +84,41 @@ const { track, artistDisplay, links, og } = data;
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"
-              class="flex items-center justify-center gap-3 rounded-xl bg-surface-elevated/60 px-5 py-4 font-medium tracking-[-0.01em] backdrop-blur border border-white/[0.06] transition-all duration-150 hover:bg-surface-elevated"
+              class="flex items-center gap-3 px-5 py-3 rounded-xl transition-all duration-150 min-h-[52px] w-full bg-white/[0.06] border border-white/[0.10] hover:bg-white/[0.10] hover:scale-[1.03] hover:shadow-[0_0_16px_var(--platform-color)] focus-visible:bg-white/[0.10] focus-visible:scale-[1.03] focus-visible:shadow-[0_0_16px_var(--platform-color)] active:scale-[0.97]"
+              style={`--platform-color: ${config.color}60`}
+              aria-label={`Open ${track.title} on ${label} (opens in new window)`}
             >
-              Listen on {label}
+              <PlatformIcon client:load platform={platform} className="w-7 h-7 flex-shrink-0" colored={true} />
+              <span class="font-medium text-base text-text-primary tracking-[-0.01em] flex-1">
+                Listen on {label}
+              </span>
+              <svg
+                class="w-4 h-4 text-text-muted flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
             </a>
           );
         })}
       </div>
+    </main>
 
-      <p class="mt-12 text-sm text-text-muted">
+    {/* Sticky Footer */}
+    <footer class="fixed bottom-0 left-0 right-0 flex items-center justify-center px-6 py-3 text-xs text-text-muted">
+      <span>
         powered by
-        <a href="/" class="text-accent hover:underline ml-1">
+        <a href="/" class="text-accent hover:text-accent-hover transition-colors duration-150 ml-1 font-medium">
           music.cloud
         </a>
-      </p>
-    </main>
+      </span>
+    </footer>
   </body>
 </html>

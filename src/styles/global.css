@@ -11,8 +11,8 @@
   --color-accent-glow: rgba(110, 110, 247, 0.25);
   --color-secondary: #FC5C9C;
   --color-text-primary: #F5F5F7;
-  --color-text-secondary: #86868B;
-  --color-text-muted: #48484A;
+  --color-text-secondary: #AEAEB2;
+  --color-text-muted: #7C7C80;
   --color-border: #38383A;
   --color-error: #FF453A;
   --color-success: #30D158;
@@ -24,16 +24,19 @@
   --color-soundcloud: #FF5500;
 
   /* Typography - SF Pro system stack */
-  --font-family-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display",
     "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
-  --font-family-mono: "SF Mono", "Fira Code", monospace;
+  --font-mono: "SF Mono", "Fira Code", monospace;
 
   /* Animations - Apple ease-out curves */
   --animate-gradient-float: gradient-float 20s ease-in-out infinite;
   --animate-slide-up: slide-up 0.4s cubic-bezier(0, 0, 0.2, 1) both;
+  --animate-zoom-in: zoom-in 0.5s cubic-bezier(0, 0, 0.2, 1) both;
+  --animate-slide-out-down: slide-out-down 0.4s cubic-bezier(0.42, 0, 1, 1) both;
   --animate-fade-in: fade-in 0.25s cubic-bezier(0, 0, 0.2, 1) both;
   --animate-spin: spin 1s linear infinite;
   --animate-pulse-glow: pulse-glow 2.5s ease-in-out infinite;
+  --animate-marquee: marquee 30s linear infinite;
 }
 
 @import "./animations.css";

@@ -37,23 +37,23 @@ export const PlatformButton = memo(function PlatformButton({
       rel="noopener noreferrer"
       aria-label={`Open ${songTitle} on ${label} (opens in new window)`}
       className={cn(
-        "flex items-center gap-3 px-5 py-3.5 rounded-xl",
+        "flex items-center gap-3 px-5 py-2.5 rounded-xl",
         "transition-all duration-150",
         "min-h-[48px] w-full",
-        "bg-surface-elevated/80",
+        "bg-white/[0.06]",
         "glass-fallback",
-        "border border-white/[0.06]",
-        "hover:scale-[1.03] hover:shadow-[0_0_12px_var(--platform-color)]",
-        "focus-visible:scale-[1.03] focus-visible:shadow-[0_0_12px_var(--platform-color)]",
+        "border border-white/[0.10]",
+        "hover:bg-white/[0.10] hover:scale-[1.03] hover:shadow-[0_0_16px_var(--platform-color)]",
+        "focus-visible:bg-white/[0.10] focus-visible:scale-[1.03] focus-visible:shadow-[0_0_16px_var(--platform-color)]",
         "active:scale-[0.97]",
         className,
       )}
-      style={{ "--platform-color": `${config.color}40` } as React.CSSProperties}
+      style={{ "--platform-color": `${config.color}60` } as React.CSSProperties}
     >
       <PlatformIcon platform={platform} className="w-8 h-8 flex-shrink-0" colored={true} />
       <div className="flex-1">
         <span className="font-medium text-base text-text-primary tracking-[-0.01em]">
-          Listen on {label}
+          {label}
         </span>
         {isDev && sourceLabel && (
           <div className="text-xs text-text-muted">

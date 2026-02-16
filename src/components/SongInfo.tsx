@@ -4,43 +4,56 @@ interface SongInfoProps {
   title: string;
   artist: string;
   album?: string;
+  releaseDate?: string;
   albumArtUrl: string;
   onAlbumArtLoad?: (img: HTMLImageElement) => void;
+}
+
+function formatYear(dateStr: string): string | null {
+  const year = dateStr.slice(0, 4);
+  return /^\d{4}$/.test(year) ? year : null;
 }
 
 export const SongInfo = memo(function SongInfo({
   title,
   artist,
   album,
+  releaseDate,
   albumArtUrl,
   onAlbumArtLoad,
 }: SongInfoProps) {
+  const year = releaseDate ? formatYear(releaseDate) : null;
+
   return (
-    <div className="flex flex-col items-center p-6 pb-4">
-      <div className="w-40 h-40 md:w-[200px] md:h-[200px] rounded-xl overflow-hidden shadow-2xl mb-5">
+    <div>
+      {/* Album art - full width, card-filling */}
+      <div className="aspect-square w-full overflow-hidden">
         <img
           src={albumArtUrl}
           alt={`"${title}" by ${artist} - album artwork`}
           className="w-full h-full object-cover"
-          width={200}
-          height={200}
+          width={480}
+          height={480}
           crossOrigin="anonymous"
           onLoad={(e) => onAlbumArtLoad?.(e.currentTarget)}
           onError={(e) => { e.currentTarget.src = "/og/default.jpg"; }}
         />
       </div>
 
-      <h2 className="text-xl md:text-2xl font-semibold tracking-[-0.02em] text-text-primary text-center">
-        {title}
-      </h2>
-      <p className="text-base text-text-secondary mt-1 text-center">
-        {artist}
-      </p>
-      {album && (
-        <p className="text-sm text-text-muted mt-0.5 text-center">
-          {album}
+      {/* Track metadata */}
+      <div className="px-6 pt-5 pb-4">
+        <h2 className="text-xl md:text-2xl font-semibold tracking-[-0.02em] text-text-primary">
+          {title}
+        </h2>
+        <p className="text-base text-text-secondary mt-1">
+          {artist}
         </p>
-      )}
+        {(album || year) && (
+          <p className="text-base text-text-muted mt-1">
+            {[album, year].filter(Boolean).join(" \u00B7 ")}
+          </p>
+        )}
+      </div>
     </div>
   );
 });

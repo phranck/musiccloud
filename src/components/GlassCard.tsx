@@ -18,7 +18,7 @@ export function GlassCard({
         "glass-fallback",
         elevated
           ? [
-              "bg-surface-elevated/80 backdrop-blur-[24px]",
+              "bg-surface-elevated/95 backdrop-blur-[24px]",
               "border border-white/[0.08]",
               "shadow-xl",
             ]

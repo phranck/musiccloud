@@ -15,6 +15,7 @@ export interface SongResult {
   title: string;
   artist: string;
   album?: string;
+  releaseDate?: string;
   albumArtUrl: string;
   /** Only includes platforms where the song was actually found */
   platforms: PlatformLink[];
@@ -44,8 +45,8 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
     <GlassCard
       elevated
       className={cn(
-        "w-full max-w-[480px] mx-auto mt-8",
-        "animate-slide-up [animation-fill-mode:both]",
+        "w-full max-w-[480px] mx-auto mt-8 rounded-[36px]",
+        "animate-zoom-in",
       )}
     >
       {/* Screen reader announcement */}
@@ -57,12 +58,13 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
         title={result.title}
         artist={result.artist}
         album={result.album}
+        releaseDate={result.releaseDate}
         albumArtUrl={result.albumArtUrl}
         onAlbumArtLoad={onAlbumArtLoad}
       />
 
-      {/* Share action (PRIMARY - most prominent) */}
-      <div className="px-6 pb-4">
+      {/* Share action */}
+      <div className="px-6 pb-5">
         <ShareButton
           shareUrl={result.shareUrl}
           songTitle={result.title}
@@ -70,15 +72,13 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
         />
       </div>
 
-      {/* Platform buttons - only available platforms shown */}
+      {/* Platform buttons */}
       {result.platforms.length > 0 && (
-        <>
-          <div className="px-6 pb-2">
-            <p className="text-sm text-text-muted mb-2">
-              Open in your favorite app
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-3 px-6 pb-6">
+        <div className="border-t border-white/[0.06] px-6 pt-5 pb-6">
+          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3">
+            Listen on
+          </p>
+          <div className="grid grid-cols-2 gap-3">
             {result.platforms.map((p) => (
               <PlatformButton
                 key={p.platform}
@@ -90,11 +90,16 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
               />
             ))}
           </div>
-        </>
+          {platformsInfo && (
+            <p className="text-sm text-text-secondary text-center mt-4">
+              {platformsInfo}
+            </p>
+          )}
+        </div>
       )}
 
-      {/* Partial results message */}
-      {platformsInfo && (
+      {/* Partial results (no platforms) */}
+      {result.platforms.length === 0 && platformsInfo && (
         <div className="px-6 pb-6 pt-2">
           <p className="text-sm text-text-secondary text-center">
             {platformsInfo}

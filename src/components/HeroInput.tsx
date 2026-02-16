@@ -7,6 +7,7 @@ interface HeroInputProps {
   onSubmit: (url: string) => void;
   onClear: () => void;
   state: InputState;
+  compact?: boolean;
   songName?: string;
   errorMessage?: string;
 }
@@ -20,6 +21,7 @@ export function HeroInput({
   onSubmit,
   onClear,
   state,
+  compact = false,
   songName,
   errorMessage,
 }: HeroInputProps) {
@@ -106,7 +108,10 @@ export function HeroInput({
   const displayValue = state === "success" && songName ? songName : value;
 
   return (
-    <div className="relative w-full max-w-[640px]">
+    <div className={cn(
+      "relative w-full transition-all duration-500",
+      (state === "success" || compact) ? "max-w-[480px]" : "max-w-[640px]",
+    )}>
       {/* Loading message above input */}
       {state === "loading" && (
         <p
@@ -120,11 +125,11 @@ export function HeroInput({
       {/* Input wrapper */}
       <div
         className={cn(
-          "relative flex items-center rounded-[20px]",
-          "bg-surface/40 backdrop-blur-[20px]",
+          "relative flex items-center rounded-full",
+          "bg-surface/60 backdrop-blur-[20px]",
           "border",
           "transition-all duration-[250ms]",
-          state === "idle" && "border-white/10",
+          state === "idle" && "border-white/15",
           state === "focused" && [
             "border-accent",
             "shadow-[0_0_15px_rgba(110,110,247,0.25)]",
@@ -134,8 +139,8 @@ export function HeroInput({
             "animate-pulse-glow",
           ],
           state === "success" && [
-            "border-success",
-            "shadow-[0_0_12px_rgba(48,209,88,0.25)]",
+            "border-accent",
+            "shadow-[0_0_12px_rgba(110,110,247,0.25)]",
           ],
           state === "error" && [
             "border-error",
@@ -153,10 +158,10 @@ export function HeroInput({
           onFocus={() => {
             /* parent manages state */
           }}
-          placeholder="Paste a link or search by name..."
+          placeholder="Paste a link or album and search by artist or title..."
           readOnly={state === "loading" || state === "success"}
           className={cn(
-            "flex-1 bg-transparent px-6 text-lg font-medium text-text-primary tracking-[-0.01em]",
+            "flex-1 bg-transparent border-0 px-6 text-lg font-medium text-text-primary tracking-[-0.01em]",
             "placeholder:text-text-muted placeholder:tracking-normal outline-none",
             "h-14 md:h-16",
             state === "loading" && "opacity-50",
@@ -206,7 +211,7 @@ export function HeroInput({
             state === "loading"
               ? "bg-accent/50 cursor-wait"
               : state === "success"
-                ? "bg-success"
+                ? "bg-accent"
                 : [
                     "bg-accent text-white",
                     "hover:scale-[1.08] hover:shadow-[0_0_12px_rgba(110,110,247,0.35)]",

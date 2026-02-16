@@ -1,50 +1,54 @@
-import { cn, type Platform, PLATFORM_CONFIG } from "../lib/utils";
+import { type Platform, PLATFORM_CONFIG } from "../lib/utils";
 import { PlatformIcon } from "./PlatformIcon";
 
-interface PlatformIconRowProps {
-  highlightedPlatforms?: Platform[];
-  searching?: boolean;
-}
-
-// MVP platforms only (SoundCloud deferred to Phase 2)
 const platforms: Platform[] = [
   "spotify",
   "apple-music",
   "youtube",
+  "soundcloud",
+  "deezer",
+  "tidal",
 ];
 
-export function PlatformIconRow({
-  highlightedPlatforms = [],
-  searching = false,
-}: PlatformIconRowProps) {
+function MarqueeStrip({ label }: { label?: boolean }) {
   return (
     <div
-      className="flex items-center justify-center gap-4 mt-6"
-      aria-label="Supported platforms"
+      className="flex items-center gap-12 shrink-0 pr-12"
+      {...(!label && { "aria-hidden": true })}
     >
-      {platforms.map((platform, i) => {
-        const highlighted = highlightedPlatforms.includes(platform);
-        const config = PLATFORM_CONFIG[platform];
+      {platforms.map((platform) => (
+        <div
+          key={platform}
+          className="opacity-25 flex-shrink-0"
+          title={PLATFORM_CONFIG[platform].label}
+          {...(label && {
+            "aria-label": PLATFORM_CONFIG[platform].label,
+            role: "img" as const,
+          })}
+        >
+          <PlatformIcon platform={platform} className="w-8 h-8" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
-        return (
-          <div
-            key={platform}
-            className={cn(
-              "transition-opacity duration-200",
-              highlighted ? "opacity-100" : "opacity-40",
-              !highlighted && "hover:opacity-70",
-            )}
-            style={{
-              color: highlighted ? config.color : undefined,
-            }}
-            title={config.label}
-            aria-label={config.label}
-            role="img"
-          >
-            <PlatformIcon platform={platform} className="w-6 h-6" />
-          </div>
-        );
-      })}
+export function PlatformIconRow() {
+  return (
+    <div className="fixed bottom-12 left-0 right-0 flex justify-center">
+      <div
+        className="w-1/2 overflow-hidden"
+        aria-label="Supported platforms"
+        style={{
+          maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
+          WebkitMaskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
+        }}
+      >
+        <div className="flex w-max will-change-transform animate-marquee">
+          <MarqueeStrip label />
+          <MarqueeStrip />
+        </div>
+      </div>
     </div>
   );
 }
