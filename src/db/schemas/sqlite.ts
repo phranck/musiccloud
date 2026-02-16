@@ -8,6 +8,7 @@ export const tracks = sqliteTable("tracks", {
   isrc: text("isrc"),
   artworkUrl: text("artwork_url"),
   durationMs: integer("duration_ms"),
+  releaseDate: text("release_date"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 }, (table) => [

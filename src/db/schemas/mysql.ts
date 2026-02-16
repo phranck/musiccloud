@@ -8,6 +8,7 @@ export const tracks = mysqlTable("tracks", {
   isrc: varchar("isrc", { length: 15 }),
   artworkUrl: text("artwork_url"),
   durationMs: int("duration_ms"),
+  releaseDate: varchar("release_date", { length: 10 }),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 }, (table) => [

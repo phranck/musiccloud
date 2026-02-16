@@ -5,6 +5,8 @@ interface SongInfoProps {
   artist: string;
   album?: string;
   releaseDate?: string;
+  durationMs?: number;
+  isrc?: string;
   albumArtUrl: string;
   onAlbumArtLoad?: (img: HTMLImageElement) => void;
 }
@@ -14,15 +16,26 @@ function formatYear(dateStr: string): string | null {
   return /^\d{4}$/.test(year) ? year : null;
 }
 
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 export const SongInfo = memo(function SongInfo({
   title,
   artist,
   album,
   releaseDate,
+  durationMs,
+  isrc,
   albumArtUrl,
   onAlbumArtLoad,
 }: SongInfoProps) {
   const year = releaseDate ? formatYear(releaseDate) : null;
+  const duration = durationMs ? formatDuration(durationMs) : null;
+  const metaItems = [duration, isrc, year].filter(Boolean);
 
   return (
     <div>
@@ -48,9 +61,14 @@ export const SongInfo = memo(function SongInfo({
         <p className="text-base text-text-secondary mt-1">
           {artist}
         </p>
-        {(album || year) && (
+        {album && (
           <p className="text-base text-text-muted mt-1">
-            {[album, year].filter(Boolean).join(" \u00B7 ")}
+            {album}
+          </p>
+        )}
+        {metaItems.length > 0 && (
+          <p className="text-sm text-text-muted/60 mt-2 font-mono tracking-wide">
+            {metaItems.join(" \u00B7 ")}
           </p>
         )}
       </div>

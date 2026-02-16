@@ -8,25 +8,29 @@ const platforms: Platform[] = [
   "soundcloud",
   "deezer",
   "tidal",
+  "audius",
+  "napster",
 ];
 
 function MarqueeStrip({ label }: { label?: boolean }) {
   return (
     <div
-      className="flex items-center gap-12 shrink-0 pr-12"
+      className="flex items-center gap-16 shrink-0 pr-16"
       {...(!label && { "aria-hidden": true })}
     >
       {platforms.map((platform) => (
         <div
           key={platform}
-          className="opacity-25 flex-shrink-0"
-          title={PLATFORM_CONFIG[platform].label}
+          className="group relative opacity-25 hover:opacity-60 transition-opacity duration-200 flex-shrink-0"
           {...(label && {
             "aria-label": PLATFORM_CONFIG[platform].label,
             role: "img" as const,
           })}
         >
           <PlatformIcon platform={platform} className="w-8 h-8" />
+          <span className="absolute left-1/2 -translate-x-1/2 top-full mt-2 text-[11px] text-text-secondary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            {PLATFORM_CONFIG[platform].label}
+          </span>
         </div>
       ))}
     </div>
@@ -37,7 +41,7 @@ export function PlatformIconRow() {
   return (
     <div className="fixed bottom-12 left-0 right-0 flex justify-center">
       <div
-        className="w-1/2 overflow-hidden"
+        className="w-1/2 overflow-x-clip overflow-y-visible pb-6"
         aria-label="Supported platforms"
         style={{
           maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",

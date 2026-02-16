@@ -8,6 +8,7 @@ export const tracks = pgTable("tracks", {
   isrc: text("isrc"),
   artworkUrl: text("artwork_url"),
   durationMs: integer("duration_ms"),
+  releaseDate: text("release_date"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 }, (table) => [

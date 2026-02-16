@@ -19,6 +19,9 @@ export interface SharePageDbResult {
     title: string;
     albumName: string | null;
     artworkUrl: string | null;
+    durationMs: number | null;
+    isrc: string | null;
+    releaseDate: string | null;
   };
   artists: string[];
   artistDisplay: string;
@@ -35,6 +38,7 @@ export interface PersistTrackData {
     isrc?: string;
     artworkUrl?: string;
     durationMs?: number;
+    releaseDate?: string;
   };
   links: Array<{
     service: string;

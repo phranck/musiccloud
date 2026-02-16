@@ -44,6 +44,50 @@ export class SqliteAdapter implements TrackRepository {
     this.sqlite.pragma("journal_mode = WAL");
     this.sqlite.pragma("foreign_keys = ON");
     this.db = drizzle(this.sqlite, { schema });
+    this.ensureSchema();
+  }
+
+  private ensureSchema(): void {
+    const tableExists = this.sqlite.prepare(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='tracks'`
+    ).get();
+
+    if (!tableExists) {
+      this.sqlite.exec(`
+        CREATE TABLE tracks (
+          id TEXT PRIMARY KEY NOT NULL,
+          title TEXT NOT NULL,
+          artists TEXT NOT NULL,
+          album_name TEXT,
+          isrc TEXT,
+          artwork_url TEXT,
+          duration_ms INTEGER,
+          release_date TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX idx_tracks_isrc ON tracks (isrc);
+
+        CREATE TABLE service_links (
+          id TEXT PRIMARY KEY NOT NULL,
+          track_id TEXT NOT NULL REFERENCES tracks(id),
+          service TEXT NOT NULL,
+          external_id TEXT,
+          url TEXT NOT NULL,
+          confidence REAL NOT NULL,
+          match_method TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE UNIQUE INDEX idx_service_links_track_service ON service_links (track_id, service);
+        CREATE INDEX idx_service_links_service_external ON service_links (service, external_id);
+
+        CREATE TABLE short_urls (
+          id TEXT PRIMARY KEY NOT NULL,
+          track_id TEXT NOT NULL REFERENCES tracks(id),
+          created_at INTEGER NOT NULL
+        );
+      `);
+    }
   }
 
   async findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
@@ -127,6 +171,9 @@ export class SqliteAdapter implements TrackRepository {
         artists: schema.tracks.artists,
         albumName: schema.tracks.albumName,
         artworkUrl: schema.tracks.artworkUrl,
+        durationMs: schema.tracks.durationMs,
+        isrc: schema.tracks.isrc,
+        releaseDate: schema.tracks.releaseDate,
         linkService: schema.serviceLinks.service,
         linkUrl: schema.serviceLinks.url,
       })
@@ -149,6 +196,9 @@ export class SqliteAdapter implements TrackRepository {
         artists: schema.tracks.artists,
         albumName: schema.tracks.albumName,
         artworkUrl: schema.tracks.artworkUrl,
+        durationMs: schema.tracks.durationMs,
+        isrc: schema.tracks.isrc,
+        releaseDate: schema.tracks.releaseDate,
         linkService: schema.serviceLinks.service,
         linkUrl: schema.serviceLinks.url,
         shortUrlId: schema.shortUrls.id,
@@ -203,6 +253,7 @@ export class SqliteAdapter implements TrackRepository {
         isrc: data.sourceTrack.isrc ?? null,
         artworkUrl: data.sourceTrack.artworkUrl ?? null,
         durationMs: data.sourceTrack.durationMs ? Math.floor(data.sourceTrack.durationMs) : null,
+        releaseDate: data.sourceTrack.releaseDate ?? null,
         createdAt: now,
         updatedAt: now,
       }).run();
@@ -306,7 +357,7 @@ export class SqliteAdapter implements TrackRepository {
   }
 
   private buildSharePageResult(
-    rows: { title: string; artists: string; albumName: string | null; artworkUrl: string | null; linkService: string; linkUrl: string }[],
+    rows: { title: string; artists: string; albumName: string | null; artworkUrl: string | null; durationMs: number | null; isrc: string | null; releaseDate: string | null; linkService: string; linkUrl: string }[],
     shortId: string,
   ): SharePageDbResult {
     const first = rows[0];
@@ -315,7 +366,7 @@ export class SqliteAdapter implements TrackRepository {
     const links = rows.map((r) => ({ service: r.linkService, url: r.linkUrl }));
 
     return {
-      track: { title: first.title, albumName: first.albumName, artworkUrl: first.artworkUrl },
+      track: { title: first.title, albumName: first.albumName, artworkUrl: first.artworkUrl, durationMs: first.durationMs, isrc: first.isrc, releaseDate: first.releaseDate },
       artists,
       artistDisplay,
       shortId,

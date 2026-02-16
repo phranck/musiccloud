@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn, isMusicUrl } from "../lib/utils";
 
 export type InputState = "idle" | "focused" | "loading" | "success" | "error";
@@ -54,28 +54,31 @@ export function HeroInput({
   }, [state]);
 
   // Ambilight: Siri-style waves - concentrated light blobs traveling around the border
-  const waveSeeds = useRef({
-    hues: [Math.random() * 360, Math.random() * 360, Math.random() * 360],
-    speeds: [
-      0.7 + Math.random() * 0.4,        // wave 1: moderate forward
-      -0.5 + Math.random() * -0.3,       // wave 2: moderate reverse
-      0.2 + Math.random() * 0.1,         // wave 3: slow full-orbit, broad glow circling the ring
-    ],
-    widths: [
-      35 + Math.random() * 15,           // wave 1: narrow blob
-      25 + Math.random() * 15,           // wave 2: narrow blob
-      80 + Math.random() * 30,           // wave 3: wide arc (~quarter ring), overlaps others
-    ],
-    alphas: [0.8, 0.8, 0.4],            // wave 3: softer so it blends under the narrow ones
-  });
+  // Start hues spaced 120 degrees apart for full rainbow coverage
+  const waveSeeds = useMemo(() => {
+    const offset = Math.random() * 360;
+    return {
+      hues: [offset, (offset + 120) % 360, (offset + 240) % 360],
+      speeds: [
+        0.7 + Math.random() * 0.4,        // wave 1: moderate forward
+        -0.5 + Math.random() * -0.3,       // wave 2: moderate reverse
+        0.2 + Math.random() * 0.1,         // wave 3: slow full-orbit, broad glow circling the ring
+      ],
+      widths: [
+        35 + Math.random() * 15,           // wave 1: narrow blob
+        25 + Math.random() * 15,           // wave 2: narrow blob
+        80 + Math.random() * 30,           // wave 3: wide arc (~quarter ring), overlaps others
+      ],
+      alphas: [0.8, 0.8, 0.4],            // wave 3: softer so it blends under the narrow ones
+    };
+  }, []);
   useEffect(() => {
-    if (state !== "focused" && state !== "loading") return;
     const el = ambilightRef.current;
     if (!el) return;
 
     let raf: number;
     const startTime = performance.now();
-    const { hues, speeds, widths, alphas } = waveSeeds.current;
+    const { hues, speeds, widths, alphas } = waveSeeds;
 
     // Sample the gradient at fixed angle steps for a seamless closed loop
     const STEPS = 72; // every 5 degrees
@@ -87,7 +90,7 @@ export function HeroInput({
       // Wave center positions, hues, and per-wave peak alpha
       const wavePos = hues.map((baseHue, i) => ({
         center: ((speeds[i] * t * 60) % 360 + 360) % 360,
-        hue: (baseHue + t * 8) % 360,
+        hue: (baseHue + t * 15) % 360,
         halfWidth: widths[i] / 2,
         peakAlpha: alphas[i],
       }));
@@ -130,7 +133,7 @@ export function HeroInput({
 
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [state]);
+  }, []);
 
   const cancelAutoSubmit = useCallback(() => {
     if (autoSubmitTimer.current) {
@@ -208,24 +211,22 @@ export function HeroInput({
 
       {/* Input + Ambilight wrapper */}
       <div className="relative">
-      {/* Ambilight glow - ring behind the input border, when focused or loading */}
-      {(state === "focused" || state === "loading") && (
-        <div
-          ref={ambilightRef}
-          className="absolute inset-[-6px] rounded-full blur-[10px] opacity-90 pointer-events-none"
-          aria-hidden="true"
-          style={{
-            maskImage: "radial-gradient(farthest-side at 50% 50%, transparent calc(100% - 12px), black calc(100% - 4px))",
-            WebkitMaskImage: "radial-gradient(farthest-side at 50% 50%, transparent calc(100% - 12px), black calc(100% - 4px))",
-          }}
-        />
-      )}
+      {/* Ambilight glow - ring behind the input border, always active on landing page */}
+      <div
+        ref={ambilightRef}
+        className="absolute inset-[-4px] rounded-full blur-[10px] opacity-90 pointer-events-none"
+        aria-hidden="true"
+        style={{
+          maskImage: "radial-gradient(farthest-side at 50% 50%, transparent calc(100% - 12px), black calc(100% - 4px))",
+          WebkitMaskImage: "radial-gradient(farthest-side at 50% 50%, transparent calc(100% - 12px), black calc(100% - 4px))",
+        }}
+      />
 
       {/* Input wrapper */}
       <div
         className={cn(
           "relative flex items-center rounded-full",
-          (state === "focused" || state === "loading") ? "bg-surface" : "bg-surface/60",
+          "bg-surface",
           "backdrop-blur-[20px]",
           "border",
           "transition-all duration-[250ms]",
@@ -248,6 +249,7 @@ export function HeroInput({
         <input
           ref={inputRef}
           type="text"
+          autoFocus
           value={displayValue}
           onChange={handleChange}
           onPaste={handlePaste}

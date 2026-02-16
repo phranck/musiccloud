@@ -16,6 +16,8 @@ export interface SongResult {
   artist: string;
   album?: string;
   releaseDate?: string;
+  durationMs?: number;
+  isrc?: string;
   albumArtUrl: string;
   /** Only includes platforms where the song was actually found */
   platforms: PlatformLink[];
@@ -59,6 +61,8 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
         artist={result.artist}
         album={result.album}
         releaseDate={result.releaseDate}
+        durationMs={result.durationMs}
+        isrc={result.isrc}
         albumArtUrl={result.albumArtUrl}
         onAlbumArtLoad={onAlbumArtLoad}
       />

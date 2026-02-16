@@ -5,6 +5,9 @@ export interface SharePageData {
   title: string;
   artist: string;
   album?: string;
+  durationMs?: number;
+  isrc?: string;
+  releaseDate?: string;
   albumArtUrl: string;
   platforms: {
     platform: Platform;
@@ -22,8 +25,25 @@ interface SharePageProps {
  * Designed to work WITHOUT JavaScript (SSR-only for OG crawlers).
  * Uses minimal interactivity - platform buttons are plain <a> links.
  */
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatYear(dateStr: string): string | null {
+  const year = dateStr.slice(0, 4);
+  return /^\d{4}$/.test(year) ? year : null;
+}
+
 export function SharePage({ data }: SharePageProps) {
   const availablePlatforms = data.platforms;
+  const metaItems = [
+    data.durationMs ? formatDuration(data.durationMs) : null,
+    data.isrc,
+    data.releaseDate ? formatYear(data.releaseDate) : null,
+  ].filter(Boolean);
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">
@@ -55,6 +75,11 @@ export function SharePage({ data }: SharePageProps) {
       {data.album && (
         <p className="text-sm text-text-muted text-center mt-0.5">
           {data.album}
+        </p>
+      )}
+      {metaItems.length > 0 && (
+        <p className="text-sm text-text-muted/60 text-center mt-2 font-mono tracking-wide">
+          {metaItems.join(" \u00B7 ")}
         </p>
       )}
 

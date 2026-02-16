@@ -126,6 +126,9 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
         artists: result.sourceTrack.artists,
         albumName: result.sourceTrack.albumName,
         artworkUrl: result.sourceTrack.artworkUrl,
+        durationMs: result.sourceTrack.durationMs,
+        isrc: result.sourceTrack.isrc,
+        releaseDate: result.sourceTrack.releaseDate,
       },
       links: result.links.map((l) => ({
         service: l.service,

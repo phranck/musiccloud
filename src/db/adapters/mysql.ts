@@ -121,6 +121,9 @@ export class MysqlAdapter implements TrackRepository {
         artists: schema.tracks.artists,
         albumName: schema.tracks.albumName,
         artworkUrl: schema.tracks.artworkUrl,
+        durationMs: schema.tracks.durationMs,
+        isrc: schema.tracks.isrc,
+        releaseDate: schema.tracks.releaseDate,
         linkService: schema.serviceLinks.service,
         linkUrl: schema.serviceLinks.url,
       })
@@ -142,6 +145,9 @@ export class MysqlAdapter implements TrackRepository {
         artists: schema.tracks.artists,
         albumName: schema.tracks.albumName,
         artworkUrl: schema.tracks.artworkUrl,
+        durationMs: schema.tracks.durationMs,
+        isrc: schema.tracks.isrc,
+        releaseDate: schema.tracks.releaseDate,
         linkService: schema.serviceLinks.service,
         linkUrl: schema.serviceLinks.url,
         shortUrlId: schema.shortUrls.id,
@@ -204,6 +210,7 @@ export class MysqlAdapter implements TrackRepository {
         isrc: data.sourceTrack.isrc ?? null,
         artworkUrl: data.sourceTrack.artworkUrl ?? null,
         durationMs: data.sourceTrack.durationMs ? Math.floor(data.sourceTrack.durationMs) : null,
+        releaseDate: data.sourceTrack.releaseDate ?? null,
         createdAt: now,
         updatedAt: now,
       });
@@ -293,7 +300,7 @@ export class MysqlAdapter implements TrackRepository {
   }
 
   private buildSharePageResult(
-    rows: { title: string; artists: string; albumName: string | null; artworkUrl: string | null; linkService: string; linkUrl: string }[],
+    rows: { title: string; artists: string; albumName: string | null; artworkUrl: string | null; durationMs: number | null; isrc: string | null; releaseDate: string | null; linkService: string; linkUrl: string }[],
     shortId: string,
   ): SharePageDbResult {
     const first = rows[0];
@@ -302,7 +309,7 @@ export class MysqlAdapter implements TrackRepository {
     const links = rows.map((r) => ({ service: r.linkService, url: r.linkUrl }));
 
     return {
-      track: { title: first.title, albumName: first.albumName, artworkUrl: first.artworkUrl },
+      track: { title: first.title, albumName: first.albumName, artworkUrl: first.artworkUrl, durationMs: first.durationMs, isrc: first.isrc, releaseDate: first.releaseDate },
       artists,
       artistDisplay,
       shortId,

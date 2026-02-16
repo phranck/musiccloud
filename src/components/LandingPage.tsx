@@ -135,6 +135,8 @@ function parseResolveResponse(data: Record<string, unknown>): { result: SongResu
     artist: (track.artists as string[]).join(", "),
     album: track.albumName as string | undefined,
     releaseDate: track.releaseDate as string | undefined,
+    durationMs: track.durationMs as number | undefined,
+    isrc: track.isrc as string | undefined,
     albumArtUrl: (track.artworkUrl as string) || "",
     platforms,
     shareUrl: data.shortUrl as string,
