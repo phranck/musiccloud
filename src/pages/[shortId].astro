@@ -7,13 +7,13 @@
  */
 export const prerender = false;
 
-import { db } from "../../db/index.js";
-import { shortUrls, tracks, serviceLinks } from "../../db/schema.js";
+import { db } from "../db/index";
+import { shortUrls, tracks, serviceLinks } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { generateOGMeta } from "../../lib/og-helpers.js";
-import type { Platform } from "../../lib/utils.js";
-import { PLATFORM_CONFIG } from "../../lib/utils.js";
-import "../../styles/global.css";
+import { generateOGMeta } from "../lib/og-helpers";
+import type { Platform } from "../lib/utils";
+import { PLATFORM_CONFIG } from "../lib/utils";
+import "../styles/global.css";
 
 const { shortId } = Astro.params;
 
