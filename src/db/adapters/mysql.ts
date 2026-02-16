@@ -66,7 +66,7 @@ export class MysqlAdapter implements TrackRepository {
   async findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
     const [rows] = await this.pool.query<mysql.RowDataPacket[]>(`
       SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
-             t.artwork_url, t.duration_ms,
+             t.artwork_url, t.duration_ms, t.created_at, t.updated_at,
              sl.url, sl.service, sl.confidence, sl.match_method
       FROM tracks t
       LEFT JOIN service_links sl ON t.id = sl.track_id
@@ -172,6 +172,10 @@ export class MysqlAdapter implements TrackRepository {
 
         if (existingRows.length > 0) {
           const existing = existingRows[0];
+
+          // Update timestamp to mark this track as freshly resolved
+          await tx.update(schema.tracks).set({ updatedAt: now }).where(eq(schema.tracks.id, existing.trackId));
+
           for (const link of data.links) {
             await tx.insert(schema.serviceLinks).values({
               id: generateTrackId(),
@@ -248,6 +252,10 @@ export class MysqlAdapter implements TrackRepository {
     return result.affectedRows;
   }
 
+  async updateTrackTimestamp(trackId: string): Promise<void> {
+    await this.pool.query(`UPDATE tracks SET updated_at = ? WHERE id = ?`, [Date.now(), trackId]);
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
@@ -281,7 +289,7 @@ export class MysqlAdapter implements TrackRepository {
         matchMethod: r.match_method,
       }));
 
-    return { track, links };
+    return { trackId: firstRow.id, updatedAt: firstRow.updated_at ?? firstRow.created_at, track, links };
   }
 
   private buildSharePageResult(

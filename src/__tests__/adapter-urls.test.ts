@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { spotifyAdapter } from "../services/adapters/spotify";
 import { appleMusicAdapter } from "../services/adapters/apple-music";
 import { youtubeAdapter } from "../services/adapters/youtube";
+import { audiusAdapter } from "../services/adapters/audius";
+import { napsterAdapter } from "../services/adapters/napster";
 
 // =============================================================================
 // Spotify adapter: detectUrl
@@ -131,6 +133,58 @@ describe("YouTube: detectUrl", () => {
   it("should return null for non-YouTube URL", () => {
     expect(
       youtubeAdapter.detectUrl("https://open.spotify.com/track/abc123"),
+    ).toBeNull();
+  });
+});
+
+// =============================================================================
+// Audius adapter: detectUrl
+// =============================================================================
+
+describe("Audius: detectUrl (adapter-urls)", () => {
+  it("should extract path from standard URL", () => {
+    expect(
+      audiusAdapter.detectUrl("https://audius.co/deadmau5/unlucky-work-in-progress-333797"),
+    ).toBe("deadmau5/unlucky-work-in-progress-333797");
+  });
+
+  it("should handle URL with query params", () => {
+    expect(
+      audiusAdapter.detectUrl("https://audius.co/artist/track-name?ref=share"),
+    ).toBe("artist/track-name");
+  });
+
+  it("should return null for user profile URL", () => {
+    expect(audiusAdapter.detectUrl("https://audius.co/deadmau5")).toBeNull();
+  });
+
+  it("should return null for non-Audius URL", () => {
+    expect(
+      audiusAdapter.detectUrl("https://open.spotify.com/track/abc123"),
+    ).toBeNull();
+  });
+});
+
+// =============================================================================
+// Napster adapter: detectUrl
+// =============================================================================
+
+describe("Napster: detectUrl (adapter-urls)", () => {
+  it("should extract track ID from play.napster.com URL", () => {
+    expect(
+      napsterAdapter.detectUrl("https://play.napster.com/track/tra.262370664"),
+    ).toBe("tra.262370664");
+  });
+
+  it("should extract track ID from web.napster.com URL", () => {
+    expect(
+      napsterAdapter.detectUrl("https://web.napster.com/track/tra.262370664"),
+    ).toBe("tra.262370664");
+  });
+
+  it("should return null for non-Napster URL", () => {
+    expect(
+      napsterAdapter.detectUrl("https://open.spotify.com/track/abc123"),
     ).toBeNull();
   });
 });

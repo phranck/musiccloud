@@ -61,6 +61,7 @@ const MAX_CANDIDATES = 5;
 const ODESLI_CONFIDENCE = 0.85;
 const CACHE_CONFIDENCE = 0.8;
 const SEARCH_FALLBACK_CONFIDENCE = 0.5;
+const CACHE_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
 
 /**
  * Main entry point: accepts a URL or free-text query, returns cross-service links.
@@ -90,9 +91,12 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   log.debug("Resolver", "DB-First: Checking for cached URL...");
   const repo = await getRepository();
   const cached = await repo.findTrackByUrl(cleanUrl);
-  if (cached) {
-    log.debug("Resolver", "Cache hit! Returning cached result");
+  if (cached && Date.now() - cached.updatedAt < CACHE_TTL_MS) {
+    log.debug("Resolver", "Cache hit (fresh)! Returning cached result");
     return { sourceTrack: cached.track, links: mapCachedLinks(cached.links) };
+  }
+  if (cached) {
+    log.debug("Resolver", "Cache hit but stale, will re-resolve");
   }
 
   // 2. Identify which service the URL belongs to
@@ -107,15 +111,20 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   }
 
   // 3. Check DB by ISRC if we have it
+  let staleCached = cached;
   if (sourceAdapter.capabilities.supportsIsrc) {
     log.debug("Resolver", "Trying to fetch track metadata for ISRC lookup...");
     try {
       const sourceTrack = await sourceAdapter.getTrack(trackId);
       if (sourceTrack.isrc) {
         const cachedByIsrc = await repo.findTrackByIsrc(sourceTrack.isrc);
-        if (cachedByIsrc) {
-          log.debug("Resolver", "Cache hit by ISRC! Returning cached result");
+        if (cachedByIsrc && Date.now() - cachedByIsrc.updatedAt < CACHE_TTL_MS) {
+          log.debug("Resolver", "Cache hit by ISRC (fresh)! Returning cached result");
           return { sourceTrack: cachedByIsrc.track, links: mapCachedLinks(cachedByIsrc.links) };
+        }
+        if (cachedByIsrc) {
+          staleCached = cachedByIsrc;
+          log.debug("Resolver", "ISRC cache hit but stale, will re-resolve");
         }
       }
     } catch (error) {
@@ -124,31 +133,39 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     }
   }
 
-  // 4. Fetch metadata from the source service (or fallback to Odesli if unavailable)
-  let sourceTrack: NormalizedTrack;
+  // 4. Fetch metadata and resolve across services (with stale fallback on failure)
   try {
-    sourceTrack = await sourceAdapter.getTrack(trackId);
+    let sourceTrack: NormalizedTrack;
+    try {
+      sourceTrack = await sourceAdapter.getTrack(trackId);
+    } catch (error) {
+      if (!sourceAdapter.isAvailable()) {
+        return resolveUrlViaOdesli(cleanUrl);
+      }
+      throw error;
+    }
+
+    // 5. Resolve on all other services in parallel
+    const links = await resolveAcrossServices(sourceTrack, sourceAdapter);
+
+    // 6. Add the source service link
+    links.unshift({
+      service: sourceAdapter.id,
+      displayName: sourceAdapter.displayName,
+      url: sourceTrack.webUrl,
+      confidence: 1.0,
+      matchMethod: "isrc",
+    });
+
+    return { sourceTrack, links };
   } catch (error) {
-    // If source service is unavailable (e.g., no credentials), try Odesli
-    if (!sourceAdapter.isAvailable()) {
-      return resolveUrlViaOdesli(cleanUrl);
+    if (staleCached) {
+      log.error("Resolver", "Re-resolve failed, returning stale cache");
+      await repo.updateTrackTimestamp(staleCached.trackId);
+      return { sourceTrack: staleCached.track, links: mapCachedLinks(staleCached.links) };
     }
     throw error;
   }
-
-  // 5. Resolve on all other services in parallel
-  const links = await resolveAcrossServices(sourceTrack, sourceAdapter);
-
-  // 6. Add the source service link
-  links.unshift({
-    service: sourceAdapter.id,
-    displayName: sourceAdapter.displayName,
-    url: sourceTrack.webUrl,
-    confidence: 1.0,
-    matchMethod: "isrc",
-  });
-
-  return { sourceTrack, links };
 }
 
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
@@ -156,12 +173,17 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
   log.debug("Resolver", "resolveTextSearch - DB-First: Searching FTS5...");
   const repo = await getRepository();
   const cachedTracks = await repo.findTracksByTextSearch(query, 1);
+  let staleIsrcMatch: Awaited<ReturnType<typeof repo.findTrackByIsrc>> = null;
   if (cachedTracks.length > 0) {
     log.debug("Resolver", "DB cache hit for text search!");
     const track = cachedTracks[0];
     const isrcMatch = track.isrc ? await repo.findTrackByIsrc(track.isrc) : null;
-    if (isrcMatch) {
+    if (isrcMatch && Date.now() - isrcMatch.updatedAt < CACHE_TTL_MS) {
       return { sourceTrack: track, links: mapCachedLinks(isrcMatch.links) };
+    }
+    if (isrcMatch) {
+      staleIsrcMatch = isrcMatch;
+      log.debug("Resolver", "Text search cache hit but stale, will re-resolve");
     }
   }
 
@@ -188,6 +210,13 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
     } catch {
       continue;
     }
+  }
+
+  // All service searches failed: return stale data if available
+  if (staleIsrcMatch) {
+    log.debug("Resolver", "All service searches failed, returning stale cache");
+    await repo.updateTrackTimestamp(staleIsrcMatch.trackId);
+    return { sourceTrack: staleIsrcMatch.track, links: mapCachedLinks(staleIsrcMatch.links) };
   }
 
   throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");

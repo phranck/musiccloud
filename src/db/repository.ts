@@ -2,6 +2,8 @@ import type { NormalizedTrack } from "../services/types.js";
 
 /** Cached track with its cross-service links (returned by URL/ISRC lookups) */
 export interface CachedTrackResult {
+  trackId: string;
+  updatedAt: number;
   track: NormalizedTrack;
   links: Array<{
     service: string;
@@ -58,6 +60,7 @@ export interface TrackRepository {
   persistTrackWithLinks(data: PersistTrackData): Promise<{ trackId: string; shortId: string }>;
 
   // Maintenance
+  updateTrackTimestamp(trackId: string): Promise<void>;
   cleanupStaleCache(ttlMs?: number): Promise<number>;
 
   // Lifecycle

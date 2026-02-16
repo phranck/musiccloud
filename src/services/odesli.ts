@@ -46,6 +46,8 @@ export async function resolveViaOdesli(url: string): Promise<OdesliResult> {
     youtube: "youtube",
     youtubeMusic: "youtube",
     soundcloud: "soundcloud",
+    tidal: "tidal",
+    deezer: "deezer",
   };
 
   if (data.linksByPlatform) {

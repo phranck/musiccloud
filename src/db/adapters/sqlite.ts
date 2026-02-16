@@ -66,7 +66,7 @@ export class SqliteAdapter implements TrackRepository {
   async findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
     const stmt = this.sqlite.prepare(`
       SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
-             t.artwork_url, t.duration_ms,
+             t.artwork_url, t.duration_ms, t.created_at, t.updated_at,
              sl.url, sl.service, sl.confidence, sl.match_method
       FROM tracks t
       LEFT JOIN service_links sl ON t.id = sl.track_id
@@ -174,6 +174,9 @@ export class SqliteAdapter implements TrackRepository {
         : null;
 
       if (existing) {
+        // Update timestamp to mark this track as freshly resolved
+        this.sqlite.prepare(`UPDATE tracks SET updated_at = ? WHERE id = ?`).run(now, existing.trackId);
+
         for (const link of data.links) {
           this.db.insert(schema.serviceLinks).values({
             id: generateTrackId(),
@@ -247,6 +250,10 @@ export class SqliteAdapter implements TrackRepository {
     return result.changes;
   }
 
+  async updateTrackTimestamp(trackId: string): Promise<void> {
+    this.sqlite.prepare(`UPDATE tracks SET updated_at = ? WHERE id = ?`).run(Date.now(), trackId);
+  }
+
   async close(): Promise<void> {
     this.sqlite.close();
   }
@@ -295,7 +302,7 @@ export class SqliteAdapter implements TrackRepository {
         matchMethod: r.match_method,
       }));
 
-    return { track, links };
+    return { trackId: firstRow.id, updatedAt: firstRow.updated_at ?? firstRow.created_at, track, links };
   }
 
   private buildSharePageResult(

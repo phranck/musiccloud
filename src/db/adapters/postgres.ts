@@ -59,7 +59,7 @@ export class PostgresAdapter implements TrackRepository {
   async findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
     const { rows } = await this.pool.query<TrackWithLinkRow>(`
       SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
-             t.artwork_url, t.duration_ms,
+             t.artwork_url, t.duration_ms, t.created_at, t.updated_at,
              sl.url, sl.service, sl.confidence, sl.match_method
       FROM tracks t
       LEFT JOIN service_links sl ON t.id = sl.track_id
@@ -165,6 +165,10 @@ export class PostgresAdapter implements TrackRepository {
 
         if (existingRows.length > 0) {
           const existing = existingRows[0];
+
+          // Update timestamp to mark this track as freshly resolved
+          await tx.update(schema.tracks).set({ updatedAt: now }).where(eq(schema.tracks.id, existing.trackId));
+
           for (const link of data.links) {
             await tx.insert(schema.serviceLinks).values({
               id: generateTrackId(),
@@ -241,6 +245,10 @@ export class PostgresAdapter implements TrackRepository {
     return result.rowCount ?? 0;
   }
 
+  async updateTrackTimestamp(trackId: string): Promise<void> {
+    await this.pool.query(`UPDATE tracks SET updated_at = $1 WHERE id = $2`, [Date.now(), trackId]);
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
@@ -274,7 +282,7 @@ export class PostgresAdapter implements TrackRepository {
         matchMethod: r.match_method,
       }));
 
-    return { track, links };
+    return { trackId: firstRow.id, updatedAt: firstRow.updated_at ?? firstRow.created_at, track, links };
   }
 
   private buildSharePageResult(

@@ -4,6 +4,8 @@ import { appleMusicAdapter } from "./adapters/apple-music.js";
 import { youtubeAdapter } from "./adapters/youtube.js";
 import { deezerAdapter } from "./adapters/deezer.js";
 import { tidalAdapter } from "./adapters/tidal.js";
+import { audiusAdapter } from "./adapters/audius.js";
+import { napsterAdapter } from "./adapters/napster.js";
 
 // All registered adapters. Add new adapters here.
 export const adapters: ServiceAdapter[] = [
@@ -12,6 +14,8 @@ export const adapters: ServiceAdapter[] = [
   youtubeAdapter,
   deezerAdapter,
   tidalAdapter,
+  audiusAdapter,
+  napsterAdapter,
 ];
 
 export function getAdapters(): ServiceAdapter[] {
