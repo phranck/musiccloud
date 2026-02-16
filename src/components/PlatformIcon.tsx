@@ -1,4 +1,4 @@
-import type { Platform } from "../lib/utils";
+import { PLATFORM_CONFIG, type Platform } from "../lib/utils";
 import { SiSpotify, SiApplemusic, SiYoutube, SiSoundcloud } from "react-icons/si";
 
 interface PlatformIconProps {
@@ -8,15 +8,7 @@ interface PlatformIconProps {
 }
 
 export function PlatformIcon({ platform, className = "w-6 h-6", colored = false }: PlatformIconProps) {
-  // Brand colors for each service (only used if colored=true)
-  const colorMap: Record<Platform, string> = {
-    spotify: "#1DB954",
-    "apple-music": "#FC3C44",
-    youtube: "#FF0000",
-    soundcloud: "#FF5500",
-  };
-
-  const color = colored ? colorMap[platform] : "currentColor";
+  const color = colored ? PLATFORM_CONFIG[platform].color : "currentColor";
 
   switch (platform) {
     case "spotify":

@@ -18,7 +18,7 @@ export const serviceLinks = sqliteTable("service_links", {
   id: text("id").primaryKey(),
   trackId: text("track_id").notNull().references(() => tracks.id),
   service: text("service").notNull(),
-  externalId: text("external_id").notNull(),
+  externalId: text("external_id"),
   url: text("url").notNull(),
   confidence: real("confidence").notNull(),
   matchMethod: text("match_method").notNull(),

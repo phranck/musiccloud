@@ -5,15 +5,11 @@
  * Shows a track with cross-platform links. Must work without JavaScript
  * for OG crawler bots (all meta tags in initial HTML).
  */
-import { db } from "../../db/index.js";
-import { tracks, serviceLinks, shortUrls } from "../../db/schema.js";
-import { eq } from "drizzle-orm";
-import { generateOGMeta } from "../../lib/og-helpers.js";
-import type { Platform } from "../../lib/utils.js";
-import { PLATFORM_CONFIG } from "../../lib/utils.js";
-import "../../styles/global.css";
-
 export const prerender = false;
+
+import { loadByTrackId } from "../../lib/share-page";
+import { PLATFORM_CONFIG, type Platform } from "../../lib/utils";
+import "../../styles/global.css";
 
 const { id } = Astro.params;
 
@@ -21,40 +17,13 @@ if (!id) {
   return Astro.redirect("/");
 }
 
-const track = db.select().from(tracks).where(eq(tracks.id, id)).get();
+const data = loadByTrackId(id);
 
-if (!track) {
+if (!data) {
   return Astro.redirect("/", 302);
 }
 
-const links = db
-  .select()
-  .from(serviceLinks)
-  .where(eq(serviceLinks.trackId, id))
-  .all();
-
-const shortUrl = db
-  .select()
-  .from(shortUrls)
-  .where(eq(shortUrls.trackId, id))
-  .get();
-
-const artists: string[] = JSON.parse(track.artists);
-const artistDisplay = artists.join(", ");
-const shortId = shortUrl?.id ?? id;
-
-const availablePlatforms: Platform[] = links
-  .map((l) => l.service as Platform)
-  .filter((s) => s in PLATFORM_CONFIG);
-
-const og = generateOGMeta({
-  title: track.title,
-  artist: artistDisplay,
-  album: track.albumName ?? undefined,
-  albumArtUrl: track.artworkUrl ?? "/og/default.jpg",
-  shortId,
-  availablePlatforms,
-});
+const { track, artists, artistDisplay, links, og } = data;
 ---
 
 <html lang="en">

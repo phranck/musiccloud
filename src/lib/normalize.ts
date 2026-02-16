@@ -64,7 +64,19 @@ export function calculateConfidence(
   let score = 0;
 
   score += stringSimilarity(source.title, candidate.title) * 0.4;
-  score += stringSimilarity(source.artists[0] ?? "", candidate.artists[0] ?? "") * 0.4;
+
+  // Compare all artists: best average of pairwise similarities
+  if (source.artists.length > 0 && candidate.artists.length > 0) {
+    let artistScore = 0;
+    for (const srcArtist of source.artists) {
+      let bestMatch = 0;
+      for (const candArtist of candidate.artists) {
+        bestMatch = Math.max(bestMatch, stringSimilarity(srcArtist, candArtist));
+      }
+      artistScore += bestMatch;
+    }
+    score += (artistScore / source.artists.length) * 0.4;
+  }
 
   if (source.durationMs && candidate.durationMs) {
     const diff = Math.abs(source.durationMs - candidate.durationMs);

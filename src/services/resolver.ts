@@ -3,6 +3,7 @@ import { isValidServiceId } from "./types.js";
 import { adapters, identifyService } from "./index.js";
 import { resolveViaOdesli } from "./odesli.js";
 import { validateMusicUrl, stripTrackingParams, isUrl } from "../lib/url-parser.js";
+import { PLATFORM_CONFIG } from "../lib/utils.js";
 import { ResolveError } from "../lib/errors.js";
 import type { ErrorCode } from "../lib/errors.js";
 import { findTrackByUrl, findTrackByIsrc, findTracksByTextSearch } from "../db/index.js";
@@ -33,7 +34,7 @@ function mapCachedLinks(links: Array<{ service: string; url: string; confidence:
     .filter((l) => isValidServiceId(l.service))
     .map((l) => ({
       service: l.service as ServiceId,
-      displayName: getDisplayName(l.service as ServiceId),
+      displayName: PLATFORM_CONFIG[l.service as ServiceId].label,
       url: l.url,
       confidence: l.confidence,
       matchMethod: l.matchMethod as "isrc" | "search" | "odesli" | "cache",
@@ -344,7 +345,7 @@ async function resolveAcrossServices(
       if (coveredServices.has(serviceId)) continue;
       links.push({
         service: serviceId,
-        displayName: getDisplayName(serviceId),
+        displayName: PLATFORM_CONFIG[serviceId].label,
         url: link.url,
         confidence: 0.8,
         matchMethod: "odesli",
@@ -427,16 +428,6 @@ async function resolveViaSearch(
   };
 }
 
-function getDisplayName(serviceId: ServiceId): string {
-  const names: Record<ServiceId, string> = {
-    spotify: "Spotify",
-    "apple-music": "Apple Music",
-    youtube: "YouTube",
-    soundcloud: "SoundCloud",
-  };
-  return names[serviceId] ?? serviceId;
-}
-
 async function resolveUrlViaOdesli(inputUrl: string): Promise<ResolutionResult> {
   const odesliResult = await resolveViaOdesli(inputUrl);
 
@@ -463,7 +454,7 @@ async function resolveUrlViaOdesli(inputUrl: string): Promise<ResolutionResult> 
     if (!isValidServiceId(serviceId) || !link) continue;
     links.push({
       service: serviceId,
-      displayName: getDisplayName(serviceId),
+      displayName: PLATFORM_CONFIG[serviceId].label,
       url: link.url,
       confidence: 0.9,
       matchMethod: "odesli",

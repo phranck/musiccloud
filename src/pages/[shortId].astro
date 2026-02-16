@@ -7,12 +7,8 @@
  */
 export const prerender = false;
 
-import { db } from "../db/index";
-import { shortUrls, tracks, serviceLinks } from "../db/schema";
-import { eq } from "drizzle-orm";
-import { generateOGMeta } from "../lib/og-helpers";
-import type { Platform } from "../lib/utils";
-import { PLATFORM_CONFIG } from "../lib/utils";
+import { loadByShortId } from "../lib/share-page";
+import { PLATFORM_CONFIG, type Platform } from "../lib/utils";
 import "../styles/global.css";
 
 const { shortId } = Astro.params;
@@ -21,45 +17,13 @@ if (!shortId) {
   return Astro.redirect("/");
 }
 
-const shortUrl = db.select().from(shortUrls).where(eq(shortUrls.id, shortId)).get();
+const data = loadByShortId(shortId, Astro.url.origin);
 
-if (!shortUrl) {
+if (!data) {
   return Astro.redirect("/", 302);
 }
 
-const track = db.select().from(tracks).where(eq(tracks.id, shortUrl.trackId)).get();
-
-if (!track) {
-  return Astro.redirect("/", 302);
-}
-
-const links = db
-  .select()
-  .from(serviceLinks)
-  .where(eq(serviceLinks.trackId, shortUrl.trackId))
-  .all();
-
-let artists: string[];
-try { artists = JSON.parse(track.artists); }
-catch { artists = ["Unknown Artist"]; }
-const artistDisplay = artists.join(", ");
-
-const availablePlatforms: Platform[] = links
-  .map((l) => l.service as Platform)
-  .filter((s) => s in PLATFORM_CONFIG);
-
-// Get current page URL (works with localhost and production domains)
-const currentUrl = Astro.url.origin;
-
-const og = generateOGMeta({
-  title: track.title,
-  artist: artistDisplay,
-  album: track.albumName ?? undefined,
-  albumArtUrl: track.artworkUrl ?? "/og/default.jpg",
-  shortId,
-  availablePlatforms,
-  origin: currentUrl,
-});
+const { track, artistDisplay, links, og } = data;
 ---
 
 <html lang="en">
