@@ -27,7 +27,7 @@ export const SongInfo = memo(function SongInfo({
   return (
     <div>
       {/* Album art - full width, card-filling */}
-      <div className="aspect-square w-full overflow-hidden">
+      <div className="aspect-square w-full overflow-hidden rounded-t-[36px]">
         <img
           src={albumArtUrl}
           alt={`"${title}" by ${artist} - album artwork`}

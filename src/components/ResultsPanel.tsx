@@ -45,7 +45,7 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
     <GlassCard
       elevated
       className={cn(
-        "w-full max-w-[480px] mx-auto mt-8 rounded-[36px]",
+        "w-full max-w-lg mx-auto mt-8 rounded-[36px]",
         "animate-zoom-in",
       )}
     >
