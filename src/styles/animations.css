@@ -1,0 +1,82 @@
+/* Essential animations only (3 core + 2 utility) */
+
+/* 1. Background gradient float - continuous, GPU-accelerated */
+@keyframes gradient-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(10%, -5%) scale(1.05);
+  }
+  50% {
+    transform: translate(-5%, 10%) scale(0.95);
+  }
+  75% {
+    transform: translate(-10%, -10%) scale(1.02);
+  }
+}
+
+/* 2. Results card entrance - the main reveal moment */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 3. Input error shake - brief feedback */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+/* Utility: loading spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Utility: input focus glow pulse */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(124, 92, 252, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(124, 92, 252, 0.4);
+  }
+}
+
+/* Glassmorphism fallback for browsers without backdrop-filter */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-fallback {
+    background-color: rgba(20, 20, 31, 0.95) !important;
+  }
+}
+
+/* Respect user preference for reduced motion (WCAG 2.3) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

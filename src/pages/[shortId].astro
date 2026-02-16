@@ -1,0 +1,134 @@
+---
+/**
+ * Short URL Redirect - SSR rendered
+ *
+ * Resolves a short URL to the full share link page.
+ * Also serves OG meta tags for link preview bots before redirecting.
+ */
+export const prerender = false;
+
+import { db } from "../../db/index.js";
+import { shortUrls, tracks, serviceLinks } from "../../db/schema.js";
+import { eq } from "drizzle-orm";
+import { generateOGMeta } from "../../lib/og-helpers.js";
+import type { Platform } from "../../lib/utils.js";
+import { PLATFORM_CONFIG } from "../../lib/utils.js";
+import "../../styles/global.css";
+
+const { shortId } = Astro.params;
+
+if (!shortId) {
+  return Astro.redirect("/");
+}
+
+const shortUrl = db.select().from(shortUrls).where(eq(shortUrls.id, shortId)).get();
+
+if (!shortUrl) {
+  return Astro.redirect("/", 302);
+}
+
+const track = db.select().from(tracks).where(eq(tracks.id, shortUrl.trackId)).get();
+
+if (!track) {
+  return Astro.redirect("/", 302);
+}
+
+const links = db
+  .select()
+  .from(serviceLinks)
+  .where(eq(serviceLinks.trackId, shortUrl.trackId))
+  .all();
+
+const artists: string[] = JSON.parse(track.artists);
+const artistDisplay = artists.join(", ");
+
+const availablePlatforms: Platform[] = links
+  .map((l) => l.service as Platform)
+  .filter((s) => s in PLATFORM_CONFIG);
+
+const og = generateOGMeta({
+  title: track.title,
+  artist: artistDisplay,
+  album: track.albumName ?? undefined,
+  albumArtUrl: track.artworkUrl ?? "/og/default.jpg",
+  shortId,
+  availablePlatforms,
+});
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>{og.pageTitle}</title>
+
+    <!-- OpenGraph Tags (critical for link previews) -->
+    <meta property="og:type" content="music.song" />
+    <meta property="og:title" content={og.ogTitle} />
+    <meta property="og:description" content={og.ogDescription} />
+    <meta property="og:image" content={og.ogImageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content={og.ogUrl} />
+    <meta property="og:site_name" content="music.cloud" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content={og.twitterCard} />
+    <meta name="twitter:title" content={og.ogTitle} />
+    <meta name="twitter:description" content={og.ogDescription} />
+    <meta name="twitter:image" content={og.ogImageUrl} />
+
+    <link rel="canonical" href={og.ogUrl} />
+
+    <!-- Preload Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    {track.artworkUrl && <link rel="preload" as="image" href={track.artworkUrl} />}
+  </head>
+  <body class="bg-background text-text-primary antialiased">
+    <main class="mx-auto max-w-md px-4 py-12 text-center">
+      {track.artworkUrl && (
+        <img
+          src={track.artworkUrl}
+          alt={`${track.title} by ${artistDisplay}`}
+          class="mx-auto mb-6 h-48 w-48 rounded-2xl shadow-lg"
+          width="192"
+          height="192"
+        />
+      )}
+
+      <h1 class="mb-1 text-2xl font-bold">{track.title}</h1>
+      <p class="mb-8 text-text-secondary">{artistDisplay}</p>
+
+      <div class="space-y-3">
+        {links.map((link) => {
+          const platform = link.service as Platform;
+          const config = PLATFORM_CONFIG[platform];
+          const label = config?.label ?? link.service;
+          return (
+            <a
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="block rounded-xl bg-surface/60 px-6 py-4 font-medium backdrop-blur transition-colors hover:bg-surface"
+            >
+              Listen on {label}
+            </a>
+          );
+        })}
+      </div>
+
+      <p class="mt-12 text-sm text-text-muted">
+        <a href="/" class="text-accent hover:underline">
+          Create your own link on music.cloud
+        </a>
+      </p>
+    </main>
+  </body>
+</html>

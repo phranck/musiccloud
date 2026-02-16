@@ -1,0 +1,138 @@
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { eq } from "drizzle-orm";
+import Database from "better-sqlite3";
+import * as schema from "./schema";
+import type { NormalizedTrack } from "../services/types.js";
+
+const dbPath = import.meta.env.DATABASE_PATH || "data/music.db";
+const sqlite = new Database(dbPath);
+sqlite.pragma("journal_mode = WAL");
+sqlite.pragma("foreign_keys = ON");
+
+export const db = drizzle(sqlite, { schema });
+
+/**
+ * Find a cached track by its web URL (from any service)
+ */
+export function findTrackByUrl(url: string): { track: NormalizedTrack; links: any[] } | null {
+  const stmt = sqlite.prepare(`
+    SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
+           t.artwork_url, t.duration_ms, t.created_at, t.updated_at,
+           sl.url, sl.service, sl.confidence, sl.match_method
+    FROM tracks t
+    LEFT JOIN service_links sl ON t.id = sl.track_id
+    WHERE sl.url = ?
+    LIMIT 1
+  `);
+
+  const rows = stmt.all(url) as any[];
+  if (rows.length === 0) return null;
+
+  const firstRow = rows[0];
+  const track: NormalizedTrack = {
+    sourceService: "cached",
+    sourceId: firstRow.id,
+    title: firstRow.title,
+    artists: JSON.parse(firstRow.artists),
+    albumName: firstRow.album_name,
+    isrc: firstRow.isrc,
+    artworkUrl: firstRow.artwork_url,
+    durationMs: firstRow.duration_ms,
+    webUrl: url,
+  };
+
+  const links = rows
+    .filter((r) => r.url)
+    .map((r) => ({
+      service: r.service,
+      url: r.url,
+      confidence: r.confidence,
+      matchMethod: r.match_method,
+    }));
+
+  return { track, links };
+}
+
+/**
+ * Find cached tracks by full-text search (title + artists)
+ * Returns up to maxResults tracks sorted by FTS5 rank
+ */
+export function findTracksByTextSearch(query: string, maxResults: number = 10): NormalizedTrack[] {
+  try {
+    console.log("[DB] findTracksByTextSearch called with:", query);
+
+    // FTS5 query: search title and artists with prefix matching
+    const ftsQuery = `${query}*`;
+    console.log("[DB] FTS5 query:", ftsQuery);
+
+    const stmt = sqlite.prepare(`
+      SELECT t.id, t.title, t.artists, t.album_name, t.isrc,
+             t.artwork_url, t.duration_ms
+      FROM tracks_fts fts
+      JOIN tracks t ON t.id = fts.rowid
+      WHERE tracks_fts MATCH ?
+      ORDER BY rank
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(ftsQuery, maxResults) as any[];
+    console.log("[DB] FTS5 returned", rows.length, "rows");
+
+    return rows.map((r) => ({
+      sourceService: "cached",
+      sourceId: r.id,
+      title: r.title,
+      artists: JSON.parse(r.artists),
+      albumName: r.album_name,
+      isrc: r.isrc,
+      artworkUrl: r.artwork_url,
+      durationMs: r.duration_ms,
+      webUrl: "",
+    }));
+  } catch (error) {
+    console.error("[DB] findTracksByTextSearch error:", error);
+    return [];
+  }
+}
+
+/**
+ * Find a cached track by ISRC
+ */
+export function findTrackByIsrc(isrc: string): { track: NormalizedTrack; links: any[] } | null {
+  const stmt = sqlite.prepare(`
+    SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
+           t.artwork_url, t.duration_ms,
+           sl.url, sl.service, sl.confidence, sl.match_method
+    FROM tracks t
+    LEFT JOIN service_links sl ON t.id = sl.track_id
+    WHERE t.isrc = ?
+    LIMIT 1
+  `);
+
+  const rows = stmt.all(isrc) as any[];
+  if (rows.length === 0) return null;
+
+  const firstRow = rows[0];
+  const track: NormalizedTrack = {
+    sourceService: "cached",
+    sourceId: firstRow.id,
+    title: firstRow.title,
+    artists: JSON.parse(firstRow.artists),
+    albumName: firstRow.album_name,
+    isrc: firstRow.isrc,
+    artworkUrl: firstRow.artwork_url,
+    durationMs: firstRow.duration_ms,
+    webUrl: "",
+  };
+
+  const links = rows
+    .filter((r) => r.url)
+    .map((r) => ({
+      service: r.service,
+      url: r.url,
+      confidence: r.confidence,
+      matchMethod: r.match_method,
+    }));
+
+  return { track, links };
+}

@@ -1,0 +1,76 @@
+import type { ServiceId } from "../services/types.js";
+
+export function normalizeTitle(title: string, service: ServiceId): string {
+  if (service === "youtube") {
+    return title
+      .replace(/\s*[\(\[](Official\s+)?(Music\s+)?Video[\)\]]/gi, "")
+      .replace(/\s*[\(\[](Official\s+)?Audio[\)\]]/gi, "")
+      .replace(/\s*[\(\[]Lyric(s)?\s*Video[\)\]]/gi, "")
+      .replace(/\s*[\(\[]HD[\)\]]/gi, "")
+      .trim();
+  }
+  return title.trim();
+}
+
+export function normalizeArtists(raw: string | string[]): string[] {
+  if (Array.isArray(raw)) return raw.map((a) => a.trim());
+  return raw
+    .split(/[,&]/)
+    .map((a) => a.trim())
+    .filter(Boolean);
+}
+
+export function stringSimilarity(a: string, b: string): number {
+  const normA = a.toLowerCase().trim();
+  const normB = b.toLowerCase().trim();
+
+  if (normA === normB) return 1.0;
+  if (normA.length === 0 || normB.length === 0) return 0.0;
+
+  // Simple Dice coefficient on bigrams
+  const bigramsA = getBigrams(normA);
+  const bigramsB = getBigrams(normB);
+
+  let matches = 0;
+  for (const bigram of bigramsA) {
+    if (bigramsB.has(bigram)) {
+      matches++;
+    }
+  }
+
+  return (2 * matches) / (bigramsA.size + bigramsB.size);
+}
+
+function getBigrams(str: string): Set<string> {
+  const bigrams = new Set<string>();
+  for (let i = 0; i < str.length - 1; i++) {
+    bigrams.add(str.substring(i, i + 2));
+  }
+  return bigrams;
+}
+
+export function isDurationMatch(durationA: number, durationB: number): boolean {
+  return Math.abs(durationA - durationB) <= 3000;
+}
+
+export function calculateConfidence(
+  source: { title: string; artists: string[]; durationMs?: number; isrc?: string },
+  candidate: { title: string; artists: string[]; durationMs?: number; isrc?: string },
+): number {
+  if (source.isrc && candidate.isrc && source.isrc === candidate.isrc) {
+    return 1.0;
+  }
+
+  let score = 0;
+
+  score += stringSimilarity(source.title, candidate.title) * 0.4;
+  score += stringSimilarity(source.artists[0] ?? "", candidate.artists[0] ?? "") * 0.4;
+
+  if (source.durationMs && candidate.durationMs) {
+    const diff = Math.abs(source.durationMs - candidate.durationMs);
+    if (diff <= 3000) score += 0.2;
+    else if (diff <= 10000) score += 0.1;
+  }
+
+  return score;
+}

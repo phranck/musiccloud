@@ -1,0 +1,72 @@
+---
+/**
+ * Landing Page - music.cloud
+ *
+ * Static page (prerendered). The LandingPage React component
+ * handles all client-side interactivity as an Astro island.
+ */
+import { LandingPage } from "../components/LandingPage";
+import "../styles/global.css";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>music.cloud - Share music across every platform</title>
+
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="music.cloud - Share music across every platform" />
+    <meta
+      name="description"
+      content="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere."
+    />
+
+    <!-- OpenGraph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="music.cloud" />
+    <meta
+      property="og:description"
+      content="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere."
+    />
+    <meta property="og:url" content="https://music.cloud" />
+    <meta property="og:site_name" content="music.cloud" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="music.cloud" />
+    <meta
+      name="twitter:description"
+      content="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere."
+    />
+
+    <!-- Preload Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="canonical" href="https://music.cloud" />
+  </head>
+  <body class="bg-background text-text-primary antialiased">
+    <LandingPage client:load />
+
+    <!-- SSR fallback for no-JS -->
+    <noscript>
+      <main style="max-width: 640px; margin: 0 auto; padding: 4rem 1rem; text-align: center; font-family: 'Inter', system-ui, sans-serif;">
+        <h1 style="font-size: 1.5rem; font-weight: bold; color: #F0F0F5; margin-bottom: 0.5rem;">
+          music.cloud
+        </h1>
+        <p style="font-size: 1.25rem; color: #F0F0F5; margin-bottom: 2rem;">
+          Paste a link or search by name. Share it everywhere.
+        </p>
+        <p style="color: #9898A8;">
+          This app requires JavaScript to work. Please enable JavaScript in your browser.
+        </p>
+      </main>
+    </noscript>
+  </body>
+</html>

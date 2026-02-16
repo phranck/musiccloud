@@ -1,0 +1,481 @@
+import type { ServiceId, NormalizedTrack, MatchResult, ServiceAdapter, SearchCandidate } from "./types.js";
+import { adapters, identifyService } from "./index.js";
+import { resolveViaOdesli } from "./odesli.js";
+import { validateMusicUrl, stripTrackingParams, isUrl } from "../lib/url-parser.js";
+import { ResolveError } from "../lib/errors.js";
+import type { ErrorCode } from "../lib/errors.js";
+import { findTrackByUrl, findTrackByIsrc, findTracksByTextSearch } from "../db/index.js";
+
+export interface ResolvedLink {
+  service: ServiceId;
+  displayName: string;
+  url: string;
+  confidence: number;
+  matchMethod: "isrc" | "search" | "odesli" | "cache";
+  /** True when the link is a search URL rather than a direct track link */
+  isSearchFallback?: boolean;
+}
+
+export interface ResolutionResult {
+  sourceTrack: NormalizedTrack;
+  links: ResolvedLink[];
+}
+
+export interface TextSearchResult {
+  kind: "resolved" | "disambiguation";
+  result?: ResolutionResult;
+  candidates?: SearchCandidate[];
+}
+
+const AUTO_SELECT_THRESHOLD = 0.9;
+const CANDIDATE_MIN_CONFIDENCE = 0.4;
+const MAX_CANDIDATES = 5;
+
+/**
+ * Main entry point: accepts a URL or free-text query, returns cross-service links.
+ */
+export async function resolveQuery(input: string): Promise<ResolutionResult> {
+  const trimmed = input.trim();
+
+  if (isUrl(trimmed)) {
+    // Validate URL for unsupported content types
+    const validation = validateMusicUrl(trimmed);
+    if (!validation.valid) {
+      throw new ResolveError(
+        validation.code as ErrorCode,
+        validation.message,
+      );
+    }
+    return resolveUrl(stripTrackingParams(trimmed));
+  }
+
+  return resolveTextSearch(trimmed);
+}
+
+export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
+  const cleanUrl = stripTrackingParams(inputUrl);
+
+  // 1. DB-First: Check if we have this URL cached
+  console.log("[Resolver] DB-First: Checking for cached URL...");
+  const cached = findTrackByUrl(cleanUrl);
+  if (cached) {
+    console.log("[Resolver] Cache hit! Returning cached result");
+    const links = cached.links.map((l) => ({
+      service: l.service as ServiceId,
+      displayName: getDisplayName(l.service as ServiceId),
+      url: l.url,
+      confidence: l.confidence,
+      matchMethod: l.matchMethod as "isrc" | "search" | "odesli" | "cache",
+    }));
+    return { sourceTrack: cached.track, links };
+  }
+
+  // 2. Identify which service the URL belongs to
+  const sourceAdapter = identifyService(cleanUrl);
+  if (!sourceAdapter) {
+    throw new ResolveError("NOT_MUSIC_LINK", "Unrecognized music service URL");
+  }
+
+  const trackId = sourceAdapter.detectUrl(cleanUrl);
+  if (!trackId) {
+    throw new ResolveError("INVALID_URL", "Could not extract track ID from URL");
+  }
+
+  // 3. Check DB by ISRC if we have it
+  if (sourceAdapter.capabilities.supportsIsrc) {
+    console.log("[Resolver] Trying to fetch track metadata for ISRC lookup...");
+    try {
+      const sourceTrack = await sourceAdapter.getTrack(trackId);
+      if (sourceTrack.isrc) {
+        const cachedByIsrc = findTrackByIsrc(sourceTrack.isrc);
+        if (cachedByIsrc) {
+          console.log("[Resolver] Cache hit by ISRC! Returning cached result");
+          const links = cachedByIsrc.links.map((l) => ({
+            service: l.service as ServiceId,
+            displayName: getDisplayName(l.service as ServiceId),
+            url: l.url,
+            confidence: l.confidence,
+            matchMethod: l.matchMethod as "isrc" | "search" | "odesli" | "cache",
+          }));
+          return { sourceTrack: cachedByIsrc.track, links };
+        }
+      }
+    } catch (error) {
+      // Continue with normal flow if metadata fetch fails
+      console.log("[Resolver] Metadata fetch failed, continuing with normal flow");
+    }
+  }
+
+  // 4. Fetch metadata from the source service (or fallback to Odesli if unavailable)
+  let sourceTrack: NormalizedTrack;
+  try {
+    sourceTrack = await sourceAdapter.getTrack(trackId);
+  } catch (error) {
+    // If source service is unavailable (e.g., no credentials), try Odesli
+    if (!sourceAdapter.isAvailable()) {
+      return resolveUrlViaOdesli(cleanUrl);
+    }
+    throw error;
+  }
+
+  // 5. Resolve on all other services in parallel
+  const links = await resolveAcrossServices(sourceTrack, sourceAdapter);
+
+  // 6. Add the source service link
+  links.unshift({
+    service: sourceAdapter.id,
+    displayName: sourceAdapter.displayName,
+    url: sourceTrack.webUrl,
+    confidence: 1.0,
+    matchMethod: "isrc",
+  });
+
+  return { sourceTrack, links };
+}
+
+export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
+  // 1. DB-First: Check if we have similar tracks cached
+  console.log("[Resolver] resolveTextSearch - DB-First: Searching FTS5...");
+  const cachedTracks = findTracksByTextSearch(query, 1);
+  if (cachedTracks.length > 0) {
+    console.log("[Resolver] DB cache hit for text search!");
+    const track = cachedTracks[0];
+    const isrcMatch = track.isrc ? findTrackByIsrc(track.isrc) : null;
+    if (isrcMatch) {
+      const links = isrcMatch.links.map((l) => ({
+        service: l.service as ServiceId,
+        displayName: getDisplayName(l.service as ServiceId),
+        url: l.url,
+        confidence: l.confidence,
+        matchMethod: l.matchMethod as "isrc" | "search" | "odesli" | "cache",
+      }));
+      return { sourceTrack: track, links };
+    }
+  }
+
+  // 2. Service search: Use Spotify as the primary search engine
+  const spotifyAdapter = adapters.find((a) => a.id === "spotify");
+  if (!spotifyAdapter || !spotifyAdapter.isAvailable()) {
+    throw new ResolveError("SERVICE_DOWN", "Spotify is not available for text search");
+  }
+
+  const result = await spotifyAdapter.searchTrack({
+    title: query,
+    artist: query,
+  });
+
+  if (!result.found || !result.track) {
+    throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
+  }
+
+  // Use the found track as the source and resolve across services
+  const links = await resolveAcrossServices(result.track, spotifyAdapter);
+
+  links.unshift({
+    service: "spotify",
+    displayName: "Spotify",
+    url: result.track.webUrl,
+    confidence: result.confidence,
+    matchMethod: "search",
+  });
+
+  return { sourceTrack: result.track, links };
+}
+
+/**
+ * Text search with disambiguation support.
+ * Returns candidates for user selection when no single result has high enough confidence.
+ * Auto-selects when top result confidence > 0.9.
+ */
+export async function resolveTextSearchWithDisambiguation(
+  query: string,
+): Promise<TextSearchResult> {
+  console.log("[Resolver] resolveTextSearchWithDisambiguation called with:", query);
+
+  // 1. DB-First: Check if we have similar tracks cached
+  console.log("[Resolver] DB-First: Searching FTS5 for similar tracks...");
+  const cachedTracks = findTracksByTextSearch(query, MAX_CANDIDATES);
+  if (cachedTracks.length > 0) {
+    console.log("[Resolver] DB cache hit! Found", cachedTracks.length, "cached tracks");
+    // Return as candidates (user can select or we can auto-select if high confidence)
+    const candidates: SearchCandidate[] = cachedTracks
+      .slice(0, MAX_CANDIDATES)
+      .map((t) => ({
+        id: `${t.sourceService}:${t.sourceId}`,
+        title: t.title,
+        artists: t.artists,
+        albumName: t.albumName,
+        artworkUrl: t.artworkUrl,
+        durationMs: t.durationMs,
+        confidence: 0.8, // Cached results get 0.8 confidence
+      }));
+
+    return { kind: "disambiguation", candidates };
+  }
+
+  // 2. Service search: Spotify search if not in cache
+  const spotifyAdapter = adapters.find((a) => a.id === "spotify") as
+    | (ServiceAdapter & { searchTrackWithCandidates: (q: { title: string; artist: string }) => Promise<import("./types.js").SearchResultWithCandidates> })
+    | undefined;
+
+  console.log("[Resolver] Spotify adapter found:", !!spotifyAdapter);
+  console.log("[Resolver] Spotify adapter available:", spotifyAdapter?.isAvailable());
+
+  if (!spotifyAdapter || !spotifyAdapter.isAvailable()) {
+    throw new ResolveError("SERVICE_DOWN", "Spotify is not available for text search");
+  }
+
+  if (typeof spotifyAdapter.searchTrackWithCandidates !== "function") {
+    console.log("[Resolver] searchTrackWithCandidates not a function, falling back to resolveTextSearch");
+    // Fallback to old behavior if adapter doesn't support candidates
+    const result = await resolveTextSearch(query);
+    return { kind: "resolved", result };
+  }
+
+  console.log("[Resolver] Calling searchTrackWithCandidates...");
+  const searchResult = await spotifyAdapter.searchTrackWithCandidates({
+    title: query,
+    artist: query,
+  });
+
+  console.log("[Resolver] Search result - bestMatch found:", searchResult.bestMatch.found, "candidates:", searchResult.candidates.length);
+
+  if (searchResult.candidates.length === 0) {
+    throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
+  }
+
+  const topCandidate = searchResult.candidates[0];
+
+  // Auto-select when confidence is high enough
+  if (topCandidate.confidence >= AUTO_SELECT_THRESHOLD) {
+    const links = await resolveAcrossServices(topCandidate.track, spotifyAdapter);
+    links.unshift({
+      service: "spotify",
+      displayName: "Spotify",
+      url: topCandidate.track.webUrl,
+      confidence: topCandidate.confidence,
+      matchMethod: "search",
+    });
+    return { kind: "resolved", result: { sourceTrack: topCandidate.track, links } };
+  }
+
+  // Return candidates for disambiguation
+  const candidates: SearchCandidate[] = searchResult.candidates
+    .filter((c) => c.confidence >= CANDIDATE_MIN_CONFIDENCE)
+    .slice(0, MAX_CANDIDATES)
+    .map((c) => ({
+      id: `${c.track.sourceService}:${c.track.sourceId}`,
+      title: c.track.title,
+      artists: c.track.artists,
+      albumName: c.track.albumName,
+      artworkUrl: c.track.artworkUrl,
+      durationMs: c.track.durationMs,
+      confidence: c.confidence,
+    }));
+
+  return { kind: "disambiguation", candidates };
+}
+
+/**
+ * Resolves a specific Spotify track by ID (after user selects from disambiguation list).
+ */
+export async function resolveSelectedCandidate(candidateId: string): Promise<ResolutionResult> {
+  // candidateId format: "spotify:trackId"
+  const [service, trackId] = candidateId.split(":", 2);
+  if (!service || !trackId) {
+    throw new ResolveError("INVALID_URL", "Invalid candidate ID format");
+  }
+
+  const adapter = adapters.find((a) => a.id === service);
+  if (!adapter || !adapter.isAvailable()) {
+    throw new ResolveError("SERVICE_DOWN", `${service} is not available`);
+  }
+
+  const sourceTrack = await adapter.getTrack(trackId);
+  const links = await resolveAcrossServices(sourceTrack, adapter);
+
+  links.unshift({
+    service: adapter.id,
+    displayName: adapter.displayName,
+    url: sourceTrack.webUrl,
+    confidence: 1.0,
+    matchMethod: "search",
+  });
+
+  return { sourceTrack, links };
+}
+
+async function resolveAcrossServices(
+  sourceTrack: NormalizedTrack,
+  excludeAdapter: ServiceAdapter,
+): Promise<ResolvedLink[]> {
+  const targetAdapters = adapters.filter(
+    (a) => a.id !== excludeAdapter.id && a.isAvailable(),
+  );
+
+  // Start Odesli resolve in parallel (for YouTube quota savings and SoundCloud)
+  const odesliPromise = resolveViaOdesli(sourceTrack.webUrl).catch(() => null);
+
+  // Resolve on each target service
+  const results = await Promise.allSettled(
+    targetAdapters.map((adapter) => resolveOnService(adapter, sourceTrack)),
+  );
+
+  const links: ResolvedLink[] = [];
+
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    const adapter = targetAdapters[i];
+
+    if (result.status === "fulfilled" && result.value) {
+      links.push(result.value);
+    }
+  }
+
+  // Fill gaps with Odesli results
+  const odesliResult = await odesliPromise;
+  if (odesliResult) {
+    const coveredServices = new Set([
+      excludeAdapter.id,
+      ...links.map((l) => l.service),
+    ]);
+
+    for (const [serviceId, link] of Object.entries(odesliResult.links)) {
+      const sid = serviceId as ServiceId;
+      if (!coveredServices.has(sid) && link) {
+        links.push({
+          service: sid,
+          displayName: getDisplayName(sid),
+          url: link.url,
+          confidence: 0.8, // Odesli matches are generally reliable
+          matchMethod: "odesli",
+        });
+      }
+    }
+  }
+
+  // For services with no direct or Odesli match, add YouTube Music search fallback
+  const allServiceIds: ServiceId[] = ["spotify", "apple-music", "youtube", "soundcloud"];
+  const coveredAfterOdesli = new Set([
+    excludeAdapter.id,
+    ...links.map((l) => l.service),
+  ]);
+
+  if (!coveredAfterOdesli.has("youtube") && sourceTrack.title && sourceTrack.artists.length > 0) {
+    const searchQuery = encodeURIComponent(`${sourceTrack.artists[0]} ${sourceTrack.title}`);
+    links.push({
+      service: "youtube",
+      displayName: "YouTube Music",
+      url: `https://music.youtube.com/search?q=${searchQuery}`,
+      confidence: 0.5, // Below threshold for "direct match", but UI shows as "Search on YouTube Music"
+      matchMethod: "search",
+      isSearchFallback: true,
+    });
+  }
+
+  // Sort by confidence (highest first)
+  links.sort((a, b) => b.confidence - a.confidence);
+
+  // Filter out low-confidence matches (but keep search fallbacks)
+  return links.filter((l) => l.confidence >= 0.7 || l.isSearchFallback);
+}
+
+async function resolveOnService(
+  adapter: ServiceAdapter,
+  sourceTrack: NormalizedTrack,
+): Promise<ResolvedLink | null> {
+  // Strategy 1: ISRC lookup (most reliable)
+  if (adapter.capabilities.supportsIsrc && sourceTrack.isrc) {
+    // For YouTube, skip direct API and prefer Odesli (handled in resolveAcrossServices)
+    if (adapter.id === "youtube") {
+      // YouTube doesn't support ISRC anyway, but just in case
+      return resolveViaSearch(adapter, sourceTrack);
+    }
+
+    const track = await adapter.findByIsrc(sourceTrack.isrc);
+    if (track) {
+      return {
+        service: adapter.id,
+        displayName: adapter.displayName,
+        url: track.webUrl,
+        confidence: 1.0,
+        matchMethod: "isrc",
+      };
+    }
+  }
+
+  // Strategy 2: Text search (fallback)
+  return resolveViaSearch(adapter, sourceTrack);
+}
+
+async function resolveViaSearch(
+  adapter: ServiceAdapter,
+  sourceTrack: NormalizedTrack,
+): Promise<ResolvedLink | null> {
+  const result: MatchResult = await adapter.searchTrack({
+    title: sourceTrack.title,
+    artist: sourceTrack.artists[0] ?? "",
+    album: sourceTrack.albumName,
+  });
+
+  if (!result.found || !result.track) return null;
+
+  return {
+    service: adapter.id,
+    displayName: adapter.displayName,
+    url: result.track.webUrl,
+    confidence: result.confidence,
+    matchMethod: result.matchMethod,
+  };
+}
+
+function getDisplayName(serviceId: ServiceId): string {
+  const names: Record<ServiceId, string> = {
+    spotify: "Spotify",
+    "apple-music": "Apple Music",
+    youtube: "YouTube",
+    soundcloud: "SoundCloud",
+  };
+  return names[serviceId] ?? serviceId;
+}
+
+async function resolveUrlViaOdesli(inputUrl: string): Promise<ResolutionResult> {
+  const odesliResult = await resolveViaOdesli(inputUrl);
+
+  if (!odesliResult.metadata) {
+    throw new ResolveError("TRACK_NOT_FOUND", "Could not find track metadata");
+  }
+
+  // Create a normalized track from Odesli metadata
+  const sourceTrack: NormalizedTrack = {
+    sourceService: "spotify",
+    sourceId: "",
+    title: odesliResult.metadata.title ?? "Unknown Track",
+    artists: odesliResult.metadata.artistName ? [odesliResult.metadata.artistName] : [],
+    albumName: undefined,
+    isrc: undefined,
+    artworkUrl: odesliResult.metadata.thumbnailUrl,
+    durationMs: undefined,
+    webUrl: inputUrl,
+  };
+
+  // Convert Odesli links to ResolvedLinks
+  const links: ResolvedLink[] = [];
+  for (const [serviceId, link] of Object.entries(odesliResult.links)) {
+    const sid = serviceId as ServiceId;
+    if (link) {
+      links.push({
+        service: sid,
+        displayName: getDisplayName(sid),
+        url: link.url,
+        confidence: 0.9, // Odesli is quite reliable
+        matchMethod: "odesli",
+      });
+    }
+  }
+
+  // Sort by confidence (highest first)
+  links.sort((a, b) => b.confidence - a.confidence);
+
+  return { sourceTrack, links };
+}

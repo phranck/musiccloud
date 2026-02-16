@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.astro/
+data/*.db
+data/*.db-wal
+data/*.db-shm
+.env
+.DS_Store

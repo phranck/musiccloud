@@ -1,0 +1,105 @@
+---
+import { cn } from "../lib/utils";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Page not found - music.cloud</title>
+    <meta name="robots" content="noindex" />
+    <style is:global>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --primary: #7c5cfc;
+        --primary-light: #9b7aff;
+        --background: #0a0a0a;
+        --surface: rgba(255, 255, 255, 0.05);
+        --text-primary: #ffffff;
+        --text-secondary: rgba(255, 255, 255, 0.7);
+        --text-muted: rgba(255, 255, 255, 0.5);
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--background);
+        color: var(--text-primary);
+        line-height: 1.6;
+      }
+
+      .container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
+
+      .content {
+        max-width: 480px;
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+      }
+
+      p {
+        font-size: 1rem;
+        color: var(--text-secondary);
+        margin-bottom: 2rem;
+      }
+
+      a {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        background: var(--primary);
+        color: white;
+        border-radius: 0.75rem;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+
+      a:hover {
+        background: var(--primary-light);
+        transform: scale(1.05);
+      }
+
+      a:active {
+        transform: scale(0.95);
+      }
+
+      .logo {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 3rem;
+        color: var(--text-primary);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="content">
+        <div class="logo">music.cloud</div>
+
+        <h1>Page not found</h1>
+
+        <p>
+          This link doesn't exist. Maybe it was removed or the URL is wrong.
+        </p>
+
+        <a href="/">Go to music.cloud</a>
+      </div>
+    </div>
+  </body>
+</html>
