@@ -14,8 +14,8 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@astrojs/node": "^9.1.0",
     "@astrojs/react": "^4.2.0",
+    "@astrojs/vercel": "^9.0.4",
     "astro": "^5.3.0",
     "better-sqlite3": "^11.8.0",
     "clsx": "^2.1.0",
