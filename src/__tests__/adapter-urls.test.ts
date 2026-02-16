@@ -5,6 +5,7 @@ import { youtubeAdapter } from "../services/adapters/youtube";
 import { audiusAdapter } from "../services/adapters/audius";
 import { napsterAdapter } from "../services/adapters/napster";
 import { soundcloudAdapter } from "../services/adapters/soundcloud";
+import { pandoraAdapter } from "../services/adapters/pandora";
 
 // =============================================================================
 // Spotify adapter: detectUrl
@@ -234,6 +235,42 @@ describe("SoundCloud: detectUrl (adapter-urls)", () => {
   it("should return null for non-SoundCloud URL", () => {
     expect(
       soundcloudAdapter.detectUrl("https://open.spotify.com/track/abc123"),
+    ).toBeNull();
+  });
+});
+
+// =============================================================================
+// Pandora adapter: detectUrl
+// =============================================================================
+
+describe("Pandora: detectUrl (adapter-urls)", () => {
+  it("should extract path from standard track URL", () => {
+    expect(
+      pandoraAdapter.detectUrl("https://www.pandora.com/artist/taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6"),
+    ).toBe("taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6");
+  });
+
+  it("should extract path from URL without www", () => {
+    expect(
+      pandoraAdapter.detectUrl("https://pandora.com/artist/taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6"),
+    ).toBe("taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6");
+  });
+
+  it("should strip query parameters", () => {
+    expect(
+      pandoraAdapter.detectUrl("https://www.pandora.com/artist/taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6?ref=share"),
+    ).toBe("taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6");
+  });
+
+  it("should return null for artist-only URL", () => {
+    expect(
+      pandoraAdapter.detectUrl("https://www.pandora.com/artist/taylor-swift"),
+    ).toBeNull();
+  });
+
+  it("should return null for non-Pandora URL", () => {
+    expect(
+      pandoraAdapter.detectUrl("https://open.spotify.com/track/abc123"),
     ).toBeNull();
   });
 });

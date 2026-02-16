@@ -7,6 +7,7 @@ import { tidalAdapter } from "./adapters/tidal.js";
 import { audiusAdapter } from "./adapters/audius.js";
 import { napsterAdapter } from "./adapters/napster.js";
 import { soundcloudAdapter } from "./adapters/soundcloud.js";
+import { pandoraAdapter } from "./adapters/pandora.js";
 
 // All registered adapters. Add new adapters here.
 export const adapters: ServiceAdapter[] = [
@@ -18,6 +19,7 @@ export const adapters: ServiceAdapter[] = [
   audiusAdapter,
   napsterAdapter,
   soundcloudAdapter,
+  pandoraAdapter,
 ];
 
 export function getAdapters(): ServiceAdapter[] {

@@ -10,4 +10,5 @@ export const SERVICE_DISPLAY_NAMES: Record<ServiceId, string> = {
   "deezer": "Deezer",
   "audius": "Audius",
   "napster": "Napster",
+  "pandora": "Pandora",
 };

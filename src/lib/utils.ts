@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // All supported music platforms
-export type Platform = "spotify" | "apple-music" | "youtube" | "youtube-music" | "soundcloud" | "tidal" | "deezer" | "audius" | "napster";
+export type Platform = "spotify" | "apple-music" | "youtube" | "youtube-music" | "soundcloud" | "tidal" | "deezer" | "audius" | "napster" | "pandora";
 
 /** Platforms with URL detection support (YouTube Music is derived from YouTube) */
 type DetectablePlatform = Exclude<Platform, "youtube-music">;
@@ -21,6 +21,7 @@ const MUSIC_URL_PATTERNS: Record<DetectablePlatform, RegExp> = {
   deezer: /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?track\//,
   audius: /^https?:\/\/audius\.co\/[^/]+\/[^/]+/,
   napster: /^https?:\/\/(www\.|app\.)?napster\.com\/.+/,
+  pandora: /^https?:\/\/(?:www\.)?pandora\.com\/artist\/[^/]+\/[^/]+\/[^/]+\/TR[a-zA-Z0-9]+/,
 };
 
 export function isMusicUrl(url: string): boolean {
@@ -49,4 +50,5 @@ export const PLATFORM_CONFIG: Record<
   deezer: { label: "Deezer", color: "#A238FF" },
   audius: { label: "Audius", color: "#7E1BCC" },
   napster: { label: "Napster", color: "#00A8E1" },
+  pandora: { label: "Pandora", color: "#3668FF" },
 };
