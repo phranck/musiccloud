@@ -13,8 +13,10 @@ export async function createRepository(config: DatabaseConfig): Promise<TrackRep
       return new PostgresAdapter(config.connectionString);
     }
 
-    case "mysql":
-      throw new Error("MySQL adapter not yet implemented. Coming in Phase 3.");
+    case "mysql": {
+      const { MysqlAdapter } = await import("./adapters/mysql.js");
+      return new MysqlAdapter(config);
+    }
 
     default:
       throw new Error(`Unsupported database dialect: ${(config as { dialect: string }).dialect}`);
