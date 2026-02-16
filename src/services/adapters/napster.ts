@@ -8,6 +8,9 @@ import { calculateConfidence } from "../../lib/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
 import { log } from "../../lib/logger.js";
 
+// NOTE: Napster Developer Portal no longer accepts new sign-ups (as of Feb 2026).
+// Existing API keys still work. Contact api-team@napster.com for new key requests.
+// Scraping not viable: Napster is a pure SPA with no SSR metadata.
 const API_BASE = "https://api.napster.com/v2.2";
 
 // Matches: play.napster.com/track/tra.123, web.napster.com/track/tra.123,

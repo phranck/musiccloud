@@ -362,11 +362,11 @@ async function resolveAcrossServices(
     (a) => a.id !== excludeAdapter.id && a.isAvailable(),
   );
 
-  // Start Odesli resolve in parallel (for YouTube quota savings and SoundCloud)
-  const odesliPromise = resolveViaOdesli(sourceTrack.webUrl).catch((error) => {
-    log.error("Resolver", `Odesli failed: ${error instanceof Error ? error.message : error}`);
-    return null;
-  });
+  // Odesli disabled - relying on own adapters only
+  // const odesliPromise = resolveViaOdesli(sourceTrack.webUrl).catch((error) => {
+  //   log.error("Resolver", `Odesli failed: ${error instanceof Error ? error.message : error}`);
+  //   return null;
+  // });
 
   // Resolve on each target service
   const results = await Promise.allSettled(
@@ -388,7 +388,7 @@ async function resolveAcrossServices(
 
   // Derive YouTube Music link from YouTube result (same video ID, different domain)
   const youtubeLink = links.find((l) => l.service === "youtube");
-  if (youtubeLink) {
+  if (youtubeLink && !links.some((l) => l.service === "youtube-music")) {
     const videoIdMatch = /[?&]v=([^&]+)/.exec(youtubeLink.url);
     if (videoIdMatch) {
       links.push({
@@ -401,34 +401,13 @@ async function resolveAcrossServices(
     }
   }
 
-  // Fill gaps with Odesli results
-  const odesliResult = await odesliPromise;
-  if (odesliResult) {
-    const coveredServices = new Set([
-      excludeAdapter.id,
-      ...links.map((l) => l.service),
-    ]);
-
-    for (const [serviceId, link] of Object.entries(odesliResult.links)) {
-      if (!isValidServiceId(serviceId) || !link) continue;
-      if (coveredServices.has(serviceId)) continue;
-      links.push({
-        service: serviceId,
-        displayName: PLATFORM_CONFIG[serviceId].label,
-        url: link.url,
-        confidence: ODESLI_CONFIDENCE,
-        matchMethod: "odesli",
-      });
-    }
-  }
-
-  // For services with no direct or Odesli match, add YouTube search fallback
-  const coveredAfterOdesli = new Set([
+  // For services with no match, add YouTube search fallback
+  const coveredServices = new Set([
     excludeAdapter.id,
     ...links.map((l) => l.service),
   ]);
 
-  if (!coveredAfterOdesli.has("youtube") && sourceTrack.title && sourceTrack.artists.length > 0) {
+  if (!coveredServices.has("youtube") && sourceTrack.title && sourceTrack.artists.length > 0) {
     const searchQuery = encodeURIComponent(`${sourceTrack.artists[0]} ${sourceTrack.title}`);
     links.push({
       service: "youtube",
