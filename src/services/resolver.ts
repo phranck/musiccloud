@@ -6,7 +6,7 @@ import { validateMusicUrl, stripTrackingParams, isUrl } from "../lib/url-parser.
 import { PLATFORM_CONFIG } from "../lib/utils.js";
 import { ResolveError } from "../lib/errors.js";
 import type { ErrorCode } from "../lib/errors.js";
-import { findTrackByUrl, findTrackByIsrc, findTracksByTextSearch } from "../db/index.js";
+import { getRepository } from "../db/index.js";
 import { log } from "../lib/logger.js";
 
 export interface ResolvedLink {
@@ -88,7 +88,8 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
 
   // 1. DB-First: Check if we have this URL cached
   log.debug("Resolver", "DB-First: Checking for cached URL...");
-  const cached = findTrackByUrl(cleanUrl);
+  const repo = await getRepository();
+  const cached = await repo.findTrackByUrl(cleanUrl);
   if (cached) {
     log.debug("Resolver", "Cache hit! Returning cached result");
     return { sourceTrack: cached.track, links: mapCachedLinks(cached.links) };
@@ -111,7 +112,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     try {
       const sourceTrack = await sourceAdapter.getTrack(trackId);
       if (sourceTrack.isrc) {
-        const cachedByIsrc = findTrackByIsrc(sourceTrack.isrc);
+        const cachedByIsrc = await repo.findTrackByIsrc(sourceTrack.isrc);
         if (cachedByIsrc) {
           log.debug("Resolver", "Cache hit by ISRC! Returning cached result");
           return { sourceTrack: cachedByIsrc.track, links: mapCachedLinks(cachedByIsrc.links) };
@@ -153,11 +154,12 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
   // 1. DB-First: Check if we have similar tracks cached
   log.debug("Resolver", "resolveTextSearch - DB-First: Searching FTS5...");
-  const cachedTracks = findTracksByTextSearch(query, 1);
+  const repo = await getRepository();
+  const cachedTracks = await repo.findTracksByTextSearch(query, 1);
   if (cachedTracks.length > 0) {
     log.debug("Resolver", "DB cache hit for text search!");
     const track = cachedTracks[0];
-    const isrcMatch = track.isrc ? findTrackByIsrc(track.isrc) : null;
+    const isrcMatch = track.isrc ? await repo.findTrackByIsrc(track.isrc) : null;
     if (isrcMatch) {
       return { sourceTrack: track, links: mapCachedLinks(isrcMatch.links) };
     }
@@ -203,7 +205,8 @@ export async function resolveTextSearchWithDisambiguation(
 
   // 1. DB-First: Check if we have similar tracks cached
   log.debug("Resolver", "DB-First: Searching FTS5 for similar tracks...");
-  const cachedTracks = findTracksByTextSearch(query, MAX_CANDIDATES);
+  const repo = await getRepository();
+  const cachedTracks = await repo.findTracksByTextSearch(query, MAX_CANDIDATES);
   if (cachedTracks.length > 0) {
     log.debug("Resolver", "DB cache hit! Found", cachedTracks.length, "cached tracks");
     // Return as candidates (user can select or we can auto-select if high confidence)

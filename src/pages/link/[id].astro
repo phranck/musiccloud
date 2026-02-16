@@ -17,7 +17,7 @@ if (!id) {
   return Astro.redirect("/");
 }
 
-const data = loadByTrackId(id);
+const data = await loadByTrackId(id);
 
 if (!data) {
   return Astro.redirect("/", 302);

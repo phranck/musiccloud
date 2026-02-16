@@ -4,9 +4,7 @@ import type { ResolutionResult } from "../../services/resolver.js";
 import { ResolveError, ERROR_STATUS_MAP, USER_MESSAGES } from "../../lib/errors.js";
 import type { ErrorCode } from "../../lib/errors.js";
 import { isUrl, stripTrackingParams } from "../../lib/url-parser.js";
-import { db, sqlite, findExistingByIsrc } from "../../db/index.js";
-import { tracks, serviceLinks, shortUrls } from "../../db/schema.js";
-import { generateTrackId, generateShortId } from "../../lib/short-id.js";
+import { getRepository } from "../../db/index.js";
 import { apiRateLimiter } from "../../lib/rate-limiter.js";
 import { log } from "../../lib/logger.js";
 
@@ -44,20 +42,20 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     // Flow 1: User selected a candidate from disambiguation list
     if (selectedCandidate) {
       const result = await resolveSelectedCandidate(selectedCandidate);
-      return persistAndRespond(result, origin);
+      return await persistAndRespond(result, origin);
     }
 
     // Flow 2: URL input - resolve directly
     if (isUrl(query!)) {
       const result = await resolveQuery(query!);
-      return persistAndRespond(result, origin);
+      return await persistAndRespond(result, origin);
     }
 
     // Flow 3: Text search with disambiguation
     const textResult = await resolveTextSearchWithDisambiguation(query!);
 
     if (textResult.kind === "resolved" && textResult.result) {
-      return persistAndRespond(textResult.result, origin);
+      return await persistAndRespond(textResult.result, origin);
     }
 
     // Return disambiguation candidates (no DB persistence yet)
@@ -99,72 +97,18 @@ function jsonError(code: ErrorCode, status: number, customMessage?: string): Res
   );
 }
 
-function persistAndRespond(result: ResolutionResult, origin: string): Response {
-  const sourceTrack = result.sourceTrack;
-  const now = Date.now();
+async function persistAndRespond(result: ResolutionResult, origin: string): Promise<Response> {
+  const repo = await getRepository();
 
-  // Wrap all DB read-then-write in a transaction to prevent race conditions
-  const { trackId, shortId } = sqlite.transaction(() => {
-    // ISRC deduplication: reuse existing track + short URL if same ISRC
-    const existing = sourceTrack.isrc ? findExistingByIsrc(sourceTrack.isrc) : null;
-
-    if (existing) {
-      // Update service links (add new ones, skip existing via onConflictDoNothing)
-      for (const link of result.links) {
-        const cleanUrl = stripTrackingParams(link.url);
-        db.insert(serviceLinks).values({
-          id: generateTrackId(),
-          trackId: existing.trackId,
-          service: link.service,
-          externalId: null,
-          url: cleanUrl,
-          confidence: link.confidence,
-          matchMethod: link.matchMethod,
-          createdAt: now,
-        }).onConflictDoNothing().run();
-      }
-
-      return { trackId: existing.trackId, shortId: existing.shortId };
-    }
-
-    // New track: create fresh track + short URL
-    const newTrackId = generateTrackId();
-    const newShortId = generateShortId();
-
-    db.insert(tracks).values({
-      id: newTrackId,
-      title: sourceTrack.title,
-      artists: JSON.stringify(sourceTrack.artists),
-      albumName: sourceTrack.albumName ?? null,
-      isrc: sourceTrack.isrc ?? null,
-      artworkUrl: sourceTrack.artworkUrl ?? null,
-      durationMs: sourceTrack.durationMs ? Math.floor(sourceTrack.durationMs) : null,
-      createdAt: now,
-      updatedAt: now,
-    }).run();
-
-    for (const link of result.links) {
-      const cleanUrl = stripTrackingParams(link.url);
-      db.insert(serviceLinks).values({
-        id: generateTrackId(),
-        trackId: newTrackId,
-        service: link.service,
-        externalId: null,
-        url: cleanUrl,
-        confidence: link.confidence,
-        matchMethod: link.matchMethod,
-        createdAt: now,
-      }).onConflictDoNothing().run();
-    }
-
-    db.insert(shortUrls).values({
-      id: newShortId,
-      trackId: newTrackId,
-      createdAt: now,
-    }).run();
-
-    return { trackId: newTrackId, shortId: newShortId };
-  })();
+  const { trackId, shortId } = await repo.persistTrackWithLinks({
+    sourceTrack: result.sourceTrack,
+    links: result.links.map((l) => ({
+      service: l.service,
+      url: stripTrackingParams(l.url),
+      confidence: l.confidence,
+      matchMethod: l.matchMethod,
+    })),
+  });
 
   const shortUrl = `${origin}/${shortId}`;
 
@@ -173,10 +117,10 @@ function persistAndRespond(result: ResolutionResult, origin: string): Response {
       id: trackId,
       shortUrl,
       track: {
-        title: sourceTrack.title,
-        artists: sourceTrack.artists,
-        albumName: sourceTrack.albumName,
-        artworkUrl: sourceTrack.artworkUrl,
+        title: result.sourceTrack.title,
+        artists: result.sourceTrack.artists,
+        albumName: result.sourceTrack.albumName,
+        artworkUrl: result.sourceTrack.artworkUrl,
       },
       links: result.links.map((l) => ({
         service: l.service,

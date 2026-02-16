@@ -17,7 +17,7 @@ if (!shortId) {
   return Astro.redirect("/");
 }
 
-const data = loadByShortId(shortId, Astro.url.origin);
+const data = await loadByShortId(shortId, Astro.url.origin);
 
 if (!data) {
   return Astro.redirect("/", 302);

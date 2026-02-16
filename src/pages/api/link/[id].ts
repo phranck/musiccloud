@@ -1,7 +1,5 @@
 import type { APIRoute } from "astro";
-import { db } from "../../../db/index.js";
-import { tracks, serviceLinks } from "../../../db/schema.js";
-import { eq } from "drizzle-orm";
+import { getRepository } from "../../../db/index.js";
 
 export const prerender = false;
 
@@ -15,37 +13,28 @@ export const GET: APIRoute = async ({ params }) => {
     );
   }
 
-  const track = db.select().from(tracks).where(eq(tracks.id, id)).get();
+  const repo = await getRepository();
+  const data = await repo.loadByTrackId(id);
 
-  if (!track) {
+  if (!data) {
     return new Response(
       JSON.stringify({ error: "TRACK_NOT_FOUND", message: "Track not found." }),
       { status: 404, headers: { "Content-Type": "application/json" } },
     );
   }
 
-  const links = db
-    .select()
-    .from(serviceLinks)
-    .where(eq(serviceLinks.trackId, id))
-    .all();
-
   return new Response(
     JSON.stringify({
-      id: track.id,
+      id,
       track: {
-        title: track.title,
-        artists: JSON.parse(track.artists),
-        albumName: track.albumName,
-        artworkUrl: track.artworkUrl,
-        durationMs: track.durationMs,
-        isrc: track.isrc,
+        title: data.track.title,
+        artists: data.artists,
+        albumName: data.track.albumName,
+        artworkUrl: data.track.artworkUrl,
       },
-      links: links.map((l) => ({
+      links: data.links.map((l) => ({
         service: l.service,
         url: l.url,
-        confidence: l.confidence,
-        matchMethod: l.matchMethod,
       })),
     }),
     {
