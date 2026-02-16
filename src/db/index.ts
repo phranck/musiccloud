@@ -11,6 +11,11 @@ sqlite.pragma("foreign_keys = ON");
 
 export const db = drizzle(sqlite, { schema });
 
+function safeParseArray(json: string, fallback: string[] = []): string[] {
+  try { return JSON.parse(json); }
+  catch { return fallback; }
+}
+
 /**
  * Find a cached track by its web URL (from any service)
  */
@@ -33,7 +38,7 @@ export function findTrackByUrl(url: string): { track: NormalizedTrack; links: an
     sourceService: "cached",
     sourceId: firstRow.id,
     title: firstRow.title,
-    artists: JSON.parse(firstRow.artists),
+    artists: safeParseArray(firstRow.artists, ["Unknown Artist"]),
     albumName: firstRow.album_name,
     isrc: firstRow.isrc,
     artworkUrl: firstRow.artwork_url,
@@ -83,7 +88,7 @@ export function findTracksByTextSearch(query: string, maxResults: number = 10): 
       sourceService: "cached",
       sourceId: r.id,
       title: r.title,
-      artists: JSON.parse(r.artists),
+      artists: safeParseArray(r.artists, ["Unknown Artist"]),
       albumName: r.album_name,
       isrc: r.isrc,
       artworkUrl: r.artwork_url,
@@ -118,7 +123,7 @@ export function findTrackByIsrc(isrc: string): { track: NormalizedTrack; links: 
     sourceService: "cached",
     sourceId: firstRow.id,
     title: firstRow.title,
-    artists: JSON.parse(firstRow.artists),
+    artists: safeParseArray(firstRow.artists, ["Unknown Artist"]),
     albumName: firstRow.album_name,
     isrc: firstRow.isrc,
     artworkUrl: firstRow.artwork_url,

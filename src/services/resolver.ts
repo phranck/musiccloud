@@ -1,4 +1,5 @@
 import type { ServiceId, NormalizedTrack, MatchResult, ServiceAdapter, SearchCandidate } from "./types.js";
+import { isValidServiceId } from "./types.js";
 import { adapters, identifyService } from "./index.js";
 import { resolveViaOdesli } from "./odesli.js";
 import { validateMusicUrl, stripTrackingParams, isUrl } from "../lib/url-parser.js";
@@ -25,6 +26,18 @@ export interface TextSearchResult {
   kind: "resolved" | "disambiguation";
   result?: ResolutionResult;
   candidates?: SearchCandidate[];
+}
+
+function mapCachedLinks(links: Array<{ service: string; url: string; confidence: number; matchMethod: string }>): ResolvedLink[] {
+  return links
+    .filter((l) => isValidServiceId(l.service))
+    .map((l) => ({
+      service: l.service as ServiceId,
+      displayName: getDisplayName(l.service as ServiceId),
+      url: l.url,
+      confidence: l.confidence,
+      matchMethod: l.matchMethod as "isrc" | "search" | "odesli" | "cache",
+    }));
 }
 
 const AUTO_SELECT_THRESHOLD = 0.9;
@@ -60,14 +73,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   const cached = findTrackByUrl(cleanUrl);
   if (cached) {
     console.log("[Resolver] Cache hit! Returning cached result");
-    const links = cached.links.map((l) => ({
-      service: l.service as ServiceId,
-      displayName: getDisplayName(l.service as ServiceId),
-      url: l.url,
-      confidence: l.confidence,
-      matchMethod: l.matchMethod as "isrc" | "search" | "odesli" | "cache",
-    }));
-    return { sourceTrack: cached.track, links };
+    return { sourceTrack: cached.track, links: mapCachedLinks(cached.links) };
   }
 
   // 2. Identify which service the URL belongs to
@@ -90,14 +96,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
         const cachedByIsrc = findTrackByIsrc(sourceTrack.isrc);
         if (cachedByIsrc) {
           console.log("[Resolver] Cache hit by ISRC! Returning cached result");
-          const links = cachedByIsrc.links.map((l) => ({
-            service: l.service as ServiceId,
-            displayName: getDisplayName(l.service as ServiceId),
-            url: l.url,
-            confidence: l.confidence,
-            matchMethod: l.matchMethod as "isrc" | "search" | "odesli" | "cache",
-          }));
-          return { sourceTrack: cachedByIsrc.track, links };
+          return { sourceTrack: cachedByIsrc.track, links: mapCachedLinks(cachedByIsrc.links) };
         }
       }
     } catch (error) {
@@ -142,14 +141,7 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
     const track = cachedTracks[0];
     const isrcMatch = track.isrc ? findTrackByIsrc(track.isrc) : null;
     if (isrcMatch) {
-      const links = isrcMatch.links.map((l) => ({
-        service: l.service as ServiceId,
-        displayName: getDisplayName(l.service as ServiceId),
-        url: l.url,
-        confidence: l.confidence,
-        matchMethod: l.matchMethod as "isrc" | "search" | "odesli" | "cache",
-      }));
-      return { sourceTrack: track, links };
+      return { sourceTrack: track, links: mapCachedLinks(isrcMatch.links) };
     }
   }
 
@@ -218,12 +210,8 @@ export async function resolveTextSearchWithDisambiguation(
   for (const adapter of searchAdapters) {
     try {
       // Use searchTrackWithCandidates if available (e.g. Spotify)
-      if ("searchTrackWithCandidates" in adapter && typeof (adapter as Record<string, unknown>).searchTrackWithCandidates === "function") {
-        const adapterWithCandidates = adapter as ServiceAdapter & {
-          searchTrackWithCandidates: (q: { title: string; artist: string }) => Promise<import("./types.js").SearchResultWithCandidates>;
-        };
-
-        const searchResult = await adapterWithCandidates.searchTrackWithCandidates({
+      if (adapter.searchTrackWithCandidates) {
+        const searchResult = await adapter.searchTrackWithCandidates({
           title: query,
           artist: query,
         });
@@ -352,16 +340,15 @@ async function resolveAcrossServices(
     ]);
 
     for (const [serviceId, link] of Object.entries(odesliResult.links)) {
-      const sid = serviceId as ServiceId;
-      if (!coveredServices.has(sid) && link) {
-        links.push({
-          service: sid,
-          displayName: getDisplayName(sid),
-          url: link.url,
-          confidence: 0.8, // Odesli matches are generally reliable
-          matchMethod: "odesli",
-        });
-      }
+      if (!isValidServiceId(serviceId) || !link) continue;
+      if (coveredServices.has(serviceId)) continue;
+      links.push({
+        service: serviceId,
+        displayName: getDisplayName(serviceId),
+        url: link.url,
+        confidence: 0.8,
+        matchMethod: "odesli",
+      });
     }
   }
 
@@ -473,16 +460,14 @@ async function resolveUrlViaOdesli(inputUrl: string): Promise<ResolutionResult> 
   // Convert Odesli links to ResolvedLinks
   const links: ResolvedLink[] = [];
   for (const [serviceId, link] of Object.entries(odesliResult.links)) {
-    const sid = serviceId as ServiceId;
-    if (link) {
-      links.push({
-        service: sid,
-        displayName: getDisplayName(sid),
-        url: link.url,
-        confidence: 0.9, // Odesli is quite reliable
-        matchMethod: "odesli",
-      });
-    }
+    if (!isValidServiceId(serviceId) || !link) continue;
+    links.push({
+      service: serviceId,
+      displayName: getDisplayName(serviceId),
+      url: link.url,
+      confidence: 0.9,
+      matchMethod: "odesli",
+    });
   }
 
   // Sort by confidence (highest first)

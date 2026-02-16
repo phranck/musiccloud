@@ -38,3 +38,4 @@ export class RateLimiter {
 }
 
 export const apiRateLimiter = new RateLimiter(30, 60_000);
+setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);

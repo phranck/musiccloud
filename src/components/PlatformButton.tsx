@@ -24,7 +24,7 @@ export function PlatformButton({
 }: PlatformButtonProps) {
   const config = PLATFORM_CONFIG[platform];
   const label = displayName || config.label;
-  const isDev = typeof window !== "undefined" && !window.location.hostname.includes("music.cloud");
+  const isDev = import.meta.env.DEV;
 
   // Map matchMethod to display text
   const sourceLabel = matchMethod === "odesli" ? "via Odesli" : matchMethod === "isrc" ? "direct (ISRC)" : matchMethod === "search" ? "via search" : matchMethod === "cache" ? "cached" : null;
@@ -42,16 +42,12 @@ export function PlatformButton({
         "bg-surface-elevated/80",
         "glass-fallback",
         "border border-white/[0.08]",
-        "hover:scale-105 hover:shadow-lg",
+        "hover:scale-105 hover:shadow-[0_0_20px_var(--platform-color)]",
+        "focus-visible:scale-105 focus-visible:shadow-[0_0_20px_var(--platform-color)]",
         "active:scale-95",
         className,
       )}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = `0 0 20px ${config.color}40`;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = "";
-      }}
+      style={{ "--platform-color": `${config.color}40` } as React.CSSProperties}
     >
       <PlatformIcon platform={platform} className="w-8 h-8 flex-shrink-0" colored={true} />
       <div className="flex-1">

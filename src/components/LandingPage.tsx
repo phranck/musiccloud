@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Platform } from "../lib/utils";
 import { DisambiguationPanel, type DisambiguationCandidate } from "./DisambiguationPanel";
 import { GradientBackground } from "./GradientBackground";
@@ -14,6 +14,8 @@ interface AlbumColors {
 }
 
 export function LandingPage() {
+  const resultsPanelRef = useRef<HTMLDivElement>(null);
+  const disambiguationRef = useRef<HTMLDivElement>(null);
   const [inputState, setInputState] = useState<InputState>("idle");
   const [result, setResult] = useState<SongResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
@@ -27,6 +29,14 @@ export function LandingPage() {
     variant: "success" | "error" | "info";
     visible: boolean;
   }>({ message: "", variant: "info", visible: false });
+
+  useEffect(() => {
+    if (result) resultsPanelRef.current?.focus();
+  }, [result]);
+
+  useEffect(() => {
+    if (candidates) disambiguationRef.current?.focus();
+  }, [candidates]);
 
   const handleResolveSuccess = useCallback((data: Record<string, unknown>) => {
     const platforms: SongResult["platforms"] = ((data.links as Array<Record<string, unknown>>) ?? [])
@@ -218,16 +228,20 @@ export function LandingPage() {
 
       {/* Disambiguation */}
       {candidates && candidates.length > 0 && (
-        <DisambiguationPanel
-          candidates={candidates}
-          onSelect={handleSelectCandidate}
-          onCancel={handleClear}
-        />
+        <div ref={disambiguationRef} tabIndex={-1} className="outline-none w-full">
+          <DisambiguationPanel
+            candidates={candidates}
+            onSelect={handleSelectCandidate}
+            onCancel={handleClear}
+          />
+        </div>
       )}
 
       {/* Results */}
       {result && (
-        <ResultsPanel result={result} onAlbumArtLoad={handleAlbumArtLoad} />
+        <div ref={resultsPanelRef} tabIndex={-1} className="outline-none w-full flex justify-center">
+          <ResultsPanel result={result} onAlbumArtLoad={handleAlbumArtLoad} />
+        </div>
       )}
 
       {/* Toast */}

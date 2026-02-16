@@ -1,5 +1,11 @@
 export type ServiceId = "spotify" | "apple-music" | "youtube" | "soundcloud";
 
+const VALID_SERVICE_IDS: readonly ServiceId[] = ["spotify", "apple-music", "youtube", "soundcloud"];
+
+export function isValidServiceId(value: unknown): value is ServiceId {
+  return typeof value === "string" && VALID_SERVICE_IDS.includes(value as ServiceId);
+}
+
 export interface NormalizedTrack {
   isrc?: string;
   sourceService: ServiceId;
@@ -48,6 +54,7 @@ export interface ServiceAdapter {
   getTrack(trackId: string): Promise<NormalizedTrack>;
   findByIsrc(isrc: string): Promise<NormalizedTrack | null>;
   searchTrack(query: SearchQuery): Promise<MatchResult>;
+  searchTrackWithCandidates?(query: SearchQuery): Promise<SearchResultWithCandidates>;
 }
 
 export interface SearchQuery {

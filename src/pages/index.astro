@@ -5,6 +5,7 @@
  * Static page (prerendered). The LandingPage React component
  * handles all client-side interactivity as an Astro island.
  */
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LandingPage } from "../components/LandingPage";
 import "../styles/global.css";
 ---
@@ -52,7 +53,9 @@ import "../styles/global.css";
     <link rel="canonical" href="https://music.cloud" />
   </head>
   <body class="bg-background text-text-primary antialiased">
-    <LandingPage client:load />
+    <ErrorBoundary client:load>
+      <LandingPage client:load />
+    </ErrorBoundary>
 
     <!-- SSR fallback for no-JS -->
     <noscript>
