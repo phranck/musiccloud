@@ -8,8 +8,10 @@ export async function createRepository(config: DatabaseConfig): Promise<TrackRep
       return new SqliteAdapter(config.path);
     }
 
-    case "postgres":
-      throw new Error("PostgreSQL adapter not yet implemented. Coming in Phase 2.");
+    case "postgres": {
+      const { PostgresAdapter } = await import("./adapters/postgres.js");
+      return new PostgresAdapter(config.connectionString);
+    }
 
     case "mysql":
       throw new Error("MySQL adapter not yet implemented. Coming in Phase 3.");
