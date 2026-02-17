@@ -19,7 +19,7 @@ zerops:
         HOST: 0.0.0.0
         PORT: "3000"
         DATABASE_TYPE: sqlite
-        DATABASE_PATH: /home/zerops/data/music.db
+        DATABASE_PATH: /mnt/sharedstorage/music.db
       initCommands:
-        - mkdir -p /home/zerops/data
+        - while ! touch /mnt/sharedstorage/.probe 2>/dev/null; do sleep 1; done && rm -f /mnt/sharedstorage/.probe
       start: npm start
