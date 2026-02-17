@@ -434,7 +434,7 @@ export function LandingPage() {
         <div
           ref={disambiguationRef}
           tabIndex={-1}
-          className="outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:rounded-2xl w-full"
+          className="outline-none w-full"
         >
           <DisambiguationPanel
             candidates={candidates}
@@ -451,7 +451,7 @@ export function LandingPage() {
         <div
           ref={resultsPanelRef}
           tabIndex={-1}
-          className={`outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:rounded-2xl w-full flex justify-center ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
+          className={`outline-none w-full flex justify-center ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
           onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
         >
           <ResultsPanel result={result} onAlbumArtLoad={handleAlbumArtLoad} />

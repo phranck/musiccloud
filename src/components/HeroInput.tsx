@@ -308,7 +308,7 @@ export function HeroInput({
               "rounded-full",
               "transition-all duration-[250ms]",
               state === "loading"
-                ? "bg-accent/50 cursor-wait"
+                ? "bg-transparent cursor-wait"
                 : state === "success"
                   ? "bg-accent"
                   : [
@@ -321,10 +321,35 @@ export function HeroInput({
             aria-label={state === "loading" ? "Searching..." : "Search"}
           >
             {state === "loading" ? (
-              <svg className="w-5 h-5 text-[var(--color-accent-contrast)] animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
+              <div className="relative w-11 h-11 md:w-12 md:h-12 animate-vinyl-spin">
+                {/* CD base */}
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: "radial-gradient(circle at 50% 50%, #e8e8f0 0%, #a0a0b0 40%, #c8c8d0 70%, #b0b0b8 100%)",
+                  }}
+                />
+                {/* Rainbow reflex - conic gradient, visible at small size */}
+                <div
+                  className="absolute inset-0 rounded-full animate-cd-shimmer"
+                  style={{
+                    background: "conic-gradient(from 30deg, #a060ff 0%, #40b0ff 20%, #40ffc0 35%, #ffe040 50%, #ff6090 65%, #a060ff 80%, transparent 95%)",
+                    opacity: 0.45,
+                  }}
+                />
+                {/* Specular highlight - bright spot */}
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0%, transparent 40%)",
+                  }}
+                />
+                {/* Center hole */}
+                <div
+                  className="absolute rounded-full bg-[#0a0a0c]"
+                  style={{ top: "38%", left: "38%", width: "24%", height: "24%" }}
+                />
+              </div>
             ) : state === "success" ? (
               <svg
                 className="w-5 h-5 text-[var(--color-accent-contrast)]"

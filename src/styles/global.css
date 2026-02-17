@@ -42,6 +42,8 @@
   --animate-slide-out-down: slide-out-down 0.4s cubic-bezier(0.42, 0, 1, 1) both;
   --animate-fade-in: fade-in 0.25s cubic-bezier(0, 0, 0.2, 1) both;
   --animate-spin: spin 1s linear infinite;
+  --animate-vinyl-spin: spin 2.5s linear infinite;
+  --animate-cd-shimmer: cd-shimmer 4s ease-in-out infinite;
   --animate-pulse-glow: pulse-glow 2.5s ease-in-out infinite;
   --animate-cosmic-glow: cosmic-glow 12s ease-in-out infinite;
   --animate-marquee-seamless: marquee-seamless 80s linear infinite;
