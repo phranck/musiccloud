@@ -54,7 +54,7 @@ function mapCachedLinks(links: Array<{ service: string; url: string; confidence:
  * SEARCH_FALLBACK_CONFIDENCE: Confidence for generic "search on X" fallback links.
  */
 export const MATCH_MIN_CONFIDENCE = 0.6;
-export const LINK_QUALITY_THRESHOLD = 0.7;
+export const LINK_QUALITY_THRESHOLD = 0.6;
 const AUTO_SELECT_THRESHOLD = 0.9;
 const CANDIDATE_MIN_CONFIDENCE = 0.4;
 const MAX_CANDIDATES = 5;
@@ -87,19 +87,10 @@ export async function resolveQuery(input: string): Promise<ResolutionResult> {
 export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   const cleanUrl = stripTrackingParams(inputUrl);
 
-  // 1. DB-First: Check if we have this URL cached
-  log.debug("Resolver", "DB-First: Checking for cached URL...");
-  const repo = await getRepository();
-  const cached = await repo.findTrackByUrl(cleanUrl);
-  if (cached && Date.now() - cached.updatedAt < CACHE_TTL_MS) {
-    log.debug("Resolver", "Cache hit (fresh)! Returning cached result");
-    return { sourceTrack: cached.track, links: mapCachedLinks(cached.links) };
-  }
-  if (cached) {
-    log.debug("Resolver", "Cache hit but stale, will re-resolve");
-  }
+  // Cache disabled - always resolve fresh
+  // TODO: Re-enable with proper cache invalidation strategy
 
-  // 2. Identify which service the URL belongs to
+  // 1. Identify which service the URL belongs to
   const sourceAdapter = identifyService(cleanUrl);
   if (!sourceAdapter) {
     throw new ResolveError("NOT_MUSIC_LINK", "Unrecognized music service URL");
@@ -110,84 +101,37 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     throw new ResolveError("INVALID_URL", "Could not extract track ID from URL");
   }
 
-  // 3. Check DB by ISRC if we have it
-  let staleCached = cached;
-  if (sourceAdapter.capabilities.supportsIsrc) {
-    log.debug("Resolver", "Trying to fetch track metadata for ISRC lookup...");
-    try {
-      const sourceTrack = await sourceAdapter.getTrack(trackId);
-      if (sourceTrack.isrc) {
-        const cachedByIsrc = await repo.findTrackByIsrc(sourceTrack.isrc);
-        if (cachedByIsrc && Date.now() - cachedByIsrc.updatedAt < CACHE_TTL_MS) {
-          log.debug("Resolver", "Cache hit by ISRC (fresh)! Returning cached result");
-          return { sourceTrack: cachedByIsrc.track, links: mapCachedLinks(cachedByIsrc.links) };
-        }
-        if (cachedByIsrc) {
-          staleCached = cachedByIsrc;
-          log.debug("Resolver", "ISRC cache hit but stale, will re-resolve");
-        }
-      }
-    } catch (error) {
-      // Continue with normal flow if metadata fetch fails
-      log.debug("Resolver", "Metadata fetch failed, continuing with normal flow");
-    }
-  }
-
-  // 4. Fetch metadata and resolve across services (with stale fallback on failure)
+  // 2. Fetch metadata
+  let sourceTrack: NormalizedTrack;
   try {
-    let sourceTrack: NormalizedTrack;
-    try {
-      sourceTrack = await sourceAdapter.getTrack(trackId);
-    } catch (error) {
-      if (!sourceAdapter.isAvailable()) {
-        return resolveUrlViaOdesli(cleanUrl);
-      }
-      throw error;
-    }
-
-    // 5. Resolve on all other services in parallel
-    const links = await resolveAcrossServices(sourceTrack, sourceAdapter);
-
-    // 6. Add the source service link
-    links.unshift({
-      service: sourceAdapter.id,
-      displayName: sourceAdapter.displayName,
-      url: sourceTrack.webUrl,
-      confidence: 1.0,
-      matchMethod: "isrc",
-    });
-
-    return { sourceTrack, links };
+    sourceTrack = await sourceAdapter.getTrack(trackId);
   } catch (error) {
-    if (staleCached) {
-      log.error("Resolver", "Re-resolve failed, returning stale cache");
-      await repo.updateTrackTimestamp(staleCached.trackId);
-      return { sourceTrack: staleCached.track, links: mapCachedLinks(staleCached.links) };
+    if (!sourceAdapter.isAvailable()) {
+      return resolveUrlViaOdesli(cleanUrl);
     }
     throw error;
   }
+
+  // 3. Resolve on all other services in parallel
+  const links = await resolveAcrossServices(sourceTrack, sourceAdapter);
+
+  // 4. Add the source service link
+  links.unshift({
+    service: sourceAdapter.id,
+    displayName: sourceAdapter.displayName,
+    url: sourceTrack.webUrl,
+    confidence: 1.0,
+    matchMethod: "isrc",
+  });
+
+  return { sourceTrack, links };
 }
 
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
-  // 1. DB-First: Check if we have similar tracks cached
-  log.debug("Resolver", "resolveTextSearch - DB-First: Searching FTS5...");
-  const repo = await getRepository();
-  const cachedTracks = await repo.findTracksByTextSearch(query, 1);
-  let staleIsrcMatch: Awaited<ReturnType<typeof repo.findTrackByIsrc>> = null;
-  if (cachedTracks.length > 0) {
-    log.debug("Resolver", "DB cache hit for text search!");
-    const track = cachedTracks[0];
-    const isrcMatch = track.isrc ? await repo.findTrackByIsrc(track.isrc) : null;
-    if (isrcMatch && Date.now() - isrcMatch.updatedAt < CACHE_TTL_MS) {
-      return { sourceTrack: track, links: mapCachedLinks(isrcMatch.links) };
-    }
-    if (isrcMatch) {
-      staleIsrcMatch = isrcMatch;
-      log.debug("Resolver", "Text search cache hit but stale, will re-resolve");
-    }
-  }
+  // Cache disabled - always resolve fresh
+  // TODO: Re-enable with proper cache invalidation strategy
 
-  // 2. Service search: try all available adapters with search capability
+  // Service search: try all available adapters
   const searchAdapters = adapters.filter((a) => a.isAvailable());
   for (const adapter of searchAdapters) {
     try {
@@ -212,13 +156,6 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
     }
   }
 
-  // All service searches failed: return stale data if available
-  if (staleIsrcMatch) {
-    log.debug("Resolver", "All service searches failed, returning stale cache");
-    await repo.updateTrackTimestamp(staleIsrcMatch.trackId);
-    return { sourceTrack: staleIsrcMatch.track, links: mapCachedLinks(staleIsrcMatch.links) };
-  }
-
   throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
 }
 
@@ -232,29 +169,10 @@ export async function resolveTextSearchWithDisambiguation(
 ): Promise<TextSearchResult> {
   log.debug("Resolver", "resolveTextSearchWithDisambiguation called with:", query);
 
-  // 1. DB-First: Check if we have similar tracks cached
-  log.debug("Resolver", "DB-First: Searching FTS5 for similar tracks...");
-  const repo = await getRepository();
-  const cachedTracks = await repo.findTracksByTextSearch(query, MAX_CANDIDATES);
-  if (cachedTracks.length > 0) {
-    log.debug("Resolver", "DB cache hit! Found", cachedTracks.length, "cached tracks");
-    // Return as candidates (user can select or we can auto-select if high confidence)
-    const candidates: SearchCandidate[] = cachedTracks
-      .slice(0, MAX_CANDIDATES)
-      .map((t) => ({
-        id: `${t.sourceService}:${t.sourceId}`,
-        title: t.title,
-        artists: t.artists,
-        albumName: t.albumName,
-        artworkUrl: t.artworkUrl,
-        durationMs: t.durationMs,
-        confidence: CACHE_CONFIDENCE,
-      }));
+  // Cache disabled - always resolve fresh
+  // TODO: Re-enable with proper cache invalidation strategy
 
-    return { kind: "disambiguation", candidates };
-  }
-
-  // 2. Service search: try adapters that support searchTrackWithCandidates, then fall back
+  // Service search: try adapters that support searchTrackWithCandidates, then fall back
   const searchAdapters = adapters.filter((a) => a.isAvailable());
 
   for (const adapter of searchAdapters) {
@@ -362,12 +280,6 @@ async function resolveAcrossServices(
     (a) => a.id !== excludeAdapter.id && a.isAvailable(),
   );
 
-  // Odesli disabled - relying on own adapters only
-  // const odesliPromise = resolveViaOdesli(sourceTrack.webUrl).catch((error) => {
-  //   log.error("Resolver", `Odesli failed: ${error instanceof Error ? error.message : error}`);
-  //   return null;
-  // });
-
   // Resolve on each target service
   const results = await Promise.allSettled(
     targetAdapters.map((adapter) => resolveOnService(adapter, sourceTrack)),
@@ -380,8 +292,11 @@ async function resolveAcrossServices(
     const adapter = targetAdapters[i];
 
     if (result.status === "fulfilled" && result.value) {
+      log.debug("Resolver", `[${adapter.id}] matched: confidence=${result.value.confidence}`);
       links.push(result.value);
-    } else if (result.status === "rejected") {
+    } else if (result.status === "fulfilled") {
+      log.debug("Resolver", `[${adapter.id}] no match found`);
+    } else {
       log.error("Resolver", `[${adapter.id}] resolve failed: ${result.reason instanceof Error ? result.reason.message : result.reason}`);
     }
   }

@@ -74,12 +74,17 @@ function artworkUrl(albumId: string): string {
 }
 
 function mapTrack(raw: NapsterTrackResponse): NormalizedTrack {
+  // Split combined artist names (e.g. "A, B & C") into individual entries
+  const artists = raw.artistName
+    ? raw.artistName.split(/[,&]/).map((a) => a.trim()).filter(Boolean)
+    : ["Unknown Artist"];
+
   return {
     sourceService: "napster",
     sourceId: raw.id,
     isrc: raw.isrc,
     title: raw.name,
-    artists: [raw.artistName],
+    artists,
     albumName: raw.albumName,
     durationMs: raw.playbackSeconds * 1000,
     isExplicit: raw.isExplicit,
@@ -168,6 +173,7 @@ export const napsterAdapter = {
     );
 
     if (!response.ok) {
+      log.debug("Napster", "Search API failed:", response.status);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
@@ -175,8 +181,11 @@ export const napsterAdapter = {
     const items = data.search?.data?.tracks ?? [];
 
     if (items.length === 0) {
+      log.debug("Napster", "Search returned no tracks for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Napster", `Search returned ${items.length} tracks for: ${q}`);
 
     const isFreeText = query.title === query.artist;
     let bestMatch: NormalizedTrack | null = null;
@@ -195,6 +204,8 @@ export const napsterAdapter = {
         );
       }
 
+      log.debug("Napster", `  [${i}] "${track.title}" by ${track.artists.join(", ")} → confidence=${confidence.toFixed(3)}`);
+
       if (confidence > bestConfidence) {
         bestConfidence = confidence;
         bestMatch = track;
@@ -202,6 +213,7 @@ export const napsterAdapter = {
     }
 
     if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      log.debug("Napster", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }
 

@@ -143,12 +143,17 @@ function mapTrackData(
 ): NormalizedTrack {
   const webPath = data.shareableUrlPath ?? `/artist/${sourceId}`;
 
+  // Split combined artist names (e.g. "A, B & C") into individual entries
+  const artists = data.artistName
+    ? data.artistName.split(/[,&]/).map((a) => a.trim()).filter(Boolean)
+    : ["Unknown Artist"];
+
   return {
     sourceService: "pandora",
     sourceId,
     isrc: data.isrc || undefined,
     title: data.name ?? "Unknown",
-    artists: data.artistName ? [data.artistName] : ["Unknown Artist"],
+    artists,
     albumName: data.albumName,
     durationMs: data.durationMillis ?? (data.duration ? data.duration * 1000 : undefined),
     isExplicit: data.explicitness === "EXPLICIT" ? true : undefined,
@@ -161,11 +166,15 @@ function mapJsonLdTrack(
   jsonLd: JsonLdMusicRecording,
   sourceId: string,
 ): NormalizedTrack {
+  const artists = jsonLd.byArtist?.name
+    ? jsonLd.byArtist.name.split(/[,&]/).map((a) => a.trim()).filter(Boolean)
+    : ["Unknown Artist"];
+
   return {
     sourceService: "pandora",
     sourceId,
     title: jsonLd.name ?? "Unknown",
-    artists: jsonLd.byArtist?.name ? [jsonLd.byArtist.name] : ["Unknown Artist"],
+    artists,
     artworkUrl: jsonLd.image,
     webUrl: jsonLd.url ?? `${PANDORA_BASE}/artist/${sourceId}`,
   };
@@ -276,8 +285,11 @@ export const pandoraAdapter = {
       const annotations = result.annotations ?? {};
 
       if (trackIds.length === 0) {
+        log.debug("Pandora", "Search returned no tracks for:", q);
         return { found: false, confidence: 0, matchMethod: "search" };
       }
+
+      log.debug("Pandora", `Search returned ${trackIds.length} tracks for: ${q}`);
 
       const isFreeText = query.title === query.artist;
       let bestMatch: NormalizedTrack | null = null;
@@ -300,6 +312,8 @@ export const pandoraAdapter = {
           );
         }
 
+        log.debug("Pandora", `  [${i}] "${track.title}" by ${track.artists.join(", ")} → confidence=${confidence.toFixed(3)}`);
+
         if (confidence > bestConfidence) {
           bestConfidence = confidence;
           bestMatch = track;
@@ -307,6 +321,7 @@ export const pandoraAdapter = {
       }
 
       if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        log.debug("Pandora", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
         return { found: false, confidence: bestConfidence, matchMethod: "search" };
       }
 
