@@ -8,6 +8,7 @@ export interface SharePageData {
   durationMs?: number;
   isrc?: string;
   releaseDate?: string;
+  isExplicit?: boolean;
   albumArtUrl: string;
   platforms: {
     platform: Platform;
@@ -66,9 +67,12 @@ export function SharePage({ data }: SharePageProps) {
           {data.album}
         </p>
       )}
-      {metaItems.length > 0 && (
-        <p className="text-sm text-text-muted/60 text-center mt-2 font-mono tracking-wide">
-          {metaItems.join(" \u00B7 ")}
+      {(data.isExplicit || metaItems.length > 0) && (
+        <p className="text-sm text-text-muted/60 text-center mt-2 font-mono tracking-wide inline-flex items-center justify-center gap-1.5">
+          {data.isExplicit && (
+            <span className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0" title="Explicit" aria-label="Explicit content">E</span>
+          )}
+          <span>{metaItems.join(" \u00B7 ")}</span>
         </p>
       )}
 

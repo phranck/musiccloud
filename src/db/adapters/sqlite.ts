@@ -243,6 +243,7 @@ export class SqliteAdapter implements TrackRepository {
         durationMs: schema.tracks.durationMs,
         isrc: schema.tracks.isrc,
         releaseDate: schema.tracks.releaseDate,
+        isExplicit: schema.tracks.isExplicit,
         linkService: schema.serviceLinks.service,
         linkUrl: schema.serviceLinks.url,
       })
@@ -268,6 +269,7 @@ export class SqliteAdapter implements TrackRepository {
         durationMs: schema.tracks.durationMs,
         isrc: schema.tracks.isrc,
         releaseDate: schema.tracks.releaseDate,
+        isExplicit: schema.tracks.isExplicit,
         linkService: schema.serviceLinks.service,
         linkUrl: schema.serviceLinks.url,
         shortUrlId: schema.shortUrls.id,
@@ -448,7 +450,7 @@ export class SqliteAdapter implements TrackRepository {
   }
 
   private buildSharePageResult(
-    rows: { title: string; artists: string; albumName: string | null; artworkUrl: string | null; durationMs: number | null; isrc: string | null; releaseDate: string | null; linkService: string; linkUrl: string }[],
+    rows: { title: string; artists: string; albumName: string | null; artworkUrl: string | null; durationMs: number | null; isrc: string | null; releaseDate: string | null; isExplicit: number | null; linkService: string; linkUrl: string }[],
     shortId: string,
   ): SharePageDbResult {
     const first = rows[0];
@@ -457,7 +459,7 @@ export class SqliteAdapter implements TrackRepository {
     const links = rows.map((r) => ({ service: r.linkService, url: r.linkUrl }));
 
     return {
-      track: { title: first.title, albumName: first.albumName, artworkUrl: first.artworkUrl, durationMs: first.durationMs, isrc: first.isrc, releaseDate: first.releaseDate },
+      track: { title: first.title, albumName: first.albumName, artworkUrl: first.artworkUrl, durationMs: first.durationMs, isrc: first.isrc, releaseDate: first.releaseDate, isExplicit: first.isExplicit != null ? Boolean(first.isExplicit) : null },
       artists,
       artistDisplay,
       shortId,

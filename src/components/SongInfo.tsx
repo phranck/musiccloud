@@ -8,6 +8,7 @@ interface SongInfoProps {
   releaseDate?: string;
   durationMs?: number;
   isrc?: string;
+  isExplicit?: boolean;
   albumArtUrl: string;
   onAlbumArtLoad?: (img: HTMLImageElement) => void;
 }
@@ -19,6 +20,7 @@ export const SongInfo = memo(function SongInfo({
   releaseDate,
   durationMs,
   isrc,
+  isExplicit,
   albumArtUrl,
   onAlbumArtLoad,
 }: SongInfoProps) {
@@ -55,9 +57,12 @@ export const SongInfo = memo(function SongInfo({
             {album}
           </p>
         )}
-        {metaItems.length > 0 && (
-          <p className="text-sm text-text-muted/60 mt-2 font-mono tracking-wide">
-            {metaItems.join(" \u00B7 ")}
+        {(isExplicit || metaItems.length > 0) && (
+          <p className="text-sm text-text-muted/60 mt-2 font-mono tracking-wide flex items-center gap-1.5">
+            {isExplicit && (
+              <span className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0" title="Explicit" aria-label="Explicit content">E</span>
+            )}
+            <span>{metaItems.join(" \u00B7 ")}</span>
           </p>
         )}
       </div>

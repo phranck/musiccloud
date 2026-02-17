@@ -22,6 +22,7 @@ export interface SharePageDbResult {
     durationMs: number | null;
     isrc: string | null;
     releaseDate: string | null;
+    isExplicit: boolean | null;
   };
   artists: string[];
   artistDisplay: string;

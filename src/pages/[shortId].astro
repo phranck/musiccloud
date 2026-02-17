@@ -83,10 +83,15 @@ const metaLine = metaItems.join(" \u00B7 ");
       {/* Song Info */}
       <h1 class="mb-1 text-2xl md:text-3xl font-bold tracking-[-0.02em] text-center">{track.title}</h1>
       <p class="text-lg text-text-secondary text-center mt-1">{artistDisplay}</p>
-      {metaLine && (
-        <p class="text-sm text-text-muted/60 text-center mt-2 mb-8 font-mono tracking-wide">{metaLine}</p>
+      {(track.isExplicit || metaLine) && (
+        <p class="text-sm text-text-muted/60 text-center mt-2 mb-8 font-mono tracking-wide inline-flex items-center justify-center gap-1.5">
+          {track.isExplicit && (
+            <span class="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0" title="Explicit" aria-label="Explicit content">E</span>
+          )}
+          <span>{metaLine}</span>
+        </p>
       )}
-      {!metaLine && <div class="mb-8" />}
+      {!track.isExplicit && !metaLine && <div class="mb-8" />}
 
       {/* Platform Buttons */}
       <div class="w-full max-w-sm space-y-3">

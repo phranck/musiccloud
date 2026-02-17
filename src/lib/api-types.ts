@@ -15,6 +15,7 @@ export interface ApiTrack {
   durationMs?: number;
   isrc?: string;
   releaseDate?: string;
+  isExplicit?: boolean;
 }
 
 export interface ApiLink {

@@ -138,6 +138,7 @@ function parseResolveResponse(data: ResolveSuccessResponse): { result: SongResul
     releaseDate: data.track.releaseDate,
     durationMs: data.track.durationMs,
     isrc: data.track.isrc,
+    isExplicit: data.track.isExplicit,
     albumArtUrl: data.track.artworkUrl ?? "",
     platforms,
     shareUrl: data.shortUrl,
