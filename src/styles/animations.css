@@ -164,6 +164,16 @@
   }
 }
 
+/* Starfield slow rotation - pivoting at bottom center */
+@keyframes starfield-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Glassmorphism fallback for browsers without backdrop-filter */
 @supports not (backdrop-filter: blur(1px)) {
   .glass-fallback {

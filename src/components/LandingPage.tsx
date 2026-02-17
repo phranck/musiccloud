@@ -366,7 +366,7 @@ export function LandingPage() {
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-[-0.04em] text-text-primary mb-2">
             <BrandName />
           </h1>
-          <p className="text-lg sm:text-xl md:text-2xl font-medium tracking-[-0.02em] text-text-secondary">
+          <p className="text-lg sm:text-xl md:text-2xl font-light tracking-[-0.02em] text-text-muted">
             share it everywhere
           </p>
         </div>

@@ -138,7 +138,7 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
   const blobRefs = useRef<(HTMLDivElement | null)[]>([null, null, null]);
 
   const starfieldShadow = useMemo(() => generateStarfield(), []);
-  const orionShadow = useMemo(() => generateConstellationShadow(ORION_STARS, 58, 10, 16, 28), []);
+  const orionShadow = useMemo(() => generateConstellationShadow(ORION_STARS, 72, 4, 16, 28), []);
   const canisMajorShadow = useMemo(() => generateConstellationShadow(CANIS_MAJOR_STARS, 12, 55, 14, 28), []);
 
   // Generate random wave params once per page load
@@ -234,23 +234,29 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
       className="fixed inset-0 -z-10 overflow-hidden bg-background"
       aria-hidden="true"
     >
-      {/* Fixed starfield - single element, many box-shadows */}
+      {/* Rotating starfield wrapper - center of rotation = center of viewport (search field) */}
       <div
-        className="absolute w-px h-px top-0 left-0"
-        style={{ boxShadow: starfieldShadow }}
-      />
+        className="absolute inset-0 animate-starfield-rotate"
+        style={{ transformOrigin: "50vw 50dvh" }}
+      >
+        {/* Fixed starfield - single element, many box-shadows */}
+        <div
+          className="absolute w-px h-px top-0 left-0"
+          style={{ boxShadow: starfieldShadow }}
+        />
 
-      {/* Orion constellation - subtle, upper-right */}
-      <div
-        className="absolute w-px h-px top-0 left-0"
-        style={{ boxShadow: orionShadow }}
-      />
+        {/* Orion constellation - subtle, upper-right */}
+        <div
+          className="absolute w-px h-px top-0 left-0"
+          style={{ boxShadow: orionShadow }}
+        />
 
-      {/* Canis Major - subtle, lower-left */}
-      <div
-        className="absolute w-px h-px top-0 left-0"
-        style={{ boxShadow: canisMajorShadow }}
-      />
+        {/* Canis Major - subtle, lower-left */}
+        <div
+          className="absolute w-px h-px top-0 left-0"
+          style={{ boxShadow: canisMajorShadow }}
+        />
+      </div>
 
       {/* Lightning flash - behind blobs */}
       <div

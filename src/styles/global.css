@@ -45,6 +45,7 @@
   --animate-pulse-glow: pulse-glow 2.5s ease-in-out infinite;
   --animate-cosmic-glow: cosmic-glow 12s ease-in-out infinite;
   --animate-marquee-seamless: marquee-seamless 80s linear infinite;
+  --animate-starfield-rotate: starfield-rotate 1200s linear infinite;
 }
 
 @import "./animations.css";
