@@ -7,10 +7,10 @@
  */
 export const prerender = false;
 
+import Footer from "../components/Footer.astro";
 import { GradientBackground } from "../components/GradientBackground";
 import { PlatformIcon } from "../components/PlatformIcon";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { compareByDisplayOrder } from "../lib/constants";
 import { loadByShortId } from "../lib/share-page";
 import { buildMetaLine, isValidPlatform, PLATFORM_CONFIG, type Platform } from "../lib/utils";
 
@@ -92,7 +92,11 @@ const metaLine = buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc,
 
     {/* Platform Buttons */}
     <div class="w-full max-w-sm space-y-3">
-      {[...links].sort((a, b) => compareByDisplayOrder(a.service, b.service)).map((link) => {
+      {[...links].sort((a, b) => {
+        const labelA = isValidPlatform(a.service) ? PLATFORM_CONFIG[a.service].label : a.service;
+        const labelB = isValidPlatform(b.service) ? PLATFORM_CONFIG[b.service].label : b.service;
+        return labelA.localeCompare(labelB);
+      }).map((link) => {
         if (!isValidPlatform(link.service)) return null;
         const platform = link.service;
         const config = PLATFORM_CONFIG[platform];
@@ -129,13 +133,6 @@ const metaLine = buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc,
     </div>
   </main>
 
-  <footer class="flex items-center justify-center px-4 sm:px-6 py-3 text-xs text-text-muted" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))">
-    <span>
-      powered by
-      <a href="/" class="text-accent hover:text-accent-hover transition-colors duration-150 ml-1 font-medium">
-        musiccloud
-      </a>
-    </span>
-  </footer>
+  <Footer showPoweredBy />
   </div>
 </BaseLayout>

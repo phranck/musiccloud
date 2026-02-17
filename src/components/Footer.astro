@@ -1,0 +1,32 @@
+---
+interface Props {
+  showPoweredBy?: boolean;
+}
+
+const { showPoweredBy = false } = Astro.props;
+---
+
+<footer class="w-full grid grid-cols-3 items-center px-4 sm:px-6 py-3 text-xs text-text-muted" style={`padding-bottom: max(0.75rem, env(safe-area-inset-bottom))`}>
+  <span class="text-left">&copy; 2026 musiccloud</span>
+  <span class="text-center">
+    {showPoweredBy && (
+      <>
+        powered by
+        <a href="/" class="text-accent hover:text-accent-hover transition-colors duration-150 font-medium ml-1">
+          musiccloud
+        </a>
+      </>
+    )}
+  </span>
+  <span class="text-right">
+    made by
+    <a
+      href="https://layered.work"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="hover:text-text-secondary transition-colors duration-150 ml-1"
+    >
+      LAYERED
+    </a>
+  </span>
+</footer>

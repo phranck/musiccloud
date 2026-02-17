@@ -7,6 +7,7 @@
  */
 export const prerender = false;
 
+import Footer from "../../components/Footer.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { loadByTrackId } from "../../lib/share-page";
 import { isValidPlatform, PLATFORM_CONFIG, type Platform } from "../../lib/utils";
@@ -81,7 +82,11 @@ const { track, artists, artistDisplay, links, og } = data;
     <p class="mb-8 text-lg text-text-secondary">{artistDisplay}</p>
 
     <div class="space-y-3 w-full">
-      {links.map((link) => {
+      {[...links].sort((a, b) => {
+        const labelA = isValidPlatform(a.service) ? PLATFORM_CONFIG[a.service].label : a.service;
+        const labelB = isValidPlatform(b.service) ? PLATFORM_CONFIG[b.service].label : b.service;
+        return labelA.localeCompare(labelB);
+      }).map((link) => {
         if (!isValidPlatform(link.service)) return null;
         const platform = link.service;
         const config = PLATFORM_CONFIG[platform];
@@ -99,11 +104,6 @@ const { track, artists, artistDisplay, links, og } = data;
       })}
     </div>
 
-    <p class="mt-12 text-sm text-text-muted pb-safe">
-      powered by
-      <a href="/" class="text-accent hover:underline ml-1">
-        musiccloud
-      </a>
-    </p>
   </main>
+  <Footer showPoweredBy />
 </BaseLayout>

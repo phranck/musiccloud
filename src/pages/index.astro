@@ -1,5 +1,6 @@
 ---
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import Footer from "../components/Footer.astro";
 import { LandingPage } from "../components/LandingPage";
 /**
  * Landing Page - musiccloud
@@ -37,9 +38,14 @@ import BaseLayout from "../layouts/BaseLayout.astro";
     />
   </Fragment>
 
-  <ErrorBoundary client:load>
-    <LandingPage client:load />
-  </ErrorBoundary>
+  <div class="min-h-dvh flex flex-col">
+    <div class="flex-1 flex flex-col">
+      <ErrorBoundary client:load>
+        <LandingPage client:load />
+      </ErrorBoundary>
+    </div>
+    <Footer />
+  </div>
 
   <!-- SSR fallback for no-JS -->
   <noscript>

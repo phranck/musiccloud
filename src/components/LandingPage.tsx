@@ -371,7 +371,7 @@ export function LandingPage() {
 
   return (
     <div
-      className="min-h-dvh flex flex-col items-center justify-center px-4 pb-20 sm:pb-24 transition-colors duration-700"
+      className="flex-1 flex flex-col items-center px-4 transition-colors duration-700"
       style={
         dynamicAccent
           ? ({
@@ -385,6 +385,9 @@ export function LandingPage() {
     >
       <GradientBackground albumColors={albumColors} />
       <SparklingStars />
+
+      {/* Content area - vertically centered */}
+      <div className="flex-1 flex flex-col items-center justify-center w-full">
 
       {/* Hero */}
       {!result && !candidates && (
@@ -461,21 +464,7 @@ export function LandingPage() {
       {/* Platform marquee (idle state only, not during clearing) */}
       {state.type === "idle" && <PlatformIconRow />}
 
-      {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 pb-safe text-xs text-text-muted">
-        <span>&copy; 2026 musiccloud</span>
-        <span>
-          made by{" "}
-          <a
-            href="https://layered.world"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-text-secondary transition-colors duration-150"
-          >
-            LAYERED
-          </a>
-        </span>
-      </footer>
+      </div>
 
       {/* Toast */}
       <Toast message={toast.message} variant={toast.variant} visible={toast.visible} onDismiss={handleToastDismiss} />
