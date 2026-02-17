@@ -48,7 +48,7 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
     <GlassCard
       elevated
       className={cn(
-        "w-full max-w-lg mx-auto mt-8 rounded-[36px]",
+        "w-full max-w-full sm:max-w-lg mx-auto mt-6 sm:mt-8 rounded-2xl sm:rounded-[36px]",
         "animate-zoom-in",
       )}
     >
@@ -84,7 +84,7 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
           <p className="text-sm uppercase tracking-widest text-text-secondary mb-3">
             Listen on
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[...result.platforms].sort((a, b) => (a.displayName ?? a.platform).localeCompare(b.displayName ?? b.platform)).map((p) => (
               <PlatformButton
                 key={p.platform}

@@ -1,0 +1,46 @@
+---
+/**
+ * Base Layout - Shared HTML shell for all pages.
+ *
+ * Provides viewport meta, PWA tags, theme-color, favicon,
+ * and global CSS. Page-specific meta (OG, Twitter, JSON-LD)
+ * goes into the "head" slot.
+ */
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description?: string;
+  canonicalUrl?: string;
+  preloadImage?: string;
+  noindex?: boolean;
+}
+
+const { title, description, canonicalUrl, preloadImage, noindex } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0A0A0C" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    {noindex && <meta name="robots" content="noindex" />}
+
+    <slot name="head" />
+
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    {preloadImage && <link rel="preload" as="image" href={preloadImage} />}
+  </head>
+  <body class="bg-background text-text-primary antialiased">
+    <slot />
+  </body>
+</html>

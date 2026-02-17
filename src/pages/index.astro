@@ -5,24 +5,18 @@
  * Static page (prerendered). The LandingPage React component
  * handles all client-side interactivity as an Astro island.
  */
+import BaseLayout from "../layouts/BaseLayout.astro";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LandingPage } from "../components/LandingPage";
-import "../styles/global.css";
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>music.cloud - Share music across every platform</title>
-
-    <!-- Primary Meta Tags -->
+<BaseLayout
+  title="music.cloud - Share music across every platform"
+  description="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere."
+  canonicalUrl="https://musiccloud.io"
+>
+  <Fragment slot="head">
     <meta name="title" content="music.cloud - Share music across every platform" />
-    <meta
-      name="description"
-      content="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere."
-    />
 
     <!-- OpenGraph -->
     <meta property="og:type" content="website" />
@@ -41,27 +35,24 @@ import "../styles/global.css";
       name="twitter:description"
       content="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere."
     />
+  </Fragment>
 
-    <link rel="canonical" href="https://musiccloud.io" />
-  </head>
-  <body class="bg-background text-text-primary antialiased">
-    <ErrorBoundary client:load>
-      <LandingPage client:load />
-    </ErrorBoundary>
+  <ErrorBoundary client:load>
+    <LandingPage client:load />
+  </ErrorBoundary>
 
-    <!-- SSR fallback for no-JS -->
-    <noscript>
-      <main style="max-width: 640px; margin: 0 auto; padding: 4rem 1rem; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;">
-        <h1 style="font-size: 1.5rem; font-weight: bold; color: #F5F5F7; margin-bottom: 0.5rem;">
-          music.cloud
-        </h1>
-        <p style="font-size: 1.25rem; color: #F5F5F7; margin-bottom: 2rem;">
-          Paste a link or search by name. Share it everywhere.
-        </p>
-        <p style="color: #86868B;">
-          This app requires JavaScript to work. Please enable JavaScript in your browser.
-        </p>
-      </main>
-    </noscript>
-  </body>
-</html>
+  <!-- SSR fallback for no-JS -->
+  <noscript>
+    <main style="max-width: 640px; margin: 0 auto; padding: 4rem 1rem; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;">
+      <h1 style="font-size: 1.5rem; font-weight: bold; color: #F5F5F7; margin-bottom: 0.5rem;">
+        music.cloud
+      </h1>
+      <p style="font-size: 1.25rem; color: #F5F5F7; margin-bottom: 2rem;">
+        Paste a link or search by name. Share it everywhere.
+      </p>
+      <p style="color: #86868B;">
+        This app requires JavaScript to work. Please enable JavaScript in your browser.
+      </p>
+    </main>
+  </noscript>
+</BaseLayout>

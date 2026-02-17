@@ -38,7 +38,7 @@ function generateStarfield(): string {
     const opacity = brightness > 0.85 ? 0.2 + rand() * 0.15 : 0.04 + rand() * 0.1;
     const size = brightness > 0.85 ? 1.5 : 1;
     stars.push(
-      `${x}vw ${y}vh 0 ${size}px rgba(220, 235, 245, ${opacity})`
+      `${x}vw ${y}dvh 0 ${size}px rgba(220, 235, 245, ${opacity})`
     );
   }
 
@@ -79,7 +79,7 @@ function generateConstellationShadow(
       ? `rgba(255, 200, 160, ${star.brightness})`
       : `rgba(210, 230, 255, ${star.brightness})`;
     const size = star.brightness > 0.5 ? 1.5 : 1;
-    return `${x}vw ${y}vh 0 ${size}px ${color}`;
+    return `${x}vw ${y}dvh 0 ${size}px ${color}`;
   }).join(", ");
 }
 
@@ -126,7 +126,7 @@ function computeBlobTransform(params: WaveParams, t: number): string {
   }
   const scale = 0.85 + 0.3 * Math.sin(params.freqScale * t + params.phaseScale);
   const rotate = 12 * Math.sin(params.freqRot * t + params.phaseRot);
-  return `translate(${x}vw, ${y}vh) scale(${scale.toFixed(3)}) rotate(${rotate.toFixed(1)}deg)`;
+  return `translate(${x}vw, ${y}dvh) scale(${scale.toFixed(3)}) rotate(${rotate.toFixed(1)}deg)`;
 }
 
 // Speed: one full base cycle takes ~3 minutes

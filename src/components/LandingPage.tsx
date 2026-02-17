@@ -349,7 +349,7 @@ export function LandingPage() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 pb-24 transition-colors duration-700"
+      className="min-h-dvh flex flex-col items-center justify-center px-4 pb-20 sm:pb-24 transition-colors duration-700"
       style={dynamicAccent ? {
         "--color-accent": dynamicAccent.base,
         "--color-accent-hover": dynamicAccent.hover,
@@ -363,10 +363,10 @@ export function LandingPage() {
       {/* Hero */}
       {!result && !candidates && (
         <div className="text-center mb-10">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-[-0.04em] text-text-primary mb-2">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-[-0.04em] text-text-primary mb-2">
             <BrandName />
           </h1>
-          <p className="text-xl md:text-2xl font-medium tracking-[-0.02em] text-text-secondary">
+          <p className="text-lg sm:text-xl md:text-2xl font-medium tracking-[-0.02em] text-text-secondary">
             share it everywhere
           </p>
         </div>
@@ -429,7 +429,7 @@ export function LandingPage() {
       {state.type === "idle" && <PlatformIconRow />}
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 flex items-center justify-between px-6 py-3 text-xs text-text-muted">
+      <footer className="fixed bottom-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 pb-safe text-xs text-text-muted">
         <span>&copy; 2026 music.cloud</span>
         <span>
           made by{" "}

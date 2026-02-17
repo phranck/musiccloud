@@ -7,9 +7,9 @@
  */
 export const prerender = false;
 
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import { loadByTrackId } from "../../lib/share-page";
 import { PLATFORM_CONFIG, isValidPlatform, type Platform } from "../../lib/utils";
-import "../../styles/global.css";
 
 const { id } = Astro.params;
 
@@ -26,13 +26,12 @@ if (!data) {
 const { track, artists, artistDisplay, links, og } = data;
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>{og.pageTitle}</title>
-
+<BaseLayout
+  title={og.pageTitle}
+  canonicalUrl={og.ogUrl}
+  preloadImage={track.artworkUrl}
+>
+  <Fragment slot="head">
     <!-- OpenGraph Tags -->
     <meta property="og:type" content="music.song" />
     <meta property="og:title" content={og.ogTitle} />
@@ -63,53 +62,48 @@ const { track, artists, artistDisplay, links, og } = data;
       "image": track.artworkUrl,
       "url": og.ogUrl,
     })} />
+  </Fragment>
 
-    <link rel="canonical" href={og.ogUrl} />
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">Skip to content</a>
+  <main id="main-content" class="mx-auto max-w-md px-4 py-12 text-center min-h-dvh flex flex-col items-center justify-center">
+    {track.artworkUrl && (
+      <img
+        src={track.artworkUrl}
+        alt={`${track.title} by ${artistDisplay}`}
+        class="mx-auto mb-6 w-full max-w-[224px] sm:max-w-[256px] aspect-square rounded-xl sm:rounded-2xl shadow-2xl bg-surface-elevated"
+        width="256"
+        height="256"
+        onerror="this.style.display='none'"
+      />
+    )}
 
-    {track.artworkUrl && <link rel="preload" as="image" href={track.artworkUrl} />}
-  </head>
-  <body class="bg-background text-text-primary antialiased">
-    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">Skip to content</a>
-    <main id="main-content" class="mx-auto max-w-md px-4 py-12 text-center">
-      {track.artworkUrl && (
-        <img
-          src={track.artworkUrl}
-          alt={`${track.title} by ${artistDisplay}`}
-          class="mx-auto mb-6 h-56 w-56 md:h-64 md:w-64 rounded-2xl shadow-2xl bg-surface-elevated"
-          width="256"
-          height="256"
-          onerror="this.style.display='none'"
-        />
-      )}
+    <h1 class="mb-1 text-2xl sm:text-3xl font-bold tracking-[-0.02em]">{track.title}</h1>
+    <p class="mb-8 text-lg text-text-secondary">{artistDisplay}</p>
 
-      <h1 class="mb-1 text-3xl font-bold tracking-[-0.02em]">{track.title}</h1>
-      <p class="mb-8 text-lg text-text-secondary">{artistDisplay}</p>
+    <div class="space-y-3 w-full">
+      {links.map((link) => {
+        if (!isValidPlatform(link.service)) return null;
+        const platform = link.service;
+        const config = PLATFORM_CONFIG[platform];
+        const label = config.label;
+        return (
+          <a
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center justify-center gap-3 rounded-xl bg-surface-elevated/60 px-4 sm:px-5 py-4 font-medium tracking-[-0.01em] backdrop-blur border border-white/[0.06] transition-all duration-150 hover:bg-surface-elevated active:scale-[0.97]"
+          >
+            Listen on {label}
+          </a>
+        );
+      })}
+    </div>
 
-      <div class="space-y-3">
-        {links.map((link) => {
-          if (!isValidPlatform(link.service)) return null;
-          const platform = link.service;
-          const config = PLATFORM_CONFIG[platform];
-          const label = config.label;
-          return (
-            <a
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="flex items-center justify-center gap-3 rounded-xl bg-surface-elevated/60 px-5 py-4 font-medium tracking-[-0.01em] backdrop-blur border border-white/[0.06] transition-all duration-150 hover:bg-surface-elevated"
-            >
-              Listen on {label}
-            </a>
-          );
-        })}
-      </div>
-
-      <p class="mt-12 text-sm text-text-muted">
-        powered by
-        <a href="/" class="text-accent hover:underline ml-1">
-          music.cloud
-        </a>
-      </p>
-    </main>
-  </body>
-</html>
+    <p class="mt-12 text-sm text-text-muted pb-safe">
+      powered by
+      <a href="/" class="text-accent hover:underline ml-1">
+        music.cloud
+      </a>
+    </p>
+  </main>
+</BaseLayout>

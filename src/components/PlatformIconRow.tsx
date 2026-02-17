@@ -29,7 +29,7 @@ const platforms: Platform[] = [
 function MarqueeStrip({ label }: { label?: boolean }) {
   return (
     <div
-      className="flex items-center gap-16 shrink-0 pr-16"
+      className="flex items-center gap-8 sm:gap-16 shrink-0 pr-8 sm:pr-16"
       {...(!label && { "aria-hidden": true })}
     >
       {platforms.map((platform) => (
@@ -65,9 +65,9 @@ export function PlatformIconRow() {
   };
 
   return (
-    <div className="fixed bottom-12 left-0 right-0 flex justify-center">
+    <div className="fixed bottom-10 sm:bottom-12 left-0 right-0 flex justify-center">
       <div
-        className="w-1/2 pb-6"
+        className="w-[85%] sm:w-3/4 md:w-1/2 pb-6"
         aria-label="Supported platforms"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}

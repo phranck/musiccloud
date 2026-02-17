@@ -215,7 +215,7 @@ export function HeroInput({
   return (
     <div className={cn(
       "relative w-full transition-all duration-500",
-      (state === "success" || compact) ? "max-w-[480px]" : "max-w-[640px]",
+      (state === "success" || compact) ? "max-w-full sm:max-w-[480px]" : "max-w-full sm:max-w-[520px] md:max-w-[640px]",
     )}>
       {/* Loading message above input */}
       {state === "loading" && (
@@ -321,7 +321,7 @@ export function HeroInput({
           disabled={state === "loading" || !value.trim()}
           className={cn(
             "flex items-center justify-center",
-            "w-11 h-11 md:w-12 md:h-12 mr-2",
+            "hidden sm:flex w-11 h-11 md:w-12 md:h-12 mr-2 flex-shrink-0",
             "rounded-full",
             "transition-all duration-[250ms]",
             state === "loading"

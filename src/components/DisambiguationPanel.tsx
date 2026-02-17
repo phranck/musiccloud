@@ -27,7 +27,7 @@ export function DisambiguationPanel({
   return (
     <div
       className={cn(
-        "w-full max-w-[480px] mx-auto mt-8",
+        "w-full max-w-full sm:max-w-[480px] mx-auto mt-8",
         "animate-zoom-in",
       )}
     >

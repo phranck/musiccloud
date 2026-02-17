@@ -1,33 +1,24 @@
 ---
-import "../styles/global.css";
+import BaseLayout from "../layouts/BaseLayout.astro";
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Page not found - music.cloud</title>
-    <meta name="robots" content="noindex" />
-  </head>
-  <body class="bg-background text-text-primary antialiased">
-    <div class="min-h-screen flex flex-col items-center justify-center px-8">
-      <div class="max-w-[480px] text-center">
-        <div class="text-2xl font-semibold mb-12">music.cloud</div>
+<BaseLayout title="Page not found - music.cloud" noindex>
+  <div class="min-h-dvh flex flex-col items-center justify-center px-8">
+    <div class="max-w-[480px] text-center">
+      <div class="text-2xl font-semibold mb-12">music.cloud</div>
 
-        <h1 class="text-3xl font-semibold mb-4">Page not found</h1>
+      <h1 class="text-3xl font-semibold mb-4">Page not found</h1>
 
-        <p class="text-base text-text-secondary mb-8 leading-relaxed">
-          This link doesn't exist. Maybe it was removed or the URL is wrong.
-        </p>
+      <p class="text-base text-text-secondary mb-8 leading-relaxed">
+        This link doesn't exist. Maybe it was removed or the URL is wrong.
+      </p>
 
-        <a
-          href="/"
-          class="inline-block px-6 py-3 bg-accent text-white rounded-xl font-medium transition-all duration-200 hover:bg-accent-hover hover:scale-105 focus-visible:bg-accent-hover focus-visible:scale-105 focus-visible:outline-none active:scale-95"
-        >
-          Go to music.cloud
-        </a>
-      </div>
+      <a
+        href="/"
+        class="inline-block px-6 py-3 bg-accent text-white rounded-xl font-medium transition-all duration-200 hover:bg-accent-hover hover:scale-105 focus-visible:bg-accent-hover focus-visible:scale-105 focus-visible:outline-none active:scale-95"
+      >
+        Go to music.cloud
+      </a>
     </div>
-  </body>
-</html>
+  </div>
+</BaseLayout>
