@@ -1,0 +1,23 @@
+zerops:
+  - setup: app
+    build:
+      base: nodejs@22
+      buildCommands:
+        - npm ci
+        - npm run build
+      deployFiles:
+        - dist
+        - package.json
+        - node_modules
+      cache: node_modules
+    run:
+      base: nodejs@22
+      ports:
+        - port: 3000
+          httpSupport: true
+      envVariables:
+        HOST: 0.0.0.0
+        PORT: "3000"
+        DATABASE_TYPE: sqlite
+        DATABASE_PATH: /data/music.db
+      start: npm start

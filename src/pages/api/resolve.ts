@@ -13,7 +13,6 @@ const ALLOWED_ORIGINS = [
   "https://musiccloud.io",
   "http://localhost:4321",
   "http://localhost:4322",
-  "https://music-cloud-three.vercel.app",
 ];
 
 export const prerender = false;

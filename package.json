@@ -11,11 +11,12 @@
     "test:run": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "start": "node ./dist/server/entry.mjs"
   },
   "dependencies": {
+    "@astrojs/node": "^9.5.3",
     "@astrojs/react": "^4.2.0",
-    "@astrojs/vercel": "^9.0.4",
     "astro": "^5.3.0",
     "better-sqlite3": "^11.8.0",
     "clsx": "^2.1.0",

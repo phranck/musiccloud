@@ -1,13 +1,13 @@
 import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
-import vercel from "@astrojs/vercel";
+import node from "@astrojs/node";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  adapter: vercel(),
+  adapter: node({ mode: "standalone" }),
   integrations: [react()],
   vite: {
     plugins: [tailwindcss()],
   },
-  site: "https://music.cloud",
+  site: "https://musiccloud.io",
 });
