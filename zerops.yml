@@ -19,7 +19,5 @@ zerops:
         HOST: 0.0.0.0
         PORT: "3000"
         DATABASE_TYPE: sqlite
-        DATABASE_PATH: /var/www/data/music.db
-      initCommands:
-        - mkdir -p /var/www/data
+        DATABASE_PATH: /mnt/sharedstorage/music.db
       start: npm start
