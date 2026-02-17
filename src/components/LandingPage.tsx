@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { FaCircleInfo } from "react-icons/fa6";
 import type { ResolveDisambiguationResponse, ResolveErrorResponse, ResolveSuccessResponse } from "../lib/api-types";
 import { isValidPlatform, type Platform } from "../lib/utils";
 import { BrandName } from "./BrandName";
 import { type DisambiguationCandidate, DisambiguationPanel } from "./DisambiguationPanel";
 import { GradientBackground } from "./GradientBackground";
 import { HeroInput, type InputState } from "./HeroInput";
+import { InfoPanel } from "./InfoPanel";
 import { PlatformIconRow } from "./PlatformIconRow";
 import { ResultsPanel, type SongResult } from "./ResultsPanel";
 import { SparklingStars } from "./SparklingStars";
@@ -187,6 +189,7 @@ export function LandingPage() {
   const [albumColors, setAlbumColors] = useState<AlbumColors | undefined>();
   const [dynamicAccent, setDynamicAccent] = useState<DynamicAccent | undefined>();
   const [isReturning, setIsReturning] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     variant: "success" | "error" | "info";
@@ -412,7 +415,7 @@ export function LandingPage() {
 
   return (
     <div
-      className="flex-1 flex flex-col items-center px-4 transition-colors duration-700"
+      className="flex-1 flex flex-col items-center px-4 transition-colors duration-700 relative"
       style={
         dynamicAccent
           ? ({
@@ -426,6 +429,17 @@ export function LandingPage() {
     >
       <GradientBackground albumColors={albumColors} />
       <SparklingStars />
+
+      {/* Info button */}
+      <button
+        onClick={() => setIsInfoOpen(true)}
+        aria-label="About musiccloud"
+        className="fixed top-4 right-4 z-40 p-2 text-white/30 hover:text-white/70 transition-colors duration-150 rounded-lg"
+      >
+        <FaCircleInfo className="w-5 h-5" />
+      </button>
+
+      <InfoPanel isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
 
       {/* Content area - vertically centered */}
       <div className="flex-1 flex flex-col items-center justify-center w-full">

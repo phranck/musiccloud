@@ -6,6 +6,14 @@
  * and global CSS. Page-specific meta (OG, Twitter, JSON-LD)
  * goes into the "head" slot.
  */
+import "@fontsource/barlow/400.css";
+import "@fontsource/barlow/500.css";
+import "@fontsource/barlow/600.css";
+import "@fontsource/barlow/700.css";
+import "@fontsource/roboto-condensed/400.css";
+import "@fontsource/roboto-condensed/500.css";
+import "@fontsource/roboto-condensed/600.css";
+import "@fontsource/roboto-condensed/700.css";
 import "../styles/global.css";
 
 interface Props {
@@ -28,8 +36,10 @@ const { title, description, canonicalUrl, preloadImage, noindex } = Astro.props;
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
 
     <title>{title}</title>
     {description && <meta name="description" content={description} />}

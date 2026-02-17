@@ -22,20 +22,33 @@ import BaseLayout from "../layouts/BaseLayout.astro";
     <!-- OpenGraph -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="musiccloud" />
-    <meta
-      property="og:description"
-      content="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere."
-    />
+    <meta property="og:description" content="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere." />
     <meta property="og:url" content="https://musiccloud.io" />
     <meta property="og:site_name" content="musiccloud" />
+    <meta property="og:image" content="https://musiccloud.io/og/musiccloud.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="musiccloud - Share music across every platform" />
+    <meta property="og:locale" content="en_US" />
 
     <!-- Twitter -->
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="musiccloud" />
-    <meta
-      name="twitter:description"
-      content="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere."
-    />
+    <meta name="twitter:description" content="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere." />
+    <meta name="twitter:image" content="https://musiccloud.io/og/musiccloud.jpg" />
+
+    <!-- JSON-LD: WebApplication -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "musiccloud",
+      "description": "Share music across every platform",
+      "url": "https://musiccloud.io",
+      "image": "https://musiccloud.io/og/musiccloud.jpg",
+      "applicationCategory": "MusicApplication",
+      "operatingSystem": "Web",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    })} />
   </Fragment>
 
   <div class="min-h-dvh flex flex-col">

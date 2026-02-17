@@ -61,7 +61,7 @@ export const PlatformButton = memo(function PlatformButton({
     >
       <PlatformIcon platform={platform} className="w-8 h-8 flex-shrink-0" colored={true} />
       <div className="flex-1">
-        <span className="font-medium text-base text-text-primary tracking-[-0.01em]">{label}</span>
+        <span className="font-medium text-base text-text-primary tracking-[0]" style={{ fontFamily: "var(--font-condensed)" }}>{label}</span>
         {isDev && sourceLabel && <div className="text-xs text-text-muted">{sourceLabel}</div>}
       </div>
       <svg

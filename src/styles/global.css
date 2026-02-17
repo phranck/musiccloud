@@ -31,9 +31,9 @@
   --color-youtube: #FF0000;
   --color-soundcloud: #FF5500;
 
-  /* Typography - SF Pro system stack */
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display",
-    "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  /* Typography */
+  --font-sans: "Barlow", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-condensed: "Roboto Condensed", "Barlow", sans-serif;
   --font-mono: "SF Mono", "Fira Code", monospace;
 
   /* Animations - Apple ease-out curves */

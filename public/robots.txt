@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+Sitemap: https://musiccloud.io/sitemap-index.xml

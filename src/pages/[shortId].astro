@@ -49,6 +49,7 @@ const metaLine = buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc,
     <meta property="og:image" content={og.ogImageUrl} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${track.title} by ${artistDisplay}`} />
     <meta property="og:url" content={og.ogUrl} />
     <meta property="og:site_name" content="musiccloud" />
 
@@ -73,6 +74,7 @@ const metaLine = buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc,
         class="mb-6 w-full max-w-[280px] sm:max-w-sm aspect-square rounded-xl sm:rounded-2xl shadow-2xl object-cover bg-surface-elevated"
         width="384"
         height="384"
+        loading="lazy"
         onerror="this.style.display='none'"
       />
     )}
@@ -111,7 +113,7 @@ const metaLine = buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc,
             aria-label={`Open ${track.title} on ${label} (opens in new window)`}
           >
             <PlatformIcon client:load platform={platform} className="w-7 h-7 flex-shrink-0" colored={true} />
-            <span class="font-medium text-base text-text-primary tracking-[-0.01em] flex-1">
+            <span class="font-medium text-base text-text-primary flex-1" style="font-family: var(--font-condensed)">
               Listen on {label}
             </span>
             <svg

@@ -102,7 +102,7 @@ export function SharePage({ data }: SharePageProps) {
               >
                 <PlatformIcon platform={p.platform} className="w-5 h-5" />
               </div>
-              <span className="font-medium text-base text-text-primary flex-1">Listen on {config.label}</span>
+              <span className="font-medium text-base text-text-primary flex-1" style={{ fontFamily: "var(--font-condensed)" }}>Listen on {config.label}</span>
               <svg
                 className="w-5 h-5 text-text-muted flex-shrink-0"
                 fill="none"
