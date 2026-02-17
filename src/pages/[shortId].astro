@@ -62,7 +62,8 @@ const metaLine = metaItems.join(" \u00B7 ");
 
   <GradientBackground client:load />
 
-  <main id="main-content" class="min-h-dvh flex flex-col items-center justify-center px-4 sm:px-6 pb-20 pb-safe">
+  <div class="min-h-dvh flex flex-col">
+  <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
     {/* Album Art */}
     {track.artworkUrl && (
       <img
@@ -127,8 +128,7 @@ const metaLine = metaItems.join(" \u00B7 ");
     </div>
   </main>
 
-  {/* Sticky Footer */}
-  <footer class="fixed bottom-0 left-0 right-0 flex items-center justify-center px-4 sm:px-6 py-3 pb-4 text-xs text-text-muted pb-safe">
+  <footer class="flex items-center justify-center px-4 sm:px-6 py-3 text-xs text-text-muted" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))">
     <span>
       powered by
       <a href="/" class="text-accent hover:text-accent-hover transition-colors duration-150 ml-1 font-medium">
@@ -136,4 +136,5 @@ const metaLine = metaItems.join(" \u00B7 ");
       </a>
     </span>
   </footer>
+  </div>
 </BaseLayout>
