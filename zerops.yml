@@ -20,4 +20,6 @@ zerops:
         PORT: "3000"
         DATABASE_TYPE: sqlite
         DATABASE_PATH: /data/music.db
+      initCommands:
+        - mkdir -p /data
       start: npm start
