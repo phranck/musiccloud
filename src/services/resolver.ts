@@ -229,7 +229,10 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     sourceTrack = await sourceAdapter.getTrack(trackId);
   } catch (error) {
     if (!sourceAdapter.isAvailable()) {
-      // Adapter has no credentials - scrape page for metadata and cross-resolve
+      // Adapter has no credentials - use Odesli for Apple Music, scrape for others
+      if (sourceAdapter.id === "apple-music") {
+        return resolveUrlViaOdesli(cleanUrl);
+      }
       return resolveUrlViaScrape(cleanUrl, sourceAdapter.id);
     }
     throw error;
