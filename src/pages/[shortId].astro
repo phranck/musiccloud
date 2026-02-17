@@ -8,7 +8,7 @@
 export const prerender = false;
 
 import { loadByShortId } from "../lib/share-page";
-import { PLATFORM_CONFIG, isValidPlatform, type Platform } from "../lib/utils";
+import { PLATFORM_CONFIG, isValidPlatform, formatDuration, formatYear, type Platform } from "../lib/utils";
 import { PlatformIcon } from "../components/PlatformIcon";
 import { GradientBackground } from "../components/GradientBackground";
 import "../styles/global.css";
@@ -26,18 +26,6 @@ if (!data) {
 }
 
 const { track, artistDisplay, links, og } = data;
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.round(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
-function formatYear(dateStr: string): string | null {
-  const year = dateStr.slice(0, 4);
-  return /^\d{4}$/.test(year) ? year : null;
-}
 
 const metaItems = [
   track.durationMs ? formatDuration(track.durationMs) : null,
@@ -85,9 +73,10 @@ const metaLine = metaItems.join(" \u00B7 ");
         <img
           src={track.artworkUrl}
           alt={`${track.title} by ${artistDisplay}`}
-          class="mb-6 w-full max-w-sm aspect-square rounded-2xl shadow-2xl object-cover"
+          class="mb-6 w-full max-w-sm aspect-square rounded-2xl shadow-2xl object-cover bg-surface-elevated"
           width="384"
           height="384"
+          onerror="this.style.display='none'"
         />
       )}
 

@@ -31,6 +31,7 @@ const IMG_BASE = "https://content-images.p-cdn.com/";
 
 let cachedCsrfToken: string | null = null;
 let csrfTokenFetchedAt = 0;
+let csrfTokenPromise: Promise<string | null> | null = null;
 const CSRF_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 async function getCsrfToken(): Promise<string | null> {
@@ -38,6 +39,13 @@ async function getCsrfToken(): Promise<string | null> {
     return cachedCsrfToken;
   }
 
+  // Promise coalescing: prevent parallel requests from each fetching independently
+  if (csrfTokenPromise) return csrfTokenPromise;
+  csrfTokenPromise = fetchCsrfToken().finally(() => { csrfTokenPromise = null; });
+  return csrfTokenPromise;
+}
+
+async function fetchCsrfToken(): Promise<string | null> {
   try {
     const response = await pandoraFetch(PANDORA_BASE, 5000);
     // set-cookie headers need special handling across environments

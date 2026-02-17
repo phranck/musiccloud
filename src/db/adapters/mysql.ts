@@ -57,6 +57,61 @@ export class MysqlAdapter implements TrackRepository {
     this.db = drizzle(this.pool, { schema, mode: "default" });
   }
 
+  async ensureSchema(): Promise<void> {
+    try {
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS tracks (
+          id VARCHAR(36) PRIMARY KEY,
+          title TEXT NOT NULL,
+          artists TEXT NOT NULL,
+          album_name TEXT,
+          isrc VARCHAR(15),
+          artwork_url TEXT,
+          duration_ms INT,
+          release_date VARCHAR(10),
+          is_explicit BOOLEAN,
+          preview_url TEXT,
+          source_service VARCHAR(50),
+          source_url TEXT,
+          created_at BIGINT NOT NULL,
+          updated_at BIGINT NOT NULL,
+          FULLTEXT INDEX idx_tracks_fulltext (title, artists),
+          INDEX idx_tracks_isrc (isrc)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS service_links (
+          id VARCHAR(36) PRIMARY KEY,
+          track_id VARCHAR(36) NOT NULL,
+          service VARCHAR(50) NOT NULL,
+          external_id VARCHAR(255),
+          url TEXT NOT NULL,
+          confidence FLOAT NOT NULL,
+          match_method VARCHAR(50) NOT NULL,
+          created_at BIGINT NOT NULL,
+          UNIQUE INDEX idx_service_links_track_service (track_id, service),
+          INDEX idx_service_links_service_external (service, external_id),
+          FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS short_urls (
+          id VARCHAR(12) PRIMARY KEY,
+          track_id VARCHAR(36) NOT NULL,
+          created_at BIGINT NOT NULL,
+          FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+
+      log.debug("DB", "MySQL schema ensured");
+    } catch (error) {
+      log.error("DB", "ensureSchema failed:", error instanceof Error ? error.message : error);
+      throw error;
+    }
+  }
+
   async findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
     const [rows] = await this.pool.query<mysql.RowDataPacket[]>(`
       SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,

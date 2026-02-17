@@ -53,48 +53,15 @@ const ODESLI_KNOWN_SERVICES: ServiceId[] = [
 /**
  * Fill gaps in resolved links by calling Odesli for uncovered services.
  * Non-fatal: if Odesli fails, the existing links are returned unchanged.
+ *
+ * NOTE: Odesli is currently disabled. This function returns early until re-enabled.
  */
 async function gapFillViaOdesli(
-  sourceUrl: string,
+  _sourceUrl: string,
   existingLinks: ResolvedLink[],
 ): Promise<ResolvedLink[]> {
-  const coveredServices = new Set(existingLinks.map((l) => l.service));
-  const uncovered = ODESLI_KNOWN_SERVICES.filter((s) => !coveredServices.has(s));
-
-  if (uncovered.length === 0) {
-    log.debug("Resolver", "Gap-fill: all Odesli-known services already covered");
-    return existingLinks;
-  }
-
-  log.debug("Resolver", `Gap-fill: ${uncovered.length} uncovered services: ${uncovered.join(", ")}`);
-
-  try {
-    const odesliResult = await resolveViaOdesli(sourceUrl);
-    const newLinks: ResolvedLink[] = [];
-
-    for (const serviceId of uncovered) {
-      const link = odesliResult.links[serviceId];
-      if (link) {
-        newLinks.push({
-          service: serviceId,
-          displayName: PLATFORM_CONFIG[serviceId].label,
-          url: link.url,
-          confidence: ODESLI_CONFIDENCE,
-          matchMethod: "odesli",
-        });
-        log.debug("Resolver", `  [${serviceId}] filled by Odesli`);
-      }
-    }
-
-    if (newLinks.length > 0) {
-      log.debug("Resolver", `Gap-fill: Odesli added ${newLinks.length} links`);
-    }
-
-    return [...existingLinks, ...newLinks];
-  } catch (error) {
-    log.error("Resolver", `Gap-fill via Odesli failed: ${error instanceof Error ? error.message : error}`);
-    return existingLinks;
-  }
+  // Odesli is disabled - return links unchanged to avoid unnecessary HTTP requests
+  return existingLinks;
 }
 
 /**

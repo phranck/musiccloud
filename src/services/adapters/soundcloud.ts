@@ -25,6 +25,7 @@ const USER_AGENT =
 
 let cachedClientId: string | null = null;
 let clientIdFetchedAt = 0;
+let clientIdPromise: Promise<string | null> | null = null;
 const CLIENT_ID_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 async function getClientId(): Promise<string | null> {
@@ -32,6 +33,13 @@ async function getClientId(): Promise<string | null> {
     return cachedClientId;
   }
 
+  // Promise coalescing: prevent parallel requests from each fetching independently
+  if (clientIdPromise) return clientIdPromise;
+  clientIdPromise = fetchClientId().finally(() => { clientIdPromise = null; });
+  return clientIdPromise;
+}
+
+async function fetchClientId(): Promise<string | null> {
   try {
     const response = await scFetch("https://soundcloud.com", 5000);
     if (!response.ok) return cachedClientId;

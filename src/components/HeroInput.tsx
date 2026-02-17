@@ -76,6 +76,14 @@ export function HeroInput({
     const el = ambilightRef.current;
     if (!el) return;
 
+    // Respect prefers-reduced-motion
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (motionQuery.matches) {
+      // Static gradient fallback
+      el.style.background = `conic-gradient(from 0deg, hsla(${waveSeeds.hues[0]}, 75%, 60%, 0.5), hsla(${waveSeeds.hues[1]}, 75%, 60%, 0.5), hsla(${waveSeeds.hues[2]}, 75%, 60%, 0.5), hsla(${waveSeeds.hues[0]}, 75%, 60%, 0.5))`;
+      return;
+    }
+
     let raf: number;
     const startTime = performance.now();
     const { hues, speeds, widths, alphas } = waveSeeds;
@@ -133,7 +141,7 @@ export function HeroInput({
 
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [waveSeeds]);
 
   const cancelAutoSubmit = useCallback(() => {
     if (autoSubmitTimer.current) {

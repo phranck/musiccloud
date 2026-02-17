@@ -10,12 +10,16 @@ export async function createRepository(config: DatabaseConfig): Promise<TrackRep
 
     case "postgres": {
       const { PostgresAdapter } = await import("./adapters/postgres.js");
-      return new PostgresAdapter(config.connectionString);
+      const adapter = new PostgresAdapter(config.connectionString);
+      await adapter.ensureSchema();
+      return adapter;
     }
 
     case "mysql": {
       const { MysqlAdapter } = await import("./adapters/mysql.js");
-      return new MysqlAdapter(config);
+      const adapter = new MysqlAdapter(config);
+      await adapter.ensureSchema();
+      return adapter;
     }
 
     default:

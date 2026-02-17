@@ -75,9 +75,10 @@ const { track, artists, artistDisplay, links, og } = data;
         <img
           src={track.artworkUrl}
           alt={`${track.title} by ${artistDisplay}`}
-          class="mx-auto mb-6 h-56 w-56 md:h-64 md:w-64 rounded-2xl shadow-2xl"
+          class="mx-auto mb-6 h-56 w-56 md:h-64 md:w-64 rounded-2xl shadow-2xl bg-surface-elevated"
           width="256"
           height="256"
+          onerror="this.style.display='none'"
         />
       )}
 

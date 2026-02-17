@@ -10,6 +10,12 @@ export const log = {
     if (isDev) console.log(`[${tag}]`, ...args);
   },
   error(tag: string, ...args: unknown[]): void {
-    console.error(`[${tag}]`, ...args);
+    if (isDev) {
+      console.error(`[${tag}]`, ...args);
+    } else {
+      // In production: only log string messages, never full error objects or stack traces
+      const safeArgs = args.map((a) => (a instanceof Error ? a.message : a));
+      console.error(`[${tag}]`, ...safeArgs);
+    }
   },
 };

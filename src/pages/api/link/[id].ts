@@ -1,9 +1,18 @@
 import type { APIRoute } from "astro";
 import { getRepository } from "../../../db/index.js";
+import { apiRateLimiter } from "../../../lib/rate-limiter.js";
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, clientAddress }) => {
+  const clientIp = clientAddress ?? "unknown";
+  if (apiRateLimiter.isLimited(clientIp)) {
+    return new Response(
+      JSON.stringify({ error: "RATE_LIMITED", message: "Too many requests. Please try again later." }),
+      { status: 429, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   const { id } = params;
 
   if (!id) {

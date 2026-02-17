@@ -3,6 +3,7 @@ import { resolveQuery, resolveTextSearchWithDisambiguation, resolveSelectedCandi
 import type { ResolutionResult } from "../../services/resolver.js";
 import { ResolveError, ERROR_STATUS_MAP, USER_MESSAGES } from "../../lib/errors.js";
 import type { ErrorCode } from "../../lib/errors.js";
+import type { ResolveSuccessResponse, ResolveDisambiguationResponse, ResolveErrorResponse } from "../../lib/api-types.js";
 import { isUrl, stripTrackingParams } from "../../lib/url-parser.js";
 import { getRepository } from "../../db/index.js";
 import { apiRateLimiter } from "../../lib/rate-limiter.js";
@@ -64,16 +65,14 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     }
 
     // Return disambiguation candidates (no DB persistence yet)
-    return new Response(
-      JSON.stringify({
-        status: "disambiguation",
-        candidates: textResult.candidates,
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    const disambiguationBody: ResolveDisambiguationResponse = {
+      status: "disambiguation",
+      candidates: textResult.candidates ?? [],
+    };
+    return new Response(JSON.stringify(disambiguationBody), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
     if (error instanceof ResolveError) {
       const code = error.code as ErrorCode;
@@ -90,16 +89,14 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
 };
 
 function jsonError(code: ErrorCode, status: number, customMessage?: string): Response {
-  return new Response(
-    JSON.stringify({
-      error: code,
-      message: customMessage ?? USER_MESSAGES[code] ?? "Something went wrong.",
-    }),
-    {
-      status,
-      headers: { "Content-Type": "application/json" },
-    },
-  );
+  const body: ResolveErrorResponse = {
+    error: code,
+    message: customMessage ?? USER_MESSAGES[code] ?? "Something went wrong.",
+  };
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 async function persistAndRespond(result: ResolutionResult, origin: string): Promise<Response> {
@@ -121,30 +118,29 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
 
   const shortUrl = `${origin}/${shortId}`;
 
-  return new Response(
-    JSON.stringify({
-      id: trackId,
-      shortUrl,
-      track: {
-        title: result.sourceTrack.title,
-        artists: result.sourceTrack.artists,
-        albumName: result.sourceTrack.albumName,
-        artworkUrl: result.sourceTrack.artworkUrl,
-        durationMs: result.sourceTrack.durationMs,
-        isrc: result.sourceTrack.isrc,
-        releaseDate: result.sourceTrack.releaseDate,
-      },
-      links: result.links.map((l) => ({
-        service: l.service,
-        displayName: l.displayName,
-        url: stripTrackingParams(l.url),
-        confidence: l.confidence,
-        matchMethod: l.matchMethod,
-      })),
-    }),
-    {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
+  const body: ResolveSuccessResponse = {
+    id: trackId,
+    shortUrl,
+    track: {
+      title: result.sourceTrack.title,
+      artists: result.sourceTrack.artists,
+      albumName: result.sourceTrack.albumName,
+      artworkUrl: result.sourceTrack.artworkUrl,
+      durationMs: result.sourceTrack.durationMs,
+      isrc: result.sourceTrack.isrc,
+      releaseDate: result.sourceTrack.releaseDate,
     },
-  );
+    links: result.links.map((l) => ({
+      service: l.service,
+      displayName: l.displayName,
+      url: stripTrackingParams(l.url),
+      confidence: l.confidence,
+      matchMethod: l.matchMethod,
+    })),
+  };
+
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }

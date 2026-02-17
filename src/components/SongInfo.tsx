@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { formatDuration, formatYear } from "../lib/utils";
 
 interface SongInfoProps {
   title: string;
@@ -9,18 +10,6 @@ interface SongInfoProps {
   isrc?: string;
   albumArtUrl: string;
   onAlbumArtLoad?: (img: HTMLImageElement) => void;
-}
-
-function formatYear(dateStr: string): string | null {
-  const year = dateStr.slice(0, 4);
-  return /^\d{4}$/.test(year) ? year : null;
-}
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.round(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 export const SongInfo = memo(function SongInfo({

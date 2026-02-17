@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { isValidPlatform, type Platform } from "../lib/utils";
+import type { ResolveSuccessResponse, ResolveDisambiguationResponse, ResolveErrorResponse } from "../lib/api-types";
 import { DisambiguationPanel, type DisambiguationCandidate } from "./DisambiguationPanel";
 import { GradientBackground } from "./GradientBackground";
 import { HeroInput, type InputState } from "./HeroInput";
@@ -120,29 +121,26 @@ function appReducer(state: AppState, action: AppAction): AppState {
   }
 }
 
-function parseResolveResponse(data: Record<string, unknown>): { result: SongResult; highlightedPlatforms: Platform[] } {
-  const rawLinks = (data.links as Array<Record<string, unknown>>) ?? [];
-  const platforms: SongResult["platforms"] = rawLinks
+function parseResolveResponse(data: ResolveSuccessResponse): { result: SongResult; highlightedPlatforms: Platform[] } {
+  const platforms: SongResult["platforms"] = data.links
     .filter((link) => link.url && isValidPlatform(link.service))
     .map((link) => ({
       platform: link.service as Platform,
-      url: link.url as string,
-      displayName: link.displayName as string | undefined,
-      matchMethod: link.matchMethod as "isrc" | "search" | "odesli" | "cache" | undefined,
+      url: link.url,
+      displayName: link.displayName,
+      matchMethod: link.matchMethod,
     }));
 
-  const track = data.track as Record<string, unknown>;
-  const artists = Array.isArray(track.artists) ? track.artists : [];
   const result: SongResult = {
-    title: typeof track.title === "string" ? track.title : "",
-    artist: artists.join(", "),
-    album: typeof track.albumName === "string" ? track.albumName : undefined,
-    releaseDate: typeof track.releaseDate === "string" ? track.releaseDate : undefined,
-    durationMs: typeof track.durationMs === "number" ? track.durationMs : undefined,
-    isrc: typeof track.isrc === "string" ? track.isrc : undefined,
-    albumArtUrl: typeof track.artworkUrl === "string" ? track.artworkUrl : "",
+    title: data.track.title,
+    artist: data.track.artists.join(", "),
+    album: data.track.albumName,
+    releaseDate: data.track.releaseDate,
+    durationMs: data.track.durationMs,
+    isrc: data.track.isrc,
+    albumArtUrl: data.track.artworkUrl ?? "",
     platforms,
-    shareUrl: data.shortUrl as string,
+    shareUrl: data.shortUrl,
   };
 
   return { result, highlightedPlatforms: platforms.map((p) => p.platform) };
@@ -193,11 +191,15 @@ export function LandingPage() {
   // Focus management
   useEffect(() => {
     if (state.type === "success") resultsPanelRef.current?.focus();
-  }, [state.type === "success" && state.result]);
+  }, [state.type === "success" ? state.result : null]);
 
   useEffect(() => {
     if (state.type === "disambiguation") disambiguationRef.current?.focus();
-  }, [state.type === "disambiguation" && state.candidates]);
+  }, [state.type === "disambiguation" ? state.candidates : null]);
+
+  const handleToastDismiss = useCallback(() => {
+    setToast((prev) => ({ ...prev, visible: false }));
+  }, []);
 
   const handleSubmit = useCallback(async (url: string) => {
     dispatch({ type: "SUBMIT" });
@@ -216,18 +218,18 @@ export function LandingPage() {
       clearTimeout(timeout);
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error?.message || "Something went wrong. Please try again.");
+        const errorData = await response.json().catch(() => ({})) as Partial<ResolveErrorResponse>;
+        throw new Error(errorData.message || "Something went wrong. Please try again.");
       }
 
-      const data = await response.json();
+      const data = await response.json() as ResolveSuccessResponse | ResolveDisambiguationResponse;
 
-      if (data.status === "disambiguation" && Array.isArray(data.candidates)) {
+      if ("status" in data && data.status === "disambiguation") {
         dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
         return;
       }
 
-      const { result, highlightedPlatforms } = parseResolveResponse(data);
+      const { result, highlightedPlatforms } = parseResolveResponse(data as ResolveSuccessResponse);
       dispatch({ type: "RESOLVE_SUCCESS", result, highlightedPlatforms });
     } catch (err) {
       dispatch({ type: "ERROR", message: parseErrorMessage(err) });
@@ -251,11 +253,11 @@ export function LandingPage() {
       clearTimeout(timeout);
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error?.message || "Something went wrong. Please try again.");
+        const errorData = await response.json().catch(() => ({})) as Partial<ResolveErrorResponse>;
+        throw new Error(errorData.message || "Something went wrong. Please try again.");
       }
 
-      const data = await response.json();
+      const data = await response.json() as ResolveSuccessResponse;
       const { result, highlightedPlatforms } = parseResolveResponse(data);
       dispatch({ type: "RESOLVE_SUCCESS", result, highlightedPlatforms });
     } catch (err) {
@@ -380,6 +382,11 @@ export function LandingPage() {
         />
       </div>
 
+      {/* Screen reader announcement for dynamic results */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {result ? `Found ${result.title} by ${result.artist} on ${result.platforms.length} platforms` : ""}
+      </div>
+
       {/* Disambiguation */}
       {candidates && candidates.length > 0 && (
         <div ref={disambiguationRef} tabIndex={-1} className="outline-none w-full">
@@ -429,7 +436,7 @@ export function LandingPage() {
         message={toast.message}
         variant={toast.variant}
         visible={toast.visible}
-        onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
+        onDismiss={handleToastDismiss}
       />
     </div>
   );
