@@ -52,7 +52,7 @@ describe("generateOGMeta", () => {
       ...baseInput,
       availablePlatforms: [],
     });
-    expect(og.ogDescription).toBe("Find this song on music.cloud");
+    expect(og.ogDescription).toBe("Find this song on musiccloud");
   });
 
   it("should append album to description if it fits", () => {
@@ -104,8 +104,8 @@ describe("generateOGMeta", () => {
     expect(og.twitterCard).toBe("summary_large_image");
   });
 
-  it("should set pageTitle with music.cloud suffix", () => {
+  it("should set pageTitle with musiccloud suffix", () => {
     const og = generateOGMeta(baseInput);
-    expect(og.pageTitle).toBe("Bohemian Rhapsody - Queen | music.cloud");
+    expect(og.pageTitle).toBe("Bohemian Rhapsody - Queen | musiccloud");
   });
 });

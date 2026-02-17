@@ -42,7 +42,7 @@ export function generateOGMeta(input: OGMetaInput): OGMeta {
   );
   let ogDescription: string;
   if (serviceNames.length === 0) {
-    ogDescription = "Find this song on music.cloud";
+    ogDescription = "Find this song on musiccloud";
   } else if (serviceNames.length === 1) {
     ogDescription = `Listen on ${serviceNames[0]}`;
   } else if (serviceNames.length === 2) {
@@ -66,7 +66,7 @@ export function generateOGMeta(input: OGMetaInput): OGMeta {
   const ogImageUrl = albumArtUrl || `/og/default.jpg`;
 
   return {
-    pageTitle: `${ogTitle} | music.cloud`,
+    pageTitle: `${ogTitle} | musiccloud`,
     ogTitle,
     ogDescription,
     ogImageUrl,

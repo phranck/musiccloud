@@ -146,7 +146,7 @@ export function SharePage({ data }: SharePageProps) {
           )}
         >
           Create your own link on{" "}
-          <span className="font-medium text-accent-hover">music.cloud</span>
+          <span className="font-medium text-accent-hover">musiccloud</span>
         </a>
       </div>
     </div>

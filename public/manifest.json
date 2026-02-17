@@ -1,6 +1,6 @@
 {
-  "name": "music.cloud",
-  "short_name": "music.cloud",
+  "name": "musiccloud",
+  "short_name": "musiccloud",
   "description": "Share music across every platform",
   "start_url": "/",
   "display": "standalone",

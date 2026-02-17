@@ -430,7 +430,7 @@ export function LandingPage() {
 
       {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 pb-safe text-xs text-text-muted">
-        <span>&copy; 2026 music.cloud</span>
+        <span>&copy; 2026 musiccloud</span>
         <span>
           made by{" "}
           <a
