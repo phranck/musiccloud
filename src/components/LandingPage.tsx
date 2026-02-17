@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import type { ResolveDisambiguationResponse, ResolveErrorResponse, ResolveSuccessResponse } from "../lib/api-types";
 import { isValidPlatform, type Platform } from "../lib/utils";
 import { BrandName } from "./BrandName";
@@ -177,6 +177,8 @@ function parseErrorMessage(err: unknown): string {
 export function LandingPage() {
   const resultsPanelRef = useRef<HTMLDivElement>(null);
   const disambiguationRef = useRef<HTMLDivElement>(null);
+  const searchFieldRef = useRef<HTMLDivElement>(null);
+  const prevSearchY = useRef<number | null>(null);
 
   const [state, dispatch] = useReducer(appReducer, { type: "idle" });
 
@@ -184,6 +186,7 @@ export function LandingPage() {
   const [isFocused, setIsFocused] = useState(false);
   const [albumColors, setAlbumColors] = useState<AlbumColors | undefined>();
   const [dynamicAccent, setDynamicAccent] = useState<DynamicAccent | undefined>();
+  const [isReturning, setIsReturning] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     variant: "success" | "error" | "info";
@@ -290,8 +293,46 @@ export function LandingPage() {
   }, []);
 
   const handleClearAnimationEnd = useCallback(() => {
+    // FLIP step 1: capture search field position before layout change
+    if (searchFieldRef.current) {
+      prevSearchY.current = searchFieldRef.current.getBoundingClientRect().top;
+    }
+    setIsReturning(true);
     dispatch({ type: "CLEAR" });
   }, []);
+
+  // FLIP step 2: after React renders idle layout, animate from old to new position
+  useLayoutEffect(() => {
+    if (!isReturning || prevSearchY.current === null || !searchFieldRef.current) return;
+
+    const el = searchFieldRef.current;
+    const newY = el.getBoundingClientRect().top;
+    const delta = prevSearchY.current - newY;
+    prevSearchY.current = null;
+
+    if (Math.abs(delta) < 2) {
+      setIsReturning(false);
+      return;
+    }
+
+    // Invert: place element at old position
+    el.style.transform = `translateY(${delta}px)`;
+    el.style.transition = "none";
+
+    // Force reflow so the browser registers the starting position
+    el.offsetHeight;
+
+    // Play: animate to final position
+    el.style.transition = "transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)";
+    el.style.transform = "";
+
+    const cleanup = () => {
+      el.style.transition = "";
+      el.removeEventListener("transitionend", cleanup);
+      setIsReturning(false);
+    };
+    el.addEventListener("transitionend", cleanup);
+  }, [isReturning]);
 
   // Global ESC key: clear results and input from anywhere on the page
   useEffect(() => {
@@ -391,7 +432,7 @@ export function LandingPage() {
 
       {/* Hero */}
       {!result && !candidates && (
-        <div className="flex justify-center mb-10">
+        <div className={`flex justify-center mb-10 ${isReturning ? "animate-fade-in" : ""}`}>
           <div className="text-center">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-[-0.04em] text-text-primary mb-1">
               <BrandName />
@@ -414,7 +455,7 @@ export function LandingPage() {
       )}
 
       {/* Hero Input */}
-      <div className="w-full flex flex-col items-center">
+      <div ref={searchFieldRef} className="w-full flex flex-col items-center">
         <HeroInput
           onSubmit={handleSubmit}
           onClear={handleClear}
@@ -462,7 +503,11 @@ export function LandingPage() {
       )}
 
       {/* Platform marquee (idle state only, not during clearing) */}
-      {state.type === "idle" && <PlatformIconRow />}
+      {state.type === "idle" && (
+        <div className={isReturning ? "animate-fade-in" : ""}>
+          <PlatformIconRow />
+        </div>
+      )}
 
       </div>
 
