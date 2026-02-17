@@ -29,7 +29,7 @@ function truncate(text: string, maxLength: number): string {
 }
 
 export function generateOGMeta(input: OGMetaInput): OGMeta {
-  const { title, artist, album, albumArtUrl, shortId, availablePlatforms, origin = "https://music.cloud" } =
+  const { title, artist, album, albumArtUrl, shortId, availablePlatforms, origin = "https://musiccloud.io" } =
     input;
 
   // og:title - "{title} - {artist}" truncated to 60 chars

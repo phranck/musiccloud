@@ -10,9 +10,9 @@ import { apiRateLimiter } from "../../lib/rate-limiter.js";
 import { log } from "../../lib/logger.js";
 
 const ALLOWED_ORIGINS = [
+  "https://musiccloud.io",
   "http://localhost:4321",
   "http://localhost:4322",
-  "https://music.cloud",
   "https://music-cloud-three.vercel.app",
 ];
 

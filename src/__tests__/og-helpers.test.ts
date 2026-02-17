@@ -88,7 +88,7 @@ describe("generateOGMeta", () => {
 
   it("should set og:url with shortId", () => {
     const og = generateOGMeta(baseInput);
-    expect(og.ogUrl).toBe("https://music.cloud/abc12");
+    expect(og.ogUrl).toBe("https://musiccloud.io/abc12");
   });
 
   it("should use custom origin when provided", () => {
