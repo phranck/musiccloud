@@ -23,13 +23,7 @@ const variantIcons: Record<ToastVariant, string> = {
   info: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
 };
 
-export function Toast({
-  message,
-  variant,
-  visible,
-  onDismiss,
-  duration = 3000,
-}: ToastProps) {
+export function Toast({ message, variant, visible, onDismiss, duration = 3000 }: ToastProps) {
   useEffect(() => {
     if (!visible) return;
     const timer = setTimeout(onDismiss, duration);
@@ -49,23 +43,11 @@ export function Toast({
         "flex items-center gap-3",
         "transition-all duration-350",
         variantStyles[variant],
-        visible
-          ? "opacity-100 translate-y-0"
-          : "opacity-0 translate-y-4 pointer-events-none",
+        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none",
       )}
     >
-      <svg
-        className="w-5 h-5 flex-shrink-0"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d={variantIcons[variant]}
-        />
+      <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d={variantIcons[variant]} />
       </svg>
       <span className="text-sm font-medium text-text-primary">{message}</span>
     </div>

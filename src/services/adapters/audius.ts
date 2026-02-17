@@ -1,18 +1,13 @@
-import type {
-  ServiceAdapter,
-  NormalizedTrack,
-  MatchResult,
-  SearchQuery,
-} from "../types.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
+import { log } from "../../lib/logger.js";
 import { calculateConfidence } from "../../lib/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import { log } from "../../lib/logger.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 const API_BASE = "https://api.audius.co/v1";
 const APP_NAME = "music_cloud";
 
-const AUDIUS_TRACK_REGEX =
-  /(?:https?:\/\/)?audius\.co\/([^/]+\/[^/?\s]+)/;
+const AUDIUS_TRACK_REGEX = /(?:https?:\/\/)?audius\.co\/([^/]+\/[^/?\s]+)/;
 
 interface AudiusTrackResponse {
   id: string;
@@ -45,15 +40,7 @@ interface AudiusTrackDetailResponse {
 
 async function audiusFetch(endpoint: string): Promise<Response> {
   const separator = endpoint.includes("?") ? "&" : "?";
-  const url = `${API_BASE}${endpoint}${separator}app_name=${APP_NAME}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
+  return fetchWithTimeout(`${API_BASE}${endpoint}${separator}app_name=${APP_NAME}`, {}, 5000);
 }
 
 function mapTrack(raw: AudiusTrackResponse): NormalizedTrack {
@@ -90,9 +77,7 @@ export const audiusAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     // trackId from detectUrl is a path like "handle/slug", use resolve endpoint
     if (trackId.includes("/")) {
-      const response = await audiusFetch(
-        `/resolve?url=https://audius.co/${encodeURIComponent(trackId)}`,
-      );
+      const response = await audiusFetch(`/resolve?url=https://audius.co/${encodeURIComponent(trackId)}`);
 
       if (!response.ok) {
         throw new Error(`Audius resolve failed: ${response.status}`);
@@ -119,13 +104,9 @@ export const audiusAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
-    const response = await audiusFetch(
-      `/tracks/search?query=${encodeURIComponent(q)}&limit=5`,
-    );
+    const response = await audiusFetch(`/tracks/search?query=${encodeURIComponent(q)}&limit=5`);
 
     if (!response.ok) {
       return { found: false, confidence: 0, matchMethod: "search" };

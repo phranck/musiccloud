@@ -25,20 +25,11 @@ export function DisambiguationPanel({
   loading = false,
 }: DisambiguationPanelProps) {
   return (
-    <div
-      className={cn(
-        "w-full max-w-full sm:max-w-[480px] mx-auto mt-8",
-        "animate-zoom-in",
-      )}
-    >
+    <div className={cn("w-full max-w-full sm:max-w-[480px] mx-auto mt-8", "animate-zoom-in")}>
       {/* Header */}
       <div className="text-center mb-4">
-        <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
-          Did you mean?
-        </h2>
-        <p className="text-sm text-text-secondary mt-1">
-          We found multiple matches. Pick the right one.
-        </p>
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">Did you mean?</h2>
+        <p className="text-sm text-text-secondary mt-1">We found multiple matches. Pick the right one.</p>
       </div>
 
       {/* Candidate list */}
@@ -48,7 +39,14 @@ export function DisambiguationPanel({
           const isDisabled = loading;
 
           return (
-            <GlassCard key={candidate.id} className={cn("group", "transition-all duration-300", isDisabled && !isSelected && "opacity-40 grayscale")}>
+            <GlassCard
+              key={candidate.id}
+              className={cn(
+                "group",
+                "transition-all duration-300",
+                isDisabled && !isSelected && "opacity-40 grayscale",
+              )}
+            >
               <button
                 type="button"
                 onClick={() => onSelect(candidate)}
@@ -62,7 +60,11 @@ export function DisambiguationPanel({
                   isDisabled && "cursor-default",
                 )}
                 style={{ animationDelay: `${index * 80}ms` }}
-                aria-label={isSelected ? `Loading "${candidate.title}"...` : `Select "${candidate.title}" by ${candidate.artists.join(", ")}`}
+                aria-label={
+                  isSelected
+                    ? `Loading "${candidate.title}"...`
+                    : `Select "${candidate.title}" by ${candidate.artists.join(", ")}`
+                }
               >
                 {/* Artwork */}
                 <div className="w-14 h-14 md:w-16 md:h-16 rounded-md overflow-hidden shadow-md flex-shrink-0 bg-surface">
@@ -74,7 +76,9 @@ export function DisambiguationPanel({
                       width={64}
                       height={64}
                       loading="lazy"
-                      onError={(e) => { e.currentTarget.src = "/og/default.jpg"; }}
+                      onError={(e) => {
+                        e.currentTarget.src = "/og/default.jpg";
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
@@ -100,13 +104,9 @@ export function DisambiguationPanel({
                   <p className="text-base font-medium tracking-[-0.01em] text-text-primary truncate">
                     {candidate.title}
                   </p>
-                  <p className="text-sm text-text-secondary truncate mt-0.5">
-                    {candidate.artists.join(", ")}
-                  </p>
+                  <p className="text-sm text-text-secondary truncate mt-0.5">{candidate.artists.join(", ")}</p>
                   {candidate.albumName && (
-                    <p className="text-xs text-text-muted truncate mt-0.5">
-                      {candidate.albumName}
-                    </p>
+                    <p className="text-xs text-text-muted truncate mt-0.5">{candidate.albumName}</p>
                   )}
                 </div>
 
@@ -118,26 +118,12 @@ export function DisambiguationPanel({
                     "transition-all duration-150",
                     isSelected
                       ? "bg-accent/50"
-                      : [
-                          "bg-accent/10 text-accent",
-                          !isDisabled && "group-hover:bg-accent group-hover:text-white",
-                        ],
+                      : ["bg-accent/10 text-accent", !isDisabled && "group-hover:bg-accent group-hover:text-white"],
                   )}
                 >
                   {isSelected ? (
-                    <svg
-                      className="w-4 h-4 text-white animate-spin"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
+                    <svg className="w-4 h-4 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path
                         className="opacity-75"
                         fill="currentColor"
@@ -145,18 +131,8 @@ export function DisambiguationPanel({
                       />
                     </svg>
                   ) : (
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M14 5l7 7m0 0l-7 7m7-7H3"
-                      />
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
                   )}
                 </div>

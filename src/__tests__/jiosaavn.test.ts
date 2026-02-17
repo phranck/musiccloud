@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { jiosaavnAdapter } from "../services/adapters/jiosaavn";
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 // =============================================================================
 // detectUrl
@@ -69,9 +71,7 @@ describe("JioSaavn: getTrack", () => {
   });
 
   it("should throw on invalid response", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("<!DOCTYPE html>", { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("<!DOCTYPE html>", { status: 200 }));
     await expect(jiosaavnAdapter.getTrack("invalid")).rejects.toThrow("Track not found");
   });
 });
@@ -83,22 +83,22 @@ describe("JioSaavn: getTrack", () => {
 describe("JioSaavn: searchTrack", () => {
   it("should find track with structured query", async () => {
     const mockResults = {
-      results: [{
-        id: "Fj9GfAxDWUY",
-        title: "Blinding Lights",
-        perma_url: "https://www.jiosaavn.com/song/blinding-lights/Fj9GfAxDWUY",
-        image: "https://c.saavncdn.com/500x500.jpg",
-        more_info: {
-          duration: "200",
-          album: "After Hours",
-          artistMap: { primary_artists: [{ name: "The Weeknd", id: "123" }] },
+      results: [
+        {
+          id: "Fj9GfAxDWUY",
+          title: "Blinding Lights",
+          perma_url: "https://www.jiosaavn.com/song/blinding-lights/Fj9GfAxDWUY",
+          image: "https://c.saavncdn.com/500x500.jpg",
+          more_info: {
+            duration: "200",
+            album: "After Hours",
+            artistMap: { primary_artists: [{ name: "The Weeknd", id: "123" }] },
+          },
         },
-      }],
+      ],
     };
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockResults), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(mockResults), { status: 200 }));
 
     const result = await jiosaavnAdapter.searchTrack({ title: "Blinding Lights", artist: "The Weeknd" });
     expect(result.found).toBe(true);
@@ -107,9 +107,7 @@ describe("JioSaavn: searchTrack", () => {
   });
 
   it("should return not found for empty results", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ results: [] }), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ results: [] }), { status: 200 }));
 
     const result = await jiosaavnAdapter.searchTrack({ title: "Nonexistent", artist: "Nobody" });
     expect(result.found).toBe(false);
@@ -121,7 +119,13 @@ describe("JioSaavn: searchTrack", () => {
 // =============================================================================
 
 describe("JioSaavn: adapter metadata", () => {
-  it("should have correct id", () => { expect(jiosaavnAdapter.id).toBe("jiosaavn"); });
-  it("should have correct displayName", () => { expect(jiosaavnAdapter.displayName).toBe("JioSaavn"); });
-  it("should not support ISRC", () => { expect(jiosaavnAdapter.capabilities.supportsIsrc).toBe(false); });
+  it("should have correct id", () => {
+    expect(jiosaavnAdapter.id).toBe("jiosaavn");
+  });
+  it("should have correct displayName", () => {
+    expect(jiosaavnAdapter.displayName).toBe("JioSaavn");
+  });
+  it("should not support ISRC", () => {
+    expect(jiosaavnAdapter.capabilities.supportsIsrc).toBe(false);
+  });
 });

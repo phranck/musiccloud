@@ -1,19 +1,23 @@
 import type { APIRoute } from "astro";
-import { resolveQuery, resolveTextSearchWithDisambiguation, resolveSelectedCandidate } from "../../services/resolver.js";
-import type { ResolutionResult } from "../../services/resolver.js";
-import { ResolveError, ERROR_STATUS_MAP, USER_MESSAGES } from "../../lib/errors.js";
-import type { ErrorCode } from "../../lib/errors.js";
-import type { ResolveSuccessResponse, ResolveDisambiguationResponse, ResolveErrorResponse } from "../../lib/api-types.js";
-import { isUrl, stripTrackingParams } from "../../lib/url-parser.js";
 import { getRepository } from "../../db/index.js";
-import { apiRateLimiter } from "../../lib/rate-limiter.js";
+import type {
+  ResolveDisambiguationResponse,
+  ResolveErrorResponse,
+  ResolveSuccessResponse,
+} from "../../lib/api-types.js";
+import type { ErrorCode } from "../../lib/errors.js";
+import { ERROR_STATUS_MAP, ResolveError, USER_MESSAGES } from "../../lib/errors.js";
 import { log } from "../../lib/logger.js";
+import { apiRateLimiter } from "../../lib/rate-limiter.js";
+import { isUrl, stripTrackingParams } from "../../lib/url-parser.js";
+import type { ResolutionResult } from "../../services/resolver.js";
+import {
+  resolveQuery,
+  resolveSelectedCandidate,
+  resolveTextSearchWithDisambiguation,
+} from "../../services/resolver.js";
 
-const ALLOWED_ORIGINS = [
-  "https://musiccloud.io",
-  "http://localhost:4321",
-  "http://localhost:4322",
-];
+const ALLOWED_ORIGINS = ["https://musiccloud.io", "http://localhost:4321", "http://localhost:4322"];
 
 export const prerender = false;
 
@@ -37,6 +41,14 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
 
   if (!query && !selectedCandidate) {
     return jsonError("INVALID_URL", 400, "The 'query' or 'selectedCandidate' field is required.");
+  }
+
+  if (query && query.length > 500) {
+    return jsonError("INVALID_URL", 400, "Query must be 500 characters or fewer.");
+  }
+
+  if (selectedCandidate && selectedCandidate.length > 200) {
+    return jsonError("INVALID_URL", 400, "Invalid candidate selection.");
   }
 
   try {

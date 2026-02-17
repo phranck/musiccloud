@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { pandoraAdapter, _resetCsrfTokenCache, _setCsrfTokenForTest } from "../services/adapters/pandora";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { _resetCsrfTokenCache, _setCsrfTokenForTest, pandoraAdapter } from "../services/adapters/pandora";
 
 // =============================================================================
 // Mock data
@@ -88,25 +88,33 @@ function mockApiCall(apiResponse: Response) {
 describe("Pandora: detectUrl", () => {
   it("should extract path from standard track URL", () => {
     expect(
-      pandoraAdapter.detectUrl("https://www.pandora.com/artist/taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6"),
+      pandoraAdapter.detectUrl(
+        "https://www.pandora.com/artist/taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6",
+      ),
     ).toBe("taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6");
   });
 
   it("should extract path from URL without www", () => {
     expect(
-      pandoraAdapter.detectUrl("https://pandora.com/artist/taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6"),
+      pandoraAdapter.detectUrl(
+        "https://pandora.com/artist/taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6",
+      ),
     ).toBe("taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6");
   });
 
   it("should strip query parameters", () => {
     expect(
-      pandoraAdapter.detectUrl("https://www.pandora.com/artist/taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6?utm_source=share"),
+      pandoraAdapter.detectUrl(
+        "https://www.pandora.com/artist/taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6?utm_source=share",
+      ),
     ).toBe("taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6");
   });
 
   it("should handle HTTP URLs", () => {
     expect(
-      pandoraAdapter.detectUrl("http://www.pandora.com/artist/taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6"),
+      pandoraAdapter.detectUrl(
+        "http://www.pandora.com/artist/taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6",
+      ),
     ).toBe("taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6");
   });
 
@@ -166,9 +174,7 @@ describe("Pandora: getTrack (full page)", () => {
   });
 
   it("should extract track from storeData", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(MOCK_TRACK_HTML, { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(MOCK_TRACK_HTML, { status: 200 }));
 
     const track = await pandoraAdapter.getTrack(
       "taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6",
@@ -185,9 +191,7 @@ describe("Pandora: getTrack (full page)", () => {
   });
 
   it("should use durationMillis over duration * 1000", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(MOCK_TRACK_HTML, { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(MOCK_TRACK_HTML, { status: 200 }));
 
     const track = await pandoraAdapter.getTrack(
       "taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6",
@@ -196,9 +200,7 @@ describe("Pandora: getTrack (full page)", () => {
   });
 
   it("should build full artwork URL from relative path", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(MOCK_TRACK_HTML, { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(MOCK_TRACK_HTML, { status: 200 }));
 
     const track = await pandoraAdapter.getTrack(
       "taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6",
@@ -220,9 +222,7 @@ describe("Pandora: getTrack (JSON-LD fallback)", () => {
   });
 
   it("should fall back to JSON-LD when storeData is missing", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(MOCK_JSONLD_ONLY_HTML, { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(MOCK_JSONLD_ONLY_HTML, { status: 200 }));
 
     const track = await pandoraAdapter.getTrack(
       "taylor-swift/1989-taylors-version-deluxe/shake-it-off-taylors-version/TRvkjP9rvK3lnh6",
@@ -234,23 +234,17 @@ describe("Pandora: getTrack (JSON-LD fallback)", () => {
   });
 
   it("should throw when page has no usable data", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(MOCK_EMPTY_HTML, { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(MOCK_EMPTY_HTML, { status: 200 }));
 
-    await expect(
-      pandoraAdapter.getTrack("broken/album/track/TRabc123"),
-    ).rejects.toThrow("Could not extract track title");
+    await expect(pandoraAdapter.getTrack("broken/album/track/TRabc123")).rejects.toThrow(
+      "Could not extract track title",
+    );
   });
 
   it("should throw when page fetch fails", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Forbidden", { status: 403 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Forbidden", { status: 403 }));
 
-    await expect(
-      pandoraAdapter.getTrack("some/album/track/TRabc123"),
-    ).rejects.toThrow("page fetch failed: 403");
+    await expect(pandoraAdapter.getTrack("some/album/track/TRabc123")).rejects.toThrow("page fetch failed: 403");
   });
 });
 
@@ -339,9 +333,7 @@ describe("Pandora: searchTrack", () => {
   });
 
   it("should gracefully handle missing CSRF token", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Error", { status: 500 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     const result = await pandoraAdapter.searchTrack({
       title: "Test",

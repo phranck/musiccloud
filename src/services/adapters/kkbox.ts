@@ -1,23 +1,20 @@
-import type {
-  ServiceAdapter,
-  NormalizedTrack,
-  MatchResult,
-  SearchQuery,
-} from "../types.js";
-import { calculateConfidence } from "../../lib/normalize.js";
-import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
+import { calculateConfidence } from "../../lib/normalize.js";
+import { TokenManager } from "../../lib/token-manager.js";
+import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 const API_BASE = "https://api.kkbox.com/v1.1";
-const TOKEN_URL = "https://account.kkbox.com/oauth2/token";
 
-const KKBOX_TRACK_REGEX =
-  /(?:https?:\/\/)?(?:www\.)?kkbox\.com\/[a-z]{2}\/[a-z]{2}\/song\/([A-Za-z0-9_-]+)/;
+const KKBOX_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?kkbox\.com\/[a-z]{2}\/[a-z]{2}\/song\/([A-Za-z0-9_-]+)/;
 
-interface KkboxToken {
-  accessToken: string;
-  expiresAt: number;
-}
+const tokenManager = new TokenManager({
+  serviceName: "KKBOX",
+  tokenUrl: "https://account.kkbox.com/oauth2/token",
+  clientIdEnv: "KKBOX_CLIENT_ID",
+  clientSecretEnv: "KKBOX_CLIENT_SECRET",
+});
 
 interface KkboxTrackResponse {
   id: string;
@@ -48,67 +45,9 @@ interface KkboxSearchResponse {
   };
 }
 
-let cachedToken: KkboxToken | null = null;
-let tokenPromise: Promise<string> | null = null;
-
-/** Reset module-level token cache. For testing only. */
+/** Reset token cache. For testing only. */
 export function _resetTokenCache(): void {
-  cachedToken = null;
-  tokenPromise = null;
-}
-
-async function getAccessToken(): Promise<string> {
-  if (cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
-    return cachedToken.accessToken;
-  }
-
-  // Promise coalescing: prevent parallel token refresh requests
-  if (tokenPromise) return tokenPromise;
-
-  tokenPromise = fetchNewToken().finally(() => {
-    tokenPromise = null;
-  });
-  return tokenPromise;
-}
-
-async function fetchNewToken(): Promise<string> {
-  const clientId = import.meta.env.KKBOX_CLIENT_ID;
-  const clientSecret = import.meta.env.KKBOX_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    console.error("[KKBOX] Missing required credentials");
-    throw new Error("KKBOX_CLIENT_ID and KKBOX_CLIENT_SECRET must be set");
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    const response = await fetch(TOKEN_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
-      },
-      body: "grant_type=client_credentials",
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`KKBOX token request failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    cachedToken = {
-      accessToken: data.access_token,
-      expiresAt: Date.now() + data.expires_in * 1000,
-    };
-
-    return cachedToken.accessToken;
-  } finally {
-    clearTimeout(timeout);
-  }
+  tokenManager.reset();
 }
 
 function getTerritory(): string {
@@ -116,27 +55,16 @@ function getTerritory(): string {
 }
 
 async function kkboxFetch(endpoint: string): Promise<Response> {
-  const token = await getAccessToken();
-  const url = `${API_BASE}${endpoint}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    return await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  const token = await tokenManager.getAccessToken();
+  return fetchWithTimeout(`${API_BASE}${endpoint}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
 }
 
-function pickLargestImage(
-  images?: Array<{ url: string; width: number; height: number }>,
-): string | undefined {
+function pickLargestImage(images?: Array<{ url: string; width: number; height: number }>): string | undefined {
   if (!images || images.length === 0) return undefined;
   const sorted = [...images].sort((a, b) => (b.width ?? 0) - (a.width ?? 0));
   return sorted[0].url;
@@ -167,7 +95,7 @@ export const kkboxAdapter = {
   },
 
   isAvailable(): boolean {
-    return Boolean(import.meta.env.KKBOX_CLIENT_ID && import.meta.env.KKBOX_CLIENT_SECRET);
+    return tokenManager.isConfigured();
   },
 
   detectUrl(url: string): string | null {
@@ -177,9 +105,7 @@ export const kkboxAdapter = {
 
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const territory = getTerritory();
-    const response = await kkboxFetch(
-      `/tracks/${encodeURIComponent(trackId)}?territory=${territory}`,
-    );
+    const response = await kkboxFetch(`/tracks/${encodeURIComponent(trackId)}?territory=${territory}`);
 
     if (!response.ok) {
       throw new Error(`KKBOX getTrack failed: ${response.status}`);
@@ -220,13 +146,9 @@ export const kkboxAdapter = {
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const territory = getTerritory();
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
-    const response = await kkboxFetch(
-      `/search?q=${encodeURIComponent(q)}&type=track&territory=${territory}&limit=5`,
-    );
+    const response = await kkboxFetch(`/search?q=${encodeURIComponent(q)}&type=track&territory=${territory}&limit=5`);
 
     if (!response.ok) {
       log.debug("KKBOX", "Search API failed:", response.status);
@@ -260,7 +182,10 @@ export const kkboxAdapter = {
         );
       }
 
-      log.debug("KKBOX", `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`);
+      log.debug(
+        "KKBOX",
+        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+      );
 
       if (confidence > bestConfidence) {
         bestConfidence = confidence;

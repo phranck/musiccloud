@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { kkboxAdapter, _resetTokenCache } from "../services/adapters/kkbox";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { _resetTokenCache, kkboxAdapter } from "../services/adapters/kkbox";
 
 // =============================================================================
 // Mock data
@@ -123,12 +123,8 @@ describe("KKBOX: isAvailable", () => {
 describe("KKBOX: getTrack", () => {
   it("should fetch and map track data correctly", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_KKBOX_TRACK), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_KKBOX_TRACK), { status: 200 }));
 
     const track = await kkboxAdapter.getTrack("9YlkyzQutUrZ0vUJG9");
 
@@ -145,12 +141,8 @@ describe("KKBOX: getTrack", () => {
 
   it("should pick largest artwork image", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_KKBOX_TRACK), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_KKBOX_TRACK), { status: 200 }));
 
     const track = await kkboxAdapter.getTrack("9YlkyzQutUrZ0vUJG9");
     expect(track.artworkUrl).toBe("https://i.kfs.io/album/tw/123,0v3/fit/500x500.jpg");
@@ -158,20 +150,14 @@ describe("KKBOX: getTrack", () => {
 
   it("should throw on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response("Not Found", { status: 404 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
 
     await expect(kkboxAdapter.getTrack("invalid")).rejects.toThrow("KKBOX getTrack failed: 404");
   });
 
   it("should throw on auth failure", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Unauthorized", { status: 401 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }));
 
     await expect(kkboxAdapter.getTrack("test")).rejects.toThrow("KKBOX token request failed: 401");
   });
@@ -180,9 +166,7 @@ describe("KKBOX: getTrack", () => {
     delete import.meta.env.KKBOX_CLIENT_ID;
     delete import.meta.env.KKBOX_CLIENT_SECRET;
 
-    await expect(kkboxAdapter.getTrack("test")).rejects.toThrow(
-      "KKBOX_CLIENT_ID and KKBOX_CLIENT_SECRET must be set",
-    );
+    await expect(kkboxAdapter.getTrack("test")).rejects.toThrow("KKBOX_CLIENT_ID and KKBOX_CLIENT_SECRET must be set");
   });
 });
 
@@ -193,12 +177,8 @@ describe("KKBOX: getTrack", () => {
 describe("KKBOX: findByIsrc", () => {
   it("should find track by ISRC", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
 
     const track = await kkboxAdapter.findByIsrc("NOA840500101");
 
@@ -210,12 +190,8 @@ describe("KKBOX: findByIsrc", () => {
 
   it("should return null when ISRC is not found", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ tracks: { data: [] } }), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tracks: { data: [] } }), { status: 200 }));
 
     const track = await kkboxAdapter.findByIsrc("INVALID000000");
     expect(track).toBeNull();
@@ -223,12 +199,8 @@ describe("KKBOX: findByIsrc", () => {
 
   it("should return null when ISRC not in results", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
 
     const track = await kkboxAdapter.findByIsrc("DIFFERENT00001");
     expect(track).toBeNull();
@@ -236,12 +208,8 @@ describe("KKBOX: findByIsrc", () => {
 
   it("should return null on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response("Server Error", { status: 500 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response("Server Error", { status: 500 }));
 
     const track = await kkboxAdapter.findByIsrc("NOA840500101");
     expect(track).toBeNull();
@@ -255,12 +223,8 @@ describe("KKBOX: findByIsrc", () => {
 describe("KKBOX: searchTrack", () => {
   it("should find track with structured query", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
 
     const result = await kkboxAdapter.searchTrack({
       title: "Take on Me",
@@ -276,12 +240,8 @@ describe("KKBOX: searchTrack", () => {
 
   it("should return not found for empty results", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ tracks: { data: [] } }), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tracks: { data: [] } }), { status: 200 }));
 
     const result = await kkboxAdapter.searchTrack({
       title: "Nonexistent Song",
@@ -294,12 +254,8 @@ describe("KKBOX: searchTrack", () => {
 
   it("should return not found on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response("Error", { status: 500 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     const result = await kkboxAdapter.searchTrack({
       title: "Test",
@@ -311,12 +267,8 @@ describe("KKBOX: searchTrack", () => {
 
   it("should use free-text scoring when title equals artist", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
 
     const result = await kkboxAdapter.searchTrack({
       title: "a-ha Take on Me",
@@ -344,12 +296,8 @@ describe("KKBOX: searchTrack", () => {
     };
 
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(multiResponse), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(multiResponse), { status: 200 }));
 
     const result = await kkboxAdapter.searchTrack({
       title: "Take on Me",
@@ -368,16 +316,11 @@ describe("KKBOX: searchTrack", () => {
 
 describe("KKBOX: token management", () => {
   it("should reuse cached token for subsequent requests", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_KKBOX_TRACK), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_KKBOX_TRACK), { status: 200 }),
-      );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_KKBOX_TRACK), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_KKBOX_TRACK), { status: 200 }));
 
     await kkboxAdapter.getTrack("9YlkyzQutUrZ0vUJG9");
     await kkboxAdapter.getTrack("9YlkyzQutUrZ0vUJG9");

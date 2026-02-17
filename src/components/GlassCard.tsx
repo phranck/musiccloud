@@ -6,27 +6,15 @@ interface GlassCardProps {
   className?: string;
 }
 
-export function GlassCard({
-  children,
-  elevated = false,
-  className,
-}: GlassCardProps) {
+export function GlassCard({ children, elevated = false, className }: GlassCardProps) {
   return (
     <div
       className={cn(
         "rounded-2xl overflow-hidden",
         "glass-fallback",
         elevated
-          ? [
-              "bg-surface-elevated/95 backdrop-blur-[24px]",
-              "border border-white/[0.08]",
-              "shadow-xl",
-            ]
-          : [
-              "bg-surface/70 backdrop-blur-[20px]",
-              "border border-white/[0.05]",
-              "shadow-lg",
-            ],
+          ? ["bg-surface-elevated/95 backdrop-blur-[24px]", "border border-white/[0.08]", "shadow-xl"]
+          : ["bg-surface/70 backdrop-blur-[20px]", "border border-white/[0.05]", "shadow-lg"],
         className,
       )}
     >

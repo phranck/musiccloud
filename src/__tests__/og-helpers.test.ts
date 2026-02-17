@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { generateOGMeta } from "../lib/og-helpers";
 import type { Platform } from "../lib/utils";
 

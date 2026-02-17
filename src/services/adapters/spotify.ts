@@ -1,97 +1,31 @@
-import type {
-  ServiceAdapter,
-  AdapterCapabilities,
-  NormalizedTrack,
-  MatchResult,
-  SearchResultWithCandidates,
-} from "../types.js";
-import { calculateConfidence } from "../../lib/normalize.js";
-import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
+import { calculateConfidence } from "../../lib/normalize.js";
+import { TokenManager } from "../../lib/token-manager.js";
+import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
+import type {
+  AdapterCapabilities,
+  MatchResult,
+  NormalizedTrack,
+  SearchResultWithCandidates,
+  ServiceAdapter,
+} from "../types.js";
 
-const SPOTIFY_TRACK_REGEX =
-  /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?track\/([a-zA-Z0-9]+)/;
+const SPOTIFY_TRACK_REGEX = /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?track\/([a-zA-Z0-9]+)/;
 const SPOTIFY_URI_REGEX = /spotify:track:([a-zA-Z0-9]+)/;
 
-const TOKEN_URL = "https://accounts.spotify.com/api/token";
 const API_BASE = "https://api.spotify.com/v1";
 
-interface SpotifyToken {
-  accessToken: string;
-  expiresAt: number;
-}
-
-let cachedToken: SpotifyToken | null = null;
-let tokenPromise: Promise<string> | null = null;
-
-async function getAccessToken(): Promise<string> {
-  if (cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
-    return cachedToken.accessToken;
-  }
-
-  // Promise coalescing: prevent parallel token refresh requests
-  if (tokenPromise) return tokenPromise;
-
-  tokenPromise = fetchNewToken().finally(() => {
-    tokenPromise = null;
-  });
-  return tokenPromise;
-}
-
-async function fetchNewToken(): Promise<string> {
-  const clientId = import.meta.env.SPOTIFY_CLIENT_ID;
-  const clientSecret = import.meta.env.SPOTIFY_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    console.error("[Spotify] Missing required credentials");
-    throw new Error("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set");
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    const response = await fetch(TOKEN_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
-      },
-      body: "grant_type=client_credentials",
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Spotify token request failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    cachedToken = {
-      accessToken: data.access_token,
-      expiresAt: Date.now() + data.expires_in * 1000,
-    };
-
-    return cachedToken.accessToken;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
+const tokenManager = new TokenManager({
+  serviceName: "Spotify",
+  tokenUrl: "https://accounts.spotify.com/api/token",
+  clientIdEnv: "SPOTIFY_CLIENT_ID",
+  clientSecretEnv: "SPOTIFY_CLIENT_SECRET",
+});
 
 async function spotifyFetch(endpoint: string): Promise<Response> {
-  const token = await getAccessToken();
-  const url = `${API_BASE}${endpoint}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    return await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  const token = await tokenManager.getAccessToken();
+  return fetchWithTimeout(`${API_BASE}${endpoint}`, { headers: { Authorization: `Bearer ${token}` } });
 }
 
 function mapTrack(raw: SpotifyTrackResponse): NormalizedTrack {
@@ -140,7 +74,7 @@ export const spotifyAdapter = {
   capabilities,
 
   isAvailable(): boolean {
-    return Boolean(import.meta.env.SPOTIFY_CLIENT_ID && import.meta.env.SPOTIFY_CLIENT_SECRET);
+    return tokenManager.isConfigured();
   },
 
   detectUrl(url: string): string | null {
@@ -180,11 +114,7 @@ export const spotifyAdapter = {
     return mapTrack(items[0]);
   },
 
-  async searchTrack(query: {
-    title: string;
-    artist: string;
-    album?: string;
-  }): Promise<MatchResult> {
+  async searchTrack(query: { title: string; artist: string; album?: string }): Promise<MatchResult> {
     const isFreeText = query.title === query.artist;
     let q: string;
 
@@ -316,9 +246,10 @@ export const spotifyAdapter = {
     scored.sort((a, b) => b.confidence - a.confidence);
 
     const best = scored[0];
-    const bestMatch: MatchResult = best.confidence >= MATCH_MIN_CONFIDENCE
-      ? { found: true, track: best.track, confidence: best.confidence, matchMethod: "search" }
-      : { found: false, confidence: best.confidence, matchMethod: "search" };
+    const bestMatch: MatchResult =
+      best.confidence >= MATCH_MIN_CONFIDENCE
+        ? { found: true, track: best.track, confidence: best.confidence, matchMethod: "search" }
+        : { found: false, confidence: best.confidence, matchMethod: "search" };
 
     return {
       bestMatch,

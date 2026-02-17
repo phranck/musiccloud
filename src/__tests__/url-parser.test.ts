@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { validateMusicUrl, stripTrackingParams, isUrl } from "../lib/url-parser";
+import { describe, expect, it } from "vitest";
+import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/url-parser";
 
 // =============================================================================
 // validateMusicUrl

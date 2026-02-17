@@ -54,7 +54,7 @@ export interface PersistTrackData {
   }>;
 }
 
-/** Database adapter interface. All methods are async to support both sync (SQLite) and async (PostgreSQL/MySQL) drivers. */
+/** Database adapter interface. All methods are async for a consistent API surface. */
 export interface TrackRepository {
   // Read operations
   findTrackByUrl(url: string): Promise<CachedTrackResult | null>;
@@ -68,9 +68,16 @@ export interface TrackRepository {
 
   // Write operations (transaction-safe)
   persistTrackWithLinks(data: PersistTrackData): Promise<{ trackId: string; shortId: string }>;
-  addLinksToTrack(trackId: string, links: Array<{
-    service: string; url: string; confidence: number; matchMethod: string; externalId?: string;
-  }>): Promise<void>;
+  addLinksToTrack(
+    trackId: string,
+    links: Array<{
+      service: string;
+      url: string;
+      confidence: number;
+      matchMethod: string;
+      externalId?: string;
+    }>,
+  ): Promise<void>;
 
   // Maintenance
   updateTrackTimestamp(trackId: string): Promise<void>;

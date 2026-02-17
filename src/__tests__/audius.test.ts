@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { audiusAdapter } from "../services/adapters/audius";
 
 // =============================================================================
@@ -40,18 +40,19 @@ const MOCK_TRACK_DETAIL_RESPONSE = {
 
 describe("Audius: detectUrl", () => {
   it("should extract path from standard URL", () => {
-    expect(audiusAdapter.detectUrl("https://audius.co/deadmau5/unlucky-work-in-progress-333797"))
-      .toBe("deadmau5/unlucky-work-in-progress-333797");
+    expect(audiusAdapter.detectUrl("https://audius.co/deadmau5/unlucky-work-in-progress-333797")).toBe(
+      "deadmau5/unlucky-work-in-progress-333797",
+    );
   });
 
   it("should extract path from URL without https", () => {
-    expect(audiusAdapter.detectUrl("http://audius.co/deadmau5/unlucky-work-in-progress-333797"))
-      .toBe("deadmau5/unlucky-work-in-progress-333797");
+    expect(audiusAdapter.detectUrl("http://audius.co/deadmau5/unlucky-work-in-progress-333797")).toBe(
+      "deadmau5/unlucky-work-in-progress-333797",
+    );
   });
 
   it("should handle URL with query params", () => {
-    expect(audiusAdapter.detectUrl("https://audius.co/deadmau5/some-track?ref=share"))
-      .toBe("deadmau5/some-track");
+    expect(audiusAdapter.detectUrl("https://audius.co/deadmau5/some-track?ref=share")).toBe("deadmau5/some-track");
   });
 
   it("should return null for user profile URL (no track slug)", () => {
@@ -121,9 +122,9 @@ describe("Audius: getTrack", () => {
   });
 
   it("should use resolve endpoint when trackId contains slash", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(MOCK_TRACK_DETAIL_RESPONSE), { status: 200 }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACK_DETAIL_RESPONSE), { status: 200 }));
 
     await audiusAdapter.getTrack("artist/track-slug");
 
@@ -132,9 +133,9 @@ describe("Audius: getTrack", () => {
   });
 
   it("should use direct endpoint when trackId is a hash", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(MOCK_TRACK_DETAIL_RESPONSE), { status: 200 }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACK_DETAIL_RESPONSE), { status: 200 }));
 
     await audiusAdapter.getTrack("QxamW");
 
@@ -153,9 +154,7 @@ describe("Audius: getTrack", () => {
   });
 
   it("should throw on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Not Found", { status: 404 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
 
     await expect(audiusAdapter.getTrack("invalid")).rejects.toThrow();
   });
@@ -211,9 +210,7 @@ describe("Audius: searchTrack", () => {
   });
 
   it("should return not found for empty results", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ data: [] }), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }));
 
     const result = await audiusAdapter.searchTrack({
       title: "Nonexistent Song",
@@ -225,9 +222,7 @@ describe("Audius: searchTrack", () => {
   });
 
   it("should return not found on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Error", { status: 500 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     const result = await audiusAdapter.searchTrack({
       title: "Test",
@@ -239,9 +234,9 @@ describe("Audius: searchTrack", () => {
   });
 
   it("should use combined query when title equals artist (free text)", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
 
     await audiusAdapter.searchTrack({
       title: "deadmau5 Unlucky",
@@ -259,9 +254,7 @@ describe("Audius: searchTrack", () => {
         { ...MOCK_AUDIUS_TRACK, id: "Xyz", title: "Something Else", user: { id: "1", handle: "other", name: "Other" } },
       ],
     };
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(multiResults), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(multiResults), { status: 200 }));
 
     const result = await audiusAdapter.searchTrack({
       title: "Unlucky (Work in progress)",

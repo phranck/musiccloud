@@ -1,8 +1,6 @@
 import type { ErrorCode } from "./errors.js";
 
-export type UrlValidationResult =
-  | { valid: true }
-  | { valid: false; code: ErrorCode; message: string };
+export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorCode; message: string };
 
 const ALLOWED_HOSTS = [
   // Spotify
@@ -66,8 +64,7 @@ const ALLOWED_HOSTS = [
 ];
 
 // Patterns for unsupported content types (specific error messages)
-const PODCAST_REGEX =
-  /spotify\.com\/(?:intl-\w+\/)?(?:episode|show)\//;
+const PODCAST_REGEX = /spotify\.com\/(?:intl-\w+\/)?(?:episode|show)\//;
 const PLAYLIST_REGEX =
   /(?:spotify\.com\/(?:intl-\w+\/)?playlist\/|music\.apple\.com\/[a-z]{2}\/playlist\/|youtube\.com\/playlist\?)/;
 const ALBUM_ONLY_REGEX =
@@ -90,8 +87,7 @@ export function validateMusicUrl(input: string): UrlValidationResult {
     return {
       valid: false,
       code: "PODCAST_NOT_SUPPORTED",
-      message:
-        "We only support music tracks at the moment.",
+      message: "We only support music tracks at the moment.",
     };
   }
 
@@ -99,8 +95,7 @@ export function validateMusicUrl(input: string): UrlValidationResult {
     return {
       valid: false,
       code: "PLAYLIST_NOT_SUPPORTED",
-      message:
-        "We support single tracks right now. Try pasting a link to a specific song.",
+      message: "We support single tracks right now. Try pasting a link to a specific song.",
     };
   }
 
@@ -108,8 +103,7 @@ export function validateMusicUrl(input: string): UrlValidationResult {
     return {
       valid: false,
       code: "ALBUM_NOT_SUPPORTED",
-      message:
-        "Try pasting a link to a specific song from this album.",
+      message: "Try pasting a link to a specific song from this album.",
     };
   }
 

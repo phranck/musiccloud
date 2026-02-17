@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { napsterAdapter } from "../services/adapters/napster";
 
 // =============================================================================
@@ -40,18 +40,17 @@ const MOCK_SEARCH_RESPONSE = {
 
 describe("Napster: detectUrl", () => {
   it("should extract track ID from play.napster.com URL", () => {
-    expect(napsterAdapter.detectUrl("https://play.napster.com/track/tra.262370664"))
-      .toBe("tra.262370664");
+    expect(napsterAdapter.detectUrl("https://play.napster.com/track/tra.262370664")).toBe("tra.262370664");
   });
 
   it("should extract track ID from web.napster.com URL", () => {
-    expect(napsterAdapter.detectUrl("https://web.napster.com/track/tra.262370664"))
-      .toBe("tra.262370664");
+    expect(napsterAdapter.detectUrl("https://web.napster.com/track/tra.262370664")).toBe("tra.262370664");
   });
 
   it("should extract slug from app.napster.com URL", () => {
-    expect(napsterAdapter.detectUrl("https://app.napster.com/artist/louis-armstrong/album/jazz/track/wonderful-world"))
-      .toBe("wonderful-world");
+    expect(
+      napsterAdapter.detectUrl("https://app.napster.com/artist/louis-armstrong/album/jazz/track/wonderful-world"),
+    ).toBe("wonderful-world");
   });
 
   it("should return null for non-Napster URL", () => {
@@ -153,9 +152,7 @@ describe("Napster: getTrack", () => {
   });
 
   it("should throw on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Not Found", { status: 404 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
 
     await expect(napsterAdapter.getTrack("tra.999")).rejects.toThrow("Napster getTrack failed: 404");
   });
@@ -165,9 +162,9 @@ describe("Napster: getTrack", () => {
   });
 
   it("should include apikey in request URL", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }));
 
     await napsterAdapter.getTrack("tra.262370664");
 
@@ -204,27 +201,23 @@ describe("Napster: findByIsrc", () => {
   });
 
   it("should return null when ISRC is not found", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ tracks: [] }), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ tracks: [] }), { status: 200 }));
 
     const track = await napsterAdapter.findByIsrc("INVALID000000");
     expect(track).toBeNull();
   });
 
   it("should return null on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Server Error", { status: 500 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Server Error", { status: 500 }));
 
     const track = await napsterAdapter.findByIsrc("USMC16758823");
     expect(track).toBeNull();
   });
 
   it("should use ISRC endpoint", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }));
 
     await napsterAdapter.findByIsrc("USMC16758823");
 
@@ -278,9 +271,7 @@ describe("Napster: searchTrack", () => {
   });
 
   it("should return not found on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Error", { status: 500 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     const result = await napsterAdapter.searchTrack({
       title: "Test",
@@ -292,9 +283,9 @@ describe("Napster: searchTrack", () => {
   });
 
   it("should use combined query for free-text search", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
 
     await napsterAdapter.searchTrack({
       title: "Louis Armstrong Wonderful World",
@@ -318,9 +309,7 @@ describe("Napster: searchTrack", () => {
       },
       meta: { totalCount: 2 },
     };
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(multiResults), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(multiResults), { status: 200 }));
 
     const result = await napsterAdapter.searchTrack({
       title: "What A Wonderful World",

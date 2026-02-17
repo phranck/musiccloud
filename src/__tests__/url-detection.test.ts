@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { isMusicUrl, detectPlatform } from "../lib/utils";
+import { describe, expect, it } from "vitest";
+import { detectPlatform, isMusicUrl } from "../lib/utils";
 
 // =============================================================================
 // isMusicUrl
@@ -89,7 +89,9 @@ describe("detectPlatform", () => {
   });
 
   it("should identify Apple Music platform", () => {
-    expect(detectPlatform("https://music.apple.com/us/album/bohemian-rhapsody/1440806041?i=1440806768")).toBe("apple-music");
+    expect(detectPlatform("https://music.apple.com/us/album/bohemian-rhapsody/1440806041?i=1440806768")).toBe(
+      "apple-music",
+    );
   });
 
   it("should identify YouTube platform from standard URL", () => {

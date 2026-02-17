@@ -1,9 +1,11 @@
-import type { ServiceAdapter, NormalizedTrack, MatchResult, SearchQuery } from "../types.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
+import { calculateConfidence } from "../../lib/normalize.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
-const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // Bandcamp URLs: {artist}.bandcamp.com/track/{slug}
 const BANDCAMP_TRACK_REGEX = /^https?:\/\/([a-z0-9-]+)\.bandcamp\.com\/track\/([a-z0-9-]+)/;
@@ -30,21 +32,17 @@ function parseDuration(iso: string): number | undefined {
 }
 
 async function bandcampFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      signal: controller.signal,
+  return fetchWithTimeout(
+    url,
+    {
       headers: {
         "User-Agent": USER_AGENT,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
       },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    timeoutMs,
+  );
 }
 
 function parseJsonLd(html: string): BandcampJsonLd | null {
@@ -182,9 +180,7 @@ export const bandcampAdapter: ServiceAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
     try {
       const results = await searchBandcamp(q);
@@ -200,9 +196,7 @@ export const bandcampAdapter: ServiceAdapter = {
       let bestConfidence = 0;
 
       // Fetch track pages in parallel for full metadata
-      const trackResults = await Promise.allSettled(
-        results.map((r) => fetchTrackByUrl(r.url)),
-      );
+      const trackResults = await Promise.allSettled(results.map((r) => fetchTrackByUrl(r.url)));
 
       for (let i = 0; i < trackResults.length; i++) {
         const result = trackResults[i];
@@ -220,7 +214,10 @@ export const bandcampAdapter: ServiceAdapter = {
           );
         }
 
-        log.debug("Bandcamp", `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`);
+        log.debug(
+          "Bandcamp",
+          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+        );
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

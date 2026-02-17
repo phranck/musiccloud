@@ -1,4 +1,4 @@
-import { clsx, type ClassValue } from "clsx";
+import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -6,7 +6,28 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // All supported music platforms
-export type Platform = "spotify" | "apple-music" | "youtube" | "youtube-music" | "soundcloud" | "tidal" | "deezer" | "audius" | "napster" | "pandora" | "qobuz" | "boomplay" | "kkbox" | "bandcamp" | "audiomack" | "netease" | "qqmusic" | "melon" | "bugs" | "jiosaavn" | "beatport";
+export type Platform =
+  | "spotify"
+  | "apple-music"
+  | "youtube"
+  | "youtube-music"
+  | "soundcloud"
+  | "tidal"
+  | "deezer"
+  | "audius"
+  | "napster"
+  | "pandora"
+  | "qobuz"
+  | "boomplay"
+  | "kkbox"
+  | "bandcamp"
+  | "audiomack"
+  | "netease"
+  | "qqmusic"
+  | "melon"
+  | "bugs"
+  | "jiosaavn"
+  | "beatport";
 
 /** Platforms with URL detection support (YouTube Music is derived from YouTube) */
 type DetectablePlatform = Exclude<Platform, "youtube-music">;
@@ -14,8 +35,7 @@ type DetectablePlatform = Exclude<Platform, "youtube-music">;
 const MUSIC_URL_PATTERNS: Record<DetectablePlatform, RegExp> = {
   spotify: /^https?:\/\/(open\.)?spotify\.com\/(track|album|intl-\w+\/track)\//,
   "apple-music": /^https?:\/\/music\.apple\.com\//,
-  youtube:
-    /^https?:\/\/(www\.)?(youtube\.com\/(watch|shorts)|youtu\.be\/|music\.youtube\.com\/)/,
+  youtube: /^https?:\/\/(www\.)?(youtube\.com\/(watch|shorts)|youtu\.be\/|music\.youtube\.com\/)/,
   soundcloud: /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/[^/]+/,
   tidal: /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?track\//,
   deezer: /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?track\//,
@@ -48,10 +68,7 @@ export function detectPlatform(url: string): DetectablePlatform | null {
   return null;
 }
 
-export const PLATFORM_CONFIG: Record<
-  Platform,
-  { label: string; color: string }
-> = {
+export const PLATFORM_CONFIG: Record<Platform, { label: string; color: string }> = {
   spotify: { label: "Spotify", color: "#1DB954" },
   "apple-music": { label: "Apple Music", color: "#FC3C44" },
   youtube: { label: "YouTube", color: "#FF0000" },
@@ -92,4 +109,18 @@ export function formatDuration(ms: number): string {
 export function formatYear(dateStr: string): string | null {
   const year = dateStr.slice(0, 4);
   return /^\d{4}$/.test(year) ? year : null;
+}
+
+/** Build the metadata line (duration, ISRC, year) joined by middle dot. */
+export function buildMetaLine(opts: {
+  durationMs?: number | null;
+  isrc?: string | null;
+  releaseDate?: string | null;
+}): string {
+  const items = [
+    opts.durationMs ? formatDuration(opts.durationMs) : null,
+    opts.isrc ?? null,
+    opts.releaseDate ? formatYear(opts.releaseDate) : null,
+  ].filter(Boolean);
+  return items.join(" \u00B7 ");
 }

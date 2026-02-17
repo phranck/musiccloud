@@ -1,7 +1,8 @@
-import type { NormalizedTrack, ServiceAdapter, SearchQuery, MatchResult } from "../types";
+import { fetchWithTimeout } from "../../lib/fetch.js";
+import { log } from "../../lib/logger";
 import { calculateConfidence } from "../../lib/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import { log } from "../../lib/logger";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types";
 
 /**
  * Pandora Scrape Adapter
@@ -41,7 +42,9 @@ async function getCsrfToken(): Promise<string | null> {
 
   // Promise coalescing: prevent parallel requests from each fetching independently
   if (csrfTokenPromise) return csrfTokenPromise;
-  csrfTokenPromise = fetchCsrfToken().finally(() => { csrfTokenPromise = null; });
+  csrfTokenPromise = fetchCsrfToken().finally(() => {
+    csrfTokenPromise = null;
+  });
   return csrfTokenPromise;
 }
 
@@ -69,41 +72,27 @@ async function fetchCsrfToken(): Promise<string | null> {
 // --- Fetch helpers ---
 
 async function pandoraFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      signal: controller.signal,
-      headers: { "User-Agent": USER_AGENT },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  return fetchWithTimeout(url, { headers: { "User-Agent": USER_AGENT } }, timeoutMs);
 }
 
 async function pandoraApiFetch(endpoint: string, body: unknown): Promise<Response> {
   const csrfToken = await getCsrfToken();
   if (!csrfToken) throw new Error("Pandora: No CSRF token available");
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    return await fetch(`${PANDORA_BASE}${endpoint}`, {
+  return fetchWithTimeout(
+    `${PANDORA_BASE}${endpoint}`,
+    {
       method: "POST",
-      signal: controller.signal,
       headers: {
         "User-Agent": USER_AGENT,
         "Content-Type": "application/json",
         "X-CsrfToken": csrfToken,
-        "Cookie": `csrftoken=${csrfToken}`,
+        Cookie: `csrftoken=${csrfToken}`,
       },
       body: JSON.stringify(body),
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    8000,
+  );
 }
 
 // --- Track data types ---
@@ -145,15 +134,15 @@ function buildArtworkUrl(artUrl: string | undefined): string | undefined {
   return `${IMG_BASE}${artUrl}`;
 }
 
-function mapTrackData(
-  data: PandoraTrackData,
-  sourceId: string,
-): NormalizedTrack {
+function mapTrackData(data: PandoraTrackData, sourceId: string): NormalizedTrack {
   const webPath = data.shareableUrlPath ?? `/artist/${sourceId}`;
 
   // Split combined artist names (e.g. "A, B & C") into individual entries
   const artists = data.artistName
-    ? data.artistName.split(/[,&]/).map((a) => a.trim()).filter(Boolean)
+    ? data.artistName
+        .split(/[,&]/)
+        .map((a) => a.trim())
+        .filter(Boolean)
     : ["Unknown Artist"];
 
   return {
@@ -170,12 +159,12 @@ function mapTrackData(
   };
 }
 
-function mapJsonLdTrack(
-  jsonLd: JsonLdMusicRecording,
-  sourceId: string,
-): NormalizedTrack {
+function mapJsonLdTrack(jsonLd: JsonLdMusicRecording, sourceId: string): NormalizedTrack {
   const artists = jsonLd.byArtist?.name
-    ? jsonLd.byArtist.name.split(/[,&]/).map((a) => a.trim()).filter(Boolean)
+    ? jsonLd.byArtist.name
+        .split(/[,&]/)
+        .map((a) => a.trim())
+        .filter(Boolean)
     : ["Unknown Artist"];
 
   return {
@@ -272,9 +261,7 @@ export const pandoraAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
     try {
       const response = await pandoraApiFetch("/api/v3/sod/search", {
@@ -320,7 +307,10 @@ export const pandoraAdapter = {
           );
         }
 
-        log.debug("Pandora", `  [${i}] "${track.title}" by ${track.artists.join(", ")} → confidence=${confidence.toFixed(3)}`);
+        log.debug(
+          "Pandora",
+          `  [${i}] "${track.title}" by ${track.artists.join(", ")} → confidence=${confidence.toFixed(3)}`,
+        );
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

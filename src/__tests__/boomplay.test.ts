@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { boomplayAdapter } from "../services/adapters/boomplay";
 
 // Mock global fetch
@@ -81,13 +81,17 @@ describe("Boomplay: detectUrl", () => {
 
 describe("Boomplay: getTrack", () => {
   it("should parse JSON-LD from song page", async () => {
-    mockFetch.mockReturnValueOnce(ok(buildSongPage({
-      name: "Take on Me",
-      artist: "a-ha",
-      album: "Hunting High and Low",
-      duration: "PT03M45S",
-      songId: "5043759",
-    })));
+    mockFetch.mockReturnValueOnce(
+      ok(
+        buildSongPage({
+          name: "Take on Me",
+          artist: "a-ha",
+          album: "Hunting High and Low",
+          duration: "PT03M45S",
+          songId: "5043759",
+        }),
+      ),
+    );
 
     const track = await boomplayAdapter.getTrack("5043759");
     expect(track.title).toBe("Take on Me");
@@ -109,11 +113,15 @@ describe("Boomplay: getTrack", () => {
   });
 
   it("should handle duration with hours", async () => {
-    mockFetch.mockReturnValueOnce(ok(buildSongPage({
-      name: "Long Track",
-      artist: "Artist",
-      duration: "PT01H02M30S",
-    })));
+    mockFetch.mockReturnValueOnce(
+      ok(
+        buildSongPage({
+          name: "Long Track",
+          artist: "Artist",
+          duration: "PT01H02M30S",
+        }),
+      ),
+    );
 
     const track = await boomplayAdapter.getTrack("1");
     expect(track.durationMs).toBe((3600 + 120 + 30) * 1000);
@@ -150,16 +158,24 @@ describe("Boomplay: searchTrack", () => {
   it("should find track via search page + JSON-LD", async () => {
     mockFetch
       .mockReturnValueOnce(ok(buildSearchPage(["111", "222"])))
-      .mockReturnValueOnce(ok(buildSongPage({
-        name: "Take on Me",
-        artist: "a-ha",
-        songId: "111",
-      })))
-      .mockReturnValueOnce(ok(buildSongPage({
-        name: "Something Else",
-        artist: "Other Artist",
-        songId: "222",
-      })));
+      .mockReturnValueOnce(
+        ok(
+          buildSongPage({
+            name: "Take on Me",
+            artist: "a-ha",
+            songId: "111",
+          }),
+        ),
+      )
+      .mockReturnValueOnce(
+        ok(
+          buildSongPage({
+            name: "Something Else",
+            artist: "Other Artist",
+            songId: "222",
+          }),
+        ),
+      );
 
     const result = await boomplayAdapter.searchTrack({
       title: "Take on Me",
@@ -198,11 +214,15 @@ describe("Boomplay: searchTrack", () => {
     mockFetch
       .mockReturnValueOnce(ok(buildSearchPage(["111", "222"])))
       .mockReturnValueOnce(notOk(404)) // first result fails
-      .mockReturnValueOnce(ok(buildSongPage({
-        name: "Take on Me",
-        artist: "a-ha",
-        songId: "222",
-      })));
+      .mockReturnValueOnce(
+        ok(
+          buildSongPage({
+            name: "Take on Me",
+            artist: "a-ha",
+            songId: "222",
+          }),
+        ),
+      );
 
     const result = await boomplayAdapter.searchTrack({
       title: "Take on Me",
@@ -226,7 +246,7 @@ describe("Boomplay: searchTrack", () => {
       .mockReturnValueOnce(ok(buildSongPage({ name: "Song", artist: "Artist", songId: "111" })))
       .mockReturnValueOnce(ok(buildSongPage({ name: "Song 2", artist: "Artist 2", songId: "222" })));
 
-    const result = await boomplayAdapter.searchTrack({ title: "Song", artist: "Artist" });
+    await boomplayAdapter.searchTrack({ title: "Song", artist: "Artist" });
 
     // Should only fetch 2 unique IDs, not 3
     expect(mockFetch).toHaveBeenCalledTimes(3); // 1 search + 2 songs

@@ -37,9 +37,7 @@ function generateStarfield(): string {
     const brightness = rand();
     const opacity = brightness > 0.85 ? 0.2 + rand() * 0.15 : 0.04 + rand() * 0.1;
     const size = brightness > 0.85 ? 1.5 : 1;
-    stars.push(
-      `${x}vw ${y}dvh 0 ${size}px rgba(220, 235, 245, ${opacity})`
-    );
+    stars.push(`${x}vw ${y}dvh 0 ${size}px rgba(220, 235, 245, ${opacity})`);
   }
 
   return stars.join(", ");
@@ -53,14 +51,14 @@ const ORION_STARS: { name: string; rx: number; ry: number; brightness: number; w
   { name: "Alnilam", rx: 0.41, ry: 0.48, brightness: 0.45 },
   { name: "Mintaka", rx: 0.49, ry: 0.47, brightness: 0.4 },
   { name: "Saiph", rx: 0.22, ry: 0.85, brightness: 0.35 },
-  { name: "Rigel", rx: 0.70, ry: 0.90, brightness: 0.6 },
+  { name: "Rigel", rx: 0.7, ry: 0.9, brightness: 0.6 },
 ];
 
 // Canis Major - positioned lower-left, Sirius is the brightest star in the sky
 const CANIS_MAJOR_STARS: { name: string; rx: number; ry: number; brightness: number }[] = [
   { name: "Sirius", rx: 0.45, ry: 0.05, brightness: 0.8 },
   { name: "Mirzam", rx: 0.75, ry: 0.12, brightness: 0.35 },
-  { name: "Wezen", rx: 0.40, ry: 0.48, brightness: 0.3 },
+  { name: "Wezen", rx: 0.4, ry: 0.48, brightness: 0.3 },
   { name: "Adhara", rx: 0.35, ry: 0.72, brightness: 0.35 },
   { name: "Aludra", rx: 0.65, ry: 0.65, brightness: 0.25 },
   { name: "Furud", rx: 0.15, ry: 0.85, brightness: 0.2 },
@@ -68,19 +66,16 @@ const CANIS_MAJOR_STARS: { name: string; rx: number; ry: number; brightness: num
 
 type ConstellationStar = { name: string; rx: number; ry: number; brightness: number; warm?: boolean };
 
-function generateConstellationShadow(
-  stars: ConstellationStar[],
-  ox: number, oy: number, w: number, h: number,
-): string {
-  return stars.map((star) => {
-    const x = ox + star.rx * w;
-    const y = oy + star.ry * h;
-    const color = star.warm
-      ? `rgba(255, 200, 160, ${star.brightness})`
-      : `rgba(210, 230, 255, ${star.brightness})`;
-    const size = star.brightness > 0.5 ? 1.5 : 1;
-    return `${x}vw ${y}dvh 0 ${size}px ${color}`;
-  }).join(", ");
+function generateConstellationShadow(stars: ConstellationStar[], ox: number, oy: number, w: number, h: number): string {
+  return stars
+    .map((star) => {
+      const x = ox + star.rx * w;
+      const y = oy + star.ry * h;
+      const color = star.warm ? `rgba(255, 200, 160, ${star.brightness})` : `rgba(210, 230, 255, ${star.brightness})`;
+      const size = star.brightness > 0.5 ? 1.5 : 1;
+      return `${x}vw ${y}dvh 0 ${size}px ${color}`;
+    })
+    .join(", ");
 }
 
 // Layered sine waves for organic, never-repeating blob movement
@@ -230,32 +225,17 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
   }, []);
 
   return (
-    <div
-      className="fixed inset-0 -z-10 overflow-hidden bg-background"
-      aria-hidden="true"
-    >
+    <div className="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden="true">
       {/* Rotating starfield wrapper - center of rotation = center of viewport (search field) */}
-      <div
-        className="absolute inset-0 animate-starfield-rotate"
-        style={{ transformOrigin: "50vw 50dvh" }}
-      >
+      <div className="absolute inset-0 animate-starfield-rotate" style={{ transformOrigin: "50vw 50dvh" }}>
         {/* Fixed starfield - single element, many box-shadows */}
-        <div
-          className="absolute w-px h-px top-0 left-0"
-          style={{ boxShadow: starfieldShadow }}
-        />
+        <div className="absolute w-px h-px top-0 left-0" style={{ boxShadow: starfieldShadow }} />
 
         {/* Orion constellation - subtle, upper-right */}
-        <div
-          className="absolute w-px h-px top-0 left-0"
-          style={{ boxShadow: orionShadow }}
-        />
+        <div className="absolute w-px h-px top-0 left-0" style={{ boxShadow: orionShadow }} />
 
         {/* Canis Major - subtle, lower-left */}
-        <div
-          className="absolute w-px h-px top-0 left-0"
-          style={{ boxShadow: canisMajorShadow }}
-        />
+        <div className="absolute w-px h-px top-0 left-0" style={{ boxShadow: canisMajorShadow }} />
       </div>
 
       {/* Lightning flash - behind blobs */}
@@ -270,7 +250,9 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
 
       {/* Blob 1 */}
       <div
-        ref={(el) => { blobRefs.current[0] = el; }}
+        ref={(el) => {
+          blobRefs.current[0] = el;
+        }}
         className={cn(
           "absolute rounded-full blur-[150px] w-[50vw] h-[50vw]",
           "will-change-transform",
@@ -281,7 +263,9 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
       />
       {/* Blob 2 */}
       <div
-        ref={(el) => { blobRefs.current[1] = el; }}
+        ref={(el) => {
+          blobRefs.current[1] = el;
+        }}
         className={cn(
           "absolute rounded-full blur-[160px] w-[45vw] h-[45vw]",
           "will-change-transform",
@@ -292,7 +276,9 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
       />
       {/* Blob 3 */}
       <div
-        ref={(el) => { blobRefs.current[2] = el; }}
+        ref={(el) => {
+          blobRefs.current[2] = el;
+        }}
         className={cn(
           "absolute rounded-full blur-[170px] w-[55vw] h-[55vw]",
           "will-change-transform",

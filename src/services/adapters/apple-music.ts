@@ -1,11 +1,7 @@
-import type {
-  ServiceAdapter,
-  AdapterCapabilities,
-  NormalizedTrack,
-  MatchResult,
-} from "../types.js";
-import { calculateConfidence } from "../../lib/normalize.js";
 import { importPKCS8, SignJWT } from "jose";
+import { fetchWithTimeout } from "../../lib/fetch.js";
+import { calculateConfidence } from "../../lib/normalize.js";
+import type { AdapterCapabilities, MatchResult, NormalizedTrack, ServiceAdapter } from "../types.js";
 
 // Matches: music.apple.com/{storefront}/album/{name}/{albumId}?i={trackId}
 //          music.apple.com/{storefront}/song/{name}/{trackId}
@@ -45,9 +41,7 @@ async function getDevToken(): Promise<string> {
   const privateKeyPem = import.meta.env.APPLE_MUSIC_PRIVATE_KEY;
 
   if (!keyId || !teamId || !privateKeyPem) {
-    throw new Error(
-      "Apple Music requires APPLE_MUSIC_KEY_ID + APPLE_MUSIC_TEAM_ID + APPLE_MUSIC_PRIVATE_KEY",
-    );
+    throw new Error("Apple Music requires APPLE_MUSIC_KEY_ID + APPLE_MUSIC_TEAM_ID + APPLE_MUSIC_PRIVATE_KEY");
   }
 
   // The private key may be base64-encoded or raw PEM.
@@ -76,17 +70,13 @@ async function getDevToken(): Promise<string> {
 
 async function appleMusicFetch(endpoint: string): Promise<Response> {
   const token = await getDevToken();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    return await fetch(`${API_BASE}${endpoint}`, {
+  return fetchWithTimeout(
+    `${API_BASE}${endpoint}`,
+    {
       headers: { Authorization: `Bearer ${token}` },
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    5000,
+  );
 }
 
 interface AppleMusicSongAttributes {
@@ -177,9 +167,7 @@ export const appleMusicAdapter: ServiceAdapter = {
 
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const storefront = import.meta.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
-    const response = await appleMusicFetch(
-      `/catalog/${storefront}/songs/${encodeURIComponent(trackId)}`,
-    );
+    const response = await appleMusicFetch(`/catalog/${storefront}/songs/${encodeURIComponent(trackId)}`);
 
     if (!response.ok) {
       throw new Error(`Apple Music getTrack failed: ${response.status}`);
@@ -197,9 +185,7 @@ export const appleMusicAdapter: ServiceAdapter = {
 
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
     const storefront = import.meta.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
-    const response = await appleMusicFetch(
-      `/catalog/${storefront}/songs?filter[isrc]=${encodeURIComponent(isrc)}`,
-    );
+    const response = await appleMusicFetch(`/catalog/${storefront}/songs?filter[isrc]=${encodeURIComponent(isrc)}`);
 
     if (!response.ok) {
       return null;
@@ -213,16 +199,10 @@ export const appleMusicAdapter: ServiceAdapter = {
     return mapTrack(songs[0]);
   },
 
-  async searchTrack(query: {
-    title: string;
-    artist: string;
-    album?: string;
-  }): Promise<MatchResult> {
+  async searchTrack(query: { title: string; artist: string; album?: string }): Promise<MatchResult> {
     const storefront = import.meta.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
     const term = encodeURIComponent(`${query.artist} ${query.title}`);
-    const response = await appleMusicFetch(
-      `/catalog/${storefront}/search?types=songs&term=${term}&limit=5`,
-    );
+    const response = await appleMusicFetch(`/catalog/${storefront}/search?types=songs&term=${term}&limit=5`);
 
     if (!response.ok) {
       return { found: false, confidence: 0, matchMethod: "search" };

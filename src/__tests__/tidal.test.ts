@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { tidalAdapter, _resetTokenCache } from "../services/adapters/tidal";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { _resetTokenCache, tidalAdapter } from "../services/adapters/tidal";
 
 // =============================================================================
 // Mock data
@@ -149,12 +149,8 @@ describe("Tidal: capabilities", () => {
 describe("Tidal: getTrack", () => {
   it("should fetch and map track data correctly", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TRACK_RESPONSE), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACK_RESPONSE), { status: 200 }));
 
     const track = await tidalAdapter.getTrack("77640617");
 
@@ -171,12 +167,8 @@ describe("Tidal: getTrack", () => {
 
   it("should pick largest artwork image", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TRACK_RESPONSE), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACK_RESPONSE), { status: 200 }));
 
     const track = await tidalAdapter.getTrack("77640617");
     expect(track.artworkUrl).toBe("https://resources.tidal.com/images/1280x1280.jpg");
@@ -191,12 +183,8 @@ describe("Tidal: getTrack", () => {
       },
     };
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(trackWith300s), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(trackWith300s), { status: 200 }));
 
     const track = await tidalAdapter.getTrack("77640617");
     expect(track.durationMs).toBe(300000);
@@ -204,20 +192,14 @@ describe("Tidal: getTrack", () => {
 
   it("should throw on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response("Not Found", { status: 404 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
 
     await expect(tidalAdapter.getTrack("999999")).rejects.toThrow("Tidal getTrack failed: 404");
   });
 
   it("should throw on auth failure", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Unauthorized", { status: 401 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }));
 
     await expect(tidalAdapter.getTrack("77640617")).rejects.toThrow("Tidal token request failed: 401");
   });
@@ -239,12 +221,8 @@ describe("Tidal: getTrack", () => {
 describe("Tidal: findByIsrc", () => {
   it("should find track by ISRC", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
 
     const track = await tidalAdapter.findByIsrc("USUG11904190");
 
@@ -256,12 +234,8 @@ describe("Tidal: findByIsrc", () => {
 
   it("should return null when ISRC is not found", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: [] }), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }));
 
     const track = await tidalAdapter.findByIsrc("INVALID000000");
     expect(track).toBeNull();
@@ -269,12 +243,8 @@ describe("Tidal: findByIsrc", () => {
 
   it("should return null on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response("Server Error", { status: 500 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response("Server Error", { status: 500 }));
 
     const track = await tidalAdapter.findByIsrc("USUG11904190");
     expect(track).toBeNull();
@@ -288,12 +258,8 @@ describe("Tidal: findByIsrc", () => {
 describe("Tidal: searchTrack", () => {
   it("should find track with structured query", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
 
     const result = await tidalAdapter.searchTrack({
       title: "Blinding Lights",
@@ -308,12 +274,8 @@ describe("Tidal: searchTrack", () => {
 
   it("should return not found for empty results", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: [] }), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }));
 
     const result = await tidalAdapter.searchTrack({
       title: "Nonexistent Song",
@@ -326,12 +288,8 @@ describe("Tidal: searchTrack", () => {
 
   it("should return not found on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response("Error", { status: 500 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     const result = await tidalAdapter.searchTrack({
       title: "Test",
@@ -349,16 +307,11 @@ describe("Tidal: searchTrack", () => {
 
 describe("Tidal: token management", () => {
   it("should reuse cached token for subsequent requests", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TRACK_RESPONSE), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(MOCK_TRACK_RESPONSE), { status: 200 }),
-      );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACK_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACK_RESPONSE), { status: 200 }));
 
     await tidalAdapter.getTrack("77640617");
     await tidalAdapter.getTrack("77640617");

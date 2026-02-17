@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import type { ResolveDisambiguationResponse, ResolveErrorResponse, ResolveSuccessResponse } from "../lib/api-types";
 import { isValidPlatform, type Platform } from "../lib/utils";
-import type { ResolveSuccessResponse, ResolveDisambiguationResponse, ResolveErrorResponse } from "../lib/api-types";
-import { DisambiguationPanel, type DisambiguationCandidate } from "./DisambiguationPanel";
+import { BrandName } from "./BrandName";
+import { type DisambiguationCandidate, DisambiguationPanel } from "./DisambiguationPanel";
 import { GradientBackground } from "./GradientBackground";
 import { HeroInput, type InputState } from "./HeroInput";
 import { PlatformIconRow } from "./PlatformIconRow";
 import { ResultsPanel, type SongResult } from "./ResultsPanel";
 import { SparklingStars } from "./SparklingStars";
 import { Toast } from "./Toast";
-import { BrandName } from "./BrandName";
 
 interface AlbumColors {
   primary: string;
@@ -24,37 +24,51 @@ interface DynamicAccent {
 }
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0;
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b);
+  let h = 0,
+    s = 0;
   const l = (max + min) / 2;
   if (max !== min) {
     const d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
     switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-      case g: h = ((b - r) / d + 2) / 6; break;
-      case b: h = ((r - g) / d + 4) / 6; break;
+      case r:
+        h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+        break;
+      case g:
+        h = ((b - r) / d + 2) / 6;
+        break;
+      case b:
+        h = ((r - g) / d + 4) / 6;
+        break;
     }
   }
   return [h, s, l];
 }
 
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
-  if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
+  if (s === 0) {
+    const v = Math.round(l * 255);
+    return [v, v, v];
+  }
   const hue2rgb = (p: number, q: number, t: number) => {
-    if (t < 0) t += 1; if (t > 1) t -= 1;
-    if (t < 1/6) return p + (q - p) * 6 * t;
-    if (t < 1/2) return q;
-    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
     return p;
   };
   const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
   const p = 2 * l - q;
   return [
-    Math.round(hue2rgb(p, q, h + 1/3) * 255),
+    Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
     Math.round(hue2rgb(p, q, h) * 255),
-    Math.round(hue2rgb(p, q, h - 1/3) * 255),
+    Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
   ];
 }
 
@@ -189,14 +203,17 @@ export function LandingPage() {
   // During clearing: keep compact layout stable so nothing jumps. Switch to idle layout after animation ends.
   const showCompact = !!(result || candidates);
 
-  // Focus management
-  useEffect(() => {
-    if (state.type === "success") resultsPanelRef.current?.focus();
-  }, [state.type === "success" ? state.result : null]);
+  // Focus management - extract deps to satisfy exhaustive-deps rule
+  const focusResult = state.type === "success" ? state.result : null;
+  const focusCandidates = state.type === "disambiguation" ? state.candidates : null;
 
   useEffect(() => {
-    if (state.type === "disambiguation") disambiguationRef.current?.focus();
-  }, [state.type === "disambiguation" ? state.candidates : null]);
+    if (focusResult) resultsPanelRef.current?.focus();
+  }, [focusResult]);
+
+  useEffect(() => {
+    if (focusCandidates) disambiguationRef.current?.focus();
+  }, [focusCandidates]);
 
   const handleToastDismiss = useCallback(() => {
     setToast((prev) => ({ ...prev, visible: false }));
@@ -219,11 +236,11 @@ export function LandingPage() {
       clearTimeout(timeout);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({})) as Partial<ResolveErrorResponse>;
+        const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
         throw new Error(errorData.message || "Something went wrong. Please try again.");
       }
 
-      const data = await response.json() as ResolveSuccessResponse | ResolveDisambiguationResponse;
+      const data = (await response.json()) as ResolveSuccessResponse | ResolveDisambiguationResponse;
 
       if ("status" in data && data.status === "disambiguation") {
         dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
@@ -254,11 +271,11 @@ export function LandingPage() {
       clearTimeout(timeout);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({})) as Partial<ResolveErrorResponse>;
+        const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
         throw new Error(errorData.message || "Something went wrong. Please try again.");
       }
 
-      const data = await response.json() as ResolveSuccessResponse;
+      const data = (await response.json()) as ResolveSuccessResponse;
       const { result, highlightedPlatforms } = parseResolveResponse(data);
       dispatch({ type: "RESOLVE_SUCCESS", result, highlightedPlatforms });
     } catch (err) {
@@ -303,8 +320,12 @@ export function LandingPage() {
       const data = ctx.getImageData(0, 0, size, size).data;
       const pixelCount = size * size;
 
-      let totalR = 0, totalG = 0, totalB = 0;
-      let bestR = 0, bestG = 0, bestB = 0;
+      let totalR = 0,
+        totalG = 0,
+        totalB = 0;
+      let bestR = 0,
+        bestG = 0,
+        bestB = 0;
       let bestScore = 0;
 
       for (let i = 0; i < data.length; i += 4) {
@@ -340,7 +361,8 @@ export function LandingPage() {
 
       // Most vibrant pixel for accent color
       const accent = extractAccent(bestR, bestG, bestB);
-      if (import.meta.env.DEV) console.log("[AlbumArt] avg:", avgR, avgG, avgB, "vibrant:", bestR, bestG, bestB, "accent:", accent);
+      if (import.meta.env.DEV)
+        console.log("[AlbumArt] avg:", avgR, avgG, avgB, "vibrant:", bestR, bestG, bestB, "accent:", accent);
       setDynamicAccent(accent ?? undefined);
     } catch (err) {
       if (import.meta.env.DEV) console.warn("[AlbumArt] Color extraction failed:", err);
@@ -350,25 +372,34 @@ export function LandingPage() {
   return (
     <div
       className="min-h-dvh flex flex-col items-center justify-center px-4 pb-20 sm:pb-24 transition-colors duration-700"
-      style={dynamicAccent ? {
-        "--color-accent": dynamicAccent.base,
-        "--color-accent-hover": dynamicAccent.hover,
-        "--color-accent-glow": dynamicAccent.glow,
-        "--color-accent-contrast": dynamicAccent.contrastText,
-      } as React.CSSProperties : undefined}
+      style={
+        dynamicAccent
+          ? ({
+              "--color-accent": dynamicAccent.base,
+              "--color-accent-hover": dynamicAccent.hover,
+              "--color-accent-glow": dynamicAccent.glow,
+              "--color-accent-contrast": dynamicAccent.contrastText,
+            } as React.CSSProperties)
+          : undefined
+      }
     >
       <GradientBackground albumColors={albumColors} />
       <SparklingStars />
 
       {/* Hero */}
       {!result && !candidates && (
-        <div className="text-center mb-10">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-[-0.04em] text-text-primary mb-2">
-            <BrandName />
-          </h1>
-          <p className="text-lg sm:text-xl md:text-2xl font-light tracking-[-0.02em] text-text-muted">
-            share it everywhere
-          </p>
+        <div className="flex justify-center mb-10">
+          <div className="text-center">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-[-0.04em] text-text-primary mb-1">
+              <BrandName />
+            </h1>
+            <p
+              className="text-xs sm:text-sm md:text-base font-light tracking-[-0.02em] text-white/70 -mt-1"
+              style={{ fontFamily: '"Nasalization", sans-serif' }}
+            >
+              share it everywhere
+            </p>
+          </div>
         </div>
       )}
 
@@ -388,9 +419,7 @@ export function LandingPage() {
           onBlur={() => setIsFocused(false)}
           state={inputState}
           compact={showCompact}
-          songName={
-            state.type === "success" ? `${state.result.title} - ${state.result.artist}` : undefined
-          }
+          songName={state.type === "success" ? `${state.result.title} - ${state.result.artist}` : undefined}
           errorMessage={errorMessage}
         />
       </div>
@@ -402,7 +431,11 @@ export function LandingPage() {
 
       {/* Disambiguation */}
       {candidates && candidates.length > 0 && (
-        <div ref={disambiguationRef} tabIndex={-1} className="outline-none w-full">
+        <div
+          ref={disambiguationRef}
+          tabIndex={-1}
+          className="outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:rounded-2xl w-full"
+        >
           <DisambiguationPanel
             candidates={candidates}
             onSelect={handleSelectCandidate}
@@ -418,7 +451,7 @@ export function LandingPage() {
         <div
           ref={resultsPanelRef}
           tabIndex={-1}
-          className={`outline-none w-full flex justify-center ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
+          className={`outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:rounded-2xl w-full flex justify-center ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
           onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
         >
           <ResultsPanel result={result} onAlbumArtLoad={handleAlbumArtLoad} />
@@ -445,12 +478,7 @@ export function LandingPage() {
       </footer>
 
       {/* Toast */}
-      <Toast
-        message={toast.message}
-        variant={toast.variant}
-        visible={toast.visible}
-        onDismiss={handleToastDismiss}
-      />
+      <Toast message={toast.message} variant={toast.variant} visible={toast.visible} onDismiss={handleToastDismiss} />
     </div>
   );
 }

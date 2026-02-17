@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "../lib/fetch.js";
 import type { ServiceId } from "./types";
 
 export interface OdesliLink {
@@ -21,17 +22,7 @@ export async function resolveViaOdesli(url: string): Promise<OdesliResult> {
   const params = new URLSearchParams({ url });
   if (apiKey) params.set("key", apiKey);
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  let response: Response;
-  try {
-    response = await fetch(`${ODESLI_BASE}?${params}`, {
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  const response = await fetchWithTimeout(`${ODESLI_BASE}?${params}`, {}, 5000);
 
   if (!response.ok) {
     throw new Error(`Odesli returned ${response.status}`);

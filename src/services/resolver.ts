@@ -1,13 +1,14 @@
-import type { ServiceId, NormalizedTrack, MatchResult, ServiceAdapter, SearchCandidate } from "./types.js";
-import { isValidServiceId } from "./types.js";
+import { getRepository } from "../db/index.js";
+import { CACHE_TTL_MS } from "../lib/constants.js";
+import { ResolveError } from "../lib/errors.js";
+import { fetchWithTimeout } from "../lib/fetch.js";
+import { log } from "../lib/logger.js";
+import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/url-parser.js";
+import { PLATFORM_CONFIG } from "../lib/utils.js";
 import { adapters, identifyService } from "./index.js";
 import { resolveViaOdesli } from "./odesli.js";
-import { validateMusicUrl, stripTrackingParams, isUrl } from "../lib/url-parser.js";
-import { PLATFORM_CONFIG } from "../lib/utils.js";
-import { ResolveError } from "../lib/errors.js";
-import type { ErrorCode } from "../lib/errors.js";
-import { getRepository } from "../db/index.js";
-import { log } from "../lib/logger.js";
+import type { MatchResult, NormalizedTrack, SearchCandidate, ServiceAdapter, ServiceId } from "./types.js";
+import { isValidServiceId } from "./types.js";
 
 export interface ResolvedLink {
   service: ServiceId;
@@ -24,7 +25,7 @@ export interface ResolvedLink {
 export interface ResolutionResult {
   sourceTrack: NormalizedTrack;
   links: ResolvedLink[];
-  trackId?: string;  // present when loaded from cache
+  trackId?: string; // present when loaded from cache
 }
 
 export interface TextSearchResult {
@@ -33,7 +34,9 @@ export interface TextSearchResult {
   candidates?: SearchCandidate[];
 }
 
-function mapCachedLinks(links: Array<{ service: string; url: string; confidence: number; matchMethod: string }>): ResolvedLink[] {
+function mapCachedLinks(
+  links: Array<{ service: string; url: string; confidence: number; matchMethod: string }>,
+): ResolvedLink[] {
   return links
     .filter((l) => isValidServiceId(l.service))
     .map((l) => ({
@@ -45,22 +48,13 @@ function mapCachedLinks(links: Array<{ service: string; url: string; confidence:
     }));
 }
 
-/** Services that Odesli can potentially provide links for */
-const ODESLI_KNOWN_SERVICES: ServiceId[] = [
-  "spotify", "apple-music", "youtube", "youtube-music",
-  "soundcloud", "tidal", "deezer", "napster", "pandora",
-];
-
 /**
  * Fill gaps in resolved links by calling Odesli for uncovered services.
  * Non-fatal: if Odesli fails, the existing links are returned unchanged.
  *
  * NOTE: Odesli is currently disabled. This function returns early until re-enabled.
  */
-async function gapFillViaOdesli(
-  sourceUrl: string,
-  existingLinks: ResolvedLink[],
-): Promise<ResolvedLink[]> {
+async function gapFillViaOdesli(sourceUrl: string, existingLinks: ResolvedLink[]): Promise<ResolvedLink[]> {
   // Only use Odesli for Apple Music (no own adapter due to 99 EUR/year Apple Developer Program)
   if (existingLinks.some((l) => l.service === "apple-music")) return existingLinks;
 
@@ -113,23 +107,18 @@ async function tryCache(lookup: { url?: string; isrc?: string }): Promise<Resolu
   }
 }
 
-async function fillMissingServices(
-  cached: ResolutionResult,
-): Promise<ResolutionResult> {
+async function fillMissingServices(cached: ResolutionResult): Promise<ResolutionResult> {
   const coveredServices = new Set(cached.links.map((l) => l.service));
 
   const missingAdapters = adapters.filter(
-    (a) => a.isAvailable() && !coveredServices.has(a.id)
-      && a.id !== cached.sourceTrack.sourceService,
+    (a) => a.isAvailable() && !coveredServices.has(a.id) && a.id !== cached.sourceTrack.sourceService,
   );
 
   if (missingAdapters.length === 0) return cached;
 
   log.debug("Resolver", `Gap-filling ${missingAdapters.length} new services for cached track`);
 
-  const results = await Promise.allSettled(
-    missingAdapters.map((a) => resolveOnService(a, cached.sourceTrack)),
-  );
+  const results = await Promise.allSettled(missingAdapters.map((a) => resolveOnService(a, cached.sourceTrack)));
 
   const newLinks: ResolvedLink[] = [];
   for (let i = 0; i < results.length; i++) {
@@ -145,20 +134,22 @@ async function fillMissingServices(
   if (cached.trackId) {
     try {
       const repo = await getRepository();
-      await repo.addLinksToTrack(cached.trackId, newLinks.map((l) => ({
-        service: l.service,
-        url: l.url,
-        confidence: l.confidence,
-        matchMethod: l.matchMethod,
-        externalId: l.externalId,
-      })));
+      await repo.addLinksToTrack(
+        cached.trackId,
+        newLinks.map((l) => ({
+          service: l.service,
+          url: l.url,
+          confidence: l.confidence,
+          matchMethod: l.matchMethod,
+          externalId: l.externalId,
+        })),
+      );
     } catch (error) {
       log.error("Resolver", `Failed to persist gap-fill links: ${error instanceof Error ? error.message : error}`);
     }
   }
 
-  const allLinks = [...cached.links, ...newLinks]
-    .sort((a, b) => b.confidence - a.confidence);
+  const allLinks = [...cached.links, ...newLinks].sort((a, b) => b.confidence - a.confidence);
 
   return { sourceTrack: cached.sourceTrack, links: allLinks, trackId: cached.trackId };
 }
@@ -180,9 +171,8 @@ const AUTO_SELECT_THRESHOLD = 0.9;
 const CANDIDATE_MIN_CONFIDENCE = 0.4;
 const MAX_CANDIDATES = 5;
 const ODESLI_CONFIDENCE = 0.85;
-const CACHE_CONFIDENCE = 0.8;
 const SEARCH_FALLBACK_CONFIDENCE = 0.5;
-const CACHE_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
+// CACHE_TTL_MS imported from ../lib/constants.js
 
 /**
  * Main entry point: accepts a URL or free-text query, returns cross-service links.
@@ -194,10 +184,7 @@ export async function resolveQuery(input: string): Promise<ResolutionResult> {
     // Validate URL for unsupported content types
     const validation = validateMusicUrl(trimmed);
     if (!validation.valid) {
-      throw new ResolveError(
-        validation.code,
-        validation.message,
-      );
+      throw new ResolveError(validation.code, validation.message);
     }
     return resolveUrl(stripTrackingParams(trimmed));
   }
@@ -295,9 +282,7 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
 
         return { sourceTrack: result.track, links };
       }
-    } catch {
-      continue;
-    }
+    } catch {}
   }
 
   throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
@@ -308,9 +293,7 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
  * Returns candidates for user selection when no single result has high enough confidence.
  * Auto-selects when top result confidence > 0.9.
  */
-export async function resolveTextSearchWithDisambiguation(
-  query: string,
-): Promise<TextSearchResult> {
+export async function resolveTextSearchWithDisambiguation(query: string): Promise<TextSearchResult> {
   log.debug("Resolver", "resolveTextSearchWithDisambiguation called with:", query);
 
   // Service search: try adapters that support searchTrackWithCandidates, then fall back
@@ -396,9 +379,7 @@ export async function resolveTextSearchWithDisambiguation(
 
         return { kind: "resolved", result: { sourceTrack: result.track, links } };
       }
-    } catch {
-      continue;
-    }
+    } catch {}
   }
 
   throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
@@ -448,14 +429,10 @@ async function resolveAcrossServices(
   sourceTrack: NormalizedTrack,
   excludeAdapter: ServiceAdapter,
 ): Promise<ResolvedLink[]> {
-  const targetAdapters = adapters.filter(
-    (a) => a.id !== excludeAdapter.id && a.isAvailable(),
-  );
+  const targetAdapters = adapters.filter((a) => a.id !== excludeAdapter.id && a.isAvailable());
 
   // Resolve on each target service
-  const results = await Promise.allSettled(
-    targetAdapters.map((adapter) => resolveOnService(adapter, sourceTrack)),
-  );
+  const results = await Promise.allSettled(targetAdapters.map((adapter) => resolveOnService(adapter, sourceTrack)));
 
   const links: ResolvedLink[] = [];
 
@@ -469,7 +446,10 @@ async function resolveAcrossServices(
     } else if (result.status === "fulfilled") {
       log.debug("Resolver", `[${adapter.id}] no match found`);
     } else {
-      log.error("Resolver", `[${adapter.id}] resolve failed: ${result.reason instanceof Error ? result.reason.message : result.reason}`);
+      log.error(
+        "Resolver",
+        `[${adapter.id}] resolve failed: ${result.reason instanceof Error ? result.reason.message : result.reason}`,
+      );
     }
   }
 
@@ -490,10 +470,7 @@ async function resolveAcrossServices(
   }
 
   // For services with no match, add YouTube search fallback
-  const coveredServices = new Set([
-    excludeAdapter.id,
-    ...links.map((l) => l.service),
-  ]);
+  const coveredServices = new Set([excludeAdapter.id, ...links.map((l) => l.service)]);
 
   if (!coveredServices.has("youtube") && sourceTrack.title && sourceTrack.artists.length > 0) {
     const searchQuery = encodeURIComponent(`${sourceTrack.artists[0]} ${sourceTrack.title}`);
@@ -514,10 +491,7 @@ async function resolveAcrossServices(
   return links.filter((l) => l.confidence >= LINK_QUALITY_THRESHOLD || l.isSearchFallback);
 }
 
-async function resolveOnService(
-  adapter: ServiceAdapter,
-  sourceTrack: NormalizedTrack,
-): Promise<ResolvedLink | null> {
+async function resolveOnService(adapter: ServiceAdapter, sourceTrack: NormalizedTrack): Promise<ResolvedLink | null> {
   // Strategy 1: ISRC lookup (most reliable)
   if (adapter.capabilities.supportsIsrc && sourceTrack.isrc) {
     // For YouTube, skip direct API and prefer Odesli (handled in resolveAcrossServices)
@@ -543,10 +517,7 @@ async function resolveOnService(
   return resolveViaSearch(adapter, sourceTrack);
 }
 
-async function resolveViaSearch(
-  adapter: ServiceAdapter,
-  sourceTrack: NormalizedTrack,
-): Promise<ResolvedLink | null> {
+async function resolveViaSearch(adapter: ServiceAdapter, sourceTrack: NormalizedTrack): Promise<ResolvedLink | null> {
   const result: MatchResult = await adapter.searchTrack({
     title: sourceTrack.title,
     artist: sourceTrack.artists[0] ?? "",
@@ -565,7 +536,6 @@ async function resolveViaSearch(
   };
 }
 
-
 /**
  * Scrape OG meta tags from a music service page to extract title and artist.
  * Used as fallback when the source adapter has no API credentials.
@@ -579,18 +549,18 @@ async function resolveViaSearch(
 async function scrapeTrackFromPage(
   url: string,
 ): Promise<{ title: string; artist: string; artworkUrl?: string } | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        // Bot UA gets server-rendered OG tags (SPA shells don't include them)
-        "User-Agent": "facebookexternalhit/1.1",
+    const response = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          // Bot UA gets server-rendered OG tags (SPA shells don't include them)
+          "User-Agent": "facebookexternalhit/1.1",
+        },
+        redirect: "follow",
       },
-      redirect: "follow",
-    });
+      8000,
+    );
 
     if (!response.ok) return null;
 
@@ -614,11 +584,11 @@ async function scrapeTrackFromPage(
 
     // Try locale-aware patterns: "Title by Artist on Service", "Title von Artist bei Service"
     const patterns = [
-      /^(.+?)\s+by\s+(.+?)\s+on\s+.+$/i,      // English
-      /^(.+?)\s+von\s+(.+?)\s+bei\s+.+$/i,     // German
-      /^(.+?)\s+par\s+(.+?)\s+sur\s+.+$/i,     // French
-      /^(.+?)\s+di\s+(.+?)\s+su\s+.+$/i,       // Italian
-      /^(.+?)\s+de\s+(.+?)\s+en\s+.+$/i,       // Spanish
+      /^(.+?)\s+by\s+(.+?)\s+on\s+.+$/i, // English
+      /^(.+?)\s+von\s+(.+?)\s+bei\s+.+$/i, // German
+      /^(.+?)\s+par\s+(.+?)\s+sur\s+.+$/i, // French
+      /^(.+?)\s+di\s+(.+?)\s+su\s+.+$/i, // Italian
+      /^(.+?)\s+de\s+(.+?)\s+en\s+.+$/i, // Spanish
     ];
 
     for (const pattern of patterns) {
@@ -630,7 +600,10 @@ async function scrapeTrackFromPage(
 
     // Fallback: use og:title as free-text query (strip " on/bei/sur ServiceName")
     const stripped = ogTitle
-      .replace(/\s+(on|bei|sur|su|en)\s+(Apple Music|Spotify|Deezer|Tidal|YouTube|SoundCloud|Qobuz|Pandora|Napster|Audius).*$/i, "")
+      .replace(
+        /\s+(on|bei|sur|su|en)\s+(Apple Music|Spotify|Deezer|Tidal|YouTube|SoundCloud|Qobuz|Pandora|Napster|Audius).*$/i,
+        "",
+      )
       .trim();
 
     if (stripped && stripped !== ogTitle) {
@@ -649,8 +622,6 @@ async function scrapeTrackFromPage(
     return null;
   } catch {
     return null;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -658,20 +629,19 @@ async function scrapeTrackFromPage(
  * Fallback resolver for URLs where the source adapter has no API credentials.
  * Scrapes the page for OG metadata, then does a cross-service text search.
  */
-async function resolveUrlViaScrape(
-  url: string,
-  sourceServiceId: ServiceId,
-): Promise<ResolutionResult> {
+async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Promise<ResolutionResult> {
   const scraped = await scrapeTrackFromPage(url);
   if (!scraped) {
-    throw new ResolveError("SERVICE_DOWN", `Cannot resolve ${sourceServiceId} URL: adapter not configured and page scrape failed`);
+    throw new ResolveError(
+      "SERVICE_DOWN",
+      `Cannot resolve ${sourceServiceId} URL: adapter not configured and page scrape failed`,
+    );
   }
 
   log.debug("Resolver", `Scraped from page: "${scraped.title}" by ${scraped.artist}`);
 
   // Search across all available adapters
   const searchAdapters = adapters.filter((a) => a.isAvailable());
-  const isFreeText = scraped.title === scraped.artist;
   const query = { title: scraped.title, artist: scraped.artist };
 
   let bestSourceTrack: NormalizedTrack | null = null;
@@ -686,9 +656,7 @@ async function resolveUrlViaScrape(
         bestAdapter = adapter;
         bestConfidence = result.confidence;
       }
-    } catch {
-      continue;
-    }
+    } catch {}
   }
 
   if (!bestSourceTrack || !bestAdapter) {

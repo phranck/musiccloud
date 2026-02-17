@@ -39,17 +39,13 @@ export function SparklingStars() {
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
       // Mix of short and long travelers
       const isLongRange = Math.random() > 0.6;
-      const driftLength = isLongRange
-        ? 160 + Math.random() * 200
-        : 60 + Math.random() * 80;
+      const driftLength = isLongRange ? 160 + Math.random() * 200 : 60 + Math.random() * 80;
       const driftX = (dx / dist) * driftLength;
       const driftY = (dy / dist) * driftLength;
 
       const size = 2 + Math.random() * 2;
       const glowSize = size * 5 + Math.random() * 8;
-      const duration = isLongRange
-        ? 3.5 + Math.random() * 3
-        : 2.5 + Math.random() * 2;
+      const duration = isLongRange ? 3.5 + Math.random() * 3 : 2.5 + Math.random() * 2;
       const shouldDrift = Math.random() > 0.15;
       const isBright = Math.random() > 0.7;
 
@@ -76,11 +72,14 @@ export function SparklingStars() {
       particles.push(el);
 
       // Remove after animation
-      setTimeout(() => {
-        el.remove();
-        const idx = particles.indexOf(el);
-        if (idx !== -1) particles.splice(idx, 1);
-      }, duration * 1000 + 50);
+      setTimeout(
+        () => {
+          el.remove();
+          const idx = particles.indexOf(el);
+          if (idx !== -1) particles.splice(idx, 1);
+        },
+        duration * 1000 + 50,
+      );
     }
 
     // Spawn at random intervals (250-700ms apart)
@@ -115,11 +114,5 @@ export function SparklingStars() {
     };
   }, []);
 
-  return (
-    <div
-      ref={containerRef}
-      className="fixed inset-0 pointer-events-none z-0"
-      aria-hidden="true"
-    />
-  );
+  return <div ref={containerRef} className="fixed inset-0 pointer-events-none z-0" aria-hidden="true" />;
 }

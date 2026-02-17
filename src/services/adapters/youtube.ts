@@ -1,14 +1,9 @@
-import type {
-  ServiceAdapter,
-  AdapterCapabilities,
-  NormalizedTrack,
-  MatchResult,
-} from "../types.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
 import { calculateConfidence, normalizeTitle } from "../../lib/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
+import type { AdapterCapabilities, MatchResult, NormalizedTrack, ServiceAdapter } from "../types.js";
 
-const YOUTUBE_REGEX =
-  /(?:https?:\/\/)?(?:www\.|music\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.|music\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
 const API_BASE = "https://www.googleapis.com/youtube/v3";
 
@@ -82,16 +77,7 @@ async function youtubeFetch(endpoint: string): Promise<Response> {
   }
 
   const separator = endpoint.includes("?") ? "&" : "?";
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    return await fetch(`${API_BASE}${endpoint}${separator}key=${apiKey}`, {
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  return fetchWithTimeout(`${API_BASE}${endpoint}${separator}key=${apiKey}`, {}, 5000);
 }
 
 function mapVideoToTrack(video: YouTubeVideoResource): NormalizedTrack {
@@ -103,9 +89,7 @@ function mapVideoToTrack(video: YouTubeVideoResource): NormalizedTrack {
     title: trackTitle,
     artists: artist ? [artist] : [video.snippet.channelTitle],
     artworkUrl: getBestThumbnail(video.snippet.thumbnails),
-    durationMs: video.contentDetails
-      ? parseIsoDuration(video.contentDetails.duration)
-      : undefined,
+    durationMs: video.contentDetails ? parseIsoDuration(video.contentDetails.duration) : undefined,
     releaseDate: video.snippet.publishedAt,
     webUrl: `https://www.youtube.com/watch?v=${video.id}`,
   };
@@ -132,9 +116,7 @@ export const youtubeAdapter: ServiceAdapter = {
   },
 
   async getTrack(videoId: string): Promise<NormalizedTrack> {
-    const response = await youtubeFetch(
-      `/videos?part=snippet,contentDetails&id=${encodeURIComponent(videoId)}`,
-    );
+    const response = await youtubeFetch(`/videos?part=snippet,contentDetails&id=${encodeURIComponent(videoId)}`);
 
     if (!response.ok) {
       throw new Error(`YouTube getTrack failed: ${response.status}`);
@@ -155,11 +137,7 @@ export const youtubeAdapter: ServiceAdapter = {
     return null;
   },
 
-  async searchTrack(query: {
-    title: string;
-    artist: string;
-    album?: string;
-  }): Promise<MatchResult> {
+  async searchTrack(query: { title: string; artist: string; album?: string }): Promise<MatchResult> {
     const searchQuery = encodeURIComponent(`${query.artist} ${query.title} official`);
     const response = await youtubeFetch(
       `/search?part=snippet&type=video&videoCategoryId=10&q=${searchQuery}&maxResults=3`,
@@ -178,9 +156,7 @@ export const youtubeAdapter: ServiceAdapter = {
 
     // Fetch full video details (including duration) for the top results
     const videoIds = items.map((item) => item.id.videoId).join(",");
-    const detailsResponse = await youtubeFetch(
-      `/videos?part=snippet,contentDetails&id=${videoIds}`,
-    );
+    const detailsResponse = await youtubeFetch(`/videos?part=snippet,contentDetails&id=${videoIds}`);
 
     let videos: YouTubeVideoResource[] = [];
     if (detailsResponse.ok) {

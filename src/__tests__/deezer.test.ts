@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { deezerAdapter } from "../services/adapters/deezer";
 
 // =============================================================================
@@ -133,18 +133,19 @@ describe("Deezer: getTrack", () => {
   });
 
   it("should throw on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Not Found", { status: 404 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
 
     await expect(deezerAdapter.getTrack("999999")).rejects.toThrow("Deezer getTrack failed: 404");
   });
 
   it("should throw on Deezer API error response", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({
-        error: { type: "DataException", message: "no data", code: 800 },
-      }), { status: 200 }),
+      new Response(
+        JSON.stringify({
+          error: { type: "DataException", message: "no data", code: 800 },
+        }),
+        { status: 200 },
+      ),
     );
 
     await expect(deezerAdapter.getTrack("999999")).rejects.toThrow("Deezer API error: no data");
@@ -155,9 +156,7 @@ describe("Deezer: getTrack", () => {
       ...MOCK_DEEZER_TRACK,
       album: { ...MOCK_DEEZER_TRACK.album, cover_xl: undefined },
     };
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(trackWithoutXl), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(trackWithoutXl), { status: 200 }));
 
     const track = await deezerAdapter.getTrack("3135556");
     expect(track.artworkUrl).toBe("https://e-cdns-images.dzcdn.net/images/cover/big.jpg");
@@ -188,9 +187,12 @@ describe("Deezer: findByIsrc", () => {
 
   it("should return null when ISRC is not found", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({
-        error: { type: "DataException", message: "no data", code: 800 },
-      }), { status: 200 }),
+      new Response(
+        JSON.stringify({
+          error: { type: "DataException", message: "no data", code: 800 },
+        }),
+        { status: 200 },
+      ),
     );
 
     const track = await deezerAdapter.findByIsrc("INVALID000000");
@@ -198,9 +200,7 @@ describe("Deezer: findByIsrc", () => {
   });
 
   it("should return null on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Server Error", { status: 500 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Server Error", { status: 500 }));
 
     const track = await deezerAdapter.findByIsrc("GBDUW0000059");
     expect(track).toBeNull();
@@ -247,9 +247,7 @@ describe("Deezer: searchTrack", () => {
   });
 
   it("should return not found on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Error", { status: 500 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     const result = await deezerAdapter.searchTrack({
       title: "Test",
@@ -262,9 +260,12 @@ describe("Deezer: searchTrack", () => {
 
   it("should return not found on Deezer API error", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({
-        error: { type: "Exception", message: "Quota limit exceeded", code: 4 },
-      }), { status: 200 }),
+      new Response(
+        JSON.stringify({
+          error: { type: "Exception", message: "Quota limit exceeded", code: 4 },
+        }),
+        { status: 200 },
+      ),
     );
 
     const result = await deezerAdapter.searchTrack({
@@ -276,9 +277,9 @@ describe("Deezer: searchTrack", () => {
   });
 
   it("should use free-text query when title equals artist", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
 
     await deezerAdapter.searchTrack({
       title: "Daft Punk Harder Better",
@@ -298,9 +299,7 @@ describe("Deezer: searchTrack", () => {
       ],
       total: 2,
     };
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(multiResults), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(multiResults), { status: 200 }));
 
     const result = await deezerAdapter.searchTrack({
       title: "Harder Better Faster Stronger",

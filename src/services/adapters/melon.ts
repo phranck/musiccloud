@@ -1,9 +1,11 @@
-import type { ServiceAdapter, NormalizedTrack, MatchResult, SearchQuery } from "../types.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
+import { calculateConfidence } from "../../lib/normalize.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
-const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // Melon URLs: melon.com/song/detail.htm?songId={id}
 const MELON_TRACK_REGEX = /^https?:\/\/(?:www\.)?melon\.com\/song\/detail\.htm\?songId=(\d+)/;
@@ -28,21 +30,17 @@ function parseDuration(iso: string): number | undefined {
 }
 
 async function melonFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      signal: controller.signal,
+  return fetchWithTimeout(
+    url,
+    {
       headers: {
         "User-Agent": USER_AGENT,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9,ko;q=0.8",
       },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    timeoutMs,
+  );
 }
 
 function extractOgTags(html: string): Record<string, string> {
@@ -170,9 +168,7 @@ export const melonAdapter: ServiceAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
     try {
       const songIds = await searchForSongIds(q);
@@ -184,9 +180,7 @@ export const melonAdapter: ServiceAdapter = {
       log.debug("Melon", `Search returned ${songIds.length} IDs for: ${q}`);
 
       // Fetch track pages in parallel
-      const trackResults = await Promise.allSettled(
-        songIds.map((id) => fetchTrackById(id)),
-      );
+      const trackResults = await Promise.allSettled(songIds.map((id) => fetchTrackById(id)));
 
       const isFreeText = query.title === query.artist;
       let bestMatch: NormalizedTrack | null = null;
@@ -208,7 +202,10 @@ export const melonAdapter: ServiceAdapter = {
           );
         }
 
-        log.debug("Melon", `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`);
+        log.debug(
+          "Melon",
+          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+        );
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

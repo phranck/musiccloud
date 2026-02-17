@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { type Platform, PLATFORM_CONFIG } from "../lib/utils";
+import { PLATFORM_CONFIG, type Platform } from "../lib/utils";
 import { PlatformIcon } from "./PlatformIcon";
 
 const platforms: Platform[] = [
@@ -28,10 +28,7 @@ const platforms: Platform[] = [
 
 function MarqueeStrip({ label }: { label?: boolean }) {
   return (
-    <div
-      className="flex items-center gap-8 sm:gap-16 shrink-0 pr-8 sm:pr-16"
-      {...(!label && { "aria-hidden": true })}
-    >
+    <div className="flex items-center gap-8 sm:gap-16 shrink-0 pr-8 sm:pr-16" {...(!label && { "aria-hidden": true })}>
       {platforms.map((platform) => (
         <div
           key={platform}
@@ -68,7 +65,8 @@ export function PlatformIconRow() {
     <div className="fixed bottom-10 sm:bottom-12 left-0 right-0 flex justify-center">
       <div
         className="w-[85%] sm:w-3/4 md:w-1/2 pb-6"
-        aria-label="Supported platforms"
+        role="presentation"
+        aria-hidden="true"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         style={{
@@ -82,10 +80,7 @@ export function PlatformIconRow() {
           Total width = 4 * strip. translateX(-25%) = exactly 1 strip.
           When reset, strip 2 is exactly where strip 1 was. No gap, no stutter.
         */}
-        <div
-          ref={stripRef}
-          className="flex w-max will-change-transform animate-marquee-seamless"
-        >
+        <div ref={stripRef} className="flex w-max will-change-transform animate-marquee-seamless">
           <MarqueeStrip label />
           <MarqueeStrip />
           <MarqueeStrip />

@@ -3,10 +3,10 @@ import type { ServiceId } from "../services/types.js";
 export function normalizeTitle(title: string, service: ServiceId): string {
   if (service === "youtube") {
     return title
-      .replace(/\s*[\(\[](Official\s+)?(Music\s+)?Video[\)\]]/gi, "")
-      .replace(/\s*[\(\[](Official\s+)?Audio[\)\]]/gi, "")
-      .replace(/\s*[\(\[]Lyric(s)?\s*Video[\)\]]/gi, "")
-      .replace(/\s*[\(\[]HD[\)\]]/gi, "")
+      .replace(/\s*[([](Official\s+)?(Music\s+)?Video[)\]]/gi, "")
+      .replace(/\s*[([](Official\s+)?Audio[)\]]/gi, "")
+      .replace(/\s*[([]Lyric(s)?\s*Video[)\]]/gi, "")
+      .replace(/\s*[([]HD[)\]]/gi, "")
       .trim();
   }
   return title.trim();

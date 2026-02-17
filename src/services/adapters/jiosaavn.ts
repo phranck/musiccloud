@@ -1,6 +1,7 @@
-import type { ServiceAdapter, NormalizedTrack, MatchResult, SearchQuery } from "../types.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
+import { calculateConfidence } from "../../lib/normalize.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
 
@@ -31,19 +32,15 @@ interface JioSaavnSong {
 }
 
 async function jiosaavnFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      signal: controller.signal,
+  return fetchWithTimeout(
+    url,
+    {
       headers: {
-        "Accept": "application/json",
+        Accept: "application/json",
       },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    timeoutMs,
+  );
 }
 
 function mapSongToTrack(song: JioSaavnSong): NormalizedTrack {
@@ -93,7 +90,7 @@ async function getTrackById(songId: string): Promise<NormalizedTrack | null> {
     const data = JSON.parse(text) as { songs?: JioSaavnSong[] } | JioSaavnSong;
 
     // API can return { songs: [...] } or a direct song object
-    const song = "songs" in data && Array.isArray(data.songs) ? data.songs[0] : data as JioSaavnSong;
+    const song = "songs" in data && Array.isArray(data.songs) ? data.songs[0] : (data as JioSaavnSong);
     if (!song?.id || !song?.title) return null;
 
     return mapSongToTrack(song);
@@ -150,9 +147,7 @@ export const jiosaavnAdapter: ServiceAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
     try {
       const songs = await searchSongs(q);
@@ -183,7 +178,10 @@ export const jiosaavnAdapter: ServiceAdapter = {
           );
         }
 
-        log.debug("JioSaavn", `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`);
+        log.debug(
+          "JioSaavn",
+          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+        );
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

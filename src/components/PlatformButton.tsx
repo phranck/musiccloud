@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { cn, type Platform, PLATFORM_CONFIG } from "../lib/utils";
+import { cn, PLATFORM_CONFIG, type Platform } from "../lib/utils";
 import { PlatformIcon } from "./PlatformIcon";
 
 interface PlatformButtonProps {
@@ -28,7 +28,16 @@ export const PlatformButton = memo(function PlatformButton({
   const isDev = import.meta.env.DEV;
 
   // Map matchMethod to display text
-  const sourceLabel = matchMethod === "odesli" ? "via Odesli" : matchMethod === "isrc" ? "direct (ISRC)" : matchMethod === "search" ? "via search" : matchMethod === "cache" ? "cached" : null;
+  const sourceLabel =
+    matchMethod === "odesli"
+      ? "via Odesli"
+      : matchMethod === "isrc"
+        ? "direct (ISRC)"
+        : matchMethod === "search"
+          ? "via search"
+          : matchMethod === "cache"
+            ? "cached"
+            : null;
 
   return (
     <a
@@ -52,14 +61,8 @@ export const PlatformButton = memo(function PlatformButton({
     >
       <PlatformIcon platform={platform} className="w-8 h-8 flex-shrink-0" colored={true} />
       <div className="flex-1">
-        <span className="font-medium text-base text-text-primary tracking-[-0.01em]">
-          {label}
-        </span>
-        {isDev && sourceLabel && (
-          <div className="text-xs text-text-muted">
-            {sourceLabel}
-          </div>
-        )}
+        <span className="font-medium text-base text-text-primary tracking-[-0.01em]">{label}</span>
+        {isDev && sourceLabel && <div className="text-xs text-text-muted">{sourceLabel}</div>}
       </div>
       <svg
         className="w-4 h-4 text-text-muted flex-shrink-0"

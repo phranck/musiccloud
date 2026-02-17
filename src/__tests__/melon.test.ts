@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { melonAdapter } from "../services/adapters/melon";
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("Melon: detectUrl", () => {
   it("should extract song ID from standard URL", () => {
@@ -39,7 +41,9 @@ describe("Melon: getTrack", () => {
     };
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(`<html><script type="application/ld+json">${JSON.stringify(jsonLd)}</script></html>`, { status: 200 }),
+      new Response(`<html><script type="application/ld+json">${JSON.stringify(jsonLd)}</script></html>`, {
+        status: 200,
+      }),
     );
 
     const track = await melonAdapter.getTrack("35061523");
@@ -50,18 +54,14 @@ describe("Melon: getTrack", () => {
   });
 
   it("should throw on 404", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Not Found", { status: 404 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
     await expect(melonAdapter.getTrack("invalid")).rejects.toThrow("Track not found");
   });
 });
 
 describe("Melon: searchTrack", () => {
   it("should return not found for empty results", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("<html>No results</html>", { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("<html>No results</html>", { status: 200 }));
 
     const result = await melonAdapter.searchTrack({ title: "Nonexistent", artist: "Nobody" });
     expect(result.found).toBe(false);
@@ -69,7 +69,13 @@ describe("Melon: searchTrack", () => {
 });
 
 describe("Melon: adapter metadata", () => {
-  it("should have correct id", () => { expect(melonAdapter.id).toBe("melon"); });
-  it("should have correct displayName", () => { expect(melonAdapter.displayName).toBe("Melon"); });
-  it("should not support ISRC", () => { expect(melonAdapter.capabilities.supportsIsrc).toBe(false); });
+  it("should have correct id", () => {
+    expect(melonAdapter.id).toBe("melon");
+  });
+  it("should have correct displayName", () => {
+    expect(melonAdapter.displayName).toBe("Melon");
+  });
+  it("should not support ISRC", () => {
+    expect(melonAdapter.capabilities.supportsIsrc).toBe(false);
+  });
 });

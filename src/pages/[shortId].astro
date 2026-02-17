@@ -7,11 +7,12 @@
  */
 export const prerender = false;
 
-import BaseLayout from "../layouts/BaseLayout.astro";
-import { loadByShortId } from "../lib/share-page";
-import { PLATFORM_CONFIG, isValidPlatform, formatDuration, formatYear, type Platform } from "../lib/utils";
-import { PlatformIcon } from "../components/PlatformIcon";
 import { GradientBackground } from "../components/GradientBackground";
+import { PlatformIcon } from "../components/PlatformIcon";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { compareByDisplayOrder } from "../lib/constants";
+import { loadByShortId } from "../lib/share-page";
+import { buildMetaLine, isValidPlatform, PLATFORM_CONFIG, type Platform } from "../lib/utils";
 
 const { shortId } = Astro.params;
 
@@ -19,7 +20,12 @@ if (!shortId) {
   return Astro.redirect("/");
 }
 
-const data = await loadByShortId(shortId, Astro.url.origin);
+let data: Awaited<ReturnType<typeof loadByShortId>>;
+try {
+  data = await loadByShortId(shortId, Astro.url.origin);
+} catch {
+  return Astro.redirect("/", 302);
+}
 
 if (!data) {
   return Astro.redirect("/", 302);
@@ -27,12 +33,7 @@ if (!data) {
 
 const { track, artistDisplay, links, og } = data;
 
-const metaItems = [
-  track.durationMs ? formatDuration(track.durationMs) : null,
-  track.isrc,
-  track.releaseDate ? formatYear(track.releaseDate) : null,
-].filter(Boolean);
-const metaLine = metaItems.join(" \u00B7 ");
+const metaLine = buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc, releaseDate: track.releaseDate });
 ---
 
 <BaseLayout
@@ -91,7 +92,7 @@ const metaLine = metaItems.join(" \u00B7 ");
 
     {/* Platform Buttons */}
     <div class="w-full max-w-sm space-y-3">
-      {[...links].sort((a, b) => (PLATFORM_CONFIG[a.service as Platform]?.label ?? a.service).localeCompare(PLATFORM_CONFIG[b.service as Platform]?.label ?? b.service)).map((link) => {
+      {[...links].sort((a, b) => compareByDisplayOrder(a.service, b.service)).map((link) => {
         if (!isValidPlatform(link.service)) return null;
         const platform = link.service;
         const config = PLATFORM_CONFIG[platform];

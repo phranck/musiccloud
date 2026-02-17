@@ -1,7 +1,8 @@
-import type { NormalizedTrack, ServiceAdapter, SearchQuery, MatchResult } from "../types";
+import { fetchWithTimeout } from "../../lib/fetch.js";
+import { log } from "../../lib/logger";
 import { calculateConfidence } from "../../lib/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import { log } from "../../lib/logger";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types";
 
 /**
  * Qobuz Scrape Adapter
@@ -38,7 +39,9 @@ async function getAppId(): Promise<string | null> {
 
   // Promise coalescing: prevent parallel requests from each fetching independently
   if (appIdPromise) return appIdPromise;
-  appIdPromise = fetchAppId().finally(() => { appIdPromise = null; });
+  appIdPromise = fetchAppId().finally(() => {
+    appIdPromise = null;
+  });
   return appIdPromise;
 }
 
@@ -82,9 +85,7 @@ async function fetchAppId(): Promise<string | null> {
           log.debug("Qobuz", "Extracted app_id from bundle");
           return cachedAppId;
         }
-      } catch {
-        continue;
-      }
+      } catch {}
     }
 
     log.debug("Qobuz", "app_id not found in any bundle");
@@ -98,37 +99,23 @@ async function fetchAppId(): Promise<string | null> {
 // --- Fetch helpers ---
 
 async function qobuzFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      signal: controller.signal,
-      headers: { "User-Agent": USER_AGENT },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  return fetchWithTimeout(url, { headers: { "User-Agent": USER_AGENT } }, timeoutMs);
 }
 
 async function qobuzApiFetch(endpoint: string): Promise<Response> {
   const appId = await getAppId();
   if (!appId) throw new Error("Qobuz: No app_id available");
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    return await fetch(`${API_BASE}${endpoint}`, {
-      signal: controller.signal,
+  return fetchWithTimeout(
+    `${API_BASE}${endpoint}`,
+    {
       headers: {
         "User-Agent": USER_AGENT,
         "X-App-Id": appId,
       },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    8000,
+  );
 }
 
 // --- Response types ---
@@ -162,9 +149,7 @@ interface QobuzSearchResponse {
 
 function mapTrack(data: QobuzTrack): NormalizedTrack {
   const trackId = String(data.id ?? "");
-  const artists = data.performer?.name
-    ? [data.performer.name]
-    : ["Unknown Artist"];
+  const artists = data.performer?.name ? [data.performer.name] : ["Unknown Artist"];
 
   let releaseDate: string | undefined;
   if (data.album?.released_at) {
@@ -228,14 +213,10 @@ export const qobuzAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
     try {
-      const response = await qobuzApiFetch(
-        `/track/search?query=${encodeURIComponent(q)}&limit=5`,
-      );
+      const response = await qobuzApiFetch(`/track/search?query=${encodeURIComponent(q)}&limit=5`);
 
       if (!response.ok) {
         log.debug("Qobuz", "Search API failed:", response.status);
@@ -272,7 +253,10 @@ export const qobuzAdapter = {
           );
         }
 
-        log.debug("Qobuz", `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`);
+        log.debug(
+          "Qobuz",
+          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+        );
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

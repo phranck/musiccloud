@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { neteaseAdapter } from "../services/adapters/netease";
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("NetEase: detectUrl", () => {
   it("should extract song ID from standard URL", () => {
@@ -30,19 +32,19 @@ describe("NetEase: isAvailable", () => {
 describe("NetEase: getTrack", () => {
   it("should fetch and map track data", async () => {
     const mockResponse = {
-      songs: [{
-        id: 123456,
-        name: "Take on Me",
-        ar: [{ id: 1, name: "a-ha" }],
-        al: { id: 10, name: "Hunting High and Low", picUrl: "https://p1.music.126.net/test.jpg" },
-        dt: 225000,
-      }],
+      songs: [
+        {
+          id: 123456,
+          name: "Take on Me",
+          ar: [{ id: 1, name: "a-ha" }],
+          al: { id: 10, name: "Hunting High and Low", picUrl: "https://p1.music.126.net/test.jpg" },
+          dt: 225000,
+        },
+      ],
       code: 200,
     };
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockResponse), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(mockResponse), { status: 200 }));
 
     const track = await neteaseAdapter.getTrack("123456");
     expect(track.sourceService).toBe("netease");
@@ -53,9 +55,7 @@ describe("NetEase: getTrack", () => {
   });
 
   it("should throw on 404", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Not Found", { status: 404 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
     await expect(neteaseAdapter.getTrack("invalid")).rejects.toThrow("Track not found");
   });
 });
@@ -64,21 +64,21 @@ describe("NetEase: searchTrack", () => {
   it("should find track with search API", async () => {
     const mockSearch = {
       result: {
-        songs: [{
-          id: 123456,
-          name: "Take on Me",
-          artists: [{ id: 1, name: "a-ha" }],
-          album: { id: 10, name: "Hunting High and Low" },
-          duration: 225000,
-        }],
+        songs: [
+          {
+            id: 123456,
+            name: "Take on Me",
+            artists: [{ id: 1, name: "a-ha" }],
+            album: { id: 10, name: "Hunting High and Low" },
+            duration: 225000,
+          },
+        ],
         songCount: 1,
       },
       code: 200,
     };
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockSearch), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(mockSearch), { status: 200 }));
 
     const result = await neteaseAdapter.searchTrack({ title: "Take on Me", artist: "a-ha" });
     expect(result.found).toBe(true);
@@ -97,7 +97,13 @@ describe("NetEase: searchTrack", () => {
 });
 
 describe("NetEase: adapter metadata", () => {
-  it("should have correct id", () => { expect(neteaseAdapter.id).toBe("netease"); });
-  it("should have correct displayName", () => { expect(neteaseAdapter.displayName).toBe("NetEase Cloud Music"); });
-  it("should not support ISRC", () => { expect(neteaseAdapter.capabilities.supportsIsrc).toBe(false); });
+  it("should have correct id", () => {
+    expect(neteaseAdapter.id).toBe("netease");
+  });
+  it("should have correct displayName", () => {
+    expect(neteaseAdapter.displayName).toBe("NetEase Cloud Music");
+  });
+  it("should not support ISRC", () => {
+    expect(neteaseAdapter.capabilities.supportsIsrc).toBe(false);
+  });
 });

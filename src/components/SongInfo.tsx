@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { formatDuration, formatYear } from "../lib/utils";
+import { buildMetaLine } from "../lib/utils";
 
 interface SongInfoProps {
   title: string;
@@ -24,9 +24,7 @@ export const SongInfo = memo(function SongInfo({
   albumArtUrl,
   onAlbumArtLoad,
 }: SongInfoProps) {
-  const year = releaseDate ? formatYear(releaseDate) : null;
-  const duration = durationMs ? formatDuration(durationMs) : null;
-  const metaItems = [duration, isrc, year].filter(Boolean);
+  const metaLine = buildMetaLine({ durationMs, isrc, releaseDate });
 
   return (
     <div>
@@ -40,29 +38,30 @@ export const SongInfo = memo(function SongInfo({
           height={480}
           crossOrigin="anonymous"
           onLoad={(e) => onAlbumArtLoad?.(e.currentTarget)}
-          onError={(e) => { e.currentTarget.src = "/og/default.jpg"; }}
+          onError={(e) => {
+            e.currentTarget.src = "/og/default.jpg";
+          }}
         />
       </div>
 
       {/* Track metadata */}
       <div className="px-6 pt-5 pb-4">
-        <h2 className="text-xl md:text-2xl font-semibold tracking-[-0.02em] text-text-primary">
-          {title}
-        </h2>
-        <p className="text-base text-text-secondary mt-1">
-          {artist}
-        </p>
-        {album && (
-          <p className="text-base text-text-muted mt-1">
-            {album}
-          </p>
-        )}
-        {(isExplicit || metaItems.length > 0) && (
+        <h2 className="text-xl md:text-2xl font-semibold tracking-[-0.02em] text-text-primary">{title}</h2>
+        <p className="text-base text-text-secondary mt-1">{artist}</p>
+        {album && <p className="text-base text-text-muted mt-1">{album}</p>}
+        {(isExplicit || metaLine) && (
           <p className="text-sm text-text-muted/60 mt-2 font-mono tracking-wide flex items-center gap-1.5">
             {isExplicit && (
-              <span className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0" title="Explicit" aria-label="Explicit content">E</span>
+              <span
+                role="img"
+                className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0"
+                title="Explicit"
+                aria-label="Explicit content"
+              >
+                E
+              </span>
             )}
-            <span>{metaItems.join(" \u00B7 ")}</span>
+            <span>{metaLine}</span>
           </p>
         )}
       </div>

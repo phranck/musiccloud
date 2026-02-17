@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { bugsAdapter } from "../services/adapters/bugs";
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("Bugs!: detectUrl", () => {
   it("should extract track ID from standard URL", () => {
@@ -26,7 +28,10 @@ describe("Bugs!: isAvailable", () => {
 describe("Bugs!: getTrack", () => {
   it("should fetch and map OG tag data", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(`<html><meta property="og:title" content="Dynamite / BTS"><meta property="og:image" content="https://image.bugsm.co.kr/test.jpg"></html>`, { status: 200 }),
+      new Response(
+        `<html><meta property="og:title" content="Dynamite / BTS"><meta property="og:image" content="https://image.bugsm.co.kr/test.jpg"></html>`,
+        { status: 200 },
+      ),
     );
 
     const track = await bugsAdapter.getTrack("6199298");
@@ -37,7 +42,9 @@ describe("Bugs!: getTrack", () => {
 
   it("should split multiple artists", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(`<html><meta property="og:title" content="Song / Artist A, Artist B & Artist C"></html>`, { status: 200 }),
+      new Response(`<html><meta property="og:title" content="Song / Artist A, Artist B & Artist C"></html>`, {
+        status: 200,
+      }),
     );
 
     const track = await bugsAdapter.getTrack("123");
@@ -45,18 +52,14 @@ describe("Bugs!: getTrack", () => {
   });
 
   it("should throw on 404", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Not Found", { status: 404 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
     await expect(bugsAdapter.getTrack("invalid")).rejects.toThrow("Track not found");
   });
 });
 
 describe("Bugs!: searchTrack", () => {
   it("should return not found for empty results", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("<html>No results</html>", { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("<html>No results</html>", { status: 200 }));
 
     const result = await bugsAdapter.searchTrack({ title: "Nonexistent", artist: "Nobody" });
     expect(result.found).toBe(false);
@@ -64,7 +67,13 @@ describe("Bugs!: searchTrack", () => {
 });
 
 describe("Bugs!: adapter metadata", () => {
-  it("should have correct id", () => { expect(bugsAdapter.id).toBe("bugs"); });
-  it("should have correct displayName", () => { expect(bugsAdapter.displayName).toBe("Bugs!"); });
-  it("should not support ISRC", () => { expect(bugsAdapter.capabilities.supportsIsrc).toBe(false); });
+  it("should have correct id", () => {
+    expect(bugsAdapter.id).toBe("bugs");
+  });
+  it("should have correct displayName", () => {
+    expect(bugsAdapter.displayName).toBe("Bugs!");
+  });
+  it("should not support ISRC", () => {
+    expect(bugsAdapter.capabilities.supportsIsrc).toBe(false);
+  });
 });

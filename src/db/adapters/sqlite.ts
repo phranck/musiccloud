@@ -1,11 +1,12 @@
 import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
 import { eq } from "drizzle-orm";
-import * as schema from "../schemas/sqlite.js";
-import type { TrackRepository, CachedTrackResult, SharePageDbResult, PersistTrackData } from "../repository.js";
-import type { NormalizedTrack } from "../../services/types.js";
-import { generateTrackId, generateShortId } from "../../lib/short-id.js";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { CACHE_TTL_MS } from "../../lib/constants.js";
 import { log } from "../../lib/logger.js";
+import { generateShortId, generateTrackId } from "../../lib/short-id.js";
+import type { NormalizedTrack } from "../../services/types.js";
+import type { CachedTrackResult, PersistTrackData, SharePageDbResult, TrackRepository } from "../repository.js";
+import * as schema from "../schemas/sqlite.js";
 
 interface TrackRow {
   id: string;
@@ -32,8 +33,11 @@ interface TrackWithLinkRow extends TrackRow {
 }
 
 function safeParseArray(json: string, fallback: string[] = []): string[] {
-  try { return JSON.parse(json); }
-  catch { return fallback; }
+  try {
+    return JSON.parse(json);
+  } catch {
+    return fallback;
+  }
 }
 
 function escapeFts5(query: string): string {
@@ -53,9 +57,9 @@ export class SqliteAdapter implements TrackRepository {
   }
 
   private ensureSchema(): void {
-    const tableExists = this.sqlite.prepare(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name='tracks'`
-    ).get();
+    const tableExists = this.sqlite
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='tracks'`)
+      .get();
 
     if (!tableExists) {
       this.sqlite.exec(`
@@ -122,9 +126,9 @@ export class SqliteAdapter implements TrackRepository {
     }
 
     // Ensure FTS5 table exists even if tracks table was created before this fix
-    const ftsExists = this.sqlite.prepare(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name='tracks_fts'`
-    ).get();
+    const ftsExists = this.sqlite
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='tracks_fts'`)
+      .get();
 
     if (!ftsExists) {
       this.sqlite.exec(`
@@ -290,13 +294,12 @@ export class SqliteAdapter implements TrackRepository {
     const now = Date.now();
 
     return this.sqlite.transaction(() => {
-      const existing = data.sourceTrack.isrc
-        ? this.findExistingByIsrcSync(data.sourceTrack.isrc)
-        : null;
+      const existing = data.sourceTrack.isrc ? this.findExistingByIsrcSync(data.sourceTrack.isrc) : null;
 
       if (existing) {
         // Update timestamp + fill null metadata fields with new data
-        this.sqlite.prepare(`
+        this.sqlite
+          .prepare(`
           UPDATE tracks SET
             updated_at = ?,
             is_explicit = COALESCE(is_explicit, ?),
@@ -304,26 +307,31 @@ export class SqliteAdapter implements TrackRepository {
             source_service = COALESCE(source_service, ?),
             source_url = COALESCE(source_url, ?)
           WHERE id = ?
-        `).run(
-          now,
-          data.sourceTrack.isExplicit != null ? (data.sourceTrack.isExplicit ? 1 : 0) : null,
-          data.sourceTrack.previewUrl ?? null,
-          data.sourceTrack.sourceService ?? null,
-          data.sourceTrack.sourceUrl ?? null,
-          existing.trackId,
-        );
+        `)
+          .run(
+            now,
+            data.sourceTrack.isExplicit != null ? (data.sourceTrack.isExplicit ? 1 : 0) : null,
+            data.sourceTrack.previewUrl ?? null,
+            data.sourceTrack.sourceService ?? null,
+            data.sourceTrack.sourceUrl ?? null,
+            existing.trackId,
+          );
 
         for (const link of data.links) {
-          this.db.insert(schema.serviceLinks).values({
-            id: generateTrackId(),
-            trackId: existing.trackId,
-            service: link.service,
-            externalId: link.externalId ?? null,
-            url: link.url,
-            confidence: link.confidence,
-            matchMethod: link.matchMethod,
-            createdAt: now,
-          }).onConflictDoNothing().run();
+          this.db
+            .insert(schema.serviceLinks)
+            .values({
+              id: generateTrackId(),
+              trackId: existing.trackId,
+              service: link.service,
+              externalId: link.externalId ?? null,
+              url: link.url,
+              confidence: link.confidence,
+              matchMethod: link.matchMethod,
+              createdAt: now,
+            })
+            .onConflictDoNothing()
+            .run();
         }
         return { trackId: existing.trackId, shortId: existing.shortId };
       }
@@ -331,64 +339,85 @@ export class SqliteAdapter implements TrackRepository {
       const newTrackId = generateTrackId();
       const newShortId = generateShortId();
 
-      this.db.insert(schema.tracks).values({
-        id: newTrackId,
-        title: data.sourceTrack.title,
-        artists: JSON.stringify(data.sourceTrack.artists),
-        albumName: data.sourceTrack.albumName ?? null,
-        isrc: data.sourceTrack.isrc ?? null,
-        artworkUrl: data.sourceTrack.artworkUrl ?? null,
-        durationMs: data.sourceTrack.durationMs ? Math.floor(data.sourceTrack.durationMs) : null,
-        releaseDate: data.sourceTrack.releaseDate ?? null,
-        isExplicit: data.sourceTrack.isExplicit != null ? (data.sourceTrack.isExplicit ? 1 : 0) : null,
-        previewUrl: data.sourceTrack.previewUrl ?? null,
-        sourceService: data.sourceTrack.sourceService ?? null,
-        sourceUrl: data.sourceTrack.sourceUrl ?? null,
-        createdAt: now,
-        updatedAt: now,
-      }).run();
+      this.db
+        .insert(schema.tracks)
+        .values({
+          id: newTrackId,
+          title: data.sourceTrack.title,
+          artists: JSON.stringify(data.sourceTrack.artists),
+          albumName: data.sourceTrack.albumName ?? null,
+          isrc: data.sourceTrack.isrc ?? null,
+          artworkUrl: data.sourceTrack.artworkUrl ?? null,
+          durationMs: data.sourceTrack.durationMs ? Math.floor(data.sourceTrack.durationMs) : null,
+          releaseDate: data.sourceTrack.releaseDate ?? null,
+          isExplicit: data.sourceTrack.isExplicit != null ? (data.sourceTrack.isExplicit ? 1 : 0) : null,
+          previewUrl: data.sourceTrack.previewUrl ?? null,
+          sourceService: data.sourceTrack.sourceService ?? null,
+          sourceUrl: data.sourceTrack.sourceUrl ?? null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
 
       for (const link of data.links) {
-        this.db.insert(schema.serviceLinks).values({
-          id: generateTrackId(),
-          trackId: newTrackId,
-          service: link.service,
-          externalId: link.externalId ?? null,
-          url: link.url,
-          confidence: link.confidence,
-          matchMethod: link.matchMethod,
-          createdAt: now,
-        }).onConflictDoNothing().run();
+        this.db
+          .insert(schema.serviceLinks)
+          .values({
+            id: generateTrackId(),
+            trackId: newTrackId,
+            service: link.service,
+            externalId: link.externalId ?? null,
+            url: link.url,
+            confidence: link.confidence,
+            matchMethod: link.matchMethod,
+            createdAt: now,
+          })
+          .onConflictDoNothing()
+          .run();
       }
 
-      this.db.insert(schema.shortUrls).values({
-        id: newShortId,
-        trackId: newTrackId,
-        createdAt: now,
-      }).run();
+      this.db
+        .insert(schema.shortUrls)
+        .values({
+          id: newShortId,
+          trackId: newTrackId,
+          createdAt: now,
+        })
+        .run();
 
       return { trackId: newTrackId, shortId: newShortId };
     })();
   }
 
-  async addLinksToTrack(trackId: string, links: Array<{
-    service: string; url: string; confidence: number; matchMethod: string; externalId?: string;
-  }>): Promise<void> {
+  async addLinksToTrack(
+    trackId: string,
+    links: Array<{
+      service: string;
+      url: string;
+      confidence: number;
+      matchMethod: string;
+      externalId?: string;
+    }>,
+  ): Promise<void> {
     if (links.length === 0) return;
 
     const now = Date.now();
     this.sqlite.transaction(() => {
       for (const link of links) {
-        this.db.insert(schema.serviceLinks).values({
-          id: generateTrackId(),
-          trackId,
-          service: link.service,
-          externalId: link.externalId ?? null,
-          url: link.url,
-          confidence: link.confidence,
-          matchMethod: link.matchMethod,
-          createdAt: now,
-        }).onConflictDoNothing().run();
+        this.db
+          .insert(schema.serviceLinks)
+          .values({
+            id: generateTrackId(),
+            trackId,
+            service: link.service,
+            externalId: link.externalId ?? null,
+            url: link.url,
+            confidence: link.confidence,
+            matchMethod: link.matchMethod,
+            createdAt: now,
+          })
+          .onConflictDoNothing()
+          .run();
       }
 
       // Update track timestamp so cache TTL reflects the gap-fill
@@ -396,22 +425,26 @@ export class SqliteAdapter implements TrackRepository {
     })();
   }
 
-  async cleanupStaleCache(ttlMs: number = 7 * 24 * 60 * 60 * 1000): Promise<number> {
+  async cleanupStaleCache(ttlMs: number = CACHE_TTL_MS): Promise<number> {
     const cutoff = Date.now() - ttlMs;
-    const result = this.sqlite.prepare(`
+    const result = this.sqlite
+      .prepare(`
       DELETE FROM service_links
       WHERE track_id IN (
         SELECT t.id FROM tracks t
         LEFT JOIN short_urls su ON su.track_id = t.id
         WHERE t.updated_at < ? AND su.id IS NULL
       )
-    `).run(cutoff);
+    `)
+      .run(cutoff);
 
-    this.sqlite.prepare(`
+    this.sqlite
+      .prepare(`
       DELETE FROM tracks
       WHERE updated_at < ?
       AND id NOT IN (SELECT track_id FROM short_urls)
-    `).run(cutoff);
+    `)
+      .run(cutoff);
 
     return result.changes;
   }
@@ -463,7 +496,10 @@ export class SqliteAdapter implements TrackRepository {
     const track = this.rowToTrack(firstRow, webUrl);
 
     const links = rows
-      .filter((r): r is TrackWithLinkRow & { url: string; service: string; confidence: number; match_method: string } => r.url != null)
+      .filter(
+        (r): r is TrackWithLinkRow & { url: string; service: string; confidence: number; match_method: string } =>
+          r.url != null,
+      )
       .map((r) => ({
         service: r.service,
         url: r.url,
@@ -475,7 +511,18 @@ export class SqliteAdapter implements TrackRepository {
   }
 
   private buildSharePageResult(
-    rows: { title: string; artists: string; albumName: string | null; artworkUrl: string | null; durationMs: number | null; isrc: string | null; releaseDate: string | null; isExplicit: number | null; linkService: string; linkUrl: string }[],
+    rows: {
+      title: string;
+      artists: string;
+      albumName: string | null;
+      artworkUrl: string | null;
+      durationMs: number | null;
+      isrc: string | null;
+      releaseDate: string | null;
+      isExplicit: number | null;
+      linkService: string;
+      linkUrl: string;
+    }[],
     shortId: string,
   ): SharePageDbResult {
     const first = rows[0];
@@ -484,7 +531,15 @@ export class SqliteAdapter implements TrackRepository {
     const links = rows.map((r) => ({ service: r.linkService, url: r.linkUrl }));
 
     return {
-      track: { title: first.title, albumName: first.albumName, artworkUrl: first.artworkUrl, durationMs: first.durationMs, isrc: first.isrc, releaseDate: first.releaseDate, isExplicit: first.isExplicit != null ? Boolean(first.isExplicit) : null },
+      track: {
+        title: first.title,
+        albumName: first.albumName,
+        artworkUrl: first.artworkUrl,
+        durationMs: first.durationMs,
+        isrc: first.isrc,
+        releaseDate: first.releaseDate,
+        isExplicit: first.isExplicit != null ? Boolean(first.isExplicit) : null,
+      },
       artists,
       artistDisplay,
       shortId,

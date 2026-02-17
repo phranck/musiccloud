@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { qobuzAdapter, _resetAppIdCache, _setAppIdForTest } from "../services/adapters/qobuz";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { _resetAppIdCache, _setAppIdForTest, qobuzAdapter } from "../services/adapters/qobuz";
 
 // =============================================================================
 // Mock data
@@ -132,10 +132,12 @@ describe("Qobuz: getTrack", () => {
   });
 
   it("should handle missing album artwork gracefully", async () => {
-    fetchMock.mockResolvedValueOnce(mockResponse({
-      ...MOCK_TRACK_RESPONSE,
-      album: { title: "Test", image: {} },
-    }));
+    fetchMock.mockResolvedValueOnce(
+      mockResponse({
+        ...MOCK_TRACK_RESPONSE,
+        album: { title: "Test", image: {} },
+      }),
+    );
 
     const track = await qobuzAdapter.getTrack("59954869");
     expect(track.artworkUrl).toBeUndefined();
@@ -218,11 +220,13 @@ describe("Qobuz: searchTrack", () => {
   });
 
   it("should convert duration from seconds to milliseconds", async () => {
-    fetchMock.mockResolvedValueOnce(mockResponse({
-      tracks: {
-        items: [{ id: 1, title: "Test", duration: 180, performer: { name: "Artist" }, album: {} }],
-      },
-    }));
+    fetchMock.mockResolvedValueOnce(
+      mockResponse({
+        tracks: {
+          items: [{ id: 1, title: "Test", duration: 180, performer: { name: "Artist" }, album: {} }],
+        },
+      }),
+    );
 
     const result = await qobuzAdapter.searchTrack({ title: "Test", artist: "Artist" });
 

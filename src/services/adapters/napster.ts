@@ -1,12 +1,8 @@
-import type {
-  ServiceAdapter,
-  NormalizedTrack,
-  MatchResult,
-  SearchQuery,
-} from "../types.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
+import { log } from "../../lib/logger.js";
 import { calculateConfidence } from "../../lib/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import { log } from "../../lib/logger.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 // NOTE: Napster Developer Portal no longer accepts new sign-ups (as of Feb 2026).
 // Existing API keys still work. Contact api-team@napster.com for new key requests.
@@ -58,15 +54,7 @@ function getApiKey(): string {
 async function napsterFetch(endpoint: string): Promise<Response> {
   const apiKey = getApiKey();
   const separator = endpoint.includes("?") ? "&" : "?";
-  const url = `${API_BASE}${endpoint}${separator}apikey=${apiKey}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
+  return fetchWithTimeout(`${API_BASE}${endpoint}${separator}apikey=${apiKey}`, {}, 5000);
 }
 
 function artworkUrl(albumId: string): string {
@@ -76,7 +64,10 @@ function artworkUrl(albumId: string): string {
 function mapTrack(raw: NapsterTrackResponse): NormalizedTrack {
   // Split combined artist names (e.g. "A, B & C") into individual entries
   const artists = raw.artistName
-    ? raw.artistName.split(/[,&]/).map((a) => a.trim()).filter(Boolean)
+    ? raw.artistName
+        .split(/[,&]/)
+        .map((a) => a.trim())
+        .filter(Boolean)
     : ["Unknown Artist"];
 
   return {
@@ -120,9 +111,7 @@ export const napsterAdapter = {
 
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     // If trackId is not in tra.xxx format, it's a slug - we can't look it up directly
-    const endpoint = trackId.startsWith("tra.")
-      ? `/tracks/${encodeURIComponent(trackId)}`
-      : `/tracks/top?limit=1`; // Fallback; slug-based lookup not supported by API
+    const endpoint = trackId.startsWith("tra.") ? `/tracks/${encodeURIComponent(trackId)}` : `/tracks/top?limit=1`; // Fallback; slug-based lookup not supported by API
 
     if (!trackId.startsWith("tra.")) {
       throw new Error(`Napster: slug-based track lookup not supported: ${trackId}`);
@@ -164,13 +153,9 @@ export const napsterAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
-    const response = await napsterFetch(
-      `/search?query=${encodeURIComponent(q)}&type=track&per_type_limit=5`,
-    );
+    const response = await napsterFetch(`/search?query=${encodeURIComponent(q)}&type=track&per_type_limit=5`);
 
     if (!response.ok) {
       log.debug("Napster", "Search API failed:", response.status);
@@ -204,7 +189,10 @@ export const napsterAdapter = {
         );
       }
 
-      log.debug("Napster", `  [${i}] "${track.title}" by ${track.artists.join(", ")} → confidence=${confidence.toFixed(3)}`);
+      log.debug(
+        "Napster",
+        `  [${i}] "${track.title}" by ${track.artists.join(", ")} → confidence=${confidence.toFixed(3)}`,
+      );
 
       if (confidence > bestConfidence) {
         bestConfidence = confidence;

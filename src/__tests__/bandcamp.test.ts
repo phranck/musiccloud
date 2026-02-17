@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { bandcampAdapter } from "../services/adapters/bandcamp";
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 // =============================================================================
 // detectUrl
@@ -55,7 +57,9 @@ describe("Bandcamp: getTrack", () => {
     };
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(`<html><script type="application/ld+json">${JSON.stringify(jsonLd)}</script></html>`, { status: 200 }),
+      new Response(`<html><script type="application/ld+json">${JSON.stringify(jsonLd)}</script></html>`, {
+        status: 200,
+      }),
     );
 
     const track = await bandcampAdapter.getTrack("https://someartist.bandcamp.com/track/cool-song");
@@ -69,7 +73,10 @@ describe("Bandcamp: getTrack", () => {
 
   it("should fallback to OG tags", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(`<html><meta property="og:title" content="Cool Song, by Some Artist"><meta property="og:image" content="https://f4.bcbits.com/img/test.jpg"></html>`, { status: 200 }),
+      new Response(
+        `<html><meta property="og:title" content="Cool Song, by Some Artist"><meta property="og:image" content="https://f4.bcbits.com/img/test.jpg"></html>`,
+        { status: 200 },
+      ),
     );
 
     const track = await bandcampAdapter.getTrack("https://someartist.bandcamp.com/track/cool-song");
@@ -78,10 +85,10 @@ describe("Bandcamp: getTrack", () => {
   });
 
   it("should throw on 404", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Not Found", { status: 404 }),
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
+    await expect(bandcampAdapter.getTrack("https://someartist.bandcamp.com/track/invalid")).rejects.toThrow(
+      "Track not found",
     );
-    await expect(bandcampAdapter.getTrack("https://someartist.bandcamp.com/track/invalid")).rejects.toThrow("Track not found");
   });
 });
 
@@ -101,9 +108,7 @@ describe("Bandcamp: searchTrack", () => {
   });
 
   it("should return not found on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Error", { status: 500 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     const result = await bandcampAdapter.searchTrack({ title: "Test", artist: "Test" });
     expect(result.found).toBe(false);

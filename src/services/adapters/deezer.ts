@@ -1,17 +1,12 @@
-import type {
-  ServiceAdapter,
-  NormalizedTrack,
-  MatchResult,
-  SearchQuery,
-} from "../types.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
+import { log } from "../../lib/logger.js";
 import { calculateConfidence } from "../../lib/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import { log } from "../../lib/logger.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 const API_BASE = "https://api.deezer.com";
 
-const DEEZER_TRACK_REGEX =
-  /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/;
+const DEEZER_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/;
 
 // Minimal type for the Deezer API track response fields we use
 interface DeezerTrackResponse {
@@ -42,15 +37,7 @@ interface DeezerErrorResponse {
 }
 
 async function deezerFetch(endpoint: string): Promise<Response> {
-  const url = `${API_BASE}${endpoint}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
+  return fetchWithTimeout(`${API_BASE}${endpoint}`, {}, 5000);
 }
 
 function isDeezerError(data: unknown): data is DeezerErrorResponse {
@@ -128,13 +115,9 @@ export const deezerAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `artist:"${query.artist}" track:"${query.title}"`;
+    const q = query.title === query.artist ? query.title : `artist:"${query.artist}" track:"${query.title}"`;
 
-    const response = await deezerFetch(
-      `/search/track?q=${encodeURIComponent(q)}&limit=5`,
-    );
+    const response = await deezerFetch(`/search/track?q=${encodeURIComponent(q)}&limit=5`);
 
     if (!response.ok) {
       return { found: false, confidence: 0, matchMethod: "search" };

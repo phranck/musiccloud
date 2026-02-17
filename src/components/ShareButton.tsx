@@ -9,11 +9,7 @@ interface ShareButtonProps {
 
 type ShareState = "idle" | "copied";
 
-export function ShareButton({
-  shareUrl,
-  songTitle,
-  artistName,
-}: ShareButtonProps) {
+export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProps) {
   const [state, setState] = useState<ShareState>("idle");
 
   const handleCopy = useCallback(async () => {
@@ -40,9 +36,7 @@ export function ShareButton({
     if (!navigator.share) return;
     try {
       await navigator.share({
-        title: songTitle
-          ? `${songTitle}${artistName ? ` - ${artistName}` : ""}`
-          : "Check out this song",
+        title: songTitle ? `${songTitle}${artistName ? ` - ${artistName}` : ""}` : "Check out this song",
         url: shareUrl,
       });
     } catch {
@@ -77,13 +71,7 @@ export function ShareButton({
       >
         {state === "idle" ? (
           <>
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -94,18 +82,8 @@ export function ShareButton({
           </>
         ) : (
           <>
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M5 13l4 4L19 7"
-              />
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
             Copied!
           </>

@@ -1,24 +1,20 @@
-import type {
-  ServiceAdapter,
-  NormalizedTrack,
-  MatchResult,
-  SearchQuery,
-} from "../types.js";
-import { calculateConfidence } from "../../lib/normalize.js";
-import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
+import { calculateConfidence } from "../../lib/normalize.js";
+import { TokenManager } from "../../lib/token-manager.js";
+import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 const API_BASE = "https://openapi.tidal.com/v2";
-const TOKEN_URL = "https://auth.tidal.com/v1/oauth2/token";
 
-const TIDAL_TRACK_REGEX =
-  /(?:https?:\/\/)?(?:listen\.)?tidal\.com\/(?:browse\/)?track\/(\d+)/;
+const TIDAL_TRACK_REGEX = /(?:https?:\/\/)?(?:listen\.)?tidal\.com\/(?:browse\/)?track\/(\d+)/;
 
-// Minimal types for Tidal API responses
-interface TidalToken {
-  accessToken: string;
-  expiresAt: number;
-}
+const tokenManager = new TokenManager({
+  serviceName: "Tidal",
+  tokenUrl: "https://auth.tidal.com/v1/oauth2/token",
+  clientIdEnv: "TIDAL_CLIENT_ID",
+  clientSecretEnv: "TIDAL_CLIENT_SECRET",
+});
 
 interface TidalTrackResource {
   id: string;
@@ -58,86 +54,19 @@ interface TidalSearchResponse {
   }>;
 }
 
-let cachedToken: TidalToken | null = null;
-let tokenPromise: Promise<string> | null = null;
-
-/** Reset module-level token cache. For testing only. */
+/** Reset token cache. For testing only. */
 export function _resetTokenCache(): void {
-  cachedToken = null;
-  tokenPromise = null;
-}
-
-async function getAccessToken(): Promise<string> {
-  if (cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
-    return cachedToken.accessToken;
-  }
-
-  // Promise coalescing: prevent parallel token refresh requests
-  if (tokenPromise) return tokenPromise;
-
-  tokenPromise = fetchNewToken().finally(() => {
-    tokenPromise = null;
-  });
-  return tokenPromise;
-}
-
-async function fetchNewToken(): Promise<string> {
-  const clientId = import.meta.env.TIDAL_CLIENT_ID;
-  const clientSecret = import.meta.env.TIDAL_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    console.error("[Tidal] Missing required credentials");
-    throw new Error("TIDAL_CLIENT_ID and TIDAL_CLIENT_SECRET must be set");
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    const response = await fetch(TOKEN_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
-      },
-      body: "grant_type=client_credentials",
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Tidal token request failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    cachedToken = {
-      accessToken: data.access_token,
-      expiresAt: Date.now() + data.expires_in * 1000,
-    };
-
-    return cachedToken.accessToken;
-  } finally {
-    clearTimeout(timeout);
-  }
+  tokenManager.reset();
 }
 
 async function tidalFetch(endpoint: string): Promise<Response> {
-  const token = await getAccessToken();
-  const url = `${API_BASE}${endpoint}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    return await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.api+json",
-      },
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  const token = await tokenManager.getAccessToken();
+  return fetchWithTimeout(`${API_BASE}${endpoint}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.api+json",
+    },
+  });
 }
 
 function parseDuration(duration: number | undefined): number | undefined {
@@ -146,10 +75,7 @@ function parseDuration(duration: number | undefined): number | undefined {
   return duration * 1000;
 }
 
-function extractArtistNames(
-  resource: TidalTrackResource,
-  included?: TidalTrackResponse["included"],
-): string[] {
+function extractArtistNames(resource: TidalTrackResource, included?: TidalTrackResponse["included"]): string[] {
   const artistIds = resource.relationships?.artists?.data?.map((a) => a.id) ?? [];
   if (!included || artistIds.length === 0) return ["Unknown Artist"];
 
@@ -164,10 +90,7 @@ function extractArtistNames(
   return names.length > 0 ? names : ["Unknown Artist"];
 }
 
-function extractAlbumName(
-  resource: TidalTrackResource,
-  included?: TidalTrackResponse["included"],
-): string | undefined {
+function extractAlbumName(resource: TidalTrackResource, included?: TidalTrackResponse["included"]): string | undefined {
   const albumIds = resource.relationships?.albums?.data?.map((a) => a.id) ?? [];
   if (!included || albumIds.length === 0) return undefined;
 
@@ -183,10 +106,7 @@ function pickLargestImage(
   return sorted[0].href;
 }
 
-function mapTrack(
-  resource: TidalTrackResource,
-  included?: TidalTrackResponse["included"],
-): NormalizedTrack {
+function mapTrack(resource: TidalTrackResource, included?: TidalTrackResponse["included"]): NormalizedTrack {
   const attrs = resource.attributes;
   return {
     sourceService: "tidal",
@@ -212,7 +132,7 @@ export const tidalAdapter = {
   },
 
   isAvailable(): boolean {
-    return Boolean(import.meta.env.TIDAL_CLIENT_ID && import.meta.env.TIDAL_CLIENT_SECRET);
+    return tokenManager.isConfigured();
   },
 
   detectUrl(url: string): string | null {
@@ -221,9 +141,7 @@ export const tidalAdapter = {
   },
 
   async getTrack(trackId: string): Promise<NormalizedTrack> {
-    const response = await tidalFetch(
-      `/tracks/${encodeURIComponent(trackId)}?countryCode=US&include=artists,albums`,
-    );
+    const response = await tidalFetch(`/tracks/${encodeURIComponent(trackId)}?countryCode=US&include=artists,albums`);
 
     if (!response.ok) {
       throw new Error(`Tidal getTrack failed: ${response.status}`);
@@ -254,9 +172,7 @@ export const tidalAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
     const response = await tidalFetch(
       `/searchresults/${encodeURIComponent(q)}/relationships/tracks?countryCode=US&include=tracks.artists,tracks.albums`,

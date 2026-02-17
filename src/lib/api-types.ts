@@ -51,7 +51,4 @@ export interface ResolveErrorResponse {
   message: string;
 }
 
-export type ResolveResponse =
-  | ResolveSuccessResponse
-  | ResolveDisambiguationResponse
-  | ResolveErrorResponse;
+export type ResolveResponse = ResolveSuccessResponse | ResolveDisambiguationResponse | ResolveErrorResponse;

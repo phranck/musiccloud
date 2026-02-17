@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { audiomackAdapter } from "../services/adapters/audiomack";
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("Audiomack: detectUrl", () => {
   it("should extract artist/track slug from URL", () => {
@@ -30,20 +32,20 @@ describe("Audiomack: isAvailable", () => {
 describe("Audiomack: searchTrack", () => {
   it("should find track with search API", async () => {
     const mockResponse = {
-      results: [{
-        id: 12345,
-        title: "Gods Plan",
-        artist: "Drake",
-        url_slug: "drake/song/gods-plan",
-        image: "https://assets.audiomack.com/test.jpg",
-        duration: 198,
-        url: "https://audiomack.com/drake/song/gods-plan",
-      }],
+      results: [
+        {
+          id: 12345,
+          title: "Gods Plan",
+          artist: "Drake",
+          url_slug: "drake/song/gods-plan",
+          image: "https://assets.audiomack.com/test.jpg",
+          duration: 198,
+          url: "https://audiomack.com/drake/song/gods-plan",
+        },
+      ],
     };
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockResponse), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(mockResponse), { status: 200 }));
 
     const result = await audiomackAdapter.searchTrack({ title: "Gods Plan", artist: "Drake" });
     expect(result.found).toBe(true);
@@ -53,18 +55,14 @@ describe("Audiomack: searchTrack", () => {
   });
 
   it("should return not found for empty results", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ results: [] }), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ results: [] }), { status: 200 }));
 
     const result = await audiomackAdapter.searchTrack({ title: "Nonexistent", artist: "Nobody" });
     expect(result.found).toBe(false);
   });
 
   it("should return not found on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Error", { status: 500 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     const result = await audiomackAdapter.searchTrack({ title: "Test", artist: "Test" });
     expect(result.found).toBe(false);
@@ -72,7 +70,13 @@ describe("Audiomack: searchTrack", () => {
 });
 
 describe("Audiomack: adapter metadata", () => {
-  it("should have correct id", () => { expect(audiomackAdapter.id).toBe("audiomack"); });
-  it("should have correct displayName", () => { expect(audiomackAdapter.displayName).toBe("Audiomack"); });
-  it("should not support ISRC", () => { expect(audiomackAdapter.capabilities.supportsIsrc).toBe(false); });
+  it("should have correct id", () => {
+    expect(audiomackAdapter.id).toBe("audiomack");
+  });
+  it("should have correct displayName", () => {
+    expect(audiomackAdapter.displayName).toBe("Audiomack");
+  });
+  it("should not support ISRC", () => {
+    expect(audiomackAdapter.capabilities.supportsIsrc).toBe(false);
+  });
 });

@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  normalizeTitle,
-  normalizeArtists,
-  stringSimilarity,
-  isDurationMatch,
   calculateConfidence,
+  isDurationMatch,
+  normalizeArtists,
+  normalizeTitle,
+  stringSimilarity,
 } from "../lib/normalize";
 
 // =============================================================================
@@ -13,21 +13,15 @@ import {
 
 describe("normalizeTitle", () => {
   it("should strip (Official Video) for YouTube", () => {
-    expect(normalizeTitle("Bohemian Rhapsody (Official Video)", "youtube")).toBe(
-      "Bohemian Rhapsody",
-    );
+    expect(normalizeTitle("Bohemian Rhapsody (Official Video)", "youtube")).toBe("Bohemian Rhapsody");
   });
 
   it("should strip [Official Music Video] for YouTube", () => {
-    expect(
-      normalizeTitle("Shape of You [Official Music Video]", "youtube"),
-    ).toBe("Shape of You");
+    expect(normalizeTitle("Shape of You [Official Music Video]", "youtube")).toBe("Shape of You");
   });
 
   it("should strip (Official Audio) for YouTube", () => {
-    expect(normalizeTitle("Blinding Lights (Official Audio)", "youtube")).toBe(
-      "Blinding Lights",
-    );
+    expect(normalizeTitle("Blinding Lights (Official Audio)", "youtube")).toBe("Blinding Lights");
   });
 
   it("should strip (Lyrics Video) for YouTube", () => {
@@ -39,9 +33,7 @@ describe("normalizeTitle", () => {
   });
 
   it("should not strip anything for Spotify", () => {
-    expect(
-      normalizeTitle("Bohemian Rhapsody (Official Video)", "spotify"),
-    ).toBe("Bohemian Rhapsody (Official Video)");
+    expect(normalizeTitle("Bohemian Rhapsody (Official Video)", "spotify")).toBe("Bohemian Rhapsody (Official Video)");
   });
 
   it("should trim whitespace for all services", () => {
@@ -56,10 +48,7 @@ describe("normalizeTitle", () => {
 
 describe("normalizeArtists", () => {
   it("should return trimmed array when given an array", () => {
-    expect(normalizeArtists(["  Drake ", " Rihanna  "])).toEqual([
-      "Drake",
-      "Rihanna",
-    ]);
+    expect(normalizeArtists(["  Drake ", " Rihanna  "])).toEqual(["Drake", "Rihanna"]);
   });
 
   it("should split string on comma", () => {
@@ -71,11 +60,7 @@ describe("normalizeArtists", () => {
   });
 
   it("should handle multiple separators", () => {
-    expect(normalizeArtists("Drake, Rihanna & Future")).toEqual([
-      "Drake",
-      "Rihanna",
-      "Future",
-    ]);
+    expect(normalizeArtists("Drake, Rihanna & Future")).toEqual(["Drake", "Rihanna", "Future"]);
   });
 
   it("should filter out empty strings", () => {

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { soundcloudAdapter, _resetClientIdCache } from "../services/adapters/soundcloud";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { _resetClientIdCache, soundcloudAdapter } from "../services/adapters/soundcloud";
 
 // =============================================================================
 // Mock data
@@ -82,19 +82,27 @@ function mockApiCall(apiResponse: Response) {
 
 describe("SoundCloud: detectUrl", () => {
   it("should extract path from standard URL", () => {
-    expect(soundcloudAdapter.detectUrl("https://soundcloud.com/taylorswift/shake-it-off")).toBe("taylorswift/shake-it-off");
+    expect(soundcloudAdapter.detectUrl("https://soundcloud.com/taylorswift/shake-it-off")).toBe(
+      "taylorswift/shake-it-off",
+    );
   });
 
   it("should extract path from URL with www", () => {
-    expect(soundcloudAdapter.detectUrl("https://www.soundcloud.com/taylorswift/shake-it-off")).toBe("taylorswift/shake-it-off");
+    expect(soundcloudAdapter.detectUrl("https://www.soundcloud.com/taylorswift/shake-it-off")).toBe(
+      "taylorswift/shake-it-off",
+    );
   });
 
   it("should extract path from mobile URL", () => {
-    expect(soundcloudAdapter.detectUrl("https://m.soundcloud.com/taylorswift/shake-it-off")).toBe("taylorswift/shake-it-off");
+    expect(soundcloudAdapter.detectUrl("https://m.soundcloud.com/taylorswift/shake-it-off")).toBe(
+      "taylorswift/shake-it-off",
+    );
   });
 
   it("should strip query parameters", () => {
-    expect(soundcloudAdapter.detectUrl("https://soundcloud.com/taylorswift/shake-it-off?si=abc123&utm_source=test")).toBe("taylorswift/shake-it-off");
+    expect(
+      soundcloudAdapter.detectUrl("https://soundcloud.com/taylorswift/shake-it-off?si=abc123&utm_source=test"),
+    ).toBe("taylorswift/shake-it-off");
   });
 
   it("should return null for playlist/set URL", () => {
@@ -114,7 +122,9 @@ describe("SoundCloud: detectUrl", () => {
   });
 
   it("should handle HTTP URLs", () => {
-    expect(soundcloudAdapter.detectUrl("http://soundcloud.com/taylorswift/shake-it-off")).toBe("taylorswift/shake-it-off");
+    expect(soundcloudAdapter.detectUrl("http://soundcloud.com/taylorswift/shake-it-off")).toBe(
+      "taylorswift/shake-it-off",
+    );
   });
 });
 
@@ -298,7 +308,12 @@ describe("SoundCloud: searchTrack", () => {
     const multiResults = {
       collection: [
         MOCK_SC_TRACK,
-        { ...MOCK_SC_TRACK, title: "Something Else", user: { username: "Other" }, permalink_url: "https://soundcloud.com/other/something" },
+        {
+          ...MOCK_SC_TRACK,
+          title: "Something Else",
+          user: { username: "Other" },
+          permalink_url: "https://soundcloud.com/other/something",
+        },
       ],
     };
     mockApiCall(new Response(JSON.stringify(multiResults), { status: 200 }));
@@ -325,9 +340,7 @@ describe("SoundCloud: searchTrack", () => {
   });
 
   it("should gracefully handle missing client_id", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Error", { status: 500 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     const result = await soundcloudAdapter.searchTrack({
       title: "Test",

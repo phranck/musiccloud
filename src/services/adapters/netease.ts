@@ -1,6 +1,7 @@
-import type { ServiceAdapter, NormalizedTrack, MatchResult, SearchQuery } from "../types.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
+import { calculateConfidence } from "../../lib/normalize.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
 
@@ -35,29 +36,23 @@ interface NetEaseDetailResponse {
 }
 
 async function neteaseFetch(url: string, init?: RequestInit, timeoutMs = 8000): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
+  return fetchWithTimeout(
+    url,
+    {
       ...init,
-      signal: controller.signal,
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Referer": "https://music.163.com/",
+        Referer: "https://music.163.com/",
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
         ...init?.headers,
       },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    timeoutMs,
+  );
 }
 
 function mapSearchSong(song: NetEaseSong): NormalizedTrack {
-  const artists = song.artists
-    ?.map((a) => a.name)
-    .filter(Boolean) ?? ["Unknown Artist"];
+  const artists = song.artists?.map((a) => a.name).filter(Boolean) ?? ["Unknown Artist"];
 
   return {
     sourceService: "netease",
@@ -78,7 +73,7 @@ async function getTrackById(songId: string): Promise<NormalizedTrack | null> {
   if (!response.ok) return null;
 
   try {
-    const data = await response.json() as NetEaseDetailResponse;
+    const data = (await response.json()) as NetEaseDetailResponse;
     const song = data.songs?.[0];
     if (!song) return null;
 
@@ -107,18 +102,15 @@ async function searchSongs(query: string): Promise<NetEaseSong[]> {
     limit: "5",
   });
 
-  const response = await neteaseFetch(
-    "https://music.163.com/api/search/get",
-    {
-      method: "POST",
-      body: params.toString(),
-    },
-  );
+  const response = await neteaseFetch("https://music.163.com/api/search/get", {
+    method: "POST",
+    body: params.toString(),
+  });
 
   if (!response.ok) return [];
 
   try {
-    const data = await response.json() as NetEaseSearchResponse;
+    const data = (await response.json()) as NetEaseSearchResponse;
     return data.result?.songs ?? [];
   } catch {
     return [];
@@ -156,9 +148,7 @@ export const neteaseAdapter: ServiceAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
     try {
       const songs = await searchSongs(q);
@@ -189,7 +179,10 @@ export const neteaseAdapter: ServiceAdapter = {
           );
         }
 
-        log.debug("NetEase", `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`);
+        log.debug(
+          "NetEase",
+          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+        );
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { qqmusicAdapter } from "../services/adapters/qqmusic";
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("QQ Music: detectUrl", () => {
   it("should extract mid from standard URL", () => {
@@ -30,13 +32,15 @@ describe("QQ Music: searchTrack", () => {
         data: {
           body: {
             song: {
-              list: [{
-                mid: "001BLpXF2DyJe2",
-                name: "Take on Me",
-                singer: [{ mid: "s1", name: "a-ha" }],
-                album: { mid: "a1", name: "Hunting High and Low" },
-                interval: 225,
-              }],
+              list: [
+                {
+                  mid: "001BLpXF2DyJe2",
+                  name: "Take on Me",
+                  singer: [{ mid: "s1", name: "a-ha" }],
+                  album: { mid: "a1", name: "Hunting High and Low" },
+                  interval: 225,
+                },
+              ],
             },
           },
         },
@@ -44,9 +48,7 @@ describe("QQ Music: searchTrack", () => {
       },
     };
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockResponse), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(mockResponse), { status: 200 }));
 
     const result = await qqmusicAdapter.searchTrack({ title: "Take on Me", artist: "a-ha" });
     expect(result.found).toBe(true);
@@ -63,18 +65,14 @@ describe("QQ Music: searchTrack", () => {
       },
     };
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockResponse), { status: 200 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(mockResponse), { status: 200 }));
 
     const result = await qqmusicAdapter.searchTrack({ title: "Nonexistent", artist: "Nobody" });
     expect(result.found).toBe(false);
   });
 
   it("should return not found on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Error", { status: 500 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     const result = await qqmusicAdapter.searchTrack({ title: "Test", artist: "Test" });
     expect(result.found).toBe(false);
@@ -82,7 +80,13 @@ describe("QQ Music: searchTrack", () => {
 });
 
 describe("QQ Music: adapter metadata", () => {
-  it("should have correct id", () => { expect(qqmusicAdapter.id).toBe("qqmusic"); });
-  it("should have correct displayName", () => { expect(qqmusicAdapter.displayName).toBe("QQ Music"); });
-  it("should not support ISRC", () => { expect(qqmusicAdapter.capabilities.supportsIsrc).toBe(false); });
+  it("should have correct id", () => {
+    expect(qqmusicAdapter.id).toBe("qqmusic");
+  });
+  it("should have correct displayName", () => {
+    expect(qqmusicAdapter.displayName).toBe("QQ Music");
+  });
+  it("should not support ISRC", () => {
+    expect(qqmusicAdapter.capabilities.supportsIsrc).toBe(false);
+  });
 });

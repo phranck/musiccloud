@@ -1,9 +1,11 @@
-import type { ServiceAdapter, NormalizedTrack, MatchResult, SearchQuery } from "../types.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
+import { calculateConfidence } from "../../lib/normalize.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
-const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // Beatport URLs: beatport.com/track/{slug}/{id}
 const BEATPORT_TRACK_REGEX = /^https?:\/\/(?:www\.)?beatport\.com\/track\/[^/]+\/(\d+)/;
@@ -30,21 +32,17 @@ interface BeatportTrack {
 }
 
 async function beatportFetch(url: string, timeoutMs = 10000): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      signal: controller.signal,
+  return fetchWithTimeout(
+    url,
+    {
       headers: {
         "User-Agent": USER_AGENT,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
       },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    timeoutMs,
+  );
 }
 
 function parseNextData(html: string): Record<string, unknown> | null {
@@ -118,14 +116,10 @@ function extractSearchResultsFromNextData(data: Record<string, unknown>): Beatpo
 }
 
 function mapTrack(track: BeatportTrack): NormalizedTrack {
-  const artists = track.artists
-    ?.map((a) => a.name)
-    .filter(Boolean) ?? ["Unknown Artist"];
+  const artists = track.artists?.map((a) => a.name).filter(Boolean) ?? ["Unknown Artist"];
 
   // Full track name: "Name (Mix Name)"
-  const title = track.mix_name && track.mix_name !== "Original Mix"
-    ? `${track.name} (${track.mix_name})`
-    : track.name;
+  const title = track.mix_name && track.mix_name !== "Original Mix" ? `${track.name} (${track.mix_name})` : track.name;
 
   const artworkUrl = track.image?.uri ?? track.release?.image?.uri;
 
@@ -233,9 +227,7 @@ export const beatportAdapter: ServiceAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
     try {
       const searchUrl = `https://www.beatport.com/search?q=${encodeURIComponent(q)}`;
@@ -281,7 +273,10 @@ export const beatportAdapter: ServiceAdapter = {
           );
         }
 
-        log.debug("Beatport", `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`);
+        log.debug(
+          "Beatport",
+          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+        );
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

@@ -1,7 +1,8 @@
-import type { NormalizedTrack, ServiceAdapter, SearchQuery, MatchResult } from "../types";
+import { fetchWithTimeout } from "../../lib/fetch.js";
+import { log } from "../../lib/logger";
 import { calculateConfidence } from "../../lib/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import { log } from "../../lib/logger";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types";
 
 /**
  * SoundCloud Scrape Adapter
@@ -13,8 +14,7 @@ import { log } from "../../lib/logger";
  * No auth needed - client_id is public and extracted on demand.
  */
 
-const SOUNDCLOUD_TRACK_REGEX =
-  /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([^/]+\/[^/?\s]+)(?:\?.*)?$/;
+const SOUNDCLOUD_TRACK_REGEX = /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([^/]+\/[^/?\s]+)(?:\?.*)?$/;
 
 const SC_API_BASE = "https://api-v2.soundcloud.com";
 
@@ -35,7 +35,9 @@ async function getClientId(): Promise<string | null> {
 
   // Promise coalescing: prevent parallel requests from each fetching independently
   if (clientIdPromise) return clientIdPromise;
-  clientIdPromise = fetchClientId().finally(() => { clientIdPromise = null; });
+  clientIdPromise = fetchClientId().finally(() => {
+    clientIdPromise = null;
+  });
   return clientIdPromise;
 }
 
@@ -68,17 +70,7 @@ async function fetchClientId(): Promise<string | null> {
 // --- Fetch helpers ---
 
 async function scFetch(url: string, timeoutMs = 5000): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      signal: controller.signal,
-      headers: { "User-Agent": USER_AGENT },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  return fetchWithTimeout(url, { headers: { "User-Agent": USER_AGENT } }, timeoutMs);
 }
 
 async function scApiFetch(endpoint: string): Promise<Response> {
@@ -208,7 +200,11 @@ export const soundcloudAdapter = {
         }
       }
     } catch (error) {
-      log.debug("SoundCloud", "API resolve failed, falling back to scraping:", error instanceof Error ? error.message : error);
+      log.debug(
+        "SoundCloud",
+        "API resolve failed, falling back to scraping:",
+        error instanceof Error ? error.message : error,
+      );
     }
 
     // Fallback: scrape the page
@@ -233,14 +229,10 @@ export const soundcloudAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
     try {
-      const response = await scApiFetch(
-        `/search/tracks?q=${encodeURIComponent(q)}&limit=5`,
-      );
+      const response = await scApiFetch(`/search/tracks?q=${encodeURIComponent(q)}&limit=5`);
 
       if (!response.ok) {
         log.debug("SoundCloud", "Search API failed:", response.status);

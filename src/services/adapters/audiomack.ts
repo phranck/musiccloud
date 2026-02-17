@@ -1,9 +1,11 @@
-import type { ServiceAdapter, NormalizedTrack, MatchResult, SearchQuery } from "../types.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
+import { calculateConfidence } from "../../lib/normalize.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
-const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // Audiomack URLs: audiomack.com/{artist}/song/{track-slug}
 const AUDIOMACK_TRACK_REGEX = /^https?:\/\/(?:www\.)?audiomack\.com\/([^/]+)\/song\/([^/?]+)/;
@@ -27,20 +29,16 @@ interface AudiomackSearchResponse {
 }
 
 async function audiomackFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      signal: controller.signal,
+  return fetchWithTimeout(
+    url,
+    {
       headers: {
         "User-Agent": USER_AGENT,
-        "Accept": "application/json",
+        Accept: "application/json",
       },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    timeoutMs,
+  );
 }
 
 function mapSong(song: AudiomackSong): NormalizedTrack {
@@ -71,7 +69,7 @@ async function searchSongs(query: string): Promise<AudiomackSong[]> {
   if (!response.ok) return [];
 
   try {
-    const data = await response.json() as AudiomackSearchResponse;
+    const data = (await response.json()) as AudiomackSearchResponse;
     return data.results ?? [];
   } catch {
     return [];
@@ -147,9 +145,7 @@ export const audiomackAdapter: ServiceAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
     try {
       const songs = await searchSongs(q);
@@ -180,7 +176,10 @@ export const audiomackAdapter: ServiceAdapter = {
           );
         }
 
-        log.debug("Audiomack", `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`);
+        log.debug(
+          "Audiomack",
+          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+        );
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

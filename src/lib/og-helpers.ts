@@ -29,17 +29,14 @@ function truncate(text: string, maxLength: number): string {
 }
 
 export function generateOGMeta(input: OGMetaInput): OGMeta {
-  const { title, artist, album, albumArtUrl, shortId, availablePlatforms, origin = "https://musiccloud.io" } =
-    input;
+  const { title, artist, album, albumArtUrl, shortId, availablePlatforms, origin = "https://musiccloud.io" } = input;
 
   // og:title - "{title} - {artist}" truncated to 60 chars
   const fullTitle = `${title} - ${artist}`;
   const ogTitle = truncate(fullTitle, MAX_TITLE_LENGTH);
 
   // og:description - "Listen on {services}" truncated to 65 chars
-  const serviceNames = availablePlatforms.map(
-    (p) => PLATFORM_CONFIG[p].label,
-  );
+  const serviceNames = availablePlatforms.map((p) => PLATFORM_CONFIG[p].label);
   let ogDescription: string;
   if (serviceNames.length === 0) {
     ogDescription = "Find this song on musiccloud";

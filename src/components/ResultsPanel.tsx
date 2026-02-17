@@ -1,4 +1,5 @@
-import { cn, type Platform, PLATFORM_CONFIG } from "../lib/utils";
+import { compareByDisplayOrder } from "../lib/constants";
+import { cn, PLATFORM_CONFIG, type Platform } from "../lib/utils";
 import { GlassCard } from "./GlassCard";
 import { PlatformButton } from "./PlatformButton";
 import { ShareButton } from "./ShareButton";
@@ -31,12 +32,14 @@ interface ResultsPanelProps {
 }
 
 export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
-  const TOTAL_SERVICES = 3; // Spotify, Apple Music, YouTube
   const foundCount = result.platforms.length;
 
   let platformsInfo: string | null = null;
   if (foundCount === 1) {
-    const serviceName = result.platforms[0].displayName ?? PLATFORM_CONFIG[result.platforms[0].platform]?.label ?? result.platforms[0].platform;
+    const serviceName =
+      result.platforms[0].displayName ??
+      PLATFORM_CONFIG[result.platforms[0].platform]?.label ??
+      result.platforms[0].platform;
     platformsInfo = `Only available on ${serviceName}.`;
   } else if (foundCount === 2) {
     platformsInfo = "Found on 2 platforms.";
@@ -71,45 +74,35 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
 
       {/* Share action */}
       <div className="px-6 pb-5">
-        <ShareButton
-          shareUrl={result.shareUrl}
-          songTitle={result.title}
-          artistName={result.artist}
-        />
+        <ShareButton shareUrl={result.shareUrl} songTitle={result.title} artistName={result.artist} />
       </div>
 
       {/* Platform buttons */}
       {result.platforms.length > 0 && (
         <div className="border-t border-white/[0.06] px-6 pt-5 pb-6">
-          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3">
-            Listen on
-          </p>
+          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3">Listen on</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[...result.platforms].sort((a, b) => (a.displayName ?? a.platform).localeCompare(b.displayName ?? b.platform)).map((p) => (
-              <PlatformButton
-                key={p.platform}
-                platform={p.platform}
-                url={p.url}
-                songTitle={result.title}
-                displayName={p.displayName}
-                matchMethod={p.matchMethod}
-              />
-            ))}
+            {[...result.platforms]
+              .sort((a, b) => compareByDisplayOrder(a.platform, b.platform))
+              .map((p) => (
+                <PlatformButton
+                  key={p.platform}
+                  platform={p.platform}
+                  url={p.url}
+                  songTitle={result.title}
+                  displayName={p.displayName}
+                  matchMethod={p.matchMethod}
+                />
+              ))}
           </div>
-          {platformsInfo && (
-            <p className="text-sm text-text-secondary text-center mt-4">
-              {platformsInfo}
-            </p>
-          )}
+          {platformsInfo && <p className="text-sm text-text-secondary text-center mt-4">{platformsInfo}</p>}
         </div>
       )}
 
       {/* Partial results (no platforms) */}
       {result.platforms.length === 0 && platformsInfo && (
         <div className="px-6 pb-6 pt-2">
-          <p className="text-sm text-text-secondary text-center">
-            {platformsInfo}
-          </p>
+          <p className="text-sm text-text-secondary text-center">{platformsInfo}</p>
         </div>
       )}
     </GlassCard>

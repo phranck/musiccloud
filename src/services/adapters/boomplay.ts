@@ -8,12 +8,14 @@
  * - findByIsrc: Not supported (Boomplay exposes no ISRC data)
  */
 
-import type { ServiceAdapter, NormalizedTrack, MatchResult, SearchQuery } from "../types.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
+import { calculateConfidence } from "../../lib/normalize.js";
+import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
-const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 const BOOMPLAY_SONG_REGEX = /^https?:\/\/(?:www\.)?boomplay\.com\/songs\/(\d+)/;
 
@@ -39,21 +41,17 @@ function parseDuration(iso: string): number | undefined {
 }
 
 async function boomplayFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      signal: controller.signal,
+  return fetchWithTimeout(
+    url,
+    {
       headers: {
         "User-Agent": USER_AGENT,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
       },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    timeoutMs,
+  );
 }
 
 /** Extract JSON-LD MusicRecording from a Boomplay song page */
@@ -84,9 +82,7 @@ async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
 }
 
 function mapJsonLd(data: BoomplayJsonLd, songId: string): NormalizedTrack {
-  const artists = data.byArtist
-    ?.map((a) => a.name)
-    .filter((n): n is string => Boolean(n)) ?? ["Unknown Artist"];
+  const artists = data.byArtist?.map((a) => a.name).filter((n): n is string => Boolean(n)) ?? ["Unknown Artist"];
 
   return {
     sourceService: "boomplay",
@@ -132,9 +128,7 @@ export const boomplayAdapter: ServiceAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist
-      ? query.title
-      : `${query.artist} ${query.title}`;
+    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
 
     try {
       // Step 1: Fetch search page and extract song IDs
@@ -168,9 +162,7 @@ export const boomplayAdapter: ServiceAdapter = {
       log.debug("Boomplay", `Search returned ${songIds.length} IDs for: ${q}`);
 
       // Step 2: Fetch each song page in parallel for JSON-LD metadata
-      const trackResults = await Promise.allSettled(
-        songIds.map((id) => fetchTrackById(id)),
-      );
+      const trackResults = await Promise.allSettled(songIds.map((id) => fetchTrackById(id)));
 
       const isFreeText = query.title === query.artist;
       let bestMatch: NormalizedTrack | null = null;
@@ -192,7 +184,10 @@ export const boomplayAdapter: ServiceAdapter = {
           );
         }
 
-        log.debug("Boomplay", `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`);
+        log.debug(
+          "Boomplay",
+          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+        );
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

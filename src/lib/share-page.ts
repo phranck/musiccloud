@@ -39,13 +39,25 @@ export async function loadByTrackId(trackId: string, origin?: string): Promise<S
 }
 
 function enrichWithOGMeta(
-  data: { track: { title: string; albumName: string | null; artworkUrl: string | null; durationMs: number | null; isrc: string | null; releaseDate: string | null; isExplicit: boolean | null }; artists: string[]; artistDisplay: string; shortId: string; links: { service: string; url: string }[] },
+  data: {
+    track: {
+      title: string;
+      albumName: string | null;
+      artworkUrl: string | null;
+      durationMs: number | null;
+      isrc: string | null;
+      releaseDate: string | null;
+      isExplicit: boolean | null;
+    };
+    artists: string[];
+    artistDisplay: string;
+    shortId: string;
+    links: { service: string; url: string }[];
+  },
   shortId: string,
   origin?: string,
 ): SharePageData {
-  const availablePlatforms: Platform[] = data.links
-    .map((l) => l.service)
-    .filter(isValidPlatform);
+  const availablePlatforms: Platform[] = data.links.map((l) => l.service).filter(isValidPlatform);
 
   const og = generateOGMeta({
     title: data.track.title,

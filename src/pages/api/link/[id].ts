@@ -16,20 +16,20 @@ export const GET: APIRoute = async ({ params, clientAddress }) => {
   const { id } = params;
 
   if (!id) {
-    return new Response(
-      JSON.stringify({ error: "INVALID_URL", message: "Track ID is required." }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "INVALID_URL", message: "Track ID is required." }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const repo = await getRepository();
   const data = await repo.loadByTrackId(id);
 
   if (!data) {
-    return new Response(
-      JSON.stringify({ error: "TRACK_NOT_FOUND", message: "Track not found." }),
-      { status: 404, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "TRACK_NOT_FOUND", message: "Track not found." }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   return new Response(
