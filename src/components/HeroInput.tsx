@@ -35,6 +35,16 @@ export function HeroInput({
   const ambilightRef = useRef<HTMLDivElement>(null);
   const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const prevState = useRef(state);
+
+  // Clear input value when transitioning away from results/error (e.g. global ESC)
+  useEffect(() => {
+    if ((prevState.current === "success" || prevState.current === "error") && (state === "idle" || state === "focused")) {
+      setValue("");
+      inputRef.current?.focus();
+    }
+    prevState.current = state;
+  }, [state]);
 
   // Progressive loading messages
   useEffect(() => {

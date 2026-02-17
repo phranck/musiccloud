@@ -85,7 +85,7 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
             Listen on
           </p>
           <div className="grid grid-cols-2 gap-3">
-            {result.platforms.map((p) => (
+            {[...result.platforms].sort((a, b) => (a.displayName ?? a.platform).localeCompare(b.displayName ?? b.platform)).map((p) => (
               <PlatformButton
                 key={p.platform}
                 platform={p.platform}

@@ -42,6 +42,27 @@ const ALLOWED_HOSTS = [
   // Boomplay
   "boomplay.com",
   "www.boomplay.com",
+  // KKBOX
+  "kkbox.com",
+  "www.kkbox.com",
+  // Audiomack
+  "audiomack.com",
+  "www.audiomack.com",
+  // NetEase Cloud Music
+  "music.163.com",
+  // QQ Music
+  "y.qq.com",
+  // Melon
+  "melon.com",
+  "www.melon.com",
+  // Bugs!
+  "music.bugs.co.kr",
+  // JioSaavn
+  "jiosaavn.com",
+  "www.jiosaavn.com",
+  // Beatport
+  "beatport.com",
+  "www.beatport.com",
 ];
 
 // Patterns for unsupported content types (specific error messages)
@@ -93,7 +114,9 @@ export function validateMusicUrl(input: string): UrlValidationResult {
   }
 
   // Check allowed hosts (SSRF prevention)
-  if (!ALLOWED_HOSTS.includes(url.hostname)) {
+  // Bandcamp uses subdomains: {artist}.bandcamp.com
+  const isBandcamp = url.hostname.endsWith(".bandcamp.com") || url.hostname === "bandcamp.com";
+  if (!isBandcamp && !ALLOWED_HOSTS.includes(url.hostname)) {
     return {
       valid: false,
       code: "UNSUPPORTED_SERVICE",

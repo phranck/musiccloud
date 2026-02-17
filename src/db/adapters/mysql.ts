@@ -321,6 +321,30 @@ export class MysqlAdapter implements TrackRepository {
     });
   }
 
+  async addLinksToTrack(trackId: string, links: Array<{
+    service: string; url: string; confidence: number; matchMethod: string; externalId?: string;
+  }>): Promise<void> {
+    if (links.length === 0) return;
+
+    const now = Date.now();
+    await this.db.transaction(async (tx) => {
+      for (const link of links) {
+        await tx.insert(schema.serviceLinks).values({
+          id: generateTrackId(),
+          trackId,
+          service: link.service,
+          externalId: link.externalId ?? null,
+          url: link.url,
+          confidence: link.confidence,
+          matchMethod: link.matchMethod,
+          createdAt: now,
+        }).onDuplicateKeyUpdate({ set: { id: sql`id` } });
+      }
+
+      await tx.update(schema.tracks).set({ updatedAt: now }).where(eq(schema.tracks.id, trackId));
+    });
+  }
+
   async cleanupStaleCache(ttlMs: number = 7 * 24 * 60 * 60 * 1000): Promise<number> {
     const cutoff = Date.now() - ttlMs;
 

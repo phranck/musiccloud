@@ -68,6 +68,9 @@ export interface TrackRepository {
 
   // Write operations (transaction-safe)
   persistTrackWithLinks(data: PersistTrackData): Promise<{ trackId: string; shortId: string }>;
+  addLinksToTrack(trackId: string, links: Array<{
+    service: string; url: string; confidence: number; matchMethod: string; externalId?: string;
+  }>): Promise<void>;
 
   // Maintenance
   updateTrackTimestamp(trackId: string): Promise<void>;

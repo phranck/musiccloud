@@ -276,6 +276,18 @@ export function LandingPage() {
     dispatch({ type: "CLEAR" });
   }, []);
 
+  // Global ESC key: clear results and input from anywhere on the page
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showCompact) {
+        e.preventDefault();
+        handleClear();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [showCompact, handleClear]);
+
   const handleAlbumArtLoad = useCallback((img: HTMLImageElement) => {
     try {
       const canvas = document.createElement("canvas");

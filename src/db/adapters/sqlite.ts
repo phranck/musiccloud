@@ -371,6 +371,31 @@ export class SqliteAdapter implements TrackRepository {
     })();
   }
 
+  async addLinksToTrack(trackId: string, links: Array<{
+    service: string; url: string; confidence: number; matchMethod: string; externalId?: string;
+  }>): Promise<void> {
+    if (links.length === 0) return;
+
+    const now = Date.now();
+    this.sqlite.transaction(() => {
+      for (const link of links) {
+        this.db.insert(schema.serviceLinks).values({
+          id: generateTrackId(),
+          trackId,
+          service: link.service,
+          externalId: link.externalId ?? null,
+          url: link.url,
+          confidence: link.confidence,
+          matchMethod: link.matchMethod,
+          createdAt: now,
+        }).onConflictDoNothing().run();
+      }
+
+      // Update track timestamp so cache TTL reflects the gap-fill
+      this.sqlite.prepare("UPDATE tracks SET updated_at = ? WHERE id = ?").run(now, trackId);
+    })();
+  }
+
   async cleanupStaleCache(ttlMs: number = 7 * 24 * 60 * 60 * 1000): Promise<number> {
     const cutoff = Date.now() - ttlMs;
     const result = this.sqlite.prepare(`

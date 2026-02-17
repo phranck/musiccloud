@@ -17,7 +17,7 @@ export function BrandName() {
         backgroundClip: "text",
       }}
     >
-      <span>music</span>
+      <span style={{ WebkitTextStroke: "1px rgba(255,255,255,0.3)" }}>music</span>
       <span style={{ WebkitTextStroke: "1px rgba(255,255,255,0.3)" }}>cloud</span>
     </span>
   );

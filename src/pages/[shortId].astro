@@ -95,7 +95,7 @@ const metaLine = metaItems.join(" \u00B7 ");
 
       {/* Platform Buttons */}
       <div class="w-full max-w-sm space-y-3">
-        {links.map((link) => {
+        {[...links].sort((a, b) => (PLATFORM_CONFIG[a.service as Platform]?.label ?? a.service).localeCompare(PLATFORM_CONFIG[b.service as Platform]?.label ?? b.service)).map((link) => {
           if (!isValidPlatform(link.service)) return null;
           const platform = link.service;
           const config = PLATFORM_CONFIG[platform];

@@ -24,6 +24,7 @@ export interface ResolvedLink {
 export interface ResolutionResult {
   sourceTrack: NormalizedTrack;
   links: ResolvedLink[];
+  trackId?: string;  // present when loaded from cache
 }
 
 export interface TextSearchResult {
@@ -57,11 +58,32 @@ const ODESLI_KNOWN_SERVICES: ServiceId[] = [
  * NOTE: Odesli is currently disabled. This function returns early until re-enabled.
  */
 async function gapFillViaOdesli(
-  _sourceUrl: string,
+  sourceUrl: string,
   existingLinks: ResolvedLink[],
 ): Promise<ResolvedLink[]> {
-  // Odesli is disabled - return links unchanged to avoid unnecessary HTTP requests
-  return existingLinks;
+  // Only use Odesli for Apple Music (no own adapter due to 99 EUR/year Apple Developer Program)
+  if (existingLinks.some((l) => l.service === "apple-music")) return existingLinks;
+
+  try {
+    const odesliResult = await resolveViaOdesli(sourceUrl);
+    const appleLink = odesliResult.links["apple-music"];
+    if (!appleLink) return existingLinks;
+
+    return [
+      ...existingLinks,
+      {
+        service: "apple-music" as ServiceId,
+        displayName: PLATFORM_CONFIG["apple-music"].label,
+        url: appleLink.url,
+        confidence: 0.9,
+        matchMethod: "odesli" as const,
+        externalId: appleLink.entityUniqueId,
+      },
+    ];
+  } catch (error) {
+    log.debug("Resolver", `Odesli gap-fill failed: ${error instanceof Error ? error.message : error}`);
+    return existingLinks;
+  }
 }
 
 /**
@@ -84,11 +106,61 @@ async function tryCache(lookup: { url?: string; isrc?: string }): Promise<Resolu
     const links = mapCachedLinks(cached.links);
     log.debug("Resolver", `Cache hit: ${links.length} links, age=${Math.round(age / 60000)}min`);
 
-    return { sourceTrack: cached.track, links };
+    return { sourceTrack: cached.track, links, trackId: cached.trackId };
   } catch (error) {
     log.error("Resolver", `Cache read failed: ${error instanceof Error ? error.message : error}`);
     return null;
   }
+}
+
+async function fillMissingServices(
+  cached: ResolutionResult,
+): Promise<ResolutionResult> {
+  const coveredServices = new Set(cached.links.map((l) => l.service));
+
+  const missingAdapters = adapters.filter(
+    (a) => a.isAvailable() && !coveredServices.has(a.id)
+      && a.id !== cached.sourceTrack.sourceService,
+  );
+
+  if (missingAdapters.length === 0) return cached;
+
+  log.debug("Resolver", `Gap-filling ${missingAdapters.length} new services for cached track`);
+
+  const results = await Promise.allSettled(
+    missingAdapters.map((a) => resolveOnService(a, cached.sourceTrack)),
+  );
+
+  const newLinks: ResolvedLink[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    if (result.status === "fulfilled" && result.value) {
+      newLinks.push(result.value);
+    }
+  }
+
+  if (newLinks.length === 0) return cached;
+
+  // Persist new links to DB
+  if (cached.trackId) {
+    try {
+      const repo = await getRepository();
+      await repo.addLinksToTrack(cached.trackId, newLinks.map((l) => ({
+        service: l.service,
+        url: l.url,
+        confidence: l.confidence,
+        matchMethod: l.matchMethod,
+        externalId: l.externalId,
+      })));
+    } catch (error) {
+      log.error("Resolver", `Failed to persist gap-fill links: ${error instanceof Error ? error.message : error}`);
+    }
+  }
+
+  const allLinks = [...cached.links, ...newLinks]
+    .sort((a, b) => b.confidence - a.confidence);
+
+  return { sourceTrack: cached.sourceTrack, links: allLinks, trackId: cached.trackId };
 }
 
 /**
@@ -138,7 +210,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
 
   // 1. Cache lookup by URL
   const cached = await tryCache({ url: cleanUrl });
-  if (cached) return cached;
+  if (cached) return fillMissingServices(cached);
 
   // 2. Identify which service the URL belongs to
   const sourceAdapter = identifyService(cleanUrl);
@@ -166,7 +238,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   // 3b. Cache lookup by ISRC (in case same track was resolved via different URL)
   if (sourceTrack.isrc) {
     const cachedByIsrc = await tryCache({ isrc: sourceTrack.isrc });
-    if (cachedByIsrc) return cachedByIsrc;
+    if (cachedByIsrc) return fillMissingServices(cachedByIsrc);
   }
 
   // 4. Resolve on all other services in parallel
@@ -202,7 +274,7 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
         // Cache lookup by ISRC before full cross-service resolve
         if (result.track.isrc) {
           const cached = await tryCache({ isrc: result.track.isrc });
-          if (cached) return cached;
+          if (cached) return fillMissingServices(cached);
         }
 
         let links = await resolveAcrossServices(result.track, adapter);

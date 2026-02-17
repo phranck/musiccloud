@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { PLATFORM_CONFIG, type Platform } from "../lib/utils";
-import { SiSpotify, SiApplemusic, SiYoutube, SiYoutubemusic, SiSoundcloud, SiTidal, SiNapster, SiPandora } from "react-icons/si";
-import { FaDeezer, FaMusic, FaHeadphones, FaGlobe } from "react-icons/fa6";
+import { SiApplemusic, SiYoutube, SiYoutubemusic, SiTidal, SiNapster, SiPandora, SiBandcamp, SiAudiomack, SiBeatport, SiTencentqq } from "react-icons/si";
+import { FaMusic, FaCompactDisc, FaRecordVinyl, FaBug, FaRadio } from "react-icons/fa6";
 
 interface PlatformIconProps {
   platform: Platform;
@@ -14,19 +14,22 @@ export const PlatformIcon = memo(function PlatformIcon({ platform, className = "
 
   switch (platform) {
     case "spotify":
-      return <SiSpotify className={className} color={color} />;
+      return <img src="/icons/spotify.svg" alt="Spotify" className={className} />;
     case "apple-music":
+      if (colored) return <span className={`inline-flex items-center justify-center rounded-lg ${className}`} style={{ backgroundColor: PLATFORM_CONFIG["apple-music"].color }}><SiApplemusic className="w-[60%] h-[60%]" color="#fff" /></span>;
       return <SiApplemusic className={className} color={color} />;
     case "youtube":
+      if (colored) return <span className={`inline-flex items-center justify-center rounded-lg ${className}`} style={{ backgroundColor: PLATFORM_CONFIG.youtube.color }}><SiYoutube className="w-[60%] h-[60%]" color="#fff" /></span>;
       return <SiYoutube className={className} color={color} />;
     case "youtube-music":
+      if (colored) return <span className={`inline-flex items-center justify-center rounded-lg ${className}`} style={{ backgroundColor: PLATFORM_CONFIG["youtube-music"].color }}><SiYoutubemusic className="w-[60%] h-[60%]" color="#fff" /></span>;
       return <SiYoutubemusic className={className} color={color} />;
     case "soundcloud":
-      return <SiSoundcloud className={className} color={color} />;
+      return <img src="/icons/soundcloud.svg" alt="SoundCloud" className={className} />;
     case "tidal":
       return <SiTidal className={className} color={color} />;
     case "deezer":
-      return <FaDeezer className={className} color={color} />;
+      return <img src="/icons/deezer.svg" alt="Deezer" className={className} />;
     case "audius":
       return <FaMusic className={className} color={color} />;
     case "napster":
@@ -34,8 +37,27 @@ export const PlatformIcon = memo(function PlatformIcon({ platform, className = "
     case "pandora":
       return <SiPandora className={className} color={color} />;
     case "qobuz":
-      return <FaHeadphones className={className} color={color} />;
+      if (colored) return <span className={`inline-flex items-center justify-center rounded-lg bg-black ${className}`}><img src="/icons/qobuz.svg" alt="Qobuz" className="w-[80%] h-[80%] object-contain" /></span>;
+      return <img src="/icons/qobuz.svg" alt="Qobuz" className={className} />;
     case "boomplay":
-      return <FaGlobe className={className} color={color} />;
+      return <img src="/icons/boomplay.png" alt="Boomplay" className={`${className} rounded-full`} />;
+    case "kkbox":
+      return <FaCompactDisc className={className} color={color} />;
+    case "bandcamp":
+      return <SiBandcamp className={className} color={color} />;
+    case "audiomack":
+      return <SiAudiomack className={className} color={color} />;
+    case "netease":
+      return <img src="/icons/netease.png" alt="NetEase Cloud Music" className={`${className} rounded-lg`} />;
+    case "qqmusic":
+      return <SiTencentqq className={className} color={color} />;
+    case "melon":
+      return <FaRecordVinyl className={className} color={color} />;
+    case "bugs":
+      return <FaBug className={className} color={color} />;
+    case "jiosaavn":
+      return <FaRadio className={className} color={color} />;
+    case "beatport":
+      return <SiBeatport className={className} color={color} />;
   }
 });
