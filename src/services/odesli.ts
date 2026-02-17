@@ -48,6 +48,8 @@ export async function resolveViaOdesli(url: string): Promise<OdesliResult> {
     soundcloud: "soundcloud",
     tidal: "tidal",
     deezer: "deezer",
+    pandora: "pandora",
+    napster: "napster",
   };
 
   if (data.linksByPlatform) {

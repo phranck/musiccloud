@@ -44,6 +44,86 @@ function mapCachedLinks(links: Array<{ service: string; url: string; confidence:
     }));
 }
 
+/** Services that Odesli can potentially provide links for */
+const ODESLI_KNOWN_SERVICES: ServiceId[] = [
+  "spotify", "apple-music", "youtube", "youtube-music",
+  "soundcloud", "tidal", "deezer", "napster", "pandora",
+];
+
+/**
+ * Fill gaps in resolved links by calling Odesli for uncovered services.
+ * Non-fatal: if Odesli fails, the existing links are returned unchanged.
+ */
+async function gapFillViaOdesli(
+  sourceUrl: string,
+  existingLinks: ResolvedLink[],
+): Promise<ResolvedLink[]> {
+  const coveredServices = new Set(existingLinks.map((l) => l.service));
+  const uncovered = ODESLI_KNOWN_SERVICES.filter((s) => !coveredServices.has(s));
+
+  if (uncovered.length === 0) {
+    log.debug("Resolver", "Gap-fill: all Odesli-known services already covered");
+    return existingLinks;
+  }
+
+  log.debug("Resolver", `Gap-fill: ${uncovered.length} uncovered services: ${uncovered.join(", ")}`);
+
+  try {
+    const odesliResult = await resolveViaOdesli(sourceUrl);
+    const newLinks: ResolvedLink[] = [];
+
+    for (const serviceId of uncovered) {
+      const link = odesliResult.links[serviceId];
+      if (link) {
+        newLinks.push({
+          service: serviceId,
+          displayName: PLATFORM_CONFIG[serviceId].label,
+          url: link.url,
+          confidence: ODESLI_CONFIDENCE,
+          matchMethod: "odesli",
+        });
+        log.debug("Resolver", `  [${serviceId}] filled by Odesli`);
+      }
+    }
+
+    if (newLinks.length > 0) {
+      log.debug("Resolver", `Gap-fill: Odesli added ${newLinks.length} links`);
+    }
+
+    return [...existingLinks, ...newLinks];
+  } catch (error) {
+    log.error("Resolver", `Gap-fill via Odesli failed: ${error instanceof Error ? error.message : error}`);
+    return existingLinks;
+  }
+}
+
+/**
+ * Try to serve a result from DB cache. Returns null on miss, expired TTL, or errors.
+ * Non-fatal: cache errors are logged but never propagate.
+ */
+async function tryCache(lookup: { url?: string; isrc?: string }): Promise<ResolutionResult | null> {
+  try {
+    const repo = await getRepository();
+    let cached = lookup.url ? await repo.findTrackByUrl(lookup.url) : null;
+    if (!cached && lookup.isrc) cached = await repo.findTrackByIsrc(lookup.isrc);
+    if (!cached) return null;
+
+    const age = Date.now() - cached.updatedAt;
+    if (age > CACHE_TTL_MS) {
+      log.debug("Resolver", `Cache expired: age=${Math.round(age / 3600000)}h`);
+      return null;
+    }
+
+    const links = mapCachedLinks(cached.links);
+    log.debug("Resolver", `Cache hit: ${links.length} links, age=${Math.round(age / 60000)}min`);
+
+    return { sourceTrack: cached.track, links };
+  } catch (error) {
+    log.error("Resolver", `Cache read failed: ${error instanceof Error ? error.message : error}`);
+    return null;
+  }
+}
+
 /**
  * Confidence scoring constants (unified strategy).
  *
@@ -89,10 +169,11 @@ export async function resolveQuery(input: string): Promise<ResolutionResult> {
 export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   const cleanUrl = stripTrackingParams(inputUrl);
 
-  // Cache disabled - always resolve fresh
-  // TODO: Re-enable with proper cache invalidation strategy
+  // 1. Cache lookup by URL
+  const cached = await tryCache({ url: cleanUrl });
+  if (cached) return cached;
 
-  // 1. Identify which service the URL belongs to
+  // 2. Identify which service the URL belongs to
   const sourceAdapter = identifyService(cleanUrl);
   if (!sourceAdapter) {
     throw new ResolveError("NOT_MUSIC_LINK", "Unrecognized music service URL");
@@ -103,7 +184,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     throw new ResolveError("INVALID_URL", "Could not extract track ID from URL");
   }
 
-  // 2. Fetch metadata
+  // 3. Fetch metadata
   let sourceTrack: NormalizedTrack;
   try {
     sourceTrack = await sourceAdapter.getTrack(trackId);
@@ -114,25 +195,32 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     throw error;
   }
 
-  // 3. Resolve on all other services in parallel
-  const links = await resolveAcrossServices(sourceTrack, sourceAdapter);
+  // 3b. Cache lookup by ISRC (in case same track was resolved via different URL)
+  if (sourceTrack.isrc) {
+    const cachedByIsrc = await tryCache({ isrc: sourceTrack.isrc });
+    if (cachedByIsrc) return cachedByIsrc;
+  }
 
-  // 4. Add the source service link
+  // 4. Resolve on all other services in parallel
+  let links = await resolveAcrossServices(sourceTrack, sourceAdapter);
+
+  // 5. Add the source service link
   links.unshift({
     service: sourceAdapter.id,
     displayName: sourceAdapter.displayName,
     url: sourceTrack.webUrl,
     confidence: 1.0,
     matchMethod: "isrc",
+    externalId: sourceTrack.sourceId,
   });
+
+  // 6. Gap-fill via Odesli for uncovered services
+  links = await gapFillViaOdesli(sourceTrack.webUrl, links);
 
   return { sourceTrack, links };
 }
 
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
-  // Cache disabled - always resolve fresh
-  // TODO: Re-enable with proper cache invalidation strategy
-
   // Service search: try all available adapters
   const searchAdapters = adapters.filter((a) => a.isAvailable());
   for (const adapter of searchAdapters) {
@@ -143,14 +231,25 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
       });
 
       if (result.found && result.track) {
-        const links = await resolveAcrossServices(result.track, adapter);
+        // Cache lookup by ISRC before full cross-service resolve
+        if (result.track.isrc) {
+          const cached = await tryCache({ isrc: result.track.isrc });
+          if (cached) return cached;
+        }
+
+        let links = await resolveAcrossServices(result.track, adapter);
         links.unshift({
           service: adapter.id,
           displayName: adapter.displayName,
           url: result.track.webUrl,
           confidence: result.confidence,
           matchMethod: "search",
+          externalId: result.track.sourceId,
         });
+
+        // Gap-fill via Odesli for uncovered services
+        links = await gapFillViaOdesli(result.track.webUrl, links);
+
         return { sourceTrack: result.track, links };
       }
     } catch {
@@ -171,9 +270,6 @@ export async function resolveTextSearchWithDisambiguation(
 ): Promise<TextSearchResult> {
   log.debug("Resolver", "resolveTextSearchWithDisambiguation called with:", query);
 
-  // Cache disabled - always resolve fresh
-  // TODO: Re-enable with proper cache invalidation strategy
-
   // Service search: try adapters that support searchTrackWithCandidates, then fall back
   const searchAdapters = adapters.filter((a) => a.isAvailable());
 
@@ -192,14 +288,24 @@ export async function resolveTextSearchWithDisambiguation(
 
         // Auto-select when confidence is high enough
         if (topCandidate.confidence >= AUTO_SELECT_THRESHOLD) {
-          const links = await resolveAcrossServices(topCandidate.track, adapter);
+          // Cache lookup by ISRC before full resolve
+          if (topCandidate.track.isrc) {
+            const cached = await tryCache({ isrc: topCandidate.track.isrc });
+            if (cached) return { kind: "resolved", result: cached };
+          }
+
+          let links = await resolveAcrossServices(topCandidate.track, adapter);
           links.unshift({
             service: adapter.id,
             displayName: adapter.displayName,
             url: topCandidate.track.webUrl,
             confidence: topCandidate.confidence,
             matchMethod: "search",
+            externalId: topCandidate.track.sourceId,
           });
+
+          links = await gapFillViaOdesli(topCandidate.track.webUrl, links);
+
           return { kind: "resolved", result: { sourceTrack: topCandidate.track, links } };
         }
 
@@ -227,14 +333,24 @@ export async function resolveTextSearchWithDisambiguation(
       });
 
       if (result.found && result.track) {
-        const links = await resolveAcrossServices(result.track, adapter);
+        // Cache lookup by ISRC before full resolve
+        if (result.track.isrc) {
+          const cached = await tryCache({ isrc: result.track.isrc });
+          if (cached) return { kind: "resolved", result: cached };
+        }
+
+        let links = await resolveAcrossServices(result.track, adapter);
         links.unshift({
           service: adapter.id,
           displayName: adapter.displayName,
           url: result.track.webUrl,
           confidence: result.confidence,
           matchMethod: "search",
+          externalId: result.track.sourceId,
         });
+
+        links = await gapFillViaOdesli(result.track.webUrl, links);
+
         return { kind: "resolved", result: { sourceTrack: result.track, links } };
       }
     } catch {
@@ -261,7 +377,14 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
   }
 
   const sourceTrack = await adapter.getTrack(trackId);
-  const links = await resolveAcrossServices(sourceTrack, adapter);
+
+  // Cache lookup by ISRC before full cross-service resolve
+  if (sourceTrack.isrc) {
+    const cached = await tryCache({ isrc: sourceTrack.isrc });
+    if (cached) return cached;
+  }
+
+  let links = await resolveAcrossServices(sourceTrack, adapter);
 
   links.unshift({
     service: adapter.id,
@@ -269,7 +392,11 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
     url: sourceTrack.webUrl,
     confidence: 1.0,
     matchMethod: "search",
+    externalId: sourceTrack.sourceId,
   });
+
+  // Gap-fill via Odesli for uncovered services
+  links = await gapFillViaOdesli(sourceTrack.webUrl, links);
 
   return { sourceTrack, links };
 }
