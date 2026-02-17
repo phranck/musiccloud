@@ -157,7 +157,8 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     sourceTrack = await sourceAdapter.getTrack(trackId);
   } catch (error) {
     if (!sourceAdapter.isAvailable()) {
-      return resolveUrlViaOdesli(cleanUrl);
+      // Adapter has no credentials - scrape page for metadata and cross-resolve
+      return resolveUrlViaScrape(cleanUrl, sourceAdapter.id);
     }
     throw error;
   }
@@ -487,6 +488,175 @@ async function resolveViaSearch(
     matchMethod: result.matchMethod,
     externalId: result.track.sourceId,
   };
+}
+
+
+/**
+ * Scrape OG meta tags from a music service page to extract title and artist.
+ * Used as fallback when the source adapter has no API credentials.
+ *
+ * Supports formats:
+ *   - English: "Title by Artist on Service"
+ *   - German: "„Title" von Artist bei Service"
+ *   - French: "Title par Artist sur Service"
+ *   - Generic fallback: split on common separators
+ */
+async function scrapeTrackFromPage(
+  url: string,
+): Promise<{ title: string; artist: string; artworkUrl?: string } | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        // Bot UA gets server-rendered OG tags (SPA shells don't include them)
+        "User-Agent": "facebookexternalhit/1.1",
+      },
+      redirect: "follow",
+    });
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+
+    // Extract og:title
+    const ogTitleMatch = /<meta\s+property="og:title"\s+content="([^"]*)"/i.exec(html);
+    if (!ogTitleMatch?.[1]) return null;
+
+    const ogTitle = ogTitleMatch[1]
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&#39;/g, "'")
+      .replace(/\u201E|\u201C|\u201D/g, ""); // Remove „ " " quotes
+
+    // Extract og:image for artwork
+    const ogImageMatch = /<meta\s+property="og:image"\s+content="([^"]*)"/i.exec(html);
+    const artworkUrl = ogImageMatch?.[1] || undefined;
+
+    // Try locale-aware patterns: "Title by Artist on Service", "Title von Artist bei Service"
+    const patterns = [
+      /^(.+?)\s+by\s+(.+?)\s+on\s+.+$/i,      // English
+      /^(.+?)\s+von\s+(.+?)\s+bei\s+.+$/i,     // German
+      /^(.+?)\s+par\s+(.+?)\s+sur\s+.+$/i,     // French
+      /^(.+?)\s+di\s+(.+?)\s+su\s+.+$/i,       // Italian
+      /^(.+?)\s+de\s+(.+?)\s+en\s+.+$/i,       // Spanish
+    ];
+
+    for (const pattern of patterns) {
+      const match = pattern.exec(ogTitle);
+      if (match?.[1] && match?.[2]) {
+        return { title: match[1].trim(), artist: match[2].trim(), artworkUrl };
+      }
+    }
+
+    // Fallback: use og:title as free-text query (strip " on/bei/sur ServiceName")
+    const stripped = ogTitle
+      .replace(/\s+(on|bei|sur|su|en)\s+(Apple Music|Spotify|Deezer|Tidal|YouTube|SoundCloud|Qobuz|Pandora|Napster|Audius).*$/i, "")
+      .trim();
+
+    if (stripped && stripped !== ogTitle) {
+      // "Title - Artist" or "Title by Artist" without service suffix
+      const dashSplit = stripped.split(/\s+[-–—]\s+/);
+      if (dashSplit.length >= 2) {
+        return { title: dashSplit[0].trim(), artist: dashSplit[1].trim(), artworkUrl };
+      }
+    }
+
+    // Last resort: use the cleaned title as both title and artist (free-text search)
+    if (stripped && !stripped.toLowerCase().includes("web player")) {
+      return { title: stripped, artist: stripped, artworkUrl };
+    }
+
+    return null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Fallback resolver for URLs where the source adapter has no API credentials.
+ * Scrapes the page for OG metadata, then does a cross-service text search.
+ */
+async function resolveUrlViaScrape(
+  url: string,
+  sourceServiceId: ServiceId,
+): Promise<ResolutionResult> {
+  const scraped = await scrapeTrackFromPage(url);
+  if (!scraped) {
+    throw new ResolveError("SERVICE_DOWN", `Cannot resolve ${sourceServiceId} URL: adapter not configured and page scrape failed`);
+  }
+
+  log.debug("Resolver", `Scraped from page: "${scraped.title}" by ${scraped.artist}`);
+
+  // Search across all available adapters
+  const searchAdapters = adapters.filter((a) => a.isAvailable());
+  const isFreeText = scraped.title === scraped.artist;
+  const query = { title: scraped.title, artist: scraped.artist };
+
+  let bestSourceTrack: NormalizedTrack | null = null;
+  let bestAdapter: ServiceAdapter | null = null;
+  let bestConfidence = 0;
+
+  for (const adapter of searchAdapters) {
+    try {
+      const result = await adapter.searchTrack(query);
+      if (result.found && result.track && result.confidence > bestConfidence) {
+        bestSourceTrack = result.track;
+        bestAdapter = adapter;
+        bestConfidence = result.confidence;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  if (!bestSourceTrack || !bestAdapter) {
+    throw new ResolveError("TRACK_NOT_FOUND", `Track not found: "${scraped.title}" by ${scraped.artist}`);
+  }
+
+  // ISRC cache check
+  if (bestSourceTrack.isrc) {
+    const cached = await tryCache({ isrc: bestSourceTrack.isrc });
+    if (cached) return cached;
+  }
+
+  // Resolve across all other services
+  let links = await resolveAcrossServices(bestSourceTrack, bestAdapter);
+
+  // Add the source adapter's match
+  links.unshift({
+    service: bestAdapter.id,
+    displayName: bestAdapter.displayName,
+    url: bestSourceTrack.webUrl,
+    confidence: bestConfidence,
+    matchMethod: "search",
+    externalId: bestSourceTrack.sourceId,
+  });
+
+  // Add the original URL as a link for the source service
+  links.unshift({
+    service: sourceServiceId,
+    displayName: PLATFORM_CONFIG[sourceServiceId].label,
+    url,
+    confidence: 0.9,
+    matchMethod: "search",
+  });
+
+  // Gap-fill via Odesli for uncovered services
+  links = await gapFillViaOdesli(bestSourceTrack.webUrl, links);
+
+  // Use scraped artwork if the source track doesn't have one
+  if (!bestSourceTrack.artworkUrl && scraped.artworkUrl) {
+    bestSourceTrack = { ...bestSourceTrack, artworkUrl: scraped.artworkUrl };
+  }
+
+  return { sourceTrack: bestSourceTrack, links };
 }
 
 async function resolveUrlViaOdesli(inputUrl: string): Promise<ResolutionResult> {

@@ -9,8 +9,11 @@ const platforms: Platform[] = [
   "soundcloud",
   "deezer",
   "tidal",
+  "qobuz",
   "audius",
   "napster",
+  "pandora",
+  "boomplay",
 ];
 
 function MarqueeStrip({ label }: { label?: boolean }) {

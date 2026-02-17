@@ -36,6 +36,12 @@ const ALLOWED_HOSTS = [
   // Pandora
   "pandora.com",
   "www.pandora.com",
+  // Qobuz
+  "open.qobuz.com",
+  "play.qobuz.com",
+  // Boomplay
+  "boomplay.com",
+  "www.boomplay.com",
 ];
 
 // Patterns for unsupported content types (specific error messages)

@@ -8,6 +8,8 @@ import { audiusAdapter } from "./adapters/audius.js";
 import { napsterAdapter } from "./adapters/napster.js";
 import { soundcloudAdapter } from "./adapters/soundcloud.js";
 import { pandoraAdapter } from "./adapters/pandora.js";
+import { qobuzAdapter } from "./adapters/qobuz.js";
+import { boomplayAdapter } from "./adapters/boomplay.js";
 
 // All registered adapters. Add new adapters here.
 export const adapters: ServiceAdapter[] = [
@@ -20,6 +22,8 @@ export const adapters: ServiceAdapter[] = [
   napsterAdapter,
   soundcloudAdapter,
   pandoraAdapter,
+  qobuzAdapter,
+  boomplayAdapter,
 ];
 
 export function getAdapters(): ServiceAdapter[] {

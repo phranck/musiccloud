@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // All supported music platforms
-export type Platform = "spotify" | "apple-music" | "youtube" | "youtube-music" | "soundcloud" | "tidal" | "deezer" | "audius" | "napster" | "pandora";
+export type Platform = "spotify" | "apple-music" | "youtube" | "youtube-music" | "soundcloud" | "tidal" | "deezer" | "audius" | "napster" | "pandora" | "qobuz" | "boomplay";
 
 /** Platforms with URL detection support (YouTube Music is derived from YouTube) */
 type DetectablePlatform = Exclude<Platform, "youtube-music">;
@@ -22,6 +22,8 @@ const MUSIC_URL_PATTERNS: Record<DetectablePlatform, RegExp> = {
   audius: /^https?:\/\/audius\.co\/[^/]+\/[^/]+/,
   napster: /^https?:\/\/(www\.|app\.)?napster\.com\/.+/,
   pandora: /^https?:\/\/(?:www\.)?pandora\.com\/artist\/[^/]+\/[^/]+\/[^/]+\/TR[a-zA-Z0-9]+/,
+  qobuz: /^https?:\/\/(?:open|play)\.qobuz\.com\/track\//,
+  boomplay: /^https?:\/\/(?:www\.)?boomplay\.com\/songs\/\d+/,
 };
 
 export function isMusicUrl(url: string): boolean {
@@ -51,6 +53,8 @@ export const PLATFORM_CONFIG: Record<
   audius: { label: "Audius", color: "#7E1BCC" },
   napster: { label: "Napster", color: "#00A8E1" },
   pandora: { label: "Pandora", color: "#3668FF" },
+  qobuz: { label: "Qobuz", color: "#0969D6" },
+  boomplay: { label: "Boomplay", color: "#00D1FF" },
 };
 
 /** Runtime validation for Platform values from external/DB data */

@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { PLATFORM_CONFIG, type Platform } from "../lib/utils";
 import { SiSpotify, SiApplemusic, SiYoutube, SiYoutubemusic, SiSoundcloud, SiTidal, SiNapster, SiPandora } from "react-icons/si";
-import { FaDeezer, FaMusic } from "react-icons/fa6";
+import { FaDeezer, FaMusic, FaHeadphones, FaGlobe } from "react-icons/fa6";
 
 interface PlatformIconProps {
   platform: Platform;
@@ -33,5 +33,9 @@ export const PlatformIcon = memo(function PlatformIcon({ platform, className = "
       return <SiNapster className={className} color={color} />;
     case "pandora":
       return <SiPandora className={className} color={color} />;
+    case "qobuz":
+      return <FaHeadphones className={className} color={color} />;
+    case "boomplay":
+      return <FaGlobe className={className} color={color} />;
   }
 });

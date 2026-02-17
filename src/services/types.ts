@@ -1,9 +1,9 @@
-export type ServiceId = "spotify" | "apple-music" | "youtube" | "youtube-music" | "soundcloud" | "tidal" | "deezer" | "audius" | "napster" | "pandora";
+export type ServiceId = "spotify" | "apple-music" | "youtube" | "youtube-music" | "soundcloud" | "tidal" | "deezer" | "audius" | "napster" | "pandora" | "qobuz" | "boomplay";
 
 /** ServiceId plus "cached" for tracks loaded from the database cache */
 export type TrackSource = ServiceId | "cached";
 
-const VALID_SERVICE_IDS: readonly ServiceId[] = ["spotify", "apple-music", "youtube", "youtube-music", "soundcloud", "tidal", "deezer", "audius", "napster", "pandora"];
+const VALID_SERVICE_IDS: readonly ServiceId[] = ["spotify", "apple-music", "youtube", "youtube-music", "soundcloud", "tidal", "deezer", "audius", "napster", "pandora", "qobuz", "boomplay"];
 
 export function isValidServiceId(value: unknown): value is ServiceId {
   return typeof value === "string" && VALID_SERVICE_IDS.includes(value as ServiceId);
