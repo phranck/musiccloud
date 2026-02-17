@@ -17,6 +17,8 @@ export interface ResolvedLink {
   matchMethod: "isrc" | "search" | "odesli" | "cache";
   /** True when the link is a search URL rather than a direct track link */
   isSearchFallback?: boolean;
+  /** Service-specific track ID (e.g. Spotify track ID, Deezer track ID) */
+  externalId?: string;
 }
 
 export interface ResolutionResult {
@@ -312,6 +314,7 @@ async function resolveAcrossServices(
         url: `https://music.youtube.com/watch?v=${videoIdMatch[1]}`,
         confidence: youtubeLink.confidence,
         matchMethod: youtubeLink.matchMethod,
+        externalId: youtubeLink.externalId,
       });
     }
   }
@@ -361,6 +364,7 @@ async function resolveOnService(
         url: track.webUrl,
         confidence: 1.0,
         matchMethod: "isrc",
+        externalId: track.sourceId,
       };
     }
   }
@@ -387,6 +391,7 @@ async function resolveViaSearch(
     url: result.track.webUrl,
     confidence: result.confidence,
     matchMethod: result.matchMethod,
+    externalId: result.track.sourceId,
   };
 }
 

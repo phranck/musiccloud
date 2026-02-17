@@ -16,6 +16,10 @@ interface TrackRow {
   artwork_url: string | null;
   duration_ms: number | null;
   release_date: string | null;
+  is_explicit: number | null;
+  preview_url: string | null;
+  source_service: string | null;
+  source_url: string | null;
 }
 
 interface TrackWithLinkRow extends TrackRow {
@@ -64,6 +68,10 @@ export class SqliteAdapter implements TrackRepository {
           artwork_url TEXT,
           duration_ms INTEGER,
           release_date TEXT,
+          is_explicit INTEGER,
+          preview_url TEXT,
+          source_service TEXT,
+          source_url TEXT,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         );
@@ -94,7 +102,9 @@ export class SqliteAdapter implements TrackRepository {
   async findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
     const stmt = this.sqlite.prepare(`
       SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
-             t.artwork_url, t.duration_ms, t.release_date, t.created_at, t.updated_at,
+             t.artwork_url, t.duration_ms, t.release_date,
+             t.is_explicit, t.preview_url, t.source_service, t.source_url,
+             t.created_at, t.updated_at,
              sl.url, sl.service, sl.confidence, sl.match_method
       FROM tracks t
       LEFT JOIN service_links sl ON t.id = sl.track_id
@@ -110,7 +120,9 @@ export class SqliteAdapter implements TrackRepository {
   async findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
     const stmt = this.sqlite.prepare(`
       SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
-             t.artwork_url, t.duration_ms, t.release_date, t.created_at, t.updated_at,
+             t.artwork_url, t.duration_ms, t.release_date,
+             t.is_explicit, t.preview_url, t.source_service, t.source_url,
+             t.created_at, t.updated_at,
              sl.url, sl.service, sl.confidence, sl.match_method
       FROM tracks t
       LEFT JOIN service_links sl ON t.id = sl.track_id
@@ -129,7 +141,8 @@ export class SqliteAdapter implements TrackRepository {
 
       const stmt = this.sqlite.prepare(`
         SELECT t.id, t.title, t.artists, t.album_name, t.isrc,
-               t.artwork_url, t.duration_ms
+               t.artwork_url, t.duration_ms, t.release_date,
+               t.is_explicit, t.preview_url, t.source_service, t.source_url
         FROM tracks_fts fts
         JOIN tracks t ON t.id = fts.rowid
         WHERE tracks_fts MATCH ?
@@ -223,15 +236,30 @@ export class SqliteAdapter implements TrackRepository {
         : null;
 
       if (existing) {
-        // Update timestamp to mark this track as freshly resolved
-        this.sqlite.prepare(`UPDATE tracks SET updated_at = ? WHERE id = ?`).run(now, existing.trackId);
+        // Update timestamp + fill null metadata fields with new data
+        this.sqlite.prepare(`
+          UPDATE tracks SET
+            updated_at = ?,
+            is_explicit = COALESCE(is_explicit, ?),
+            preview_url = COALESCE(preview_url, ?),
+            source_service = COALESCE(source_service, ?),
+            source_url = COALESCE(source_url, ?)
+          WHERE id = ?
+        `).run(
+          now,
+          data.sourceTrack.isExplicit != null ? (data.sourceTrack.isExplicit ? 1 : 0) : null,
+          data.sourceTrack.previewUrl ?? null,
+          data.sourceTrack.sourceService ?? null,
+          data.sourceTrack.sourceUrl ?? null,
+          existing.trackId,
+        );
 
         for (const link of data.links) {
           this.db.insert(schema.serviceLinks).values({
             id: generateTrackId(),
             trackId: existing.trackId,
             service: link.service,
-            externalId: null,
+            externalId: link.externalId ?? null,
             url: link.url,
             confidence: link.confidence,
             matchMethod: link.matchMethod,
@@ -253,6 +281,10 @@ export class SqliteAdapter implements TrackRepository {
         artworkUrl: data.sourceTrack.artworkUrl ?? null,
         durationMs: data.sourceTrack.durationMs ? Math.floor(data.sourceTrack.durationMs) : null,
         releaseDate: data.sourceTrack.releaseDate ?? null,
+        isExplicit: data.sourceTrack.isExplicit != null ? (data.sourceTrack.isExplicit ? 1 : 0) : null,
+        previewUrl: data.sourceTrack.previewUrl ?? null,
+        sourceService: data.sourceTrack.sourceService ?? null,
+        sourceUrl: data.sourceTrack.sourceUrl ?? null,
         createdAt: now,
         updatedAt: now,
       }).run();
@@ -262,7 +294,7 @@ export class SqliteAdapter implements TrackRepository {
           id: generateTrackId(),
           trackId: newTrackId,
           service: link.service,
-          externalId: null,
+          externalId: link.externalId ?? null,
           url: link.url,
           confidence: link.confidence,
           matchMethod: link.matchMethod,
@@ -336,7 +368,9 @@ export class SqliteAdapter implements TrackRepository {
       artworkUrl: r.artwork_url ?? undefined,
       durationMs: r.duration_ms ?? undefined,
       releaseDate: r.release_date ?? undefined,
-      webUrl,
+      isExplicit: r.is_explicit != null ? Boolean(r.is_explicit) : undefined,
+      previewUrl: r.preview_url ?? undefined,
+      webUrl: r.source_url ?? webUrl,
     };
   }
 

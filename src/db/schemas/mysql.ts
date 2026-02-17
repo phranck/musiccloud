@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, text, int, float, bigint, uniqueIndex, index } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, text, int, float, bigint, boolean, uniqueIndex, index } from "drizzle-orm/mysql-core";
 
 export const tracks = mysqlTable("tracks", {
   id: varchar("id", { length: 36 }).primaryKey(),
@@ -9,6 +9,10 @@ export const tracks = mysqlTable("tracks", {
   artworkUrl: text("artwork_url"),
   durationMs: int("duration_ms"),
   releaseDate: varchar("release_date", { length: 10 }),
+  isExplicit: boolean("is_explicit"),
+  previewUrl: text("preview_url"),
+  sourceService: varchar("source_service", { length: 50 }),
+  sourceUrl: text("source_url"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 }, (table) => [

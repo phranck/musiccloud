@@ -9,6 +9,10 @@ export const tracks = sqliteTable("tracks", {
   artworkUrl: text("artwork_url"),
   durationMs: integer("duration_ms"),
   releaseDate: text("release_date"),
+  isExplicit: integer("is_explicit"),
+  previewUrl: text("preview_url"),
+  sourceService: text("source_service"),
+  sourceUrl: text("source_url"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 }, (table) => [

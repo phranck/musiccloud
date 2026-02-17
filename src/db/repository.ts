@@ -39,12 +39,17 @@ export interface PersistTrackData {
     artworkUrl?: string;
     durationMs?: number;
     releaseDate?: string;
+    isExplicit?: boolean;
+    previewUrl?: string;
+    sourceService?: string;
+    sourceUrl?: string;
   };
   links: Array<{
     service: string;
     url: string;
     confidence: number;
     matchMethod: string;
+    externalId?: string;
   }>;
 }
 

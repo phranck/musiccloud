@@ -17,6 +17,10 @@ interface TrackRow {
   artwork_url: string | null;
   duration_ms: number | null;
   release_date: string | null;
+  is_explicit: boolean | null;
+  preview_url: string | null;
+  source_service: string | null;
+  source_url: string | null;
 }
 
 interface TrackWithLinkRow extends TrackRow {
@@ -51,7 +55,9 @@ export class MysqlAdapter implements TrackRepository {
   async findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
     const [rows] = await this.pool.query<mysql.RowDataPacket[]>(`
       SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
-             t.artwork_url, t.duration_ms, t.release_date, t.created_at, t.updated_at,
+             t.artwork_url, t.duration_ms, t.release_date,
+             t.is_explicit, t.preview_url, t.source_service, t.source_url,
+             t.created_at, t.updated_at,
              sl.url, sl.service, sl.confidence, sl.match_method
       FROM tracks t
       LEFT JOIN service_links sl ON t.id = sl.track_id
@@ -66,7 +72,9 @@ export class MysqlAdapter implements TrackRepository {
   async findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
     const [rows] = await this.pool.query<mysql.RowDataPacket[]>(`
       SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,
-             t.artwork_url, t.duration_ms, t.release_date, t.created_at, t.updated_at,
+             t.artwork_url, t.duration_ms, t.release_date,
+             t.is_explicit, t.preview_url, t.source_service, t.source_url,
+             t.created_at, t.updated_at,
              sl.url, sl.service, sl.confidence, sl.match_method
       FROM tracks t
       LEFT JOIN service_links sl ON t.id = sl.track_id
@@ -82,7 +90,8 @@ export class MysqlAdapter implements TrackRepository {
     try {
       const [rows] = await this.pool.query<mysql.RowDataPacket[]>(`
         SELECT t.id, t.title, t.artists, t.album_name, t.isrc,
-               t.artwork_url, t.duration_ms
+               t.artwork_url, t.duration_ms, t.release_date,
+               t.is_explicit, t.preview_url, t.source_service, t.source_url
         FROM tracks t
         WHERE MATCH(t.title, t.artists) AGAINST(? IN BOOLEAN MODE)
         ORDER BY MATCH(t.title, t.artists) AGAINST(? IN BOOLEAN MODE) DESC
@@ -178,15 +187,21 @@ export class MysqlAdapter implements TrackRepository {
         if (existingRows.length > 0) {
           const existing = existingRows[0];
 
-          // Update timestamp to mark this track as freshly resolved
-          await tx.update(schema.tracks).set({ updatedAt: now }).where(eq(schema.tracks.id, existing.trackId));
+          // Update timestamp + fill null metadata fields with new data
+          await tx.update(schema.tracks).set({
+            updatedAt: now,
+            ...(data.sourceTrack.isExplicit != null && { isExplicit: data.sourceTrack.isExplicit }),
+            ...(data.sourceTrack.previewUrl != null && { previewUrl: data.sourceTrack.previewUrl }),
+            ...(data.sourceTrack.sourceService != null && { sourceService: data.sourceTrack.sourceService }),
+            ...(data.sourceTrack.sourceUrl != null && { sourceUrl: data.sourceTrack.sourceUrl }),
+          }).where(eq(schema.tracks.id, existing.trackId));
 
           for (const link of data.links) {
             await tx.insert(schema.serviceLinks).values({
               id: generateTrackId(),
               trackId: existing.trackId,
               service: link.service,
-              externalId: null,
+              externalId: link.externalId ?? null,
               url: link.url,
               confidence: link.confidence,
               matchMethod: link.matchMethod,
@@ -210,6 +225,10 @@ export class MysqlAdapter implements TrackRepository {
         artworkUrl: data.sourceTrack.artworkUrl ?? null,
         durationMs: data.sourceTrack.durationMs ? Math.floor(data.sourceTrack.durationMs) : null,
         releaseDate: data.sourceTrack.releaseDate ?? null,
+        isExplicit: data.sourceTrack.isExplicit ?? null,
+        previewUrl: data.sourceTrack.previewUrl ?? null,
+        sourceService: data.sourceTrack.sourceService ?? null,
+        sourceUrl: data.sourceTrack.sourceUrl ?? null,
         createdAt: now,
         updatedAt: now,
       });
@@ -219,7 +238,7 @@ export class MysqlAdapter implements TrackRepository {
           id: generateTrackId(),
           trackId: newTrackId,
           service: link.service,
-          externalId: null,
+          externalId: link.externalId ?? null,
           url: link.url,
           confidence: link.confidence,
           matchMethod: link.matchMethod,
@@ -279,7 +298,9 @@ export class MysqlAdapter implements TrackRepository {
       artworkUrl: r.artwork_url ?? undefined,
       durationMs: r.duration_ms ?? undefined,
       releaseDate: r.release_date ?? undefined,
-      webUrl,
+      isExplicit: r.is_explicit ?? undefined,
+      previewUrl: r.preview_url ?? undefined,
+      webUrl: r.source_url ?? webUrl,
     };
   }
 

@@ -106,12 +106,16 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
   const repo = await getRepository();
 
   const { trackId, shortId } = await repo.persistTrackWithLinks({
-    sourceTrack: result.sourceTrack,
+    sourceTrack: {
+      ...result.sourceTrack,
+      sourceUrl: result.sourceTrack.webUrl,
+    },
     links: result.links.map((l) => ({
       service: l.service,
       url: stripTrackingParams(l.url),
       confidence: l.confidence,
       matchMethod: l.matchMethod,
+      externalId: l.externalId,
     })),
   });
 

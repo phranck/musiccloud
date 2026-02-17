@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, bigint, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, bigint, boolean, uniqueIndex, index } from "drizzle-orm/pg-core";
 
 export const tracks = pgTable("tracks", {
   id: text("id").primaryKey(),
@@ -9,6 +9,10 @@ export const tracks = pgTable("tracks", {
   artworkUrl: text("artwork_url"),
   durationMs: integer("duration_ms"),
   releaseDate: text("release_date"),
+  isExplicit: boolean("is_explicit"),
+  previewUrl: text("preview_url"),
+  sourceService: text("source_service"),
+  sourceUrl: text("source_url"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 }, (table) => [
