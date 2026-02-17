@@ -6,16 +6,20 @@ interface InfoPanelProps {
   onClose: () => void;
 }
 
-type Tab = "about" | "services";
+type Tab = "about" | "services" | "imprint" | "dsgvo";
 
 interface PanelContent {
   about: string;
   services: string;
+  imprint: string;
+  dsgvo: string;
 }
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "about", label: "About" },
   { id: "services", label: "Services" },
+  { id: "imprint", label: "Imprint" },
+  { id: "dsgvo", label: "DSGVO" },
 ];
 
 export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
@@ -25,8 +29,12 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [contentHeight, setContentHeight] = useState(0);
 
-  const aboutRef = useRef<HTMLDivElement>(null);
-  const servicesRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Record<Tab, HTMLDivElement | null>>({
+    about: null,
+    services: null,
+    imprint: null,
+    dsgvo: null,
+  });
 
   // Trigger enter animation one frame after mount
   useLayoutEffect(() => {
@@ -48,26 +56,29 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
     Promise.all([
       fetch("/content/about.md").then((r) => r.text()),
       fetch("/content/services.md").then((r) => r.text()),
+      fetch("/content/imprint.md").then((r) => r.text()),
+      fetch("/content/dsgvo.md").then((r) => r.text()),
     ])
-      .then(async ([aboutMd, servicesMd]) => {
+      .then(async ([aboutMd, servicesMd, imprintMd, dsgvoMd]) => {
         const { marked } = await import("marked");
         setContent({
           about: await marked(aboutMd),
           services: await marked(servicesMd),
+          imprint: await marked(imprintMd),
+          dsgvo: await marked(dsgvoMd),
         });
       })
       .catch(() => {
-        setContent({ about: "<p>Content unavailable.</p>", services: "<p>Content unavailable.</p>" });
+        const err = "<p>Content unavailable.</p>";
+        setContent({ about: err, services: err, imprint: err, dsgvo: err });
       })
       .finally(() => setIsLoading(false));
   }, [isOpen, content]);
 
   // Measure active tab height for smooth height animation
   useLayoutEffect(() => {
-    const ref = activeTab === "about" ? aboutRef : servicesRef;
-    if (ref.current) {
-      setContentHeight(ref.current.scrollHeight);
-    }
+    const ref = tabRefs.current[activeTab];
+    if (ref) setContentHeight(ref.scrollHeight);
   }, [activeTab, content]);
 
   // ESC key — capture phase so it fires before page-level handlers
@@ -171,39 +182,24 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
             </div>
           )}
 
-          {/* About tab panel */}
-          <div
-            ref={aboutRef}
-            id="panel-about"
-            role="tabpanel"
-            aria-labelledby="tab-about"
-            className={`overflow-y-auto px-6 py-5 max-h-[calc(60vh-72px)]
-              ${activeTab === "about" ? "" : "absolute inset-0 opacity-0 pointer-events-none"}`}
-          >
-            {content && (
-              <div
-                className={mdClasses}
-                dangerouslySetInnerHTML={{ __html: content.about }}
-              />
-            )}
-          </div>
-
-          {/* Services tab panel */}
-          <div
-            ref={servicesRef}
-            id="panel-services"
-            role="tabpanel"
-            aria-labelledby="tab-services"
-            className={`overflow-y-auto px-6 py-5 max-h-[calc(60vh-72px)]
-              ${activeTab === "services" ? "" : "absolute inset-0 opacity-0 pointer-events-none"}`}
-          >
-            {content && (
-              <div
-                className={mdClasses}
-                dangerouslySetInnerHTML={{ __html: content.services }}
-              />
-            )}
-          </div>
+          {TABS.map(({ id }) => (
+            <div
+              key={id}
+              ref={(el) => { tabRefs.current[id] = el; }}
+              id={`panel-${id}`}
+              role="tabpanel"
+              aria-labelledby={`tab-${id}`}
+              className={`overflow-y-auto px-6 py-5 max-h-[calc(60vh-72px)]
+                ${activeTab === id ? "" : "absolute inset-0 opacity-0 pointer-events-none"}`}
+            >
+              {content && (
+                <div
+                  className={mdClasses}
+                  dangerouslySetInnerHTML={{ __html: content[id] }}
+                />
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </>
