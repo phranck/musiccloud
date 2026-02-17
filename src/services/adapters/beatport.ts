@@ -96,8 +96,12 @@ function extractSearchResultsFromNextData(data: Record<string, unknown>): Beatpo
 
       // Search results
       if (stateData && "tracks" in stateData) {
-        const tracks = stateData.tracks as BeatportTrack[] | undefined;
-        return tracks ?? [];
+        const tracks = stateData.tracks;
+        if (Array.isArray(tracks)) return tracks as BeatportTrack[];
+        // Beatport sometimes returns { count, data: [...] } instead of a direct array
+        const nested = (tracks as Record<string, unknown>)?.data;
+        if (Array.isArray(nested)) return nested as BeatportTrack[];
+        return [];
       }
 
       // Alternative: results array
@@ -210,20 +214,24 @@ export const beatportAdapter: ServiceAdapter = {
   },
 
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
-    // Search for ISRC via the search page
-    const searchUrl = `https://www.beatport.com/search?q=${encodeURIComponent(isrc)}`;
-    const response = await beatportFetch(searchUrl);
-    if (!response.ok) return null;
+    try {
+      const searchUrl = `https://www.beatport.com/search?q=${encodeURIComponent(isrc)}`;
+      const response = await beatportFetch(searchUrl);
+      if (!response.ok) return null;
 
-    const html = await response.text();
-    const nextData = parseNextData(html);
-    if (!nextData) return null;
+      const html = await response.text();
+      const nextData = parseNextData(html);
+      if (!nextData) return null;
 
-    const tracks = extractSearchResultsFromNextData(nextData);
-    const match = tracks.find((t) => t.isrc === isrc);
-    if (!match) return null;
+      const tracks = extractSearchResultsFromNextData(nextData);
+      const match = tracks.find((t) => t.isrc === isrc);
+      if (!match) return null;
 
-    return mapTrack(match);
+      return mapTrack(match);
+    } catch (error) {
+      log.debug("Beatport", "findByIsrc failed:", error instanceof Error ? error.message : error);
+      return null;
+    }
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {

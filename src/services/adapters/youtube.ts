@@ -71,7 +71,7 @@ function parseArtistFromTitle(title: string): { artist: string; trackTitle: stri
 }
 
 async function youtubeFetch(endpoint: string): Promise<Response> {
-  const apiKey = import.meta.env.YOUTUBE_API_KEY;
+  const apiKey = process.env.YOUTUBE_API_KEY || import.meta.env.YOUTUBE_API_KEY;
   if (!apiKey) {
     throw new Error("YOUTUBE_API_KEY must be set");
   }
@@ -107,7 +107,7 @@ export const youtubeAdapter: ServiceAdapter = {
   capabilities,
 
   isAvailable(): boolean {
-    return Boolean(import.meta.env.YOUTUBE_API_KEY);
+    return Boolean(process.env.YOUTUBE_API_KEY || import.meta.env.YOUTUBE_API_KEY);
   },
 
   detectUrl(url: string): string | null {
