@@ -95,6 +95,63 @@ export class SqliteAdapter implements TrackRepository {
           track_id TEXT NOT NULL REFERENCES tracks(id),
           created_at INTEGER NOT NULL
         );
+
+        -- FTS5 virtual table for text search (standalone, manually synced)
+        CREATE VIRTUAL TABLE tracks_fts USING fts5(
+          track_id UNINDEXED,
+          title,
+          artists
+        );
+
+        -- Triggers to keep FTS5 in sync with tracks table
+        CREATE TRIGGER tracks_fts_insert AFTER INSERT ON tracks BEGIN
+          INSERT INTO tracks_fts(track_id, title, artists)
+          VALUES (NEW.id, NEW.title, NEW.artists);
+        END;
+
+        CREATE TRIGGER tracks_fts_update AFTER UPDATE ON tracks BEGIN
+          DELETE FROM tracks_fts WHERE track_id = OLD.id;
+          INSERT INTO tracks_fts(track_id, title, artists)
+          VALUES (NEW.id, NEW.title, NEW.artists);
+        END;
+
+        CREATE TRIGGER tracks_fts_delete AFTER DELETE ON tracks BEGIN
+          DELETE FROM tracks_fts WHERE track_id = OLD.id;
+        END;
+      `);
+    }
+
+    // Ensure FTS5 table exists even if tracks table was created before this fix
+    const ftsExists = this.sqlite.prepare(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='tracks_fts'`
+    ).get();
+
+    if (!ftsExists) {
+      this.sqlite.exec(`
+        CREATE VIRTUAL TABLE tracks_fts USING fts5(
+          track_id UNINDEXED,
+          title,
+          artists
+        );
+
+        CREATE TRIGGER IF NOT EXISTS tracks_fts_insert AFTER INSERT ON tracks BEGIN
+          INSERT INTO tracks_fts(track_id, title, artists)
+          VALUES (NEW.id, NEW.title, NEW.artists);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS tracks_fts_update AFTER UPDATE ON tracks BEGIN
+          DELETE FROM tracks_fts WHERE track_id = OLD.id;
+          INSERT INTO tracks_fts(track_id, title, artists)
+          VALUES (NEW.id, NEW.title, NEW.artists);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS tracks_fts_delete AFTER DELETE ON tracks BEGIN
+          DELETE FROM tracks_fts WHERE track_id = OLD.id;
+        END;
+
+        -- Backfill existing tracks into FTS
+        INSERT INTO tracks_fts(track_id, title, artists)
+        SELECT id, title, artists FROM tracks;
       `);
     }
   }
@@ -144,7 +201,7 @@ export class SqliteAdapter implements TrackRepository {
                t.artwork_url, t.duration_ms, t.release_date,
                t.is_explicit, t.preview_url, t.source_service, t.source_url
         FROM tracks_fts fts
-        JOIN tracks t ON t.id = fts.rowid
+        JOIN tracks t ON t.id = fts.track_id
         WHERE tracks_fts MATCH ?
         ORDER BY rank
         LIMIT ?

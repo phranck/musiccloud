@@ -98,24 +98,18 @@ export function SharePage({ data }: SharePageProps) {
                 "px-5 py-4 rounded-xl",
                 "bg-surface-elevated/80",
                 "border border-white/[0.08]",
-                "transition-all duration-100",
-                "hover:scale-[1.02] hover:shadow-lg",
+                "transition-all duration-150",
+                "hover:scale-[1.02] hover:shadow-[0_0_24px_var(--platform-glow)] hover:border-[var(--platform-border)]",
+                "focus-visible:scale-[1.02] focus-visible:shadow-[0_0_24px_var(--platform-glow)] focus-visible:border-[var(--platform-border)] focus-visible:outline-none",
                 "active:scale-[0.98]",
                 "min-h-[56px]",
               )}
               style={
                 {
-                  "--platform-color": config.color,
+                  "--platform-glow": `${config.color}40`,
+                  "--platform-border": `${config.color}60`,
                 } as React.CSSProperties
               }
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = `0 0 24px ${config.color}40`;
-                e.currentTarget.style.borderColor = `${config.color}60`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = "";
-                e.currentTarget.style.borderColor = "";
-              }}
               aria-label={`Open ${data.title} on ${config.label} (opens in new window)`}
             >
               <div
@@ -154,6 +148,7 @@ export function SharePage({ data }: SharePageProps) {
           href="/"
           className={cn(
             "text-sm text-text-muted hover:text-text-secondary",
+            "focus-visible:text-text-secondary focus-visible:outline-none",
             "transition-colors duration-200",
           )}
         >

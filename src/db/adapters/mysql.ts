@@ -32,6 +32,11 @@ interface TrackWithLinkRow extends TrackRow {
   match_method: string | null;
 }
 
+/** Escape MySQL fulltext boolean mode operators to prevent unexpected query behavior */
+function escapeMysqlBoolean(query: string): string {
+  return query.replace(/[+\-*<>()~@"]/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function safeParseArray(json: string, fallback: string[] = []): string[] {
   try { return JSON.parse(json); }
   catch { return fallback; }
@@ -88,6 +93,9 @@ export class MysqlAdapter implements TrackRepository {
 
   async findTracksByTextSearch(query: string, maxResults: number = 10): Promise<NormalizedTrack[]> {
     try {
+      const escaped = escapeMysqlBoolean(query);
+      if (!escaped) return [];
+
       const [rows] = await this.pool.query<mysql.RowDataPacket[]>(`
         SELECT t.id, t.title, t.artists, t.album_name, t.isrc,
                t.artwork_url, t.duration_ms, t.release_date,
@@ -96,7 +104,7 @@ export class MysqlAdapter implements TrackRepository {
         WHERE MATCH(t.title, t.artists) AGAINST(? IN BOOLEAN MODE)
         ORDER BY MATCH(t.title, t.artists) AGAINST(? IN BOOLEAN MODE) DESC
         LIMIT ?
-      `, [query, query, maxResults]);
+      `, [escaped, escaped, maxResults]);
 
       log.debug("DB", "MySQL FTS returned", rows.length, "rows");
 
@@ -187,13 +195,13 @@ export class MysqlAdapter implements TrackRepository {
         if (existingRows.length > 0) {
           const existing = existingRows[0];
 
-          // Update timestamp + fill null metadata fields with new data
+          // Update timestamp + fill null metadata fields with new data (COALESCE = fill only if null)
           await tx.update(schema.tracks).set({
             updatedAt: now,
-            ...(data.sourceTrack.isExplicit != null && { isExplicit: data.sourceTrack.isExplicit }),
-            ...(data.sourceTrack.previewUrl != null && { previewUrl: data.sourceTrack.previewUrl }),
-            ...(data.sourceTrack.sourceService != null && { sourceService: data.sourceTrack.sourceService }),
-            ...(data.sourceTrack.sourceUrl != null && { sourceUrl: data.sourceTrack.sourceUrl }),
+            isExplicit: sql`COALESCE(${schema.tracks.isExplicit}, ${data.sourceTrack.isExplicit ?? null})`,
+            previewUrl: sql`COALESCE(${schema.tracks.previewUrl}, ${data.sourceTrack.previewUrl ?? null})`,
+            sourceService: sql`COALESCE(${schema.tracks.sourceService}, ${data.sourceTrack.sourceService ?? null})`,
+            sourceUrl: sql`COALESCE(${schema.tracks.sourceUrl}, ${data.sourceTrack.sourceUrl ?? null})`,
           }).where(eq(schema.tracks.id, existing.trackId));
 
           for (const link of data.links) {

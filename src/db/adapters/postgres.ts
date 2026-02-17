@@ -180,13 +180,13 @@ export class PostgresAdapter implements TrackRepository {
         if (existingRows.length > 0) {
           const existing = existingRows[0];
 
-          // Update timestamp + fill null metadata fields with new data
+          // Update timestamp + fill null metadata fields with new data (COALESCE = fill only if null)
           await tx.update(schema.tracks).set({
             updatedAt: now,
-            ...(data.sourceTrack.isExplicit != null && { isExplicit: data.sourceTrack.isExplicit }),
-            ...(data.sourceTrack.previewUrl != null && { previewUrl: data.sourceTrack.previewUrl }),
-            ...(data.sourceTrack.sourceService != null && { sourceService: data.sourceTrack.sourceService }),
-            ...(data.sourceTrack.sourceUrl != null && { sourceUrl: data.sourceTrack.sourceUrl }),
+            isExplicit: sql`COALESCE(${schema.tracks.isExplicit}, ${data.sourceTrack.isExplicit ?? null})`,
+            previewUrl: sql`COALESCE(${schema.tracks.previewUrl}, ${data.sourceTrack.previewUrl ?? null})`,
+            sourceService: sql`COALESCE(${schema.tracks.sourceService}, ${data.sourceTrack.sourceService ?? null})`,
+            sourceUrl: sql`COALESCE(${schema.tracks.sourceUrl}, ${data.sourceTrack.sourceUrl ?? null})`,
           }).where(eq(schema.tracks.id, existing.trackId));
 
           for (const link of data.links) {

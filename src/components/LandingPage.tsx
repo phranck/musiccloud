@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import type { Platform } from "../lib/utils";
+import { isValidPlatform, type Platform } from "../lib/utils";
 import { DisambiguationPanel, type DisambiguationCandidate } from "./DisambiguationPanel";
 import { GradientBackground } from "./GradientBackground";
 import { HeroInput, type InputState } from "./HeroInput";
@@ -121,8 +121,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
 }
 
 function parseResolveResponse(data: Record<string, unknown>): { result: SongResult; highlightedPlatforms: Platform[] } {
-  const platforms: SongResult["platforms"] = ((data.links as Array<Record<string, unknown>>) ?? [])
-    .filter((link) => link.url)
+  const rawLinks = (data.links as Array<Record<string, unknown>>) ?? [];
+  const platforms: SongResult["platforms"] = rawLinks
+    .filter((link) => link.url && isValidPlatform(link.service))
     .map((link) => ({
       platform: link.service as Platform,
       url: link.url as string,
@@ -131,14 +132,15 @@ function parseResolveResponse(data: Record<string, unknown>): { result: SongResu
     }));
 
   const track = data.track as Record<string, unknown>;
+  const artists = Array.isArray(track.artists) ? track.artists : [];
   const result: SongResult = {
-    title: track.title as string,
-    artist: (track.artists as string[]).join(", "),
-    album: track.albumName as string | undefined,
-    releaseDate: track.releaseDate as string | undefined,
-    durationMs: track.durationMs as number | undefined,
-    isrc: track.isrc as string | undefined,
-    albumArtUrl: (track.artworkUrl as string) || "",
+    title: typeof track.title === "string" ? track.title : "",
+    artist: artists.join(", "),
+    album: typeof track.albumName === "string" ? track.albumName : undefined,
+    releaseDate: typeof track.releaseDate === "string" ? track.releaseDate : undefined,
+    durationMs: typeof track.durationMs === "number" ? track.durationMs : undefined,
+    isrc: typeof track.isrc === "string" ? track.isrc : undefined,
+    albumArtUrl: typeof track.artworkUrl === "string" ? track.artworkUrl : "",
     platforms,
     shareUrl: data.shortUrl as string,
   };

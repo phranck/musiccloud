@@ -8,7 +8,7 @@
 export const prerender = false;
 
 import { loadByTrackId } from "../../lib/share-page";
-import { PLATFORM_CONFIG, type Platform } from "../../lib/utils";
+import { PLATFORM_CONFIG, isValidPlatform, type Platform } from "../../lib/utils";
 import "../../styles/global.css";
 
 const { id } = Astro.params;
@@ -86,9 +86,10 @@ const { track, artists, artistDisplay, links, og } = data;
 
       <div class="space-y-3">
         {links.map((link) => {
-          const platform = link.service as Platform;
+          if (!isValidPlatform(link.service)) return null;
+          const platform = link.service;
           const config = PLATFORM_CONFIG[platform];
-          const label = config?.label ?? link.service;
+          const label = config.label;
           return (
             <a
               href={link.url}

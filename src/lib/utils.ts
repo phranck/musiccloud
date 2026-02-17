@@ -52,3 +52,8 @@ export const PLATFORM_CONFIG: Record<
   napster: { label: "Napster", color: "#00A8E1" },
   pandora: { label: "Pandora", color: "#3668FF" },
 };
+
+/** Runtime validation for Platform values from external/DB data */
+export function isValidPlatform(value: unknown): value is Platform {
+  return typeof value === "string" && value in PLATFORM_CONFIG;
+}

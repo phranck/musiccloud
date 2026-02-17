@@ -1,17 +1,41 @@
+import type { ErrorCode } from "./errors.js";
+
 export type UrlValidationResult =
   | { valid: true }
-  | { valid: false; code: string; message: string };
+  | { valid: false; code: ErrorCode; message: string };
 
 const ALLOWED_HOSTS = [
+  // Spotify
   "open.spotify.com",
   "play.spotify.com",
+  // Apple Music
   "music.apple.com",
+  // YouTube / YouTube Music
   "youtube.com",
   "www.youtube.com",
   "music.youtube.com",
   "youtu.be",
+  // SoundCloud
   "soundcloud.com",
   "www.soundcloud.com",
+  "m.soundcloud.com",
+  // Tidal
+  "tidal.com",
+  "listen.tidal.com",
+  // Deezer
+  "deezer.com",
+  "www.deezer.com",
+  // Audius
+  "audius.co",
+  // Napster
+  "napster.com",
+  "play.napster.com",
+  "web.napster.com",
+  "app.napster.com",
+  "www.napster.com",
+  // Pandora
+  "pandora.com",
+  "www.pandora.com",
 ];
 
 // Patterns for unsupported content types (specific error messages)
@@ -68,7 +92,7 @@ export function validateMusicUrl(input: string): UrlValidationResult {
       valid: false,
       code: "UNSUPPORTED_SERVICE",
       message:
-        "This platform isn't supported yet. Try a link from Spotify, Apple Music, or YouTube.",
+        "This platform isn't supported yet. Try a link from Spotify, YouTube, Tidal, Deezer, SoundCloud, or another supported service.",
     };
   }
 

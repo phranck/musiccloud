@@ -1,6 +1,6 @@
 import { getRepository } from "../db/index.js";
 import { generateOGMeta, type OGMeta } from "./og-helpers.js";
-import { PLATFORM_CONFIG, type Platform } from "./utils.js";
+import { isValidPlatform, type Platform } from "./utils.js";
 
 export interface SharePageData {
   track: {
@@ -43,8 +43,8 @@ function enrichWithOGMeta(
   origin?: string,
 ): SharePageData {
   const availablePlatforms: Platform[] = data.links
-    .map((l) => l.service as Platform)
-    .filter((s) => s in PLATFORM_CONFIG);
+    .map((l) => l.service)
+    .filter(isValidPlatform);
 
   const og = generateOGMeta({
     title: data.track.title,

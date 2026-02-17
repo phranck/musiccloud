@@ -156,7 +156,7 @@ export async function resolveQuery(input: string): Promise<ResolutionResult> {
     const validation = validateMusicUrl(trimmed);
     if (!validation.valid) {
       throw new ResolveError(
-        validation.code as ErrorCode,
+        validation.code,
         validation.message,
       );
     }

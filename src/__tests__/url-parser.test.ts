@@ -71,12 +71,9 @@ describe("validateMusicUrl", () => {
   });
 
   describe("unsupported hosts", () => {
-    it("should reject Tidal URL", () => {
+    it("should accept Tidal URL", () => {
       const result = validateMusicUrl("https://tidal.com/track/12345");
-      expect(result.valid).toBe(false);
-      if (!result.valid) {
-        expect(result.code).toBe("UNSUPPORTED_SERVICE");
-      }
+      expect(result.valid).toBe(true);
     });
 
     it("should reject random URL", () => {
