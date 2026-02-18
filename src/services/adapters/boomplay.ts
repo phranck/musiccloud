@@ -10,14 +10,35 @@
 
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
+import type {
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 const BOOMPLAY_SONG_REGEX = /^https?:\/\/(?:www\.)?boomplay\.com\/songs\/(\d+)/;
+// Boomplay album URLs: boomplay.com/albums/{id}
+const BOOMPLAY_ALBUM_REGEX = /^https?:\/\/(?:www\.)?boomplay\.com\/albums\/(\d+)/;
+
+/** JSON-LD MusicAlbum schema as embedded in Boomplay album pages */
+interface BoomplayAlbumJsonLd {
+  "@type"?: string;
+  name?: string;
+  url?: string;
+  image?: string;
+  datePublished?: string;
+  byArtist?: Array<{ name?: string }>;
+  numTracks?: number;
+}
 
 /** JSON-LD MusicRecording schema as embedded in Boomplay song pages */
 interface BoomplayJsonLd {
@@ -94,6 +115,62 @@ function mapJsonLd(data: BoomplayJsonLd, songId: string): NormalizedTrack {
     artworkUrl: data.image,
     webUrl: `https://www.boomplay.com/songs/${songId}`,
   };
+}
+
+/** Extract JSON-LD MusicAlbum from a Boomplay album page */
+function parseAlbumJsonLd(html: string): BoomplayAlbumJsonLd | null {
+  const match = /application\/ld\+json">\s*(\{[\s\S]*?\})\s*<\/script>/i.exec(html);
+  if (!match?.[1]) return null;
+  try {
+    const data = JSON.parse(match[1]) as BoomplayAlbumJsonLd;
+    if (data["@type"] !== "MusicAlbum" || !data.name) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
+  const url = `https://www.boomplay.com/albums/${albumId}`;
+  const response = await boomplayFetch(url);
+  if (!response.ok) return null;
+
+  const html = await response.text();
+  const jsonLd = parseAlbumJsonLd(html);
+  if (!jsonLd) return null;
+
+  const artists = jsonLd.byArtist?.map((a) => a.name).filter((n): n is string => Boolean(n)) ?? ["Unknown Artist"];
+  return {
+    sourceService: "boomplay",
+    sourceId: albumId,
+    title: jsonLd.name!,
+    artists,
+    artworkUrl: jsonLd.image,
+    releaseDate: jsonLd.datePublished,
+    totalTracks: jsonLd.numTracks,
+    webUrl: `https://www.boomplay.com/albums/${albumId}`,
+  };
+}
+
+async function searchBoomplayAlbumIds(query: string): Promise<string[]> {
+  const searchUrl = `https://www.boomplay.com/search/default/${encodeURIComponent(query)}`;
+  const response = await boomplayFetch(searchUrl);
+  if (!response.ok) return [];
+
+  const html = await response.text();
+
+  // Extract album IDs from /albums/{id} links in the search page
+  const albumIds: string[] = [];
+  const seen = new Set<string>();
+  const idMatches = html.matchAll(/\/albums\/(\d+)/g);
+  for (const m of idMatches) {
+    if (m[1] && !seen.has(m[1])) {
+      seen.add(m[1]);
+      albumIds.push(m[1]);
+    }
+    if (albumIds.length >= 5) break;
+  }
+  return albumIds;
 }
 
 export const boomplayAdapter: ServiceAdapter = {
@@ -208,6 +285,62 @@ export const boomplayAdapter: ServiceAdapter = {
       };
     } catch (error) {
       log.debug("Boomplay", "Search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+
+  albumCapabilities: {
+    supportsUpc: false,
+    supportsAlbumSearch: true,
+    supportsTrackListing: false,
+  },
+
+  detectAlbumUrl(url: string): string | null {
+    const match = BOOMPLAY_ALBUM_REGEX.exec(url);
+    return match?.[1] ?? null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const album = await fetchAlbumById(albumId);
+    if (!album) throw new Error(`Boomplay: Album not found: ${albumId}`);
+    return album;
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+    try {
+      const albumIds = await searchBoomplayAlbumIds(q);
+      if (albumIds.length === 0) {
+        log.debug("Boomplay", "Album search returned no IDs for:", q);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      log.debug("Boomplay", `Album search returned ${albumIds.length} IDs for: ${q}`);
+
+      const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
+      let bestMatch: NormalizedAlbum | null = null;
+      let bestConfidence = 0;
+
+      for (const result of albumResults) {
+        if (result.status !== "fulfilled" || !result.value) continue;
+        const album = result.value;
+        const confidence = calculateAlbumConfidence(
+          { title: query.title, artists: [query.artist], releaseDate: query.year },
+          { title: album.title, artists: album.artists, releaseDate: album.releaseDate },
+        );
+        log.debug("Boomplay", `  "${album.title}" -> confidence=${confidence.toFixed(3)}`);
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = album;
+        }
+      }
+
+      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("Boomplay", "Album search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

@@ -7,7 +7,7 @@
  */
 export const prerender = false;
 
-import Footer from "../../components/Footer.astro";
+import { AppFooter } from "../../components/AppFooter";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { loadByTrackId } from "../../lib/share-page";
 import { isValidPlatform, PLATFORM_CONFIG, type Platform } from "../../lib/utils";
@@ -105,5 +105,5 @@ const { track, artists, artistDisplay, links, og } = data;
     </div>
 
   </main>
-  <Footer />
+  <AppFooter />
 </BaseLayout>

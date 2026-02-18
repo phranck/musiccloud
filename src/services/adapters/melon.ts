@@ -1,7 +1,15 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
+import type {
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
 const USER_AGENT =
@@ -9,6 +17,18 @@ const USER_AGENT =
 
 // Melon URLs: melon.com/song/detail.htm?songId={id}
 const MELON_TRACK_REGEX = /^https?:\/\/(?:www\.)?melon\.com\/song\/detail\.htm\?songId=(\d+)/;
+// Melon album URLs: melon.com/album/detail.htm?albumId={id}
+const MELON_ALBUM_REGEX = /^https?:\/\/(?:www\.)?melon\.com\/album\/detail\.htm\?albumId=(\d+)/;
+
+interface MelonAlbumJsonLd {
+  "@type"?: string;
+  name?: string;
+  url?: string;
+  image?: string;
+  datePublished?: string;
+  byArtist?: { name?: string } | Array<{ name?: string }>;
+  numTracks?: number;
+}
 
 interface MelonJsonLd {
   "@type"?: string;
@@ -137,6 +157,86 @@ async function searchForSongIds(query: string): Promise<string[]> {
   return songIds;
 }
 
+function parseMelonAlbumJsonLd(html: string): MelonAlbumJsonLd | null {
+  const match = /application\/ld\+json">\s*(\{[\s\S]*?\})\s*<\/script>/i.exec(html);
+  if (!match?.[1]) return null;
+  try {
+    const data = JSON.parse(match[1]) as MelonAlbumJsonLd;
+    if (data["@type"] !== "MusicAlbum" || !data.name) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
+  const url = `https://www.melon.com/album/detail.htm?albumId=${albumId}`;
+  const response = await melonFetch(url);
+  if (!response.ok) return null;
+
+  const html = await response.text();
+
+  // Try JSON-LD first
+  const jsonLd = parseMelonAlbumJsonLd(html);
+  if (jsonLd) {
+    const artistData = jsonLd.byArtist;
+    const artists: string[] = [];
+    if (Array.isArray(artistData)) {
+      for (const a of artistData) {
+        if (a.name) artists.push(a.name);
+      }
+    } else if (artistData?.name) {
+      artists.push(artistData.name);
+    }
+    if (artists.length === 0) artists.push("Unknown Artist");
+
+    return {
+      sourceService: "melon",
+      sourceId: albumId,
+      title: jsonLd.name!,
+      artists,
+      artworkUrl: jsonLd.image,
+      releaseDate: jsonLd.datePublished,
+      totalTracks: jsonLd.numTracks,
+      webUrl: `https://www.melon.com/album/detail.htm?albumId=${albumId}`,
+    };
+  }
+
+  // Fallback to OG tags
+  const og = extractOgTags(html);
+  if (og.title) {
+    return {
+      sourceService: "melon",
+      sourceId: albumId,
+      title: og.title,
+      artists: ["Unknown Artist"],
+      artworkUrl: og.image,
+      webUrl: `https://www.melon.com/album/detail.htm?albumId=${albumId}`,
+    };
+  }
+
+  return null;
+}
+
+async function searchMelonAlbumIds(query: string): Promise<string[]> {
+  const searchUrl = `https://www.melon.com/search/album/index.htm?q=${encodeURIComponent(query)}`;
+  const response = await melonFetch(searchUrl);
+  if (!response.ok) return [];
+
+  const html = await response.text();
+  const albumIds: string[] = [];
+  const seen = new Set<string>();
+  const idMatches = html.matchAll(/albumId=(\d+)/g);
+  for (const m of idMatches) {
+    if (m[1] && !seen.has(m[1])) {
+      seen.add(m[1]);
+      albumIds.push(m[1]);
+    }
+    if (albumIds.length >= 5) break;
+  }
+  return albumIds;
+}
+
 export const melonAdapter: ServiceAdapter = {
   id: "melon",
   displayName: "Melon",
@@ -226,6 +326,62 @@ export const melonAdapter: ServiceAdapter = {
       };
     } catch (error) {
       log.debug("Melon", "Search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+
+  albumCapabilities: {
+    supportsUpc: false,
+    supportsAlbumSearch: true,
+    supportsTrackListing: false,
+  },
+
+  detectAlbumUrl(url: string): string | null {
+    const match = MELON_ALBUM_REGEX.exec(url);
+    return match?.[1] ?? null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const album = await fetchAlbumById(albumId);
+    if (!album) throw new Error(`Melon: Album not found: ${albumId}`);
+    return album;
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+    try {
+      const albumIds = await searchMelonAlbumIds(q);
+      if (albumIds.length === 0) {
+        log.debug("Melon", "Album search returned no IDs for:", q);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      log.debug("Melon", `Album search returned ${albumIds.length} IDs for: ${q}`);
+
+      const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
+      let bestMatch: NormalizedAlbum | null = null;
+      let bestConfidence = 0;
+
+      for (const result of albumResults) {
+        if (result.status !== "fulfilled" || !result.value) continue;
+        const album = result.value;
+        const confidence = calculateAlbumConfidence(
+          { title: query.title, artists: [query.artist], releaseDate: query.year },
+          { title: album.title, artists: album.artists, releaseDate: album.releaseDate },
+        );
+        log.debug("Melon", `  "${album.title}" -> confidence=${confidence.toFixed(3)}`);
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = album;
+        }
+      }
+
+      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("Melon", "Album search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

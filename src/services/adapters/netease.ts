@@ -1,12 +1,22 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
+import type {
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
 
 // NetEase Cloud Music URLs: music.163.com/song?id={songId} or music.163.com/#/song?id={songId}
 const NETEASE_TRACK_REGEX = /^https?:\/\/music\.163\.com\/(?:#\/)?song\?id=(\d+)/;
+// NetEase album URLs: music.163.com/album?id={id} or music.163.com/#/album?id={id}
+const NETEASE_ALBUM_REGEX = /^https?:\/\/music\.163\.com\/(?:#\/)?album\?id=(\d+)/;
 
 interface NetEaseSong {
   id: number;
@@ -20,6 +30,32 @@ interface NetEaseSearchResponse {
   result?: {
     songs?: NetEaseSong[];
     songCount?: number;
+  };
+  code?: number;
+}
+
+interface NetEaseAlbum {
+  id: number;
+  name: string;
+  picUrl?: string;
+  artist?: { name: string };
+  artists?: Array<{ id: number; name: string }>;
+  publishTime?: number; // epoch ms
+  company?: string;
+  size?: number; // track count
+  description?: string;
+}
+
+interface NetEaseAlbumDetailResponse {
+  album?: NetEaseAlbum;
+  songs?: Array<{ id: number; name: string; dt?: number; ar?: Array<{ name: string }> }>;
+  code?: number;
+}
+
+interface NetEaseAlbumSearchResponse {
+  result?: {
+    albums?: NetEaseAlbum[];
+    albumCount?: number;
   };
   code?: number;
 }
@@ -117,6 +153,56 @@ async function searchSongs(query: string): Promise<NetEaseSong[]> {
   }
 }
 
+function mapNetEaseAlbum(album: NetEaseAlbum, songCount?: number): NormalizedAlbum {
+  const artists = album.artists?.map((a) => a.name).filter(Boolean) ??
+    (album.artist?.name ? [album.artist.name] : ["Unknown Artist"]);
+  const releaseDate = album.publishTime
+    ? new Date(album.publishTime).toISOString().slice(0, 10)
+    : undefined;
+
+  return {
+    sourceService: "netease",
+    sourceId: String(album.id),
+    title: album.name,
+    artists,
+    artworkUrl: album.picUrl,
+    releaseDate,
+    totalTracks: songCount ?? album.size,
+    label: album.company,
+    webUrl: `https://music.163.com/album?id=${album.id}`,
+  };
+}
+
+async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
+  const response = await neteaseFetch(`https://music.163.com/api/album/${albumId}`);
+  if (!response.ok) return null;
+
+  try {
+    const data = (await response.json()) as NetEaseAlbumDetailResponse;
+    const album = data.album;
+    if (!album) return null;
+    return mapNetEaseAlbum(album, data.songs?.length);
+  } catch {
+    return null;
+  }
+}
+
+async function searchNetEaseAlbums(query: string): Promise<NetEaseAlbum[]> {
+  const params = new URLSearchParams({ s: query, type: "10", offset: "0", limit: "5" });
+  const response = await neteaseFetch("https://music.163.com/api/search/get", {
+    method: "POST",
+    body: params.toString(),
+  });
+  if (!response.ok) return [];
+
+  try {
+    const data = (await response.json()) as NetEaseAlbumSearchResponse;
+    return data.result?.albums ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export const neteaseAdapter: ServiceAdapter = {
   id: "netease",
   displayName: "NetEase Cloud Music",
@@ -203,6 +289,61 @@ export const neteaseAdapter: ServiceAdapter = {
       };
     } catch (error) {
       log.debug("NetEase", "Search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+
+  albumCapabilities: {
+    supportsUpc: false,
+    supportsAlbumSearch: true,
+    supportsTrackListing: false,
+  },
+
+  detectAlbumUrl(url: string): string | null {
+    const match = NETEASE_ALBUM_REGEX.exec(url);
+    return match?.[1] ?? null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const album = await getAlbumById(albumId);
+    if (!album) throw new Error(`NetEase: Album not found: ${albumId}`);
+    return album;
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+    try {
+      const results = await searchNetEaseAlbums(q);
+      if (results.length === 0) {
+        log.debug("NetEase", "Album search returned no results for:", q);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      log.debug("NetEase", `Album search returned ${results.length} results for: ${q}`);
+
+      let bestMatch: NormalizedAlbum | null = null;
+      let bestConfidence = 0;
+
+      for (const raw of results) {
+        if (!raw.id || !raw.name) continue;
+        const album = mapNetEaseAlbum(raw);
+        const confidence = calculateAlbumConfidence(
+          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
+          { title: album.title, artists: album.artists, totalTracks: album.totalTracks, releaseDate: album.releaseDate },
+        );
+        log.debug("NetEase", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = album;
+        }
+      }
+
+      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("NetEase", "Album search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

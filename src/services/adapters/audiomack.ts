@@ -1,7 +1,15 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
+import type {
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
 const USER_AGENT =
@@ -9,6 +17,8 @@ const USER_AGENT =
 
 // Audiomack URLs: audiomack.com/{artist}/song/{track-slug}
 const AUDIOMACK_TRACK_REGEX = /^https?:\/\/(?:www\.)?audiomack\.com\/([^/]+)\/song\/([^/?]+)/;
+// Audiomack album URLs: audiomack.com/{artist}/album/{slug}
+const AUDIOMACK_ALBUM_REGEX = /^https?:\/\/(?:www\.)?audiomack\.com\/([^/]+)\/album\/([^/?]+)/;
 
 interface AudiomackSong {
   id: number;
@@ -26,6 +36,21 @@ interface AudiomackSong {
 
 interface AudiomackSearchResponse {
   results?: AudiomackSong[];
+}
+
+interface AudiomackAlbumResult {
+  id: number;
+  title: string;
+  artist: string;
+  url_slug: string;
+  image?: string;
+  image_base?: string;
+  genre?: string;
+  url: string;
+}
+
+interface AudiomackAlbumSearchResponse {
+  results?: AudiomackAlbumResult[];
 }
 
 async function audiomackFetch(url: string, timeoutMs = 8000): Promise<Response> {
@@ -107,6 +132,63 @@ async function fetchTrackPage(artistSlug: string, trackSlug: string): Promise<No
     artworkUrl: ogImage || undefined,
     webUrl: url,
   };
+}
+
+function mapAlbumResult(album: AudiomackAlbumResult): NormalizedAlbum {
+  const artistParts = album.artist
+    .split(/[,&]|feat\./i)
+    .map((a) => a.trim())
+    .filter(Boolean);
+  return {
+    sourceService: "audiomack",
+    sourceId: `${album.url_slug}`,
+    title: album.title,
+    artists: artistParts.length > 0 ? artistParts : ["Unknown Artist"],
+    artworkUrl: album.image || album.image_base || undefined,
+    webUrl: album.url || `https://audiomack.com/${album.url_slug}`,
+  };
+}
+
+async function fetchAlbumPage(artistSlug: string, albumSlug: string): Promise<NormalizedAlbum | null> {
+  const url = `https://audiomack.com/${artistSlug}/album/${albumSlug}`;
+  const response = await audiomackFetch(url);
+  if (!response.ok) return null;
+
+  const html = await response.text();
+  const ogTitle = /<meta\s+(?:property|name)="og:title"\s+content="([^"]*)"[^>]*>/i.exec(html)?.[1];
+  const ogImage = /<meta\s+(?:property|name)="og:image"\s+content="([^"]*)"[^>]*>/i.exec(html)?.[1];
+
+  if (!ogTitle) return null;
+
+  let title = ogTitle;
+  let artist = "Unknown Artist";
+  const byMatch = /^(.+?)\s+by\s+(.+)$/i.exec(ogTitle);
+  if (byMatch) {
+    title = byMatch[1].trim();
+    artist = byMatch[2].trim();
+  }
+
+  return {
+    sourceService: "audiomack",
+    sourceId: `${artistSlug}/${albumSlug}`,
+    title,
+    artists: [artist],
+    artworkUrl: ogImage || undefined,
+    webUrl: url,
+  };
+}
+
+async function searchAudiomackAlbums(query: string): Promise<AudiomackAlbumResult[]> {
+  const searchUrl = `https://api.audiomack.com/v1/music/search?q=${encodeURIComponent(query)}&show=albums&limit=5`;
+  const response = await audiomackFetch(searchUrl);
+  if (!response.ok) return [];
+
+  try {
+    const data = (await response.json()) as AudiomackAlbumSearchResponse;
+    return data.results ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export const audiomackAdapter: ServiceAdapter = {
@@ -200,6 +282,64 @@ export const audiomackAdapter: ServiceAdapter = {
       };
     } catch (error) {
       log.debug("Audiomack", "Search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+
+  albumCapabilities: {
+    supportsUpc: false,
+    supportsAlbumSearch: true,
+    supportsTrackListing: false,
+  },
+
+  detectAlbumUrl(url: string): string | null {
+    const match = AUDIOMACK_ALBUM_REGEX.exec(url);
+    if (!match) return null;
+    return `${match[1]}/${match[2]}`;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const parts = albumId.split("/");
+    if (parts.length !== 2) throw new Error(`Audiomack: Invalid album ID: ${albumId}`);
+    const album = await fetchAlbumPage(parts[0], parts[1]);
+    if (!album) throw new Error(`Audiomack: Album not found: ${albumId}`);
+    return album;
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+    try {
+      const results = await searchAudiomackAlbums(q);
+      if (results.length === 0) {
+        log.debug("Audiomack", "Album search returned no results for:", q);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      log.debug("Audiomack", `Album search returned ${results.length} results for: ${q}`);
+
+      let bestMatch: NormalizedAlbum | null = null;
+      let bestConfidence = 0;
+
+      for (const r of results) {
+        if (!r.id || !r.title) continue;
+        const album = mapAlbumResult(r);
+        const confidence = calculateAlbumConfidence(
+          { title: query.title, artists: [query.artist], releaseDate: query.year },
+          { title: album.title, artists: album.artists },
+        );
+        log.debug("Audiomack", `  "${r.title}" -> confidence=${confidence.toFixed(3)}`);
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = album;
+        }
+      }
+
+      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("Audiomack", "Album search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

@@ -1,7 +1,15 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
+import type {
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
 const USER_AGENT =
@@ -9,6 +17,8 @@ const USER_AGENT =
 
 // Bugs! URLs: music.bugs.co.kr/track/{trackId}
 const BUGS_TRACK_REGEX = /^https?:\/\/music\.bugs\.co\.kr\/track\/(\d+)/;
+// Bugs! album URLs: music.bugs.co.kr/album/{albumId}
+const BUGS_ALBUM_REGEX = /^https?:\/\/music\.bugs\.co\.kr\/album\/(\d+)/;
 
 async function bugsFetch(url: string, timeoutMs = 8000): Promise<Response> {
   return fetchWithTimeout(
@@ -94,6 +104,60 @@ async function searchForTrackIds(query: string): Promise<string[]> {
   }
 
   return trackIds;
+}
+
+async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
+  const url = `https://music.bugs.co.kr/album/${albumId}`;
+  const response = await bugsFetch(url);
+  if (!response.ok) return null;
+
+  const html = await response.text();
+  const og = extractOgTags(html);
+
+  if (!og.title) return null;
+
+  // Bugs! album OG title format: "AlbumName / Artist" or "AlbumName"
+  let title: string;
+  let artists: string[];
+
+  if (og.title.includes(" / ")) {
+    const parts = og.title.split(" / ");
+    title = parts[0].trim();
+    const artistStr = parts.slice(1).join(" / ").trim();
+    artists = artistStr.split(/[,&]/).map((a) => a.trim()).filter(Boolean);
+  } else {
+    title = og.title;
+    artists = ["Unknown Artist"];
+  }
+  if (artists.length === 0) artists.push("Unknown Artist");
+
+  return {
+    sourceService: "bugs",
+    sourceId: albumId,
+    title,
+    artists,
+    artworkUrl: og.image,
+    webUrl: `https://music.bugs.co.kr/album/${albumId}`,
+  };
+}
+
+async function searchBugsAlbumIds(query: string): Promise<string[]> {
+  const searchUrl = `https://music.bugs.co.kr/search/album?q=${encodeURIComponent(query)}`;
+  const response = await bugsFetch(searchUrl);
+  if (!response.ok) return [];
+
+  const html = await response.text();
+  const albumIds: string[] = [];
+  const seen = new Set<string>();
+  const idMatches = html.matchAll(/\/album\/(\d+)/g);
+  for (const m of idMatches) {
+    if (m[1] && !seen.has(m[1])) {
+      seen.add(m[1]);
+      albumIds.push(m[1]);
+    }
+    if (albumIds.length >= 5) break;
+  }
+  return albumIds;
 }
 
 export const bugsAdapter: ServiceAdapter = {
@@ -185,6 +249,62 @@ export const bugsAdapter: ServiceAdapter = {
       };
     } catch (error) {
       log.debug("Bugs!", "Search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+
+  albumCapabilities: {
+    supportsUpc: false,
+    supportsAlbumSearch: true,
+    supportsTrackListing: false,
+  },
+
+  detectAlbumUrl(url: string): string | null {
+    const match = BUGS_ALBUM_REGEX.exec(url);
+    return match?.[1] ?? null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const album = await fetchAlbumById(albumId);
+    if (!album) throw new Error(`Bugs!: Album not found: ${albumId}`);
+    return album;
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+    try {
+      const albumIds = await searchBugsAlbumIds(q);
+      if (albumIds.length === 0) {
+        log.debug("Bugs!", "Album search returned no IDs for:", q);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      log.debug("Bugs!", `Album search returned ${albumIds.length} IDs for: ${q}`);
+
+      const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
+      let bestMatch: NormalizedAlbum | null = null;
+      let bestConfidence = 0;
+
+      for (const result of albumResults) {
+        if (result.status !== "fulfilled" || !result.value) continue;
+        const album = result.value;
+        const confidence = calculateAlbumConfidence(
+          { title: query.title, artists: [query.artist], releaseDate: query.year },
+          { title: album.title, artists: album.artists, releaseDate: album.releaseDate },
+        );
+        log.debug("Bugs!", `  "${album.title}" -> confidence=${confidence.toFixed(3)}`);
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = album;
+        }
+      }
+
+      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("Bugs!", "Album search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

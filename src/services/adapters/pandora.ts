@@ -1,8 +1,16 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger";
-import { calculateConfidence } from "../../lib/normalize";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types";
+import type {
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types";
 
 /**
  * Pandora Scrape Adapter
@@ -20,6 +28,9 @@ import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "
 // URL format: pandora.com/artist/{artist}/{album}/{track}/{trackId}
 const PANDORA_TRACK_REGEX =
   /^https?:\/\/(?:www\.)?pandora\.com\/artist\/([^/]+\/[^/]+\/[^/]+\/TR[a-zA-Z0-9]+)(?:\?.*)?$/;
+// Pandora album URL format: pandora.com/artist/{artist}/{album}/AL{id}
+const PANDORA_ALBUM_REGEX =
+  /^https?:\/\/(?:www\.)?pandora\.com\/artist\/([^/]+\/[^/]+\/AL[a-zA-Z0-9]+)(?:\?.*)?$/;
 
 const PANDORA_BASE = "https://www.pandora.com";
 
@@ -121,9 +132,22 @@ interface JsonLdMusicRecording {
   url?: string;
 }
 
+interface PandoraAlbumData {
+  name?: string;
+  artistName?: string;
+  releaseDate?: string;
+  trackCount?: number;
+  icon?: { artUrl?: string };
+  shareableUrlPath?: string;
+  pandoraId?: string;
+  label?: string;
+  upc?: string;
+  type?: string;
+}
+
 interface PandoraSearchResponse {
   results?: string[];
-  annotations?: Record<string, PandoraTrackData>;
+  annotations?: Record<string, PandoraTrackData | PandoraAlbumData>;
 }
 
 // --- Track data mapping ---
@@ -211,6 +235,79 @@ function extractFromJsonLd(html: string): JsonLdMusicRecording | null {
     log.debug("Pandora", "Failed to parse JSON-LD");
     return null;
   }
+}
+
+// --- Album helpers ---
+
+function mapAlbumData(data: PandoraAlbumData, sourceId: string): NormalizedAlbum {
+  const webPath = data.shareableUrlPath ?? `/artist/${sourceId}`;
+  const artists = data.artistName
+    ? data.artistName.split(/[,&]/).map((a) => a.trim()).filter(Boolean)
+    : ["Unknown Artist"];
+
+  return {
+    sourceService: "pandora",
+    sourceId,
+    upc: data.upc,
+    title: data.name ?? "Unknown",
+    artists,
+    label: data.label,
+    artworkUrl: buildArtworkUrl(data.icon?.artUrl),
+    releaseDate: data.releaseDate,
+    totalTracks: data.trackCount,
+    webUrl: `${PANDORA_BASE}${webPath}`,
+  };
+}
+
+async function fetchAlbumByPath(albumPath: string): Promise<NormalizedAlbum | null> {
+  const pageUrl = `${PANDORA_BASE}/artist/${albumPath}`;
+  const response = await pandoraFetch(pageUrl);
+  if (!response.ok) return null;
+
+  const html = await response.text();
+
+  // Try storeData first
+  const storeMatch = /var\s+storeData\s*=\s*(\{[\s\S]*?\});\s*(?:var\s|<\/script>)/m.exec(html);
+  if (storeMatch) {
+    try {
+      const store = JSON.parse(storeMatch[1]) as Record<string, unknown>;
+      const annotations = store["v4/catalog/annotateObjects"];
+      if (Array.isArray(annotations) && annotations.length > 0) {
+        const catalog = annotations[0] as Record<string, PandoraAlbumData>;
+        const albumEntry = Object.entries(catalog).find(([key]) => key.startsWith("AL:"));
+        if (albumEntry?.[1]?.name) {
+          return mapAlbumData(albumEntry[1], albumPath);
+        }
+      }
+    } catch {
+      log.debug("Pandora", "Failed to parse storeData for album");
+    }
+  }
+
+  // Try JSON-LD for MusicAlbum
+  const match = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i.exec(html);
+  if (match) {
+    try {
+      const ldData = JSON.parse(match[1]) as { "@type"?: string; name?: string; byArtist?: { name?: string }; image?: string; url?: string };
+      if (ldData["@type"] === "MusicAlbum" && ldData.name) {
+        const artists = ldData.byArtist?.name
+          ? ldData.byArtist.name.split(/[,&]/).map((a) => a.trim()).filter(Boolean)
+          : ["Unknown Artist"];
+        return {
+          sourceService: "pandora",
+          sourceId: albumPath,
+          title: ldData.name,
+          artists,
+          artworkUrl: ldData.image,
+          webUrl: ldData.url ?? pageUrl,
+        };
+      }
+    } catch {
+      log.debug("Pandora", "Failed to parse JSON-LD for album");
+    }
+  }
+
+  return null;
 }
 
 // --- Adapter ---
@@ -331,6 +428,78 @@ export const pandoraAdapter = {
       };
     } catch (error) {
       log.debug("Pandora", "Search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+
+  albumCapabilities: {
+    supportsUpc: false,
+    supportsAlbumSearch: true,
+    supportsTrackListing: false,
+  },
+
+  detectAlbumUrl(url: string): string | null {
+    const match = PANDORA_ALBUM_REGEX.exec(url);
+    return match?.[1] ?? null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const album = await fetchAlbumByPath(albumId);
+    if (!album) throw new Error(`Pandora: Album not found: ${albumId}`);
+    return album;
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+    try {
+      const response = await pandoraApiFetch("/api/v3/sod/search", {
+        query: q,
+        types: ["AL"],
+        count: 5,
+      });
+
+      if (!response.ok) {
+        log.debug("Pandora", "Album search API failed:", response.status);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      const result = (await response.json()) as PandoraSearchResponse;
+      const albumIds = (result.results ?? []).filter((id) => id.startsWith("AL:"));
+      const annotations = result.annotations ?? {};
+
+      if (albumIds.length === 0) {
+        log.debug("Pandora", "Album search returned no albums for:", q);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      log.debug("Pandora", `Album search returned ${albumIds.length} albums for: ${q}`);
+
+      let bestMatch: NormalizedAlbum | null = null;
+      let bestConfidence = 0;
+
+      for (let i = 0; i < albumIds.length; i++) {
+        const data = annotations[albumIds[i]] as PandoraAlbumData | undefined;
+        if (!data?.name) continue;
+
+        const urlPath = (data.shareableUrlPath ?? "").replace(/^\/artist\//, "");
+        const album = mapAlbumData(data, urlPath || `search-${i}`);
+        const confidence = calculateAlbumConfidence(
+          { title: query.title, artists: [query.artist], releaseDate: query.year },
+          { title: album.title, artists: album.artists, releaseDate: album.releaseDate },
+        );
+        log.debug("Pandora", `  "${data.name}" -> confidence=${confidence.toFixed(3)}`);
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = album;
+        }
+      }
+
+      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("Pandora", "Album search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

@@ -1,13 +1,24 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
 import { TokenManager } from "../../lib/token-manager.js";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
+import type {
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  AlbumTrackEntry,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types.js";
 
 const API_BASE = "https://api.kkbox.com/v1.1";
 
 const KKBOX_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?kkbox\.com\/[a-z]{2}\/[a-z]{2}\/song\/([A-Za-z0-9_-]+)/;
+// KKBOX album URLs: kkbox.com/{locale}/{locale}/album/{id}
+const KKBOX_ALBUM_REGEX = /(?:https?:\/\/)?(?:www\.)?kkbox\.com\/[a-z]{2}\/[a-z]{2}\/album\/([A-Za-z0-9_-]+)/;
 
 const tokenManager = new TokenManager({
   serviceName: "KKBOX",
@@ -42,6 +53,35 @@ interface KkboxSearchResponse {
   tracks?: {
     data: KkboxTrackResponse[];
     paging?: { offset: number; limit: number; total?: number };
+  };
+}
+
+interface KkboxAlbumTrack {
+  id: string;
+  name: string;
+  duration: number;
+  isrc?: string;
+  track_number?: number;
+  url: string;
+}
+
+interface KkboxAlbumTracksResponse {
+  data: KkboxAlbumTrack[];
+}
+
+interface KkboxAlbumResponse {
+  id: string;
+  name: string;
+  url: string;
+  release_date?: string;
+  images?: Array<{ url: string; width: number; height: number }>;
+  artist?: { id: string; name: string };
+  total_tracks?: number;
+}
+
+interface KkboxAlbumSearchResponse {
+  albums?: {
+    data: KkboxAlbumResponse[];
   };
 }
 
@@ -83,6 +123,63 @@ function mapTrack(raw: KkboxTrackResponse): NormalizedTrack {
     artworkUrl: pickLargestImage(raw.album?.images),
     webUrl: raw.url || `https://www.kkbox.com/tw/en/song/${raw.id}`,
   };
+}
+
+function mapAlbum(raw: KkboxAlbumResponse, tracks?: KkboxAlbumTrack[]): NormalizedAlbum {
+  const territory = getTerritory();
+  const albumTracks: AlbumTrackEntry[] = (tracks ?? []).map((t, i) => ({
+    title: t.name,
+    isrc: t.isrc,
+    trackNumber: t.track_number ?? i + 1,
+    durationMs: t.duration,
+  }));
+
+  return {
+    sourceService: "kkbox",
+    sourceId: raw.id,
+    title: raw.name,
+    artists: raw.artist?.name ? [raw.artist.name] : ["Unknown Artist"],
+    releaseDate: raw.release_date,
+    totalTracks: raw.total_tracks ?? (albumTracks.length > 0 ? albumTracks.length : undefined),
+    artworkUrl: pickLargestImage(raw.images),
+    webUrl: raw.url || `https://www.kkbox.com/${territory.toLowerCase()}/${territory.toLowerCase()}/album/${raw.id}`,
+    tracks: albumTracks.length > 0 ? albumTracks : undefined,
+  };
+}
+
+async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
+  const territory = getTerritory();
+  const response = await kkboxFetch(`/albums/${encodeURIComponent(albumId)}?territory=${territory}`);
+  if (!response.ok) return null;
+
+  const album: KkboxAlbumResponse = await response.json();
+
+  // Fetch track listing
+  let tracks: KkboxAlbumTrack[] = [];
+  try {
+    const tracksResponse = await kkboxFetch(
+      `/albums/${encodeURIComponent(albumId)}/tracks?territory=${territory}&limit=50`,
+    );
+    if (tracksResponse.ok) {
+      const tracksData: KkboxAlbumTracksResponse = await tracksResponse.json();
+      tracks = tracksData.data ?? [];
+    }
+  } catch {
+    // Track listing is optional
+  }
+
+  return mapAlbum(album, tracks);
+}
+
+async function searchKkboxAlbums(query: string): Promise<KkboxAlbumResponse[]> {
+  const territory = getTerritory();
+  const response = await kkboxFetch(
+    `/search?q=${encodeURIComponent(query)}&type=album&territory=${territory}&limit=5`,
+  );
+  if (!response.ok) return [];
+
+  const data: KkboxAlbumSearchResponse = await response.json();
+  return data.albums?.data ?? [];
 }
 
 export const kkboxAdapter = {
@@ -203,5 +300,68 @@ export const kkboxAdapter = {
       confidence: bestConfidence,
       matchMethod: "search",
     };
+  },
+
+  albumCapabilities: {
+    supportsUpc: false,
+    supportsAlbumSearch: true,
+    supportsTrackListing: true,
+  },
+
+  detectAlbumUrl(url: string): string | null {
+    const match = KKBOX_ALBUM_REGEX.exec(url);
+    return match ? match[1] : null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const album = await getAlbumById(albumId);
+    if (!album) throw new Error(`KKBOX: Album not found: ${albumId}`);
+    return album;
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+
+    try {
+      const results = await searchKkboxAlbums(q);
+      if (results.length === 0) {
+        log.debug("KKBOX", `Album search returned no results for: ${q}`);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      log.debug("KKBOX", `Album search returned ${results.length} results for: ${q}`);
+
+      let bestMatch: NormalizedAlbum | null = null;
+      let bestConfidence = 0;
+
+      for (const raw of results) {
+        const candidate = mapAlbum(raw);
+        const confidence = calculateAlbumConfidence(
+          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
+          { title: candidate.title, artists: candidate.artists, totalTracks: candidate.totalTracks, releaseDate: candidate.releaseDate },
+        );
+        log.debug("KKBOX", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = candidate;
+        }
+      }
+
+      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+
+      // Fetch full album with track listing for the best match
+      const fullAlbum = await getAlbumById(bestMatch.sourceId);
+      return {
+        found: true,
+        album: fullAlbum ?? bestMatch,
+        confidence: bestConfidence,
+        matchMethod: "search",
+      };
+    } catch (error) {
+      log.debug("KKBOX", "Album search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

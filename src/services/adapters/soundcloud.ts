@@ -1,8 +1,17 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger";
-import { calculateConfidence } from "../../lib/normalize";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types";
+import type {
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  AlbumTrackEntry,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types";
 
 /**
  * SoundCloud Scrape Adapter
@@ -15,6 +24,8 @@ import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "
  */
 
 const SOUNDCLOUD_TRACK_REGEX = /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([^/]+\/[^/?\s]+)(?:\?.*)?$/;
+// SoundCloud album (set) URLs: soundcloud.com/{user}/sets/{slug}
+const SOUNDCLOUD_ALBUM_REGEX = /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([^/]+\/sets\/[^/?\s]+)(?:\?.*)?$/;
 
 const SC_API_BASE = "https://api-v2.soundcloud.com";
 
@@ -82,6 +93,25 @@ async function scApiFetch(endpoint: string): Promise<Response> {
 }
 
 // --- Track data mapping ---
+
+interface ScPlaylistData {
+  title?: string;
+  user?: { username?: string; full_name?: string };
+  artwork_url?: string;
+  release_date?: string;
+  created_at?: string;
+  permalink_url?: string;
+  set_type?: string; // "album" for proper albums
+  track_count?: number;
+  tracks?: Array<{
+    title?: string;
+    isrc?: string;
+    publisher_metadata?: { isrc?: string };
+    duration?: number;
+    full_duration?: number;
+    track_number?: number;
+  }>;
+}
 
 interface ScTrackData {
   title?: string;
@@ -160,6 +190,70 @@ function parseDurationTag(value: string | undefined): number | undefined {
   if (!value) return undefined;
   const ms = Number(value);
   return Number.isFinite(ms) && ms > 0 ? ms : undefined;
+}
+
+// --- Album helpers ---
+
+function mapApiPlaylist(data: ScPlaylistData, sourcePath: string): NormalizedAlbum {
+  const artist = data.user?.username ?? data.user?.full_name ?? "Unknown Artist";
+  const tracks: AlbumTrackEntry[] = [];
+  for (let i = 0; i < (data.tracks ?? []).length; i++) {
+    const t = data.tracks![i];
+    if (t.title) {
+      tracks.push({
+        title: t.title,
+        isrc: t.publisher_metadata?.isrc || undefined,
+        trackNumber: t.track_number ?? i + 1,
+        durationMs: t.full_duration ?? t.duration,
+      });
+    }
+  }
+  return {
+    sourceService: "soundcloud",
+    sourceId: sourcePath,
+    title: data.title ?? "Unknown",
+    artists: [artist],
+    artworkUrl: data.artwork_url?.replace("-large", "-t500x500"),
+    releaseDate: data.release_date ?? data.created_at ?? undefined,
+    totalTracks: data.track_count ?? (tracks.length > 0 ? tracks.length : undefined),
+    webUrl: data.permalink_url ?? `https://soundcloud.com/${sourcePath}`,
+    tracks: tracks.length > 0 ? tracks : undefined,
+  };
+}
+
+async function fetchAlbumByPath(setPath: string): Promise<NormalizedAlbum | null> {
+  const pageUrl = `https://soundcloud.com/${setPath}`;
+  try {
+    const response = await scApiFetch(`/resolve?url=${encodeURIComponent(pageUrl)}`);
+    if (!response.ok) return null;
+    const data = (await response.json()) as ScPlaylistData;
+    // Only return if it's an album (set_type: "album") or has no set_type (treat as album)
+    if (!data.title) return null;
+    return mapApiPlaylist(data, setPath);
+  } catch {
+    return null;
+  }
+}
+
+async function searchSoundCloudAlbums(
+  query: string,
+): Promise<Array<{ path: string; title: string; artist: string; trackCount?: number }>> {
+  try {
+    const response = await scApiFetch(`/search/albums?q=${encodeURIComponent(query)}&limit=5`);
+    if (!response.ok) return [];
+    const result = (await response.json()) as { collection?: ScPlaylistData[] };
+    return (result.collection ?? [])
+      .filter((p) => p.title)
+      .map((p) => ({
+        path: p.permalink_url?.replace("https://soundcloud.com/", "") ?? "",
+        title: p.title ?? "",
+        artist: p.user?.username ?? p.user?.full_name ?? "",
+        trackCount: p.track_count,
+      }))
+      .filter((r) => r.path);
+  } catch {
+    return [];
+  }
 }
 
 // --- Adapter ---
@@ -282,6 +376,57 @@ export const soundcloudAdapter = {
       };
     } catch (error) {
       log.debug("SoundCloud", "Search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+
+  albumCapabilities: {
+    supportsUpc: false,
+    supportsAlbumSearch: true,
+    supportsTrackListing: true,
+  },
+
+  detectAlbumUrl(url: string): string | null {
+    const match = SOUNDCLOUD_ALBUM_REGEX.exec(url);
+    return match ? match[1] : null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const album = await fetchAlbumByPath(albumId);
+    if (!album) throw new Error(`SoundCloud: Album not found: ${albumId}`);
+    return album;
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+    try {
+      const results = await searchSoundCloudAlbums(q);
+      if (results.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
+
+      let bestMatch: NormalizedAlbum | null = null;
+      let bestConfidence = 0;
+
+      for (const r of results) {
+        const confidence = calculateAlbumConfidence(
+          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
+          { title: r.title, artists: [r.artist], totalTracks: r.trackCount },
+        );
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          // Lazy-fetch full album only if it's the best candidate
+          if (bestConfidence > 0.4) {
+            const full = await fetchAlbumByPath(r.path);
+            if (full) bestMatch = full;
+          }
+        }
+      }
+
+      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("SoundCloud", "Album search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

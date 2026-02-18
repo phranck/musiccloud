@@ -1,81 +1,21 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
-import { FaCircleInfo } from "react-icons/fa6";
 import { LocaleProvider, useT } from "../i18n/context";
 import type { AlbumResolveSuccessResponse, ResolveDisambiguationResponse, ResolveErrorResponse, ResolveSuccessResponse } from "../lib/api-types";
+import { type AlbumColors, type DynamicAccent, extractAlbumColors } from "../lib/colors";
 import { isAlbumUrl, isValidPlatform, type Platform } from "../lib/utils";
 import { AlbumResultsPanel, type AlbumResult } from "./AlbumResultsPanel";
+import { AppFooter } from "./AppFooter";
 import { BrandName } from "./BrandName";
 import { type DisambiguationCandidate, DisambiguationPanel } from "./DisambiguationPanel";
 import { GradientBackground } from "./GradientBackground";
+import { HeroSection } from "./HeroSection";
 import { HeroInput, type InputState } from "./HeroInput";
 import { InfoPanel } from "./InfoPanel";
-import { LanguageSwitcher } from "./LanguageSwitcher";
+import { PageHeader } from "./PageHeader";
 import { PlatformIconRow } from "./PlatformIconRow";
 import { ResultsPanel, type SongResult } from "./ResultsPanel";
 import { SparklingStars } from "./SparklingStars";
 import { Toast } from "./Toast";
-
-interface AlbumColors {
-  primary: string;
-  secondary: string;
-  tertiary: string;
-}
-
-interface DynamicAccent {
-  base: string;
-  hover: string;
-  glow: string;
-  contrastText: string;
-}
-
-function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0;
-  const l = (max + min) / 2;
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-      case g: h = ((b - r) / d + 2) / 6; break;
-      case b: h = ((r - g) / d + 4) / 6; break;
-    }
-  }
-  return [h, s, l];
-}
-
-function hslToRgb(h: number, s: number, l: number): [number, number, number] {
-  if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
-  const hue2rgb = (p: number, q: number, t: number) => {
-    if (t < 0) t += 1; if (t > 1) t -= 1;
-    if (t < 1/6) return p + (q - p) * 6 * t;
-    if (t < 1/2) return q;
-    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-    return p;
-  };
-  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-  const p = 2 * l - q;
-  return [
-    Math.round(hue2rgb(p, q, h + 1/3) * 255),
-    Math.round(hue2rgb(p, q, h) * 255),
-    Math.round(hue2rgb(p, q, h - 1/3) * 255),
-  ];
-}
-
-function extractAccent(r: number, g: number, b: number): DynamicAccent | null {
-  const [h, s] = rgbToHsl(r, g, b);
-  if (s < 0.1) return null;
-  const [ar, ag, ab] = hslToRgb(h, Math.max(s, 0.5), 0.55);
-  const [hr, hg, hb] = hslToRgb(h, Math.max(s, 0.5), 0.65);
-  const brightness = (0.299 * ar + 0.587 * ag + 0.114 * ab) / 255;
-  return {
-    base: `rgb(${ar}, ${ag}, ${ab})`,
-    hover: `rgb(${hr}, ${hg}, ${hb})`,
-    glow: `rgba(${ar}, ${ag}, ${ab}, 0.25)`,
-    contrastText: brightness > 0.55 ? "#000000" : "#ffffff",
-  };
-}
 
 type AppState =
   | { type: "idle" }
@@ -162,7 +102,6 @@ function parseResolveResponse(data: ResolveSuccessResponse): { result: SongResul
   return { result, highlightedPlatforms: platforms.map((p) => p.platform) };
 }
 
-// Returns a translation key instead of a hardcoded English string
 function parseErrorKey(err: unknown): string {
   if (err instanceof TypeError && err.message.includes("Failed to fetch")) return "error.offline";
   if (err instanceof Error && err.name === "AbortError") return "error.timeout";
@@ -210,10 +149,7 @@ function LandingPageInner() {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
-
-      // Album URLs go to a separate endpoint
       const endpoint = isAlbumUrl(url) ? "/api/resolve-album" : "/api/resolve";
-
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -225,14 +161,11 @@ function LandingPageInner() {
         const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
         throw new Error(errorData.message || "error.generic");
       }
-
       if (endpoint === "/api/resolve-album") {
         const data = (await response.json()) as AlbumResolveSuccessResponse;
-        const albumResult = parseAlbumResolveResponse(data);
-        dispatch({ type: "ALBUM_SUCCESS", result: albumResult });
+        dispatch({ type: "ALBUM_SUCCESS", result: parseAlbumResolveResponse(data) });
         return;
       }
-
       const data = (await response.json()) as ResolveSuccessResponse | ResolveDisambiguationResponse;
       if ("status" in data && data.status === "disambiguation") {
         dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
@@ -305,34 +238,10 @@ function LandingPageInner() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [showCompact, handleClear]);
 
-
   const handleAlbumArtLoad = useCallback((img: HTMLImageElement) => {
     try {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const size = 20;
-      canvas.width = size; canvas.height = size;
-      ctx.drawImage(img, 0, 0, size, size);
-      const data = ctx.getImageData(0, 0, size, size).data;
-      const pixelCount = size * size;
-      let totalR = 0, totalG = 0, totalB = 0, bestR = 0, bestG = 0, bestB = 0, bestScore = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i+1], b = data[i+2];
-        totalR += r; totalG += g; totalB += b;
-        const [, s, l] = rgbToHsl(r, g, b);
-        const score = s * (0.7 + 0.3 * (1 - Math.abs(l - 0.5) * 2));
-        if (score > bestScore) { bestScore = score; bestR = r; bestG = g; bestB = b; }
-      }
-      const avgR = Math.round(totalR / pixelCount);
-      const avgG = Math.round(totalG / pixelCount);
-      const avgB = Math.round(totalB / pixelCount);
-      setAlbumColors({
-        primary: `rgba(${avgR}, ${avgG}, ${avgB}, 0.25)`,
-        secondary: `rgba(${Math.min(avgR+40,255)}, ${Math.min(avgG+20,255)}, ${avgB}, 0.2)`,
-        tertiary: `rgba(${avgR}, ${avgG}, ${Math.min(avgB+40,255)}, 0.15)`,
-      });
-      const accent = extractAccent(bestR, bestG, bestB);
+      const { albumColors, accent } = extractAlbumColors(img);
+      setAlbumColors(albumColors);
       if (import.meta.env.DEV) console.log("[AlbumArt] accent:", accent);
       setDynamicAccent(accent ?? undefined);
     } catch (err) {
@@ -341,123 +250,104 @@ function LandingPageInner() {
   }, []);
 
   return (
-    <div
-      className="flex-1 flex flex-col items-center px-4 transition-colors duration-700 relative"
-      style={
-        dynamicAccent
-          ? ({
-              "--color-accent": dynamicAccent.base,
-              "--color-accent-hover": dynamicAccent.hover,
-              "--color-accent-glow": dynamicAccent.glow,
-              "--color-accent-contrast": dynamicAccent.contrastText,
-            } as React.CSSProperties)
-          : undefined
-      }
-    >
-      <GradientBackground albumColors={albumColors} />
-      <SparklingStars />
+    <>
+      <div
+        className="flex-1 flex flex-col items-center px-4 transition-colors duration-700 relative"
+        style={
+          dynamicAccent
+            ? ({
+                "--color-accent": dynamicAccent.base,
+                "--color-accent-hover": dynamicAccent.hover,
+                "--color-accent-glow": dynamicAccent.glow,
+                "--color-accent-contrast": dynamicAccent.contrastText,
+              } as React.CSSProperties)
+            : undefined
+        }
+      >
+        <GradientBackground albumColors={albumColors} />
+        <SparklingStars />
 
-      {/* Language switcher + Info button — fixed top-right */}
-      <div className="fixed top-4 right-4 z-40 flex items-center gap-1">
-        <LanguageSwitcher />
-        <button
-          onClick={() => setIsInfoOpen(true)}
-          aria-label={t("a11y.infoButton")}
-          className="p-2 text-white/30 hover:text-white/70 transition-colors duration-150 rounded-lg focus:outline-none"
-        >
-          <FaCircleInfo className="w-5 h-5" />
-        </button>
-      </div>
+        <PageHeader showInfoButton onInfoClick={() => setIsInfoOpen(true)} />
+        <InfoPanel isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
 
-      <InfoPanel isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
+        <div className="flex-1 flex flex-col items-center justify-center w-full">
+          {!result && !candidates && (
+            <HeroSection className={isReturning ? "animate-fade-in" : ""} />
+          )}
 
-      <div className="flex-1 flex flex-col items-center justify-center w-full">
-        {!result && !candidates && (
-          <div className={`flex justify-center mb-10 ${isReturning ? "animate-fade-in" : ""}`}>
-            <div className="text-center">
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-[-0.04em] text-text-primary mb-1">
-                <BrandName />
-              </h1>
-              <p
-                className="text-sm sm:text-base md:text-lg font-light tracking-[-0.02em] text-white/70 -mt-1"
-                style={{ fontFamily: '"Nasalization", sans-serif' }}
-              >
-                share it everywhere
-              </p>
-            </div>
-          </div>
-        )}
+          {showCompact && (
+            <h1 className="text-3xl font-bold tracking-[-0.04em] text-text-primary mb-6">
+              <BrandName />
+            </h1>
+          )}
 
-        {showCompact && (
-          <h1 className="text-3xl font-bold tracking-[-0.04em] text-text-primary mb-6">
-            <BrandName />
-          </h1>
-        )}
-
-        <div ref={searchFieldRef} className="w-full flex flex-col items-center">
-          <HeroInput
-            onSubmit={handleSubmit}
-            onClear={handleClear}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            state={inputState}
-            compact={showCompact}
-            songName={
-              state.type === "success" ? `${state.result.title} - ${state.result.artist}` :
-              state.type === "album_success" ? `${state.result.title} - ${state.result.artist}` :
-              undefined
-            }
-            errorMessage={errorMessage}
-          />
-        </div>
-
-        <div className="sr-only" aria-live="polite" aria-atomic="true">
-          {result ? t("results.found", { title: result.title, artist: result.artist }) : ""}
-        </div>
-
-        {candidates && candidates.length > 0 && (
-          <div ref={disambiguationRef} tabIndex={-1} className="outline-none w-full">
-            <DisambiguationPanel
-              candidates={candidates}
-              onSelect={handleSelectCandidate}
-              onCancel={handleClear}
-              selectedId={selectedCandidateId}
-              loading={state.type === "disambiguation_loading"}
+          <div ref={searchFieldRef} className="w-full flex flex-col items-center">
+            <HeroInput
+              onSubmit={handleSubmit}
+              onClear={handleClear}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              state={inputState}
+              compact={showCompact}
+              songName={
+                state.type === "success" ? `${state.result.title} - ${state.result.artist}` :
+                state.type === "album_success" ? `${state.result.title} - ${state.result.artist}` :
+                undefined
+              }
+              errorMessage={errorMessage}
             />
           </div>
-        )}
 
-        {result && (
-          <div
-            ref={resultsPanelRef}
-            tabIndex={-1}
-            className={`outline-none w-full flex justify-center ${state.type === "clearing" ? "animate-slide-out-down pointer-events-none" : ""}`}
-            onAnimationEnd={state.type === "clearing" ? handleClearAnimationEnd : undefined}
-          >
-            <ResultsPanel result={result} onAlbumArtLoad={handleAlbumArtLoad} />
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            {result ? t("results.found", { title: result.title, artist: result.artist }) : ""}
           </div>
-        )}
 
-        {albumResult && (
-          <div
-            ref={resultsPanelRef}
-            tabIndex={-1}
-            className={`outline-none w-full flex justify-center ${state.type === "clearing_album" ? "animate-slide-out-down pointer-events-none" : ""}`}
-            onAnimationEnd={state.type === "clearing_album" ? handleClearAnimationEnd : undefined}
-          >
-            <AlbumResultsPanel result={albumResult} onAlbumArtLoad={handleAlbumArtLoad} />
-          </div>
-        )}
+          {candidates && candidates.length > 0 && (
+            <div ref={disambiguationRef} tabIndex={-1} className="outline-none w-full">
+              <DisambiguationPanel
+                candidates={candidates}
+                onSelect={handleSelectCandidate}
+                onCancel={handleClear}
+                selectedId={selectedCandidateId}
+                loading={state.type === "disambiguation_loading"}
+              />
+            </div>
+          )}
 
-        {state.type === "idle" && (
-          <div className={isReturning ? "animate-fade-in" : ""}>
-            <PlatformIconRow />
-          </div>
-        )}
+          {result && (
+            <div
+              ref={resultsPanelRef}
+              tabIndex={-1}
+              className={`outline-none w-full flex justify-center ${state.type === "clearing" ? "animate-slide-out-down pointer-events-none" : ""}`}
+              onAnimationEnd={state.type === "clearing" ? handleClearAnimationEnd : undefined}
+            >
+              <ResultsPanel result={result} onAlbumArtLoad={handleAlbumArtLoad} />
+            </div>
+          )}
+
+          {albumResult && (
+            <div
+              ref={resultsPanelRef}
+              tabIndex={-1}
+              className={`outline-none w-full flex justify-center ${state.type === "clearing_album" ? "animate-slide-out-down pointer-events-none" : ""}`}
+              onAnimationEnd={state.type === "clearing_album" ? handleClearAnimationEnd : undefined}
+            >
+              <AlbumResultsPanel result={albumResult} onAlbumArtLoad={handleAlbumArtLoad} />
+            </div>
+          )}
+
+          {state.type === "idle" && (
+            <div className={isReturning ? "animate-fade-in" : ""}>
+              <PlatformIconRow />
+            </div>
+          )}
+        </div>
+
+        <Toast message={toast.message} variant={toast.variant} visible={toast.visible} onDismiss={handleToastDismiss} />
       </div>
 
-      <Toast message={toast.message} variant={toast.variant} visible={toast.visible} onDismiss={handleToastDismiss} />
-    </div>
+      <AppFooter />
+    </>
   );
 }
 

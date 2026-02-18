@@ -1,7 +1,15 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
+import type {
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
 const USER_AGENT =
@@ -9,6 +17,21 @@ const USER_AGENT =
 
 // Beatport URLs: beatport.com/track/{slug}/{id}
 const BEATPORT_TRACK_REGEX = /^https?:\/\/(?:www\.)?beatport\.com\/track\/[^/]+\/(\d+)/;
+// Beatport release (album) URLs: beatport.com/release/{slug}/{id}
+const BEATPORT_ALBUM_REGEX = /^https?:\/\/(?:www\.)?beatport\.com\/release\/[^/]+\/(\d+)/;
+
+interface BeatportRelease {
+  id: number;
+  name: string;
+  slug: string;
+  artists?: Array<{ name: string; slug: string }>;
+  label?: { name?: string };
+  image?: { uri?: string };
+  publish_date?: string;
+  upc?: string;
+  track_count?: number;
+  catalog_number?: string;
+}
 
 interface BeatportTrack {
   id: number;
@@ -187,6 +210,88 @@ async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> 
   return null;
 }
 
+function extractReleaseFromNextData(data: Record<string, unknown>): BeatportRelease | null {
+  try {
+    const props = data.props as Record<string, unknown> | undefined;
+    const pageProps = props?.pageProps as Record<string, unknown> | undefined;
+    const dehydratedState = pageProps?.dehydratedState as Record<string, unknown> | undefined;
+    const queries = dehydratedState?.queries as Array<Record<string, unknown>> | undefined;
+    if (!queries) return null;
+
+    for (const q of queries) {
+      const state = q.state as Record<string, unknown> | undefined;
+      const stateData = state?.data as Record<string, unknown> | undefined;
+      if (stateData && "name" in stateData && "id" in stateData && !("artists" in stateData)) {
+        // Release data (no "artists" at top level, but has "artists" nested differently)
+        if ("publish_date" in stateData || "upc" in stateData || "track_count" in stateData) {
+          return stateData as unknown as BeatportRelease;
+        }
+      }
+      // Also check if the data has a "release" field (track detail page)
+      if (stateData && "release" in stateData) {
+        return (stateData as Record<string, unknown>).release as BeatportRelease;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function extractReleaseSearchFromNextData(data: Record<string, unknown>): BeatportRelease[] {
+  try {
+    const props = data.props as Record<string, unknown> | undefined;
+    const pageProps = props?.pageProps as Record<string, unknown> | undefined;
+    const dehydratedState = pageProps?.dehydratedState as Record<string, unknown> | undefined;
+    const queries = dehydratedState?.queries as Array<Record<string, unknown>> | undefined;
+    if (!queries) return [];
+
+    for (const q of queries) {
+      const state = q.state as Record<string, unknown> | undefined;
+      const stateData = state?.data as Record<string, unknown> | undefined;
+      if (stateData && "releases" in stateData) {
+        const releases = stateData.releases;
+        if (Array.isArray(releases)) return releases as BeatportRelease[];
+        const nested = (releases as Record<string, unknown>)?.data;
+        if (Array.isArray(nested)) return nested as BeatportRelease[];
+      }
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function mapRelease(release: BeatportRelease): NormalizedAlbum {
+  const artists = release.artists?.map((a) => a.name).filter(Boolean) ?? ["Unknown Artist"];
+  return {
+    sourceService: "beatport",
+    sourceId: String(release.id),
+    upc: release.upc,
+    title: release.name,
+    artists,
+    label: release.label?.name,
+    artworkUrl: release.image?.uri,
+    releaseDate: release.publish_date,
+    totalTracks: release.track_count,
+    webUrl: `https://www.beatport.com/release/${release.slug}/${release.id}`,
+  };
+}
+
+async function fetchReleaseById(releaseId: string): Promise<NormalizedAlbum | null> {
+  const url = `https://www.beatport.com/release/x/${releaseId}`;
+  const response = await beatportFetch(url);
+  if (!response.ok) return null;
+
+  const html = await response.text();
+  const nextData = parseNextData(html);
+  if (!nextData) return null;
+
+  const release = extractReleaseFromNextData(nextData);
+  if (!release?.name) return null;
+  return mapRelease(release);
+}
+
 export const beatportAdapter: ServiceAdapter = {
   id: "beatport",
   displayName: "Beatport",
@@ -305,6 +410,64 @@ export const beatportAdapter: ServiceAdapter = {
       };
     } catch (error) {
       log.debug("Beatport", "Search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+
+  albumCapabilities: {
+    supportsUpc: true,
+    supportsAlbumSearch: true,
+    supportsTrackListing: false,
+  },
+
+  detectAlbumUrl(url: string): string | null {
+    const match = BEATPORT_ALBUM_REGEX.exec(url);
+    return match?.[1] ?? null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const album = await fetchReleaseById(albumId);
+    if (!album) throw new Error(`Beatport: Album not found: ${albumId}`);
+    return album;
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+    try {
+      const searchUrl = `https://www.beatport.com/search/releases?q=${encodeURIComponent(q)}`;
+      const response = await beatportFetch(searchUrl);
+      if (!response.ok) return { found: false, confidence: 0, matchMethod: "search" };
+
+      const html = await response.text();
+      const nextData = parseNextData(html);
+      if (!nextData) return { found: false, confidence: 0, matchMethod: "search" };
+
+      const releases = extractReleaseSearchFromNextData(nextData);
+      if (releases.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
+
+      let bestMatch: NormalizedAlbum | null = null;
+      let bestConfidence = 0;
+
+      for (const release of releases.slice(0, 5)) {
+        if (!release.id || !release.name) continue;
+        const album = mapRelease(release);
+        const confidence = calculateAlbumConfidence(
+          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year, upc: undefined },
+          { title: album.title, artists: album.artists, totalTracks: album.totalTracks, releaseDate: album.releaseDate, upc: album.upc },
+        );
+        log.debug("Beatport", `  "${release.name}" -> confidence=${confidence.toFixed(3)}`);
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = album;
+        }
+      }
+
+      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("Beatport", "Album search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

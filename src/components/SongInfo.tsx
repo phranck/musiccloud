@@ -11,6 +11,8 @@ interface SongInfoProps {
   isExplicit?: boolean;
   albumArtUrl: string;
   onAlbumArtLoad?: (img: HTMLImageElement) => void;
+  /** When provided, replaces the automatically computed meta line (duration · ISRC · year) */
+  metaOverride?: string;
 }
 
 export const SongInfo = memo(function SongInfo({
@@ -23,8 +25,9 @@ export const SongInfo = memo(function SongInfo({
   isExplicit,
   albumArtUrl,
   onAlbumArtLoad,
+  metaOverride,
 }: SongInfoProps) {
-  const metaLine = buildMetaLine({ durationMs, isrc, releaseDate });
+  const metaLine = metaOverride ?? buildMetaLine({ durationMs, isrc, releaseDate });
 
   return (
     <div>

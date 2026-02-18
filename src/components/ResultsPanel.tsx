@@ -1,17 +1,9 @@
 import { useT } from "../i18n/context";
-import { compareByDisplayOrder } from "../lib/constants";
-import { cn, PLATFORM_CONFIG, type Platform } from "../lib/utils";
-import { GlassCard } from "./GlassCard";
-import { PlatformButton } from "./PlatformButton";
-import { ShareButton } from "./ShareButton";
-import { SongInfo } from "./SongInfo";
+import { buildMetaLine, PLATFORM_CONFIG } from "../lib/utils";
+import { MediaCard, type SongContentConfiguration } from "./MediaCard";
 
-export interface PlatformLink {
-  platform: Platform;
-  url: string;
-  displayName?: string;
-  matchMethod?: "isrc" | "search" | "odesli" | "cache" | "upc" | "isrc-inference";
-}
+// Re-export PlatformLink so existing imports from ResultsPanel keep working
+export type { PlatformLink } from "./MediaCard";
 
 export interface SongResult {
   title: string;
@@ -23,7 +15,7 @@ export interface SongResult {
   isExplicit?: boolean;
   albumArtUrl: string;
   /** Only includes platforms where the song was actually found */
-  platforms: PlatformLink[];
+  platforms: import("./MediaCard").PlatformLink[];
   shareUrl: string;
 }
 
@@ -36,7 +28,7 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
   const t = useT();
   const foundCount = result.platforms.length;
 
-  let platformsInfo: string | null = null;
+  let platformsInfo: string | undefined;
   if (foundCount === 1) {
     const serviceName =
       result.platforms[0].displayName ??
@@ -49,64 +41,21 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
     platformsInfo = t("results.notFound");
   }
 
-  return (
-    <GlassCard
-      elevated
-      className={cn(
-        "w-full max-w-full sm:max-w-lg mx-auto mt-6 sm:mt-8 rounded-2xl sm:rounded-[36px]",
-        "animate-zoom-in",
-      )}
-    >
-      {/* Screen reader announcement */}
-      <p className="sr-only" aria-live="polite">
-        {t("results.found", { title: result.title, artist: result.artist })}
-      </p>
+  const config: SongContentConfiguration = {
+    type: "song",
+    title: result.title,
+    artist: result.artist,
+    album: result.album,
+    artworkUrl: result.albumArtUrl,
+    isExplicit: result.isExplicit,
+    metaLine: buildMetaLine({ durationMs: result.durationMs, isrc: result.isrc, releaseDate: result.releaseDate }) || undefined,
+    platforms: result.platforms,
+    platformsLabel: t("results.listenOn"),
+    platformsInfo,
+    shareUrl: result.shareUrl,
+    srAnnouncement: t("results.found", { title: result.title, artist: result.artist }),
+    onAlbumArtLoad,
+  };
 
-      <SongInfo
-        title={result.title}
-        artist={result.artist}
-        album={result.album}
-        releaseDate={result.releaseDate}
-        durationMs={result.durationMs}
-        isrc={result.isrc}
-        isExplicit={result.isExplicit}
-        albumArtUrl={result.albumArtUrl}
-        onAlbumArtLoad={onAlbumArtLoad}
-      />
-
-      {/* Share action */}
-      <div className="px-6 pb-5">
-        <ShareButton shareUrl={result.shareUrl} songTitle={result.title} artistName={result.artist} />
-      </div>
-
-      {/* Platform buttons */}
-      {result.platforms.length > 0 && (
-        <div className="border-t border-white/[0.06] px-6 pt-5 pb-6">
-          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3">{t("results.listenOn")}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[...result.platforms]
-              .sort((a, b) => compareByDisplayOrder(a.platform, b.platform))
-              .map((p) => (
-                <PlatformButton
-                  key={p.platform}
-                  platform={p.platform}
-                  url={p.url}
-                  songTitle={result.title}
-                  displayName={p.displayName}
-                  matchMethod={p.matchMethod}
-                />
-              ))}
-          </div>
-          {platformsInfo && <p className="text-sm text-text-secondary text-center mt-4">{platformsInfo}</p>}
-        </div>
-      )}
-
-      {/* Partial results (no platforms) */}
-      {result.platforms.length === 0 && platformsInfo && (
-        <div className="px-6 pb-6 pt-2">
-          <p className="text-sm text-text-secondary text-center">{platformsInfo}</p>
-        </div>
-      )}
-    </GlassCard>
-  );
+  return <MediaCard content={config} className="mt-6 sm:mt-8" />;
 }

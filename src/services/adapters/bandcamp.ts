@@ -1,7 +1,16 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
+import type {
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  AlbumTrackEntry,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
 const USER_AGENT =
@@ -9,6 +18,24 @@ const USER_AGENT =
 
 // Bandcamp URLs: {artist}.bandcamp.com/track/{slug}
 const BANDCAMP_TRACK_REGEX = /^https?:\/\/([a-z0-9-]+)\.bandcamp\.com\/track\/([a-z0-9-]+)/;
+// Bandcamp album URLs: {artist}.bandcamp.com/album/{slug}
+const BANDCAMP_ALBUM_REGEX = /^https?:\/\/([a-z0-9-]+)\.bandcamp\.com\/album\/([a-z0-9-]+)/;
+
+interface BandcampAlbumJsonLd {
+  "@type"?: string;
+  name?: string;
+  url?: string;
+  image?: string;
+  datePublished?: string;
+  byArtist?: { name?: string };
+  numTracks?: number;
+  track?: {
+    itemListElement?: Array<{
+      position: number;
+      item?: { "@type"?: string; name?: string; duration?: string };
+    }>;
+  };
+}
 
 interface BandcampJsonLd {
   "@type"?: string;
@@ -147,6 +174,77 @@ async function searchBandcamp(query: string): Promise<Array<{ url: string; name:
   return results;
 }
 
+function parseAlbumJsonLd(html: string): BandcampAlbumJsonLd | null {
+  const match = /application\/ld\+json">\s*(\{[\s\S]*?\})\s*<\/script>/i.exec(html);
+  if (!match?.[1]) return null;
+  try {
+    const data = JSON.parse(match[1]) as BandcampAlbumJsonLd;
+    if (data["@type"] !== "MusicAlbum" || !data.name) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAlbumByUrl(albumUrl: string): Promise<NormalizedAlbum | null> {
+  const response = await bandcampFetch(albumUrl);
+  if (!response.ok) return null;
+  const html = await response.text();
+  const jsonLd = parseAlbumJsonLd(html);
+  if (!jsonLd) return null;
+
+  const artist = jsonLd.byArtist?.name ?? "Unknown Artist";
+  const tracks: AlbumTrackEntry[] = [];
+  for (const item of jsonLd.track?.itemListElement ?? []) {
+    if (item.item?.name) {
+      tracks.push({
+        title: item.item.name,
+        trackNumber: item.position,
+        durationMs: item.item.duration ? parseDuration(item.item.duration) : undefined,
+      });
+    }
+  }
+
+  return {
+    sourceService: "bandcamp",
+    sourceId: albumUrl.split("?")[0],
+    title: jsonLd.name!,
+    artists: [artist],
+    releaseDate: jsonLd.datePublished,
+    totalTracks: jsonLd.numTracks ?? (tracks.length > 0 ? tracks.length : undefined),
+    artworkUrl: jsonLd.image,
+    webUrl: jsonLd.url ?? albumUrl,
+    tracks: tracks.length > 0 ? tracks : undefined,
+  };
+}
+
+async function searchBandcampAlbums(
+  query: string,
+): Promise<Array<{ url: string; name: string; artist: string }>> {
+  const searchUrl = `https://bandcamp.com/search?q=${encodeURIComponent(query)}&item_type=a`;
+  const response = await bandcampFetch(searchUrl);
+  if (!response.ok) return [];
+
+  const html = await response.text();
+  const results: Array<{ url: string; name: string; artist: string }> = [];
+  const resultBlocks = html.matchAll(/<div class="result-info">([\s\S]*?)<\/div>\s*<\/li>/g);
+  for (const block of resultBlocks) {
+    const content = block[1];
+    if (!content) continue;
+    const urlMatch = /href="(https?:\/\/[a-z0-9-]+\.bandcamp\.com\/album\/[^"?]+)/.exec(content);
+    if (!urlMatch) continue;
+    const nameMatch = /<div class="heading">\s*<a[^>]*>\s*([\s\S]*?)\s*<\/a>/.exec(content);
+    const artistMatch = /by\s+([\s\S]*?)\s*</.exec(content);
+    results.push({
+      url: urlMatch[1],
+      name: nameMatch?.[1]?.trim() ?? "",
+      artist: artistMatch?.[1]?.trim() ?? "",
+    });
+    if (results.length >= 5) break;
+  }
+  return results;
+}
+
 export const bandcampAdapter: ServiceAdapter = {
   id: "bandcamp",
   displayName: "Bandcamp",
@@ -238,6 +336,56 @@ export const bandcampAdapter: ServiceAdapter = {
       };
     } catch (error) {
       log.debug("Bandcamp", "Search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+
+  albumCapabilities: {
+    supportsUpc: false,
+    supportsAlbumSearch: true,
+    supportsTrackListing: true,
+  },
+
+  detectAlbumUrl(url: string): string | null {
+    const match = BANDCAMP_ALBUM_REGEX.exec(url);
+    return match ? url.split("?")[0] : null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const album = await fetchAlbumByUrl(albumId);
+    if (!album) throw new Error(`Bandcamp: Album not found: ${albumId}`);
+    return album;
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+    try {
+      const results = await searchBandcampAlbums(q);
+      if (results.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
+
+      const albumResults = await Promise.allSettled(results.map((r) => fetchAlbumByUrl(r.url)));
+      let bestMatch: NormalizedAlbum | null = null;
+      let bestConfidence = 0;
+
+      for (const result of albumResults) {
+        if (result.status !== "fulfilled" || !result.value) continue;
+        const album = result.value;
+        const confidence = calculateAlbumConfidence(
+          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
+          { title: album.title, artists: album.artists, totalTracks: album.totalTracks, releaseDate: album.releaseDate },
+        );
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = album;
+        }
+      }
+
+      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("Bandcamp", "Album search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },
