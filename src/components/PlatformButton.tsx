@@ -7,7 +7,7 @@ interface PlatformButtonProps {
   url: string;
   songTitle: string;
   displayName?: string;
-  matchMethod?: "isrc" | "search" | "odesli" | "cache";
+  matchMethod?: "isrc" | "search" | "odesli" | "cache" | "upc" | "isrc-inference";
   className?: string;
 }
 
@@ -33,11 +33,15 @@ export const PlatformButton = memo(function PlatformButton({
       ? "via Odesli"
       : matchMethod === "isrc"
         ? "direct (ISRC)"
-        : matchMethod === "search"
-          ? "via search"
-          : matchMethod === "cache"
-            ? "cached"
-            : null;
+        : matchMethod === "upc"
+          ? "direct (UPC)"
+          : matchMethod === "isrc-inference"
+            ? "via track ISRCs"
+            : matchMethod === "search"
+              ? "via search"
+              : matchMethod === "cache"
+                ? "cached"
+                : null;
 
   return (
     <a

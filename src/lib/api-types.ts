@@ -23,7 +23,7 @@ export interface ApiLink {
   displayName: string;
   url: string;
   confidence: number;
-  matchMethod: "isrc" | "search" | "odesli" | "cache";
+  matchMethod: "isrc" | "search" | "odesli" | "cache" | "upc" | "isrc-inference";
 }
 
 export interface ApiDisambiguationCandidate {
@@ -52,3 +52,24 @@ export interface ResolveErrorResponse {
 }
 
 export type ResolveResponse = ResolveSuccessResponse | ResolveDisambiguationResponse | ResolveErrorResponse;
+
+// ─── Album API Types ──────────────────────────────────────────────────────────
+
+export interface ApiAlbum {
+  title: string;
+  artists: string[];
+  releaseDate?: string;
+  totalTracks?: number;
+  artworkUrl?: string;
+  label?: string;
+  upc?: string;
+}
+
+export interface AlbumResolveSuccessResponse {
+  id: string;
+  shortUrl: string;
+  album: ApiAlbum;
+  links: ApiLink[];
+}
+
+export type AlbumResolveResponse = AlbumResolveSuccessResponse | ResolveErrorResponse;
