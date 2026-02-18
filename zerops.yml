@@ -63,3 +63,19 @@ zerops:
         # Set in Zerops Secrets:
         # INTERNAL_API_KEY: <same key as backend>
       start: node apps/frontend/dist/server/entry.mjs
+
+  - setup: dashboard
+    build:
+      base: nodejs@22
+      buildCommands:
+        - npm ci
+        - npm run build -w packages/shared
+        - npm run build -w apps/dashboard
+      deployFiles:
+        - apps/dashboard/dist
+      cache: node_modules
+    run:
+      base: static-nginx@1.27
+      ports:
+        - port: 80
+          httpSupport: true
