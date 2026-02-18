@@ -9,8 +9,9 @@ zerops:
       deployFiles:
         - apps/backend/dist
         - apps/backend/package.json
-        - apps/backend/node_modules
-        - packages/shared/dist
+        - node_modules
+        - packages/shared
+        - package.json
       cache: node_modules
     run:
       base: nodejs@22
@@ -47,8 +48,9 @@ zerops:
       deployFiles:
         - apps/frontend/dist
         - apps/frontend/package.json
-        - apps/frontend/node_modules
-        - packages/shared/dist
+        - node_modules
+        - packages/shared
+        - package.json
       cache: node_modules
     run:
       base: nodejs@22
