@@ -57,6 +57,11 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Remove default link underline globally */
+a {
+  text-decoration: none;
+}
+
 /* Remove 300ms tap delay on touch devices */
 button,
 [role="button"] {

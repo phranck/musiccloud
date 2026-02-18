@@ -27,7 +27,8 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>("about");
   const [content, setContent] = useState<PanelContent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [contentHeight, setContentHeight] = useState(0);
+  // null = height:auto (initial/loading state, no jump); number = pixel value for tab transitions
+  const [contentHeight, setContentHeight] = useState<number | null>(null);
 
   const tabRefs = useRef<Record<Tab, HTMLDivElement | null>>({
     about: null,
@@ -75,8 +76,10 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
       .finally(() => setIsLoading(false));
   }, [isOpen, content]);
 
-  // Measure active tab height for smooth height animation
+  // Measure active tab height for smooth tab-switch animation.
+  // Only run once content is loaded to avoid a visible jump on first open.
   useLayoutEffect(() => {
+    if (!content) return;
     const ref = tabRefs.current[activeTab];
     if (ref) setContentHeight(ref.scrollHeight);
   }, [activeTab, content]);
@@ -171,10 +174,10 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
           </button>
         </div>
 
-        {/* Animated content area */}
+        {/* Animated content area — height:auto while loading (no jump), px value for tab transitions */}
         <div
-          className="overflow-hidden transition-[height] duration-300 ease-in-out relative flex-shrink-0"
-          style={{ height: contentHeight > 0 ? contentHeight : "auto" }}
+          className={`overflow-hidden relative flex-shrink-0 ${contentHeight !== null ? "transition-[height] duration-300 ease-in-out" : ""}`}
+          style={{ height: contentHeight !== null ? contentHeight : "auto" }}
         >
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center py-10">
