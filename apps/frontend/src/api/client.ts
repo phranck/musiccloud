@@ -1,7 +1,7 @@
 import type { SharePageResponse } from "@musiccloud/shared";
 
-const BACKEND_URL = import.meta.env.BACKEND_URL ?? "http://localhost:4000";
-const INTERNAL_API_KEY = import.meta.env.INTERNAL_API_KEY ?? "";
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:4000";
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY ?? "";
 
 function backendUrl(path: string): string {
   return `${BACKEND_URL}${path}`;
