@@ -1,3 +1,4 @@
+import { useT } from "../i18n/context";
 import { compareByDisplayOrder } from "../lib/constants";
 import { cn, PLATFORM_CONFIG, type Platform } from "../lib/utils";
 import { GlassCard } from "./GlassCard";
@@ -32,6 +33,7 @@ interface ResultsPanelProps {
 }
 
 export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
+  const t = useT();
   const foundCount = result.platforms.length;
 
   let platformsInfo: string | null = null;
@@ -40,11 +42,11 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
       result.platforms[0].displayName ??
       PLATFORM_CONFIG[result.platforms[0].platform]?.label ??
       result.platforms[0].platform;
-    platformsInfo = `Only available on ${serviceName}.`;
+    platformsInfo = t("results.onlyAvailable", { service: serviceName });
   } else if (foundCount === 2) {
-    platformsInfo = "Found on 2 platforms.";
+    platformsInfo = t("results.foundOn2");
   } else if (foundCount === 0) {
-    platformsInfo = "We couldn't find this song on other platforms.";
+    platformsInfo = t("results.notFound");
   }
 
   return (
@@ -57,7 +59,7 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
     >
       {/* Screen reader announcement */}
       <p className="sr-only" aria-live="polite">
-        Found {result.title} by {result.artist}
+        {t("results.found", { title: result.title, artist: result.artist })}
       </p>
 
       <SongInfo
@@ -80,7 +82,7 @@ export function ResultsPanel({ result, onAlbumArtLoad }: ResultsPanelProps) {
       {/* Platform buttons */}
       {result.platforms.length > 0 && (
         <div className="border-t border-white/[0.06] px-6 pt-5 pb-6">
-          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3">Listen on</p>
+          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3">{t("results.listenOn")}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[...result.platforms]
               .sort((a, b) => compareByDisplayOrder(a.platform, b.platform))

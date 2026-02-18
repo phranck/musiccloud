@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "../i18n/context";
 import { cn, isMusicUrl } from "../lib/utils";
 
 export type InputState = "idle" | "focused" | "loading" | "success" | "error";
@@ -14,11 +15,6 @@ interface HeroInputProps {
   errorMessage?: string;
 }
 
-const LOADING_MESSAGES = [
-  { delay: 0, text: "Finding your song..." },
-  { delay: 2000, text: "Still searching..." },
-];
-
 export function HeroInput({
   onSubmit,
   onClear,
@@ -29,8 +25,9 @@ export function HeroInput({
   songName,
   errorMessage,
 }: HeroInputProps) {
+  const t = useT();
   const [value, setValue] = useState("");
-  const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0].text);
+  const [loadingMessage, setLoadingMessage] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const ambilightRef = useRef<HTMLDivElement>(null);
   const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,15 +51,15 @@ export function HeroInput({
     if (state !== "loading") {
       loadingTimers.current.forEach(clearTimeout);
       loadingTimers.current = [];
-      setLoadingMessage(LOADING_MESSAGES[0].text);
       return;
     }
 
-    const timers = LOADING_MESSAGES.map(({ delay, text }) => setTimeout(() => setLoadingMessage(text), delay));
-    loadingTimers.current = timers;
+    setLoadingMessage(t("loading.finding"));
+    const timer = setTimeout(() => setLoadingMessage(t("loading.still")), 2000);
+    loadingTimers.current = [timer];
 
-    return () => timers.forEach(clearTimeout);
-  }, [state]);
+    return () => clearTimeout(timer);
+  }, [state, t]);
 
   // Ambilight: Siri-style waves - concentrated light blobs traveling around the border
   // Start hues spaced 120 degrees apart for full rainbow coverage
@@ -267,11 +264,11 @@ export function HeroInput({
             onKeyDown={handleKeyDown}
             onFocus={() => onFocus?.()}
             onBlur={() => onBlur?.()}
-            placeholder="Paste a link of an album or song and search by artist or title..."
+            placeholder={t("hero.placeholder")}
             readOnly={state === "loading" || state === "success"}
             className={cn(
               "flex-1 bg-transparent border-0 px-6 text-lg font-medium text-text-primary tracking-[-0.01em]",
-              "placeholder:text-text-muted placeholder:tracking-normal outline-none",
+              "placeholder:text-text-muted placeholder:text-base placeholder:tracking-normal outline-none",
               "h-14 md:h-16",
               state === "loading" && "opacity-50",
             )}

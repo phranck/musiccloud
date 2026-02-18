@@ -1,3 +1,4 @@
+import { useT } from "../i18n/context";
 import { cn } from "../lib/utils";
 import { GlassCard } from "./GlassCard";
 
@@ -24,27 +25,35 @@ export function DisambiguationPanel({
   selectedId,
   loading = false,
 }: DisambiguationPanelProps) {
+  const t = useT();
   return (
     <div className={cn("w-full max-w-full sm:max-w-[480px] mx-auto mt-8", "animate-zoom-in")}>
       {/* Header */}
       <div className="text-center mb-4">
-        <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">Did you mean?</h2>
-        <p className="text-sm text-text-secondary mt-1">We found multiple matches. Pick the right one.</p>
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">{t("disambiguation.title")}</h2>
+        <p className="text-sm text-text-secondary mt-1">{t("disambiguation.subtitle")}</p>
       </div>
 
       {/* Candidate list */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col">
         {candidates.map((candidate, index) => {
           const isSelected = loading && selectedId === candidate.id;
+          const isHiding = loading && !isSelected;
           const isDisabled = loading;
 
           return (
-            <GlassCard
+            <div
               key={candidate.id}
               className={cn(
+                "overflow-hidden transition-all ease-in-out",
+                isHiding ? "max-h-0 mb-0 duration-300 delay-150" : "max-h-40 mb-3 duration-300",
+              )}
+            >
+            <GlassCard
+              className={cn(
                 "group",
-                "transition-all duration-300",
-                isDisabled && !isSelected && "opacity-40 grayscale",
+                "transition-[opacity,transform] duration-200",
+                isHiding && "opacity-0 scale-[0.97]",
               )}
             >
               <button
@@ -62,7 +71,7 @@ export function DisambiguationPanel({
                 style={{ animationDelay: `${index * 80}ms` }}
                 aria-label={
                   isSelected
-                    ? `Loading "${candidate.title}"...`
+                    ? t("disambiguation.loading")
                     : `Select "${candidate.title}" by ${candidate.artists.join(", ")}`
                 }
               >
@@ -138,6 +147,7 @@ export function DisambiguationPanel({
                 </div>
               </button>
             </GlassCard>
+            </div>
           );
         })}
       </div>
@@ -154,7 +164,7 @@ export function DisambiguationPanel({
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
             )}
           >
-            None of these? Try a different search.
+            {t("disambiguation.cancel")}
           </button>
         </div>
       )}
@@ -162,8 +172,8 @@ export function DisambiguationPanel({
       {/* Screen reader announcement */}
       <p className="sr-only" aria-live="polite">
         {loading
-          ? "Loading selected track..."
-          : `Found ${candidates.length} possible matches. Please select the correct one.`}
+          ? t("disambiguation.loading")
+          : t("disambiguation.found", { count: String(candidates.length) })}
       </p>
     </div>
   );

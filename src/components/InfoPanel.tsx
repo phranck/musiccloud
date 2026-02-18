@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FaXmark } from "react-icons/fa6";
+import { useLocale, useT } from "../i18n/context";
+import type { Locale } from "../i18n/locales";
 
 interface InfoPanelProps {
   isOpen: boolean;
@@ -15,20 +17,19 @@ interface PanelContent {
   dsgvo: string;
 }
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "about", label: "About" },
-  { id: "services", label: "Services" },
-  { id: "imprint", label: "Imprint" },
-  { id: "dsgvo", label: "DSGVO" },
-];
-
 export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
+  const { locale } = useLocale();
+  const t = useT();
+
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("about");
   const [content, setContent] = useState<PanelContent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   // null = height:auto (initial/loading state, no jump); number = pixel value for tab transitions
   const [contentHeight, setContentHeight] = useState<number | null>(null);
+
+  // Per-locale content cache so re-opening in the same locale skips network
+  const contentCacheRef = useRef<Map<Locale, PanelContent>>(new Map());
 
   const tabRefs = useRef<Record<Tab, HTMLDivElement | null>>({
     about: null,
@@ -50,31 +51,60 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
     setTimeout(onClose, 380);
   }, [onClose]);
 
-  // Load markdown content on first open
+  // Load markdown content when panel opens or locale changes
   useEffect(() => {
-    if (!isOpen || content) return;
+    if (!isOpen) return;
+
+    const cached = contentCacheRef.current.get(locale);
+    if (cached) {
+      setContent(cached);
+      return;
+    }
+
+    setContent(null);
+    setContentHeight(null);
     setIsLoading(true);
+
+    const fetchMd = async (file: string): Promise<string> => {
+      const r = await fetch(`/content/${locale}/${file}`);
+      if (r.ok) return r.text();
+      // Fallback to English
+      const fallback = await fetch(`/content/en/${file}`);
+      return fallback.text();
+    };
+
+    let cancelled = false;
     Promise.all([
-      fetch("/content/about.md").then((r) => r.text()),
-      fetch("/content/services.md").then((r) => r.text()),
-      fetch("/content/imprint.md").then((r) => r.text()),
-      fetch("/content/dsgvo.md").then((r) => r.text()),
+      fetchMd("about.md"),
+      fetchMd("services.md"),
+      fetchMd("imprint.md"),
+      fetchMd("privacy.md"),
     ])
-      .then(async ([aboutMd, servicesMd, imprintMd, dsgvoMd]) => {
+      .then(async ([aboutMd, servicesMd, imprintMd, privacyMd]) => {
+        if (cancelled) return;
         const { marked } = await import("marked");
-        setContent({
+        const data: PanelContent = {
           about: await marked(aboutMd),
           services: await marked(servicesMd),
           imprint: await marked(imprintMd),
-          dsgvo: await marked(dsgvoMd),
-        });
+          dsgvo: await marked(privacyMd),
+        };
+        contentCacheRef.current.set(locale, data);
+        setContent(data);
       })
       .catch(() => {
-        const err = "<p>Content unavailable.</p>";
+        if (cancelled) return;
+        const err = `<p>${t("infopanel.unavailable")}</p>`;
         setContent({ about: err, services: err, imprint: err, dsgvo: err });
       })
-      .finally(() => setIsLoading(false));
-  }, [isOpen, content]);
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, locale, t]);
 
   // Measure active tab height for smooth tab-switch animation.
   // Only run once content is loaded to avoid a visible jump on first open.
@@ -98,6 +128,13 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
   }, [isOpen, handleClose]);
 
   if (!isOpen) return null;
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "about", label: t("tab.about") },
+    { id: "services", label: t("tab.services") },
+    { id: "imprint", label: t("tab.imprint") },
+    { id: "dsgvo", label: t("tab.privacy") },
+  ];
 
   const mdClasses = [
     "[&_h1]:text-white [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:mb-3 [&_h1]:mt-0",
@@ -144,7 +181,7 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
             role="tablist"
             className="flex gap-6 border-b border-white/[0.08] -mb-px"
           >
-            {TABS.map(({ id, label }) => (
+            {tabs.map(({ id, label }) => (
               <button
                 key={id}
                 role="tab"
@@ -167,7 +204,7 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
 
           <button
             onClick={handleClose}
-            aria-label="Close"
+            aria-label={t("infopanel.close")}
             className="mb-2 p-1.5 text-white/30 hover:text-white/70 transition-colors duration-150 rounded-lg focus:outline-none"
           >
             <FaXmark className="w-4 h-4" />
@@ -185,7 +222,7 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
             </div>
           )}
 
-          {TABS.map(({ id }) => (
+          {tabs.map(({ id }) => (
             <div
               key={id}
               ref={(el) => { tabRefs.current[id] = el; }}

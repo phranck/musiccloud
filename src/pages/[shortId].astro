@@ -9,7 +9,10 @@ export const prerender = false;
 
 import Footer from "../components/Footer.astro";
 import { GradientBackground } from "../components/GradientBackground";
+import { LanguageSwitcherIsland } from "../components/LanguageSwitcherIsland";
 import { PlatformIcon } from "../components/PlatformIcon";
+import { getLocaleFromCookie } from "../i18n/locales";
+import { loadTranslations, makeT } from "../i18n/server";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { loadByShortId } from "../lib/share-page";
 import { buildMetaLine, isValidPlatform, PLATFORM_CONFIG, type Platform } from "../lib/utils";
@@ -34,12 +37,18 @@ if (!data) {
 const { track, artistDisplay, links, og } = data;
 
 const metaLine = buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc, releaseDate: track.releaseDate });
+
+// SSR i18n: read locale from cookie, load translations
+const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
+const translations = await loadTranslations(locale);
+const t = makeT(translations);
 ---
 
 <BaseLayout
   title={og.pageTitle}
   canonicalUrl={og.ogUrl}
   preloadImage={track.artworkUrl}
+  lang={locale}
 >
   <Fragment slot="head">
     <!-- OpenGraph Tags (critical for link previews) -->
@@ -60,7 +69,14 @@ const metaLine = buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc,
     <meta name="twitter:image" content={og.ogImageUrl} />
   </Fragment>
 
-  <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">Skip to content</a>
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">
+    {t("a11y.skipToContent")}
+  </a>
+
+  <!-- Language Switcher island (top-right, consistent with landing page) -->
+  <div class="fixed top-4 right-4 z-40">
+    <LanguageSwitcherIsland client:load />
+  </div>
 
   <GradientBackground client:load />
 
@@ -85,7 +101,11 @@ const metaLine = buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc,
     {(track.isExplicit || metaLine) && (
       <p class="text-sm text-text-muted/60 text-center mt-2 mb-8 font-mono tracking-wide inline-flex items-center justify-center gap-1.5">
         {track.isExplicit && (
-          <span class="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0" title="Explicit" aria-label="Explicit content">E</span>
+          <span
+            class="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0"
+            title={t("share.explicit")}
+            aria-label={t("share.explicitContent")}
+          >E</span>
         )}
         <span>{metaLine}</span>
       </p>
@@ -110,11 +130,11 @@ const metaLine = buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc,
             rel="noopener noreferrer"
             class="flex items-center gap-3 px-4 sm:px-5 py-3 rounded-xl transition-all duration-150 min-h-[52px] w-full bg-white/[0.06] border border-white/[0.10] hover:bg-white/[0.10] hover:scale-[1.03] hover:shadow-[0_0_16px_var(--platform-color)] focus-visible:bg-white/[0.10] focus-visible:scale-[1.03] focus-visible:shadow-[0_0_16px_var(--platform-color)] active:scale-[0.97]"
             style={`--platform-color: ${config.color}60`}
-            aria-label={`Open ${track.title} on ${label} (opens in new window)`}
+            aria-label={t("share.openOn", { title: track.title, platform: label })}
           >
             <PlatformIcon client:load platform={platform} className="w-7 h-7 flex-shrink-0" colored={true} />
             <span class="font-medium text-base text-text-primary flex-1" style="font-family: var(--font-condensed)">
-              Listen on {label}
+              {t("results.listenOn")} {label}
             </span>
             <svg
               class="w-4 h-4 text-text-muted flex-shrink-0"
