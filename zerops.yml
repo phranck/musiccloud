@@ -73,9 +73,11 @@ zerops:
         - npm run build -w apps/dashboard
       deployFiles:
         - apps/dashboard/dist
+        - apps/dashboard/nginx.conf
       cache: node_modules
     run:
       base: nginx@1.22
       ports:
         - port: 80
           httpSupport: true
+      siteConfig: apps/dashboard/nginx.conf
