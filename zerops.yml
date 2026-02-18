@@ -71,13 +71,13 @@ zerops:
         - npm ci
         - npm run build -w packages/shared
         - npm run build -w apps/dashboard
+        - cp -r apps/dashboard/dist/. .
       deployFiles:
-        - apps/dashboard/dist
-        - apps/dashboard/nginx.conf
+        - index.html
+        - assets
       cache: node_modules
     run:
       base: nginx@1.22
       ports:
         - port: 80
           httpSupport: true
-      siteConfig: /var/www/apps/dashboard/nginx.conf
