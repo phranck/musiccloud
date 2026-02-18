@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "../i18n/context";
-import { cn, isMusicUrl } from "../lib/utils";
+import { cn, isAlbumUrl, isMusicUrl } from "../lib/utils";
 
 export type InputState = "idle" | "focused" | "loading" | "success" | "error";
 
@@ -165,7 +165,7 @@ export function HeroInput({
 
       // Let the paste happen naturally, then check
       setTimeout(() => {
-        if (isMusicUrl(pastedText)) {
+        if (isMusicUrl(pastedText) || isAlbumUrl(pastedText)) {
           autoSubmitTimer.current = setTimeout(() => {
             onSubmit(pastedText);
           }, 300);
