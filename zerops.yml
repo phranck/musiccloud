@@ -80,4 +80,4 @@ zerops:
       ports:
         - port: 80
           httpSupport: true
-      siteConfig: apps/dashboard/nginx.conf
+      siteConfig: /var/www/apps/dashboard/nginx.conf
