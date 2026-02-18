@@ -1,8 +1,18 @@
 import react from "@vitejs/plugin-react";
+import svgr from "vite-plugin-svgr";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    svgr({
+      svgrOptions: {
+        icon: true,
+        exportType: "named",
+        namedExport: "ReactComponent",
+      },
+    }),
+  ],
   server: {
     port: 5000,
     proxy: {
