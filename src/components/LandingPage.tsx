@@ -337,7 +337,7 @@ function LandingPageInner() {
                 <BrandName />
               </h1>
               <p
-                className="text-xs sm:text-sm md:text-base font-light tracking-[-0.02em] text-white/70 -mt-1"
+                className="text-sm sm:text-base md:text-lg font-light tracking-[-0.02em] text-white/70 -mt-1"
                 style={{ fontFamily: '"Nasalization", sans-serif' }}
               >
                 share it everywhere
