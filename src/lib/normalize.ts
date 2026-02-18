@@ -86,3 +86,47 @@ export function calculateConfidence(
 
   return score;
 }
+
+export function calculateAlbumConfidence(
+  source: { title: string; artists: string[]; totalTracks?: number; releaseDate?: string; upc?: string },
+  candidate: { title: string; artists: string[]; totalTracks?: number; releaseDate?: string; upc?: string },
+): number {
+  // UPC match = perfect (like ISRC for tracks)
+  if (source.upc && candidate.upc && source.upc === candidate.upc) {
+    return 1.0;
+  }
+
+  let score = 0;
+
+  // Title similarity (35%)
+  score += stringSimilarity(source.title, candidate.title) * 0.35;
+
+  // Artist similarity (35%)
+  if (source.artists.length > 0 && candidate.artists.length > 0) {
+    let artistScore = 0;
+    for (const srcArtist of source.artists) {
+      let bestMatch = 0;
+      for (const candArtist of candidate.artists) {
+        bestMatch = Math.max(bestMatch, stringSimilarity(srcArtist, candArtist));
+      }
+      artistScore += bestMatch;
+    }
+    score += (artistScore / source.artists.length) * 0.35;
+  }
+
+  // Release year match (15%)
+  if (source.releaseDate && candidate.releaseDate) {
+    const srcYear = source.releaseDate.slice(0, 4);
+    const candYear = candidate.releaseDate.slice(0, 4);
+    if (srcYear === candYear) score += 0.15;
+    else if (Math.abs(Number(srcYear) - Number(candYear)) === 1) score += 0.07;
+  }
+
+  // Track count match (15%)
+  if (source.totalTracks && candidate.totalTracks) {
+    if (source.totalTracks === candidate.totalTracks) score += 0.15;
+    else if (Math.abs(source.totalTracks - candidate.totalTracks) <= 2) score += 0.07;
+  }
+
+  return score;
+}

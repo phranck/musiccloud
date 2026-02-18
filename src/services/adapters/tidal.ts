@@ -1,13 +1,23 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
 import { TokenManager } from "../../lib/token-manager.js";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
+import type {
+  AlbumCapabilities,
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types.js";
 
 const API_BASE = "https://openapi.tidal.com/v2";
 
 const TIDAL_TRACK_REGEX = /(?:https?:\/\/)?(?:listen\.)?tidal\.com\/(?:browse\/)?track\/(\d+)/;
+const TIDAL_ALBUM_REGEX = /(?:https?:\/\/)?(?:listen\.)?tidal\.com\/(?:browse\/)?album\/(\d+)/;
 
 const tokenManager = new TokenManager({
   serviceName: "Tidal",
@@ -52,6 +62,84 @@ interface TidalSearchResponse {
     type: string;
     attributes: { name?: string; title?: string; imageLinks?: Array<{ href: string }> };
   }>;
+}
+
+interface TidalAlbumResource {
+  id: string;
+  attributes: {
+    title: string;
+    barcodeId?: string; // UPC
+    releaseDate?: string;
+    numberOfItems?: number;
+    imageLinks?: Array<{ href: string; meta: { width: number; height: number } }>;
+  };
+  relationships?: {
+    artists?: { data: Array<{ id: string }> };
+    items?: { data: Array<{ id: string }> };
+  };
+}
+
+interface TidalAlbumResponse {
+  data: TidalAlbumResource;
+  included?: Array<{
+    id: string;
+    type: string;
+    attributes: {
+      name?: string;
+      title?: string;
+      isrc?: string;
+      trackNumber?: number;
+      duration?: number;
+    };
+  }>;
+}
+
+interface TidalAlbumSearchResponse {
+  data: TidalAlbumResource[];
+  included?: TidalAlbumResponse["included"];
+}
+
+function mapAlbum(resource: TidalAlbumResource, included?: TidalAlbumResponse["included"]): NormalizedAlbum {
+  const attrs = resource.attributes;
+
+  const artistIds = resource.relationships?.artists?.data?.map((a) => a.id) ?? [];
+  const artists: string[] = [];
+  if (included) {
+    for (const id of artistIds) {
+      const artist = included.find((i) => i.id === id && i.type === "artists");
+      if (artist?.attributes?.name) artists.push(artist.attributes.name);
+    }
+  }
+
+  // Extract track listing from included resources
+  const trackIds = resource.relationships?.items?.data?.map((t) => t.id) ?? [];
+  const tracks = included
+    ? trackIds
+        .map((id, idx) => {
+          const t = included.find((i) => i.id === id && i.type === "tracks");
+          if (!t?.attributes?.title) return null;
+          return {
+            title: t.attributes.title,
+            trackNumber: t.attributes.trackNumber ?? idx + 1,
+            durationMs: t.attributes.duration ? t.attributes.duration * 1000 : undefined,
+            isrc: t.attributes.isrc,
+          };
+        })
+        .filter((t): t is NonNullable<typeof t> => t !== null)
+    : undefined;
+
+  return {
+    sourceService: "tidal",
+    sourceId: resource.id,
+    upc: attrs.barcodeId,
+    title: attrs.title,
+    artists: artists.length > 0 ? artists : ["Unknown Artist"],
+    releaseDate: attrs.releaseDate,
+    totalTracks: attrs.numberOfItems,
+    artworkUrl: pickLargestImage(attrs.imageLinks),
+    webUrl: `https://tidal.com/browse/album/${resource.id}`,
+    tracks: tracks && tracks.length > 0 ? tracks : undefined,
+  };
 }
 
 /** Reset token cache. For testing only. */
@@ -222,5 +310,90 @@ export const tidalAdapter = {
       confidence: bestConfidence,
       matchMethod: "search",
     };
+  },
+  // --- Album support ---
+
+  albumCapabilities: {
+    supportsUpc: true,
+    supportsAlbumSearch: true,
+    supportsTrackListing: true,
+  } satisfies AlbumCapabilities,
+
+  detectAlbumUrl(url: string): string | null {
+    const match = TIDAL_ALBUM_REGEX.exec(url);
+    return match ? match[1] : null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const response = await tidalFetch(
+      `/albums/${encodeURIComponent(albumId)}?countryCode=US&include=artists,items`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`Tidal getAlbum failed: ${response.status}`);
+    }
+
+    const data: TidalAlbumResponse = await response.json();
+    return mapAlbum(data.data, data.included);
+  },
+
+  async findAlbumByUpc(upc: string): Promise<NormalizedAlbum | null> {
+    const response = await tidalFetch(
+      `/albums?filter[barcodeId]=${encodeURIComponent(upc)}&countryCode=US&include=artists`,
+    );
+
+    if (!response.ok) {
+      log.debug("Tidal", "UPC album lookup failed:", response.status);
+      return null;
+    }
+
+    const data: TidalAlbumSearchResponse = await response.json();
+
+    if (!data.data || data.data.length === 0) {
+      log.debug("Tidal", "Album UPC not found:", upc);
+      return null;
+    }
+
+    return mapAlbum(data.data[0], data.included);
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+    const response = await tidalFetch(
+      `/searchresults/${encodeURIComponent(q)}/relationships/albums?countryCode=US&include=albums.artists`,
+    );
+
+    if (!response.ok) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const data: TidalAlbumSearchResponse = await response.json();
+    const items = data.data ?? [];
+
+    if (items.length === 0) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    let bestAlbum: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const item of items.slice(0, 5)) {
+      const album = mapAlbum(item, data.included);
+      const confidence = calculateAlbumConfidence(
+        { title: query.title, artists: [query.artist], totalTracks: query.totalTracks },
+        { title: album.title, artists: album.artists, releaseDate: album.releaseDate, totalTracks: album.totalTracks },
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestAlbum = album;
+      }
+    }
+
+    if (!bestAlbum || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

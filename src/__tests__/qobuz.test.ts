@@ -102,6 +102,32 @@ describe("Qobuz: detectUrl", () => {
   });
 });
 
+// =============================================================================
+// detectAlbumUrl
+// =============================================================================
+
+describe("Qobuz: detectAlbumUrl", () => {
+  it("should extract album ID from open.qobuz.com", () => {
+    expect(qobuzAdapter.detectAlbumUrl?.("https://open.qobuz.com/album/0060253780968")).toBe("0060253780968");
+  });
+
+  it("should extract album ID from play.qobuz.com", () => {
+    expect(qobuzAdapter.detectAlbumUrl?.("https://play.qobuz.com/album/0060253780968")).toBe("0060253780968");
+  });
+
+  it("should handle URL with query params", () => {
+    expect(qobuzAdapter.detectAlbumUrl?.("https://open.qobuz.com/album/12345?from=share")).toBe("12345");
+  });
+
+  it("should return null for track URL", () => {
+    expect(qobuzAdapter.detectAlbumUrl?.("https://open.qobuz.com/track/59954869")).toBeNull();
+  });
+
+  it("should return null for non-Qobuz URL", () => {
+    expect(qobuzAdapter.detectAlbumUrl?.("https://open.spotify.com/album/abc123")).toBeNull();
+  });
+});
+
 describe("Qobuz: getTrack", () => {
   it("should resolve track via API", async () => {
     fetchMock.mockResolvedValueOnce(mockResponse(MOCK_TRACK_RESPONSE));

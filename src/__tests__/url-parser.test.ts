@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isAlbumUrl } from "../lib/utils";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/url-parser";
 
 // =============================================================================
@@ -53,19 +54,32 @@ describe("validateMusicUrl", () => {
       }
     });
 
-    it("should reject YouTube playlist", () => {
+    it("should accept Spotify album URL (album resolution supported)", () => {
+      const result = validateMusicUrl("https://open.spotify.com/album/abc123");
+      expect(result.valid).toBe(true);
+    });
+
+    it("should accept Deezer album URL", () => {
+      const result = validateMusicUrl("https://www.deezer.com/album/123456");
+      expect(result.valid).toBe(true);
+    });
+
+    it("should accept Tidal album URL", () => {
+      const result = validateMusicUrl("https://tidal.com/browse/album/12345");
+      expect(result.valid).toBe(true);
+    });
+
+    it("should reject YouTube Music album playlist (OLAK5uy_) as playlist", () => {
+      // YouTube Music albums are routed via the album resolver, not rejected
+      const result = validateMusicUrl("https://music.youtube.com/playlist?list=OLAK5uy_abc123");
+      expect(result.valid).toBe(true);
+    });
+
+    it("should still reject regular YouTube playlists", () => {
       const result = validateMusicUrl("https://youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf");
       expect(result.valid).toBe(false);
       if (!result.valid) {
         expect(result.code).toBe("PLAYLIST_NOT_SUPPORTED");
-      }
-    });
-
-    it("should reject Spotify album without track param", () => {
-      const result = validateMusicUrl("https://open.spotify.com/album/abc123");
-      expect(result.valid).toBe(false);
-      if (!result.valid) {
-        expect(result.code).toBe("ALBUM_NOT_SUPPORTED");
       }
     });
   });
@@ -138,5 +152,47 @@ describe("isUrl", () => {
 
   it("should reject empty string", () => {
     expect(isUrl("")).toBe(false);
+  });
+});
+
+// =============================================================================
+// isAlbumUrl
+// =============================================================================
+
+describe("isAlbumUrl", () => {
+  it("should detect Spotify album URL", () => {
+    expect(isAlbumUrl("https://open.spotify.com/album/6dVIqQ8qmQ5GBnJ9shOYGE")).toBe(true);
+  });
+
+  it("should detect Spotify intl album URL", () => {
+    expect(isAlbumUrl("https://open.spotify.com/intl-de/album/6dVIqQ8qmQ5GBnJ9shOYGE")).toBe(true);
+  });
+
+  it("should detect Deezer album URL", () => {
+    expect(isAlbumUrl("https://www.deezer.com/album/302127")).toBe(true);
+  });
+
+  it("should detect Tidal album URL", () => {
+    expect(isAlbumUrl("https://tidal.com/browse/album/95477688")).toBe(true);
+  });
+
+  it("should detect Bandcamp album URL", () => {
+    expect(isAlbumUrl("https://radiohead.bandcamp.com/album/ok-computer")).toBe(true);
+  });
+
+  it("should detect YouTube Music album playlist", () => {
+    expect(isAlbumUrl("https://music.youtube.com/playlist?list=OLAK5uy_abc123")).toBe(true);
+  });
+
+  it("should NOT detect Spotify track URL as album", () => {
+    expect(isAlbumUrl("https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC")).toBe(false);
+  });
+
+  it("should NOT detect plain text as album", () => {
+    expect(isAlbumUrl("Bohemian Rhapsody Queen")).toBe(false);
+  });
+
+  it("should NOT detect regular YouTube playlist as album", () => {
+    expect(isAlbumUrl("https://youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf")).toBe(false);
   });
 });

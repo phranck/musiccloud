@@ -1,8 +1,17 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger";
-import { calculateConfidence } from "../../lib/normalize";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types";
+import type {
+  AlbumCapabilities,
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types";
 
 /**
  * Qobuz Scrape Adapter
@@ -19,6 +28,10 @@ import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "
 //   https://open.qobuz.com/track/59954869
 //   https://play.qobuz.com/track/59954869
 const QOBUZ_TRACK_REGEX = /^https?:\/\/(?:open|play)\.qobuz\.com\/track\/(\d+)(?:\?.*)?$/;
+// Album URL formats:
+//   https://open.qobuz.com/album/0060253780968
+//   https://play.qobuz.com/album/0060253780968
+const QOBUZ_ALBUM_REGEX = /^https?:\/\/(?:open|play)\.qobuz\.com\/album\/([a-zA-Z0-9]+)(?:\?.*)?$/;
 
 const API_BASE = "https://www.qobuz.com/api.json/0.2";
 
@@ -142,6 +155,64 @@ interface QobuzSearchResponse {
   tracks?: {
     items?: QobuzTrack[];
     total?: number;
+  };
+}
+
+interface QobuzAlbumTrack {
+  id?: number;
+  title?: string;
+  isrc?: string;
+  track_number?: number;
+  duration?: number; // seconds
+}
+
+interface QobuzAlbum {
+  id?: string;
+  title?: string;
+  upc?: string;
+  released_at?: number; // unix timestamp
+  tracks_count?: number;
+  image?: { small?: string; thumbnail?: string; large?: string };
+  label?: { name?: string };
+  artist?: { name?: string };
+  tracks?: { items?: QobuzAlbumTrack[] };
+}
+
+interface QobuzAlbumSearchResponse {
+  albums?: {
+    items?: QobuzAlbum[];
+    total?: number;
+  };
+}
+
+function mapAlbum(data: QobuzAlbum): NormalizedAlbum {
+  const albumId = data.id ?? "";
+  const artists = data.artist?.name ? [data.artist.name] : ["Unknown Artist"];
+
+  let releaseDate: string | undefined;
+  if (data.released_at) {
+    releaseDate = new Date(data.released_at * 1000).toISOString().slice(0, 10);
+  }
+
+  return {
+    sourceService: "qobuz",
+    sourceId: albumId,
+    upc: data.upc,
+    title: data.title ?? "Unknown",
+    artists,
+    releaseDate,
+    totalTracks: data.tracks_count,
+    artworkUrl: data.image?.large ?? data.image?.thumbnail,
+    label: data.label?.name,
+    webUrl: `https://open.qobuz.com/album/${albumId}`,
+    tracks: data.tracks?.items
+      ?.filter((t): t is QobuzAlbumTrack & { title: string } => Boolean(t.title))
+      .map((t) => ({
+        title: t.title,
+        trackNumber: t.track_number ?? 0,
+        durationMs: t.duration ? t.duration * 1000 : undefined,
+        isrc: t.isrc,
+      })),
   };
 }
 
@@ -277,6 +348,101 @@ export const qobuzAdapter = {
       };
     } catch (error) {
       log.debug("Qobuz", "Search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+  // --- Album support ---
+
+  albumCapabilities: {
+    supportsUpc: true,
+    supportsAlbumSearch: true,
+    supportsTrackListing: true,
+  } satisfies AlbumCapabilities,
+
+  detectAlbumUrl(url: string): string | null {
+    const match = QOBUZ_ALBUM_REGEX.exec(url);
+    return match?.[1] ?? null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const response = await qobuzApiFetch(`/album/get?album_id=${encodeURIComponent(albumId)}&extra=tracks`);
+
+    if (!response.ok) {
+      throw new Error(`Qobuz getAlbum failed: ${response.status}`);
+    }
+
+    const data = (await response.json()) as QobuzAlbum;
+    if (!data.title) {
+      throw new Error("Qobuz: No album data in response");
+    }
+
+    return mapAlbum(data);
+  },
+
+  async findAlbumByUpc(upc: string): Promise<NormalizedAlbum | null> {
+    // Qobuz accepts UPC as album_id in the album/get endpoint
+    try {
+      const response = await qobuzApiFetch(`/album/get?album_id=${encodeURIComponent(upc)}`);
+
+      if (!response.ok) {
+        log.debug("Qobuz", "UPC album lookup failed:", response.status);
+        return null;
+      }
+
+      const data = (await response.json()) as QobuzAlbum;
+      if (!data.title) return null;
+
+      return mapAlbum(data);
+    } catch {
+      return null;
+    }
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `${query.artist} ${query.title}`;
+
+    try {
+      const response = await qobuzApiFetch(`/album/search?query=${encodeURIComponent(q)}&limit=5`);
+
+      if (!response.ok) {
+        log.debug("Qobuz", "Album search failed:", response.status);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      const result = (await response.json()) as QobuzAlbumSearchResponse;
+      const items = result.albums?.items ?? [];
+
+      if (items.length === 0) {
+        log.debug("Qobuz", "Album search returned no results for:", q);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      let bestAlbum: NormalizedAlbum | null = null;
+      let bestConfidence = 0;
+
+      for (const item of items) {
+        if (!item.title) continue;
+        const album = mapAlbum(item);
+        const confidence = calculateAlbumConfidence(
+          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks },
+          { title: album.title, artists: album.artists, releaseDate: album.releaseDate, totalTracks: album.totalTracks },
+        );
+
+        log.debug("Qobuz", `  Album "${album.title}" by ${album.artists.join(", ")} -> ${confidence.toFixed(3)}`);
+
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestAlbum = album;
+        }
+      }
+
+      if (!bestAlbum || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+
+      return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("Qobuz", "Album search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

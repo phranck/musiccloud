@@ -1,12 +1,22 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
+import type {
+  AlbumCapabilities,
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types.js";
 
 const API_BASE = "https://api.deezer.com";
 
 const DEEZER_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/;
+const DEEZER_ALBUM_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?album\/(\d+)/;
 
 // Minimal type for the Deezer API track response fields we use
 interface DeezerTrackResponse {
@@ -30,6 +40,54 @@ interface DeezerTrackResponse {
 interface DeezerSearchResponse {
   data: DeezerTrackResponse[];
   total: number;
+}
+
+interface DeezerAlbumTrack {
+  id: number;
+  title: string;
+  isrc?: string;
+  track_position: number;
+  duration: number; // seconds
+}
+
+interface DeezerAlbumResponse {
+  id: number;
+  title: string;
+  artist: { name: string };
+  release_date?: string;
+  nb_tracks?: number;
+  cover_xl?: string;
+  cover_big?: string;
+  upc?: string;
+  label?: string;
+  link: string;
+  tracks?: { data: DeezerAlbumTrack[] };
+}
+
+interface DeezerAlbumSearchResponse {
+  data: DeezerAlbumResponse[];
+  total: number;
+}
+
+function mapAlbum(raw: DeezerAlbumResponse): NormalizedAlbum {
+  return {
+    sourceService: "deezer",
+    sourceId: String(raw.id),
+    upc: raw.upc,
+    title: raw.title,
+    artists: [raw.artist.name],
+    releaseDate: raw.release_date,
+    totalTracks: raw.nb_tracks,
+    artworkUrl: raw.cover_xl ?? raw.cover_big,
+    label: raw.label,
+    webUrl: raw.link ?? `https://www.deezer.com/album/${raw.id}`,
+    tracks: raw.tracks?.data.map((t) => ({
+      title: t.title,
+      trackNumber: t.track_position,
+      durationMs: t.duration * 1000,
+      isrc: t.isrc,
+    })),
+  };
 }
 
 interface DeezerErrorResponse {
@@ -168,5 +226,94 @@ export const deezerAdapter = {
       confidence: bestConfidence,
       matchMethod: "search",
     };
+  },
+  // --- Album support ---
+
+  albumCapabilities: {
+    supportsUpc: true,
+    supportsAlbumSearch: true,
+    supportsTrackListing: true,
+  } satisfies AlbumCapabilities,
+
+  detectAlbumUrl(url: string): string | null {
+    const match = DEEZER_ALBUM_REGEX.exec(url);
+    return match ? match[1] : null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const response = await deezerFetch(`/album/${encodeURIComponent(albumId)}`);
+
+    if (!response.ok) {
+      throw new Error(`Deezer getAlbum failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (isDeezerError(data)) {
+      throw new Error(`Deezer API error: ${(data as DeezerErrorResponse).error.message}`);
+    }
+
+    return mapAlbum(data as DeezerAlbumResponse);
+  },
+
+  async findAlbumByUpc(upc: string): Promise<NormalizedAlbum | null> {
+    const response = await deezerFetch(`/album/upc:${encodeURIComponent(upc)}`);
+
+    if (!response.ok) {
+      log.debug("Deezer", "UPC album lookup failed:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (isDeezerError(data)) {
+      log.debug("Deezer", "Album UPC not found:", upc);
+      return null;
+    }
+
+    return mapAlbum(data as DeezerAlbumResponse);
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `artist:"${query.artist}" album:"${query.title}"`;
+    const response = await deezerFetch(`/search/album?q=${encodeURIComponent(q)}&limit=5`);
+
+    if (!response.ok) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const data = await response.json();
+
+    if (isDeezerError(data)) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const items = (data as DeezerAlbumSearchResponse).data ?? [];
+
+    if (items.length === 0) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    let bestAlbum: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const item of items) {
+      const album = mapAlbum(item);
+      const confidence = calculateAlbumConfidence(
+        { title: query.title, artists: [query.artist], totalTracks: query.totalTracks },
+        { title: album.title, artists: album.artists, releaseDate: album.releaseDate, totalTracks: album.totalTracks },
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestAlbum = album;
+      }
+    }
+
+    if (!bestAlbum || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

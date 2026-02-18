@@ -1,11 +1,15 @@
 import { fetchWithTimeout } from "../../lib/fetch.js";
 import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
 import { TokenManager } from "../../lib/token-manager.js";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
 import type {
   AdapterCapabilities,
+  AlbumCapabilities,
+  AlbumMatchResult,
+  AlbumSearchQuery,
   MatchResult,
+  NormalizedAlbum,
   NormalizedTrack,
   SearchResultWithCandidates,
   ServiceAdapter,
@@ -13,6 +17,7 @@ import type {
 
 const SPOTIFY_TRACK_REGEX = /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?track\/([a-zA-Z0-9]+)/;
 const SPOTIFY_URI_REGEX = /spotify:track:([a-zA-Z0-9]+)/;
+const SPOTIFY_ALBUM_REGEX = /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?album\/([a-zA-Z0-9]+)/;
 
 const API_BASE = "https://api.spotify.com/v1";
 
@@ -42,6 +47,53 @@ function mapTrack(raw: SpotifyTrackResponse): NormalizedTrack {
     artworkUrl: raw.album?.images?.[0]?.url,
     previewUrl: raw.preview_url ?? undefined,
     webUrl: raw.external_urls?.spotify ?? `https://open.spotify.com/track/${raw.id}`,
+  };
+}
+
+// Minimal types for the Spotify API album response fields we use
+interface SpotifyAlbumTrack {
+  id: string;
+  name: string;
+  track_number: number;
+  duration_ms: number;
+  external_ids?: { isrc?: string };
+}
+
+interface SpotifyAlbumResponse {
+  id: string;
+  name: string;
+  artists: Array<{ name: string }>;
+  release_date?: string;
+  total_tracks?: number;
+  images?: Array<{ url: string; width: number; height: number }>;
+  external_ids?: { upc?: string };
+  label?: string;
+  external_urls?: { spotify?: string };
+  tracks?: { items: SpotifyAlbumTrack[] };
+}
+
+interface SpotifyAlbumSearchResponse {
+  albums?: { items: SpotifyAlbumResponse[] };
+}
+
+function mapAlbum(raw: SpotifyAlbumResponse): NormalizedAlbum {
+  return {
+    sourceService: "spotify",
+    sourceId: raw.id,
+    upc: raw.external_ids?.upc,
+    title: raw.name,
+    artists: raw.artists.map((a) => a.name),
+    releaseDate: raw.release_date,
+    totalTracks: raw.total_tracks,
+    artworkUrl: raw.images?.[0]?.url,
+    label: raw.label,
+    webUrl: raw.external_urls?.spotify ?? `https://open.spotify.com/album/${raw.id}`,
+    tracks: raw.tracks?.items.map((t) => ({
+      title: t.name,
+      trackNumber: t.track_number,
+      durationMs: t.duration_ms,
+      isrc: t.external_ids?.isrc,
+    })),
   };
 }
 
@@ -255,5 +307,81 @@ export const spotifyAdapter = {
       bestMatch,
       candidates: scored.filter((c) => c.confidence >= 0.4),
     };
+  },
+  // --- Album support ---
+
+  albumCapabilities: {
+    supportsUpc: true,
+    supportsAlbumSearch: true,
+    supportsTrackListing: true,
+  } satisfies AlbumCapabilities,
+
+  detectAlbumUrl(url: string): string | null {
+    const match = SPOTIFY_ALBUM_REGEX.exec(url);
+    return match ? match[1] : null;
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const response = await spotifyFetch(`/albums/${encodeURIComponent(albumId)}`);
+
+    if (!response.ok) {
+      throw new Error(`Spotify getAlbum failed: ${response.status}`);
+    }
+
+    const data: SpotifyAlbumResponse = await response.json();
+    return mapAlbum(data);
+  },
+
+  async findAlbumByUpc(upc: string): Promise<NormalizedAlbum | null> {
+    const response = await spotifyFetch(`/search?type=album&q=${encodeURIComponent(`upc:${upc}`)}&limit=1`);
+
+    if (!response.ok) {
+      log.debug("Spotify", "UPC album lookup failed:", response.status);
+      return null;
+    }
+
+    const data: SpotifyAlbumSearchResponse = await response.json();
+    const items = data.albums?.items ?? [];
+    if (items.length === 0) return null;
+
+    return mapAlbum(items[0]);
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const q = `album:${query.title} artist:${query.artist}`;
+    const response = await spotifyFetch(`/search?type=album&q=${encodeURIComponent(q)}&limit=5`);
+
+    if (!response.ok) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const data: SpotifyAlbumSearchResponse = await response.json();
+    const items = data.albums?.items ?? [];
+
+    if (items.length === 0) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    let bestAlbum: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const item of items) {
+      const album = mapAlbum(item);
+      const confidence = calculateAlbumConfidence(
+        { title: query.title, artists: [query.artist], releaseDate: query.year, totalTracks: query.totalTracks },
+        { title: album.title, artists: album.artists, releaseDate: album.releaseDate, totalTracks: album.totalTracks },
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestAlbum = album;
+      }
+    }
+
+    if (!bestAlbum || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

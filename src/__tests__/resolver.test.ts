@@ -94,6 +94,13 @@ function createMockRepository(): TrackRepository {
     loadByTrackId: vi.fn().mockResolvedValue(null),
     persistTrackWithLinks: vi.fn().mockResolvedValue({ trackId: "tid1", shortId: "abc" }),
     addLinksToTrack: vi.fn().mockResolvedValue(undefined),
+    // Album methods (not used by track resolver tests)
+    findAlbumByUrl: vi.fn().mockResolvedValue(null),
+    findAlbumByUpc: vi.fn().mockResolvedValue(null),
+    findExistingAlbumByUpc: vi.fn().mockResolvedValue(null),
+    loadAlbumByShortId: vi.fn().mockResolvedValue(null),
+    persistAlbumWithLinks: vi.fn().mockResolvedValue({ albumId: "aid1", shortId: "alb" }),
+    addLinksToAlbum: vi.fn().mockResolvedValue(undefined),
     updateTrackTimestamp: vi.fn().mockResolvedValue(undefined),
     cleanupStaleCache: vi.fn().mockResolvedValue(0),
     close: vi.fn().mockResolvedValue(undefined),

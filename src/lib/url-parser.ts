@@ -66,9 +66,7 @@ const ALLOWED_HOSTS = [
 // Patterns for unsupported content types (specific error messages)
 const PODCAST_REGEX = /spotify\.com\/(?:intl-\w+\/)?(?:episode|show)\//;
 const PLAYLIST_REGEX =
-  /(?:spotify\.com\/(?:intl-\w+\/)?playlist\/|music\.apple\.com\/[a-z]{2}\/playlist\/|youtube\.com\/playlist\?)/;
-const ALBUM_ONLY_REGEX =
-  /(?:spotify\.com\/(?:intl-\w+\/)?album\/[a-zA-Z0-9]+$|music\.apple\.com\/[a-z]{2}\/album\/[^?]+$)/;
+  /(?:spotify\.com\/(?:intl-\w+\/)?playlist\/|music\.apple\.com\/[a-z]{2}\/playlist\/|youtube\.com\/playlist\?list=(?!OLAK5uy_))/;
 
 export function validateMusicUrl(input: string): UrlValidationResult {
   // Check if it looks like a URL at all
@@ -96,14 +94,6 @@ export function validateMusicUrl(input: string): UrlValidationResult {
       valid: false,
       code: "PLAYLIST_NOT_SUPPORTED",
       message: "We support single tracks right now. Try pasting a link to a specific song.",
-    };
-  }
-
-  if (ALBUM_ONLY_REGEX.test(input) && !input.includes("?i=")) {
-    return {
-      valid: false,
-      code: "ALBUM_NOT_SUPPORTED",
-      message: "Try pasting a link to a specific song from this album.",
     };
   }
 

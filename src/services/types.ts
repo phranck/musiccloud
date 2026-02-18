@@ -101,6 +101,13 @@ export interface ServiceAdapter {
   findByIsrc(isrc: string): Promise<NormalizedTrack | null>;
   searchTrack(query: SearchQuery): Promise<MatchResult>;
   searchTrackWithCandidates?(query: SearchQuery): Promise<SearchResultWithCandidates>;
+
+  // Optional album support (adapters implement as needed)
+  readonly albumCapabilities?: AlbumCapabilities;
+  detectAlbumUrl?(url: string): string | null;
+  getAlbum?(albumId: string): Promise<NormalizedAlbum>;
+  findAlbumByUpc?(upc: string): Promise<NormalizedAlbum | null>;
+  searchAlbum?(query: AlbumSearchQuery): Promise<AlbumMatchResult>;
 }
 
 export interface SearchQuery {
@@ -142,4 +149,53 @@ export interface SearchCandidate {
 export interface DisambiguationResponse {
   status: "disambiguation";
   candidates: SearchCandidate[];
+}
+
+// ─── Album Types ────────────────────────────────────────────────────────────
+
+/** Album-level normalized data (parallel to NormalizedTrack) */
+export interface NormalizedAlbum {
+  upc?: string;
+  sourceService: TrackSource;
+  sourceId: string;
+  title: string;
+  artists: string[];
+  releaseDate?: string;
+  totalTracks?: number;
+  artworkUrl?: string;
+  label?: string;
+  webUrl: string;
+  /** Optional track listing for ISRC-based cross-matching */
+  tracks?: AlbumTrackEntry[];
+}
+
+/** Minimal track info within an album (for ISRC-based cross-matching) */
+export interface AlbumTrackEntry {
+  title: string;
+  isrc?: string;
+  trackNumber: number;
+  durationMs?: number;
+}
+
+/** Album text/metadata search query */
+export interface AlbumSearchQuery {
+  title: string;
+  artist: string;
+  year?: string;
+  totalTracks?: number;
+}
+
+/** Album match result (parallel to MatchResult) */
+export interface AlbumMatchResult {
+  found: boolean;
+  album?: NormalizedAlbum;
+  confidence: number;
+  matchMethod: MatchMethod;
+}
+
+/** Album-level adapter capabilities */
+export interface AlbumCapabilities {
+  supportsUpc: boolean;
+  supportsAlbumSearch: boolean;
+  supportsTrackListing: boolean;
 }

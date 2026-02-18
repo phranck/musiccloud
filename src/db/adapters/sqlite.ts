@@ -5,7 +5,15 @@ import { CACHE_TTL_MS } from "../../lib/constants.js";
 import { log } from "../../lib/logger.js";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedTrack } from "../../services/types.js";
-import type { CachedTrackResult, PersistTrackData, SharePageDbResult, TrackRepository } from "../repository.js";
+import type {
+  CachedAlbumResult,
+  CachedTrackResult,
+  PersistAlbumData,
+  PersistTrackData,
+  SharePageAlbumResult,
+  SharePageDbResult,
+  TrackRepository,
+} from "../repository.js";
 import * as schema from "../schemas/sqlite.js";
 
 interface TrackRow {
@@ -27,6 +35,28 @@ interface TrackWithLinkRow extends TrackRow {
   created_at: number;
   updated_at: number;
   url: string | null;
+  service: string | null;
+  confidence: number | null;
+  match_method: string | null;
+}
+
+interface AlbumRow {
+  id: string;
+  title: string;
+  artists: string;
+  release_date: string | null;
+  total_tracks: number | null;
+  artwork_url: string | null;
+  label: string | null;
+  upc: string | null;
+  source_service: string | null;
+  source_url: string | null;
+}
+
+interface AlbumWithLinkRow extends AlbumRow {
+  created_at: number;
+  updated_at: number;
+  link_url: string | null;
   service: string | null;
   confidence: number | null;
   match_method: string | null;
@@ -100,6 +130,41 @@ export class SqliteAdapter implements TrackRepository {
           created_at INTEGER NOT NULL
         );
 
+        CREATE TABLE albums (
+          id TEXT PRIMARY KEY NOT NULL,
+          title TEXT NOT NULL,
+          artists TEXT NOT NULL,
+          release_date TEXT,
+          total_tracks INTEGER,
+          artwork_url TEXT,
+          label TEXT,
+          upc TEXT,
+          source_service TEXT,
+          source_url TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX idx_albums_upc ON albums (upc);
+
+        CREATE TABLE album_service_links (
+          id TEXT PRIMARY KEY NOT NULL,
+          album_id TEXT NOT NULL REFERENCES albums(id),
+          service TEXT NOT NULL,
+          external_id TEXT,
+          url TEXT NOT NULL,
+          confidence REAL NOT NULL,
+          match_method TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE UNIQUE INDEX idx_album_service_links_album_service ON album_service_links (album_id, service);
+        CREATE INDEX idx_album_service_links_service_external ON album_service_links (service, external_id);
+
+        CREATE TABLE album_short_urls (
+          id TEXT PRIMARY KEY NOT NULL,
+          album_id TEXT NOT NULL REFERENCES albums(id),
+          created_at INTEGER NOT NULL
+        );
+
         -- FTS5 virtual table for text search (standalone, manually synced)
         CREATE VIRTUAL TABLE tracks_fts USING fts5(
           track_id UNINDEXED,
@@ -122,6 +187,50 @@ export class SqliteAdapter implements TrackRepository {
         CREATE TRIGGER tracks_fts_delete AFTER DELETE ON tracks BEGIN
           DELETE FROM tracks_fts WHERE track_id = OLD.id;
         END;
+      `);
+    }
+
+    // Ensure album tables exist even if DB was created before album support
+    const albumsExist = this.sqlite
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='albums'`)
+      .get();
+
+    if (!albumsExist) {
+      this.sqlite.exec(`
+        CREATE TABLE albums (
+          id TEXT PRIMARY KEY NOT NULL,
+          title TEXT NOT NULL,
+          artists TEXT NOT NULL,
+          release_date TEXT,
+          total_tracks INTEGER,
+          artwork_url TEXT,
+          label TEXT,
+          upc TEXT,
+          source_service TEXT,
+          source_url TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX idx_albums_upc ON albums (upc);
+
+        CREATE TABLE album_service_links (
+          id TEXT PRIMARY KEY NOT NULL,
+          album_id TEXT NOT NULL REFERENCES albums(id),
+          service TEXT NOT NULL,
+          external_id TEXT,
+          url TEXT NOT NULL,
+          confidence REAL NOT NULL,
+          match_method TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE UNIQUE INDEX idx_album_service_links_album_service ON album_service_links (album_id, service);
+        CREATE INDEX idx_album_service_links_service_external ON album_service_links (service, external_id);
+
+        CREATE TABLE album_short_urls (
+          id TEXT PRIMARY KEY NOT NULL,
+          album_id TEXT NOT NULL REFERENCES albums(id),
+          created_at INTEGER NOT NULL
+        );
       `);
     }
 
@@ -457,7 +566,270 @@ export class SqliteAdapter implements TrackRepository {
     this.sqlite.close();
   }
 
+  // --- Album methods ---
+
+  async findAlbumByUrl(url: string): Promise<CachedAlbumResult | null> {
+    const stmt = this.sqlite.prepare(`
+      SELECT DISTINCT a.id, a.title, a.artists, a.release_date, a.total_tracks,
+             a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
+             a.created_at, a.updated_at,
+             asl.url AS link_url, asl.service, asl.confidence, asl.match_method
+      FROM albums a
+      LEFT JOIN album_service_links asl ON a.id = asl.album_id
+      WHERE a.id = (SELECT album_id FROM album_service_links WHERE url = ? LIMIT 1)
+    `);
+
+    const rows = stmt.all(url) as AlbumWithLinkRow[];
+    if (rows.length === 0) return null;
+
+    return this.buildCachedAlbumResult(rows, url);
+  }
+
+  async findAlbumByUpc(upc: string): Promise<CachedAlbumResult | null> {
+    const stmt = this.sqlite.prepare(`
+      SELECT DISTINCT a.id, a.title, a.artists, a.release_date, a.total_tracks,
+             a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
+             a.created_at, a.updated_at,
+             asl.url AS link_url, asl.service, asl.confidence, asl.match_method
+      FROM albums a
+      LEFT JOIN album_service_links asl ON a.id = asl.album_id
+      WHERE a.upc = ?
+    `);
+
+    const rows = stmt.all(upc) as AlbumWithLinkRow[];
+    if (rows.length === 0) return null;
+
+    return this.buildCachedAlbumResult(rows, "");
+  }
+
+  async findExistingAlbumByUpc(upc: string): Promise<{ albumId: string; shortId: string } | null> {
+    const stmt = this.sqlite.prepare(`
+      SELECT a.id AS album_id, asu.id AS short_id
+      FROM albums a
+      JOIN album_short_urls asu ON a.id = asu.album_id
+      WHERE a.upc = ?
+      LIMIT 1
+    `);
+
+    const row = stmt.get(upc) as { album_id: string; short_id: string } | undefined;
+    if (!row) return null;
+
+    return { albumId: row.album_id, shortId: row.short_id };
+  }
+
+  async loadAlbumByShortId(shortId: string): Promise<SharePageAlbumResult | null> {
+    const stmt = this.sqlite.prepare(`
+      SELECT a.title, a.artists, a.artwork_url, a.release_date, a.total_tracks, a.label, a.upc,
+             asl.service, asl.url AS link_url
+      FROM album_short_urls asu
+      JOIN albums a ON a.id = asu.album_id
+      JOIN album_service_links asl ON asl.album_id = a.id
+      WHERE asu.id = ?
+    `);
+
+    const rows = stmt.all(shortId) as Array<{
+      title: string;
+      artists: string;
+      artwork_url: string | null;
+      release_date: string | null;
+      total_tracks: number | null;
+      label: string | null;
+      upc: string | null;
+      service: string;
+      link_url: string;
+    }>;
+
+    if (rows.length === 0) return null;
+
+    const first = rows[0];
+    const artists = safeParseArray(first.artists, ["Unknown Artist"]);
+
+    return {
+      album: {
+        title: first.title,
+        artworkUrl: first.artwork_url,
+        releaseDate: first.release_date,
+        totalTracks: first.total_tracks,
+        label: first.label,
+        upc: first.upc,
+      },
+      artists,
+      artistDisplay: artists.join(", "),
+      shortId,
+      links: rows.map((r) => ({ service: r.service, url: r.link_url })),
+    };
+  }
+
+  async persistAlbumWithLinks(data: PersistAlbumData): Promise<{ albumId: string; shortId: string }> {
+    const now = Date.now();
+
+    return this.sqlite.transaction(() => {
+      const existing = data.sourceAlbum.upc ? this.findExistingAlbumByUpcSync(data.sourceAlbum.upc) : null;
+
+      if (existing) {
+        this.sqlite.prepare(`UPDATE albums SET updated_at = ? WHERE id = ?`).run(now, existing.albumId);
+
+        for (const link of data.links) {
+          this.sqlite
+            .prepare(`
+              INSERT INTO album_service_links (id, album_id, service, external_id, url, confidence, match_method, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(album_id, service) DO NOTHING
+            `)
+            .run(
+              generateTrackId(),
+              existing.albumId,
+              link.service,
+              link.externalId ?? null,
+              link.url,
+              link.confidence,
+              link.matchMethod,
+              now,
+            );
+        }
+
+        return { albumId: existing.albumId, shortId: existing.shortId };
+      }
+
+      const newAlbumId = generateTrackId();
+      const newShortId = generateShortId();
+
+      this.sqlite
+        .prepare(`
+          INSERT INTO albums (id, title, artists, release_date, total_tracks, artwork_url, label, upc, source_service, source_url, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        .run(
+          newAlbumId,
+          data.sourceAlbum.title,
+          JSON.stringify(data.sourceAlbum.artists),
+          data.sourceAlbum.releaseDate ?? null,
+          data.sourceAlbum.totalTracks ?? null,
+          data.sourceAlbum.artworkUrl ?? null,
+          data.sourceAlbum.label ?? null,
+          data.sourceAlbum.upc ?? null,
+          data.sourceAlbum.sourceService ?? null,
+          data.sourceAlbum.sourceUrl ?? null,
+          now,
+          now,
+        );
+
+      for (const link of data.links) {
+        this.sqlite
+          .prepare(`
+            INSERT INTO album_service_links (id, album_id, service, external_id, url, confidence, match_method, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(album_id, service) DO NOTHING
+          `)
+          .run(
+            generateTrackId(),
+            newAlbumId,
+            link.service,
+            link.externalId ?? null,
+            link.url,
+            link.confidence,
+            link.matchMethod,
+            now,
+          );
+      }
+
+      this.sqlite.prepare(`INSERT INTO album_short_urls (id, album_id, created_at) VALUES (?, ?, ?)`).run(
+        newShortId,
+        newAlbumId,
+        now,
+      );
+
+      return { albumId: newAlbumId, shortId: newShortId };
+    })();
+  }
+
+  async addLinksToAlbum(
+    albumId: string,
+    links: Array<{
+      service: string;
+      url: string;
+      confidence: number;
+      matchMethod: string;
+      externalId?: string;
+    }>,
+  ): Promise<void> {
+    if (links.length === 0) return;
+
+    const now = Date.now();
+    this.sqlite.transaction(() => {
+      for (const link of links) {
+        this.sqlite
+          .prepare(`
+            INSERT INTO album_service_links (id, album_id, service, external_id, url, confidence, match_method, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(album_id, service) DO NOTHING
+          `)
+          .run(
+            generateTrackId(),
+            albumId,
+            link.service,
+            link.externalId ?? null,
+            link.url,
+            link.confidence,
+            link.matchMethod,
+            now,
+          );
+      }
+
+      this.sqlite.prepare("UPDATE albums SET updated_at = ? WHERE id = ?").run(now, albumId);
+    })();
+  }
+
   // --- Private helpers ---
+
+  private findExistingAlbumByUpcSync(upc: string): { albumId: string; shortId: string } | null {
+    const stmt = this.sqlite.prepare(`
+      SELECT a.id AS album_id, asu.id AS short_id
+      FROM albums a
+      JOIN album_short_urls asu ON a.id = asu.album_id
+      WHERE a.upc = ?
+      LIMIT 1
+    `);
+
+    const row = stmt.get(upc) as { album_id: string; short_id: string } | undefined;
+    if (!row) return null;
+
+    return { albumId: row.album_id, shortId: row.short_id };
+  }
+
+  private rowToAlbum(r: AlbumRow, webUrl: string): import("../../services/types.js").NormalizedAlbum {
+    return {
+      sourceService: "cached",
+      sourceId: r.id,
+      title: r.title,
+      artists: safeParseArray(r.artists, ["Unknown Artist"]),
+      releaseDate: r.release_date ?? undefined,
+      totalTracks: r.total_tracks ?? undefined,
+      artworkUrl: r.artwork_url ?? undefined,
+      label: r.label ?? undefined,
+      upc: r.upc ?? undefined,
+      webUrl: r.source_url ?? webUrl,
+    };
+  }
+
+  private buildCachedAlbumResult(rows: AlbumWithLinkRow[], webUrl: string): CachedAlbumResult {
+    const firstRow = rows[0];
+    const album = this.rowToAlbum(firstRow, webUrl);
+
+    const links = rows
+      .filter(
+        (r): r is AlbumWithLinkRow & { link_url: string; service: string; confidence: number; match_method: string } =>
+          r.link_url != null,
+      )
+      .map((r) => ({
+        service: r.service,
+        url: r.link_url,
+        confidence: r.confidence,
+        matchMethod: r.match_method,
+      }));
+
+    return { albumId: firstRow.id, updatedAt: firstRow.updated_at ?? firstRow.created_at, album, links };
+  }
 
   private findExistingByIsrcSync(isrc: string): { trackId: string; shortId: string } | null {
     const stmt = this.sqlite.prepare(`

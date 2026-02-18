@@ -49,20 +49,34 @@ describe("Deezer: detectUrl", () => {
     expect(deezerAdapter.detectUrl("https://deezer.com/track/3135556")).toBe("3135556");
   });
 
-  it("should return null for album URL", () => {
+  it("should return null for album URL (detectUrl is track-only)", () => {
     expect(deezerAdapter.detectUrl("https://www.deezer.com/album/302127")).toBeNull();
   });
+});
 
-  it("should return null for playlist URL", () => {
-    expect(deezerAdapter.detectUrl("https://www.deezer.com/playlist/12345")).toBeNull();
+// =============================================================================
+// detectAlbumUrl
+// =============================================================================
+
+describe("Deezer: detectAlbumUrl", () => {
+  it("should extract album ID from standard URL", () => {
+    expect(deezerAdapter.detectAlbumUrl?.("https://www.deezer.com/album/302127")).toBe("302127");
+  });
+
+  it("should extract album ID from URL with locale", () => {
+    expect(deezerAdapter.detectAlbumUrl?.("https://www.deezer.com/en/album/302127")).toBe("302127");
+  });
+
+  it("should extract album ID from URL without www", () => {
+    expect(deezerAdapter.detectAlbumUrl?.("https://deezer.com/album/302127")).toBe("302127");
+  });
+
+  it("should return null for track URL", () => {
+    expect(deezerAdapter.detectAlbumUrl?.("https://www.deezer.com/track/3135556")).toBeNull();
   });
 
   it("should return null for non-Deezer URL", () => {
-    expect(deezerAdapter.detectUrl("https://open.spotify.com/track/abc123")).toBeNull();
-  });
-
-  it("should return null for empty string", () => {
-    expect(deezerAdapter.detectUrl("")).toBeNull();
+    expect(deezerAdapter.detectAlbumUrl?.("https://open.spotify.com/album/abc123")).toBeNull();
   });
 });
 

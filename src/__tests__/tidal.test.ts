@@ -104,6 +104,32 @@ describe("Tidal: detectUrl", () => {
 });
 
 // =============================================================================
+// detectAlbumUrl
+// =============================================================================
+
+describe("Tidal: detectAlbumUrl", () => {
+  it("should extract album ID from browse URL", () => {
+    expect(tidalAdapter.detectAlbumUrl?.("https://tidal.com/browse/album/95477688")).toBe("95477688");
+  });
+
+  it("should extract album ID from listen URL", () => {
+    expect(tidalAdapter.detectAlbumUrl?.("https://listen.tidal.com/browse/album/95477688")).toBe("95477688");
+  });
+
+  it("should extract album ID from simple URL", () => {
+    expect(tidalAdapter.detectAlbumUrl?.("https://tidal.com/album/95477688")).toBe("95477688");
+  });
+
+  it("should return null for track URL", () => {
+    expect(tidalAdapter.detectAlbumUrl?.("https://tidal.com/browse/track/77640617")).toBeNull();
+  });
+
+  it("should return null for non-Tidal URL", () => {
+    expect(tidalAdapter.detectAlbumUrl?.("https://open.spotify.com/album/abc123")).toBeNull();
+  });
+});
+
+// =============================================================================
 // isAvailable
 // =============================================================================
 

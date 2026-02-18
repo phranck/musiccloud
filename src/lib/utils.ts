@@ -59,6 +59,33 @@ export function isMusicUrl(url: string): boolean {
   return Object.values(MUSIC_URL_PATTERNS).some((pattern) => pattern.test(url));
 }
 
+export const ALBUM_URL_PATTERNS: Record<DetectablePlatform, RegExp> = {
+  spotify: /^https?:\/\/(open\.)?spotify\.com\/(intl-\w+\/)?album\/[a-zA-Z0-9]+/,
+  "apple-music": /^https?:\/\/music\.apple\.com\/[a-z]{2}\/album\/[^?]+$/,
+  youtube: /^https?:\/\/music\.youtube\.com\/playlist\?list=OLAK5uy_/,
+  soundcloud: /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/sets\/[^/]+/,
+  tidal: /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?album\/\d+/,
+  deezer: /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?album\/\d+/,
+  audius: /^https?:\/\/audius\.co\/[^/]+\/[^/]+-[a-zA-Z0-9]+$/, // Audius playlists/albums
+  napster: /^https?:\/\/(www\.)?napster\.com\/album\//,
+  pandora: /^https?:\/\/(?:www\.)?pandora\.com\/artist\/[^/]+\/[^/]+\/AL[a-zA-Z0-9]+/,
+  qobuz: /^https?:\/\/(?:open|play)\.qobuz\.com\/album\//,
+  boomplay: /^https?:\/\/(?:www\.)?boomplay\.com\/albums\/\d+/,
+  kkbox: /^https?:\/\/(?:www\.)?kkbox\.com\/[a-z]{2}\/[a-z]{2}\/album\//,
+  bandcamp: /^https?:\/\/[a-z0-9-]+\.bandcamp\.com\/album\//,
+  audiomack: /^https?:\/\/(?:www\.)?audiomack\.com\/[^/]+\/album\//,
+  netease: /^https?:\/\/music\.163\.com\/(?:#\/)?album\?id=\d+/,
+  qqmusic: /^https?:\/\/y\.qq\.com\/n\/ryqq\/albumDetail\//,
+  melon: /^https?:\/\/(?:www\.)?melon\.com\/album\/detail\.htm\?albumId=\d+/,
+  bugs: /^https?:\/\/music\.bugs\.co\.kr\/album\/\d+/,
+  jiosaavn: /^https?:\/\/(?:www\.)?jiosaavn\.com\/album\//,
+  beatport: /^https?:\/\/(?:www\.)?beatport\.com\/release\//,
+};
+
+export function isAlbumUrl(url: string): boolean {
+  return Object.values(ALBUM_URL_PATTERNS).some((pattern) => pattern.test(url));
+}
+
 export function detectPlatform(url: string): DetectablePlatform | null {
   for (const [platform, pattern] of Object.entries(MUSIC_URL_PATTERNS)) {
     if (pattern.test(url)) {

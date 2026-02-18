@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calculateAlbumConfidence,
   calculateConfidence,
   isDurationMatch,
   normalizeArtists,
@@ -246,5 +247,98 @@ describe("calculateConfidence", () => {
       { title: "Bohemian Rhapsody", artists: [] },
     );
     expect(score).toBeCloseTo(0.4, 1);
+  });
+});
+
+// =============================================================================
+// calculateAlbumConfidence
+// =============================================================================
+
+describe("calculateAlbumConfidence", () => {
+  it("should return 1.0 for matching UPC codes", () => {
+    const score = calculateAlbumConfidence(
+      { title: "A Night at the Opera", artists: ["Queen"], upc: "602567061236" },
+      { title: "A Night at the Opera", artists: ["Queen"], upc: "602567061236" },
+    );
+    expect(score).toBe(1.0);
+  });
+
+  it("should not use UPC shortcut when UPCs differ", () => {
+    const score = calculateAlbumConfidence(
+      { title: "A Night at the Opera", artists: ["Queen"], upc: "602567061236" },
+      { title: "A Night at the Opera", artists: ["Queen"], upc: "DIFFERENT123" },
+    );
+    expect(score).toBeLessThan(1.0);
+    expect(score).toBeGreaterThan(0.6);
+  });
+
+  it("should return 0.7 for identical title and artist (no year/trackcount)", () => {
+    const score = calculateAlbumConfidence(
+      { title: "A Night at the Opera", artists: ["Queen"] },
+      { title: "A Night at the Opera", artists: ["Queen"] },
+    );
+    // title: 1.0 * 0.35 = 0.35, artists: 1.0 * 0.35 = 0.35 => 0.70
+    expect(score).toBeCloseTo(0.7, 5);
+  });
+
+  it("should add year bonus for matching release year", () => {
+    const score = calculateAlbumConfidence(
+      { title: "A Night at the Opera", artists: ["Queen"], releaseDate: "1975-11-21" },
+      { title: "A Night at the Opera", artists: ["Queen"], releaseDate: "1975-01-01" },
+    );
+    // 0.35 + 0.35 + 0.15 = 0.85
+    expect(score).toBeCloseTo(0.85, 5);
+  });
+
+  it("should add partial year bonus for adjacent years", () => {
+    const score = calculateAlbumConfidence(
+      { title: "A Night at the Opera", artists: ["Queen"], releaseDate: "1975-11-21" },
+      { title: "A Night at the Opera", artists: ["Queen"], releaseDate: "1976-01-01" },
+    );
+    // 0.35 + 0.35 + 0.07 = 0.77
+    expect(score).toBeCloseTo(0.77, 5);
+  });
+
+  it("should add track count bonus for exact match", () => {
+    const score = calculateAlbumConfidence(
+      { title: "A Night at the Opera", artists: ["Queen"], totalTracks: 12 },
+      { title: "A Night at the Opera", artists: ["Queen"], totalTracks: 12 },
+    );
+    // 0.35 + 0.35 + 0.15 = 0.85
+    expect(score).toBeCloseTo(0.85, 5);
+  });
+
+  it("should add partial track count bonus for close counts", () => {
+    const score = calculateAlbumConfidence(
+      { title: "A Night at the Opera", artists: ["Queen"], totalTracks: 12 },
+      { title: "A Night at the Opera", artists: ["Queen"], totalTracks: 14 },
+    );
+    // 0.35 + 0.35 + 0.07 = 0.77
+    expect(score).toBeCloseTo(0.77, 5);
+  });
+
+  it("should return max 1.0 for perfect non-UPC match", () => {
+    const score = calculateAlbumConfidence(
+      { title: "A Night at the Opera", artists: ["Queen"], releaseDate: "1975-11-21", totalTracks: 12 },
+      { title: "A Night at the Opera", artists: ["Queen"], releaseDate: "1975-11-21", totalTracks: 12 },
+    );
+    // 0.35 + 0.35 + 0.15 + 0.15 = 1.0
+    expect(score).toBeCloseTo(1.0, 5);
+  });
+
+  it("should return low score for different albums", () => {
+    const score = calculateAlbumConfidence(
+      { title: "A Night at the Opera", artists: ["Queen"] },
+      { title: "Abbey Road", artists: ["The Beatles"] },
+    );
+    expect(score).toBeLessThan(0.3);
+  });
+
+  it("should handle multi-artist albums", () => {
+    const score = calculateAlbumConfidence(
+      { title: "Watch the Throne", artists: ["Jay-Z", "Kanye West"] },
+      { title: "Watch the Throne", artists: ["Kanye West", "Jay-Z"] },
+    );
+    expect(score).toBeGreaterThan(0.6);
   });
 });
