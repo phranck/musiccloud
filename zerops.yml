@@ -75,7 +75,7 @@ zerops:
         - apps/dashboard/dist
       cache: node_modules
     run:
-      base: static-nginx@1.27
+      base: nginx@1.22
       ports:
         - port: 80
           httpSupport: true
