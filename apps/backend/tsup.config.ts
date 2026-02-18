@@ -2,10 +2,11 @@ import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: ["src/server.ts"],
-  format: ["esm"],
+  format: ["cjs"],
   target: "node22",
+  platform: "node",
   bundle: true,
-  noExternal: ["@musiccloud/shared"],
+  noExternal: [/^(?!better-sqlite3).+/],
   external: ["better-sqlite3"],
   outDir: "dist",
   clean: true,
