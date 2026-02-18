@@ -1,6 +1,6 @@
 # Impressum
 
-**Frank Gregor**
+**Frank Gregor**  
 Landstrasse 21c  
 6900 Bregenz  
 **Österreich**

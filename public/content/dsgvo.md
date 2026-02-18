@@ -1,7 +1,9 @@
 # Datenschutzerklärung
 
-**Verantwortlicher**
-Frank Gregor, Landstrasse 21c, 6900 Bregenz
+**Verantwortlicher:**  
+Frank Gregor  
+Landstrasse 21c  
+6900 Bregenz  
 E-Mail: [phranck@phranck.dev](mailto:phranck@phranck.dev)
 
 ---
