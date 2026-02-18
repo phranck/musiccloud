@@ -17,15 +17,22 @@ export function Setup() {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     fetch("/api/admin/auth/setup-status")
       .then((r) => r.json())
       .then((data: { setupRequired: boolean }) => {
-        if (!data.setupRequired) navigate("/login", { replace: true });
+        if (!data.setupRequired) {
+          navigate("/login", { replace: true });
+        } else {
+          setChecking(false);
+        }
       })
-      .catch(() => undefined);
+      .catch(() => setChecking(false));
   }, [navigate]);
+
+  if (checking) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

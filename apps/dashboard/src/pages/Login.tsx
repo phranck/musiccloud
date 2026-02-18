@@ -18,6 +18,7 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -27,10 +28,16 @@ export function Login() {
     fetch("/api/admin/auth/setup-status")
       .then((r) => r.json())
       .then((data: { setupRequired: boolean }) => {
-        if (data.setupRequired) navigate("/setup", { replace: true });
+        if (data.setupRequired) {
+          navigate("/setup", { replace: true });
+        } else {
+          setChecking(false);
+        }
       })
-      .catch(() => undefined);
+      .catch(() => setChecking(false));
   }, [isAuthenticated, navigate]);
+
+  if (checking) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
