@@ -42,12 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install zCLI
-        run: curl -L https://zerops.io/zcli/install.sh | sh
-      - name: Login
-        run: zcli login ${{ secrets.ZEROPS_TOKEN }}
-      - name: Deploy
-        run: zcli push --setup backend
+      - uses: zeropsio/actions@main
+        with:
+          access-token: ${{ secrets.ZEROPS_TOKEN }}
+          service-id: vftiwXaYQGCnnwEEaiGPYA
 
   deploy-frontend:
     needs: detect-changes
@@ -55,12 +53,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install zCLI
-        run: curl -L https://zerops.io/zcli/install.sh | sh
-      - name: Login
-        run: zcli login ${{ secrets.ZEROPS_TOKEN }}
-      - name: Deploy
-        run: zcli push --setup frontend
+      - uses: zeropsio/actions@main
+        with:
+          access-token: ${{ secrets.ZEROPS_TOKEN }}
+          service-id: bMY4g66BRDOfq1AAi8Q85A
 
   deploy-dashboard:
     needs: detect-changes
@@ -68,9 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install zCLI
-        run: curl -L https://zerops.io/zcli/install.sh | sh
-      - name: Login
-        run: zcli login ${{ secrets.ZEROPS_TOKEN }}
-      - name: Deploy
-        run: zcli push --setup dashboard
+      - uses: zeropsio/actions@main
+        with:
+          access-token: ${{ secrets.ZEROPS_TOKEN }}
+          service-id: IF9Xp4YFRxuQKRQxmAWFBA
