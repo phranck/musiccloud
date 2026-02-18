@@ -1,5 +1,8 @@
 node_modules/
 dist/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
 .astro/
 data/*.db
 data/*.db-wal
