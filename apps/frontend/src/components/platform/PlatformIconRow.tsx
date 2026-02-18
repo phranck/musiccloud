@@ -72,7 +72,7 @@ export function PlatformIconRow() {
         style={{
           maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
           WebkitMaskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
-          clipPath: "inset(-30px -60px)",
+          overflow: "hidden",
         }}
       >
         <div ref={stripRef} className="flex w-max will-change-transform animate-marquee-seamless">
