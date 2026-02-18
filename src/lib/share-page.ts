@@ -1,5 +1,5 @@
 import { getRepository } from "../db/index.js";
-import { generateOGMeta, type OGMeta } from "./og-helpers.js";
+import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og-helpers.js";
 import { isValidPlatform, type Platform } from "./utils.js";
 
 export interface SharePageData {
@@ -36,6 +36,51 @@ export async function loadByTrackId(trackId: string, origin?: string): Promise<S
   if (!data) return null;
 
   return enrichWithOGMeta(data, data.shortId, origin);
+}
+
+// ─── Album Share Page ─────────────────────────────────────────────────────────
+
+export interface ShareAlbumPageData {
+  album: {
+    title: string;
+    artworkUrl: string | null;
+    releaseDate: string | null;
+    totalTracks: number | null;
+    label: string | null;
+    upc: string | null;
+  };
+  artists: string[];
+  artistDisplay: string;
+  shortId: string;
+  links: { service: string; url: string }[];
+  availablePlatforms: Platform[];
+  og: OGMeta;
+}
+
+/** Load album share page data by short URL ID. Returns null if not found. */
+export async function loadAlbumByShortId(shortId: string, origin?: string): Promise<ShareAlbumPageData | null> {
+  const repo = await getRepository();
+  const data = await repo.loadAlbumByShortId(shortId);
+  if (!data) return null;
+
+  const availablePlatforms: Platform[] = data.links.map((l) => l.service).filter(isValidPlatform);
+
+  const og = generateAlbumOGMeta({
+    title: data.album.title,
+    artist: data.artistDisplay,
+    totalTracks: data.album.totalTracks ?? undefined,
+    releaseDate: data.album.releaseDate ?? undefined,
+    albumArtUrl: data.album.artworkUrl ?? "/og/default.jpg",
+    shortId,
+    availablePlatforms,
+    origin,
+  });
+
+  return {
+    ...data,
+    availablePlatforms,
+    og,
+  };
 }
 
 function enrichWithOGMeta(

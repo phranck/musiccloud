@@ -20,12 +20,59 @@ export interface OGMeta {
   twitterCard: string;
 }
 
+interface AlbumOGMetaInput {
+  title: string;
+  artist: string;
+  totalTracks?: number;
+  releaseDate?: string;
+  albumArtUrl: string;
+  shortId: string;
+  availablePlatforms: Platform[];
+  origin?: string;
+}
+
 const MAX_TITLE_LENGTH = 60;
 const MAX_DESCRIPTION_LENGTH = 65;
 
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength - 3) + "...";
+}
+
+export function generateAlbumOGMeta(input: AlbumOGMetaInput): OGMeta {
+  const { title, artist, totalTracks, releaseDate, albumArtUrl, shortId, availablePlatforms, origin = "https://musiccloud.io" } = input;
+
+  const year = releaseDate?.slice(0, 4);
+  const fullTitle = `${title} – ${artist}`;
+  const ogTitle = truncate(fullTitle, MAX_TITLE_LENGTH);
+
+  const serviceNames = availablePlatforms.map((p) => PLATFORM_CONFIG[p].label);
+  let ogDescription: string;
+  if (serviceNames.length === 0) {
+    ogDescription = "Find this album on musiccloud";
+  } else if (serviceNames.length === 1) {
+    ogDescription = `Listen on ${serviceNames[0]}`;
+  } else {
+    const first = serviceNames.slice(0, 2).join(", ");
+    ogDescription = serviceNames.length > 2 ? `Listen on ${first} +${serviceNames.length - 2} more` : `Listen on ${first}`;
+  }
+
+  if (totalTracks || year) {
+    const meta = [totalTracks ? `${totalTracks} tracks` : null, year].filter(Boolean).join(", ");
+    const withMeta = `${ogDescription} | ${meta}`;
+    if (withMeta.length <= MAX_DESCRIPTION_LENGTH) ogDescription = withMeta;
+  }
+
+  ogDescription = truncate(ogDescription, MAX_DESCRIPTION_LENGTH);
+
+  return {
+    pageTitle: `${ogTitle} | musiccloud`,
+    ogTitle,
+    ogDescription,
+    ogImageUrl: albumArtUrl || "/og/default.jpg",
+    ogUrl: `${origin}/${shortId}`,
+    twitterCard: "summary_large_image",
+  };
 }
 
 export function generateOGMeta(input: OGMetaInput): OGMeta {

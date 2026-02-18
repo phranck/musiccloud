@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { FaCircleInfo } from "react-icons/fa6";
 import { LocaleProvider, useT } from "../i18n/context";
-import type { ResolveDisambiguationResponse, ResolveErrorResponse, ResolveSuccessResponse } from "../lib/api-types";
-import { isValidPlatform, type Platform } from "../lib/utils";
+import type { AlbumResolveSuccessResponse, ResolveDisambiguationResponse, ResolveErrorResponse, ResolveSuccessResponse } from "../lib/api-types";
+import { isAlbumUrl, isValidPlatform, type Platform } from "../lib/utils";
+import { AlbumResultsPanel, type AlbumResult } from "./AlbumResultsPanel";
 import { BrandName } from "./BrandName";
 import { type DisambiguationCandidate, DisambiguationPanel } from "./DisambiguationPanel";
 import { GradientBackground } from "./GradientBackground";
@@ -80,7 +81,9 @@ type AppState =
   | { type: "idle" }
   | { type: "loading" }
   | { type: "success"; result: SongResult; highlightedPlatforms: Platform[] }
+  | { type: "album_success"; result: AlbumResult }
   | { type: "clearing"; result: SongResult }
+  | { type: "clearing_album"; result: AlbumResult }
   | { type: "error"; message: string }
   | { type: "disambiguation"; candidates: DisambiguationCandidate[] }
   | { type: "disambiguation_loading"; candidates: DisambiguationCandidate[]; selectedId: string };
@@ -88,6 +91,7 @@ type AppState =
 type AppAction =
   | { type: "SUBMIT" }
   | { type: "RESOLVE_SUCCESS"; result: SongResult; highlightedPlatforms: Platform[] }
+  | { type: "ALBUM_SUCCESS"; result: AlbumResult }
   | { type: "DISAMBIGUATION"; candidates: DisambiguationCandidate[] }
   | { type: "SELECT_CANDIDATE"; selectedId: string }
   | { type: "ERROR"; message: string }
@@ -98,6 +102,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "SUBMIT": return { type: "loading" };
     case "RESOLVE_SUCCESS": return { type: "success", result: action.result, highlightedPlatforms: action.highlightedPlatforms };
+    case "ALBUM_SUCCESS": return { type: "album_success", result: action.result };
     case "DISAMBIGUATION": return { type: "disambiguation", candidates: action.candidates };
     case "SELECT_CANDIDATE":
       if (state.type === "disambiguation") return { type: "disambiguation_loading", candidates: state.candidates, selectedId: action.selectedId };
@@ -105,9 +110,32 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case "ERROR": return { type: "error", message: action.message };
     case "CLEAR_START":
       if (state.type === "success") return { type: "clearing", result: state.result };
+      if (state.type === "album_success") return { type: "clearing_album", result: state.result };
       return { type: "idle" };
     case "CLEAR": return { type: "idle" };
   }
+}
+
+function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): AlbumResult {
+  const platforms = data.links
+    .filter((link) => link.url && isValidPlatform(link.service))
+    .map((link) => ({
+      platform: link.service as Platform,
+      url: link.url,
+      displayName: link.displayName,
+      matchMethod: link.matchMethod,
+    }));
+  return {
+    title: data.album.title,
+    artist: data.album.artists.join(", "),
+    releaseDate: data.album.releaseDate,
+    totalTracks: data.album.totalTracks,
+    artworkUrl: data.album.artworkUrl ?? "",
+    label: data.album.label,
+    upc: data.album.upc,
+    platforms,
+    shareUrl: data.shortUrl,
+  };
 }
 
 function parseResolveResponse(data: ResolveSuccessResponse): { result: SongResult; highlightedPlatforms: Platform[] } {
@@ -160,16 +188,17 @@ function LandingPageInner() {
   );
 
   const isDisambiguating = state.type === "disambiguation" || state.type === "disambiguation_loading";
-  const isClearing = state.type === "clearing";
-  const baseInputState: InputState = isDisambiguating || isClearing ? "idle" : state.type;
+  const isClearing = state.type === "clearing" || state.type === "clearing_album";
+  const baseInputState: InputState = isDisambiguating || isClearing ? "idle" : state.type === "album_success" ? "success" : state.type;
   const inputState: InputState = baseInputState === "idle" && isFocused ? "focused" : baseInputState;
   const result = state.type === "success" ? state.result : state.type === "clearing" ? state.result : null;
+  const albumResult = state.type === "album_success" ? state.result : state.type === "clearing_album" ? state.result : null;
   const candidates = isDisambiguating ? state.candidates : null;
   const selectedCandidateId = state.type === "disambiguation_loading" ? state.selectedId : null;
   const errorMessage = state.type === "error" ? t(state.message) : undefined;
-  const showCompact = !!(result || candidates);
+  const showCompact = !!(result || albumResult || candidates);
 
-  const focusResult = state.type === "success" ? state.result : null;
+  const focusResult = state.type === "success" || state.type === "album_success" ? state.result : null;
   const focusCandidates = state.type === "disambiguation" ? state.candidates : null;
   useEffect(() => { if (focusResult) resultsPanelRef.current?.focus(); }, [focusResult]);
   useEffect(() => { if (focusCandidates) disambiguationRef.current?.focus(); }, [focusCandidates]);
@@ -181,7 +210,11 @@ function LandingPageInner() {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
-      const response = await fetch("/api/resolve", {
+
+      // Album URLs go to a separate endpoint
+      const endpoint = isAlbumUrl(url) ? "/api/resolve-album" : "/api/resolve";
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: url }),
@@ -192,6 +225,14 @@ function LandingPageInner() {
         const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
         throw new Error(errorData.message || "error.generic");
       }
+
+      if (endpoint === "/api/resolve-album") {
+        const data = (await response.json()) as AlbumResolveSuccessResponse;
+        const albumResult = parseAlbumResolveResponse(data);
+        dispatch({ type: "ALBUM_SUCCESS", result: albumResult });
+        return;
+      }
+
       const data = (await response.json()) as ResolveSuccessResponse | ResolveDisambiguationResponse;
       if ("status" in data && data.status === "disambiguation") {
         dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
@@ -263,6 +304,7 @@ function LandingPageInner() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [showCompact, handleClear]);
+
 
   const handleAlbumArtLoad = useCallback((img: HTMLImageElement) => {
     try {
@@ -360,7 +402,11 @@ function LandingPageInner() {
             onBlur={() => setIsFocused(false)}
             state={inputState}
             compact={showCompact}
-            songName={state.type === "success" ? `${state.result.title} - ${state.result.artist}` : undefined}
+            songName={
+              state.type === "success" ? `${state.result.title} - ${state.result.artist}` :
+              state.type === "album_success" ? `${state.result.title} - ${state.result.artist}` :
+              undefined
+            }
             errorMessage={errorMessage}
           />
         </div>
@@ -385,10 +431,21 @@ function LandingPageInner() {
           <div
             ref={resultsPanelRef}
             tabIndex={-1}
-            className={`outline-none w-full flex justify-center ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
-            onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
+            className={`outline-none w-full flex justify-center ${state.type === "clearing" ? "animate-slide-out-down pointer-events-none" : ""}`}
+            onAnimationEnd={state.type === "clearing" ? handleClearAnimationEnd : undefined}
           >
             <ResultsPanel result={result} onAlbumArtLoad={handleAlbumArtLoad} />
+          </div>
+        )}
+
+        {albumResult && (
+          <div
+            ref={resultsPanelRef}
+            tabIndex={-1}
+            className={`outline-none w-full flex justify-center ${state.type === "clearing_album" ? "animate-slide-out-down pointer-events-none" : ""}`}
+            onAnimationEnd={state.type === "clearing_album" ? handleClearAnimationEnd : undefined}
+          >
+            <AlbumResultsPanel result={albumResult} onAlbumArtLoad={handleAlbumArtLoad} />
           </div>
         )}
 

@@ -4,6 +4,7 @@
  *
  * Resolves a short URL to the full share link page.
  * Also serves OG meta tags for link preview bots before redirecting.
+ * Handles both track and album short IDs.
  */
 export const prerender = false;
 
@@ -14,7 +15,7 @@ import { PlatformIcon } from "../components/PlatformIcon";
 import { getLocaleFromCookie } from "../i18n/locales";
 import { loadTranslations, makeT } from "../i18n/server";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { loadByShortId } from "../lib/share-page";
+import { loadAlbumByShortId, loadByShortId } from "../lib/share-page";
 import { buildMetaLine, isValidPlatform, PLATFORM_CONFIG, type Platform } from "../lib/utils";
 
 const { shortId } = Astro.params;
@@ -23,42 +24,52 @@ if (!shortId) {
   return Astro.redirect("/");
 }
 
-let data: Awaited<ReturnType<typeof loadByShortId>>;
-try {
-  data = await loadByShortId(shortId, Astro.url.origin);
-} catch {
-  return Astro.redirect("/", 302);
-}
-
-if (!data) {
-  return Astro.redirect("/", 302);
-}
-
-const { track, artistDisplay, links, og } = data;
-
-const metaLine = buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc, releaseDate: track.releaseDate });
-
 // SSR i18n: read locale from cookie, load translations
 const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
 const translations = await loadTranslations(locale);
 const t = makeT(translations);
+
+// Try loading as track first, then as album
+const trackData = await loadByShortId(shortId, Astro.url.origin).catch(() => null);
+const albumData = !trackData ? await loadAlbumByShortId(shortId, Astro.url.origin).catch(() => null) : null;
+
+if (!trackData && !albumData) {
+  return Astro.redirect("/", 302);
+}
+
+const isAlbum = !trackData && !!albumData;
+const og = isAlbum ? albumData!.og : trackData!.og;
+const links = isAlbum ? albumData!.links : trackData!.links;
+
+// Track-specific
+const track = !isAlbum ? trackData!.track : null;
+const artistDisplay = isAlbum ? albumData!.artistDisplay : trackData!.artistDisplay;
+const metaLine = track ? buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc, releaseDate: track.releaseDate }) : null;
+
+// Album-specific
+const album = isAlbum ? albumData!.album : null;
+const albumYear = album?.releaseDate?.slice(0, 4);
+const albumMeta = [album?.totalTracks ? `${album.totalTracks} tracks` : null, albumYear].filter(Boolean).join(" · ");
+
+const artworkUrl = isAlbum ? album?.artworkUrl : track?.artworkUrl;
+const displayTitle = isAlbum ? album!.title : track!.title;
 ---
 
 <BaseLayout
   title={og.pageTitle}
   canonicalUrl={og.ogUrl}
-  preloadImage={track.artworkUrl}
+  preloadImage={artworkUrl ?? undefined}
   lang={locale}
 >
   <Fragment slot="head">
     <!-- OpenGraph Tags (critical for link previews) -->
-    <meta property="og:type" content="music.song" />
+    <meta property="og:type" content={isAlbum ? "music.album" : "music.song"} />
     <meta property="og:title" content={og.ogTitle} />
     <meta property="og:description" content={og.ogDescription} />
     <meta property="og:image" content={og.ogImageUrl} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content={`${track.title} by ${artistDisplay}`} />
+    <meta property="og:image:alt" content={`${displayTitle} by ${artistDisplay}`} />
     <meta property="og:url" content={og.ogUrl} />
     <meta property="og:site_name" content="musiccloud" />
 
@@ -82,12 +93,12 @@ const t = makeT(translations);
 
   <div class="min-h-dvh flex flex-col">
   <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
-    {/* Album Art */}
-    {track.artworkUrl && (
+    {/* Artwork */}
+    {artworkUrl && (
       <img
-        src={track.artworkUrl}
-        alt={`${track.title} by ${artistDisplay}`}
-        class="mb-6 w-full max-w-[280px] sm:max-w-sm aspect-square rounded-xl sm:rounded-2xl shadow-2xl object-cover bg-surface-elevated"
+        src={artworkUrl}
+        alt={`${displayTitle} by ${artistDisplay}`}
+        class={`mb-6 w-full max-w-[280px] sm:max-w-sm aspect-square shadow-2xl object-cover bg-surface-elevated ${isAlbum ? "rounded-lg sm:rounded-xl" : "rounded-xl sm:rounded-2xl"}`}
         width="384"
         height="384"
         loading="lazy"
@@ -95,22 +106,33 @@ const t = makeT(translations);
       />
     )}
 
-    {/* Song Info */}
-    <h1 class="mb-1 text-xl sm:text-2xl md:text-3xl font-bold tracking-[-0.02em] text-center px-4">{track.title}</h1>
+    {/* Title + Artist */}
+    <h1 class="mb-1 text-xl sm:text-2xl md:text-3xl font-bold tracking-[-0.02em] text-center px-4">{displayTitle}</h1>
     <p class="text-lg text-text-secondary text-center mt-1">{artistDisplay}</p>
-    {(track.isExplicit || metaLine) && (
-      <p class="text-sm text-text-muted/60 text-center mt-2 mb-8 font-mono tracking-wide inline-flex items-center justify-center gap-1.5">
-        {track.isExplicit && (
-          <span
-            class="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0"
-            title={t("share.explicit")}
-            aria-label={t("share.explicitContent")}
-          >E</span>
-        )}
-        <span>{metaLine}</span>
-      </p>
+
+    {/* Meta line (track: duration + ISRC | album: tracks + year) */}
+    {isAlbum ? (
+      albumMeta && (
+        <p class="text-sm text-text-muted/60 text-center mt-2 mb-8 font-mono tracking-wide">
+          {albumMeta}
+        </p>
+      )
+    ) : (
+      (track?.isExplicit || metaLine) ? (
+        <p class="text-sm text-text-muted/60 text-center mt-2 mb-8 font-mono tracking-wide inline-flex items-center justify-center gap-1.5">
+          {track?.isExplicit && (
+            <span
+              class="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0"
+              title={t("share.explicit")}
+              aria-label={t("share.explicitContent")}
+            >E</span>
+          )}
+          <span>{metaLine}</span>
+        </p>
+      ) : null
     )}
-    {!track.isExplicit && !metaLine && <div class="mb-8" />}
+    {!isAlbum && !track?.isExplicit && !metaLine && <div class="mb-8" />}
+    {isAlbum && !albumMeta && <div class="mb-8" />}
 
     {/* Platform Buttons */}
     <div class="w-full max-w-sm space-y-3">
@@ -123,6 +145,7 @@ const t = makeT(translations);
         const platform = link.service;
         const config = PLATFORM_CONFIG[platform];
         const label = config.label;
+        const listenKey = isAlbum ? "results.openAlbumOn" : "results.listenOn";
         return (
           <a
             href={link.url}
@@ -130,11 +153,11 @@ const t = makeT(translations);
             rel="noopener noreferrer"
             class="flex items-center gap-3 px-4 sm:px-5 py-3 rounded-xl transition-all duration-150 min-h-[52px] w-full bg-white/[0.06] border border-white/[0.10] hover:bg-white/[0.10] hover:scale-[1.03] hover:shadow-[0_0_16px_var(--platform-color)] focus-visible:bg-white/[0.10] focus-visible:scale-[1.03] focus-visible:shadow-[0_0_16px_var(--platform-color)] active:scale-[0.97]"
             style={`--platform-color: ${config.color}60`}
-            aria-label={t("share.openOn", { title: track.title, platform: label })}
+            aria-label={t("share.openOn", { title: displayTitle, platform: label })}
           >
             <PlatformIcon client:load platform={platform} className="w-7 h-7 flex-shrink-0" colored={true} />
             <span class="font-medium text-base text-text-primary flex-1" style="font-family: var(--font-condensed)">
-              {t("results.listenOn")} {label}
+              {t(listenKey)} {label}
             </span>
             <svg
               class="w-4 h-4 text-text-muted flex-shrink-0"
