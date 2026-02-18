@@ -75,6 +75,8 @@ zerops:
       deployFiles:
         - index.html
         - assets
+        - images
+        - favicon.png
       cache: node_modules
     run:
       base: nginx@1.22
