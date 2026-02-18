@@ -3,7 +3,7 @@ zerops:
     build:
       base: nodejs@22
       buildCommands:
-        - npm ci
+        - npm ci --legacy-peer-deps
         - npm run build -w packages/shared
         - npm run build -w apps/backend
       deployFiles:
@@ -41,7 +41,7 @@ zerops:
     build:
       base: nodejs@22
       buildCommands:
-        - npm ci
+        - npm ci --legacy-peer-deps
         - npm run build -w packages/shared
         - npm run build -w apps/frontend
       deployFiles:
@@ -68,7 +68,7 @@ zerops:
     build:
       base: nodejs@22
       buildCommands:
-        - npm ci
+        - npm ci --legacy-peer-deps
         - npm run build -w packages/shared
         - npm run build -w apps/dashboard
         - cp -r apps/dashboard/dist/. .
