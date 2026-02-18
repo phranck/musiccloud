@@ -4,7 +4,7 @@ musiccloud, aşağıdaki yayın platformlarında parçaları çözümler:
 
 ## Tier 1 — Tam Destek
 
-- **Spotify** — Arama, ISRC araması, tam meta veri
+- **Spotify** — Arama, ISRC<sup>1</sup> araması, tam meta veri
 - **Tidal** — Arama, ISRC araması, Hi-Fi kalite bağlantılar
 - **YouTube** — Video araması ve doğrudan URL çözümlemesi
 - **YouTube Music** — YouTube video bağlantılarından türetilmiştir
@@ -28,3 +28,7 @@ musiccloud, aşağıdaki yayın platformlarında parçaları çözümler:
 ## Apple Music
 
 Apple Music bağlantıları, Odesli köprü hizmeti aracılığıyla çözümlenir.
+
+---
+
+<small><sup>1</sup> <strong>ISRC</strong> (International Standard Recording Code), her ses veya müzik videosu kaydına atanan benzersiz bir tanımlayıcıdır. musiccloud, yalnızca başlık ve sanatçı adına göre eşleştirmeden daha güvenilir biçimde, farklı platformlarda tam olarak aynı kaydı bulmak için bu kodu kullanır.</small>

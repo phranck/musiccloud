@@ -4,7 +4,7 @@ musiccloud risolve le tracce sulle seguenti piattaforme di streaming:
 
 ## Tier 1 — Supporto completo
 
-- **Spotify** — Ricerca, ricerca ISRC, metadati completi
+- **Spotify** — Ricerca, ricerca ISRC<sup>1</sup>, metadati completi
 - **Tidal** — Ricerca, ricerca ISRC, link di qualità Hi-Fi
 - **YouTube** — Ricerca video e risoluzione URL diretta
 - **YouTube Music** — Derivato dai link video di YouTube
@@ -28,3 +28,7 @@ musiccloud risolve le tracce sulle seguenti piattaforme di streaming:
 ## Apple Music
 
 I link Apple Music vengono risolti tramite il servizio bridge Odesli.
+
+---
+
+<small><sup>1</sup> <strong>ISRC</strong> (International Standard Recording Code) è un identificatore univoco assegnato a ogni registrazione audio o video musicale. musiccloud lo utilizza per trovare esattamente la stessa registrazione su diverse piattaforme — in modo più affidabile rispetto alla sola corrispondenza per titolo e nome dell'artista.</small>

@@ -137,20 +137,22 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
   ];
 
   const mdClasses = [
-    "[&_h1]:text-white [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:mb-3 [&_h1]:mt-0",
-    "[&_h2]:text-white/90 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-6 [&_h2:first-child]:mt-0",
+    "[&_h1]:text-white [&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:mb-3 [&_h1]:mt-0",
+    "[&_h2]:text-white/90 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-6 [&_h2:first-child]:mt-0",
     "[&_h3]:text-white/80 [&_h3]:text-base [&_h3]:font-medium [&_h3]:mb-1 [&_h3]:mt-4",
-    "[&_p]:text-white/60 [&_p]:text-base [&_p]:leading-relaxed [&_p]:mb-3",
-    "[&_ul]:text-white/60 [&_ul]:text-base [&_ul]:pl-5 [&_ul]:mb-3 [&_ul]:space-y-1 [&_ul]:list-disc",
-    "[&_ol]:text-white/60 [&_ol]:text-base [&_ol]:pl-5 [&_ol]:mb-3 [&_ol]:space-y-1 [&_ol]:list-decimal",
+    "[&_p]:text-white/60 [&_p]:text-lg [&_p]:leading-relaxed [&_p]:mb-3",
+    "[&_ul]:text-white/60 [&_ul]:text-lg [&_ul]:pl-5 [&_ul]:mb-3 [&_ul]:space-y-1 [&_ul]:list-disc",
+    "[&_ol]:text-white/60 [&_ol]:text-lg [&_ol]:pl-5 [&_ol]:mb-3 [&_ol]:space-y-1 [&_ol]:list-decimal",
     "[&_li]:leading-relaxed",
     "[&_strong]:text-white/80 [&_strong]:font-medium",
     "[&_a]:text-[var(--color-accent,#a78bfa)] [&_a]:underline",
     "[&_hr]:border-white/10 [&_hr]:my-4",
+    "[&_small]:block [&_small]:text-white/60 [&_small]:text-base [&_small]:leading-tight",
+    "[&_sup]:text-[0.75em] [&_sup]:font-bold [&_sup]:align-super",
     "[&>*:last-child]:mb-0",
   ].join(" ");
 
-  const transitionClasses = "transition-all duration-[380ms] ease-out";
+  const transitionClasses = "transition-[opacity,transform] duration-[380ms] ease-out";
   const visibilityClasses = isVisible ? "opacity-100 scale-100" : "opacity-0 scale-[0.96]";
 
   return (
@@ -162,18 +164,20 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
         aria-hidden="true"
       />
 
-      {/* Card */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="info-panel-title"
-        className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
-                   w-[560px] max-w-[calc(100vw-2rem)]
-                   max-h-[60vh] flex flex-col
-                   bg-white/[0.05] backdrop-blur-2xl border border-white/[0.08] rounded-2xl
-                   shadow-2xl overflow-hidden
-                   ${transitionClasses} ${visibilityClasses}`}
-      >
+      {/* Centering wrapper — flexbox, no percentage transforms, no transitions */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+        {/* Card — only animates opacity + scale, positioning is handled by parent */}
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="info-panel-title"
+          className={`pointer-events-auto
+                     w-[560px] max-w-[calc(100vw-2rem)]
+                     max-h-[60vh] flex flex-col
+                     bg-white/[0.05] backdrop-blur-2xl border border-white/[0.08] rounded-2xl
+                     shadow-2xl overflow-hidden
+                     ${transitionClasses} ${visibilityClasses}`}
+        >
         {/* Header: underline tabs + close */}
         <div className="flex items-end justify-between px-6 pt-5 flex-shrink-0">
           <div
@@ -240,6 +244,7 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
               )}
             </div>
           ))}
+        </div>
         </div>
       </div>
     </>
