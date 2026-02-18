@@ -30,6 +30,13 @@
     "formatter": { "enabled": false }
   },
   "files": {
-    "includes": ["src/**", "!src/db/migrations/**", "!src/styles/**"]
+    "includes": [
+      "apps/**",
+      "packages/**",
+      "!apps/backend/src/db/migrations/**",
+      "!apps/frontend/src/styles/**",
+      "!**/dist/**",
+      "!**/node_modules/**"
+    ]
   }
 }

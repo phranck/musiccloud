@@ -15,7 +15,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS_DIR = join(__dirname, "..", "src", "db", "migrations", "postgres");
+const MIGRATIONS_DIR = join(__dirname, "..", "apps", "backend", "src", "db", "migrations", "postgres");
 
 async function migrate() {
   const databaseUrl = process.env.DATABASE_URL;

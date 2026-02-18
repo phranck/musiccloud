@@ -1,0 +1,131 @@
+---
+/**
+ * Share Page - SSR rendered
+ *
+ * Fetches share data from the backend API and renders the page
+ * with OG meta tags for link preview bots.
+ * Handles both track and album short IDs.
+ */
+export const prerender = false;
+
+import { isValidPlatform, buildMetaLine } from "@musiccloud/shared";
+import type { Platform } from "@musiccloud/shared";
+import { AppFooter } from "@/components/layout/AppFooter";
+import { GradientBackground } from "@/components/background/GradientBackground";
+import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
+import { SharePageCard } from "@/components/share/SharePageCard";
+import { getLocaleFromCookie } from "@/i18n/locales";
+import { loadTranslations, makeT } from "@/i18n/server";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { fetchShareData } from "@/api/client";
+import type { ShareContentConfiguration } from "@/lib/types/media-card";
+
+const { shortId } = Astro.params;
+
+if (!shortId) {
+  return Astro.redirect("/");
+}
+
+// SSR i18n: read locale from cookie, load translations
+const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
+const translations = await loadTranslations(locale);
+const t = makeT(translations);
+
+// Fetch share data from backend
+const data = await fetchShareData(shortId);
+
+if (!data) {
+  return Astro.redirect("/", 302);
+}
+
+const isAlbum = data.type === "album";
+const og = data.og;
+const track = data.track ?? null;
+const album = data.album ?? null;
+
+const artistDisplay = isAlbum
+  ? (album?.artists.join(", ") ?? "")
+  : (track?.artists.join(", ") ?? "");
+
+const artworkUrl = isAlbum ? album?.artworkUrl : track?.artworkUrl;
+const displayTitle = isAlbum ? (album?.title ?? "") : (track?.title ?? "");
+
+// Pre-compute meta lines using server-side translations
+const trackMetaLine = track
+  ? buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc, releaseDate: track.releaseDate })
+  : null;
+const albumYear = album?.releaseDate?.slice(0, 4);
+const albumMetaLine = isAlbum
+  ? [
+      album?.totalTracks ? t("results.albumTracks", { count: String(album.totalTracks) }) : null,
+      albumYear,
+    ]
+      .filter(Boolean)
+      .join(" \u00B7 ")
+  : null;
+
+// Build platform links (filter invalid services)
+const platformLinks = data.links
+  .filter((link) => isValidPlatform(link.service))
+  .map((link) => ({
+    platform: link.service as Platform,
+    url: link.url,
+  }));
+
+// Build the ShareContentConfiguration (fully JSON-serializable, passed to React island)
+const shareConfig: ShareContentConfiguration = {
+  type: "share",
+  title: displayTitle,
+  artist: artistDisplay,
+  artworkUrl: artworkUrl ?? "",
+  isExplicit: !isAlbum && track?.isExplicit ? true : undefined,
+  metaLine: isAlbum ? albumMetaLine || undefined : trackMetaLine || undefined,
+  platforms: platformLinks,
+  platformsLabel: t(isAlbum ? "results.openAlbumOn" : "results.listenOn"),
+};
+
+const pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
+---
+
+<BaseLayout
+  title={pageTitle}
+  canonicalUrl={og.url}
+  preloadImage={artworkUrl ?? undefined}
+  lang={locale}
+>
+  <Fragment slot="head">
+    <!-- OpenGraph Tags (critical for link previews) -->
+    <meta property="og:type" content={isAlbum ? "music.album" : "music.song"} />
+    <meta property="og:title" content={og.title} />
+    <meta property="og:description" content={og.description} />
+    {og.image && <meta property="og:image" content={og.image} />}
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${displayTitle} by ${artistDisplay}`} />
+    <meta property="og:url" content={og.url} />
+    <meta property="og:site_name" content="musiccloud" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={og.title} />
+    <meta name="twitter:description" content={og.description} />
+    {og.image && <meta name="twitter:image" content={og.image} />}
+  </Fragment>
+
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">
+    {t("a11y.skipToContent")}
+  </a>
+
+  <!-- Page header island (top-right, no InfoButton on share page) -->
+  <PageHeaderIsland client:load />
+
+  <GradientBackground client:load />
+
+  <div class="min-h-dvh flex flex-col">
+    <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
+      <SharePageCard client:load config={shareConfig} />
+    </main>
+
+    <AppFooter />
+  </div>
+</BaseLayout>

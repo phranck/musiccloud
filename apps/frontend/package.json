@@ -1,0 +1,35 @@
+{
+  "name": "@musiccloud/frontend",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev --port 3000",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "node ./dist/server/entry.mjs"
+  },
+  "dependencies": {
+    "@astrojs/node": "^9.5.3",
+    "@astrojs/react": "^4.2.0",
+    "@astrojs/sitemap": "^3.7.0",
+    "@fontsource/barlow": "^5.2.8",
+    "@fontsource/roboto-condensed": "^5.2.8",
+    "@musiccloud/shared": "*",
+    "astro": "^5.3.0",
+    "clsx": "^2.1.0",
+    "marked": "^17.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-icons": "^5.5.0",
+    "tailwind-merge": "^2.6.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.6",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}

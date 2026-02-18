@@ -1,14 +1,54 @@
 zerops:
-  - setup: app
+  - setup: backend
     build:
       base: nodejs@22
       buildCommands:
         - npm ci
-        - npm run build
+        - npm run build -w packages/shared
+        - npm run build -w apps/backend
       deployFiles:
-        - dist
-        - package.json
-        - node_modules
+        - apps/backend/dist
+        - apps/backend/package.json
+        - apps/backend/node_modules
+        - packages/shared/dist
+      cache: node_modules
+    run:
+      base: nodejs@22
+      ports:
+        - port: 4000
+          httpSupport: true
+      envVariables:
+        HOST: 0.0.0.0
+        PORT: "4000"
+        NODE_ENV: production
+        DATABASE_TYPE: sqlite
+        DATABASE_PATH: /mnt/sharedstorage/music.db
+        # Set these in Zerops Secrets:
+        # JWT_SECRET: <random 64-char string>
+        # INTERNAL_API_KEY: <shared secret between frontend and backend>
+        # SPOTIFY_CLIENT_ID: <from Spotify Developer Dashboard>
+        # SPOTIFY_CLIENT_SECRET: <from Spotify Developer Dashboard>
+        # APPLE_MUSIC_TOKEN: <or APPLE_MUSIC_KEY_ID + TEAM_ID + PRIVATE_KEY>
+        # YOUTUBE_API_KEY: <from Google Cloud Console>
+        # ODESLI_API_KEY: <optional>
+        # API_CLIENT_ID: <for public OAuth clients>
+        # API_CLIENT_SECRET: <for public OAuth clients>
+      initCommands:
+        - while ! touch /mnt/sharedstorage/.probe 2>/dev/null; do sleep 1; done && rm -f /mnt/sharedstorage/.probe
+      start: node apps/backend/dist/server.js
+
+  - setup: frontend
+    build:
+      base: nodejs@22
+      buildCommands:
+        - npm ci
+        - npm run build -w packages/shared
+        - npm run build -w apps/frontend
+      deployFiles:
+        - apps/frontend/dist
+        - apps/frontend/package.json
+        - apps/frontend/node_modules
+        - packages/shared/dist
       cache: node_modules
     run:
       base: nodejs@22
@@ -18,8 +58,7 @@ zerops:
       envVariables:
         HOST: 0.0.0.0
         PORT: "3000"
-        DATABASE_TYPE: sqlite
-        DATABASE_PATH: /mnt/sharedstorage/music.db
-      initCommands:
-        - while ! touch /mnt/sharedstorage/.probe 2>/dev/null; do sleep 1; done && rm -f /mnt/sharedstorage/.probe
-      start: npm start
+        BACKEND_URL: http://backend:4000
+        # Set in Zerops Secrets:
+        # INTERNAL_API_KEY: <same key as backend>
+      start: node apps/frontend/dist/server/entry.mjs

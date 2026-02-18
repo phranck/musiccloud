@@ -1,0 +1,15 @@
+---
+/**
+ * Legacy link redirect.
+ * Redirects /link/:id to /:id with a 301 permanent redirect.
+ */
+export const prerender = false;
+
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect("/", 301);
+}
+
+return Astro.redirect(`/${id}`, 301);
+---
