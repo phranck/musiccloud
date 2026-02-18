@@ -14,6 +14,7 @@ import { AppFooter } from "@/components/layout/AppFooter";
 import { GradientBackground } from "@/components/background/GradientBackground";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
 import { SharePageCard } from "@/components/share/SharePageCard";
+import { BrandName } from "@/components/ui/BrandName";
 import { getLocaleFromCookie } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
 import BaseLayout from "@/layouts/BaseLayout.astro";
@@ -123,6 +124,11 @@ const pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
 
   <div class="min-h-dvh flex flex-col">
     <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
+      <div class="mb-6 text-center">
+        <h1 class="text-3xl sm:text-4xl font-bold tracking-[-0.04em]">
+          <BrandName />
+        </h1>
+      </div>
       <SharePageCard client:load config={shareConfig} />
     </main>
 

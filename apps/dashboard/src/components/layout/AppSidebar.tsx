@@ -2,11 +2,12 @@ import {
   BarChart3,
   Database,
   LayoutDashboard,
+  LogOut,
   Music2,
   Settings,
   Users,
 } from "lucide-react";
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 import {
   Sidebar,
   SidebarContent,
@@ -20,37 +21,25 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
-  {
-    label: "Übersicht",
-    icon: LayoutDashboard,
-    to: "/",
-  },
-  {
-    label: "Tracks",
-    icon: Music2,
-    to: "/tracks",
-  },
-  {
-    label: "Benutzer",
-    icon: Users,
-    to: "/users",
-  },
-  {
-    label: "Traffic",
-    icon: BarChart3,
-    to: "/traffic",
-  },
-  {
-    label: "System",
-    icon: Settings,
-    to: "/system",
-  },
+  { label: "Übersicht", icon: LayoutDashboard, to: "/" },
+  { label: "Tracks", icon: Music2, to: "/tracks" },
+  { label: "Benutzer", icon: Users, to: "/users" },
+  { label: "Traffic", icon: BarChart3, to: "/traffic" },
+  { label: "System", icon: Settings, to: "/system" },
 ];
 
 export function AppSidebar() {
+  const { username, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate("/login", { replace: true });
+  }
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -85,9 +74,14 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="px-2 py-2 text-xs text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
-          Admin Dashboard
-        </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Abmelden" onClick={handleLogout}>
+              <LogOut />
+              <span className="flex-1 truncate">{username ?? "Admin"}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
 
       <SidebarRail />

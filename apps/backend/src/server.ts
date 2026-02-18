@@ -10,6 +10,7 @@ import resolveAlbumRoutes from "./routes/resolve-album.js";
 import linkRoutes from "./routes/link.js";
 import shareRoutes from "./routes/share.js";
 import authRoutes from "./routes/auth.js";
+import adminAuthRoutes from "./routes/admin-auth.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);
@@ -44,6 +45,9 @@ async function buildApp() {
   // Auth routes (no auth required)
   await app.register(authRoutes);
 
+  // Admin auth routes (no auth required - login, setup, setup-status)
+  await app.register(adminAuthRoutes);
+
   // Share endpoint (public, no auth - used for SSR)
   await app.register(shareRoutes);
 
@@ -54,6 +58,12 @@ async function buildApp() {
     await protectedApp.register(resolveRoutes);
     await protectedApp.register(resolveAlbumRoutes);
     await protectedApp.register(linkRoutes);
+  });
+
+  // Admin-protected API routes (Bearer JWT with role: "admin")
+  await app.register(async function adminRoutes(adminApp) {
+    adminApp.addHook("preHandler", adminApp.authenticateAdmin);
+    // Future admin API routes (e.g., user management, stats) go here
   });
 
   return app;

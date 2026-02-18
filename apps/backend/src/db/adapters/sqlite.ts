@@ -5,6 +5,7 @@ import { CACHE_TTL_MS } from "../../lib/config.js";
 import { log } from "../../lib/infra/logger.js";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedTrack } from "../../services/types.js";
+import type { AdminRepository, AdminUser } from "../admin-repository.js";
 import type {
   CachedAlbumResult,
   CachedTrackResult,
@@ -74,7 +75,15 @@ function escapeFts5(query: string): string {
   return `"${query.replace(/"/g, '""')}"`;
 }
 
-export class SqliteAdapter implements TrackRepository {
+interface AdminUserRow {
+  id: string;
+  username: string;
+  password_hash: string;
+  created_at: number;
+  last_login_at: number | null;
+}
+
+export class SqliteAdapter implements TrackRepository, AdminRepository {
   private sqlite: Database.Database;
   private db: ReturnType<typeof drizzle>;
 
@@ -265,6 +274,23 @@ export class SqliteAdapter implements TrackRepository {
         -- Backfill existing tracks into FTS
         INSERT INTO tracks_fts(track_id, title, artists)
         SELECT id, title, artists FROM tracks;
+      `);
+    }
+
+    // Ensure admin_users table exists
+    const adminUsersExist = this.sqlite
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='admin_users'`)
+      .get();
+
+    if (!adminUsersExist) {
+      this.sqlite.exec(`
+        CREATE TABLE admin_users (
+          id TEXT PRIMARY KEY NOT NULL,
+          username TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          last_login_at INTEGER
+        );
       `);
     }
   }
@@ -564,6 +590,43 @@ export class SqliteAdapter implements TrackRepository {
 
   async close(): Promise<void> {
     this.sqlite.close();
+  }
+
+  // ─── AdminRepository ────────────────────────────────────────────────────────
+
+  async countAdmins(): Promise<number> {
+    const row = this.sqlite
+      .prepare(`SELECT count(*) as cnt FROM admin_users`)
+      .get() as { cnt: number };
+    return row.cnt;
+  }
+
+  async findAdminByUsername(username: string): Promise<AdminUser | null> {
+    const row = this.sqlite
+      .prepare(`SELECT id, username, password_hash, created_at, last_login_at FROM admin_users WHERE username = ?`)
+      .get(username) as AdminUserRow | undefined;
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      username: row.username,
+      passwordHash: row.password_hash,
+      createdAt: row.created_at,
+      lastLoginAt: row.last_login_at,
+    };
+  }
+
+  async createAdminUser(data: { id: string; username: string; passwordHash: string }): Promise<void> {
+    this.sqlite
+      .prepare(`INSERT INTO admin_users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)`)
+      .run(data.id, data.username, data.passwordHash, Date.now());
+  }
+
+  async updateLastLogin(id: string): Promise<void> {
+    this.sqlite
+      .prepare(`UPDATE admin_users SET last_login_at = ? WHERE id = ?`)
+      .run(Date.now(), id);
   }
 
   // --- Album methods ---

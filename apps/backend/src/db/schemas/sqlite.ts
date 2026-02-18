@@ -95,3 +95,11 @@ export const albumShortUrls = sqliteTable("album_short_urls", {
     .references(() => albums.id),
   createdAt: integer("created_at").notNull(),
 });
+
+export const adminUsers = sqliteTable("admin_users", {
+  id: text("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: integer("created_at").notNull(),
+  lastLoginAt: integer("last_login_at"),
+});

@@ -5,6 +5,7 @@ declare module "fastify" {
   interface FastifyInstance {
     authenticateInternal: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     authenticatePublic: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    authenticateAdmin: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
 }
 
@@ -50,6 +51,26 @@ async function authPlugin(app: FastifyInstance) {
     }
 
     return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });
+  });
+
+  /**
+   * Bearer JWT authentication for admin dashboard requests.
+   * Requires a valid JWT with role: "admin" in the payload.
+   */
+  app.decorate("authenticateAdmin", async (request: FastifyRequest, reply: FastifyReply) => {
+    const authHeader = request.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });
+    }
+    try {
+      await request.jwtVerify();
+      const payload = request.user as { role?: string };
+      if (payload.role !== "admin") {
+        return reply.status(403).send({ error: "FORBIDDEN", message: "Admin access required." });
+      }
+    } catch {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired token." });
+    }
   });
 }
 
