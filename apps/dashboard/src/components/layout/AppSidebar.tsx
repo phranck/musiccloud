@@ -48,7 +48,7 @@ export function AppSidebar() {
         <div className="flex items-center gap-2 px-2 py-1">
           <Database className="h-5 w-5 text-sidebar-primary shrink-0" />
           <span className="font-semibold text-sm group-data-[collapsible=icon]:hidden">
-            music.cloud
+            musiccloud
           </span>
         </div>
       </SidebarHeader>

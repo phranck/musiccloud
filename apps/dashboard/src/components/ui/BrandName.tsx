@@ -8,5 +8,5 @@ const brandStyle: React.CSSProperties = {
 };
 
 export function BrandName() {
-  return <span style={brandStyle}>music.cloud</span>;
+  return <span style={brandStyle}>musiccloud</span>;
 }
