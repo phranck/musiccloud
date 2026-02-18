@@ -1,9 +1,9 @@
 # Privacy Policy
 
-**Controller:**
-Frank Gregor
-Landstrasse 21c
-6900 Bregenz
+**Controller:**  
+Frank Gregor  
+Landstrasse 21c  
+6900 Bregenz  
 E-Mail: [phranck@phranck.dev](mailto:phranck@phranck.dev)
 
 ---
