@@ -1,5 +1,5 @@
 /**
- * Brand name "music cloud" with bold "cloud".
+ * Brand name "musiccloud" with rainbow gradient.
  */
 
 const brandFont: React.CSSProperties = {
@@ -18,8 +18,7 @@ export function BrandName() {
         backgroundClip: "text",
       }}
     >
-      <span style={{ WebkitTextStroke: "1px rgba(255,255,255,0.3)" }}>music</span>
-      <span style={{ WebkitTextStroke: "1px rgba(255,255,255,0.3)" }}>cloud</span>
+      musiccloud
     </span>
   );
 }
