@@ -1,4 +1,4 @@
-export const LOCALES = ["en", "de", "fr", "it", "es", "pt", "nl", "tr"] as const;
+export const LOCALES = ["cs", "de", "en", "es", "fr", "it", "nl", "pt", "tr"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 export const LOCALE_META: Record<Locale, { flag: string; label: string }> = {
@@ -10,6 +10,7 @@ export const LOCALE_META: Record<Locale, { flag: string; label: string }> = {
   pt: { flag: "🇵🇹", label: "Português" },
   nl: { flag: "🇳🇱", label: "Nederlands" },
   tr: { flag: "🇹🇷", label: "Türkçe" },
+  cs: { flag: "🇨🇿", label: "Čeština" },
 };
 
 export const LOCALE_STORAGE_KEY = "mc:locale";

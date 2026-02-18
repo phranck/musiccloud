@@ -50,6 +50,11 @@ const EB_STRINGS: Record<string, EbStrings> = {
     message: "Beklenmedik bir hata oluştu. Lütfen sayfayı yeniden yükleyin.",
     reload: "Sayfayı yenile",
   },
+  cs: {
+    title: "Něco se pokazilo",
+    message: "Došlo k neočekávané chybě. Zkuste prosím znovu načíst stránku.",
+    reload: "Znovu načíst stránku",
+  },
 };
 
 const EB_DEFAULT: EbStrings = {
