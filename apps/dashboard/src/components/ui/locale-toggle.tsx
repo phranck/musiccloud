@@ -14,7 +14,7 @@ export function LocaleToggle() {
           className={cn(
             "px-2 h-full text-xs font-medium transition-colors",
             locale === l
-              ? "bg-foreground text-background"
+              ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:text-foreground hover:bg-muted",
           )}
         >
