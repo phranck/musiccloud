@@ -1,0 +1,38 @@
+{
+  "nav.overview": "Overview",
+  "nav.tracks": "Tracks",
+  "nav.users": "Users",
+  "nav.traffic": "Traffic",
+  "nav.system": "System",
+
+  "auth.loginTitle": "Welcome back",
+  "auth.loginSubtitle": "Sign in to your dashboard.",
+  "auth.setupTitle": "Set up your dashboard",
+  "auth.setupSubtitle": "Create the first admin account.",
+  "auth.username": "Username",
+  "auth.password": "Password",
+  "auth.passwordConfirm": "Confirm password",
+  "auth.loginButton": "Sign in",
+  "auth.setupButton": "Create admin account",
+  "auth.loggingIn": "Signing in…",
+  "auth.saving": "Saving…",
+  "auth.loginError": "Invalid username or password.",
+  "auth.connectionError": "Connection error. Please try again.",
+  "auth.passwordMismatch": "Passwords do not match.",
+  "auth.passwordTooShort": "Password must be at least 8 characters.",
+  "auth.admin": "Admin",
+
+  "theme.system": "System theme",
+  "theme.light": "Light theme",
+  "theme.dark": "Dark theme",
+
+  "locale.label": "Language",
+
+  "sidebar.logout": "Sign out",
+
+  "pages.overview": "Overview",
+  "pages.tracks": "Tracks",
+  "pages.users": "Users",
+  "pages.traffic": "Traffic",
+  "pages.system": "System"
+}

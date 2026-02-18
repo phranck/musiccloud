@@ -22,18 +22,20 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
-
-const navItems = [
-  { label: "Übersicht", icon: LayoutDashboard, to: "/" },
-  { label: "Tracks", icon: Music2, to: "/tracks" },
-  { label: "Benutzer", icon: Users, to: "/users" },
-  { label: "Traffic", icon: BarChart3, to: "/traffic" },
-  { label: "System", icon: Settings, to: "/system" },
-];
+import { useT } from "@/i18n/context";
 
 export function AppSidebar() {
   const { username, logout } = useAuth();
   const navigate = useNavigate();
+  const t = useT();
+
+  const navItems = [
+    { labelKey: "nav.overview", icon: LayoutDashboard, to: "/" },
+    { labelKey: "nav.tracks", icon: Music2, to: "/tracks" },
+    { labelKey: "nav.users", icon: Users, to: "/users" },
+    { labelKey: "nav.traffic", icon: BarChart3, to: "/traffic" },
+    { labelKey: "nav.system", icon: Settings, to: "/system" },
+  ];
 
   function handleLogout() {
     logout();
@@ -60,9 +62,9 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.to}>
                   <NavLink to={item.to} end={item.to === "/"}>
                     {({ isActive }) => (
-                      <SidebarMenuButton isActive={isActive} tooltip={item.label}>
+                      <SidebarMenuButton isActive={isActive} tooltip={t(item.labelKey)}>
                         <item.icon />
-                        <span>{item.label}</span>
+                        <span>{t(item.labelKey)}</span>
                       </SidebarMenuButton>
                     )}
                   </NavLink>
@@ -76,9 +78,9 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Abmelden" onClick={handleLogout}>
+            <SidebarMenuButton tooltip={t("sidebar.logout")} onClick={handleLogout}>
               <LogOut />
-              <span className="flex-1 truncate">{username ?? "Admin"}</span>
+              <span className="flex-1 truncate">{username ?? t("auth.admin")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

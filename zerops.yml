@@ -75,6 +75,7 @@ zerops:
       deployFiles:
         - index.html
         - assets
+        - fonts
       cache: node_modules
     run:
       base: nginx@1.22

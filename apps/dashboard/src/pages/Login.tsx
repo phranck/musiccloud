@@ -3,11 +3,16 @@ import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BrandName } from "@/components/ui/BrandName";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { LocaleToggle } from "@/components/ui/locale-toggle";
 import { useAuth } from "@/contexts/AuthContext";
+import { useT } from "@/i18n/context";
 
 export function Login() {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
+  const t = useT();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -19,8 +24,6 @@ export function Login() {
       navigate("/", { replace: true });
       return;
     }
-
-    // Check if first-run setup is needed
     fetch("/api/admin/auth/setup-status")
       .then((r) => r.json())
       .then((data: { setupRequired: boolean }) => {
@@ -33,72 +36,88 @@ export function Login() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-
     try {
       const res = await fetch("/api/admin/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
-        setError(data.message ?? "Anmeldung fehlgeschlagen.");
+        setError(data.message ?? t("auth.loginError"));
         return;
       }
-
       login(data.token, data.username);
       navigate("/", { replace: true });
     } catch {
-      setError("Verbindungsfehler. Bitte versuche es erneut.");
+      setError(t("auth.connectionError"));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold">music.cloud</h1>
-          <p className="text-muted-foreground text-sm">Bitte melde dich an.</p>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Subtle background glow */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-violet-500/10 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
+      </div>
+
+      {/* Top-right controls */}
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <LocaleToggle />
+        <ThemeToggle />
+      </div>
+
+      <div className="relative z-10 w-full max-w-sm space-y-8">
+        {/* Brand */}
+        <div className="text-center space-y-1">
+          <h1 className="text-4xl font-bold tracking-tight">
+            <BrandName />
+          </h1>
+          <p className="text-muted-foreground text-sm">{t("auth.loginSubtitle")}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="username">Benutzername</Label>
-            <Input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              autoFocus
-              required
-            />
-          </div>
+        {/* Card */}
+        <div className="bg-card/80 backdrop-blur-sm border border-border rounded-2xl shadow-xl p-8 space-y-6">
+          <h2 className="text-lg font-semibold">{t("auth.loginTitle")}</h2>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Passwort</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">{t("auth.username")}</Label>
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                autoFocus
+                required
+              />
+            </div>
 
-          {error && (
-            <p className="text-destructive text-sm">{error}</p>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="password">{t("auth.password")}</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Anmelden …" : "Anmelden"}
-          </Button>
-        </form>
+            {error && (
+              <p className="text-sm text-destructive">{error}</p>
+            )}
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? t("auth.loggingIn") : t("auth.loginButton")}
+            </Button>
+          </form>
+        </div>
       </div>
     </div>
   );
