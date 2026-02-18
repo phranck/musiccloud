@@ -1,10 +1,10 @@
 import { getRepository } from "../db/index.js";
-import { CACHE_TTL_MS } from "../lib/constants.js";
-import { ResolveError } from "../lib/errors.js";
-import { fetchWithTimeout } from "../lib/fetch.js";
-import { log } from "../lib/logger.js";
-import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/url-parser.js";
-import { PLATFORM_CONFIG } from "../lib/utils.js";
+import { CACHE_TTL_MS } from "@/lib/platform/config";
+import { ResolveError } from "@/lib/resolve/errors";
+import { fetchWithTimeout } from "@/lib/infra/fetch";
+import { log } from "@/lib/infra/logger";
+import { isUrl, stripTrackingParams, validateMusicUrl } from "@/lib/platform/url";
+import { PLATFORM_CONFIG } from "@/lib/platform/config";
 import { adapters, identifyService } from "./index.js";
 import { resolveViaOdesli } from "./odesli.js";
 import type { MatchResult, NormalizedTrack, SearchCandidate, ServiceAdapter, ServiceId } from "./types.js";

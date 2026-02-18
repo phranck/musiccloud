@@ -1,12 +1,12 @@
 import type { APIRoute } from "astro";
 import { getRepository } from "../../db/index.js";
-import type { AlbumResolveSuccessResponse, ResolveErrorResponse } from "../../lib/api-types.js";
-import type { ErrorCode } from "../../lib/errors.js";
-import { ERROR_STATUS_MAP, ResolveError, USER_MESSAGES } from "../../lib/errors.js";
-import { log } from "../../lib/logger.js";
-import { apiRateLimiter } from "../../lib/rate-limiter.js";
-import { stripTrackingParams } from "../../lib/url-parser.js";
-import { isAlbumUrl } from "../../lib/utils.js";
+import type { AlbumResolveSuccessResponse, ResolveErrorResponse } from "@/lib/types/api";
+import type { ErrorCode } from "@/lib/resolve/errors";
+import { ERROR_STATUS_MAP, ResolveError, USER_MESSAGES } from "@/lib/resolve/errors";
+import { log } from "@/lib/infra/logger";
+import { apiRateLimiter } from "@/lib/infra/rate-limiter";
+import { stripTrackingParams } from "@/lib/platform/url";
+import { isAlbumUrl } from "@/lib/platform/url";
 import type { AlbumResolutionResult } from "../../services/album-resolver.js";
 import { resolveAlbumTextSearch, resolveAlbumUrl } from "../../services/album-resolver.js";
 

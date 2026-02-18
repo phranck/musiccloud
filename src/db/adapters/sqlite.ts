@@ -1,9 +1,9 @@
 import Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { CACHE_TTL_MS } from "../../lib/constants.js";
-import { log } from "../../lib/logger.js";
-import { generateShortId, generateTrackId } from "../../lib/short-id.js";
+import { CACHE_TTL_MS } from "@/lib/platform/config";
+import { log } from "@/lib/infra/logger";
+import { generateShortId, generateTrackId } from "@/lib/short-id";
 import type { NormalizedTrack } from "../../services/types.js";
 import type {
   CachedAlbumResult,

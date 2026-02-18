@@ -4,12 +4,12 @@ import type {
   ResolveDisambiguationResponse,
   ResolveErrorResponse,
   ResolveSuccessResponse,
-} from "../../lib/api-types.js";
-import type { ErrorCode } from "../../lib/errors.js";
-import { ERROR_STATUS_MAP, ResolveError, USER_MESSAGES } from "../../lib/errors.js";
-import { log } from "../../lib/logger.js";
-import { apiRateLimiter } from "../../lib/rate-limiter.js";
-import { isUrl, stripTrackingParams } from "../../lib/url-parser.js";
+} from "@/lib/types/api";
+import type { ErrorCode } from "@/lib/resolve/errors";
+import { ERROR_STATUS_MAP, ResolveError, USER_MESSAGES } from "@/lib/resolve/errors";
+import { log } from "@/lib/infra/logger";
+import { apiRateLimiter } from "@/lib/infra/rate-limiter";
+import { isUrl, stripTrackingParams } from "@/lib/platform/url";
 import type { ResolutionResult } from "../../services/resolver.js";
 import {
   resolveQuery,

@@ -1,9 +1,9 @@
 import { getRepository } from "../db/index.js";
-import { CACHE_TTL_MS } from "../lib/constants.js";
-import { ResolveError } from "../lib/errors.js";
-import { log } from "../lib/logger.js";
-import { isAlbumUrl, PLATFORM_CONFIG } from "../lib/utils.js";
-import { stripTrackingParams } from "../lib/url-parser.js";
+import { CACHE_TTL_MS } from "@/lib/platform/config";
+import { ResolveError } from "@/lib/resolve/errors";
+import { log } from "@/lib/infra/logger";
+import { PLATFORM_CONFIG } from "@/lib/platform/config";
+import { isAlbumUrl, stripTrackingParams } from "@/lib/platform/url";
 import { adapters } from "./index.js";
 import { resolveViaOdesli } from "./odesli.js";
 import type { AlbumMatchResult, AlbumSearchQuery, NormalizedAlbum, ServiceAdapter, ServiceId } from "./types.js";

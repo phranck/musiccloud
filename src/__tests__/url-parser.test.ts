@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isAlbumUrl } from "../lib/utils";
-import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/url-parser";
+import { isAlbumUrl } from "@/lib/platform/url";
+import { isUrl, stripTrackingParams, validateMusicUrl } from "@/lib/platform/url";
 
 // =============================================================================
 // validateMusicUrl

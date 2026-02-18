@@ -6,7 +6,7 @@ import {
   normalizeArtists,
   normalizeTitle,
   stringSimilarity,
-} from "../lib/normalize";
+} from "@/lib/resolve/normalize";
 
 // =============================================================================
 // normalizeTitle

@@ -1,4 +1,4 @@
-import { log } from "../lib/logger.js";
+import { log } from "@/lib/infra/logger";
 import { SqliteAdapter } from "./adapters/sqlite.js";
 import { loadDatabaseConfig } from "./config.js";
 import type { TrackRepository } from "./repository.js";

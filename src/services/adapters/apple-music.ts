@@ -1,6 +1,6 @@
 import { importPKCS8, SignJWT } from "jose";
-import { fetchWithTimeout } from "../../lib/fetch.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { fetchWithTimeout } from "@/lib/infra/fetch";
+import { calculateConfidence } from "@/lib/resolve/normalize";
 import type { AdapterCapabilities, MatchResult, NormalizedTrack, ServiceAdapter } from "../types.js";
 
 // Matches: music.apple.com/{storefront}/album/{name}/{albumId}?i={trackId}

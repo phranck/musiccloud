@@ -1,5 +1,5 @@
-import { fetchWithTimeout } from "../../lib/fetch.js";
-import { calculateConfidence, normalizeTitle } from "../../lib/normalize.js";
+import { fetchWithTimeout } from "@/lib/infra/fetch";
+import { calculateConfidence, normalizeTitle } from "@/lib/resolve/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
 import type { AdapterCapabilities, MatchResult, NormalizedTrack, ServiceAdapter } from "../types.js";
 

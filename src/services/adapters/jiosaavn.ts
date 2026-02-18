@@ -1,6 +1,6 @@
-import { fetchWithTimeout } from "../../lib/fetch.js";
-import { log } from "../../lib/logger.js";
-import { calculateAlbumConfidence, calculateConfidence } from "../../lib/normalize.js";
+import { fetchWithTimeout } from "@/lib/infra/fetch";
+import { log } from "@/lib/infra/logger";
+import { calculateAlbumConfidence, calculateConfidence } from "@/lib/resolve/normalize";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,

@@ -1,6 +1,6 @@
-import { fetchWithTimeout } from "../../lib/fetch.js";
-import { log } from "../../lib/logger.js";
-import { calculateConfidence } from "../../lib/normalize.js";
+import { fetchWithTimeout } from "@/lib/infra/fetch";
+import { log } from "@/lib/infra/logger";
+import { calculateConfidence } from "@/lib/resolve/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
 import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
 

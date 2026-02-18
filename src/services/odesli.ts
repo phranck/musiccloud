@@ -1,4 +1,4 @@
-import { fetchWithTimeout } from "../lib/fetch.js";
+import { fetchWithTimeout } from "@/lib/infra/fetch";
 import type { ServiceId } from "./types";
 
 export interface OdesliLink {

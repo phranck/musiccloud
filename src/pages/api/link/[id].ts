@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { getRepository } from "../../../db/index.js";
-import { apiRateLimiter } from "../../../lib/rate-limiter.js";
+import { apiRateLimiter } from "@/lib/infra/rate-limiter";
 
 export const prerender = false;
 

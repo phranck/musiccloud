@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CachedTrackResult, TrackRepository } from "../db/repository";
-import { CACHE_TTL_MS } from "../lib/constants";
-import { ResolveError } from "../lib/errors";
+import { CACHE_TTL_MS } from "@/lib/platform/config";
+import { ResolveError } from "@/lib/resolve/errors";
 import type { MatchResult, NormalizedTrack, SearchResultWithCandidates, ServiceAdapter } from "../services/types";
 
 // =============================================================================

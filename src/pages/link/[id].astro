@@ -7,10 +7,10 @@
  */
 export const prerender = false;
 
-import { AppFooter } from "../../components/AppFooter";
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import { loadByTrackId } from "../../lib/share-page";
-import { isValidPlatform, PLATFORM_CONFIG, type Platform } from "../../lib/utils";
+import { AppFooter } from "@/components/layout/AppFooter";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { loadByTrackId } from "@/lib/server/share-page";
+import { isValidPlatform, PLATFORM_CONFIG, type Platform } from "@/lib/platform/config";
 
 const { id } = Astro.params;
 

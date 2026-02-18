@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectPlatform, isMusicUrl } from "../lib/utils";
+import { detectPlatform, isMusicUrl } from "@/lib/platform/url";
 
 // =============================================================================
 // isMusicUrl

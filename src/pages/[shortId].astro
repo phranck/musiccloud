@@ -8,16 +8,16 @@
  */
 export const prerender = false;
 
-import { AppFooter } from "../components/AppFooter";
-import { GradientBackground } from "../components/GradientBackground";
-import { PageHeaderIsland } from "../components/PageHeaderIsland";
-import { SharePageCard } from "../components/SharePageCard";
-import { getLocaleFromCookie } from "../i18n/locales";
-import { loadTranslations, makeT } from "../i18n/server";
-import BaseLayout from "../layouts/BaseLayout.astro";
-import { loadAlbumByShortId, loadByShortId } from "../lib/share-page";
-import { buildMetaLine, isValidPlatform, PLATFORM_CONFIG } from "../lib/utils";
-import type { ShareContentConfiguration } from "../components/MediaCard";
+import { AppFooter } from "@/components/layout/AppFooter";
+import { GradientBackground } from "@/components/background/GradientBackground";
+import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
+import { SharePageCard } from "@/components/share/SharePageCard";
+import { getLocaleFromCookie } from "@/i18n/locales";
+import { loadTranslations, makeT } from "@/i18n/server";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { loadAlbumByShortId, loadByShortId } from "@/lib/server/share-page";
+import { buildMetaLine, isValidPlatform, PLATFORM_CONFIG } from "@/lib/platform/config";
+import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 const { shortId } = Astro.params;
 
@@ -70,7 +70,7 @@ const albumMetaLine = isAlbum
 const platformLinks = links
   .filter((link) => isValidPlatform(link.service))
   .map((link) => ({
-    platform: link.service as import("../lib/utils").Platform,
+    platform: link.service as import("@/lib/platform/config").Platform,
     url: link.url,
   }));
 
