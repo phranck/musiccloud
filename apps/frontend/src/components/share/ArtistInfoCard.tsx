@@ -185,11 +185,6 @@ const TRACK_PLATFORM_LINKS: Array<{
     buildUrl: (t) =>
       `https://soundcloud.com/search?q=${encodeURIComponent(`${t.title} ${t.artists.join(" ")}`)}`,
   },
-  {
-    platform: "qobuz",
-    buildUrl: (t) =>
-      `https://www.qobuz.com/search?q=${encodeURIComponent(`${t.title} ${t.artists.join(" ")}`)}`,
-  },
 ];
 
 function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, vars?: Record<string, string>) => string }) {
@@ -229,7 +224,7 @@ function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, va
           )}
         </div>
 
-        <div className="flex gap-4 items-center mt-2">
+        <div className="flex justify-between items-center mt-2 w-full">
           {TRACK_PLATFORM_LINKS.map(({ platform, buildUrl }) => (
             <TrackPlatformLink
               key={platform}
@@ -264,14 +259,9 @@ function TrackPlatformLink({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={t("artist.trackOnPlatform", { title: trackTitle, platform: PLATFORM_CONFIG[platform].label })}
-      className="flex-none hover:scale-110 active:scale-95 transition-transform duration-150 focus-visible:outline-none focus-visible:scale-110"
+      className="flex-none brightness-75 hover:brightness-100 hover:scale-110 active:scale-95 transition-all duration-150 focus-visible:outline-none focus-visible:brightness-100 focus-visible:scale-110"
     >
-      {/*
-        Fixed-size wrapper prevents SVG <img> intrinsic-size blowout
-        (e.g. Spotify SVG ships with width="226" which overrides CSS).
-        overflow-hidden clips; w-full h-full on the icon fills the box.
-      */}
-      <span className="flex items-center justify-center w-8 h-8 overflow-hidden rounded-lg">
+      <span className="flex items-center justify-center w-7 h-7 overflow-hidden rounded-md">
         <PlatformIcon platform={platform} className="w-full h-full object-contain" colored={true} />
       </span>
     </a>
@@ -290,7 +280,7 @@ function EventsSection({ events, userRegion, hasLocalEvents, t, locale }: { even
         {events.map((event, i) => {
           const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
           return (
-            <li key={i} className="flex items-start gap-3">
+            <li key={i} className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
                 <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
                   {formatEventDate(event.date, locale)}
