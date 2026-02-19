@@ -53,6 +53,7 @@
   "albums.title": "Title",
   "albums.artists": "Artists",
   "albums.source": "Source",
+  "albums.tracks": "Tracks",
   "albums.links": "Links",
   "albums.added": "Added",
   "albums.empty": "No albums found.",
