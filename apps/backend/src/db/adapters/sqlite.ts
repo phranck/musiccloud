@@ -981,4 +981,122 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       links,
     };
   }
+
+
+  async listTracks({ page, limit, q }: { page: number; limit: number; q?: string }): Promise<import("../admin-repository.js").ListResult<import("../admin-repository.js").TrackListItem>> {
+    const offset = (page - 1) * limit;
+    const search = q ? `%${q}%` : null;
+
+    interface TrackCountRow { id: string; title: string; artists: string; album_name: string | null; isrc: string | null; artwork_url: string | null; source_service: string | null; link_count: number; created_at: number; }
+
+    let rows: TrackCountRow[];
+    let total: number;
+
+    if (search) {
+      rows = this.sqlite.prepare(`
+        SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url, t.source_service, t.created_at,
+               COUNT(sl.id) AS link_count
+        FROM tracks t
+        LEFT JOIN service_links sl ON t.id = sl.track_id
+        WHERE t.title LIKE ? OR t.artists LIKE ?
+        GROUP BY t.id
+        ORDER BY t.created_at DESC
+        LIMIT ? OFFSET ?
+      `).all(search, search, limit, offset) as TrackCountRow[];
+      const countRow = this.sqlite.prepare(
+        `SELECT COUNT(*) AS total FROM tracks WHERE title LIKE ? OR artists LIKE ?`
+      ).get(search, search) as { total: number };
+      total = countRow.total;
+    } else {
+      rows = this.sqlite.prepare(`
+        SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url, t.source_service, t.created_at,
+               COUNT(sl.id) AS link_count
+        FROM tracks t
+        LEFT JOIN service_links sl ON t.id = sl.track_id
+        GROUP BY t.id
+        ORDER BY t.created_at DESC
+        LIMIT ? OFFSET ?
+      `).all(limit, offset) as TrackCountRow[];
+      const countRow = this.sqlite.prepare(
+        `SELECT COUNT(*) AS total FROM tracks`
+      ).get() as { total: number };
+      total = countRow.total;
+    }
+
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        artists: safeParseArray(r.artists),
+        albumName: r.album_name,
+        isrc: r.isrc,
+        artworkUrl: r.artwork_url,
+        sourceService: r.source_service,
+        linkCount: r.link_count,
+        createdAt: r.created_at,
+      })),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async listAlbums({ page, limit, q }: { page: number; limit: number; q?: string }): Promise<import("../admin-repository.js").ListResult<import("../admin-repository.js").AlbumListItem>> {
+    const offset = (page - 1) * limit;
+    const search = q ? `%${q}%` : null;
+
+    interface AlbumCountRow { id: string; title: string; artists: string; release_date: string | null; total_tracks: number | null; artwork_url: string | null; upc: string | null; source_service: string | null; link_count: number; created_at: number; }
+
+    let rows: AlbumCountRow[];
+    let total: number;
+
+    if (search) {
+      rows = this.sqlite.prepare(`
+        SELECT a.id, a.title, a.artists, a.release_date, a.total_tracks, a.artwork_url, a.upc, a.source_service, a.created_at,
+               COUNT(asl.id) AS link_count
+        FROM albums a
+        LEFT JOIN album_service_links asl ON a.id = asl.album_id
+        WHERE a.title LIKE ? OR a.artists LIKE ?
+        GROUP BY a.id
+        ORDER BY a.created_at DESC
+        LIMIT ? OFFSET ?
+      `).all(search, search, limit, offset) as AlbumCountRow[];
+      const countRow = this.sqlite.prepare(
+        `SELECT COUNT(*) AS total FROM albums WHERE title LIKE ? OR artists LIKE ?`
+      ).get(search, search) as { total: number };
+      total = countRow.total;
+    } else {
+      rows = this.sqlite.prepare(`
+        SELECT a.id, a.title, a.artists, a.release_date, a.total_tracks, a.artwork_url, a.upc, a.source_service, a.created_at,
+               COUNT(asl.id) AS link_count
+        FROM albums a
+        LEFT JOIN album_service_links asl ON a.id = asl.album_id
+        GROUP BY a.id
+        ORDER BY a.created_at DESC
+        LIMIT ? OFFSET ?
+      `).all(limit, offset) as AlbumCountRow[];
+      const countRow = this.sqlite.prepare(
+        `SELECT COUNT(*) AS total FROM albums`
+      ).get() as { total: number };
+      total = countRow.total;
+    }
+
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        artists: safeParseArray(r.artists),
+        releaseDate: r.release_date,
+        totalTracks: r.total_tracks,
+        artworkUrl: r.artwork_url,
+        upc: r.upc,
+        sourceService: r.source_service,
+        linkCount: r.link_count,
+        createdAt: r.created_at,
+      })),
+      total,
+      page,
+      limit,
+    };
+  }
 }

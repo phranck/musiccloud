@@ -12,6 +12,7 @@ import linkRoutes from "./routes/link.js";
 import shareRoutes from "./routes/share.js";
 import authRoutes from "./routes/auth.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
+import adminDataRoutes from "./routes/admin-data.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);
@@ -64,7 +65,7 @@ async function buildApp() {
   // Admin-protected API routes (Bearer JWT with role: "admin")
   await app.register(async function adminRoutes(adminApp) {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
-    // Future admin API routes (e.g., user management, stats) go here
+    await adminApp.register(adminDataRoutes);
   });
 
   return app;

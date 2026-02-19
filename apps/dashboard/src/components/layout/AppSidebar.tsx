@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Database,
+  Disc,
   LayoutDashboard,
   LogOut,
   Music2,
@@ -32,6 +33,7 @@ export function AppSidebar() {
   const navItems = [
     { labelKey: "nav.overview", icon: LayoutDashboard, to: "/" },
     { labelKey: "nav.tracks", icon: Music2, to: "/tracks" },
+    { labelKey: "nav.albums", icon: Disc, to: "/albums" },
     { labelKey: "nav.users", icon: Users, to: "/users" },
     { labelKey: "nav.traffic", icon: BarChart3, to: "/traffic" },
     { labelKey: "nav.system", icon: Settings, to: "/system" },

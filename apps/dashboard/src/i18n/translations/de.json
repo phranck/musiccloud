@@ -32,7 +32,32 @@
 
   "pages.overview": "Übersicht",
   "pages.tracks": "Tracks",
+  "pages.albums": "Alben",
   "pages.users": "Benutzer",
   "pages.traffic": "Traffic",
-  "pages.system": "System"
+  "pages.system": "System",
+
+  "nav.albums": "Alben",
+
+  "tracks.search": "Tracks suchen …",
+  "tracks.total": "Tracks",
+  "tracks.title": "Titel",
+  "tracks.artists": "Künstler",
+  "tracks.source": "Quelle",
+  "tracks.links": "Links",
+  "tracks.added": "Hinzugefügt",
+  "tracks.empty": "Keine Tracks gefunden.",
+
+  "albums.search": "Alben suchen …",
+  "albums.total": "Alben",
+  "albums.title": "Titel",
+  "albums.artists": "Künstler",
+  "albums.source": "Quelle",
+  "albums.links": "Links",
+  "albums.added": "Hinzugefügt",
+  "albums.empty": "Keine Alben gefunden.",
+
+  "pagination.previous": "Zurück",
+  "pagination.next": "Weiter",
+  "pagination.pageOf": "Seite {page} von {total}"
 }

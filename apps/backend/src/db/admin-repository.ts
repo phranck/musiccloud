@@ -6,9 +6,43 @@ export interface AdminUser {
   lastLoginAt: number | null;
 }
 
+export interface TrackListItem {
+  id: string;
+  title: string;
+  artists: string[];
+  albumName: string | null;
+  isrc: string | null;
+  artworkUrl: string | null;
+  sourceService: string | null;
+  linkCount: number;
+  createdAt: number;
+}
+
+export interface AlbumListItem {
+  id: string;
+  title: string;
+  artists: string[];
+  releaseDate: string | null;
+  totalTracks: number | null;
+  artworkUrl: string | null;
+  upc: string | null;
+  sourceService: string | null;
+  linkCount: number;
+  createdAt: number;
+}
+
+export interface ListResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface AdminRepository {
   countAdmins(): Promise<number>;
   findAdminByUsername(username: string): Promise<AdminUser | null>;
   createAdminUser(data: { id: string; username: string; passwordHash: string }): Promise<void>;
   updateLastLogin(id: string): Promise<void>;
+  listTracks(params: { page: number; limit: number; q?: string }): Promise<ListResult<TrackListItem>>;
+  listAlbums(params: { page: number; limit: number; q?: string }): Promise<ListResult<AlbumListItem>>;
 }

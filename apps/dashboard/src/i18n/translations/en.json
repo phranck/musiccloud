@@ -32,7 +32,32 @@
 
   "pages.overview": "Overview",
   "pages.tracks": "Tracks",
+  "pages.albums": "Albums",
   "pages.users": "Users",
   "pages.traffic": "Traffic",
-  "pages.system": "System"
+  "pages.system": "System",
+
+  "nav.albums": "Albums",
+
+  "tracks.search": "Search tracks…",
+  "tracks.total": "tracks",
+  "tracks.title": "Title",
+  "tracks.artists": "Artists",
+  "tracks.source": "Source",
+  "tracks.links": "Links",
+  "tracks.added": "Added",
+  "tracks.empty": "No tracks found.",
+
+  "albums.search": "Search albums…",
+  "albums.total": "albums",
+  "albums.title": "Title",
+  "albums.artists": "Artists",
+  "albums.source": "Source",
+  "albums.links": "Links",
+  "albums.added": "Added",
+  "albums.empty": "No albums found.",
+
+  "pagination.previous": "Previous",
+  "pagination.next": "Next",
+  "pagination.pageOf": "Page {page} of {total}"
 }

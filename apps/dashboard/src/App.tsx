@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Overview } from "@/pages/Overview";
+import { Albums } from "@/pages/Albums";
 import { Tracks } from "@/pages/Tracks";
 import { Users } from "@/pages/Users";
 import { Traffic } from "@/pages/Traffic";
@@ -32,6 +33,7 @@ export function App() {
                 >
                   <Route index element={<Overview />} />
                   <Route path="tracks" element={<Tracks />} />
+                  <Route path="albums" element={<Albums />} />
                   <Route path="users" element={<Users />} />
                   <Route path="traffic" element={<Traffic />} />
                   <Route path="system" element={<System />} />
