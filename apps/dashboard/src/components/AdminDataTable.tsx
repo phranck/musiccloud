@@ -52,6 +52,7 @@ type TableAction<T> =
   | { type: "FIRST_PAGE"; items: T[]; total: number }
   | { type: "LOAD_MORE" }
   | { type: "MORE_LOADED"; items: T[]; total: number }
+  | { type: "REMOVE_MANY"; ids: Set<string> }
   | { type: "PREPEND"; item: T }
   | { type: "ERROR"; message: string };
 
@@ -83,6 +84,19 @@ function makeReducer<T>() {
           total: action.total,
           nextPage: state.nextPage + 1,
           hasMore: merged.length < action.total,
+        };
+      }
+
+      case "REMOVE_MANY": {
+        if (state.tag !== "ready") return state;
+        const filtered = state.items.filter((item) => !action.ids.has(item.id));
+        const newTotal = Math.max(0, state.total - action.ids.size);
+        return {
+          tag: "ready",
+          items: filtered,
+          total: newTotal,
+          nextPage: state.nextPage,
+          hasMore: filtered.length < newTotal,
         };
       }
 
@@ -163,6 +177,7 @@ export function AdminDataTable<T extends { id: string }>({
 
   // Multi-select
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -350,11 +365,16 @@ export function AdminDataTable<T extends { id: string }>({
     setDeleting(true);
     setDeleteError(null);
     try {
-      await apiDelete(config.deleteEndpoint, { ids: [...selectedIds] });
+      const toDelete = new Set(selectedIds);
+      await apiDelete(config.deleteEndpoint, { ids: [...toDelete] });
       setSelectedIds(new Set());
       setConfirmOpen(false);
-      const stale = stateRef.current.tag === "ready" ? stateRef.current.items : undefined;
-      fetchFirstPageRef.current(stale);
+      // Fade rows out, then remove from state (no refetch needed)
+      setDeletingIds(toDelete);
+      setTimeout(() => {
+        dispatch({ type: "REMOVE_MANY", ids: toDelete });
+        setDeletingIds(new Set());
+      }, 300);
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Delete failed");
     } finally {
@@ -510,6 +530,10 @@ export function AdminDataTable<T extends { id: string }>({
                   <TableRow
                     key={item.id}
                     data-state={selectedIds.has(item.id) ? "selected" : undefined}
+                    className={cn(
+                      "transition-opacity duration-300",
+                      deletingIds.has(item.id) && "opacity-0",
+                    )}
                   >
                     {hasDelete && (
                       <TableCell
