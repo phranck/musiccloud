@@ -1,5 +1,13 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, Pencil, Trash2 } from "lucide-react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+import { cn } from "@/lib/utils";
 import { useAdminSSE } from "@/hooks/useAdminSSE";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,65 +29,111 @@ import { apiDelete, apiGet } from "@/lib/api";
 // Types
 // ---------------------------------------------------------------------------
 
-export interface PaginatedResponse<T> {
+interface Page<T> {
   items: T[];
   total: number;
-  page: number;
-  limit: number;
 }
 
-type FetchState<T> =
-  | { status: "loading" }
-  | { status: "success"; data: PaginatedResponse<T> }
-  | { status: "error"; message: string };
+/**
+ * State machine for infinite-scroll table data.
+ *
+ *  idle → loading-first → ready ⇄ loading-more
+ *                       ↘ error
+ */
+type TableState<T> =
+  | { tag: "idle" }
+  | { tag: "loading-first"; stale?: T[] }    // initial load; stale = old rows to show during sort/search reset
+  | { tag: "ready"; items: T[]; total: number; nextPage: number; hasMore: boolean }
+  | { tag: "loading-more"; items: T[]; total: number; nextPage: number }
+  | { tag: "error"; message: string };
 
-type Action<T> =
-  | { type: "LOADING" }
-  | { type: "SUCCESS"; data: PaginatedResponse<T> }
-  | { type: "ERROR"; message: string }
-  | { type: "PREPEND"; item: T };
+type TableAction<T> =
+  | { type: "RESET"; stale?: T[] }
+  | { type: "FIRST_PAGE"; items: T[]; total: number }
+  | { type: "LOAD_MORE" }
+  | { type: "MORE_LOADED"; items: T[]; total: number }
+  | { type: "PREPEND"; item: T }
+  | { type: "ERROR"; message: string };
+
+function makeReducer<T>() {
+  return function reducer(state: TableState<T>, action: TableAction<T>): TableState<T> {
+    switch (action.type) {
+      case "RESET":
+        return { tag: "loading-first", stale: action.stale };
+
+      case "FIRST_PAGE":
+        return {
+          tag: "ready",
+          items: action.items,
+          total: action.total,
+          nextPage: 2,
+          hasMore: action.items.length < action.total,
+        };
+
+      case "LOAD_MORE":
+        if (state.tag !== "ready" || !state.hasMore) return state;
+        return { tag: "loading-more", items: state.items, total: state.total, nextPage: state.nextPage };
+
+      case "MORE_LOADED": {
+        if (state.tag !== "loading-more") return state;
+        const merged = [...state.items, ...action.items];
+        return {
+          tag: "ready",
+          items: merged,
+          total: action.total,
+          nextPage: state.nextPage + 1,
+          hasMore: merged.length < action.total,
+        };
+      }
+
+      case "PREPEND": {
+        if (state.tag !== "ready" && state.tag !== "loading-more") return state;
+        return {
+          ...state,
+          tag: "ready" as const,
+          items: [action.item, ...state.items],
+          total: state.total + 1,
+        } as TableState<T>;
+      }
+
+      case "ERROR":
+        return { tag: "error", message: action.message };
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 /**
  * A single column definition for AdminDataTable.
- *
- * - `headerKey`   – i18n translation key for the column header.
- * - `headerLabel` – static label (takes precedence over headerKey).
- * - `className`   – Tailwind classes applied to both <TableHead> and <TableCell>.
- * - `sortKey`     – backend column name; if set, the header becomes a sort button.
- * - `render`      – renders the cell content for a given row item.
  */
 export interface ColumnDef<T> {
   headerKey?: string;
   headerLabel?: string;
   className?: string;
+  /** Backend column name; if set, the header becomes a sort button. */
   sortKey?: string;
   render: (item: T) => ReactNode;
 }
 
 /**
  * Configuration passed to AdminDataTable.
- * Define this as a module-level constant (or useMemo) so the reference stays
- * stable and avoids unnecessary re-fetches.
+ * Define as a module-level constant so the reference stays stable.
  */
 export interface AdminTableConfig<T extends { id: string }> {
-  /** API endpoint for listing, e.g. "/api/admin/tracks". */
   endpoint: string;
-  /** If set, a delete column + bulk-delete button are added. */
   deleteEndpoint?: string;
-  /** SSE event type that triggers a live prepend, e.g. "track-added". */
   sseEventType?: string;
-  /** Maps the raw SSE event data to a list item. Required when sseEventType is set. */
   sseToItem?: (data: Record<string, unknown>) => T;
-  /** i18n key for the search input placeholder. */
   searchPlaceholderKey: string;
-  /** i18n key displayed next to the total count. */
   totalLabelKey: string;
-  /** i18n key shown when the list is empty. */
   emptyKey: string;
   columns: ColumnDef<T>[];
 }
 
-const LIMIT = 100;
+const PAGE_SIZE = 50;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -92,31 +146,11 @@ export function AdminDataTable<T extends { id: string }>({
 }) {
   const t = useT();
 
-  const [state, dispatch] = useReducer(
-    (state: FetchState<T>, action: Action<T>): FetchState<T> => {
-      switch (action.type) {
-        case "LOADING":
-          return { status: "loading" };
-        case "SUCCESS":
-          return { status: "success", data: action.data };
-        case "ERROR":
-          return { status: "error", message: action.message };
-        case "PREPEND":
-          if (state.status !== "success") return state;
-          return {
-            status: "success",
-            data: {
-              ...state.data,
-              items: [action.item, ...state.data.items],
-              total: state.data.total + 1,
-            },
-          };
-      }
-    },
-    { status: "loading" },
-  );
+  // Stable reducer (generic – created once per mount)
+  const [reducer] = useState(() => makeReducer<T>());
+  const [state, dispatch] = useReducer(reducer, { tag: "idle" } as TableState<T>);
 
-  const [page, setPage] = useState(1);
+  // Search (debounced)
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -124,15 +158,114 @@ export function AdminDataTable<T extends { id: string }>({
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc" | null>(null);
 
+  // Edit mode (toggles checkbox column)
+  const [editMode, setEditMode] = useState(false);
+
   // Multi-select
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Refs for infinite scroll
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   const { sseEventType, sseToItem, endpoint } = config;
 
-  // Live prepend: only on page 1, no search, no custom sort active
+  // ---------------------------------------------------------------------------
+  // Data fetching
+  // ---------------------------------------------------------------------------
+
+  const fetchFirstPage = useCallback(
+    (stale?: T[]) => {
+      dispatch({ type: "RESET", stale });
+      apiGet<Page<T>>(endpoint, {
+        page: 1,
+        limit: PAGE_SIZE,
+        q: searchQuery || undefined,
+        sortBy: sortBy || undefined,
+        sortDir: sortDir || undefined,
+      })
+        .then((data) => dispatch({ type: "FIRST_PAGE", items: data.items, total: data.total }))
+        .catch((err: Error) => dispatch({ type: "ERROR", message: err.message }));
+    },
+    [endpoint, searchQuery, sortBy, sortDir],
+  );
+
+  const loadMore = useCallback(() => {
+    const s = stateRef.current;
+    if (s.tag !== "ready" || !s.hasMore) return;
+    const nextPage = s.nextPage;
+    dispatch({ type: "LOAD_MORE" });
+    apiGet<Page<T>>(endpoint, {
+      page: nextPage,
+      limit: PAGE_SIZE,
+      q: searchQuery || undefined,
+      sortBy: sortBy || undefined,
+      sortDir: sortDir || undefined,
+    })
+      .then((data) => dispatch({ type: "MORE_LOADED", items: data.items, total: data.total }))
+      .catch((err: Error) => dispatch({ type: "ERROR", message: err.message }));
+  }, [endpoint, searchQuery, sortBy, sortDir]);
+
+  // Keep ref current so the IntersectionObserver always calls the latest version
+  const loadMoreRef = useRef(loadMore);
+  loadMoreRef.current = loadMore;
+  const fetchFirstPageRef = useRef(fetchFirstPage);
+  fetchFirstPageRef.current = fetchFirstPage;
+
+  // ---------------------------------------------------------------------------
+  // Trigger first-page fetch on search/sort/endpoint changes
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const stale =
+      stateRef.current.tag === "ready" || stateRef.current.tag === "loading-more"
+        ? stateRef.current.items
+        : undefined;
+    fetchFirstPageRef.current(stale);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, sortBy, sortDir, endpoint]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchQuery(inputValue), 400);
+    return () => clearTimeout(timer);
+  }, [inputValue]);
+
+  // Clear selection when search/sort changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [searchQuery, sortBy, sortDir]);
+
+  // ---------------------------------------------------------------------------
+  // Infinite scroll – IntersectionObserver
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const wrapper = tableWrapperRef.current;
+    if (!sentinel || !wrapper) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMoreRef.current();
+        }
+      },
+      { root: wrapper, threshold: 0 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  });  // run every render so it picks up newly mounted sentinel
+
+  // ---------------------------------------------------------------------------
+  // SSE live prepend
+  // ---------------------------------------------------------------------------
+
   useAdminSSE(
     useCallback(
       (event) => {
@@ -140,57 +273,18 @@ export function AdminDataTable<T extends { id: string }>({
           !sseEventType ||
           !sseToItem ||
           event.type !== sseEventType ||
-          page !== 1 ||
           searchQuery !== "" ||
           sortBy !== null
         )
           return;
         dispatch({ type: "PREPEND", item: sseToItem(event.data) });
       },
-      [page, searchQuery, sseEventType, sseToItem, sortBy],
+      [searchQuery, sseEventType, sseToItem, sortBy],
     ),
   );
 
-  // Debounce search: apply after 400 ms, reset to page 1
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchQuery(inputValue);
-      setPage(1);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [inputValue]);
-
-  // Clear selection on page/search/sort change
-  useEffect(() => {
-    setSelectedIds(new Set());
-  }, [page, searchQuery, sortBy, sortDir]);
-
-  // Stable fetch function
-  const fetchPage = useCallback(() => {
-    dispatch({ type: "LOADING" });
-    apiGet<PaginatedResponse<T>>(endpoint, {
-      page,
-      limit: LIMIT,
-      q: searchQuery || undefined,
-      sortBy: sortBy || undefined,
-      sortDir: sortDir || undefined,
-    })
-      .then((data) => dispatch({ type: "SUCCESS", data }))
-      .catch((err: Error) => dispatch({ type: "ERROR", message: err.message }));
-  }, [page, searchQuery, endpoint, sortBy, sortDir]);
-
-  useEffect(() => {
-    fetchPage();
-  }, [fetchPage]);
-
-  const fetchPageRef = useRef(fetchPage);
-  fetchPageRef.current = fetchPage;
-
-  const totalPages =
-    state.status === "success" ? Math.ceil(state.data.total / LIMIT) : 0;
-
   // ---------------------------------------------------------------------------
-  // Sort helpers
+  // Sort
   // ---------------------------------------------------------------------------
 
   function handleSortClick(key: string) {
@@ -203,23 +297,22 @@ export function AdminDataTable<T extends { id: string }>({
       setSortBy(null);
       setSortDir(null);
     }
-    setPage(1);
   }
 
   function SortIcon({ colKey }: { colKey: string }) {
     if (sortBy !== colKey)
       return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 opacity-35 group-hover:opacity-60" />;
-    if (sortDir === "asc")
-      return <ArrowUp className="ml-1 inline h-3.5 w-3.5" />;
+    if (sortDir === "asc") return <ArrowUp className="ml-1 inline h-3.5 w-3.5" />;
     return <ArrowDown className="ml-1 inline h-3.5 w-3.5" />;
   }
 
   // ---------------------------------------------------------------------------
-  // Selection helpers
+  // Selection
   // ---------------------------------------------------------------------------
 
-  const visibleItems = state.status === "success" ? state.data.items : [];
-  const visibleIds = visibleItems.map((item) => item.id);
+  const currentItems =
+    state.tag === "ready" || state.tag === "loading-more" ? state.items : [];
+  const visibleIds = currentItems.map((item) => item.id);
   const selectedCount = selectedIds.size;
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const someSelected = !allSelected && visibleIds.some((id) => selectedIds.has(id));
@@ -237,8 +330,13 @@ export function AdminDataTable<T extends { id: string }>({
     });
   }
 
+  function handleEditToggle() {
+    setEditMode((m) => !m);
+    if (editMode) setSelectedIds(new Set());
+  }
+
   // ---------------------------------------------------------------------------
-  // Delete handler
+  // Delete
   // ---------------------------------------------------------------------------
 
   async function handleConfirmDelete() {
@@ -249,7 +347,8 @@ export function AdminDataTable<T extends { id: string }>({
       await apiDelete(config.deleteEndpoint, { ids: [...selectedIds] });
       setSelectedIds(new Set());
       setConfirmOpen(false);
-      fetchPageRef.current();
+      const stale = stateRef.current.tag === "ready" ? stateRef.current.items : undefined;
+      fetchFirstPageRef.current(stale);
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Delete failed");
     } finally {
@@ -258,14 +357,33 @@ export function AdminDataTable<T extends { id: string }>({
   }
 
   // ---------------------------------------------------------------------------
-  // Render
+  // Derived display values
   // ---------------------------------------------------------------------------
 
   const hasDelete = Boolean(config.deleteEndpoint);
-  const colSpan = config.columns.length + (hasDelete ? 1 : 0);
+  const colSpan = config.columns.length + (hasDelete && editMode ? 1 : 0);
+
+  // Items to display: from ready/loading-more state, or stale items during reset
+  const displayItems: T[] =
+    state.tag === "ready" || state.tag === "loading-more"
+      ? state.items
+      : state.tag === "loading-first" && state.stale
+        ? state.stale
+        : [];
+
+  const total =
+    state.tag === "ready" || state.tag === "loading-more" ? state.total : null;
+
+  const isInitialLoading = state.tag === "idle" || (state.tag === "loading-first" && !state.stale);
+  const isRefreshing = state.tag === "loading-first" && Boolean(state.stale);
+  const isLoadingMore = state.tag === "loading-more";
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
 
   return (
-    <div className="flex h-full flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {/* Toolbar */}
       <div className="flex shrink-0 items-center gap-3">
         <Input
@@ -274,15 +392,15 @@ export function AdminDataTable<T extends { id: string }>({
           onChange={(e) => setInputValue(e.target.value)}
           className="max-w-sm"
         />
-        {state.status === "success" && (
+        {total !== null && (
           <span className="text-sm text-muted-foreground">
-            {state.data.total} {t(config.totalLabelKey)}
+            {total} {t(config.totalLabelKey)}
           </span>
         )}
 
-        {/* Delete + Pagination – right side */}
         <div className="ml-auto flex items-center gap-2">
-          {hasDelete && selectedCount > 0 && (
+          {/* Delete button – only in edit mode with selection */}
+          {hasDelete && editMode && selectedCount > 0 && (
             <Button
               variant="destructive"
               size="sm"
@@ -296,39 +414,22 @@ export function AdminDataTable<T extends { id: string }>({
             </Button>
           )}
 
-          {totalPages > 1 && (
-            <>
-              <span className="text-sm text-muted-foreground">
-                {t("pagination.pageOf", {
-                  page: String(page),
-                  total: String(totalPages),
-                })}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                {t("pagination.previous")}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-              >
-                {t("pagination.next")}
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </>
+          {/* Edit toggle */}
+          {hasDelete && (
+            <Button
+              variant={editMode ? "secondary" : "outline"}
+              size="sm"
+              onClick={handleEditToggle}
+            >
+              <Pencil className="h-4 w-4" />
+              {t("edit.button")}
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Loading */}
-      {state.status === "loading" && (
+      {/* Initial loading skeletons */}
+      {isInitialLoading && (
         <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-12 w-full" />
@@ -337,18 +438,30 @@ export function AdminDataTable<T extends { id: string }>({
       )}
 
       {/* Error */}
-      {state.status === "error" && (
+      {state.tag === "error" && (
         <p className="text-sm text-destructive">{state.message}</p>
       )}
 
-      {/* Table – fills remaining height, scrolls internally */}
-      {state.status === "success" && (
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-md border">
+      {/* Table – fills remaining height, internal scroll */}
+      {!isInitialLoading && state.tag !== "error" && (
+        <div
+          ref={tableWrapperRef}
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto rounded-md border transition-opacity duration-200",
+            isRefreshing ? "opacity-50" : "opacity-100",
+          )}
+        >
           <Table>
             <TableHeader className="bg-muted/40 sticky top-0 z-10">
               <TableRow className="hover:bg-transparent">
+                {/* Checkbox column – animates in/out with edit mode */}
                 {hasDelete && (
-                  <TableHead className="w-10">
+                  <TableHead
+                    className={cn(
+                      "overflow-hidden transition-all duration-200",
+                      editMode ? "w-10 opacity-100" : "w-0 max-w-0 p-0 opacity-0",
+                    )}
+                  >
                     <Checkbox
                       checked={allSelected ? true : someSelected ? "indeterminate" : false}
                       onCheckedChange={toggleAll}
@@ -374,7 +487,7 @@ export function AdminDataTable<T extends { id: string }>({
               </TableRow>
             </TableHeader>
             <TableBody className="[&_tr]:border-0">
-              {state.data.items.length === 0 ? (
+              {displayItems.length === 0 && !isRefreshing ? (
                 <TableRow>
                   <TableCell
                     colSpan={colSpan}
@@ -384,13 +497,18 @@ export function AdminDataTable<T extends { id: string }>({
                   </TableCell>
                 </TableRow>
               ) : (
-                state.data.items.map((item) => (
+                displayItems.map((item) => (
                   <TableRow
                     key={item.id}
                     data-state={selectedIds.has(item.id) ? "selected" : undefined}
                   >
                     {hasDelete && (
-                      <TableCell className="w-10">
+                      <TableCell
+                        className={cn(
+                          "overflow-hidden transition-all duration-200",
+                          editMode ? "w-10 opacity-100" : "w-0 max-w-0 p-0 opacity-0",
+                        )}
+                      >
                         <Checkbox
                           checked={selectedIds.has(item.id)}
                           onCheckedChange={() => toggleRow(item.id)}
@@ -408,10 +526,18 @@ export function AdminDataTable<T extends { id: string }>({
               )}
             </TableBody>
           </Table>
+
+          {/* Infinite scroll sentinel + loading indicator */}
+          <div ref={sentinelRef} className="h-px" />
+          {isLoadingMore && (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
       )}
 
-      {/* Confirmation Dialog */}
+      {/* Delete confirmation dialog */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
@@ -420,22 +546,12 @@ export function AdminDataTable<T extends { id: string }>({
               {t("delete.confirm.description", { count: String(selectedCount) })}
             </DialogDescription>
           </DialogHeader>
-          {deleteError && (
-            <p className="text-sm text-destructive">{deleteError}</p>
-          )}
+          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmOpen(false)}
-              disabled={deleting}
-            >
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={deleting}>
               {t("delete.confirm.cancel")}
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={deleting}
-            >
+            <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting}>
               {deleting ? "…" : t("delete.confirm.action")}
             </Button>
           </DialogFooter>

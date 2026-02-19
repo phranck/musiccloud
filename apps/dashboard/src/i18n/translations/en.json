@@ -66,5 +66,7 @@
   "delete.confirm.title": "Delete items?",
   "delete.confirm.description": "This will permanently delete {count} item(s). This action cannot be undone.",
   "delete.confirm.cancel": "Cancel",
-  "delete.confirm.action": "Delete"
+  "delete.confirm.action": "Delete",
+
+  "edit.button": "Edit"
 }

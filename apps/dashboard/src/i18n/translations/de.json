@@ -66,5 +66,7 @@
   "delete.confirm.title": "Einträge löschen?",
   "delete.confirm.description": "{count} Eintrag/Einträge werden unwiderruflich gelöscht.",
   "delete.confirm.cancel": "Abbrechen",
-  "delete.confirm.action": "Löschen"
+  "delete.confirm.action": "Löschen",
+
+  "edit.button": "Bearbeiten"
 }
