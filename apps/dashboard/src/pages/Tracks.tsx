@@ -31,10 +31,13 @@ function FeaturedToggle({ track }: { track: TrackListItem }) {
 
   async function toggle() {
     if (busy || !track.shortId) return;
+    const next = !featured;
+    setFeatured(next);
     setBusy(true);
     try {
-      await apiPatch(`/api/admin/tracks/${track.shortId}/featured`, { featured: !featured });
-      setFeatured((v) => !v);
+      await apiPatch(`/api/admin/tracks/${track.shortId}/featured`, { featured: next });
+    } catch {
+      setFeatured(!next);
     } finally {
       setBusy(false);
     }

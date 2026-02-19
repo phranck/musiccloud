@@ -37,10 +37,13 @@ function FeaturedToggle({ album }: { album: AlbumListItem }) {
 
   async function toggle() {
     if (busy || !album.shortId) return;
+    const next = !featured;
+    setFeatured(next);
     setBusy(true);
     try {
-      await apiPatch(`/api/admin/albums/${album.shortId}/featured`, { featured: !featured });
-      setFeatured((v) => !v);
+      await apiPatch(`/api/admin/albums/${album.shortId}/featured`, { featured: next });
+    } catch {
+      setFeatured(!next);
     } finally {
       setBusy(false);
     }
