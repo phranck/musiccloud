@@ -1,4 +1,4 @@
-import { compareByDisplayOrder } from "@musiccloud/shared";
+import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { cn } from "@/lib/utils";
 import {
   isShareableContent,
@@ -68,7 +68,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[...content.platforms]
-              .sort((a, b) => compareByDisplayOrder(a.platform, b.platform))
+              .sort((a, b) => PLATFORM_CONFIG[a.platform].label.localeCompare(PLATFORM_CONFIG[b.platform].label))
               .map((p) => (
                 <PlatformButton
                   key={p.platform}
