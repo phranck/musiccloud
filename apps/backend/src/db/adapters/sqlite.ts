@@ -293,6 +293,46 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         );
       `);
     }
+
+    // Ensure performance indexes exist (idempotent, safe on existing DBs)
+    this.sqlite.exec(`
+      CREATE INDEX IF NOT EXISTS idx_tracks_created_at ON tracks(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_albums_created_at ON albums(created_at DESC);
+    `);
+
+    // Ensure albums_fts exists (for fast album search)
+    const albumsFtsExists = this.sqlite
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='albums_fts'`)
+      .get();
+
+    if (!albumsFtsExists) {
+      this.sqlite.exec(`
+        CREATE VIRTUAL TABLE albums_fts USING fts5(
+          album_id UNINDEXED,
+          title,
+          artists
+        );
+
+        CREATE TRIGGER IF NOT EXISTS albums_fts_insert AFTER INSERT ON albums BEGIN
+          INSERT INTO albums_fts(album_id, title, artists)
+          VALUES (NEW.id, NEW.title, NEW.artists);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS albums_fts_update AFTER UPDATE ON albums BEGIN
+          DELETE FROM albums_fts WHERE album_id = OLD.id;
+          INSERT INTO albums_fts(album_id, title, artists)
+          VALUES (NEW.id, NEW.title, NEW.artists);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS albums_fts_delete AFTER DELETE ON albums BEGIN
+          DELETE FROM albums_fts WHERE album_id = OLD.id;
+        END;
+
+        -- Backfill existing albums into FTS
+        INSERT INTO albums_fts(album_id, title, artists)
+        SELECT id, title, artists FROM albums;
+      `);
+    }
   }
 
   async findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
@@ -985,27 +1025,29 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
 
   async listTracks({ page, limit, q }: { page: number; limit: number; q?: string }): Promise<import("../admin-repository.js").ListResult<import("../admin-repository.js").TrackListItem>> {
     const offset = (page - 1) * limit;
-    const search = q ? `%${q}%` : null;
 
     interface TrackCountRow { id: string; title: string; artists: string; album_name: string | null; isrc: string | null; artwork_url: string | null; source_service: string | null; link_count: number; created_at: number; }
 
     let rows: TrackCountRow[];
     let total: number;
 
-    if (search) {
+    if (q) {
+      // Use FTS5 for fast full-text search (avoids full table scan from LIKE '%...%')
+      const ftsQuery = `${escapeFts5(q)}*`;
       rows = this.sqlite.prepare(`
         SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url, t.source_service, t.created_at,
                COUNT(sl.id) AS link_count
-        FROM tracks t
+        FROM tracks_fts fts
+        JOIN tracks t ON t.id = fts.track_id
         LEFT JOIN service_links sl ON t.id = sl.track_id
-        WHERE t.title LIKE ? OR t.artists LIKE ?
+        WHERE fts MATCH ?
         GROUP BY t.id
         ORDER BY t.created_at DESC
         LIMIT ? OFFSET ?
-      `).all(search, search, limit, offset) as TrackCountRow[];
+      `).all(ftsQuery, limit, offset) as TrackCountRow[];
       const countRow = this.sqlite.prepare(
-        `SELECT COUNT(*) AS total FROM tracks WHERE title LIKE ? OR artists LIKE ?`
-      ).get(search, search) as { total: number };
+        `SELECT COUNT(DISTINCT fts.track_id) AS total FROM tracks_fts fts WHERE fts MATCH ?`
+      ).get(ftsQuery) as { total: number };
       total = countRow.total;
     } else {
       rows = this.sqlite.prepare(`
@@ -1043,27 +1085,29 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
 
   async listAlbums({ page, limit, q }: { page: number; limit: number; q?: string }): Promise<import("../admin-repository.js").ListResult<import("../admin-repository.js").AlbumListItem>> {
     const offset = (page - 1) * limit;
-    const search = q ? `%${q}%` : null;
 
     interface AlbumCountRow { id: string; title: string; artists: string; release_date: string | null; total_tracks: number | null; artwork_url: string | null; upc: string | null; source_service: string | null; link_count: number; created_at: number; }
 
     let rows: AlbumCountRow[];
     let total: number;
 
-    if (search) {
+    if (q) {
+      // Use FTS5 for fast full-text search (avoids full table scan from LIKE '%...%')
+      const ftsQuery = `${escapeFts5(q)}*`;
       rows = this.sqlite.prepare(`
         SELECT a.id, a.title, a.artists, a.release_date, a.total_tracks, a.artwork_url, a.upc, a.source_service, a.created_at,
                COUNT(asl.id) AS link_count
-        FROM albums a
+        FROM albums_fts fts
+        JOIN albums a ON a.id = fts.album_id
         LEFT JOIN album_service_links asl ON a.id = asl.album_id
-        WHERE a.title LIKE ? OR a.artists LIKE ?
+        WHERE fts MATCH ?
         GROUP BY a.id
         ORDER BY a.created_at DESC
         LIMIT ? OFFSET ?
-      `).all(search, search, limit, offset) as AlbumCountRow[];
+      `).all(ftsQuery, limit, offset) as AlbumCountRow[];
       const countRow = this.sqlite.prepare(
-        `SELECT COUNT(*) AS total FROM albums WHERE title LIKE ? OR artists LIKE ?`
-      ).get(search, search) as { total: number };
+        `SELECT COUNT(DISTINCT fts.album_id) AS total FROM albums_fts fts WHERE fts MATCH ?`
+      ).get(ftsQuery) as { total: number };
       total = countRow.total;
     } else {
       rows = this.sqlite.prepare(`

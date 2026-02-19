@@ -115,8 +115,8 @@ export function Tracks() {
         <>
           <div className="rounded-md border">
             <Table>
-              <TableHeader>
-                <TableRow>
+              <TableHeader className="bg-muted/40">
+                <TableRow className="hover:bg-transparent">
                   <TableHead className="w-10" />
                   <TableHead>{t("tracks.title")}</TableHead>
                   <TableHead>{t("tracks.artists")}</TableHead>
