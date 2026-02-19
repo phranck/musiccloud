@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node --env-file=../../.env.local --import tsx/esm --watch src/server.ts",
+    "dev": "tsup --watch --onSuccess \"node start-dev.mjs\"",
     "build": "tsup",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
