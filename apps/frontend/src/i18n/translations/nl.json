@@ -39,5 +39,16 @@
   "infopanel.unavailable": "Inhoud niet beschikbaar.",
   "a11y.infoButton": "Over musiccloud",
   "a11y.skipToContent": "Naar inhoud gaan",
-  "footer.madeBy": "gemaakt door"
+  "footer.madeBy": "gemaakt door",
+  "artist.popularTracks": "Populaire nummers",
+  "artist.upcomingShows": "Aankomende shows",
+  "artist.tickets": "Tickets",
+  "artist.spotifyFollowers": "Spotify-volgers",
+  "artist.lastfmPlays": "Last.fm-plays",
+  "artist.similar": "Vergelijkbare artiesten",
+  "artist.closeInfo": "Artiestinfo sluiten",
+  "artist.mobileButton": "Artiestinfo",
+  "artist.trackOnPlatform": "Open {title} op {platform}",
+  "artist.popularTracksInfo": "Top nummers van Deezer. Tik op een platform-icoon om het nummer op je favoriete dienst te openen.",
+  "artist.upcomingShowsInfo": "Events met ★ zijn in jouw regio, gedetecteerd via de tijdzone van je apparaat."
 }

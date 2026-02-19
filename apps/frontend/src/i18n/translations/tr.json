@@ -39,5 +39,16 @@
   "infopanel.unavailable": "İçerik mevcut değil.",
   "a11y.infoButton": "musiccloud hakkında",
   "a11y.skipToContent": "İçeriğe geç",
-  "footer.madeBy": "yapan"
+  "footer.madeBy": "yapan",
+  "artist.popularTracks": "Popüler Parçalar",
+  "artist.upcomingShows": "Yaklaşan Konserler",
+  "artist.tickets": "Biletler",
+  "artist.spotifyFollowers": "Spotify Takipçileri",
+  "artist.lastfmPlays": "Last.fm Dinlemeleri",
+  "artist.similar": "Benzer sanatçılar",
+  "artist.closeInfo": "Sanatçı bilgisini kapat",
+  "artist.mobileButton": "Sanatçı Bilgisi",
+  "artist.trackOnPlatform": "{title} parçasını {platform} üzerinde aç",
+  "artist.popularTracksInfo": "Deezer'dan en iyi parçalar. Parçayı tercih ettiğin hizmette açmak için platform simgesine dokun.",
+  "artist.upcomingShowsInfo": "★ ile işaretli etkinlikler bölgendedir, cihaz saat dilimine göre tespit edilir."
 }

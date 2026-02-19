@@ -5,8 +5,11 @@
  * as a plain JSON-serializable prop from the Astro SSR page so no
  * client-side data fetching is needed.
  *
- * No LocaleProvider needed: PlatformButton does not use useT().
+ * `platformsLabelKey` from config is resolved via useT() so the label
+ * updates immediately when the user switches locale, without a full reload.
+ * The SSR-baked `platformsLabel` serves as the initial fallback.
  */
+import { useT } from "@/i18n/context";
 import { MediaCard } from "@/components/cards/MediaCard";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
@@ -15,5 +18,11 @@ interface SharePageCardProps {
 }
 
 export function SharePageCard({ config }: SharePageCardProps) {
-  return <MediaCard content={config} animated={false} />;
+  const t = useT();
+  return (
+    <MediaCard
+      content={{ ...config, platformsLabel: t(config.platformsLabelKey) }}
+      animated={false}
+    />
+  );
 }

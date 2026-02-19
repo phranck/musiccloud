@@ -11,6 +11,8 @@ interface LocaleContextValue {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
+const LOCALE_EVENT = "musiccloud:locale-change";
+
 function interpolate(template: string, vars?: Record<string, string>): string {
   if (!vars) return template;
   return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
@@ -23,6 +25,15 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   // Detect locale on mount (client-only: localStorage + browser)
   useEffect(() => {
     setLocaleState(detectLocale());
+  }, []);
+
+  // Sync with other islands on the same page via custom window event
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setLocaleState((e as CustomEvent<Locale>).detail);
+    };
+    window.addEventListener(LOCALE_EVENT, handler);
+    return () => window.removeEventListener(LOCALE_EVENT, handler);
   }, []);
 
   // Load translation file whenever locale changes
@@ -41,6 +52,8 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(LOCALE_STORAGE_KEY, l);
     // Also set cookie so SSR pages (share page) can read it
     document.cookie = `${LOCALE_STORAGE_KEY}=${l}; max-age=31536000; path=/; SameSite=Lax`;
+    // Notify other LocaleProvider instances on the same page
+    window.dispatchEvent(new CustomEvent(LOCALE_EVENT, { detail: l }));
   }, []);
 
   const t = useCallback(

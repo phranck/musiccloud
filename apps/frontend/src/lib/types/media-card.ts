@@ -56,9 +56,14 @@ export interface AlbumContentConfiguration extends MediaCardContentConfiguration
  * Share page (`/[shortId]`).
  * No ShareButton, no sr-announcement, no onAlbumArtLoad callback.
  * All fields are plain data so the config is fully JSON-serializable.
+ *
+ * `platformsLabelKey` is the i18n key for the platforms label so the
+ * client-side LocaleProvider can re-translate it after a locale change.
+ * `platformsLabel` (from base) serves as SSR-rendered fallback to avoid flash.
  */
 export interface ShareContentConfiguration extends MediaCardContentConfiguration {
   type: "share";
+  platformsLabelKey: string;
 }
 
 /** Type guard: true for song and album configs (both have shareUrl / srAnnouncement) */

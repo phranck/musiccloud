@@ -39,5 +39,16 @@
   "infopanel.unavailable": "Contenuto non disponibile.",
   "a11y.infoButton": "Informazioni su musiccloud",
   "a11y.skipToContent": "Passa al contenuto",
-  "footer.madeBy": "creato da"
+  "footer.madeBy": "creato da",
+  "artist.popularTracks": "Brani popolari",
+  "artist.upcomingShows": "Prossimi concerti",
+  "artist.tickets": "Biglietti",
+  "artist.spotifyFollowers": "Follower Spotify",
+  "artist.lastfmPlays": "Ascolti Last.fm",
+  "artist.similar": "Artisti simili",
+  "artist.closeInfo": "Chiudi info artista",
+  "artist.mobileButton": "Info artista",
+  "artist.trackOnPlatform": "Apri {title} su {platform}",
+  "artist.popularTracksInfo": "Top brani da Deezer. Tocca l'icona di una piattaforma per aprire il brano sul tuo servizio preferito.",
+  "artist.upcomingShowsInfo": "Gli eventi con ★ sono nella tua regione, rilevata dal fuso orario del dispositivo."
 }

@@ -39,5 +39,16 @@
   "infopanel.unavailable": "Content unavailable.",
   "a11y.infoButton": "About musiccloud",
   "a11y.skipToContent": "Skip to content",
-  "footer.madeBy": "made by"
+  "footer.madeBy": "made by",
+  "artist.popularTracks": "Popular Tracks",
+  "artist.upcomingShows": "Upcoming Shows",
+  "artist.tickets": "Tickets",
+  "artist.spotifyFollowers": "Spotify Followers",
+  "artist.lastfmPlays": "Last.fm Plays",
+  "artist.similar": "Similar artists",
+  "artist.closeInfo": "Close artist info",
+  "artist.mobileButton": "Artist Info",
+  "artist.trackOnPlatform": "Open {title} on {platform}",
+  "artist.popularTracksInfo": "Top tracks sourced from Deezer. Tap a platform icon to open the track on your preferred service.",
+  "artist.upcomingShowsInfo": "Events marked with ★ are in your region, detected by your device timezone."
 }
