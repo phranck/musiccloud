@@ -56,9 +56,11 @@ async function getDevToken(): Promise<string> {
 
   // The private key may be base64-encoded or raw PEM.
   // Decode if it doesn't start with "-----BEGIN".
-  const pem = privateKeyPem.startsWith("-----BEGIN")
+  // Also replace literal \n sequences (common in .env files) with actual newlines.
+  const rawPem = privateKeyPem.startsWith("-----BEGIN")
     ? privateKeyPem
     : Buffer.from(privateKeyPem, "base64").toString("utf-8");
+  const pem = rawPem.replace(/\\n/g, "\n");
 
   const privateKey = await importPKCS8(pem, "ES256");
 
