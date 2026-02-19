@@ -84,6 +84,9 @@ export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): Al
 export function parseErrorKey(err: unknown): string {
   if (err instanceof TypeError && err.message.includes("Failed to fetch")) return "error.offline";
   if (err instanceof Error && err.name === "AbortError") return "error.timeout";
+  // Pass through backend error messages directly (they are already user-friendly from USER_MESSAGES).
+  // t() returns the string as-is when no translation key matches.
+  if (err instanceof Error && err.message && !err.message.startsWith("error.")) return err.message;
   return "error.generic";
 }
 

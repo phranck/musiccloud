@@ -42,7 +42,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
       dispatch({ type: "SUBMIT" });
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
+        const timeout = setTimeout(() => controller.abort(), 20000);
         const endpoint = isAlbumUrl(url) ? "/api/resolve-album" : "/api/resolve";
         const response = await fetch(endpoint, {
           method: "POST",
@@ -77,7 +77,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
     dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
+      const timeout = setTimeout(() => controller.abort(), 20000);
       const response = await fetch("/api/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
