@@ -297,6 +297,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     // Ensure performance indexes exist (idempotent, safe on existing DBs)
     this.sqlite.exec(`
       CREATE INDEX IF NOT EXISTS idx_tracks_created_at ON tracks(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_tracks_source_url ON tracks(source_url);
       CREATE INDEX IF NOT EXISTS idx_albums_created_at ON albums(created_at DESC);
     `);
 
@@ -469,7 +470,23 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     const now = Date.now();
 
     return this.sqlite.transaction(() => {
-      const existing = data.sourceTrack.isrc ? this.findExistingByIsrcSync(data.sourceTrack.isrc) : null;
+      // 1. Lookup by ISRC (most reliable dedup key)
+      let existing = data.sourceTrack.isrc ? this.findExistingByIsrcSync(data.sourceTrack.isrc) : null;
+
+      // 2. Fallback: lookup by source URL (for tracks without ISRC).
+      //    Prevents duplicates after cache TTL expiry or repeated resolves of the same URL.
+      if (!existing && data.sourceTrack.sourceUrl) {
+        const row = this.sqlite
+          .prepare(
+            `SELECT t.id AS track_id, su.id AS short_id
+             FROM tracks t
+             JOIN short_urls su ON t.id = su.track_id
+             WHERE t.source_url = ?
+             LIMIT 1`,
+          )
+          .get(data.sourceTrack.sourceUrl) as { track_id: string; short_id: string } | undefined;
+        if (row) existing = { trackId: row.track_id, shortId: row.short_id };
+      }
 
       if (existing) {
         // Update timestamp + fill null metadata fields with new data
