@@ -1,4 +1,5 @@
-import { useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
+import { useAdminSSE } from "@/hooks/useAdminSSE";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,9 +35,10 @@ type FetchState =
 type Action =
   | { type: "LOADING" }
   | { type: "SUCCESS"; data: TrackListResponse }
-  | { type: "ERROR"; message: string };
+  | { type: "ERROR"; message: string }
+  | { type: "PREPEND_TRACK"; track: TrackListItem };
 
-function reducer(_: FetchState, action: Action): FetchState {
+function reducer(state: FetchState, action: Action): FetchState {
   switch (action.type) {
     case "LOADING":
       return { status: "loading" };
@@ -44,6 +46,16 @@ function reducer(_: FetchState, action: Action): FetchState {
       return { status: "success", data: action.data };
     case "ERROR":
       return { status: "error", message: action.message };
+    case "PREPEND_TRACK":
+      if (state.status !== "success") return state;
+      return {
+        status: "success",
+        data: {
+          ...state.data,
+          items: [action.track, ...state.data.items],
+          total: state.data.total + 1,
+        },
+      };
   }
 }
 
@@ -55,6 +67,20 @@ export function Tracks() {
   const [page, setPage] = useState(1);
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Live updates: prepend new tracks on page 1 when no search is active
+  useAdminSSE(
+    useCallback(
+      (event) => {
+        if (event.type !== "track-added" || page !== 1 || searchQuery !== "") return;
+        dispatch({
+          type: "PREPEND_TRACK",
+          track: event.data as unknown as TrackListItem,
+        });
+      },
+      [page, searchQuery],
+    ),
+  );
 
   // Debounce search input: apply after 400 ms of inactivity, reset to page 1
   useEffect(() => {

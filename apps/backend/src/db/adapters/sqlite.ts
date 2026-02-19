@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { CACHE_TTL_MS } from "../../lib/config.js";
+import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedTrack } from "../../services/types.js";
@@ -469,7 +470,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
   async persistTrackWithLinks(data: PersistTrackData): Promise<{ trackId: string; shortId: string }> {
     const now = Date.now();
 
-    return this.sqlite.transaction(() => {
+    const result = this.sqlite.transaction((): { trackId: string; shortId: string; isNew: boolean } => {
       // 1. Lookup by ISRC (most reliable dedup key)
       let existing = data.sourceTrack.isrc ? this.findExistingByIsrcSync(data.sourceTrack.isrc) : null;
 
@@ -525,7 +526,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
             .onConflictDoNothing()
             .run();
         }
-        return { trackId: existing.trackId, shortId: existing.shortId };
+        return { trackId: existing.trackId, shortId: existing.shortId, isNew: false };
       }
 
       const newTrackId = generateTrackId();
@@ -577,8 +578,29 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         })
         .run();
 
-      return { trackId: newTrackId, shortId: newShortId };
+      return { trackId: newTrackId, shortId: newShortId, isNew: true };
     })();
+
+    // Emit SSE event after the transaction so connected dashboard clients
+    // see new tracks appear in real time. Only fires for genuinely new inserts.
+    if (result.isNew && adminEventBroadcaster.listenerCount > 0) {
+      adminEventBroadcaster.emit({
+        type: "track-added",
+        data: {
+          id: result.trackId,
+          title: data.sourceTrack.title,
+          artists: data.sourceTrack.artists,
+          albumName: data.sourceTrack.albumName ?? null,
+          isrc: data.sourceTrack.isrc ?? null,
+          artworkUrl: data.sourceTrack.artworkUrl ?? null,
+          sourceService: data.sourceTrack.sourceService ?? null,
+          linkCount: data.links.length,
+          createdAt: now,
+        },
+      });
+    }
+
+    return { trackId: result.trackId, shortId: result.shortId };
   }
 
   async addLinksToTrack(
@@ -783,7 +805,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
   async persistAlbumWithLinks(data: PersistAlbumData): Promise<{ albumId: string; shortId: string }> {
     const now = Date.now();
 
-    return this.sqlite.transaction(() => {
+    const result = this.sqlite.transaction((): { albumId: string; shortId: string; isNew: boolean } => {
       const existing = data.sourceAlbum.upc ? this.findExistingAlbumByUpcSync(data.sourceAlbum.upc) : null;
 
       if (existing) {
@@ -808,7 +830,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
             );
         }
 
-        return { albumId: existing.albumId, shortId: existing.shortId };
+        return { albumId: existing.albumId, shortId: existing.shortId, isNew: false };
       }
 
       const newAlbumId = generateTrackId();
@@ -859,8 +881,28 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         now,
       );
 
-      return { albumId: newAlbumId, shortId: newShortId };
+      return { albumId: newAlbumId, shortId: newShortId, isNew: true };
     })();
+
+    if (result.isNew && adminEventBroadcaster.listenerCount > 0) {
+      adminEventBroadcaster.emit({
+        type: "album-added",
+        data: {
+          id: result.albumId,
+          title: data.sourceAlbum.title,
+          artists: data.sourceAlbum.artists,
+          releaseDate: data.sourceAlbum.releaseDate ?? null,
+          totalTracks: data.sourceAlbum.totalTracks ?? null,
+          artworkUrl: data.sourceAlbum.artworkUrl ?? null,
+          upc: data.sourceAlbum.upc ?? null,
+          sourceService: data.sourceAlbum.sourceService ?? null,
+          linkCount: data.links.length,
+          createdAt: now,
+        },
+      });
+    }
+
+    return { albumId: result.albumId, shortId: result.shortId };
   }
 
   async addLinksToAlbum(

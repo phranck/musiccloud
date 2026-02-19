@@ -13,6 +13,7 @@ import shareRoutes from "./routes/share.js";
 import authRoutes from "./routes/auth.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminDataRoutes from "./routes/admin-data.js";
+import adminSseRoutes from "./routes/admin-sse.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);
@@ -66,6 +67,7 @@ async function buildApp() {
   await app.register(async function adminRoutes(adminApp) {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
     await adminApp.register(adminDataRoutes);
+    await adminApp.register(adminSseRoutes);
   });
 
   return app;
