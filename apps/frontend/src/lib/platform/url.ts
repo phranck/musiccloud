@@ -11,6 +11,7 @@ const MUSIC_URL_PATTERNS: RegExp[] = [
   /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/[^/]+/,
   /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?track\//,
   /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?track\//,
+  /^https?:\/\/link\.deezer\.com\/s\//,
 ];
 
 const ALBUM_URL_PATTERNS: RegExp[] = [

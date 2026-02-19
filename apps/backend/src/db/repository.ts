@@ -155,6 +155,9 @@ export interface TrackRepository {
     }>,
   ): Promise<void>;
 
+  // URL aliases (short links that redirect to a canonical service URL)
+  addTrackUrlAlias(url: string, trackId: string): Promise<void>;
+
   // Maintenance
   updateTrackTimestamp(trackId: string): Promise<void>;
   cleanupStaleCache(ttlMs?: number): Promise<number>;

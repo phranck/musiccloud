@@ -26,6 +26,8 @@ export interface ResolutionResult {
   sourceTrack: NormalizedTrack;
   links: ResolvedLink[];
   trackId?: string; // present when loaded from cache
+  /** Set when the original input was a short/redirect link (e.g. link.deezer.com/s/…) that was expanded. */
+  inputUrl?: string;
 }
 
 export interface TextSearchResult {
@@ -174,6 +176,30 @@ const ODESLI_CONFIDENCE = 0.85;
 const SEARCH_FALLBACK_CONFIDENCE = 0.5;
 // CACHE_TTL_MS imported from ../lib/constants.js
 
+/** Hosts that serve redirect short links pointing to canonical music platform URLs. */
+const SHORT_LINK_HOSTS = new Set(["link.deezer.com"]);
+
+/**
+ * If `url` is a known short link, follows the redirect (HEAD) and returns the
+ * final canonical URL. Falls back to the original URL on network failure.
+ */
+async function expandShortLink(url: string): Promise<string> {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (!SHORT_LINK_HOSTS.has(parsed.hostname)) return url;
+  try {
+    const res = await fetchWithTimeout(url, { method: "HEAD", redirect: "follow" });
+    if (res.url && res.url !== url) return res.url;
+  } catch {
+    // Network failure – fall through so the caller can surface a meaningful error
+  }
+  return url;
+}
+
 /**
  * Main entry point: accepts a URL or free-text query, returns cross-service links.
  */
@@ -186,18 +212,31 @@ export async function resolveQuery(input: string): Promise<ResolutionResult> {
     if (!validation.valid) {
       throw new ResolveError(validation.code, validation.message);
     }
-    return resolveUrl(stripTrackingParams(trimmed));
+    // Pass the raw URL – resolveUrl handles tracking-param stripping and short-link expansion
+    return resolveUrl(trimmed);
   }
 
   return resolveTextSearch(trimmed);
 }
 
 export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
-  const cleanUrl = stripTrackingParams(inputUrl);
+  // Strip tracking params, then expand short links (e.g. link.deezer.com/s/…)
+  const strippedInput = stripTrackingParams(inputUrl);
+  const expandedUrl = await expandShortLink(strippedInput);
+  const cleanUrl = stripTrackingParams(expandedUrl); // strip again in case expanded URL carries UTMs
+  const wasExpanded = cleanUrl !== strippedInput;
 
-  // 1. Cache lookup by URL
-  const cached = await tryCache({ url: cleanUrl });
-  if (cached) return fillMissingServices(cached);
+  // Helper: attach the original short-link URL so the route handler can save it as an alias
+  const withAlias = (r: ResolutionResult): ResolutionResult =>
+    wasExpanded ? { ...r, inputUrl: strippedInput } : r;
+
+  // 1. Cache lookup by URL (try canonical first; fall back to the short link as alias)
+  const cachedByCanonical = await tryCache({ url: cleanUrl });
+  if (cachedByCanonical) return withAlias(await fillMissingServices(cachedByCanonical));
+  if (wasExpanded) {
+    const cachedByAlias = await tryCache({ url: strippedInput });
+    if (cachedByAlias) return withAlias(await fillMissingServices(cachedByAlias));
+  }
 
   // 2. Identify which service the URL belongs to
   const sourceAdapter = identifyService(cleanUrl);
@@ -218,9 +257,9 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     if (!sourceAdapter.isAvailable()) {
       // Adapter has no credentials - use Odesli for Apple Music, scrape for others
       if (sourceAdapter.id === "apple-music") {
-        return resolveUrlViaOdesli(cleanUrl);
+        return withAlias(await resolveUrlViaOdesli(cleanUrl));
       }
-      return resolveUrlViaScrape(cleanUrl, sourceAdapter.id);
+      return withAlias(await resolveUrlViaScrape(cleanUrl, sourceAdapter.id));
     }
     throw error;
   }
@@ -228,7 +267,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   // 3b. Cache lookup by ISRC (in case same track was resolved via different URL)
   if (sourceTrack.isrc) {
     const cachedByIsrc = await tryCache({ isrc: sourceTrack.isrc });
-    if (cachedByIsrc) return fillMissingServices(cachedByIsrc);
+    if (cachedByIsrc) return withAlias(await fillMissingServices(cachedByIsrc));
   }
 
   // 4. Resolve on all other services in parallel
@@ -247,7 +286,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   // 6. Gap-fill via Odesli for uncovered services
   links = await gapFillViaOdesli(sourceTrack.webUrl, links);
 
-  return { sourceTrack, links };
+  return withAlias({ sourceTrack, links });
 }
 
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {

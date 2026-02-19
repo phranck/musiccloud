@@ -90,6 +90,7 @@ const ALLOWED_HOSTS = [
   // Deezer
   "deezer.com",
   "www.deezer.com",
+  "link.deezer.com",
   // Audius
   "audius.co",
   // Napster

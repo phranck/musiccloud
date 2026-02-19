@@ -302,6 +302,20 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       CREATE INDEX IF NOT EXISTS idx_albums_created_at ON albums(created_at DESC);
     `);
 
+    // Ensure track_url_aliases table exists (added for short-link support)
+    const urlAliasesExist = this.sqlite
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='track_url_aliases'`)
+      .get();
+    if (!urlAliasesExist) {
+      this.sqlite.exec(`
+        CREATE TABLE track_url_aliases (
+          url TEXT PRIMARY KEY NOT NULL,
+          track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+          created_at INTEGER NOT NULL
+        );
+      `);
+    }
+
     // Ensure albums_fts exists (for fast album search)
     const albumsFtsExists = this.sqlite
       .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='albums_fts'`)
@@ -346,10 +360,15 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
              sl.url, sl.service, sl.confidence, sl.match_method
       FROM tracks t
       LEFT JOIN service_links sl ON t.id = sl.track_id
-      WHERE t.id = (SELECT track_id FROM service_links WHERE url = ? LIMIT 1)
+      WHERE t.id = (
+        SELECT track_id FROM service_links WHERE url = ?
+        UNION
+        SELECT track_id FROM track_url_aliases WHERE url = ?
+        LIMIT 1
+      )
     `);
 
-    const rows = stmt.all(url) as TrackWithLinkRow[];
+    const rows = stmt.all(url, url) as TrackWithLinkRow[];
     if (rows.length === 0) return null;
 
     return this.buildCachedResult(rows, url);
@@ -661,6 +680,17 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       .run(cutoff);
 
     return result.changes;
+  }
+
+
+  async addTrackUrlAlias(url: string, trackId: string): Promise<void> {
+    this.sqlite
+      .prepare(
+        `INSERT INTO track_url_aliases (url, track_id, created_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(url) DO NOTHING`,
+      )
+      .run(url, trackId, Date.now());
   }
 
   async updateTrackTimestamp(trackId: string): Promise<void> {

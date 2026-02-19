@@ -124,6 +124,15 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
     })),
   });
 
+  // If the original input was a short link, save it as an alias for fast future lookups
+  if (result.inputUrl) {
+    try {
+      await repo.addTrackUrlAlias(result.inputUrl, trackId);
+    } catch {
+      // Non-fatal – alias saving failure must not break the response
+    }
+  }
+
   const shortUrl = `${origin}/${shortId}`;
 
   return {
