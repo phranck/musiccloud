@@ -1,6 +1,6 @@
 # musiccloud hakkında
 
-**musiccloud**, herhangi bir parça bağlantısını evrensel bir paylaşım sayfasına dönüştüren bir müzik bağlantısı paylaşım hizmetidir — aynı anda tüm büyük yayın platformlarına bağlantı sağlar.
+**musiccloud**, herhangi bir parça bağlantısını evrensel bir paylaşım sayfasına dönüştüren bir müzik bağlantısı paylaşım hizmetidir, aynı anda tüm büyük yayın platformlarına bağlantı sağlar.
 
 ## Nasıl çalışır
 

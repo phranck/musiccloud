@@ -1,6 +1,6 @@
 # À propos de musiccloud
 
-**musiccloud** est un service de partage de liens musicaux qui convertit n'importe quel lien de titre en une page de partage universelle — avec des liens vers toutes les grandes plateformes de streaming à la fois.
+**musiccloud** est un service de partage de liens musicaux qui convertit n'importe quel lien de titre en une page de partage universelle, avec des liens vers toutes les grandes plateformes de streaming à la fois.
 
 ## Comment ça marche
 

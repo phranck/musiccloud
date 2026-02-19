@@ -1,6 +1,6 @@
 # Over musiccloud
 
-**musiccloud** is een muziek-linkdeelservice die elk tracklink omzet in een universele deelpagina — met links naar alle grote streamingplatforms tegelijk.
+**musiccloud** is een muziek-linkdeelservice die elk tracklink omzet in een universele deelpagina, met links naar alle grote streamingplatforms tegelijk.
 
 ## Hoe het werkt
 

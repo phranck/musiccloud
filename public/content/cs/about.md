@@ -1,6 +1,6 @@
 # O musiccloud
 
-**musiccloud** je služba pro sdílení hudebních odkazů, která převádí jakýkoli odkaz na skladbu na univerzální stránku pro sdílení — s odkazy na všechny hlavní streamovací platformy najednou.
+**musiccloud** je služba pro sdílení hudebních odkazů, která převádí jakýkoli odkaz na skladbu na univerzální stránku pro sdílení, s odkazy na všechny hlavní streamovací platformy najednou.
 
 ## Jak to funguje
 
