@@ -40,26 +40,35 @@ export const SongInfo = memo(function SongInfo({
   return (
     <div>
       <div className="aspect-square w-full overflow-hidden rounded-t-2xl sm:rounded-t-[36px]">
-        <img
-          key={corsRetried ? "display" : "cors"}
-          src={albumArtUrl}
-          alt={`"${title}" by ${artist} - album artwork`}
-          className="w-full h-full object-cover"
-          width={480}
-          height={480}
-          crossOrigin={corsRetried ? undefined : "anonymous"}
-          onLoad={(e) => {
-            if (!corsRetried) onAlbumArtLoad?.(e.currentTarget);
-          }}
-          onError={(e) => {
-            if (!corsRetried) {
-              // CORS failed – retry without crossOrigin for display-only
-              setCorsRetried(true);
-            } else {
-              e.currentTarget.src = "/og/default.jpg";
-            }
-          }}
-        />
+        {albumArtUrl ? (
+          <img
+            key={corsRetried ? "display" : "cors"}
+            src={corsRetried ? `${albumArtUrl}?_r=1` : albumArtUrl}
+            alt={`"${title}" by ${artist} - album artwork`}
+            className="w-full h-full object-cover"
+            width={480}
+            height={480}
+            crossOrigin={corsRetried ? undefined : "anonymous"}
+            onLoad={(e) => {
+              if (!corsRetried) onAlbumArtLoad?.(e.currentTarget);
+            }}
+            onError={(e) => {
+              if (!corsRetried) {
+                setCorsRetried(true);
+              } else {
+                e.currentTarget.src = "/og/musiccloud.jpg";
+              }
+            }}
+          />
+        ) : (
+          <img
+            src="/og/musiccloud.jpg"
+            alt=""
+            className="w-full h-full object-cover"
+            width={480}
+            height={480}
+          />
+        )}
       </div>
 
       <div className="px-6 pt-5 pb-4">
