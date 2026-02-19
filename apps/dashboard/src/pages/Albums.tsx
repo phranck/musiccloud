@@ -15,7 +15,7 @@ interface AlbumListItem {
   shortId: string | null;
 }
 
-const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "http://localhost:3000";
+const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "https://musiccloud.io";
 
 function releaseYear(date: string | null): string {
   if (!date) return "";

@@ -14,7 +14,7 @@ interface TrackListItem {
   shortId: string | null;
 }
 
-const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "http://localhost:3000";
+const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "https://musiccloud.io";
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { dateStyle: "medium" });
