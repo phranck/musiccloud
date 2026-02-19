@@ -44,7 +44,7 @@ type TableState<T> =
   | { tag: "idle" }
   | { tag: "loading-first"; stale?: T[] }    // initial load; stale = old rows to show during sort/search reset
   | { tag: "ready"; items: T[]; total: number; nextPage: number; hasMore: boolean }
-  | { tag: "loading-more"; items: T[]; total: number; nextPage: number }
+  | { tag: "loading-more"; items: T[]; total: number; nextPage: number; hasMore: boolean }
   | { tag: "error"; message: string };
 
 type TableAction<T> =
@@ -73,7 +73,7 @@ function makeReducer<T>() {
 
       case "LOAD_MORE":
         if (state.tag !== "ready" || !state.hasMore) return state;
-        return { tag: "loading-more", items: state.items, total: state.total, nextPage: state.nextPage };
+        return { tag: "loading-more", items: state.items, total: state.total, nextPage: state.nextPage, hasMore: state.hasMore };
 
       case "MORE_LOADED": {
         if (state.tag !== "loading-more") return state;
@@ -103,11 +103,12 @@ function makeReducer<T>() {
       case "PREPEND": {
         if (state.tag !== "ready" && state.tag !== "loading-more") return state;
         return {
-          ...state,
-          tag: "ready" as const,
+          tag: "ready",
           items: [action.item, ...state.items],
           total: state.total + 1,
-        } as TableState<T>;
+          nextPage: state.nextPage,
+          hasMore: state.hasMore,
+        };
       }
 
       case "ERROR":
