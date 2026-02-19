@@ -49,4 +49,5 @@ export interface AdminRepository {
   listAlbums(params: { page: number; limit: number; q?: string; sortBy?: string; sortDir?: "asc" | "desc" }): Promise<ListResult<AlbumListItem>>;
   deleteTracks(ids: string[]): Promise<void>;
   deleteAlbums(ids: string[]): Promise<void>;
+  clearArtistCache(): Promise<{ deleted: number }>;
 }

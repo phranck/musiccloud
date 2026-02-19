@@ -36,6 +36,22 @@ export async function apiGet<T>(
   return res.json() as Promise<T>;
 }
 
+export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+  const token = getToken();
+  const res = await fetch(path, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      "Content-Type": "application/json",
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  if (res.status === 401) throw new Error("Unauthorized");
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
 export async function apiDelete<T>(path: string, body?: unknown): Promise<T> {
   const token = getToken();
   const res = await fetch(path, {

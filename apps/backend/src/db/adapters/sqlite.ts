@@ -1386,4 +1386,9 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       // albums_fts_delete trigger fires automatically on DELETE FROM albums
     })();
   }
+
+  async clearArtistCache(): Promise<{ deleted: number }> {
+    const result = this.sqlite.prepare(`DELETE FROM artist_cache`).run();
+    return { deleted: result.changes };
+  }
 }

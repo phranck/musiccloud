@@ -35,6 +35,12 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return { deleted: ids.length };
   });
 
+  app.post("/api/admin/artist-cache/clear", async (_request, reply) => {
+    const repo = await getAdminRepository();
+    const result = await repo.clearArtistCache();
+    return reply.send(result);
+  });
+
   app.delete("/api/admin/albums", async (request, reply) => {
     const body = request.body as { ids?: unknown };
     if (!Array.isArray(body?.ids) || body.ids.length === 0) {
