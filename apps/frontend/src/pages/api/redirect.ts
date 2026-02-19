@@ -12,29 +12,33 @@ function isUrl(str: string): boolean {
   }
 }
 
+function redirectTo(location: string): Response {
+  return new Response(null, { status: 302, headers: { Location: location } });
+}
+
 export const GET: APIRoute = async ({ url, clientAddress }) => {
   const rawUrl = url.searchParams.get("url")?.trim();
 
   if (!rawUrl || !isUrl(rawUrl)) {
-    return Response.redirect("/", 302);
+    return redirectTo("/");
   }
 
   try {
     const res = await resolveTrack({ query: rawUrl }, clientAddress);
 
     if (!res.ok) {
-      return Response.redirect("/", 302);
+      return redirectTo("/");
     }
 
     const data = await res.json() as { shortUrl?: string; status?: string };
 
     if (data.status !== "success" || !data.shortUrl) {
-      return Response.redirect("/", 302);
+      return redirectTo("/");
     }
 
     const shareUrl = new URL(data.shortUrl);
-    return Response.redirect(shareUrl.pathname, 302);
+    return redirectTo(shareUrl.pathname);
   } catch {
-    return Response.redirect("/", 302);
+    return redirectTo("/");
   }
 };
