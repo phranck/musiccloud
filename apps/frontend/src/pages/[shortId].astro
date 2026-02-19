@@ -10,7 +10,7 @@ export const prerender = false;
 
 import { isValidPlatform, buildMetaLine } from "@musiccloud/shared";
 import type { Platform } from "@musiccloud/shared";
-import { AppFooter } from "@/components/layout/AppFooter";
+import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
 import { GradientBackground } from "@/components/background/GradientBackground";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
 import { SharePageCard } from "@/components/share/SharePageCard";
@@ -132,6 +132,6 @@ const pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
       <SharePageCard client:load config={shareConfig} />
     </main>
 
-    <AppFooter />
+    <AppFooterIsland client:load />
   </div>
 </BaseLayout>

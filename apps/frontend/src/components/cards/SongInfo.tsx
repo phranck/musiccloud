@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { buildMetaLine } from "@musiccloud/shared";
 
 interface SongInfoProps {
@@ -29,19 +29,35 @@ export const SongInfo = memo(function SongInfo({
 }: SongInfoProps) {
   const metaLine = metaOverride ?? buildMetaLine({ durationMs, isrc, releaseDate });
 
+  // CORS-retry: attempt crossOrigin="anonymous" first (needed for canvas color extraction).
+  // If the CDN blocks it (no Access-Control-Allow-Origin), fall back to a plain load
+  // without crossOrigin so the artwork still displays (color extraction is then skipped).
+  const [corsRetried, setCorsRetried] = useState(false);
+  useEffect(() => {
+    setCorsRetried(false);
+  }, [albumArtUrl]);
+
   return (
     <div>
       <div className="aspect-square w-full overflow-hidden rounded-t-2xl sm:rounded-t-[36px]">
         <img
+          key={corsRetried ? "display" : "cors"}
           src={albumArtUrl}
           alt={`"${title}" by ${artist} - album artwork`}
           className="w-full h-full object-cover"
           width={480}
           height={480}
-          crossOrigin="anonymous"
-          onLoad={(e) => onAlbumArtLoad?.(e.currentTarget)}
+          crossOrigin={corsRetried ? undefined : "anonymous"}
+          onLoad={(e) => {
+            if (!corsRetried) onAlbumArtLoad?.(e.currentTarget);
+          }}
           onError={(e) => {
-            e.currentTarget.src = "/og/default.jpg";
+            if (!corsRetried) {
+              // CORS failed – retry without crossOrigin for display-only
+              setCorsRetried(true);
+            } else {
+              e.currentTarget.src = "/og/default.jpg";
+            }
           }}
         />
       </div>

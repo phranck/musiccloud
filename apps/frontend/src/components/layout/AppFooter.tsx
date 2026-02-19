@@ -1,10 +1,14 @@
+import { useT } from "@/i18n/context";
+
 const START_YEAR = 2026;
 
 /**
  * Application footer: copyright + "made by LAYERED" link.
  * Used on all pages (landing page via LandingPage.tsx, share page via Astro SSR).
+ * Must be rendered inside a LocaleProvider (or via AppFooterIsland for standalone use).
  */
 export function AppFooter() {
+  const t = useT();
   const currentYear = new Date().getFullYear();
   const yearDisplay = currentYear > START_YEAR ? `${START_YEAR} – ${currentYear}` : `${START_YEAR}`;
 
@@ -16,7 +20,7 @@ export function AppFooter() {
       <span className="text-left">&copy; {yearDisplay} musiccloud</span>
       <span className="text-center" />
       <span className="text-right">
-        made by{" "}
+        {t("footer.madeBy")}{" "}
         <a
           href="https://layered.work"
           target="_blank"
