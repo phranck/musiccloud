@@ -11,7 +11,10 @@ interface TrackListItem {
   sourceService: string | null;
   linkCount: number;
   createdAt: number;
+  shortId: string | null;
 }
+
+const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "http://localhost:3000";
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { dateStyle: "medium" });
@@ -49,7 +52,18 @@ const config: AdminTableConfig<TrackListItem> = {
       sortKey: "title",
       render: (track) => (
         <>
-          <div className="font-medium leading-tight">{track.title}</div>
+          {track.shortId ? (
+            <a
+              href={`${SHARE_BASE}/${track.shortId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium leading-tight hover:underline"
+            >
+              {track.title}
+            </a>
+          ) : (
+            <div className="font-medium leading-tight">{track.title}</div>
+          )}
           {track.albumName && (
             <div className="text-xs text-muted-foreground">{track.albumName}</div>
           )}

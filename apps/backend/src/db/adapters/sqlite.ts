@@ -1238,7 +1238,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     // link_count is a SELECT alias; all others live on t
     const orderClause = col === "link_count" ? `link_count ${dir}` : `t.${col} ${dir}`;
 
-    interface TrackCountRow { id: string; title: string; artists: string; album_name: string | null; isrc: string | null; artwork_url: string | null; source_service: string | null; link_count: number; created_at: number; }
+    interface TrackCountRow { id: string; title: string; artists: string; album_name: string | null; isrc: string | null; artwork_url: string | null; source_service: string | null; link_count: number; created_at: number; short_id: string | null; }
 
     let rows: TrackCountRow[];
     let total: number;
@@ -1247,10 +1247,11 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       const ftsQuery = `${escapeFts5(q)}*`;
       rows = this.sqlite.prepare(`
         SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url, t.source_service, t.created_at,
-               COUNT(sl.id) AS link_count
+               COUNT(sl.id) AS link_count, MIN(su.id) AS short_id
         FROM tracks_fts fts
         JOIN tracks t ON t.id = fts.track_id
         LEFT JOIN service_links sl ON t.id = sl.track_id
+        LEFT JOIN short_urls su ON su.track_id = t.id
         WHERE fts MATCH ?
         GROUP BY t.id
         ORDER BY ${orderClause}
@@ -1263,9 +1264,10 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     } else {
       rows = this.sqlite.prepare(`
         SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url, t.source_service, t.created_at,
-               COUNT(sl.id) AS link_count
+               COUNT(sl.id) AS link_count, MIN(su.id) AS short_id
         FROM tracks t
         LEFT JOIN service_links sl ON t.id = sl.track_id
+        LEFT JOIN short_urls su ON su.track_id = t.id
         GROUP BY t.id
         ORDER BY ${orderClause}
         LIMIT ? OFFSET ?
@@ -1287,6 +1289,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         sourceService: r.source_service,
         linkCount: r.link_count,
         createdAt: r.created_at,
+        shortId: r.short_id ?? null,
       })),
       total,
       page,
@@ -1302,7 +1305,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     const dir = sortDir === "asc" ? "ASC" : "DESC";
     const orderClause = col === "link_count" ? `link_count ${dir}` : `a.${col} ${dir}`;
 
-    interface AlbumCountRow { id: string; title: string; artists: string; release_date: string | null; total_tracks: number | null; artwork_url: string | null; upc: string | null; source_service: string | null; link_count: number; created_at: number; }
+    interface AlbumCountRow { id: string; title: string; artists: string; release_date: string | null; total_tracks: number | null; artwork_url: string | null; upc: string | null; source_service: string | null; link_count: number; created_at: number; short_id: string | null; }
 
     let rows: AlbumCountRow[];
     let total: number;
@@ -1311,10 +1314,11 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       const ftsQuery = `${escapeFts5(q)}*`;
       rows = this.sqlite.prepare(`
         SELECT a.id, a.title, a.artists, a.release_date, a.total_tracks, a.artwork_url, a.upc, a.source_service, a.created_at,
-               COUNT(asl.id) AS link_count
+               COUNT(asl.id) AS link_count, MIN(asu.id) AS short_id
         FROM albums_fts fts
         JOIN albums a ON a.id = fts.album_id
         LEFT JOIN album_service_links asl ON a.id = asl.album_id
+        LEFT JOIN album_short_urls asu ON asu.album_id = a.id
         WHERE fts MATCH ?
         GROUP BY a.id
         ORDER BY ${orderClause}
@@ -1327,9 +1331,10 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     } else {
       rows = this.sqlite.prepare(`
         SELECT a.id, a.title, a.artists, a.release_date, a.total_tracks, a.artwork_url, a.upc, a.source_service, a.created_at,
-               COUNT(asl.id) AS link_count
+               COUNT(asl.id) AS link_count, MIN(asu.id) AS short_id
         FROM albums a
         LEFT JOIN album_service_links asl ON a.id = asl.album_id
+        LEFT JOIN album_short_urls asu ON asu.album_id = a.id
         GROUP BY a.id
         ORDER BY ${orderClause}
         LIMIT ? OFFSET ?
@@ -1352,6 +1357,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         sourceService: r.source_service,
         linkCount: r.link_count,
         createdAt: r.created_at,
+        shortId: r.short_id ?? null,
       })),
       total,
       page,

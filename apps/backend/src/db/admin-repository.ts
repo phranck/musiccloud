@@ -16,6 +16,7 @@ export interface TrackListItem {
   sourceService: string | null;
   linkCount: number;
   createdAt: number;
+  shortId: string | null;
 }
 
 export interface AlbumListItem {
@@ -29,6 +30,7 @@ export interface AlbumListItem {
   sourceService: string | null;
   linkCount: number;
   createdAt: number;
+  shortId: string | null;
 }
 
 export interface ListResult<T> {

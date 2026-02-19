@@ -12,7 +12,10 @@ interface AlbumListItem {
   sourceService: string | null;
   linkCount: number;
   createdAt: number;
+  shortId: string | null;
 }
+
+const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "http://localhost:3000";
 
 function releaseYear(date: string | null): string {
   if (!date) return "";
@@ -55,7 +58,18 @@ const config: AdminTableConfig<AlbumListItem> = {
       sortKey: "title",
       render: (album) => (
         <>
-          <div className="font-medium leading-tight">{album.title}</div>
+          {album.shortId ? (
+            <a
+              href={`${SHARE_BASE}/${album.shortId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium leading-tight hover:underline"
+            >
+              {album.title}
+            </a>
+          ) : (
+            <div className="font-medium leading-tight">{album.title}</div>
+          )}
           {album.releaseDate && (
             <div className="text-xs text-muted-foreground">
               {releaseYear(album.releaseDate)}
