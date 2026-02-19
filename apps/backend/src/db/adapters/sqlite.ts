@@ -671,6 +671,8 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
           sourceService: data.sourceTrack.sourceService ?? null,
           linkCount: data.links.length,
           createdAt: now,
+          shortId: result.shortId,
+          isFeatured: false,
         },
       });
     }
@@ -1071,6 +1073,8 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
           sourceService: data.sourceAlbum.sourceService ?? null,
           linkCount: data.links.length,
           createdAt: now,
+          shortId: result.shortId,
+          isFeatured: false,
         },
       });
     }
