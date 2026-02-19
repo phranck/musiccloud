@@ -33,6 +33,9 @@ zerops:
         # ODESLI_API_KEY: <optional>
         # API_CLIENT_ID: <for public OAuth clients>
         # API_CLIENT_SECRET: <for public OAuth clients>
+        # LASTFM_API_KEY: <from Last.fm API account>
+        # TICKETMASTER_CONSUMER_KEY: <from Ticketmaster Developer Portal>
+        # BANDSINTOWN_APP_ID: <from Bandsintown Developer Portal>
       initCommands:
         - while ! touch /mnt/sharedstorage/.probe 2>/dev/null; do sleep 1; done && rm -f /mnt/sharedstorage/.probe
       start: node apps/backend/dist/server.js
