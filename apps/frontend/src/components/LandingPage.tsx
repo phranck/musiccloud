@@ -32,6 +32,14 @@ function LandingPageInner() {
 
   const [isFocused, setIsFocused] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [exampleShortId, setExampleShortId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/random-example")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { shortId: string } | null) => { if (data?.shortId) setExampleShortId(data.shortId); })
+      .catch(() => {});
+  }, []);
   const [toast, setToast] = useState<{ message: string; variant: "success" | "error" | "info"; visible: boolean }>(
     { message: "", variant: "info", visible: false },
   );
@@ -106,6 +114,20 @@ function LandingPageInner() {
               errorMessage={errorMessage}
             />
           </div>
+
+          {state.type === "idle" && exampleShortId && (
+            <p className="mt-4 text-sm text-text-secondary text-center">
+              {t("landing.exampleTeaser")}{" "}
+              <a
+                href={`/${exampleShortId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
+              >
+                {t("landing.exampleLink")}
+              </a>
+            </p>
+          )}
 
           <div className="sr-only" aria-live="polite" aria-atomic="true">
             {active?.kind === "song" ? t("results.found", { title: active.title, artist: active.artist }) : ""}

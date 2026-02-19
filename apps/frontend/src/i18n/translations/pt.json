@@ -50,5 +50,7 @@
   "artist.mobileButton": "Info do artista",
   "artist.trackOnPlatform": "Abrir {title} em {platform}",
   "artist.popularTracksInfo": "Top faixas do Deezer. Toque num ícone de plataforma para abrir a faixa no seu serviço preferido.",
-  "artist.upcomingShowsInfo": "Eventos com ★ estão na sua região, detetada pelo fuso horário do dispositivo."
+  "artist.upcomingShowsInfo": "Eventos com ★ estão na sua região, detetada pelo fuso horário do dispositivo.",
+  "landing.exampleTeaser": "Curioso para ver como fica?",
+  "landing.exampleLink": "Ver um exemplo ao vivo →"
 }

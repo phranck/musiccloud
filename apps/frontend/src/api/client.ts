@@ -66,3 +66,12 @@ export async function fetchArtistInfo(
   if (!res.ok) return null;
   return res.json() as Promise<ArtistInfoResponse>;
 }
+
+/** Fetch a random short ID from the backend for the landing page example teaser. */
+export async function fetchRandomExample(): Promise<{ shortId: string } | null> {
+  const res = await fetch(backendUrl("/api/v1/random-example"), {
+    headers: internalHeaders(),
+  });
+  if (!res.ok) return null;
+  return res.json() as Promise<{ shortId: string }>;
+}

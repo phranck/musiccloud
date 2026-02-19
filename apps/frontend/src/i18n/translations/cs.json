@@ -50,5 +50,7 @@
   "artist.mobileButton": "Artist Info",
   "artist.trackOnPlatform": "Open {title} on {platform}",
   "artist.popularTracksInfo": "Top tracks sourced from Deezer. Tap a platform icon to open the track on your preferred service.",
-  "artist.upcomingShowsInfo": "Events marked with ★ are in your region, detected by your device timezone."
+  "artist.upcomingShowsInfo": "Events marked with ★ are in your region, detected by your device timezone.",
+  "landing.exampleTeaser": "Chceš vidět, jak to vypadá?",
+  "landing.exampleLink": "Podívej se na živý příklad →"
 }
