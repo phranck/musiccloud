@@ -72,13 +72,16 @@ zerops:
         - npm run build -w packages/shared
         - npm run build -w apps/dashboard
         - cp -r apps/dashboard/dist/. .
+        - cp apps/dashboard/site_config.tmpl .
       deployFiles:
         - index.html
         - assets
         - fonts
+        - site_config.tmpl
       cache: node_modules
     run:
       base: nginx@1.22
       ports:
         - port: 80
           httpSupport: true
+      siteConfigPath: site_config.tmpl
