@@ -530,10 +530,10 @@ export function AdminDataTable<T extends { id: string }>({
                   <TableRow
                     key={item.id}
                     data-state={selectedIds.has(item.id) ? "selected" : undefined}
-                    className={cn(
-                      "transition-opacity duration-300",
-                      deletingIds.has(item.id) && "opacity-0",
-                    )}
+                    style={{
+                      opacity: deletingIds.has(item.id) ? 0 : 1,
+                      transition: "opacity 0.3s ease",
+                    }}
                   >
                     {hasDelete && (
                       <TableCell
