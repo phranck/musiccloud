@@ -170,6 +170,8 @@ export function AdminDataTable<T extends { id: string }>({
   // Refs for infinite scroll
   const tableWrapperRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  // Track whether more data can be loaded (used as IntersectionObserver dep)
+  const canLoadMore = state.tag === "ready" && state.hasMore;
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -243,9 +245,13 @@ export function AdminDataTable<T extends { id: string }>({
 
   // ---------------------------------------------------------------------------
   // Infinite scroll – IntersectionObserver
+  // Runs only when canLoadMore changes (ready+hasMore → loading-more → ready).
+  // rootMargin of 400px triggers the load before the sentinel is fully in view
+  // so rows are preloaded before the user reaches the bottom.
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
+    if (!canLoadMore) return;
     const sentinel = sentinelRef.current;
     const wrapper = tableWrapperRef.current;
     if (!sentinel || !wrapper) return;
@@ -256,11 +262,11 @@ export function AdminDataTable<T extends { id: string }>({
           loadMoreRef.current();
         }
       },
-      { root: wrapper, threshold: 0 },
+      { root: wrapper, rootMargin: "0px 0px 400px 0px", threshold: 0 },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  });  // run every render so it picks up newly mounted sentinel
+  }, [canLoadMore]);
 
   // ---------------------------------------------------------------------------
   // SSE live prepend
@@ -447,12 +453,15 @@ export function AdminDataTable<T extends { id: string }>({
         <div
           ref={tableWrapperRef}
           className={cn(
-            "min-h-0 flex-1 overflow-y-auto rounded-md border transition-opacity duration-200",
+            // overflow-x-visible overrides the Table component's inner div (overflow-x-auto)
+          // so that position:sticky on <thead> works relative to this scroll container.
+          "min-h-0 flex-1 overflow-y-auto rounded-md border transition-opacity duration-200",
+          "[&_[data-slot='table-container']]:overflow-x-visible",
             isRefreshing ? "opacity-50" : "opacity-100",
           )}
         >
           <Table>
-            <TableHeader className="bg-muted/40 sticky top-0 z-10">
+            <TableHeader className="bg-muted sticky top-0 z-10">
               <TableRow className="hover:bg-transparent">
                 {/* Checkbox column – animates in/out with edit mode */}
                 {hasDelete && (
