@@ -86,3 +86,43 @@ export interface SharePageResponse {
   links: ApiLink[];
   shortUrl: string;
 }
+
+
+// ─── Artist Info Response ──────────────────────────────────────────────────────
+
+export interface ArtistTopTrack {
+  title: string;
+  artists: string[];
+  albumName: string | null;
+  artworkUrl: string | null;
+  durationMs: number | null;
+  deezerUrl: string;
+}
+
+export interface ArtistProfile {
+  spotifyId: string;
+  imageUrl: string | null;
+  genres: string[]; // max 3 (Spotify)
+  popularity: number; // 0–100 (Spotify)
+  followers: number; // Spotify follower count
+  // Last.fm enrichment (null if LASTFM_API_KEY not set)
+  bioSummary: string | null;
+  scrobbles: number | null;
+  similarArtists: string[]; // max 3 artist names
+}
+
+export interface ArtistEvent {
+  date: string; // "YYYY-MM-DD"
+  venueName: string;
+  city: string;
+  country: string; // ISO country code
+  ticketUrl: string | null;
+  source: "bandsintown" | "ticketmaster";
+}
+
+export interface ArtistInfoResponse {
+  artistName: string;
+  topTracks: ArtistTopTrack[]; // empty if Deezer unavailable
+  profile: ArtistProfile | null; // null if Spotify not configured
+  events: ArtistEvent[]; // empty if no keys or no upcoming events
+}

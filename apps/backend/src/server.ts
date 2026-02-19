@@ -14,6 +14,7 @@ import authRoutes from "./routes/auth.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminDataRoutes from "./routes/admin-data.js";
 import adminSseRoutes from "./routes/admin-sse.js";
+import artistInfoRoutes from "./routes/artist-info.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);
@@ -53,6 +54,9 @@ async function buildApp() {
 
   // Share endpoint (public, no auth - used for SSR)
   await app.register(shareRoutes);
+
+  // Artist info endpoint (public, no auth - fetched by React island)
+  await app.register(artistInfoRoutes);
 
   // Protected API routes (X-API-Key or Bearer JWT)
   await app.register(async function protectedRoutes(protectedApp) {

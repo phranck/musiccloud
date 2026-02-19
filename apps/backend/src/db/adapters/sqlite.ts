@@ -8,6 +8,8 @@ import { generateShortId, generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedTrack } from "../../services/types.js";
 import type { AdminRepository, AdminUser } from "../admin-repository.js";
 import type {
+  ArtistCacheData,
+  ArtistCacheRow,
   CachedAlbumResult,
   CachedTrackResult,
   PersistAlbumData,
@@ -70,6 +72,25 @@ function safeParseArray(json: string, fallback: string[] = []): string[] {
   } catch {
     return fallback;
   }
+}
+
+function safeParseJson<T>(json: string | null | undefined, fallback: T): T {
+  if (!json) return fallback;
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+interface ArtistCacheRow_DB {
+  artist_name: string;
+  top_tracks_json: string | null;
+  artist_profile_json: string | null;
+  events_json: string | null;
+  tracks_updated_at: number;
+  profile_updated_at: number;
+  events_updated_at: number;
 }
 
 function escapeFts5(query: string): string {
@@ -347,6 +368,27 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         -- Backfill existing albums into FTS
         INSERT INTO albums_fts(album_id, title, artists)
         SELECT id, title, artists FROM albums;
+      `);
+    }
+
+    // Lazy migration: artist_cache table
+    const artistCacheExists = this.sqlite
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='artist_cache'`)
+      .get();
+
+    if (!artistCacheExists) {
+      this.sqlite.exec(`
+        CREATE TABLE artist_cache (
+          artist_name         TEXT PRIMARY KEY,
+          deezer_id           INTEGER,
+          spotify_artist_id   TEXT,
+          top_tracks_json     TEXT,
+          artist_profile_json TEXT,
+          events_json         TEXT,
+          tracks_updated_at   INTEGER NOT NULL DEFAULT 0,
+          profile_updated_at  INTEGER NOT NULL DEFAULT 0,
+          events_updated_at   INTEGER NOT NULL DEFAULT 0
+        );
       `);
     }
   }
@@ -691,6 +733,68 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
          ON CONFLICT(url) DO NOTHING`,
       )
       .run(url, trackId, Date.now());
+  }
+
+  async findArtistCache(artistName: string): Promise<ArtistCacheRow | null> {
+    const row = this.sqlite
+      .prepare(`SELECT * FROM artist_cache WHERE artist_name = ?`)
+      .get(artistName) as ArtistCacheRow_DB | undefined;
+
+    if (!row) return null;
+
+    return {
+      artistName: row.artist_name,
+      topTracks: safeParseJson(row.top_tracks_json, []),
+      profile: safeParseJson(row.artist_profile_json, null),
+      events: safeParseJson(row.events_json, []),
+      tracksUpdatedAt: row.tracks_updated_at,
+      profileUpdatedAt: row.profile_updated_at,
+      eventsUpdatedAt: row.events_updated_at,
+    };
+  }
+
+  async saveArtistCache(data: ArtistCacheData): Promise<void> {
+    const now = Date.now();
+    const existing = this.sqlite
+      .prepare(`SELECT * FROM artist_cache WHERE artist_name = ?`)
+      .get(data.artistName) as ArtistCacheRow_DB | undefined;
+
+    if (!existing) {
+      this.sqlite
+        .prepare(
+          `INSERT INTO artist_cache
+             (artist_name, top_tracks_json, artist_profile_json, events_json,
+              tracks_updated_at, profile_updated_at, events_updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          data.artistName,
+          data.topTracks !== undefined ? JSON.stringify(data.topTracks) : null,
+          data.profile !== undefined ? JSON.stringify(data.profile) : null,
+          data.events !== undefined ? JSON.stringify(data.events) : null,
+          data.topTracks !== undefined ? now : 0,
+          data.profile !== undefined ? now : 0,
+          data.events !== undefined ? now : 0,
+        );
+      return;
+    }
+
+    // Patch only the sections that are provided
+    if (data.topTracks !== undefined) {
+      this.sqlite
+        .prepare(`UPDATE artist_cache SET top_tracks_json = ?, tracks_updated_at = ? WHERE artist_name = ?`)
+        .run(JSON.stringify(data.topTracks), now, data.artistName);
+    }
+    if (data.profile !== undefined) {
+      this.sqlite
+        .prepare(`UPDATE artist_cache SET artist_profile_json = ?, profile_updated_at = ? WHERE artist_name = ?`)
+        .run(JSON.stringify(data.profile), now, data.artistName);
+    }
+    if (data.events !== undefined) {
+      this.sqlite
+        .prepare(`UPDATE artist_cache SET events_json = ?, events_updated_at = ? WHERE artist_name = ?`)
+        .run(JSON.stringify(data.events), now, data.artistName);
+    }
   }
 
   async updateTrackTimestamp(trackId: string): Promise<void> {

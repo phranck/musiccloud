@@ -107,6 +107,27 @@ export interface PersistAlbumData {
   }>;
 }
 
+// ─── Artist Cache Types ───────────────────────────────────────────────────────
+
+import type { ArtistTopTrack, ArtistProfile, ArtistEvent } from "@musiccloud/shared";
+
+export interface ArtistCacheRow {
+  artistName: string;
+  topTracks: ArtistTopTrack[];
+  profile: ArtistProfile | null;
+  events: ArtistEvent[];
+  tracksUpdatedAt: number;
+  profileUpdatedAt: number;
+  eventsUpdatedAt: number;
+}
+
+export interface ArtistCacheData {
+  artistName: string; // normalized (lowercase + trimmed)
+  topTracks?: ArtistTopTrack[];
+  profile?: ArtistProfile | null;
+  events?: ArtistEvent[];
+}
+
 // ─── Repository Interface ─────────────────────────────────────────────────────
 
 /** Database adapter interface. All methods are async for a consistent API surface. */
@@ -161,6 +182,10 @@ export interface TrackRepository {
   // Maintenance
   updateTrackTimestamp(trackId: string): Promise<void>;
   cleanupStaleCache(ttlMs?: number): Promise<number>;
+
+  // Artist cache (popular tracks, profile, tour dates)
+  findArtistCache(artistName: string): Promise<ArtistCacheRow | null>;
+  saveArtistCache(data: ArtistCacheData): Promise<void>;
 
   // Lifecycle
   close(): Promise<void>;
