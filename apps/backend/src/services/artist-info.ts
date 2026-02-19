@@ -97,35 +97,62 @@ interface TicketmasterResponse {
   _embedded?: { events?: TicketmasterEvent[] };
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * For collaboration names like "Sonic Gap & Panic Girl" or "Artist feat. Other",
+ * returns only the primary (first) artist. Falls back to the original name if no
+ * separator is found.
+ */
+function extractPrimaryArtist(name: string): string {
+  const separators = [" & ", " feat. ", " feat ", " ft. ", " ft ", " x ", " X "];
+  for (const sep of separators) {
+    const idx = name.indexOf(sep);
+    if (idx > 0) return name.slice(0, idx).trim();
+  }
+  return name;
+}
+
+async function deezerArtistTopTracks(artistName: string): Promise<ArtistTopTrack[]> {
+  const searchRes = await fetchWithTimeout(
+    `${DEEZER_BASE}/search/artist?q=${encodeURIComponent(artistName)}&limit=3`,
+    {},
+    5000,
+  );
+  if (!searchRes.ok) return [];
+
+  const search = (await searchRes.json()) as DeezerArtistSearch;
+  if (!search.data?.length) return [];
+
+  const artistId = search.data[0].id;
+
+  const topRes = await fetchWithTimeout(`${DEEZER_BASE}/artist/${artistId}/top?limit=3`, {}, 5000);
+  if (!topRes.ok) return [];
+
+  const top = (await topRes.json()) as DeezerTopTracks;
+  return (top.data ?? []).map((t): ArtistTopTrack => ({
+    title: t.title,
+    artists: t.contributors?.length ? t.contributors.map((c) => c.name) : [t.artist.name],
+    albumName: t.album.title ?? null,
+    artworkUrl: t.album.cover_medium ?? null,
+    durationMs: t.duration ? t.duration * 1000 : null,
+    deezerUrl: t.link,
+  }));
+}
+
 // ─── Popular Tracks (Deezer) ──────────────────────────────────────────────────
 
 export async function fetchArtistTopTracks(artistName: string): Promise<ArtistTopTrack[]> {
   try {
-    const searchRes = await fetchWithTimeout(
-      `${DEEZER_BASE}/search/artist?q=${encodeURIComponent(artistName)}&limit=3`,
-      {},
-      5000,
-    );
-    if (!searchRes.ok) return [];
+    const tracks = await deezerArtistTopTracks(artistName);
+    if (tracks.length > 0) return tracks;
 
-    const search = (await searchRes.json()) as DeezerArtistSearch;
-    if (!search.data?.length) return [];
-
-    const artistId = search.data[0].id;
-
-    const topRes = await fetchWithTimeout(`${DEEZER_BASE}/artist/${artistId}/top?limit=3`, {}, 5000);
-    if (!topRes.ok) return [];
-
-    const top = (await topRes.json()) as DeezerTopTracks;
-
-    return (top.data ?? []).map((t): ArtistTopTrack => ({
-      title: t.title,
-      artists: t.contributors?.length ? t.contributors.map((c) => c.name) : [t.artist.name],
-      albumName: t.album.title ?? null,
-      artworkUrl: t.album.cover_medium ?? null,
-      durationMs: t.duration ? t.duration * 1000 : null,
-      deezerUrl: t.link,
-    }));
+    // Fallback: try primary artist for collaboration names (e.g. "A & B" → "A")
+    const primary = extractPrimaryArtist(artistName);
+    if (primary !== artistName) {
+      return await deezerArtistTopTracks(primary);
+    }
+    return [];
   } catch (err) {
     log.debug("ArtistInfo", "fetchArtistTopTracks error:", err instanceof Error ? err.message : String(err));
     return [];
@@ -157,7 +184,6 @@ export async function fetchArtistProfile(artistName: string): Promise<ArtistProf
 
   if (!spotifyArtist) return null;
 
-  // Pick smallest image that is at least 100px wide (or just smallest overall)
   const imageUrl = pickSpotifyImage(spotifyArtist.images);
 
   const profile: ArtistProfile = {
@@ -171,16 +197,22 @@ export async function fetchArtistProfile(artistName: string): Promise<ArtistProf
     similarArtists: [],
   };
 
-  // Last.fm enrichment (optional)
+  // Last.fm enrichment: try full name first, fall back to primary artist for collabs
   const lastFmKey = process.env.LASTFM_API_KEY;
   if (lastFmKey) {
-    try {
-      const lfRes = await fetchWithTimeout(
-        `${LASTFM_BASE}/?method=artist.getInfo&artist=${encodeURIComponent(artistName)}&api_key=${encodeURIComponent(lastFmKey)}&format=json`,
-        {},
-        5000,
-      );
-      if (lfRes.ok) {
+    const namesToTry = [artistName];
+    const primary = extractPrimaryArtist(artistName);
+    if (primary !== artistName) namesToTry.push(primary);
+
+    for (const name of namesToTry) {
+      try {
+        const lfRes = await fetchWithTimeout(
+          `${LASTFM_BASE}/?method=artist.getInfo&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(lastFmKey)}&format=json`,
+          {},
+          5000,
+        );
+        if (!lfRes.ok) continue;
+
         const lfData = (await lfRes.json()) as LastFmArtistInfo;
         const artist = lfData.artist;
 
@@ -188,10 +220,11 @@ export async function fetchArtistProfile(artistName: string): Promise<ArtistProf
           profile.bioSummary = extractBioSummary(artist.bio?.summary ?? null);
           profile.scrobbles = artist.stats?.playcount ? parseInt(artist.stats.playcount, 10) : null;
           profile.similarArtists = (artist.similar?.artist ?? []).slice(0, 3).map((a) => a.name);
+          break; // got data, stop trying
         }
+      } catch (err) {
+        log.debug("ArtistInfo", "Last.fm artist info error:", err instanceof Error ? err.message : String(err));
       }
-    } catch (err) {
-      log.debug("ArtistInfo", "Last.fm artist info error:", err instanceof Error ? err.message : String(err));
     }
   }
 
