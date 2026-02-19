@@ -371,6 +371,20 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       `);
     }
 
+    // Lazy migration: is_featured column on short_urls / album_short_urls
+    const shortUrlsCols = this.sqlite
+      .prepare(`PRAGMA table_info(short_urls)`)
+      .all() as Array<{ name: string }>;
+    if (!shortUrlsCols.some((c) => c.name === "is_featured")) {
+      this.sqlite.exec(`ALTER TABLE short_urls ADD COLUMN is_featured INTEGER NOT NULL DEFAULT 0`);
+    }
+    const albumShortUrlsCols = this.sqlite
+      .prepare(`PRAGMA table_info(album_short_urls)`)
+      .all() as Array<{ name: string }>;
+    if (!albumShortUrlsCols.some((c) => c.name === "is_featured")) {
+      this.sqlite.exec(`ALTER TABLE album_short_urls ADD COLUMN is_featured INTEGER NOT NULL DEFAULT 0`);
+    }
+
     // Lazy migration: artist_cache table
     const artistCacheExists = this.sqlite
       .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='artist_cache'`)
@@ -798,7 +812,19 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
   }
 
   async getRandomShortId(): Promise<string | null> {
-    const row = this.sqlite
+    const featured = this.sqlite
+      .prepare(
+        `SELECT id FROM (
+           SELECT id FROM short_urls WHERE is_featured = 1
+           UNION ALL
+           SELECT id FROM album_short_urls WHERE is_featured = 1
+         ) ORDER BY RANDOM() LIMIT 1`,
+      )
+      .get() as { id: string } | undefined;
+    if (featured) return featured.id;
+
+    // Fallback: any short URL when no entries are marked as featured
+    const any = this.sqlite
       .prepare(
         `SELECT id FROM (
            SELECT id FROM short_urls
@@ -807,7 +833,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
          ) ORDER BY RANDOM() LIMIT 1`,
       )
       .get() as { id: string } | undefined;
-    return row?.id ?? null;
+    return any?.id ?? null;
   }
 
   async updateTrackTimestamp(trackId: string): Promise<void> {
@@ -1238,7 +1264,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     // link_count is a SELECT alias; all others live on t
     const orderClause = col === "link_count" ? `link_count ${dir}` : `t.${col} ${dir}`;
 
-    interface TrackCountRow { id: string; title: string; artists: string; album_name: string | null; isrc: string | null; artwork_url: string | null; source_service: string | null; link_count: number; created_at: number; short_id: string | null; }
+    interface TrackCountRow { id: string; title: string; artists: string; album_name: string | null; isrc: string | null; artwork_url: string | null; source_service: string | null; link_count: number; created_at: number; short_id: string | null; is_featured: number; }
 
     let rows: TrackCountRow[];
     let total: number;
@@ -1247,7 +1273,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       const ftsQuery = `${escapeFts5(q)}*`;
       rows = this.sqlite.prepare(`
         SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url, t.source_service, t.created_at,
-               COUNT(sl.id) AS link_count, MIN(su.id) AS short_id
+               COUNT(sl.id) AS link_count, MIN(su.id) AS short_id, MAX(su.is_featured) AS is_featured
         FROM tracks_fts fts
         JOIN tracks t ON t.id = fts.track_id
         LEFT JOIN service_links sl ON t.id = sl.track_id
@@ -1264,7 +1290,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     } else {
       rows = this.sqlite.prepare(`
         SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url, t.source_service, t.created_at,
-               COUNT(sl.id) AS link_count, MIN(su.id) AS short_id
+               COUNT(sl.id) AS link_count, MIN(su.id) AS short_id, MAX(su.is_featured) AS is_featured
         FROM tracks t
         LEFT JOIN service_links sl ON t.id = sl.track_id
         LEFT JOIN short_urls su ON su.track_id = t.id
@@ -1290,6 +1316,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         linkCount: r.link_count,
         createdAt: r.created_at,
         shortId: r.short_id ?? null,
+        isFeatured: r.is_featured === 1,
       })),
       total,
       page,
@@ -1305,7 +1332,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     const dir = sortDir === "asc" ? "ASC" : "DESC";
     const orderClause = col === "link_count" ? `link_count ${dir}` : `a.${col} ${dir}`;
 
-    interface AlbumCountRow { id: string; title: string; artists: string; release_date: string | null; total_tracks: number | null; artwork_url: string | null; upc: string | null; source_service: string | null; link_count: number; created_at: number; short_id: string | null; }
+    interface AlbumCountRow { id: string; title: string; artists: string; release_date: string | null; total_tracks: number | null; artwork_url: string | null; upc: string | null; source_service: string | null; link_count: number; created_at: number; short_id: string | null; is_featured: number; }
 
     let rows: AlbumCountRow[];
     let total: number;
@@ -1314,7 +1341,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       const ftsQuery = `${escapeFts5(q)}*`;
       rows = this.sqlite.prepare(`
         SELECT a.id, a.title, a.artists, a.release_date, a.total_tracks, a.artwork_url, a.upc, a.source_service, a.created_at,
-               COUNT(asl.id) AS link_count, MIN(asu.id) AS short_id
+               COUNT(asl.id) AS link_count, MIN(asu.id) AS short_id, MAX(asu.is_featured) AS is_featured
         FROM albums_fts fts
         JOIN albums a ON a.id = fts.album_id
         LEFT JOIN album_service_links asl ON a.id = asl.album_id
@@ -1331,7 +1358,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     } else {
       rows = this.sqlite.prepare(`
         SELECT a.id, a.title, a.artists, a.release_date, a.total_tracks, a.artwork_url, a.upc, a.source_service, a.created_at,
-               COUNT(asl.id) AS link_count, MIN(asu.id) AS short_id
+               COUNT(asl.id) AS link_count, MIN(asu.id) AS short_id, MAX(asu.is_featured) AS is_featured
         FROM albums a
         LEFT JOIN album_service_links asl ON a.id = asl.album_id
         LEFT JOIN album_short_urls asu ON asu.album_id = a.id
@@ -1358,6 +1385,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         linkCount: r.link_count,
         createdAt: r.created_at,
         shortId: r.short_id ?? null,
+        isFeatured: r.is_featured === 1,
       })),
       total,
       page,
@@ -1385,6 +1413,18 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       this.sqlite.prepare(`DELETE FROM albums WHERE id IN (${ph})`).run(...ids);
       // albums_fts_delete trigger fires automatically on DELETE FROM albums
     })();
+  }
+
+  async setTrackFeatured(shortId: string, featured: boolean): Promise<void> {
+    this.sqlite
+      .prepare(`UPDATE short_urls SET is_featured = ? WHERE id = ?`)
+      .run(featured ? 1 : 0, shortId);
+  }
+
+  async setAlbumFeatured(shortId: string, featured: boolean): Promise<void> {
+    this.sqlite
+      .prepare(`UPDATE album_short_urls SET is_featured = ? WHERE id = ?`)
+      .run(featured ? 1 : 0, shortId);
   }
 
   async clearArtistCache(): Promise<{ deleted: number }> {

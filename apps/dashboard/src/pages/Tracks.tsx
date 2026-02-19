@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { AdminDataTable, type AdminTableConfig } from "@/components/AdminDataTable";
+import { apiPatch } from "@/lib/api";
 
 interface TrackListItem {
   id: string;
@@ -12,12 +14,45 @@ interface TrackListItem {
   linkCount: number;
   createdAt: number;
   shortId: string | null;
+  isFeatured: boolean;
 }
 
 const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "https://musiccloud.io";
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { dateStyle: "medium" });
+}
+
+function FeaturedToggle({ track }: { track: TrackListItem }) {
+  const [featured, setFeatured] = useState(track.isFeatured);
+  const [busy, setBusy] = useState(false);
+
+  if (!track.shortId) return null;
+
+  async function toggle() {
+    if (busy || !track.shortId) return;
+    setBusy(true);
+    try {
+      await apiPatch(`/api/admin/tracks/${track.shortId}/featured`, { featured: !featured });
+      setFeatured((v) => !v);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={busy}
+      title={featured ? "Featured entfernen" : "Als Featured markieren"}
+      className="p-1 rounded transition-colors hover:bg-muted disabled:opacity-40"
+      aria-label={featured ? "Featured entfernen" : "Als Featured markieren"}
+    >
+      <span className={featured ? "text-yellow-400" : "text-muted-foreground/40"}>
+        {featured ? "★" : "☆"}
+      </span>
+    </button>
+  );
 }
 
 const config: AdminTableConfig<TrackListItem> = {
@@ -29,6 +64,10 @@ const config: AdminTableConfig<TrackListItem> = {
   totalLabelKey: "tracks.total",
   emptyKey: "tracks.empty",
   columns: [
+    {
+      className: "w-8",
+      render: (track) => <FeaturedToggle track={track} />,
+    },
     {
       className: "w-10",
       render: (track) =>

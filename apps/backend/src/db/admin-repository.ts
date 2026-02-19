@@ -17,6 +17,7 @@ export interface TrackListItem {
   linkCount: number;
   createdAt: number;
   shortId: string | null;
+  isFeatured: boolean;
 }
 
 export interface AlbumListItem {
@@ -31,6 +32,7 @@ export interface AlbumListItem {
   linkCount: number;
   createdAt: number;
   shortId: string | null;
+  isFeatured: boolean;
 }
 
 export interface ListResult<T> {
@@ -49,5 +51,7 @@ export interface AdminRepository {
   listAlbums(params: { page: number; limit: number; q?: string; sortBy?: string; sortDir?: "asc" | "desc" }): Promise<ListResult<AlbumListItem>>;
   deleteTracks(ids: string[]): Promise<void>;
   deleteAlbums(ids: string[]): Promise<void>;
+  setTrackFeatured(shortId: string, featured: boolean): Promise<void>;
+  setAlbumFeatured(shortId: string, featured: boolean): Promise<void>;
   clearArtistCache(): Promise<{ deleted: number }>;
 }
