@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useReducer, useState } from "react";
 import { useAdminSSE } from "@/hooks/useAdminSSE";
 import { Badge } from "@/components/ui/badge";
@@ -217,28 +218,32 @@ export function Tracks() {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-              >
-                {t("pagination.previous")}
-              </Button>
               <span className="text-sm text-muted-foreground">
                 {t("pagination.pageOf", {
                   page: String(page),
                   total: String(totalPages),
                 })}
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-              >
-                {t("pagination.next")}
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {t("pagination.previous")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  {t("pagination.next")}
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </>
