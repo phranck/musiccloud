@@ -374,8 +374,36 @@ function identifyAlbumService(url: string): ServiceAdapter | undefined {
 // ─── Main entry points ────────────────────────────────────────────────────────
 
 /**
- * Resolve an album URL: fetch metadata from source, then find on all other services.
+ * Bootstrap Apple Music album resolution via Odesli.
+ * Apple Music albums cannot be fetched directly; use Odesli to get a Spotify
+ * (or Tidal/Deezer) URL and resolve through that service instead.
+ * Step 7 of resolveAlbumUrl will then add the Apple Music link back via Odesli.
  */
+async function resolveAppleMusicAlbumViaOdesli(appleUrl: string): Promise<AlbumResolutionResult> {
+  let odesli;
+  try {
+    odesli = await resolveViaOdesli(appleUrl);
+  } catch (err) {
+    throw new ResolveError(
+      "SERVICE_DOWN",
+      `Could not bootstrap Apple Music album via Odesli: ${err instanceof Error ? err.message : err}`,
+    );
+  }
+
+  // Preferred fallback order: Spotify → Tidal → Deezer
+  const fallbackOrder: ServiceId[] = ["spotify", "tidal", "deezer"];
+  for (const service of fallbackOrder) {
+    const link = odesli.links[service];
+    if (link?.url) {
+      log.debug("AlbumResolver", `Apple Music album bootstrapped via Odesli → ${service}`);
+      return resolveAlbumUrl(link.url);
+    }
+  }
+
+  throw new ResolveError("TRACK_NOT_FOUND", "Apple Music album not found on any supported service via Odesli");
+}
+
+/** Resolve an album URL: fetch metadata from source, then find on all other services. */
 export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolutionResult> {
   const cleanUrl = stripTrackingParams(inputUrl);
 
@@ -386,6 +414,10 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   // 2. Identify which service the URL belongs to
   const sourceAdapter = identifyAlbumService(cleanUrl);
   if (!sourceAdapter || !sourceAdapter.getAlbum || !sourceAdapter.detectAlbumUrl) {
+    // Apple Music album URLs cannot be resolved directly – bootstrap via Odesli → Spotify
+    if (/^https?:\/\/music\.apple\.com\/[a-z]{2}\/album\//.test(cleanUrl)) {
+      return resolveAppleMusicAlbumViaOdesli(cleanUrl);
+    }
     throw new ResolveError("NOT_MUSIC_LINK", "Unrecognized album URL");
   }
 
