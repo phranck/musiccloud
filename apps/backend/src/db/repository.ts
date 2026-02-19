@@ -187,6 +187,9 @@ export interface TrackRepository {
   findArtistCache(artistName: string): Promise<ArtistCacheRow | null>;
   saveArtistCache(data: ArtistCacheData): Promise<void>;
 
+  // Example: random short ID for landing page teaser
+  getRandomShortId(): Promise<string | null>;
+
   // Lifecycle
   close(): Promise<void>;
 }

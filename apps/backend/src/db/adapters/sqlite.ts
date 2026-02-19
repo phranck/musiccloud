@@ -797,6 +797,19 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     }
   }
 
+  async getRandomShortId(): Promise<string | null> {
+    const row = this.sqlite
+      .prepare(
+        `SELECT id FROM (
+           SELECT id FROM short_urls
+           UNION ALL
+           SELECT id FROM album_short_urls
+         ) ORDER BY RANDOM() LIMIT 1`,
+      )
+      .get() as { id: string } | undefined;
+    return row?.id ?? null;
+  }
+
   async updateTrackTimestamp(trackId: string): Promise<void> {
     this.sqlite.prepare(`UPDATE tracks SET updated_at = ? WHERE id = ?`).run(Date.now(), trackId);
   }
