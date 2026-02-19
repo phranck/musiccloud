@@ -13,7 +13,7 @@ import type { Platform } from "@musiccloud/shared";
 import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
 import { GradientBackground } from "@/components/background/GradientBackground";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
-import { SharePageCard } from "@/components/share/SharePageCard";
+import { ShareLayout } from "@/components/share/ShareLayout";
 import { BrandName } from "@/components/ui/BrandName";
 import { getLocaleFromCookie } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
@@ -83,6 +83,7 @@ const shareConfig: ShareContentConfiguration = {
   metaLine: isAlbum ? albumMetaLine || undefined : trackMetaLine || undefined,
   platforms: platformLinks,
   platformsLabel: t(isAlbum ? "results.openAlbumOn" : "results.listenOn"),
+  platformsLabelKey: isAlbum ? "results.openAlbumOn" : "results.listenOn",
 };
 
 const pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
@@ -129,7 +130,7 @@ const pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
           <BrandName />
         </h1>
       </div>
-      <SharePageCard client:load config={shareConfig} />
+      <ShareLayout client:load config={shareConfig} artistName={artistDisplay} />
     </main>
 
     <AppFooterIsland client:load />
