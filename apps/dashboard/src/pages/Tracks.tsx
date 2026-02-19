@@ -46,6 +46,7 @@ const config: AdminTableConfig<TrackListItem> = {
     },
     {
       headerKey: "tracks.title",
+      sortKey: "title",
       render: (track) => (
         <>
           <div className="font-medium leading-tight">{track.title}</div>
@@ -57,12 +58,14 @@ const config: AdminTableConfig<TrackListItem> = {
     },
     {
       headerKey: "tracks.artists",
+      sortKey: "artists",
       render: (track) => (
         <span className="text-sm">{track.artists.join(", ")}</span>
       ),
     },
     {
       headerKey: "tracks.source",
+      sortKey: "source_service",
       render: (track) =>
         track.sourceService ? (
           <Badge variant="secondary" className="text-xs capitalize">
@@ -72,6 +75,7 @@ const config: AdminTableConfig<TrackListItem> = {
     },
     {
       headerLabel: "ISRC",
+      sortKey: "isrc",
       render: (track) => (
         <span className="font-mono text-xs text-muted-foreground">
           {track.isrc ?? ""}
@@ -80,11 +84,13 @@ const config: AdminTableConfig<TrackListItem> = {
     },
     {
       headerKey: "tracks.links",
+      sortKey: "link_count",
       className: "text-center",
       render: (track) => <Badge variant="outline">{track.linkCount}</Badge>,
     },
     {
       headerKey: "tracks.added",
+      sortKey: "created_at",
       render: (track) => (
         <span className="text-sm text-muted-foreground">
           {formatDate(track.createdAt)}

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useAdminSSE } from "@/hooks/useAdminSSE";
 import { Button } from "@/components/ui/button";
@@ -45,12 +45,14 @@ type Action<T> =
  * - `headerKey`   – i18n translation key for the column header.
  * - `headerLabel` – static label (takes precedence over headerKey).
  * - `className`   – Tailwind classes applied to both <TableHead> and <TableCell>.
+ * - `sortKey`     – backend column name; if set, the header becomes a sort button.
  * - `render`      – renders the cell content for a given row item.
  */
 export interface ColumnDef<T> {
   headerKey?: string;
   headerLabel?: string;
   className?: string;
+  sortKey?: string;
   render: (item: T) => ReactNode;
 }
 
@@ -62,7 +64,7 @@ export interface ColumnDef<T> {
 export interface AdminTableConfig<T extends { id: string }> {
   /** API endpoint for listing, e.g. "/api/admin/tracks". */
   endpoint: string;
-  /** If set, a delete column + bulk-delete button are added. Same base path as endpoint. */
+  /** If set, a delete column + bulk-delete button are added. */
   deleteEndpoint?: string;
   /** SSE event type that triggers a live prepend, e.g. "track-added". */
   sseEventType?: string;
@@ -118,7 +120,11 @@ export function AdminDataTable<T extends { id: string }>({
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Multi-select state
+  // Sorting
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc" | null>(null);
+
+  // Multi-select
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -126,7 +132,7 @@ export function AdminDataTable<T extends { id: string }>({
 
   const { sseEventType, sseToItem, endpoint } = config;
 
-  // Live prepend: only on page 1 and when no search is active
+  // Live prepend: only on page 1, no search, no custom sort active
   useAdminSSE(
     useCallback(
       (event) => {
@@ -135,12 +141,13 @@ export function AdminDataTable<T extends { id: string }>({
           !sseToItem ||
           event.type !== sseEventType ||
           page !== 1 ||
-          searchQuery !== ""
+          searchQuery !== "" ||
+          sortBy !== null
         )
           return;
         dispatch({ type: "PREPEND", item: sseToItem(event.data) });
       },
-      [page, searchQuery, sseEventType, sseToItem],
+      [page, searchQuery, sseEventType, sseToItem, sortBy],
     ),
   );
 
@@ -153,10 +160,10 @@ export function AdminDataTable<T extends { id: string }>({
     return () => clearTimeout(timer);
   }, [inputValue]);
 
-  // Clear selection on page/search change
+  // Clear selection on page/search/sort change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [page, searchQuery]);
+  }, [page, searchQuery, sortBy, sortDir]);
 
   // Stable fetch function
   const fetchPage = useCallback(() => {
@@ -165,21 +172,47 @@ export function AdminDataTable<T extends { id: string }>({
       page,
       limit: LIMIT,
       q: searchQuery || undefined,
+      sortBy: sortBy || undefined,
+      sortDir: sortDir || undefined,
     })
       .then((data) => dispatch({ type: "SUCCESS", data }))
       .catch((err: Error) => dispatch({ type: "ERROR", message: err.message }));
-  }, [page, searchQuery, endpoint]);
+  }, [page, searchQuery, endpoint, sortBy, sortDir]);
 
   useEffect(() => {
     fetchPage();
   }, [fetchPage]);
 
-  // Keep a ref so the delete handler always calls the current fetchPage
   const fetchPageRef = useRef(fetchPage);
   fetchPageRef.current = fetchPage;
 
   const totalPages =
     state.status === "success" ? Math.ceil(state.data.total / LIMIT) : 0;
+
+  // ---------------------------------------------------------------------------
+  // Sort helpers
+  // ---------------------------------------------------------------------------
+
+  function handleSortClick(key: string) {
+    if (sortBy !== key) {
+      setSortBy(key);
+      setSortDir("asc");
+    } else if (sortDir === "asc") {
+      setSortDir("desc");
+    } else {
+      setSortBy(null);
+      setSortDir(null);
+    }
+    setPage(1);
+  }
+
+  function SortIcon({ colKey }: { colKey: string }) {
+    if (sortBy !== colKey)
+      return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 opacity-35 group-hover:opacity-60" />;
+    if (sortDir === "asc")
+      return <ArrowUp className="ml-1 inline h-3.5 w-3.5" />;
+    return <ArrowDown className="ml-1 inline h-3.5 w-3.5" />;
+  }
 
   // ---------------------------------------------------------------------------
   // Selection helpers
@@ -192,11 +225,7 @@ export function AdminDataTable<T extends { id: string }>({
   const someSelected = !allSelected && visibleIds.some((id) => selectedIds.has(id));
 
   function toggleAll() {
-    if (allSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(visibleIds));
-    }
+    setSelectedIds(allSelected ? new Set() : new Set(visibleIds));
   }
 
   function toggleRow(id: string) {
@@ -251,7 +280,7 @@ export function AdminDataTable<T extends { id: string }>({
           </span>
         )}
 
-        {/* Pagination + Delete – right side */}
+        {/* Delete + Pagination – right side */}
         <div className="ml-auto flex items-center gap-2">
           {hasDelete && selectedCount > 0 && (
             <Button
@@ -312,7 +341,7 @@ export function AdminDataTable<T extends { id: string }>({
         <p className="text-sm text-destructive">{state.message}</p>
       )}
 
-      {/* Table – fills remaining height and scrolls internally */}
+      {/* Table – fills remaining height, scrolls internally */}
       {state.status === "success" && (
         <div className="min-h-0 flex-1 overflow-y-auto rounded-md border">
           <Table>
@@ -329,7 +358,17 @@ export function AdminDataTable<T extends { id: string }>({
                 )}
                 {config.columns.map((col, i) => (
                   <TableHead key={i} className={col.className}>
-                    {col.headerLabel ?? (col.headerKey ? t(col.headerKey) : null)}
+                    {col.sortKey ? (
+                      <button
+                        className="group inline-flex cursor-pointer items-center whitespace-nowrap hover:text-foreground"
+                        onClick={() => handleSortClick(col.sortKey!)}
+                      >
+                        {col.headerLabel ?? (col.headerKey ? t(col.headerKey) : null)}
+                        <SortIcon colKey={col.sortKey} />
+                      </button>
+                    ) : (
+                      (col.headerLabel ?? (col.headerKey ? t(col.headerKey) : null))
+                    )}
                   </TableHead>
                 ))}
               </TableRow>

@@ -1082,8 +1082,14 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
   }
 
 
-  async listTracks({ page, limit, q }: { page: number; limit: number; q?: string }): Promise<import("../admin-repository.js").ListResult<import("../admin-repository.js").TrackListItem>> {
+  async listTracks({ page, limit, q, sortBy, sortDir }: { page: number; limit: number; q?: string; sortBy?: string; sortDir?: "asc" | "desc" }): Promise<import("../admin-repository.js").ListResult<import("../admin-repository.js").TrackListItem>> {
     const offset = (page - 1) * limit;
+
+    const ALLOWED = new Set(["title", "artists", "created_at", "link_count", "isrc", "source_service"]);
+    const col = sortBy && ALLOWED.has(sortBy) ? sortBy : "created_at";
+    const dir = sortDir === "asc" ? "ASC" : "DESC";
+    // link_count is a SELECT alias; all others live on t
+    const orderClause = col === "link_count" ? `link_count ${dir}` : `t.${col} ${dir}`;
 
     interface TrackCountRow { id: string; title: string; artists: string; album_name: string | null; isrc: string | null; artwork_url: string | null; source_service: string | null; link_count: number; created_at: number; }
 
@@ -1091,7 +1097,6 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     let total: number;
 
     if (q) {
-      // Use FTS5 for fast full-text search (avoids full table scan from LIKE '%...%')
       const ftsQuery = `${escapeFts5(q)}*`;
       rows = this.sqlite.prepare(`
         SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url, t.source_service, t.created_at,
@@ -1101,7 +1106,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         LEFT JOIN service_links sl ON t.id = sl.track_id
         WHERE fts MATCH ?
         GROUP BY t.id
-        ORDER BY t.created_at DESC
+        ORDER BY ${orderClause}
         LIMIT ? OFFSET ?
       `).all(ftsQuery, limit, offset) as TrackCountRow[];
       const countRow = this.sqlite.prepare(
@@ -1115,7 +1120,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         FROM tracks t
         LEFT JOIN service_links sl ON t.id = sl.track_id
         GROUP BY t.id
-        ORDER BY t.created_at DESC
+        ORDER BY ${orderClause}
         LIMIT ? OFFSET ?
       `).all(limit, offset) as TrackCountRow[];
       const countRow = this.sqlite.prepare(
@@ -1142,8 +1147,13 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     };
   }
 
-  async listAlbums({ page, limit, q }: { page: number; limit: number; q?: string }): Promise<import("../admin-repository.js").ListResult<import("../admin-repository.js").AlbumListItem>> {
+  async listAlbums({ page, limit, q, sortBy, sortDir }: { page: number; limit: number; q?: string; sortBy?: string; sortDir?: "asc" | "desc" }): Promise<import("../admin-repository.js").ListResult<import("../admin-repository.js").AlbumListItem>> {
     const offset = (page - 1) * limit;
+
+    const ALLOWED = new Set(["title", "artists", "created_at", "link_count", "release_date", "total_tracks", "upc", "source_service"]);
+    const col = sortBy && ALLOWED.has(sortBy) ? sortBy : "created_at";
+    const dir = sortDir === "asc" ? "ASC" : "DESC";
+    const orderClause = col === "link_count" ? `link_count ${dir}` : `a.${col} ${dir}`;
 
     interface AlbumCountRow { id: string; title: string; artists: string; release_date: string | null; total_tracks: number | null; artwork_url: string | null; upc: string | null; source_service: string | null; link_count: number; created_at: number; }
 
@@ -1151,7 +1161,6 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     let total: number;
 
     if (q) {
-      // Use FTS5 for fast full-text search (avoids full table scan from LIKE '%...%')
       const ftsQuery = `${escapeFts5(q)}*`;
       rows = this.sqlite.prepare(`
         SELECT a.id, a.title, a.artists, a.release_date, a.total_tracks, a.artwork_url, a.upc, a.source_service, a.created_at,
@@ -1161,7 +1170,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         LEFT JOIN album_service_links asl ON a.id = asl.album_id
         WHERE fts MATCH ?
         GROUP BY a.id
-        ORDER BY a.created_at DESC
+        ORDER BY ${orderClause}
         LIMIT ? OFFSET ?
       `).all(ftsQuery, limit, offset) as AlbumCountRow[];
       const countRow = this.sqlite.prepare(
@@ -1175,7 +1184,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         FROM albums a
         LEFT JOIN album_service_links asl ON a.id = asl.album_id
         GROUP BY a.id
-        ORDER BY a.created_at DESC
+        ORDER BY ${orderClause}
         LIMIT ? OFFSET ?
       `).all(limit, offset) as AlbumCountRow[];
       const countRow = this.sqlite.prepare(

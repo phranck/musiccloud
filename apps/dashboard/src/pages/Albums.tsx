@@ -52,6 +52,7 @@ const config: AdminTableConfig<AlbumListItem> = {
     },
     {
       headerKey: "albums.title",
+      sortKey: "title",
       render: (album) => (
         <>
           <div className="font-medium leading-tight">{album.title}</div>
@@ -65,12 +66,14 @@ const config: AdminTableConfig<AlbumListItem> = {
     },
     {
       headerKey: "albums.artists",
+      sortKey: "artists",
       render: (album) => (
         <span className="text-sm">{album.artists.join(", ")}</span>
       ),
     },
     {
       headerKey: "albums.source",
+      sortKey: "source_service",
       render: (album) =>
         album.sourceService ? (
           <Badge variant="secondary" className="text-xs capitalize">
@@ -80,6 +83,7 @@ const config: AdminTableConfig<AlbumListItem> = {
     },
     {
       headerLabel: "UPC",
+      sortKey: "upc",
       render: (album) => (
         <span className="font-mono text-xs text-muted-foreground">
           {album.upc ?? ""}
@@ -88,6 +92,7 @@ const config: AdminTableConfig<AlbumListItem> = {
     },
     {
       headerKey: "albums.tracks",
+      sortKey: "total_tracks",
       className: "text-center",
       render: (album) => (
         <span className="text-sm text-muted-foreground">
@@ -97,11 +102,13 @@ const config: AdminTableConfig<AlbumListItem> = {
     },
     {
       headerKey: "albums.links",
+      sortKey: "link_count",
       className: "text-center",
       render: (album) => <Badge variant="outline">{album.linkCount}</Badge>,
     },
     {
       headerKey: "albums.added",
+      sortKey: "created_at",
       render: (album) => (
         <span className="text-sm text-muted-foreground">
           {formatDate(album.createdAt)}

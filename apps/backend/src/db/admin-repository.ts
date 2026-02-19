@@ -43,8 +43,8 @@ export interface AdminRepository {
   findAdminByUsername(username: string): Promise<AdminUser | null>;
   createAdminUser(data: { id: string; username: string; passwordHash: string }): Promise<void>;
   updateLastLogin(id: string): Promise<void>;
-  listTracks(params: { page: number; limit: number; q?: string }): Promise<ListResult<TrackListItem>>;
-  listAlbums(params: { page: number; limit: number; q?: string }): Promise<ListResult<AlbumListItem>>;
+  listTracks(params: { page: number; limit: number; q?: string; sortBy?: string; sortDir?: "asc" | "desc" }): Promise<ListResult<TrackListItem>>;
+  listAlbums(params: { page: number; limit: number; q?: string; sortBy?: string; sortDir?: "asc" | "desc" }): Promise<ListResult<AlbumListItem>>;
   deleteTracks(ids: string[]): Promise<void>;
   deleteAlbums(ids: string[]): Promise<void>;
 }
