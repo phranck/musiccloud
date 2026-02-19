@@ -16,6 +16,7 @@ import adminDataRoutes from "./routes/admin-data.js";
 import adminSseRoutes from "./routes/admin-sse.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import randomExampleRoutes from "./routes/random-example.js";
+import urlRedirectRoutes from "./routes/url-redirect.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);
@@ -59,6 +60,7 @@ async function buildApp() {
   // Artist info endpoint (public, no auth - fetched by React island)
   await app.register(artistInfoRoutes);
   await app.register(randomExampleRoutes);
+  await app.register(urlRedirectRoutes);
 
   // Protected API routes (X-API-Key or Bearer JWT)
   await app.register(async function protectedRoutes(protectedApp) {

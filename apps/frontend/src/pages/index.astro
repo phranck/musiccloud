@@ -50,6 +50,14 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
     })} />
   </Fragment>
 
+  <!-- Redirect ?url=<streaming-url> to the share page via the backend. Runs before React hydration. -->
+  <script>
+    (function () {
+      var u = new URLSearchParams(location.search).get("url");
+      if (u) location.replace("/api/v1/redirect?url=" + encodeURIComponent(u));
+    })();
+  </script>
+
   <div class="min-h-dvh flex flex-col">
     <ErrorBoundary client:load>
       <LandingPage client:load />
