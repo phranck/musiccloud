@@ -1,7 +1,17 @@
 import { importPKCS8, SignJWT } from "jose";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { calculateConfidence } from "../../lib/resolve/normalize";
-import type { AdapterCapabilities, MatchResult, NormalizedTrack, ServiceAdapter } from "../types.js";
+import type {
+  AdapterCapabilities,
+  AlbumCapabilities,
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  AlbumTrackEntry,
+  MatchResult,
+  NormalizedAlbum,
+  NormalizedTrack,
+  ServiceAdapter,
+} from "../types.js";
 
 // Matches: music.apple.com/{storefront}/album/{name}/{albumId}?i={trackId}
 //          music.apple.com/{storefront}/song/{name}/{trackId}
@@ -103,6 +113,42 @@ interface AppleMusicSongResource {
   attributes: AppleMusicSongAttributes;
 }
 
+interface AppleMusicAlbumAttributes {
+  name: string;
+  artistName: string;
+  upc?: string;
+  trackCount?: number;
+  releaseDate?: string;
+  artwork?: {
+    url: string;
+    width: number;
+    height: number;
+  };
+  url: string;
+  genreNames?: string[];
+  recordLabel?: string;
+}
+
+interface AppleMusicAlbumResource {
+  id: string;
+  type: "albums";
+  attributes: AppleMusicAlbumAttributes;
+  relationships?: {
+    tracks?: {
+      data: Array<{
+        id: string;
+        type: "songs";
+        attributes?: {
+          name: string;
+          isrc?: string;
+          trackNumber?: number;
+          durationInMillis?: number;
+        };
+      }>;
+    };
+  };
+}
+
 function mapTrack(raw: AppleMusicSongResource): NormalizedTrack {
   const attrs = raw.attributes;
   let artworkUrl: string | undefined;
@@ -131,16 +177,58 @@ function mapTrack(raw: AppleMusicSongResource): NormalizedTrack {
   };
 }
 
+function mapAlbum(raw: AppleMusicAlbumResource): NormalizedAlbum {
+  const attrs = raw.attributes;
+  let artworkUrl: string | undefined;
+
+  if (attrs.artwork?.url) {
+    artworkUrl = attrs.artwork.url.replace("{w}", "640").replace("{h}", "640");
+  }
+
+  const tracks: AlbumTrackEntry[] | undefined = raw.relationships?.tracks?.data
+    ?.filter((t) => t.attributes != null)
+    .map((t, idx) => ({
+      title: t.attributes!.name,
+      isrc: t.attributes!.isrc,
+      trackNumber: t.attributes!.trackNumber ?? idx + 1,
+      durationMs: t.attributes!.durationInMillis,
+    }));
+
+  return {
+    sourceService: "apple-music",
+    sourceId: raw.id,
+    upc: attrs.upc,
+    title: attrs.name,
+    artists: attrs.artistName
+      .split(/,\s*/)
+      .map((a) => a.trim())
+      .filter(Boolean),
+    releaseDate: attrs.releaseDate,
+    totalTracks: attrs.trackCount,
+    artworkUrl,
+    label: attrs.recordLabel,
+    webUrl: attrs.url,
+    tracks: tracks?.length ? tracks : undefined,
+  };
+}
+
 const capabilities: AdapterCapabilities = {
   supportsIsrc: true,
   supportsPreview: true,
   supportsArtwork: true,
 };
 
+const albumCapabilities: AlbumCapabilities = {
+  supportsUpc: true,
+  supportsAlbumSearch: true,
+  supportsTrackListing: true,
+};
+
 export const appleMusicAdapter: ServiceAdapter = {
   id: "apple-music",
   displayName: "Apple Music",
   capabilities,
+  albumCapabilities,
 
   isAvailable(): boolean {
     return Boolean(
@@ -160,7 +248,15 @@ export const appleMusicAdapter: ServiceAdapter = {
     if (trackId) return trackId;
 
     // Album-only link without ?i= - not a track link
-    if (match[2] && !match[3]) return null;
+    return null;
+  },
+
+  detectAlbumUrl(url: string): string | null {
+    const match = APPLE_MUSIC_REGEX.exec(url);
+    if (!match) return null;
+
+    // Album-only link: has albumId (match[2]) but no ?i= track param (match[3])
+    if (match[2] && !match[3]) return match[2];
 
     return null;
   },
@@ -238,6 +334,72 @@ export const appleMusicAdapter: ServiceAdapter = {
     return {
       found: true,
       track: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
+  },
+
+  async getAlbum(albumId: string): Promise<NormalizedAlbum> {
+    const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
+    const response = await appleMusicFetch(
+      `/catalog/${storefront}/albums/${encodeURIComponent(albumId)}?include=tracks`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`Apple Music getAlbum failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const album: AppleMusicAlbumResource = data.data[0];
+
+    if (!album) {
+      throw new Error(`Apple Music album not found: ${albumId}`);
+    }
+
+    return mapAlbum(album);
+  },
+
+  async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
+    const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
+    const term = encodeURIComponent(`${query.artist} ${query.title}`);
+    const response = await appleMusicFetch(
+      `/catalog/${storefront}/search?types=albums&term=${term}&limit=5`,
+    );
+
+    if (!response.ok) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const data = await response.json();
+    const albums: AppleMusicAlbumResource[] = data.results?.albums?.data ?? [];
+
+    if (albums.length === 0) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const album of albums) {
+      const normalized = mapAlbum(album);
+      const confidence = calculateConfidence(
+        { title: query.title, artists: [query.artist], durationMs: undefined },
+        { title: normalized.title, artists: normalized.artists, durationMs: undefined },
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = normalized;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < 0.6) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      album: bestMatch,
       confidence: bestConfidence,
       matchMethod: "search",
     };

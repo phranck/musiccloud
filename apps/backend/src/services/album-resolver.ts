@@ -368,16 +368,16 @@ async function resolveAlbumAcrossServices(
 // ─── Identify album service ───────────────────────────────────────────────────
 
 function identifyAlbumService(url: string): ServiceAdapter | undefined {
-  return adapters.find((a) => a.detectAlbumUrl && a.detectAlbumUrl(url) !== null);
+  return adapters.find((a) => a.isAvailable() && a.detectAlbumUrl && a.detectAlbumUrl(url) !== null);
 }
 
 // ─── Main entry points ────────────────────────────────────────────────────────
 
 /**
  * Bootstrap Apple Music album resolution via Odesli.
- * Apple Music albums cannot be fetched directly; use Odesli to get a Spotify
- * (or Tidal/Deezer) URL and resolve through that service instead.
- * Step 7 of resolveAlbumUrl will then add the Apple Music link back via Odesli.
+ * Used as fallback when Apple Music credentials are not configured.
+ * Odesli resolves the URL to a Spotify/Tidal/Deezer link; we then run a full
+ * resolution from there, and Step 7 adds the Apple Music link back via Odesli.
  */
 async function resolveAppleMusicAlbumViaOdesli(appleUrl: string): Promise<AlbumResolutionResult> {
   let odesli;
@@ -390,7 +390,6 @@ async function resolveAppleMusicAlbumViaOdesli(appleUrl: string): Promise<AlbumR
     );
   }
 
-  // Preferred fallback order: Spotify → Tidal → Deezer
   const fallbackOrder: ServiceId[] = ["spotify", "tidal", "deezer"];
   for (const service of fallbackOrder) {
     const link = odesli.links[service];
@@ -414,7 +413,7 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   // 2. Identify which service the URL belongs to
   const sourceAdapter = identifyAlbumService(cleanUrl);
   if (!sourceAdapter || !sourceAdapter.getAlbum || !sourceAdapter.detectAlbumUrl) {
-    // Apple Music album URLs cannot be resolved directly – bootstrap via Odesli → Spotify
+    // Fallback: Apple Music albums without configured credentials → bootstrap via Odesli
     if (/^https?:\/\/music\.apple\.com\/[a-z]{2}\/album\//.test(cleanUrl)) {
       return resolveAppleMusicAlbumViaOdesli(cleanUrl);
     }

@@ -182,21 +182,62 @@ export function validateMusicUrl(input: string): UrlValidationResult {
 export function stripTrackingParams(url: string): string {
   try {
     const parsed = new URL(url);
+
+    // Universal tracking params to remove across all services
     const paramsToRemove = [
-      "utm_source",
-      "utm_medium",
-      "utm_campaign",
-      "utm_content",
-      "utm_term",
-      "si",
-      "context",
-      "nd",
-      "dl_branch",
-      "feature",
+      // UTM
+      "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term",
+      // Social/ad click IDs
+      "fbclid", "gclid", "ttclid", "twclid", "igshid", "msclkid",
+      // Service-specific session/sharing tokens
+      "si",        // Spotify
+      "context",   // Spotify
+      "nd",        // Spotify
+      "dl_branch", // Spotify
+      "feature",   // YouTube/Spotify
+      // YouTube non-essential params (only v= is needed for /watch)
+      "list", "index", "t", "start_radio", "pp", "playnext",
+      // Generic
+      "ref", "referral", "app_destination",
     ];
 
     for (const param of paramsToRemove) {
       parsed.searchParams.delete(param);
+    }
+
+    // ── Per-service path/hostname normalization ───────────────────────────────
+
+    // Spotify: Remove intl-XX locale prefix
+    // open.spotify.com/intl-de/track/... → open.spotify.com/track/...
+    if (parsed.hostname === "open.spotify.com" || parsed.hostname === "play.spotify.com") {
+      parsed.pathname = parsed.pathname.replace(/^\/intl-[a-z]+\//, "/");
+    }
+
+    // Deezer: Remove 2-letter locale prefix from path
+    // www.deezer.com/de/track/123 → www.deezer.com/track/123
+    if (parsed.hostname === "www.deezer.com" || parsed.hostname === "deezer.com") {
+      parsed.hostname = "www.deezer.com";
+      parsed.pathname = parsed.pathname.replace(/^\/[a-z]{2}\//, "/");
+    }
+
+    // Tidal: Normalize listen.tidal.com → tidal.com
+    if (parsed.hostname === "listen.tidal.com") {
+      parsed.hostname = "tidal.com";
+    }
+
+    // Qobuz: Normalize play.qobuz.com → open.qobuz.com
+    if (parsed.hostname === "play.qobuz.com") {
+      parsed.hostname = "open.qobuz.com";
+    }
+
+    // YouTube: For /watch URLs only keep v= (removes list=, t=, etc.)
+    if (
+      (parsed.hostname === "www.youtube.com" || parsed.hostname === "youtube.com") &&
+      parsed.pathname === "/watch"
+    ) {
+      const videoId = parsed.searchParams.get("v");
+      parsed.search = "";
+      if (videoId) parsed.searchParams.set("v", videoId);
     }
 
     return parsed.toString();

@@ -22,7 +22,7 @@ export async function resolveViaOdesli(url: string): Promise<OdesliResult> {
   const params = new URLSearchParams({ url });
   if (apiKey) params.set("key", apiKey);
 
-  const response = await fetchWithTimeout(`${ODESLI_BASE}?${params}`, {}, 5000);
+  const response = await fetchWithTimeout(`${ODESLI_BASE}?${params}`, {}, 3000);
 
   if (!response.ok) {
     throw new Error(`Odesli returned ${response.status}`);
