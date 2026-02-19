@@ -1,6 +1,7 @@
 {
   "hero.placeholder": "Collez un lien d'un album ou d'une chanson ou recherchez par artiste ou titre...",
   "loading.finding": "Recherche de votre chanson...",
+  "loading.finding.album": "Recherche de votre album...",
   "loading.still": "Toujours en cours de recherche...",
   "disambiguation.title": "Vouliez-vous dire ?",
   "disambiguation.subtitle": "Nous avons trouvé plusieurs correspondances. Choisissez la bonne.",

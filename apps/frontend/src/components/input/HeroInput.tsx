@@ -31,13 +31,14 @@ export function HeroInput({
 }: HeroInputProps) {
   const t = useT();
   const [value, setValue] = useState("");
+  const [isAlbum, setIsAlbum] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const ambilightRef = useRef<HTMLDivElement>(null);
   const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevState = useRef(state);
 
   useAmbilightAnimation(ambilightRef);
-  const loadingMessage = useLoadingMessages(state, t);
+  const loadingMessage = useLoadingMessages(state, t, isAlbum);
 
   // Clear input value when transitioning away from results/error (e.g. global ESC)
   useEffect(() => {
@@ -64,7 +65,9 @@ export function HeroInput({
       if (!pastedText) return;
 
       setTimeout(() => {
-        if (isMusicUrl(pastedText) || isAlbumUrl(pastedText)) {
+        const album = isAlbumUrl(pastedText);
+        if (isMusicUrl(pastedText) || album) {
+          setIsAlbum(album);
           autoSubmitTimer.current = setTimeout(() => {
             onSubmit(pastedText);
           }, 300);
@@ -77,7 +80,9 @@ export function HeroInput({
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       cancelAutoSubmit();
-      setValue(e.target.value);
+      const v = e.target.value;
+      setValue(v);
+      setIsAlbum(isAlbumUrl(v.trim()));
     },
     [cancelAutoSubmit],
   );
@@ -85,6 +90,7 @@ export function HeroInput({
   const handleClear = useCallback(() => {
     cancelAutoSubmit();
     setValue("");
+    setIsAlbum(false);
     onClear();
     inputRef.current?.focus();
   }, [onClear, cancelAutoSubmit]);

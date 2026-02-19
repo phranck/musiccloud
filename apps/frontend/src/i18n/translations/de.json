@@ -1,6 +1,7 @@
 {
   "hero.placeholder": "Link eines Albums oder Songs einfügen oder nach Künstler bzw. Titel suchen...",
   "loading.finding": "Suche deinen Song...",
+  "loading.finding.album": "Suche dein Album...",
   "loading.still": "Noch am Suchen...",
   "disambiguation.title": "Meintest du?",
   "disambiguation.subtitle": "Wir haben mehrere Treffer gefunden. Wähle den richtigen aus.",

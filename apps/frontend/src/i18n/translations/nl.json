@@ -1,6 +1,7 @@
 {
   "hero.placeholder": "Plak een link van een album of nummer en zoek op artiest of titel...",
   "loading.finding": "Je nummer zoeken...",
+  "loading.finding.album": "Je album zoeken...",
   "loading.still": "Nog steeds zoeken...",
   "disambiguation.title": "Bedoelde je?",
   "disambiguation.subtitle": "We vonden meerdere overeenkomsten. Kies de juiste.",

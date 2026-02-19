@@ -1,6 +1,7 @@
 {
   "hero.placeholder": "Paste a link of an album or song and search by artist or title...",
   "loading.finding": "Finding your song...",
+  "loading.finding.album": "Finding your album...",
   "loading.still": "Still searching...",
   "disambiguation.title": "Did you mean?",
   "disambiguation.subtitle": "We found multiple matches. Pick the right one.",

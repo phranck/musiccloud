@@ -8,6 +8,7 @@ import type { InputState } from "@/lib/types/app";
 export function useLoadingMessages(
   state: InputState,
   t: (key: string) => string,
+  isAlbum = false,
 ): string {
   const [loadingMessage, setLoadingMessage] = useState("");
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -19,12 +20,12 @@ export function useLoadingMessages(
       return;
     }
 
-    setLoadingMessage(t("loading.finding"));
+    setLoadingMessage(t(isAlbum ? "loading.finding.album" : "loading.finding"));
     const timer = setTimeout(() => setLoadingMessage(t("loading.still")), 2000);
     timersRef.current = [timer];
 
     return () => clearTimeout(timer);
-  }, [state, t]);
+  }, [state, t, isAlbum]);
 
   return loadingMessage;
 }
