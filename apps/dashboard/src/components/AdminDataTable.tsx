@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, Pencil, PencilOff, Trash2 } from "lucide-react";
 import {
   type ReactNode,
   useCallback,
@@ -258,6 +258,19 @@ export function AdminDataTable<T extends { id: string }>({
     setSelectedIds(new Set());
   }, [searchQuery, sortBy, sortDir]);
 
+  // ESC exits edit mode
+  useEffect(() => {
+    if (!editMode) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setEditMode(false);
+        setSelectedIds(new Set());
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [editMode]);
+
   // ---------------------------------------------------------------------------
   // Infinite scroll – IntersectionObserver
   // Runs only when canLoadMore changes (ready+hasMore → loading-more → ready).
@@ -443,11 +456,11 @@ export function AdminDataTable<T extends { id: string }>({
           {/* Edit toggle */}
           {hasDelete && (
             <Button
-              variant={editMode ? "secondary" : "outline"}
+              variant={editMode ? "default" : "outline"}
               size="sm"
               onClick={handleEditToggle}
             >
-              <Pencil className="h-4 w-4" />
+              {editMode ? <PencilOff className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
               {t("edit.button")}
             </Button>
           )}
