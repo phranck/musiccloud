@@ -31,13 +31,9 @@ interface CachedJwt {
 }
 
 let cachedJwt: CachedJwt | null = null;
+let tokenPromise: Promise<string> | null = null;
 
-async function getDevToken(): Promise<string> {
-  // Return cached token if still valid
-  if (cachedJwt && Date.now() < cachedJwt.expiresAt - TOKEN_REFRESH_MARGIN_MS) {
-    return cachedJwt.token;
-  }
-
+async function generateToken(): Promise<string> {
   // Legacy: support pre-generated static token for development
   const staticToken = process.env.APPLE_MUSIC_TOKEN;
   if (staticToken) {
@@ -78,6 +74,30 @@ async function getDevToken(): Promise<string> {
   };
 
   return token;
+}
+
+async function getDevToken(): Promise<string> {
+  // Return cached token if still valid
+  if (cachedJwt && Date.now() < cachedJwt.expiresAt - TOKEN_REFRESH_MARGIN_MS) {
+    return cachedJwt.token;
+  }
+  // Coalesce parallel refresh requests into one promise
+  if (tokenPromise) return tokenPromise;
+  tokenPromise = generateToken().finally(() => {
+    tokenPromise = null;
+  });
+  return tokenPromise;
+}
+
+/** Pre-warm the developer token at startup to avoid first-request latency. */
+export async function warmAppleMusicToken(): Promise<void> {
+  if (!appleMusicAdapter.isAvailable()) return;
+  try {
+    await getDevToken();
+    console.log("[Apple Music] Developer token pre-warmed");
+  } catch (e) {
+    console.error("[Apple Music] Token pre-warm failed:", (e as Error).message);
+  }
 }
 
 async function appleMusicFetch(endpoint: string): Promise<Response> {
