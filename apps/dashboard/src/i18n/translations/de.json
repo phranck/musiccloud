@@ -60,5 +60,11 @@
 
   "pagination.previous": "Zurück",
   "pagination.next": "Weiter",
-  "pagination.pageOf": "Seite {page} von {total}"
+  "pagination.pageOf": "Seite {page} von {total}",
+
+  "delete.button": "Löschen ({count})",
+  "delete.confirm.title": "Einträge löschen?",
+  "delete.confirm.description": "{count} Eintrag/Einträge werden unwiderruflich gelöscht.",
+  "delete.confirm.cancel": "Abbrechen",
+  "delete.confirm.action": "Löschen"
 }

@@ -60,5 +60,11 @@
 
   "pagination.previous": "Previous",
   "pagination.next": "Next",
-  "pagination.pageOf": "Page {page} of {total}"
+  "pagination.pageOf": "Page {page} of {total}",
+
+  "delete.button": "Delete ({count})",
+  "delete.confirm.title": "Delete items?",
+  "delete.confirm.description": "This will permanently delete {count} item(s). This action cannot be undone.",
+  "delete.confirm.cancel": "Cancel",
+  "delete.confirm.action": "Delete"
 }

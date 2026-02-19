@@ -25,6 +25,7 @@ function formatDate(ts: number): string {
 
 const config: AdminTableConfig<AlbumListItem> = {
   endpoint: "/api/admin/albums",
+  deleteEndpoint: "/api/admin/albums",
   sseEventType: "album-added",
   sseToItem: (data) => data as unknown as AlbumListItem,
   searchPlaceholderKey: "albums.search",

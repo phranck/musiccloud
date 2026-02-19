@@ -1,12 +1,21 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useReducer, useState } from "react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useAdminSSE } from "@/hooks/useAdminSSE";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useT } from "@/i18n/context";
-import { apiGet } from "@/lib/api";
+import { apiDelete, apiGet } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,8 +60,10 @@ export interface ColumnDef<T> {
  * stable and avoids unnecessary re-fetches.
  */
 export interface AdminTableConfig<T extends { id: string }> {
-  /** API endpoint, e.g. "/api/admin/tracks". */
+  /** API endpoint for listing, e.g. "/api/admin/tracks". */
   endpoint: string;
+  /** If set, a delete column + bulk-delete button are added. Same base path as endpoint. */
+  deleteEndpoint?: string;
   /** SSE event type that triggers a live prepend, e.g. "track-added". */
   sseEventType?: string;
   /** Maps the raw SSE event data to a list item. Required when sseEventType is set. */
@@ -66,7 +77,7 @@ export interface AdminTableConfig<T extends { id: string }> {
   columns: ColumnDef<T>[];
 }
 
-const LIMIT = 20;
+const LIMIT = 100;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -107,7 +118,13 @@ export function AdminDataTable<T extends { id: string }>({
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { sseEventType, sseToItem } = config;
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const { sseEventType, sseToItem, endpoint } = config;
 
   // Live prepend: only on page 1 and when no search is active
   useAdminSSE(
@@ -136,9 +153,13 @@ export function AdminDataTable<T extends { id: string }>({
     return () => clearTimeout(timer);
   }, [inputValue]);
 
-  const { endpoint } = config;
-
+  // Clear selection on page/search change
   useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, searchQuery]);
+
+  // Stable fetch function
+  const fetchPage = useCallback(() => {
     dispatch({ type: "LOADING" });
     apiGet<PaginatedResponse<T>>(endpoint, {
       page,
@@ -149,12 +170,75 @@ export function AdminDataTable<T extends { id: string }>({
       .catch((err: Error) => dispatch({ type: "ERROR", message: err.message }));
   }, [page, searchQuery, endpoint]);
 
+  useEffect(() => {
+    fetchPage();
+  }, [fetchPage]);
+
+  // Keep a ref so the delete handler always calls the current fetchPage
+  const fetchPageRef = useRef(fetchPage);
+  fetchPageRef.current = fetchPage;
+
   const totalPages =
     state.status === "success" ? Math.ceil(state.data.total / LIMIT) : 0;
 
+  // ---------------------------------------------------------------------------
+  // Selection helpers
+  // ---------------------------------------------------------------------------
+
+  const visibleItems = state.status === "success" ? state.data.items : [];
+  const visibleIds = visibleItems.map((item) => item.id);
+  const selectedCount = selectedIds.size;
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const someSelected = !allSelected && visibleIds.some((id) => selectedIds.has(id));
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visibleIds));
+    }
+  }
+
+  function toggleRow(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Delete handler
+  // ---------------------------------------------------------------------------
+
+  async function handleConfirmDelete() {
+    if (!config.deleteEndpoint) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await apiDelete(config.deleteEndpoint, { ids: [...selectedIds] });
+      setSelectedIds(new Set());
+      setConfirmOpen(false);
+      fetchPageRef.current();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
+  const hasDelete = Boolean(config.deleteEndpoint);
+  const colSpan = config.columns.length + (hasDelete ? 1 : 0);
+
   return (
-    <div className="grid gap-4">
-      <div className="flex items-center gap-3">
+    <div className="flex h-full flex-col gap-3">
+      {/* Toolbar */}
+      <div className="flex shrink-0 items-center gap-3">
         <Input
           placeholder={t(config.searchPlaceholderKey)}
           value={inputValue}
@@ -166,8 +250,55 @@ export function AdminDataTable<T extends { id: string }>({
             {state.data.total} {t(config.totalLabelKey)}
           </span>
         )}
+
+        {/* Pagination + Delete – right side */}
+        <div className="ml-auto flex items-center gap-2">
+          {hasDelete && selectedCount > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                setDeleteError(null);
+                setConfirmOpen(true);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              {t("delete.button", { count: String(selectedCount) })}
+            </Button>
+          )}
+
+          {totalPages > 1 && (
+            <>
+              <span className="text-sm text-muted-foreground">
+                {t("pagination.pageOf", {
+                  page: String(page),
+                  total: String(totalPages),
+                })}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                {t("pagination.previous")}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                {t("pagination.next")}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
+      {/* Loading */}
       {state.status === "loading" && (
         <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -176,80 +307,101 @@ export function AdminDataTable<T extends { id: string }>({
         </div>
       )}
 
+      {/* Error */}
       {state.status === "error" && (
         <p className="text-sm text-destructive">{state.message}</p>
       )}
 
+      {/* Table – fills remaining height and scrolls internally */}
       {state.status === "success" && (
-        <>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader className="bg-muted/40">
-                <TableRow className="hover:bg-transparent">
-                  {config.columns.map((col, i) => (
-                    <TableHead key={i} className={col.className}>
-                      {col.headerLabel ?? (col.headerKey ? t(col.headerKey) : null)}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {state.data.items.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={config.columns.length}
-                      className="py-10 text-center text-muted-foreground"
-                    >
-                      {t(config.emptyKey)}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  state.data.items.map((item) => (
-                    <TableRow key={item.id}>
-                      {config.columns.map((col, i) => (
-                        <TableCell key={i} className={col.className}>
-                          {col.render(item)}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-md border">
+          <Table>
+            <TableHeader className="bg-muted/40 sticky top-0 z-10">
+              <TableRow className="hover:bg-transparent">
+                {hasDelete && (
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                      onCheckedChange={toggleAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
                 )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                {t("pagination.pageOf", {
-                  page: String(page),
-                  total: String(totalPages),
-                })}
-              </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  {t("pagination.previous")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                >
-                  {t("pagination.next")}
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
+                {config.columns.map((col, i) => (
+                  <TableHead key={i} className={col.className}>
+                    {col.headerLabel ?? (col.headerKey ? t(col.headerKey) : null)}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody className="[&_tr]:border-0">
+              {state.data.items.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={colSpan}
+                    className="py-10 text-center text-muted-foreground"
+                  >
+                    {t(config.emptyKey)}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                state.data.items.map((item) => (
+                  <TableRow
+                    key={item.id}
+                    data-state={selectedIds.has(item.id) ? "selected" : undefined}
+                  >
+                    {hasDelete && (
+                      <TableCell className="w-10">
+                        <Checkbox
+                          checked={selectedIds.has(item.id)}
+                          onCheckedChange={() => toggleRow(item.id)}
+                          aria-label="Select row"
+                        />
+                      </TableCell>
+                    )}
+                    {config.columns.map((col, i) => (
+                      <TableCell key={i} className={col.className}>
+                        {col.render(item)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       )}
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("delete.confirm.title")}</DialogTitle>
+            <DialogDescription>
+              {t("delete.confirm.description", { count: String(selectedCount) })}
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && (
+            <p className="text-sm text-destructive">{deleteError}</p>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              disabled={deleting}
+            >
+              {t("delete.confirm.cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? "…" : t("delete.confirm.action")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

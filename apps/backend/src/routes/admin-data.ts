@@ -21,4 +21,26 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     const repo = await getAdminRepository();
     return repo.listAlbums({ page, limit, q: search });
   });
+
+  app.delete("/api/admin/tracks", async (request, reply) => {
+    const body = request.body as { ids?: unknown };
+    if (!Array.isArray(body?.ids) || body.ids.length === 0) {
+      return reply.status(400).send({ error: "ids array required" });
+    }
+    const ids = (body.ids as unknown[]).filter((id): id is string => typeof id === "string");
+    const repo = await getAdminRepository();
+    await repo.deleteTracks(ids);
+    return { deleted: ids.length };
+  });
+
+  app.delete("/api/admin/albums", async (request, reply) => {
+    const body = request.body as { ids?: unknown };
+    if (!Array.isArray(body?.ids) || body.ids.length === 0) {
+      return reply.status(400).send({ error: "ids array required" });
+    }
+    const ids = (body.ids as unknown[]).filter((id): id is string => typeof id === "string");
+    const repo = await getAdminRepository();
+    await repo.deleteAlbums(ids);
+    return { deleted: ids.length };
+  });
 }

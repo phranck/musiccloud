@@ -45,4 +45,6 @@ export interface AdminRepository {
   updateLastLogin(id: string): Promise<void>;
   listTracks(params: { page: number; limit: number; q?: string }): Promise<ListResult<TrackListItem>>;
   listAlbums(params: { page: number; limit: number; q?: string }): Promise<ListResult<AlbumListItem>>;
+  deleteTracks(ids: string[]): Promise<void>;
+  deleteAlbums(ids: string[]): Promise<void>;
 }

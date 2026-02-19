@@ -1202,4 +1202,26 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       limit,
     };
   }
+
+  async deleteTracks(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const ph = ids.map(() => "?").join(",");
+    this.sqlite.transaction(() => {
+      this.sqlite.prepare(`DELETE FROM service_links WHERE track_id IN (${ph})`).run(...ids);
+      this.sqlite.prepare(`DELETE FROM short_urls WHERE track_id IN (${ph})`).run(...ids);
+      this.sqlite.prepare(`DELETE FROM tracks WHERE id IN (${ph})`).run(...ids);
+      // tracks_fts_delete trigger fires automatically on DELETE FROM tracks
+    })();
+  }
+
+  async deleteAlbums(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const ph = ids.map(() => "?").join(",");
+    this.sqlite.transaction(() => {
+      this.sqlite.prepare(`DELETE FROM album_service_links WHERE album_id IN (${ph})`).run(...ids);
+      this.sqlite.prepare(`DELETE FROM album_short_urls WHERE album_id IN (${ph})`).run(...ids);
+      this.sqlite.prepare(`DELETE FROM albums WHERE id IN (${ph})`).run(...ids);
+      // albums_fts_delete trigger fires automatically on DELETE FROM albums
+    })();
+  }
 }

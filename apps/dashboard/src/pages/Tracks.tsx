@@ -19,6 +19,7 @@ function formatDate(ts: number): string {
 
 const config: AdminTableConfig<TrackListItem> = {
   endpoint: "/api/admin/tracks",
+  deleteEndpoint: "/api/admin/tracks",
   sseEventType: "track-added",
   sseToItem: (data) => data as unknown as TrackListItem,
   searchPlaceholderKey: "tracks.search",

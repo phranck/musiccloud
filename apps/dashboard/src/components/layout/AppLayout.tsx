@@ -20,11 +20,11 @@ export function AppLayout() {
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
+      <SidebarProvider className="h-svh overflow-hidden">
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="overflow-hidden">
           <AppHeader title={t(titleKey)} />
-          <main className="flex flex-1 flex-col gap-4 p-4">
+          <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
             <Outlet />
           </main>
         </SidebarInset>
