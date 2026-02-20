@@ -364,12 +364,13 @@ function BioSection({ bio, t }: { bio: string; t: (key: string) => string }) {
           {bio}
         </p>
 
-        {/* Fade + "read more" overlay — only when clamped and collapsed */}
+        {/* Horizontal fade into "read more" — sits on the last visible line */}
         {isClamped && !expanded && (
-          <div className="absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-[#1C1C1E] to-transparent flex items-end justify-end">
+          <div className="absolute bottom-0 right-0 flex items-center h-[1.625rem]">
+            <div className="w-16 h-full bg-gradient-to-r from-transparent to-[#1C1C1E]" aria-hidden="true" />
             <button
               onClick={() => setExpanded(true)}
-              className="text-sm text-text-muted hover:text-text-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
+              className="bg-[#1C1C1E] pl-0.5 text-sm text-text-muted hover:text-text-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
             >
               {t("bio.readMore")}
             </button>
