@@ -8,36 +8,26 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LocaleToggle } from "@/components/ui/locale-toggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useT } from "@/i18n/context";
+import { useSetupStatus } from "@/hooks/useSetupStatus";
 
 export function Login() {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
   const t = useT();
 
+  const { checking, setupRequired } = useSetupStatus(isAuthenticated);
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/", { replace: true });
-      return;
-    }
-    fetch("/api/admin/auth/setup-status")
-      .then((r) => r.json())
-      .then((data: { setupRequired: boolean }) => {
-        if (data.setupRequired) {
-          navigate("/setup", { replace: true });
-        } else {
-          setChecking(false);
-        }
-      })
-      .catch(() => setChecking(false));
-  }, [isAuthenticated, navigate]);
+    if (isAuthenticated) { navigate("/", { replace: true }); return; }
+    if (!checking && setupRequired === true) { navigate("/setup", { replace: true }); }
+  }, [isAuthenticated, checking, setupRequired, navigate]);
 
-  if (checking) return null;
+  if (isAuthenticated || checking || setupRequired === true) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

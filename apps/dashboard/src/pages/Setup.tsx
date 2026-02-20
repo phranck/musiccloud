@@ -7,32 +7,27 @@ import { BrandName } from "@/components/ui/BrandName";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LocaleToggle } from "@/components/ui/locale-toggle";
 import { useT } from "@/i18n/context";
+import { useSetupStatus } from "@/hooks/useSetupStatus";
 
 export function Setup() {
   const navigate = useNavigate();
   const t = useT();
+
+  const { checking, setupRequired } = useSetupStatus();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/auth/setup-status")
-      .then((r) => r.json())
-      .then((data: { setupRequired: boolean }) => {
-        if (!data.setupRequired) {
-          navigate("/login", { replace: true });
-        } else {
-          setChecking(false);
-        }
-      })
-      .catch(() => setChecking(false));
-  }, [navigate]);
+    if (!checking && setupRequired === false) {
+      navigate("/login", { replace: true });
+    }
+  }, [checking, setupRequired, navigate]);
 
-  if (checking) return null;
+  if (checking || setupRequired === false) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
