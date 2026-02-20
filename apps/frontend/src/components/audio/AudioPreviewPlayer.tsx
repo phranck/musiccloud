@@ -67,6 +67,25 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
     audio.currentTime = ratio * audio.duration;
   }, []);
 
+  const handleProgressKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || audio.duration === 0) return;
+    const step = 5; // seconds
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+      e.preventDefault();
+      audio.currentTime = Math.min(audio.duration, audio.currentTime + step);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+      e.preventDefault();
+      audio.currentTime = Math.max(0, audio.currentTime - step);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      audio.currentTime = 0;
+    } else if (e.key === "End") {
+      e.preventDefault();
+      audio.currentTime = audio.duration;
+    }
+  }, []);
+
   const isPlaying = state === "playing";
   const isLoading = state === "loading";
   const progress = duration > 0 ? (elapsed / duration) * 100 : 0;
@@ -130,13 +149,15 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
 
           <div
             ref={progressRef}
-            role="progressbar"
+            role="slider"
+            tabIndex={0}
             aria-valuenow={elapsed}
             aria-valuemin={0}
             aria-valuemax={duration || 30}
             aria-label={trackTitle}
             onClick={handleProgressClick}
-            className="flex-1 h-1 bg-white/20 rounded-full cursor-pointer relative overflow-hidden"
+            onKeyDown={handleProgressKeyDown}
+            className="flex-1 h-1 bg-white/20 rounded-full cursor-pointer relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent rounded-full"
           >
             <div
               className="absolute inset-y-0 left-0 bg-accent rounded-full transition-[width] duration-100"

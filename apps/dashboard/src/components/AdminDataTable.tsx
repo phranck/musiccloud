@@ -334,13 +334,6 @@ export function AdminDataTable<T extends { id: string }>({
     }
   }
 
-  function SortIcon({ colKey }: { colKey: string }) {
-    if (sortBy !== colKey)
-      return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 opacity-35 group-hover:opacity-60" />;
-    if (sortDir === "asc") return <ArrowUp className="ml-1 inline h-3.5 w-3.5" />;
-    return <ArrowDown className="ml-1 inline h-3.5 w-3.5" />;
-  }
-
   // ---------------------------------------------------------------------------
   // Selection
   // ---------------------------------------------------------------------------
@@ -520,7 +513,7 @@ export function AdminDataTable<T extends { id: string }>({
                         onClick={() => handleSortClick(col.sortKey!)}
                       >
                         {col.headerLabel ?? (col.headerKey ? t(col.headerKey) : null)}
-                        <SortIcon colKey={col.sortKey} />
+                        <SortIcon colKey={col.sortKey} sortBy={sortBy} sortDir={sortDir} />
                       </button>
                     ) : (
                       (col.headerLabel ?? (col.headerKey ? t(col.headerKey) : null))
@@ -606,4 +599,19 @@ export function AdminDataTable<T extends { id: string }>({
       </Dialog>
     </div>
   );
+}
+
+function SortIcon({
+  colKey,
+  sortBy,
+  sortDir,
+}: {
+  colKey: string;
+  sortBy: string | null;
+  sortDir: "asc" | "desc" | null;
+}) {
+  if (sortBy !== colKey)
+    return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 opacity-35 group-hover:opacity-60" />;
+  if (sortDir === "asc") return <ArrowUp className="ml-1 inline h-3.5 w-3.5" />;
+  return <ArrowDown className="ml-1 inline h-3.5 w-3.5" />;
 }
