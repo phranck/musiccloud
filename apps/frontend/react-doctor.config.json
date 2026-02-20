@@ -5,7 +5,7 @@
       "jsx-a11y/no-autofocus",
       "react-doctor/no-fetch-in-effect",
       "react-doctor/no-effect-event-handler",
-      "react-doctor/no-large-animated-blur"
+      "react-doctor/no-large-animated-blur",
       "knip/exports",
       "knip/types"
     ]
