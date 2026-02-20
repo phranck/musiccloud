@@ -20,7 +20,7 @@ function artistReducer(_: ArtistState, action: ArtistAction): ArtistState {
 }
 import { SharePageCard } from "@/components/share/SharePageCard";
 import { ArtistInfoCard } from "@/components/share/ArtistInfoCard";
-import type { ShareContentConfiguration } from "@/lib/types/media-card";
+import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { LocaleProvider, useT } from "@/i18n/context";
 
 const MEDIA_W = 512;
@@ -59,8 +59,9 @@ function detectRegion(): string {
 }
 
 interface ShareLayoutProps {
-  config: ShareContentConfiguration;
+  config: MediaCardContentConfiguration;
   artistName: string;
+  animated?: boolean;
 }
 
 export function ShareLayout(props: ShareLayoutProps) {
@@ -71,7 +72,7 @@ export function ShareLayout(props: ShareLayoutProps) {
   );
 }
 
-function ShareLayoutInner({ config, artistName }: ShareLayoutProps) {
+function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutProps) {
   const t = useT();
   // Detect region synchronously on first render (client-only, Astro island)
   const [userRegion] = useState(detectRegion);
@@ -102,7 +103,7 @@ function ShareLayoutInner({ config, artistName }: ShareLayoutProps) {
       {/* Desktop: beide Cards nebeneinander */}
       <div className="hidden sm:flex items-start gap-6 mx-auto" style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}>
         <div style={{ width: `${MEDIA_W}px`, flexShrink: 0 }}>
-          <SharePageCard config={config} />
+          <SharePageCard config={config} animated={animated} />
         </div>
         <div style={{ width: `${ARTIST_W}px`, flexShrink: 0 }}>
           <ArtistInfoCard
@@ -115,7 +116,7 @@ function ShareLayoutInner({ config, artistName }: ShareLayoutProps) {
 
       {/* Mobile: nur MediaCard + Button für BottomSheet */}
       <div className="block sm:hidden">
-        <SharePageCard config={config} />
+        <SharePageCard config={config} animated={animated} />
         <div className="mt-3 flex justify-center">
           <button
             onClick={openSheet}

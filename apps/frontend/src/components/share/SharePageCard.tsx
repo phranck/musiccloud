@@ -1,28 +1,28 @@
 /**
- * SharePageCard – React island for the share page (/[shortId]).
+ * SharePageCard – wraps MediaCard for both the share page (/[shortId]) and
+ * the landing page result view.
  *
- * Wraps MediaCard with a ShareContentConfiguration. The config is passed
- * as a plain JSON-serializable prop from the Astro SSR page so no
- * client-side data fetching is needed.
- *
- * `platformsLabelKey` from config is resolved via useT() so the label
- * updates immediately when the user switches locale, without a full reload.
- * The SSR-baked `platformsLabel` serves as the initial fallback.
+ * For type "share" configs (SSR-rendered from Astro), `platformsLabel` is
+ * re-translated via useT() so it updates immediately when the user switches
+ * locale. For song/album configs (from LandingPage), platformsLabel is already
+ * reactive via the calling component's t() and is passed through unchanged.
  */
 import { useT } from "@/i18n/context";
 import { MediaCard } from "@/components/cards/MediaCard";
-import type { ShareContentConfiguration } from "@/lib/types/media-card";
+import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
 
 interface SharePageCardProps {
-  config: ShareContentConfiguration;
+  config: MediaCardContentConfiguration;
+  animated?: boolean;
 }
 
-export function SharePageCard({ config }: SharePageCardProps) {
+export function SharePageCard({ config, animated = false }: SharePageCardProps) {
   const t = useT();
+  const platformsLabel =
+    config.type === "share"
+      ? t((config as ShareContentConfiguration).platformsLabelKey)
+      : config.platformsLabel;
   return (
-    <MediaCard
-      content={{ ...config, platformsLabel: t(config.platformsLabelKey) }}
-      animated={false}
-    />
+    <MediaCard content={{ ...config, platformsLabel }} animated={animated} />
   );
 }

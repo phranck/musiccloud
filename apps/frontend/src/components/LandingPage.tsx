@@ -12,7 +12,7 @@ import { GradientBackground } from "@/components/background/GradientBackground";
 import { HeroSection } from "@/components/layout/HeroSection";
 import { HeroInput } from "@/components/input/HeroInput";
 import { InfoPanel } from "@/components/panels/InfoPanel";
-import { MediaCard } from "@/components/cards/MediaCard";
+import { ShareLayout } from "@/components/share/ShareLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PlatformIconRow } from "@/components/platform/PlatformIconRow";
 import { SparklingStars } from "@/components/background/SparklingStars";
@@ -145,14 +145,20 @@ function LandingPageInner() {
             </div>
           )}
 
-          {activeConfig && (
+          {activeConfig && active && (
             <div
               ref={resultsPanelRef}
               tabIndex={-1}
-              className={`outline-none w-full flex justify-center ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
+              className={`outline-none w-full ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
               onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
             >
-              <MediaCard content={activeConfig} className="mt-6 sm:mt-8" />
+              <div className="mt-6 sm:mt-8">
+                <ShareLayout
+                  config={activeConfig}
+                  artistName={active.artist}
+                  animated
+                />
+              </div>
             </div>
           )}
 
