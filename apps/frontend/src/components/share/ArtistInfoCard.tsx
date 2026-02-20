@@ -153,6 +153,7 @@ function TopTracksSection({ tracks, t }: { tracks: ArtistTopTrack[]; t: (key: st
 // ─── Popular Track ─────────────────────────────────────────────────────────────
 
 function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, vars?: Record<string, string>) => string }) {
+  const showAlbum = track.albumName && track.albumName !== track.title;
   return (
     <div className="flex items-center gap-3">
       {/* Cover – small */}
@@ -173,14 +174,16 @@ function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, va
         )}
       </div>
 
-      {/* Middle: title + album + duration */}
+      {/* Middle: title + duration in one row, album below */}
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate text-text-primary">{track.title}</p>
-        {track.albumName && (
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-sm font-medium truncate text-text-primary">{track.title}</p>
+          {track.durationMs != null && (
+            <span className="text-xs text-text-muted flex-none tabular-nums">{formatDuration(track.durationMs)}</span>
+          )}
+        </div>
+        {showAlbum && (
           <p className="text-xs truncate text-text-secondary mt-0.5">{track.albumName}</p>
-        )}
-        {track.durationMs != null && (
-          <p className="text-xs text-text-muted mt-0.5 tabular-nums">{formatDuration(track.durationMs)}</p>
         )}
       </div>
 
