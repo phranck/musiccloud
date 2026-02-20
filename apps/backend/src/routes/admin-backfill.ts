@@ -207,6 +207,32 @@ async function runBackfillJob(dbPath: string): Promise<void> {
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
 export default async function adminBackfillRoutes(app: FastifyInstance) {
+  app.get("/api/admin/backfill/preview-urls/debug", async () => {
+    const config = loadDatabaseConfig();
+    const db = new Database(config.path);
+    try {
+      interface DebugRow {
+        id: string;
+        title: string;
+        isrc: string | null;
+        preview_url: string | null;
+        service: string;
+        external_id: string | null;
+      }
+      const rows = db.prepare(
+        `SELECT t.id, t.title, t.isrc, t.preview_url, sl.service, sl.external_id
+         FROM tracks t
+         JOIN service_links sl ON sl.track_id = t.id
+         WHERE t.preview_url IS NULL
+           AND sl.service IN ('deezer', 'spotify')
+         ORDER BY t.title`,
+      ).all() as DebugRow[];
+      return rows;
+    } finally {
+      db.close();
+    }
+  });
+
   app.get("/api/admin/backfill/preview-urls/status", async () => {
     const repo = await getAdminRepository();
     const missing = await repo.countTracksWithMissingPreviewUrl();
