@@ -48,8 +48,8 @@
   "artist.similar": "Ähnliche Künstler",
   "artist.closeInfo": "Künstler-Info schließen",
   "artist.mobileButton": "Künstler-Infos",
-  "artist.trackOnPlatform": "{title} auf {platform} öffnen",
-  "artist.popularTracksInfo": "Top-Tracks von Deezer. Tippe auf ein Plattform-Icon, um den Track direkt zu öffnen.",
+  "artist.listen": "Anhören",
+  "artist.popularTracksInfo": "Top-Tracks von Deezer. Klicke auf Anhören, um die musiccloud-Seite des Tracks zu öffnen.",
   "artist.upcomingShowsInfo": "Events mit ★ sind in deiner Region, ermittelt anhand deiner Gerätezeitzone.",
   "landing.exampleTeaser": "Neugierig wie es aussieht?",
   "landing.exampleLink": "Sieh ein Live-Beispiel →"

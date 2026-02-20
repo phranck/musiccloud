@@ -134,6 +134,7 @@ export interface ArtistCacheData {
 export interface TrackRepository {
   // Track: Read operations
   findTrackByUrl(url: string): Promise<CachedTrackResult | null>;
+  findShortIdByTrackUrl(url: string): Promise<string | null>;
   findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null>;
   findTracksByTextSearch(query: string, maxResults?: number): Promise<NormalizedTrack[]>;
   findExistingByIsrc(isrc: string): Promise<{ trackId: string; shortId: string } | null>;

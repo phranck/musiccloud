@@ -107,12 +107,10 @@ export interface PlatformLink {
 /** Build the metadata line (duration, ISRC, year) joined by middle dot. */
 export function buildMetaLine(opts: {
   durationMs?: number | null;
-  isrc?: string | null;
   releaseDate?: string | null;
 }): string {
   const items = [
     opts.durationMs ? formatDuration(opts.durationMs) : null,
-    opts.isrc ?? null,
     opts.releaseDate ? formatYear(opts.releaseDate) : null,
   ].filter(Boolean);
   return items.join(" \u00B7 ");

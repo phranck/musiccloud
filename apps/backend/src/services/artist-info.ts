@@ -137,6 +137,7 @@ async function deezerArtistTopTracks(artistName: string): Promise<ArtistTopTrack
     artworkUrl: t.album.cover_medium ?? null,
     durationMs: t.duration ? t.duration * 1000 : null,
     deezerUrl: t.link,
+    shortId: null,
   }));
 }
 

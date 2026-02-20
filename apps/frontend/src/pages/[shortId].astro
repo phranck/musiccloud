@@ -53,7 +53,7 @@ const displayTitle = isAlbum ? (album?.title ?? "") : (track?.title ?? "");
 
 // Pre-compute meta lines using server-side translations
 const trackMetaLine = track
-  ? buildMetaLine({ durationMs: track.durationMs, isrc: track.isrc, releaseDate: track.releaseDate })
+  ? buildMetaLine({ durationMs: track.durationMs, releaseDate: track.releaseDate })
   : null;
 const albumYear = album?.releaseDate?.slice(0, 4);
 const albumMetaLine = isAlbum

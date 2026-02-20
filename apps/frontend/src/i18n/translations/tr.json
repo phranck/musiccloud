@@ -48,8 +48,8 @@
   "artist.similar": "Benzer sanatçılar",
   "artist.closeInfo": "Sanatçı bilgisini kapat",
   "artist.mobileButton": "Sanatçı Bilgisi",
-  "artist.trackOnPlatform": "{title} parçasını {platform} üzerinde aç",
-  "artist.popularTracksInfo": "Deezer'dan en iyi parçalar. Parçayı tercih ettiğin hizmette açmak için platform simgesine dokun.",
+  "artist.listen": "Dinle",
+  "artist.popularTracksInfo": "Deezer'dan en iyi parçalar. O parçanın musiccloud sayfasını açmak için Dinle'ye tıkla.",
   "artist.upcomingShowsInfo": "★ ile işaretli etkinlikler bölgendedir, cihaz saat dilimine göre tespit edilir.",
   "landing.exampleTeaser": "Nasıl göründüğünü merak mı ediyorsun?",
   "landing.exampleLink": "Canlı bir örnek gör →"

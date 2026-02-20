@@ -430,6 +430,23 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     return this.buildCachedResult(rows, url);
   }
 
+  async findShortIdByTrackUrl(url: string): Promise<string | null> {
+    const row = this.sqlite
+      .prepare(`
+        SELECT su.id
+        FROM short_urls su
+        WHERE su.track_id = (
+          SELECT track_id FROM service_links WHERE url = ?
+          UNION
+          SELECT track_id FROM track_url_aliases WHERE url = ?
+          LIMIT 1
+        )
+        LIMIT 1
+      `)
+      .get(url, url) as { id: string } | undefined;
+    return row?.id ?? null;
+  }
+
   async findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
     const stmt = this.sqlite.prepare(`
       SELECT DISTINCT t.id, t.title, t.artists, t.album_name, t.isrc,

@@ -87,9 +87,17 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
           })
         : events;
 
+    // Enrich top tracks with shortIds from our own DB (not cached, always fresh)
+    const enrichedTracks = await Promise.all(
+      topTracks.map(async (track) => {
+        const shortId = await repo.findShortIdByTrackUrl(track.deezerUrl);
+        return { ...track, shortId };
+      }),
+    );
+
     const response: ArtistInfoResponse = {
       artistName: rawName,
-      topTracks,
+      topTracks: enrichedTracks,
       profile,
       events: sortedEvents,
     };

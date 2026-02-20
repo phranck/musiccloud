@@ -7,11 +7,10 @@ interface SongInfoProps {
   album?: string;
   releaseDate?: string;
   durationMs?: number;
-  isrc?: string;
   isExplicit?: boolean;
   albumArtUrl: string;
   onAlbumArtLoad?: (img: HTMLImageElement) => void;
-  /** When provided, replaces the automatically computed meta line (duration · ISRC · year) */
+  /** When provided, replaces the automatically computed meta line (duration · year) */
   metaOverride?: string;
 }
 
@@ -21,13 +20,12 @@ export const SongInfo = memo(function SongInfo({
   album,
   releaseDate,
   durationMs,
-  isrc,
   isExplicit,
   albumArtUrl,
   onAlbumArtLoad,
   metaOverride,
 }: SongInfoProps) {
-  const metaLine = metaOverride ?? buildMetaLine({ durationMs, isrc, releaseDate });
+  const metaLine = metaOverride ?? buildMetaLine({ durationMs, releaseDate });
 
   // CORS-retry: attempt crossOrigin="anonymous" first (needed for canvas color extraction).
   // If the CDN blocks it (no Access-Control-Allow-Origin), fall back to a plain load

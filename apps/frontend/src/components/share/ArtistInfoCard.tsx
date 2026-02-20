@@ -8,10 +8,8 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { FaCircleInfo } from "react-icons/fa6";
 import { GlassCard } from "@/components/cards/GlassCard";
-import { PlatformIcon } from "@/components/platform/PlatformIcon";
-import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { useT, useLocale } from "@/i18n/context";
-import type { ArtistInfoResponse, ArtistTopTrack, ArtistProfile, ArtistEvent, Platform } from "@musiccloud/shared";
+import type { ArtistInfoResponse, ArtistTopTrack, ArtistProfile, ArtistEvent } from "@musiccloud/shared";
 
 interface ArtistInfoCardProps {
   data: ArtistInfoResponse | null;
@@ -147,46 +145,6 @@ function TopTracksSection({ tracks, t, locale }: { tracks: ArtistTopTrack[]; t: 
 
 // ─── Popular Track ─────────────────────────────────────────────────────────────
 
-const TRACK_PLATFORM_LINKS: Array<{
-  platform: Platform;
-  buildUrl: (track: ArtistTopTrack) => string;
-}> = [
-  {
-    platform: "spotify",
-    buildUrl: (t) =>
-      `https://open.spotify.com/search/${encodeURIComponent(`${t.title} ${t.artists.join(" ")}`)}`,
-  },
-  {
-    platform: "apple-music",
-    buildUrl: (t) =>
-      `https://music.apple.com/search?term=${encodeURIComponent(`${t.title} ${t.artists.join(" ")}`)}`,
-  },
-  {
-    platform: "youtube-music",
-    buildUrl: (t) =>
-      `https://music.youtube.com/search?q=${encodeURIComponent(`${t.title} ${t.artists.join(" ")}`)}`,
-  },
-  {
-    platform: "youtube",
-    buildUrl: (t) =>
-      `https://www.youtube.com/results?search_query=${encodeURIComponent(`${t.title} ${t.artists.join(" ")}`)}`,
-  },
-  {
-    platform: "deezer",
-    buildUrl: (t) => t.deezerUrl,
-  },
-  {
-    platform: "tidal",
-    buildUrl: (t) =>
-      `https://tidal.com/search?q=${encodeURIComponent(`${t.title} ${t.artists.join(" ")}`)}`,
-  },
-  {
-    platform: "soundcloud",
-    buildUrl: (t) =>
-      `https://soundcloud.com/search?q=${encodeURIComponent(`${t.title} ${t.artists.join(" ")}`)}`,
-  },
-];
-
 function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, vars?: Record<string, string>) => string }) {
   return (
     <div className="flex gap-5">
@@ -208,7 +166,7 @@ function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, va
         )}
       </div>
 
-      {/* Right column: title + duration on top, icons on bottom */}
+      {/* Right column: title + duration on top, listen button on bottom */}
       <div className="min-w-0 flex-1 flex flex-col justify-between">
         <div>
           <div className="flex items-start justify-between gap-2">
@@ -224,47 +182,18 @@ function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, va
           )}
         </div>
 
-        <div className="flex justify-between items-center mt-2 w-full">
-          {TRACK_PLATFORM_LINKS.map(({ platform, buildUrl }) => (
-            <TrackPlatformLink
-              key={platform}
-              platform={platform}
-              url={buildUrl(track)}
-              trackTitle={track.title}
-              t={t}
-            />
-          ))}
-        </div>
+        {track.shortId && (
+          <div className="mt-2">
+            <a
+              href={`/${track.shortId}`}
+              className="flex-none text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.10] text-text-secondary hover:text-text-primary hover:bg-white/[0.10] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+            >
+              {t("artist.listen")} →
+            </a>
+          </div>
+        )}
       </div>
     </div>
-  );
-}
-
-// ─── Track Platform Link ──────────────────────────────────────────────────────
-
-function TrackPlatformLink({
-  platform,
-  url,
-  trackTitle,
-  t,
-}: {
-  platform: Platform;
-  url: string;
-  trackTitle: string;
-  t: (key: string, vars?: Record<string, string>) => string;
-}) {
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={t("artist.trackOnPlatform", { title: trackTitle, platform: PLATFORM_CONFIG[platform].label })}
-      className="flex-none brightness-75 hover:brightness-100 hover:scale-110 active:scale-95 transition-all duration-150 focus-visible:outline-none focus-visible:brightness-100 focus-visible:scale-110"
-    >
-      <span className="flex items-center justify-center w-7 h-7 overflow-hidden rounded-md">
-        <PlatformIcon platform={platform} className="w-full h-full object-contain" colored={true} />
-      </span>
-    </a>
   );
 }
 

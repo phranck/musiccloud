@@ -97,6 +97,7 @@ export interface ArtistTopTrack {
   artworkUrl: string | null;
   durationMs: number | null;
   deezerUrl: string;
+  shortId: string | null;
 }
 
 export interface ArtistProfile {

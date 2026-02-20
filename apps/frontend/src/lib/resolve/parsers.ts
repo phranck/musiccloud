@@ -124,7 +124,7 @@ export function buildActiveConfig(
       artworkUrl: active.artworkUrl,
       isExplicit: active.isExplicit,
       metaLine:
-        buildMetaLine({ durationMs: active.durationMs, isrc: active.isrc, releaseDate: active.releaseDate }) ||
+        buildMetaLine({ durationMs: active.durationMs, releaseDate: active.releaseDate }) ||
         undefined,
       platforms: active.platforms,
       platformsLabel: t("results.listenOn"),
