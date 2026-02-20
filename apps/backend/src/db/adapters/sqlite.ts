@@ -1467,4 +1467,18 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     const result = this.sqlite.prepare(`DELETE FROM artist_cache`).run();
     return { deleted: result.changes };
   }
+
+  async countTracksWithMissingPreviewUrl(): Promise<number> {
+    const row = this.sqlite
+      .prepare(
+        `SELECT COUNT(*) AS cnt FROM tracks
+         WHERE preview_url IS NULL
+           AND EXISTS (
+             SELECT 1 FROM service_links
+             WHERE track_id = tracks.id AND service IN ('deezer', 'spotify')
+           )`,
+      )
+      .get() as { cnt: number };
+    return row.cnt;
+  }
 }

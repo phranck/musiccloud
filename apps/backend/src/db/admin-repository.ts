@@ -54,4 +54,5 @@ export interface AdminRepository {
   setTrackFeatured(shortId: string, featured: boolean): Promise<void>;
   setAlbumFeatured(shortId: string, featured: boolean): Promise<void>;
   clearArtistCache(): Promise<{ deleted: number }>;
+  countTracksWithMissingPreviewUrl(): Promise<number>;
 }

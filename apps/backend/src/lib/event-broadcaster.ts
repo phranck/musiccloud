@@ -1,4 +1,10 @@
-export type AdminEventType = "track-added" | "album-added";
+export type AdminEventType =
+  | "track-added"
+  | "album-added"
+  | "backfill:started"
+  | "backfill:progress"
+  | "backfill:done"
+  | "backfill:error";
 
 export interface AdminEvent {
   type: AdminEventType;

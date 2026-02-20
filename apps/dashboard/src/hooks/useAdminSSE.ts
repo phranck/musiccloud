@@ -2,7 +2,11 @@ import { useEffect, useRef } from "react";
 
 export type SSEEvent =
   | { type: "track-added"; data: Record<string, unknown> }
-  | { type: "album-added"; data: Record<string, unknown> };
+  | { type: "album-added"; data: Record<string, unknown> }
+  | { type: "backfill:started"; data: Record<string, unknown> }
+  | { type: "backfill:progress"; data: Record<string, unknown> }
+  | { type: "backfill:done"; data: Record<string, unknown> }
+  | { type: "backfill:error"; data: Record<string, unknown> };
 
 function getToken(): string | null {
   try {
