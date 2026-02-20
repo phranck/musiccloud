@@ -6,7 +6,7 @@ import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedTrack } from "../../services/types.js";
-import type { AdminRepository, AdminUser } from "../admin-repository.js";
+import type { AdminRepository, AdminUser, BackfillLinkRow, BackfillTrackRow } from "../admin-repository.js";
 import type {
   ArtistCacheData,
   ArtistCacheRow,
@@ -1480,5 +1480,36 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       )
       .get() as { cnt: number };
     return row.cnt;
+  }
+
+  async getTracksForPreviewBackfill(): Promise<BackfillTrackRow[]> {
+    return this.sqlite
+      .prepare(
+        `SELECT DISTINCT t.id, t.title, t.artists, t.isrc
+         FROM tracks t
+         JOIN service_links sl ON sl.track_id = t.id
+         WHERE t.preview_url IS NULL
+           AND sl.service IN ('deezer', 'spotify')
+         ORDER BY t.created_at DESC`,
+      )
+      .all() as BackfillTrackRow[];
+  }
+
+  async getServiceLinksForBackfill(trackId: string): Promise<BackfillLinkRow[]> {
+    return this.sqlite
+      .prepare(
+        `SELECT service, external_id, url
+         FROM service_links
+         WHERE track_id = ?
+           AND service IN ('deezer', 'spotify')
+         ORDER BY CASE service WHEN 'deezer' THEN 1 WHEN 'spotify' THEN 2 END`,
+      )
+      .all(trackId) as BackfillLinkRow[];
+  }
+
+  async updatePreviewUrl(trackId: string, previewUrl: string): Promise<void> {
+    this.sqlite
+      .prepare(`UPDATE tracks SET preview_url = ?, updated_at = ? WHERE id = ?`)
+      .run(previewUrl, Date.now(), trackId);
   }
 }

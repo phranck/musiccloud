@@ -1,7 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import Database from "better-sqlite3";
 import { getAdminRepository } from "../db/index.js";
-import { loadDatabaseConfig } from "../db/config.js";
 import { adminEventBroadcaster } from "../lib/event-broadcaster.js";
 
 // ─── Job state ──────────────────────────────────────────────────────────────
@@ -106,20 +104,7 @@ async function getSpotifyPreview(externalId: string): Promise<string | null> {
   }
 }
 
-// ─── DB row types ────────────────────────────────────────────────────────────
-
-interface TrackRow {
-  id: string;
-  title: string;
-  artists: string;
-  isrc: string | null;
-}
-
-interface ServiceLinkRow {
-  service: string;
-  external_id: string | null;
-  url: string;
-}
+// ─── URL helpers ─────────────────────────────────────────────────────────────
 
 function extractIdFromUrl(service: string, url: string): string | null {
   if (service === "deezer") {
@@ -135,38 +120,18 @@ function extractIdFromUrl(service: string, url: string): string | null {
 
 const DELAY_MS = 250;
 
-async function runBackfillJob(dbPath: string): Promise<void> {
-  const db = new Database(dbPath);
+async function runBackfillJob(): Promise<void> {
+  const repo = await getAdminRepository();
   try {
-    const rows = db
-      .prepare(
-        `SELECT DISTINCT t.id, t.title, t.artists, t.isrc
-         FROM tracks t
-         JOIN service_links sl ON sl.track_id = t.id
-         WHERE t.preview_url IS NULL
-           AND sl.service IN ('deezer', 'spotify')
-         ORDER BY t.created_at DESC`,
-      )
-      .all() as TrackRow[];
-
+    const rows = await repo.getTracksForPreviewBackfill();
     const total = rows.length;
     adminEventBroadcaster.emit({ type: "backfill:started", data: { total } });
 
-    const updateStmt = db.prepare("UPDATE tracks SET preview_url = ?, updated_at = ? WHERE id = ?");
     let processed = 0;
     let updated = 0;
 
     for (const row of rows) {
-      const links = db
-        .prepare(
-          `SELECT service, external_id, url
-           FROM service_links
-           WHERE track_id = ?
-             AND service IN ('deezer', 'spotify')
-           ORDER BY CASE service WHEN 'deezer' THEN 1 WHEN 'spotify' THEN 2 END`,
-        )
-        .all(row.id) as ServiceLinkRow[];
-
+      const links = await repo.getServiceLinksForBackfill(row.id);
       let previewUrl: string | null = null;
 
       for (const link of links) {
@@ -190,7 +155,7 @@ async function runBackfillJob(dbPath: string): Promise<void> {
       }
 
       if (previewUrl) {
-        updateStmt.run(previewUrl, Date.now(), row.id);
+        await repo.updatePreviewUrl(row.id, previewUrl);
         updated++;
       }
 
@@ -211,7 +176,6 @@ async function runBackfillJob(dbPath: string): Promise<void> {
       data: { message: err instanceof Error ? err.message : "Unknown error" },
     });
   } finally {
-    db.close();
     isRunning = false;
   }
 }
@@ -219,32 +183,6 @@ async function runBackfillJob(dbPath: string): Promise<void> {
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
 export default async function adminBackfillRoutes(app: FastifyInstance) {
-  app.get("/api/admin/backfill/preview-urls/debug", async () => {
-    const config = loadDatabaseConfig();
-    const db = new Database(config.path);
-    try {
-      interface DebugRow {
-        id: string;
-        title: string;
-        isrc: string | null;
-        preview_url: string | null;
-        service: string;
-        external_id: string | null;
-      }
-      const rows = db.prepare(
-        `SELECT t.id, t.title, t.isrc, t.preview_url, sl.service, sl.external_id
-         FROM tracks t
-         JOIN service_links sl ON sl.track_id = t.id
-         WHERE t.preview_url IS NULL
-           AND sl.service IN ('deezer', 'spotify')
-         ORDER BY t.title`,
-      ).all() as DebugRow[];
-      return rows;
-    } finally {
-      db.close();
-    }
-  });
-
   app.get("/api/admin/backfill/preview-urls/status", async () => {
     const repo = await getAdminRepository();
     const missing = await repo.countTracksWithMissingPreviewUrl();
@@ -256,8 +194,7 @@ export default async function adminBackfillRoutes(app: FastifyInstance) {
       return reply.status(409).send({ error: "already_running" });
     }
     isRunning = true;
-    const config = loadDatabaseConfig();
-    runBackfillJob(config.path).catch(() => {
+    runBackfillJob().catch(() => {
       isRunning = false;
     });
     return { ok: true };

@@ -42,6 +42,19 @@ export interface ListResult<T> {
   limit: number;
 }
 
+export interface BackfillTrackRow {
+  id: string;
+  title: string;
+  artists: string;
+  isrc: string | null;
+}
+
+export interface BackfillLinkRow {
+  service: string;
+  external_id: string | null;
+  url: string;
+}
+
 export interface AdminRepository {
   countAdmins(): Promise<number>;
   findAdminByUsername(username: string): Promise<AdminUser | null>;
@@ -55,4 +68,7 @@ export interface AdminRepository {
   setAlbumFeatured(shortId: string, featured: boolean): Promise<void>;
   clearArtistCache(): Promise<{ deleted: number }>;
   countTracksWithMissingPreviewUrl(): Promise<number>;
+  getTracksForPreviewBackfill(): Promise<BackfillTrackRow[]>;
+  getServiceLinksForBackfill(trackId: string): Promise<BackfillLinkRow[]>;
+  updatePreviewUrl(trackId: string, previewUrl: string): Promise<void>;
 }

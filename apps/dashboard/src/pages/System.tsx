@@ -151,8 +151,15 @@ function PreviewUrlBackfillCard() {
       method: "POST",
       headers: authHeader ? { Authorization: authHeader } : {},
     });
-    if (res.status === 409) return; // already running – SSE will update state
-    if (!res.ok) dispatch({ type: "error", message: `Fehler: ${res.status}` });
+    if (res.status === 409) {
+      dispatch({ type: "started", total: 0 }); // already running, show running state
+      return;
+    }
+    if (!res.ok) {
+      dispatch({ type: "error", message: `Fehler: ${res.status}` });
+      return;
+    }
+    dispatch({ type: "started", total: 0 }); // optimistic: show "Starte…" immediately
   }
 
   async function handleReset() {
