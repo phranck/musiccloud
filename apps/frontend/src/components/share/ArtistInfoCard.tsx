@@ -363,12 +363,14 @@ function BioSection({ bio, t }: { bio: string; t: (key: string) => string }) {
         {bio}
       </p>
       {isClamped && (
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="mt-1.5 text-sm text-text-muted hover:text-text-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
-        >
-          {expanded ? t("bio.readLess") : t("bio.readMore")}
-        </button>
+        <div className="flex justify-end">
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-1.5 text-sm text-text-muted hover:text-text-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
+          >
+            {expanded ? t("bio.readLess") : t("bio.readMore")}
+          </button>
+        </div>
       )}
     </div>
   );
