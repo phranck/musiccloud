@@ -26,13 +26,26 @@ async function timedFetch(url: string, init: RequestInit = {}, timeoutMs = 6000)
 
 // ─── Deezer (public API, no auth) ───────────────────────────────────────────
 
+async function parseDeezerPreview(data: { preview?: string; error?: unknown }): Promise<string | null> {
+  if ("error" in data) return null;
+  return data.preview || null; // || catches empty string too
+}
+
 async function getDeezerPreview(externalId: string): Promise<string | null> {
   try {
     const res = await timedFetch(`https://api.deezer.com/track/${externalId}`);
     if (!res.ok) return null;
-    const data = (await res.json()) as { preview?: string; error?: unknown };
-    if ("error" in data) return null;
-    return data.preview ?? null;
+    return parseDeezerPreview((await res.json()) as { preview?: string; error?: unknown });
+  } catch {
+    return null;
+  }
+}
+
+async function getDeezerPreviewByIsrc(isrc: string): Promise<string | null> {
+  try {
+    const res = await timedFetch(`https://api.deezer.com/track/isrc:${encodeURIComponent(isrc)}`);
+    if (!res.ok) return null;
+    return parseDeezerPreview((await res.json()) as { preview?: string; error?: unknown });
   } catch {
     return null;
   }
@@ -99,6 +112,7 @@ interface TrackRow {
   id: string;
   title: string;
   artists: string;
+  isrc: string | null;
 }
 
 interface ServiceLinkRow {
@@ -115,7 +129,7 @@ async function runBackfillJob(dbPath: string): Promise<void> {
   try {
     const rows = db
       .prepare(
-        `SELECT DISTINCT t.id, t.title, t.artists
+        `SELECT DISTINCT t.id, t.title, t.artists, t.isrc
          FROM tracks t
          JOIN service_links sl ON sl.track_id = t.id
          WHERE t.preview_url IS NULL
@@ -155,6 +169,12 @@ async function runBackfillJob(dbPath: string): Promise<void> {
           previewUrl = await getSpotifyPreview(link.external_id);
           if (previewUrl) break;
         }
+      }
+
+      // Fallback: if stored IDs returned no preview, try Deezer ISRC lookup
+      if (!previewUrl && row.isrc) {
+        await sleep(DELAY_MS);
+        previewUrl = await getDeezerPreviewByIsrc(row.isrc);
       }
 
       if (previewUrl) {
