@@ -27,7 +27,7 @@ musiccloud löst Tracks auf den folgenden Streaming-Plattformen auf:
 
 ## Apple Music
 
-Apple Music-Links werden über den Odesli-Bridge-Dienst aufgelöst.
+Apple Music-Links werden direkt über die Apple Music API aufgelöst.
 
 ---
 

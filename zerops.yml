@@ -30,7 +30,6 @@ zerops:
         # SPOTIFY_CLIENT_SECRET: <from Spotify Developer Dashboard>
         # APPLE_MUSIC_TOKEN: <or APPLE_MUSIC_KEY_ID + TEAM_ID + PRIVATE_KEY>
         # YOUTUBE_API_KEY: <from Google Cloud Console>
-        # ODESLI_API_KEY: <optional>
         # API_CLIENT_ID: <for public OAuth clients>
         # API_CLIENT_SECRET: <for public OAuth clients>
         # LASTFM_API_KEY: <from Last.fm API account>

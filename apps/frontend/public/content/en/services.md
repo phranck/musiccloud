@@ -27,7 +27,7 @@ musiccloud resolves tracks across the following streaming platforms:
 
 ## Apple Music
 
-Apple Music links are resolved via the Odesli bridge service.
+Apple Music links are resolved natively via the Apple Music API.
 
 ---
 

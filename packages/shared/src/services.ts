@@ -21,7 +21,7 @@ export type ServiceId =
   | "jiosaavn"
   | "beatport";
 
-export type MatchMethod = "isrc" | "search" | "odesli" | "cache" | "upc" | "isrc-inference";
+export type MatchMethod = "isrc" | "search" | "cache" | "upc" | "isrc-inference";
 
 const VALID_SERVICE_IDS: readonly ServiceId[] = [
   "spotify",

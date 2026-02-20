@@ -16,7 +16,7 @@ export interface ApiLink {
   displayName: string;
   url: string;
   confidence: number;
-  matchMethod: "isrc" | "search" | "odesli" | "cache" | "upc" | "isrc-inference";
+  matchMethod: "isrc" | "search" | "cache" | "upc" | "isrc-inference";
 }
 
 export interface ApiDisambiguationCandidate {

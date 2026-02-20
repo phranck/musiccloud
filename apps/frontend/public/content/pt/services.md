@@ -27,7 +27,7 @@ O musiccloud resolve faixas nas seguintes plataformas de streaming:
 
 ## Apple Music
 
-Os links do Apple Music são resolvidos através do serviço bridge Odesli.
+Os links do Apple Music são resolvidos nativamente através da API Apple Music.
 
 ---
 

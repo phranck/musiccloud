@@ -20,7 +20,7 @@ Paste a Spotify, Apple Music, or YouTube link and get a short shareable URL that
 - **Cross-Platform Resolution**: ISRC-based music matching across Spotify, Apple Music, YouTube, and SoundCloud
 - **URL Input**: Paste any service link and get a universal share URL
 - **Text Search**: Search by song title and artist with disambiguation for accurate matching
-- **Fallback Resolution**: Odesli integration for additional platform support
+- **Apple Music**: Native integration via Apple Music API
 
 ### 🎨 User Experience
 - **Responsive Design**: Optimized for desktop, tablet, and mobile
@@ -88,9 +88,6 @@ Before running locally, obtain credentials from:
 3. **YouTube** → [Google Cloud Console](https://console.cloud.google.com)
    - `YOUTUBE_API_KEY`
 
-4. **Odesli** (Optional) → [odesli.co](https://odesli.co)
-   - `ODESLI_API_KEY` (for higher rate limits)
-
 ---
 
 ## 🏗️ Architecture
@@ -115,7 +112,7 @@ Before running locally, obtain credentials from:
 │  - Spotify API client                   │
 │  - Apple Music API client               │
 │  - YouTube API client                   │
-│  - Odesli fallback resolver             │
+│  - SoundCloud, Tidal, Deezer clients    │
 └─────────────────────────────────────────┘
            ↓
 ┌─────────────────────────────────────────┐
@@ -239,9 +236,6 @@ APPLE_MUSIC_TEAM_ID=your_team_id
 APPLE_MUSIC_PRIVATE_KEY=your_private_key
 YOUTUBE_API_KEY=your_api_key
 
-# Optional
-ODESLI_API_KEY=your_odesli_key
-
 # Database (optional, uses local SQLite by default)
 DATABASE_PATH=./data/music.db
 ```
@@ -336,7 +330,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Spotify** for music data and API
 - **Apple Music** for cross-platform support
 - **YouTube** for video track resolution
-- **Odesli** for fallback resolution
 - **Astro** and **React** communities for excellent frameworks
 
 ---

@@ -27,7 +27,7 @@ musiccloud vyhledává skladby na následujících streamovacích platformách:
 
 ## Apple Music
 
-Odkazy Apple Music jsou překládány prostřednictvím překlenovací služby Odesli.
+Odkazy Apple Music jsou překládány nativně prostřednictvím Apple Music API.
 
 ---
 

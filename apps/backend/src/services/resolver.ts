@@ -6,7 +6,6 @@ import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
 import { adapters, identifyService } from "./index.js";
-import { resolveViaOdesli } from "./odesli.js";
 import type { MatchResult, NormalizedTrack, SearchCandidate, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
 
@@ -15,7 +14,7 @@ export interface ResolvedLink {
   displayName: string;
   url: string;
   confidence: number;
-  matchMethod: "isrc" | "search" | "odesli" | "cache";
+  matchMethod: "isrc" | "search" | "cache";
   /** True when the link is a search URL rather than a direct track link */
   isSearchFallback?: boolean;
   /** Service-specific track ID (e.g. Spotify track ID, Deezer track ID) */
@@ -46,40 +45,8 @@ function mapCachedLinks(
       displayName: PLATFORM_CONFIG[l.service as ServiceId].label,
       url: l.url,
       confidence: l.confidence,
-      matchMethod: l.matchMethod as "isrc" | "search" | "odesli" | "cache",
+      matchMethod: l.matchMethod as "isrc" | "search" | "cache",
     }));
-}
-
-/**
- * Fill gaps in resolved links by calling Odesli for uncovered services.
- * Non-fatal: if Odesli fails, the existing links are returned unchanged.
- *
- * NOTE: Odesli is currently disabled. This function returns early until re-enabled.
- */
-async function gapFillViaOdesli(sourceUrl: string, existingLinks: ResolvedLink[]): Promise<ResolvedLink[]> {
-  // Only use Odesli for Apple Music (no own adapter due to 99 EUR/year Apple Developer Program)
-  if (existingLinks.some((l) => l.service === "apple-music")) return existingLinks;
-
-  try {
-    const odesliResult = await resolveViaOdesli(sourceUrl);
-    const appleLink = odesliResult.links["apple-music"];
-    if (!appleLink) return existingLinks;
-
-    return [
-      ...existingLinks,
-      {
-        service: "apple-music" as ServiceId,
-        displayName: PLATFORM_CONFIG["apple-music"].label,
-        url: appleLink.url,
-        confidence: 0.9,
-        matchMethod: "odesli" as const,
-        externalId: appleLink.entityUniqueId,
-      },
-    ];
-  } catch (error) {
-    log.debug("Resolver", `Odesli gap-fill failed: ${error instanceof Error ? error.message : error}`);
-    return existingLinks;
-  }
 }
 
 /**
@@ -163,7 +130,6 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
  * LINK_QUALITY_THRESHOLD: Minimum score for inclusion in final cross-service results.
  * AUTO_SELECT_THRESHOLD: Above this, text search auto-selects without disambiguation.
  * CANDIDATE_MIN_CONFIDENCE: Minimum score to appear in disambiguation list.
- * ODESLI_CONFIDENCE: Confidence assigned to Odesli-sourced links.
  * CACHE_CONFIDENCE: Confidence assigned to DB-cached search results.
  * SEARCH_FALLBACK_CONFIDENCE: Confidence for generic "search on X" fallback links.
  */
@@ -172,7 +138,6 @@ export const LINK_QUALITY_THRESHOLD = 0.6;
 const AUTO_SELECT_THRESHOLD = 0.9;
 const CANDIDATE_MIN_CONFIDENCE = 0.4;
 const MAX_CANDIDATES = 8;
-const ODESLI_CONFIDENCE = 0.85;
 const SEARCH_FALLBACK_CONFIDENCE = 0.5;
 // CACHE_TTL_MS imported from ../lib/constants.js
 
@@ -255,10 +220,6 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     sourceTrack = await sourceAdapter.getTrack(trackId);
   } catch (error) {
     if (!sourceAdapter.isAvailable()) {
-      // Adapter has no credentials - use Odesli for Apple Music, scrape for others
-      if (sourceAdapter.id === "apple-music") {
-        return withAlias(await resolveUrlViaOdesli(cleanUrl));
-      }
       return withAlias(await resolveUrlViaScrape(cleanUrl, sourceAdapter.id));
     }
     throw error;
@@ -282,9 +243,6 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     matchMethod: "isrc",
     externalId: sourceTrack.sourceId,
   });
-
-  // 6. Gap-fill via Odesli for uncovered services
-  links = await gapFillViaOdesli(sourceTrack.webUrl, links);
 
   return withAlias({ sourceTrack, links });
 }
@@ -315,9 +273,6 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
           matchMethod: "search",
           externalId: result.track.sourceId,
         });
-
-        // Gap-fill via Odesli for uncovered services
-        links = await gapFillViaOdesli(result.track.webUrl, links);
 
         return { sourceTrack: result.track, links };
       }
@@ -369,8 +324,6 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
             externalId: topCandidate.track.sourceId,
           });
 
-          links = await gapFillViaOdesli(topCandidate.track.webUrl, links);
-
           return { kind: "resolved", result: { sourceTrack: topCandidate.track, links } };
         }
 
@@ -414,8 +367,6 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
           externalId: result.track.sourceId,
         });
 
-        links = await gapFillViaOdesli(result.track.webUrl, links);
-
         return { kind: "resolved", result: { sourceTrack: result.track, links } };
       }
     } catch {}
@@ -457,9 +408,6 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
     matchMethod: "search",
     externalId: sourceTrack.sourceId,
   });
-
-  // Gap-fill via Odesli for uncovered services
-  links = await gapFillViaOdesli(sourceTrack.webUrl, links);
 
   return { sourceTrack, links };
 }
@@ -533,7 +481,6 @@ async function resolveAcrossServices(
 async function resolveOnService(adapter: ServiceAdapter, sourceTrack: NormalizedTrack): Promise<ResolvedLink | null> {
   // Strategy 1: ISRC lookup (most reliable)
   if (adapter.capabilities.supportsIsrc && sourceTrack.isrc) {
-    // For YouTube, skip direct API and prefer Odesli (handled in resolveAcrossServices)
     if (adapter.id === "youtube") {
       // YouTube doesn't support ISRC anyway, but just in case
       return resolveViaSearch(adapter, sourceTrack);
@@ -730,9 +677,6 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
     matchMethod: "search",
   });
 
-  // Gap-fill via Odesli for uncovered services
-  links = await gapFillViaOdesli(bestSourceTrack.webUrl, links);
-
   // Use scraped artwork if the source track doesn't have one
   if (!bestSourceTrack.artworkUrl && scraped.artworkUrl) {
     bestSourceTrack = { ...bestSourceTrack, artworkUrl: scraped.artworkUrl };
@@ -741,41 +685,3 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
   return { sourceTrack: bestSourceTrack, links };
 }
 
-async function resolveUrlViaOdesli(inputUrl: string): Promise<ResolutionResult> {
-  const odesliResult = await resolveViaOdesli(inputUrl);
-
-  if (!odesliResult.metadata) {
-    throw new ResolveError("TRACK_NOT_FOUND", "Could not find track metadata");
-  }
-
-  // Create a normalized track from Odesli metadata
-  const sourceTrack: NormalizedTrack = {
-    sourceService: "spotify",
-    sourceId: "",
-    title: odesliResult.metadata.title ?? "Unknown Track",
-    artists: odesliResult.metadata.artistName ? [odesliResult.metadata.artistName] : [],
-    albumName: undefined,
-    isrc: undefined,
-    artworkUrl: odesliResult.metadata.thumbnailUrl,
-    durationMs: undefined,
-    webUrl: inputUrl,
-  };
-
-  // Convert Odesli links to ResolvedLinks
-  const links: ResolvedLink[] = [];
-  for (const [serviceId, link] of Object.entries(odesliResult.links)) {
-    if (!isValidServiceId(serviceId) || !link) continue;
-    links.push({
-      service: serviceId,
-      displayName: PLATFORM_CONFIG[serviceId].label,
-      url: link.url,
-      confidence: ODESLI_CONFIDENCE,
-      matchMethod: "odesli",
-    });
-  }
-
-  // Sort by confidence (highest first)
-  links.sort((a, b) => b.confidence - a.confidence);
-
-  return { sourceTrack, links };
-}

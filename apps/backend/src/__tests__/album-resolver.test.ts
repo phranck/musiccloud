@@ -22,12 +22,6 @@ vi.mock("../db/index.js", () => ({
   getRepository: vi.fn().mockResolvedValue(mockRepo),
 }));
 
-// ─── Mock: odesli ─────────────────────────────────────────────────────────────
-
-vi.mock("../services/odesli.js", () => ({
-  resolveViaOdesli: vi.fn().mockResolvedValue({ links: {}, metadata: undefined }),
-}));
-
 // ─── Mock: adapters ───────────────────────────────────────────────────────────
 
 const MOCK_SOURCE_ALBUM = {

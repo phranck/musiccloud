@@ -5,7 +5,6 @@ import { ResolveError } from "../lib/resolve/errors.js";
 import { log } from "../lib/infra/logger.js";
 import { isAlbumUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { adapters } from "./index.js";
-import { resolveViaOdesli } from "./odesli.js";
 import type { AlbumMatchResult, AlbumSearchQuery, NormalizedAlbum, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
 
@@ -16,7 +15,7 @@ export interface ResolvedAlbumLink {
   displayName: string;
   url: string;
   confidence: number;
-  matchMethod: "upc" | "isrc-inference" | "search" | "odesli" | "cache";
+  matchMethod: "upc" | "isrc-inference" | "search" | "cache";
   externalId?: string;
 }
 
@@ -119,40 +118,6 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
 
   const allLinks = [...cached.links, ...newLinks].sort((a, b) => b.confidence - a.confidence);
   return { sourceAlbum: cached.sourceAlbum, links: allLinks, albumId: cached.albumId };
-}
-
-// ─── Odesli gap-fill for Apple Music ─────────────────────────────────────────
-
-/**
- * Try to add an Apple Music album link via Odesli.
- * Non-fatal: if Odesli fails, existing links are returned unchanged.
- */
-async function gapFillAlbumViaOdesli(
-  sourceUrl: string,
-  existingLinks: ResolvedAlbumLink[],
-): Promise<ResolvedAlbumLink[]> {
-  if (existingLinks.some((l) => l.service === "apple-music")) return existingLinks;
-
-  try {
-    const odesliResult = await resolveViaOdesli(sourceUrl);
-    const appleLink = odesliResult.links["apple-music"];
-    if (!appleLink) return existingLinks;
-
-    return [
-      ...existingLinks,
-      {
-        service: "apple-music" as ServiceId,
-        displayName: PLATFORM_CONFIG["apple-music"].label,
-        url: appleLink.url,
-        confidence: 0.9,
-        matchMethod: "odesli" as const,
-        externalId: appleLink.entityUniqueId,
-      },
-    ];
-  } catch (error) {
-    log.debug("AlbumResolver", `Odesli gap-fill failed: ${error instanceof Error ? error.message : error}`);
-    return existingLinks;
-  }
 }
 
 // ─── ISRC-based album inference ───────────────────────────────────────────────
@@ -373,35 +338,6 @@ function identifyAlbumService(url: string): ServiceAdapter | undefined {
 
 // ─── Main entry points ────────────────────────────────────────────────────────
 
-/**
- * Bootstrap Apple Music album resolution via Odesli.
- * Used as fallback when Apple Music credentials are not configured.
- * Odesli resolves the URL to a Spotify/Tidal/Deezer link; we then run a full
- * resolution from there, and Step 7 adds the Apple Music link back via Odesli.
- */
-async function resolveAppleMusicAlbumViaOdesli(appleUrl: string): Promise<AlbumResolutionResult> {
-  let odesli;
-  try {
-    odesli = await resolveViaOdesli(appleUrl);
-  } catch (err) {
-    throw new ResolveError(
-      "SERVICE_DOWN",
-      `Could not bootstrap Apple Music album via Odesli: ${err instanceof Error ? err.message : err}`,
-    );
-  }
-
-  const fallbackOrder: ServiceId[] = ["spotify", "tidal", "deezer"];
-  for (const service of fallbackOrder) {
-    const link = odesli.links[service];
-    if (link?.url) {
-      log.debug("AlbumResolver", `Apple Music album bootstrapped via Odesli → ${service}`);
-      return resolveAlbumUrl(link.url);
-    }
-  }
-
-  throw new ResolveError("TRACK_NOT_FOUND", "Apple Music album not found on any supported service via Odesli");
-}
-
 /** Resolve an album URL: fetch metadata from source, then find on all other services. */
 export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolutionResult> {
   const cleanUrl = stripTrackingParams(inputUrl);
@@ -413,10 +349,6 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   // 2. Identify which service the URL belongs to
   const sourceAdapter = identifyAlbumService(cleanUrl);
   if (!sourceAdapter || !sourceAdapter.getAlbum || !sourceAdapter.detectAlbumUrl) {
-    // Fallback: Apple Music albums without configured credentials → bootstrap via Odesli
-    if (/^https?:\/\/music\.apple\.com\/[a-z]{2}\/album\//.test(cleanUrl)) {
-      return resolveAppleMusicAlbumViaOdesli(cleanUrl);
-    }
     throw new ResolveError("NOT_MUSIC_LINK", "Unrecognized album URL");
   }
 
@@ -454,9 +386,6 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
     matchMethod: "upc",
     externalId: sourceAlbum.sourceId,
   });
-
-  // 7. Gap-fill Apple Music via Odesli
-  links = await gapFillAlbumViaOdesli(sourceAlbum.webUrl, links);
 
   return { sourceAlbum, links };
 }
@@ -497,8 +426,6 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
           matchMethod: "search",
           externalId: result.album.sourceId,
         });
-
-        links = await gapFillAlbumViaOdesli(result.album.webUrl, links);
 
         return { sourceAlbum: result.album, links };
       }

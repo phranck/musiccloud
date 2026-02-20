@@ -82,7 +82,7 @@ describe("Resolver: resolveUrl()", () => {
   describe("Partial results - song not on all services", () => {
     it.todo("should return partial results when song only on Spotify");
 
-    it.todo("should return results without YouTube when Odesli and YouTube API both fail");
+    it.todo("should return results without YouTube when YouTube API fails");
   });
 
   describe("Confidence filtering", () => {
@@ -105,13 +105,6 @@ describe("Resolver: resolveUrl()", () => {
     it.todo("should not throw when all target services fail");
   });
 
-  describe("Odesli fallback", () => {
-    it.todo("should fill YouTube gap via Odesli when YouTube API fails");
-
-    it.todo("should prefer direct adapter result over Odesli");
-
-    it.todo("should handle Odesli failure gracefully");
-  });
 });
 
 describe("Resolver: resolveTextSearch()", () => {

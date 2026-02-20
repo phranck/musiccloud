@@ -27,7 +27,7 @@ musiccloud, aşağıdaki yayın platformlarında parçaları çözümler:
 
 ## Apple Music
 
-Apple Music bağlantıları, Odesli köprü hizmeti aracılığıyla çözümlenir.
+Apple Music bağlantıları, Apple Music API aracılığıyla yerel olarak çözümlenir.
 
 ---
 

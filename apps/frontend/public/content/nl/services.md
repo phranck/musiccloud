@@ -27,7 +27,7 @@ musiccloud lost tracks op via de volgende streamingplatforms:
 
 ## Apple Music
 
-Apple Music-links worden opgelost via de Odesli-bridge-service.
+Apple Music-links worden native opgelost via de Apple Music API.
 
 ---
 

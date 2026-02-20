@@ -19,11 +19,6 @@ vi.mock("../db/index.js", () => ({
   getRepository: vi.fn(),
 }));
 
-// Mock Odesli
-vi.mock("../services/odesli.js", () => ({
-  resolveViaOdesli: vi.fn(),
-}));
-
 // Mock the logger to suppress output during tests
 vi.mock("../lib/logger.js", () => ({
   log: {
@@ -43,7 +38,6 @@ vi.mock("../lib/fetch.js", () => ({
 
 import { getRepository } from "../db/index";
 import { adapters, identifyService } from "../services/index";
-import { resolveViaOdesli } from "../services/odesli";
 import {
   MATCH_MIN_CONFIDENCE,
   resolveQuery,
@@ -123,8 +117,6 @@ beforeEach(() => {
   mockRepo = createMockRepository();
   vi.mocked(getRepository).mockResolvedValue(mockRepo);
 
-  // Odesli returns nothing by default
-  vi.mocked(resolveViaOdesli).mockResolvedValue({ links: {} });
 });
 
 // =============================================================================
@@ -738,102 +730,7 @@ describe("resolveQuery: ISRC-based resolution", () => {
 });
 
 // =============================================================================
-// 7. Odesli fallback: Apple Music gap-fill via Odesli
-// =============================================================================
-
-describe("resolveQuery: Odesli Apple Music gap-fill", () => {
-  it("should add Apple Music link via Odesli when no adapter provides it", async () => {
-    const sourceTrack = createMockTrack();
-
-    const spotifyAdapter = createMockAdapter({
-      id: "spotify",
-      displayName: "Spotify",
-      detectUrl: vi.fn(() => "track123"),
-      getTrack: vi.fn().mockResolvedValue(sourceTrack),
-    });
-
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
-
-    vi.mocked(resolveViaOdesli).mockResolvedValue({
-      links: {
-        "apple-music": {
-          url: "https://music.apple.com/us/album/bohemian-rhapsody/1440806041?i=1440806768",
-          entityUniqueId: "am123",
-        },
-      },
-    });
-
-    const result = await resolveQuery("https://open.spotify.com/track/track123");
-
-    const appleLink = result.links.find((l) => l.service === "apple-music");
-    expect(appleLink).toBeDefined();
-    expect(appleLink!.url).toBe("https://music.apple.com/us/album/bohemian-rhapsody/1440806041?i=1440806768");
-    expect(appleLink!.matchMethod).toBe("odesli");
-    expect(appleLink!.confidence).toBe(0.9);
-  });
-
-  it("should not call Odesli if Apple Music link already exists", async () => {
-    const sourceTrack = createMockTrack();
-    const appleMusicTrack = createMockTrack({
-      sourceService: "apple-music",
-      sourceId: "am1",
-      webUrl: "https://music.apple.com/us/album/bohemian-rhapsody/12345?i=67890",
-    });
-
-    const spotifyAdapter = createMockAdapter({
-      id: "spotify",
-      displayName: "Spotify",
-      detectUrl: vi.fn(() => "track123"),
-      getTrack: vi.fn().mockResolvedValue(sourceTrack),
-    });
-
-    const appleMusicAdapter = createMockAdapter({
-      id: "apple-music",
-      displayName: "Apple Music",
-      capabilities: { supportsIsrc: false, supportsPreview: false, supportsArtwork: true },
-      searchTrack: vi.fn().mockResolvedValue({
-        found: true,
-        track: appleMusicTrack,
-        confidence: 0.9,
-        matchMethod: "search",
-      }),
-    });
-
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, appleMusicAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
-
-    await resolveQuery("https://open.spotify.com/track/track123");
-
-    // Odesli should not be called when apple-music already has a link
-    expect(resolveViaOdesli).not.toHaveBeenCalled();
-  });
-
-  it("should handle Odesli failure gracefully and keep existing links", async () => {
-    const sourceTrack = createMockTrack();
-
-    const spotifyAdapter = createMockAdapter({
-      id: "spotify",
-      displayName: "Spotify",
-      detectUrl: vi.fn(() => "track123"),
-      getTrack: vi.fn().mockResolvedValue(sourceTrack),
-    });
-
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
-    vi.mocked(resolveViaOdesli).mockRejectedValue(new Error("Odesli API down"));
-
-    // Should NOT throw
-    const result = await resolveQuery("https://open.spotify.com/track/track123");
-
-    // Source link should still be present
-    expect(result.links.some((l) => l.service === "spotify")).toBe(true);
-    expect(result.sourceTrack.title).toBe("Bohemian Rhapsody");
-  });
-});
-
-// =============================================================================
-// 8. resolveSelectedCandidate
+// 7. resolveSelectedCandidate
 // =============================================================================
 
 describe("resolveSelectedCandidate", () => {

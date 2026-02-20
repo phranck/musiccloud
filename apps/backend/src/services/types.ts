@@ -82,7 +82,7 @@ export interface SearchResultWithCandidates {
   }>;
 }
 
-export type MatchMethod = "isrc" | "search" | "odesli" | "cache";
+export type MatchMethod = "isrc" | "search" | "cache";
 
 export interface AdapterCapabilities {
   supportsIsrc: boolean;
