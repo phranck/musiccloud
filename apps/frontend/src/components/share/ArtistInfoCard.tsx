@@ -355,20 +355,36 @@ function BioSection({ bio, t }: { bio: string; t: (key: string) => string }) {
 
   return (
     <div className="mt-3">
-      <p
-        ref={ref}
-        className="text-base text-text-secondary leading-relaxed overflow-hidden transition-[max-height] duration-500 ease-in-out"
-        style={{ maxHeight: expanded && fullHeight > 0 ? `${fullHeight}px` : COLLAPSED }}
-      >
-        {bio}
-      </p>
-      {isClamped && (
+      <div className="relative">
+        <p
+          ref={ref}
+          className="text-base text-text-secondary leading-relaxed overflow-hidden transition-[max-height] duration-500 ease-in-out"
+          style={{ maxHeight: expanded && fullHeight > 0 ? `${fullHeight}px` : COLLAPSED }}
+        >
+          {bio}
+        </p>
+
+        {/* Fade + "read more" overlay — only when clamped and collapsed */}
+        {isClamped && !expanded && (
+          <div className="absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-[#1C1C1E] to-transparent flex items-end justify-end">
+            <button
+              onClick={() => setExpanded(true)}
+              className="text-sm text-text-muted hover:text-text-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
+            >
+              {t("bio.readMore")}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* "Read less" sits below the expanded text */}
+      {isClamped && expanded && (
         <div className="flex justify-end">
           <button
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => setExpanded(false)}
             className="mt-1.5 text-sm text-text-muted hover:text-text-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
           >
-            {expanded ? t("bio.readLess") : t("bio.readMore")}
+            {t("bio.readLess")}
           </button>
         </div>
       )}
