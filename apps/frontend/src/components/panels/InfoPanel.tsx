@@ -45,7 +45,7 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
   return (
     <>
       <div
-        className={`fixed inset-0 backdrop-blur-sm z-50 transition-opacity duration-[380ms] ${isVisible ? "opacity-100" : "opacity-0"}`}
+        className={`fixed inset-0 backdrop-blur-sm z-50 transition-opacity duration-[380ms] ${isVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={handleClose}
         aria-hidden="true"
       />
