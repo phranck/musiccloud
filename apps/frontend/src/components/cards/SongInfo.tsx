@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { buildMetaLine } from "@musiccloud/shared";
 
 interface SongInfoProps {
@@ -33,9 +33,11 @@ export const SongInfo = memo(function SongInfo({
   // If the CDN blocks it (no Access-Control-Allow-Origin), fall back to a plain load
   // without crossOrigin so the artwork still displays (color extraction is then skipped).
   const [corsRetried, setCorsRetried] = useState(false);
-  useEffect(() => {
+  const [prevArtUrl, setPrevArtUrl] = useState(albumArtUrl);
+  if (prevArtUrl !== albumArtUrl) {
+    setPrevArtUrl(albumArtUrl);
     setCorsRetried(false);
-  }, [albumArtUrl]);
+  }
 
   return (
     <div>

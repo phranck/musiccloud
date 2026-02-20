@@ -1,0 +1,12 @@
+{
+  "ignore": {
+    "rules": [
+      "react/no-danger",
+      "jsx-a11y/no-autofocus",
+      "react-doctor/no-fetch-in-effect",
+      "react-doctor/no-effect-event-handler",
+      "knip/exports",
+      "knip/types"
+    ]
+  }
+}

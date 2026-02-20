@@ -8,8 +8,16 @@
  *                as a bottom sheet.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useReducer, useCallback } from "react";
 import type { ArtistInfoResponse } from "@musiccloud/shared";
+
+type ArtistState = { isLoading: boolean; artistData: ArtistInfoResponse | null };
+type ArtistAction = { type: "loading" } | { type: "done"; data: ArtistInfoResponse | null };
+
+function artistReducer(_: ArtistState, action: ArtistAction): ArtistState {
+  if (action.type === "loading") return { isLoading: true, artistData: null };
+  return { isLoading: false, artistData: action.data };
+}
 import { SharePageCard } from "@/components/share/SharePageCard";
 import { ArtistInfoCard } from "@/components/share/ArtistInfoCard";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
@@ -65,32 +73,24 @@ export function ShareLayout(props: ShareLayoutProps) {
 
 function ShareLayoutInner({ config, artistName }: ShareLayoutProps) {
   const t = useT();
-  const [artistData, setArtistData] = useState<ArtistInfoResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [userRegion, setUserRegion] = useState("");
+  // Detect region synchronously on first render (client-only, Astro island)
+  const [userRegion] = useState(detectRegion);
+  const [{ isLoading, artistData }, dispatch] = useReducer(artistReducer, {
+    isLoading: true,
+    artistData: null,
+  });
   const [sheetOpen, setSheetOpen] = useState(false);
-
-  useEffect(() => {
-    setUserRegion(detectRegion());
-  }, []);
 
   // Fetch artist data via Astro proxy (same-origin, no CORS issues)
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
+    dispatch({ type: "loading" });
     const params = new URLSearchParams({ name: artistName });
     if (userRegion) params.set("region", userRegion);
     fetch(`/api/artist-info?${params.toString()}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: ArtistInfoResponse | null) => {
-        if (!cancelled) {
-          setArtistData(data);
-          setIsLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+      .then((res) => (res.ok ? (res.json() as Promise<ArtistInfoResponse>) : null))
+      .then((data) => { if (!cancelled) dispatch({ type: "done", data }); })
+      .catch(() => { if (!cancelled) dispatch({ type: "done", data: null }); });
     return () => { cancelled = true; };
   }, [artistName, userRegion]);
 

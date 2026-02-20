@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore } from "react";
 import { LOCALE_STORAGE_KEY, detectLocale, type Locale } from "./locales";
 
 type Translations = Record<string, string>;
@@ -18,14 +18,16 @@ function interpolate(template: string, vars?: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
 }
 
-export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("en");
-  const [translations, setTranslations] = useState<Translations>({});
+// useSyncExternalStore: detect locale synchronously on first render, no flash.
+// Server snapshot falls back to "en"; client detects from localStorage + navigator.
+const detectedLocale = () => detectLocale();
+const serverLocale = () => "en" as Locale;
+const noopSubscribe = () => () => {};
 
-  // Detect locale on mount (client-only: localStorage + browser)
-  useEffect(() => {
-    setLocaleState(detectLocale());
-  }, []);
+export function LocaleProvider({ children }: { children: React.ReactNode }) {
+  const initialLocale = useSyncExternalStore(noopSubscribe, detectedLocale, serverLocale);
+  const [locale, setLocaleState] = useState<Locale>(initialLocale);
+  const [translations, setTranslations] = useState<Translations>({});
 
   // Sync with other islands on the same page via custom window event
   useEffect(() => {

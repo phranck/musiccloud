@@ -3,8 +3,6 @@ import { cn } from "@/lib/utils";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 import { GlassCard } from "@/components/cards/GlassCard";
 
-export type { DisambiguationCandidate };
-
 interface DisambiguationPanelProps {
   candidates: DisambiguationCandidate[];
   onSelect: (candidate: DisambiguationCandidate) => void;

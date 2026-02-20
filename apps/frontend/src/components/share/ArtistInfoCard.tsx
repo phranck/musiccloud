@@ -135,8 +135,8 @@ function TopTracksSection({ tracks, t, locale }: { tracks: ArtistTopTrack[]; t: 
     <div>
       <SectionHeading info={t("artist.popularTracksInfo")}>{t("artist.popularTracks")}</SectionHeading>
       <ul className="divide-y divide-white/[0.06]">
-        {tracks.map((track, i) => (
-          <li key={i} className="py-4 first:pt-0 last:pb-0">
+        {tracks.map((track) => (
+          <li key={track.deezerUrl} className="py-4 first:pt-0 last:pb-0">
             <PopularTrack track={track} t={t} />
           </li>
         ))}
@@ -277,10 +277,10 @@ function EventsSection({ events, userRegion, hasLocalEvents, t, locale }: { even
         {t("artist.upcomingShows")}
       </SectionHeading>
       <ul className="space-y-3">
-        {events.map((event, i) => {
+        {events.map((event) => {
           const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
           return (
-            <li key={i} className="flex items-center gap-3">
+            <li key={`${event.date}-${event.venueName || event.city}`} className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
                 <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
                   {formatEventDate(event.date, locale)}
@@ -333,8 +333,8 @@ function ArtistInfoSkeleton() {
         {/* Tracks skeleton */}
         <div className="border-t border-white/[0.06] mt-5 pt-5 space-y-3">
           <div className="h-3 bg-white/[0.08] rounded w-1/3 mb-4" />
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="flex gap-3 items-center">
+          {(["sk-a", "sk-b", "sk-c"] as const).map((k) => (
+            <div key={k} className="flex gap-3 items-center">
               <div className="w-10 h-10 rounded-lg bg-white/[0.08] flex-none" />
               <div className="flex-1 space-y-1.5">
                 <div className="h-3 bg-white/[0.08] rounded w-4/5" />

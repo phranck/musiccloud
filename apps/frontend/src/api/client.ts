@@ -1,4 +1,4 @@
-import type { ArtistInfoResponse, SharePageResponse } from "@musiccloud/shared";
+import type { SharePageResponse } from "@musiccloud/shared";
 
 const BACKEND_URL = (import.meta.env.BACKEND_URL as string | undefined) ?? process.env.BACKEND_URL ?? "http://localhost:4000";
 const INTERNAL_API_KEY = (import.meta.env.INTERNAL_API_KEY as string | undefined) ?? process.env.INTERNAL_API_KEY ?? "";
@@ -49,22 +49,6 @@ export async function resolveAlbum(
     headers: internalHeaders(clientIp ? { "X-Forwarded-For": clientIp } : undefined),
     body: JSON.stringify(body),
   });
-}
-
-/** Fetch artist info (popular tracks, profile, tour dates) from the backend. */
-export async function fetchArtistInfo(
-  artistName: string,
-  region?: string,
-): Promise<ArtistInfoResponse | null> {
-  const params = new URLSearchParams({ name: artistName });
-  if (region) params.set("region", region);
-
-  const res = await fetch(backendUrl(`/api/v1/artist-info?${params.toString()}`), {
-    headers: internalHeaders(),
-  });
-
-  if (!res.ok) return null;
-  return res.json() as Promise<ArtistInfoResponse>;
 }
 
 /** Fetch a random short ID from the backend for the landing page example teaser. */
