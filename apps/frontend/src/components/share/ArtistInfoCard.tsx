@@ -79,6 +79,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
               <>
                 <ProfileSection profile={data.profile} t={t} />
                 {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
+                <p className="mt-4 text-xs text-text-muted text-center">{t("artist.profileProvidedBy")}</p>
               </>
             ) : null}
           />
@@ -117,12 +118,6 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
           />
         </CollapsibleSection>
 
-        {/* Footer attribution */}
-        {!isLoading && data && (
-          <p className="px-6 pb-5 pt-2 text-xs text-text-muted text-center">
-            {t("artist.profileProvidedBy")}
-          </p>
-        )}
       </div>
     </GlassCard>
   );
