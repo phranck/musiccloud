@@ -144,8 +144,8 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
             />
           </div>
 
-          {state !== "idle" && (
-            <span className="text-xs text-accent tabular-nums flex-shrink-0">
+          {(state !== "idle" || duration > 0) && (
+            <span className={`text-xs tabular-nums flex-shrink-0 ${state !== "idle" ? "text-accent" : "text-text-muted opacity-50"}`}>
               {formatTime(elapsed)}
               {duration > 0 && <span className="opacity-60"> / {formatTime(duration)}</span>}
             </span>
