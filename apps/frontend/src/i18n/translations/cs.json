@@ -58,7 +58,5 @@
   "audio.playPreview": "Přehrát náhled",
   "audio.pausePreview": "Pozastavit náhled",
   "audio.replayPreview": "Přehrát znovu",
-  "audio.previewUnavailable": "Náhled není k dispozici",
-  "bio.readMore": "Číst více…",
-  "bio.readLess": "Méně"
+  "audio.previewUnavailable": "Náhled není k dispozici"
 }

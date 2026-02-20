@@ -58,7 +58,5 @@
   "audio.playPreview": "Voorbeeld afspelen",
   "audio.pausePreview": "Voorbeeld pauzeren",
   "audio.replayPreview": "Opnieuw afspelen",
-  "audio.previewUnavailable": "Voorbeeld niet beschikbaar",
-  "bio.readMore": "Meer lezen…",
-  "bio.readLess": "Minder"
+  "audio.previewUnavailable": "Voorbeeld niet beschikbaar"
 }

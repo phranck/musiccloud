@@ -78,7 +78,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
             content={data?.profile ? (
               <>
                 <ProfileSection profile={data.profile} t={t} />
-                {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} t={t} />}
+                {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
               </>
             ) : null}
           />
@@ -337,59 +337,9 @@ function ProfileSection({ profile, t }: { profile: ArtistProfile; t: (key: strin
   );
 }
 
-function BioSection({ bio, t }: { bio: string; t: (key: string) => string }) {
-  const [expanded, setExpanded] = useState(false);
-  const [isClamped, setIsClamped] = useState(false);
-  const [fullHeight, setFullHeight] = useState(0);
-  const ref = useRef<HTMLParagraphElement>(null);
-
-  // 3 lines × leading-relaxed (1.625) × text-base (1rem) = 4.875rem
-  const COLLAPSED = "4.875rem";
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    setIsClamped(el.scrollHeight > el.clientHeight + 1);
-    setFullHeight(el.scrollHeight);
-  }, [bio]);
-
+function BioSection({ bio }: { bio: string }) {
   return (
-    <div className="mt-3">
-      <div className="relative">
-        <p
-          ref={ref}
-          className="text-base text-text-secondary leading-relaxed overflow-hidden transition-[max-height] duration-500 ease-in-out"
-          style={{ maxHeight: expanded && fullHeight > 0 ? `${fullHeight}px` : COLLAPSED }}
-        >
-          {bio}
-        </p>
-
-        {/* Horizontal fade into "read more" — sits on the last visible line */}
-        {isClamped && !expanded && (
-          <div className="absolute bottom-0 right-0 flex items-center h-[1.625rem]">
-            <div className="w-16 h-full bg-gradient-to-r from-transparent to-[#1C1C1E]" aria-hidden="true" />
-            <button
-              onClick={() => setExpanded(true)}
-              className="bg-[#1C1C1E] pl-0.5 text-sm text-accent hover:text-accent/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
-            >
-              {t("bio.readMore")}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* "Read less" sits below the expanded text */}
-      {isClamped && expanded && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => setExpanded(false)}
-            className="mt-1.5 text-sm text-accent hover:text-accent/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
-          >
-            {t("bio.readLess")}
-          </button>
-        </div>
-      )}
-    </div>
+    <p className="text-base text-text-secondary leading-relaxed mt-3">{bio}</p>
   );
 }
 
