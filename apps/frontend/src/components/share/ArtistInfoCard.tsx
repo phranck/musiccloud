@@ -238,6 +238,7 @@ function EventsSection({ events, userRegion, hasLocalEvents, t, locale }: { even
           );
         })}
       </ul>
+      <p className="mt-4 text-xs text-text-muted text-center">{t("artist.eventsProvidedBy")}</p>
     </div>
   );
 }

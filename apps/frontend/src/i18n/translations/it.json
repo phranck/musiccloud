@@ -53,5 +53,6 @@
   "artist.upcomingShowsInfo": "Gli eventi con ★ sono nella tua regione, rilevata dal fuso orario del dispositivo.",
   "landing.exampleTeaser": "Vuoi vedere come appare?",
   "landing.exampleLink": "Guarda un esempio reale →",
-  "artist.similarArtists": "Artisti simili"
+  "artist.similarArtists": "Artisti simili",
+  "artist.eventsProvidedBy": "Dati degli eventi forniti da Bandsintown & Ticketmaster"
 }

@@ -53,5 +53,6 @@
   "artist.upcomingShowsInfo": "Events marked with ★ are in your region, detected by your device timezone.",
   "landing.exampleTeaser": "Wonder what it looks like?",
   "landing.exampleLink": "See a live example →",
-  "artist.similarArtists": "Similar Artists"
+  "artist.similarArtists": "Similar Artists",
+  "artist.eventsProvidedBy": "Event data provided by Bandsintown & Ticketmaster"
 }

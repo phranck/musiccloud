@@ -53,5 +53,6 @@
   "artist.upcomingShowsInfo": "Events marked with ★ are in your region, detected by your device timezone.",
   "landing.exampleTeaser": "Chceš vidět, jak to vypadá?",
   "landing.exampleLink": "Podívej se na živý příklad →",
-  "artist.similarArtists": "Similar Artists"
+  "artist.similarArtists": "Similar Artists",
+  "artist.eventsProvidedBy": "Data o událostech poskytuje Bandsintown & Ticketmaster"
 }
