@@ -52,5 +52,6 @@
   "artist.popularTracksInfo": "Top nummers van Deezer. Klik op Luister om de musiccloud-pagina van dat nummer te openen.",
   "artist.upcomingShowsInfo": "Events met ★ zijn in jouw regio, gedetecteerd via de tijdzone van je apparaat.",
   "landing.exampleTeaser": "Benieuwd hoe het eruitziet?",
-  "landing.exampleLink": "Bekijk een live voorbeeld →"
+  "landing.exampleLink": "Bekijk een live voorbeeld →",
+  "artist.similarArtists": "Soortgelijke artiesten"
 }

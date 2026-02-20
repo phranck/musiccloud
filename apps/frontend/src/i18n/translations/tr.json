@@ -52,5 +52,6 @@
   "artist.popularTracksInfo": "Deezer'dan en iyi parçalar. O parçanın musiccloud sayfasını açmak için Dinle'ye tıkla.",
   "artist.upcomingShowsInfo": "★ ile işaretli etkinlikler bölgendedir, cihaz saat dilimine göre tespit edilir.",
   "landing.exampleTeaser": "Nasıl göründüğünü merak mı ediyorsun?",
-  "landing.exampleLink": "Canlı bir örnek gör →"
+  "landing.exampleLink": "Canlı bir örnek gör →",
+  "artist.similarArtists": "Benzer Sanatçılar"
 }

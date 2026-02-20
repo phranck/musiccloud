@@ -52,5 +52,6 @@
   "artist.popularTracksInfo": "Top tracks de Deezer. Haz clic en Escuchar para abrir la página musiccloud de ese track.",
   "artist.upcomingShowsInfo": "Los eventos marcados con ★ están en tu región, detectada por la zona horaria de tu dispositivo.",
   "landing.exampleTeaser": "¿Quieres ver cómo funciona?",
-  "landing.exampleLink": "Ver un ejemplo real →"
+  "landing.exampleLink": "Ver un ejemplo real →",
+  "artist.similarArtists": "Artistas similares"
 }

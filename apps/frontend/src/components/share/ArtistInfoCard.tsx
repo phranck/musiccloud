@@ -61,7 +61,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         {/* 2. Popular Tracks */}
         {data.topTracks.length > 0 && (
           <div className="border-t border-white/[0.06] px-6 pt-5 pb-6">
-            <TopTracksSection tracks={data.topTracks} t={t} locale={locale} />
+            <TopTracksSection tracks={data.topTracks} t={t} />
           </div>
         )}
 
@@ -69,6 +69,13 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         {data.events.length > 0 && (
           <div className="border-t border-white/[0.06] px-6 pt-5 pb-6">
             <EventsSection events={data.events} userRegion={userRegion} hasLocalEvents={hasLocalEvents} t={t} locale={locale} />
+          </div>
+        )}
+
+        {/* 4. Similar Artists */}
+        {data.profile && data.profile.similarArtists.length > 0 && (
+          <div className="border-t border-white/[0.06] px-6 pt-5 pb-6">
+            <SimilarArtistsSection similarArtists={data.profile.similarArtists} t={t} />
           </div>
         )}
       </div>
@@ -128,13 +135,13 @@ function BioSection({ bio }: { bio: string }) {
 
 // ─── Top Tracks Section ───────────────────────────────────────────────────────
 
-function TopTracksSection({ tracks, t, locale }: { tracks: ArtistTopTrack[]; t: (key: string, vars?: Record<string, string>) => string; locale: string }) {
+function TopTracksSection({ tracks, t }: { tracks: ArtistTopTrack[]; t: (key: string, vars?: Record<string, string>) => string }) {
   return (
     <div>
       <SectionHeading info={t("artist.popularTracksInfo")}>{t("artist.popularTracks")}</SectionHeading>
       <ul className="divide-y divide-white/[0.06]">
         {tracks.map((track) => (
-          <li key={track.deezerUrl} className="py-4 first:pt-0 last:pb-0">
+          <li key={track.deezerUrl} className="py-3 first:pt-0 last:pb-0">
             <PopularTrack track={track} t={t} />
           </li>
         ))}
@@ -147,52 +154,43 @@ function TopTracksSection({ tracks, t, locale }: { tracks: ArtistTopTrack[]; t: 
 
 function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, vars?: Record<string, string>) => string }) {
   return (
-    <div className="flex gap-5">
-      {/* Cover – stretches to fill the full height of the right column */}
-      <div className="w-20 flex-none self-stretch">
+    <div className="flex items-center gap-3">
+      {/* Cover – small */}
+      <div className="w-12 h-12 flex-none">
         {track.artworkUrl ? (
           <img
             src={track.artworkUrl}
             alt=""
-            width={80}
-            height={80}
-            className="w-full h-full rounded-lg sm:rounded-xl object-cover"
+            width={48}
+            height={48}
+            className="w-full h-full rounded-lg object-cover"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = "none";
             }}
           />
         ) : (
-          <div className="w-full h-full rounded-lg sm:rounded-xl bg-white/[0.06]" />
+          <div className="w-full h-full rounded-lg bg-white/[0.06]" />
         )}
       </div>
 
-      {/* Right column: title + duration on top, listen button on bottom */}
-      <div className="min-w-0 flex-1 flex flex-col justify-between">
-        <div>
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-base font-medium truncate text-text-primary">{track.title}</p>
-            {track.durationMs != null && (
-              <span className="text-sm text-text-muted flex-none tabular-nums">
-                {formatDuration(track.durationMs)}
-              </span>
-            )}
-          </div>
-          {track.albumName && (
-            <p className="text-sm truncate text-text-secondary mt-0.5">{track.albumName}</p>
-          )}
-        </div>
-
-        {track.shortId && (
-          <div className="mt-2">
-            <a
-              href={`/${track.shortId}`}
-              className="flex-none text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.10] text-text-secondary hover:text-text-primary hover:bg-white/[0.10] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-            >
-              {t("artist.listen")} →
-            </a>
-          </div>
+      {/* Middle: title + album + duration */}
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium truncate text-text-primary">{track.title}</p>
+        {track.albumName && (
+          <p className="text-xs truncate text-text-secondary mt-0.5">{track.albumName}</p>
+        )}
+        {track.durationMs != null && (
+          <p className="text-xs text-text-muted mt-0.5 tabular-nums">{formatDuration(track.durationMs)}</p>
         )}
       </div>
+
+      {/* Listen button – right side, always visible */}
+      <a
+        href={`/?url=${encodeURIComponent(track.deezerUrl)}`}
+        className="flex-none text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.10] text-text-secondary hover:text-text-primary hover:bg-white/[0.10] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+      >
+        {t("artist.listen")} →
+      </a>
     </div>
   );
 }
@@ -236,6 +234,71 @@ function EventsSection({ events, userRegion, hasLocalEvents, t, locale }: { even
             </li>
           );
         })}
+      </ul>
+    </div>
+  );
+}
+
+// ─── Similar Artists Section ──────────────────────────────────────────────────
+
+function SimilarArtistsSection({ similarArtists, t }: { similarArtists: string[]; t: (key: string, vars?: Record<string, string>) => string }) {
+  const first2 = similarArtists.slice(0, 2);
+  return (
+    <div>
+      <SectionHeading>{t("artist.similarArtists")}</SectionHeading>
+      <div className="space-y-5">
+        {first2.map((name) => (
+          <SimilarArtistTracks key={name} artistName={name} t={t} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SimilarArtistTracks({ artistName, t }: { artistName: string; t: (key: string, vars?: Record<string, string>) => string }) {
+  const [{ isLoading, tracks }, setState] = useState<{ isLoading: boolean; tracks: ArtistTopTrack[] }>({
+    isLoading: true,
+    tracks: [],
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams({ name: artistName });
+    fetch(`/api/artist-info?${params.toString()}`)
+      .then((res) => (res.ok ? (res.json() as Promise<ArtistInfoResponse>) : null))
+      .then((data) => { if (!cancelled) setState({ isLoading: false, tracks: data?.topTracks ?? [] }); })
+      .catch(() => { if (!cancelled) setState({ isLoading: false, tracks: [] }); });
+    return () => { cancelled = true; };
+  }, [artistName]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2 animate-pulse">
+        <div className="h-3 w-1/3 rounded bg-white/[0.08]" />
+        {(["a", "b", "c"] as const).map((k) => (
+          <div key={k} className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-lg bg-white/[0.08] flex-none" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 bg-white/[0.08] rounded w-3/4" />
+              <div className="h-2.5 bg-white/[0.08] rounded w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (tracks.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-sm font-semibold text-text-primary mb-2">{artistName}</p>
+      <ul className="divide-y divide-white/[0.06]">
+        {tracks.map((track) => (
+          <li key={track.deezerUrl} className="py-3 first:pt-0 last:pb-0">
+            <PopularTrack track={track} t={t} />
+          </li>
+        ))}
       </ul>
     </div>
   );

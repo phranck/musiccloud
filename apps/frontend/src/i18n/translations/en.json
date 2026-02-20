@@ -52,5 +52,6 @@
   "artist.popularTracksInfo": "Top tracks from Deezer. Click Listen to open the musiccloud page for that track.",
   "artist.upcomingShowsInfo": "Events marked with ★ are in your region, detected by your device timezone.",
   "landing.exampleTeaser": "Wonder what it looks like?",
-  "landing.exampleLink": "See a live example →"
+  "landing.exampleLink": "See a live example →",
+  "artist.similarArtists": "Similar Artists"
 }
