@@ -23,14 +23,18 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
   const t = useT();
   const { locale } = useLocale();
 
-  // contentReady gates the fade-in: stays false until one rAF after loading ends,
-  // so React can paint the opacity-0 content before the transition starts.
+  // contentReady triggers the crossfade. Double-rAF ensures:
+  //   Frame 1: React renders with contentReady=false → content enters DOM at opacity-0
+  //   Frame 2: setContentReady(true) → skeleton fades to 0, content fades to 1 (simultaneously)
   const [contentReady, setContentReady] = useState(false);
 
   useEffect(() => {
     if (!isLoading) {
-      const id = requestAnimationFrame(() => setContentReady(true));
-      return () => cancelAnimationFrame(id);
+      let id1: number, id2: number;
+      id1 = requestAnimationFrame(() => {
+        id2 = requestAnimationFrame(() => setContentReady(true));
+      });
+      return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2); };
     }
     setContentReady(false);
   }, [isLoading]);
@@ -68,53 +72,49 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 1. Artist Profile */}
         <CollapsibleSection visible={showProfile} innerClass="px-6 pt-6 pb-6">
-          {isLoading ? (
-            <ProfileSkeleton />
-          ) : data?.profile ? (
-            <Fade visible={contentReady}>
-              <ProfileSection profile={data.profile} t={t} />
-              {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
-            </Fade>
-          ) : null}
+          <CrossFade
+            contentReady={contentReady}
+            skeleton={<ProfileSkeleton />}
+            content={data?.profile ? (
+              <>
+                <ProfileSection profile={data.profile} t={t} />
+                {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
+              </>
+            ) : null}
+          />
         </CollapsibleSection>
 
         {/* 2. Popular Tracks */}
         <CollapsibleSection visible={showTracks} withBorder>
-          {isLoading ? (
-            <TracksSkeleton />
-          ) : data && data.topTracks.length > 0 ? (
-            <Fade visible={contentReady}>
-              <TopTracksSection tracks={data.topTracks} t={t} />
-            </Fade>
-          ) : null}
+          <CrossFade
+            contentReady={contentReady}
+            skeleton={<TracksSkeleton />}
+            content={data && data.topTracks.length > 0
+              ? <TopTracksSection tracks={data.topTracks} t={t} />
+              : null}
+          />
         </CollapsibleSection>
 
         {/* 3. Tour Dates */}
         <CollapsibleSection visible={showEvents} withBorder>
-          {isLoading ? (
-            <EventsSkeleton />
-          ) : data && data.events.length > 0 ? (
-            <Fade visible={contentReady}>
-              <EventsSection
-                events={data.events}
-                userRegion={userRegion}
-                hasLocalEvents={hasLocalEvents}
-                t={t}
-                locale={locale}
-              />
-            </Fade>
-          ) : null}
+          <CrossFade
+            contentReady={contentReady}
+            skeleton={<EventsSkeleton />}
+            content={data && data.events.length > 0
+              ? <EventsSection events={data.events} userRegion={userRegion} hasLocalEvents={hasLocalEvents} t={t} locale={locale} />
+              : null}
+          />
         </CollapsibleSection>
 
         {/* 4. Similar Artists */}
         <CollapsibleSection visible={showSimilar} withBorder>
-          {isLoading ? (
-            <SimilarArtistsSkeleton />
-          ) : data?.profile && data.profile.similarArtists.length > 0 ? (
-            <Fade visible={contentReady}>
-              <SimilarArtistsSection similarArtists={data.profile.similarArtists} t={t} />
-            </Fade>
-          ) : null}
+          <CrossFade
+            contentReady={contentReady}
+            skeleton={<SimilarArtistsSkeleton />}
+            content={data?.profile && data.profile.similarArtists.length > 0
+              ? <SimilarArtistsSection similarArtists={data.profile.similarArtists} t={t} />
+              : null}
+          />
         </CollapsibleSection>
       </div>
     </GlassCard>
@@ -161,11 +161,46 @@ function CollapsibleSection({
   );
 }
 
-/** Simple opacity-only fade for section content (skeleton → real content). */
-function Fade({ visible, children }: { visible: boolean; children: React.ReactNode }) {
+/**
+ * CrossFade: skeleton and content live in the same grid cell (CSS overlay).
+ * When contentReady flips to true, both transitions fire in the same render:
+ *   skeleton: opacity 1→0 (fade out)
+ *   content:  opacity 0→1 (fade in)
+ * → true simultaneous crossfade, no blank gap.
+ */
+function CrossFade({
+  contentReady,
+  skeleton,
+  content,
+}: {
+  contentReady: boolean;
+  skeleton: React.ReactNode;
+  content: React.ReactNode | null;
+}) {
   return (
-    <div className={cn("transition-opacity duration-300", visible ? "opacity-100" : "opacity-0")}>
-      {children}
+    <div className="grid">
+      {/* Skeleton layer — fades out when content is ready */}
+      <div
+        aria-hidden="true"
+        className={cn(
+          "col-start-1 row-start-1 transition-opacity duration-300",
+          contentReady ? "opacity-0 pointer-events-none" : "opacity-100",
+        )}
+      >
+        {skeleton}
+      </div>
+
+      {/* Content layer — fades in when content is ready */}
+      {content && (
+        <div
+          className={cn(
+            "col-start-1 row-start-1 transition-opacity duration-300",
+            contentReady ? "opacity-100" : "opacity-0 pointer-events-none",
+          )}
+        >
+          {content}
+        </div>
+      )}
     </div>
   );
 }
