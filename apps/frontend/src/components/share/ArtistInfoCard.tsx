@@ -245,7 +245,7 @@ function EventsSection({ events, userRegion, hasLocalEvents, t, locale }: { even
 // ─── Similar Artists Section ──────────────────────────────────────────────────
 
 function SimilarArtistsSection({ similarArtists, t }: { similarArtists: string[]; t: (key: string, vars?: Record<string, string>) => string }) {
-  const first2 = similarArtists.slice(0, 2);
+  const first2 = similarArtists.slice(0, 1);
   return (
     <div>
       <SectionHeading>{t("artist.similarArtists")}</SectionHeading>
