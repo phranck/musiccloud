@@ -58,5 +58,7 @@
   "audio.playPreview": "Önizlemeyi oynat",
   "audio.pausePreview": "Önizlemeyi duraklat",
   "audio.replayPreview": "Tekrar oynat",
-  "audio.previewUnavailable": "Önizleme mevcut değil"
+  "audio.previewUnavailable": "Önizleme mevcut değil",
+  "bio.readMore": "Devamını oku…",
+  "bio.readLess": "Daha az"
 }

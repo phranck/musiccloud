@@ -58,5 +58,7 @@
   "audio.playPreview": "Play preview",
   "audio.pausePreview": "Pause preview",
   "audio.replayPreview": "Replay preview",
-  "audio.previewUnavailable": "Preview unavailable"
+  "audio.previewUnavailable": "Preview unavailable",
+  "bio.readMore": "Read more…",
+  "bio.readLess": "Read less"
 }

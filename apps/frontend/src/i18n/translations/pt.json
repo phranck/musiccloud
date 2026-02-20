@@ -58,5 +58,7 @@
   "audio.playPreview": "Reproduzir prévia",
   "audio.pausePreview": "Pausar prévia",
   "audio.replayPreview": "Repetir prévia",
-  "audio.previewUnavailable": "Prévia indisponível"
+  "audio.previewUnavailable": "Prévia indisponível",
+  "bio.readMore": "Ler mais…",
+  "bio.readLess": "Menos"
 }

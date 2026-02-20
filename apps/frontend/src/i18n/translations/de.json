@@ -58,5 +58,7 @@
   "audio.playPreview": "Vorschau abspielen",
   "audio.pausePreview": "Vorschau pausieren",
   "audio.replayPreview": "Vorschau wiederholen",
-  "audio.previewUnavailable": "Vorschau nicht verfügbar"
+  "audio.previewUnavailable": "Vorschau nicht verfügbar",
+  "bio.readMore": "Mehr lesen…",
+  "bio.readLess": "Weniger"
 }

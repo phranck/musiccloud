@@ -58,5 +58,7 @@
   "audio.playPreview": "Écouter l'extrait",
   "audio.pausePreview": "Mettre en pause",
   "audio.replayPreview": "Rejouer l'extrait",
-  "audio.previewUnavailable": "Extrait indisponible"
+  "audio.previewUnavailable": "Extrait indisponible",
+  "bio.readMore": "Lire plus…",
+  "bio.readLess": "Réduire"
 }

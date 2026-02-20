@@ -78,7 +78,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
             content={data?.profile ? (
               <>
                 <ProfileSection profile={data.profile} t={t} />
-                {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
+                {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} t={t} />}
               </>
             ) : null}
           />
@@ -337,9 +337,40 @@ function ProfileSection({ profile, t }: { profile: ArtistProfile; t: (key: strin
   );
 }
 
-function BioSection({ bio }: { bio: string }) {
+function BioSection({ bio, t }: { bio: string; t: (key: string) => string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [isClamped, setIsClamped] = useState(false);
+  const [fullHeight, setFullHeight] = useState(0);
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  // 3 lines × leading-relaxed (1.625) × text-base (1rem) = 4.875rem
+  const COLLAPSED = "4.875rem";
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setIsClamped(el.scrollHeight > el.clientHeight + 1);
+    setFullHeight(el.scrollHeight);
+  }, [bio]);
+
   return (
-    <p className="text-base text-text-secondary leading-relaxed mt-3">{bio}</p>
+    <div className="mt-3">
+      <p
+        ref={ref}
+        className="text-base text-text-secondary leading-relaxed overflow-hidden transition-[max-height] duration-500 ease-in-out"
+        style={{ maxHeight: expanded && fullHeight > 0 ? `${fullHeight}px` : COLLAPSED }}
+      >
+        {bio}
+      </p>
+      {isClamped && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1.5 text-sm text-text-muted hover:text-text-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
+        >
+          {expanded ? t("bio.readLess") : t("bio.readMore")}
+        </button>
+      )}
+    </div>
   );
 }
 

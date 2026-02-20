@@ -248,7 +248,7 @@ function extractBioSummary(raw: string | null): string | null {
     .replace(/\s+/g, " ")
     .trim();
   if (!stripped) return null;
-  return stripped.length > 280 ? stripped.slice(0, 277) + "…" : stripped;
+  return stripped;
 }
 
 // ─── Tour Dates (Bandsintown + Ticketmaster) ──────────────────────────────────
