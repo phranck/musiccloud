@@ -370,7 +370,7 @@ function BioSection({ bio, t }: { bio: string; t: (key: string) => string }) {
             <div className="w-16 h-full bg-gradient-to-r from-transparent to-[#1C1C1E]" aria-hidden="true" />
             <button
               onClick={() => setExpanded(true)}
-              className="bg-[#1C1C1E] pl-0.5 text-sm text-text-muted hover:text-text-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
+              className="bg-[#1C1C1E] pl-0.5 text-sm text-accent hover:text-accent/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
             >
               {t("bio.readMore")}
             </button>
@@ -383,7 +383,7 @@ function BioSection({ bio, t }: { bio: string; t: (key: string) => string }) {
         <div className="flex justify-end">
           <button
             onClick={() => setExpanded(false)}
-            className="mt-1.5 text-sm text-text-muted hover:text-text-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
+            className="mt-1.5 text-sm text-accent hover:text-accent/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded"
           >
             {t("bio.readLess")}
           </button>
