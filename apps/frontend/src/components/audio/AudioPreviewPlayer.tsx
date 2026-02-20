@@ -95,7 +95,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
       <audio
         ref={audioRef}
         src={previewUrl}
-        preload="none"
+        preload="metadata"
         onPlaying={() => {
           const audio = audioRef.current;
           if (audio && audio.duration > 0) setDuration(Math.round(audio.duration));
@@ -165,12 +165,16 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
             />
           </div>
 
-          {(state !== "idle" || duration > 0) && (
-            <span className={`text-xs tabular-nums flex-shrink-0 ${state !== "idle" ? "text-accent" : "text-text-muted opacity-50"}`}>
+          {state !== "idle" ? (
+            <span className="text-xs tabular-nums flex-shrink-0 text-accent">
               {formatTime(elapsed)}
               {duration > 0 && <span className="opacity-60"> / {formatTime(duration)}</span>}
             </span>
-          )}
+          ) : duration > 0 ? (
+            <span className="text-xs tabular-nums flex-shrink-0 text-text-muted/50">
+              {formatTime(duration)}
+            </span>
+          ) : null}
         </>
       )}
     </div>

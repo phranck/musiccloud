@@ -28,7 +28,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
   const shareable = isShareableContent(content) ? content : null;
   const shareUrl = shareable?.shareUrl;
   const srAnnouncement = shareable?.srAnnouncement;
-  const onAlbumArtLoad = shareable?.onAlbumArtLoad;
+  const onAlbumArtLoad = content.onAlbumArtLoad;
 
   return (
     <GlassCard

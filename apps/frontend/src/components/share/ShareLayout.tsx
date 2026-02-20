@@ -8,7 +8,7 @@
  *                as a bottom sheet.
  */
 
-import { useState, useEffect, useReducer, useCallback } from "react";
+import { useState, useEffect, useReducer, useCallback, useMemo } from "react";
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 
 type ArtistState = { isLoading: boolean; artistData: ArtistInfoResponse | null };
@@ -22,6 +22,7 @@ import { SharePageCard } from "@/components/share/SharePageCard";
 import { ArtistInfoCard } from "@/components/share/ArtistInfoCard";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { LocaleProvider, useT } from "@/i18n/context";
+import { useAlbumColors } from "@/hooks/useAlbumColors";
 
 const MEDIA_W = 512;
 const ARTIST_W = 512;
@@ -82,6 +83,21 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
   });
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  // Dynamic accent color extraction from album artwork
+  const { dynamicAccent, handleAlbumArtLoad } = useAlbumColors();
+  const accentStyle = dynamicAccent ? ({
+    "--color-accent": dynamicAccent.base,
+    "--color-accent-hover": dynamicAccent.hover,
+    "--color-accent-glow": dynamicAccent.glow,
+    "--color-accent-contrast": dynamicAccent.contrastText,
+  } as React.CSSProperties) : undefined;
+
+  // Inject the client-side onAlbumArtLoad callback into the (SSR-serialized) config
+  const enrichedConfig = useMemo(
+    () => ({ ...config, onAlbumArtLoad: handleAlbumArtLoad }),
+    [config, handleAlbumArtLoad],
+  );
+
   // Fetch artist data via Astro proxy (same-origin, no CORS issues)
   useEffect(() => {
     let cancelled = false;
@@ -99,11 +115,11 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
   const closeSheet = useCallback(() => setSheetOpen(false), []);
 
   return (
-    <>
+    <div style={accentStyle}>
       {/* Desktop: beide Cards nebeneinander */}
       <div className="hidden sm:flex items-start gap-6 mx-auto" style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}>
         <div style={{ width: `${MEDIA_W}px`, flexShrink: 0 }}>
-          <SharePageCard config={config} animated={animated} />
+          <SharePageCard config={enrichedConfig} animated={animated} />
         </div>
         <div style={{ width: `${ARTIST_W}px`, flexShrink: 0 }}>
           <ArtistInfoCard
@@ -116,7 +132,7 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
 
       {/* Mobile: nur MediaCard + Button für BottomSheet */}
       <div className="block sm:hidden">
-        <SharePageCard config={config} animated={animated} />
+        <SharePageCard config={enrichedConfig} animated={animated} />
         <div className="mt-3 flex justify-center">
           <button
             onClick={openSheet}
@@ -150,6 +166,6 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

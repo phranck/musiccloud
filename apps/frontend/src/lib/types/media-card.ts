@@ -30,6 +30,11 @@ export interface MediaCardContentConfiguration {
   platformsLabel: string;
   /** Optional pre-translated availability note below the platform grid */
   platformsInfo?: string;
+  /**
+   * Called when the album art image finishes loading — used to extract
+   * dynamic accent colors. Not serializable; must be provided client-side.
+   */
+  onAlbumArtLoad?: (img: HTMLImageElement) => void;
 }
 
 /**
@@ -40,7 +45,6 @@ export interface SongContentConfiguration extends MediaCardContentConfiguration 
   type: "song";
   shareUrl: string;
   srAnnouncement?: string;
-  onAlbumArtLoad?: (img: HTMLImageElement) => void;
 }
 
 /**
@@ -51,13 +55,13 @@ export interface AlbumContentConfiguration extends MediaCardContentConfiguration
   type: "album";
   shareUrl: string;
   srAnnouncement?: string;
-  onAlbumArtLoad?: (img: HTMLImageElement) => void;
 }
 
 /**
  * Share page (`/[shortId]`).
- * No ShareButton, no sr-announcement, no onAlbumArtLoad callback.
- * All fields are plain data so the config is fully JSON-serializable.
+ * No ShareButton, no sr-announcement.
+ * Plain data fields are fully JSON-serializable (from Astro SSR).
+ * `onAlbumArtLoad` (inherited from base) is injected client-side by ShareLayoutInner.
  *
  * `platformsLabelKey` is the i18n key for the platforms label so the
  * client-side LocaleProvider can re-translate it after a locale change.
