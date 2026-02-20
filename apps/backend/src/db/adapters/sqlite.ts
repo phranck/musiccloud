@@ -517,6 +517,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         isrc: schema.tracks.isrc,
         releaseDate: schema.tracks.releaseDate,
         isExplicit: schema.tracks.isExplicit,
+        previewUrl: schema.tracks.previewUrl,
         linkService: schema.serviceLinks.service,
         linkUrl: schema.serviceLinks.url,
       })
@@ -543,6 +544,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         isrc: schema.tracks.isrc,
         releaseDate: schema.tracks.releaseDate,
         isExplicit: schema.tracks.isExplicit,
+        previewUrl: schema.tracks.previewUrl,
         linkService: schema.serviceLinks.service,
         linkUrl: schema.serviceLinks.url,
         shortUrlId: schema.shortUrls.id,
@@ -1248,6 +1250,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       isrc: string | null;
       releaseDate: string | null;
       isExplicit: number | null;
+      previewUrl: string | null;
       linkService: string;
       linkUrl: string;
     }[],
@@ -1267,6 +1270,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         isrc: first.isrc,
         releaseDate: first.releaseDate,
         isExplicit: first.isExplicit != null ? Boolean(first.isExplicit) : null,
+        previewUrl: first.previewUrl,
       },
       artists,
       artistDisplay,

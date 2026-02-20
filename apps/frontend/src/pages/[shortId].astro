@@ -81,6 +81,7 @@ const shareConfig: ShareContentConfiguration = {
   artworkUrl: artworkUrl ?? "",
   isExplicit: !isAlbum && track?.isExplicit ? true : undefined,
   metaLine: isAlbum ? albumMetaLine || undefined : trackMetaLine || undefined,
+  previewUrl: !isAlbum ? (track?.previewUrl ?? undefined) : undefined,
   platforms: platformLinks,
   platformsLabel: t(isAlbum ? "results.openAlbumOn" : "results.listenOn"),
   platformsLabelKey: isAlbum ? "results.openAlbumOn" : "results.listenOn",

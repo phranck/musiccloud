@@ -54,5 +54,9 @@
   "landing.exampleTeaser": "Curieux de voir à quoi ça ressemble ?",
   "landing.exampleLink": "Voir un exemple en direct →",
   "artist.similarArtists": "Artistes similaires",
-  "artist.eventsProvidedBy": "Données d'événements fournies par Bandsintown & Ticketmaster"
+  "artist.eventsProvidedBy": "Données d'événements fournies par Bandsintown & Ticketmaster",
+  "audio.playPreview": "Écouter l'extrait",
+  "audio.pausePreview": "Mettre en pause",
+  "audio.replayPreview": "Rejouer l'extrait",
+  "audio.previewUnavailable": "Extrait indisponible"
 }
