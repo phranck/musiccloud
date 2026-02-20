@@ -11,7 +11,7 @@ type PlayerState = "idle" | "loading" | "playing" | "paused" | "ended" | "error"
 type PlayerAction =
   | { type: "PLAY" }
   | { type: "PAUSE" }
-  | { type: "LOADED" }
+  | { type: "PLAYING" }
   | { type: "ENDED" }
   | { type: "ERROR" }
   | { type: "REPLAY" };
@@ -20,16 +20,17 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
   switch (action.type) {
     case "PLAY":
       return state === "idle" || state === "paused" || state === "ended" ? "loading" : state;
-    case "LOADED":
-      return state === "loading" ? "playing" : state;
+    case "REPLAY":
+      return "loading";
+    case "PLAYING":
+      // Accepts both "loading" (normal play) and "paused" (resume without spinner)
+      return state === "loading" || state === "paused" ? "playing" : state;
     case "PAUSE":
       return state === "playing" ? "paused" : state;
     case "ENDED":
       return "ended";
     case "ERROR":
       return "error";
-    case "REPLAY":
-      return "loading";
     default:
       return state;
   }
@@ -92,10 +93,16 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
         ref={audioRef}
         src={previewUrl}
         preload="none"
-        onCanPlay={() => {
+        onPlaying={() => {
+          // Fires exactly when audio starts playing – replaces onCanPlay to avoid
+          // the race condition where canplay fires before the PLAY dispatch is processed.
           const audio = audioRef.current;
-          if (audio) setDuration(Math.round(audio.duration));
-          dispatch({ type: "LOADED" });
+          if (audio && audio.duration > 0) setDuration(Math.round(audio.duration));
+          dispatch({ type: "PLAYING" });
+        }}
+        onDurationChange={() => {
+          const audio = audioRef.current;
+          if (audio && audio.duration > 0) setDuration(Math.round(audio.duration));
         }}
         onTimeUpdate={() => {
           const audio = audioRef.current;
@@ -120,19 +127,8 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
           >
             {isLoading ? (
               <svg className="w-4 h-4 animate-spin text-white/70" viewBox="0 0 24 24" fill="none">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                />
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
               </svg>
             ) : state === "ended" ? (
               <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -143,11 +139,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
                 <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
               </svg>
             ) : (
-              <svg
-                className="w-4 h-4 text-white translate-x-px"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
+              <svg className="w-4 h-4 text-white translate-x-px" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M8 5v14l11-7z" />
               </svg>
             )}
@@ -175,9 +167,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
             ) : (
               formatTime(elapsed)
             )}
-            {duration > 0 && (
-              <span className="opacity-50"> / {formatTime(duration)}</span>
-            )}
+            {duration > 0 && <span className="opacity-50"> / {formatTime(duration)}</span>}
           </span>
         </>
       )}
