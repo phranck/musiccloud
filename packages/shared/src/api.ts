@@ -9,7 +9,6 @@ export interface ApiTrack {
   isrc?: string;
   releaseDate?: string;
   isExplicit?: boolean;
-  previewUrl?: string;
 }
 
 export interface ApiLink {

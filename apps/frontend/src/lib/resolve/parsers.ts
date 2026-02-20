@@ -55,7 +55,6 @@ export function parseResolveResponse(data: ResolveSuccessResponse): SongResult {
     artworkUrl: data.track.artworkUrl ?? "",
     platforms,
     shareUrl: data.shortUrl,
-    previewUrl: data.track.previewUrl,
   };
 }
 
@@ -131,7 +130,6 @@ export function buildActiveConfig(
       platformsLabel: t("results.listenOn"),
       platformsInfo,
       shareUrl: active.shareUrl,
-      previewUrl: active.previewUrl,
       srAnnouncement: t("results.found", { title: active.title, artist: active.artist }),
       onAlbumArtLoad,
     };

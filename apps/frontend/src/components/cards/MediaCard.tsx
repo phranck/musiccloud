@@ -4,7 +4,6 @@ import {
   isShareableContent,
   type MediaCardContentConfiguration,
 } from "@/lib/types/media-card";
-import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 import { GlassCard } from "@/components/cards/GlassCard";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { ShareButton } from "@/components/share/ShareButton";
@@ -55,18 +54,6 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
         metaOverride={content.metaLine}
         onAlbumArtLoad={onAlbumArtLoad}
       />
-
-      {content.type !== "album" && (
-        <div className="border-t border-white/[0.12] px-6 pt-4 pb-4">
-          {content.previewUrl ? (
-            <AudioPreviewPlayer previewUrl={content.previewUrl} trackTitle={content.title} />
-          ) : (
-            <p className="text-xs text-text-muted text-center py-1 italic">
-              No preview snippet · {content.title}
-            </p>
-          )}
-        </div>
-      )}
 
       {shareUrl && (
         <div className="px-6 pb-5">

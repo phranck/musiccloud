@@ -54,9 +54,5 @@
   "landing.exampleTeaser": "Chceš vidět, jak to vypadá?",
   "landing.exampleLink": "Podívej se na živý příklad →",
   "artist.similarArtists": "Similar Artists",
-  "artist.eventsProvidedBy": "Data o událostech poskytuje Bandsintown & Ticketmaster",
-  "audio.playPreview": "Přehrát náhled",
-  "audio.pausePreview": "Pozastavit náhled",
-  "audio.replayPreview": "Přehrát znovu",
-  "audio.previewUnavailable": "Náhled pro tuto skladbu není dostupný"
+  "artist.eventsProvidedBy": "Data o událostech poskytuje Bandsintown & Ticketmaster"
 }

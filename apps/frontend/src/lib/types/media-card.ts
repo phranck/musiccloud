@@ -28,8 +28,6 @@ export interface MediaCardContentConfiguration {
   platformsLabel: string;
   /** Optional pre-translated availability note below the platform grid */
   platformsInfo?: string;
-  /** 30-second audio preview URL (Spotify or Deezer CDN). Undefined = no player shown. */
-  previewUrl?: string;
 }
 
 /**

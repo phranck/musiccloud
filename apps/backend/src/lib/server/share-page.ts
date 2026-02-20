@@ -11,7 +11,6 @@ export interface SharePageData {
     isrc: string | null;
     releaseDate: string | null;
     isExplicit: boolean | null;
-    previewUrl: string | null;
   };
   artists: string[];
   artistDisplay: string;
@@ -94,7 +93,6 @@ function enrichWithOGMeta(
       isrc: string | null;
       releaseDate: string | null;
       isExplicit: boolean | null;
-      previewUrl: string | null;
     };
     artists: string[];
     artistDisplay: string;
