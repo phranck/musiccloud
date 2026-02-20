@@ -54,5 +54,9 @@
   "landing.exampleTeaser": "Nasıl göründüğünü merak mı ediyorsun?",
   "landing.exampleLink": "Canlı bir örnek gör →",
   "artist.similarArtists": "Benzer Sanatçılar",
-  "artist.eventsProvidedBy": "Etkinlik verileri Bandsintown & Ticketmaster tarafından sağlanmaktadır"
+  "artist.eventsProvidedBy": "Etkinlik verileri Bandsintown & Ticketmaster tarafından sağlanmaktadır",
+  "audio.playPreview": "Önizlemeyi oynat",
+  "audio.pausePreview": "Önizlemeyi duraklat",
+  "audio.replayPreview": "Yeniden oynat",
+  "audio.previewUnavailable": "Bu parça için önizleme mevcut değil"
 }

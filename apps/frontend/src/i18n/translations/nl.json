@@ -54,5 +54,9 @@
   "landing.exampleTeaser": "Benieuwd hoe het eruitziet?",
   "landing.exampleLink": "Bekijk een live voorbeeld →",
   "artist.similarArtists": "Soortgelijke artiesten",
-  "artist.eventsProvidedBy": "Eventgegevens aangeboden door Bandsintown & Ticketmaster"
+  "artist.eventsProvidedBy": "Eventgegevens aangeboden door Bandsintown & Ticketmaster",
+  "audio.playPreview": "Voorvertoning afspelen",
+  "audio.pausePreview": "Voorvertoning pauzeren",
+  "audio.replayPreview": "Opnieuw afspelen",
+  "audio.previewUnavailable": "Geen voorvertoning beschikbaar voor dit nummer"
 }
