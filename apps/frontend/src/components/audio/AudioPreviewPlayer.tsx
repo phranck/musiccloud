@@ -4,6 +4,7 @@ import { useT } from "@/i18n/context";
 interface AudioPreviewPlayerProps {
   previewUrl: string;
   trackTitle: string;
+  onUnavailable?: () => void;
 }
 
 type PlayerState = "idle" | "loading" | "playing" | "paused" | "error";
@@ -26,8 +27,7 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
     case "RESET":
       return "idle";
     case "ERROR":
-      // Ignore errors while idle (e.g. preload=metadata CORS failures before user interaction)
-      return state === "idle" ? "idle" : "error";
+      return "error";
     default:
       return state;
   }
@@ -39,7 +39,7 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlayerProps) {
+export function AudioPreviewPlayer({ previewUrl, trackTitle, onUnavailable }: AudioPreviewPlayerProps) {
   const t = useT();
   const [state, dispatch] = useReducer(playerReducer, "idle");
   const [elapsed, setElapsed] = useState(0);
@@ -91,6 +91,8 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
   const isLoading = state === "loading";
   const progress = duration > 0 ? (elapsed / duration) * 100 : 0;
 
+  if (state === "error") return null;
+
   return (
     <div className="flex items-center gap-3 w-full">
       <audio
@@ -116,68 +118,63 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
           setElapsed(0);
           dispatch({ type: "RESET" });
         }}
-        onError={() => dispatch({ type: "ERROR" })}
+        onError={() => {
+          dispatch({ type: "ERROR" });
+          onUnavailable?.();
+        }}
       />
 
-      {state === "error" ? (
-        <p className="text-xs text-text-muted italic flex-1 text-center">
-          {t("audio.previewUnavailable")}
-        </p>
-      ) : (
-        <>
-          <button
-            type="button"
-            onClick={isPlaying ? handlePause : handlePlay}
-            aria-label={isPlaying ? t("audio.pausePreview") : t("audio.playPreview")}
-            disabled={isLoading}
-            className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 transition-colors disabled:opacity-50"
-          >
-            {isLoading ? (
-              <svg className="w-4 h-4 animate-spin text-white/70" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-              </svg>
-            ) : isPlaying ? (
-              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4 text-white translate-x-px" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            )}
-          </button>
+      <button
+        type="button"
+        onClick={isPlaying ? handlePause : handlePlay}
+        aria-label={isPlaying ? t("audio.pausePreview") : t("audio.playPreview")}
+        disabled={isLoading}
+        className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 transition-colors disabled:opacity-50"
+      >
+        {isLoading ? (
+          <svg className="w-4 h-4 animate-spin text-white/70" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          </svg>
+        ) : isPlaying ? (
+          <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4 text-white translate-x-px" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        )}
+      </button>
 
-          <div
-            ref={progressRef}
-            role="slider"
-            tabIndex={0}
-            aria-valuenow={elapsed}
-            aria-valuemin={0}
-            aria-valuemax={duration || 30}
-            aria-label={trackTitle}
-            onClick={handleProgressClick}
-            onKeyDown={handleProgressKeyDown}
-            className="flex-1 h-1 bg-white/20 rounded-full cursor-pointer relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent rounded-full"
-          >
-            <div
-              className="absolute inset-y-0 left-0 bg-accent rounded-full transition-[width] duration-100"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+      <div
+        ref={progressRef}
+        role="slider"
+        tabIndex={0}
+        aria-valuenow={elapsed}
+        aria-valuemin={0}
+        aria-valuemax={duration || 30}
+        aria-label={trackTitle}
+        onClick={handleProgressClick}
+        onKeyDown={handleProgressKeyDown}
+        className="flex-1 h-1 bg-white/20 rounded-full cursor-pointer relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent rounded-full"
+      >
+        <div
+          className="absolute inset-y-0 left-0 bg-accent rounded-full transition-[width] duration-100"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
 
-          {state !== "idle" ? (
-            <span className="text-xs tabular-nums flex-shrink-0 text-accent">
-              {formatTime(elapsed)}
-              {duration > 0 && <span className="opacity-60"> / {formatTime(duration)}</span>}
-            </span>
-          ) : duration > 0 ? (
-            <span className="text-xs tabular-nums flex-shrink-0 text-text-muted/50">
-              {formatTime(duration)}
-            </span>
-          ) : null}
-        </>
-      )}
+      {state !== "idle" ? (
+        <span className="text-xs tabular-nums flex-shrink-0 text-accent">
+          {formatTime(elapsed)}
+          {duration > 0 && <span className="opacity-60"> / {formatTime(duration)}</span>}
+        </span>
+      ) : duration > 0 ? (
+        <span className="text-xs tabular-nums flex-shrink-0 text-text-muted/50">
+          {formatTime(duration)}
+        </span>
+      ) : null}
     </div>
   );
 }

@@ -31,6 +31,13 @@ export const SongInfo = memo(function SongInfo({
 }: SongInfoProps) {
   const metaLine = metaOverride ?? buildMetaLine({ durationMs, releaseDate });
 
+  const [showPreview, setShowPreview] = useState(!!previewUrl);
+  const [prevPreviewUrl, setPrevPreviewUrl] = useState(previewUrl);
+  if (prevPreviewUrl !== previewUrl) {
+    setPrevPreviewUrl(previewUrl);
+    setShowPreview(!!previewUrl);
+  }
+
   // CORS-retry: attempt crossOrigin="anonymous" first (needed for canvas color extraction).
   // If the CDN blocks it (no Access-Control-Allow-Origin), fall back to a plain load
   // without crossOrigin so the artwork still displays (color extraction is then skipped).
@@ -112,9 +119,13 @@ export const SongInfo = memo(function SongInfo({
             <span>{metaLine}</span>
           </p>
         ) : null}
-        {previewUrl && (
+        {showPreview && previewUrl && (
           <div className="mt-4">
-            <AudioPreviewPlayer previewUrl={previewUrl} trackTitle={title} />
+            <AudioPreviewPlayer
+              previewUrl={previewUrl}
+              trackTitle={title}
+              onUnavailable={() => setShowPreview(false)}
+            />
           </div>
         )}
       </div>
