@@ -7,6 +7,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { FaCircleInfo } from "react-icons/fa6";
+import { cn } from "@/lib/utils";
 import { GlassCard } from "@/components/cards/GlassCard";
 import { useT, useLocale } from "@/i18n/context";
 import type { ArtistInfoResponse, ArtistTopTrack, ArtistProfile, ArtistEvent } from "@musiccloud/shared";
@@ -22,21 +23,36 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
   const t = useT();
   const { locale } = useLocale();
 
-  if (isLoading) return <ArtistInfoSkeleton />;
-  if (!data) return null;
+  // contentReady gates the fade-in: stays false until one rAF after loading ends,
+  // so React can paint the opacity-0 content before the transition starts.
+  const [contentReady, setContentReady] = useState(false);
 
-  const hasContent =
-    data.topTracks.length > 0 || data.profile !== null || data.events.length > 0;
+  useEffect(() => {
+    if (!isLoading) {
+      const id = requestAnimationFrame(() => setContentReady(true));
+      return () => cancelAnimationFrame(id);
+    }
+    setContentReady(false);
+  }, [isLoading]);
 
-  if (!hasContent) return null;
+  // Never render when the API returned nothing useful
+  if (!isLoading && !data) return null;
 
-  const hasLocalEvents = userRegion
-    ? data.events.some((e) => e.country.toUpperCase() === userRegion.toUpperCase())
-    : false;
+  const showProfile = isLoading || !!data?.profile;
+  const showTracks  = isLoading || (data?.topTracks.length ?? 0) > 0;
+  const showEvents  = isLoading || (data?.events.length ?? 0) > 0;
+  const showSimilar = isLoading || (data?.profile?.similarArtists.length ?? 0) > 0;
+
+  // All sections empty after load → nothing to render
+  if (!isLoading && !showProfile && !showTracks && !showEvents && !showSimilar) return null;
+
+  const hasLocalEvents =
+    !isLoading && data && userRegion
+      ? data.events.some((e) => e.country.toUpperCase() === userRegion.toUpperCase())
+      : false;
 
   return (
-    <GlassCard elevated className="w-full rounded-2xl sm:rounded-[36px]">
-      {/* relative wrapper needed for absolute close button */}
+    <GlassCard elevated className="w-full rounded-2xl sm:rounded-[36px] overflow-hidden">
       <div className="relative">
         {onClose && (
           <button
@@ -51,35 +67,194 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         )}
 
         {/* 1. Artist Profile */}
-        {data.profile && (
-          <div className="px-6 pt-6 pb-6">
-            <ProfileSection profile={data.profile} t={t} />
-            {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
-          </div>
-        )}
+        <CollapsibleSection visible={showProfile} innerClass="px-6 pt-6 pb-6">
+          {isLoading ? (
+            <ProfileSkeleton />
+          ) : data?.profile ? (
+            <Fade visible={contentReady}>
+              <ProfileSection profile={data.profile} t={t} />
+              {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
+            </Fade>
+          ) : null}
+        </CollapsibleSection>
 
         {/* 2. Popular Tracks */}
-        {data.topTracks.length > 0 && (
-          <div className="border-t border-white/[0.12] px-6 pt-5 pb-6">
-            <TopTracksSection tracks={data.topTracks} t={t} />
-          </div>
-        )}
+        <CollapsibleSection visible={showTracks} withBorder>
+          {isLoading ? (
+            <TracksSkeleton />
+          ) : data && data.topTracks.length > 0 ? (
+            <Fade visible={contentReady}>
+              <TopTracksSection tracks={data.topTracks} t={t} />
+            </Fade>
+          ) : null}
+        </CollapsibleSection>
 
         {/* 3. Tour Dates */}
-        {data.events.length > 0 && (
-          <div className="border-t border-white/[0.12] px-6 pt-5 pb-6">
-            <EventsSection events={data.events} userRegion={userRegion} hasLocalEvents={hasLocalEvents} t={t} locale={locale} />
-          </div>
-        )}
+        <CollapsibleSection visible={showEvents} withBorder>
+          {isLoading ? (
+            <EventsSkeleton />
+          ) : data && data.events.length > 0 ? (
+            <Fade visible={contentReady}>
+              <EventsSection
+                events={data.events}
+                userRegion={userRegion}
+                hasLocalEvents={hasLocalEvents}
+                t={t}
+                locale={locale}
+              />
+            </Fade>
+          ) : null}
+        </CollapsibleSection>
 
         {/* 4. Similar Artists */}
-        {data.profile && data.profile.similarArtists.length > 0 && (
-          <div className="border-t border-white/[0.12] px-6 pt-5 pb-6">
-            <SimilarArtistsSection similarArtists={data.profile.similarArtists} t={t} />
-          </div>
-        )}
+        <CollapsibleSection visible={showSimilar} withBorder>
+          {isLoading ? (
+            <SimilarArtistsSkeleton />
+          ) : data?.profile && data.profile.similarArtists.length > 0 ? (
+            <Fade visible={contentReady}>
+              <SimilarArtistsSection similarArtists={data.profile.similarArtists} t={t} />
+            </Fade>
+          ) : null}
+        </CollapsibleSection>
       </div>
     </GlassCard>
+  );
+}
+
+// ─── Layout helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Animates both height (via grid-template-rows) and opacity.
+ * All at 300ms so height-collapse and fade never fight each other.
+ */
+function CollapsibleSection({
+  visible,
+  withBorder = false,
+  innerClass,
+  children,
+}: {
+  visible: boolean;
+  withBorder?: boolean;
+  innerClass?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out",
+        visible ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+      )}
+    >
+      {/* overflow-hidden is required for the grid-rows collapse to clip content */}
+      <div className="overflow-hidden">
+        <div
+          className={cn(
+            withBorder && "border-t border-white/[0.12]",
+            "px-6 pt-5 pb-6",
+            innerClass,
+          )}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Simple opacity-only fade for section content (skeleton → real content). */
+function Fade({ visible, children }: { visible: boolean; children: React.ReactNode }) {
+  return (
+    <div className={cn("transition-opacity duration-300", visible ? "opacity-100" : "opacity-0")}>
+      {children}
+    </div>
+  );
+}
+
+// ─── Skeletons ─────────────────────────────────────────────────────────────────
+
+function ProfileSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="flex gap-4">
+        <div className="w-24 h-24 rounded-xl bg-white/[0.08] flex-none" />
+        <div className="flex-1 space-y-2 pt-1">
+          <div className="flex gap-1.5 flex-wrap">
+            <div className="h-5 w-14 rounded-full bg-white/[0.08]" />
+            <div className="h-5 w-10 rounded-full bg-white/[0.08]" />
+          </div>
+          <div className="h-3 bg-white/[0.08] rounded w-3/4" />
+          <div className="h-3 bg-white/[0.08] rounded w-1/2" />
+        </div>
+      </div>
+      {/* Bio placeholder */}
+      <div className="mt-3 space-y-1.5">
+        <div className="h-3 bg-white/[0.08] rounded w-full" />
+        <div className="h-3 bg-white/[0.08] rounded w-[90%]" />
+        <div className="h-3 bg-white/[0.08] rounded w-4/5" />
+      </div>
+    </div>
+  );
+}
+
+function TracksSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="h-3 bg-white/[0.08] rounded w-1/3 mb-4" />
+      <div className="space-y-4">
+        {(["sk-a", "sk-b", "sk-c"] as const).map((k) => (
+          <div key={k} className="flex gap-3 items-center">
+            <div className="w-12 h-12 rounded-lg bg-white/[0.08] flex-none" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 bg-white/[0.08] rounded w-4/5" />
+              <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
+            </div>
+            <div className="h-7 w-16 rounded-lg bg-white/[0.08] flex-none" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EventsSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="h-3 bg-white/[0.08] rounded w-1/3 mb-4" />
+      <div className="space-y-4">
+        {(["sk-a", "sk-b"] as const).map((k) => (
+          <div key={k} className="flex items-center gap-3">
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 bg-white/[0.08] rounded w-16" />
+              <div className="h-4 bg-white/[0.08] rounded w-3/4" />
+            </div>
+            <div className="h-7 w-20 rounded-lg bg-white/[0.08] flex-none" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SimilarArtistsSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="h-3 bg-white/[0.08] rounded w-1/3 mb-4" />
+      <div className="space-y-5">
+        {(["sk-a", "sk-b", "sk-c"] as const).map((k) => (
+          <div key={k}>
+            <div className="h-3 bg-white/[0.08] rounded w-1/4 mb-2" />
+            <div className="flex gap-3 items-center">
+              <div className="w-12 h-12 rounded-lg bg-white/[0.08] flex-none" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 bg-white/[0.08] rounded w-4/5" />
+                <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
+              </div>
+              <div className="h-7 w-16 rounded-lg bg-white/[0.08] flex-none" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -156,7 +331,6 @@ function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, va
   const showAlbum = track.albumName && track.albumName !== track.title;
   return (
     <div className="flex items-center gap-3">
-      {/* Cover – small */}
       <div className="w-12 h-12 flex-none">
         {track.artworkUrl ? (
           <img
@@ -174,7 +348,6 @@ function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, va
         )}
       </div>
 
-      {/* Middle: title + optional album */}
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium truncate text-text-primary">{track.title}</p>
         {showAlbum && (
@@ -182,7 +355,6 @@ function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, va
         )}
       </div>
 
-      {/* Right side: duration + Listen button on same row */}
       <div className="flex items-center gap-2 flex-none">
         {track.durationMs != null && (
           <span className="text-xs text-text-muted tabular-nums">{formatDuration(track.durationMs)}</span>
@@ -279,12 +451,15 @@ function SimilarArtistTopTrack({ artistName, t }: { artistName: string; t: (key:
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-3 animate-pulse">
-        <div className="w-12 h-12 rounded-lg bg-white/[0.08] flex-none" />
-        <div className="flex-1 space-y-1.5">
-          <div className="h-3 bg-white/[0.08] rounded w-1/3" />
-          <div className="h-3 bg-white/[0.08] rounded w-3/4" />
-          <div className="h-2.5 bg-white/[0.08] rounded w-1/2" />
+      <div className="animate-pulse">
+        <div className="h-3 bg-white/[0.08] rounded w-1/4 mb-2" />
+        <div className="flex gap-3 items-center">
+          <div className="w-12 h-12 rounded-lg bg-white/[0.08] flex-none" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 bg-white/[0.08] rounded w-4/5" />
+            <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
+          </div>
+          <div className="h-7 w-16 rounded-lg bg-white/[0.08] flex-none" />
         </div>
       </div>
     );
@@ -297,42 +472,6 @@ function SimilarArtistTopTrack({ artistName, t }: { artistName: string; t: (key:
       <p className="text-sm text-text-primary mb-1.5">{artistName}</p>
       <PopularTrack track={track} t={t} />
     </div>
-  );
-}
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-function ArtistInfoSkeleton() {
-  return (
-    <GlassCard elevated className="w-full rounded-2xl sm:rounded-[36px]">
-      <div className="px-6 pt-6 pb-5 animate-pulse">
-        {/* Profile skeleton */}
-        <div className="flex gap-4">
-          <div className="w-14 h-14 rounded-xl bg-white/[0.08] flex-none" />
-          <div className="flex-1 space-y-2 pt-1">
-            <div className="flex gap-1">
-              <div className="h-4 w-12 rounded-full bg-white/[0.08]" />
-              <div className="h-4 w-16 rounded-full bg-white/[0.08]" />
-            </div>
-            <div className="h-1 bg-white/[0.08] rounded-full w-full" />
-            <div className="h-3 bg-white/[0.08] rounded w-2/3" />
-          </div>
-        </div>
-        {/* Tracks skeleton */}
-        <div className="border-t border-white/[0.06] mt-5 pt-5 space-y-3">
-          <div className="h-3 bg-white/[0.08] rounded w-1/3 mb-4" />
-          {(["sk-a", "sk-b", "sk-c"] as const).map((k) => (
-            <div key={k} className="flex gap-3 items-center">
-              <div className="w-10 h-10 rounded-lg bg-white/[0.08] flex-none" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-3 bg-white/[0.08] rounded w-4/5" />
-                <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </GlassCard>
   );
 }
 
