@@ -116,6 +116,13 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
               : null}
           />
         </CollapsibleSection>
+
+        {/* Footer attribution */}
+        {!isLoading && data && (
+          <p className="px-6 pb-5 pt-2 text-xs text-text-muted text-center">
+            {t("artist.profileProvidedBy")}
+          </p>
+        )}
       </div>
     </GlassCard>
   );

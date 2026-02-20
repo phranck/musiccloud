@@ -58,5 +58,6 @@
   "audio.playPreview": "Écouter l'extrait",
   "audio.pausePreview": "Mettre en pause",
   "audio.replayPreview": "Rejouer l'extrait",
-  "audio.previewUnavailable": "Extrait indisponible"
+  "audio.previewUnavailable": "Extrait indisponible",
+  "artist.profileProvidedBy": "Données de l'artiste fournies par Spotify & Last.fm"
 }

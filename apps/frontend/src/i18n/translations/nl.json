@@ -58,5 +58,6 @@
   "audio.playPreview": "Voorbeeld afspelen",
   "audio.pausePreview": "Voorbeeld pauzeren",
   "audio.replayPreview": "Opnieuw afspelen",
-  "audio.previewUnavailable": "Voorbeeld niet beschikbaar"
+  "audio.previewUnavailable": "Voorbeeld niet beschikbaar",
+  "artist.profileProvidedBy": "Artiestgegevens aangeboden door Spotify & Last.fm"
 }

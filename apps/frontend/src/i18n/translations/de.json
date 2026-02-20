@@ -58,5 +58,6 @@
   "audio.playPreview": "Vorschau abspielen",
   "audio.pausePreview": "Vorschau pausieren",
   "audio.replayPreview": "Vorschau wiederholen",
-  "audio.previewUnavailable": "Vorschau nicht verfügbar"
+  "audio.previewUnavailable": "Vorschau nicht verfügbar",
+  "artist.profileProvidedBy": "Künstlerdaten bereitgestellt von Spotify & Last.fm"
 }

@@ -58,5 +58,6 @@
   "audio.playPreview": "Önizlemeyi oynat",
   "audio.pausePreview": "Önizlemeyi duraklat",
   "audio.replayPreview": "Tekrar oynat",
-  "audio.previewUnavailable": "Önizleme mevcut değil"
+  "audio.previewUnavailable": "Önizleme mevcut değil",
+  "artist.profileProvidedBy": "Sanatçı verileri Spotify & Last.fm tarafından sağlanmaktadır"
 }

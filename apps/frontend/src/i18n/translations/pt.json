@@ -58,5 +58,6 @@
   "audio.playPreview": "Reproduzir prévia",
   "audio.pausePreview": "Pausar prévia",
   "audio.replayPreview": "Repetir prévia",
-  "audio.previewUnavailable": "Prévia indisponível"
+  "audio.previewUnavailable": "Prévia indisponível",
+  "artist.profileProvidedBy": "Dados do artista fornecidos por Spotify & Last.fm"
 }
