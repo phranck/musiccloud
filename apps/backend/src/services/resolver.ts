@@ -19,6 +19,8 @@ export interface ResolvedLink {
   isSearchFallback?: boolean;
   /** Service-specific track ID (e.g. Spotify track ID, Deezer track ID) */
   externalId?: string;
+  /** 30-second audio preview URL from this service (if available) */
+  previewUrl?: string;
 }
 
 export interface ResolutionResult {
@@ -120,7 +122,17 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
 
   const allLinks = [...cached.links, ...newLinks].sort((a, b) => b.confidence - a.confidence);
 
-  return { sourceTrack: cached.sourceTrack, links: allLinks, trackId: cached.trackId };
+  // Deezer preview fallback: if cached track has no preview URL, use one from the new links
+  let sourceTrack = cached.sourceTrack;
+  if (!sourceTrack.previewUrl) {
+    const deezerLink = newLinks.find((l) => l.service === "deezer" && l.previewUrl);
+    const fallbackLink = deezerLink ?? newLinks.find((l) => l.previewUrl);
+    if (fallbackLink?.previewUrl) {
+      sourceTrack = { ...sourceTrack, previewUrl: fallbackLink.previewUrl };
+    }
+  }
+
+  return { sourceTrack, links: allLinks, trackId: cached.trackId };
 }
 
 /**
@@ -242,7 +254,17 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     confidence: 1.0,
     matchMethod: "isrc",
     externalId: sourceTrack.sourceId,
+    previewUrl: sourceTrack.previewUrl,
   });
+
+  // 6. Deezer preview fallback: if the source track has no preview URL, use one from the links
+  if (!sourceTrack.previewUrl) {
+    const deezerLink = links.find((l) => l.service === "deezer" && l.previewUrl);
+    const fallbackLink = deezerLink ?? links.find((l) => l.previewUrl);
+    if (fallbackLink?.previewUrl) {
+      sourceTrack = { ...sourceTrack, previewUrl: fallbackLink.previewUrl };
+    }
+  }
 
   return withAlias({ sourceTrack, links });
 }
@@ -495,6 +517,7 @@ async function resolveOnService(adapter: ServiceAdapter, sourceTrack: Normalized
         confidence: 1.0,
         matchMethod: "isrc",
         externalId: track.sourceId,
+        previewUrl: track.previewUrl,
       };
     }
   }
@@ -519,6 +542,7 @@ async function resolveViaSearch(adapter: ServiceAdapter, sourceTrack: Normalized
     confidence: result.confidence,
     matchMethod: result.matchMethod,
     externalId: result.track.sourceId,
+    previewUrl: result.track.previewUrl,
   };
 }
 
