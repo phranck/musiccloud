@@ -57,7 +57,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       />
 
       {shareUrl && (
-        <div className="px-6 pb-5">
+        <div className="border-t border-white/[0.12] px-6 pt-5 pb-5">
           <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
         </div>
       )}
