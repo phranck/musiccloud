@@ -58,10 +58,5 @@
   "audio.playPreview": "Voorbeeld afspelen",
   "audio.pausePreview": "Voorbeeld pauzeren",
   "audio.replayPreview": "Opnieuw afspelen",
-  "audio.previewUnavailable": "Voorbeeld niet beschikbaar",
-  "share.shareOnX": "Delen op X (Twitter)",
-  "share.shareOnBluesky": "Delen op Bluesky",
-  "share.shareOnMastodon": "Delen op Mastodon",
-  "share.mastodonInstance": "Jouw Mastodon-instantie",
-  "share.mastodonShare": "Delen"
+  "audio.previewUnavailable": "Voorbeeld niet beschikbaar"
 }

@@ -58,10 +58,5 @@
   "audio.playPreview": "Přehrát náhled",
   "audio.pausePreview": "Pozastavit náhled",
   "audio.replayPreview": "Přehrát znovu",
-  "audio.previewUnavailable": "Náhled není k dispozici",
-  "share.shareOnX": "Sdílet na X (Twitter)",
-  "share.shareOnBluesky": "Sdílet na Bluesky",
-  "share.shareOnMastodon": "Sdílet na Mastodon",
-  "share.mastodonInstance": "Vaše instance Mastodon",
-  "share.mastodonShare": "Sdílet"
+  "audio.previewUnavailable": "Náhled není k dispozici"
 }

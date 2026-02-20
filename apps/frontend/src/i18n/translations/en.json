@@ -58,10 +58,5 @@
   "audio.playPreview": "Play preview",
   "audio.pausePreview": "Pause preview",
   "audio.replayPreview": "Replay preview",
-  "audio.previewUnavailable": "Preview unavailable",
-  "share.shareOnX": "Share on X (Twitter)",
-  "share.shareOnBluesky": "Share on Bluesky",
-  "share.shareOnMastodon": "Share on Mastodon",
-  "share.mastodonInstance": "Your Mastodon instance",
-  "share.mastodonShare": "Share"
+  "audio.previewUnavailable": "Preview unavailable"
 }
