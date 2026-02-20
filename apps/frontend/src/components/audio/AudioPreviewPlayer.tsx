@@ -26,7 +26,8 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
     case "RESET":
       return "idle";
     case "ERROR":
-      return "error";
+      // Ignore errors while idle (e.g. preload=metadata CORS failures before user interaction)
+      return state === "idle" ? "idle" : "error";
     default:
       return state;
   }
