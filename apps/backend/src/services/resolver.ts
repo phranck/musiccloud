@@ -171,7 +171,7 @@ export const MATCH_MIN_CONFIDENCE = 0.6;
 export const LINK_QUALITY_THRESHOLD = 0.6;
 const AUTO_SELECT_THRESHOLD = 0.9;
 const CANDIDATE_MIN_CONFIDENCE = 0.4;
-const MAX_CANDIDATES = 5;
+const MAX_CANDIDATES = 8;
 const ODESLI_CONFIDENCE = 0.85;
 const SEARCH_FALLBACK_CONFIDENCE = 0.5;
 // CACHE_TTL_MS imported from ../lib/constants.js

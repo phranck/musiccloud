@@ -22,13 +22,13 @@ export function DisambiguationPanel({
 }: DisambiguationPanelProps) {
   const t = useT();
   return (
-    <div className={cn("w-full max-w-full sm:max-w-[480px] mx-auto mt-8", "animate-zoom-in")}>
+    <div className="w-full max-w-full sm:max-w-[480px] mx-auto mt-8 animate-fade-in">
       <div className="text-center mb-4">
         <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">{t("disambiguation.title")}</h2>
         <p className="text-sm text-text-secondary mt-1">{t("disambiguation.subtitle")}</p>
       </div>
 
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-3">
         {candidates.map((candidate, index) => {
           const isSelected = loading && selectedId === candidate.id;
           const isHiding = loading && !isSelected;
@@ -38,16 +38,14 @@ export function DisambiguationPanel({
             <div
               key={candidate.id}
               className={cn(
-                "overflow-hidden transition-all ease-in-out",
-                isHiding ? "max-h-0 mb-0 duration-300 delay-150" : "max-h-40 mb-3 duration-300",
+                "animate-slide-up",
+                "transition-[opacity,transform] duration-200",
+                isHiding && "opacity-0 scale-[0.96] pointer-events-none",
               )}
+              style={{ animationDelay: `${index * 50}ms` }}
             >
               <GlassCard
-                className={cn(
-                  "group",
-                  "transition-[opacity,transform] duration-200",
-                  isHiding && "opacity-0 scale-[0.97]",
-                )}
+                className={cn("group", isSelected && "ring-1 ring-accent/20")}
               >
                 <button
                   type="button"
@@ -61,7 +59,6 @@ export function DisambiguationPanel({
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                     isDisabled && "cursor-default",
                   )}
-                  style={{ animationDelay: `${index * 80}ms` }}
                   aria-label={
                     isSelected
                       ? t("disambiguation.loading")
