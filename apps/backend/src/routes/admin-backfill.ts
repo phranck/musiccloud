@@ -118,6 +118,17 @@ interface TrackRow {
 interface ServiceLinkRow {
   service: string;
   external_id: string | null;
+  url: string;
+}
+
+function extractIdFromUrl(service: string, url: string): string | null {
+  if (service === "deezer") {
+    return url.match(/deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/i)?.[1] ?? null;
+  }
+  if (service === "spotify") {
+    return url.match(/open\.spotify\.com\/track\/([A-Za-z0-9]+)/i)?.[1] ?? null;
+  }
+  return null;
 }
 
 // ─── Backfill job ────────────────────────────────────────────────────────────
@@ -148,7 +159,7 @@ async function runBackfillJob(dbPath: string): Promise<void> {
     for (const row of rows) {
       const links = db
         .prepare(
-          `SELECT service, external_id
+          `SELECT service, external_id, url
            FROM service_links
            WHERE track_id = ?
              AND service IN ('deezer', 'spotify')
@@ -159,14 +170,15 @@ async function runBackfillJob(dbPath: string): Promise<void> {
       let previewUrl: string | null = null;
 
       for (const link of links) {
-        if (!link.external_id) continue;
+        const externalId = link.external_id ?? extractIdFromUrl(link.service, link.url);
+        if (!externalId) continue;
         await sleep(DELAY_MS);
 
         if (link.service === "deezer") {
-          previewUrl = await getDeezerPreview(link.external_id);
+          previewUrl = await getDeezerPreview(externalId);
           if (previewUrl) break;
         } else if (link.service === "spotify") {
-          previewUrl = await getSpotifyPreview(link.external_id);
+          previewUrl = await getSpotifyPreview(externalId);
           if (previewUrl) break;
         }
       }
