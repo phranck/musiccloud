@@ -110,7 +110,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle, onUnavailable }: Au
         }}
         onTimeUpdate={() => {
           const audio = audioRef.current;
-          if (audio) setElapsed(Math.floor(audio.currentTime));
+          if (audio) setElapsed(audio.currentTime);
         }}
         onEnded={() => {
           const audio = audioRef.current;
@@ -160,7 +160,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle, onUnavailable }: Au
         className="flex-1 h-1 bg-white/20 rounded-full cursor-pointer relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent rounded-full"
       >
         <div
-          className="absolute inset-y-0 left-0 bg-accent rounded-full transition-[width] duration-100"
+          className="absolute inset-y-0 left-0 bg-accent rounded-full transition-[width] duration-[250ms] ease-linear"
           style={{ width: `${progress}%` }}
         />
       </div>
