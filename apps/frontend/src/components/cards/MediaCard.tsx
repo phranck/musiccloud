@@ -62,7 +62,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       )}
 
       {content.platforms.length > 0 && (
-        <div className="border-t border-white/[0.06] px-6 pt-5 pb-6">
+        <div className="border-t border-white/[0.12] px-6 pt-5 pb-6">
           <p className="text-sm uppercase tracking-widest text-text-secondary mb-3">
             {content.platformsLabel}
           </p>

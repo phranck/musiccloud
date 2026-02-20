@@ -60,21 +60,21 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 2. Popular Tracks */}
         {data.topTracks.length > 0 && (
-          <div className="border-t border-white/[0.06] px-6 pt-5 pb-6">
+          <div className="border-t border-white/[0.12] px-6 pt-5 pb-6">
             <TopTracksSection tracks={data.topTracks} t={t} />
           </div>
         )}
 
         {/* 3. Tour Dates */}
         {data.events.length > 0 && (
-          <div className="border-t border-white/[0.06] px-6 pt-5 pb-6">
+          <div className="border-t border-white/[0.12] px-6 pt-5 pb-6">
             <EventsSection events={data.events} userRegion={userRegion} hasLocalEvents={hasLocalEvents} t={t} locale={locale} />
           </div>
         )}
 
         {/* 4. Similar Artists */}
         {data.profile && data.profile.similarArtists.length > 0 && (
-          <div className="border-t border-white/[0.06] px-6 pt-5 pb-6">
+          <div className="border-t border-white/[0.12] px-6 pt-5 pb-6">
             <SimilarArtistsSection similarArtists={data.profile.similarArtists} t={t} />
           </div>
         )}
@@ -174,26 +174,26 @@ function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, va
         )}
       </div>
 
-      {/* Middle: title + duration in one row, album below */}
+      {/* Middle: title + optional album */}
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="text-sm font-medium truncate text-text-primary">{track.title}</p>
-          {track.durationMs != null && (
-            <span className="text-xs text-text-muted flex-none tabular-nums">{formatDuration(track.durationMs)}</span>
-          )}
-        </div>
+        <p className="text-sm font-medium truncate text-text-primary">{track.title}</p>
         {showAlbum && (
           <p className="text-xs truncate text-text-secondary mt-0.5">{track.albumName}</p>
         )}
       </div>
 
-      {/* Listen button – right side, always visible */}
-      <a
-        href={`/?url=${encodeURIComponent(track.deezerUrl)}`}
-        className="flex-none text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.10] text-text-secondary hover:text-text-primary hover:bg-white/[0.10] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-      >
-        {t("artist.listen")} →
-      </a>
+      {/* Right side: duration + Listen button on same row */}
+      <div className="flex items-center gap-2 flex-none">
+        {track.durationMs != null && (
+          <span className="text-xs text-text-muted tabular-nums">{formatDuration(track.durationMs)}</span>
+        )}
+        <a
+          href={`/?url=${encodeURIComponent(track.deezerUrl)}`}
+          className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.10] text-text-secondary hover:text-text-primary hover:bg-white/[0.10] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+        >
+          {t("artist.listen")} →
+        </a>
+      </div>
     </div>
   );
 }
@@ -245,23 +245,25 @@ function EventsSection({ events, userRegion, hasLocalEvents, t, locale }: { even
 // ─── Similar Artists Section ──────────────────────────────────────────────────
 
 function SimilarArtistsSection({ similarArtists, t }: { similarArtists: string[]; t: (key: string, vars?: Record<string, string>) => string }) {
-  const first2 = similarArtists.slice(0, 1);
+  const first3 = similarArtists.slice(0, 3);
   return (
     <div>
       <SectionHeading>{t("artist.similarArtists")}</SectionHeading>
-      <div className="space-y-5">
-        {first2.map((name) => (
-          <SimilarArtistTracks key={name} artistName={name} t={t} />
+      <ul className="divide-y divide-white/[0.06]">
+        {first3.map((name) => (
+          <li key={name} className="py-3 first:pt-0 last:pb-0">
+            <SimilarArtistTopTrack artistName={name} t={t} />
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }
 
-function SimilarArtistTracks({ artistName, t }: { artistName: string; t: (key: string, vars?: Record<string, string>) => string }) {
-  const [{ isLoading, tracks }, setState] = useState<{ isLoading: boolean; tracks: ArtistTopTrack[] }>({
+function SimilarArtistTopTrack({ artistName, t }: { artistName: string; t: (key: string, vars?: Record<string, string>) => string }) {
+  const [{ isLoading, track }, setState] = useState<{ isLoading: boolean; track: ArtistTopTrack | null }>({
     isLoading: true,
-    tracks: [],
+    track: null,
   });
 
   useEffect(() => {
@@ -269,40 +271,30 @@ function SimilarArtistTracks({ artistName, t }: { artistName: string; t: (key: s
     const params = new URLSearchParams({ name: artistName });
     fetch(`/api/artist-info?${params.toString()}`)
       .then((res) => (res.ok ? (res.json() as Promise<ArtistInfoResponse>) : null))
-      .then((data) => { if (!cancelled) setState({ isLoading: false, tracks: data?.topTracks ?? [] }); })
-      .catch(() => { if (!cancelled) setState({ isLoading: false, tracks: [] }); });
+      .then((data) => { if (!cancelled) setState({ isLoading: false, track: data?.topTracks[0] ?? null }); })
+      .catch(() => { if (!cancelled) setState({ isLoading: false, track: null }); });
     return () => { cancelled = true; };
   }, [artistName]);
 
   if (isLoading) {
     return (
-      <div className="space-y-2 animate-pulse">
-        <div className="h-3 w-1/3 rounded bg-white/[0.08]" />
-        {(["a", "b", "c"] as const).map((k) => (
-          <div key={k} className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-white/[0.08] flex-none" />
-            <div className="flex-1 space-y-1.5">
-              <div className="h-3 bg-white/[0.08] rounded w-3/4" />
-              <div className="h-2.5 bg-white/[0.08] rounded w-1/2" />
-            </div>
-          </div>
-        ))}
+      <div className="flex items-center gap-3 animate-pulse">
+        <div className="w-12 h-12 rounded-lg bg-white/[0.08] flex-none" />
+        <div className="flex-1 space-y-1.5">
+          <div className="h-3 bg-white/[0.08] rounded w-1/3" />
+          <div className="h-3 bg-white/[0.08] rounded w-3/4" />
+          <div className="h-2.5 bg-white/[0.08] rounded w-1/2" />
+        </div>
       </div>
     );
   }
 
-  if (tracks.length === 0) return null;
+  if (!track) return null;
 
   return (
     <div>
-      <p className="text-sm font-semibold text-text-primary mb-2">{artistName}</p>
-      <ul className="divide-y divide-white/[0.06]">
-        {tracks.map((track) => (
-          <li key={track.deezerUrl} className="py-3 first:pt-0 last:pb-0">
-            <PopularTrack track={track} t={t} />
-          </li>
-        ))}
-      </ul>
+      <p className="text-sm text-text-primary mb-1.5">{artistName}</p>
+      <PopularTrack track={track} t={t} />
     </div>
   );
 }
