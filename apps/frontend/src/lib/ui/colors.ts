@@ -68,6 +68,10 @@ export function extractAccent(r: number, g: number, b: number): DynamicAccent | 
 /**
  * Samples an HTMLImageElement via canvas and returns album colors + dynamic accent.
  * Must be called after the image has loaded (crossOrigin="anonymous" required).
+ *
+ * Accent strategy: hue-bucketing over a 64×64 sample. Near-black, near-white and
+ * near-grey pixels are excluded so that unlit background tones don't dominate.
+ * The hue range with the highest saturation-weighted pixel mass wins.
  */
 export function extractAlbumColors(img: HTMLImageElement): { albumColors: AlbumColors; accent: DynamicAccent | null } {
   const canvas = document.createElement("canvas");
@@ -79,21 +83,34 @@ export function extractAlbumColors(img: HTMLImageElement): { albumColors: AlbumC
     };
   }
 
-  const size = 20;
+  const size = 64;
   canvas.width = size; canvas.height = size;
   ctx.drawImage(img, 0, 0, size, size);
   const data = ctx.getImageData(0, 0, size, size).data;
   const pixelCount = size * size;
 
   let totalR = 0, totalG = 0, totalB = 0;
-  let bestR = 0, bestG = 0, bestB = 0, bestScore = 0;
+
+  const HUE_BUCKETS = 36; // 10° per bucket
+  type Bucket = { sumR: number; sumG: number; sumB: number; weight: number };
+  const buckets: Bucket[] = Array.from({ length: HUE_BUCKETS }, () => ({ sumR: 0, sumG: 0, sumB: 0, weight: 0 }));
 
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i], g = data[i + 1], b = data[i + 2];
     totalR += r; totalG += g; totalB += b;
-    const [, s, l] = rgbToHsl(r, g, b);
-    const score = s * (0.7 + 0.3 * (1 - Math.abs(l - 0.5) * 2));
-    if (score > bestScore) { bestScore = score; bestR = r; bestG = g; bestB = b; }
+
+    const [h, s, l] = rgbToHsl(r, g, b);
+    // Skip near-black, near-white, and near-grey pixels — they carry no useful hue signal.
+    if (l < 0.1 || l > 0.9 || s < 0.12) continue;
+
+    const weight = s * (1 - Math.abs(l - 0.5) * 1.5);
+    if (weight <= 0) continue;
+
+    const idx = Math.floor(h * HUE_BUCKETS) % HUE_BUCKETS;
+    buckets[idx].sumR += r * weight;
+    buckets[idx].sumG += g * weight;
+    buckets[idx].sumB += b * weight;
+    buckets[idx].weight += weight;
   }
 
   const avgR = Math.round(totalR / pixelCount);
@@ -106,5 +123,12 @@ export function extractAlbumColors(img: HTMLImageElement): { albumColors: AlbumC
     tertiary: `rgba(${avgR}, ${avgG}, ${Math.min(avgB + 40, 255)}, 0.15)`,
   };
 
-  return { albumColors, accent: extractAccent(bestR, bestG, bestB) };
+  const best = buckets.reduce((a, b) => (b.weight > a.weight ? b : a), buckets[0]);
+  if (best.weight === 0) return { albumColors, accent: null };
+
+  const accentR = Math.round(best.sumR / best.weight);
+  const accentG = Math.round(best.sumG / best.weight);
+  const accentB = Math.round(best.sumB / best.weight);
+
+  return { albumColors, accent: extractAccent(accentR, accentG, accentB) };
 }
