@@ -78,8 +78,26 @@ export const SongInfo = memo(function SongInfo({
       <div className="px-6 pt-5 pb-4">
         <h2 className="text-xl md:text-2xl font-semibold tracking-[-0.02em] text-text-primary">{title}</h2>
         <p className="text-base text-text-secondary mt-1">{artist}</p>
-        {album && <p className="text-base text-text-muted mt-1">{album}</p>}
-        {(isExplicit || metaLine) && (
+        {album ? (
+          <div className="flex items-baseline justify-between gap-3 mt-1">
+            <p className="text-base text-text-muted">{album}</p>
+            {(isExplicit || metaLine) && (
+              <p className="text-sm text-text-muted/60 font-mono tracking-wide flex items-center gap-1.5 flex-shrink-0">
+                {isExplicit && (
+                  <span
+                    role="img"
+                    className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0"
+                    title="Explicit"
+                    aria-label="Explicit content"
+                  >
+                    E
+                  </span>
+                )}
+                <span>{metaLine}</span>
+              </p>
+            )}
+          </div>
+        ) : (isExplicit || metaLine) ? (
           <p className="text-sm text-text-muted/60 mt-2 font-mono tracking-wide flex items-center gap-1.5">
             {isExplicit && (
               <span
@@ -93,7 +111,7 @@ export const SongInfo = memo(function SongInfo({
             )}
             <span>{metaLine}</span>
           </p>
-        )}
+        ) : null}
         {previewUrl && (
           <div className="mt-4">
             <AudioPreviewPlayer previewUrl={previewUrl} trackTitle={title} />
