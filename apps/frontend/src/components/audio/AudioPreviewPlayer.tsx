@@ -139,19 +139,17 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
             className="flex-1 h-1 bg-white/20 rounded-full cursor-pointer relative overflow-hidden"
           >
             <div
-              className="absolute inset-y-0 left-0 bg-white/70 rounded-full transition-[width] duration-100"
+              className="absolute inset-y-0 left-0 bg-accent rounded-full transition-[width] duration-100"
               style={{ width: `${progress}%` }}
             />
           </div>
 
-          <span className="text-xs text-text-muted tabular-nums flex-shrink-0">
-            {state === "idle" ? (
-              <span className="opacity-50">0:00</span>
-            ) : (
-              formatTime(elapsed)
-            )}
-            {duration > 0 && <span className="opacity-50"> / {formatTime(duration)}</span>}
-          </span>
+          {state !== "idle" && (
+            <span className="text-xs text-accent tabular-nums flex-shrink-0">
+              {formatTime(elapsed)}
+              {duration > 0 && <span className="opacity-60"> / {formatTime(duration)}</span>}
+            </span>
+          )}
         </>
       )}
     </div>

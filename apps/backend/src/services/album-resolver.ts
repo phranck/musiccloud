@@ -263,14 +263,26 @@ async function resolveAlbumViaSearch(
 
   if (!result.found || !result.album) return null;
 
+  // Search endpoints (e.g. Deezer /search/album) don't return tracks, so topTrackPreviewUrl
+  // is missing. Fetch full album details when the adapter supports it.
+  let album = result.album;
+  if (!album.topTrackPreviewUrl && adapter.getAlbum && album.sourceId) {
+    try {
+      const full = await adapter.getAlbum(album.sourceId);
+      if (full.topTrackPreviewUrl) album = full;
+    } catch {
+      // ignore — use search result as-is
+    }
+  }
+
   return {
     service: adapter.id,
     displayName: adapter.displayName,
-    url: result.album.webUrl,
+    url: album.webUrl,
     confidence: result.confidence,
     matchMethod: result.matchMethod as ResolvedAlbumLink["matchMethod"],
-    externalId: result.album.sourceId,
-    topTrackPreviewUrl: result.album.topTrackPreviewUrl,
+    externalId: album.sourceId,
+    topTrackPreviewUrl: album.topTrackPreviewUrl,
   };
 }
 
