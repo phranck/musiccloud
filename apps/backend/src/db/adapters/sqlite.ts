@@ -172,6 +172,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
           upc TEXT,
           source_service TEXT,
           source_url TEXT,
+          preview_url TEXT,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         );
@@ -239,6 +240,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
           upc TEXT,
           source_service TEXT,
           source_url TEXT,
+          preview_url TEXT,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         );
@@ -383,6 +385,12 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       .all() as Array<{ name: string }>;
     if (!albumShortUrlsCols.some((c) => c.name === "is_featured")) {
       this.sqlite.exec(`ALTER TABLE album_short_urls ADD COLUMN is_featured INTEGER NOT NULL DEFAULT 0`);
+    }
+    const albumsCols = this.sqlite
+      .prepare(`PRAGMA table_info(albums)`)
+      .all() as Array<{ name: string }>;
+    if (!albumsCols.some((c) => c.name === "preview_url")) {
+      this.sqlite.exec(`ALTER TABLE albums ADD COLUMN preview_url TEXT`);
     }
 
     // Lazy migration: artist_cache table
@@ -955,7 +963,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
 
   async loadAlbumByShortId(shortId: string): Promise<SharePageAlbumResult | null> {
     const stmt = this.sqlite.prepare(`
-      SELECT a.title, a.artists, a.artwork_url, a.release_date, a.total_tracks, a.label, a.upc,
+      SELECT a.title, a.artists, a.artwork_url, a.release_date, a.total_tracks, a.label, a.upc, a.preview_url,
              asl.service, asl.url AS link_url
       FROM album_short_urls asu
       JOIN albums a ON a.id = asu.album_id
@@ -971,6 +979,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
       total_tracks: number | null;
       label: string | null;
       upc: string | null;
+      preview_url: string | null;
       service: string;
       link_url: string;
     }>;
@@ -988,6 +997,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
         totalTracks: first.total_tracks,
         label: first.label,
         upc: first.upc,
+        previewUrl: first.preview_url,
       },
       artists,
       artistDisplay: artists.join(", "),
@@ -1032,8 +1042,8 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
 
       this.sqlite
         .prepare(`
-          INSERT INTO albums (id, title, artists, release_date, total_tracks, artwork_url, label, upc, source_service, source_url, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO albums (id, title, artists, release_date, total_tracks, artwork_url, label, upc, source_service, source_url, preview_url, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         .run(
           newAlbumId,
@@ -1046,6 +1056,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
           data.sourceAlbum.upc ?? null,
           data.sourceAlbum.sourceService ?? null,
           data.sourceAlbum.sourceUrl ?? null,
+          data.sourceAlbum.previewUrl ?? null,
           now,
           now,
         );

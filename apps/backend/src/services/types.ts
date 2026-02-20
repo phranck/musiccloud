@@ -167,6 +167,8 @@ export interface NormalizedAlbum {
   webUrl: string;
   /** Optional track listing for ISRC-based cross-matching */
   tracks?: AlbumTrackEntry[];
+  /** Preview URL of the most popular track (from Deezer, by rank) */
+  topTrackPreviewUrl?: string;
 }
 
 /** Minimal track info within an album (for ISRC-based cross-matching) */

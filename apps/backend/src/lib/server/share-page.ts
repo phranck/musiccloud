@@ -49,6 +49,7 @@ export interface ShareAlbumPageData {
     totalTracks: number | null;
     label: string | null;
     upc: string | null;
+    previewUrl: string | null;
   };
   artists: string[];
   artistDisplay: string;

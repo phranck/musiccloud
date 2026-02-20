@@ -53,7 +53,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
         isExplicit={content.isExplicit}
         metaOverride={content.metaLine}
         onAlbumArtLoad={onAlbumArtLoad}
-        previewUrl={content.type !== "album" ? content.previewUrl : undefined}
+        previewUrl={content.previewUrl}
       />
 
       {shareUrl && (

@@ -57,6 +57,7 @@ export interface ApiAlbum {
   artworkUrl?: string;
   label?: string;
   upc?: string;
+  previewUrl?: string;
 }
 
 export interface AlbumResolveSuccessResponse {

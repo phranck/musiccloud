@@ -79,6 +79,7 @@ export interface SharePageAlbumResult {
     totalTracks: number | null;
     label: string | null;
     upc: string | null;
+    previewUrl: string | null;
   };
   artists: string[];
   artistDisplay: string;
@@ -98,6 +99,7 @@ export interface PersistAlbumData {
     label?: string;
     sourceService?: string;
     sourceUrl?: string;
+    previewUrl?: string;
   };
   links: Array<{
     service: string;

@@ -62,6 +62,7 @@ export const albums = sqliteTable(
     upc: text("upc"),
     sourceService: text("source_service"),
     sourceUrl: text("source_url"),
+    previewUrl: text("preview_url"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },

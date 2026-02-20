@@ -81,10 +81,18 @@ function jsonError(code: ErrorCode, status: number, customMessage?: string): Res
 async function persistAndRespond(result: AlbumResolutionResult, origin: string): Promise<AlbumResolveSuccessResponse> {
   const repo = await getRepository();
 
+  // Deezer preview fallback: if source has no topTrackPreviewUrl, use one from Deezer link
+  let previewUrl = result.sourceAlbum.topTrackPreviewUrl;
+  if (!previewUrl) {
+    const deezerLink = result.links.find((l) => l.service === "deezer" && l.topTrackPreviewUrl);
+    if (deezerLink?.topTrackPreviewUrl) previewUrl = deezerLink.topTrackPreviewUrl;
+  }
+
   const { albumId, shortId } = await repo.persistAlbumWithLinks({
     sourceAlbum: {
       ...result.sourceAlbum,
       sourceUrl: result.sourceAlbum.webUrl,
+      previewUrl,
     },
     links: result.links.map((l) => ({
       service: l.service,
@@ -108,6 +116,7 @@ async function persistAndRespond(result: AlbumResolutionResult, origin: string):
       artworkUrl: result.sourceAlbum.artworkUrl,
       label: result.sourceAlbum.label,
       upc: result.sourceAlbum.upc,
+      previewUrl,
     },
     links: result.links.map((l) => ({
       service: l.service,

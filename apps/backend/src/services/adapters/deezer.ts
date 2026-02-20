@@ -48,6 +48,8 @@ interface DeezerAlbumTrack {
   isrc?: string;
   track_position: number;
   duration: number; // seconds
+  rank?: number;
+  preview?: string;
 }
 
 interface DeezerAlbumResponse {
@@ -70,6 +72,13 @@ interface DeezerAlbumSearchResponse {
 }
 
 function mapAlbum(raw: DeezerAlbumResponse): NormalizedAlbum {
+  const tracks = raw.tracks?.data ?? [];
+  // Pick the track with the highest rank as "most popular"
+  const topTrack = tracks.reduce<DeezerAlbumTrack | undefined>(
+    (best, t) => (t.rank !== undefined && (best === undefined || t.rank > (best.rank ?? 0)) ? t : best),
+    undefined,
+  );
+
   return {
     sourceService: "deezer",
     sourceId: String(raw.id),
@@ -81,7 +90,8 @@ function mapAlbum(raw: DeezerAlbumResponse): NormalizedAlbum {
     artworkUrl: raw.cover_xl ?? raw.cover_big,
     label: raw.label,
     webUrl: raw.link ?? `https://www.deezer.com/album/${raw.id}`,
-    tracks: raw.tracks?.data.map((t) => ({
+    topTrackPreviewUrl: topTrack?.preview,
+    tracks: tracks.map((t) => ({
       title: t.title,
       trackNumber: t.track_position,
       durationMs: t.duration * 1000,

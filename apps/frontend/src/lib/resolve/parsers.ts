@@ -77,6 +77,7 @@ export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): Al
     artworkUrl: data.album.artworkUrl ?? "",
     label: data.album.label,
     upc: data.album.upc,
+    previewUrl: data.album.previewUrl,
     platforms,
     shareUrl: data.shortUrl,
   };
@@ -148,7 +149,8 @@ export function buildActiveConfig(
     title: active.title,
     artist: active.artist,
     artworkUrl: active.artworkUrl,
-    metaLine: metaParts.join(" \u00B7 ") || undefined,
+    metaLine: metaParts.join(" \u00B7") || undefined,
+    previewUrl: active.previewUrl,
     platforms: active.platforms,
     platformsLabel: t("results.openAlbumOn"),
     platformsInfo,

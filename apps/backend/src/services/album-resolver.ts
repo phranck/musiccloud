@@ -17,6 +17,8 @@ export interface ResolvedAlbumLink {
   confidence: number;
   matchMethod: "upc" | "isrc-inference" | "search" | "cache";
   externalId?: string;
+  /** Preview URL of the most popular track from this service (Deezer only) */
+  topTrackPreviewUrl?: string;
 }
 
 export interface AlbumResolutionResult {
@@ -219,6 +221,7 @@ async function resolveAlbumOnService(
           confidence: 1.0,
           matchMethod: "upc",
           externalId: album.sourceId,
+          topTrackPreviewUrl: album.topTrackPreviewUrl,
         };
       }
     } catch (error) {
@@ -267,6 +270,7 @@ async function resolveAlbumViaSearch(
     confidence: result.confidence,
     matchMethod: result.matchMethod as ResolvedAlbumLink["matchMethod"],
     externalId: result.album.sourceId,
+    topTrackPreviewUrl: result.album.topTrackPreviewUrl,
   };
 }
 

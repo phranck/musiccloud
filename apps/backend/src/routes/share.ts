@@ -69,6 +69,7 @@ export default async function shareRoutes(app: FastifyInstance) {
           artworkUrl: albumData.album.artworkUrl ?? undefined,
           label: albumData.album.label ?? undefined,
           upc: albumData.album.upc ?? undefined,
+          previewUrl: albumData.album.previewUrl ?? undefined,
         },
         links: albumData.links.map((l) => ({
           service: l.service,

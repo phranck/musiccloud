@@ -29,6 +29,7 @@ export interface AlbumResult {
   artworkUrl: string;
   platforms: PlatformLink[];
   shareUrl: string;
+  previewUrl?: string;
 }
 
 export type ActiveResult = SongResult | AlbumResult;
