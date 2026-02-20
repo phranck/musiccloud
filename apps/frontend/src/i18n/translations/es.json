@@ -58,5 +58,10 @@
   "audio.playPreview": "Reproducir vista previa",
   "audio.pausePreview": "Pausar vista previa",
   "audio.replayPreview": "Repetir vista previa",
-  "audio.previewUnavailable": "Vista previa no disponible"
+  "audio.previewUnavailable": "Vista previa no disponible",
+  "share.shareOnX": "Compartir en X (Twitter)",
+  "share.shareOnBluesky": "Compartir en Bluesky",
+  "share.shareOnMastodon": "Compartir en Mastodon",
+  "share.mastodonInstance": "Tu instancia de Mastodon",
+  "share.mastodonShare": "Compartir"
 }

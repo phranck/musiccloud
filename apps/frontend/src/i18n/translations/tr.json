@@ -58,5 +58,10 @@
   "audio.playPreview": "Önizlemeyi oynat",
   "audio.pausePreview": "Önizlemeyi duraklat",
   "audio.replayPreview": "Tekrar oynat",
-  "audio.previewUnavailable": "Önizleme mevcut değil"
+  "audio.previewUnavailable": "Önizleme mevcut değil",
+  "share.shareOnX": "X'te (Twitter) paylaş",
+  "share.shareOnBluesky": "Bluesky'da paylaş",
+  "share.shareOnMastodon": "Mastodon'da paylaş",
+  "share.mastodonInstance": "Mastodon örneğin",
+  "share.mastodonShare": "Paylaş"
 }
