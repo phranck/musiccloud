@@ -71,7 +71,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         )}
 
         {/* 1. Artist Profile */}
-        <CollapsibleSection visible={showProfile} innerClass="px-6 pt-6 pb-6">
+        <CollapsibleSection visible={showProfile} innerClass="px-6 pt-6 pb-3">
           <CrossFade
             contentReady={contentReady}
             skeleton={<ProfileSkeleton />}
@@ -97,7 +97,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         </CollapsibleSection>
 
         {/* 3. Tour Dates */}
-        <CollapsibleSection visible={showEvents} withBorder>
+        <CollapsibleSection visible={showEvents} withBorder innerClass="px-6 pt-5 pb-3">
           <CrossFade
             contentReady={contentReady}
             skeleton={<EventsSkeleton />}
