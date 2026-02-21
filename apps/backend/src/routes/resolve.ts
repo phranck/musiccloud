@@ -11,6 +11,7 @@ import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { getRepository } from "../db/index.js";
+import { deezerAdapter } from "../services/adapters/deezer.js";
 import type { ResolutionResult } from "../services/resolver.js";
 import {
   resolveQuery,
@@ -133,6 +134,22 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
     }
   }
 
+  // Lazily enrich tracks that have no preview URL stored yet.
+  // Uses Deezer ISRC lookup (permanent CDN URLs). Persists to DB so the
+  // next request returns the preview URL directly without a Deezer call.
+  let previewUrl = result.sourceTrack.previewUrl ?? undefined;
+  if (!previewUrl && result.sourceTrack.isrc && deezerAdapter.isAvailable()) {
+    try {
+      const deezerTrack = await deezerAdapter.findByIsrc(result.sourceTrack.isrc);
+      if (deezerTrack?.previewUrl) {
+        await repo.updatePreviewUrl(trackId, deezerTrack.previewUrl);
+        previewUrl = deezerTrack.previewUrl;
+      }
+    } catch (err) {
+      log.debug("Resolve", "Deezer preview enrichment failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   const shortUrl = `${origin}/${shortId}`;
 
   return {
@@ -147,7 +164,7 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
       isrc: result.sourceTrack.isrc,
       releaseDate: result.sourceTrack.releaseDate,
       isExplicit: result.sourceTrack.isExplicit,
-      previewUrl: result.sourceTrack.previewUrl ?? undefined,
+      previewUrl,
     },
     links: result.links.map((l) => ({
       service: l.service,
