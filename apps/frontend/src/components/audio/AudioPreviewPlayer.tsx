@@ -163,10 +163,15 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
         type="button"
         onClick={togglePlay}
         aria-label={isPlaying ? "Pause preview" : "Play preview"}
+        style={
+          isPlaying
+            ? undefined
+            : { backgroundColor: "color-mix(in srgb, var(--color-accent) 18%, transparent)" }
+        }
         className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 transition-all duration-[250ms] active:scale-[0.97] ${
           isPlaying
             ? "bg-accent text-[var(--color-accent-contrast)] hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]"
-            : "bg-white/15 text-white/50 hover:bg-white/22 hover:text-white/80"
+            : "text-[var(--color-accent)] hover:scale-[1.05]"
         }`}
       >
         {isPlaying ? (
@@ -215,7 +220,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
           focus-visible:ring-2
           focus-visible:ring-white/40"
         style={{
-          background: `linear-gradient(to right, rgba(255,255,255,0.7) ${progress * 100}%, rgba(255,255,255,0.2) ${progress * 100}%)`,
+          background: `linear-gradient(to right, var(--color-accent) ${progress * 100}%, rgba(255,255,255,0.12) ${progress * 100}%)`,
         }}
       />
 
