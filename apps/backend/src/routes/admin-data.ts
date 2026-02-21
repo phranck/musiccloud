@@ -63,6 +63,18 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return reply.send(result);
   });
 
+  app.get("/api/admin/data-counts", async (_request, reply) => {
+    const repo = await getAdminRepository();
+    const counts = await repo.countAllData();
+    return reply.send(counts);
+  });
+
+  app.post("/api/admin/reset-all", async (_request, reply) => {
+    const repo = await getAdminRepository();
+    const result = await repo.resetAllData();
+    return reply.send(result);
+  });
+
   app.delete("/api/admin/albums", async (request, reply) => {
     const body = request.body as { ids?: unknown };
     if (!Array.isArray(body?.ids) || body.ids.length === 0) {

@@ -850,19 +850,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
          ) ORDER BY RANDOM() LIMIT 1`,
       )
       .get() as { id: string } | undefined;
-    if (featured) return featured.id;
-
-    // Fallback: any short URL when no entries are marked as featured
-    const any = this.sqlite
-      .prepare(
-        `SELECT id FROM (
-           SELECT id FROM short_urls
-           UNION ALL
-           SELECT id FROM album_short_urls
-         ) ORDER BY RANDOM() LIMIT 1`,
-      )
-      .get() as { id: string } | undefined;
-    return any?.id ?? null;
+    return featured?.id ?? null;
   }
 
   async updateTrackTimestamp(trackId: string): Promise<void> {
@@ -1476,6 +1464,27 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
   async clearArtistCache(): Promise<{ deleted: number }> {
     const result = this.sqlite.prepare(`DELETE FROM artist_cache`).run();
     return { deleted: result.changes };
+  }
+
+  async countAllData(): Promise<{ tracks: number; albums: number }> {
+    const tracks = (this.sqlite.prepare(`SELECT COUNT(*) AS cnt FROM tracks`).get() as { cnt: number }).cnt;
+    const albums = (this.sqlite.prepare(`SELECT COUNT(*) AS cnt FROM albums`).get() as { cnt: number }).cnt;
+    return { tracks, albums };
+  }
+
+  async resetAllData(): Promise<{ tracks: number; albums: number }> {
+    const counts = await this.countAllData();
+    this.sqlite.transaction(() => {
+      this.sqlite.prepare(`DELETE FROM artist_cache`).run();
+      this.sqlite.prepare(`DELETE FROM service_links`).run();
+      this.sqlite.prepare(`DELETE FROM short_urls`).run();
+      this.sqlite.prepare(`DELETE FROM track_url_aliases`).run();
+      this.sqlite.prepare(`DELETE FROM tracks`).run(); // tracks_fts_delete trigger fires automatically
+      this.sqlite.prepare(`DELETE FROM album_service_links`).run();
+      this.sqlite.prepare(`DELETE FROM album_short_urls`).run();
+      this.sqlite.prepare(`DELETE FROM albums`).run(); // albums_fts_delete trigger fires automatically
+    })();
+    return counts;
   }
 
 }

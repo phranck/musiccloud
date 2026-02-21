@@ -54,4 +54,6 @@ export interface AdminRepository {
   setTrackFeatured(shortId: string, featured: boolean): Promise<void>;
   setAlbumFeatured(shortId: string, featured: boolean): Promise<void>;
   clearArtistCache(): Promise<{ deleted: number }>;
+  countAllData(): Promise<{ tracks: number; albums: number }>;
+  resetAllData(): Promise<{ tracks: number; albums: number }>;
 }
