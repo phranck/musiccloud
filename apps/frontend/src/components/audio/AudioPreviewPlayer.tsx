@@ -163,7 +163,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
         type="button"
         onClick={togglePlay}
         aria-label={isPlaying ? "Pause preview" : "Play preview"}
-        className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-white/70 hover:text-white focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 transition-colors"
+        className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-accent text-[var(--color-accent-contrast)] hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 transition-all duration-[250ms]"
       >
         {isPlaying ? (
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
