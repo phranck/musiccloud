@@ -122,14 +122,13 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
 
   const allLinks = [...cached.links, ...newLinks].sort((a, b) => b.confidence - a.confidence);
 
-  // Deezer preview fallback: if cached track has no preview URL, use one from the new links
+  // Always prefer a fresh Deezer preview URL — Deezer CDN URLs are permanent,
+  // Spotify preview URLs expire after ~30-60 days. Overwrite any existing value.
   let sourceTrack = cached.sourceTrack;
-  if (!sourceTrack.previewUrl) {
-    const deezerLink = newLinks.find((l) => l.service === "deezer" && l.previewUrl);
-    const fallbackLink = deezerLink ?? newLinks.find((l) => l.previewUrl);
-    if (fallbackLink?.previewUrl) {
-      sourceTrack = { ...sourceTrack, previewUrl: fallbackLink.previewUrl };
-    }
+  const deezerGapLink = newLinks.find((l) => l.service === "deezer" && l.previewUrl);
+  const anyGapPreview = deezerGapLink ?? newLinks.find((l) => l.previewUrl);
+  if (anyGapPreview?.previewUrl) {
+    sourceTrack = { ...sourceTrack, previewUrl: anyGapPreview.previewUrl };
   }
 
   return { sourceTrack, links: allLinks, trackId: cached.trackId };
@@ -257,13 +256,12 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     previewUrl: sourceTrack.previewUrl,
   });
 
-  // 6. Deezer preview fallback: if the source track has no preview URL, use one from the links
-  if (!sourceTrack.previewUrl) {
-    const deezerLink = links.find((l) => l.service === "deezer" && l.previewUrl);
-    const fallbackLink = deezerLink ?? links.find((l) => l.previewUrl);
-    if (fallbackLink?.previewUrl) {
-      sourceTrack = { ...sourceTrack, previewUrl: fallbackLink.previewUrl };
-    }
+  // 6. Always prefer a stable Deezer preview URL over any other service.
+  // Deezer CDN URLs are permanent; Spotify preview URLs expire after ~30-60 days.
+  const deezerLink = links.find((l) => l.service === "deezer" && l.previewUrl);
+  const bestPreviewUrl = deezerLink?.previewUrl ?? links.find((l) => l.previewUrl)?.previewUrl ?? sourceTrack.previewUrl;
+  if (bestPreviewUrl !== sourceTrack.previewUrl) {
+    sourceTrack = { ...sourceTrack, previewUrl: bestPreviewUrl };
   }
 
   return withAlias({ sourceTrack, links });

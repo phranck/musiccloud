@@ -14,7 +14,6 @@ import authRoutes from "./routes/auth.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminDataRoutes from "./routes/admin-data.js";
 import adminSseRoutes from "./routes/admin-sse.js";
-import adminBackfillRoutes from "./routes/admin-backfill.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import randomExampleRoutes from "./routes/random-example.js";
 
@@ -75,7 +74,6 @@ async function buildApp() {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
     await adminApp.register(adminDataRoutes);
     await adminApp.register(adminSseRoutes);
-    await adminApp.register(adminBackfillRoutes);
   });
 
   return app;
