@@ -135,6 +135,8 @@ const ALLOWED_HOSTS = [
 const PODCAST_REGEX = /spotify\.com\/(?:intl-\w+\/)?(?:episode|show)\//;
 const PLAYLIST_REGEX =
   /(?:spotify\.com\/(?:intl-\w+\/)?playlist\/|music\.apple\.com\/[a-z]{2}\/playlist\/|youtube\.com\/playlist\?list=(?!OLAK5uy_))/;
+const ARTIST_PAGE_REGEX =
+  /(?:spotify\.com\/(?:intl-\w+\/)?artist\/|music\.apple\.com\/[a-z]{2}\/artist\/|youtube\.com\/@|youtube\.com\/channel\/|youtube\.com\/c\/|youtube\.com\/user\/)/;
 
 export function validateMusicUrl(input: string): UrlValidationResult {
   // Check if it looks like a URL at all
@@ -162,6 +164,14 @@ export function validateMusicUrl(input: string): UrlValidationResult {
       valid: false,
       code: "PLAYLIST_NOT_SUPPORTED",
       message: "We support single tracks right now. Try pasting a link to a specific song.",
+    };
+  }
+
+  if (ARTIST_PAGE_REGEX.test(input)) {
+    return {
+      valid: false,
+      code: "NOT_MUSIC_LINK",
+      message: "This is an artist page, not a track. Please paste a link to a specific song.",
     };
   }
 

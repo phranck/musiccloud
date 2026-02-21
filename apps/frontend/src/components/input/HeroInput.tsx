@@ -66,7 +66,14 @@ export function HeroInput({
 
       setTimeout(() => {
         const album = isAlbumUrl(pastedText);
-        if (isMusicUrl(pastedText) || album) {
+        // Auto-submit any URL from a known music service domain, even if it's not a
+        // recognised track/album URL (e.g. artist pages). The backend will return a
+        // descriptive error so the user gets immediate feedback instead of silence.
+        const isMusicDomain =
+          /^https?:\/\/(?:open\.spotify\.com|music\.apple\.com|(?:www\.)?youtube\.com|youtu\.be|(?:www\.|m\.)?soundcloud\.com|(?:listen\.)?tidal\.com|(?:www\.)?deezer\.com|link\.deezer\.com)/.test(
+            pastedText,
+          );
+        if (isMusicUrl(pastedText) || album || isMusicDomain) {
           setIsAlbum(album);
           autoSubmitTimer.current = setTimeout(() => {
             onSubmit(pastedText);
