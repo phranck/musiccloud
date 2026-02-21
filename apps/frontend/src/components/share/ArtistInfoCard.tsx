@@ -502,7 +502,9 @@ function SimilarArtistTopTrack({ artistName, t }: { artistName: string; t: (key:
     );
   }
 
-  if (!track) return null;
+  if (!track) {
+    return <p className="text-sm text-text-primary">{artistName}</p>;
+  }
 
   return (
     <div>
