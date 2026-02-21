@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiGet, apiPost } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
@@ -68,6 +68,12 @@ function DangerZone() {
   const [counts, setCounts] = useState<{ tracks: number; albums: number } | null>(null);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    apiGet<{ tracks: number; albums: number }>("/api/admin/data-counts")
+      .then(setCounts)
+      .catch(() => {});
+  }, []);
+
   async function handleInitiate() {
     setPhase("fetching");
     setError("");
@@ -106,12 +112,13 @@ function DangerZone() {
           <div className="min-w-0">
             <p className="font-medium text-sm">Alle Daten löschen</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Löscht alle Tracks, Alben, Links, Short-URLs und Caches. User-Accounts bleiben unberührt.
+              {counts
+                ? `Löscht ${counts.tracks} ${counts.tracks === 1 ? "Track" : "Tracks"} und ${counts.albums} ${counts.albums === 1 ? "Album" : "Alben"} inkl. aller Links, Short-URLs und Caches. User-Accounts bleiben unberührt.`
+                : "Löscht alle Tracks, Alben, Links, Short-URLs und Caches. User-Accounts bleiben unberührt."}
             </p>
-            {phase === "confirm" && counts && (
+            {phase === "confirm" && (
               <p className="text-xs text-destructive mt-2 font-medium">
-                {counts.tracks} {counts.tracks === 1 ? "Track" : "Tracks"} und{" "}
-                {counts.albums} {counts.albums === 1 ? "Album" : "Alben"} werden unwiderruflich gelöscht.
+                Diese Aktion kann nicht rückgängig gemacht werden.
               </p>
             )}
             {phase === "done" && counts && (
