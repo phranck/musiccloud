@@ -386,9 +386,9 @@ function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, va
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate text-text-primary">{track.title}</p>
+        <p className="text-sm font-medium text-text-primary">{track.title}</p>
         {showAlbum && (
-          <p className="text-xs truncate text-text-secondary mt-0.5">{track.albumName}</p>
+          <p className="text-xs text-text-secondary mt-0.5">{track.albumName}</p>
         )}
       </div>
 
