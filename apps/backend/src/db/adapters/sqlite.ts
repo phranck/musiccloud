@@ -869,6 +869,10 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     this.sqlite.prepare(`UPDATE tracks SET updated_at = ? WHERE id = ?`).run(Date.now(), trackId);
   }
 
+  async updatePreviewUrl(trackId: string, previewUrl: string): Promise<void> {
+    this.sqlite.prepare(`UPDATE tracks SET preview_url = ? WHERE id = ?`).run(previewUrl, trackId);
+  }
+
   async close(): Promise<void> {
     this.sqlite.close();
   }
@@ -1253,6 +1257,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
 
   private buildSharePageResult(
     rows: {
+      trackId: string;
       title: string;
       artists: string;
       albumName: string | null;
@@ -1273,6 +1278,7 @@ export class SqliteAdapter implements TrackRepository, AdminRepository {
     const links = rows.map((r) => ({ service: r.linkService, url: r.linkUrl }));
 
     return {
+      trackId: first.trackId,
       track: {
         title: first.title,
         albumName: first.albumName,
