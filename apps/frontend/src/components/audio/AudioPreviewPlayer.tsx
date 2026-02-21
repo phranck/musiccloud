@@ -7,21 +7,23 @@ interface AudioPreviewPlayerProps {
 
 /**
  * State machine phases:
- *   probing  — Audio metadata loading silently. Component renders null.
- *   ready    — Metadata confirmed OK. Player appears, waiting for user.
+ *   idle     — Ready to play. Duration defaults to 30s, updated once metadata loads.
  *   playing  — Playback active.
  *   paused   — Playback paused.
- *   error    — Audio failed or unplayable. Component renders null.
+ *   error    — Audio URL unplayable. Component renders null.
+ *
+ * No probing phase: the player renders immediately. previewUrl is already
+ * validated server-side (Deezer ISRC lookup). Probing via loadedmetadata is
+ * unreliable — iOS Safari never fires it without user interaction.
  */
 type PlayerState =
-  | { phase: "probing" }
-  | { phase: "ready"; duration: number }
+  | { phase: "idle"; duration: number }
   | { phase: "playing"; currentTime: number; duration: number }
   | { phase: "paused"; currentTime: number; duration: number }
   | { phase: "error" };
 
 type PlayerAction =
-  | { type: "PROBE_OK"; duration: number }
+  | { type: "METADATA_LOADED"; duration: number }
   | { type: "PLAY" }
   | { type: "PAUSE" }
   | { type: "TIME_UPDATE"; currentTime: number; duration: number }
@@ -31,11 +33,13 @@ type PlayerAction =
 
 function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
   switch (action.type) {
-    case "PROBE_OK":
-      if (state.phase === "probing") return { phase: "ready", duration: action.duration };
+    case "METADATA_LOADED":
+      // Update duration in any non-error phase without changing play state
+      if (state.phase === "idle") return { ...state, duration: action.duration };
+      if (state.phase === "playing" || state.phase === "paused") return { ...state, duration: action.duration };
       return state;
     case "PLAY":
-      if (state.phase === "ready") return { phase: "playing", currentTime: 0, duration: state.duration };
+      if (state.phase === "idle") return { phase: "playing", currentTime: 0, duration: state.duration };
       if (state.phase === "paused") return { ...state, phase: "playing" };
       return state;
     case "PAUSE":
@@ -46,7 +50,7 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
         return { ...state, currentTime: action.currentTime, duration: action.duration };
       return state;
     case "ENDED":
-      if (state.phase === "playing") return { phase: "ready", duration: state.duration };
+      if (state.phase === "playing") return { phase: "idle", duration: state.duration };
       return state;
     case "ERROR":
       return { phase: "error" };
@@ -66,21 +70,19 @@ function formatTime(seconds: number): string {
 }
 
 export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlayerProps) {
-  const [state, dispatch] = useReducer(playerReducer, { phase: "probing" });
+  const [state, dispatch] = useReducer(playerReducer, { phase: "idle", duration: 30 });
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const audio = new Audio();
-    // No crossOrigin attribute: browser loads audio in no-cors mode (default for
-    // media elements). This works with any CDN regardless of CORS headers.
-    // crossOrigin="anonymous" would require the CDN to send Access-Control-Allow-Origin,
-    // which Deezer/Spotify CDN nodes do not do consistently.
-    audio.preload = "metadata";
+    // No crossOrigin: browser loads audio in no-cors mode, works with any CDN
+    // regardless of CORS headers (Deezer/Spotify CDN nodes are inconsistent).
+    audio.preload = "none"; // Don't load until user presses play
     audio.src = previewUrl;
 
     audio.addEventListener("loadedmetadata", () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
-      dispatch({ type: "PROBE_OK", duration: dur });
+      dispatch({ type: "METADATA_LOADED", duration: dur });
     });
     audio.addEventListener("timeupdate", () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
@@ -102,7 +104,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (state.phase === "ready" || state.phase === "paused") {
+    if (state.phase === "idle" || state.phase === "paused") {
       audio
         .play()
         .then(() => dispatch({ type: "PLAY" }))
@@ -144,12 +146,12 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
     [togglePlay],
   );
 
-  // Hidden during probe and on error — only render when playability is confirmed.
-  if (state.phase === "probing" || state.phase === "error") return null;
+  // Only hide on confirmed error — never on a missing loadedmetadata event.
+  if (state.phase === "error") return null;
 
   const isPlaying = state.phase === "playing";
   const currentTime = state.phase === "playing" || state.phase === "paused" ? state.currentTime : 0;
-  const duration = state.phase === "ready" ? state.duration : state.duration;
+  const duration = state.phase !== "error" ? state.duration : 30;
   const progress = duration > 0 ? currentTime / duration : 0;
 
   return (
@@ -188,7 +190,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
         step={0.1}
         value={currentTime}
         onChange={handleSeek}
-        disabled={state.phase === "ready"}
+        disabled={state.phase === "idle"}
         aria-label="Preview position"
         aria-valuemin={0}
         aria-valuemax={duration}
@@ -220,7 +222,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
       />
 
       <span className="flex-shrink-0 text-xs tabular-nums text-white/50 min-w-[2.5rem] text-right">
-        {state.phase === "ready" ? formatTime(duration) : formatTime(currentTime)}
+        {formatTime(state.phase === "idle" ? duration : currentTime)}
       </span>
     </div>
   );
