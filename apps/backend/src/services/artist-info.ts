@@ -65,6 +65,16 @@ interface SpotifyArtist {
 interface SpotifyArtistSearch {
   artists: { items: SpotifyArtist[] };
 }
+interface SpotifyTrack {
+  name: string;
+  duration_ms: number;
+  artists: { name: string }[];
+  album: { name: string; images: SpotifyImage[] };
+  external_urls: { spotify: string };
+}
+interface SpotifyTopTracksResponse {
+  tracks: SpotifyTrack[];
+}
 
 // ─── Last.fm Types ────────────────────────────────────────────────────────────
 
@@ -141,19 +151,62 @@ async function deezerArtistTopTracks(artistName: string): Promise<ArtistTopTrack
   }));
 }
 
-// ─── Popular Tracks (Deezer) ──────────────────────────────────────────────────
+// ─── Popular Tracks (Deezer, then Spotify fallback) ──────────────────────────
+
+async function spotifyArtistTopTracks(artistName: string): Promise<ArtistTopTrack[]> {
+  if (!spotifyToken.isConfigured()) return [];
+  try {
+    const token = await spotifyToken.getAccessToken();
+
+    // Step 1: find artist ID
+    const searchRes = await fetchWithTimeout(
+      `${SPOTIFY_BASE}/search?q=${encodeURIComponent(artistName)}&type=artist&limit=1`,
+      { headers: { Authorization: `Bearer ${token}` } },
+      5000,
+    );
+    if (!searchRes.ok) return [];
+    const searchData = (await searchRes.json()) as SpotifyArtistSearch;
+    const artistId = searchData.artists?.items?.[0]?.id;
+    if (!artistId) return [];
+
+    // Step 2: get top tracks
+    const topRes = await fetchWithTimeout(
+      `${SPOTIFY_BASE}/artists/${artistId}/top-tracks?market=DE`,
+      { headers: { Authorization: `Bearer ${token}` } },
+      5000,
+    );
+    if (!topRes.ok) return [];
+    const topData = (await topRes.json()) as SpotifyTopTracksResponse;
+
+    return (topData.tracks ?? []).slice(0, 3).map((t): ArtistTopTrack => ({
+      title: t.name,
+      artists: t.artists.map((a) => a.name),
+      albumName: t.album.name ?? null,
+      artworkUrl: pickSpotifyImage(t.album.images) ?? null,
+      durationMs: t.duration_ms ?? null,
+      deezerUrl: t.external_urls.spotify, // Spotify URL — resolver handles both
+      shortId: null,
+    }));
+  } catch (err) {
+    log.debug("ArtistInfo", "spotifyArtistTopTracks error:", err instanceof Error ? err.message : String(err));
+    return [];
+  }
+}
 
 export async function fetchArtistTopTracks(artistName: string): Promise<ArtistTopTrack[]> {
   try {
     const tracks = await deezerArtistTopTracks(artistName);
     if (tracks.length > 0) return tracks;
 
-    // Fallback: try primary artist for collaboration names (e.g. "A & B" → "A")
+    // Fallback 1: try primary artist for collaboration names (e.g. "A & B" → "A")
     const primary = extractPrimaryArtist(artistName);
     if (primary !== artistName) {
-      return await deezerArtistTopTracks(primary);
+      const primaryTracks = await deezerArtistTopTracks(primary);
+      if (primaryTracks.length > 0) return primaryTracks;
     }
-    return [];
+
+    // Fallback 2: Spotify (better coverage for regional/non-latin artists)
+    return await spotifyArtistTopTracks(artistName);
   } catch (err) {
     log.debug("ArtistInfo", "fetchArtistTopTracks error:", err instanceof Error ? err.message : String(err));
     return [];
