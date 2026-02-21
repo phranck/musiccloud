@@ -147,6 +147,7 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
       isrc: result.sourceTrack.isrc,
       releaseDate: result.sourceTrack.releaseDate,
       isExplicit: result.sourceTrack.isExplicit,
+      previewUrl: result.sourceTrack.previewUrl ?? undefined,
     },
     links: result.links.map((l) => ({
       service: l.service,

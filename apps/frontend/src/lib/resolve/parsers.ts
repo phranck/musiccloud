@@ -53,6 +53,7 @@ export function parseResolveResponse(data: ResolveSuccessResponse): SongResult {
     isrc: data.track.isrc,
     isExplicit: data.track.isExplicit,
     artworkUrl: data.track.artworkUrl ?? "",
+    previewUrl: data.track.previewUrl,
     platforms,
     shareUrl: data.shortUrl,
   };
@@ -76,6 +77,7 @@ export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): Al
     artworkUrl: data.album.artworkUrl ?? "",
     label: data.album.label,
     upc: data.album.upc,
+    previewUrl: data.album.previewUrl,
     platforms,
     shareUrl: data.shortUrl,
   };
@@ -123,6 +125,7 @@ export function buildActiveConfig(
       album: active.album,
       artworkUrl: active.artworkUrl,
       isExplicit: active.isExplicit,
+      previewUrl: active.previewUrl,
       metaLine:
         buildMetaLine({ durationMs: active.durationMs, releaseDate: active.releaseDate }) ||
         undefined,
@@ -146,6 +149,7 @@ export function buildActiveConfig(
     title: active.title,
     artist: active.artist,
     artworkUrl: active.artworkUrl,
+    previewUrl: active.previewUrl,
     metaLine: metaParts.join(" \u00B7") || undefined,
     platforms: active.platforms,
     platformsLabel: t("results.openAlbumOn"),

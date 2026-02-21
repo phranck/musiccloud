@@ -23,6 +23,8 @@ export interface MediaCardContentConfiguration {
   isExplicit?: boolean;
   /** Pre-computed meta line (e.g. "3:45 · USRC1234" or "12 Tracks · 2024") */
   metaLine?: string;
+  /** 30-second audio preview URL (Deezer or Spotify). Optional: mini-player shown only when set. */
+  previewUrl?: string;
   platforms: PlatformLink[];
   /** Pre-translated label above the platform grid */
   platformsLabel: string;

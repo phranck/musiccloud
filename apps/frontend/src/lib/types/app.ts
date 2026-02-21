@@ -13,6 +13,7 @@ export interface SongResult {
   isrc?: string;
   isExplicit?: boolean;
   artworkUrl: string;
+  previewUrl?: string;
   platforms: PlatformLink[];
   shareUrl: string;
 }
@@ -26,6 +27,7 @@ export interface AlbumResult {
   label?: string;
   upc?: string;
   artworkUrl: string;
+  previewUrl?: string;
   platforms: PlatformLink[];
   shareUrl: string;
 }

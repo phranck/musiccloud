@@ -8,6 +8,7 @@ import { GlassCard } from "@/components/cards/GlassCard";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { ShareButton } from "@/components/share/ShareButton";
 import { SongInfo } from "@/components/cards/SongInfo";
+import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 
 export type {
   MediaCardContentType,
@@ -54,6 +55,12 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
         metaOverride={content.metaLine}
         onAlbumArtLoad={onAlbumArtLoad}
       />
+
+      {content.previewUrl && (
+        <div className="border-t border-white/[0.12] px-6 py-4">
+          <AudioPreviewPlayer previewUrl={content.previewUrl} trackTitle={content.title} />
+        </div>
+      )}
 
       {shareUrl && (
         <div className="border-t border-white/[0.12] px-6 pt-5 pb-5">
