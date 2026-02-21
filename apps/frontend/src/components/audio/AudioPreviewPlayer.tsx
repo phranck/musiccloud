@@ -5,17 +5,25 @@ interface AudioPreviewPlayerProps {
   trackTitle: string;
 }
 
+/**
+ * State machine phases:
+ *   probing  — Audio metadata loading silently. Component renders null.
+ *   ready    — Metadata confirmed OK. Player appears, waiting for user.
+ *   playing  — Playback active.
+ *   paused   — Playback paused.
+ *   error    — Audio failed or unplayable. Component renders null.
+ */
 type PlayerState =
-  | { phase: "idle" }
-  | { phase: "loading" }
+  | { phase: "probing" }
+  | { phase: "ready"; duration: number }
   | { phase: "playing"; currentTime: number; duration: number }
   | { phase: "paused"; currentTime: number; duration: number }
   | { phase: "error" };
 
 type PlayerAction =
+  | { type: "PROBE_OK"; duration: number }
   | { type: "PLAY" }
   | { type: "PAUSE" }
-  | { type: "LOADED"; duration: number }
   | { type: "TIME_UPDATE"; currentTime: number; duration: number }
   | { type: "ENDED" }
   | { type: "ERROR" }
@@ -23,27 +31,28 @@ type PlayerAction =
 
 function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
   switch (action.type) {
-    case "PLAY":
-      if (state.phase === "idle") return { phase: "loading" };
-      if (state.phase === "paused") return { phase: "playing", currentTime: state.currentTime, duration: state.duration };
+    case "PROBE_OK":
+      if (state.phase === "probing") return { phase: "ready", duration: action.duration };
       return state;
-    case "LOADED":
-      if (state.phase === "loading") return { phase: "playing", currentTime: 0, duration: action.duration };
+    case "PLAY":
+      if (state.phase === "ready") return { phase: "playing", currentTime: 0, duration: state.duration };
+      if (state.phase === "paused") return { ...state, phase: "playing" };
       return state;
     case "PAUSE":
-      if (state.phase === "playing") return { phase: "paused", currentTime: state.currentTime, duration: state.duration };
+      if (state.phase === "playing") return { ...state, phase: "paused" };
       return state;
     case "TIME_UPDATE":
       if (state.phase === "playing" || state.phase === "paused")
         return { ...state, currentTime: action.currentTime, duration: action.duration };
       return state;
     case "ENDED":
-      return { phase: "idle" };
+      if (state.phase === "playing") return { phase: "ready", duration: state.duration };
+      return state;
     case "ERROR":
       return { phase: "error" };
     case "SEEK":
-      if (state.phase === "playing") return { ...state, currentTime: action.time };
-      if (state.phase === "paused") return { ...state, currentTime: action.time };
+      if (state.phase === "playing" || state.phase === "paused")
+        return { ...state, currentTime: action.time };
       return state;
     default:
       return state;
@@ -57,27 +66,27 @@ function formatTime(seconds: number): string {
 }
 
 export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlayerProps) {
-  const [state, dispatch] = useReducer(playerReducer, { phase: "idle" });
+  const [state, dispatch] = useReducer(playerReducer, { phase: "probing" });
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const audio = new Audio();
     audio.crossOrigin = "anonymous";
-    audio.preload = "none";
+    // preload="metadata" probes the URL: loadedmetadata fires if audio is valid,
+    // error fires if the URL is dead, blocked, or format-incompatible.
+    audio.preload = "metadata";
     audio.src = previewUrl;
 
-    audio.addEventListener("canplay", () => {
-      dispatch({ type: "LOADED", duration: audio.duration || 30 });
+    audio.addEventListener("loadedmetadata", () => {
+      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+      dispatch({ type: "PROBE_OK", duration: dur });
     });
     audio.addEventListener("timeupdate", () => {
-      dispatch({ type: "TIME_UPDATE", currentTime: audio.currentTime, duration: audio.duration || 30 });
+      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+      dispatch({ type: "TIME_UPDATE", currentTime: audio.currentTime, duration: dur });
     });
-    audio.addEventListener("ended", () => {
-      dispatch({ type: "ENDED" });
-    });
-    audio.addEventListener("error", () => {
-      dispatch({ type: "ERROR" });
-    });
+    audio.addEventListener("ended", () => dispatch({ type: "ENDED" }));
+    audio.addEventListener("error", () => dispatch({ type: "ERROR" }));
 
     audioRef.current = audio;
 
@@ -92,9 +101,11 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (state.phase === "idle" || state.phase === "paused") {
-      dispatch({ type: "PLAY" });
-      audio.play().catch(() => dispatch({ type: "ERROR" }));
+    if (state.phase === "ready" || state.phase === "paused") {
+      audio
+        .play()
+        .then(() => dispatch({ type: "PLAY" }))
+        .catch(() => dispatch({ type: "ERROR" }));
     } else if (state.phase === "playing") {
       audio.pause();
       dispatch({ type: "PAUSE" });
@@ -132,12 +143,12 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
     [togglePlay],
   );
 
-  if (state.phase === "error") return null;
+  // Hidden during probe and on error — only render when playability is confirmed.
+  if (state.phase === "probing" || state.phase === "error") return null;
 
   const isPlaying = state.phase === "playing";
-  const isLoading = state.phase === "loading";
   const currentTime = state.phase === "playing" || state.phase === "paused" ? state.currentTime : 0;
-  const duration = state.phase === "playing" || state.phase === "paused" ? state.duration : 30;
+  const duration = state.phase === "ready" ? state.duration : state.duration;
   const progress = duration > 0 ? currentTime / duration : 0;
 
   return (
@@ -153,12 +164,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
         aria-label={isPlaying ? "Pause preview" : "Play preview"}
         className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-white/70 hover:text-white focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 transition-colors"
       >
-        {isLoading ? (
-          <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-        ) : isPlaying ? (
+        {isPlaying ? (
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <rect x="6" y="4" width="4" height="16" rx="1" />
             <rect x="14" y="4" width="4" height="16" rx="1" />
@@ -177,13 +183,14 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
         step={0.1}
         value={currentTime}
         onChange={handleSeek}
+        disabled={state.phase === "ready"}
         aria-label="Preview position"
         aria-valuemin={0}
         aria-valuemax={duration}
         aria-valuenow={Math.round(currentTime)}
         aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
         className="flex-1 h-1 appearance-none rounded-full cursor-pointer
-          bg-white/20
+          disabled:cursor-default
           [&::-webkit-slider-thumb]:appearance-none
           [&::-webkit-slider-thumb]:w-3
           [&::-webkit-slider-thumb]:h-3
@@ -202,13 +209,13 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
           focus-visible:outline-none
           focus-visible:ring-2
           focus-visible:ring-white/40"
-        style={{ background: `linear-gradient(to right, rgba(255,255,255,0.7) ${progress * 100}%, rgba(255,255,255,0.2) ${progress * 100}%)` }}
+        style={{
+          background: `linear-gradient(to right, rgba(255,255,255,0.7) ${progress * 100}%, rgba(255,255,255,0.2) ${progress * 100}%)`,
+        }}
       />
 
       <span className="flex-shrink-0 text-xs tabular-nums text-white/50 min-w-[2.5rem] text-right">
-        {state.phase === "idle" || state.phase === "loading"
-          ? "0:30"
-          : `${formatTime(currentTime)}`}
+        {state.phase === "ready" ? formatTime(duration) : formatTime(currentTime)}
       </span>
     </div>
   );
