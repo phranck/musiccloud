@@ -1,6 +1,8 @@
 import { isValidPlatform, type Platform } from "@musiccloud/shared";
 import { getRepository } from "../../db/index.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
+import { deezerAdapter } from "../../services/adapters/deezer.js";
+import { log } from "../infra/logger.js";
 
 export interface SharePageData {
   track: {
@@ -27,6 +29,21 @@ export async function loadByShortId(shortId: string, origin?: string): Promise<S
   const data = await repo.loadByShortId(shortId);
   if (!data) return null;
 
+  // Lazily enrich older tracks that have no preview URL stored yet.
+  // Uses Deezer ISRC lookup (permanent CDN URLs). Persists to DB so the
+  // next request returns the preview URL directly without a Deezer call.
+  if (!data.track.previewUrl && data.track.isrc && deezerAdapter.isAvailable()) {
+    try {
+      const deezerTrack = await deezerAdapter.findByIsrc(data.track.isrc);
+      if (deezerTrack?.previewUrl) {
+        await repo.updatePreviewUrl(data.trackId, deezerTrack.previewUrl);
+        data.track.previewUrl = deezerTrack.previewUrl;
+      }
+    } catch (err) {
+      log.debug("SharePage", "Deezer preview enrichment failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   return enrichWithOGMeta(data, data.shortId, origin);
 }
 
@@ -35,6 +52,18 @@ export async function loadByTrackId(trackId: string, origin?: string): Promise<S
   const repo = await getRepository();
   const data = await repo.loadByTrackId(trackId);
   if (!data) return null;
+
+  if (!data.track.previewUrl && data.track.isrc && deezerAdapter.isAvailable()) {
+    try {
+      const deezerTrack = await deezerAdapter.findByIsrc(data.track.isrc);
+      if (deezerTrack?.previewUrl) {
+        await repo.updatePreviewUrl(data.trackId, deezerTrack.previewUrl);
+        data.track.previewUrl = deezerTrack.previewUrl;
+      }
+    } catch (err) {
+      log.debug("SharePage", "Deezer preview enrichment failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
 
   return enrichWithOGMeta(data, data.shortId, origin);
 }
