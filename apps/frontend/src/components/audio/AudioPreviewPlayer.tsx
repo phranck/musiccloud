@@ -71,9 +71,10 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
 
   useEffect(() => {
     const audio = new Audio();
-    audio.crossOrigin = "anonymous";
-    // preload="metadata" probes the URL: loadedmetadata fires if audio is valid,
-    // error fires if the URL is dead, blocked, or format-incompatible.
+    // No crossOrigin attribute: browser loads audio in no-cors mode (default for
+    // media elements). This works with any CDN regardless of CORS headers.
+    // crossOrigin="anonymous" would require the CDN to send Access-Control-Allow-Origin,
+    // which Deezer/Spotify CDN nodes do not do consistently.
     audio.preload = "metadata";
     audio.src = previewUrl;
 
