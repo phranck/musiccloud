@@ -163,15 +163,10 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
         type="button"
         onClick={togglePlay}
         aria-label={isPlaying ? "Pause preview" : "Play preview"}
-        style={
-          isPlaying
-            ? undefined
-            : { backgroundColor: "color-mix(in srgb, var(--color-accent) 18%, transparent)" }
-        }
         className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 transition-all duration-[250ms] active:scale-[0.97] ${
           isPlaying
             ? "bg-accent text-[var(--color-accent-contrast)] hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]"
-            : "text-[var(--color-accent)] hover:scale-[1.05]"
+            : "bg-[#3a3a3c] text-white/60 hover:bg-[#4a4a4c] hover:text-white/80 hover:scale-[1.05]"
         }`}
       >
         {isPlaying ? (
