@@ -9,7 +9,6 @@ export interface ApiTrack {
   isrc?: string;
   releaseDate?: string;
   isExplicit?: boolean;
-  previewUrl?: string;
 }
 
 export interface ApiLink {
@@ -57,7 +56,6 @@ export interface ApiAlbum {
   artworkUrl?: string;
   label?: string;
   upc?: string;
-  previewUrl?: string;
 }
 
 export interface AlbumResolveSuccessResponse {

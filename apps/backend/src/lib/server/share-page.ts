@@ -1,9 +1,5 @@
 import { isValidPlatform, type Platform } from "@musiccloud/shared";
 import { getRepository } from "../../db/index.js";
-import { log } from "../infra/logger.js";
-import { deezerAdapter } from "../../services/adapters/deezer.js";
-import type { TrackRepository } from "../../db/repository.js";
-import type { SharePageDbResult } from "../../db/repository.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
 
 export interface SharePageData {
@@ -31,8 +27,7 @@ export async function loadByShortId(shortId: string, origin?: string): Promise<S
   const data = await repo.loadByShortId(shortId);
   if (!data) return null;
 
-  const enriched = await enrichWithDeezerPreview(repo, data);
-  return enrichWithOGMeta(enriched, enriched.shortId, origin);
+  return enrichWithOGMeta(data, data.shortId, origin);
 }
 
 /** Load share page data by track ID. Returns null if not found. */
@@ -41,8 +36,7 @@ export async function loadByTrackId(trackId: string, origin?: string): Promise<S
   const data = await repo.loadByTrackId(trackId);
   if (!data) return null;
 
-  const enriched = await enrichWithDeezerPreview(repo, data);
-  return enrichWithOGMeta(enriched, enriched.shortId, origin);
+  return enrichWithOGMeta(data, data.shortId, origin);
 }
 
 // ─── Album Share Page ─────────────────────────────────────────────────────────
@@ -89,28 +83,6 @@ export async function loadAlbumByShortId(shortId: string, origin?: string): Prom
     availablePlatforms,
     og,
   };
-}
-
-/**
- * If the track has no preview URL in the DB but has an ISRC, fetch it from Deezer.
- * Updates the DB asynchronously (fire-and-forget) so subsequent requests benefit too.
- */
-async function enrichWithDeezerPreview(repo: TrackRepository, data: SharePageDbResult): Promise<SharePageDbResult> {
-  if (data.track.previewUrl || !data.track.isrc) return data;
-
-  try {
-    const deezerTrack = await deezerAdapter.findByIsrc(data.track.isrc);
-    if (deezerTrack?.previewUrl) {
-      repo.updatePreviewUrl(data.trackId, deezerTrack.previewUrl).catch((err) => {
-        log.error("SharePage", `Failed to persist preview URL: ${err instanceof Error ? err.message : err}`);
-      });
-      return { ...data, track: { ...data.track, previewUrl: deezerTrack.previewUrl } };
-    }
-  } catch (err) {
-    log.error("SharePage", `Deezer ISRC lookup failed: ${err instanceof Error ? err.message : err}`);
-  }
-
-  return data;
 }
 
 function enrichWithOGMeta(

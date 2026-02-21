@@ -15,7 +15,6 @@ export interface CachedTrackResult {
 
 /** Minimal share-page data returned by the repository (before OG meta generation) */
 export interface SharePageDbResult {
-  trackId: string;
   track: {
     title: string;
     albumName: string | null;
@@ -186,7 +185,6 @@ export interface TrackRepository {
 
   // Maintenance
   updateTrackTimestamp(trackId: string): Promise<void>;
-  updatePreviewUrl(trackId: string, previewUrl: string): Promise<void>;
   cleanupStaleCache(ttlMs?: number): Promise<number>;
 
   // Artist cache (popular tracks, profile, tour dates)

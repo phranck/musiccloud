@@ -1,6 +1,5 @@
 import { memo, useState } from "react";
 import { buildMetaLine } from "@musiccloud/shared";
-import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 
 interface SongInfoProps {
   title: string;
@@ -13,8 +12,6 @@ interface SongInfoProps {
   onAlbumArtLoad?: (img: HTMLImageElement) => void;
   /** When provided, replaces the automatically computed meta line (duration · year) */
   metaOverride?: string;
-  /** When provided, renders the audio preview mini-player below the meta line */
-  previewUrl?: string;
 }
 
 export const SongInfo = memo(function SongInfo({
@@ -27,16 +24,8 @@ export const SongInfo = memo(function SongInfo({
   albumArtUrl,
   onAlbumArtLoad,
   metaOverride,
-  previewUrl,
 }: SongInfoProps) {
   const metaLine = metaOverride ?? buildMetaLine({ durationMs, releaseDate });
-
-  const [showPreview, setShowPreview] = useState(!!previewUrl);
-  const [prevPreviewUrl, setPrevPreviewUrl] = useState(previewUrl);
-  if (prevPreviewUrl !== previewUrl) {
-    setPrevPreviewUrl(previewUrl);
-    setShowPreview(!!previewUrl);
-  }
 
   // CORS-retry: attempt crossOrigin="anonymous" first (needed for canvas color extraction).
   // If the CDN blocks it (no Access-Control-Allow-Origin), fall back to a plain load
@@ -119,15 +108,6 @@ export const SongInfo = memo(function SongInfo({
             <span>{metaLine}</span>
           </p>
         ) : null}
-        {showPreview && previewUrl && (
-          <div className="mt-4">
-            <AudioPreviewPlayer
-              previewUrl={previewUrl}
-              trackTitle={title}
-              onUnavailable={() => setShowPreview(false)}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

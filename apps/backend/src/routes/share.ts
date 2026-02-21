@@ -34,7 +34,6 @@ export default async function shareRoutes(app: FastifyInstance) {
           isrc: trackData.track.isrc ?? undefined,
           releaseDate: trackData.track.releaseDate ?? undefined,
           isExplicit: trackData.track.isExplicit ?? undefined,
-          previewUrl: trackData.track.previewUrl ?? undefined,
         },
         links: trackData.links.map((l) => ({
           service: l.service,
@@ -69,7 +68,6 @@ export default async function shareRoutes(app: FastifyInstance) {
           artworkUrl: albumData.album.artworkUrl ?? undefined,
           label: albumData.album.label ?? undefined,
           upc: albumData.album.upc ?? undefined,
-          previewUrl: albumData.album.previewUrl ?? undefined,
         },
         links: albumData.links.map((l) => ({
           service: l.service,
