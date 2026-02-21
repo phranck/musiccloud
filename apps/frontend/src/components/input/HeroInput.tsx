@@ -114,12 +114,6 @@ export function HeroInput({
     [value, onSubmit, cancelAutoSubmit, handleClear],
   );
 
-  const handleSubmitClick = useCallback(() => {
-    if (value.trim() && state !== "loading") {
-      onSubmit(value.trim());
-    }
-  }, [value, state, onSubmit]);
-
   const displayValue = state === "success" && songName ? songName : value;
 
   return (
@@ -157,8 +151,8 @@ export function HeroInput({
             "backdrop-blur-[20px]",
             "border",
             "transition-all duration-[250ms]",
-            state === "idle" && "border-white/15",
-            state === "focused" && "border-white/10",
+            state === "idle" && (compact ? "border-[var(--color-accent)]/25" : "border-white/15"),
+            state === "focused" && (compact ? ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"] : "border-white/10"),
             state === "loading" && ["border-accent", "animate-pulse-glow"],
             state === "success" && ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"],
             state === "error" && ["border-error", "shadow-[0_0_12px_rgba(255,69,58,0.25)]"],
@@ -203,78 +197,6 @@ export function HeroInput({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={handleSubmitClick}
-            disabled={state === "loading" || !value.trim()}
-            className={cn(
-              "flex items-center justify-center",
-              "hidden sm:flex w-11 h-11 md:w-12 md:h-12 mr-2 flex-shrink-0",
-              "rounded-full",
-              "transition-all duration-[250ms]",
-              state === "loading"
-                ? "bg-transparent cursor-wait"
-                : state === "success"
-                  ? "bg-accent"
-                  : [
-                      "bg-accent text-[var(--color-accent-contrast)]",
-                      "hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]",
-                      "active:scale-[0.97]",
-                      "disabled:opacity-30 disabled:hover:scale-100 disabled:hover:shadow-none",
-                    ],
-            )}
-            aria-label={state === "loading" ? "Searching..." : "Search"}
-          >
-            {state === "loading" ? (
-              <div className="relative w-11 h-11 md:w-12 md:h-12 animate-vinyl-spin">
-                <div
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background:
-                      "radial-gradient(circle at 50% 50%, #e8e8f0 0%, #a0a0b0 40%, #c8c8d0 70%, #b0b0b8 100%)",
-                  }}
-                />
-                <div
-                  className="absolute inset-0 rounded-full animate-cd-shimmer"
-                  style={{
-                    background:
-                      "conic-gradient(from 30deg, #a060ff 0%, #40b0ff 20%, #40ffc0 35%, #ffe040 50%, #ff6090 65%, #a060ff 80%, transparent 95%)",
-                    opacity: 0.45,
-                  }}
-                />
-                <div
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0%, transparent 40%)",
-                  }}
-                />
-                <div
-                  className="absolute rounded-full bg-[#0a0a0c]"
-                  style={{ top: "38%", left: "38%", width: "24%", height: "24%" }}
-                />
-              </div>
-            ) : state === "success" ? (
-              <svg
-                className="w-5 h-5 text-[var(--color-accent-contrast)]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            ) : (
-              <svg
-                className="w-5 h-5 text-[var(--color-accent-contrast)]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-            )}
-          </button>
         </div>
       </div>
 
