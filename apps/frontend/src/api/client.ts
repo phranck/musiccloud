@@ -19,6 +19,7 @@ function internalHeaders(extra?: Record<string, string>): Record<string, string>
 export async function fetchShareData(shortId: string): Promise<SharePageResponse | null> {
   const res = await fetch(backendUrl(`/api/v1/share/${encodeURIComponent(shortId)}`), {
     headers: internalHeaders(),
+    cache: "no-store",
   });
 
   if (res.status === 404) return null;

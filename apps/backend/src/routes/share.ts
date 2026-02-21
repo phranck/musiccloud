@@ -46,7 +46,7 @@ export default async function shareRoutes(app: FastifyInstance) {
         shortUrl: trackData.og.ogUrl,
       };
 
-      reply.header("Cache-Control", "public, max-age=3600");
+      reply.header("Cache-Control", "private, max-age=3600");
       return reply.send(response);
     }
 
@@ -81,7 +81,7 @@ export default async function shareRoutes(app: FastifyInstance) {
         shortUrl: albumData.og.ogUrl,
       };
 
-      reply.header("Cache-Control", "public, max-age=3600");
+      reply.header("Cache-Control", "private, max-age=3600");
       return reply.send(response);
     }
 
