@@ -85,11 +85,27 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
     (a) => a.isAvailable() && !coveredServices.has(a.id) && a.id !== cached.sourceTrack.sourceService,
   );
 
-  if (missingAdapters.length === 0) return cached;
+  // When the cached track has no preview URL, also re-fetch Deezer (even if already covered)
+  // to get a fresh permanent CDN preview URL. Skip if Deezer is the source service
+  // (it already had a chance to return one) or is already in missingAdapters.
+  const needsPreview = !cached.sourceTrack.previewUrl;
+  const deezerAdapter = needsPreview
+    ? adapters.find(
+        (a) =>
+          a.id === "deezer" &&
+          a.isAvailable() &&
+          a.id !== cached.sourceTrack.sourceService &&
+          !missingAdapters.some((m) => m.id === "deezer"),
+      )
+    : undefined;
 
-  log.debug("Resolver", `Gap-filling ${missingAdapters.length} new services for cached track`);
+  const adaptersToFetch = deezerAdapter ? [...missingAdapters, deezerAdapter] : missingAdapters;
 
-  const results = await Promise.allSettled(missingAdapters.map((a) => resolveOnService(a, cached.sourceTrack)));
+  if (adaptersToFetch.length === 0) return cached;
+
+  log.debug("Resolver", `Gap-filling ${adaptersToFetch.length} services for cached track${deezerAdapter ? " (incl. Deezer for preview)" : ""}`);
+
+  const results = await Promise.allSettled(adaptersToFetch.map((a) => resolveOnService(a, cached.sourceTrack)));
 
   const newLinks: ResolvedLink[] = [];
   for (let i = 0; i < results.length; i++) {
@@ -101,13 +117,14 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
 
   if (newLinks.length === 0) return cached;
 
-  // Persist new links to DB
-  if (cached.trackId) {
+  // Only persist genuinely new service links (not Deezer re-fetched for preview only)
+  const genuinelyNewLinks = newLinks.filter((l) => !coveredServices.has(l.service));
+  if (cached.trackId && genuinelyNewLinks.length > 0) {
     try {
       const repo = await getRepository();
       await repo.addLinksToTrack(
         cached.trackId,
-        newLinks.map((l) => ({
+        genuinelyNewLinks.map((l) => ({
           service: l.service,
           url: l.url,
           confidence: l.confidence,
@@ -120,7 +137,8 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
     }
   }
 
-  const allLinks = [...cached.links, ...newLinks].sort((a, b) => b.confidence - a.confidence);
+  // Don't add Deezer twice to allLinks if it was only re-fetched for preview
+  const allLinks = [...cached.links, ...genuinelyNewLinks].sort((a, b) => b.confidence - a.confidence);
 
   // Always prefer a fresh Deezer preview URL — Deezer CDN URLs are permanent,
   // Spotify preview URLs expire after ~30-60 days. Overwrite any existing value.
