@@ -454,10 +454,26 @@ async function resolveAcrossServices(
   sourceTrack: NormalizedTrack,
   excludeAdapter: ServiceAdapter,
 ): Promise<ResolvedLink[]> {
-  const targetAdapters = adapters.filter((a) => a.id !== excludeAdapter.id && a.isAvailable());
+  const targetAdapters = adapters.filter((a): a is ServiceAdapter => {
+    if (!a) {
+      log.error("Resolver", "resolveAcrossServices: undefined entry in adapter registry");
+      return false;
+    }
+    return a.id !== excludeAdapter.id && a.isAvailable();
+  });
 
-  // Resolve on each target service
-  const results = await Promise.allSettled(targetAdapters.map((adapter) => resolveOnService(adapter, sourceTrack)));
+  const ADAPTER_TIMEOUT_MS = 10_000;
+
+  const withTimeout = (adapter: ServiceAdapter): Promise<ResolvedLink | null> =>
+    Promise.race([
+      resolveOnService(adapter, sourceTrack),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout after ${ADAPTER_TIMEOUT_MS}ms`)), ADAPTER_TIMEOUT_MS),
+      ),
+    ]);
+
+  // Resolve on each target service in parallel
+  const results = await Promise.allSettled(targetAdapters.map((adapter) => withTimeout(adapter)));
 
   const links: ResolvedLink[] = [];
 

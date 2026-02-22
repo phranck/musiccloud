@@ -18,6 +18,7 @@ import { soundcloudAdapter } from "./adapters/soundcloud.js";
 import { spotifyAdapter } from "./adapters/spotify.js";
 import { tidalAdapter } from "./adapters/tidal.js";
 import { youtubeAdapter } from "./adapters/youtube.js";
+import { log } from "../lib/infra/logger.js";
 import type { ServiceAdapter } from "./types.js";
 
 // All registered adapters. Add new adapters here.
@@ -48,10 +49,23 @@ export function getAdapters(): ServiceAdapter[] {
   return adapters;
 }
 
+export function validateAdapters(): void {
+  for (let i = 0; i < adapters.length; i++) {
+    if (!adapters[i]) {
+      log.error("Services", `Adapter at index ${i} is undefined — check imports in services/index.ts`);
+    }
+  }
+}
+
 export function registerAdapter(adapter: ServiceAdapter): void {
+  const safeAdapter = adapter as ServiceAdapter | null | undefined;
+  if (!safeAdapter) {
+    log.error("Services", "registerAdapter called with undefined/null — adapter not registered");
+    return;
+  }
   adapters.push(adapter);
 }
 
 export function identifyService(url: string): ServiceAdapter | undefined {
-  return adapters.find((a) => a.detectUrl(url) !== null);
+  return adapters.find((a) => a && a.detectUrl(url) !== null);
 }

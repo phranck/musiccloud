@@ -6,6 +6,7 @@ import sensible from "@fastify/sensible";
 
 import authPlugin from "./plugins/auth.js";
 import { warmAppleMusicToken } from "./services/adapters/apple-music.js";
+import { validateAdapters } from "./services/index.js";
 import resolveRoutes from "./routes/resolve.js";
 import resolveAlbumRoutes from "./routes/resolve-album.js";
 import linkRoutes from "./routes/link.js";
@@ -95,6 +96,7 @@ async function start() {
   try {
     await app.listen({ host: HOST, port: PORT });
     app.log.info(`Backend listening on ${HOST}:${PORT}`);
+    validateAdapters();
     // Pre-warm Apple Music developer token (avoids first-request latency)
     warmAppleMusicToken();
   } catch (err) {
