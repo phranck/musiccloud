@@ -17,20 +17,19 @@
     "@fastify/jwt": "^10.0.0",
     "@fastify/sensible": "^6.0.4",
     "@musiccloud/shared": "*",
+    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.8.0",
     "drizzle-orm": "^0.45.1",
     "fastify": "^5.8.2",
     "fastify-plugin": "^5.1.0",
     "jose": "^6.2.1",
-    "bcryptjs": "^3.0.3",
     "nanoid": "^5.1.6"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^3.0.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.5.0",
-    "tsx": "^4.21.0",
     "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^1.6.1"
   }
