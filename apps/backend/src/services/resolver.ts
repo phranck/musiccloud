@@ -5,6 +5,14 @@ import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
+import {
+  AUTO_SELECT_THRESHOLD,
+  CANDIDATE_MIN_CONFIDENCE,
+  LINK_QUALITY_THRESHOLD,
+  MATCH_MIN_CONFIDENCE,
+  MAX_CANDIDATES,
+  SEARCH_FALLBACK_CONFIDENCE,
+} from "./constants.js";
 import { adapters, identifyService } from "./index.js";
 import type { MatchResult, NormalizedTrack, SearchCandidate, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
@@ -165,12 +173,7 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
  * CACHE_CONFIDENCE: Confidence assigned to DB-cached search results.
  * SEARCH_FALLBACK_CONFIDENCE: Confidence for generic "search on X" fallback links.
  */
-export const MATCH_MIN_CONFIDENCE = 0.6;
-export const LINK_QUALITY_THRESHOLD = 0.6;
-const AUTO_SELECT_THRESHOLD = 0.9;
-const CANDIDATE_MIN_CONFIDENCE = 0.4;
-const MAX_CANDIDATES = 8;
-const SEARCH_FALLBACK_CONFIDENCE = 0.5;
+export { MATCH_MIN_CONFIDENCE, LINK_QUALITY_THRESHOLD };
 // CACHE_TTL_MS imported from ../lib/constants.js
 
 /** Hosts that serve redirect short links pointing to canonical music platform URLs. */
@@ -290,7 +293,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
 
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
   // Service search: try all available adapters
-  const searchAdapters = adapters.filter((a) => a.isAvailable());
+  const searchAdapters = adapters.filter((a): a is ServiceAdapter => Boolean(a?.isAvailable?.()));
   for (const adapter of searchAdapters) {
     try {
       const result = await adapter.searchTrack({
@@ -332,7 +335,7 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
   log.debug("Resolver", "resolveTextSearchWithDisambiguation called with:", query);
 
   // Service search: try adapters that support searchTrackWithCandidates, then fall back
-  const searchAdapters = adapters.filter((a) => a.isAvailable());
+  const searchAdapters = adapters.filter((a): a is ServiceAdapter => Boolean(a?.isAvailable?.()));
 
   for (const adapter of searchAdapters) {
     try {

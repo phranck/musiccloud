@@ -1,6 +1,6 @@
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { calculateConfidence, normalizeTitle } from "../../lib/resolve/normalize";
-import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
+import { MATCH_MIN_CONFIDENCE } from "../constants.js";
 import type { AdapterCapabilities, MatchResult, NormalizedTrack, ServiceAdapter } from "../types.js";
 
 const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.|music\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
