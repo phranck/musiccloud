@@ -34,7 +34,7 @@ if (!data) {
 }
 
 const isAlbum = data.type === "album";
-const _og = data.og;
+const og = data.og;
 const track = data.track ?? null;
 const album = data.album ?? null;
 
@@ -61,7 +61,7 @@ const platformLinks = data.links
   }));
 
 // Build the ShareContentConfiguration (fully JSON-serializable, passed to React island)
-const _shareConfig: ShareContentConfiguration = {
+const shareConfig: ShareContentConfiguration = {
   type: "share",
   title: displayTitle,
   artist: artistDisplay,
@@ -74,7 +74,7 @@ const _shareConfig: ShareContentConfiguration = {
   platformsLabelKey: isAlbum ? "results.openAlbumOn" : "results.listenOn",
 };
 
-const _pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
+const pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
 ---
 
 <BaseLayout
