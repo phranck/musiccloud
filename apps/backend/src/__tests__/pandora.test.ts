@@ -268,7 +268,7 @@ describe("Pandora: searchTrack", () => {
 
     expect(result.found).toBe(true);
     expect(result.track).toBeDefined();
-    expect(result.track!.title).toBe("Shake It Off (Taylor's Version)");
+    expect(result.track?.title).toBe("Shake It Off (Taylor's Version)");
     expect(result.matchMethod).toBe("search");
     expect(result.confidence).toBeGreaterThan(0);
   });
@@ -317,7 +317,7 @@ describe("Pandora: searchTrack", () => {
     });
 
     expect(result.found).toBe(true);
-    expect(result.track!.title).toBe("Shake It Off (Taylor's Version)");
+    expect(result.track?.title).toBe("Shake It Off (Taylor's Version)");
   });
 
   it("should use free-text scoring when title equals artist", async () => {

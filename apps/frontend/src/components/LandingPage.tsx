@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { InputState } from "@/lib/types/app";
-import { LocaleProvider, useT } from "@/i18n/context";
-import { buildActiveConfig } from "@/lib/resolve/parsers";
+import { GradientBackground } from "@/components/background/GradientBackground";
+import { SparklingStars } from "@/components/background/SparklingStars";
+import { HeroInput } from "@/components/input/HeroInput";
+import { AppFooter } from "@/components/layout/AppFooter";
+import { HeroSection } from "@/components/layout/HeroSection";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { DisambiguationPanel } from "@/components/panels/DisambiguationPanel";
+import { InfoPanel } from "@/components/panels/InfoPanel";
+import { PlatformIconRow } from "@/components/platform/PlatformIconRow";
+import { ShareLayout } from "@/components/share/ShareLayout";
+import { BrandName } from "@/components/ui/BrandName";
+import { Toast } from "@/components/ui/Toast";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { useAppState } from "@/hooks/useAppState";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
-import { AppFooter } from "@/components/layout/AppFooter";
-import { BrandName } from "@/components/ui/BrandName";
-import { DisambiguationPanel } from "@/components/panels/DisambiguationPanel";
-import { GradientBackground } from "@/components/background/GradientBackground";
-import { HeroSection } from "@/components/layout/HeroSection";
-import { HeroInput } from "@/components/input/HeroInput";
-import { InfoPanel } from "@/components/panels/InfoPanel";
-import { ShareLayout } from "@/components/share/ShareLayout";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { PlatformIconRow } from "@/components/platform/PlatformIconRow";
-import { SparklingStars } from "@/components/background/SparklingStars";
-import { Toast } from "@/components/ui/Toast";
+import { LocaleProvider, useT } from "@/i18n/context";
+import { buildActiveConfig } from "@/lib/resolve/parsers";
+import type { InputState } from "@/lib/types/app";
 
 function LandingPageInner() {
   const t = useT();
@@ -26,8 +26,19 @@ function LandingPageInner() {
   const searchFieldRef = useRef<HTMLDivElement>(null);
 
   const { albumColors, dynamicAccent, handleAlbumArtLoad, resetColors } = useAlbumColors();
-  const { state, active, candidates, selectedCandidateId, errorMessage, showCompact, isClearing, isDisambiguating, handleSubmit, handleSelectCandidate, handleClear } =
-    useAppState(resetColors);
+  const {
+    state,
+    active,
+    candidates,
+    selectedCandidateId,
+    errorMessage,
+    showCompact,
+    isClearing,
+    isDisambiguating,
+    handleSubmit,
+    handleSelectCandidate,
+    handleClear,
+  } = useAppState(resetColors);
   const { isReturning, capturePosition, triggerReturn } = useFlipAnimation(searchFieldRef);
 
   const [isFocused, setIsFocused] = useState(false);
@@ -42,26 +53,35 @@ function LandingPageInner() {
       window.history.replaceState({}, "", window.location.pathname);
       handleSubmit(urlParam);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleSubmit]);
 
   useEffect(() => {
     fetch("/api/random-example")
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { shortId: string } | null) => { if (data?.shortId) setExampleShortId(data.shortId); })
+      .then((data: { shortId: string } | null) => {
+        if (data?.shortId) setExampleShortId(data.shortId);
+      })
       .catch(() => {});
   }, []);
-  const [toast, setToast] = useState<{ message: string; variant: "success" | "error" | "info"; visible: boolean }>(
-    { message: "", variant: "info", visible: false },
-  );
+  const [toast, setToast] = useState<{ message: string; variant: "success" | "error" | "info"; visible: boolean }>({
+    message: "",
+    variant: "info",
+    visible: false,
+  });
 
-  const baseInputState: InputState = isDisambiguating || isClearing ? "idle" : state.type === "result" ? "success" : state.type as InputState;
+  const baseInputState: InputState =
+    isDisambiguating || isClearing ? "idle" : state.type === "result" ? "success" : (state.type as InputState);
   const inputState = baseInputState === "idle" && isFocused ? "focused" : baseInputState;
 
   const focusActive = state.type === "result" ? state.active : null;
   const focusCandidates = state.type === "disambiguation" ? state.candidates : null;
-  useEffect(() => { if (focusActive) resultsPanelRef.current?.focus(); }, [focusActive]);
-  useEffect(() => { if (focusCandidates) disambiguationRef.current?.focus(); }, [focusCandidates]);
+  useEffect(() => {
+    if (focusActive) resultsPanelRef.current?.focus();
+  }, [focusActive]);
+  useEffect(() => {
+    if (focusCandidates) disambiguationRef.current?.focus();
+  }, [focusCandidates]);
 
   const handleToastDismiss = useCallback(() => setToast((p) => ({ ...p, visible: false })), []);
 
@@ -73,7 +93,10 @@ function LandingPageInner() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && showCompact) { e.preventDefault(); handleClear(); }
+      if (e.key === "Escape" && showCompact) {
+        e.preventDefault();
+        handleClear();
+      }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -103,9 +126,7 @@ function LandingPageInner() {
         <InfoPanel isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
 
         <div className="flex-1 flex flex-col items-center justify-center w-full">
-          {!active && !candidates && (
-            <HeroSection className={isReturning ? "animate-fade-in" : ""} />
-          )}
+          {!active && !candidates && <HeroSection className={isReturning ? "animate-fade-in" : ""} />}
 
           {showCompact && (
             <h1 className="text-3xl font-bold tracking-[-0.04em] text-text-primary mb-6">
@@ -164,11 +185,7 @@ function LandingPageInner() {
               onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
             >
               <div className="mt-6 sm:mt-8">
-                <ShareLayout
-                  config={activeConfig}
-                  artistName={active.artist}
-                  animated
-                />
+                <ShareLayout config={activeConfig} artistName={active.artist} animated />
               </div>
             </div>
           )}

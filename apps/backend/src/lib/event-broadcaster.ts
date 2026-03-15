@@ -1,6 +1,4 @@
-export type AdminEventType =
-  | "track-added"
-  | "album-added";
+export type AdminEventType = "track-added" | "album-added";
 
 export interface AdminEvent {
   type: AdminEventType;

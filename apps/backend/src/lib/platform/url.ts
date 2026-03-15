@@ -1,5 +1,4 @@
-import type { ErrorCode } from "@musiccloud/shared";
-import type { Platform } from "@musiccloud/shared";
+import type { ErrorCode, Platform } from "@musiccloud/shared";
 
 export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorCode; message: string };
 
@@ -197,19 +196,35 @@ export function stripTrackingParams(url: string): string {
     // Universal tracking params to remove across all services
     const paramsToRemove = [
       // UTM
-      "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term",
+      "utm_source",
+      "utm_medium",
+      "utm_campaign",
+      "utm_content",
+      "utm_term",
       // Social/ad click IDs
-      "fbclid", "gclid", "ttclid", "twclid", "igshid", "msclkid",
+      "fbclid",
+      "gclid",
+      "ttclid",
+      "twclid",
+      "igshid",
+      "msclkid",
       // Service-specific session/sharing tokens
-      "si",        // Spotify
-      "context",   // Spotify
-      "nd",        // Spotify
+      "si", // Spotify
+      "context", // Spotify
+      "nd", // Spotify
       "dl_branch", // Spotify
-      "feature",   // YouTube/Spotify
+      "feature", // YouTube/Spotify
       // YouTube non-essential params (only v= is needed for /watch)
-      "list", "index", "t", "start_radio", "pp", "playnext",
+      "list",
+      "index",
+      "t",
+      "start_radio",
+      "pp",
+      "playnext",
       // Generic
-      "ref", "referral", "app_destination",
+      "ref",
+      "referral",
+      "app_destination",
     ];
 
     for (const param of paramsToRemove) {
@@ -242,10 +257,7 @@ export function stripTrackingParams(url: string): string {
     }
 
     // YouTube: For /watch URLs only keep v= (removes list=, t=, etc.)
-    if (
-      (parsed.hostname === "www.youtube.com" || parsed.hostname === "youtube.com") &&
-      parsed.pathname === "/watch"
-    ) {
+    if ((parsed.hostname === "www.youtube.com" || parsed.hostname === "youtube.com") && parsed.pathname === "/watch") {
       const videoId = parsed.searchParams.get("v");
       parsed.search = "";
       if (videoId) parsed.searchParams.set("v", videoId);

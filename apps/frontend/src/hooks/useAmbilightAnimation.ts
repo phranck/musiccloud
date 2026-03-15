@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type RefObject } from "react";
+import { type RefObject, useEffect, useMemo } from "react";
 
 interface WaveSeeds {
   hues: number[];
@@ -11,16 +11,8 @@ function generateWaveSeeds(): WaveSeeds {
   const offset = Math.random() * 360;
   return {
     hues: [offset, (offset + 120) % 360, (offset + 240) % 360],
-    speeds: [
-      0.7 + Math.random() * 0.4,
-      -0.5 + Math.random() * -0.3,
-      0.2 + Math.random() * 0.1,
-    ],
-    widths: [
-      35 + Math.random() * 15,
-      25 + Math.random() * 15,
-      80 + Math.random() * 30,
-    ],
+    speeds: [0.7 + Math.random() * 0.4, -0.5 + Math.random() * -0.3, 0.2 + Math.random() * 0.1],
+    widths: [35 + Math.random() * 15, 25 + Math.random() * 15, 80 + Math.random() * 30],
     alphas: [0.8, 0.8, 0.4],
   };
 }
@@ -83,9 +75,7 @@ export function useAmbilightAnimation(ref: RefObject<HTMLDivElement | null>): vo
         } else {
           const blendedAlpha = Math.min(totalAlpha, 1);
           const blendedHue = ((Math.atan2(hueY, hueX) * 180) / Math.PI + 360) % 360;
-          stops.push(
-            `hsla(${blendedHue.toFixed(0)}, 75%, 60%, ${blendedAlpha.toFixed(2)}) ${angle.toFixed(0)}deg`,
-          );
+          stops.push(`hsla(${blendedHue.toFixed(0)}, 75%, 60%, ${blendedAlpha.toFixed(2)}) ${angle.toFixed(0)}deg`);
         }
       }
 

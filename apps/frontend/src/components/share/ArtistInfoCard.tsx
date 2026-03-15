@@ -4,13 +4,13 @@
  * Visually matches MediaCard: GlassCard elevated, same tokens, same dividers.
  */
 
-import { useState, useRef, useEffect } from "react";
+import type { ArtistEvent, ArtistInfoResponse, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaCircleInfo } from "react-icons/fa6";
-import { cn } from "@/lib/utils";
 import { GlassCard } from "@/components/cards/GlassCard";
-import { useT, useLocale } from "@/i18n/context";
-import type { ArtistInfoResponse, ArtistTopTrack, ArtistProfile, ArtistEvent } from "@musiccloud/shared";
+import { useLocale, useT } from "@/i18n/context";
+import { cn } from "@/lib/utils";
 
 interface ArtistInfoCardProps {
   data: ArtistInfoResponse | null;
@@ -34,7 +34,10 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
       id1 = requestAnimationFrame(() => {
         id2 = requestAnimationFrame(() => setContentReady(true));
       });
-      return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2); };
+      return () => {
+        cancelAnimationFrame(id1);
+        cancelAnimationFrame(id2);
+      };
     }
     setContentReady(false);
   }, [isLoading]);
@@ -43,8 +46,8 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
   if (!isLoading && !data) return null;
 
   const showProfile = isLoading || !!data?.profile;
-  const showTracks  = isLoading || (data?.topTracks.length ?? 0) > 0;
-  const showEvents  = isLoading || (data?.events.length ?? 0) > 0;
+  const showTracks = isLoading || (data?.topTracks.length ?? 0) > 0;
+  const showEvents = isLoading || (data?.events.length ?? 0) > 0;
   const showSimilar = isLoading || (data?.profile?.similarArtists.length ?? 0) > 0;
 
   // All sections empty after load → nothing to render
@@ -60,6 +63,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
       <div className="relative">
         {onClose && (
           <button
+            type="button"
             onClick={onClose}
             className="absolute top-3 right-3 z-10 p-1.5 rounded-full text-text-secondary hover:text-text-primary hover:bg-white/[0.08] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             aria-label={t("artist.closeInfo")}
@@ -75,13 +79,15 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
           <CrossFade
             contentReady={contentReady}
             skeleton={<ProfileSkeleton />}
-            content={data?.profile ? (
-              <>
-                <ProfileSection profile={data.profile} t={t} />
-                {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
-                <p className="mt-4 text-xs text-text-muted text-center">{t("artist.profileProvidedBy")}</p>
-              </>
-            ) : null}
+            content={
+              data?.profile ? (
+                <>
+                  <ProfileSection profile={data.profile} t={t} />
+                  {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
+                  <p className="mt-4 text-xs text-text-muted text-center">{t("artist.profileProvidedBy")}</p>
+                </>
+              ) : null
+            }
           />
         </CollapsibleSection>
 
@@ -90,9 +96,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
           <CrossFade
             contentReady={contentReady}
             skeleton={<TracksSkeleton />}
-            content={data && data.topTracks.length > 0
-              ? <TopTracksSection tracks={data.topTracks} t={t} />
-              : null}
+            content={data && data.topTracks.length > 0 ? <TopTracksSection tracks={data.topTracks} t={t} /> : null}
           />
         </CollapsibleSection>
 
@@ -101,9 +105,17 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
           <CrossFade
             contentReady={contentReady}
             skeleton={<EventsSkeleton />}
-            content={data && data.events.length > 0
-              ? <EventsSection events={data.events} userRegion={userRegion} hasLocalEvents={hasLocalEvents} t={t} locale={locale} />
-              : null}
+            content={
+              data && data.events.length > 0 ? (
+                <EventsSection
+                  events={data.events}
+                  userRegion={userRegion}
+                  hasLocalEvents={hasLocalEvents}
+                  t={t}
+                  locale={locale}
+                />
+              ) : null
+            }
           />
         </CollapsibleSection>
 
@@ -112,12 +124,13 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
           <CrossFade
             contentReady={contentReady}
             skeleton={<SimilarArtistsSkeleton />}
-            content={data?.profile && data.profile.similarArtists.length > 0
-              ? <SimilarArtistsSection similarArtists={data.profile.similarArtists} t={t} />
-              : null}
+            content={
+              data?.profile && data.profile.similarArtists.length > 0 ? (
+                <SimilarArtistsSection similarArtists={data.profile.similarArtists} t={t} />
+              ) : null
+            }
           />
         </CollapsibleSection>
-
       </div>
     </GlassCard>
   );
@@ -149,15 +162,7 @@ function CollapsibleSection({
     >
       {/* overflow-hidden is required for the grid-rows collapse to clip content */}
       <div className="overflow-hidden">
-        <div
-          className={cn(
-            withBorder && "border-t border-white/[0.12]",
-            "px-6 pt-5 pb-6",
-            innerClass,
-          )}
-        >
-          {children}
-        </div>
+        <div className={cn(withBorder && "border-t border-white/[0.12]", "px-6 pt-5 pb-6", innerClass)}>{children}</div>
       </div>
     </div>
   );
@@ -340,14 +345,18 @@ function ProfileSection({ profile, t }: { profile: ArtistProfile; t: (key: strin
 }
 
 function BioSection({ bio }: { bio: string }) {
-  return (
-    <p className="text-base text-text-secondary leading-relaxed mt-3">{bio}</p>
-  );
+  return <p className="text-base text-text-secondary leading-relaxed mt-3">{bio}</p>;
 }
 
 // ─── Top Tracks Section ───────────────────────────────────────────────────────
 
-function TopTracksSection({ tracks, t }: { tracks: ArtistTopTrack[]; t: (key: string, vars?: Record<string, string>) => string }) {
+function TopTracksSection({
+  tracks,
+  t,
+}: {
+  tracks: ArtistTopTrack[];
+  t: (key: string, vars?: Record<string, string>) => string;
+}) {
   return (
     <div>
       <SectionHeading info={t("artist.popularTracksInfo")}>{t("artist.popularTracks")}</SectionHeading>
@@ -364,7 +373,13 @@ function TopTracksSection({ tracks, t }: { tracks: ArtistTopTrack[]; t: (key: st
 
 // ─── Popular Track ─────────────────────────────────────────────────────────────
 
-function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, vars?: Record<string, string>) => string }) {
+function PopularTrack({
+  track,
+  t,
+}: {
+  track: ArtistTopTrack;
+  t: (key: string, vars?: Record<string, string>) => string;
+}) {
   const showAlbum = track.albumName && track.albumName !== track.title;
   return (
     <div className="flex items-center gap-3">
@@ -387,9 +402,7 @@ function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, va
 
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-text-primary">{track.title}</p>
-        {showAlbum && (
-          <p className="text-xs text-text-secondary mt-0.5">{track.albumName}</p>
-        )}
+        {showAlbum && <p className="text-xs text-text-secondary mt-0.5">{track.albumName}</p>}
       </div>
 
       <div className="flex items-center gap-2 flex-none">
@@ -409,7 +422,19 @@ function PopularTrack({ track, t }: { track: ArtistTopTrack; t: (key: string, va
 
 // ─── Events Section ───────────────────────────────────────────────────────────
 
-function EventsSection({ events, userRegion, hasLocalEvents, t, locale }: { events: ArtistEvent[]; userRegion: string; hasLocalEvents: boolean; t: (key: string, vars?: Record<string, string>) => string; locale: string }) {
+function EventsSection({
+  events,
+  userRegion,
+  hasLocalEvents,
+  t,
+  locale,
+}: {
+  events: ArtistEvent[];
+  userRegion: string;
+  hasLocalEvents: boolean;
+  t: (key: string, vars?: Record<string, string>) => string;
+  locale: string;
+}) {
   return (
     <div>
       <SectionHeading info={hasLocalEvents ? t("artist.upcomingShowsInfo") : undefined}>
@@ -454,7 +479,13 @@ function EventsSection({ events, userRegion, hasLocalEvents, t, locale }: { even
 
 // ─── Similar Artists Section ──────────────────────────────────────────────────
 
-function SimilarArtistsSection({ similarArtists, t }: { similarArtists: string[]; t: (key: string, vars?: Record<string, string>) => string }) {
+function SimilarArtistsSection({
+  similarArtists,
+  t,
+}: {
+  similarArtists: string[];
+  t: (key: string, vars?: Record<string, string>) => string;
+}) {
   const first3 = similarArtists.slice(0, 3);
   return (
     <div>
@@ -470,7 +501,13 @@ function SimilarArtistsSection({ similarArtists, t }: { similarArtists: string[]
   );
 }
 
-function SimilarArtistTopTrack({ artistName, t }: { artistName: string; t: (key: string, vars?: Record<string, string>) => string }) {
+function SimilarArtistTopTrack({
+  artistName,
+  t,
+}: {
+  artistName: string;
+  t: (key: string, vars?: Record<string, string>) => string;
+}) {
   const [{ isLoading, track }, setState] = useState<{ isLoading: boolean; track: ArtistTopTrack | null }>({
     isLoading: true,
     track: null,
@@ -481,9 +518,15 @@ function SimilarArtistTopTrack({ artistName, t }: { artistName: string; t: (key:
     const params = new URLSearchParams({ name: artistName });
     fetch(`/api/artist-info?${params.toString()}`)
       .then((res) => (res.ok ? (res.json() as Promise<ArtistInfoResponse>) : null))
-      .then((data) => { if (!cancelled) setState({ isLoading: false, track: data?.topTracks[0] ?? null }); })
-      .catch(() => { if (!cancelled) setState({ isLoading: false, track: null }); });
-    return () => { cancelled = true; };
+      .then((data) => {
+        if (!cancelled) setState({ isLoading: false, track: data?.topTracks[0] ?? null });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ isLoading: false, track: null });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [artistName]);
 
   if (isLoading) {
@@ -525,10 +568,7 @@ function SectionHeading({ children, info }: { children: React.ReactNode; info?: 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (
-        buttonRef.current?.contains(e.target as Node) ||
-        popoverRef.current?.contains(e.target as Node)
-      ) return;
+      if (buttonRef.current?.contains(e.target as Node) || popoverRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     };
     document.addEventListener("mousedown", handler);
@@ -550,26 +590,28 @@ function SectionHeading({ children, info }: { children: React.ReactNode; info?: 
         <>
           <button
             ref={buttonRef}
+            type="button"
             onClick={handleToggle}
             className="p-1 text-white/30 hover:text-white/60 transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             aria-label="Info"
           >
             <FaCircleInfo className="w-3.5 h-3.5" />
           </button>
-          {open && createPortal(
-            <div
-              ref={popoverRef}
-              className="fixed w-60 p-3 rounded-xl bg-surface-elevated border border-white/[0.10] shadow-xl z-[200] text-sm text-text-secondary leading-relaxed"
-              style={{
-                top: pos.top,
-                left: pos.left,
-                transform: "translate(-50%, calc(-100% - 8px))",
-              }}
-            >
-              {info}
-            </div>,
-            document.body,
-          )}
+          {open &&
+            createPortal(
+              <div
+                ref={popoverRef}
+                className="fixed w-60 p-3 rounded-xl bg-surface-elevated border border-white/[0.10] shadow-xl z-[200] text-sm text-text-secondary leading-relaxed"
+                style={{
+                  top: pos.top,
+                  left: pos.left,
+                  transform: "translate(-50%, calc(-100% - 8px))",
+                }}
+              >
+                {info}
+              </div>,
+              document.body,
+            )}
         </>
       )}
     </div>
@@ -593,7 +635,9 @@ function formatDuration(ms: number): string {
 
 function formatEventDate(iso: string, locale: string): string {
   try {
-    return new Intl.DateTimeFormat(locale || "en", { month: "short", day: "numeric" }).format(new Date(iso + "T00:00:00"));
+    return new Intl.DateTimeFormat(locale || "en", { month: "short", day: "numeric" }).format(
+      new Date(`${iso}T00:00:00`),
+    );
   } catch {
     return iso;
   }

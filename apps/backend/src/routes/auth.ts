@@ -51,10 +51,7 @@ export default async function authRoutes(app: FastifyInstance) {
     }
 
     // Issue JWT
-    const token = app.jwt.sign(
-      { sub: client_id, scope: "api" },
-      { expiresIn: "1h" },
-    );
+    const token = app.jwt.sign({ sub: client_id, scope: "api" }, { expiresIn: "1h" });
 
     return reply.send({
       access_token: token,

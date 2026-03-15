@@ -1,6 +1,6 @@
+import type { Platform } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 import { generateOGMeta } from "@/lib/server/og";
-import type { Platform } from "@musiccloud/shared";
 
 describe("generateOGMeta", () => {
   const baseInput = {

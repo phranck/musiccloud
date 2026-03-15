@@ -1,6 +1,6 @@
-import type { FastifyInstance } from "fastify";
 import type { SharePageResponse } from "@musiccloud/shared";
-import { loadByShortId, loadAlbumByShortId } from "../lib/server/share-page.js";
+import type { FastifyInstance } from "fastify";
+import { loadAlbumByShortId, loadByShortId } from "../lib/server/share-page.js";
 
 export default async function shareRoutes(app: FastifyInstance) {
   app.get<{ Params: { shortId: string } }>("/api/v1/share/:shortId", async (request, reply) => {
@@ -10,9 +10,7 @@ export default async function shareRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "INVALID_URL", message: "Short ID is required." });
     }
 
-    const origin = request.headers["x-forwarded-host"]
-      ? `https://${request.headers["x-forwarded-host"]}`
-      : undefined;
+    const origin = request.headers["x-forwarded-host"] ? `https://${request.headers["x-forwarded-host"]}` : undefined;
 
     // Try track first
     const trackData = await loadByShortId(shortId, origin);

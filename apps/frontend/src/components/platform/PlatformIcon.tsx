@@ -1,3 +1,4 @@
+import { PLATFORM_CONFIG, type Platform } from "@musiccloud/shared";
 import { memo } from "react";
 import { FaBug, FaCompactDisc, FaMusic, FaRadio, FaRecordVinyl } from "react-icons/fa6";
 import {
@@ -7,12 +8,11 @@ import {
   SiBeatport,
   SiNapster,
   SiPandora,
-  SiTencentqq,
+  SiQq,
   SiTidal,
   SiYoutube,
   SiYoutubemusic,
 } from "react-icons/si";
-import { PLATFORM_CONFIG, type Platform } from "@musiccloud/shared";
 
 interface PlatformIconProps {
   platform: Platform;
@@ -94,7 +94,7 @@ export const PlatformIcon = memo(function PlatformIcon({
     case "netease":
       return <img src="/icons/netease.png" alt="NetEase Cloud Music" className={`${className} rounded-lg`} />;
     case "qqmusic":
-      return <SiTencentqq className={className} color={color} />;
+      return <SiQq className={className} color={color} />;
     case "melon":
       return <FaRecordVinyl className={className} color={color} />;
     case "bugs":

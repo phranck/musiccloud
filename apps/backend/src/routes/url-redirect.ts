@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
+import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
-import { getRepository } from "../db/index.js";
-import { resolveQuery } from "../services/resolver.js";
 import { ResolveError } from "../lib/resolve/errors.js";
+import { resolveQuery } from "../services/resolver.js";
 
 /**
  * GET /api/v1/redirect?url=<streaming-service-url>

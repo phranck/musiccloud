@@ -124,7 +124,10 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
     const parts = og.title.split(" / ");
     title = parts[0].trim();
     const artistStr = parts.slice(1).join(" / ").trim();
-    artists = artistStr.split(/[,&]/).map((a) => a.trim()).filter(Boolean);
+    artists = artistStr
+      .split(/[,&]/)
+      .map((a) => a.trim())
+      .filter(Boolean);
   } else {
     title = og.title;
     artists = ["Unknown Artist"];

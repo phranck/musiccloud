@@ -104,7 +104,6 @@ describe("Resolver: resolveUrl()", () => {
 
     it.todo("should not throw when all target services fail");
   });
-
 });
 
 describe("Resolver: resolveTextSearch()", () => {

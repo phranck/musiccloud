@@ -1,24 +1,20 @@
-import type { FastifyInstance } from "fastify";
 import type {
+  ErrorCode,
   ResolveDisambiguationResponse,
   ResolveErrorResponse,
   ResolveSuccessResponse,
-  ErrorCode,
 } from "@musiccloud/shared";
 import { ERROR_STATUS_MAP, USER_MESSAGES } from "@musiccloud/shared";
-import { ResolveError } from "../lib/resolve/errors.js";
+import type { FastifyInstance } from "fastify";
+import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
-import { getRepository } from "../db/index.js";
+import { ResolveError } from "../lib/resolve/errors.js";
 import { deezerAdapter } from "../services/adapters/deezer.js";
 import type { ResolutionResult } from "../services/resolver.js";
-import {
-  resolveQuery,
-  resolveSelectedCandidate,
-  resolveTextSearchWithDisambiguation,
-} from "../services/resolver.js";
+import { resolveQuery, resolveSelectedCandidate, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
 
 const ALLOWED_ORIGINS = ["https://musiccloud.io", "http://localhost:4321", "http://localhost:4322"];
 
@@ -33,14 +29,18 @@ export default async function resolveRoutes(app: FastifyInstance) {
     // Parse body
     const body = request.body as { query?: string; selectedCandidate?: string } | null;
     if (!body) {
-      return reply.status(400).send(jsonError("INVALID_URL", 400, "Request body must be valid JSON with a 'query' field."));
+      return reply
+        .status(400)
+        .send(jsonError("INVALID_URL", 400, "Request body must be valid JSON with a 'query' field."));
     }
 
     const query = body.query?.trim();
     const selectedCandidate = body.selectedCandidate?.trim();
 
     if (!query && !selectedCandidate) {
-      return reply.status(400).send(jsonError("INVALID_URL", 400, "The 'query' or 'selectedCandidate' field is required."));
+      return reply
+        .status(400)
+        .send(jsonError("INVALID_URL", 400, "The 'query' or 'selectedCandidate' field is required."));
     }
 
     if (query && query.length > 500) {
@@ -102,7 +102,7 @@ function getOrigin(headerOrigin?: string): string {
   return ALLOWED_ORIGINS[0];
 }
 
-function jsonError(code: ErrorCode, status: number, customMessage?: string): ResolveErrorResponse {
+function jsonError(code: ErrorCode, _status: number, customMessage?: string): ResolveErrorResponse {
   return {
     error: code,
     message: customMessage ?? USER_MESSAGES[code] ?? "Something went wrong.",
@@ -138,7 +138,11 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
   // Refresh missing or expired Deezer preview URLs before returning the share
   // payload so clients do not receive dead signed preview links.
   let previewUrl = result.sourceTrack.previewUrl ?? undefined;
-  if ((!previewUrl || isExpiredDeezerPreviewUrl(previewUrl)) && result.sourceTrack.isrc && deezerAdapter.isAvailable()) {
+  if (
+    (!previewUrl || isExpiredDeezerPreviewUrl(previewUrl)) &&
+    result.sourceTrack.isrc &&
+    deezerAdapter.isAvailable()
+  ) {
     try {
       const deezerTrack = await deezerAdapter.findByIsrc(result.sourceTrack.isrc);
       if (deezerTrack?.previewUrl) {

@@ -425,7 +425,12 @@ export const qobuzAdapter = {
         const album = mapAlbum(item);
         const confidence = calculateAlbumConfidence(
           { title: query.title, artists: [query.artist], totalTracks: query.totalTracks },
-          { title: album.title, artists: album.artists, releaseDate: album.releaseDate, totalTracks: album.totalTracks },
+          {
+            title: album.title,
+            artists: album.artists,
+            releaseDate: album.releaseDate,
+            totalTracks: album.totalTracks,
+          },
         );
 
         log.debug("Qobuz", `  Album "${album.title}" by ${album.artists.join(", ")} -> ${confidence.toFixed(3)}`);

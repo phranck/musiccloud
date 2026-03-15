@@ -197,9 +197,10 @@ function parseDurationTag(value: string | undefined): number | undefined {
 function mapApiPlaylist(data: ScPlaylistData, sourcePath: string): NormalizedAlbum {
   const artist = data.user?.username ?? data.user?.full_name ?? "Unknown Artist";
   const tracks: AlbumTrackEntry[] = [];
-  for (let i = 0; i < (data.tracks ?? []).length; i++) {
-    const t = data.tracks![i];
-    if (t.title) {
+  const playlistTracks = data.tracks ?? [];
+  for (let i = 0; i < playlistTracks.length; i++) {
+    const t = playlistTracks[i];
+    if (t?.title) {
       tracks.push({
         title: t.title,
         isrc: t.publisher_metadata?.isrc || undefined,

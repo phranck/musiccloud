@@ -253,9 +253,9 @@ describe("Tidal: findByIsrc", () => {
     const track = await tidalAdapter.findByIsrc("USUG11904190");
 
     expect(track).not.toBeNull();
-    expect(track!.title).toBe("Blinding Lights");
-    expect(track!.isrc).toBe("USUG11904190");
-    expect(track!.sourceService).toBe("tidal");
+    expect(track?.title).toBe("Blinding Lights");
+    expect(track?.isrc).toBe("USUG11904190");
+    expect(track?.sourceService).toBe("tidal");
   });
 
   it("should return null when ISRC is not found", async () => {

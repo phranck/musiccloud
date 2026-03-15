@@ -1,13 +1,4 @@
-import {
-  BarChart3,
-  Database,
-  Disc,
-  LayoutDashboard,
-  LogOut,
-  Music2,
-  Settings,
-  Users,
-} from "lucide-react";
+import { BarChart3, Database, Disc, LayoutDashboard, LogOut, Music2, Settings, Users } from "lucide-react";
 import { NavLink, useNavigate } from "react-router";
 import {
   Sidebar,
@@ -49,9 +40,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1">
           <Database className="h-5 w-5 text-sidebar-primary shrink-0" />
-          <span className="font-semibold text-sm group-data-[collapsible=icon]:hidden">
-            musiccloud
-          </span>
+          <span className="font-semibold text-sm group-data-[collapsible=icon]:hidden">musiccloud</span>
         </div>
       </SidebarHeader>
 

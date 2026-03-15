@@ -9,10 +9,10 @@
  * Every exported function returns empty data on error and never throws.
  */
 
-import type { ArtistTopTrack, ArtistProfile, ArtistEvent } from "@musiccloud/shared";
+import type { ArtistEvent, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
-import { TokenManager } from "../lib/infra/token-manager.js";
 import { log } from "../lib/infra/logger.js";
+import { TokenManager } from "../lib/infra/token-manager.js";
 
 const DEEZER_BASE = "https://api.deezer.com";
 const SPOTIFY_BASE = "https://api.spotify.com/v1";
@@ -140,15 +140,17 @@ async function deezerArtistTopTracks(artistName: string): Promise<ArtistTopTrack
   if (!topRes.ok) return [];
 
   const top = (await topRes.json()) as DeezerTopTracks;
-  return (top.data ?? []).map((t): ArtistTopTrack => ({
-    title: t.title,
-    artists: t.contributors?.length ? t.contributors.map((c) => c.name) : [t.artist.name],
-    albumName: t.album.title ?? null,
-    artworkUrl: t.album.cover_medium ?? null,
-    durationMs: t.duration ? t.duration * 1000 : null,
-    deezerUrl: t.link,
-    shortId: null,
-  }));
+  return (top.data ?? []).map(
+    (t): ArtistTopTrack => ({
+      title: t.title,
+      artists: t.contributors?.length ? t.contributors.map((c) => c.name) : [t.artist.name],
+      albumName: t.album.title ?? null,
+      artworkUrl: t.album.cover_medium ?? null,
+      durationMs: t.duration ? t.duration * 1000 : null,
+      deezerUrl: t.link,
+      shortId: null,
+    }),
+  );
 }
 
 // ─── Popular Tracks (Deezer, then Spotify fallback) ──────────────────────────
@@ -178,15 +180,17 @@ async function spotifyArtistTopTracks(artistName: string): Promise<ArtistTopTrac
     if (!topRes.ok) return [];
     const topData = (await topRes.json()) as SpotifyTopTracksResponse;
 
-    return (topData.tracks ?? []).slice(0, 3).map((t): ArtistTopTrack => ({
-      title: t.name,
-      artists: t.artists.map((a) => a.name),
-      albumName: t.album.name ?? null,
-      artworkUrl: pickSpotifyImage(t.album.images) ?? null,
-      durationMs: t.duration_ms ?? null,
-      deezerUrl: t.external_urls.spotify, // Spotify URL — resolver handles both
-      shortId: null,
-    }));
+    return (topData.tracks ?? []).slice(0, 3).map(
+      (t): ArtistTopTrack => ({
+        title: t.name,
+        artists: t.artists.map((a) => a.name),
+        albumName: t.album.name ?? null,
+        artworkUrl: pickSpotifyImage(t.album.images) ?? null,
+        durationMs: t.duration_ms ?? null,
+        deezerUrl: t.external_urls.spotify, // Spotify URL — resolver handles both
+        shortId: null,
+      }),
+    );
   } catch (err) {
     log.debug("ArtistInfo", "spotifyArtistTopTracks error:", err instanceof Error ? err.message : String(err));
     return [];
@@ -342,14 +346,16 @@ async function fetchBandsintownEvents(artistName: string): Promise<ArtistEvent[]
     const events = (await res.json()) as BandsintownEvent[];
     if (!Array.isArray(events)) return [];
 
-    return events.map((e): ArtistEvent => ({
-      date: e.datetime.slice(0, 10),
-      venueName: e.venue.name,
-      city: e.venue.city,
-      country: e.venue.country,
-      ticketUrl: e.offers?.find((o) => o.type === "Tickets")?.url ?? null,
-      source: "bandsintown",
-    }));
+    return events.map(
+      (e): ArtistEvent => ({
+        date: e.datetime.slice(0, 10),
+        venueName: e.venue.name,
+        city: e.venue.city,
+        country: e.venue.country,
+        ticketUrl: e.offers?.find((o) => o.type === "Tickets")?.url ?? null,
+        source: "bandsintown",
+      }),
+    );
   } catch (err) {
     log.debug("ArtistInfo", "Bandsintown events error:", err instanceof Error ? err.message : String(err));
     return [];

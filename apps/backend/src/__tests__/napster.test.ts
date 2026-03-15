@@ -195,9 +195,9 @@ describe("Napster: findByIsrc", () => {
     const track = await napsterAdapter.findByIsrc("USMC16758823");
 
     expect(track).not.toBeNull();
-    expect(track!.title).toBe("What A Wonderful World");
-    expect(track!.isrc).toBe("USMC16758823");
-    expect(track!.sourceService).toBe("napster");
+    expect(track?.title).toBe("What A Wonderful World");
+    expect(track?.isrc).toBe("USMC16758823");
+    expect(track?.sourceService).toBe("napster");
   });
 
   it("should return null when ISRC is not found", async () => {
@@ -317,7 +317,7 @@ describe("Napster: searchTrack", () => {
     });
 
     expect(result.found).toBe(true);
-    expect(result.track!.title).toBe("What A Wonderful World");
+    expect(result.track?.title).toBe("What A Wonderful World");
   });
 });
 

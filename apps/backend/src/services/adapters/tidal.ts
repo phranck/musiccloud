@@ -1,7 +1,7 @@
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
 import { TokenManager } from "../../lib/infra/token-manager";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
 import type {
   AlbumCapabilities,
@@ -325,9 +325,7 @@ export const tidalAdapter = {
   },
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
-    const response = await tidalFetch(
-      `/albums/${encodeURIComponent(albumId)}?countryCode=US&include=artists,items`,
-    );
+    const response = await tidalFetch(`/albums/${encodeURIComponent(albumId)}?countryCode=US&include=artists,items`);
 
     if (!response.ok) {
       throw new Error(`Tidal getAlbum failed: ${response.status}`);

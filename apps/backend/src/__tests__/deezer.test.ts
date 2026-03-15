@@ -194,9 +194,9 @@ describe("Deezer: findByIsrc", () => {
     const track = await deezerAdapter.findByIsrc("GBDUW0000059");
 
     expect(track).not.toBeNull();
-    expect(track!.title).toBe("Harder, Better, Faster, Stronger");
-    expect(track!.isrc).toBe("GBDUW0000059");
-    expect(track!.sourceService).toBe("deezer");
+    expect(track?.title).toBe("Harder, Better, Faster, Stronger");
+    expect(track?.isrc).toBe("GBDUW0000059");
+    expect(track?.sourceService).toBe("deezer");
   });
 
   it("should return null when ISRC is not found", async () => {
@@ -321,7 +321,7 @@ describe("Deezer: searchTrack", () => {
     });
 
     expect(result.found).toBe(true);
-    expect(result.track!.title).toBe("Harder, Better, Faster, Stronger");
+    expect(result.track?.title).toBe("Harder, Better, Faster, Stronger");
   });
 });
 

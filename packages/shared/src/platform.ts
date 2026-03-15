@@ -105,10 +105,7 @@ export interface PlatformLink {
 }
 
 /** Build the metadata line (duration, ISRC, year) joined by middle dot. */
-export function buildMetaLine(opts: {
-  durationMs?: number | null;
-  releaseDate?: string | null;
-}): string {
+export function buildMetaLine(opts: { durationMs?: number | null; releaseDate?: string | null }): string {
   const items = [
     opts.durationMs ? formatDuration(opts.durationMs) : null,
     opts.releaseDate ? formatYear(opts.releaseDate) : null,

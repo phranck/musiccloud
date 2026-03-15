@@ -218,9 +218,7 @@ async function fetchAlbumByUrl(albumUrl: string): Promise<NormalizedAlbum | null
   };
 }
 
-async function searchBandcampAlbums(
-  query: string,
-): Promise<Array<{ url: string; name: string; artist: string }>> {
+async function searchBandcampAlbums(query: string): Promise<Array<{ url: string; name: string; artist: string }>> {
   const searchUrl = `https://bandcamp.com/search?q=${encodeURIComponent(query)}&item_type=a`;
   const response = await bandcampFetch(searchUrl);
   if (!response.ok) return [];
@@ -372,7 +370,12 @@ export const bandcampAdapter: ServiceAdapter = {
         const album = result.value;
         const confidence = calculateAlbumConfidence(
           { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
-          { title: album.title, artists: album.artists, totalTracks: album.totalTracks, releaseDate: album.releaseDate },
+          {
+            title: album.title,
+            artists: album.artists,
+            totalTracks: album.totalTracks,
+            releaseDate: album.releaseDate,
+          },
         );
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

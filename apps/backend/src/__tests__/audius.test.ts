@@ -262,7 +262,7 @@ describe("Audius: searchTrack", () => {
     });
 
     expect(result.found).toBe(true);
-    expect(result.track!.title).toBe("Unlucky (Work in progress)");
+    expect(result.track?.title).toBe("Unlucky (Work in progress)");
   });
 });
 

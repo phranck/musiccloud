@@ -1,5 +1,5 @@
-import { useRef } from "react";
 import { PLATFORM_CONFIG, type Platform } from "@musiccloud/shared";
+import { useRef } from "react";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 
 const platforms: Platform[] = [

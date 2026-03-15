@@ -2,8 +2,8 @@ import { Outlet, useLocation } from "react-router";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useT } from "@/i18n/context";
-import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
+import { AppSidebar } from "./AppSidebar";
 
 const PAGE_TITLE_KEYS: Record<string, string> = {
   "/": "pages.overview",

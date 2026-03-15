@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef } from "react";
-import { cn } from "@/lib/utils";
 import type { AlbumColors } from "@/lib/ui/colors";
 import {
   CANIS_MAJOR_STARS,
   CYCLE_DURATION_MS,
-  ORION_STARS,
   computeBlobTransform,
   generateConstellationShadow,
   generateStarfield,
+  ORION_STARS,
   randomWaveParams,
 } from "@/lib/ui/starfield";
+import { cn } from "@/lib/utils";
 
 interface GradientBackgroundProps {
   albumColors?: AlbumColors;
@@ -133,7 +133,9 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
       />
 
       <div
-        ref={(el) => { blobRefs.current[0] = el; }}
+        ref={(el) => {
+          blobRefs.current[0] = el;
+        }}
         className={cn(
           "absolute rounded-full blur-[150px] w-[50vw] h-[50vw]",
           "will-change-transform",
@@ -143,7 +145,9 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
         style={{ backgroundColor: colors.primary }}
       />
       <div
-        ref={(el) => { blobRefs.current[1] = el; }}
+        ref={(el) => {
+          blobRefs.current[1] = el;
+        }}
         className={cn(
           "absolute rounded-full blur-[160px] w-[45vw] h-[45vw]",
           "will-change-transform",
@@ -153,7 +157,9 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
         style={{ backgroundColor: colors.secondary }}
       />
       <div
-        ref={(el) => { blobRefs.current[2] = el; }}
+        ref={(el) => {
+          blobRefs.current[2] = el;
+        }}
         className={cn(
           "absolute rounded-full blur-[170px] w-[55vw] h-[55vw]",
           "will-change-transform",

@@ -1,3 +1,4 @@
+import { log } from "../lib/infra/logger.js";
 import { appleMusicAdapter } from "./adapters/apple-music.js";
 import { audiomackAdapter } from "./adapters/audiomack.js";
 import { audiusAdapter } from "./adapters/audius.js";
@@ -18,7 +19,6 @@ import { soundcloudAdapter } from "./adapters/soundcloud.js";
 import { spotifyAdapter } from "./adapters/spotify.js";
 import { tidalAdapter } from "./adapters/tidal.js";
 import { youtubeAdapter } from "./adapters/youtube.js";
-import { log } from "../lib/infra/logger.js";
 import type { ServiceAdapter } from "./types.js";
 
 // All registered adapters. Add new adapters here.

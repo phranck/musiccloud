@@ -1,4 +1,4 @@
-import { useReducer, useRef, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { useT } from "@/i18n/context";
 
 interface AudioPreviewPlayerProps {
@@ -56,8 +56,7 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
     case "ERROR":
       return { phase: "error" };
     case "SEEK":
-      if (state.phase === "playing" || state.phase === "paused")
-        return { ...state, currentTime: action.time };
+      if (state.phase === "playing" || state.phase === "paused") return { ...state, currentTime: action.time };
       return state;
     default:
       return state;
@@ -155,12 +154,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
   const isUnavailable = state.phase === "error";
 
   return (
-    <div
-      role="region"
-      aria-label={`Preview: ${trackTitle}`}
-      className="flex items-center gap-3"
-      onKeyDown={handleKeyDown}
-    >
+    <section aria-label={`Preview: ${trackTitle}`} className="flex items-center gap-3" onKeyDown={handleKeyDown}>
       <button
         type="button"
         onClick={togglePlay}
@@ -171,8 +165,8 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
           isUnavailable
             ? "bg-white/[0.06] text-white/30 cursor-not-allowed"
             : isPlaying
-            ? "bg-accent text-[var(--color-accent-contrast)] hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]"
-            : "bg-[#3a3a3c] text-white/60 hover:bg-[#4a4a4c] hover:text-white/80 hover:scale-[1.05]"
+              ? "bg-accent text-[var(--color-accent-contrast)] hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]"
+              : "bg-[#3a3a3c] text-white/60 hover:bg-[#4a4a4c] hover:text-white/80 hover:scale-[1.05]"
         }`}
       >
         {isPlaying ? (
@@ -235,9 +229,11 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
         />
       </div>
 
-      <span className={`flex-shrink-0 text-xs min-w-[2.5rem] text-right ${isUnavailable ? "text-white/30" : "tabular-nums text-white/50"}`}>
+      <span
+        className={`flex-shrink-0 text-xs min-w-[2.5rem] text-right ${isUnavailable ? "text-white/30" : "tabular-nums text-white/50"}`}
+      >
         {isUnavailable ? t("audio.previewUnavailable") : formatTime(state.phase === "idle" ? duration : currentTime)}
       </span>
-    </div>
+    </section>
   );
 }

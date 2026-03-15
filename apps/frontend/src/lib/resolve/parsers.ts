@@ -1,7 +1,7 @@
 import type { AlbumResolveSuccessResponse, ResolveSuccessResponse } from "@musiccloud/shared";
 import { buildMetaLine, isValidPlatform, PLATFORM_CONFIG, type Platform } from "@musiccloud/shared";
-import type { AlbumContentConfiguration, SongContentConfiguration } from "@/lib/types/media-card";
 import type { ActiveResult, AlbumResult, AppAction, AppState, SongResult } from "@/lib/types/app";
+import type { AlbumContentConfiguration, SongContentConfiguration } from "@/lib/types/media-card";
 import type { PlatformLink } from "@/lib/types/platform";
 
 // ---------------------------------------------------------------------------
@@ -103,8 +103,7 @@ export function getPlatformsInfo(platforms: PlatformLink[], t: TFunc): string | 
   if (count === 0) return t("results.notFound");
   if (count === 2) return t("results.foundOn2");
   if (count === 1) {
-    const name =
-      platforms[0].displayName ?? PLATFORM_CONFIG[platforms[0].platform]?.label ?? platforms[0].platform;
+    const name = platforms[0].displayName ?? PLATFORM_CONFIG[platforms[0].platform]?.label ?? platforms[0].platform;
     return t("results.onlyAvailable", { service: name });
   }
   return undefined;
@@ -126,9 +125,7 @@ export function buildActiveConfig(
       artworkUrl: active.artworkUrl,
       isExplicit: active.isExplicit,
       previewUrl: active.previewUrl,
-      metaLine:
-        buildMetaLine({ durationMs: active.durationMs, releaseDate: active.releaseDate }) ||
-        undefined,
+      metaLine: buildMetaLine({ durationMs: active.durationMs, releaseDate: active.releaseDate }) || undefined,
       platforms: active.platforms,
       platformsLabel: t("results.listenOn"),
       platformsInfo,

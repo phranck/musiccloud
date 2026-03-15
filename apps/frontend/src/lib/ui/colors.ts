@@ -17,26 +17,40 @@ export interface DynamicAccent {
 }
 
 export function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0;
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b);
+  let h = 0,
+    s = 0;
   const l = (max + min) / 2;
   if (max !== min) {
     const d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
     switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-      case g: h = ((b - r) / d + 2) / 6; break;
-      case b: h = ((r - g) / d + 4) / 6; break;
+      case r:
+        h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+        break;
+      case g:
+        h = ((b - r) / d + 2) / 6;
+        break;
+      case b:
+        h = ((r - g) / d + 4) / 6;
+        break;
     }
   }
   return [h, s, l];
 }
 
 export function hslToRgb(h: number, s: number, l: number): [number, number, number] {
-  if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
+  if (s === 0) {
+    const v = Math.round(l * 255);
+    return [v, v, v];
+  }
   const hue2rgb = (p: number, q: number, t: number) => {
-    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
     if (t < 1 / 6) return p + (q - p) * 6 * t;
     if (t < 1 / 2) return q;
     if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
@@ -84,20 +98,27 @@ export function extractAlbumColors(img: HTMLImageElement): { albumColors: AlbumC
   }
 
   const size = 64;
-  canvas.width = size; canvas.height = size;
+  canvas.width = size;
+  canvas.height = size;
   ctx.drawImage(img, 0, 0, size, size);
   const data = ctx.getImageData(0, 0, size, size).data;
   const pixelCount = size * size;
 
-  let totalR = 0, totalG = 0, totalB = 0;
+  let totalR = 0,
+    totalG = 0,
+    totalB = 0;
 
   const HUE_BUCKETS = 36; // 10° per bucket
   type Bucket = { sumR: number; sumG: number; sumB: number; weight: number };
   const buckets: Bucket[] = Array.from({ length: HUE_BUCKETS }, () => ({ sumR: 0, sumG: 0, sumB: 0, weight: 0 }));
 
   for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], g = data[i + 1], b = data[i + 2];
-    totalR += r; totalG += g; totalB += b;
+    const r = data[i],
+      g = data[i + 1],
+      b = data[i + 2];
+    totalR += r;
+    totalG += g;
+    totalB += b;
 
     const [h, s, l] = rgbToHsl(r, g, b);
     // Skip near-black, near-white, and near-grey pixels — they carry no useful hue signal.

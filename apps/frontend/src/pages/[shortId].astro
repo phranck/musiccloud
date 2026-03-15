@@ -8,17 +8,11 @@
  */
 export const prerender = false;
 
-import { isValidPlatform, buildMetaLine } from "@musiccloud/shared";
 import type { Platform } from "@musiccloud/shared";
-import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
-import { GradientBackground } from "@/components/background/GradientBackground";
-import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
-import { ShareLayout } from "@/components/share/ShareLayout";
-import { BrandName } from "@/components/ui/BrandName";
+import { buildMetaLine, isValidPlatform } from "@musiccloud/shared";
+import { fetchShareData } from "@/api/client";
 import { getLocaleFromCookie } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
-import BaseLayout from "@/layouts/BaseLayout.astro";
-import { fetchShareData } from "@/api/client";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 const { shortId } = Astro.params;
@@ -40,27 +34,20 @@ if (!data) {
 }
 
 const isAlbum = data.type === "album";
-const og = data.og;
+const _og = data.og;
 const track = data.track ?? null;
 const album = data.album ?? null;
 
-const artistDisplay = isAlbum
-  ? (album?.artists.join(", ") ?? "")
-  : (track?.artists.join(", ") ?? "");
+const artistDisplay = isAlbum ? (album?.artists.join(", ") ?? "") : (track?.artists.join(", ") ?? "");
 
 const artworkUrl = isAlbum ? album?.artworkUrl : track?.artworkUrl;
 const displayTitle = isAlbum ? (album?.title ?? "") : (track?.title ?? "");
 
 // Pre-compute meta lines using server-side translations
-const trackMetaLine = track
-  ? buildMetaLine({ durationMs: track.durationMs, releaseDate: track.releaseDate })
-  : null;
+const trackMetaLine = track ? buildMetaLine({ durationMs: track.durationMs, releaseDate: track.releaseDate }) : null;
 const albumYear = album?.releaseDate?.slice(0, 4);
 const albumMetaLine = isAlbum
-  ? [
-      album?.totalTracks ? t("results.albumTracks", { count: String(album.totalTracks) }) : null,
-      albumYear,
-    ]
+  ? [album?.totalTracks ? t("results.albumTracks", { count: String(album.totalTracks) }) : null, albumYear]
       .filter(Boolean)
       .join(" \u00B7 ")
   : null;
@@ -74,20 +61,20 @@ const platformLinks = data.links
   }));
 
 // Build the ShareContentConfiguration (fully JSON-serializable, passed to React island)
-const shareConfig: ShareContentConfiguration = {
+const _shareConfig: ShareContentConfiguration = {
   type: "share",
   title: displayTitle,
   artist: artistDisplay,
   artworkUrl: artworkUrl ?? "",
   isExplicit: !isAlbum && track?.isExplicit ? true : undefined,
-  previewUrl: isAlbum ? album?.previewUrl ?? undefined : track?.previewUrl ?? undefined,
+  previewUrl: isAlbum ? (album?.previewUrl ?? undefined) : (track?.previewUrl ?? undefined),
   metaLine: isAlbum ? albumMetaLine || undefined : trackMetaLine || undefined,
   platforms: platformLinks,
   platformsLabel: t(isAlbum ? "results.openAlbumOn" : "results.listenOn"),
   platformsLabelKey: isAlbum ? "results.openAlbumOn" : "results.listenOn",
 };
 
-const pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
+const _pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
 ---
 
 <BaseLayout

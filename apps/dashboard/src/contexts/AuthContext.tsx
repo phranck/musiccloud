@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 
 const STORAGE_KEY = "admin_token";
 
@@ -62,11 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ token: null, username: null, isAuthenticated: false });
   }
 
-  return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ ...state, login, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

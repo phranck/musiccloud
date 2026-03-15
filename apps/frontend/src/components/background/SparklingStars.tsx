@@ -64,11 +64,14 @@ export function SparklingStars() {
       container.appendChild(el);
       particles.push(el);
 
-      setTimeout(() => {
-        el.remove();
-        const idx = particles.indexOf(el);
-        if (idx !== -1) particles.splice(idx, 1);
-      }, duration * 1000 + 50);
+      setTimeout(
+        () => {
+          el.remove();
+          const idx = particles.indexOf(el);
+          if (idx !== -1) particles.splice(idx, 1);
+        },
+        duration * 1000 + 50,
+      );
     }
 
     let timeout: ReturnType<typeof setTimeout>;

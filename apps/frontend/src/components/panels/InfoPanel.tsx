@@ -1,6 +1,6 @@
 import { FaXmark } from "react-icons/fa6";
+import { type InfoPanelTab, useInfoPanel } from "@/hooks/useInfoPanel";
 import { useLocale, useT } from "@/i18n/context";
-import { useInfoPanel, type InfoPanelTab } from "@/hooks/useInfoPanel";
 
 interface InfoPanelProps {
   isOpen: boolean;
@@ -11,8 +11,12 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
   const { locale } = useLocale();
   const t = useT();
 
-  const { isVisible, activeTab, setActiveTab, content, isLoading, contentHeight, tabRefs, handleClose } =
-    useInfoPanel(isOpen, onClose, locale, t);
+  const { isVisible, activeTab, setActiveTab, content, isLoading, contentHeight, tabRefs, handleClose } = useInfoPanel(
+    isOpen,
+    onClose,
+    locale,
+    t,
+  );
 
   if (!isOpen) return null;
 
@@ -63,14 +67,11 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
                      ${transitionClasses} ${visibilityClasses}`}
         >
           <div className="flex items-end justify-between px-6 pt-5 flex-shrink-0">
-            <div
-              id="info-panel-title"
-              role="tablist"
-              className="flex gap-6 border-b border-white/[0.08] -mb-px"
-            >
+            <div id="info-panel-title" role="tablist" className="flex gap-6 border-b border-white/[0.08] -mb-px">
               {tabs.map(({ id, label }) => (
                 <button
                   key={id}
+                  type="button"
                   role="tab"
                   id={`tab-${id}`}
                   aria-selected={activeTab === id}
@@ -90,6 +91,7 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
             </div>
 
             <button
+              type="button"
               onClick={handleClose}
               aria-label={t("infopanel.close")}
               className="mb-2 p-1.5 text-white/30 hover:text-white/70 transition-colors duration-150 rounded-lg focus:outline-none"
@@ -111,19 +113,16 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
             {tabs.map(({ id }) => (
               <div
                 key={id}
-                ref={(el) => { tabRefs.current[id] = el; }}
+                ref={(el) => {
+                  tabRefs.current[id] = el;
+                }}
                 id={`panel-${id}`}
                 role="tabpanel"
                 aria-labelledby={`tab-${id}`}
                 className={`overflow-y-auto px-6 py-5 max-h-[calc(60vh-72px)]
                   ${activeTab === id ? "" : "absolute inset-0 opacity-0 pointer-events-none"}`}
               >
-                {content && (
-                  <div
-                    className={mdClasses}
-                    dangerouslySetInnerHTML={{ __html: content[id] }}
-                  />
-                )}
+                {content && <div className={mdClasses} dangerouslySetInnerHTML={{ __html: content[id] }} />}
               </div>
             ))}
           </div>

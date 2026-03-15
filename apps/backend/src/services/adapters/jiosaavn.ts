@@ -165,12 +165,11 @@ function mapAlbumToNormalized(album: JioSaavnAlbum): NormalizedAlbum {
   }
   if (artists.length === 0) artists.push("Unknown Artist");
 
-  const songCount =
-    album.more_info?.song_count
-      ? parseInt(album.more_info.song_count, 10)
-      : album.list_count
-        ? parseInt(album.list_count, 10)
-        : undefined;
+  const songCount = album.more_info?.song_count
+    ? parseInt(album.more_info.song_count, 10)
+    : album.list_count
+      ? parseInt(album.list_count, 10)
+      : undefined;
 
   const tracks: AlbumTrackEntry[] = (album.songs ?? []).map((s, i) => {
     const durationSec = s.more_info?.duration ? parseInt(s.more_info.duration, 10) : undefined;

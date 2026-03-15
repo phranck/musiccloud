@@ -1,17 +1,13 @@
-import type { FastifyInstance } from "fastify";
-import type {
-  AlbumResolveSuccessResponse,
-  ResolveErrorResponse,
-  ErrorCode,
-} from "@musiccloud/shared";
+import type { AlbumResolveSuccessResponse, ErrorCode, ResolveErrorResponse } from "@musiccloud/shared";
 import { ERROR_STATUS_MAP, USER_MESSAGES } from "@musiccloud/shared";
-import { ResolveError } from "../lib/resolve/errors.js";
+import type { FastifyInstance } from "fastify";
+import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isAlbumUrl, stripTrackingParams } from "../lib/platform/url.js";
-import { getRepository } from "../db/index.js";
+import { ResolveError } from "../lib/resolve/errors.js";
 import type { AlbumResolutionResult } from "../services/album-resolver.js";
-import { resolveAlbumUrl, resolveAlbumTextSearch } from "../services/album-resolver.js";
+import { resolveAlbumTextSearch, resolveAlbumUrl } from "../services/album-resolver.js";
 
 const ALLOWED_ORIGINS = ["https://musiccloud.io", "http://localhost:4321", "http://localhost:4322"];
 
@@ -26,7 +22,9 @@ export default async function resolveAlbumRoutes(app: FastifyInstance) {
     // Parse body
     const body = request.body as { query?: string } | null;
     if (!body) {
-      return reply.status(400).send(jsonError("INVALID_URL", 400, "Request body must be valid JSON with a 'query' field."));
+      return reply
+        .status(400)
+        .send(jsonError("INVALID_URL", 400, "Request body must be valid JSON with a 'query' field."));
     }
 
     const query = body.query?.trim();
@@ -43,9 +41,7 @@ export default async function resolveAlbumRoutes(app: FastifyInstance) {
       const origin = getOrigin(request.headers.origin);
 
       // Route: album URL or text search
-      const result = isAlbumUrl(query)
-        ? await resolveAlbumUrl(query)
-        : await resolveAlbumTextSearch(query);
+      const result = isAlbumUrl(query) ? await resolveAlbumUrl(query) : await resolveAlbumTextSearch(query);
 
       return reply.send(await persistAndRespond(result, origin));
     } catch (error) {
@@ -71,7 +67,7 @@ function getOrigin(headerOrigin?: string): string {
   return ALLOWED_ORIGINS[0];
 }
 
-function jsonError(code: ErrorCode, status: number, customMessage?: string): ResolveErrorResponse {
+function jsonError(code: ErrorCode, _status: number, customMessage?: string): ResolveErrorResponse {
   return {
     error: code,
     message: customMessage ?? USER_MESSAGES[code] ?? "Something went wrong.",

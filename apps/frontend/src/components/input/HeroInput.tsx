@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useT } from "@/i18n/context";
-import { cn } from "@/lib/utils";
-import { isAlbumUrl, isMusicUrl } from "@/lib/platform/url";
-import type { InputState } from "@/lib/types/app";
 import { useAmbilightAnimation } from "@/hooks/useAmbilightAnimation";
 import { useLoadingMessages } from "@/hooks/useLoadingMessages";
+import { useT } from "@/i18n/context";
+import { isAlbumUrl, isMusicUrl } from "@/lib/platform/url";
+import type { InputState } from "@/lib/types/app";
+import { cn } from "@/lib/utils";
 
 export type { InputState };
 
@@ -126,9 +126,7 @@ export function HeroInput({
     <div
       className={cn(
         "relative w-full transition-all duration-500",
-        state === "success" || compact
-          ? "max-w-full sm:max-w-[480px]"
-          : "max-w-full sm:max-w-[520px] md:max-w-[640px]",
+        state === "success" || compact ? "max-w-full sm:max-w-[480px]" : "max-w-full sm:max-w-[520px] md:max-w-[640px]",
       )}
     >
       {state === "loading" && (
@@ -158,7 +156,8 @@ export function HeroInput({
             "border",
             "transition-all duration-[250ms]",
             state === "idle" && (compact ? "border-[var(--color-accent)]/25" : "border-white/15"),
-            state === "focused" && (compact ? ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"] : "border-white/10"),
+            state === "focused" &&
+              (compact ? ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"] : "border-white/10"),
             state === "loading" && ["border-accent", "animate-pulse-glow"],
             state === "success" && ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"],
             state === "error" && ["border-error", "shadow-[0_0_12px_rgba(255,69,58,0.25)]"],
@@ -276,7 +275,6 @@ export function HeroInput({
               </svg>
             )}
           </button>
-
         </div>
       </div>
 

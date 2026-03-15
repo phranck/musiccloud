@@ -89,7 +89,6 @@ export interface SharePageResponse {
   shortUrl: string;
 }
 
-
 // ─── Artist Info Response ──────────────────────────────────────────────────────
 
 export interface ArtistTopTrack {

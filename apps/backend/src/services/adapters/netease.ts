@@ -154,11 +154,10 @@ async function searchSongs(query: string): Promise<NetEaseSong[]> {
 }
 
 function mapNetEaseAlbum(album: NetEaseAlbum, songCount?: number): NormalizedAlbum {
-  const artists = album.artists?.map((a) => a.name).filter(Boolean) ??
+  const artists =
+    album.artists?.map((a) => a.name).filter(Boolean) ??
     (album.artist?.name ? [album.artist.name] : ["Unknown Artist"]);
-  const releaseDate = album.publishTime
-    ? new Date(album.publishTime).toISOString().slice(0, 10)
-    : undefined;
+  const releaseDate = album.publishTime ? new Date(album.publishTime).toISOString().slice(0, 10) : undefined;
 
   return {
     sourceService: "netease",
@@ -329,7 +328,12 @@ export const neteaseAdapter: ServiceAdapter = {
         const album = mapNetEaseAlbum(raw);
         const confidence = calculateAlbumConfidence(
           { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
-          { title: album.title, artists: album.artists, totalTracks: album.totalTracks, releaseDate: album.releaseDate },
+          {
+            title: album.title,
+            artists: album.artists,
+            totalTracks: album.totalTracks,
+            releaseDate: album.releaseDate,
+          },
         );
         log.debug("NetEase", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
         if (confidence > bestConfidence) {

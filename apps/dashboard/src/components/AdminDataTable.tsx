@@ -1,14 +1,5 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, Pencil, PencilOff, Trash2 } from "lucide-react";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
-import { cn } from "@/lib/utils";
-import { useAdminSSE } from "@/hooks/useAdminSSE";
+import { type ReactNode, useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -22,8 +13,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAdminSSE } from "@/hooks/useAdminSSE";
 import { useT } from "@/i18n/context";
 import { apiDelete, apiGet } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,14 +33,14 @@ interface Page<T> {
  *  idle → loading-first → ready ⇄ loading-more
  *                       ↘ error
  */
-type TableState<T> =
+type TableState<T extends { id: string }> =
   | { tag: "idle" }
-  | { tag: "loading-first"; stale?: T[] }    // initial load; stale = old rows to show during sort/search reset
+  | { tag: "loading-first"; stale?: T[] } // initial load; stale = old rows to show during sort/search reset
   | { tag: "ready"; items: T[]; total: number; nextPage: number; hasMore: boolean }
   | { tag: "loading-more"; items: T[]; total: number; nextPage: number; hasMore: boolean }
   | { tag: "error"; message: string };
 
-type TableAction<T> =
+type TableAction<T extends { id: string }> =
   | { type: "RESET"; stale?: T[] }
   | { type: "FIRST_PAGE"; items: T[]; total: number }
   | { type: "LOAD_MORE" }
@@ -56,7 +49,7 @@ type TableAction<T> =
   | { type: "PREPEND"; item: T }
   | { type: "ERROR"; message: string };
 
-function makeReducer<T>() {
+function makeReducer<T extends { id: string }>() {
   return function reducer(state: TableState<T>, action: TableAction<T>): TableState<T> {
     switch (action.type) {
       case "RESET":
@@ -73,7 +66,13 @@ function makeReducer<T>() {
 
       case "LOAD_MORE":
         if (state.tag !== "ready" || !state.hasMore) return state;
-        return { tag: "loading-more", items: state.items, total: state.total, nextPage: state.nextPage, hasMore: state.hasMore };
+        return {
+          tag: "loading-more",
+          items: state.items,
+          total: state.total,
+          nextPage: state.nextPage,
+          hasMore: state.hasMore,
+        };
 
       case "MORE_LOADED": {
         if (state.tag !== "loading-more") return state;
@@ -154,11 +153,7 @@ const PAGE_SIZE = 50;
 // Component
 // ---------------------------------------------------------------------------
 
-export function AdminDataTable<T extends { id: string }>({
-  config,
-}: {
-  config: AdminTableConfig<T>;
-}) {
+export function AdminDataTable<T extends { id: string }>({ config }: { config: AdminTableConfig<T> }) {
   const t = useT();
 
   // Stable reducer (generic – created once per mount)
@@ -241,12 +236,10 @@ export function AdminDataTable<T extends { id: string }>({
 
   useEffect(() => {
     const stale =
-      stateRef.current.tag === "ready" || stateRef.current.tag === "loading-more"
-        ? stateRef.current.items
-        : undefined;
+      stateRef.current.tag === "ready" || stateRef.current.tag === "loading-more" ? stateRef.current.items : undefined;
     fetchFirstPageRef.current(stale);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, sortBy, sortDir, endpoint]);
+  }, []);
 
   // Debounce search input
   useEffect(() => {
@@ -257,7 +250,7 @@ export function AdminDataTable<T extends { id: string }>({
   // Clear selection when search/sort changes
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [searchQuery, sortBy, sortDir]);
+  }, []);
 
   // ESC exits edit mode
   useEffect(() => {
@@ -304,14 +297,7 @@ export function AdminDataTable<T extends { id: string }>({
   useAdminSSE(
     useCallback(
       (event) => {
-        if (
-          !sseEventType ||
-          !sseToItem ||
-          event.type !== sseEventType ||
-          searchQuery !== "" ||
-          sortBy !== null
-        )
-          return;
+        if (!sseEventType || !sseToItem || event.type !== sseEventType || searchQuery !== "" || sortBy !== null) return;
         dispatch({ type: "PREPEND", item: sseToItem(event.data) });
       },
       [searchQuery, sseEventType, sseToItem, sortBy],
@@ -338,8 +324,7 @@ export function AdminDataTable<T extends { id: string }>({
   // Selection
   // ---------------------------------------------------------------------------
 
-  const currentItems =
-    state.tag === "ready" || state.tag === "loading-more" ? state.items : [];
+  const currentItems = state.tag === "ready" || state.tag === "loading-more" ? state.items : [];
   const visibleIds = currentItems.map((item) => item.id);
   const selectedCount = selectedIds.size;
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
@@ -404,8 +389,7 @@ export function AdminDataTable<T extends { id: string }>({
         ? state.stale
         : [];
 
-  const total =
-    state.tag === "ready" || state.tag === "loading-more" ? state.total : null;
+  const total = state.tag === "ready" || state.tag === "loading-more" ? state.total : null;
 
   const isInitialLoading = state.tag === "idle" || (state.tag === "loading-first" && !state.stale);
   const isRefreshing = state.tag === "loading-first" && Boolean(state.stale);
@@ -449,11 +433,7 @@ export function AdminDataTable<T extends { id: string }>({
 
           {/* Edit toggle */}
           {hasDelete && (
-            <Button
-              variant={editMode ? "default" : "outline"}
-              size="sm"
-              onClick={handleEditToggle}
-            >
+            <Button variant={editMode ? "default" : "outline"} size="sm" onClick={handleEditToggle}>
               {editMode ? <PencilOff className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
               {t("edit.button")}
             </Button>
@@ -464,16 +444,14 @@ export function AdminDataTable<T extends { id: string }>({
       {/* Initial loading skeletons */}
       {isInitialLoading && (
         <div className="space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+          {Array.from({ length: 8 }, (_, index) => `loading-row-${index}`).map((key) => (
+            <Skeleton key={key} className="h-12 w-full" />
           ))}
         </div>
       )}
 
       {/* Error */}
-      {state.tag === "error" && (
-        <p className="text-sm text-destructive">{state.message}</p>
-      )}
+      {state.tag === "error" && <p className="text-sm text-destructive">{state.message}</p>}
 
       {/* Table – fills remaining height, internal scroll */}
       {!isInitialLoading && state.tag !== "error" && (
@@ -481,9 +459,9 @@ export function AdminDataTable<T extends { id: string }>({
           ref={tableWrapperRef}
           className={cn(
             // overflow-x-visible overrides the Table component's inner div (overflow-x-auto)
-          // so that position:sticky on <thead> works relative to this scroll container.
-          "min-h-0 flex-1 overflow-y-auto rounded-md border transition-opacity duration-200",
-          "[&_[data-slot='table-container']]:overflow-x-visible",
+            // so that position:sticky on <thead> works relative to this scroll container.
+            "min-h-0 flex-1 overflow-y-auto rounded-md border transition-opacity duration-200",
+            "[&_[data-slot='table-container']]:overflow-x-visible",
             isRefreshing ? "opacity-50" : "opacity-100",
           )}
         >
@@ -505,30 +483,33 @@ export function AdminDataTable<T extends { id: string }>({
                     />
                   </TableHead>
                 )}
-                {config.columns.map((col, i) => (
-                  <TableHead key={i} className={col.className}>
-                    {col.sortKey ? (
-                      <button
-                        className="group inline-flex cursor-pointer items-center whitespace-nowrap hover:text-foreground"
-                        onClick={() => handleSortClick(col.sortKey!)}
-                      >
-                        {col.headerLabel ?? (col.headerKey ? t(col.headerKey) : null)}
-                        <SortIcon colKey={col.sortKey} sortBy={sortBy} sortDir={sortDir} />
-                      </button>
-                    ) : (
-                      (col.headerLabel ?? (col.headerKey ? t(col.headerKey) : null))
-                    )}
-                  </TableHead>
-                ))}
+                {config.columns.map((col, index) => {
+                  const columnKey =
+                    col.sortKey ?? col.headerKey ?? col.headerLabel ?? col.className ?? `column-${index}`;
+
+                  return (
+                    <TableHead key={columnKey} className={col.className}>
+                      {col.sortKey ? (
+                        <button
+                          type="button"
+                          className="group inline-flex cursor-pointer items-center whitespace-nowrap hover:text-foreground"
+                          onClick={() => handleSortClick(col.sortKey!)}
+                        >
+                          {col.headerLabel ?? (col.headerKey ? t(col.headerKey) : null)}
+                          <SortIcon colKey={col.sortKey} sortBy={sortBy} sortDir={sortDir} />
+                        </button>
+                      ) : (
+                        (col.headerLabel ?? (col.headerKey ? t(col.headerKey) : null))
+                      )}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             </TableHeader>
             <TableBody className="[&_tr]:border-0">
               {displayItems.length === 0 && !isRefreshing ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={colSpan}
-                    className="py-10 text-center text-muted-foreground"
-                  >
+                  <TableCell colSpan={colSpan} className="py-10 text-center text-muted-foreground">
                     {t(config.emptyKey)}
                   </TableCell>
                 </TableRow>
@@ -556,11 +537,16 @@ export function AdminDataTable<T extends { id: string }>({
                         />
                       </TableCell>
                     )}
-                    {config.columns.map((col, i) => (
-                      <TableCell key={i} className={col.className}>
-                        {col.render(item)}
-                      </TableCell>
-                    ))}
+                    {config.columns.map((col, index) => {
+                      const columnKey =
+                        col.sortKey ?? col.headerKey ?? col.headerLabel ?? col.className ?? `column-${index}`;
+
+                      return (
+                        <TableCell key={columnKey} className={col.className}>
+                          {col.render(item)}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 ))
               )}
@@ -582,9 +568,7 @@ export function AdminDataTable<T extends { id: string }>({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("delete.confirm.title")}</DialogTitle>
-            <DialogDescription>
-              {t("delete.confirm.description", { count: String(selectedCount) })}
-            </DialogDescription>
+            <DialogDescription>{t("delete.confirm.description", { count: String(selectedCount) })}</DialogDescription>
           </DialogHeader>
           {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
           <DialogFooter>
@@ -610,8 +594,7 @@ function SortIcon({
   sortBy: string | null;
   sortDir: "asc" | "desc" | null;
 }) {
-  if (sortBy !== colKey)
-    return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 opacity-35 group-hover:opacity-60" />;
+  if (sortBy !== colKey) return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 opacity-35 group-hover:opacity-60" />;
   if (sortDir === "asc") return <ArrowUp className="ml-1 inline h-3.5 w-3.5" />;
   return <ArrowDown className="ml-1 inline h-3.5 w-3.5" />;
 }

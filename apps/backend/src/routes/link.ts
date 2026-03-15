@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { getRepository } from "../db/index.js";
+import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 
 export default async function linkRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>("/api/v1/link/:id", async (request, reply) => {

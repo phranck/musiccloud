@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore } from "react";
-import { LOCALE_STORAGE_KEY, detectLocale, type Locale } from "./locales";
+import { detectLocale, LOCALE_STORAGE_KEY, type Locale } from "./locales";
 
 type Translations = Record<string, string>;
 
@@ -42,11 +42,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     import(`./translations/${locale}.json`)
       .then((mod) => setTranslations(mod.default as Translations))
-      .catch(() =>
-        import("./translations/en.json").then((mod) =>
-          setTranslations(mod.default as Translations)
-        )
-      );
+      .catch(() => import("./translations/en.json").then((mod) => setTranslations(mod.default as Translations)));
   }, [locale]);
 
   const setLocale = useCallback((l: Locale) => {
@@ -59,16 +55,11 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const t = useCallback(
-    (key: string, vars?: Record<string, string>) =>
-      interpolate(translations[key] ?? key, vars),
-    [translations]
+    (key: string, vars?: Record<string, string>) => interpolate(translations[key] ?? key, vars),
+    [translations],
   );
 
-  return (
-    <LocaleContext.Provider value={{ locale, setLocale, t }}>
-      {children}
-    </LocaleContext.Provider>
-  );
+  return <LocaleContext.Provider value={{ locale, setLocale, t }}>{children}</LocaleContext.Provider>;
 }
 
 export function useLocale() {

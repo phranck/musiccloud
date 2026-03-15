@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { AdminDataTable, type AdminTableConfig } from "@/components/AdminDataTable";
+import { Badge } from "@/components/ui/badge";
 import { apiPatch } from "@/lib/api";
 
 interface AlbumListItem {
@@ -51,15 +51,14 @@ function FeaturedToggle({ album }: { album: AlbumListItem }) {
 
   return (
     <button
+      type="button"
       onClick={toggle}
       disabled={busy}
       title={featured ? "Featured entfernen" : "Als Featured markieren"}
       className="p-1 rounded transition-colors hover:bg-muted disabled:opacity-40"
       aria-label={featured ? "Featured entfernen" : "Als Featured markieren"}
     >
-      <span className={featured ? "text-yellow-400" : "text-muted-foreground/40"}>
-        {featured ? "★" : "☆"}
-      </span>
+      <span className={featured ? "text-yellow-400" : "text-muted-foreground/40"}>{featured ? "★" : "☆"}</span>
     </button>
   );
 }
@@ -112,20 +111,14 @@ const config: AdminTableConfig<AlbumListItem> = {
           ) : (
             <div className="font-medium leading-tight">{album.title}</div>
           )}
-          {album.releaseDate && (
-            <div className="text-xs text-muted-foreground">
-              {releaseYear(album.releaseDate)}
-            </div>
-          )}
+          {album.releaseDate && <div className="text-xs text-muted-foreground">{releaseYear(album.releaseDate)}</div>}
         </>
       ),
     },
     {
       headerKey: "albums.artists",
       sortKey: "artists",
-      render: (album) => (
-        <span className="text-sm">{album.artists.join(", ")}</span>
-      ),
+      render: (album) => <span className="text-sm">{album.artists.join(", ")}</span>,
     },
     {
       headerKey: "albums.source",
@@ -140,21 +133,13 @@ const config: AdminTableConfig<AlbumListItem> = {
     {
       headerLabel: "UPC",
       sortKey: "upc",
-      render: (album) => (
-        <span className="font-mono text-xs text-muted-foreground">
-          {album.upc ?? ""}
-        </span>
-      ),
+      render: (album) => <span className="font-mono text-xs text-muted-foreground">{album.upc ?? ""}</span>,
     },
     {
       headerKey: "albums.tracks",
       sortKey: "total_tracks",
       className: "text-center",
-      render: (album) => (
-        <span className="text-sm text-muted-foreground">
-          {album.totalTracks ?? ""}
-        </span>
-      ),
+      render: (album) => <span className="text-sm text-muted-foreground">{album.totalTracks ?? ""}</span>,
     },
     {
       headerKey: "albums.links",
@@ -165,11 +150,7 @@ const config: AdminTableConfig<AlbumListItem> = {
     {
       headerKey: "albums.added",
       sortKey: "created_at",
-      render: (album) => (
-        <span className="text-sm text-muted-foreground">
-          {formatDate(album.createdAt)}
-        </span>
-      ),
+      render: (album) => <span className="text-sm text-muted-foreground">{formatDate(album.createdAt)}</span>,
     },
   ],
 };

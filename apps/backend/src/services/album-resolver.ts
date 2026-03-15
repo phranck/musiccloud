@@ -1,9 +1,9 @@
-import { getRepository } from "../db/index.js";
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
+import { getRepository } from "../db/index.js";
 import { CACHE_TTL_MS } from "../lib/config.js";
-import { ResolveError } from "../lib/resolve/errors.js";
 import { log } from "../lib/infra/logger.js";
-import { isAlbumUrl, stripTrackingParams } from "../lib/platform/url.js";
+import { stripTrackingParams } from "../lib/platform/url.js";
+import { ResolveError } from "../lib/resolve/errors.js";
 import { adapters } from "./index.js";
 import type { AlbumMatchResult, AlbumSearchQuery, NormalizedAlbum, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
@@ -77,19 +77,14 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
 
   const missingAdapters = adapters.filter(
     (a) =>
-      a.isAvailable() &&
-      a.albumCapabilities &&
-      !coveredServices.has(a.id) &&
-      a.id !== cached.sourceAlbum.sourceService,
+      a.isAvailable() && a.albumCapabilities && !coveredServices.has(a.id) && a.id !== cached.sourceAlbum.sourceService,
   );
 
   if (missingAdapters.length === 0) return cached;
 
   log.debug("AlbumResolver", `Gap-filling ${missingAdapters.length} new services for cached album`);
 
-  const results = await Promise.allSettled(
-    missingAdapters.map((a) => resolveAlbumOnService(a, cached.sourceAlbum)),
-  );
+  const results = await Promise.allSettled(missingAdapters.map((a) => resolveAlbumOnService(a, cached.sourceAlbum)));
 
   const newLinks: ResolvedAlbumLink[] = [];
   for (const result of results) {
@@ -225,7 +220,10 @@ async function resolveAlbumOnService(
         };
       }
     } catch (error) {
-      log.debug("AlbumResolver", `[${adapter.id}] UPC lookup failed: ${error instanceof Error ? error.message : error}`);
+      log.debug(
+        "AlbumResolver",
+        `[${adapter.id}] UPC lookup failed: ${error instanceof Error ? error.message : error}`,
+      );
     }
   }
 
@@ -292,9 +290,7 @@ async function resolveAlbumAcrossServices(
   sourceAlbum: NormalizedAlbum,
   excludeAdapter: ServiceAdapter,
 ): Promise<ResolvedAlbumLink[]> {
-  const targetAdapters = adapters.filter(
-    (a) => a.id !== excludeAdapter.id && a.isAvailable() && a.albumCapabilities,
-  );
+  const targetAdapters = adapters.filter((a) => a.id !== excludeAdapter.id && a.isAvailable() && a.albumCapabilities);
 
   const results = await Promise.allSettled(
     targetAdapters.map((adapter) => resolveAlbumOnService(adapter, sourceAlbum)),
@@ -391,7 +387,7 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   }
 
   // 5. Resolve on all other services in parallel
-  let links = await resolveAlbumAcrossServices(sourceAlbum, sourceAdapter);
+  const links = await resolveAlbumAcrossServices(sourceAlbum, sourceAdapter);
 
   // 6. Add source service link
   links.unshift({
@@ -411,7 +407,9 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
  * Tries Spotify first (best album search API), then other adapters.
  */
 export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolutionResult> {
-  const searchAdapters = adapters.filter((a) => a.isAvailable() && a.albumCapabilities?.supportsAlbumSearch && a.searchAlbum);
+  const searchAdapters = adapters.filter(
+    (a) => a.isAvailable() && a.albumCapabilities?.supportsAlbumSearch && a.searchAlbum,
+  );
 
   // Prioritize Spotify (most reliable album search)
   const spotifyFirst = [
@@ -421,19 +419,19 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
 
   for (const adapter of spotifyFirst) {
     try {
-      const result = await adapter.searchAlbum!({
+      const result = await adapter.searchAlbum?.({
         title: query,
         artist: query,
       });
 
-      if (result.found && result.album) {
+      if (result?.found && result.album) {
         // Cache lookup by UPC before full cross-service resolve
         if (result.album.upc) {
           const cached = await tryAlbumCache({ upc: result.album.upc });
           if (cached) return fillMissingAlbumServices(cached);
         }
 
-        let links = await resolveAlbumAcrossServices(result.album, adapter);
+        const links = await resolveAlbumAcrossServices(result.album, adapter);
         links.unshift({
           service: adapter.id,
           displayName: adapter.displayName,

@@ -1,8 +1,8 @@
 import type { ErrorCode, ServiceId } from "@musiccloud/shared";
 
+export type { ErrorCode } from "@musiccloud/shared";
 // Re-export shared error types for convenience
 export { ERROR_STATUS_MAP, USER_MESSAGES } from "@musiccloud/shared";
-export type { ErrorCode } from "@musiccloud/shared";
 
 export class ServiceError extends Error {
   constructor(

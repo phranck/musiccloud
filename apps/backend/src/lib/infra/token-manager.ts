@@ -42,11 +42,9 @@ export class TokenManager {
 
   private async fetchNewToken(): Promise<string> {
     const clientId =
-      process.env[this.config.clientIdEnv] ||
-      (process.env[this.config.clientIdEnv] as string | undefined);
+      process.env[this.config.clientIdEnv] || (process.env[this.config.clientIdEnv] as string | undefined);
     const clientSecret =
-      process.env[this.config.clientSecretEnv] ||
-      (process.env[this.config.clientSecretEnv] as string | undefined);
+      process.env[this.config.clientSecretEnv] || (process.env[this.config.clientSecretEnv] as string | undefined);
 
     if (!clientId || !clientSecret) {
       console.error(`[${this.config.serviceName}] Missing required credentials`);

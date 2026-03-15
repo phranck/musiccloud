@@ -1,6 +1,6 @@
+import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
-import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { getAdminRepository } from "../db/index.js";
 
@@ -40,17 +40,23 @@ async function adminAuthRoutes(app: FastifyInstance) {
     const password = body.password;
 
     if (username.length < 3 || username.length > 32) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "username must be between 3 and 32 characters." });
+      return reply
+        .status(400)
+        .send({ error: "INVALID_REQUEST", message: "username must be between 3 and 32 characters." });
     }
     if (password.length < 8 || password.length > 128) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "password must be between 8 and 128 characters." });
+      return reply
+        .status(400)
+        .send({ error: "INVALID_REQUEST", message: "password must be between 8 and 128 characters." });
     }
 
     const repo = await getAdminRepository();
     const count = await repo.countAdmins();
 
     if (count > 0) {
-      return reply.status(409).send({ error: "CONFLICT", message: "Setup already completed. An admin user already exists." });
+      return reply
+        .status(409)
+        .send({ error: "CONFLICT", message: "Setup already completed. An admin user already exists." });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -84,10 +90,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid username or password." });
     }
 
-    const token = app.jwt.sign(
-      { sub: user.id, username: user.username, role: "admin" },
-      { expiresIn: "24h" },
-    );
+    const token = app.jwt.sign({ sub: user.id, username: user.username, role: "admin" }, { expiresIn: "24h" });
 
     // Update last login timestamp (fire and forget)
     repo.updateLastLogin(user.id).catch(() => undefined);

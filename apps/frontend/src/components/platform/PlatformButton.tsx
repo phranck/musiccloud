@@ -1,7 +1,7 @@
-import { memo } from "react";
-import { cn } from "@/lib/utils";
 import { PLATFORM_CONFIG, type Platform } from "@musiccloud/shared";
+import { memo } from "react";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
+import { cn } from "@/lib/utils";
 
 interface PlatformButtonProps {
   platform: Platform;
@@ -64,7 +64,12 @@ export const PlatformButton = memo(function PlatformButton({
     >
       <PlatformIcon platform={platform} className="w-8 h-8 flex-shrink-0" colored={true} />
       <div className="flex-1">
-        <span className="font-medium text-base text-text-primary tracking-[0]" style={{ fontFamily: "var(--font-condensed)" }}>{label}</span>
+        <span
+          className="font-medium text-base text-text-primary tracking-[0]"
+          style={{ fontFamily: "var(--font-condensed)" }}
+        >
+          {label}
+        </span>
         {isDev && sourceLabel && <div className="text-xs text-text-muted">{sourceLabel}</div>}
       </div>
       <svg

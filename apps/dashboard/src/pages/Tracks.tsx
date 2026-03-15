@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { AdminDataTable, type AdminTableConfig } from "@/components/AdminDataTable";
+import { Badge } from "@/components/ui/badge";
 import { apiPatch } from "@/lib/api";
 
 interface TrackListItem {
@@ -45,15 +45,14 @@ function FeaturedToggle({ track }: { track: TrackListItem }) {
 
   return (
     <button
+      type="button"
       onClick={toggle}
       disabled={busy}
       title={featured ? "Featured entfernen" : "Als Featured markieren"}
       className="p-1 rounded transition-colors hover:bg-muted disabled:opacity-40"
       aria-label={featured ? "Featured entfernen" : "Als Featured markieren"}
     >
-      <span className={featured ? "text-yellow-400" : "text-muted-foreground/40"}>
-        {featured ? "★" : "☆"}
-      </span>
+      <span className={featured ? "text-yellow-400" : "text-muted-foreground/40"}>{featured ? "★" : "☆"}</span>
     </button>
   );
 }
@@ -106,18 +105,14 @@ const config: AdminTableConfig<TrackListItem> = {
           ) : (
             <div className="font-medium leading-tight">{track.title}</div>
           )}
-          {track.albumName && (
-            <div className="text-xs text-muted-foreground">{track.albumName}</div>
-          )}
+          {track.albumName && <div className="text-xs text-muted-foreground">{track.albumName}</div>}
         </>
       ),
     },
     {
       headerKey: "tracks.artists",
       sortKey: "artists",
-      render: (track) => (
-        <span className="text-sm">{track.artists.join(", ")}</span>
-      ),
+      render: (track) => <span className="text-sm">{track.artists.join(", ")}</span>,
     },
     {
       headerKey: "tracks.source",
@@ -132,11 +127,7 @@ const config: AdminTableConfig<TrackListItem> = {
     {
       headerLabel: "ISRC",
       sortKey: "isrc",
-      render: (track) => (
-        <span className="font-mono text-xs text-muted-foreground">
-          {track.isrc ?? ""}
-        </span>
-      ),
+      render: (track) => <span className="font-mono text-xs text-muted-foreground">{track.isrc ?? ""}</span>,
     },
     {
       headerKey: "tracks.links",
@@ -147,11 +138,7 @@ const config: AdminTableConfig<TrackListItem> = {
     {
       headerKey: "tracks.added",
       sortKey: "created_at",
-      render: (track) => (
-        <span className="text-sm text-muted-foreground">
-          {formatDate(track.createdAt)}
-        </span>
-      ),
+      render: (track) => <span className="text-sm text-muted-foreground">{formatDate(track.createdAt)}</span>,
     },
   ],
 };

@@ -1,21 +1,18 @@
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
-import { cn } from "@/lib/utils";
-import {
-  isShareableContent,
-  type MediaCardContentConfiguration,
-} from "@/lib/types/media-card";
+import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 import { GlassCard } from "@/components/cards/GlassCard";
+import { SongInfo } from "@/components/cards/SongInfo";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { ShareButton } from "@/components/share/ShareButton";
-import { SongInfo } from "@/components/cards/SongInfo";
-import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
+import { isShareableContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
+import { cn } from "@/lib/utils";
 
 export type {
-  MediaCardContentType,
-  MediaCardContentConfiguration,
-  SongContentConfiguration,
   AlbumContentConfiguration,
+  MediaCardContentConfiguration,
+  MediaCardContentType,
   ShareContentConfiguration,
+  SongContentConfiguration,
 } from "@/lib/types/media-card";
 
 interface MediaCardProps {
@@ -70,9 +67,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
 
       {content.platforms.length > 0 && (
         <div className="border-t border-white/[0.12] px-6 pt-5 pb-6">
-          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3">
-            {content.platformsLabel}
-          </p>
+          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3">{content.platformsLabel}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[...content.platforms]
               .sort((a, b) => PLATFORM_CONFIG[a.platform].label.localeCompare(PLATFORM_CONFIG[b.platform].label))

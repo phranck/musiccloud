@@ -1,6 +1,11 @@
+import type {
+  AlbumResolveSuccessResponse,
+  ResolveDisambiguationResponse,
+  ResolveErrorResponse,
+  ResolveSuccessResponse,
+} from "@musiccloud/shared";
 import { useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
-import type { AlbumResolveSuccessResponse, ResolveDisambiguationResponse, ResolveErrorResponse, ResolveSuccessResponse } from "@musiccloud/shared";
 import { isAlbumUrl } from "@/lib/platform/url";
 import { appReducer, parseAlbumResolveResponse, parseErrorKey, parseResolveResponse } from "@/lib/resolve/parsers";
 import type { ActiveResult, AppState } from "@/lib/types/app";
@@ -30,48 +35,44 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
 
   const isDisambiguating = state.type === "disambiguation" || state.type === "disambiguation_loading";
   const isClearing = state.type === "clearing";
-  const active =
-    state.type === "result" ? state.active : state.type === "clearing" ? state.active : null;
+  const active = state.type === "result" ? state.active : state.type === "clearing" ? state.active : null;
   const candidates = isDisambiguating ? state.candidates : null;
   const selectedCandidateId = state.type === "disambiguation_loading" ? state.selectedId : null;
   const errorMessage = state.type === "error" ? t(state.message) : undefined;
   const showCompact = !!(active || candidates);
 
-  const handleSubmit = useCallback(
-    async (url: string) => {
-      dispatch({ type: "SUBMIT" });
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 20000);
-        const endpoint = isAlbumUrl(url) ? "/api/resolve-album" : "/api/resolve";
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: url }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        if (!response.ok) {
-          const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-          throw new Error(errorData.message || "error.generic");
-        }
-        if (endpoint === "/api/resolve-album") {
-          const data = (await response.json()) as AlbumResolveSuccessResponse;
-          dispatch({ type: "RESOLVE_SUCCESS", active: parseAlbumResolveResponse(data) });
-          return;
-        }
-        const data = (await response.json()) as ResolveSuccessResponse | ResolveDisambiguationResponse;
-        if ("status" in data && data.status === "disambiguation") {
-          dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
-          return;
-        }
-        dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data as ResolveSuccessResponse) });
-      } catch (err) {
-        dispatch({ type: "ERROR", message: parseErrorKey(err) });
+  const handleSubmit = useCallback(async (url: string) => {
+    dispatch({ type: "SUBMIT" });
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+      const endpoint = isAlbumUrl(url) ? "/api/resolve-album" : "/api/resolve";
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: url }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
+        throw new Error(errorData.message || "error.generic");
       }
-    },
-    [],
-  );
+      if (endpoint === "/api/resolve-album") {
+        const data = (await response.json()) as AlbumResolveSuccessResponse;
+        dispatch({ type: "RESOLVE_SUCCESS", active: parseAlbumResolveResponse(data) });
+        return;
+      }
+      const data = (await response.json()) as ResolveSuccessResponse | ResolveDisambiguationResponse;
+      if ("status" in data && data.status === "disambiguation") {
+        dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
+        return;
+      }
+      dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data as ResolveSuccessResponse) });
+    } catch (err) {
+      dispatch({ type: "ERROR", message: parseErrorKey(err) });
+    }
+  }, []);
 
   const handleSelectCandidate = useCallback(async (candidate: DisambiguationCandidate) => {
     dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });

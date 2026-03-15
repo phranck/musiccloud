@@ -1,18 +1,18 @@
 import { BrowserRouter, Route, Routes } from "react-router";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "@/contexts/ThemeContext";
-import { LocaleProvider } from "@/i18n/context";
-import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Overview } from "@/pages/Overview";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { LocaleProvider } from "@/i18n/context";
 import { Albums } from "@/pages/Albums";
-import { Tracks } from "@/pages/Tracks";
-import { Users } from "@/pages/Users";
-import { Traffic } from "@/pages/Traffic";
-import { System } from "@/pages/System";
 import { Login } from "@/pages/Login";
+import { Overview } from "@/pages/Overview";
 import { Setup } from "@/pages/Setup";
+import { System } from "@/pages/System";
+import { Tracks } from "@/pages/Tracks";
+import { Traffic } from "@/pages/Traffic";
+import { Users } from "@/pages/Users";
 
 export function App() {
   return (

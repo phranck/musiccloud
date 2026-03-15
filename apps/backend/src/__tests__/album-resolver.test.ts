@@ -59,9 +59,9 @@ const mockSpotifyAdapter = {
   displayName: "Spotify",
   isAvailable: vi.fn().mockReturnValue(true),
   detectUrl: vi.fn().mockReturnValue(null),
-  detectAlbumUrl: vi.fn().mockImplementation((url: string) =>
-    url.includes("spotify.com/album") ? "6dVIqQ8qmQ5GBnJ9shOYGE" : null,
-  ),
+  detectAlbumUrl: vi
+    .fn()
+    .mockImplementation((url: string) => (url.includes("spotify.com/album") ? "6dVIqQ8qmQ5GBnJ9shOYGE" : null)),
   getAlbum: vi.fn().mockResolvedValue(MOCK_SOURCE_ALBUM),
   findAlbumByUpc: vi.fn().mockResolvedValue(null),
   searchAlbum: vi.fn().mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" }),
@@ -165,8 +165,8 @@ describe("AlbumResolver: resolveAlbumUrl", () => {
 
     const spotifyLink = result.links.find((l) => l.service === "spotify");
     expect(spotifyLink).toBeDefined();
-    expect(spotifyLink!.confidence).toBe(1.0);
-    expect(spotifyLink!.matchMethod).toBe("upc");
+    expect(spotifyLink?.confidence).toBe(1.0);
+    expect(spotifyLink?.matchMethod).toBe("upc");
   });
 
   it("should use UPC lookup for cross-service resolution", async () => {
@@ -174,8 +174,8 @@ describe("AlbumResolver: resolveAlbumUrl", () => {
 
     const deezerLink = result.links.find((l) => l.service === "deezer");
     expect(deezerLink).toBeDefined();
-    expect(deezerLink!.matchMethod).toBe("upc");
-    expect(deezerLink!.confidence).toBe(1.0);
+    expect(deezerLink?.matchMethod).toBe("upc");
+    expect(deezerLink?.confidence).toBe(1.0);
   });
 
   it("should fall back to search when UPC lookup returns null", async () => {
@@ -183,17 +183,15 @@ describe("AlbumResolver: resolveAlbumUrl", () => {
 
     const tidalLink = result.links.find((l) => l.service === "tidal");
     expect(tidalLink).toBeDefined();
-    expect(tidalLink!.matchMethod).toBe("search");
-    expect(tidalLink!.confidence).toBeGreaterThan(0.6);
+    expect(tidalLink?.matchMethod).toBe("search");
+    expect(tidalLink?.confidence).toBeGreaterThan(0.6);
   });
 
   it("should return cached result when cache hit", async () => {
     const cachedAlbum = {
       album: MOCK_SOURCE_ALBUM,
       albumId: "cached-id",
-      links: [
-        { service: "deezer", url: "https://www.deezer.com/album/302127", confidence: 1.0, matchMethod: "upc" },
-      ],
+      links: [{ service: "deezer", url: "https://www.deezer.com/album/302127", confidence: 1.0, matchMethod: "upc" }],
       updatedAt: Date.now() - 1000, // 1 second old, well within TTL
     };
     mockRepo.findAlbumByUrl.mockResolvedValue(cachedAlbum);

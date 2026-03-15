@@ -29,7 +29,9 @@ async function ensureInstance(): Promise<void> {
     cleanupInterval = setInterval(
       async () => {
         try {
-          const deleted = await repositoryInstance!.cleanupStaleCache();
+          const repo = repositoryInstance;
+          if (!repo) return;
+          const deleted = await repo.cleanupStaleCache();
           if (deleted > 0) {
             log.debug("DB", `Cache cleanup removed ${deleted} stale entries`);
           }

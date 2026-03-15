@@ -29,8 +29,7 @@ import type {
 const PANDORA_TRACK_REGEX =
   /^https?:\/\/(?:www\.)?pandora\.com\/artist\/([^/]+\/[^/]+\/[^/]+\/TR[a-zA-Z0-9]+)(?:\?.*)?$/;
 // Pandora album URL format: pandora.com/artist/{artist}/{album}/AL{id}
-const PANDORA_ALBUM_REGEX =
-  /^https?:\/\/(?:www\.)?pandora\.com\/artist\/([^/]+\/[^/]+\/AL[a-zA-Z0-9]+)(?:\?.*)?$/;
+const PANDORA_ALBUM_REGEX = /^https?:\/\/(?:www\.)?pandora\.com\/artist\/([^/]+\/[^/]+\/AL[a-zA-Z0-9]+)(?:\?.*)?$/;
 
 const PANDORA_BASE = "https://www.pandora.com";
 
@@ -242,7 +241,10 @@ function extractFromJsonLd(html: string): JsonLdMusicRecording | null {
 function mapAlbumData(data: PandoraAlbumData, sourceId: string): NormalizedAlbum {
   const webPath = data.shareableUrlPath ?? `/artist/${sourceId}`;
   const artists = data.artistName
-    ? data.artistName.split(/[,&]/).map((a) => a.trim()).filter(Boolean)
+    ? data.artistName
+        .split(/[,&]/)
+        .map((a) => a.trim())
+        .filter(Boolean)
     : ["Unknown Artist"];
 
   return {
@@ -288,10 +290,19 @@ async function fetchAlbumByPath(albumPath: string): Promise<NormalizedAlbum | nu
   const match = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i.exec(html);
   if (match) {
     try {
-      const ldData = JSON.parse(match[1]) as { "@type"?: string; name?: string; byArtist?: { name?: string }; image?: string; url?: string };
+      const ldData = JSON.parse(match[1]) as {
+        "@type"?: string;
+        name?: string;
+        byArtist?: { name?: string };
+        image?: string;
+        url?: string;
+      };
       if (ldData["@type"] === "MusicAlbum" && ldData.name) {
         const artists = ldData.byArtist?.name
-          ? ldData.byArtist.name.split(/[,&]/).map((a) => a.trim()).filter(Boolean)
+          ? ldData.byArtist.name
+              .split(/[,&]/)
+              .map((a) => a.trim())
+              .filter(Boolean)
           : ["Unknown Artist"];
         return {
           sourceService: "pandora",

@@ -80,9 +80,9 @@ describe("SqliteAdapter", () => {
       // Verify track is actually retrievable
       const cached = await adapter.findTrackByIsrc("GBUM71029604");
       expect(cached).not.toBeNull();
-      expect(cached!.track.title).toBe("Bohemian Rhapsody");
-      expect(cached!.track.artists).toEqual(["Queen"]);
-      expect(cached!.links).toHaveLength(2);
+      expect(cached?.track.title).toBe("Bohemian Rhapsody");
+      expect(cached?.track.artists).toEqual(["Queen"]);
+      expect(cached?.links).toHaveLength(2);
     });
 
     it("updates existing track (same ISRC) instead of creating duplicate", async () => {
@@ -108,9 +108,9 @@ describe("SqliteAdapter", () => {
       // Should now have 3 links total (spotify + deezer + tidal)
       const cached = await adapter.findTrackByIsrc("GBUM71029604");
       expect(cached).not.toBeNull();
-      expect(cached!.links).toHaveLength(3);
+      expect(cached?.links).toHaveLength(3);
 
-      const services = cached!.links.map((l) => l.service).sort();
+      const services = cached?.links.map((l) => l.service).sort();
       expect(services).toEqual(["deezer", "spotify", "tidal"]);
     });
   });
@@ -126,13 +126,13 @@ describe("SqliteAdapter", () => {
 
       const result = await adapter.findTrackByUrl("https://open.spotify.com/track/abc123");
       expect(result).not.toBeNull();
-      expect(result!.track.title).toBe("Bohemian Rhapsody");
-      expect(result!.track.artists).toEqual(["Queen"]);
-      expect(result!.trackId).toBeDefined();
-      expect(result!.updatedAt).toBeGreaterThan(0);
-      expect(result!.links).toHaveLength(2);
-      expect(result!.links.some((l) => l.service === "spotify")).toBe(true);
-      expect(result!.links.some((l) => l.service === "deezer")).toBe(true);
+      expect(result?.track.title).toBe("Bohemian Rhapsody");
+      expect(result?.track.artists).toEqual(["Queen"]);
+      expect(result?.trackId).toBeDefined();
+      expect(result?.updatedAt).toBeGreaterThan(0);
+      expect(result?.links).toHaveLength(2);
+      expect(result?.links.some((l) => l.service === "spotify")).toBe(true);
+      expect(result?.links.some((l) => l.service === "deezer")).toBe(true);
     });
 
     it("returns null for unknown URL", async () => {
@@ -152,9 +152,9 @@ describe("SqliteAdapter", () => {
 
       const result = await adapter.findTrackByIsrc("GBUM71029604");
       expect(result).not.toBeNull();
-      expect(result!.track.title).toBe("Bohemian Rhapsody");
-      expect(result!.track.sourceService).toBe("cached");
-      expect(result!.links).toHaveLength(2);
+      expect(result?.track.title).toBe("Bohemian Rhapsody");
+      expect(result?.track.sourceService).toBe("cached");
+      expect(result?.links).toHaveLength(2);
     });
 
     it("returns null for unknown ISRC", async () => {
@@ -184,13 +184,13 @@ describe("SqliteAdapter", () => {
 
       const cached = await adapter.findTrackByIsrc("GBUM71029604");
       expect(cached).not.toBeNull();
-      expect(cached!.links).toHaveLength(3);
+      expect(cached?.links).toHaveLength(3);
 
-      const ytLink = cached!.links.find((l) => l.service === "youtube");
+      const ytLink = cached?.links.find((l) => l.service === "youtube");
       expect(ytLink).toBeDefined();
-      expect(ytLink!.url).toBe("https://www.youtube.com/watch?v=xyz");
-      expect(ytLink!.confidence).toBe(0.85);
-      expect(ytLink!.matchMethod).toBe("search");
+      expect(ytLink?.url).toBe("https://www.youtube.com/watch?v=xyz");
+      expect(ytLink?.confidence).toBe(0.85);
+      expect(ytLink?.matchMethod).toBe("search");
     });
 
     it("does not create duplicates for same service", async () => {
@@ -210,11 +210,11 @@ describe("SqliteAdapter", () => {
       const cached = await adapter.findTrackByIsrc("GBUM71029604");
       expect(cached).not.toBeNull();
       // Should still be 2, not 3 (unique index on track_id+service)
-      expect(cached!.links).toHaveLength(2);
+      expect(cached?.links).toHaveLength(2);
 
       // The original URL should be preserved (onConflictDoNothing)
-      const spotifyLink = cached!.links.find((l) => l.service === "spotify");
-      expect(spotifyLink!.url).toBe("https://open.spotify.com/track/abc123");
+      const spotifyLink = cached?.links.find((l) => l.service === "spotify");
+      expect(spotifyLink?.url).toBe("https://open.spotify.com/track/abc123");
     });
   });
 
@@ -226,7 +226,7 @@ describe("SqliteAdapter", () => {
     it("removes entries older than TTL", async () => {
       // Insert a track and manually set its updated_at far in the past
       const data = makeTrackData({ isrc: "STALE0000001" });
-      const { trackId } = await adapter.persistTrackWithLinks(data);
+      await adapter.persistTrackWithLinks(data);
 
       // Manually backdate updated_at to make it stale (> TTL ago).
       // The track has no short_url, so it won't be protected from cleanup.
@@ -300,7 +300,7 @@ describe("SqliteAdapter", () => {
       // Verify it still exists
       const result = await adapter.findTrackByIsrc("FRESHISRC001");
       expect(result).not.toBeNull();
-      expect(result!.track.title).toBe("Fresh Song");
+      expect(result?.track.title).toBe("Fresh Song");
     });
   });
 
@@ -315,19 +315,19 @@ describe("SqliteAdapter", () => {
 
       const result = await adapter.loadByShortId(shortId);
       expect(result).not.toBeNull();
-      expect(result!.shortId).toBe(shortId);
-      expect(result!.track.title).toBe("Bohemian Rhapsody");
-      expect(result!.track.albumName).toBe("A Night at the Opera");
-      expect(result!.track.artworkUrl).toBe("https://example.com/art.jpg");
-      expect(result!.track.durationMs).toBe(354000);
-      expect(result!.track.isrc).toBe("GBUM71029604");
-      expect(result!.track.releaseDate).toBe("1975-10-31");
-      expect(result!.track.isExplicit).toBe(false);
-      expect(result!.artists).toEqual(["Queen"]);
-      expect(result!.artistDisplay).toBe("Queen");
-      expect(result!.links).toHaveLength(2);
-      expect(result!.links.some((l) => l.service === "spotify")).toBe(true);
-      expect(result!.links.some((l) => l.service === "deezer")).toBe(true);
+      expect(result?.shortId).toBe(shortId);
+      expect(result?.track.title).toBe("Bohemian Rhapsody");
+      expect(result?.track.albumName).toBe("A Night at the Opera");
+      expect(result?.track.artworkUrl).toBe("https://example.com/art.jpg");
+      expect(result?.track.durationMs).toBe(354000);
+      expect(result?.track.isrc).toBe("GBUM71029604");
+      expect(result?.track.releaseDate).toBe("1975-10-31");
+      expect(result?.track.isExplicit).toBe(false);
+      expect(result?.artists).toEqual(["Queen"]);
+      expect(result?.artistDisplay).toBe("Queen");
+      expect(result?.links).toHaveLength(2);
+      expect(result?.links.some((l) => l.service === "spotify")).toBe(true);
+      expect(result?.links.some((l) => l.service === "deezer")).toBe(true);
     });
 
     it("returns null for unknown shortId", async () => {
@@ -386,8 +386,8 @@ describe("SqliteAdapter", () => {
 
       const result = await adapter.findExistingByIsrc("GBUM71029604");
       expect(result).not.toBeNull();
-      expect(result!.trackId).toBe(trackId);
-      expect(result!.shortId).toBe(shortId);
+      expect(result?.trackId).toBe(trackId);
+      expect(result?.shortId).toBe(shortId);
     });
 
     it("returns null for unknown ISRC", async () => {

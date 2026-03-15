@@ -1,5 +1,5 @@
-import { InfoButton } from "@/components/ui/InfoButton";
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
+import { InfoButton } from "@/components/ui/InfoButton";
 
 interface PageHeaderProps {
   /** Show the circular info button (landing page and result pages only) */

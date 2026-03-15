@@ -35,11 +35,20 @@ const MAX_DESCRIPTION_LENGTH = 65;
 
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength - 3) + "...";
+  return `${text.slice(0, maxLength - 3)}...`;
 }
 
 export function generateAlbumOGMeta(input: AlbumOGMetaInput): OGMeta {
-  const { title, artist, totalTracks, releaseDate, albumArtUrl, shortId, availablePlatforms, origin = "https://musiccloud.io" } = input;
+  const {
+    title,
+    artist,
+    totalTracks,
+    releaseDate,
+    albumArtUrl,
+    shortId,
+    availablePlatforms,
+    origin = "https://musiccloud.io",
+  } = input;
 
   const year = releaseDate?.slice(0, 4);
   const fullTitle = `${title} – ${artist}`;
@@ -53,7 +62,8 @@ export function generateAlbumOGMeta(input: AlbumOGMetaInput): OGMeta {
     ogDescription = `Listen on ${serviceNames[0]}`;
   } else {
     const first = serviceNames.slice(0, 2).join(", ");
-    ogDescription = serviceNames.length > 2 ? `Listen on ${first} +${serviceNames.length - 2} more` : `Listen on ${first}`;
+    ogDescription =
+      serviceNames.length > 2 ? `Listen on ${first} +${serviceNames.length - 2} more` : `Listen on ${first}`;
   }
 
   if (totalTracks || year) {

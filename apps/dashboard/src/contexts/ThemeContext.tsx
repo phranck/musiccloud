@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -23,9 +23,7 @@ function applyTheme(theme: Theme) {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(
-    () => (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "system",
-  );
+  const [theme, setThemeState] = useState<Theme>(() => (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "system");
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
     applyTheme((localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "system"),
   );
@@ -50,11 +48,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState(t);
   }
 
-  return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme(): ThemeContextValue {

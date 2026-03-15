@@ -1,22 +1,22 @@
-import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
 import sensible from "@fastify/sensible";
+import Fastify from "fastify";
 
 import authPlugin from "./plugins/auth.js";
-import { warmAppleMusicToken } from "./services/adapters/apple-music.js";
-import { validateAdapters } from "./services/index.js";
-import resolveRoutes from "./routes/resolve.js";
-import resolveAlbumRoutes from "./routes/resolve-album.js";
-import linkRoutes from "./routes/link.js";
-import shareRoutes from "./routes/share.js";
-import authRoutes from "./routes/auth.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminDataRoutes from "./routes/admin-data.js";
 import adminSseRoutes from "./routes/admin-sse.js";
 import artistInfoRoutes from "./routes/artist-info.js";
+import authRoutes from "./routes/auth.js";
+import linkRoutes from "./routes/link.js";
 import randomExampleRoutes from "./routes/random-example.js";
+import resolveRoutes from "./routes/resolve.js";
+import resolveAlbumRoutes from "./routes/resolve-album.js";
+import shareRoutes from "./routes/share.js";
+import { warmAppleMusicToken } from "./services/adapters/apple-music.js";
+import { validateAdapters } from "./services/index.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);

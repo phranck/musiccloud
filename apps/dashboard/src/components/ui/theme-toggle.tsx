@@ -1,8 +1,8 @@
 import { Monitor, Moon, Sun } from "lucide-react";
-import { useTheme, type Theme } from "@/contexts/ThemeContext";
-import { useT } from "@/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { type Theme, useTheme } from "@/contexts/ThemeContext";
+import { useT } from "@/i18n/context";
 
 const CYCLE: Theme[] = ["system", "light", "dark"];
 

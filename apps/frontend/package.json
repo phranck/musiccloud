@@ -10,26 +10,26 @@
     "start": "node ./dist/server/entry.mjs"
   },
   "dependencies": {
-    "@astrojs/node": "^9.5.3",
-    "@astrojs/react": "^4.2.0",
-    "@astrojs/sitemap": "^3.7.0",
+    "@astrojs/node": "9.5.5",
+    "@astrojs/react": "^4.4.2",
+    "@astrojs/sitemap": "^3.7.1",
     "@fontsource/barlow": "^5.2.8",
     "@fontsource/roboto-condensed": "^5.2.8",
     "@musiccloud/shared": "*",
-    "astro": "^5.3.0",
-    "clsx": "^2.1.0",
-    "marked": "^17.0.3",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-icons": "^5.5.0",
-    "tailwind-merge": "^2.6.0"
+    "astro": "^5.18.1",
+    "clsx": "^2.1.1",
+    "marked": "^17.0.4",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-icons": "^5.6.0",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.6",
-    "@tailwindcss/vite": "^4.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.0"
+    "@astrojs/check": "^0.9.7",
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3"
   }
 }

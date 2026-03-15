@@ -1,5 +1,5 @@
-import { LocaleProvider } from "@/i18n/context";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { LocaleProvider } from "@/i18n/context";
 
 /**
  * Standalone React island for SSR Astro pages (e.g. share page).

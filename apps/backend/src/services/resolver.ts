@@ -1,10 +1,10 @@
-import { getRepository } from "../db/index.js";
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
+import { getRepository } from "../db/index.js";
 import { CACHE_TTL_MS } from "../lib/config.js";
-import { ResolveError } from "../lib/resolve/errors.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
+import { ResolveError } from "../lib/resolve/errors.js";
 import { adapters, identifyService } from "./index.js";
 import type { MatchResult, NormalizedTrack, SearchCandidate, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
@@ -103,7 +103,10 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
 
   if (adaptersToFetch.length === 0) return cached;
 
-  log.debug("Resolver", `Gap-filling ${adaptersToFetch.length} services for cached track${deezerAdapter ? " (incl. Deezer for preview)" : ""}`);
+  log.debug(
+    "Resolver",
+    `Gap-filling ${adaptersToFetch.length} services for cached track${deezerAdapter ? " (incl. Deezer for preview)" : ""}`,
+  );
 
   const results = await Promise.allSettled(adaptersToFetch.map((a) => resolveOnService(a, cached.sourceTrack)));
 
@@ -221,8 +224,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   const wasExpanded = cleanUrl !== strippedInput;
 
   // Helper: attach the original short-link URL so the route handler can save it as an alias
-  const withAlias = (r: ResolutionResult): ResolutionResult =>
-    wasExpanded ? { ...r, inputUrl: strippedInput } : r;
+  const withAlias = (r: ResolutionResult): ResolutionResult => (wasExpanded ? { ...r, inputUrl: strippedInput } : r);
 
   // 1. Cache lookup by URL (try canonical first; fall back to the short link as alias)
   const cachedByCanonical = await tryCache({ url: cleanUrl });
@@ -261,7 +263,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   }
 
   // 4. Resolve on all other services in parallel
-  let links = await resolveAcrossServices(sourceTrack, sourceAdapter);
+  const links = await resolveAcrossServices(sourceTrack, sourceAdapter);
 
   // 5. Add the source service link
   links.unshift({
@@ -277,7 +279,8 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   // 6. Always prefer a stable Deezer preview URL over any other service.
   // Deezer CDN URLs are permanent; Spotify preview URLs expire after ~30-60 days.
   const deezerLink = links.find((l) => l.service === "deezer" && l.previewUrl);
-  const bestPreviewUrl = deezerLink?.previewUrl ?? links.find((l) => l.previewUrl)?.previewUrl ?? sourceTrack.previewUrl;
+  const bestPreviewUrl =
+    deezerLink?.previewUrl ?? links.find((l) => l.previewUrl)?.previewUrl ?? sourceTrack.previewUrl;
   if (bestPreviewUrl !== sourceTrack.previewUrl) {
     sourceTrack = { ...sourceTrack, previewUrl: bestPreviewUrl };
   }
@@ -302,7 +305,7 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
           if (cached) return fillMissingServices(cached);
         }
 
-        let links = await resolveAcrossServices(result.track, adapter);
+        const links = await resolveAcrossServices(result.track, adapter);
         links.unshift({
           service: adapter.id,
           displayName: adapter.displayName,
@@ -352,7 +355,7 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
             if (cached) return { kind: "resolved", result: cached };
           }
 
-          let links = await resolveAcrossServices(topCandidate.track, adapter);
+          const links = await resolveAcrossServices(topCandidate.track, adapter);
           links.unshift({
             service: adapter.id,
             displayName: adapter.displayName,
@@ -395,7 +398,7 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
           if (cached) return { kind: "resolved", result: cached };
         }
 
-        let links = await resolveAcrossServices(result.track, adapter);
+        const links = await resolveAcrossServices(result.track, adapter);
         links.unshift({
           service: adapter.id,
           displayName: adapter.displayName,
@@ -436,7 +439,7 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
     if (cached) return cached;
   }
 
-  let links = await resolveAcrossServices(sourceTrack, adapter);
+  const links = await resolveAcrossServices(sourceTrack, adapter);
 
   links.unshift({
     service: adapter.id,
@@ -712,7 +715,7 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
   }
 
   // Resolve across all other services
-  let links = await resolveAcrossServices(bestSourceTrack, bestAdapter);
+  const links = await resolveAcrossServices(bestSourceTrack, bestAdapter);
 
   // Add the source adapter's match
   links.unshift({
@@ -740,4 +743,3 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
 
   return { sourceTrack: bestSourceTrack, links };
 }
-

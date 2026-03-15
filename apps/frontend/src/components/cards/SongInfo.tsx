@@ -1,5 +1,5 @@
-import { memo, useState } from "react";
 import { buildMetaLine } from "@musiccloud/shared";
+import { memo, useState } from "react";
 
 interface SongInfoProps {
   title: string;
@@ -61,13 +61,7 @@ export const SongInfo = memo(function SongInfo({
             }}
           />
         ) : (
-          <img
-            src="/og/musiccloud.jpg"
-            alt=""
-            className="w-full h-full object-cover"
-            width={480}
-            height={480}
-          />
+          <img src="/og/musiccloud.jpg" alt="" className="w-full h-full object-cover" width={480} height={480} />
         )}
       </div>
 
@@ -93,7 +87,7 @@ export const SongInfo = memo(function SongInfo({
               </p>
             )}
           </div>
-        ) : (isExplicit || metaLine) ? (
+        ) : isExplicit || metaLine ? (
           <p className="text-sm text-text-muted/60 mt-2 font-mono tracking-wide flex items-center gap-1.5">
             {isExplicit && (
               <span

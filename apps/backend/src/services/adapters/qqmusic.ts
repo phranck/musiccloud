@@ -170,9 +170,7 @@ async function getTrackByMid(mid: string): Promise<NormalizedTrack | null> {
 function mapQQAlbum(album: QQMusicAlbum): NormalizedAlbum {
   const artists = album.singer?.map((s) => s.name).filter(Boolean) ?? ["Unknown Artist"];
   // QQ Music album art: T002R500x500M000{album_mid}.jpg
-  const artworkUrl = album.mid
-    ? `https://y.qq.com/music/photo_new/T002R500x500M000${album.mid}.jpg`
-    : undefined;
+  const artworkUrl = album.mid ? `https://y.qq.com/music/photo_new/T002R500x500M000${album.mid}.jpg` : undefined;
 
   return {
     sourceService: "qqmusic",
@@ -371,7 +369,12 @@ export const qqmusicAdapter: ServiceAdapter = {
         const album = mapQQAlbum(raw);
         const confidence = calculateAlbumConfidence(
           { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
-          { title: album.title, artists: album.artists, totalTracks: album.totalTracks, releaseDate: album.releaseDate },
+          {
+            title: album.title,
+            artists: album.artists,
+            totalTracks: album.totalTracks,
+            releaseDate: album.releaseDate,
+          },
         );
         log.debug("QQ Music", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
         if (confidence > bestConfidence) {

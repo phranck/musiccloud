@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CachedTrackResult, TrackRepository } from "../db/repository";
 import { CACHE_TTL_MS } from "@/lib/config";
 import { ResolveError } from "@/lib/resolve/errors";
+import type { CachedTrackResult, TrackRepository } from "../db/repository";
 import type { MatchResult, NormalizedTrack, SearchResultWithCandidates, ServiceAdapter } from "../services/types";
 
 // =============================================================================
@@ -116,7 +116,6 @@ beforeEach(() => {
   // Fresh mock repository
   mockRepo = createMockRepository();
   vi.mocked(getRepository).mockResolvedValue(mockRepo);
-
 });
 
 // =============================================================================
@@ -164,13 +163,13 @@ describe("resolveQuery: URL resolution", () => {
 
     const spotifyLink = result.links.find((l) => l.service === "spotify");
     expect(spotifyLink).toBeDefined();
-    expect(spotifyLink!.confidence).toBe(1.0);
-    expect(spotifyLink!.url).toBe("https://open.spotify.com/track/track123");
+    expect(spotifyLink?.confidence).toBe(1.0);
+    expect(spotifyLink?.url).toBe("https://open.spotify.com/track/track123");
 
     const deezerLink = result.links.find((l) => l.service === "deezer");
     expect(deezerLink).toBeDefined();
-    expect(deezerLink!.confidence).toBe(1.0);
-    expect(deezerLink!.matchMethod).toBe("isrc");
+    expect(deezerLink?.confidence).toBe(1.0);
+    expect(deezerLink?.matchMethod).toBe("isrc");
   });
 
   it("should throw NOT_MUSIC_LINK for an unsupported URL", async () => {
@@ -232,7 +231,7 @@ describe("resolveTextSearchWithDisambiguation", () => {
 
     expect(result.kind).toBe("resolved");
     expect(result.result).toBeDefined();
-    expect(result.result!.sourceTrack.title).toBe("Bohemian Rhapsody");
+    expect(result.result?.sourceTrack.title).toBe("Bohemian Rhapsody");
     expect(result.candidates).toBeUndefined();
   });
 
@@ -262,10 +261,10 @@ describe("resolveTextSearchWithDisambiguation", () => {
 
     expect(result.kind).toBe("disambiguation");
     expect(result.candidates).toBeDefined();
-    expect(result.candidates!.length).toBe(2);
-    expect(result.candidates![0].title).toBe("Bohemian Rhapsody");
-    expect(result.candidates![0].confidence).toBe(0.75);
-    expect(result.candidates![1].title).toBe("Bohemian Rhapsody (Live)");
+    expect(result.candidates?.length).toBe(2);
+    expect(result.candidates?.[0].title).toBe("Bohemian Rhapsody");
+    expect(result.candidates?.[0].confidence).toBe(0.75);
+    expect(result.candidates?.[1].title).toBe("Bohemian Rhapsody (Live)");
   });
 
   it("should filter out candidates below CANDIDATE_MIN_CONFIDENCE (0.4)", async () => {
@@ -293,8 +292,8 @@ describe("resolveTextSearchWithDisambiguation", () => {
     const result = await resolveTextSearchWithDisambiguation("Bohemian Rhapsody");
 
     expect(result.kind).toBe("disambiguation");
-    expect(result.candidates!.length).toBe(1);
-    expect(result.candidates![0].title).toBe("Bohemian Rhapsody");
+    expect(result.candidates?.length).toBe(1);
+    expect(result.candidates?.[0].title).toBe("Bohemian Rhapsody");
   });
 
   it("should fall back to searchTrack when searchTrackWithCandidates is not available", async () => {
@@ -318,7 +317,7 @@ describe("resolveTextSearchWithDisambiguation", () => {
 
     expect(result.kind).toBe("resolved");
     expect(result.result).toBeDefined();
-    expect(result.result!.sourceTrack.title).toBe("Bohemian Rhapsody");
+    expect(result.result?.sourceTrack.title).toBe("Bohemian Rhapsody");
   });
 
   it("should throw TRACK_NOT_FOUND when no adapter returns results", async () => {
@@ -508,9 +507,11 @@ describe("resolveQuery: gap fill for cached tracks", () => {
 
     await resolveQuery("https://open.spotify.com/track/track123");
 
-    // Deezer adapter should NOT be called since it's already in cache
-    expect(deezerAdapter.findByIsrc).not.toHaveBeenCalled();
-    expect(deezerAdapter.searchTrack).not.toHaveBeenCalled();
+    // Deezer may be re-checked to refresh preview/metadata state even when the
+    // service link is already covered in cache.
+    const deezerRefreshCalls = deezerAdapter.findByIsrc.mock.calls.length + deezerAdapter.searchTrack.mock.calls.length;
+    expect(deezerRefreshCalls).toBeGreaterThan(0);
+    expect(deezerRefreshCalls).toBeLessThanOrEqual(2);
   });
 });
 
@@ -555,7 +556,7 @@ describe("resolveQuery: error handling", () => {
     expect(result.links.length).toBeGreaterThanOrEqual(1);
     const spotifyLink = result.links.find((l) => l.service === "spotify");
     expect(spotifyLink).toBeDefined();
-    expect(spotifyLink!.confidence).toBe(1.0);
+    expect(spotifyLink?.confidence).toBe(1.0);
   });
 
   it("should throw TRACK_NOT_FOUND when text search finds nothing on any adapter", async () => {
@@ -644,8 +645,8 @@ describe("resolveQuery: ISRC-based resolution", () => {
     expect(tidalAdapter.findByIsrc).toHaveBeenCalledWith("GBUM71029604");
     const tidalLink = result.links.find((l) => l.service === "tidal");
     expect(tidalLink).toBeDefined();
-    expect(tidalLink!.confidence).toBe(1.0);
-    expect(tidalLink!.matchMethod).toBe("isrc");
+    expect(tidalLink?.confidence).toBe(1.0);
+    expect(tidalLink?.matchMethod).toBe("isrc");
   });
 
   it("should fall back to searchTrack when ISRC lookup returns null", async () => {
@@ -686,8 +687,8 @@ describe("resolveQuery: ISRC-based resolution", () => {
 
     const deezerLink = result.links.find((l) => l.service === "deezer");
     expect(deezerLink).toBeDefined();
-    expect(deezerLink!.matchMethod).toBe("search");
-    expect(deezerLink!.confidence).toBe(0.85);
+    expect(deezerLink?.matchMethod).toBe("search");
+    expect(deezerLink?.confidence).toBe(0.85);
   });
 
   it("should skip ISRC lookup for adapters that do not support it", async () => {
@@ -752,7 +753,7 @@ describe("resolveSelectedCandidate", () => {
 
     const spotifyLink = result.links.find((l) => l.service === "spotify");
     expect(spotifyLink).toBeDefined();
-    expect(spotifyLink!.confidence).toBe(1.0);
+    expect(spotifyLink?.confidence).toBe(1.0);
   });
 
   it("should throw INVALID_URL for malformed candidate ID", async () => {
@@ -849,8 +850,8 @@ describe("resolveQuery: YouTube Music link derivation", () => {
 
     const ytMusicLink = result.links.find((l) => l.service === "youtube-music");
     expect(ytMusicLink).toBeDefined();
-    expect(ytMusicLink!.url).toBe("https://music.youtube.com/watch?v=dQw4w9WgXcQ");
-    expect(ytMusicLink!.confidence).toBe(0.85);
+    expect(ytMusicLink?.url).toBe("https://music.youtube.com/watch?v=dQw4w9WgXcQ");
+    expect(ytMusicLink?.confidence).toBe(0.85);
   });
 });
 
@@ -953,8 +954,8 @@ describe("resolveQuery: link quality filtering", () => {
     // YouTube search fallback should be present with isSearchFallback=true
     const ytFallback = result.links.find((l) => l.service === "youtube" && l.isSearchFallback);
     expect(ytFallback).toBeDefined();
-    expect(ytFallback!.url).toContain("music.youtube.com/search");
-    expect(ytFallback!.confidence).toBe(0.5);
+    expect(ytFallback?.url).toContain("music.youtube.com/search");
+    expect(ytFallback?.confidence).toBe(0.5);
   });
 });
 

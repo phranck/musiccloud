@@ -1,9 +1,9 @@
 import { isValidPlatform, type Platform } from "@musiccloud/shared";
 import { getRepository } from "../../db/index.js";
-import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
 import { deezerAdapter } from "../../services/adapters/deezer.js";
 import { log } from "../infra/logger.js";
 import { isExpiredDeezerPreviewUrl } from "../preview-url.js";
+import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
 
 export interface SharePageData {
   track: {
@@ -30,9 +30,7 @@ export async function loadByShortId(shortId: string, origin?: string): Promise<S
   const data = await repo.loadByShortId(shortId);
   if (!data) return null;
 
-  const needsPreviewRefresh =
-    !data.track.previewUrl ||
-    isExpiredDeezerPreviewUrl(data.track.previewUrl);
+  const needsPreviewRefresh = !data.track.previewUrl || isExpiredDeezerPreviewUrl(data.track.previewUrl);
 
   // Refresh missing or expired Deezer preview URLs via ISRC lookup and persist
   // the refreshed URL so subsequent requests can use it directly.
@@ -57,9 +55,7 @@ export async function loadByTrackId(trackId: string, origin?: string): Promise<S
   const data = await repo.loadByTrackId(trackId);
   if (!data) return null;
 
-  const needsPreviewRefresh =
-    !data.track.previewUrl ||
-    isExpiredDeezerPreviewUrl(data.track.previewUrl);
+  const needsPreviewRefresh = !data.track.previewUrl || isExpiredDeezerPreviewUrl(data.track.previewUrl);
 
   if (needsPreviewRefresh && data.track.isrc && deezerAdapter.isAvailable()) {
     try {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { apiGet, apiPost } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { apiGet, apiPost } from "@/lib/api";
 
 interface ClearResult {
   deleted: number;
@@ -41,18 +41,10 @@ function CacheAction({
         <p className="font-medium text-sm">{label}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
         {message && (
-          <p className={`text-xs mt-1 ${state === "error" ? "text-destructive" : "text-green-500"}`}>
-            {message}
-          </p>
+          <p className={`text-xs mt-1 ${state === "error" ? "text-destructive" : "text-green-500"}`}>{message}</p>
         )}
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleClick}
-        disabled={state === "loading"}
-        className="flex-none"
-      >
+      <Button variant="outline" size="sm" onClick={handleClick} disabled={state === "loading"} className="flex-none">
         {state === "loading" ? "..." : buttonLabel}
       </Button>
     </div>
@@ -123,13 +115,11 @@ function DangerZone() {
             )}
             {phase === "done" && counts && (
               <p className="text-xs text-green-500 mt-1">
-                {counts.tracks} {counts.tracks === 1 ? "Track" : "Tracks"} und{" "}
-                {counts.albums} {counts.albums === 1 ? "Album" : "Alben"} wurden gelöscht.
+                {counts.tracks} {counts.tracks === 1 ? "Track" : "Tracks"} und {counts.albums}{" "}
+                {counts.albums === 1 ? "Album" : "Alben"} wurden gelöscht.
               </p>
             )}
-            {phase === "error" && (
-              <p className="text-xs text-destructive mt-1">{error}</p>
-            )}
+            {phase === "error" && <p className="text-xs text-destructive mt-1">{error}</p>}
           </div>
 
           <div className="flex items-center gap-2 flex-none mt-0.5">

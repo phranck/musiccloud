@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useT } from "@/i18n/context";
-import { cn } from "@/lib/utils";
-import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GlassCard } from "@/components/cards/GlassCard";
+import { useT } from "@/i18n/context";
+import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
+import { cn } from "@/lib/utils";
 
 interface DisambiguationPanelProps {
   candidates: DisambiguationCandidate[];
@@ -44,12 +44,8 @@ export function DisambiguationPanel({
       if (!listEl) return;
 
       // Query all card wrapper divs via data attribute — no React ref callbacks needed
-      const allCardEls = Array.from(
-        listEl.querySelectorAll<HTMLDivElement>("[data-disambiguation-card]"),
-      );
-      const selectedEl = allCardEls.find(
-        (el) => el.dataset.disambiguationCard === candidate.id,
-      );
+      const allCardEls = Array.from(listEl.querySelectorAll<HTMLDivElement>("[data-disambiguation-card]"));
+      const selectedEl = allCardEls.find((el) => el.dataset.disambiguationCard === candidate.id);
       if (!selectedEl) return;
 
       // ── MEASURE: snapshot all positions before anything changes ────────────
@@ -144,17 +140,14 @@ export function DisambiguationPanel({
   return (
     <div className="w-full max-w-full sm:max-w-[480px] mx-auto mt-8 animate-fade-in">
       <div ref={headingRef} className="text-center mb-4">
-        <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
-          {t("disambiguation.title")}
-        </h2>
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">{t("disambiguation.title")}</h2>
         <p className="text-sm text-text-secondary mt-1">{t("disambiguation.subtitle")}</p>
       </div>
 
       <div ref={listRef} className="flex flex-col gap-3">
         {candidates.map((candidate, index) => {
           const isThisSelected =
-            (isAnimating && animatingId === candidate.id) ||
-            (isLoadingSelected && selectedId === candidate.id);
+            (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
 
           return (
             <div
@@ -217,9 +210,7 @@ export function DisambiguationPanel({
                     <p className="text-base font-medium tracking-[-0.01em] text-text-primary truncate">
                       {candidate.title}
                     </p>
-                    <p className="text-sm text-text-secondary truncate mt-0.5">
-                      {candidate.artists.join(", ")}
-                    </p>
+                    <p className="text-sm text-text-secondary truncate mt-0.5">{candidate.artists.join(", ")}</p>
                     {candidate.albumName && (
                       <p className="text-xs text-text-muted truncate mt-0.5">{candidate.albumName}</p>
                     )}
@@ -258,8 +249,7 @@ export function DisambiguationPanel({
                         <div
                           className="absolute inset-0 rounded-full"
                           style={{
-                            background:
-                              "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0%, transparent 40%)",
+                            background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0%, transparent 40%)",
                           }}
                         />
                         <div
@@ -268,13 +258,7 @@ export function DisambiguationPanel({
                         />
                       </div>
                     ) : (
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                       </svg>
                     )}

@@ -73,9 +73,7 @@ export function generateConstellationShadow(
     .map((star) => {
       const x = ox + star.rx * w;
       const y = oy + star.ry * h;
-      const color = star.warm
-        ? `rgba(255, 200, 160, ${star.brightness})`
-        : `rgba(210, 230, 255, ${star.brightness})`;
+      const color = star.warm ? `rgba(255, 200, 160, ${star.brightness})` : `rgba(210, 230, 255, ${star.brightness})`;
       const size = star.brightness > 0.5 ? 1.5 : 1;
       return `${x}vw ${y}dvh 0 ${size}px ${color}`;
     })

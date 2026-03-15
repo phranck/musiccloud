@@ -11,10 +11,7 @@ function getToken(): string | null {
   }
 }
 
-export async function apiGet<T>(
-  path: string,
-  params?: Record<string, string | number | undefined>,
-): Promise<T> {
+export async function apiGet<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
   const token = getToken();
   let url = path;
 

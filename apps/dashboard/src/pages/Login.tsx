@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { BrandName } from "@/components/ui/BrandName";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BrandName } from "@/components/ui/BrandName";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LocaleToggle } from "@/components/ui/locale-toggle";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/contexts/AuthContext";
-import { useT } from "@/i18n/context";
 import { useSetupStatus } from "@/hooks/useSetupStatus";
+import { useT } from "@/i18n/context";
 
 export function Login() {
   const navigate = useNavigate();
@@ -23,8 +23,13 @@ export function Login() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) { navigate("/", { replace: true }); return; }
-    if (!checking && setupRequired === true) { navigate("/setup", { replace: true }); }
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+      return;
+    }
+    if (!checking && setupRequired === true) {
+      navigate("/setup", { replace: true });
+    }
   }, [isAuthenticated, checking, setupRequired, navigate]);
 
   if (isAuthenticated || checking || setupRequired === true) return null;
@@ -106,9 +111,7 @@ export function Login() {
               />
             </div>
 
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? t("auth.loggingIn") : t("auth.loginButton")}

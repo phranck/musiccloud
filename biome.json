@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.2/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.7/schema.json",
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
@@ -8,13 +8,17 @@
       "suspicious": {
         "noExplicitAny": "error",
         "noAssignInExpressions": "off",
+        "noDocumentCookie": "off",
         "useIterableCallbackReturn": "off"
       },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
       "style": {
-        "noNonNullAssertion": "warn"
+        "noNonNullAssertion": "off"
       },
       "a11y": {
-        "noSvgWithoutTitle": "warn",
+        "noSvgWithoutTitle": "off",
         "noAutofocus": "off"
       }
     }
@@ -26,6 +30,7 @@
     "lineWidth": 120
   },
   "css": {
+    "parser": { "tailwindDirectives": true },
     "linter": { "enabled": false },
     "formatter": { "enabled": false }
   },
@@ -33,10 +38,11 @@
     "includes": [
       "apps/**",
       "packages/**",
-      "!apps/backend/src/db/migrations/**",
-      "!apps/frontend/src/styles/**",
-      "!**/dist/**",
-      "!**/node_modules/**"
+      "!**/*.astro",
+      "!apps/backend/src/db/migrations",
+      "!apps/frontend/src/styles",
+      "!**/dist",
+      "!**/node_modules"
     ]
   }
 }

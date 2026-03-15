@@ -210,10 +210,10 @@ function mapAlbum(raw: AppleMusicAlbumResource): NormalizedAlbum {
   const tracks: AlbumTrackEntry[] | undefined = raw.relationships?.tracks?.data
     ?.filter((t) => t.attributes != null)
     .map((t, idx) => ({
-      title: t.attributes!.name,
-      isrc: t.attributes!.isrc,
-      trackNumber: t.attributes!.trackNumber ?? idx + 1,
-      durationMs: t.attributes!.durationInMillis,
+      title: t.attributes?.name ?? "Unknown Track",
+      isrc: t.attributes?.isrc,
+      trackNumber: t.attributes?.trackNumber ?? idx + 1,
+      durationMs: t.attributes?.durationInMillis,
     }));
 
   return {
@@ -255,9 +255,7 @@ export const appleMusicAdapter: ServiceAdapter = {
   isAvailable(): boolean {
     return Boolean(
       process.env.APPLE_MUSIC_TOKEN ||
-        (process.env.APPLE_MUSIC_KEY_ID &&
-          process.env.APPLE_MUSIC_TEAM_ID &&
-          process.env.APPLE_MUSIC_PRIVATE_KEY),
+        (process.env.APPLE_MUSIC_KEY_ID && process.env.APPLE_MUSIC_TEAM_ID && process.env.APPLE_MUSIC_PRIVATE_KEY),
     );
   },
 
@@ -384,9 +382,7 @@ export const appleMusicAdapter: ServiceAdapter = {
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
     const term = encodeURIComponent(`${query.artist} ${query.title}`);
-    const response = await appleMusicFetch(
-      `/catalog/${storefront}/search?types=albums&term=${term}&limit=5`,
-    );
+    const response = await appleMusicFetch(`/catalog/${storefront}/search?types=albums&term=${term}&limit=5`);
 
     if (!response.ok) {
       return { found: false, confidence: 0, matchMethod: "search" };

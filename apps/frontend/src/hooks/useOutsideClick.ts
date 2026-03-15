@@ -1,14 +1,10 @@
-import { useEffect, type RefObject } from "react";
+import { type RefObject, useEffect } from "react";
 
 /**
  * Closes a dropdown/panel on outside-click (mousedown) and ESC key.
  * Both handlers are only registered when `isOpen` is true.
  */
-export function useOutsideClick(
-  ref: RefObject<HTMLElement | null>,
-  isOpen: boolean,
-  onClose: () => void,
-): void {
+export function useOutsideClick(ref: RefObject<HTMLElement | null>, isOpen: boolean, onClose: () => void): void {
   useEffect(() => {
     if (!isOpen) return;
     const onDown = (e: MouseEvent) => {

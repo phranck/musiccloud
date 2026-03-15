@@ -183,9 +183,9 @@ describe("KKBOX: findByIsrc", () => {
     const track = await kkboxAdapter.findByIsrc("NOA840500101");
 
     expect(track).not.toBeNull();
-    expect(track!.title).toBe("Take on Me");
-    expect(track!.isrc).toBe("NOA840500101");
-    expect(track!.sourceService).toBe("kkbox");
+    expect(track?.title).toBe("Take on Me");
+    expect(track?.isrc).toBe("NOA840500101");
+    expect(track?.sourceService).toBe("kkbox");
   });
 
   it("should return null when ISRC is not found", async () => {

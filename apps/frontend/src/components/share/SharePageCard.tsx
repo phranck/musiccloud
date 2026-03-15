@@ -7,8 +7,9 @@
  * locale. For song/album configs (from LandingPage), platformsLabel is already
  * reactive via the calling component's t() and is passed through unchanged.
  */
-import { useT } from "@/i18n/context";
+
 import { MediaCard } from "@/components/cards/MediaCard";
+import { useT } from "@/i18n/context";
 import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
 
 interface SharePageCardProps {
@@ -19,10 +20,6 @@ interface SharePageCardProps {
 export function SharePageCard({ config, animated = false }: SharePageCardProps) {
   const t = useT();
   const platformsLabel =
-    config.type === "share"
-      ? t((config as ShareContentConfiguration).platformsLabelKey)
-      : config.platformsLabel;
-  return (
-    <MediaCard content={{ ...config, platformsLabel }} animated={animated} />
-  );
+    config.type === "share" ? t((config as ShareContentConfiguration).platformsLabelKey) : config.platformsLabel;
+  return <MediaCard content={{ ...config, platformsLabel }} animated={animated} />;
 }

@@ -113,7 +113,7 @@ export interface PersistAlbumData {
 
 // ─── Artist Cache Types ───────────────────────────────────────────────────────
 
-import type { ArtistTopTrack, ArtistProfile, ArtistEvent } from "@musiccloud/shared";
+import type { ArtistEvent, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
 
 export interface ArtistCacheRow {
   artistName: string;

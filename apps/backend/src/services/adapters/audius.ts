@@ -5,7 +5,6 @@ import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
-  AlbumTrackEntry,
   MatchResult,
   NormalizedAlbum,
   NormalizedTrack,
@@ -106,9 +105,7 @@ function mapPlaylist(raw: AudiusPlaylistResponse): NormalizedAlbum {
 async function fetchAlbumById(playlistId: string): Promise<NormalizedAlbum | null> {
   // Try resolve first (for path-based IDs), then direct ID lookup
   if (playlistId.includes("/")) {
-    const response = await audiusFetch(
-      `/resolve?url=https://audius.co/${encodeURIComponent(playlistId)}`,
-    );
+    const response = await audiusFetch(`/resolve?url=https://audius.co/${encodeURIComponent(playlistId)}`);
     if (!response.ok) return null;
     const data = (await response.json()) as AudiusPlaylistDetailResponse;
     if (!data.data?.is_album) return null;
@@ -123,12 +120,13 @@ async function fetchAlbumById(playlistId: string): Promise<NormalizedAlbum | nul
 }
 
 async function searchAudiusAlbums(query: string): Promise<NormalizedAlbum[]> {
-  const response = await audiusFetch(
-    `/playlists/search?query=${encodeURIComponent(query)}&limit=10`,
-  );
+  const response = await audiusFetch(`/playlists/search?query=${encodeURIComponent(query)}&limit=10`);
   if (!response.ok) return [];
   const data = (await response.json()) as AudiusPlaylistSearchResponse;
-  return (data.data ?? []).filter((p) => p.is_album).slice(0, 5).map(mapPlaylist);
+  return (data.data ?? [])
+    .filter((p) => p.is_album)
+    .slice(0, 5)
+    .map(mapPlaylist);
 }
 
 export const audiusAdapter = {
@@ -259,7 +257,12 @@ export const audiusAdapter = {
       for (const album of albums) {
         const confidence = calculateAlbumConfidence(
           { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
-          { title: album.title, artists: album.artists, totalTracks: album.totalTracks, releaseDate: album.releaseDate },
+          {
+            title: album.title,
+            artists: album.artists,
+            totalTracks: album.totalTracks,
+            releaseDate: album.releaseDate,
+          },
         );
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

@@ -1,5 +1,5 @@
 import { useLocale } from "@/i18n/context";
-import { LOCALES, LOCALE_META } from "@/i18n/locales";
+import { LOCALE_META, LOCALES } from "@/i18n/locales";
 import { cn } from "@/lib/utils";
 
 export function LocaleToggle() {
@@ -10,6 +10,7 @@ export function LocaleToggle() {
       {LOCALES.map((l) => (
         <button
           key={l}
+          type="button"
           onClick={() => setLocale(l)}
           className={cn(
             "px-2 h-full text-xs font-medium transition-colors",

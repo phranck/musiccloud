@@ -1,7 +1,7 @@
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
 import { TokenManager } from "../../lib/infra/token-manager";
+import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../resolver.js";
 import type {
   AlbumMatchResult,
@@ -173,9 +173,7 @@ async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
 
 async function searchKkboxAlbums(query: string): Promise<KkboxAlbumResponse[]> {
   const territory = getTerritory();
-  const response = await kkboxFetch(
-    `/search?q=${encodeURIComponent(query)}&type=album&territory=${territory}&limit=5`,
-  );
+  const response = await kkboxFetch(`/search?q=${encodeURIComponent(query)}&type=album&territory=${territory}&limit=5`);
   if (!response.ok) return [];
 
   const data: KkboxAlbumSearchResponse = await response.json();
@@ -338,7 +336,12 @@ export const kkboxAdapter = {
         const candidate = mapAlbum(raw);
         const confidence = calculateAlbumConfidence(
           { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
-          { title: candidate.title, artists: candidate.artists, totalTracks: candidate.totalTracks, releaseDate: candidate.releaseDate },
+          {
+            title: candidate.title,
+            artists: candidate.artists,
+            totalTracks: candidate.totalTracks,
+            releaseDate: candidate.releaseDate,
+          },
         );
         log.debug("KKBOX", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
         if (confidence > bestConfidence) {

@@ -452,8 +452,20 @@ export const beatportAdapter: ServiceAdapter = {
         if (!release.id || !release.name) continue;
         const album = mapRelease(release);
         const confidence = calculateAlbumConfidence(
-          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year, upc: undefined },
-          { title: album.title, artists: album.artists, totalTracks: album.totalTracks, releaseDate: album.releaseDate, upc: album.upc },
+          {
+            title: query.title,
+            artists: [query.artist],
+            totalTracks: query.totalTracks,
+            releaseDate: query.year,
+            upc: undefined,
+          },
+          {
+            title: album.title,
+            artists: album.artists,
+            totalTracks: album.totalTracks,
+            releaseDate: album.releaseDate,
+            upc: album.upc,
+          },
         );
         log.debug("Beatport", `  "${release.name}" -> confidence=${confidence.toFixed(3)}`);
         if (confidence > bestConfidence) {

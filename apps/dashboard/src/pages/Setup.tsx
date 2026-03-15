@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { BrandName } from "@/components/ui/BrandName";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BrandName } from "@/components/ui/BrandName";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LocaleToggle } from "@/components/ui/locale-toggle";
-import { useT } from "@/i18n/context";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useSetupStatus } from "@/hooks/useSetupStatus";
+import { useT } from "@/i18n/context";
 
 export function Setup() {
   const navigate = useNavigate();
@@ -130,9 +130,7 @@ export function Setup() {
               />
             </div>
 
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? t("auth.saving") : t("auth.setupButton")}

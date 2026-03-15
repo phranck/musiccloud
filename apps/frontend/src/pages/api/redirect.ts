@@ -30,7 +30,7 @@ export const GET: APIRoute = async ({ url, clientAddress }) => {
       return redirectTo("/");
     }
 
-    const data = await res.json() as { shortUrl?: string };
+    const data = (await res.json()) as { shortUrl?: string };
 
     if (!data.shortUrl) {
       return redirectTo("/");

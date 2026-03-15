@@ -276,7 +276,7 @@ describe("SoundCloud: searchTrack", () => {
 
     expect(result.found).toBe(true);
     expect(result.track).toBeDefined();
-    expect(result.track!.title).toBe("Shake It Off");
+    expect(result.track?.title).toBe("Shake It Off");
     expect(result.matchMethod).toBe("search");
     expect(result.confidence).toBeGreaterThan(0);
   });
@@ -324,7 +324,7 @@ describe("SoundCloud: searchTrack", () => {
     });
 
     expect(result.found).toBe(true);
-    expect(result.track!.title).toBe("Shake It Off");
+    expect(result.track?.title).toBe("Shake It Off");
   });
 
   it("should use free-text scoring when title equals artist", async () => {

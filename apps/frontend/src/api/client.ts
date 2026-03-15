@@ -1,6 +1,7 @@
 import type { SharePageResponse } from "@musiccloud/shared";
 
-const BACKEND_URL = (import.meta.env.BACKEND_URL as string | undefined) ?? process.env.BACKEND_URL ?? "http://localhost:4000";
+const BACKEND_URL =
+  (import.meta.env.BACKEND_URL as string | undefined) ?? process.env.BACKEND_URL ?? "http://localhost:4000";
 const INTERNAL_API_KEY = (import.meta.env.INTERNAL_API_KEY as string | undefined) ?? process.env.INTERNAL_API_KEY ?? "";
 
 function backendUrl(path: string): string {
@@ -41,10 +42,7 @@ export async function resolveTrack(
 }
 
 /** Forward an album resolve request to the backend. */
-export async function resolveAlbum(
-  body: { query?: string },
-  clientIp?: string,
-): Promise<Response> {
+export async function resolveAlbum(body: { query?: string }, clientIp?: string): Promise<Response> {
   return fetch(backendUrl("/api/v1/resolve-album"), {
     method: "POST",
     headers: internalHeaders(clientIp ? { "X-Forwarded-For": clientIp } : undefined),
