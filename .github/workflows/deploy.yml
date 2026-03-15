@@ -48,7 +48,7 @@ jobs:
             esac
 
             case "$file" in
-              apps/dashboard/*|packages/shared/*|package.json|package-lock.json|zerops.yml)
+              apps/backend/*|apps/dashboard/*|packages/shared/*|package.json|package-lock.json|zerops.yml|.github/workflows/deploy.yml)
                 dashboard=true
                 ;;
             esac
