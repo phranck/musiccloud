@@ -121,7 +121,9 @@ const pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
     <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
       <div class="mb-6 text-center">
         <h1 class="text-3xl sm:text-4xl font-bold tracking-[-0.04em]">
-          <BrandName />
+          <a href="/" aria-label="Go to musiccloud home">
+            <BrandName />
+          </a>
         </h1>
       </div>
       <ShareLayout client:load config={shareConfig} artistName={artistDisplay} />
