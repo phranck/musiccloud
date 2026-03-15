@@ -10,6 +10,7 @@ import { ResolveError } from "../lib/resolve/errors.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
+import { isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { getRepository } from "../db/index.js";
 import { deezerAdapter } from "../services/adapters/deezer.js";
 import type { ResolutionResult } from "../services/resolver.js";
@@ -134,11 +135,10 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
     }
   }
 
-  // Lazily enrich tracks that have no preview URL stored yet.
-  // Uses Deezer ISRC lookup (permanent CDN URLs). Persists to DB so the
-  // next request returns the preview URL directly without a Deezer call.
+  // Refresh missing or expired Deezer preview URLs before returning the share
+  // payload so clients do not receive dead signed preview links.
   let previewUrl = result.sourceTrack.previewUrl ?? undefined;
-  if (!previewUrl && result.sourceTrack.isrc && deezerAdapter.isAvailable()) {
+  if ((!previewUrl || isExpiredDeezerPreviewUrl(previewUrl)) && result.sourceTrack.isrc && deezerAdapter.isAvailable()) {
     try {
       const deezerTrack = await deezerAdapter.findByIsrc(result.sourceTrack.isrc);
       if (deezerTrack?.previewUrl) {

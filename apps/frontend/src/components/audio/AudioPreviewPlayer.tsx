@@ -1,4 +1,5 @@
 import { useReducer, useRef, useEffect, useCallback } from "react";
+import { useT } from "@/i18n/context";
 
 interface AudioPreviewPlayerProps {
   previewUrl: string;
@@ -70,6 +71,7 @@ function formatTime(seconds: number): string {
 }
 
 export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlayerProps) {
+  const t = useT();
   const [state, dispatch] = useReducer(playerReducer, { phase: "idle", duration: 30 });
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -146,13 +148,11 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
     [togglePlay],
   );
 
-  // Only hide on confirmed error — never on a missing loadedmetadata event.
-  if (state.phase === "error") return null;
-
   const isPlaying = state.phase === "playing";
   const currentTime = state.phase === "playing" || state.phase === "paused" ? state.currentTime : 0;
   const duration = state.phase !== "error" ? state.duration : 30;
   const progress = duration > 0 ? currentTime / duration : 0;
+  const isUnavailable = state.phase === "error";
 
   return (
     <div
@@ -164,9 +164,13 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
       <button
         type="button"
         onClick={togglePlay}
-        aria-label={isPlaying ? "Pause preview" : "Play preview"}
+        aria-label={isUnavailable ? t("audio.previewUnavailable") : isPlaying ? "Pause preview" : "Play preview"}
+        disabled={isUnavailable}
+        title={isUnavailable ? t("audio.previewUnavailable") : undefined}
         className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 transition-all duration-[250ms] active:scale-[0.97] ${
-          isPlaying
+          isUnavailable
+            ? "bg-white/[0.06] text-white/30 cursor-not-allowed"
+            : isPlaying
             ? "bg-accent text-[var(--color-accent-contrast)] hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]"
             : "bg-[#3a3a3c] text-white/60 hover:bg-[#4a4a4c] hover:text-white/80 hover:scale-[1.05]"
         }`}
@@ -199,7 +203,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
           step={0.1}
           value={currentTime}
           onChange={handleSeek}
-          disabled={state.phase === "idle"}
+          disabled={state.phase === "idle" || isUnavailable}
           aria-label="Preview position"
           aria-valuemin={0}
           aria-valuemax={duration}
@@ -231,8 +235,8 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
         />
       </div>
 
-      <span className="flex-shrink-0 text-xs tabular-nums text-white/50 min-w-[2.5rem] text-right">
-        {formatTime(state.phase === "idle" ? duration : currentTime)}
+      <span className={`flex-shrink-0 text-xs min-w-[2.5rem] text-right ${isUnavailable ? "text-white/30" : "tabular-nums text-white/50"}`}>
+        {isUnavailable ? t("audio.previewUnavailable") : formatTime(state.phase === "idle" ? duration : currentTime)}
       </span>
     </div>
   );

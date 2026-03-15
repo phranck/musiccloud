@@ -3,6 +3,7 @@ import { getRepository } from "../../db/index.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
 import { deezerAdapter } from "../../services/adapters/deezer.js";
 import { log } from "../infra/logger.js";
+import { isExpiredDeezerPreviewUrl } from "../preview-url.js";
 
 export interface SharePageData {
   track: {
@@ -29,10 +30,13 @@ export async function loadByShortId(shortId: string, origin?: string): Promise<S
   const data = await repo.loadByShortId(shortId);
   if (!data) return null;
 
-  // Lazily enrich older tracks that have no preview URL stored yet.
-  // Uses Deezer ISRC lookup (permanent CDN URLs). Persists to DB so the
-  // next request returns the preview URL directly without a Deezer call.
-  if (!data.track.previewUrl && data.track.isrc && deezerAdapter.isAvailable()) {
+  const needsPreviewRefresh =
+    !data.track.previewUrl ||
+    isExpiredDeezerPreviewUrl(data.track.previewUrl);
+
+  // Refresh missing or expired Deezer preview URLs via ISRC lookup and persist
+  // the refreshed URL so subsequent requests can use it directly.
+  if (needsPreviewRefresh && data.track.isrc && deezerAdapter.isAvailable()) {
     try {
       const deezerTrack = await deezerAdapter.findByIsrc(data.track.isrc);
       if (deezerTrack?.previewUrl) {
@@ -53,7 +57,11 @@ export async function loadByTrackId(trackId: string, origin?: string): Promise<S
   const data = await repo.loadByTrackId(trackId);
   if (!data) return null;
 
-  if (!data.track.previewUrl && data.track.isrc && deezerAdapter.isAvailable()) {
+  const needsPreviewRefresh =
+    !data.track.previewUrl ||
+    isExpiredDeezerPreviewUrl(data.track.previewUrl);
+
+  if (needsPreviewRefresh && data.track.isrc && deezerAdapter.isAvailable()) {
     try {
       const deezerTrack = await deezerAdapter.findByIsrc(data.track.isrc);
       if (deezerTrack?.previewUrl) {
