@@ -11,8 +11,14 @@ export const prerender = false;
 import type { Platform } from "@musiccloud/shared";
 import { buildMetaLine, isValidPlatform } from "@musiccloud/shared";
 import { fetchShareData } from "@/api/client";
+import { GradientBackground } from "@/components/background/GradientBackground";
+import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
+import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
+import { ShareLayout } from "@/components/share/ShareLayout";
+import { BrandName } from "@/components/ui/BrandName";
 import { getLocaleFromCookie } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
+import BaseLayout from "@/layouts/BaseLayout.astro";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 const { shortId } = Astro.params;
