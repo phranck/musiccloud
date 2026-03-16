@@ -35,7 +35,7 @@ export const PLATFORM_CONFIG: Record<Platform, PlatformConfig> = {
   youtube: { label: "YouTube", color: "#FF0000" },
   "youtube-music": { label: "YouTube Music", color: "#FF0000" },
   soundcloud: { label: "SoundCloud", color: "#FF5500" },
-  tidal: { label: "Tidal", color: "#00FFFF" },
+  tidal: { label: "Tidal", color: "#FFFFFF" },
   deezer: { label: "Deezer", color: "#A238FF" },
   audius: { label: "Audius", color: "#7E1BCC" },
   napster: { label: "Napster", color: "#00A8E1" },

@@ -35,6 +35,8 @@ export function useAmbilightAnimation(ref: RefObject<HTMLDivElement | null>): vo
       return;
     }
 
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+
     let raf: number;
     const startTime = performance.now();
     const { hues, speeds, widths, alphas } = waveSeeds;
@@ -84,6 +86,19 @@ export function useAmbilightAnimation(ref: RefObject<HTMLDivElement | null>): vo
     }
 
     raf = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(raf);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(raf);
+      } else if (!motionQuery.matches) {
+        raf = requestAnimationFrame(animate);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [waveSeeds, ref]);
 }

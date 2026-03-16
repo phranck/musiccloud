@@ -40,6 +40,14 @@ export function HeroInput({
   useAmbilightAnimation(ambilightRef);
   const loadingMessage = useLoadingMessages(state, t, isAlbum);
 
+  // Focus input on mount for non-touch devices only (avoids iOS 26 keyboard suppression on load)
+  useEffect(() => {
+    if (window.matchMedia("(hover: hover)").matches) {
+      const timer = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   // Clear input value when transitioning away from results/error (e.g. global ESC)
   useEffect(() => {
     if (
@@ -166,7 +174,7 @@ export function HeroInput({
           <input
             ref={inputRef}
             type="text"
-            autoFocus
+            inputMode="text"
             value={displayValue}
             onChange={handleChange}
             onPaste={handlePaste}
@@ -181,6 +189,7 @@ export function HeroInput({
               "h-14 md:h-16",
               state === "loading" && "opacity-50",
             )}
+            style={{ touchAction: "manipulation" }}
             aria-label="Search for music by link or name"
             autoComplete="off"
           />
@@ -208,7 +217,7 @@ export function HeroInput({
             disabled={state === "loading" || !value.trim()}
             className={cn(
               "flex items-center justify-center",
-              compact ? "hidden" : "hidden sm:flex",
+              compact ? "hidden" : "flex",
               "w-11 h-11 md:w-12 md:h-12 mr-2 flex-shrink-0",
               "rounded-full",
               "transition-all duration-[250ms]",

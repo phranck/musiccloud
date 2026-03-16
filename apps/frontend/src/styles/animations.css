@@ -206,3 +206,16 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Disable background animations on touch/mobile devices */
+@media (pointer: coarse) {
+  .animate-starfield-rotate {
+    animation: none !important;
+  }
+  .animate-cosmic-glow {
+    animation: none !important;
+  }
+  .animate-pulse-glow {
+    animation: none !important;
+  }
+}

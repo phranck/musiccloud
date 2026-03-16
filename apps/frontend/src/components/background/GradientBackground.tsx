@@ -37,6 +37,8 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (motionQuery.matches) return;
 
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+
     let raf: number;
     const startTime = performance.now();
 
@@ -59,9 +61,19 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
     };
     motionQuery.addEventListener("change", handleMotionChange);
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(raf);
+      } else if (!motionQuery.matches) {
+        raf = requestAnimationFrame(animate);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       cancelAnimationFrame(raf);
       motionQuery.removeEventListener("change", handleMotionChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [waveParams]);
 
@@ -69,6 +81,8 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
   useEffect(() => {
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (motionQuery.matches) return;
+
+    if (window.matchMedia("(pointer: coarse)").matches) return;
 
     let active = true;
     let timeout: ReturnType<typeof setTimeout>;
@@ -108,10 +122,22 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
     };
     motionQuery.addEventListener("change", handleMotionChange);
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        active = false;
+        clearTimeout(timeout);
+      } else if (!motionQuery.matches) {
+        active = true;
+        scheduleNext();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       active = false;
       clearTimeout(timeout);
       motionQuery.removeEventListener("change", handleMotionChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -138,7 +164,6 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
         }}
         className={cn(
           "absolute rounded-full blur-[150px] w-[50vw] h-[50vw]",
-          "will-change-transform",
           "top-[-5%] left-[-5%]",
           "transition-[background-color] duration-800 ease-in-out",
         )}
@@ -150,7 +175,6 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
         }}
         className={cn(
           "absolute rounded-full blur-[160px] w-[45vw] h-[45vw]",
-          "will-change-transform",
           "top-[30%] right-[-10%]",
           "transition-[background-color] duration-800 ease-in-out",
         )}
@@ -162,7 +186,6 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
         }}
         className={cn(
           "absolute rounded-full blur-[170px] w-[55vw] h-[55vw]",
-          "will-change-transform",
           "bottom-[-10%] left-[30%]",
           "transition-[background-color] duration-800 ease-in-out",
         )}

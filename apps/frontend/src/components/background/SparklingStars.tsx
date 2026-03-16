@@ -15,6 +15,8 @@ export function SparklingStars() {
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (motionQuery.matches) return;
 
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+
     let active = true;
     const particles: HTMLDivElement[] = [];
 
@@ -96,10 +98,24 @@ export function SparklingStars() {
     };
     motionQuery.addEventListener("change", handleMotionChange);
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        active = false;
+        clearTimeout(timeout);
+        particles.forEach((p) => p.remove());
+        particles.length = 0;
+      } else if (!motionQuery.matches) {
+        active = true;
+        scheduleNext();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       active = false;
       clearTimeout(timeout);
       motionQuery.removeEventListener("change", handleMotionChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       particles.forEach((p) => p.remove());
     };
   }, []);
