@@ -814,17 +814,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     };
   }
 
-  async createAdminUser(username: string, passwordHash: string): Promise<string> {
-    const id = generateTrackId();
+  async createAdminUser(data: { id: string; username: string; passwordHash: string }): Promise<void> {
     const now = new Date();
 
     await this.pool.query(
       `INSERT INTO admin_users (id, username, password_hash, created_at)
        VALUES ($1, $2, $3, $4)`,
-      [id, username, passwordHash, now]
+      [data.id, data.username, data.passwordHash, now]
     );
-
-    return id;
   }
 
   async updateLastLogin(userId: string): Promise<void> {
