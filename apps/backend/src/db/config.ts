@@ -1,5 +1,5 @@
 export interface DatabaseConfig {
-  path: string;
+  url: string;
 }
 
 function env(key: string): string | undefined {
@@ -7,7 +7,11 @@ function env(key: string): string | undefined {
 }
 
 export function loadDatabaseConfig(): DatabaseConfig {
-  return {
-    path: env("DATABASE_PATH") || "data/music.db",
-  };
+  const url = env("DATABASE_URL");
+  if (!url) {
+    throw new Error(
+      "DATABASE_URL environment variable is required (e.g., postgresql://user:password@localhost:5432/musiccloud)"
+    );
+  }
+  return { url };
 }

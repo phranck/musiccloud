@@ -1,10 +1,10 @@
 import { log } from "../lib/infra/logger";
-import { SqliteAdapter } from "./adapters/sqlite.js";
+import { PostgresAdapter } from "./adapters/postgres.js";
 import type { AdminRepository } from "./admin-repository.js";
 import { loadDatabaseConfig } from "./config.js";
 import type { TrackRepository } from "./repository.js";
 
-let repositoryInstance: SqliteAdapter | null = null;
+let repositoryInstance: PostgresAdapter | null = null;
 let cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 /** Returns the singleton TrackRepository instance, creating it on first call. */
@@ -22,34 +22,19 @@ export async function getAdminRepository(): Promise<AdminRepository> {
 async function ensureInstance(): Promise<void> {
   if (!repositoryInstance) {
     const config = loadDatabaseConfig();
-    repositoryInstance = new SqliteAdapter(config.path);
-    log.debug("DB", `Repository initialized (SQLite: ${config.path})`);
+    repositoryInstance = new PostgresAdapter(config.url);
 
-    // Schedule cache cleanup every 6 hours
-    cleanupInterval = setInterval(
-      async () => {
-        try {
-          const repo = repositoryInstance;
-          if (!repo) return;
-          const deleted = await repo.cleanupStaleCache();
-          if (deleted > 0) {
-            log.debug("DB", `Cache cleanup removed ${deleted} stale entries`);
-          }
-        } catch (error) {
-          log.error("DB", "Cache cleanup error:", error);
-        }
-      },
-      6 * 60 * 60 * 1000,
-    );
+    // Verify database schema exists
+    await repositoryInstance.ensureSchema();
+    log.debug("DB", `Repository initialized (PostgreSQL)`);
+
+    // Schedule cache cleanup
+    repositoryInstance.scheduleCleanup();
   }
 }
 
 /** Graceful shutdown: close the database connection and stop cleanup. */
 export async function closeRepository(): Promise<void> {
-  if (cleanupInterval) {
-    clearInterval(cleanupInterval);
-    cleanupInterval = null;
-  }
   if (repositoryInstance) {
     await repositoryInstance.close();
     repositoryInstance = null;
