@@ -867,18 +867,23 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     let whereClause = "";
     let countResult: any;
+    let queryParams: any[] = [];
 
     if (q) {
       whereClause = `WHERE t.title ILIKE $1 OR t.artists ILIKE $1`;
+      queryParams = [`%${q}%`];
       countResult = await this.pool.query(
         `SELECT COUNT(*) as count FROM tracks t ${whereClause}`,
-        [`%${q}%`]
+        queryParams
       );
     } else {
       countResult = await this.pool.query(`SELECT COUNT(*) as count FROM tracks t`);
     }
 
     const total = countResult.rows[0]?.count ?? 0;
+
+    // Add limit and offset to params
+    queryParams.push(limit, offset);
 
     const query = `SELECT
       t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
@@ -892,10 +897,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     ${whereClause}
     GROUP BY t.id, su.id, ft.id
     ORDER BY t.${col} ${dir}
-    LIMIT $${q ? "2" : "1"} OFFSET $${q ? "3" : "2"}`;
+    LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
 
-    const params_values = q ? [`%${q}%`, limit, offset] : [limit, offset];
-    const rows = await this.pool.query(query, params_values);
+    const rows = await this.pool.query(query, queryParams);
 
     const items = rows.rows.map((r: any) => ({
       id: r.id,
@@ -929,18 +933,23 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     let whereClause = "";
     let countResult: any;
+    let queryParams: any[] = [];
 
     if (q) {
       whereClause = `WHERE a.title ILIKE $1 OR a.artists ILIKE $1`;
+      queryParams = [`%${q}%`];
       countResult = await this.pool.query(
         `SELECT COUNT(*) as count FROM albums a ${whereClause}`,
-        [`%${q}%`]
+        queryParams
       );
     } else {
       countResult = await this.pool.query(`SELECT COUNT(*) as count FROM albums a`);
     }
 
     const total = countResult.rows[0]?.count ?? 0;
+
+    // Add limit and offset to params
+    queryParams.push(limit, offset);
 
     const query = `SELECT
       a.id, a.title, a.artists, a.release_date, a.total_tracks,
@@ -954,10 +963,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     ${whereClause}
     GROUP BY a.id, asu.id, fa.id
     ORDER BY a.${col} ${dir}
-    LIMIT $${q ? "2" : "1"} OFFSET $${q ? "3" : "2"}`;
+    LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
 
-    const params_values = q ? [`%${q}%`, limit, offset] : [limit, offset];
-    const rows = await this.pool.query(query, params_values);
+    const rows = await this.pool.query(query, queryParams);
 
     const items = rows.rows.map((r: any) => ({
       id: r.id,
