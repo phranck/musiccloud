@@ -109,18 +109,55 @@ export interface DashboardMessages {
     tracks: {
       title: string;
       searchPlaceholder: string;
+      total: string;
       noTracks: string;
       noTracksHint: string;
+      colTitle: string;
+      colArtists: string;
+      colSource: string;
+      colLinks: string;
+      colAdded: string;
     };
     albums: {
       title: string;
       searchPlaceholder: string;
+      total: string;
       noAlbums: string;
       noAlbumsHint: string;
+      colTitle: string;
+      colArtists: string;
+      colSource: string;
+      colTracks: string;
+      colLinks: string;
+      colAdded: string;
+    };
+    table: {
+      editButton: string;
+      deleteButton: string;
+      deleteConfirmTitle: string;
+      deleteConfirmDescription: string;
+      deleteConfirmCancel: string;
+      deleteConfirmAction: string;
+      featuredAdd: string;
+      featuredRemove: string;
     };
   };
   system: {
     title: string;
+    cacheTitle: string;
+    artistCacheLabel: string;
+    artistCacheDescription: string;
+    artistCacheClear: string;
+    dangerZoneTitle: string;
+    deleteAllLabel: string;
+    deleteAllDescriptionWithCounts: string;
+    deleteAllDescriptionGeneric: string;
+    deleteAllIrreversible: string;
+    deleteAllSuccess: string;
+    deleteAllButton: string;
+    deleteAllConfirm: string;
+    deleteAllCancel: string;
+    entriesDeleted: string;
   };
   media: {
     title: string;
@@ -647,18 +684,55 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       tracks: {
         title: "Tracks",
         searchPlaceholder: "Tracks suchen\u2026",
+        total: "Tracks",
         noTracks: "Keine Tracks vorhanden",
         noTracksHint: "Tracks werden automatisch beim Aufl\u00f6sen von Links erstellt.",
+        colTitle: "Titel",
+        colArtists: "K\u00fcnstler",
+        colSource: "Quelle",
+        colLinks: "Links",
+        colAdded: "Hinzugef\u00fcgt",
       },
       albums: {
         title: "Alben",
         searchPlaceholder: "Alben suchen\u2026",
+        total: "Alben",
         noAlbums: "Keine Alben vorhanden",
         noAlbumsHint: "Alben werden automatisch beim Aufl\u00f6sen von Links erstellt.",
+        colTitle: "Titel",
+        colArtists: "K\u00fcnstler",
+        colSource: "Quelle",
+        colTracks: "Tracks",
+        colLinks: "Links",
+        colAdded: "Hinzugef\u00fcgt",
+      },
+      table: {
+        editButton: "Bearbeiten",
+        deleteButton: "L\u00f6schen ({count})",
+        deleteConfirmTitle: "Eintr\u00e4ge l\u00f6schen",
+        deleteConfirmDescription: "{count} Eintr\u00e4ge werden unwiderruflich gel\u00f6scht.",
+        deleteConfirmCancel: "Abbrechen",
+        deleteConfirmAction: "L\u00f6schen",
+        featuredAdd: "Als Featured markieren",
+        featuredRemove: "Featured entfernen",
       },
     },
     system: {
       title: "System",
+      cacheTitle: "Cache",
+      artistCacheLabel: "Artist-Cache leeren",
+      artistCacheDescription: "L\u00f6scht alle gecachten Artist-Infos (Top-Tracks, Profil, Tourdaten). Werden beim n\u00e4chsten Aufruf neu geladen.",
+      artistCacheClear: "Leeren",
+      dangerZoneTitle: "Danger Zone",
+      deleteAllLabel: "Alle Daten l\u00f6schen",
+      deleteAllDescriptionWithCounts: "L\u00f6scht {tracks} {tracksLabel} und {albums} {albumsLabel} inkl. aller Links, Short-URLs und Caches. User-Accounts bleiben unber\u00fchrt.",
+      deleteAllDescriptionGeneric: "L\u00f6scht alle Tracks, Alben, Links, Short-URLs und Caches. User-Accounts bleiben unber\u00fchrt.",
+      deleteAllIrreversible: "Diese Aktion kann nicht r\u00fcckg\u00e4ngig gemacht werden.",
+      deleteAllSuccess: "{tracks} {tracksLabel} und {albums} {albumsLabel} wurden gel\u00f6scht.",
+      deleteAllButton: "Zur\u00fccksetzen\u2026",
+      deleteAllConfirm: "Ja, alles l\u00f6schen",
+      deleteAllCancel: "Abbrechen",
+      entriesDeleted: "{count} Eintr\u00e4ge gel\u00f6scht.",
     },
     media: {
       title: "Medien",
@@ -1152,18 +1226,55 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       tracks: {
         title: "Tracks",
         searchPlaceholder: "Search tracks\u2026",
+        total: "tracks",
         noTracks: "No tracks yet",
         noTracksHint: "Tracks are created automatically when resolving links.",
+        colTitle: "Title",
+        colArtists: "Artists",
+        colSource: "Source",
+        colLinks: "Links",
+        colAdded: "Added",
       },
       albums: {
         title: "Albums",
         searchPlaceholder: "Search albums\u2026",
+        total: "albums",
         noAlbums: "No albums yet",
         noAlbumsHint: "Albums are created automatically when resolving links.",
+        colTitle: "Title",
+        colArtists: "Artists",
+        colSource: "Source",
+        colTracks: "Tracks",
+        colLinks: "Links",
+        colAdded: "Added",
+      },
+      table: {
+        editButton: "Edit",
+        deleteButton: "Delete ({count})",
+        deleteConfirmTitle: "Delete entries",
+        deleteConfirmDescription: "{count} entries will be permanently deleted.",
+        deleteConfirmCancel: "Cancel",
+        deleteConfirmAction: "Delete",
+        featuredAdd: "Mark as featured",
+        featuredRemove: "Remove featured",
       },
     },
     system: {
       title: "System",
+      cacheTitle: "Cache",
+      artistCacheLabel: "Clear artist cache",
+      artistCacheDescription: "Deletes all cached artist info (top tracks, profile, tour dates). Will be reloaded on next request.",
+      artistCacheClear: "Clear",
+      dangerZoneTitle: "Danger Zone",
+      deleteAllLabel: "Delete all data",
+      deleteAllDescriptionWithCounts: "Deletes {tracks} {tracksLabel} and {albums} {albumsLabel} including all links, short URLs and caches. User accounts remain untouched.",
+      deleteAllDescriptionGeneric: "Deletes all tracks, albums, links, short URLs and caches. User accounts remain untouched.",
+      deleteAllIrreversible: "This action cannot be undone.",
+      deleteAllSuccess: "{tracks} {tracksLabel} and {albums} {albumsLabel} deleted.",
+      deleteAllButton: "Reset\u2026",
+      deleteAllConfirm: "Yes, delete all",
+      deleteAllCancel: "Cancel",
+      entriesDeleted: "{count} entries deleted.",
     },
     media: {
       title: "Media",

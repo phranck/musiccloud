@@ -31,7 +31,25 @@ const SetupPage = lazy(() =>
   })),
 );
 
-// Placeholder pages - will be replaced with actual implementations in Phase 3+
+const TracksPage = lazy(() =>
+  import("@/features/music/TracksPage").then((m) => ({
+    default: m.TracksPage,
+  })),
+);
+
+const AlbumsPage = lazy(() =>
+  import("@/features/music/AlbumsPage").then((m) => ({
+    default: m.AlbumsPage,
+  })),
+);
+
+const SystemPage = lazy(() =>
+  import("@/features/system/SystemPage").then((m) => ({
+    default: m.SystemPage,
+  })),
+);
+
+// Placeholder for pages not yet implemented (Phase 4+)
 const PlaceholderPage = lazy(() =>
   Promise.resolve({
     default: () => (
@@ -113,7 +131,7 @@ function AppRoutes() {
             path="tracks"
             element={
               <Suspense fallback={<ContentEditorLoadingFallback />}>
-                <PlaceholderPage />
+                <TracksPage />
               </Suspense>
             }
           />
@@ -121,7 +139,7 @@ function AppRoutes() {
             path="albums"
             element={
               <Suspense fallback={<ContentEditorLoadingFallback />}>
-                <PlaceholderPage />
+                <AlbumsPage />
               </Suspense>
             }
           />
@@ -238,7 +256,7 @@ function AppRoutes() {
                 path="system"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <SystemPage />
                   </Suspense>
                 }
               />
