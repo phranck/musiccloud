@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5000",
+    "dev": "vite --port 4001",
     "build": "vite build",
-    "preview": "vite preview --port 5000",
+    "preview": "vite preview --port 4001",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

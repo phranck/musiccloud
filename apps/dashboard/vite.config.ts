@@ -8,7 +8,7 @@ export default defineConfig({
     alias: { "@": resolve(__dirname, "src") },
   },
   server: {
-    port: 5000,
+    port: 4001,
     proxy: {
       "/api": {
         target: process.env.BACKEND_URL ?? "http://localhost:4000",
