@@ -807,6 +807,25 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // ADMIN QUERIES (AdminRepository)
   // ============================================================================
 
+  async findAdminById(id: string): Promise<AdminUser | null> {
+    const result = await this.pool.query(
+      `SELECT id, username, password_hash, created_at, last_login_at
+       FROM admin_users WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) return null;
+    const row = result.rows[0] as AdminUserRow;
+
+    return {
+      id: row.id,
+      username: row.username,
+      passwordHash: row.password_hash,
+      createdAt: dateToMs(row.created_at),
+      lastLoginAt: row.last_login_at ? dateToMs(row.last_login_at) : null,
+    };
+  }
+
   async findAdminByUsername(username: string): Promise<AdminUser | null> {
     const result = await this.pool.query(
       `SELECT id, username, password_hash, created_at, last_login_at

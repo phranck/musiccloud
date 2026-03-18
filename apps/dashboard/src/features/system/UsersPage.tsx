@@ -19,8 +19,8 @@ export function UsersPage() {
   const usersMessages = messages.users;
   const { user: me } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
   const { data: users = [], isLoading } = useAdminUsers();
   const deleteMutation = useDeleteUser();

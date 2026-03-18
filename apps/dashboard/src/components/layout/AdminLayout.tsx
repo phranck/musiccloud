@@ -71,7 +71,7 @@ function useSidebarWidth() {
   return { width, onMouseDown };
 }
 
-function ThemeToggle({ userId }: { userId?: number }) {
+function ThemeToggle({ userId }: { userId?: string }) {
   const { theme, setTheme } = useTheme();
   return (
     <ThemeSegmentedControl

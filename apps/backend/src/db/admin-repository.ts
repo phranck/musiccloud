@@ -44,6 +44,7 @@ export interface ListResult<T> {
 
 export interface AdminRepository {
   countAdmins(): Promise<number>;
+  findAdminById(id: string): Promise<AdminUser | null>;
   findAdminByUsername(username: string): Promise<AdminUser | null>;
   createAdminUser(data: { id: string; username: string; passwordHash: string }): Promise<void>;
   updateLastLogin(id: string): Promise<void>;

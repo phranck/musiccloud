@@ -85,4 +85,11 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     await repo.deleteAlbums(ids);
     return { deleted: ids.length };
   });
+
+  app.get("/api/admin/stats", async () => {
+    const repo = await getAdminRepository();
+    const counts = await repo.countAllData();
+    const adminCount = await repo.countAdmins();
+    return { tracks: counts.tracks, albums: counts.albums, users: adminCount };
+  });
 }

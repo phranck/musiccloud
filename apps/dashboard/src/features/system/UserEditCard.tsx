@@ -31,7 +31,7 @@ import {
 } from "./hooks/useAdminUsers";
 
 interface UserEditCardProps {
-  userId: number;
+  userId: string;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -106,7 +106,7 @@ const userEditDraftReducer: Reducer<UserEditDraftState, UserEditDraftAction> = (
 function createInitialDraft(user: AdminUser): UserEditDraftState {
   return {
     username: user.username,
-    email: user.email,
+    email: user.email ?? "",
     password: "",
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
@@ -213,7 +213,7 @@ function UserProfileFields({
   onLocaleChange: (value: AdminLocale) => void;
   onLogoutConfirmChange: (value: boolean) => void;
   onRoleChange: (value: EditableRole) => void;
-  userId: number;
+  userId: string;
   usersMessages: DashboardMessages["users"];
 }) {
   return (

@@ -1,4 +1,4 @@
-export function getSegmentedStorageKey(userId: number | null | undefined, key: string): string {
-  const prefix = typeof userId === "number" && Number.isFinite(userId) ? `u:${userId}` : "anon";
+export function getSegmentedStorageKey(userId: string | null | undefined, key: string): string {
+  const prefix = userId ? `u:${userId}` : "anon";
   return `seg:${prefix}:${key}`;
 }

@@ -4,15 +4,15 @@ export type { AdminRole };
 export type AdminLocale = "de" | "en";
 
 export interface AdminUser {
-  id: number;
+  id: string;
   username: string;
-  email: string;
+  email?: string;
   locale: AdminLocale;
   role: AdminRole;
   isOwner: boolean;
-  firstName: string | null;
-  lastName: string | null;
-  avatarUrl: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  avatarUrl?: string | null;
   createdAt: string;
   lastLoginAt: string | null;
 }
@@ -25,7 +25,6 @@ export interface AdminStats {
 
 export interface AdminSetup {
   username: string;
-  email: string;
   password: string;
 }
 
