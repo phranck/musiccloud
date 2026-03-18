@@ -65,12 +65,14 @@ zerops:
       base: nginx@1.22
       buildCommands:
         - "true"
+      deployFiles:
+        - web-site-config.tmpl
     run:
       base: nginx@1.22
       ports:
         - port: 80
           httpSupport: true
-      siteConfigPath: site_config.tmpl
+      siteConfigPath: web-site-config.tmpl
 
   - setup: dashboard
     build:
