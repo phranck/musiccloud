@@ -34,7 +34,7 @@ zerops:
         - "true"
       start: node apps/backend/dist/server.js
 
-  - setup: frontend-server
+  - setup: frontend
     build:
       base: nodejs@22
       buildCommands:
@@ -60,20 +60,6 @@ zerops:
         # INTERNAL_API_KEY: <same key as backend>
       start: node apps/frontend/dist/server/entry.mjs
 
-  - setup: web
-    build:
-      base: nginx@1.22
-      buildCommands:
-        - "true"
-      deployFiles:
-        - web-site-config.tmpl
-    run:
-      base: nginx@1.22
-      ports:
-        - port: 80
-          httpSupport: true
-      siteConfigPath: web-site-config.tmpl
-
   - setup: dashboard
     build:
       base: nodejs@22
@@ -91,6 +77,6 @@ zerops:
     run:
       base: nginx@1.22
       ports:
-        - port: 8080
+        - port: 80
           httpSupport: true
       siteConfigPath: site_config.tmpl
