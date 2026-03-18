@@ -315,7 +315,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     );
   }
 
-  async loadByShortId(shortId: string): Promise<CachedTrackResult | null> {
+  async loadByShortId(shortId: string): Promise<SharePageDbResult | null> {
     const result = await this.pool.query(
       `SELECT
         t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
@@ -332,10 +332,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     );
 
     if (result.rows.length === 0) return null;
-    return this.buildCachedResult(result.rows as TrackWithLinkRow[]);
+    return this.buildSharePageResult(result.rows as TrackWithLinkRow[]);
   }
 
-  async loadByTrackId(trackId: string): Promise<CachedTrackResult | null> {
+  async loadByTrackId(trackId: string): Promise<SharePageDbResult | null> {
     const result = await this.pool.query(
       `SELECT
         t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
@@ -352,7 +352,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     );
 
     if (result.rows.length === 0) return null;
-    return this.buildCachedResult(result.rows as TrackWithLinkRow[]);
+    return this.buildSharePageResult(result.rows as TrackWithLinkRow[]);
   }
 
   async persistTrackWithLinks(data: PersistTrackData): Promise<{
@@ -791,6 +791,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     return {
       album: this.rowToAlbum(firstRow),
+      artists,
       links: result.rows
         .filter((r: any) => r.link_url)
         .map((r: any) => ({
@@ -1271,10 +1272,12 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     const firstRow = rows[0];
     const artists = safeParseArray(firstRow.artists);
-    const first = artists.length > 0 ? artists[0] : "Unknown Artist";
+    const artistDisplay = artists.length > 0 ? artists[0] : "Unknown Artist";
 
     return {
+      trackId: firstRow.id,
       track: this.rowToTrack(firstRow),
+      artists,
       links: rows
         .filter((r) => r.url)
         .map((r) => ({
@@ -1282,7 +1285,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
           url: r.url,
         })),
       shortId: firstRow.short_id,
-      artistDisplay: first,
+      artistDisplay,
     };
   }
 
