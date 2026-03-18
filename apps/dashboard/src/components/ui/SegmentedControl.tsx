@@ -1,0 +1,164 @@
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+interface SegmentOption<T extends string> {
+  value: T;
+  label?: string;
+  icon?: React.ReactNode;
+  badge?: React.ReactNode;
+}
+
+interface SegmentedControlProps<T extends string> {
+  value: T;
+  onChange: (value: T) => void;
+  options: readonly SegmentOption<T>[];
+  storageKey?: string;
+}
+
+export function SegmentedControl<T extends string>({
+  value,
+  onChange,
+  options,
+  storageKey,
+}: SegmentedControlProps<T>) {
+  const activeIndex = options.findIndex((o) => o.value === value);
+
+  const hasIcons = options.some((o) => o.icon);
+  const hasLabels = options.some((o) => o.label);
+  const iconOnly = hasIcons && !hasLabels;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [pill, setPill] = useState<{ left: number; width: number; height: number } | null>(null);
+  const didMount = useRef(false);
+  const restoredRef = useRef(false);
+
+  useEffect(() => {
+    if (restoredRef.current || !storageKey || typeof window === "undefined") return;
+    restoredRef.current = true;
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      if (!stored) return;
+      const hasStoredValue = options.some((option) => option.value === stored);
+      if (!hasStoredValue) {
+        window.localStorage.removeItem(storageKey);
+        return;
+      }
+      if (stored !== value) onChange(stored as T);
+    } catch {}
+  }, [onChange, options, storageKey, value]);
+
+  useEffect(() => {
+    if (!storageKey || typeof window === "undefined") return;
+    try {
+      const hasValue = options.some((option) => option.value === value);
+      if (!hasValue) {
+        window.localStorage.removeItem(storageKey);
+        return;
+      }
+      window.localStorage.setItem(storageKey, value);
+    } catch {}
+  }, [options, storageKey, value]);
+
+  const measurePill = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const buttons = container.querySelectorAll<HTMLButtonElement>("button");
+    const btn = buttons[activeIndex];
+    if (!btn) {
+      setPill((prev) => (prev === null ? prev : null));
+      return;
+    }
+    const cRect = container.getBoundingClientRect();
+    const bRect = btn.getBoundingClientRect();
+    const next = { left: bRect.left - cRect.left, width: bRect.width, height: bRect.height };
+    setPill((prev) => {
+      if (
+        prev &&
+        prev.left === next.left &&
+        prev.width === next.width &&
+        prev.height === next.height
+      ) {
+        return prev;
+      }
+      return next;
+    });
+    didMount.current = true;
+  }, [activeIndex]);
+
+  useLayoutEffect(() => {
+    measurePill();
+  }, [measurePill]);
+
+  useLayoutEffect(() => {
+    const observer = new ResizeObserver(() => measurePill());
+    const container = containerRef.current;
+    if (container) {
+      observer.observe(container);
+      for (const button of container.querySelectorAll<HTMLButtonElement>("button")) {
+        observer.observe(button);
+      }
+    }
+
+    const handleResize = () => measurePill();
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      observer.disconnect();
+    };
+  }, [measurePill]);
+
+  const h = "h-7";
+  const w = iconOnly ? "w-7" : "";
+  const px = iconOnly ? "" : "px-3.5";
+
+  return (
+    <div
+      role="group"
+      ref={containerRef}
+      className="relative flex items-center bg-[var(--ds-segment-bg)] rounded-control p-1"
+    >
+      {pill && (
+        <div
+          aria-hidden="true"
+          className="absolute rounded-[4px] bg-[var(--ds-segment-active-bg)] shadow-sm pointer-events-none"
+          style={{
+            left: pill.left,
+            width: pill.width,
+            height: pill.height,
+            top: "50%",
+            transform: "translateY(-50%)",
+            transition: didMount.current
+              ? "left 200ms cubic-bezier(0.4, 0, 0.2, 1), width 200ms cubic-bezier(0.4, 0, 0.2, 1)"
+              : "none",
+          }}
+        />
+      )}
+
+      {options.map((opt) => {
+        const isActive = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            aria-pressed={isActive}
+            aria-label={iconOnly ? (opt.label ?? String(opt.value)) : undefined}
+            className={[
+              "relative z-10 flex items-center justify-center gap-1.5 rounded-[4px] text-sm font-medium transition-colors",
+              h,
+              w,
+              px,
+              isActive
+                ? "text-[var(--ds-text)]"
+                : "text-[var(--ds-text-subtle)] hover:text-[var(--ds-text-muted)]",
+            ].join(" ")}
+          >
+            {opt.icon}
+            {hasLabels && opt.label && <span>{opt.label}</span>}
+            {opt.badge}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

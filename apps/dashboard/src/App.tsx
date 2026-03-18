@@ -1,48 +1,268 @@
-import { BrowserRouter, Route, Routes } from "react-router";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
-import { LocaleProvider } from "@/i18n/context";
-import { Albums } from "@/pages/Albums";
-import { Login } from "@/pages/Login";
-import { Overview } from "@/pages/Overview";
-import { Setup } from "@/pages/Setup";
-import { System } from "@/pages/System";
-import { Tracks } from "@/pages/Tracks";
-import { Traffic } from "@/pages/Traffic";
-import { Users } from "@/pages/Users";
+import { Suspense, lazy } from "react";
+import { Navigate, Route, Routes } from "react-router";
 
-export function App() {
+import { ContentEditorLoadingFallback } from "@/components/ContentEditorLoadingFallback";
+import { I18nProvider } from "@/context/I18nContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { AuthProvider, useAuth } from "@/features/auth/AuthContext";
+import { KeyboardSaveProvider } from "@/lib/useKeyboardSave";
+
+const AdminLayout = lazy(() =>
+  import("@/components/layout/AdminLayout").then((m) => ({
+    default: m.AdminLayout,
+  })),
+);
+
+const InvitePage = lazy(() =>
+  import("@/features/auth/InvitePage").then((m) => ({
+    default: m.InvitePage,
+  })),
+);
+
+const LoginPage = lazy(() =>
+  import("@/features/auth/LoginPage").then((m) => ({
+    default: m.LoginPage,
+  })),
+);
+
+const SetupPage = lazy(() =>
+  import("@/features/auth/SetupPage").then((m) => ({
+    default: m.SetupPage,
+  })),
+);
+
+// Placeholder pages - will be replaced with actual implementations in Phase 3+
+const PlaceholderPage = lazy(() =>
+  Promise.resolve({
+    default: () => (
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-[var(--ds-text-muted)]">Coming soon</p>
+      </div>
+    ),
+  }),
+);
+
+function AppRoutes() {
+  const { user, isLoading, needsSetup } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <ThemeProvider>
-      <TooltipProvider>
-        <LocaleProvider>
-          <AuthProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/setup" element={<Setup />} />
-                <Route
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<Overview />} />
-                  <Route path="tracks" element={<Tracks />} />
-                  <Route path="albums" element={<Albums />} />
-                  <Route path="users" element={<Users />} />
-                  <Route path="traffic" element={<Traffic />} />
-                  <Route path="system" element={<System />} />
-                </Route>
-              </Routes>
-            </BrowserRouter>
-          </AuthProvider>
-        </LocaleProvider>
-      </TooltipProvider>
-    </ThemeProvider>
+    <Routes>
+      <Route
+        path="/setup"
+        element={
+          needsSetup ? (
+            <Suspense fallback={<ContentEditorLoadingFallback />}>
+              <SetupPage />
+            </Suspense>
+          ) : (
+            <Navigate to={user ? "/" : "/login"} replace />
+          )
+        }
+      />
+      <Route
+        path="/invite/:token"
+        element={
+          user ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Suspense fallback={<ContentEditorLoadingFallback />}>
+              <InvitePage />
+            </Suspense>
+          )
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          user ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Suspense fallback={<ContentEditorLoadingFallback />}>
+              <LoginPage />
+            </Suspense>
+          )
+        }
+      />
+
+      {user ? (
+        <Route
+          element={
+            <Suspense fallback={<ContentEditorLoadingFallback />}>
+              <AdminLayout />
+            </Suspense>
+          }
+        >
+          <Route
+            index
+            element={
+              <Suspense fallback={<ContentEditorLoadingFallback />}>
+                <PlaceholderPage />
+              </Suspense>
+            }
+          />
+          {/* Music */}
+          <Route
+            path="tracks"
+            element={
+              <Suspense fallback={<ContentEditorLoadingFallback />}>
+                <PlaceholderPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="albums"
+            element={
+              <Suspense fallback={<ContentEditorLoadingFallback />}>
+                <PlaceholderPage />
+              </Suspense>
+            }
+          />
+          {/* System (owner-only) */}
+          {user.isOwner && (
+            <Route
+              path="users"
+              element={
+                <Suspense fallback={<ContentEditorLoadingFallback />}>
+                  <PlaceholderPage />
+                </Suspense>
+              }
+            />
+          )}
+          {user.role !== "moderator" && (
+            <>
+              <Route
+                path="media"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="analytics"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="forms"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="forms/:name"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="email-templates"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="email-templates/new"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="email-templates/:id"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="pages"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="pages/navigations"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="pages/:slug"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="markdown-widgets"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="footer-builder"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="system"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <PlaceholderPage />
+                  </Suspense>
+                }
+              />
+            </>
+          )}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      ) : (
+        <Route path="*" element={<Navigate to={needsSetup ? "/setup" : "/login"} replace />} />
+      )}
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <I18nProvider>
+        <ThemeProvider>
+          <KeyboardSaveProvider>
+            <AppRoutes />
+          </KeyboardSaveProvider>
+        </ThemeProvider>
+      </I18nProvider>
+    </AuthProvider>
   );
 }

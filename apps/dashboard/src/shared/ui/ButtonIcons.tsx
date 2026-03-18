@@ -3,7 +3,7 @@ import {
   AddressBook as AddressBookIcon,
   Airplane as AirplaneIcon,
   Alarm as AlarmIcon,
-  ArchiveBox as ArchiveBoxIcon,
+  Archive as ArchiveBoxIcon,
   Armchair as ArmchairIcon,
   ArrowBendDownLeft as ArrowBendDownLeftIcon,
   ArrowBendDownRight as ArrowBendDownRightIcon,
