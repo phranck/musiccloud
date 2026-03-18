@@ -841,26 +841,27 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // LISTING & PAGINATION (AdminRepository)
   // ============================================================================
 
-  async listTracks(
-    page: number = 1,
-    limit: number = 50,
-    search?: string,
-    sortBy?: string,
-    sortDir?: string
-  ): Promise<{ items: CachedTrackResult[]; total: number; page: number; limit: number }> {
+  async listTracks(params: {
+    page: number;
+    limit: number;
+    q?: string;
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
+  }): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+    const { page = 1, limit = 50, q, sortBy = "created_at", sortDir = "desc" } = params;
     const offset = (page - 1) * limit;
     const ALLOWED = ["created_at", "updated_at", "title"];
-    const col = ALLOWED.includes(sortBy ?? "") ? sortBy : "updated_at";
+    const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
     const dir = sortDir === "asc" ? "ASC" : "DESC";
 
     let whereClause = "";
     let countResult: any;
 
-    if (search) {
+    if (q) {
       whereClause = `WHERE t.title ILIKE $1 OR t.artists ILIKE $1`;
       countResult = await this.pool.query(
         `SELECT COUNT(*) as count FROM tracks t ${whereClause}`,
-        [`%${search}%`]
+        [`%${q}%`]
       );
     } else {
       countResult = await this.pool.query(`SELECT COUNT(*) as count FROM tracks t`);
@@ -870,52 +871,59 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     const query = `SELECT
       t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
-      t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
-      t.source_service, t.source_url,
-      sl.url, sl.service, sl.confidence, sl.match_method,
-      su.id as short_id, t.created_at, t.updated_at
+      t.source_service, t.created_at,
+      su.id as short_id, COUNT(sl.id) as link_count,
+      CASE WHEN ft.id IS NOT NULL THEN true ELSE false END as is_featured
     FROM tracks t
     LEFT JOIN service_links sl ON t.id = sl.track_id
     LEFT JOIN short_urls su ON t.id = su.track_id
+    LEFT JOIN featured_tracks ft ON t.id = ft.track_id
     ${whereClause}
+    GROUP BY t.id, su.id, ft.id
     ORDER BY t.${col} ${dir}
-    LIMIT $${search ? "2" : "1"} OFFSET $${search ? "3" : "2"}`;
+    LIMIT $${q ? "2" : "1"} OFFSET $${q ? "3" : "2"}`;
 
-    const params = search ? [`%${search}%`, limit, offset] : [limit, offset];
-    const rows = await this.pool.query(query, params);
+    const params_values = q ? [`%${q}%`, limit, offset] : [limit, offset];
+    const rows = await this.pool.query(query, params_values);
 
-    const items: CachedTrackResult[] = [];
-    const trackIds = [...new Set(rows.rows.map((r: any) => r.id))];
-
-    for (const trackId of trackIds) {
-      const trackRows = rows.rows.filter((r: any) => r.id === trackId);
-      const cached = this.buildCachedResult(trackRows as TrackWithLinkRow[]);
-      if (cached) items.push(cached);
-    }
+    const items = rows.rows.map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      artists: safeParseArray(r.artists),
+      albumName: r.album_name ?? null,
+      isrc: r.isrc ?? null,
+      artworkUrl: r.artwork_url ?? null,
+      sourceService: r.source_service ?? null,
+      linkCount: parseInt(r.link_count, 10),
+      createdAt: dateToMs(r.created_at),
+      shortId: r.short_id ?? null,
+      isFeatured: r.is_featured,
+    }));
 
     return { items, total, page, limit };
   }
 
-  async listAlbums(
-    page: number = 1,
-    limit: number = 50,
-    search?: string,
-    sortBy?: string,
-    sortDir?: string
-  ): Promise<{ items: CachedAlbumResult[]; total: number; page: number; limit: number }> {
+  async listAlbums(params: {
+    page: number;
+    limit: number;
+    q?: string;
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
+  }): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+    const { page = 1, limit = 50, q, sortBy = "created_at", sortDir = "desc" } = params;
     const offset = (page - 1) * limit;
     const ALLOWED = ["created_at", "updated_at", "title"];
-    const col = ALLOWED.includes(sortBy ?? "") ? sortBy : "updated_at";
+    const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
     const dir = sortDir === "asc" ? "ASC" : "DESC";
 
     let whereClause = "";
     let countResult: any;
 
-    if (search) {
+    if (q) {
       whereClause = `WHERE a.title ILIKE $1 OR a.artists ILIKE $1`;
       countResult = await this.pool.query(
         `SELECT COUNT(*) as count FROM albums a ${whereClause}`,
-        [`%${search}%`]
+        [`%${q}%`]
       );
     } else {
       countResult = await this.pool.query(`SELECT COUNT(*) as count FROM albums a`);
@@ -925,27 +933,35 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     const query = `SELECT
       a.id, a.title, a.artists, a.release_date, a.total_tracks,
-      a.artwork_url, a.label, a.upc, a.source_service, a.source_url, a.preview_url,
-      asl.url as link_url, asl.service, asl.confidence, asl.match_method,
-      asu.id as short_id, a.created_at, a.updated_at
+      a.artwork_url, a.upc, a.source_service, a.created_at,
+      asu.id as short_id, COUNT(asl.id) as link_count,
+      CASE WHEN fa.id IS NOT NULL THEN true ELSE false END as is_featured
     FROM albums a
     LEFT JOIN album_service_links asl ON a.id = asl.album_id
     LEFT JOIN album_short_urls asu ON a.id = asu.album_id
+    LEFT JOIN featured_albums fa ON a.id = fa.album_id
     ${whereClause}
+    GROUP BY a.id, asu.id, fa.id
     ORDER BY a.${col} ${dir}
-    LIMIT $${search ? "2" : "1"} OFFSET $${search ? "3" : "2"}`;
+    LIMIT $${q ? "2" : "1"} OFFSET $${q ? "3" : "2"}`;
 
-    const params = search ? [`%${search}%`, limit, offset] : [limit, offset];
-    const rows = await this.pool.query(query, params);
+    const params_values = q ? [`%${q}%`, limit, offset] : [limit, offset];
+    const rows = await this.pool.query(query, params_values);
 
-    const items: CachedAlbumResult[] = [];
-    const albumIds = [...new Set(rows.rows.map((r: any) => r.id))];
-
-    for (const albumId of albumIds) {
-      const albumRows = rows.rows.filter((r: any) => r.id === albumId);
-      const cached = this.buildCachedAlbumResult(albumRows as AlbumWithLinkRow[]);
-      if (cached) items.push(cached);
-    }
+    const items = rows.rows.map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      artists: safeParseArray(r.artists),
+      releaseDate: r.release_date ?? null,
+      totalTracks: r.total_tracks ?? null,
+      artworkUrl: r.artwork_url ?? null,
+      upc: r.upc ?? null,
+      sourceService: r.source_service ?? null,
+      linkCount: parseInt(r.link_count, 10),
+      createdAt: dateToMs(r.created_at),
+      shortId: r.short_id ?? null,
+      isFeatured: r.is_featured,
+    }));
 
     return { items, total, page, limit };
   }
@@ -954,38 +970,36 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // DELETION & MANAGEMENT (AdminRepository)
   // ============================================================================
 
-  async deleteTracks(trackIds: string[]): Promise<number> {
-    if (trackIds.length === 0) return 0;
+  async deleteTracks(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
 
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
 
-      const placeholders = trackIds.map((_, i) => `$${i + 1}`).join(",");
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
 
       // Delete associated records first (due to foreign keys)
-      await client.query(`DELETE FROM service_links WHERE track_id IN (${placeholders})`, trackIds);
-      await client.query(`DELETE FROM short_urls WHERE track_id IN (${placeholders})`, trackIds);
-      await client.query(`DELETE FROM featured_tracks WHERE track_id IN (${placeholders})`, trackIds);
+      await client.query(`DELETE FROM service_links WHERE track_id IN (${placeholders})`, ids);
+      await client.query(`DELETE FROM short_urls WHERE track_id IN (${placeholders})`, ids);
+      await client.query(`DELETE FROM featured_tracks WHERE track_id IN (${placeholders})`, ids);
       await client.query(
         `DELETE FROM url_aliases WHERE track_id IN (${placeholders})`,
-        trackIds
+        ids
       );
 
       // Delete tracks
-      const result = await client.query(
+      await client.query(
         `DELETE FROM tracks WHERE id IN (${placeholders}) RETURNING id`,
-        trackIds
+        ids
       );
 
       await client.query("COMMIT");
 
       adminEventBroadcaster.emit("tracks_deleted", {
-        count: result.rowCount ?? 0,
-        ids: trackIds,
+        count: ids.length,
+        ids,
       });
-
-      return result.rowCount ?? 0;
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -994,44 +1008,42 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     }
   }
 
-  async deleteAlbums(albumIds: string[]): Promise<number> {
-    if (albumIds.length === 0) return 0;
+  async deleteAlbums(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
 
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
 
-      const placeholders = albumIds.map((_, i) => `$${i + 1}`).join(",");
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
 
       // Delete associated records first
       await client.query(
         `DELETE FROM album_service_links WHERE album_id IN (${placeholders})`,
-        albumIds
+        ids
       );
       await client.query(
         `DELETE FROM album_short_urls WHERE album_id IN (${placeholders})`,
-        albumIds
+        ids
       );
       await client.query(
         `DELETE FROM featured_albums WHERE album_id IN (${placeholders})`,
-        albumIds
+        ids
       );
-      await client.query(`DELETE FROM url_aliases WHERE album_id IN (${placeholders})`, albumIds);
+      await client.query(`DELETE FROM url_aliases WHERE album_id IN (${placeholders})`, ids);
 
       // Delete albums
-      const result = await client.query(
+      await client.query(
         `DELETE FROM albums WHERE id IN (${placeholders}) RETURNING id`,
-        albumIds
+        ids
       );
 
       await client.query("COMMIT");
 
       adminEventBroadcaster.emit("albums_deleted", {
-        count: result.rowCount ?? 0,
-        ids: albumIds,
+        count: ids.length,
+        ids,
       });
-
-      return result.rowCount ?? 0;
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -1040,7 +1052,19 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     }
   }
 
-  async setTrackFeatured(trackId: string, featured: boolean): Promise<void> {
+  async setTrackFeatured(shortId: string, featured: boolean): Promise<void> {
+    // Find the track_id from the short_url
+    const result = await this.pool.query(
+      `SELECT track_id FROM short_urls WHERE id = $1`,
+      [shortId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error(`Short URL not found: ${shortId}`);
+    }
+
+    const trackId = result.rows[0].track_id;
+
     if (featured) {
       const id = `featured-${trackId}`;
       const now = new Date();
@@ -1054,7 +1078,19 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     }
   }
 
-  async setAlbumFeatured(albumId: string, featured: boolean): Promise<void> {
+  async setAlbumFeatured(shortId: string, featured: boolean): Promise<void> {
+    // Find the album_id from the short_url
+    const result = await this.pool.query(
+      `SELECT album_id FROM album_short_urls WHERE id = $1`,
+      [shortId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error(`Album short URL not found: ${shortId}`);
+    }
+
+    const albumId = result.rows[0].album_id;
+
     if (featured) {
       const id = `featured-${albumId}`;
       const now = new Date();
@@ -1068,9 +1104,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     }
   }
 
-  async clearArtistCache(): Promise<number> {
+  async clearArtistCache(): Promise<{ deleted: number }> {
     const result = await this.pool.query(`DELETE FROM artist_cache RETURNING id`);
-    return result.rowCount ?? 0;
+    return { deleted: result.rowCount ?? 0 };
   }
 
   async countAllData(): Promise<{ tracks: number; albums: number }> {
@@ -1083,10 +1119,17 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     };
   }
 
-  async resetAllData(): Promise<void> {
+  async resetAllData(): Promise<{ tracks: number; albums: number }> {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
+
+      // Get counts before deletion
+      const tracksResult = await client.query(`SELECT COUNT(*) as count FROM tracks`);
+      const albumsResult = await client.query(`SELECT COUNT(*) as count FROM albums`);
+
+      const trackCount = tracksResult.rows[0]?.count ?? 0;
+      const albumCount = albumsResult.rows[0]?.count ?? 0;
 
       // Delete in reverse order of foreign key dependencies
       await client.query("DELETE FROM featured_albums");
@@ -1102,6 +1145,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
       await client.query("COMMIT");
       log.info("DB", "All data reset successfully");
+
+      return { tracks: trackCount, albums: albumCount };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
