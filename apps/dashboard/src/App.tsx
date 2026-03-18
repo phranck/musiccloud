@@ -31,6 +31,12 @@ const SetupPage = lazy(() =>
   })),
 );
 
+const DashboardPage = lazy(() =>
+  import("@/features/overview/DashboardPage").then((m) => ({
+    default: m.DashboardPage,
+  })),
+);
+
 const TracksPage = lazy(() =>
   import("@/features/music/TracksPage").then((m) => ({
     default: m.TracksPage,
@@ -43,18 +49,60 @@ const AlbumsPage = lazy(() =>
   })),
 );
 
+const UsersPage = lazy(() =>
+  import("@/features/system/UsersPage").then((m) => ({
+    default: m.UsersPage,
+  })),
+);
+
+const MediaPage = lazy(() =>
+  import("@/features/system/media/MediaPage").then((m) => ({
+    default: m.MediaPage,
+  })),
+);
+
+const AnalyticsPage = lazy(() =>
+  import("@/features/analytics/AnalyticsPage").then((m) => ({
+    default: m.AnalyticsPage,
+  })),
+);
+
+const PagesListPage = lazy(() =>
+  import("@/features/content/pages/PagesListPage").then((m) => ({
+    default: m.PagesListPage,
+  })),
+);
+
+const FormBuilderListPage = lazy(() =>
+  import("@/features/templates/form-builder/FormBuilderListPage").then((m) => ({
+    default: m.FormBuilderListPage,
+  })),
+);
+
+const EmailTemplateListPage = lazy(() =>
+  import("@/features/templates/email-templates/EmailTemplateListPage").then((m) => ({
+    default: m.EmailTemplateListPage,
+  })),
+);
+
+const MarkdownWidgetsPage = lazy(() =>
+  import("@/features/system/MarkdownWidgetsPage").then((m) => ({
+    default: m.MarkdownWidgetsPage,
+  })),
+);
+
 const SystemPage = lazy(() =>
   import("@/features/system/SystemPage").then((m) => ({
     default: m.SystemPage,
   })),
 );
 
-// Placeholder for pages not yet implemented (Phase 4+)
-const PlaceholderPage = lazy(() =>
+// Stub for complex editor pages not yet ported (require MarkdownEditor, dnd-kit, etc.)
+const EditorStubPage = lazy(() =>
   Promise.resolve({
     default: () => (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-[var(--ds-text-muted)]">Coming soon</p>
+        <p className="text-[var(--ds-text-muted)]">Editor coming soon</p>
       </div>
     ),
   }),
@@ -122,7 +170,7 @@ function AppRoutes() {
             index
             element={
               <Suspense fallback={<ContentEditorLoadingFallback />}>
-                <PlaceholderPage />
+                <DashboardPage />
               </Suspense>
             }
           />
@@ -149,7 +197,7 @@ function AppRoutes() {
               path="users"
               element={
                 <Suspense fallback={<ContentEditorLoadingFallback />}>
-                  <PlaceholderPage />
+                  <UsersPage />
                 </Suspense>
               }
             />
@@ -160,7 +208,7 @@ function AppRoutes() {
                 path="media"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <MediaPage />
                   </Suspense>
                 }
               />
@@ -168,7 +216,7 @@ function AppRoutes() {
                 path="analytics"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <AnalyticsPage />
                   </Suspense>
                 }
               />
@@ -176,7 +224,7 @@ function AppRoutes() {
                 path="forms"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <FormBuilderListPage />
                   </Suspense>
                 }
               />
@@ -184,7 +232,7 @@ function AppRoutes() {
                 path="forms/:name"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <EditorStubPage />
                   </Suspense>
                 }
               />
@@ -192,7 +240,7 @@ function AppRoutes() {
                 path="email-templates"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <EmailTemplateListPage />
                   </Suspense>
                 }
               />
@@ -200,7 +248,7 @@ function AppRoutes() {
                 path="email-templates/new"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <EditorStubPage />
                   </Suspense>
                 }
               />
@@ -208,7 +256,7 @@ function AppRoutes() {
                 path="email-templates/:id"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <EditorStubPage />
                   </Suspense>
                 }
               />
@@ -216,7 +264,7 @@ function AppRoutes() {
                 path="pages"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <PagesListPage />
                   </Suspense>
                 }
               />
@@ -224,7 +272,7 @@ function AppRoutes() {
                 path="pages/navigations"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <EditorStubPage />
                   </Suspense>
                 }
               />
@@ -232,7 +280,7 @@ function AppRoutes() {
                 path="pages/:slug"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <EditorStubPage />
                   </Suspense>
                 }
               />
@@ -240,7 +288,7 @@ function AppRoutes() {
                 path="markdown-widgets"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <MarkdownWidgetsPage />
                   </Suspense>
                 }
               />
@@ -248,7 +296,7 @@ function AppRoutes() {
                 path="footer-builder"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PlaceholderPage />
+                    <EditorStubPage />
                   </Suspense>
                 }
               />

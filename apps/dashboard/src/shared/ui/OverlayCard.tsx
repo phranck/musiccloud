@@ -45,10 +45,28 @@ function ensureStyles() {
   document.head.appendChild(style);
 }
 
+function readStoredWidth(key: string, fallback: number): number {
+  try {
+    const raw = localStorage.getItem(`overlay-card-width:${key}`);
+    if (raw) {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+  } catch { /* ignore */ }
+  return fallback;
+}
+
+interface OverlayCardSizeResizable {
+  storageKey: string;
+  defaultWidth?: number;
+}
+
+type OverlayCardSize = "fixed-sm" | "fixed-md" | OverlayCardSizeResizable;
+
 interface OverlayCardProps {
   open: boolean;
   onClose: () => void;
-  size?: "fixed-sm" | "fixed-md";
+  size?: OverlayCardSize;
   "aria-label": string;
   className?: string;
   style?: React.CSSProperties;
@@ -203,7 +221,9 @@ export function OverlayCard({
 
   const handleBackdropClick = isTopMost && backdropClose && !closing ? startClose : undefined;
 
-  const fixedMaxWidth = size === "fixed-md" ? "max-w-md" : "max-w-sm";
+  const isResizable = typeof size === "object";
+  const fixedMaxWidth = isResizable ? "" : size === "fixed-md" ? "max-w-md" : "max-w-sm";
+  const resizableWidth = isResizable ? readStoredWidth(size.storageKey, size.defaultWidth ?? 480) : undefined;
   const cardAnim = closing ? "mc-card-out 280ms ease forwards" : "mc-card-in 380ms ease forwards";
   const backdropAnim = closing ? "mc-overlay-out 280ms ease forwards" : "mc-overlay-in 360ms ease forwards";
   const effectiveZIndex = isRegistered ? zIndex + stackIndex * 100 : zIndex;
@@ -235,7 +255,7 @@ export function OverlayCard({
         ]
           .filter(Boolean)
           .join(" ")}
-        style={{ animation: cardAnim, ...style }}
+        style={{ animation: cardAnim, ...(resizableWidth != null ? { maxWidth: resizableWidth } : {}), ...style }}
         role="dialog"
         aria-modal={true}
         aria-label={ariaLabel}
