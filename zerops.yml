@@ -8,9 +8,6 @@ zerops:
         - npm run build -w apps/backend
       deployFiles:
         - apps/backend/dist
-        - node_modules/better-sqlite3
-        - node_modules/bindings
-        - node_modules/file-uri-to-path
     run:
       base: nodejs@22
       ports:
@@ -20,9 +17,8 @@ zerops:
         HOST: 0.0.0.0
         PORT: "4000"
         NODE_ENV: production
-        DATABASE_TYPE: sqlite
-        DATABASE_PATH: /mnt/sharedstorage/music.db
         # Set these in Zerops Secrets:
+        # DATABASE_URL: postgresql://db:password@postgresql:5432/musiccloud
         # JWT_SECRET: <random 64-char string>
         # INTERNAL_API_KEY: <shared secret between frontend and backend>
         # SPOTIFY_CLIENT_ID: <from Spotify Developer Dashboard>
@@ -35,7 +31,7 @@ zerops:
         # TICKETMASTER_CONSUMER_KEY: <from Ticketmaster Developer Portal>
         # BANDSINTOWN_APP_ID: <from Bandsintown Developer Portal>
       initCommands:
-        - while ! touch /mnt/sharedstorage/.probe 2>/dev/null; do sleep 1; done && rm -f /mnt/sharedstorage/.probe
+        - "true"
       start: node apps/backend/dist/server.js
 
   - setup: frontend
