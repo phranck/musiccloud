@@ -1,11 +1,29 @@
 import { resolve } from "node:path";
+
 import react from "@vitejs/plugin-react";
+import UnoCSS from "unocss/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), UnoCSS()],
   resolve: {
-    alias: { "@": resolve(__dirname, "src") },
+    alias: {
+      "@": resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("/node_modules/@dnd-kit/")) {
+            return "dnd-kit";
+          }
+          if (id.includes("/node_modules/recharts/")) {
+            return "recharts";
+          }
+        },
+      },
+    },
   },
   server: {
     port: 4001,
