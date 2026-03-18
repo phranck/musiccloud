@@ -236,7 +236,18 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const results: CachedTrackResult[] = [];
 
     try {
-      // Use PostgreSQL full-text search via plainto_tsquery
+      // Split query into words and search for any word match
+      const words = query.trim().split(/\s+/).filter(w => w.length > 0);
+      
+      if (words.length === 0) {
+        return [];
+      }
+
+      // Build WHERE clause: each word must match either title or artists
+      const whereClauses = words.map((_, i) => `(t.title ILIKE $${i + 1} OR t.artists ILIKE $${i + 1})`).join(" OR ");
+      const params = words.map(w => `%${w}%`);
+      params.push(limit);
+
       const searchResult = await this.pool.query(
         `SELECT
           t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
@@ -247,10 +258,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         FROM tracks t
         LEFT JOIN service_links sl ON t.id = sl.track_id
         LEFT JOIN short_urls su ON t.id = su.track_id
-        WHERE t.title ILIKE $1 OR t.artists ILIKE $2
+        WHERE ${whereClauses}
         ORDER BY t.updated_at DESC
-        LIMIT $3`,
-        [`%${query}%`, `%${query}%`, limit]
+        LIMIT $${words.length + 1}`,
+        params
       );
 
       const rows = searchResult.rows as TrackWithLinkRow[];
