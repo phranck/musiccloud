@@ -9,8 +9,6 @@ interface PageHeaderContextValue {
   setLeadingEl: (el: HTMLDivElement | null) => void;
   actionsEl: HTMLDivElement | null;
   setActionsEl: (el: HTMLDivElement | null) => void;
-  toolbarEl: HTMLDivElement | null;
-  setToolbarEl: (el: HTMLDivElement | null) => void;
 }
 
 const PageHeaderContext = createContext<PageHeaderContextValue>({
@@ -22,8 +20,6 @@ const PageHeaderContext = createContext<PageHeaderContextValue>({
   setLeadingEl: () => {},
   actionsEl: null,
   setActionsEl: () => {},
-  toolbarEl: null,
-  setToolbarEl: () => {},
 });
 
 export function PageHeaderProvider({ children }: { children: ReactNode }) {
@@ -31,7 +27,6 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
   const [titleContent, setTitleContent] = useState<ReactNode | null>(null);
   const [leadingEl, setLeadingEl] = useState<HTMLDivElement | null>(null);
   const [actionsEl, setActionsEl] = useState<HTMLDivElement | null>(null);
-  const [toolbarEl, setToolbarEl] = useState<HTMLDivElement | null>(null);
 
   const value = useMemo(
     () => ({
@@ -43,10 +38,8 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
       setLeadingEl,
       actionsEl,
       setActionsEl,
-      toolbarEl,
-      setToolbarEl,
     }),
-    [title, titleContent, leadingEl, actionsEl, toolbarEl],
+    [title, titleContent, leadingEl, actionsEl],
   );
 
   return <PageHeaderContext.Provider value={value}>{children}</PageHeaderContext.Provider>;

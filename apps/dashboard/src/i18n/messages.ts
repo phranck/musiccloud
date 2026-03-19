@@ -117,6 +117,23 @@ export interface DashboardMessages {
       colSource: string;
       colLinks: string;
       colAdded: string;
+      colActions: string;
+    };
+    trackEdit: {
+      backLabel: string;
+      title: string;
+      artists: string;
+      artistsHint: string;
+      albumName: string;
+      isrc: string;
+      artworkUrl: string;
+      sourceService: string;
+      sourceUrl: string;
+      serviceLinks: string;
+      serviceUrls: string;
+      createdAt: string;
+      notFound: string;
+      saveError: string;
     };
     albums: {
       title: string;
@@ -690,8 +707,25 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         colTitle: "Titel",
         colArtists: "K\u00fcnstler",
         colSource: "Quelle",
-        colLinks: "Links",
+        colLinks: "Services",
         colAdded: "Hinzugef\u00fcgt",
+        colActions: "",
+      },
+      trackEdit: {
+        backLabel: "Tracks",
+        title: "Titel",
+        artists: "K\u00fcnstler",
+        artistsHint: "Kommagetrennt",
+        albumName: "Album",
+        isrc: "ISRC",
+        artworkUrl: "Artwork URL",
+        sourceService: "Quelle",
+        sourceUrl: "Quell-URL",
+        serviceLinks: "Service-Links",
+        serviceUrls: "Service URLs",
+        createdAt: "Hinzugef\u00fcgt",
+        notFound: "Track nicht gefunden",
+        saveError: "Fehler beim Speichern",
       },
       albums: {
         title: "Alben",
@@ -703,7 +737,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         colArtists: "K\u00fcnstler",
         colSource: "Quelle",
         colTracks: "Tracks",
-        colLinks: "Links",
+        colLinks: "Services",
         colAdded: "Hinzugef\u00fcgt",
       },
       table: {
@@ -1232,8 +1266,25 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         colTitle: "Title",
         colArtists: "Artists",
         colSource: "Source",
-        colLinks: "Links",
+        colLinks: "Services",
         colAdded: "Added",
+        colActions: "",
+      },
+      trackEdit: {
+        backLabel: "Tracks",
+        title: "Title",
+        artists: "Artists",
+        artistsHint: "Comma-separated",
+        albumName: "Album",
+        isrc: "ISRC",
+        artworkUrl: "Artwork URL",
+        sourceService: "Source",
+        sourceUrl: "Source URL",
+        serviceLinks: "Service Links",
+        serviceUrls: "Service URLs",
+        createdAt: "Added",
+        notFound: "Track not found",
+        saveError: "Failed to save",
       },
       albums: {
         title: "Albums",
@@ -1245,7 +1296,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         colArtists: "Artists",
         colSource: "Source",
         colTracks: "Tracks",
-        colLinks: "Links",
+        colLinks: "Services",
         colAdded: "Added",
       },
       table: {

@@ -24,6 +24,29 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return repo.listAlbums({ page, limit, q: search, sortBy: q.sortBy, sortDir });
   });
 
+  app.get("/api/admin/tracks/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const repo = await getAdminRepository();
+    const track = await repo.getTrackById(id);
+    if (!track) return reply.status(404).send({ error: "Track not found" });
+    return track;
+  });
+
+  app.patch("/api/admin/tracks/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as Record<string, unknown>;
+    const data: Record<string, unknown> = {};
+    if (typeof body.title === "string") data.title = body.title;
+    if (Array.isArray(body.artists)) data.artists = body.artists;
+    if (body.albumName !== undefined) data.albumName = body.albumName ?? null;
+    if (body.isrc !== undefined) data.isrc = body.isrc ?? null;
+    if (body.artworkUrl !== undefined) data.artworkUrl = body.artworkUrl ?? null;
+    if (Object.keys(data).length === 0) return reply.status(400).send({ error: "No valid fields to update" });
+    const repo = await getAdminRepository();
+    await repo.updateTrack(id, data);
+    return { ok: true };
+  });
+
   app.delete("/api/admin/tracks", async (request, reply) => {
     const body = request.body as { ids?: unknown };
     if (!Array.isArray(body?.ids) || body.ids.length === 0) {

@@ -51,6 +51,11 @@
   --ds-table-row-separator: hsl(215 10% 18%);
 }
 
+/* Table row hover */
+.table-row-hover:hover {
+  background-color: var(--ds-row-hover);
+}
+
 /* Section headers */
 .section-header {
   background-color: var(--ds-section-header-bg);

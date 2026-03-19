@@ -9,6 +9,7 @@ import {
   XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -81,6 +82,7 @@ function FeaturedToggle({ track }: { track: TrackListItem }) {
 }
 
 export function TracksPage() {
+  const navigate = useNavigate();
   const { messages } = useI18n();
   const mt = messages.music.tracks;
   const m = messages.music.table;
@@ -192,7 +194,9 @@ export function TracksPage() {
       {
         id: "links",
         header: mt.colLinks,
-        className: "w-16",
+        className: "w-24",
+        headerClassName: "w-24 text-right",
+        cellClassName: "w-24 text-right",
         sortKey: (track) => track.linkCount,
         cell: (track) => (
           <span className="inline-block min-w-6 px-1.5 py-0.5 rounded text-xs font-medium text-center border border-[var(--ds-border)] text-[var(--ds-text)]">
@@ -209,8 +213,24 @@ export function TracksPage() {
           <span className="text-sm text-[var(--ds-text-muted)] whitespace-nowrap">{formatDate(track.createdAt)}</span>
         ),
       },
+      {
+        id: "actions",
+        className: "w-36",
+        cell: (track) => (
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => navigate(`/tracks/${track.id}`)}
+              className="h-7 px-3 flex items-center gap-1.5 border border-[var(--ds-btn-neutral-border)] rounded-control text-[var(--ds-btn-neutral-text)] text-xs hover:border-[var(--ds-btn-neutral-hover-border)] hover:bg-[var(--ds-btn-neutral-hover-bg)] transition-colors"
+            >
+              <PencilSimpleIcon weight="duotone" className="w-3 h-3" />
+              {messages.common.edit}
+            </button>
+          </div>
+        ),
+      },
     ],
-    [mt, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
+    [mt, messages.common, navigate, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
   );
 
   async function handleConfirmDelete() {
@@ -294,7 +314,7 @@ export function TracksPage() {
 
   return (
     <PageLayout>
-      <PageHeader title={mt.title} toolbar={toolbarContent}>
+      <PageHeader title={mt.title}>
         {searchField}
       </PageHeader>
 
@@ -343,6 +363,7 @@ export function TracksPage() {
                   .join(" ")
               }
               stickyHeader
+              initialSort={{ id: "createdAt", dir: "desc" }}
             />
             <div ref={table.sentinelRef} className="h-px" />
             {table.isLoadingMore && (
@@ -353,6 +374,8 @@ export function TracksPage() {
           </div>
         )}
       </PageBody>
+
+      {toolbarContent}
 
       <Dialog
         open={confirmOpen}

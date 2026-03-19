@@ -87,7 +87,7 @@ function AdminLayoutInner() {
   const { messages } = useI18n();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { title, titleContent, setLeadingEl, setActionsEl, setToolbarEl } = usePageHeaderContext();
+  const { title, titleContent, setLeadingEl, setActionsEl } = usePageHeaderContext();
   const { width: sidebarWidth, onMouseDown: onResizeStart } = useSidebarWidth();
   const hasCustomTitleContent = titleContent !== null;
 
@@ -184,10 +184,6 @@ function AdminLayoutInner() {
         <main className="flex-1 p-3 flex flex-col min-h-0">
           <Outlet />
         </main>
-        <div
-          ref={setToolbarEl}
-          className="sidebar-aware-header sticky bottom-0 z-20 empty:hidden"
-        />
       </div>
     </div>
   );

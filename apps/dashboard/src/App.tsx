@@ -43,6 +43,12 @@ const TracksPage = lazy(() =>
   })),
 );
 
+const TrackEditPage = lazy(() =>
+  import("@/features/music/TrackEditPage").then((m) => ({
+    default: m.TrackEditPage,
+  })),
+);
+
 const AlbumsPage = lazy(() =>
   import("@/features/music/AlbumsPage").then((m) => ({
     default: m.AlbumsPage,
@@ -180,6 +186,14 @@ function AppRoutes() {
             element={
               <Suspense fallback={<ContentEditorLoadingFallback />}>
                 <TracksPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="tracks/:id"
+            element={
+              <Suspense fallback={<ContentEditorLoadingFallback />}>
+                <TrackEditPage />
               </Suspense>
             }
           />

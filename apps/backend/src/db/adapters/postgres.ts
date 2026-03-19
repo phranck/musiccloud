@@ -869,6 +869,75 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   }
 
   // ============================================================================
+  // SINGLE TRACK (AdminRepository)
+  // ============================================================================
+
+  async getTrackById(id: string) {
+    const trackResult = await this.pool.query(
+      `SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
+        t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
+        t.source_service, t.source_url, t.created_at,
+        su.id as short_id,
+        CASE WHEN ft.id IS NOT NULL THEN true ELSE false END as is_featured
+      FROM tracks t
+      LEFT JOIN short_urls su ON t.id = su.track_id
+      LEFT JOIN featured_tracks ft ON t.id = ft.track_id
+      WHERE t.id = $1
+      GROUP BY t.id, su.id, ft.id`,
+      [id]
+    );
+    if (trackResult.rows.length === 0) return null;
+    const r = trackResult.rows[0];
+
+    const linksResult = await this.pool.query(
+      `SELECT service, url FROM service_links WHERE track_id = $1 ORDER BY service`,
+      [id]
+    );
+
+    return {
+      id: r.id,
+      title: r.title,
+      artists: safeParseArray(r.artists),
+      albumName: r.album_name ?? null,
+      isrc: r.isrc ?? null,
+      artworkUrl: r.artwork_url ?? null,
+      durationMs: r.duration_ms ?? null,
+      releaseDate: r.release_date ?? null,
+      isExplicit: Boolean(r.is_explicit),
+      previewUrl: r.preview_url ?? null,
+      sourceService: r.source_service ?? null,
+      sourceUrl: r.source_url ?? null,
+      shortId: r.short_id ?? null,
+      isFeatured: r.is_featured,
+      createdAt: dateToMs(r.created_at),
+      serviceLinks: linksResult.rows.map((l: any) => ({ service: l.service, url: l.url })),
+    };
+  }
+
+  async updateTrack(id: string, data: { title?: string; artists?: string[]; albumName?: string | null; isrc?: string | null; artworkUrl?: string | null }) {
+    const sets: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+
+    if (data.title !== undefined) { sets.push(`title = $${idx++}`); values.push(data.title); }
+    if (data.artists !== undefined) { sets.push(`artists = $${idx++}`); values.push(JSON.stringify(data.artists)); }
+    if (data.albumName !== undefined) { sets.push(`album_name = $${idx++}`); values.push(data.albumName); }
+    if (data.isrc !== undefined) { sets.push(`isrc = $${idx++}`); values.push(data.isrc); }
+    if (data.artworkUrl !== undefined) { sets.push(`artwork_url = $${idx++}`); values.push(data.artworkUrl); }
+
+    if (sets.length === 0) return;
+
+    sets.push(`updated_at = $${idx++}`);
+    values.push(new Date());
+    values.push(id);
+
+    await this.pool.query(
+      `UPDATE tracks SET ${sets.join(", ")} WHERE id = $${idx}`,
+      values
+    );
+  }
+
+  // ============================================================================
   // LISTING & PAGINATION (AdminRepository)
   // ============================================================================
 

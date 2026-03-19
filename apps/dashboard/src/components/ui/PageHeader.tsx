@@ -7,12 +7,11 @@ interface PageHeaderProps {
   title: string;
   titleContent?: ReactNode;
   leading?: ReactNode;
-  toolbar?: ReactNode;
   children?: ReactNode;
 }
 
-export function PageHeader({ title, titleContent, leading, toolbar, children }: PageHeaderProps) {
-  const { setTitle, setTitleContent, leadingEl, actionsEl, toolbarEl } = usePageHeaderContext();
+export function PageHeader({ title, titleContent, leading, children }: PageHeaderProps) {
+  const { setTitle, setTitleContent, leadingEl, actionsEl } = usePageHeaderContext();
 
   useEffect(() => {
     setTitle(title);
@@ -27,7 +26,6 @@ export function PageHeader({ title, titleContent, leading, toolbar, children }: 
     <>
       {leadingEl && leading ? createPortal(leading, leadingEl) : null}
       {actionsEl && children ? createPortal(children, actionsEl) : null}
-      {toolbarEl && toolbar ? createPortal(toolbar, toolbarEl) : null}
     </>
   );
 }

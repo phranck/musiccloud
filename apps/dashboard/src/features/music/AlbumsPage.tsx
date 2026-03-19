@@ -207,7 +207,9 @@ export function AlbumsPage() {
       {
         id: "links",
         header: ma.colLinks,
-        className: "w-16",
+        className: "w-24",
+        headerClassName: "w-24 text-right",
+        cellClassName: "w-24 text-right",
         sortKey: (album) => album.linkCount,
         cell: (album) => (
           <span className="inline-block min-w-6 px-1.5 py-0.5 rounded text-xs font-medium text-center border border-[var(--ds-border)] text-[var(--ds-text)]">
@@ -309,7 +311,7 @@ export function AlbumsPage() {
 
   return (
     <PageLayout>
-      <PageHeader title={ma.title} toolbar={toolbarContent}>
+      <PageHeader title={ma.title}>
         {searchField}
       </PageHeader>
 
@@ -358,6 +360,7 @@ export function AlbumsPage() {
                   .join(" ")
               }
               stickyHeader
+              initialSort={{ id: "createdAt", dir: "desc" }}
             />
             <div ref={table.sentinelRef} className="h-px" />
             {table.isLoadingMore && (
@@ -368,6 +371,8 @@ export function AlbumsPage() {
           </div>
         )}
       </PageBody>
+
+      {toolbarContent}
 
       <Dialog
         open={confirmOpen}

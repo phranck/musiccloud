@@ -35,6 +35,33 @@ export interface AlbumListItem {
   isFeatured: boolean;
 }
 
+export interface TrackDetail {
+  id: string;
+  title: string;
+  artists: string[];
+  albumName: string | null;
+  isrc: string | null;
+  artworkUrl: string | null;
+  durationMs: number | null;
+  releaseDate: string | null;
+  isExplicit: boolean;
+  previewUrl: string | null;
+  sourceService: string | null;
+  sourceUrl: string | null;
+  shortId: string | null;
+  isFeatured: boolean;
+  createdAt: number;
+  serviceLinks: { service: string; url: string }[];
+}
+
+export interface TrackUpdateData {
+  title?: string;
+  artists?: string[];
+  albumName?: string | null;
+  isrc?: string | null;
+  artworkUrl?: string | null;
+}
+
 export interface ListResult<T> {
   items: T[];
   total: number;
@@ -62,6 +89,8 @@ export interface AdminRepository {
     sortBy?: string;
     sortDir?: "asc" | "desc";
   }): Promise<ListResult<AlbumListItem>>;
+  getTrackById(id: string): Promise<TrackDetail | null>;
+  updateTrack(id: string, data: TrackUpdateData): Promise<void>;
   deleteTracks(ids: string[]): Promise<void>;
   deleteAlbums(ids: string[]): Promise<void>;
   setTrackFeatured(shortId: string, featured: boolean): Promise<void>;
