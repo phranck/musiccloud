@@ -34,6 +34,14 @@ export async function runMigrations(): Promise<void> {
   try {
     console.log(`[DB] Running migrations from ${migrationsFolder}`);
     await migrate(db, { migrationsFolder });
+
+    // Ensure the first admin user is always owner
+    await pool.query(
+      `UPDATE admin_users SET role = 'owner'
+       WHERE id = (SELECT id FROM admin_users ORDER BY created_at ASC LIMIT 1)
+         AND role != 'owner'`
+    );
+
     console.log("[DB] All migrations applied successfully");
   } finally {
     await pool.end();
