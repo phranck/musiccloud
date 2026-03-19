@@ -18,7 +18,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const proxyUrl = new URL(backendPath + context.url.search, backendUrl);
 
     try {
-      const headers = new Headers(context.request.headers);
+      // Build clean headers for the backend request
+      const headers = new Headers();
+      headers.set("Content-Type", context.request.headers.get("Content-Type") || "application/json");
+
+      // Forward client IP for rate limiting
+      const clientIp = context.request.headers.get("X-Forwarded-For") || context.clientAddress;
+      if (clientIp) {
+        headers.set("X-Forwarded-For", clientIp);
+      }
+      headers.set("X-Forwarded-Host", context.url.host);
 
       // Add internal API key for backend authentication
       if (internalApiKey) {
