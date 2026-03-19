@@ -26,9 +26,17 @@ function resolveMigrationsFolder(): string {
 }
 
 export async function runMigrations(): Promise<void> {
-  const migrationsFolder = resolveMigrationsFolder();
-  const config = loadDatabaseConfig();
+  let migrationsFolder: string;
+  try {
+    migrationsFolder = resolveMigrationsFolder();
+  } catch (err) {
+    console.error("[DB] Migration folder resolution failed:", (err as Error).message);
+    console.error("[DB] cwd:", process.cwd());
+    console.error("[DB] __dirname:", __dirname);
+    return;
+  }
 
+  const config = loadDatabaseConfig();
   const pool = new pg.Pool({ connectionString: config.url });
   const db = drizzle(pool);
 
@@ -44,6 +52,8 @@ export async function runMigrations(): Promise<void> {
     );
 
     console.log("[DB] All migrations applied successfully");
+  } catch (err) {
+    console.error("[DB] Migration failed:", (err as Error).message);
   } finally {
     await pool.end();
   }
