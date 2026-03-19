@@ -11,6 +11,7 @@ function resolveMigrationsFolder(): string {
     path.resolve(__dirname, "migrations", "postgres"),
     path.resolve(__dirname, "..", "db", "migrations", "postgres"),
     path.resolve(process.cwd(), "apps/backend/src/db/migrations/postgres"),
+    path.resolve(process.cwd(), "src/db/migrations/postgres"),
   ];
 
   for (const folder of candidates) {

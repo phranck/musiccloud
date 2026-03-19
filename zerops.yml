@@ -8,6 +8,7 @@ zerops:
         - npm run build -w apps/backend
       deployFiles:
         - apps/backend/dist
+        - apps/backend/src/db/migrations
     run:
       base: nodejs@22
       ports:
