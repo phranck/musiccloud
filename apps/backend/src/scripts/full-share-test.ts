@@ -14,10 +14,9 @@ async function test() {
   
   console.log("✅ loadByShortId returned data:");
   console.log(`   Track: ${cached.track.title}`);
-  console.log(`   Artists: ${cached.track.artists}`);
+  console.log(`   Artists: ${cached.artists.join(", ")}`);
   console.log(`   Links: ${cached.links.length}`);
   console.log(`   Short ID: ${cached.shortId}`);
-  console.log(`   Updated: ${new Date(cached.updatedAt)}`);
 }
 
 test();

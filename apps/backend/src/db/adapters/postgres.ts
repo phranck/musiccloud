@@ -3,10 +3,11 @@ import { CACHE_TTL_MS } from "../../lib/config.js";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
-import type { NormalizedTrack } from "../../services/types.js";
+import type { NormalizedAlbum, NormalizedTrack, TrackSource } from "../../services/types.js";
 import type { AdminRepository, AdminUser } from "../admin-repository.js";
 import type {
   ArtistCacheData,
+  ArtistCacheRow,
   CachedAlbumResult,
   CachedTrackResult,
   PersistAlbumData,
@@ -42,6 +43,7 @@ interface TrackWithLinkRow extends TrackRow {
   service: string | null;
   confidence: number | null;
   match_method: string | null;
+  short_id: string | null;
 }
 
 interface AlbumRow {
@@ -55,6 +57,7 @@ interface AlbumRow {
   upc: string | null;
   source_service: string | null;
   source_url: string | null;
+  preview_url: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -64,6 +67,7 @@ interface AlbumWithLinkRow extends AlbumRow {
   service: string | null;
   confidence: number | null;
   match_method: string | null;
+  short_id: string | null;
 }
 
 interface AdminUserRow {
@@ -232,45 +236,39 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return this.buildCachedResult(result.rows as TrackWithLinkRow[]);
   }
 
-  async findTracksByTextSearch(query: string, limit: number = 10): Promise<CachedTrackResult[]> {
-    const results: CachedTrackResult[] = [];
+  async findTracksByTextSearch(query: string, maxResults: number = 10): Promise<NormalizedTrack[]> {
+    const results: NormalizedTrack[] = [];
 
     try {
       // Split query into words and search for any word match
       const words = query.trim().split(/\s+/).filter(w => w.length > 0);
-      
+
       if (words.length === 0) {
         return [];
       }
 
       // Build WHERE clause: each word must match either title or artists
       const whereClauses = words.map((_, i) => `(t.title ILIKE $${i + 1} OR t.artists ILIKE $${i + 1})`).join(" OR ");
-      const params = words.map(w => `%${w}%`);
-      params.push(limit);
+      const params: (string | number)[] = words.map(w => `%${w}%`);
+      params.push(maxResults);
 
       const searchResult = await this.pool.query(
         `SELECT
           t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
           t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
           t.source_service, t.source_url,
-          sl.url, sl.service, sl.confidence, sl.match_method,
-          su.id as short_id, t.created_at, t.updated_at
+          t.created_at, t.updated_at
         FROM tracks t
-        LEFT JOIN service_links sl ON t.id = sl.track_id
-        LEFT JOIN short_urls su ON t.id = su.track_id
         WHERE ${whereClauses}
         ORDER BY t.updated_at DESC
         LIMIT $${words.length + 1}`,
         params
       );
 
-      const rows = searchResult.rows as TrackWithLinkRow[];
-      const trackIds = [...new Set(rows.map((r) => r.id))];
+      const rows = searchResult.rows as TrackRow[];
 
-      for (const trackId of trackIds) {
-        const trackRows = rows.filter((r) => r.id === trackId);
-        const cached = this.buildCachedResult(trackRows);
-        if (cached) results.push(cached);
+      for (const row of rows) {
+        results.push(this.rowToTrack(row));
       }
     } catch (error) {
       log.error("PG", "Text search error:", error);
@@ -436,7 +434,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async addLinksToTrack(
     trackId: string,
-    links: Array<{ service: string; url: string; externalId: string | null; confidence: number; matchMethod: string }>
+    links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>
   ): Promise<void> {
     const client = await this.pool.connect();
     try {
@@ -474,24 +472,21 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     }
   }
 
-  async addTrackUrlAlias(trackId: string): Promise<string> {
-    const shortId = generateShortId();
+  async addTrackUrlAlias(url: string, trackId: string): Promise<void> {
     const now = new Date();
 
     await this.pool.query(
-      `INSERT INTO url_aliases (id, short_id, track_id, created_at) VALUES ($1, $2, $3, $4)
+      `INSERT INTO url_aliases (id, url, track_id, created_at) VALUES ($1, $2, $3, $4)
        ON CONFLICT DO NOTHING`,
-      [`${shortId}-alias`, shortId, trackId, now]
+      [`${trackId}-${url.slice(-20)}`, url, trackId, now]
     );
-
-    return shortId;
   }
 
   // ============================================================================
   // ARTIST CACHE QUERIES (TrackRepository)
   // ============================================================================
 
-  async findArtistCache(artistName: string): Promise<ArtistCacheData | null> {
+  async findArtistCache(artistName: string): Promise<ArtistCacheRow | null> {
     const result = await this.pool.query(
       `SELECT artist_name, profile, top_tracks, events,
               profile_updated_at, tracks_updated_at, events_updated_at
@@ -505,8 +500,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return {
       artistName: row.artist_name,
       profile: safeParseJson(row.profile, null),
-      topTracks: safeParseJson(row.top_tracks, null),
-      events: safeParseJson(row.events, null),
+      topTracks: safeParseJson(row.top_tracks, []),
+      events: safeParseJson(row.events, []),
       profileUpdatedAt: row.profile_updated_at ? dateToMs(row.profile_updated_at) : 0,
       tracksUpdatedAt: row.tracks_updated_at ? dateToMs(row.tracks_updated_at) : 0,
       eventsUpdatedAt: row.events_updated_at ? dateToMs(row.events_updated_at) : 0,
@@ -674,16 +669,16 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         ON CONFLICT DO NOTHING`,
         [
           albumId,
-          data.title,
-          JSON.stringify(data.artists),
-          data.releaseDate ?? null,
-          data.totalTracks ?? null,
-          data.artworkUrl ?? null,
-          data.label ?? null,
-          data.upc ?? null,
-          data.sourceService ?? null,
-          data.sourceUrl ?? null,
-          data.previewUrl ?? null,
+          data.sourceAlbum.title,
+          JSON.stringify(data.sourceAlbum.artists),
+          data.sourceAlbum.releaseDate ?? null,
+          data.sourceAlbum.totalTracks ?? null,
+          data.sourceAlbum.artworkUrl ?? null,
+          data.sourceAlbum.label ?? null,
+          data.sourceAlbum.upc ?? null,
+          data.sourceAlbum.sourceService ?? null,
+          data.sourceAlbum.sourceUrl ?? null,
+          data.sourceAlbum.previewUrl ?? null,
           now,
           now,
         ]
@@ -731,7 +726,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async addLinksToAlbum(
     albumId: string,
-    links: Array<{ service: string; url: string; externalId: string | null; confidence: number; matchMethod: string }>
+    links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>
   ): Promise<void> {
     const client = await this.pool.connect();
     try {
@@ -793,10 +788,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       album: this.rowToAlbum(firstRow),
       artists,
       links: result.rows
-        .filter((r: any) => r.link_url)
+        .filter((r: any) => r.link_url && r.service)
         .map((r: any) => ({
-          service: r.service,
-          url: r.link_url,
+          service: r.service as string,
+          url: r.link_url as string,
         })),
       shortId,
       artistDisplay,
@@ -1104,9 +1099,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
       await client.query("COMMIT");
 
-      adminEventBroadcaster.emit("tracks_deleted", {
-        count: ids.length,
-        ids,
+      adminEventBroadcaster.emit({
+        type: "track-added",
+        data: { action: "deleted", count: ids.length, ids },
       });
     } catch (error) {
       await client.query("ROLLBACK");
@@ -1148,9 +1143,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
       await client.query("COMMIT");
 
-      adminEventBroadcaster.emit("albums_deleted", {
-        count: ids.length,
-        ids,
+      adminEventBroadcaster.emit({
+        type: "album-added",
+        data: { action: "deleted", count: ids.length, ids },
       });
     } catch (error) {
       await client.query("ROLLBACK");
@@ -1252,7 +1247,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await client.query("DELETE FROM artist_cache");
 
       await client.query("COMMIT");
-      log.info("DB", "All data reset successfully");
+      log.debug("DB", "All data reset successfully");
 
       return { tracks: trackCount, albums: albumCount };
     } catch (error) {
@@ -1289,12 +1284,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const artistDisplay = artists.length > 0 ? artists[0] : "Unknown Artist";
 
     return {
-      track: this.rowToTrack(firstRow),
+      trackId: firstRow.id,
+      track: this.rowToSharePageTrack(firstRow),
+      artists,
       links: result.rows
-        .filter((r: any) => r.url)
+        .filter((r: any) => r.url && r.service)
         .map((r: any) => ({
-          service: r.service,
-          url: r.url,
+          service: r.service as string,
+          url: r.url as string,
         })),
       shortId,
       artistDisplay,
@@ -1319,15 +1316,20 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const links = [
       ...new Map(
         rows
-          .filter((r) => r.url)
-          .map((r) => [r.service, { service: r.service, url: r.url }])
+          .filter((r) => r.url && r.service)
+          .map((r) => [r.service, {
+            service: r.service!,
+            url: r.url!,
+            confidence: r.confidence ?? 0,
+            matchMethod: r.match_method ?? "cache",
+          }])
       ).values(),
     ];
 
     return {
+      trackId,
       track,
       links,
-      shortId: firstRow.short_id,
       updatedAt: dateToMs(firstRow.updated_at),
     };
   }
@@ -1336,21 +1338,26 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     if (rows.length === 0) return null;
 
     const firstRow = rows[0];
-    const album = this.rowToAlbum(firstRow);
+    const album = this.rowToNormalizedAlbum(firstRow);
     const albumId = firstRow.id;
 
     const links = [
       ...new Map(
         rows
-          .filter((r) => r.link_url)
-          .map((r) => [r.service, { service: r.service, url: r.link_url }])
+          .filter((r) => r.link_url && r.service)
+          .map((r) => [r.service, {
+            service: r.service!,
+            url: r.link_url!,
+            confidence: r.confidence ?? 0,
+            matchMethod: r.match_method ?? "cache",
+          }])
       ).values(),
     ];
 
     return {
+      albumId,
       album,
       links,
-      shortId: firstRow.short_id,
       updatedAt: dateToMs(firstRow.updated_at),
     };
   }
@@ -1364,47 +1371,74 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     return {
       trackId: firstRow.id,
-      track: this.rowToTrack(firstRow),
+      track: this.rowToSharePageTrack(firstRow),
       artists,
       links: rows
-        .filter((r) => r.url)
+        .filter((r) => r.url && r.service)
         .map((r) => ({
-          service: r.service,
-          url: r.url,
+          service: r.service!,
+          url: r.url!,
         })),
-      shortId: firstRow.short_id,
+      shortId: firstRow.short_id ?? "",
       artistDisplay,
     };
   }
 
   private rowToTrack(row: TrackRow): NormalizedTrack {
     return {
-      sourceService: row.source_service,
+      sourceService: (row.source_service as TrackSource) ?? "cached",
       sourceId: row.id,
       title: row.title,
       artists: safeParseArray(row.artists),
-      albumName: row.album_name,
+      albumName: row.album_name ?? undefined,
       isrc: row.isrc ?? undefined,
       artworkUrl: row.artwork_url ?? undefined,
       durationMs: row.duration_ms ?? undefined,
       releaseDate: row.release_date ?? undefined,
       isExplicit: row.is_explicit ? true : false,
       previewUrl: row.preview_url ?? undefined,
-      webUrl: row.source_url ?? undefined,
+      webUrl: row.source_url ?? "",
     };
   }
 
-  private rowToAlbum(row: AlbumRow): NormalizedTrack {
-    const artists = safeParseArray(row.artists);
-
+  /** Convert a track row to the SharePageDbResult.track shape */
+  private rowToSharePageTrack(row: TrackRow): SharePageDbResult["track"] {
     return {
-      sourceService: row.source_service,
+      title: row.title,
+      albumName: row.album_name,
+      artworkUrl: row.artwork_url,
+      durationMs: row.duration_ms,
+      isrc: row.isrc,
+      releaseDate: row.release_date,
+      isExplicit: row.is_explicit ? true : false,
+      previewUrl: row.preview_url,
+    };
+  }
+
+  private rowToAlbum(row: AlbumRow): SharePageAlbumResult["album"] {
+    return {
+      title: row.title,
+      artworkUrl: row.artwork_url,
+      releaseDate: row.release_date,
+      totalTracks: row.total_tracks,
+      label: row.label,
+      upc: row.upc,
+      previewUrl: row.preview_url ?? null,
+    };
+  }
+
+  private rowToNormalizedAlbum(row: AlbumRow): NormalizedAlbum {
+    return {
+      sourceService: (row.source_service as TrackSource) ?? "cached",
       sourceId: row.id,
       title: row.title,
-      artists,
+      artists: safeParseArray(row.artists),
       releaseDate: row.release_date ?? undefined,
+      totalTracks: row.total_tracks ?? undefined,
       artworkUrl: row.artwork_url ?? undefined,
-      webUrl: row.source_url ?? undefined,
+      label: row.label ?? undefined,
+      upc: row.upc ?? undefined,
+      webUrl: row.source_url ?? "",
     };
   }
 }

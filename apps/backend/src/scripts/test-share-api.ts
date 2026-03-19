@@ -10,8 +10,8 @@ async function test() {
       console.log("✅ Share data loaded!");
       console.log(`Track: ${data.track.title}`);
       console.log(`Artists: ${data.artists}`);
-      console.log(`OG URL: ${data.og.url}`);
-      console.log(`OG Title: ${data.og.title}`);
+      console.log(`OG URL: ${data.og.ogUrl}`);
+      console.log(`OG Title: ${data.og.ogTitle}`);
       console.log(`Links: ${data.links.length}`);
     } else {
       console.log("❌ loadByShortId returned null");
