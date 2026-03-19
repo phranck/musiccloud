@@ -107,7 +107,7 @@ function safeParseJson<T>(json: string | null | undefined, fallback: T): T {
 
 // Convert Date to milliseconds for compatibility with sqlite.ts interface
 function dateToMs(date: Date | null | undefined): number {
-  return date ? Math.floor(date.getTime() / 1000) : 0;
+  return date ? date.getTime() : 0;
 }
 
 // Convert milliseconds to Date

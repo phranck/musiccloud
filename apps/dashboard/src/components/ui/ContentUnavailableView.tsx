@@ -3,7 +3,7 @@ import type React from "react";
 interface ContentUnavailableViewProps {
   icon: React.ReactNode;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   className?: string;
 }
 

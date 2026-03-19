@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function Table({ className = "", ...props }: HTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full">
+    <div className="w-full overflow-x-auto">
       <table className={`w-full table-fixed border-collapse text-sm ${className}`} {...props} />
     </div>
   );
@@ -242,7 +242,7 @@ export function DataTable<T>({
   return (
     <Table>
       <TableHead
-        className={stickyHeader ? "sticky top-14 z-10 shadow-[0_1px_0_var(--ds-border)]" : ""}
+        className={stickyHeader ? "sticky top-0 z-10 shadow-[0_1px_0_var(--ds-border)]" : ""}
       >
         <TableRow className="hover:bg-transparent">
           {columns.map((col, index) => (
@@ -293,7 +293,7 @@ export function DataTable<T>({
                       className="absolute top-0 right-[-6px] h-full w-3 cursor-col-resize z-20"
                       aria-hidden
                     />
-                    <div className="absolute top-1/2 -translate-y-1/2 right-0 h-4 w-px bg-[var(--ds-border-strong)] opacity-100 pointer-events-none" />
+                    <div className="absolute top-1/2 -translate-y-1/2 right-0 h-4 w-px bg-[var(--ds-border-strong)] opacity-0 pointer-events-none" />
                   </>
                 )}
               </div>
