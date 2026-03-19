@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - run: npm install
+      - run: npm ci
       - run: npx tsc --noEmit --project packages/shared/tsconfig.json
       - run: npm run build --workspace=packages/shared
 
@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - run: npm install
+      - run: npm ci
       - run: npm run build --workspace=packages/shared
       - run: npx tsc --noEmit --project apps/dashboard/tsconfig.json
       - run: npm run test:run --workspace=apps/dashboard --if-present
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - run: npm install
+      - run: npm ci
       - run: npm run build --workspace=packages/shared
       - run: npx tsc --noEmit --project apps/backend/tsconfig.json
       - run: npm run test:run --workspace=apps/backend --if-present
@@ -56,7 +56,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - run: npm install
+      - run: npm ci
       - run: npm run build --workspace=packages/shared
       - run: npx astro check --root apps/frontend
       - run: npm run test:run --workspace=apps/frontend --if-present
