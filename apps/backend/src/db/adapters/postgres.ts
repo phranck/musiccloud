@@ -1208,8 +1208,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await client.query("COMMIT");
 
       adminEventBroadcaster.emit({
-        type: "track-added",
-        data: { action: "deleted", count: ids.length, ids },
+        type: "tracks-deleted",
+        data: { count: ids.length, ids },
       });
     } catch (error) {
       await client.query("ROLLBACK");
@@ -1252,8 +1252,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await client.query("COMMIT");
 
       adminEventBroadcaster.emit({
-        type: "album-added",
-        data: { action: "deleted", count: ids.length, ids },
+        type: "albums-deleted",
+        data: { count: ids.length, ids },
       });
     } catch (error) {
       await client.query("ROLLBACK");

@@ -182,7 +182,9 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
     useCallback(
       (event) => {
         if (!sseEventType || !sseToItem || event.type !== sseEventType || searchQuery !== "" || sortBy !== null) return;
-        dispatch({ type: "PREPEND", item: sseToItem(event.data) });
+        const item = sseToItem(event.data);
+        if (!item || typeof item !== "object" || !("id" in item)) return;
+        dispatch({ type: "PREPEND", item });
       },
       [searchQuery, sseEventType, sseToItem, sortBy],
     ),
