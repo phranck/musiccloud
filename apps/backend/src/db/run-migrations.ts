@@ -44,12 +44,14 @@ export async function runMigrations(): Promise<void> {
     console.log(`[DB] Running migrations from ${migrationsFolder}`);
     await migrate(db, { migrationsFolder });
 
-    // Ensure the first admin user is always owner
-    await pool.query(
-      `UPDATE admin_users SET role = 'owner'
-       WHERE id = (SELECT id FROM admin_users ORDER BY created_at ASC LIMIT 1)
-         AND role != 'owner'`
-    );
+    // Ensure there is at least one owner (promote the first user if none exists)
+    const { rows } = await pool.query(`SELECT COUNT(*) AS c FROM admin_users WHERE role = 'owner'`);
+    if (Number(rows[0]?.c) === 0) {
+      await pool.query(
+        `UPDATE admin_users SET role = 'owner'
+         WHERE id = (SELECT id FROM admin_users ORDER BY created_at ASC LIMIT 1)`
+      );
+    }
 
     console.log("[DB] All migrations applied successfully");
   } catch (err) {
