@@ -264,6 +264,8 @@ export interface DashboardMessages {
       roleAdmin: string;
       roleModerator: string;
       language: string;
+      sessionTimeout: string;
+      sessionTimeoutNone: string;
       errorSaving: string;
       editTooltip: string;
     };
@@ -852,6 +854,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         roleAdmin: "Administrator",
         roleModerator: "Moderator",
         language: "Sprache",
+        sessionTimeout: "Inaktivitäts-Timeout (Minuten)",
+        sessionTimeoutNone: "Kein automatischer Logout",
         errorSaving: "Fehler beim Speichern",
         editTooltip: "Bearbeiten",
       },
@@ -1411,6 +1415,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         roleAdmin: "Administrator",
         roleModerator: "Moderator",
         language: "Language",
+        sessionTimeout: "Inactivity timeout (minutes)",
+        sessionTimeoutNone: "No automatic logout",
         errorSaving: "Error saving",
         editTooltip: "Edit",
       },

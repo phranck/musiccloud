@@ -117,6 +117,7 @@ export const adminUsers = pgTable("admin_users", {
   locale: text("locale").notNull().default("de"),
   inviteTokenHash: text("invite_token_hash"),
   inviteExpiresAt: timestamp("invite_expires_at", { withTimezone: true }),
+  sessionTimeoutMinutes: integer("session_timeout_minutes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
 });

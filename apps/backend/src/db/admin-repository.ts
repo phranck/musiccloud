@@ -8,6 +8,7 @@ export interface AdminUser {
   lastName: string | null;
   avatarUrl: string | null;
   locale: string;
+  sessionTimeoutMinutes: number | null;
   createdAt: number;
   lastLoginAt: number | null;
 }
@@ -100,6 +101,7 @@ export interface AdminRepository {
     avatarUrl: string | null;
     locale: string;
     role: string;
+    sessionTimeoutMinutes: number | null;
   }>): Promise<AdminUser | null>;
   deleteAdminUser(id: string): Promise<void>;
   listTracks(params: {

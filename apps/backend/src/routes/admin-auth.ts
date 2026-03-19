@@ -26,6 +26,7 @@ function buildUserResponse(user: AdminUser) {
     firstName: user.firstName,
     lastName: user.lastName,
     avatarUrl: user.avatarUrl,
+    sessionTimeoutMinutes: user.sessionTimeoutMinutes,
     createdAt: new Date(user.createdAt).toISOString(),
     lastLoginAt: user.lastLoginAt ? new Date(user.lastLoginAt).toISOString() : null,
   };
@@ -143,6 +144,42 @@ async function adminAuthRoutes(app: FastifyInstance) {
     }
 
     return reply.send(buildUserResponse(user));
+  });
+
+  /**
+   * POST /api/admin/auth/refresh
+   * Issues a new JWT for the currently authenticated admin user.
+   * Requires a valid (non-expired) JWT.
+   */
+  app.post("/api/admin/auth/refresh", async (request, reply) => {
+    const authHeader = request.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });
+    }
+
+    try {
+      await request.jwtVerify();
+    } catch {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired token." });
+    }
+
+    const payload = request.user as { sub?: string; role?: string };
+    if (payload.role !== "admin" || !payload.sub) {
+      return reply.status(403).send({ error: "FORBIDDEN", message: "Admin access required." });
+    }
+
+    const repo = await getAdminRepository();
+    const user = await repo.findAdminById(payload.sub);
+    if (!user) {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "User not found." });
+    }
+
+    const token = app.jwt.sign(
+      { sub: user.id, username: user.username, role: "admin", dbRole: user.role },
+      { expiresIn: "24h" }
+    );
+
+    return reply.send({ token });
   });
 }
 

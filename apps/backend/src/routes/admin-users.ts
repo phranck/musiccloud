@@ -70,6 +70,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     if (body.firstName !== undefined) updates.firstName = body.firstName;
     if (body.lastName !== undefined) updates.lastName = body.lastName;
     if (body.locale !== undefined) updates.locale = body.locale;
+    if (body.sessionTimeoutMinutes !== undefined) updates.sessionTimeoutMinutes = body.sessionTimeoutMinutes as number | null;
 
     // Role changes: owner only, not self
     if (body.role !== undefined) {
@@ -198,6 +199,7 @@ function toResponse(user: AdminUser) {
     firstName: user.firstName,
     lastName: user.lastName,
     avatarUrl: user.avatarUrl,
+    sessionTimeoutMinutes: user.sessionTimeoutMinutes,
     createdAt: new Date(user.createdAt).toISOString(),
     lastLoginAt: user.lastLoginAt ? new Date(user.lastLoginAt).toISOString() : null,
   };

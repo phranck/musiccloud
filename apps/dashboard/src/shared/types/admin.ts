@@ -13,6 +13,7 @@ export interface AdminUser {
   firstName?: string | null;
   lastName?: string | null;
   avatarUrl?: string | null;
+  sessionTimeoutMinutes?: number | null;
   createdAt: string;
   lastLoginAt: string | null;
 }

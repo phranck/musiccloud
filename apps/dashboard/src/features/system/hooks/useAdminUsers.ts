@@ -46,6 +46,7 @@ interface UpdateUserFormData {
   lastName?: string;
   locale?: "de" | "en";
   role?: "admin" | "moderator";
+  sessionTimeoutMinutes?: number | null;
 }
 
 export function useUpdateUser() {

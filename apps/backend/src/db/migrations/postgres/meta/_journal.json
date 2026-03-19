@@ -15,6 +15,13 @@
       "when": 1773924925612,
       "tag": "0001_sturdy_thunderbolt_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773951305018,
+      "tag": "0002_yielding_frightful_four",
+      "breakpoints": true
     }
   ]
 }

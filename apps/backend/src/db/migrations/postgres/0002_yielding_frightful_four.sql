@@ -1,0 +1,1 @@
+ALTER TABLE "admin_users" ADD COLUMN "session_timeout_minutes" integer;

@@ -54,10 +54,11 @@ interface UserEditDraftState {
   locale: AdminLocale;
   role: EditableRole;
   logoutConfirm: boolean;
+  sessionTimeoutMinutes: string;
   avatar: AvatarState;
 }
 
-type UserEditField = "username" | "email" | "password" | "firstName" | "lastName";
+type UserEditField = "username" | "email" | "password" | "firstName" | "lastName" | "sessionTimeoutMinutes";
 
 type UserEditDraftAction =
   | { type: "setField"; field: UserEditField; value: string }
@@ -113,6 +114,7 @@ function createInitialDraft(user: AdminUser): UserEditDraftState {
     locale: user.locale,
     role: user.role === "moderator" ? "moderator" : "admin",
     logoutConfirm: localStorage.getItem("logout-skip-confirm") !== "true",
+    sessionTimeoutMinutes: user.sessionTimeoutMinutes != null ? String(user.sessionTimeoutMinutes) : "",
     avatar: { ...EMPTY_AVATAR_STATE, previewUrl: user.avatarUrl ?? null },
   };
 }
@@ -255,6 +257,19 @@ function UserProfileFields({
               <LanguageToggle value={draft.locale} onChange={onLocaleChange} />
             </div>
           </div>
+          <div>
+            <FormLabel htmlFor="user-edit-session-timeout">{usersMessages.editCard.sessionTimeout}</FormLabel>
+            <input
+              id="user-edit-session-timeout"
+              type="number"
+              min="1"
+              max="480"
+              value={draft.sessionTimeoutMinutes}
+              onChange={(e) => onFieldChange("sessionTimeoutMinutes", e.target.value)}
+              placeholder={usersMessages.editCard.sessionTimeoutNone}
+              className={formInputClass}
+            />
+          </div>
           <label className="flex items-center gap-2 cursor-pointer select-none px-[5px] pt-1">
             <input type="checkbox" checked={draft.logoutConfirm} onChange={(e) => onLogoutConfirmChange(e.target.checked)} className="w-4 h-4 rounded accent-[var(--color-primary)]" />
             <span className="text-xs text-[var(--ds-text-muted)]">{logoutConfirmLabel}</span>
@@ -284,12 +299,13 @@ function UserEditCardForm({
 
   const canChangeRole = Boolean(me?.isOwner) && user.id !== me?.id && user.role !== "owner";
   const roleChanged = canChangeRole && draft.role !== (user.role === "moderator" ? "moderator" : "admin");
+  const savedSessionTimeout = user.sessionTimeoutMinutes != null ? String(user.sessionTimeoutMinutes) : "";
   const hasChanges =
     draft.username !== user.username || draft.email !== user.email || draft.password.trim() !== "" ||
     draft.firstName !== (user.firstName ?? "") || draft.lastName !== (user.lastName ?? "") ||
     draft.locale !== user.locale || roleChanged || draft.avatar.pendingFile !== null ||
     draft.avatar.pendingGravatarUrl !== null || draft.avatar.deleted ||
-    (me?.id === user.id && draft.logoutConfirm !== savedLogoutConfirm);
+    (me?.id === user.id && (draft.logoutConfirm !== savedLogoutConfirm || draft.sessionTimeoutMinutes !== savedSessionTimeout));
 
   const canSave = hasChanges && draft.username.trim() !== "" && draft.email.trim() !== "" && !isPending;
   const currentAvatarUrl = draft.avatar.previewUrl;
@@ -335,6 +351,9 @@ function UserEditCardForm({
     if (draft.lastName !== (user.lastName ?? "")) profileChanges.lastName = draft.lastName;
     if (draft.locale !== user.locale) profileChanges.locale = draft.locale;
     if (roleChanged) profileChanges.role = draft.role;
+    if (me?.id === user.id && draft.sessionTimeoutMinutes !== savedSessionTimeout) {
+      profileChanges.sessionTimeoutMinutes = draft.sessionTimeoutMinutes === "" ? null : Number(draft.sessionTimeoutMinutes);
+    }
 
     if (Object.keys(profileChanges).length > 0) {
       await updateUser.mutateAsync({ id: user.id, data: profileChanges as Parameters<typeof updateUser.mutateAsync>[0]["data"] });

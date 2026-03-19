@@ -82,6 +82,7 @@ interface AdminUserRow {
   locale: string;
   invite_token_hash: string | null;
   invite_expires_at: Date | null;
+  session_timeout_minutes: number | null;
   created_at: Date;
   last_login_at: Date | null;
 }
@@ -929,6 +930,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       lastName: row.last_name,
       avatarUrl: row.avatar_url,
       locale: row.locale,
+      sessionTimeoutMinutes: row.session_timeout_minutes,
       createdAt: dateToMs(row.created_at),
       lastLoginAt: row.last_login_at ? dateToMs(row.last_login_at) : null,
     };
@@ -938,7 +940,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT id, username, password_hash, email, role, first_name, last_name,
               avatar_url, locale, invite_token_hash, invite_expires_at,
-              created_at, last_login_at
+              session_timeout_minutes, created_at, last_login_at
        FROM admin_users WHERE id = $1`,
       [id]
     );
@@ -951,7 +953,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT id, username, password_hash, email, role, first_name, last_name,
               avatar_url, locale, invite_token_hash, invite_expires_at,
-              created_at, last_login_at
+              session_timeout_minutes, created_at, last_login_at
        FROM admin_users WHERE username = $1`,
       [username]
     );
@@ -1007,7 +1009,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT id, username, password_hash, email, role, first_name, last_name,
               avatar_url, locale, invite_token_hash, invite_expires_at,
-              created_at, last_login_at
+              session_timeout_minutes, created_at, last_login_at
        FROM admin_users
        ORDER BY created_at ASC`
     );
@@ -1025,6 +1027,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       avatarUrl: string | null;
       locale: string;
       role: string;
+      sessionTimeoutMinutes: number | null;
     }>
   ): Promise<AdminUser | null> {
     const columnMap: Record<string, string> = {
@@ -1036,6 +1039,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       avatarUrl: "avatar_url",
       locale: "locale",
       role: "role",
+      sessionTimeoutMinutes: "session_timeout_minutes",
     };
 
     const setClauses: string[] = [];
@@ -1059,7 +1063,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
        WHERE id = $${paramIndex}
        RETURNING id, username, password_hash, email, role, first_name, last_name,
                  avatar_url, locale, invite_token_hash, invite_expires_at,
-                 created_at, last_login_at`,
+                 session_timeout_minutes, created_at, last_login_at`,
       values
     );
 
