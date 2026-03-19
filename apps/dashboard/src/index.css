@@ -1,5 +1,12 @@
 @import "./shared/styles/tokens.css";
 
+@font-face {
+  font-family: "Nasalization";
+  src: url("/fonts/nasalization-rg.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+
 /* Dashboard-specific token overrides */
 :root {
   --radius-control: 0.5rem;
