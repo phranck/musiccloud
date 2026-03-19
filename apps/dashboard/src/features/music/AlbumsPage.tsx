@@ -36,7 +36,7 @@ interface AlbumListItem {
   isFeatured: boolean;
 }
 
-const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "https://music.cloud";
+const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "https://musiccloud.io";
 
 function releaseYear(date: string | null): string {
   if (!date) return "";
