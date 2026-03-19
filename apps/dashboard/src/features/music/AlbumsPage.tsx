@@ -181,7 +181,7 @@ export function AlbumsPage() {
         sortKey: (album) => album.sourceService ?? "",
         cell: (album) =>
           album.sourceService ? (
-            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize bg-[var(--ds-surface-raised)] text-[var(--ds-text-muted)] border border-[var(--ds-border)]">
+            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize whitespace-nowrap bg-[var(--ds-surface-raised)] text-[var(--ds-text-muted)] border border-[var(--ds-border)]">
               {album.sourceService}
             </span>
           ) : null,

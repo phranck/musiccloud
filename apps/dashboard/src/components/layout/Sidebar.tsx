@@ -33,6 +33,7 @@ import { SidebarFooter } from "@/components/layout/SidebarFooter";
 import { SidebarHeader } from "@/components/layout/SidebarHeader";
 import { SidebarItem } from "@/components/layout/SidebarItem";
 import { useI18n } from "@/context/I18nContext";
+import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
 
 const ROLE_RANK: Record<AdminRole, number> = { owner: 2, admin: 1, moderator: 0 };
 const SIDEBAR_GROUP_STORAGE_KEYS = [
@@ -172,6 +173,7 @@ export function Sidebar({
   const { messages } = useI18n();
   const s = messages.layout.sidebar;
   const isAdmin = role !== undefined && ROLE_RANK[role] >= ROLE_RANK.admin;
+  const { data: stats } = useAdminStats();
 
   const [groupOpenVersion, setGroupOpenVersion] = useState(0);
   const [groupOpenState, setGroupOpenState] = useState<boolean | null>(null);
@@ -272,12 +274,14 @@ export function Sidebar({
             to="/tracks"
             label={s.tracks}
             icon={<MusicNotesIcon weight="duotone" className="w-4 h-4" />}
+            badge={stats?.tracks}
             onClick={onItemClick}
           />
           <SidebarItem
             to="/albums"
             label={s.albums}
             icon={<VinylRecordIcon weight="duotone" className="w-4 h-4" />}
+            badge={stats?.albums}
             onClick={onItemClick}
           />
         </div>

@@ -177,7 +177,7 @@ export function TracksPage() {
         sortKey: (track) => track.sourceService ?? "",
         cell: (track) =>
           track.sourceService ? (
-            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize bg-[var(--ds-surface-raised)] text-[var(--ds-text-muted)] border border-[var(--ds-border)]">
+            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize whitespace-nowrap bg-[var(--ds-surface-raised)] text-[var(--ds-text-muted)] border border-[var(--ds-border)]">
               {track.sourceService}
             </span>
           ) : null,
