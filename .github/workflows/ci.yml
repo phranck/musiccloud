@@ -16,6 +16,7 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npx tsc --noEmit --project packages/shared/tsconfig.json
+      - run: npm run build --workspace=packages/shared
 
   backend:
     name: Backend
@@ -27,6 +28,7 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - run: npm run build --workspace=packages/shared
       - run: npx tsc --noEmit --project apps/backend/tsconfig.json
       - run: npm run test:run --workspace=apps/backend --if-present
 
@@ -40,10 +42,11 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - run: npx astro sync
-      - run: npx tsc --noEmit
+      - run: npm run build --workspace=packages/shared
+      - run: npx astro sync --project apps/frontend
+      - run: npx tsc --noEmit --project apps/frontend/tsconfig.json
       - run: npm run test:run --workspace=apps/frontend --if-present
-      - run: npm run build --workspace=packages/shared && npm run build --workspace=apps/frontend
+      - run: npm run build --workspace=apps/frontend
 
   dashboard:
     name: Dashboard
@@ -55,5 +58,6 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - run: npm run build --workspace=packages/shared
       - run: npx tsc --noEmit --project apps/dashboard/tsconfig.json
       - run: npm run test:run --workspace=apps/dashboard --if-present
