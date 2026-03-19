@@ -17,6 +17,7 @@ import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
 import resolveAlbumRoutes from "./routes/resolve-album.js";
 import shareRoutes from "./routes/share.js";
+import { runMigrations } from "./db/run-migrations.js";
 import { warmAppleMusicToken } from "./services/adapters/apple-music.js";
 import { validateAdapters } from "./services/index.js";
 
@@ -98,6 +99,7 @@ async function start() {
   }
 
   try {
+    await runMigrations();
     await app.listen({ host: HOST, port: PORT });
     app.log.info(`Backend listening on ${HOST}:${PORT}`);
     validateAdapters();
