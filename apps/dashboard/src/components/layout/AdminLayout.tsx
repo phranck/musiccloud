@@ -8,6 +8,7 @@ import { useI18n } from "@/context/I18nContext";
 import { PageHeaderProvider, usePageHeaderContext } from "@/context/PageHeaderContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/features/auth/AuthContext";
+import { UserEditCard } from "@/features/system/UserEditCard";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
 
 const SIDEBAR_DEFAULT = 224;
@@ -87,6 +88,7 @@ function AdminLayoutInner() {
   const { messages } = useI18n();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const { title, titleContent, setLeadingEl, setActionsEl } = usePageHeaderContext();
   const { width: sidebarWidth, onMouseDown: onResizeStart } = useSidebarWidth();
   const hasCustomTitleContent = titleContent !== null;
@@ -113,7 +115,7 @@ function AdminLayoutInner() {
           avatarUrl={user?.avatarUrl}
           role={user?.role}
           onLogout={handleLogout}
-          onEditProfile={() => {}}
+          onEditProfile={() => setEditProfileOpen(true)}
         />
         <button
           type="button"
@@ -144,7 +146,7 @@ function AdminLayoutInner() {
               role={user?.role}
               onLogout={handleLogout}
               onItemClick={() => setSidebarOpen(false)}
-              onEditProfile={() => {}}
+              onEditProfile={() => setEditProfileOpen(true)}
             />
           </aside>
         </div>
@@ -185,6 +187,14 @@ function AdminLayoutInner() {
           <Outlet />
         </main>
       </div>
+
+      {editProfileOpen && user?.id && (
+        <UserEditCard
+          userId={user.id}
+          onClose={() => setEditProfileOpen(false)}
+          onSaved={() => setEditProfileOpen(false)}
+        />
+      )}
     </div>
   );
 }

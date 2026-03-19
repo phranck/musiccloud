@@ -2,6 +2,12 @@ export interface AdminUser {
   id: string;
   username: string;
   passwordHash: string;
+  email: string | null;
+  role: string;
+  firstName: string | null;
+  lastName: string | null;
+  avatarUrl: string | null;
+  locale: string;
   createdAt: number;
   lastLoginAt: number | null;
 }
@@ -73,8 +79,29 @@ export interface AdminRepository {
   countAdmins(): Promise<number>;
   findAdminById(id: string): Promise<AdminUser | null>;
   findAdminByUsername(username: string): Promise<AdminUser | null>;
-  createAdminUser(data: { id: string; username: string; passwordHash: string }): Promise<void>;
+  createAdminUser(data: {
+    id: string;
+    username: string;
+    passwordHash: string;
+    email?: string;
+    role?: string;
+    locale?: string;
+    inviteTokenHash?: string;
+    inviteExpiresAt?: Date;
+  }): Promise<void>;
   updateLastLogin(id: string): Promise<void>;
+  listAdminUsers(): Promise<AdminUser[]>;
+  updateAdminUser(id: string, data: Partial<{
+    username: string;
+    email: string;
+    passwordHash: string;
+    firstName: string | null;
+    lastName: string | null;
+    avatarUrl: string | null;
+    locale: string;
+    role: string;
+  }>): Promise<AdminUser | null>;
+  deleteAdminUser(id: string): Promise<void>;
   listTracks(params: {
     page: number;
     limit: number;

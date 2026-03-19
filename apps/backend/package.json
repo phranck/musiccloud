@@ -15,6 +15,7 @@
     "@fastify/cors": "^11.2.0",
     "@fastify/helmet": "^13.0.2",
     "@fastify/jwt": "^10.0.0",
+    "@fastify/multipart": "^9.4.0",
     "@fastify/sensible": "^6.0.4",
     "@musiccloud/shared": "*",
     "bcryptjs": "^3.0.3",

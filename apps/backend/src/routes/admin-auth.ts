@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { nanoid } from "nanoid";
 import { getAdminRepository } from "../db/index.js";
+import type { AdminUser } from "../db/admin-repository.js";
 
 interface SetupBody {
   username: string;
@@ -14,13 +15,17 @@ interface LoginBody {
   password: string;
 }
 
-function buildUserResponse(user: { id: string; username: string; createdAt: number; lastLoginAt: number | null }) {
+function buildUserResponse(user: AdminUser) {
   return {
     id: user.id,
     username: user.username,
-    role: "admin" as const,
-    isOwner: true,
-    locale: "de" as const,
+    email: user.email ?? undefined,
+    role: user.role as "owner" | "admin" | "moderator",
+    isOwner: user.role === "owner",
+    locale: (user.locale || "de") as "de" | "en",
+    firstName: user.firstName,
+    lastName: user.lastName,
+    avatarUrl: user.avatarUrl,
     createdAt: new Date(user.createdAt).toISOString(),
     lastLoginAt: user.lastLoginAt ? new Date(user.lastLoginAt).toISOString() : null,
   };
@@ -72,7 +77,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    await repo.createAdminUser({ id: nanoid(), username, passwordHash });
+    await repo.createAdminUser({ id: nanoid(), username, passwordHash, role: "owner", locale: "de" });
 
     app.log.info("[Admin] First admin user created");
     return reply.status(201).send({ message: "Admin user created." });
@@ -102,7 +107,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid username or password." });
     }
 
-    const token = app.jwt.sign({ sub: user.id, username: user.username, role: "admin" }, { expiresIn: "24h" });
+    const token = app.jwt.sign({ sub: user.id, username: user.username, role: "admin", dbRole: user.role }, { expiresIn: "24h" });
 
     // Update last login timestamp (fire and forget)
     repo.updateLastLogin(user.id).catch(() => undefined);

@@ -10,6 +10,7 @@ import {
   dialogHeaderIconClass,
 } from "@/shared/ui/Dialog";
 import { useI18n } from "@/context/I18nContext";
+import { UserAvatar } from "@/features/system/UserAvatar";
 
 const SKIP_KEY = "logout-skip-confirm";
 
@@ -23,22 +24,12 @@ interface SidebarFooterProps {
   onEditProfile?: () => void;
 }
 
-function UserInitials({ username, className }: { username: string; className?: string }) {
-  const initials = username.slice(0, 2).toUpperCase();
-  return (
-    <div
-      className={`w-7 h-7 rounded-full bg-[var(--ds-surface-hover)] text-[var(--ds-text-muted)] flex items-center justify-center text-xs font-bold ${className ?? ""}`}
-    >
-      {initials}
-    </div>
-  );
-}
-
 export function SidebarFooter({
   username,
   firstName,
   lastName,
   role,
+  avatarUrl,
   onLogout,
   onEditProfile,
 }: SidebarFooterProps) {
@@ -76,7 +67,9 @@ export function SidebarFooter({
     <>
       <div className="shrink-0 min-h-14 border-t border-[var(--ds-border)] px-5 flex items-center">
         <div className="w-full flex items-center gap-3">
-          {username && <UserInitials username={username} className="shrink-0" />}
+          {username && (
+            <UserAvatar username={username} avatarUrl={avatarUrl} size="sm" className="shrink-0" />
+          )}
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-[var(--ds-text)] truncate">{displayName}</p>
             {role && (

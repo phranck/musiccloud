@@ -1,6 +1,7 @@
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
+import multipart from "@fastify/multipart";
 import sensible from "@fastify/sensible";
 import Fastify from "fastify";
 
@@ -8,6 +9,7 @@ import authPlugin from "./plugins/auth.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminDataRoutes from "./routes/admin-data.js";
 import adminSseRoutes from "./routes/admin-sse.js";
+import adminUserRoutes from "./routes/admin-users.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import authRoutes from "./routes/auth.js";
 import linkRoutes from "./routes/link.js";
@@ -34,6 +36,7 @@ async function buildApp() {
   });
   await app.register(helmet);
   await app.register(sensible);
+  await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
 
   // JWT plugin (used by auth routes and public API auth)
   await app.register(jwt, {
@@ -75,6 +78,7 @@ async function buildApp() {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
     await adminApp.register(adminDataRoutes);
     await adminApp.register(adminSseRoutes);
+    await adminApp.register(adminUserRoutes);
   });
 
   return app;

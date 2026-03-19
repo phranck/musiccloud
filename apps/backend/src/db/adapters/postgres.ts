@@ -74,6 +74,14 @@ interface AdminUserRow {
   id: string;
   username: string;
   password_hash: string;
+  email: string | null;
+  role: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  locale: string;
+  invite_token_hash: string | null;
+  invite_expires_at: Date | null;
   created_at: Date;
   last_login_at: Date | null;
 }
@@ -910,51 +918,75 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // ADMIN QUERIES (AdminRepository)
   // ============================================================================
 
+  private rowToAdminUser(row: AdminUserRow): AdminUser {
+    return {
+      id: row.id,
+      username: row.username,
+      passwordHash: row.password_hash,
+      email: row.email,
+      role: row.role,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      avatarUrl: row.avatar_url,
+      locale: row.locale,
+      createdAt: dateToMs(row.created_at),
+      lastLoginAt: row.last_login_at ? dateToMs(row.last_login_at) : null,
+    };
+  }
+
   async findAdminById(id: string): Promise<AdminUser | null> {
     const result = await this.pool.query(
-      `SELECT id, username, password_hash, created_at, last_login_at
+      `SELECT id, username, password_hash, email, role, first_name, last_name,
+              avatar_url, locale, invite_token_hash, invite_expires_at,
+              created_at, last_login_at
        FROM admin_users WHERE id = $1`,
       [id]
     );
 
     if (result.rows.length === 0) return null;
-    const row = result.rows[0] as AdminUserRow;
-
-    return {
-      id: row.id,
-      username: row.username,
-      passwordHash: row.password_hash,
-      createdAt: dateToMs(row.created_at),
-      lastLoginAt: row.last_login_at ? dateToMs(row.last_login_at) : null,
-    };
+    return this.rowToAdminUser(result.rows[0] as AdminUserRow);
   }
 
   async findAdminByUsername(username: string): Promise<AdminUser | null> {
     const result = await this.pool.query(
-      `SELECT id, username, password_hash, created_at, last_login_at
+      `SELECT id, username, password_hash, email, role, first_name, last_name,
+              avatar_url, locale, invite_token_hash, invite_expires_at,
+              created_at, last_login_at
        FROM admin_users WHERE username = $1`,
       [username]
     );
 
     if (result.rows.length === 0) return null;
-    const row = result.rows[0] as AdminUserRow;
-
-    return {
-      id: row.id,
-      username: row.username,
-      passwordHash: row.password_hash,
-      createdAt: dateToMs(row.created_at),
-      lastLoginAt: row.last_login_at ? dateToMs(row.last_login_at) : null,
-    };
+    return this.rowToAdminUser(result.rows[0] as AdminUserRow);
   }
 
-  async createAdminUser(data: { id: string; username: string; passwordHash: string }): Promise<void> {
+  async createAdminUser(data: {
+    id: string;
+    username: string;
+    passwordHash: string;
+    email?: string;
+    role?: string;
+    locale?: string;
+    inviteTokenHash?: string;
+    inviteExpiresAt?: Date;
+  }): Promise<void> {
     const now = new Date();
 
     await this.pool.query(
-      `INSERT INTO admin_users (id, username, password_hash, created_at)
-       VALUES ($1, $2, $3, $4)`,
-      [data.id, data.username, data.passwordHash, now]
+      `INSERT INTO admin_users (id, username, password_hash, email, role, locale,
+                                invite_token_hash, invite_expires_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        data.id,
+        data.username,
+        data.passwordHash,
+        data.email ?? null,
+        data.role ?? "admin",
+        data.locale ?? "de",
+        data.inviteTokenHash ?? null,
+        data.inviteExpiresAt ?? null,
+        now,
+      ]
     );
   }
 
@@ -969,6 +1001,74 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async countAdmins(): Promise<number> {
     const result = await this.pool.query(`SELECT COUNT(*) as count FROM admin_users`);
     return result.rows[0]?.count ?? 0;
+  }
+
+  async listAdminUsers(): Promise<AdminUser[]> {
+    const result = await this.pool.query(
+      `SELECT id, username, password_hash, email, role, first_name, last_name,
+              avatar_url, locale, invite_token_hash, invite_expires_at,
+              created_at, last_login_at
+       FROM admin_users
+       ORDER BY created_at ASC`
+    );
+    return result.rows.map((row) => this.rowToAdminUser(row as AdminUserRow));
+  }
+
+  async updateAdminUser(
+    id: string,
+    data: Partial<{
+      username: string;
+      email: string;
+      passwordHash: string;
+      firstName: string | null;
+      lastName: string | null;
+      avatarUrl: string | null;
+      locale: string;
+      role: string;
+    }>
+  ): Promise<AdminUser | null> {
+    const columnMap: Record<string, string> = {
+      username: "username",
+      email: "email",
+      passwordHash: "password_hash",
+      firstName: "first_name",
+      lastName: "last_name",
+      avatarUrl: "avatar_url",
+      locale: "locale",
+      role: "role",
+    };
+
+    const setClauses: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    for (const [key, value] of Object.entries(data)) {
+      const column = columnMap[key];
+      if (column) {
+        setClauses.push(`${column} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      }
+    }
+
+    if (setClauses.length === 0) return null;
+
+    values.push(id);
+    const result = await this.pool.query(
+      `UPDATE admin_users SET ${setClauses.join(", ")}
+       WHERE id = $${paramIndex}
+       RETURNING id, username, password_hash, email, role, first_name, last_name,
+                 avatar_url, locale, invite_token_hash, invite_expires_at,
+                 created_at, last_login_at`,
+      values
+    );
+
+    if (result.rows.length === 0) return null;
+    return this.rowToAdminUser(result.rows[0] as AdminUserRow);
+  }
+
+  async deleteAdminUser(id: string): Promise<void> {
+    await this.pool.query(`DELETE FROM admin_users WHERE id = $1`, [id]);
   }
 
   // ============================================================================
