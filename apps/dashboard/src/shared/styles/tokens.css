@@ -1,0 +1,347 @@
+/* =============================================================
+   Design Tokens
+   Namespace:   --ds-
+   Color space: OKLCH (perceptually uniform, wide-gamut ready)
+   Convention:  two-tier - primitives -> semantics
+
+   Usage:
+     @import "./shared/styles/tokens.css";
+   ============================================================= */
+
+/* -- PRIMITIVE TOKENS ---------------------------------------- */
+
+:root {
+  /* Brand - Blue (musiccloud) */
+  --ds-color-brand-50: oklch(0.970 0.014 240);
+  --ds-color-brand-100: oklch(0.932 0.032 240);
+  --ds-color-brand-200: oklch(0.882 0.059 240);
+  --ds-color-brand-300: oklch(0.809 0.105 240);
+  --ds-color-brand-400: oklch(0.714 0.150 240);
+  --ds-color-brand-500: oklch(0.623 0.214 255); /* #00aef1 */
+  --ds-color-brand-600: oklch(0.556 0.200 255);
+  --ds-color-brand-700: oklch(0.480 0.170 255);
+  --ds-color-brand-800: oklch(0.395 0.135 255);
+  --ds-color-brand-900: oklch(0.310 0.100 255);
+  --ds-color-brand-950: oklch(0.220 0.065 255);
+
+  /* Neutral - Stone */
+  --ds-color-neutral-50: oklch(0.985 0.001 106.4);
+  --ds-color-neutral-100: oklch(0.961 0.003 106.4);
+  --ds-color-neutral-200: oklch(0.921 0.007 106.4);
+  --ds-color-neutral-300: oklch(0.869 0.012 106.4);
+  --ds-color-neutral-400: oklch(0.706 0.023 48.7);
+  --ds-color-neutral-500: oklch(0.553 0.021 38.2);
+  --ds-color-neutral-600: oklch(0.445 0.017 38.2);
+  --ds-color-neutral-700: oklch(0.374 0.014 38.2);
+  --ds-color-neutral-800: oklch(0.274 0.011 38.2);
+  --ds-color-neutral-900: oklch(0.216 0.009 38.2);
+  --ds-color-neutral-950: oklch(0.147 0.006 38.2);
+
+  /* Status - Semantic color primitives */
+  --ds-color-success-50: oklch(0.982 0.018 155.8);
+  --ds-color-success-600: oklch(0.627 0.194 149.6);
+  --ds-color-success-700: oklch(0.527 0.154 150.1);
+
+  --ds-color-danger-50: oklch(0.971 0.013 17.4);
+  --ds-color-danger-600: oklch(0.577 0.245 27.3);
+  --ds-color-danger-700: oklch(0.505 0.213 27.3);
+
+  --ds-color-warning-50: oklch(0.987 0.022 95.3);
+  --ds-color-warning-600: oklch(0.666 0.179 58.3);
+  --ds-color-warning-700: oklch(0.555 0.163 58.3);
+
+  /* -- COLOR SYSTEM ------------------------------------------ */
+  --ds-neutral-c: 0.006;
+  --ds-neutral-h: 250;
+  --ds-L-surface-step: 0.025;
+  --ds-L-text-step: 0.16;
+}
+
+/* -- SEMANTIC TOKENS - Light mode ----------------------------- */
+
+:root {
+  /* Surface lightness levels */
+  --ds-L-surface: 1;
+  --ds-L-bg: calc(var(--ds-L-surface) - var(--ds-L-surface-step));
+  --ds-L-elevated: calc(var(--ds-L-surface) - var(--ds-L-surface-step) * 2);
+  --ds-L-inset: calc(var(--ds-L-bg) - var(--ds-L-surface-step));
+
+  /* Text lightness levels */
+  --ds-L-text: 0.2;
+  --ds-L-muted: calc(var(--ds-L-text) + var(--ds-L-text-step));
+  --ds-L-subtle: calc(var(--ds-L-text) + var(--ds-L-text-step) * 2);
+
+  /* Surfaces */
+  --ds-bg: oklch(var(--ds-L-bg) var(--ds-neutral-c) var(--ds-neutral-h));
+  --ds-bg-elevated: oklch(var(--ds-L-elevated) var(--ds-neutral-c) var(--ds-neutral-h));
+  --ds-surface: oklch(var(--ds-L-surface) var(--ds-neutral-c) var(--ds-neutral-h));
+  --ds-surface-alt: oklch(var(--ds-L-inset) var(--ds-neutral-c) var(--ds-neutral-h));
+  --ds-surface-inset: oklch(var(--ds-L-inset) var(--ds-neutral-c) var(--ds-neutral-h));
+  --ds-input-bg: var(--ds-surface);
+
+  /* Borders */
+  --ds-border: #d0d7de;
+  --ds-border-strong: #6e7781;
+  --ds-border-subtle: hsl(210 14% 89%);
+
+  /* Text */
+  --ds-text: oklch(var(--ds-L-text) var(--ds-neutral-c) var(--ds-neutral-h));
+  --ds-text-muted: oklch(var(--ds-L-muted) var(--ds-neutral-c) var(--ds-neutral-h));
+  --ds-text-subtle: oklch(var(--ds-L-subtle) var(--ds-neutral-c) var(--ds-neutral-h));
+  --ds-text-inverse: #ffffff;
+
+  /* Accent / CTA */
+  --ds-accent: var(--ds-color-brand-500);
+  --ds-accent-hover: var(--ds-color-brand-600);
+  --ds-accent-active: var(--ds-color-brand-700);
+  --ds-accent-subtle: var(--ds-color-brand-50);
+  --ds-accent-fg: #ffffff;
+
+  /* Status */
+  --ds-success-bg: hsl(135 60% 92%);
+  --ds-success-border: hsl(130 40% 70%);
+  --ds-success-text: hsl(140 65% 30%);
+  --ds-danger-bg: hsl(0 80% 95%);
+  --ds-danger-border: hsl(0 60% 72%);
+  --ds-danger-text: hsl(0 75% 48%);
+  --ds-warning-bg: hsl(48 90% 90%);
+  --ds-warning-border: hsl(45 65% 55%);
+  --ds-warning-text: hsl(40 100% 30%);
+  --ds-info-bg: hsl(205 80% 93%);
+  --ds-info-border: hsl(210 70% 68%);
+  --ds-info-text: hsl(212 80% 44%);
+
+  /* Typography - font families */
+  --ds-font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --ds-font-mono: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+
+  /* Typography Scale - Perfect Fourth */
+  --ds-scale: 1.333;
+  --ds-text-xs: calc(1rem / var(--ds-scale) / var(--ds-scale));
+  --ds-text-sm: calc(1rem / var(--ds-scale));
+  --ds-text-base: 1rem;
+  --ds-text-lg: calc(1rem * var(--ds-scale));
+  --ds-text-xl: calc(1rem * var(--ds-scale) * var(--ds-scale));
+  --ds-text-2xl: calc(1rem * var(--ds-scale) * var(--ds-scale) * var(--ds-scale));
+  --ds-text-3xl: calc(1rem * var(--ds-scale) * var(--ds-scale) * var(--ds-scale) * var(--ds-scale));
+  --ds-text-4xl: calc(
+    1rem * var(--ds-scale) * var(--ds-scale) * var(--ds-scale) * var(--ds-scale) * var(--ds-scale)
+  );
+
+  /* Line heights */
+  --ds-leading-xs: 1.6;
+  --ds-leading-sm: 1.55;
+  --ds-leading-base: 1.5;
+  --ds-leading-lg: 1.35;
+  --ds-leading-xl: 1.2;
+  --ds-leading-2xl: 1.1;
+  --ds-leading-3xl: 1;
+  --ds-leading-4xl: 1;
+
+  /* Border radius */
+  --ds-radius-sm: 0.25rem;
+  --ds-radius-md: 0.375rem;
+  --ds-radius-lg: 0.5rem;
+  --ds-radius-xl: 0.75rem;
+  --ds-radius-2xl: 1rem;
+  --ds-radius-3xl: 1.25rem;
+  --ds-radius-pill: 9999px;
+
+  /* Shadows */
+  --ds-shadow-xs: 0 1px 2px oklch(0 0 0 / 0.04);
+  --ds-shadow-sm: 0 1px 3px oklch(0 0 0 / 0.06), 0 1px 2px oklch(0 0 0 / 0.04);
+  --ds-shadow-md: 0 4px 6px oklch(0 0 0 / 0.05), 0 2px 4px oklch(0 0 0 / 0.04);
+  --ds-shadow-lg: 0 10px 15px oklch(0 0 0 / 0.06), 0 4px 6px oklch(0 0 0 / 0.04);
+  --ds-shadow-xl: 0 20px 25px oklch(0 0 0 / 0.08), 0 8px 10px oklch(0 0 0 / 0.04);
+
+  /* Border radius - referenced by UnoCSS theme config */
+  --radius-control: 0.5rem;
+  --radius-card: 1.25rem;
+
+  /* Alias */
+  --color-primary: var(--ds-accent);
+
+  /* Vertical rhythm */
+  --ds-space-xs: 0.375rem;
+  --ds-space-sm: 0.75rem;
+  --ds-space-base: 1.5rem;
+  --ds-space-lg: 2.25rem;
+  --ds-space-xl: 3rem;
+  --ds-space-2xl: 4.5rem;
+
+  /* Motion */
+  --ds-duration-fast: 120ms;
+  --ds-duration-base: 200ms;
+  --ds-duration-slow: 300ms;
+  --ds-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ds-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ds-ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Markdown editor syntax highlighting */
+  --md-heading: #0969da;
+  --md-emphasis: #8250df;
+  --md-code: #bc4c00;
+  --md-quote: #1a7f37;
+  --md-punctuation: #6e7781;
+}
+
+/* -- SEMANTIC TOKENS - Dark mode ------------------------------ */
+
+.dark {
+  --ds-L-surface: 0.225;
+  --ds-L-bg: 0.185;
+  --ds-L-elevated: 0.25;
+  --ds-L-inset: 0.205;
+
+  --ds-L-text: 0.95;
+  --ds-L-muted: 0.65;
+  --ds-L-subtle: 0.5;
+
+  --ds-text-inverse: oklch(var(--ds-L-inset) 0 0);
+  --ds-input-bg: var(--ds-bg-elevated);
+
+  /* Borders */
+  --ds-border: #3d444d;
+  --ds-border-strong: #656c76;
+  --ds-border-subtle: hsl(215 12% 28%);
+
+  /* Accent */
+  --ds-accent-subtle: hsl(215 30% 20%);
+
+  /* Status */
+  --ds-success-bg: hsl(135 25% 18%);
+  --ds-success-border: hsl(130 35% 35%);
+  --ds-success-text: hsl(135 50% 55%);
+  --ds-danger-bg: hsl(0 30% 20%);
+  --ds-danger-border: hsl(0 50% 38%);
+  --ds-danger-text: hsl(0 65% 62%);
+  --ds-warning-bg: hsl(40 35% 18%);
+  --ds-warning-border: hsl(40 50% 35%);
+  --ds-warning-text: hsl(38 60% 55%);
+  --ds-info-bg: hsl(215 30% 20%);
+  --ds-info-border: hsl(215 50% 38%);
+  --ds-info-text: hsl(212 70% 65%);
+
+  /* Shadows */
+  --ds-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+  --ds-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.4);
+  --ds-shadow-md: 0 4px 6px rgb(0 0 0 / 0.45), 0 2px 4px rgb(0 0 0 / 0.35);
+  --ds-shadow-lg: 0 10px 15px rgb(0 0 0 / 0.5), 0 4px 6px rgb(0 0 0 / 0.4);
+  --ds-shadow-xl: 0 20px 25px rgb(0 0 0 / 0.55), 0 8px 10px rgb(0 0 0 / 0.45);
+
+  /* Markdown editor syntax highlighting */
+  --md-heading: #79c0ff;
+  --md-emphasis: #d2a8ff;
+  --md-code: #ffa657;
+  --md-quote: #7ee787;
+  --md-punctuation: #8b949e;
+}
+
+/* -- COMPONENT TOKENS - Light mode ---------------------------- */
+
+:root {
+  /* Overlay / modal backdrop */
+  --ds-overlay-bg: oklch(0 0 0 / 0.5);
+
+  /* Filled button */
+  --ds-btn-filled-bg: var(--ds-color-neutral-900);
+  --ds-btn-filled-hover: var(--ds-color-neutral-800);
+  --ds-btn-filled-fg: #ffffff;
+
+  /* Primary CTA button */
+  --ds-btn-primary-bg: #00aef1;
+  --ds-btn-primary-hover: #0099d4;
+  --ds-btn-primary-fg: #ffffff;
+
+  /* Outline action button: primary */
+  --ds-btn-primary-border: hsl(195 55% 75%);
+  --ds-btn-primary-text: hsl(195 100% 40%);
+  --ds-btn-primary-hover-border: hsl(195 65% 58%);
+  --ds-btn-primary-hover-bg: hsl(195 80% 96%);
+
+  /* Segment controls */
+  --ds-segment-bg: var(--ds-bg-elevated);
+  --ds-segment-active-bg: var(--ds-surface);
+
+  /* Neutral outline button */
+  --ds-btn-neutral-border: var(--ds-border);
+  --ds-btn-neutral-text: var(--ds-text-muted);
+  --ds-btn-neutral-hover-border: var(--ds-border-strong);
+  --ds-btn-neutral-hover-bg: hsl(210 10% 95%);
+
+  /* Outline action button: danger */
+  --ds-btn-danger-border: hsl(355 55% 75%);
+  --ds-btn-danger-text: hsl(0 75% 48%);
+  --ds-btn-danger-hover-bg: hsl(0 80% 95%);
+  --ds-btn-danger-hover-border: hsl(355 60% 58%);
+
+  /* Outline action button: success */
+  --ds-btn-success-border: hsl(140 40% 72%);
+  --ds-btn-success-text: hsl(140 65% 30%);
+  --ds-btn-success-hover-bg: hsl(135 60% 92%);
+  --ds-btn-success-hover-border: hsl(140 50% 52%);
+
+  /* Outline action button: warning */
+  --ds-btn-warning-border: hsl(40 55% 68%);
+  --ds-btn-warning-text: hsl(40 100% 30%);
+  --ds-btn-warning-hover-bg: hsl(48 90% 90%);
+  --ds-btn-warning-hover-border: hsl(40 65% 48%);
+
+  /* Status badges */
+  --ds-badge-pending-bg: hsl(48 90% 90%);
+  --ds-badge-pending-text: hsl(40 100% 30%);
+  --ds-badge-success-bg: hsl(135 60% 92%);
+  --ds-badge-success-text: hsl(140 65% 30%);
+  --ds-badge-danger-bg: hsl(0 80% 95%);
+  --ds-badge-danger-text: hsl(0 75% 48%);
+  --ds-badge-info-bg: hsl(205 80% 93%);
+  --ds-badge-info-text: hsl(212 80% 44%);
+  --ds-badge-review-bg: hsl(270 70% 93%);
+  --ds-badge-review-text: hsl(270 55% 50%);
+}
+
+/* -- COMPONENT TOKENS - Dark mode ----------------------------- */
+
+.dark {
+  --ds-btn-filled-bg: var(--ds-color-neutral-700);
+  --ds-btn-filled-hover: var(--ds-color-neutral-600);
+
+  --ds-btn-primary-border: hsl(195 40% 30%);
+  --ds-btn-primary-text: hsl(195 80% 62%);
+  --ds-btn-primary-hover-border: hsl(195 50% 45%);
+  --ds-btn-primary-hover-bg: hsl(195 30% 20%);
+
+  --ds-segment-bg: var(--ds-bg-elevated);
+  --ds-segment-active-bg: var(--ds-surface);
+
+  --ds-btn-neutral-border: var(--ds-border);
+  --ds-btn-neutral-text: var(--ds-text-muted);
+  --ds-btn-neutral-hover-border: var(--ds-border-strong);
+  --ds-btn-neutral-hover-bg: hsl(215 12% 24%);
+
+  --ds-btn-danger-border: hsl(0 40% 30%);
+  --ds-btn-danger-text: hsl(0 65% 62%);
+  --ds-btn-danger-hover-bg: hsl(0 30% 20%);
+  --ds-btn-danger-hover-border: hsl(0 50% 42%);
+
+  --ds-btn-success-border: hsl(130 30% 30%);
+  --ds-btn-success-text: hsl(135 50% 55%);
+  --ds-btn-success-hover-bg: hsl(135 25% 18%);
+  --ds-btn-success-hover-border: hsl(130 40% 42%);
+
+  --ds-btn-warning-border: hsl(40 40% 30%);
+  --ds-btn-warning-text: hsl(38 60% 55%);
+  --ds-btn-warning-hover-bg: hsl(40 35% 18%);
+  --ds-btn-warning-hover-border: hsl(40 50% 42%);
+
+  --ds-badge-pending-bg: hsl(40 40% 20%);
+  --ds-badge-pending-text: hsl(40 70% 65%);
+  --ds-badge-success-bg: hsl(135 30% 18%);
+  --ds-badge-success-text: hsl(135 50% 60%);
+  --ds-badge-danger-bg: hsl(0 35% 20%);
+  --ds-badge-danger-text: hsl(0 70% 65%);
+  --ds-badge-info-bg: hsl(210 40% 22%);
+  --ds-badge-info-text: hsl(210 80% 72%);
+  --ds-badge-review-bg: hsl(270 30% 25%);
+  --ds-badge-review-text: hsl(270 80% 80%);
+}

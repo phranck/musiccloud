@@ -130,6 +130,9 @@ export interface ArtistCacheData {
   topTracks?: ArtistTopTrack[];
   profile?: ArtistProfile | null;
   events?: ArtistEvent[];
+  profileUpdatedAt?: number;
+  tracksUpdatedAt?: number;
+  eventsUpdatedAt?: number;
 }
 
 // ─── Repository Interface ─────────────────────────────────────────────────────

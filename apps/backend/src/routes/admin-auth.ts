@@ -14,6 +14,18 @@ interface LoginBody {
   password: string;
 }
 
+function buildUserResponse(user: { id: string; username: string; createdAt: number; lastLoginAt: number | null }) {
+  return {
+    id: user.id,
+    username: user.username,
+    role: "admin" as const,
+    isOwner: true,
+    locale: "de" as const,
+    createdAt: new Date(user.createdAt).toISOString(),
+    lastLoginAt: user.lastLoginAt ? new Date(user.lastLoginAt).toISOString() : null,
+  };
+}
+
 async function adminAuthRoutes(app: FastifyInstance) {
   /**
    * GET /api/admin/auth/setup-status
@@ -22,7 +34,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
   app.get("/api/admin/auth/setup-status", async (_request, reply) => {
     const repo = await getAdminRepository();
     const count = await repo.countAdmins();
-    return reply.send({ setupRequired: count === 0 });
+    return reply.send({ needsSetup: count === 0 });
   });
 
   /**
@@ -95,7 +107,37 @@ async function adminAuthRoutes(app: FastifyInstance) {
     // Update last login timestamp (fire and forget)
     repo.updateLastLogin(user.id).catch(() => undefined);
 
-    return reply.send({ token, username: user.username, expiresIn: 86400 });
+    return reply.send({ token, user: buildUserResponse(user) });
+  });
+  /**
+   * GET /api/admin/auth/me
+   * Returns the currently authenticated admin user from the JWT.
+   */
+  app.get("/api/admin/auth/me", async (request, reply) => {
+    const authHeader = request.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });
+    }
+
+    try {
+      await request.jwtVerify();
+    } catch {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired token." });
+    }
+
+    const payload = request.user as { sub?: string; role?: string };
+    if (payload.role !== "admin" || !payload.sub) {
+      return reply.status(403).send({ error: "FORBIDDEN", message: "Admin access required." });
+    }
+
+    const repo = await getAdminRepository();
+    const user = await repo.findAdminById(payload.sub);
+
+    if (!user) {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "User not found." });
+    }
+
+    return reply.send(buildUserResponse(user));
   });
 }
 

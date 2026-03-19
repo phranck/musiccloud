@@ -1,82 +1,84 @@
-const STORAGE_KEY = "admin_token";
+import { createApiRequestError } from "@/shared/utils/api-error";
 
-function getToken(): string | null {
+const API_BASE = "/api";
+const FETCH_TIMEOUT_MS = 30_000;
+const TOKEN_KEY = "admin_token";
+
+function getAuthHeaders(): Record<string, string> {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return null;
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (!stored) return {};
     const { token } = JSON.parse(stored) as { token: string };
-    return token ?? null;
+    if (!token) return {};
+    return { Authorization: `Bearer ${token}` };
   } catch {
-    return null;
+    return {};
   }
 }
 
-export async function apiGet<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
-  const token = getToken();
-  let url = path;
-
-  if (params) {
-    const searchParams = new URLSearchParams();
-    for (const [key, value] of Object.entries(params)) {
-      if (value !== undefined) searchParams.set(key, String(value));
-    }
-    const qs = searchParams.toString();
-    if (qs) url += `?${qs}`;
+async function handleResponse<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    throw await createApiRequestError(res);
   }
-
-  const res = await fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-
-  if (res.status === 401) throw new Error("Unauthorized");
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json() as Promise<T>;
+  return (await res.json()) as T;
 }
 
-export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  const token = getToken();
-  const res = await fetch(path, {
-    method: "POST",
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs = FETCH_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (res.status === 401) throw new Error("Unauthorized");
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json() as Promise<T>;
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
-export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
-  const token = getToken();
-  const res = await fetch(path, {
-    method: "PATCH",
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+export const api = {
+  get: <T>(path: string): Promise<T> =>
+    fetchWithTimeout(`${API_BASE}${path}`, {
+      headers: { ...getAuthHeaders() },
+    }).then((r) => handleResponse<T>(r)),
 
-  if (res.status === 401) throw new Error("Unauthorized");
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json() as Promise<T>;
-}
+  post: <T>(path: string, body?: unknown): Promise<T> =>
+    fetchWithTimeout(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }).then((r) => handleResponse<T>(r)),
 
-export async function apiDelete<T>(path: string, body?: unknown): Promise<T> {
-  const token = getToken();
-  const res = await fetch(path, {
-    method: "DELETE",
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      "Content-Type": "application/json",
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  patch: <T>(path: string, body: unknown): Promise<T> =>
+    fetchWithTimeout(`${API_BASE}${path}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(body),
+    }).then((r) => handleResponse<T>(r)),
 
-  if (res.status === 401) throw new Error("Unauthorized");
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json() as Promise<T>;
-}
+  put: <T>(path: string, body: unknown): Promise<T> =>
+    fetchWithTimeout(`${API_BASE}${path}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(body),
+    }).then((r) => handleResponse<T>(r)),
+
+  delete: <T>(path: string, body?: unknown): Promise<T> =>
+    fetchWithTimeout(`${API_BASE}${path}`, {
+      method: "DELETE",
+      headers: {
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...getAuthHeaders(),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }).then((r) => handleResponse<T>(r)),
+
+  upload: <T>(path: string, formData: FormData): Promise<T> =>
+    fetchWithTimeout(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { ...getAuthHeaders() },
+      body: formData,
+    }).then((r) => handleResponse<T>(r)),
+};
