@@ -362,36 +362,89 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await client.query("BEGIN");
 
       const now = new Date();
-      const trackId = generateTrackId();
-      const shortId = generateShortId();
 
-      // Insert track
-      await client.query(
-        `INSERT INTO tracks (
-          id, title, artists, album_name, isrc, artwork_url, duration_ms,
-          release_date, is_explicit, preview_url, source_service, source_url,
-          created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-        ON CONFLICT DO NOTHING`,
-        [
-          trackId,
-          data.sourceTrack.title,
-          JSON.stringify(data.sourceTrack.artists),
-          data.sourceTrack.albumName ?? null,
-          data.sourceTrack.isrc ?? null,
-          data.sourceTrack.artworkUrl ?? null,
-          data.sourceTrack.durationMs ?? null,
-          data.sourceTrack.releaseDate ?? null,
-          data.sourceTrack.isExplicit ? 1 : 0,
-          data.sourceTrack.previewUrl ?? null,
-          data.sourceTrack.sourceService ?? null,
-          data.sourceTrack.sourceUrl ?? null,
-          now,
-          now,
-        ]
-      );
+      // Look up existing track by ISRC or source_url to prevent duplicates
+      let existingTrackId: string | null = null;
+      let existingShortId: string | null = null;
 
-      // Insert service links
+      if (data.sourceTrack.isrc) {
+        const found = await client.query(
+          `SELECT t.id, su.id as short_id FROM tracks t
+           LEFT JOIN short_urls su ON t.id = su.track_id
+           WHERE t.isrc = $1 LIMIT 1`,
+          [data.sourceTrack.isrc]
+        );
+        if (found.rows.length > 0) {
+          existingTrackId = found.rows[0].id;
+          existingShortId = found.rows[0].short_id;
+        }
+      }
+
+      if (!existingTrackId && data.sourceTrack.sourceUrl) {
+        const found = await client.query(
+          `SELECT t.id, su.id as short_id FROM tracks t
+           LEFT JOIN short_urls su ON t.id = su.track_id
+           WHERE t.source_url = $1 LIMIT 1`,
+          [data.sourceTrack.sourceUrl]
+        );
+        if (found.rows.length > 0) {
+          existingTrackId = found.rows[0].id;
+          existingShortId = found.rows[0].short_id;
+        }
+      }
+
+      const trackId = existingTrackId ?? generateTrackId();
+      const shortId = existingShortId ?? generateShortId();
+
+      if (existingTrackId) {
+        // Update existing track metadata
+        await client.query(
+          `UPDATE tracks SET
+            title = $2, artists = $3, album_name = $4, artwork_url = $5,
+            duration_ms = $6, release_date = $7, is_explicit = $8,
+            preview_url = $9, updated_at = $10
+          WHERE id = $1`,
+          [
+            trackId,
+            data.sourceTrack.title,
+            JSON.stringify(data.sourceTrack.artists),
+            data.sourceTrack.albumName ?? null,
+            data.sourceTrack.artworkUrl ?? null,
+            data.sourceTrack.durationMs ?? null,
+            data.sourceTrack.releaseDate ?? null,
+            data.sourceTrack.isExplicit ? 1 : 0,
+            data.sourceTrack.previewUrl ?? null,
+            now,
+          ]
+        );
+      } else {
+        // Insert new track
+        await client.query(
+          `INSERT INTO tracks (
+            id, title, artists, album_name, isrc, artwork_url, duration_ms,
+            release_date, is_explicit, preview_url, source_service, source_url,
+            created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+          [
+            trackId,
+            data.sourceTrack.title,
+            JSON.stringify(data.sourceTrack.artists),
+            data.sourceTrack.albumName ?? null,
+            data.sourceTrack.isrc ?? null,
+            data.sourceTrack.artworkUrl ?? null,
+            data.sourceTrack.durationMs ?? null,
+            data.sourceTrack.releaseDate ?? null,
+            data.sourceTrack.isExplicit ? 1 : 0,
+            data.sourceTrack.previewUrl ?? null,
+            data.sourceTrack.sourceService ?? null,
+            data.sourceTrack.sourceUrl ?? null,
+            now,
+            now,
+          ]
+        );
+      }
+
+      // Upsert service links
       for (const link of data.links) {
         await client.query(
           `INSERT INTO service_links (
@@ -415,12 +468,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         );
       }
 
-      // Insert short URL
-      await client.query(
-        `INSERT INTO short_urls (id, track_id, created_at) VALUES ($1, $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [shortId, trackId, now]
-      );
+      // Insert short URL (only if new)
+      if (!existingShortId) {
+        await client.query(
+          `INSERT INTO short_urls (id, track_id, created_at) VALUES ($1, $2, $3)
+           ON CONFLICT DO NOTHING`,
+          [shortId, trackId, now]
+        );
+      }
 
       await client.query("COMMIT");
       return { trackId, shortId };
@@ -656,35 +711,86 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await client.query("BEGIN");
 
       const now = new Date();
-      const albumId = generateTrackId();
-      const shortId = generateShortId();
 
-      // Insert album
-      await client.query(
-        `INSERT INTO albums (
-          id, title, artists, release_date, total_tracks, artwork_url,
-          label, upc, source_service, source_url, preview_url,
-          created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        ON CONFLICT DO NOTHING`,
-        [
-          albumId,
-          data.sourceAlbum.title,
-          JSON.stringify(data.sourceAlbum.artists),
-          data.sourceAlbum.releaseDate ?? null,
-          data.sourceAlbum.totalTracks ?? null,
-          data.sourceAlbum.artworkUrl ?? null,
-          data.sourceAlbum.label ?? null,
-          data.sourceAlbum.upc ?? null,
-          data.sourceAlbum.sourceService ?? null,
-          data.sourceAlbum.sourceUrl ?? null,
-          data.sourceAlbum.previewUrl ?? null,
-          now,
-          now,
-        ]
-      );
+      // Look up existing album by UPC or source_url to prevent duplicates
+      let existingAlbumId: string | null = null;
+      let existingShortId: string | null = null;
 
-      // Insert service links
+      if (data.sourceAlbum.upc) {
+        const found = await client.query(
+          `SELECT a.id, su.id as short_id FROM albums a
+           LEFT JOIN album_short_urls su ON a.id = su.album_id
+           WHERE a.upc = $1 LIMIT 1`,
+          [data.sourceAlbum.upc]
+        );
+        if (found.rows.length > 0) {
+          existingAlbumId = found.rows[0].id;
+          existingShortId = found.rows[0].short_id;
+        }
+      }
+
+      if (!existingAlbumId && data.sourceAlbum.sourceUrl) {
+        const found = await client.query(
+          `SELECT a.id, su.id as short_id FROM albums a
+           LEFT JOIN album_short_urls su ON a.id = su.album_id
+           WHERE a.source_url = $1 LIMIT 1`,
+          [data.sourceAlbum.sourceUrl]
+        );
+        if (found.rows.length > 0) {
+          existingAlbumId = found.rows[0].id;
+          existingShortId = found.rows[0].short_id;
+        }
+      }
+
+      const albumId = existingAlbumId ?? generateTrackId();
+      const shortId = existingShortId ?? generateShortId();
+
+      if (existingAlbumId) {
+        // Update existing album metadata
+        await client.query(
+          `UPDATE albums SET
+            title = $2, artists = $3, release_date = $4, total_tracks = $5,
+            artwork_url = $6, label = $7, preview_url = $8, updated_at = $9
+          WHERE id = $1`,
+          [
+            albumId,
+            data.sourceAlbum.title,
+            JSON.stringify(data.sourceAlbum.artists),
+            data.sourceAlbum.releaseDate ?? null,
+            data.sourceAlbum.totalTracks ?? null,
+            data.sourceAlbum.artworkUrl ?? null,
+            data.sourceAlbum.label ?? null,
+            data.sourceAlbum.previewUrl ?? null,
+            now,
+          ]
+        );
+      } else {
+        // Insert new album
+        await client.query(
+          `INSERT INTO albums (
+            id, title, artists, release_date, total_tracks, artwork_url,
+            label, upc, source_service, source_url, preview_url,
+            created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          [
+            albumId,
+            data.sourceAlbum.title,
+            JSON.stringify(data.sourceAlbum.artists),
+            data.sourceAlbum.releaseDate ?? null,
+            data.sourceAlbum.totalTracks ?? null,
+            data.sourceAlbum.artworkUrl ?? null,
+            data.sourceAlbum.label ?? null,
+            data.sourceAlbum.upc ?? null,
+            data.sourceAlbum.sourceService ?? null,
+            data.sourceAlbum.sourceUrl ?? null,
+            data.sourceAlbum.previewUrl ?? null,
+            now,
+            now,
+          ]
+        );
+      }
+
+      // Upsert service links
       for (const link of data.links) {
         await client.query(
           `INSERT INTO album_service_links (
@@ -707,12 +813,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         );
       }
 
-      // Insert short URL
-      await client.query(
-        `INSERT INTO album_short_urls (id, album_id, created_at) VALUES ($1, $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [shortId, albumId, now]
-      );
+      // Insert short URL (only if new)
+      if (!existingShortId) {
+        await client.query(
+          `INSERT INTO album_short_urls (id, album_id, created_at) VALUES ($1, $2, $3)
+           ON CONFLICT DO NOTHING`,
+          [shortId, albumId, now]
+        );
+      }
 
       await client.query("COMMIT");
       return { albumId, shortId };

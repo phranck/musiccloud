@@ -73,6 +73,7 @@ zerops:
         - index.html
         - assets
         - fonts
+        - icons
         - site_config.tmpl
     run:
       base: nginx@1.22
