@@ -1,7 +1,6 @@
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
-import multipart from "@fastify/multipart";
 import sensible from "@fastify/sensible";
 import Fastify from "fastify";
 
@@ -37,7 +36,6 @@ async function buildApp() {
   });
   await app.register(helmet);
   await app.register(sensible);
-  await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
 
   // JWT plugin (used by auth routes and public API auth)
   await app.register(jwt, {

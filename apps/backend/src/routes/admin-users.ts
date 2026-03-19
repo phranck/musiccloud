@@ -107,35 +107,38 @@ export default async function adminUserRoutes(app: FastifyInstance) {
   });
 
   // POST /api/admin/users/:id/avatar (upload)
-  app.post<{ Params: { id: string } }>("/api/admin/users/:id/avatar", async (request, reply) => {
-    const { id } = request.params;
-    const caller = await getCaller(request);
-    if (!caller) return reply.status(401).send({ error: "UNAUTHORIZED" });
-    if (caller.role !== "owner" && caller.id !== id) {
-      return reply.status(403).send({ error: "FORBIDDEN" });
+  app.post<{ Params: { id: string } }>(
+    "/api/admin/users/:id/avatar",
+    { bodyLimit: 8 * 1024 * 1024 },
+    async (request, reply) => {
+      const { id } = request.params;
+      const caller = await getCaller(request);
+      if (!caller) return reply.status(401).send({ error: "UNAUTHORIZED" });
+      if (caller.role !== "owner" && caller.id !== id) {
+        return reply.status(403).send({ error: "FORBIDDEN" });
+      }
+
+      const body = request.body as { dataUrl?: string } | null;
+      if (!body?.dataUrl) return reply.status(400).send({ error: "No image provided" });
+
+      const match = body.dataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,/);
+      if (!match) {
+        return reply.status(400).send({ error: "Only JPEG, PNG or WebP" });
+      }
+
+      const base64Part = body.dataUrl.slice(body.dataUrl.indexOf(",") + 1);
+      const approxBytes = Math.ceil(base64Part.length * 0.75);
+      if (approxBytes > 5 * 1024 * 1024) {
+        return reply.status(400).send({ error: "File too large (max 5MB)" });
+      }
+
+      const repo = await getAdminRepository();
+      const updated = await repo.updateAdminUser(id, { avatarUrl: body.dataUrl });
+      if (!updated) return reply.status(404).send({ error: "User not found" });
+
+      return toResponse(updated);
     }
-
-    const data = await request.file();
-    if (!data) return reply.status(400).send({ error: "No file provided" });
-
-    const buffer = await data.toBuffer();
-    if (buffer.length > 5 * 1024 * 1024) {
-      return reply.status(400).send({ error: "File too large (max 5MB)" });
-    }
-
-    const mimeType = data.mimetype;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(mimeType)) {
-      return reply.status(400).send({ error: "Only JPEG, PNG or WebP" });
-    }
-
-    const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
-
-    const repo = await getAdminRepository();
-    const updated = await repo.updateAdminUser(id, { avatarUrl: dataUrl });
-    if (!updated) return reply.status(404).send({ error: "User not found" });
-
-    return toResponse(updated);
-  });
+  );
 
   // PATCH /api/admin/users/:id/avatar (gravatar)
   app.patch<{ Params: { id: string } }>("/api/admin/users/:id/avatar", async (request, reply) => {

@@ -60,13 +60,21 @@ export function useUpdateUser() {
   });
 }
 
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function useSaveUserAvatar() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, file }: { id: string; file: File }) => {
-      const fd = new FormData();
-      fd.append("avatar", file);
-      return api.upload<AdminUser>(`/admin/users/${id}/avatar`, fd);
+    mutationFn: async ({ id, file }: { id: string; file: File }) => {
+      const dataUrl = await fileToDataUrl(file);
+      return api.post<AdminUser>(`/admin/users/${id}/avatar`, { dataUrl });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users-admin"] });
