@@ -198,7 +198,9 @@ export function AlbumsPage() {
       {
         id: "totalTracks",
         header: ma.colTracks,
-        className: "w-16",
+        className: "w-24",
+        headerClassName: "w-24 text-right",
+        cellClassName: "w-24 text-right",
         sortKey: (album) => album.totalTracks ?? 0,
         cell: (album) => (
           <span className="text-sm text-[var(--ds-text-muted)]">{album.totalTracks ?? ""}</span>
