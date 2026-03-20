@@ -175,6 +175,10 @@ export interface DashboardMessages {
     deleteAllConfirm: string;
     deleteAllCancel: string;
     entriesDeleted: string;
+    backfillTitle: string;
+    backfillDescription: string;
+    backfillRun: string;
+    backfillRunning: string;
   };
   media: {
     title: string;
@@ -772,6 +776,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteAllConfirm: "Ja, alles l\u00f6schen",
       deleteAllCancel: "Abbrechen",
       entriesDeleted: "{count} Eintr\u00e4ge gel\u00f6scht.",
+      backfillTitle: "Service-Links erg\u00e4nzen",
+      backfillDescription:
+        "Durchsucht alle bestehenden Tracks nach fehlenden Qobuz-Links und erg\u00e4nzt sie per ISRC oder Textsuche.",
+      backfillRun: "Backfill starten",
+      backfillRunning: "L\u00e4uft\u2026",
     },
     media: {
       title: "Medien",
@@ -1336,6 +1345,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteAllConfirm: "Yes, delete all",
       deleteAllCancel: "Cancel",
       entriesDeleted: "{count} entries deleted.",
+      backfillTitle: "Backfill service links",
+      backfillDescription: "Scans all existing tracks for missing Qobuz links and adds them via ISRC or text search.",
+      backfillRun: "Start backfill",
+      backfillRunning: "Running\u2026",
     },
     media: {
       title: "Media",

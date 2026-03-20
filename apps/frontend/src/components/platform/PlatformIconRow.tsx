@@ -64,7 +64,7 @@ export function PlatformIconRow() {
   return (
     <div className="hidden sm:flex fixed bottom-12 left-0 right-0 justify-center">
       <div
-        className="w-[95%] pb-6"
+        className="w-[90%] pb-6"
         role="presentation"
         aria-hidden="true"
         onMouseEnter={handleMouseEnter}

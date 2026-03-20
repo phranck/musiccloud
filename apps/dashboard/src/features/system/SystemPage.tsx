@@ -1,7 +1,182 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useI18n } from "@/context/I18nContext";
 import { api } from "@/lib/api";
+
+// ---------------------------------------------------------------------------
+// Backfill missing service links
+// ---------------------------------------------------------------------------
+
+interface BackfillLogEntry {
+  type: string;
+  track?: string;
+  artist?: string;
+  method?: string;
+  confidence?: number;
+  message?: string;
+  reason?: string;
+  processed?: number;
+  total?: number;
+  added?: number;
+  skipped?: number;
+  failed?: number;
+}
+
+function BackfillServices() {
+  const { messages } = useI18n();
+  const m = messages.system;
+  const [running, setRunning] = useState(false);
+  const [logs, setLogs] = useState<BackfillLogEntry[]>([]);
+  const [summary, setSummary] = useState<BackfillLogEntry | null>(null);
+  const logRef = useRef<HTMLDivElement>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on every log update
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [logs]);
+
+  async function handleRun() {
+    setRunning(true);
+    setLogs([]);
+    setSummary(null);
+
+    try {
+      const token = (() => {
+        try {
+          const stored = localStorage.getItem("admin_token");
+          if (!stored) return null;
+          return (JSON.parse(stored) as { token: string }).token;
+        } catch {
+          return null;
+        }
+      })();
+
+      const res = await fetch("/api/admin/backfill", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (!res.ok || !res.body) {
+        setLogs([{ type: "error", message: `HTTP ${res.status}` }]);
+        setRunning(false);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const entry = JSON.parse(line) as BackfillLogEntry;
+            if (entry.type === "done") {
+              setSummary(entry);
+            } else {
+              setLogs((prev) => [...prev, entry]);
+            }
+          } catch {}
+        }
+      }
+    } catch (err) {
+      setLogs((prev) => [...prev, { type: "error", message: err instanceof Error ? err.message : "Unknown error" }]);
+    }
+
+    setRunning(false);
+  }
+
+  function logColor(type: string) {
+    switch (type) {
+      case "added":
+        return "text-green-500";
+      case "error":
+        return "text-[var(--ds-btn-danger-text)]";
+      case "not-found":
+        return "text-[var(--ds-text-subtle)]";
+      default:
+        return "text-[var(--ds-text-muted)]";
+    }
+  }
+
+  function logText(entry: BackfillLogEntry) {
+    switch (entry.type) {
+      case "start":
+        return `Scanning ${entry.total} tracks...`;
+      case "added":
+        return `+ ${entry.track} - ${entry.artist} (${entry.method}, ${((entry.confidence ?? 0) * 100).toFixed(0)}%)`;
+      case "not-found":
+        return `- ${entry.track} - ${entry.artist} (not on Qobuz)`;
+      case "skip":
+        return `  ${entry.track} (${entry.reason})`;
+      case "error":
+        return `! ${entry.track ?? ""} ${entry.message ?? ""}`;
+      default:
+        return JSON.stringify(entry);
+    }
+  }
+
+  return (
+    <div>
+      <h2 className="text-base font-semibold mb-1 text-[var(--ds-text)]">{m.backfillTitle}</h2>
+      <div className="rounded-lg border border-[var(--ds-border)] bg-[var(--ds-surface)] px-4">
+        <div className="flex items-start justify-between gap-4 py-4">
+          <div className="min-w-0">
+            <p className="text-xs text-[var(--ds-text-muted)]">{m.backfillDescription}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleRun}
+            disabled={running}
+            className="flex-none h-8 px-3 rounded-md text-sm font-medium border border-[var(--ds-border)] text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] transition-colors disabled:opacity-50"
+          >
+            {running ? m.backfillRunning : m.backfillRun}
+          </button>
+        </div>
+
+        {(logs.length > 0 || summary) && (
+          <div className="pb-4">
+            <div
+              ref={logRef}
+              className="rounded border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] p-2 max-h-64 overflow-y-auto font-mono text-[11px] leading-relaxed"
+            >
+              {logs.map((entry) => (
+                <div
+                  key={`${entry.processed ?? 0}-${entry.type}-${entry.track ?? ""}`}
+                  className={logColor(entry.type)}
+                >
+                  {logText(entry)}
+                </div>
+              ))}
+            </div>
+
+            {summary && (
+              <div className="mt-2 flex gap-4 text-xs">
+                <span className="text-[var(--ds-text-muted)]">
+                  Processed: <span className="text-[var(--ds-text)]">{summary.processed}</span>
+                </span>
+                <span className="text-green-500">Added: {summary.added}</span>
+                <span className="text-[var(--ds-text-muted)]">Skipped: {summary.skipped}</span>
+                {(summary.failed ?? 0) > 0 && (
+                  <span className="text-[var(--ds-btn-danger-text)]">Failed: {summary.failed}</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface ClearResult {
   deleted: number;
@@ -233,6 +408,8 @@ export function SystemPage() {
           />
         </div>
       </div>
+
+      <BackfillServices />
 
       <DangerZone />
     </div>
