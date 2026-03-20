@@ -653,22 +653,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return result.rowCount ?? 0;
   }
 
-  async getRandomShortId(): Promise<string> {
-    const result = await this.pool.query(`SELECT id FROM short_urls ORDER BY RANDOM() LIMIT 1`);
+  async getRandomShortId(): Promise<string | null> {
+    const result = await this.pool.query(
+      `SELECT su.id FROM short_urls su
+       INNER JOIN featured_tracks ft ON su.track_id = ft.track_id
+       ORDER BY RANDOM() LIMIT 1`,
+    );
 
-    if (result.rows.length === 0) {
-      // Create a dummy short URL if none exist
-      const shortId = generateShortId();
-      const now = new Date();
-      await this.pool.query(
-        `INSERT INTO short_urls (id, track_id, created_at)
-         VALUES ($1, $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [shortId, generateTrackId(), now],
-      );
-      return shortId;
-    }
-
+    if (result.rows.length === 0) return null;
     return result.rows[0].id;
   }
 
