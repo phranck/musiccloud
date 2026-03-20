@@ -12,6 +12,7 @@ const MUSIC_URL_PATTERNS: RegExp[] = [
   /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?track\//,
   /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?track\//,
   /^https?:\/\/link\.deezer\.com\/s\//,
+  /^https?:\/\/(?:open|play)\.qobuz\.com\/track\/\d+/,
 ];
 
 const ALBUM_URL_PATTERNS: RegExp[] = [
@@ -21,6 +22,7 @@ const ALBUM_URL_PATTERNS: RegExp[] = [
   /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?album\/\d+/,
   /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?album\/\d+/,
   /^https?:\/\/[a-z0-9-]+\.bandcamp\.com\/album\//,
+  /^https?:\/\/(?:open|play)\.qobuz\.com\/album\/[a-zA-Z0-9]+/,
 ];
 
 export function isMusicUrl(url: string): boolean {

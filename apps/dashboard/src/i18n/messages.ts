@@ -175,14 +175,6 @@ export interface DashboardMessages {
     deleteAllConfirm: string;
     deleteAllCancel: string;
     entriesDeleted: string;
-    qobuzDiagTitle: string;
-    qobuzDiagDescription: string;
-    qobuzDiagRun: string;
-    qobuzDiagRunning: string;
-    qobuzDiagAppId: string;
-    qobuzDiagEnvVar: string;
-    qobuzDiagSet: string;
-    qobuzDiagNotSet: string;
   };
   media: {
     title: string;
@@ -780,15 +772,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteAllConfirm: "Ja, alles l\u00f6schen",
       deleteAllCancel: "Abbrechen",
       entriesDeleted: "{count} Eintr\u00e4ge gel\u00f6scht.",
-      qobuzDiagTitle: "Qobuz API Diagnostik",
-      qobuzDiagDescription:
-        "Testet die Erreichbarkeit der Qobuz API vom Server aus. Pr\u00fcft track/get, track/search, catalog/search und album/get.",
-      qobuzDiagRun: "Test starten",
-      qobuzDiagRunning: "Teste\u2026",
-      qobuzDiagAppId: "App-ID",
-      qobuzDiagEnvVar: "Env-Variable",
-      qobuzDiagSet: "gesetzt",
-      qobuzDiagNotSet: "nicht gesetzt",
     },
     media: {
       title: "Medien",
@@ -1353,15 +1336,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteAllConfirm: "Yes, delete all",
       deleteAllCancel: "Cancel",
       entriesDeleted: "{count} entries deleted.",
-      qobuzDiagTitle: "Qobuz API Diagnostics",
-      qobuzDiagDescription:
-        "Tests Qobuz API reachability from the server. Checks track/get, track/search, catalog/search and album/get.",
-      qobuzDiagRun: "Run test",
-      qobuzDiagRunning: "Testing\u2026",
-      qobuzDiagAppId: "App ID",
-      qobuzDiagEnvVar: "Env variable",
-      qobuzDiagSet: "set",
-      qobuzDiagNotSet: "not set",
     },
     media: {
       title: "Media",
