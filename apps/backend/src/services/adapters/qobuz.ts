@@ -20,7 +20,7 @@ import type {
  * extracted from the Qobuz web player's JavaScript bundle. No user auth needed
  * for public metadata endpoints (track/get, track/search).
  *
- * Supports: URL detection, track resolution, search, ISRC (in response, not as search param)
+ * Supports: URL detection, track resolution, search, ISRC lookup (via search endpoint)
  * Note: Qobuz is available in EU, US, UK, and select other countries.
  */
 
@@ -101,7 +101,7 @@ async function fetchAppId(): Promise<string | null> {
       } catch {}
     }
 
-    log.debug("Qobuz", "app_id not found in any bundle");
+    log.warn("Qobuz", "app_id not found in any bundle - adapter will be unavailable");
     return cachedAppId;
   } catch {
     log.debug("Qobuz", "Failed to extract app_id");
@@ -243,19 +243,22 @@ function mapTrack(data: QobuzTrack): NormalizedTrack {
   };
 }
 
+// Eagerly fetch app_id on import so isAvailable() is true ASAP
+getAppId().catch(() => {});
+
 // --- Adapter ---
 
 export const qobuzAdapter = {
   id: "qobuz",
   displayName: "Qobuz",
   capabilities: {
-    supportsIsrc: false, // ISRC is in response but no dedicated lookup endpoint
+    supportsIsrc: true,
     supportsPreview: false,
     supportsArtwork: true,
   },
 
   isAvailable(): boolean {
-    return true;
+    return cachedAppId !== null;
   },
 
   detectUrl(url: string): string | null {
@@ -278,9 +281,21 @@ export const qobuzAdapter = {
     return mapTrack(data);
   },
 
-  async findByIsrc(_isrc: string): Promise<NormalizedTrack | null> {
-    // Qobuz has no dedicated ISRC lookup endpoint
-    return null;
+  async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
+    try {
+      const response = await qobuzApiFetch(`/track/search?query=${encodeURIComponent(isrc)}&limit=3`);
+      if (!response.ok) return null;
+
+      const result = (await response.json()) as QobuzSearchResponse;
+      const items = result.tracks?.items ?? [];
+
+      const match = items.find((t) => t.isrc === isrc);
+      if (!match?.title) return null;
+
+      return mapTrack(match);
+    } catch {
+      return null;
+    }
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
