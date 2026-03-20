@@ -14,14 +14,13 @@ import type {
 } from "../types";
 
 /**
- * Qobuz Scrape Adapter
+ * Qobuz Adapter
  *
- * Uses the Qobuz public REST API (www.qobuz.com/api.json/0.2/) with an app_id
- * extracted from the Qobuz web player's JavaScript bundle. No user auth needed
- * for public metadata endpoints (track/get, track/search).
+ * Uses the Qobuz REST API (www.qobuz.com/api.json/0.2/) with an app_id
+ * extracted from the Qobuz web player's JavaScript bundle plus user
+ * authentication via QOBUZ_EMAIL/QOBUZ_PASSWORD to bypass geo-restrictions.
  *
- * Supports: URL detection, track resolution, search, ISRC lookup (via search endpoint)
- * Note: Qobuz is available in EU, US, UK, and select other countries.
+ * Supports: URL detection, track resolution, search, ISRC lookup, album support
  */
 
 // URL formats:
@@ -111,6 +110,73 @@ async function fetchAppId(): Promise<string | null> {
   }
 }
 
+// --- User auth token management ---
+
+let cachedAuthToken: string | null = null;
+let authTokenFetchedAt = 0;
+let authTokenPromise: Promise<string | null> | null = null;
+const AUTH_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+interface QobuzLoginResponse {
+  user_auth_token?: string;
+}
+
+async function getAuthToken(): Promise<string | null> {
+  if (cachedAuthToken && Date.now() - authTokenFetchedAt < AUTH_TOKEN_TTL_MS) {
+    return cachedAuthToken;
+  }
+
+  if (authTokenPromise) return authTokenPromise;
+  authTokenPromise = fetchAuthToken().finally(() => {
+    authTokenPromise = null;
+  });
+  return authTokenPromise;
+}
+
+async function fetchAuthToken(): Promise<string | null> {
+  const email = process.env.QOBUZ_EMAIL;
+  const password = process.env.QOBUZ_PASSWORD;
+  if (!email || !password) return null;
+
+  const appId = await getAppId();
+  if (!appId) return null;
+
+  try {
+    const response = await fetchWithTimeout(
+      `${API_BASE}/user/login`,
+      {
+        method: "POST",
+        headers: {
+          "User-Agent": USER_AGENT,
+          "X-App-Id": appId,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
+      },
+      10000,
+    );
+
+    if (!response.ok) {
+      log.error("Qobuz", "Login failed:", response.status);
+      return cachedAuthToken;
+    }
+
+    const data = (await response.json()) as QobuzLoginResponse;
+    if (data.user_auth_token) {
+      cachedAuthToken = data.user_auth_token;
+      authTokenFetchedAt = Date.now();
+      log.debug("Qobuz", "User authenticated successfully");
+      return cachedAuthToken;
+    }
+
+    log.error("Qobuz", "Login response missing user_auth_token");
+    return cachedAuthToken;
+  } catch (err) {
+    log.error("Qobuz", "Login error:", err instanceof Error ? err.message : "Unknown");
+    return cachedAuthToken;
+  }
+}
+
 // --- Fetch helpers ---
 
 async function qobuzFetch(url: string, timeoutMs = 8000): Promise<Response> {
@@ -121,16 +187,33 @@ async function qobuzApiFetch(endpoint: string): Promise<Response> {
   const appId = await getAppId();
   if (!appId) throw new Error("Qobuz: No app_id available");
 
-  return fetchWithTimeout(
-    `${API_BASE}${endpoint}`,
-    {
-      headers: {
-        "User-Agent": USER_AGENT,
-        "X-App-Id": appId,
-      },
-    },
-    8000,
-  );
+  const headers: Record<string, string> = {
+    "User-Agent": USER_AGENT,
+    "X-App-Id": appId,
+  };
+
+  // Add auth token if available (required for geo-restricted regions)
+  const authToken = await getAuthToken();
+  if (authToken) {
+    headers["X-User-Auth-Token"] = authToken;
+  }
+
+  const response = await fetchWithTimeout(`${API_BASE}${endpoint}`, { headers }, 8000);
+
+  // On 401, invalidate token and retry once with fresh login
+  if (response.status === 401 && authToken) {
+    log.debug("Qobuz", "Got 401, refreshing auth token");
+    cachedAuthToken = null;
+    authTokenFetchedAt = 0;
+
+    const newToken = await getAuthToken();
+    if (newToken && newToken !== authToken) {
+      headers["X-User-Auth-Token"] = newToken;
+      return fetchWithTimeout(`${API_BASE}${endpoint}`, { headers }, 8000);
+    }
+  }
+
+  return response;
 }
 
 // --- Response types ---
@@ -245,8 +328,10 @@ function mapTrack(data: QobuzTrack): NormalizedTrack {
   };
 }
 
-// Eagerly fetch app_id on import so isAvailable() is true ASAP
-getAppId().catch(() => {});
+// Eagerly fetch app_id and auth token on import
+getAppId()
+  .then(() => getAuthToken())
+  .catch(() => {});
 
 // --- Adapter ---
 
@@ -481,4 +566,9 @@ export function _resetAppIdCache(): void {
 export function _setAppIdForTest(appId: string): void {
   cachedAppId = appId;
   appIdFetchedAt = Date.now();
+}
+
+export function _resetAuthTokenCache(): void {
+  cachedAuthToken = null;
+  authTokenFetchedAt = 0;
 }
