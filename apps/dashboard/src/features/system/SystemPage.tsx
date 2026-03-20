@@ -17,8 +17,32 @@ interface QobuzDiagResult {
 
 interface QobuzDiagResponse {
   appId: string;
-  env: { QOBUZ_APP_ID: string };
-  results: QobuzDiagResult[];
+  env: { QOBUZ_APP_ID: string; QOBUZ_EMAIL: string; QOBUZ_PASSWORD: string };
+  auth: { token: string | null; error: string | null };
+  unauthResults: QobuzDiagResult[];
+  authResults: QobuzDiagResult[] | null;
+}
+
+function ResultList({ results }: { results: QobuzDiagResult[] }) {
+  return (
+    <div className="space-y-1">
+      {results.map((r) => (
+        <div key={r.name} className="rounded border border-[var(--ds-border)] p-2">
+          <div className="flex items-center gap-2 text-xs">
+            <span className={`inline-block w-2 h-2 rounded-full ${r.ok ? "bg-green-500" : "bg-red-500"}`} />
+            <span className="font-medium text-[var(--ds-text)]">{r.name}</span>
+            <span className="text-[var(--ds-text-muted)]">HTTP {r.status}</span>
+          </div>
+          {r.error && <p className="text-xs text-[var(--ds-btn-danger-text)] mt-1">{r.error}</p>}
+          {r.bodyPreview && (
+            <pre className="text-[10px] text-[var(--ds-text-muted)] mt-1 overflow-x-auto whitespace-pre-wrap break-all max-h-20 overflow-y-auto">
+              {r.bodyPreview}
+            </pre>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function QobuzDiagnostics() {
@@ -62,8 +86,8 @@ function QobuzDiagnostics() {
         {state === "error" && <p className="text-xs text-[var(--ds-btn-danger-text)] py-3">{error}</p>}
 
         {data && (
-          <div className="py-3 space-y-3">
-            <div className="flex gap-4 text-xs">
+          <div className="py-3 space-y-4">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
               <span className="text-[var(--ds-text-muted)]">
                 {m.qobuzDiagAppId}: <code className="text-[var(--ds-text)]">{data.appId}</code>
               </span>
@@ -75,25 +99,25 @@ function QobuzDiagnostics() {
                   {data.env.QOBUZ_APP_ID === "set" ? m.qobuzDiagSet : m.qobuzDiagNotSet}
                 </code>
               </span>
+              <span className="text-[var(--ds-text-muted)]">
+                Login:{" "}
+                <code className={data.auth.token ? "text-green-500" : "text-[var(--ds-btn-danger-text)]"}>
+                  {data.auth.token ?? data.auth.error ?? "no credentials"}
+                </code>
+              </span>
             </div>
 
-            <div className="space-y-1">
-              {data.results.map((r) => (
-                <div key={r.name} className="rounded border border-[var(--ds-border)] p-2">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className={`inline-block w-2 h-2 rounded-full ${r.ok ? "bg-green-500" : "bg-red-500"}`} />
-                    <span className="font-medium text-[var(--ds-text)]">{r.name}</span>
-                    <span className="text-[var(--ds-text-muted)]">HTTP {r.status}</span>
-                  </div>
-                  {r.error && <p className="text-xs text-[var(--ds-btn-danger-text)] mt-1">{r.error}</p>}
-                  {r.bodyPreview && (
-                    <pre className="text-[10px] text-[var(--ds-text-muted)] mt-1 overflow-x-auto whitespace-pre-wrap break-all max-h-20 overflow-y-auto">
-                      {r.bodyPreview}
-                    </pre>
-                  )}
-                </div>
-              ))}
+            <div>
+              <p className="text-xs font-medium text-[var(--ds-text-muted)] mb-1">Unauthenticated</p>
+              <ResultList results={data.unauthResults} />
             </div>
+
+            {data.authResults && (
+              <div>
+                <p className="text-xs font-medium text-[var(--ds-text-muted)] mb-1">Authenticated</p>
+                <ResultList results={data.authResults} />
+              </div>
+            )}
           </div>
         )}
       </div>

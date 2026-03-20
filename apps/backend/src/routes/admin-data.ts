@@ -123,37 +123,75 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     const API_BASE = "https://www.qobuz.com/api.json/0.2";
     const UA =
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-    const headers = { "User-Agent": UA, "X-App-Id": APP_ID };
+    const baseHeaders: Record<string, string> = { "User-Agent": UA, "X-App-Id": APP_ID };
 
-    const tests = [
+    // Try to authenticate with Qobuz user credentials
+    let authToken: string | null = null;
+    let loginError: string | null = null;
+    const email = process.env.QOBUZ_EMAIL;
+    const password = process.env.QOBUZ_PASSWORD;
+
+    if (email && password) {
+      try {
+        const loginRes = await fetchWithTimeout(
+          `${API_BASE}/user/login`,
+          {
+            method: "POST",
+            headers: { ...baseHeaders, "Content-Type": "application/x-www-form-urlencoded" },
+            body: `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
+          },
+          10000,
+        );
+        const loginBody = await loginRes.text();
+        if (loginRes.ok) {
+          const loginData = JSON.parse(loginBody) as { user_auth_token?: string };
+          authToken = loginData.user_auth_token ?? null;
+        } else {
+          loginError = `HTTP ${loginRes.status}: ${loginBody.slice(0, 200)}`;
+        }
+      } catch (err) {
+        loginError = err instanceof Error ? err.message : "Unknown error";
+      }
+    }
+
+    const authedHeaders = authToken ? { ...baseHeaders, "X-User-Auth-Token": authToken } : null;
+
+    const endpoints = [
       { name: "track/get (ID 212123133)", url: `${API_BASE}/track/get?track_id=212123133` },
       { name: "track/search (zebrahead)", url: `${API_BASE}/track/search?query=zebrahead&limit=1` },
       { name: "catalog/search (zebrahead)", url: `${API_BASE}/catalog/search?query=zebrahead&limit=1` },
       { name: "album/get (0060253780968)", url: `${API_BASE}/album/get?album_id=0060253780968` },
     ];
 
-    const results = await Promise.all(
-      tests.map(async (test) => {
-        try {
-          const res = await fetchWithTimeout(test.url, { headers }, 10000);
-          const body = await res.text();
-          return {
-            name: test.name,
-            status: res.status,
-            ok: res.ok,
-            bodyPreview: body.slice(0, 300),
-          };
-        } catch (err) {
-          return {
-            name: test.name,
-            status: 0,
-            ok: false,
-            error: err instanceof Error ? err.message : "Unknown error",
-          };
-        }
-      }),
-    );
+    async function runTest(name: string, url: string, headers: Record<string, string>) {
+      try {
+        const res = await fetchWithTimeout(url, { headers }, 10000);
+        const body = await res.text();
+        return { name, status: res.status, ok: res.ok, bodyPreview: body.slice(0, 300) };
+      } catch (err) {
+        return { name, status: 0, ok: false, error: err instanceof Error ? err.message : "Unknown error" };
+      }
+    }
 
-    return { appId: APP_ID, env: { QOBUZ_APP_ID: process.env.QOBUZ_APP_ID ? "set" : "not set" }, results };
+    const unauthResults = await Promise.all(endpoints.map((e) => runTest(e.name, e.url, baseHeaders)));
+
+    const authResults = authedHeaders
+      ? await Promise.all(endpoints.map((e) => runTest(`${e.name} [AUTH]`, e.url, authedHeaders)))
+      : null;
+
+    return {
+      appId: APP_ID,
+      env: {
+        QOBUZ_APP_ID: process.env.QOBUZ_APP_ID ? "set" : "not set",
+        QOBUZ_EMAIL: email ? "set" : "not set",
+        QOBUZ_PASSWORD: password ? "set" : "not set",
+      },
+      auth: {
+        token: authToken ? `${authToken.slice(0, 8)}...` : null,
+        error: loginError,
+      },
+      unauthResults,
+      authResults,
+    };
   });
 }
