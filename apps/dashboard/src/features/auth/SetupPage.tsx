@@ -48,13 +48,7 @@ export function SetupPage() {
         <div className="text-center mb-8">
           <div className="relative mx-auto w-[120px] h-[120px]">
             <div className="absolute inset-0 rounded-full animate-[auth-glow_8s_ease-in-out_infinite] bg-[var(--color-primary)]" />
-            <img
-              src="/logo.png"
-              alt={messages.auth.logoAlt}
-              width={120}
-              height={120}
-              className="relative"
-            />
+            <img src="/logo.png" alt={messages.auth.logoAlt} width={120} height={120} className="relative" />
           </div>
         </div>
 
@@ -66,10 +60,7 @@ export function SetupPage() {
 
           <form id="setup-form" onSubmit={handleSubmit} className="px-5 py-4 flex flex-col gap-4">
             <div>
-              <label
-                htmlFor="username"
-                className="block text-sm font-medium text-[var(--ds-text)] mb-1.5"
-              >
+              <label htmlFor="username" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {loginMessages.username}
               </label>
               <input
@@ -83,10 +74,7 @@ export function SetupPage() {
             </div>
 
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-[var(--ds-text)] mb-1.5"
-              >
+              <label htmlFor="email" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {setupMessages.email}
               </label>
               <input
@@ -99,10 +87,7 @@ export function SetupPage() {
             </div>
 
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-[var(--ds-text)] mb-1.5"
-              >
+              <label htmlFor="password" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {loginMessages.password}
               </label>
               <input
@@ -116,10 +101,7 @@ export function SetupPage() {
             </div>
 
             <div>
-              <label
-                htmlFor="passwordConfirm"
-                className="block text-sm font-medium text-[var(--ds-text)] mb-1.5"
-              >
+              <label htmlFor="passwordConfirm" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {setupMessages.confirmPassword}
               </label>
               <input

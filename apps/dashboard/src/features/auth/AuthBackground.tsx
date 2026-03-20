@@ -73,10 +73,7 @@ const CYCLE_DURATION_MS = 180_000;
 export function AuthBackground({ children }: { children: ReactNode }) {
   const blobRefs = useRef<(HTMLDivElement | null)[]>([null, null, null]);
   const starfieldShadow = useMemo(() => generateStarfield(), []);
-  const waveParams = useMemo(
-    () => [randomWaveParams(), randomWaveParams(), randomWaveParams()],
-    [],
-  );
+  const waveParams = useMemo(() => [randomWaveParams(), randomWaveParams(), randomWaveParams()], []);
 
   useEffect(() => {
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");

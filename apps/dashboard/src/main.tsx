@@ -1,6 +1,6 @@
 import { IconContext } from "@phosphor-icons/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { StrictMode, lazy } from "react";
+import { lazy, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 
@@ -10,9 +10,7 @@ import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const ReactQueryDevtools = import.meta.env.DEV
-  ? lazy(() =>
-      import("@tanstack/react-query-devtools").then((m) => ({ default: m.ReactQueryDevtools })),
-    )
+  ? lazy(() => import("@tanstack/react-query-devtools").then((m) => ({ default: m.ReactQueryDevtools })))
   : () => null;
 
 const queryClient = new QueryClient({

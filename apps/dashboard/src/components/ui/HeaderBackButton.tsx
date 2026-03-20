@@ -5,12 +5,7 @@ interface HeaderBackButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> 
   label: string;
 }
 
-export function HeaderBackButton({
-  className,
-  label,
-  type = "button",
-  ...props
-}: HeaderBackButtonProps) {
+export function HeaderBackButton({ className, label, type = "button", ...props }: HeaderBackButtonProps) {
   return (
     <button
       type={type}

@@ -2,8 +2,8 @@ import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { nanoid } from "nanoid";
-import { getAdminRepository } from "../db/index.js";
 import type { AdminUser } from "../db/admin-repository.js";
+import { getAdminRepository } from "../db/index.js";
 
 interface SetupBody {
   username: string;
@@ -108,7 +108,10 @@ async function adminAuthRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid username or password." });
     }
 
-    const token = app.jwt.sign({ sub: user.id, username: user.username, role: "admin", dbRole: user.role }, { expiresIn: "24h" });
+    const token = app.jwt.sign(
+      { sub: user.id, username: user.username, role: "admin", dbRole: user.role },
+      { expiresIn: "24h" },
+    );
 
     // Update last login timestamp (fire and forget)
     repo.updateLastLogin(user.id).catch(() => undefined);
@@ -176,7 +179,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
 
     const token = app.jwt.sign(
       { sub: user.id, username: user.username, role: "admin", dbRole: user.role },
-      { expiresIn: "24h" }
+      { expiresIn: "24h" },
     );
 
     return reply.send({ token });

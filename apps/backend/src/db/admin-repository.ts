@@ -92,17 +92,20 @@ export interface AdminRepository {
   }): Promise<void>;
   updateLastLogin(id: string): Promise<void>;
   listAdminUsers(): Promise<AdminUser[]>;
-  updateAdminUser(id: string, data: Partial<{
-    username: string;
-    email: string;
-    passwordHash: string;
-    firstName: string | null;
-    lastName: string | null;
-    avatarUrl: string | null;
-    locale: string;
-    role: string;
-    sessionTimeoutMinutes: number | null;
-  }>): Promise<AdminUser | null>;
+  updateAdminUser(
+    id: string,
+    data: Partial<{
+      username: string;
+      email: string;
+      passwordHash: string;
+      firstName: string | null;
+      lastName: string | null;
+      avatarUrl: string | null;
+      locale: string;
+      role: string;
+      sessionTimeoutMinutes: number | null;
+    }>,
+  ): Promise<AdminUser | null>;
   deleteAdminUser(id: string): Promise<void>;
   listTracks(params: {
     page: number;

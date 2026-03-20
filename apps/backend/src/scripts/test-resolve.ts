@@ -16,9 +16,9 @@ async function test() {
     if (results.length > 0) {
       console.log(results[0]);
     }
-  } catch (error: any) {
-    console.error("❌ Error:", error.message);
-    console.error(error.stack);
+  } catch (error: unknown) {
+    console.error("❌ Error:", error instanceof Error ? error.message : String(error));
+    if (error instanceof Error) console.error(error.stack);
   }
 }
 

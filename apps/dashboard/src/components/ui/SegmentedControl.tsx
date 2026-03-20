@@ -14,12 +14,7 @@ interface SegmentedControlProps<T extends string> {
   storageKey?: string;
 }
 
-export function SegmentedControl<T extends string>({
-  value,
-  onChange,
-  options,
-  storageKey,
-}: SegmentedControlProps<T>) {
+export function SegmentedControl<T extends string>({ value, onChange, options, storageKey }: SegmentedControlProps<T>) {
   const activeIndex = options.findIndex((o) => o.value === value);
 
   const hasIcons = options.some((o) => o.icon);
@@ -71,12 +66,7 @@ export function SegmentedControl<T extends string>({
     const bRect = btn.getBoundingClientRect();
     const next = { left: bRect.left - cRect.left, width: bRect.width, height: bRect.height };
     setPill((prev) => {
-      if (
-        prev &&
-        prev.left === next.left &&
-        prev.width === next.width &&
-        prev.height === next.height
-      ) {
+      if (prev && prev.left === next.left && prev.width === next.width && prev.height === next.height) {
         return prev;
       }
       return next;
@@ -112,6 +102,7 @@ export function SegmentedControl<T extends string>({
   const px = iconOnly ? "" : "px-3.5";
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: A <fieldset> would break the flex layout and pill-animation styling. The role="group" on a div is intentional.
     <div
       role="group"
       ref={containerRef}
@@ -148,9 +139,7 @@ export function SegmentedControl<T extends string>({
               h,
               w,
               px,
-              isActive
-                ? "text-[var(--ds-text)]"
-                : "text-[var(--ds-text-subtle)] hover:text-[var(--ds-text-muted)]",
+              isActive ? "text-[var(--ds-text)]" : "text-[var(--ds-text-subtle)] hover:text-[var(--ds-text-muted)]",
             ].join(" ")}
           >
             {opt.icon}

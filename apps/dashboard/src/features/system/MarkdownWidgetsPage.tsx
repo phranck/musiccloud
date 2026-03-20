@@ -1,28 +1,19 @@
 import { DownloadIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
-
-import type { MarkdownWidget } from "@/features/system/hooks/useMarkdownWidgets";
-
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
-import {
-  PageBody,
-  PageLayout,
-  PageSplitAside,
-  PageSplitLayout,
-  PageSplitMain,
-} from "@/components/ui/PageLayout";
+import { PageBody, PageLayout, PageSplitAside, PageSplitLayout, PageSplitMain } from "@/components/ui/PageLayout";
 import { useI18n } from "@/context/I18nContext";
-import { useKeyboardSave } from "@/lib/useKeyboardSave";
+import type { MarkdownWidget } from "@/features/system/hooks/useMarkdownWidgets";
 import {
   useCreateMarkdownWidget,
   useDeleteMarkdownWidget,
   useMarkdownWidgets,
   useSaveMarkdownWidget,
 } from "@/features/system/hooks/useMarkdownWidgets";
+import { useKeyboardSave } from "@/lib/useKeyboardSave";
 
-const fieldLabelClass =
-  "px-1 text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-subtle)]";
+const fieldLabelClass = "px-1 text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-subtle)]";
 const fieldHintClass = "px-1 text-xs leading-5 text-[var(--ds-text-subtle)]";
 const textInputClass =
   "h-9 w-full rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3 text-sm text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:border-[var(--color-primary)]";
@@ -33,16 +24,9 @@ const checkboxRowClass =
 const insetCardClass =
   "space-y-3 rounded-[calc(var(--radius-card)-12px)] border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] p-3";
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
+    // biome-ignore lint/a11y/noLabelWithoutControl: The children prop always contains an input/select/textarea element, but Biome cannot statically verify this.
     <label className="flex flex-col gap-1">
       <span className={fieldLabelClass}>{label}</span>
       {children}
@@ -69,10 +53,7 @@ export function MarkdownWidgetsPage() {
     }
   }, [widgets, selectedId]);
 
-  const selectedWidget = useMemo(
-    () => widgets.find((w) => w.id === selectedId) ?? null,
-    [widgets, selectedId],
-  );
+  const selectedWidget = useMemo(() => widgets.find((w) => w.id === selectedId) ?? null, [widgets, selectedId]);
 
   useEffect(() => {
     if (selectedWidget) {
@@ -93,19 +74,18 @@ export function MarkdownWidgetsPage() {
   }, [selectedWidget]);
 
   const widgetTypeOptions = useMemo(
-    () =>
-      [
-        {
-          value: "html" as const,
-          label: widgetMessages.types.html.label,
-          description: widgetMessages.types.html.description,
-        },
-        {
-          value: "iframe" as const,
-          label: widgetMessages.types.iframe.label,
-          description: widgetMessages.types.iframe.description,
-        },
-      ],
+    () => [
+      {
+        value: "html" as const,
+        label: widgetMessages.types.html.label,
+        description: widgetMessages.types.html.description,
+      },
+      {
+        value: "iframe" as const,
+        label: widgetMessages.types.iframe.label,
+        description: widgetMessages.types.iframe.description,
+      },
+    ],
     [widgetMessages],
   );
 
@@ -116,7 +96,13 @@ export function MarkdownWidgetsPage() {
 
   function handleAddWidget() {
     createWidget.mutate(
-      { key: `widget-${widgets.length + 1}`, name: `Widget ${widgets.length + 1}`, type: "html", enabled: true, defaultHeight: 320 },
+      {
+        key: `widget-${widgets.length + 1}`,
+        name: `Widget ${widgets.length + 1}`,
+        type: "html",
+        enabled: true,
+        defaultHeight: 320,
+      },
       {
         onSuccess: (created) => {
           setSelectedId(created.id);
@@ -174,12 +160,8 @@ export function MarkdownWidgetsPage() {
               <Card className="h-full p-4 space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-sm font-semibold text-[var(--ds-text)]">
-                      {widgetMessages.widgetsTitle}
-                    </h2>
-                    <p className="text-xs text-[var(--ds-text-muted)]">
-                      {widgetMessages.widgetsHint}
-                    </p>
+                    <h2 className="text-sm font-semibold text-[var(--ds-text)]">{widgetMessages.widgetsTitle}</h2>
+                    <p className="text-xs text-[var(--ds-text-muted)]">{widgetMessages.widgetsHint}</p>
                   </div>
                   <button
                     type="button"
@@ -199,9 +181,7 @@ export function MarkdownWidgetsPage() {
                   ) : (
                     widgets.map((widget) => {
                       const isSelected = widget.id === selectedId;
-                      const typeLabel = widgetTypeOptions.find(
-                        (option) => option.value === widget.type,
-                      )?.label;
+                      const typeLabel = widgetTypeOptions.find((option) => option.value === widget.type)?.label;
                       return (
                         <button
                           key={widget.id}
@@ -214,14 +194,10 @@ export function MarkdownWidgetsPage() {
                           }`}
                         >
                           <div className="flex items-center justify-between gap-3">
-                            <span className="truncate text-sm font-medium text-[var(--ds-text)]">
-                              {widget.name}
-                            </span>
+                            <span className="truncate text-sm font-medium text-[var(--ds-text)]">{widget.name}</span>
                             <span
                               className={`shrink-0 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${
-                                widget.enabled
-                                  ? "bg-emerald-500/10 text-emerald-400"
-                                  : "bg-stone-500/10 text-stone-400"
+                                widget.enabled ? "bg-emerald-500/10 text-emerald-400" : "bg-stone-500/10 text-stone-400"
                               }`}
                             >
                               {widget.enabled ? widgetMessages.active : widgetMessages.inactive}
@@ -230,9 +206,7 @@ export function MarkdownWidgetsPage() {
                           <div className="mt-1 truncate font-mono text-[0.6875rem] text-[var(--ds-text-muted)]">
                             [[widget:{widget.key}]]
                           </div>
-                          <div className="mt-1 text-[0.6875rem] text-[var(--ds-text-muted)]">
-                            {typeLabel}
-                          </div>
+                          <div className="mt-1 text-[0.6875rem] text-[var(--ds-text-muted)]">{typeLabel}</div>
                         </button>
                       );
                     })
@@ -247,9 +221,7 @@ export function MarkdownWidgetsPage() {
                   <Card className="p-4 space-y-5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h2 className="text-lg font-semibold text-[var(--ds-text)]">
-                          {draft.name}
-                        </h2>
+                        <h2 className="text-lg font-semibold text-[var(--ds-text)]">{draft.name}</h2>
                         <p className="mt-1 text-sm text-[var(--ds-text-muted)]">
                           {widgetMessages.markdownLabel}:
                           <span className="ml-2 rounded bg-[var(--ds-bg-elevated)] px-2 py-1 font-mono text-xs">
@@ -271,9 +243,7 @@ export function MarkdownWidgetsPage() {
                       <Field label={widgetMessages.keyLabel} hint={widgetMessages.keyHint}>
                         <input
                           value={draft.key ?? ""}
-                          onChange={(event) =>
-                            updateDraft((d) => ({ ...d, key: event.target.value.toLowerCase() }))
-                          }
+                          onChange={(event) => updateDraft((d) => ({ ...d, key: event.target.value.toLowerCase() }))}
                           className={textInputClass}
                         />
                       </Field>
@@ -281,9 +251,7 @@ export function MarkdownWidgetsPage() {
                       <Field label={widgetMessages.nameLabel}>
                         <input
                           value={draft.name ?? ""}
-                          onChange={(event) =>
-                            updateDraft((d) => ({ ...d, name: event.target.value }))
-                          }
+                          onChange={(event) => updateDraft((d) => ({ ...d, name: event.target.value }))}
                           className={textInputClass}
                         />
                       </Field>
@@ -307,10 +275,7 @@ export function MarkdownWidgetsPage() {
                         </select>
                       </Field>
 
-                      <Field
-                        label={widgetMessages.defaultHeightLabel}
-                        hint={widgetMessages.defaultHeightHint}
-                      >
+                      <Field label={widgetMessages.defaultHeightLabel} hint={widgetMessages.defaultHeightHint}>
                         <input
                           type="number"
                           min={80}
@@ -331,25 +296,16 @@ export function MarkdownWidgetsPage() {
                       <input
                         type="checkbox"
                         checked={draft.enabled ?? false}
-                        onChange={(event) =>
-                          updateDraft((d) => ({ ...d, enabled: event.target.checked }))
-                        }
+                        onChange={(event) => updateDraft((d) => ({ ...d, enabled: event.target.checked }))}
                       />
-                      <span className="text-sm text-[var(--ds-text)]">
-                        {widgetMessages.enabledLabel}
-                      </span>
+                      <span className="text-sm text-[var(--ds-text)]">{widgetMessages.enabledLabel}</span>
                     </label>
 
-                    <Field
-                      label={widgetMessages.descriptionLabel}
-                      hint={widgetMessages.descriptionHint}
-                    >
+                    <Field label={widgetMessages.descriptionLabel} hint={widgetMessages.descriptionHint}>
                       <textarea
                         rows={3}
                         value={draft.description ?? ""}
-                        onChange={(event) =>
-                          updateDraft((d) => ({ ...d, description: event.target.value }))
-                        }
+                        onChange={(event) => updateDraft((d) => ({ ...d, description: event.target.value }))}
                         className={textAreaClass}
                       />
                     </Field>
@@ -359,10 +315,7 @@ export function MarkdownWidgetsPage() {
                         {widgetMessages.configurationTitle}
                       </h3>
                       <p className={fieldHintClass}>
-                        {
-                          widgetTypeOptions.find((option) => option.value === draft.type)
-                            ?.description
-                        }
+                        {widgetTypeOptions.find((option) => option.value === draft.type)?.description}
                       </p>
 
                       {draft.type === "html" ? (
@@ -373,23 +326,16 @@ export function MarkdownWidgetsPage() {
                           <textarea
                             rows={14}
                             value={draft.snippet ?? ""}
-                            onChange={(event) =>
-                              updateDraft((d) => ({ ...d, snippet: event.target.value }))
-                            }
+                            onChange={(event) => updateDraft((d) => ({ ...d, snippet: event.target.value }))}
                             className={`${textAreaClass} font-mono text-xs`}
                           />
                         </Field>
                       ) : (
-                        <Field
-                          label={widgetMessages.types.iframe.urlLabel}
-                          hint={widgetMessages.types.iframe.urlHint}
-                        >
+                        <Field label={widgetMessages.types.iframe.urlLabel} hint={widgetMessages.types.iframe.urlHint}>
                           <input
                             type="url"
                             value={draft.url ?? ""}
-                            onChange={(event) =>
-                              updateDraft((d) => ({ ...d, url: event.target.value }))
-                            }
+                            onChange={(event) => updateDraft((d) => ({ ...d, url: event.target.value }))}
                             className={textInputClass}
                           />
                         </Field>
@@ -398,18 +344,13 @@ export function MarkdownWidgetsPage() {
                   </Card>
 
                   <Card className="p-4 space-y-2">
-                    <h3 className="text-sm font-semibold text-[var(--ds-text)]">
-                      {widgetMessages.usageTitle}
-                    </h3>
+                    <h3 className="text-sm font-semibold text-[var(--ds-text)]">{widgetMessages.usageTitle}</h3>
                     <p className={`${fieldHintClass} leading-5`}>
-                      {widgetMessages.widgetUsage}:
-                      <span className="ml-2 font-mono">[[widget:{draft.key}]]</span>
+                      {widgetMessages.widgetUsage}:<span className="ml-2 font-mono">[[widget:{draft.key}]]</span>
                     </p>
                     <p className={`${fieldHintClass} leading-5`}>
                       {widgetMessages.imageUsage}:
-                      <span className="ml-2 font-mono">
-                        [[image:/uploads/datei.jpg alt="Alt" width=320]]
-                      </span>
+                      <span className="ml-2 font-mono">[[image:/uploads/datei.jpg alt="Alt" width=320]]</span>
                     </p>
                     <p className={`${fieldHintClass} leading-5`}>
                       {widgetMessages.pdfUsage}:

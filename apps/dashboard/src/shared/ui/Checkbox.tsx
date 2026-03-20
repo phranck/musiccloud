@@ -9,13 +9,7 @@ export interface CheckboxProps {
   className?: string;
 }
 
-export function Checkbox({
-  checked,
-  onChange,
-  label,
-  disabled = false,
-  className = "",
-}: CheckboxProps) {
+export function Checkbox({ checked, onChange, label, disabled = false, className = "" }: CheckboxProps) {
   const id = useId();
 
   return (
@@ -34,9 +28,7 @@ export function Checkbox({
       <span
         aria-hidden="true"
         className={`w-4 h-4 shrink-0 flex items-center justify-center rounded border transition-colors ${
-          checked
-            ? "bg-[var(--color-primary)] border-[var(--color-primary)]"
-            : "border-[var(--ds-border-strong)]"
+          checked ? "bg-[var(--color-primary)] border-[var(--color-primary)]" : "border-[var(--ds-border-strong)]"
         }`}
       >
         {checked && <CheckIcon className="h-2.5 w-2.5 text-white" weight="bold" />}

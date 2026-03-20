@@ -12,11 +12,7 @@ const widgetCspOriginsSchema = z
 
 export const markdownWidgetSchema = z
   .object({
-    key: z
-      .string()
-      .min(1)
-      .max(80)
-      .regex(widgetKeyPattern, "Only lowercase letters, numbers and dashes are allowed"),
+    key: z.string().min(1).max(80).regex(widgetKeyPattern, "Only lowercase letters, numbers and dashes are allowed"),
     label: z.string().min(1).max(120),
     description: z.string().max(500).optional().default(""),
     enabled: z.boolean().default(true),

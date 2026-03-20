@@ -43,10 +43,7 @@ function useSidebarWidth() {
   useEffect(() => {
     function onMove(e: MouseEvent) {
       if (!isResizing.current) return;
-      const w = Math.max(
-        SIDEBAR_MIN,
-        Math.min(SIDEBAR_MAX, startW.current + e.clientX - startX.current),
-      );
+      const w = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, startW.current + e.clientX - startX.current));
       setWidth(w);
     }
     function onUp() {

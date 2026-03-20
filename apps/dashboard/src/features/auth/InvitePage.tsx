@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-
-import type { AdminInviteState, AdminUser } from "@/shared/types/admin";
-
 import { useI18n } from "@/context/I18nContext";
 import { AuthBackground } from "@/features/auth/AuthBackground";
 import { useAuth } from "@/features/auth/AuthContext";
 import { api } from "@/lib/api";
+import type { AdminInviteState, AdminUser } from "@/shared/types/admin";
 
 const inputClassName =
   "w-full h-9 px-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-sm text-[var(--ds-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
@@ -100,10 +98,7 @@ export function InvitePage() {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="invite-password"
-                    className="block text-sm font-medium text-[var(--ds-text)] mb-1.5"
-                  >
+                  <label htmlFor="invite-password" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                     {inviteMessages.password}
                   </label>
                   <input
@@ -134,9 +129,7 @@ export function InvitePage() {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-[var(--ds-text-muted)]">
-                {error || inviteMessages.invalidLink}
-              </p>
+              <p className="text-sm text-[var(--ds-text-muted)]">{error || inviteMessages.invalidLink}</p>
             )}
 
             {error && inviteState && <p className="text-red-500 text-sm">{error}</p>}

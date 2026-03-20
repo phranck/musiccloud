@@ -43,9 +43,7 @@ function CacheAction({
         <p className="font-medium text-sm text-[var(--ds-text)]">{label}</p>
         <p className="text-xs text-[var(--ds-text-muted)] mt-0.5">{description}</p>
         {message && (
-          <p
-            className={`text-xs mt-1 ${state === "error" ? "text-[var(--ds-btn-danger-text)]" : "text-green-500"}`}
-          >
+          <p className={`text-xs mt-1 ${state === "error" ? "text-[var(--ds-btn-danger-text)]" : "text-green-500"}`}>
             {message}
           </p>
         )}
@@ -138,9 +136,7 @@ function DangerZone() {
             <p className="font-medium text-sm text-[var(--ds-text)]">{m.deleteAllLabel}</p>
             <p className="text-xs text-[var(--ds-text-muted)] mt-0.5">{formatDescription()}</p>
             {phase === "confirm" && (
-              <p className="text-xs text-[var(--ds-btn-danger-text)] mt-2 font-medium">
-                {m.deleteAllIrreversible}
-              </p>
+              <p className="text-xs text-[var(--ds-btn-danger-text)] mt-2 font-medium">{m.deleteAllIrreversible}</p>
             )}
             {phase === "done" && counts && (
               <p className="text-xs text-green-500 mt-1">
@@ -151,9 +147,7 @@ function DangerZone() {
                   .replace("{albumsLabel}", albumsLabel(counts.albums))}
               </p>
             )}
-            {phase === "error" && (
-              <p className="text-xs text-[var(--ds-btn-danger-text)] mt-1">{error}</p>
-            )}
+            {phase === "error" && <p className="text-xs text-[var(--ds-btn-danger-text)] mt-1">{error}</p>}
           </div>
 
           <div className="flex items-center gap-2 flex-none mt-0.5">
@@ -167,7 +161,11 @@ function DangerZone() {
               </button>
             )}
             {phase === "fetching" && (
-              <button type="button" disabled className="h-8 px-3 rounded-md text-sm border border-[var(--ds-border)] opacity-50">
+              <button
+                type="button"
+                disabled
+                className="h-8 px-3 rounded-md text-sm border border-[var(--ds-border)] opacity-50"
+              >
                 &hellip;
               </button>
             )}

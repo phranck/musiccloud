@@ -1,19 +1,16 @@
 import { CopyIcon, PersonIcon, PlusCircleIcon, UserCheckIcon, UserPlusIcon } from "@phosphor-icons/react";
 import { useState } from "react";
-
-import type { AdminUserInvite } from "@/shared/types/admin";
-import { FormLabel, FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
-
-import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
-import { OverlayCard } from "@/shared/ui/OverlayCard";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useI18n } from "@/context/I18nContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
-
-import { EMPTY_CREATE_USER_FORM, useCreateUser } from "./hooks/useAdminUsers";
+import type { AdminUserInvite } from "@/shared/types/admin";
+import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
+import { FormLabel, FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
+import { OverlayCard } from "@/shared/ui/OverlayCard";
 import type { CreateUserFormData } from "./hooks/useAdminUsers";
+import { EMPTY_CREATE_USER_FORM, useCreateUser } from "./hooks/useAdminUsers";
 
 interface UserCreateCardProps {
   onClose: () => void;
@@ -26,8 +23,16 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
   const common = messages.common;
   const usersMessages = messages.users;
   const roleOptions = [
-    { value: "admin" as const, label: usersMessages.role.admin, icon: <PersonIcon weight="duotone" className="w-3.5 h-3.5" /> },
-    { value: "moderator" as const, label: usersMessages.role.moderator, icon: <UserCheckIcon weight="duotone" className="w-3.5 h-3.5" /> },
+    {
+      value: "admin" as const,
+      label: usersMessages.role.admin,
+      icon: <PersonIcon weight="duotone" className="w-3.5 h-3.5" />,
+    },
+    {
+      value: "moderator" as const,
+      label: usersMessages.role.moderator,
+      icon: <UserCheckIcon weight="duotone" className="w-3.5 h-3.5" />,
+    },
   ] as const;
   const [form, setForm] = useState<CreateUserFormData>({ ...EMPTY_CREATE_USER_FORM, role: "admin" });
   const [inviteResult, setInviteResult] = useState<AdminUserInvite | null>(null);
@@ -45,19 +50,33 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
 
   function handleSubmit() {
     createMutation.mutate(form, {
-      onSuccess: (result) => { setInviteResult(result); setCopied(false); onCreated(); },
+      onSuccess: (result) => {
+        setInviteResult(result);
+        setCopied(false);
+        onCreated();
+      },
     });
   }
 
   async function handleCopyInviteLink() {
     if (!inviteResult) return;
-    try { await navigator.clipboard.writeText(inviteResult.inviteUrl); setCopied(true); } catch { setCopied(false); }
+    try {
+      await navigator.clipboard.writeText(inviteResult.inviteUrl);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
   }
 
   const canSubmit = form.username.trim().length >= 3 && form.email.trim().length > 0 && !createMutation.isPending;
 
   return (
-    <OverlayCard open onClose={onClose} size={{ storageKey: "users:create-card-size" }} aria-label={usersMessages.createCard.title}>
+    <OverlayCard
+      open
+      onClose={onClose}
+      size={{ storageKey: "users:create-card-size" }}
+      aria-label={usersMessages.createCard.title}
+    >
       <OverlayCard.Header>
         <div className="flex items-center gap-3">
           <UserPlusIcon weight="duotone" className={dialogHeaderIconClass} />
@@ -74,7 +93,13 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
             </div>
             <div>
               <FormLabel htmlFor="uc-invite-url">{usersMessages.createCard.inviteLink}</FormLabel>
-              <input id="uc-invite-url" type="text" readOnly value={inviteResult.inviteUrl} className={formInputClass} />
+              <input
+                id="uc-invite-url"
+                type="text"
+                readOnly
+                value={inviteResult.inviteUrl}
+                className={formInputClass}
+              />
             </div>
           </div>
         ) : (
@@ -90,11 +115,24 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
             </div>
             <div>
               <FormLabel htmlFor="uc-username">{usersMessages.createCard.username}</FormLabel>
-              <input id="uc-username" type="text" value={form.username} onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))} minLength={3} className={formInputClass} />
+              <input
+                id="uc-username"
+                type="text"
+                value={form.username}
+                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                minLength={3}
+                className={formInputClass}
+              />
             </div>
             <div>
               <FormLabel htmlFor="uc-email">{usersMessages.createCard.email}</FormLabel>
-              <input id="uc-email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className={formInputClass} />
+              <input
+                id="uc-email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                className={formInputClass}
+              />
             </div>
             <p className="text-xs text-[var(--ds-text-subtle)]">{usersMessages.createCard.inviteFlowHint}</p>
             <div>
@@ -102,20 +140,31 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
               <select
                 id="uc-welcome-template"
                 value={form.welcomeTemplateId ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, welcomeTemplateId: e.target.value ? Number(e.target.value) : undefined }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, welcomeTemplateId: e.target.value ? Number(e.target.value) : undefined }))
+                }
                 className={`${formInputClass} h-9`}
               >
                 <option value="">{usersMessages.createCard.welcomeTemplateNone}</option>
                 {emailTemplates.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
                 ))}
               </select>
               <div className="mt-3 rounded-control border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-inset)] p-3">
-                <p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--ds-text-subtle)]">{usersMessages.createCard.templateVariablesLabel}</p>
+                <p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--ds-text-subtle)]">
+                  {usersMessages.createCard.templateVariablesLabel}
+                </p>
                 <div className="mt-2 space-y-2">
                   {templateVariables.map((variable) => (
-                    <div key={variable.name} className="grid grid-cols-[8.5rem_minmax(0,1fr)] items-start gap-x-2 text-xs text-left">
-                      <code className="shrink-0 rounded bg-[var(--ds-bg-elevated)] px-1.5 py-0.5 font-mono text-[var(--ds-text)]">{variable.name}</code>
+                    <div
+                      key={variable.name}
+                      className="grid grid-cols-[8.5rem_minmax(0,1fr)] items-start gap-x-2 text-xs text-left"
+                    >
+                      <code className="shrink-0 rounded bg-[var(--ds-bg-elevated)] px-1.5 py-0.5 font-mono text-[var(--ds-text)]">
+                        {variable.name}
+                      </code>
                       <span className="text-[var(--ds-text-muted)]">{variable.description}</span>
                     </div>
                   ))}
@@ -124,7 +173,9 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
             </div>
             {createMutation.isError && (
               <p className="text-[var(--ds-danger-text)] text-sm">
-                {createMutation.error instanceof Error ? createMutation.error.message : usersMessages.createCard.errorCreating}
+                {createMutation.error instanceof Error
+                  ? createMutation.error.message
+                  : usersMessages.createCard.errorCreating}
               </p>
             )}
           </>
@@ -132,14 +183,29 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
       </OverlayCard.Body>
 
       <OverlayCard.Footer className="flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="h-9 px-4 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-sm hover:border-[var(--ds-border-strong)] transition-colors">{common.cancel}</button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-9 px-4 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-sm hover:border-[var(--ds-border-strong)] transition-colors"
+        >
+          {common.cancel}
+        </button>
         {inviteResult ? (
-          <button type="button" onClick={handleCopyInviteLink} className="flex items-center gap-2 h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors">
+          <button
+            type="button"
+            onClick={handleCopyInviteLink}
+            className="flex items-center gap-2 h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors"
+          >
             <CopyIcon weight="duotone" className="w-3.5 h-3.5" />
             {copied ? usersMessages.createCard.inviteCopied : usersMessages.createCard.copyInvite}
           </button>
         ) : (
-          <button type="button" onClick={handleSubmit} disabled={!canSubmit} className="flex items-center gap-2 h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-40">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="flex items-center gap-2 h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-40"
+          >
             <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
             {createMutation.isPending ? usersMessages.createCard.creating : usersMessages.createCard.create}
           </button>

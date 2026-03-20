@@ -18,7 +18,7 @@ async function check() {
     `);
 
     console.log("Short URLs in DB:");
-    result.rows.forEach((row: any) => {
+    result.rows.forEach((row: Record<string, unknown>) => {
       console.log(`  ${row.short_id} -> ${row.title} by ${row.artists}`);
     });
 
@@ -35,8 +35,8 @@ async function check() {
     } else {
       console.log(`❌ Lrgzm not found!`);
     }
-  } catch (error: any) {
-    console.error("Error:", error.message);
+  } catch (error: unknown) {
+    console.error("Error:", error instanceof Error ? error.message : String(error));
   } finally {
     await client.end();
   }

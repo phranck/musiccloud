@@ -25,8 +25,8 @@ async function restore() {
     console.log(`\nTables: ${tables.rows[0].count}`);
     console.log(`Tracks: ${tracks.rows[0].count}`);
     console.log(`Admin Users: ${users.rows[0].count}`);
-  } catch (error: any) {
-    console.error("❌ Restore failed:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Restore failed:", error instanceof Error ? error.message : String(error));
     process.exit(1);
   } finally {
     await client.end();

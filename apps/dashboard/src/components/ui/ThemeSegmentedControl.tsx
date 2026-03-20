@@ -17,20 +17,8 @@ interface ThemeSegmentedControlProps {
   storageKey?: string;
 }
 
-export function ThemeSegmentedControl({
-  value,
-  onChange,
-  options,
-  storageKey,
-}: ThemeSegmentedControlProps) {
+export function ThemeSegmentedControl({ value, onChange, options, storageKey }: ThemeSegmentedControlProps) {
   const filtered = options ? ALL_OPTIONS.filter((o) => options.includes(o.value)) : ALL_OPTIONS;
 
-  return (
-    <SegmentedControl
-      value={value}
-      onChange={onChange}
-      options={filtered}
-      storageKey={storageKey}
-    />
-  );
+  return <SegmentedControl value={value} onChange={onChange} options={filtered} storageKey={storageKey} />;
 }

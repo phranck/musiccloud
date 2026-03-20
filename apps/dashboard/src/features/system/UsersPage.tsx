@@ -114,8 +114,7 @@ export function UsersPage() {
       >
         <div className="px-6 py-3">
           <p className="text-sm text-[var(--ds-text-muted)]">
-            <span className="font-medium">{deleteTarget?.username}</span>{" "}
-            {usersMessages.removeConfirmDescription}
+            <span className="font-medium">{deleteTarget?.username}</span> {usersMessages.removeConfirmDescription}
           </p>
         </div>
         <Dialog.Footer>
@@ -126,8 +125,7 @@ export function UsersPage() {
             type="button"
             disabled={deleteMutation.isPending}
             onClick={() => {
-              if (deleteId !== null)
-                deleteMutation.mutate(deleteId, { onSuccess: () => setDeleteId(null) });
+              if (deleteId !== null) deleteMutation.mutate(deleteId, { onSuccess: () => setDeleteId(null) });
             }}
             className={dialogBtnDestructive}
           >

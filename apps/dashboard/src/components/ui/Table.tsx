@@ -1,4 +1,4 @@
-import { CaretDownIcon, CaretUpIcon, CaretUpDownIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, CaretUpDownIcon, CaretUpIcon } from "@phosphor-icons/react";
 import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -24,9 +24,7 @@ function TableBody({ className = "", ...props }: HTMLAttributes<HTMLTableSection
 }
 
 function TableRow({ className = "", ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return (
-    <tr className={`table-row-hover transition-colors ${className}`} {...props} />
-  );
+  return <tr className={`table-row-hover transition-colors ${className}`} {...props} />;
 }
 
 function Th({ className = "", ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
@@ -97,9 +95,7 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const columnIds = useMemo(() => columns.map((col) => col.id), [columns]);
   const columnStorageKey = getColumnWidthStorageKey(columnIds);
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() =>
-    loadColumnWidths(columnStorageKey),
-  );
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => loadColumnWidths(columnStorageKey));
   const [sort, setSort] = useState<SortState | null>(initialSort);
   const mouseMoveHandlerRef = useRef<(event: MouseEvent) => void>(() => {});
   const resizeStateRef = useRef<{
@@ -241,9 +237,7 @@ export function DataTable<T>({
 
   return (
     <Table>
-      <TableHead
-        className={stickyHeader ? "sticky top-0 z-10 shadow-[0_1px_0_var(--ds-border)]" : ""}
-      >
+      <TableHead className={stickyHeader ? "sticky top-0 z-10 shadow-[0_1px_0_var(--ds-border)]" : ""}>
         <TableRow className="hover:bg-transparent">
           {columns.map((col, index) => (
             <Th
@@ -258,11 +252,7 @@ export function DataTable<T>({
                   : undefined
               }
               className={`${col.headerClassName ?? col.className ?? ""} ${col.sortKey ? "select-none" : ""}`}
-              style={
-                columnWidths[col.id]
-                  ? { width: columnWidths[col.id], minWidth: columnWidths[col.id] }
-                  : undefined
-              }
+              style={columnWidths[col.id] ? { width: columnWidths[col.id], minWidth: columnWidths[col.id] } : undefined}
             >
               <div className="relative -mx-1 px-1">
                 {col.sortKey ? (
@@ -309,9 +299,7 @@ export function DataTable<T>({
                 key={col.id}
                 className={col.cellClassName ?? col.className ?? ""}
                 style={
-                  columnWidths[col.id]
-                    ? { width: columnWidths[col.id], minWidth: columnWidths[col.id] }
-                    : undefined
+                  columnWidths[col.id] ? { width: columnWidths[col.id], minWidth: columnWidths[col.id] } : undefined
                 }
               >
                 {col.cell(row)}

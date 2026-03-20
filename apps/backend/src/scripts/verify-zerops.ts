@@ -37,13 +37,13 @@ async function verify() {
     const admins = await client.query(`
       SELECT id, username FROM admin_users
     `);
-    admins.rows.forEach((row: any) => {
+    admins.rows.forEach((row: Record<string, unknown>) => {
       console.log(`  ${row.username} (${row.id})`);
     });
 
     console.log("\n✅ Verification complete!");
-  } catch (error: any) {
-    console.error("❌ Error:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error:", error instanceof Error ? error.message : String(error));
     process.exit(1);
   } finally {
     await client.end();

@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
-import type { AdminUser, AdminUserInvite } from "@/shared/types/admin";
 import { api } from "@/lib/api";
+import type { AdminUser, AdminUserInvite } from "@/shared/types/admin";
 
 export interface CreateUserFormData {
   username: string;

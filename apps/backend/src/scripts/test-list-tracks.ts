@@ -15,9 +15,9 @@ async function test() {
     console.log("\nTesting listAlbums...");
     const result3 = await repo.listAlbums({ page: 1, limit: 5 });
     console.log(`✅ listAlbums: ${result3.items.length} items, total: ${result3.total}`);
-  } catch (error: any) {
-    console.error("❌ Error:", error.message);
-    console.error(error.stack);
+  } catch (error: unknown) {
+    console.error("❌ Error:", error instanceof Error ? error.message : String(error));
+    if (error instanceof Error) console.error(error.stack);
   }
 }
 

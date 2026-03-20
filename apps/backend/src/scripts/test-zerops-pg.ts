@@ -13,7 +13,7 @@ client.connect()
     console.log("PostgreSQL Version:", res.rows[0].version.split(",")[0]);
     return client.end();
   })
-  .catch((err: any) => {
-    console.error("❌ Connection failed:", err.message);
+  .catch((err: unknown) => {
+    console.error("❌ Connection failed:", err instanceof Error ? err.message : String(err));
     process.exit(1);
   });

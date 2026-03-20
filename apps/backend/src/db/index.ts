@@ -5,7 +5,7 @@ import { loadDatabaseConfig } from "./config.js";
 import type { TrackRepository } from "./repository.js";
 
 let repositoryInstance: PostgresAdapter | null = null;
-let cleanupInterval: ReturnType<typeof setInterval> | null = null;
+const _cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 /** Returns the singleton TrackRepository instance, creating it on first call. */
 export async function getRepository(): Promise<TrackRepository> {

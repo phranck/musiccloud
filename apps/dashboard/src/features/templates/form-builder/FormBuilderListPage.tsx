@@ -1,22 +1,8 @@
-import {
-  CheckCircleIcon,
-  CircleIcon,
-  FileIcon,
-  FileTextIcon,
-  PlusCircleIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+import { CheckCircleIcon, CircleIcon, FileIcon, FileTextIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import {
-  Dialog,
-  dialogBtnDestructive,
-  dialogBtnPrimary,
-  dialogBtnSecondary,
-  dialogHeaderIconClass,
-} from "@/shared/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/context/I18nContext";
 import {
@@ -25,6 +11,13 @@ import {
   useFormConfigs,
   useSetFormConfigActive,
 } from "@/features/templates/hooks/useFormConfig";
+import {
+  Dialog,
+  dialogBtnDestructive,
+  dialogBtnPrimary,
+  dialogBtnSecondary,
+  dialogHeaderIconClass,
+} from "@/shared/ui/Dialog";
 
 function deriveSlug(name: string): string {
   return name
@@ -107,10 +100,7 @@ function NewFormDialog({
           onCreated(name.trim());
         },
         onError: (err: unknown) => {
-          const status =
-            err && typeof err === "object" && "status" in err
-              ? (err as { status: number }).status
-              : 0;
+          const status = err && typeof err === "object" && "status" in err ? (err as { status: number }).status : 0;
           if (status === 409) {
             const msg =
               err && typeof err === "object" && "responseMessage" in err
@@ -140,10 +130,7 @@ function NewFormDialog({
       <form onSubmit={handleSubmit}>
         <div className="px-6 py-3 space-y-4">
           <div>
-            <label
-              htmlFor="new-form-name"
-              className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1"
-            >
+            <label htmlFor="new-form-name" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
               {m.formNameLabel}
             </label>
             <input
@@ -157,10 +144,7 @@ function NewFormDialog({
             />
           </div>
           <div>
-            <label
-              htmlFor="new-form-slug"
-              className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1"
-            >
+            <label htmlFor="new-form-slug" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
               {m.formSlugLabel}
             </label>
             <div className="flex items-center gap-2">
@@ -182,11 +166,7 @@ function NewFormDialog({
           <button type="button" onClick={onClose} className={dialogBtnSecondary}>
             {messages.common.cancel}
           </button>
-          <button
-            type="submit"
-            disabled={createMutation.isPending || !slug || !name}
-            className={dialogBtnPrimary}
-          >
+          <button type="submit" disabled={createMutation.isPending || !slug || !name} className={dialogBtnPrimary}>
             {createMutation.isPending ? messages.common.saving : m.create}
           </button>
         </Dialog.Footer>
@@ -283,9 +263,7 @@ export function FormBuilderListPage() {
                         type="button"
                         title={form.isActive ? m.status.deactivate : m.status.activate}
                         disabled={setActive.isPending}
-                        onClick={() =>
-                          setActive.mutate({ name: form.name, active: !form.isActive })
-                        }
+                        onClick={() => setActive.mutate({ name: form.name, active: !form.isActive })}
                         className="disabled:opacity-40 transition-opacity"
                       >
                         <ActiveBadge
@@ -324,11 +302,7 @@ export function FormBuilderListPage() {
         )}
       </div>
 
-      <NewFormDialog
-        open={showDialog}
-        onClose={() => setShowDialog(false)}
-        onCreated={handleCreated}
-      />
+      <NewFormDialog open={showDialog} onClose={() => setShowDialog(false)} onCreated={handleCreated} />
 
       <Dialog
         open={deleteTarget !== null}
@@ -340,11 +314,7 @@ export function FormBuilderListPage() {
           <p className="text-sm text-[var(--ds-text-muted)]">{m.deleteConfirmDescription}</p>
         </div>
         <Dialog.Footer>
-          <button
-            type="button"
-            onClick={() => setDeleteTarget(null)}
-            className={dialogBtnSecondary}
-          >
+          <button type="button" onClick={() => setDeleteTarget(null)} className={dialogBtnSecondary}>
             {messages.common.cancel}
           </button>
           <button

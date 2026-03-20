@@ -757,12 +757,15 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       title: "System",
       cacheTitle: "Cache",
       artistCacheLabel: "Artist-Cache leeren",
-      artistCacheDescription: "L\u00f6scht alle gecachten Artist-Infos (Top-Tracks, Profil, Tourdaten). Werden beim n\u00e4chsten Aufruf neu geladen.",
+      artistCacheDescription:
+        "L\u00f6scht alle gecachten Artist-Infos (Top-Tracks, Profil, Tourdaten). Werden beim n\u00e4chsten Aufruf neu geladen.",
       artistCacheClear: "Leeren",
       dangerZoneTitle: "Danger Zone",
       deleteAllLabel: "Alle Daten l\u00f6schen",
-      deleteAllDescriptionWithCounts: "L\u00f6scht {tracks} {tracksLabel} und {albums} {albumsLabel} inkl. aller Links, Short-URLs und Caches. User-Accounts bleiben unber\u00fchrt.",
-      deleteAllDescriptionGeneric: "L\u00f6scht alle Tracks, Alben, Links, Short-URLs und Caches. User-Accounts bleiben unber\u00fchrt.",
+      deleteAllDescriptionWithCounts:
+        "L\u00f6scht {tracks} {tracksLabel} und {albums} {albumsLabel} inkl. aller Links, Short-URLs und Caches. User-Accounts bleiben unber\u00fchrt.",
+      deleteAllDescriptionGeneric:
+        "L\u00f6scht alle Tracks, Alben, Links, Short-URLs und Caches. User-Accounts bleiben unber\u00fchrt.",
       deleteAllIrreversible: "Diese Aktion kann nicht r\u00fcckg\u00e4ngig gemacht werden.",
       deleteAllSuccess: "{tracks} {tracksLabel} und {albums} {albumsLabel} wurden gel\u00f6scht.",
       deleteAllButton: "Zur\u00fccksetzen\u2026",
@@ -1318,12 +1321,15 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       title: "System",
       cacheTitle: "Cache",
       artistCacheLabel: "Clear artist cache",
-      artistCacheDescription: "Deletes all cached artist info (top tracks, profile, tour dates). Will be reloaded on next request.",
+      artistCacheDescription:
+        "Deletes all cached artist info (top tracks, profile, tour dates). Will be reloaded on next request.",
       artistCacheClear: "Clear",
       dangerZoneTitle: "Danger Zone",
       deleteAllLabel: "Delete all data",
-      deleteAllDescriptionWithCounts: "Deletes {tracks} {tracksLabel} and {albums} {albumsLabel} including all links, short URLs and caches. User accounts remain untouched.",
-      deleteAllDescriptionGeneric: "Deletes all tracks, albums, links, short URLs and caches. User accounts remain untouched.",
+      deleteAllDescriptionWithCounts:
+        "Deletes {tracks} {tracksLabel} and {albums} {albumsLabel} including all links, short URLs and caches. User accounts remain untouched.",
+      deleteAllDescriptionGeneric:
+        "Deletes all tracks, albums, links, short URLs and caches. User accounts remain untouched.",
       deleteAllIrreversible: "This action cannot be undone.",
       deleteAllSuccess: "{tracks} {tracksLabel} and {albums} {albumsLabel} deleted.",
       deleteAllButton: "Reset\u2026",

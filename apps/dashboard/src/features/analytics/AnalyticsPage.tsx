@@ -2,17 +2,12 @@ import { ChartBarIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import { DashboardInfoCard } from "@/components/ui/DashboardInfoCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useI18n } from "@/context/I18nContext";
+import { type UmamiPageView, useUmamiPageViews, useUmamiStats } from "@/features/analytics/hooks/useUmamiStats";
 import { useAuth } from "@/features/auth/AuthContext";
-import {
-  type UmamiPageView,
-  useUmamiPageViews,
-  useUmamiStats,
-} from "@/features/analytics/hooks/useUmamiStats";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
 
 type Period = "24h" | "7d" | "30d" | "90d";
@@ -23,18 +18,21 @@ function KpiCard({ label, value, prev }: { label: string; value: number; prev: n
   const trendArrow = change === null ? "\u2192" : change >= 0 ? "\u2191" : "\u2193";
   const trendText = change === null ? "\u2014" : `${Math.abs(change).toFixed(1)}%`;
   const trendIsGood = change !== null && change >= 0;
-  const trendTone = change === null
-    ? "bg-[var(--ds-bg-elevated)] text-[var(--ds-text-subtle)]"
-    : trendIsGood
-      ? "bg-[var(--ds-badge-success-bg)] text-[var(--ds-badge-success-text)]"
-      : "bg-[var(--ds-badge-danger-bg)] text-[var(--ds-badge-danger-text)]";
+  const trendTone =
+    change === null
+      ? "bg-[var(--ds-bg-elevated)] text-[var(--ds-text-subtle)]"
+      : trendIsGood
+        ? "bg-[var(--ds-badge-success-bg)] text-[var(--ds-badge-success-text)]"
+        : "bg-[var(--ds-badge-danger-bg)] text-[var(--ds-badge-danger-text)]";
 
   return (
     <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] shadow-sm px-4 py-3">
       <p className="text-sm text-[var(--ds-text-subtle)] mb-1">{label}</p>
       <div className="flex items-end justify-between gap-2">
         <p className="text-2xl font-semibold text-[var(--ds-text)]">{formatNumber(value)}</p>
-        <p className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold tabular-nums ${trendTone}`}>
+        <p
+          className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold tabular-nums ${trendTone}`}
+        >
           <span aria-hidden="true">{trendArrow}</span>
           <span>{trendText}</span>
         </p>
@@ -128,9 +126,7 @@ export function AnalyticsPage() {
           />
         )}
 
-        {!pvLoading && pageViews.length > 0 && (
-          <PageViewList views={pageViews} />
-        )}
+        {!pvLoading && pageViews.length > 0 && <PageViewList views={pageViews} />}
       </PageBody>
     </PageLayout>
   );

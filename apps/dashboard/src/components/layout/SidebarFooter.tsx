@@ -1,16 +1,9 @@
 import { SignOutIcon, UserCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
-
-import type { AdminRole } from "@/shared/types/admin";
-
-import {
-  Dialog,
-  dialogBtnPrimary,
-  dialogBtnSecondary,
-  dialogHeaderIconClass,
-} from "@/shared/ui/Dialog";
 import { useI18n } from "@/context/I18nContext";
 import { UserAvatar } from "@/features/system/UserAvatar";
+import type { AdminRole } from "@/shared/types/admin";
+import { Dialog, dialogBtnPrimary, dialogBtnSecondary, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 const SKIP_KEY = "logout-skip-confirm";
 
@@ -67,31 +60,17 @@ export function SidebarFooter({
     <>
       <div className="shrink-0 min-h-14 border-t border-[var(--ds-border)] px-5 flex items-center">
         <div className="w-full flex items-center gap-3">
-          {username && (
-            <UserAvatar username={username} avatarUrl={avatarUrl} size="sm" className="shrink-0" />
-          )}
+          {username && <UserAvatar username={username} avatarUrl={avatarUrl} size="sm" className="shrink-0" />}
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-[var(--ds-text)] truncate">{displayName}</p>
-            {role && (
-              <p className="text-xs text-[var(--ds-text-muted)] truncate">{roleLabel[role]}</p>
-            )}
+            {role && <p className="text-xs text-[var(--ds-text-muted)] truncate">{roleLabel[role]}</p>}
           </div>
           {onEditProfile && (
-            <button
-              type="button"
-              onClick={onEditProfile}
-              aria-label={s.editProfile}
-              className={btnClass}
-            >
+            <button type="button" onClick={onEditProfile} aria-label={s.editProfile} className={btnClass}>
               <UserCircleIcon weight="duotone" className="w-3.5 h-3.5" />
             </button>
           )}
-          <button
-            type="button"
-            onClick={handleLogoutClick}
-            aria-label={s.logout}
-            className={btnClass}
-          >
+          <button type="button" onClick={handleLogoutClick} aria-label={s.logout} className={btnClass}>
             <SignOutIcon weight="duotone" className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -116,11 +95,7 @@ export function SidebarFooter({
           </label>
         </div>
         <Dialog.Footer>
-          <button
-            type="button"
-            onClick={() => setConfirmOpen(false)}
-            className={dialogBtnSecondary}
-          >
+          <button type="button" onClick={() => setConfirmOpen(false)} className={dialogBtnSecondary}>
             {messages.common.cancel}
           </button>
           <button type="button" onClick={handleConfirm} className={dialogBtnPrimary}>

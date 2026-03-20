@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router";
 
 import { ContentEditorLoadingFallback } from "@/components/ContentEditorLoadingFallback";

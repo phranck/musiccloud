@@ -35,8 +35,7 @@ export function useSaveMarkdownWidget() {
 export function useCreateMarkdownWidget() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<MarkdownWidget>) =>
-      api.post<MarkdownWidget>("/admin/markdown-widgets", data),
+    mutationFn: (data: Partial<MarkdownWidget>) => api.post<MarkdownWidget>("/admin/markdown-widgets", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["markdown-widgets"] }),
   });
 }

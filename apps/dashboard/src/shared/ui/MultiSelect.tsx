@@ -1,4 +1,10 @@
-import { CaretDown as CaretDownIcon, CaretUp as CaretUpIcon, Check as CheckIcon, X as XIcon, XCircle as XCircleIcon } from "@phosphor-icons/react";
+import {
+  CaretDown as CaretDownIcon,
+  CaretUp as CaretUpIcon,
+  Check as CheckIcon,
+  XCircle as XCircleIcon,
+  X as XIcon,
+} from "@phosphor-icons/react";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
@@ -92,9 +98,7 @@ export function MultiSelect({
   }
 
   function toggleOption(optionValue: string) {
-    const next = value.includes(optionValue)
-      ? value.filter((v) => v !== optionValue)
-      : [...value, optionValue];
+    const next = value.includes(optionValue) ? value.filter((v) => v !== optionValue) : [...value, optionValue];
     onValueChange(next);
   }
 
@@ -234,21 +238,19 @@ export function MultiSelect({
                 <span key={val} className={badgeClass(variant)} style={opt.style}>
                   {opt.icon && <opt.icon className="h-3 w-3" />}
                   {opt.label}
-                  <span
+                  <button
+                    type="button"
                     data-remove-value={val}
                     className="cursor-pointer text-current opacity-60 hover:opacity-100"
                     aria-label={messages.clearSelectionAriaLabel}
                   >
                     <XCircleIcon className="h-3 w-3" />
-                  </span>
+                  </button>
                 </span>
               );
             })}
             {value.length > maxCount && (
-              <span
-                data-clear-extra="true"
-                className={`${badgeClass(variant)} cursor-pointer`}
-              >
+              <span data-clear-extra="true" className={`${badgeClass(variant)} cursor-pointer`}>
                 {messages.moreSelected(value.length - maxCount)}
                 <XCircleIcon className="h-3 w-3 opacity-60" />
               </span>
@@ -261,13 +263,14 @@ export function MultiSelect({
         <div className="flex items-center shrink-0 ml-2 gap-0.5">
           {value.length > 0 && (
             <>
-              <span
+              <button
+                type="button"
                 data-clear-all="true"
                 className="cursor-pointer text-[var(--ds-text-subtle)] hover:text-[var(--ds-text)] p-0.5"
                 aria-label={messages.clearAllAriaLabel}
               >
                 <XIcon className="h-3.5 w-3.5" />
-              </span>
+              </button>
               <div className="w-px h-4 bg-[var(--ds-border)] mx-0.5" />
             </>
           )}

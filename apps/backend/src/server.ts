@@ -3,7 +3,7 @@ import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
 import sensible from "@fastify/sensible";
 import Fastify from "fastify";
-
+import { runMigrations } from "./db/run-migrations.js";
 import authPlugin from "./plugins/auth.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminDataRoutes from "./routes/admin-data.js";
@@ -16,7 +16,6 @@ import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
 import resolveAlbumRoutes from "./routes/resolve-album.js";
 import shareRoutes from "./routes/share.js";
-import { runMigrations } from "./db/run-migrations.js";
 import { warmAppleMusicToken } from "./services/adapters/apple-music.js";
 import { validateAdapters } from "./services/index.js";
 

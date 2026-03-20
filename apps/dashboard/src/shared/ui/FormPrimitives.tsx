@@ -12,6 +12,7 @@ export const formHelpClass = "text-xs text-[var(--ds-text-subtle)]";
 export const formErrorClass = "text-red-500 text-xs mt-1";
 
 export function FormLabel({ className, ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
+  // biome-ignore lint/a11y/noLabelWithoutControl: htmlFor is passed via spread props from call site
   return <label className={cx(formLabelClass, className)} {...props} />;
 }
 

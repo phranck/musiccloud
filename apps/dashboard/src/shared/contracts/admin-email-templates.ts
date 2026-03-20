@@ -14,10 +14,7 @@ export interface EmailTemplate {
   updatedAt: string;
 }
 
-export type EmailTemplateInput = Omit<
-  EmailTemplate,
-  "id" | "createdAt" | "updatedAt" | "isSystemTemplate"
->;
+export type EmailTemplateInput = Omit<EmailTemplate, "id" | "createdAt" | "updatedAt" | "isSystemTemplate">;
 
 export const emailTemplateCreateSchema = z.object({
   name: z.string().min(1).max(100),

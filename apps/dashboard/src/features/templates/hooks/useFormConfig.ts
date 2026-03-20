@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
-import type { FormConfig } from "@/shared/contracts";
 import { api } from "@/lib/api";
+import type { FormConfig } from "@/shared/contracts";
 
 export function useFormConfigs() {
   return useQuery({
@@ -21,8 +20,7 @@ export function useFormConfig(name: string | undefined) {
 export function useCreateFormConfig() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; slug: string }) =>
-      api.post<FormConfig>("/admin/forms", data),
+    mutationFn: (data: { name: string; slug: string }) => api.post<FormConfig>("/admin/forms", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["form-configs"] }),
   });
 }
@@ -56,8 +54,13 @@ export function useSetFormConfigActive() {
 export function useImportFormConfig() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; slug?: string; rows: FormConfig["rows"]; submissionConfig?: FormConfig["submissionConfig"]; overwrite?: boolean }) =>
-      api.post<FormConfig>("/admin/forms/import", data),
+    mutationFn: (data: {
+      name: string;
+      slug?: string;
+      rows: FormConfig["rows"];
+      submissionConfig?: FormConfig["submissionConfig"];
+      overwrite?: boolean;
+    }) => api.post<FormConfig>("/admin/forms/import", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["form-configs"] }),
   });
 }

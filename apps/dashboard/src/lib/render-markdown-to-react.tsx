@@ -47,9 +47,7 @@ function renderInlineTokens(tokens: MarkdownToken[], keyPrefix: string): ReactNo
       case "url": {
         const href = getSafeHref(token.href);
         const children =
-          token.tokens && token.tokens.length > 0
-            ? renderInlineTokens(token.tokens, key)
-            : (token.text ?? href ?? "");
+          token.tokens && token.tokens.length > 0 ? renderInlineTokens(token.tokens, key) : (token.text ?? href ?? "");
 
         return href ? (
           <a key={key} href={href} target="_blank" rel="noopener noreferrer">
@@ -99,14 +97,8 @@ function renderBlockTokens(tokens: MarkdownToken[], keyPrefix: string): ReactNod
             {(token.items ?? []).map((item) => (
               <li key={`${key}-item-${item.raw ?? item.text ?? "item"}`}>
                 {item.tokens && item.tokens.length > 0
-                  ? renderBlockTokens(
-                      item.tokens,
-                      `${key}-item-${item.raw ?? item.text ?? "item"}`,
-                    )
-                  : renderInlineTokens(
-                      item.tokens ?? [],
-                      `${key}-item-${item.raw ?? item.text ?? "item"}`,
-                    )}
+                  ? renderBlockTokens(item.tokens, `${key}-item-${item.raw ?? item.text ?? "item"}`)
+                  : renderInlineTokens(item.tokens ?? [], `${key}-item-${item.raw ?? item.text ?? "item"}`)}
               </li>
             ))}
           </ListTag>

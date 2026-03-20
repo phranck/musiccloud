@@ -1,16 +1,9 @@
 import { FileIcon, ImageIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
-
-import type { MediaAsset } from "@/shared/types/media";
-
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { useI18n } from "@/context/I18nContext";
-import {
-  formatBytes,
-  formatMediaDate,
-  getMediaTypeLabel,
-  isImageAsset,
-} from "@/features/system/media/media-utils";
+import { formatBytes, formatMediaDate, getMediaTypeLabel, isImageAsset } from "@/features/system/media/media-utils";
+import type { MediaAsset } from "@/shared/types/media";
 
 interface MediaTableProps {
   assets: MediaAsset[];
@@ -52,15 +45,9 @@ export function MediaTable({ assets, selectedId, onSelect }: MediaTableProps) {
         header: mediaMessages.table.name,
         sortKey: (asset) => asset.displayName.toLowerCase(),
         cell: (asset) => (
-          <button
-            type="button"
-            onClick={() => onSelect(asset.id)}
-            className="text-left flex flex-col min-w-0"
-          >
+          <button type="button" onClick={() => onSelect(asset.id)} className="text-left flex flex-col min-w-0">
             <span className="font-medium text-[var(--ds-text)] truncate">{asset.displayName}</span>
-            <span className="text-xs text-[var(--ds-text-subtle)] truncate">
-              {asset.originalName}
-            </span>
+            <span className="text-xs text-[var(--ds-text-subtle)] truncate">{asset.originalName}</span>
           </button>
         ),
       },
@@ -84,11 +71,7 @@ export function MediaTable({ assets, selectedId, onSelect }: MediaTableProps) {
         header: mediaMessages.table.size,
         className: "w-28",
         sortKey: (asset) => asset.sizeBytes,
-        cell: (asset) => (
-          <span className="text-[var(--ds-text-muted)]">
-            {formatBytes(asset.sizeBytes, locale)}
-          </span>
-        ),
+        cell: (asset) => <span className="text-[var(--ds-text-muted)]">{formatBytes(asset.sizeBytes, locale)}</span>,
       },
       {
         id: "updatedAt",
@@ -96,9 +79,7 @@ export function MediaTable({ assets, selectedId, onSelect }: MediaTableProps) {
         className: "w-52",
         sortKey: (asset) => asset.updatedAt,
         cell: (asset) => (
-          <span className="text-[var(--ds-text-muted)]">
-            {formatMediaDate(asset.updatedAt, locale)}
-          </span>
+          <span className="text-[var(--ds-text-muted)]">{formatMediaDate(asset.updatedAt, locale)}</span>
         ),
       },
     ],
@@ -111,9 +92,7 @@ export function MediaTable({ assets, selectedId, onSelect }: MediaTableProps) {
       data={assets}
       getRowKey={(asset) => asset.id}
       getRowClassName={(asset) =>
-        asset.id === selectedId
-          ? "bg-[color-mix(in_srgb,var(--color-primary)_8%,var(--ds-surface))]"
-          : ""
+        asset.id === selectedId ? "bg-[color-mix(in_srgb,var(--color-primary)_8%,var(--ds-surface))]" : ""
       }
       stickyHeader
     />

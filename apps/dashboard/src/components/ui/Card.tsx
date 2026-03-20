@@ -20,9 +20,7 @@ export function SectionCard({ title, className, children, ...rest }: SectionCard
         .join(" ")}
       {...rest}
     >
-      <h2 className="text-xs font-semibold text-[var(--ds-text-muted)] uppercase tracking-wide">
-        {title}
-      </h2>
+      <h2 className="text-xs font-semibold text-[var(--ds-text-muted)] uppercase tracking-wide">{title}</h2>
       {children}
     </div>
   );
@@ -31,10 +29,7 @@ export function SectionCard({ title, className, children, ...rest }: SectionCard
 export function ItemCard({ className, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={[
-        "bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)]",
-        className,
-      ]
+      className={["bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)]", className]
         .filter(Boolean)
         .join(" ")}
       {...rest}

@@ -101,7 +101,7 @@ async function fetchAppId(): Promise<string | null> {
       } catch {}
     }
 
-    log.warn("Qobuz", "app_id not found in any bundle - adapter will be unavailable");
+    log.error("Qobuz", "app_id not found in any bundle - adapter will be unavailable");
     return cachedAppId;
   } catch {
     log.debug("Qobuz", "Failed to extract app_id");

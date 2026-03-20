@@ -34,8 +34,7 @@ export function useEmailTemplate(id: number | null) {
 export function useCreateEmailTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<EmailTemplate>) =>
-      api.post<EmailTemplate>("/admin/email-templates", data),
+    mutationFn: (data: Partial<EmailTemplate>) => api.post<EmailTemplate>("/admin/email-templates", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["email-templates"] }),
   });
 }

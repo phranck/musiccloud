@@ -1,11 +1,4 @@
-import {
-  CheckCircleIcon,
-  CircleIcon,
-  EyeSlashIcon,
-  FileIcon,
-  PlusCircleIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+import { CheckCircleIcon, CircleIcon, EyeSlashIcon, FileIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -13,11 +6,7 @@ import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { useI18n } from "@/context/I18nContext";
-import {
-  useContentPages,
-  useCreateContentPage,
-  useDeleteContentPage,
-} from "@/features/content/hooks/useAdminContent";
+import { useContentPages, useCreateContentPage, useDeleteContentPage } from "@/features/content/hooks/useAdminContent";
 
 function slugify(str: string): string {
   return str
@@ -238,18 +227,12 @@ export function PagesListPage() {
                         {page.title}
                       </button>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-[var(--ds-text-muted)]">
-                      /{page.slug}
-                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-[var(--ds-text-muted)]">/{page.slug}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={page.status} />
                     </td>
-                    <td className="px-4 py-3 text-xs text-[var(--ds-text-muted)]">
-                      {page.createdBy ?? "\u2014"}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[var(--ds-text-muted)]">
-                      {page.updatedBy ?? "\u2014"}
-                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--ds-text-muted)]">{page.createdBy ?? "\u2014"}</td>
+                    <td className="px-4 py-3 text-xs text-[var(--ds-text-muted)]">{page.updatedBy ?? "\u2014"}</td>
                     <td className="px-4 py-3 text-right">
                       <button
                         type="button"

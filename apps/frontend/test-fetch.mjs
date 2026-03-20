@@ -5,7 +5,7 @@ async function fetchShareData(shortId) {
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
   });
-  
+
   if (res.status === 404) return null;
   if (!res.ok) {
     console.error(`Error: ${res.status} ${res.statusText}`);

@@ -10,25 +10,10 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
-
-import type { MediaAsset } from "@/shared/types/media";
-
 import { Card, SectionCard } from "@/components/ui/Card";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import {
-  Dialog,
-  dialogBtnDestructive,
-  dialogBtnSecondary,
-  dialogHeaderIconClass,
-} from "@/shared/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
-import {
-  PageBody,
-  PageLayout,
-  PageSplitAside,
-  PageSplitLayout,
-  PageSplitMain,
-} from "@/components/ui/PageLayout";
+import { PageBody, PageLayout, PageSplitAside, PageSplitLayout, PageSplitMain } from "@/components/ui/PageLayout";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
@@ -40,25 +25,16 @@ import {
   useSyncMedia,
   useUploadMedia,
 } from "@/features/system/hooks/useAdminMedia";
-import {
-  formatBytes,
-  formatMediaDate,
-  getMediaTypeLabel,
-  isImageAsset,
-} from "@/features/system/media/media-utils";
 import { MediaGridItem } from "@/features/system/media/MediaGridItem";
 import { MediaTable } from "@/features/system/media/MediaTable";
+import { formatBytes, formatMediaDate, getMediaTypeLabel, isImageAsset } from "@/features/system/media/media-utils";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
+import type { MediaAsset } from "@/shared/types/media";
+import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 type ViewMode = "list" | "grid";
 
-function MediaPreview({
-  asset,
-  unsupportedPreview,
-}: {
-  asset: MediaAsset;
-  unsupportedPreview: string;
-}) {
+function MediaPreview({ asset, unsupportedPreview }: { asset: MediaAsset; unsupportedPreview: string }) {
   if (isImageAsset(asset)) {
     return (
       <div className="aspect-[4/3] rounded-xl overflow-hidden bg-[var(--ds-bg-elevated)]">
@@ -86,7 +62,6 @@ export function MediaPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [draftName, setDraftName] = useState("");
-  const [draftAlias, setDraftAlias] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<MediaAsset | null>(null);
@@ -115,7 +90,6 @@ export function MediaPage() {
 
   useEffect(() => {
     setDraftName(selectedAsset?.displayName ?? "");
-    setDraftAlias(selectedAsset?.alias ?? "");
     setCopied(false);
   }, [selectedAsset]);
 
@@ -233,7 +207,10 @@ export function MediaPage() {
           disabled={syncMedia.isPending}
           className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-border)] text-[var(--ds-text)] rounded-control text-sm font-medium hover:border-[var(--ds-border-strong)] transition-colors disabled:opacity-60"
         >
-          <ArrowsClockwiseIcon weight="duotone" className={`w-3.5 h-3.5 ${syncMedia.isPending ? "animate-spin" : ""}`} />
+          <ArrowsClockwiseIcon
+            weight="duotone"
+            className={`w-3.5 h-3.5 ${syncMedia.isPending ? "animate-spin" : ""}`}
+          />
           Sync
         </button>
 
@@ -262,11 +239,7 @@ export function MediaPage() {
             <PageSplitMain>
               {isLoading && (
                 <div
-                  className={
-                    viewMode === "grid"
-                      ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
-                      : "space-y-2"
-                  }
+                  className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" : "space-y-2"}
                 >
                   {Array.from({ length: 8 }, (_, index) => `media-sk-${index}`).map((key) => (
                     <div
@@ -302,17 +275,12 @@ export function MediaPage() {
                 {selectedAsset ? (
                   <div className="space-y-4">
                     <SectionCard title={mediaMessages.previewTitle}>
-                      <MediaPreview
-                        asset={selectedAsset}
-                        unsupportedPreview={mediaMessages.unsupportedPreview}
-                      />
+                      <MediaPreview asset={selectedAsset} unsupportedPreview={mediaMessages.unsupportedPreview} />
                     </SectionCard>
 
                     <SectionCard title={mediaMessages.detailsTitle}>
                       <label className="block space-y-1.5">
-                        <span className="text-sm font-medium text-[var(--ds-text)]">
-                          {mediaMessages.displayName}
-                        </span>
+                        <span className="text-sm font-medium text-[var(--ds-text)]">{mediaMessages.displayName}</span>
                         <input
                           type="text"
                           value={draftName}
@@ -347,12 +315,8 @@ export function MediaPage() {
                     <SectionCard title={mediaMessages.infoTitle}>
                       <div className="space-y-3 text-sm">
                         <div>
-                          <p className="text-[var(--ds-text-subtle)]">
-                            {mediaMessages.originalName}
-                          </p>
-                          <p className="text-[var(--ds-text)] break-all">
-                            {selectedAsset.originalName}
-                          </p>
+                          <p className="text-[var(--ds-text-subtle)]">{mediaMessages.originalName}</p>
+                          <p className="text-[var(--ds-text)] break-all">{selectedAsset.originalName}</p>
                         </div>
                         <div>
                           <p className="text-[var(--ds-text-subtle)]">{mediaMessages.fileType}</p>
@@ -360,15 +324,11 @@ export function MediaPage() {
                         </div>
                         <div>
                           <p className="text-[var(--ds-text-subtle)]">{mediaMessages.fileSize}</p>
-                          <p className="text-[var(--ds-text)]">
-                            {formatBytes(selectedAsset.sizeBytes, locale)}
-                          </p>
+                          <p className="text-[var(--ds-text)]">{formatBytes(selectedAsset.sizeBytes, locale)}</p>
                         </div>
                         {selectedAsset.width && selectedAsset.height && (
                           <div>
-                            <p className="text-[var(--ds-text-subtle)]">
-                              {mediaMessages.dimensions}
-                            </p>
+                            <p className="text-[var(--ds-text-subtle)]">{mediaMessages.dimensions}</p>
                             <p className="text-[var(--ds-text)]">
                               {selectedAsset.width} x {selectedAsset.height}px
                             </p>
@@ -376,26 +336,18 @@ export function MediaPage() {
                         )}
                         <div>
                           <p className="text-[var(--ds-text-subtle)]">{mediaMessages.createdAt}</p>
-                          <p className="text-[var(--ds-text)]">
-                            {formatMediaDate(selectedAsset.createdAt, locale)}
-                          </p>
+                          <p className="text-[var(--ds-text)]">{formatMediaDate(selectedAsset.createdAt, locale)}</p>
                         </div>
                         <div>
                           <p className="text-[var(--ds-text-subtle)]">{mediaMessages.updatedAt}</p>
-                          <p className="text-[var(--ds-text)]">
-                            {formatMediaDate(selectedAsset.updatedAt, locale)}
-                          </p>
+                          <p className="text-[var(--ds-text)]">{formatMediaDate(selectedAsset.updatedAt, locale)}</p>
                         </div>
                         <div>
                           <p className="text-[var(--ds-text-subtle)]">{mediaMessages.uploadedBy}</p>
-                          <p className="text-[var(--ds-text)]">
-                            {selectedAsset.createdByUsername ?? "\u2014"}
-                          </p>
+                          <p className="text-[var(--ds-text)]">{selectedAsset.createdByUsername ?? "\u2014"}</p>
                         </div>
                         <div>
-                          <p className="text-[var(--ds-text-subtle)]">
-                            {mediaMessages.internalUrl}
-                          </p>
+                          <p className="text-[var(--ds-text-subtle)]">{mediaMessages.internalUrl}</p>
                           <div className="mt-1 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3 py-2 font-mono text-xs text-[var(--ds-text)] break-all">
                             {selectedAsset.url}
                           </div>
@@ -454,10 +406,7 @@ export function MediaPage() {
           }`}
         >
           <div className="rounded-2xl border border-[var(--ds-border)] bg-[var(--ds-surface)]/95 px-6 py-5 text-center shadow-lg backdrop-blur-sm">
-            <PlusCircleIcon
-              weight="duotone"
-              className="mx-auto mb-3 h-8 w-8 text-[var(--color-primary)]"
-            />
+            <PlusCircleIcon weight="duotone" className="mx-auto mb-3 h-8 w-8 text-[var(--color-primary)]" />
             <p className="text-sm font-medium text-[var(--ds-text)]">{mediaMessages.upload}</p>
             <p className="mt-1 text-xs text-[var(--ds-text-subtle)]">{mediaMessages.uploadHint}</p>
           </div>
@@ -476,16 +425,11 @@ export function MediaPage() {
       >
         <div className="px-6 py-3">
           <p className="text-sm text-[var(--ds-text-muted)]">
-            <span className="font-medium">{deleteTarget?.displayName}</span>{" "}
-            {mediaMessages.deleteDescription}
+            <span className="font-medium">{deleteTarget?.displayName}</span> {mediaMessages.deleteDescription}
           </p>
         </div>
         <Dialog.Footer>
-          <button
-            type="button"
-            onClick={() => setDeleteTarget(null)}
-            className={dialogBtnSecondary}
-          >
+          <button type="button" onClick={() => setDeleteTarget(null)} className={dialogBtnSecondary}>
             {common.cancel}
           </button>
           <button

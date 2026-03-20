@@ -1,8 +1,8 @@
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
-import { getAdminRepository } from "../db/index.js";
 import type { AdminUser } from "../db/admin-repository.js";
+import { getAdminRepository } from "../db/index.js";
 
 export default async function adminUserRoutes(app: FastifyInstance) {
   // GET /api/admin/users
@@ -70,7 +70,8 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     if (body.firstName !== undefined) updates.firstName = body.firstName;
     if (body.lastName !== undefined) updates.lastName = body.lastName;
     if (body.locale !== undefined) updates.locale = body.locale;
-    if (body.sessionTimeoutMinutes !== undefined) updates.sessionTimeoutMinutes = body.sessionTimeoutMinutes as number | null;
+    if (body.sessionTimeoutMinutes !== undefined)
+      updates.sessionTimeoutMinutes = body.sessionTimeoutMinutes as number | null;
 
     // Role changes: owner only, not self
     if (body.role !== undefined) {
@@ -138,7 +139,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       if (!updated) return reply.status(404).send({ error: "User not found" });
 
       return toResponse(updated);
-    }
+    },
   );
 
   // PATCH /api/admin/users/:id/avatar (gravatar)

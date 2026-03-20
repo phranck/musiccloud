@@ -9,11 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import {
-  getOverlayStackSnapshot,
-  registerOverlay,
-  subscribeOverlayStack,
-} from "./overlay-stack";
+import { getOverlayStackSnapshot, registerOverlay, subscribeOverlayStack } from "./overlay-stack";
 
 const STYLE_ID = "mc-overlay-keyframes";
 
@@ -52,7 +48,9 @@ function readStoredWidth(key: string, fallback: number): number {
       const n = Number(raw);
       if (Number.isFinite(n) && n > 0) return n;
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return fallback;
 }
 
@@ -107,11 +105,7 @@ function Footer({ children, className }: { children: ReactNode; className?: stri
 }
 
 function Body({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={["flex-1 overflow-y-auto p-5", className].filter(Boolean).join(" ")}>
-      {children}
-    </div>
-  );
+  return <div className={["flex-1 overflow-y-auto p-5", className].filter(Boolean).join(" ")}>{children}</div>;
 }
 
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -148,11 +142,7 @@ export function OverlayCard({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const closingRef = useRef(false);
   const [closing, setClosing] = useState(false);
-  const overlayIds = useSyncExternalStore(
-    subscribeOverlayStack,
-    getOverlayStackSnapshot,
-    getOverlayStackSnapshot,
-  );
+  const overlayIds = useSyncExternalStore(subscribeOverlayStack, getOverlayStackSnapshot, getOverlayStackSnapshot);
   const stackIndex = overlayIds.indexOf(overlayId);
   const isRegistered = stackIndex !== -1;
   const isTopMost = isRegistered && stackIndex === overlayIds.length - 1;
@@ -229,11 +219,7 @@ export function OverlayCard({
   const effectiveZIndex = isRegistered ? zIndex + stackIndex * 100 : zIndex;
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center px-4"
-      style={{ zIndex: effectiveZIndex }}
-    >
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click handled separately, ESC via overlay-stack */}
+    <div className="fixed inset-0 flex items-center justify-center px-4" style={{ zIndex: effectiveZIndex }}>
       <div
         className={[
           "absolute inset-0",

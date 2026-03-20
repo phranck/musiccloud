@@ -17,7 +17,7 @@ async function dumpDatabase() {
       ORDER BY tablename
     `);
 
-    const data: Record<string, any[]> = {};
+    const data: Record<string, Record<string, unknown>[]> = {};
 
     for (const table of tables.rows) {
       const tableName = table.tablename;
@@ -31,8 +31,8 @@ async function dumpDatabase() {
     
     const counts = Object.entries(data).map(([t, r]) => `${t}: ${r.length}`).join(", ");
     console.log(`\n✅ Backup saved (${counts})`);
-  } catch (error: any) {
-    console.error("❌ Error:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error:", error instanceof Error ? error.message : String(error));
     process.exit(1);
   } finally {
     await sourceClient.end();

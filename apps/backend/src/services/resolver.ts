@@ -173,7 +173,8 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
  * CACHE_CONFIDENCE: Confidence assigned to DB-cached search results.
  * SEARCH_FALLBACK_CONFIDENCE: Confidence for generic "search on X" fallback links.
  */
-export { MATCH_MIN_CONFIDENCE, LINK_QUALITY_THRESHOLD };
+export { LINK_QUALITY_THRESHOLD, MATCH_MIN_CONFIDENCE };
+
 // CACHE_TTL_MS imported from ../lib/constants.js
 
 /** Hosts that serve redirect short links pointing to canonical music platform URLs. */

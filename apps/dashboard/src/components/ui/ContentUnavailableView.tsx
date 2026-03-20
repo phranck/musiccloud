@@ -7,18 +7,10 @@ interface ContentUnavailableViewProps {
   className?: string;
 }
 
-export function ContentUnavailableView({
-  icon,
-  title,
-  subtitle,
-  className,
-}: ContentUnavailableViewProps) {
+export function ContentUnavailableView({ icon, title, subtitle, className }: ContentUnavailableViewProps) {
   return (
     <div
-      className={[
-        "grid w-full h-full min-h-80 place-items-center self-stretch p-6 text-center",
-        className,
-      ]
+      className={["grid w-full h-full min-h-80 place-items-center self-stretch p-6 text-center", className]
         .filter(Boolean)
         .join(" ")}
     >
@@ -26,9 +18,7 @@ export function ContentUnavailableView({
         <span className="text-[var(--ds-text-muted)] [&_svg]:w-12 [&_svg]:h-12">{icon}</span>
         <div className="space-y-1">
           <p className="text-base font-bold text-[var(--ds-text)]">{title}</p>
-          <p className="text-xs text-[var(--ds-text-muted)] max-w-[240px] mx-auto leading-relaxed">
-            {subtitle}
-          </p>
+          <p className="text-xs text-[var(--ds-text-muted)] max-w-[240px] mx-auto leading-relaxed">{subtitle}</p>
         </div>
       </div>
     </div>

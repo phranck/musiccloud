@@ -20,7 +20,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.7",
+    "@biomejs/biome": "2.4.8",
     "drizzle-kit": "^0.31.10",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",

@@ -18,9 +18,9 @@ import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
+import { api } from "@/lib/api";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog, dialogBtnDestructive, dialogBtnSecondary } from "@/shared/ui/Dialog";
-import { api } from "@/lib/api";
 
 interface TrackListItem {
   id: string;
@@ -104,14 +104,9 @@ export function TracksPage() {
             {
               id: "select",
               className: "w-10",
-              header: (
-                <Checkbox checked={table.allSelected} onChange={table.toggleAll} />
-              ),
+              header: <Checkbox checked={table.allSelected} onChange={table.toggleAll} />,
               cell: (track: TrackListItem) => (
-                <Checkbox
-                  checked={table.selectedIds.has(track.id)}
-                  onChange={() => table.toggleRow(track.id)}
-                />
+                <Checkbox checked={table.selectedIds.has(track.id)} onChange={() => table.toggleRow(track.id)} />
               ),
             } satisfies ColumnDef<TrackListItem>,
           ]
@@ -158,9 +153,7 @@ export function TracksPage() {
             ) : (
               <div className="font-medium leading-tight text-[var(--ds-text)]">{track.title}</div>
             )}
-            {track.albumName && (
-              <div className="text-xs text-[var(--ds-text-muted)]">{track.albumName}</div>
-            )}
+            {track.albumName && <div className="text-xs text-[var(--ds-text-muted)]">{track.albumName}</div>}
           </>
         ),
       },
@@ -187,9 +180,7 @@ export function TracksPage() {
         header: "ISRC",
         className: "w-32",
         sortKey: (track) => track.isrc ?? "",
-        cell: (track) => (
-          <span className="font-mono text-xs text-[var(--ds-text-muted)]">{track.isrc ?? ""}</span>
-        ),
+        cell: (track) => <span className="font-mono text-xs text-[var(--ds-text-muted)]">{track.isrc ?? ""}</span>,
       },
       {
         id: "links",
@@ -230,7 +221,16 @@ export function TracksPage() {
         ),
       },
     ],
-    [mt, messages.common, navigate, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
+    [
+      mt,
+      messages.common,
+      navigate,
+      table.editMode,
+      table.allSelected,
+      table.selectedIds,
+      table.toggleAll,
+      table.toggleRow,
+    ],
   );
 
   async function handleConfirmDelete() {
@@ -314,9 +314,7 @@ export function TracksPage() {
 
   return (
     <PageLayout>
-      <PageHeader title={mt.title}>
-        {searchField}
-      </PageHeader>
+      <PageHeader title={mt.title}>{searchField}</PageHeader>
 
       <PageBody>
         {table.isInitialLoading && (
@@ -330,9 +328,7 @@ export function TracksPage() {
           </div>
         )}
 
-        {table.isError && (
-          <p className="text-sm text-[var(--ds-btn-danger-text)] p-4">{table.errorMessage}</p>
-        )}
+        {table.isError && <p className="text-sm text-[var(--ds-btn-danger-text)] p-4">{table.errorMessage}</p>}
 
         {!table.isInitialLoading && !table.isError && table.items.length === 0 && (
           <ContentUnavailableView
@@ -377,21 +373,20 @@ export function TracksPage() {
 
       {toolbarContent}
 
-      <Dialog
-        open={confirmOpen}
-        title={m.deleteConfirmTitle}
-        onClose={() => setConfirmOpen(false)}
-      >
+      <Dialog open={confirmOpen} title={m.deleteConfirmTitle} onClose={() => setConfirmOpen(false)}>
         <div className="px-6 py-4 space-y-3">
           <p className="text-sm text-[var(--ds-text)]">
             {m.deleteConfirmDescription.replace("{count}", String(table.selectedCount))}
           </p>
-          {deleteError && (
-            <p className="text-sm text-[var(--ds-btn-danger-text)]">{deleteError}</p>
-          )}
+          {deleteError && <p className="text-sm text-[var(--ds-btn-danger-text)]">{deleteError}</p>}
         </div>
         <Dialog.Footer>
-          <button type="button" className={dialogBtnSecondary} onClick={() => setConfirmOpen(false)} disabled={deleting}>
+          <button
+            type="button"
+            className={dialogBtnSecondary}
+            onClick={() => setConfirmOpen(false)}
+            disabled={deleting}
+          >
             {m.deleteConfirmCancel}
           </button>
           <button type="button" className={dialogBtnDestructive} onClick={handleConfirmDelete} disabled={deleting}>

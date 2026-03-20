@@ -16,13 +16,7 @@ interface DropdownProps<T extends string = string> {
   className?: string;
 }
 
-export function Dropdown<T extends string = string>({
-  value,
-  onChange,
-  options,
-  label,
-  className,
-}: DropdownProps<T>) {
+export function Dropdown<T extends string = string>({ value, onChange, options, label, className }: DropdownProps<T>) {
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
@@ -91,9 +85,7 @@ export function Dropdown<T extends string = string>({
   return (
     <div className={`flex flex-col gap-1${className ? ` ${className}` : ""}`}>
       {label && (
-        <span className="text-xs font-semibold text-[var(--ds-text-subtle)] uppercase tracking-wider">
-          {label}
-        </span>
+        <span className="text-xs font-semibold text-[var(--ds-text-subtle)] uppercase tracking-wider">{label}</span>
       )}
       <div ref={ref} className="relative">
         <button
@@ -106,9 +98,7 @@ export function Dropdown<T extends string = string>({
           className="w-full h-9 px-3 flex items-center gap-2 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-sm text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] transition-colors whitespace-nowrap"
         >
           {current?.icon && <span className="shrink-0">{current.icon}</span>}
-          <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">
-            {current?.label}
-          </span>
+          <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">{current?.label}</span>
           {typeof current?.count === "number" && current.count > 0 && (
             <span className="shrink-0 rounded-full bg-[var(--ds-surface-hover)] px-2 py-0.5 text-xs font-semibold text-[var(--ds-text-muted)]">
               {current.count}
@@ -117,7 +107,11 @@ export function Dropdown<T extends string = string>({
           {open ? (
             <CaretUpIcon weight="duotone" aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--ds-text-muted)]" />
           ) : (
-            <CaretDownIcon weight="duotone" aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--ds-text-muted)]" />
+            <CaretDownIcon
+              weight="duotone"
+              aria-hidden="true"
+              className="h-4 w-4 shrink-0 text-[var(--ds-text-muted)]"
+            />
           )}
         </button>
         {open && (

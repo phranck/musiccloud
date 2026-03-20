@@ -4,7 +4,7 @@ import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedAlbum, NormalizedTrack, TrackSource } from "../../services/types.js";
-import type { AdminRepository, AdminUser } from "../admin-repository.js";
+import type { AdminRepository, AdminUser, AlbumListItem, ListResult, TrackListItem } from "../admin-repository.js";
 import type {
   ArtistCacheData,
   ArtistCacheRow,
@@ -87,6 +87,44 @@ interface AdminUserRow {
   last_login_at: Date | null;
 }
 
+interface CountRow {
+  count: number;
+}
+
+interface ServiceLinkRow {
+  service: string;
+  url: string;
+}
+
+interface TrackListRow {
+  id: string;
+  title: string;
+  artists: string;
+  album_name: string | null;
+  isrc: string | null;
+  artwork_url: string | null;
+  source_service: string | null;
+  created_at: Date;
+  short_id: string | null;
+  link_count: string;
+  is_featured: boolean;
+}
+
+interface AlbumListRow {
+  id: string;
+  title: string;
+  artists: string;
+  release_date: string | null;
+  total_tracks: number | null;
+  artwork_url: string | null;
+  upc: string | null;
+  source_service: string | null;
+  created_at: Date;
+  short_id: string | null;
+  link_count: string;
+  is_featured: boolean;
+}
+
 interface ArtistCacheRow_DB {
   artist_name: string;
   top_tracks: string | null;
@@ -156,12 +194,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
    */
   async ensureSchema(): Promise<void> {
     try {
-      const result = await this.pool.query(
-        `SELECT to_regclass('public.tracks') IS NOT NULL as exists`
-      );
+      const result = await this.pool.query(`SELECT to_regclass('public.tracks') IS NOT NULL as exists`);
       if (!result.rows[0]?.exists) {
         throw new Error(
-          "Database schema not initialized. Run: npx drizzle-kit migrate --config drizzle.config.postgres.ts"
+          "Database schema not initialized. Run: npx drizzle-kit migrate --config drizzle.config.postgres.ts",
         );
       }
       log.debug("PG", "Schema verification passed");
@@ -186,7 +222,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
           log.error("PG", "Cache cleanup error:", error);
         }
       },
-      6 * 60 * 60 * 1000
+      6 * 60 * 60 * 1000,
     );
   }
 
@@ -218,7 +254,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       LEFT JOIN short_urls su ON t.id = su.track_id
       WHERE t.source_url = $1
       ORDER BY sl.created_at ASC`,
-      [url]
+      [url],
     );
 
     if (result.rows.length === 0) return null;
@@ -238,7 +274,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       LEFT JOIN short_urls su ON t.id = su.track_id
       WHERE t.isrc = $1
       ORDER BY sl.created_at ASC`,
-      [isrc]
+      [isrc],
     );
 
     if (result.rows.length === 0) return null;
@@ -250,7 +286,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     try {
       // Split query into words and search for any word match
-      const words = query.trim().split(/\s+/).filter(w => w.length > 0);
+      const words = query
+        .trim()
+        .split(/\s+/)
+        .filter((w) => w.length > 0);
 
       if (words.length === 0) {
         return [];
@@ -258,7 +297,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
       // Build WHERE clause: each word must match either title or artists
       const whereClauses = words.map((_, i) => `(t.title ILIKE $${i + 1} OR t.artists ILIKE $${i + 1})`).join(" OR ");
-      const params: (string | number)[] = words.map(w => `%${w}%`);
+      const params: (string | number)[] = words.map((w) => `%${w}%`);
       params.push(maxResults);
 
       const searchResult = await this.pool.query(
@@ -271,7 +310,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         WHERE ${whereClauses}
         ORDER BY t.updated_at DESC
         LIMIT $${words.length + 1}`,
-        params
+        params,
       );
 
       const rows = searchResult.rows as TrackRow[];
@@ -291,20 +330,18 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       `SELECT su.id FROM short_urls su
        JOIN tracks t ON su.track_id = t.id
        WHERE t.source_url = $1 LIMIT 1`,
-      [url]
+      [url],
     );
     return result.rows[0]?.id ?? null;
   }
 
-  async findExistingByIsrc(
-    isrc: string
-  ): Promise<{ trackId: string; shortId: string } | null> {
+  async findExistingByIsrc(isrc: string): Promise<{ trackId: string; shortId: string } | null> {
     const result = await this.pool.query(
       `SELECT t.id, su.id as short_id
        FROM tracks t
        LEFT JOIN short_urls su ON t.id = su.track_id
        WHERE t.isrc = $1 LIMIT 1`,
-      [isrc]
+      [isrc],
     );
 
     if (result.rows.length === 0) return null;
@@ -314,12 +351,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     };
   }
 
-  findExistingByIsrcSync(isrc: string): { trackId: string; shortId: string } | null {
+  findExistingByIsrcSync(_isrc: string): { trackId: string; shortId: string } | null {
     // Note: Synchronous method - must be called within a transaction context
     // This is a wrapper that throws since pg is async-only
-    throw new Error(
-      "findExistingByIsrcSync not available in PostgreSQL adapter. Use findExistingByIsrc instead."
-    );
+    throw new Error("findExistingByIsrcSync not available in PostgreSQL adapter. Use findExistingByIsrc instead.");
   }
 
   async loadByShortId(shortId: string): Promise<SharePageDbResult | null> {
@@ -335,7 +370,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       LEFT JOIN service_links sl ON t.id = sl.track_id
       WHERE su.id = $1
       ORDER BY sl.created_at ASC`,
-      [shortId]
+      [shortId],
     );
 
     if (result.rows.length === 0) return null;
@@ -355,7 +390,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       LEFT JOIN short_urls su ON t.id = su.track_id
       WHERE t.id = $1
       ORDER BY sl.created_at ASC`,
-      [trackId]
+      [trackId],
     );
 
     if (result.rows.length === 0) return null;
@@ -381,7 +416,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
           `SELECT t.id, su.id as short_id FROM tracks t
            LEFT JOIN short_urls su ON t.id = su.track_id
            WHERE t.isrc = $1 LIMIT 1`,
-          [data.sourceTrack.isrc]
+          [data.sourceTrack.isrc],
         );
         if (found.rows.length > 0) {
           existingTrackId = found.rows[0].id;
@@ -394,7 +429,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
           `SELECT t.id, su.id as short_id FROM tracks t
            LEFT JOIN short_urls su ON t.id = su.track_id
            WHERE t.source_url = $1 LIMIT 1`,
-          [data.sourceTrack.sourceUrl]
+          [data.sourceTrack.sourceUrl],
         );
         if (found.rows.length > 0) {
           existingTrackId = found.rows[0].id;
@@ -424,7 +459,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             data.sourceTrack.isExplicit ? 1 : 0,
             data.sourceTrack.previewUrl ?? null,
             now,
-          ]
+          ],
         );
       } else {
         // Insert new track
@@ -449,7 +484,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             data.sourceTrack.sourceUrl ?? null,
             now,
             now,
-          ]
+          ],
         );
       }
 
@@ -473,7 +508,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             link.confidence,
             link.matchMethod,
             now,
-          ]
+          ],
         );
       }
 
@@ -482,7 +517,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         await client.query(
           `INSERT INTO short_urls (id, track_id, created_at) VALUES ($1, $2, $3)
            ON CONFLICT DO NOTHING`,
-          [shortId, trackId, now]
+          [shortId, trackId, now],
         );
       }
 
@@ -498,7 +533,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async addLinksToTrack(
     trackId: string,
-    links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>
+    links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
   ): Promise<void> {
     const client = await this.pool.connect();
     try {
@@ -523,7 +558,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             link.confidence,
             link.matchMethod,
             now,
-          ]
+          ],
         );
       }
 
@@ -542,7 +577,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     await this.pool.query(
       `INSERT INTO url_aliases (id, url, track_id, created_at) VALUES ($1, $2, $3, $4)
        ON CONFLICT DO NOTHING`,
-      [`${trackId}-${url.slice(-20)}`, url, trackId, now]
+      [`${trackId}-${url.slice(-20)}`, url, trackId, now],
     );
   }
 
@@ -555,7 +590,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       `SELECT artist_name, profile, top_tracks, events,
               profile_updated_at, tracks_updated_at, events_updated_at
        FROM artist_cache WHERE artist_name = $1`,
-      [artistName]
+      [artistName],
     );
 
     if (result.rows.length === 0) return null;
@@ -601,7 +636,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         data.eventsUpdatedAt ? msToDate(data.eventsUpdatedAt) : null,
         now,
         now,
-      ]
+      ],
     );
   }
 
@@ -612,16 +647,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       `DELETE FROM artist_cache
        WHERE updated_at < $1
        RETURNING id`,
-      [cutoff]
+      [cutoff],
     );
 
     return result.rowCount ?? 0;
   }
 
   async getRandomShortId(): Promise<string> {
-    const result = await this.pool.query(
-      `SELECT id FROM short_urls ORDER BY RANDOM() LIMIT 1`
-    );
+    const result = await this.pool.query(`SELECT id FROM short_urls ORDER BY RANDOM() LIMIT 1`);
 
     if (result.rows.length === 0) {
       // Create a dummy short URL if none exist
@@ -631,7 +664,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         `INSERT INTO short_urls (id, track_id, created_at)
          VALUES ($1, $2, $3)
          ON CONFLICT DO NOTHING`,
-        [shortId, generateTrackId(), now]
+        [shortId, generateTrackId(), now],
       );
       return shortId;
     }
@@ -641,10 +674,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async updateTrackTimestamp(trackId: string): Promise<void> {
     const now = new Date();
-    await this.pool.query(
-      `UPDATE tracks SET updated_at = $1 WHERE id = $2`,
-      [now, trackId]
-    );
+    await this.pool.query(`UPDATE tracks SET updated_at = $1 WHERE id = $2`, [now, trackId]);
   }
 
   // ============================================================================
@@ -663,7 +693,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       LEFT JOIN album_short_urls asu ON a.id = asu.album_id
       WHERE a.source_url = $1
       ORDER BY asl.created_at ASC`,
-      [url]
+      [url],
     );
 
     if (result.rows.length === 0) return null;
@@ -682,22 +712,20 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       LEFT JOIN album_short_urls asu ON a.id = asu.album_id
       WHERE a.upc = $1
       ORDER BY asl.created_at ASC`,
-      [upc]
+      [upc],
     );
 
     if (result.rows.length === 0) return null;
     return this.buildCachedAlbumResult(result.rows as AlbumWithLinkRow[]);
   }
 
-  async findExistingAlbumByUpc(
-    upc: string
-  ): Promise<{ albumId: string; shortId: string } | null> {
+  async findExistingAlbumByUpc(upc: string): Promise<{ albumId: string; shortId: string } | null> {
     const result = await this.pool.query(
       `SELECT a.id, asu.id as short_id
        FROM albums a
        LEFT JOIN album_short_urls asu ON a.id = asu.album_id
        WHERE a.upc = $1 LIMIT 1`,
-      [upc]
+      [upc],
     );
 
     if (result.rows.length === 0) return null;
@@ -707,7 +735,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     };
   }
 
-  findExistingAlbumByUpcSync(upc: string): { albumId: string; shortId: string } | null {
+  findExistingAlbumByUpcSync(_upc: string): { albumId: string; shortId: string } | null {
     throw new Error("findExistingAlbumByUpcSync not available in PostgreSQL adapter");
   }
 
@@ -730,7 +758,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
           `SELECT a.id, su.id as short_id FROM albums a
            LEFT JOIN album_short_urls su ON a.id = su.album_id
            WHERE a.upc = $1 LIMIT 1`,
-          [data.sourceAlbum.upc]
+          [data.sourceAlbum.upc],
         );
         if (found.rows.length > 0) {
           existingAlbumId = found.rows[0].id;
@@ -743,7 +771,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
           `SELECT a.id, su.id as short_id FROM albums a
            LEFT JOIN album_short_urls su ON a.id = su.album_id
            WHERE a.source_url = $1 LIMIT 1`,
-          [data.sourceAlbum.sourceUrl]
+          [data.sourceAlbum.sourceUrl],
         );
         if (found.rows.length > 0) {
           existingAlbumId = found.rows[0].id;
@@ -771,7 +799,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             data.sourceAlbum.label ?? null,
             data.sourceAlbum.previewUrl ?? null,
             now,
-          ]
+          ],
         );
       } else {
         // Insert new album
@@ -795,7 +823,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             data.sourceAlbum.previewUrl ?? null,
             now,
             now,
-          ]
+          ],
         );
       }
 
@@ -818,7 +846,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             link.confidence,
             link.matchMethod,
             now,
-          ]
+          ],
         );
       }
 
@@ -827,7 +855,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         await client.query(
           `INSERT INTO album_short_urls (id, album_id, created_at) VALUES ($1, $2, $3)
            ON CONFLICT DO NOTHING`,
-          [shortId, albumId, now]
+          [shortId, albumId, now],
         );
       }
 
@@ -843,7 +871,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async addLinksToAlbum(
     albumId: string,
-    links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>
+    links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
   ): Promise<void> {
     const client = await this.pool.connect();
     try {
@@ -868,7 +896,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             link.confidence,
             link.matchMethod,
             now,
-          ]
+          ],
         );
       }
 
@@ -892,7 +920,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       JOIN album_short_urls asu ON a.id = asu.album_id
       LEFT JOIN album_service_links asl ON a.id = asl.album_id
       WHERE asu.id = $1`,
-      [shortId]
+      [shortId],
     );
 
     if (result.rows.length === 0) return null;
@@ -904,9 +932,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return {
       album: this.rowToAlbum(firstRow),
       artists,
-      links: result.rows
-        .filter((r: any) => r.link_url && r.service)
-        .map((r: any) => ({
+      links: (result.rows as AlbumWithLinkRow[])
+        .filter((r) => r.link_url && r.service)
+        .map((r) => ({
           service: r.service as string,
           url: r.link_url as string,
         })),
@@ -942,7 +970,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
               avatar_url, locale, invite_token_hash, invite_expires_at,
               session_timeout_minutes, created_at, last_login_at
        FROM admin_users WHERE id = $1`,
-      [id]
+      [id],
     );
 
     if (result.rows.length === 0) return null;
@@ -955,7 +983,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
               avatar_url, locale, invite_token_hash, invite_expires_at,
               session_timeout_minutes, created_at, last_login_at
        FROM admin_users WHERE username = $1`,
-      [username]
+      [username],
     );
 
     if (result.rows.length === 0) return null;
@@ -988,16 +1016,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         data.inviteTokenHash ?? null,
         data.inviteExpiresAt ?? null,
         now,
-      ]
+      ],
     );
   }
 
   async updateLastLogin(userId: string): Promise<void> {
     const now = new Date();
-    await this.pool.query(
-      `UPDATE admin_users SET last_login_at = $1 WHERE id = $2`,
-      [now, userId]
-    );
+    await this.pool.query(`UPDATE admin_users SET last_login_at = $1 WHERE id = $2`, [now, userId]);
   }
 
   async countAdmins(): Promise<number> {
@@ -1011,7 +1036,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
               avatar_url, locale, invite_token_hash, invite_expires_at,
               session_timeout_minutes, created_at, last_login_at
        FROM admin_users
-       ORDER BY created_at ASC`
+       ORDER BY created_at ASC`,
     );
     return result.rows.map((row) => this.rowToAdminUser(row as AdminUserRow));
   }
@@ -1028,7 +1053,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       locale: string;
       role: string;
       sessionTimeoutMinutes: number | null;
-    }>
+    }>,
   ): Promise<AdminUser | null> {
     const columnMap: Record<string, string> = {
       username: "username",
@@ -1064,7 +1089,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
        RETURNING id, username, password_hash, email, role, first_name, last_name,
                  avatar_url, locale, invite_token_hash, invite_expires_at,
                  session_timeout_minutes, created_at, last_login_at`,
-      values
+      values,
     );
 
     if (result.rows.length === 0) return null;
@@ -1091,14 +1116,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       LEFT JOIN featured_tracks ft ON t.id = ft.track_id
       WHERE t.id = $1
       GROUP BY t.id, su.id, ft.id`,
-      [id]
+      [id],
     );
     if (trackResult.rows.length === 0) return null;
     const r = trackResult.rows[0];
 
     const linksResult = await this.pool.query(
       `SELECT service, url FROM service_links WHERE track_id = $1 ORDER BY service`,
-      [id]
+      [id],
     );
 
     return {
@@ -1117,20 +1142,44 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       shortId: r.short_id ?? null,
       isFeatured: r.is_featured,
       createdAt: dateToMs(r.created_at),
-      serviceLinks: linksResult.rows.map((l: any) => ({ service: l.service, url: l.url })),
+      serviceLinks: (linksResult.rows as ServiceLinkRow[]).map((l) => ({ service: l.service, url: l.url })),
     };
   }
 
-  async updateTrack(id: string, data: { title?: string; artists?: string[]; albumName?: string | null; isrc?: string | null; artworkUrl?: string | null }) {
+  async updateTrack(
+    id: string,
+    data: {
+      title?: string;
+      artists?: string[];
+      albumName?: string | null;
+      isrc?: string | null;
+      artworkUrl?: string | null;
+    },
+  ) {
     const sets: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null | Date)[] = [];
     let idx = 1;
 
-    if (data.title !== undefined) { sets.push(`title = $${idx++}`); values.push(data.title); }
-    if (data.artists !== undefined) { sets.push(`artists = $${idx++}`); values.push(JSON.stringify(data.artists)); }
-    if (data.albumName !== undefined) { sets.push(`album_name = $${idx++}`); values.push(data.albumName); }
-    if (data.isrc !== undefined) { sets.push(`isrc = $${idx++}`); values.push(data.isrc); }
-    if (data.artworkUrl !== undefined) { sets.push(`artwork_url = $${idx++}`); values.push(data.artworkUrl); }
+    if (data.title !== undefined) {
+      sets.push(`title = $${idx++}`);
+      values.push(data.title);
+    }
+    if (data.artists !== undefined) {
+      sets.push(`artists = $${idx++}`);
+      values.push(JSON.stringify(data.artists));
+    }
+    if (data.albumName !== undefined) {
+      sets.push(`album_name = $${idx++}`);
+      values.push(data.albumName);
+    }
+    if (data.isrc !== undefined) {
+      sets.push(`isrc = $${idx++}`);
+      values.push(data.isrc);
+    }
+    if (data.artworkUrl !== undefined) {
+      sets.push(`artwork_url = $${idx++}`);
+      values.push(data.artworkUrl);
+    }
 
     if (sets.length === 0) return;
 
@@ -1138,10 +1187,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     values.push(new Date());
     values.push(id);
 
-    await this.pool.query(
-      `UPDATE tracks SET ${sets.join(", ")} WHERE id = $${idx}`,
-      values
-    );
+    await this.pool.query(`UPDATE tracks SET ${sets.join(", ")} WHERE id = $${idx}`, values);
   }
 
   // ============================================================================
@@ -1154,7 +1200,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     q?: string;
     sortBy?: string;
     sortDir?: "asc" | "desc";
-  }): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+  }): Promise<ListResult<TrackListItem>> {
     const { page = 1, limit = 50, q, sortBy = "created_at", sortDir = "desc" } = params;
     const offset = (page - 1) * limit;
     const ALLOWED = ["created_at", "updated_at", "title"];
@@ -1162,16 +1208,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const dir = sortDir === "asc" ? "ASC" : "DESC";
 
     let whereClause = "";
-    let countResult: any;
-    let queryParams: any[] = [];
+    let countResult: pgModule.QueryResult<CountRow>;
+    let queryParams: (string | number)[] = [];
 
     if (q) {
       whereClause = `WHERE t.title ILIKE $1 OR t.artists ILIKE $1`;
       queryParams = [`%${q}%`];
-      countResult = await this.pool.query(
-        `SELECT COUNT(*) as count FROM tracks t ${whereClause}`,
-        queryParams
-      );
+      countResult = await this.pool.query(`SELECT COUNT(*) as count FROM tracks t ${whereClause}`, queryParams);
     } else {
       countResult = await this.pool.query(`SELECT COUNT(*) as count FROM tracks t`);
     }
@@ -1197,7 +1240,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     const rows = await this.pool.query(query, queryParams);
 
-    const items = rows.rows.map((r: any) => ({
+    const items = (rows.rows as TrackListRow[]).map((r) => ({
       id: r.id,
       title: r.title,
       artists: safeParseArray(r.artists),
@@ -1220,7 +1263,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     q?: string;
     sortBy?: string;
     sortDir?: "asc" | "desc";
-  }): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+  }): Promise<ListResult<AlbumListItem>> {
     const { page = 1, limit = 50, q, sortBy = "created_at", sortDir = "desc" } = params;
     const offset = (page - 1) * limit;
     const ALLOWED = ["created_at", "updated_at", "title"];
@@ -1228,16 +1271,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const dir = sortDir === "asc" ? "ASC" : "DESC";
 
     let whereClause = "";
-    let countResult: any;
-    let queryParams: any[] = [];
+    let countResult: pgModule.QueryResult<CountRow>;
+    let queryParams: (string | number)[] = [];
 
     if (q) {
       whereClause = `WHERE a.title ILIKE $1 OR a.artists ILIKE $1`;
       queryParams = [`%${q}%`];
-      countResult = await this.pool.query(
-        `SELECT COUNT(*) as count FROM albums a ${whereClause}`,
-        queryParams
-      );
+      countResult = await this.pool.query(`SELECT COUNT(*) as count FROM albums a ${whereClause}`, queryParams);
     } else {
       countResult = await this.pool.query(`SELECT COUNT(*) as count FROM albums a`);
     }
@@ -1263,7 +1303,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     const rows = await this.pool.query(query, queryParams);
 
-    const items = rows.rows.map((r: any) => ({
+    const items = (rows.rows as AlbumListRow[]).map((r) => ({
       id: r.id,
       title: r.title,
       artists: safeParseArray(r.artists),
@@ -1298,16 +1338,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await client.query(`DELETE FROM service_links WHERE track_id IN (${placeholders})`, ids);
       await client.query(`DELETE FROM short_urls WHERE track_id IN (${placeholders})`, ids);
       await client.query(`DELETE FROM featured_tracks WHERE track_id IN (${placeholders})`, ids);
-      await client.query(
-        `DELETE FROM url_aliases WHERE track_id IN (${placeholders})`,
-        ids
-      );
+      await client.query(`DELETE FROM url_aliases WHERE track_id IN (${placeholders})`, ids);
 
       // Delete tracks
-      await client.query(
-        `DELETE FROM tracks WHERE id IN (${placeholders}) RETURNING id`,
-        ids
-      );
+      await client.query(`DELETE FROM tracks WHERE id IN (${placeholders}) RETURNING id`, ids);
 
       await client.query("COMMIT");
 
@@ -1333,25 +1367,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
 
       // Delete associated records first
-      await client.query(
-        `DELETE FROM album_service_links WHERE album_id IN (${placeholders})`,
-        ids
-      );
-      await client.query(
-        `DELETE FROM album_short_urls WHERE album_id IN (${placeholders})`,
-        ids
-      );
-      await client.query(
-        `DELETE FROM featured_albums WHERE album_id IN (${placeholders})`,
-        ids
-      );
+      await client.query(`DELETE FROM album_service_links WHERE album_id IN (${placeholders})`, ids);
+      await client.query(`DELETE FROM album_short_urls WHERE album_id IN (${placeholders})`, ids);
+      await client.query(`DELETE FROM featured_albums WHERE album_id IN (${placeholders})`, ids);
       await client.query(`DELETE FROM url_aliases WHERE album_id IN (${placeholders})`, ids);
 
       // Delete albums
-      await client.query(
-        `DELETE FROM albums WHERE id IN (${placeholders}) RETURNING id`,
-        ids
-      );
+      await client.query(`DELETE FROM albums WHERE id IN (${placeholders}) RETURNING id`, ids);
 
       await client.query("COMMIT");
 
@@ -1369,10 +1391,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async setTrackFeatured(shortId: string, featured: boolean): Promise<void> {
     // Find the track_id from the short_url
-    const result = await this.pool.query(
-      `SELECT track_id FROM short_urls WHERE id = $1`,
-      [shortId]
-    );
+    const result = await this.pool.query(`SELECT track_id FROM short_urls WHERE id = $1`, [shortId]);
 
     if (result.rows.length === 0) {
       throw new Error(`Short URL not found: ${shortId}`);
@@ -1386,7 +1405,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await this.pool.query(
         `INSERT INTO featured_tracks (id, track_id, created_at) VALUES ($1, $2, $3)
          ON CONFLICT DO NOTHING`,
-        [id, trackId, now]
+        [id, trackId, now],
       );
     } else {
       await this.pool.query(`DELETE FROM featured_tracks WHERE track_id = $1`, [trackId]);
@@ -1395,10 +1414,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async setAlbumFeatured(shortId: string, featured: boolean): Promise<void> {
     // Find the album_id from the short_url
-    const result = await this.pool.query(
-      `SELECT album_id FROM album_short_urls WHERE id = $1`,
-      [shortId]
-    );
+    const result = await this.pool.query(`SELECT album_id FROM album_short_urls WHERE id = $1`, [shortId]);
 
     if (result.rows.length === 0) {
       throw new Error(`Album short URL not found: ${shortId}`);
@@ -1412,7 +1428,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await this.pool.query(
         `INSERT INTO featured_albums (id, album_id, created_at) VALUES ($1, $2, $3)
          ON CONFLICT DO NOTHING`,
-        [id, albumId, now]
+        [id, albumId, now],
       );
     } else {
       await this.pool.query(`DELETE FROM featured_albums WHERE album_id = $1`, [albumId]);
@@ -1486,7 +1502,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       JOIN short_urls su ON t.id = su.track_id
       LEFT JOIN service_links sl ON t.id = sl.track_id
       WHERE su.id = $1`,
-      [shortId]
+      [shortId],
     );
 
     if (result.rows.length === 0) return null;
@@ -1499,9 +1515,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       trackId: firstRow.id,
       track: this.rowToSharePageTrack(firstRow),
       artists,
-      links: result.rows
-        .filter((r: any) => r.url && r.service)
-        .map((r: any) => ({
+      links: (result.rows as TrackWithLinkRow[])
+        .filter((r) => r.url && r.service)
+        .map((r) => ({
           service: r.service as string,
           url: r.url as string,
         })),
@@ -1529,12 +1545,15 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       ...new Map(
         rows
           .filter((r) => r.url && r.service)
-          .map((r) => [r.service, {
-            service: r.service!,
-            url: r.url!,
-            confidence: r.confidence ?? 0,
-            matchMethod: r.match_method ?? "cache",
-          }])
+          .map((r) => [
+            r.service,
+            {
+              service: r.service!,
+              url: r.url!,
+              confidence: r.confidence ?? 0,
+              matchMethod: r.match_method ?? "cache",
+            },
+          ]),
       ).values(),
     ];
 
@@ -1557,12 +1576,15 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       ...new Map(
         rows
           .filter((r) => r.link_url && r.service)
-          .map((r) => [r.service, {
-            service: r.service!,
-            url: r.link_url!,
-            confidence: r.confidence ?? 0,
-            matchMethod: r.match_method ?? "cache",
-          }])
+          .map((r) => [
+            r.service,
+            {
+              service: r.service!,
+              url: r.link_url!,
+              confidence: r.confidence ?? 0,
+              matchMethod: r.match_method ?? "cache",
+            },
+          ]),
       ).values(),
     ];
 
@@ -1607,7 +1629,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       artworkUrl: row.artwork_url ?? undefined,
       durationMs: row.duration_ms ?? undefined,
       releaseDate: row.release_date ?? undefined,
-      isExplicit: row.is_explicit ? true : false,
+      isExplicit: !!row.is_explicit,
       previewUrl: row.preview_url ?? undefined,
       webUrl: row.source_url ?? "",
     };
@@ -1622,7 +1644,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       durationMs: row.duration_ms,
       isrc: row.isrc,
       releaseDate: row.release_date,
-      isExplicit: row.is_explicit ? true : false,
+      isExplicit: !!row.is_explicit,
       previewUrl: row.preview_url,
     };
   }

@@ -9,7 +9,7 @@ const client = new pg.Client({
 
 const toDate = (ms: number | null) => (ms && ms > 0 ? new Date(ms * 1000) : new Date());
 
-async function insertTable(tableName: string, rows: any[], mapping: Record<string, string>) {
+async function insertTable(tableName: string, rows: Record<string, unknown>[], mapping: Record<string, string>) {
   if (!rows || rows.length === 0) {
     console.log(`  ${tableName}: 0 rows`);
     return;
@@ -31,8 +31,8 @@ async function insertTable(tableName: string, rows: any[], mapping: Record<strin
       const sql = `INSERT INTO ${tableName} (${cols.join(", ")}) VALUES (${placeholders})`;
       await client.query(sql, values);
       inserted++;
-    } catch (error: any) {
-      console.error(`  Error on ${tableName}:`, error.message);
+    } catch (error: unknown) {
+      console.error(`  Error on ${tableName}:`, error instanceof Error ? error.message : String(error));
       console.error("  Row:", row);
       throw error;
     }
@@ -121,13 +121,13 @@ async function migrate() {
     });
 
     // ARTIST_CACHE (fields have different names, generate IDs)
-    const artistCacheRows = data.artist_cache.map((row: any) => {
+    const artistCacheRows = data.artist_cache.map((row: Record<string, unknown>) => {
       // Generate created_at and updated_at from the update timestamps
       const timestamps = [
         row.profile_updated_at,
         row.tracks_updated_at,
         row.events_updated_at,
-      ].filter((t: any) => typeof t === "number" && t > 0);
+      ].filter((t: unknown): t is number => typeof t === "number" && t > 0);
       const created_at = timestamps.length > 0 ? Math.min(...timestamps) : Date.now() / 1000;
       const updated_at = timestamps.length > 0 ? Math.max(...timestamps) : Date.now() / 1000;
 
@@ -156,8 +156,8 @@ async function migrate() {
 
     // URL_ALIASES (skip rows without short_id)
     const urlAliasesRows = data.url_aliases
-      .filter((row: any) => row.short_id)
-      .map((row: any) => ({
+      .filter((row: Record<string, unknown>) => row.short_id)
+      .map((row: Record<string, unknown>) => ({
         ...row,
         id: row.id || `alias-${nanoid()}`,
       }));
@@ -179,9 +179,9 @@ async function migrate() {
 
     await client.query("COMMIT");
     console.log("\n✅ Migration completed successfully!");
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query("ROLLBACK");
-    console.error("\n❌ Migration failed:", error.message);
+    console.error("\n❌ Migration failed:", error instanceof Error ? error.message : String(error));
     process.exit(1);
   } finally {
     await client.end();

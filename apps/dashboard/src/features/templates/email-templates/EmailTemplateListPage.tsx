@@ -1,20 +1,11 @@
-import {
-  EnvelopeOpenIcon,
-  FileTextIcon,
-  LockIcon,
-  PlusCircleIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+import { EnvelopeOpenIcon, FileTextIcon, LockIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useNavigate } from "react-router";
 
 import { Card } from "@/components/ui/Card";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/context/I18nContext";
-import {
-  useDeleteEmailTemplate,
-  useEmailTemplates,
-} from "@/features/templates/hooks/useEmailTemplates";
+import { useDeleteEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 
 export function EmailTemplateListPage() {
   const { messages, locale } = useI18n();

@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
-import type { MediaAsset } from "@/shared/types/media";
 import { api } from "@/lib/api";
+import type { MediaAsset } from "@/shared/types/media";
 
 export function useAdminMedia() {
   return useQuery({

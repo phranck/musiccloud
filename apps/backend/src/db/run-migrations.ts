@@ -1,5 +1,5 @@
-import path from "node:path";
 import { existsSync } from "node:fs";
+import path from "node:path";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
@@ -20,9 +20,7 @@ function resolveMigrationsFolder(): string {
     }
   }
 
-  throw new Error(
-    `Drizzle migrations folder not found. Checked:\n${candidates.map((c) => `  ${c}`).join("\n")}`,
-  );
+  throw new Error(`Drizzle migrations folder not found. Checked:\n${candidates.map((c) => `  ${c}`).join("\n")}`);
 }
 
 export async function runMigrations(): Promise<void> {
@@ -49,7 +47,7 @@ export async function runMigrations(): Promise<void> {
     if (Number(rows[0]?.c) === 0) {
       await pool.query(
         `UPDATE admin_users SET role = 'owner'
-         WHERE id = (SELECT id FROM admin_users ORDER BY created_at ASC LIMIT 1)`
+         WHERE id = (SELECT id FROM admin_users ORDER BY created_at ASC LIMIT 1)`,
       );
     }
 

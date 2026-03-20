@@ -118,10 +118,7 @@ export function LoginPage() {
 
           <div key={inputKey} className="px-5 py-4 flex flex-col gap-4">
             <div>
-              <label
-                htmlFor="username"
-                className="block text-sm font-medium text-[var(--ds-text)] mb-1.5"
-              >
+              <label htmlFor="username" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {loginMessages.username}
               </label>
               <input
@@ -137,10 +134,7 @@ export function LoginPage() {
             </div>
 
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-[var(--ds-text)] mb-1.5"
-              >
+              <label htmlFor="password" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {loginMessages.password}
               </label>
               <input

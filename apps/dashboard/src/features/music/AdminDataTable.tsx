@@ -1,7 +1,7 @@
 import {
   ArrowDown as ArrowDownIcon,
-  ArrowUp as ArrowUpIcon,
   ArrowsDownUp as ArrowsDownUpIcon,
+  ArrowUp as ArrowUpIcon,
   PencilSimple as PencilSimpleIcon,
   PencilSimpleSlash as PencilSimpleSlashIcon,
   SpinnerGap as SpinnerGapIcon,
@@ -214,11 +214,10 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
   // Trigger first-page fetch
   // ---------------------------------------------------------------------------
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery, sortBy and sortDir are intentional triggers to re-fetch when filter/sort params change, even though they are not read inside the effect body (accessed via refs).
   useEffect(() => {
     const stale =
-      stateRef.current.tag === "ready" || stateRef.current.tag === "loading-more"
-        ? stateRef.current.items
-        : undefined;
+      stateRef.current.tag === "ready" || stateRef.current.tag === "loading-more" ? stateRef.current.items : undefined;
     fetchFirstPageRef.current(stale);
   }, [searchQuery, sortBy, sortDir]);
 
@@ -227,6 +226,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
     return () => clearTimeout(timer);
   }, [inputValue]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery, sortBy and sortDir are intentional triggers to reset selection when filter/sort params change.
   useEffect(() => {
     setSelectedIds(new Set());
   }, [searchQuery, sortBy, sortDir]);
@@ -272,8 +272,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
   useAdminSSE(
     useCallback(
       (event) => {
-        if (!sseEventType || !sseToItem || event.type !== sseEventType || searchQuery !== "" || sortBy !== null)
-          return;
+        if (!sseEventType || !sseToItem || event.type !== sseEventType || searchQuery !== "" || sortBy !== null) return;
         dispatch({ type: "PREPEND", item: sseToItem(event.data) });
       },
       [searchQuery, sseEventType, sseToItem, sortBy],
@@ -414,11 +413,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
                   : "bg-transparent text-[var(--ds-text)] border-[var(--ds-border)] hover:border-[var(--ds-border-strong)]"
               }`}
             >
-              {editMode ? (
-                <PencilSimpleSlashIcon className="w-4 h-4" />
-              ) : (
-                <PencilSimpleIcon className="w-4 h-4" />
-              )}
+              {editMode ? <PencilSimpleSlashIcon className="w-4 h-4" /> : <PencilSimpleIcon className="w-4 h-4" />}
               {m.editButton}
             </button>
           )}
@@ -428,16 +423,14 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
       {/* Initial loading skeletons */}
       {isInitialLoading && (
         <div className="space-y-2">
-          {Array.from({ length: 8 }, (_, i) => (
-            <div key={`skel-${i}`} className="h-12 w-full rounded-md bg-[var(--ds-surface-raised)] animate-pulse" />
+          {Array.from({ length: 8 }, (_, i) => `skeleton-${i}`).map((key) => (
+            <div key={key} className="h-12 w-full rounded-md bg-[var(--ds-surface-raised)] animate-pulse" />
           ))}
         </div>
       )}
 
       {/* Error */}
-      {state.tag === "error" && (
-        <p className="text-sm text-[var(--ds-btn-danger-text)]">{state.message}</p>
-      )}
+      {state.tag === "error" && <p className="text-sm text-[var(--ds-btn-danger-text)]">{state.message}</p>}
 
       {/* Table */}
       {!isInitialLoading && state.tag !== "error" && (
@@ -456,10 +449,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
                       editMode ? "w-10 px-3 py-2 opacity-100" : "w-0 max-w-0 p-0 opacity-0"
                     }`}
                   >
-                    <Checkbox
-                      checked={allSelected}
-                      onChange={toggleAll}
-                    />
+                    <Checkbox checked={allSelected} onChange={toggleAll} />
                   </th>
                 )}
                 {config.columns.map((col, i) => {
@@ -511,10 +501,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
                           editMode ? "w-10 px-3 py-2 opacity-100" : "w-0 max-w-0 p-0 opacity-0"
                         }`}
                       >
-                        <Checkbox
-                          checked={selectedIds.has(item.id)}
-                          onChange={() => toggleRow(item.id)}
-                        />
+                        <Checkbox checked={selectedIds.has(item.id)} onChange={() => toggleRow(item.id)} />
                       </td>
                     )}
                     {config.columns.map((col, i) => {
@@ -541,18 +528,12 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
       )}
 
       {/* Delete confirmation dialog */}
-      <Dialog
-        open={confirmOpen}
-        title={m.deleteConfirmTitle}
-        onClose={() => setConfirmOpen(false)}
-      >
+      <Dialog open={confirmOpen} title={m.deleteConfirmTitle} onClose={() => setConfirmOpen(false)}>
         <div className="px-6 py-4 space-y-3">
           <p className="text-sm text-[var(--ds-text)]">
             {m.deleteConfirmDescription.replace("{count}", String(selectedCount))}
           </p>
-          {deleteError && (
-            <p className="text-sm text-[var(--ds-btn-danger-text)]">{deleteError}</p>
-          )}
+          {deleteError && <p className="text-sm text-[var(--ds-btn-danger-text)]">{deleteError}</p>}
         </div>
         <Dialog.Footer>
           <button
@@ -563,12 +544,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
           >
             {m.deleteConfirmCancel}
           </button>
-          <button
-            type="button"
-            className={dialogBtnDestructive}
-            onClick={handleConfirmDelete}
-            disabled={deleting}
-          >
+          <button type="button" className={dialogBtnDestructive} onClick={handleConfirmDelete} disabled={deleting}>
             {deleting ? "\u2026" : m.deleteConfirmAction}
           </button>
         </Dialog.Footer>

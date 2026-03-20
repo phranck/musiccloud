@@ -1,11 +1,7 @@
-import { type ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/features/auth/AuthContext";
-import {
-  DASHBOARD_MESSAGES,
-  type DashboardLocale,
-  type DashboardMessages,
-} from "@/i18n/messages";
+import { DASHBOARD_MESSAGES, type DashboardLocale, type DashboardMessages } from "@/i18n/messages";
 
 const DASHBOARD_LOCALE_STORAGE_KEY = "dashboard-locale";
 

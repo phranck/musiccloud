@@ -1,3 +1,5 @@
+import type { Platform } from "@musiccloud/shared";
+import { isValidPlatform, PLATFORM_CONFIG, SERVICE_DISPLAY_ORDER } from "@musiccloud/shared";
 import {
   ArrowSquareOut as ArrowSquareOutIcon,
   CheckCircle as CheckCircleIcon,
@@ -5,16 +7,14 @@ import {
   SpinnerGap as SpinnerGapIcon,
   XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
-import { PLATFORM_CONFIG, SERVICE_DISPLAY_ORDER, isValidPlatform } from "@musiccloud/shared";
-import type { Platform } from "@musiccloud/shared";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { EditorPageShell } from "@/components/ui/EditorPageShell";
 import { EditorToolbarButton } from "@/components/ui/EditorToolbarButton";
 import { useI18n } from "@/context/I18nContext";
-import { useKeyboardSave } from "@/lib/useKeyboardSave";
 import { api } from "@/lib/api";
+import { useKeyboardSave } from "@/lib/useKeyboardSave";
 import { PlatformIcon } from "@/shared/ui/PlatformIcon";
 
 interface TrackDetail {
@@ -90,7 +90,10 @@ export function TrackEditPage() {
     try {
       await api.patch(`/admin/tracks/${id}`, {
         title,
-        artists: artists.split(",").map((a) => a.trim()).filter(Boolean),
+        artists: artists
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean),
         albumName: albumName || null,
         isrc: isrc || null,
         artworkUrl: artworkUrl || null,
@@ -181,7 +184,9 @@ export function TrackEditPage() {
               }}
             />
           ) : null}
-          <div className={`w-[250px] h-[250px] rounded-lg bg-[var(--ds-surface-raised)] flex items-center justify-center text-[var(--ds-text-muted)] text-sm${track.artworkUrl ? " hidden" : ""}`}>
+          <div
+            className={`w-[250px] h-[250px] rounded-lg bg-[var(--ds-surface-raised)] flex items-center justify-center text-[var(--ds-text-muted)] text-sm${track.artworkUrl ? " hidden" : ""}`}
+          >
             250 x 250
           </div>
 
@@ -189,18 +194,10 @@ export function TrackEditPage() {
             {track.sourceService && isValidPlatform(track.sourceService) ? (
               track.sourceUrl ? (
                 <a href={track.sourceUrl} target="_blank" rel="noopener noreferrer">
-                  <PlatformIcon
-                    platform={track.sourceService}
-                    colored
-                    className="w-9 h-9"
-                  />
+                  <PlatformIcon platform={track.sourceService} colored className="w-9 h-9" />
                 </a>
               ) : (
-                <PlatformIcon
-                  platform={track.sourceService}
-                  colored
-                  className="w-9 h-9"
-                />
+                <PlatformIcon platform={track.sourceService} colored className="w-9 h-9" />
               )
             ) : (
               <div className="w-9 h-9 rounded-lg bg-[var(--ds-surface-raised)] flex items-center justify-center text-[var(--ds-text-muted)] text-xs">
@@ -217,8 +214,11 @@ export function TrackEditPage() {
         <div className="flex-1 min-w-0 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>{m.title}</label>
+              <label htmlFor="track-title" className={labelClass}>
+                {m.title}
+              </label>
               <input
+                id="track-title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -226,8 +226,11 @@ export function TrackEditPage() {
               />
             </div>
             <div>
-              <label className={labelClass}>{m.artists}</label>
+              <label htmlFor="track-artists" className={labelClass}>
+                {m.artists}
+              </label>
               <input
+                id="track-artists"
                 type="text"
                 value={artists}
                 onChange={(e) => setArtists(e.target.value)}
@@ -236,8 +239,11 @@ export function TrackEditPage() {
               />
             </div>
             <div>
-              <label className={labelClass}>{m.albumName}</label>
+              <label htmlFor="track-album" className={labelClass}>
+                {m.albumName}
+              </label>
               <input
+                id="track-album"
                 type="text"
                 value={albumName}
                 onChange={(e) => setAlbumName(e.target.value)}
@@ -245,8 +251,11 @@ export function TrackEditPage() {
               />
             </div>
             <div>
-              <label className={labelClass}>{m.isrc}</label>
+              <label htmlFor="track-isrc" className={labelClass}>
+                {m.isrc}
+              </label>
               <input
+                id="track-isrc"
                 type="text"
                 value={isrc}
                 onChange={(e) => setIsrc(e.target.value)}
@@ -257,8 +266,11 @@ export function TrackEditPage() {
 
           {/* Artwork URL */}
           <div>
-            <label className={labelClass}>{m.artworkUrl}</label>
+            <label htmlFor="track-artwork-url" className={labelClass}>
+              {m.artworkUrl}
+            </label>
             <input
+              id="track-artwork-url"
               type="text"
               value={artworkUrl}
               onChange={(e) => setArtworkUrl(e.target.value)}
@@ -272,41 +284,46 @@ export function TrackEditPage() {
               {m.serviceUrls}
             </h3>
             <div className="space-y-3">
-              {[...SERVICE_DISPLAY_ORDER].sort((a, b) =>
-                PLATFORM_CONFIG[a as Platform].label.localeCompare(PLATFORM_CONFIG[b as Platform].label)
-              ).map((service) => {
-                const platform = service as Platform;
-                const label = PLATFORM_CONFIG[platform].label;
-                const url = linksByService.get(service);
-                return (
-                  <div key={service}>
-                    <label className={labelClass}>{label}</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={url ?? ""}
-                        className={readOnlyClass}
-                      />
-                      {url ? (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0 w-9 h-9 flex items-center justify-center rounded-control border border-[var(--ds-btn-neutral-border)] text-[var(--ds-btn-neutral-text)] hover:border-[var(--ds-btn-neutral-hover-border)] hover:bg-[var(--ds-btn-neutral-hover-bg)] transition-colors"
-                          title={label}
-                        >
-                          <ArrowSquareOutIcon weight="duotone" className="w-4 h-4" />
-                        </a>
-                      ) : (
-                        <span className="shrink-0 w-9 h-9 flex items-center justify-center rounded-control border border-[var(--ds-border)] text-[var(--ds-text-muted)] opacity-40 cursor-default">
-                          <ArrowSquareOutIcon weight="duotone" className="w-4 h-4" />
-                        </span>
-                      )}
+              {[...SERVICE_DISPLAY_ORDER]
+                .sort((a, b) =>
+                  PLATFORM_CONFIG[a as Platform].label.localeCompare(PLATFORM_CONFIG[b as Platform].label),
+                )
+                .map((service) => {
+                  const platform = service as Platform;
+                  const label = PLATFORM_CONFIG[platform].label;
+                  const url = linksByService.get(service);
+                  return (
+                    <div key={service}>
+                      <label htmlFor={`service-url-${service}`} className={labelClass}>
+                        {label}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          id={`service-url-${service}`}
+                          type="text"
+                          readOnly
+                          value={url ?? ""}
+                          className={readOnlyClass}
+                        />
+                        {url ? (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-control border border-[var(--ds-btn-neutral-border)] text-[var(--ds-btn-neutral-text)] hover:border-[var(--ds-btn-neutral-hover-border)] hover:bg-[var(--ds-btn-neutral-hover-bg)] transition-colors"
+                            title={label}
+                          >
+                            <ArrowSquareOutIcon weight="duotone" className="w-4 h-4" />
+                          </a>
+                        ) : (
+                          <span className="shrink-0 w-9 h-9 flex items-center justify-center rounded-control border border-[var(--ds-border)] text-[var(--ds-text-muted)] opacity-40 cursor-default">
+                            <ArrowSquareOutIcon weight="duotone" className="w-4 h-4" />
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           </div>
         </div>

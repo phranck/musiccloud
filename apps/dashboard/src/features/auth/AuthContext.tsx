@@ -1,9 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
-
-import type { AdminUser } from "@/shared/types/admin";
-
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
+import type { AdminUser } from "@/shared/types/admin";
 
 const TOKEN_KEY = "admin_token";
 
@@ -114,7 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const timeoutMs = user.sessionTimeoutMinutes * 60 * 1000;
 
-    const handleActivity = () => { lastActivityRef.current = Date.now(); };
+    const handleActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
     const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];
     events.forEach((e) => window.addEventListener(e, handleActivity, { passive: true }));
 

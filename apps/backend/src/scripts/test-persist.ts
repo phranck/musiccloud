@@ -31,9 +31,9 @@ async function test() {
     
     console.log("✅ persistTrackWithLinks works!");
     console.log(result);
-  } catch (error: any) {
-    console.error("❌ Error:", error.message);
-    console.error(error.stack);
+  } catch (error: unknown) {
+    console.error("❌ Error:", error instanceof Error ? error.message : String(error));
+    if (error instanceof Error) console.error(error.stack);
   }
 }
 

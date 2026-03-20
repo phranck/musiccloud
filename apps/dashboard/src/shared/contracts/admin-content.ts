@@ -19,11 +19,7 @@ export const contentMetaSchema = z.object({
 });
 
 export const contentCreateSchema = z.object({
-  slug: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(slugPattern, "Nur Kleinbuchstaben, Zahlen und Bindestriche erlaubt"),
+  slug: z.string().min(1).max(100).regex(slugPattern, "Nur Kleinbuchstaben, Zahlen und Bindestriche erlaubt"),
   title: z.string().min(1).max(200),
   status: z.enum(["draft", "published", "hidden"]).optional(),
 });

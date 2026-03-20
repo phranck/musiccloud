@@ -45,6 +45,7 @@ export function CollapsibleSidebarGroup({
     setLocalOpen(true);
   }, [isGroupActive]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: globalOpenVersion is an intentional trigger to re-run the effect even when globalOpenState has not changed (e.g. repeated "collapse all" clicks).
   useEffect(() => {
     if (globalOpenState === null) return;
     setLocalOpen(globalOpenState);
@@ -85,9 +86,7 @@ export function CollapsibleSidebarGroup({
         }`}
       >
         <div className="overflow-hidden">
-          <div className="mt-0.5 ml-3 pl-3 border-l border-[var(--ds-border)] space-y-0.5">
-            {children}
-          </div>
+          <div className="mt-0.5 ml-3 pl-3 border-l border-[var(--ds-border)] space-y-0.5">{children}</div>
         </div>
       </div>
     </div>

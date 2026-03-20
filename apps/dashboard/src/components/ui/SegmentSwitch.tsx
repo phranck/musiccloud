@@ -33,6 +33,7 @@ export function SegmentSwitch<T extends string>({
 }: SegmentSwitchProps<T>) {
   const s = sizeStyles[size];
   return (
+    // biome-ignore lint/a11y/useSemanticElements: A <fieldset> would break the flex layout styling of this segmented control. The role="group" on a div is intentional.
     <div
       role="group"
       className={`flex ${s.container} bg-[var(--ds-surface-alt)] rounded-control border border-[var(--ds-border)] w-fit ${className ?? ""}`}

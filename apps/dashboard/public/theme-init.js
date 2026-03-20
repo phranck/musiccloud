@@ -1,4 +1,4 @@
-(function () {
+(() => {
   var meta = document.querySelector('meta[name="color-scheme"]');
   var storedTheme = localStorage.getItem("dashboard-theme");
   var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;

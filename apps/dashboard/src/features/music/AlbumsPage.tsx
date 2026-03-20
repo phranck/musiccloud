@@ -17,9 +17,9 @@ import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
+import { api } from "@/lib/api";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog, dialogBtnDestructive, dialogBtnSecondary } from "@/shared/ui/Dialog";
-import { api } from "@/lib/api";
 
 interface AlbumListItem {
   id: string;
@@ -108,14 +108,9 @@ export function AlbumsPage() {
             {
               id: "select",
               className: "w-10",
-              header: (
-                <Checkbox checked={table.allSelected} onChange={table.toggleAll} />
-              ),
+              header: <Checkbox checked={table.allSelected} onChange={table.toggleAll} />,
               cell: (album: AlbumListItem) => (
-                <Checkbox
-                  checked={table.selectedIds.has(album.id)}
-                  onChange={() => table.toggleRow(album.id)}
-                />
+                <Checkbox checked={table.selectedIds.has(album.id)} onChange={() => table.toggleRow(album.id)} />
               ),
             } satisfies ColumnDef<AlbumListItem>,
           ]
@@ -191,9 +186,7 @@ export function AlbumsPage() {
         header: "UPC",
         className: "w-32",
         sortKey: (album) => album.upc ?? "",
-        cell: (album) => (
-          <span className="font-mono text-xs text-[var(--ds-text-muted)]">{album.upc ?? ""}</span>
-        ),
+        cell: (album) => <span className="font-mono text-xs text-[var(--ds-text-muted)]">{album.upc ?? ""}</span>,
       },
       {
         id: "totalTracks",
@@ -202,9 +195,7 @@ export function AlbumsPage() {
         headerClassName: "w-24 text-right",
         cellClassName: "w-24 text-right",
         sortKey: (album) => album.totalTracks ?? 0,
-        cell: (album) => (
-          <span className="text-sm text-[var(--ds-text-muted)]">{album.totalTracks ?? ""}</span>
-        ),
+        cell: (album) => <span className="text-sm text-[var(--ds-text-muted)]">{album.totalTracks ?? ""}</span>,
       },
       {
         id: "links",
@@ -313,9 +304,7 @@ export function AlbumsPage() {
 
   return (
     <PageLayout>
-      <PageHeader title={ma.title}>
-        {searchField}
-      </PageHeader>
+      <PageHeader title={ma.title}>{searchField}</PageHeader>
 
       <PageBody>
         {table.isInitialLoading && (
@@ -329,9 +318,7 @@ export function AlbumsPage() {
           </div>
         )}
 
-        {table.isError && (
-          <p className="text-sm text-[var(--ds-btn-danger-text)] p-4">{table.errorMessage}</p>
-        )}
+        {table.isError && <p className="text-sm text-[var(--ds-btn-danger-text)] p-4">{table.errorMessage}</p>}
 
         {!table.isInitialLoading && !table.isError && table.items.length === 0 && (
           <ContentUnavailableView
@@ -376,21 +363,20 @@ export function AlbumsPage() {
 
       {toolbarContent}
 
-      <Dialog
-        open={confirmOpen}
-        title={m.deleteConfirmTitle}
-        onClose={() => setConfirmOpen(false)}
-      >
+      <Dialog open={confirmOpen} title={m.deleteConfirmTitle} onClose={() => setConfirmOpen(false)}>
         <div className="px-6 py-4 space-y-3">
           <p className="text-sm text-[var(--ds-text)]">
             {m.deleteConfirmDescription.replace("{count}", String(table.selectedCount))}
           </p>
-          {deleteError && (
-            <p className="text-sm text-[var(--ds-btn-danger-text)]">{deleteError}</p>
-          )}
+          {deleteError && <p className="text-sm text-[var(--ds-btn-danger-text)]">{deleteError}</p>}
         </div>
         <Dialog.Footer>
-          <button type="button" className={dialogBtnSecondary} onClick={() => setConfirmOpen(false)} disabled={deleting}>
+          <button
+            type="button"
+            className={dialogBtnSecondary}
+            onClick={() => setConfirmOpen(false)}
+            disabled={deleting}
+          >
             {m.deleteConfirmCancel}
           </button>
           <button type="button" className={dialogBtnDestructive} onClick={handleConfirmDelete} disabled={deleting}>

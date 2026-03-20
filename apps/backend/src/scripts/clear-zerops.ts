@@ -29,8 +29,8 @@ async function clear() {
     }
 
     console.log("\n✅ All tables cleared");
-  } catch (error: any) {
-    console.error("❌ Error:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error:", error instanceof Error ? error.message : String(error));
     process.exit(1);
   } finally {
     await client.end();

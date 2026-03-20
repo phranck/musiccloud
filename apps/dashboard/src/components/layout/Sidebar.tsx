@@ -2,16 +2,11 @@ import {
   CaretCircleDoubleDownIcon,
   CaretCircleDoubleUpIcon,
   ChartBarIcon,
-  CheckCircleIcon,
-  CircleIcon,
   CopyIcon,
   EnvelopeOpenIcon,
-  EyeSlashIcon,
-  FileIcon,
   GearIcon,
   ImageIcon,
   LinkIcon,
-  ListBulletsIcon,
   MarkdownLogoIcon,
   MusicNotesIcon,
   NotebookIcon,
@@ -21,19 +16,14 @@ import {
   VinylRecordIcon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
-import { NavLink, useNavigate } from "react-router";
-
-import type { AdminRole } from "@/shared/types/admin";
-
-import {
-  CollapsibleSidebarGroup,
-  sidebarGroupItemClass,
-} from "@/components/layout/CollapsibleSidebarGroup";
+import { NavLink } from "react-router";
+import { CollapsibleSidebarGroup, sidebarGroupItemClass } from "@/components/layout/CollapsibleSidebarGroup";
 import { SidebarFooter } from "@/components/layout/SidebarFooter";
 import { SidebarHeader } from "@/components/layout/SidebarHeader";
 import { SidebarItem } from "@/components/layout/SidebarItem";
 import { useI18n } from "@/context/I18nContext";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
+import type { AdminRole } from "@/shared/types/admin";
 
 const ROLE_RANK: Record<AdminRole, number> = { owner: 2, admin: 1, moderator: 0 };
 const SIDEBAR_GROUP_STORAGE_KEYS = [
@@ -41,16 +31,6 @@ const SIDEBAR_GROUP_STORAGE_KEYS = [
   "sidebar-forms-open",
   "sidebar-email-templates-open",
 ] as const;
-
-function StatusIcon({ status }: { status: string }) {
-  if (status === "published") {
-    return <CheckCircleIcon weight="duotone" className="w-3 h-3 text-green-500 shrink-0" />;
-  }
-  if (status === "hidden") {
-    return <EyeSlashIcon weight="duotone" className="w-3 h-3 text-gray-400 shrink-0" />;
-  }
-  return <CircleIcon weight="duotone" className="w-3 h-3 text-amber-500 shrink-0" />;
-}
 
 interface SidebarProps {
   username?: string;
@@ -178,9 +158,7 @@ export function Sidebar({
   const [groupOpenVersion, setGroupOpenVersion] = useState(0);
   const [groupOpenState, setGroupOpenState] = useState<boolean | null>(null);
   const [groupStatus, setGroupStatus] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(
-      SIDEBAR_GROUP_STORAGE_KEYS.map((key) => [key, localStorage.getItem(key) === "true"]),
-    ),
+    Object.fromEntries(SIDEBAR_GROUP_STORAGE_KEYS.map((key) => [key, localStorage.getItem(key) === "true"])),
   );
   const areAllGroupsOpen = SIDEBAR_GROUP_STORAGE_KEYS.every((key) => groupStatus[key]);
 
@@ -191,10 +169,7 @@ export function Sidebar({
     setGroupOpenVersion((version) => version + 1);
   }
 
-  function handleGroupOpenChange(
-    storageKey: (typeof SIDEBAR_GROUP_STORAGE_KEYS)[number],
-    open: boolean,
-  ) {
+  function handleGroupOpenChange(storageKey: (typeof SIDEBAR_GROUP_STORAGE_KEYS)[number], open: boolean) {
     setGroupStatus((current) => {
       if (current[storageKey] === open) return current;
       return { ...current, [storageKey]: open };
@@ -218,35 +193,27 @@ export function Sidebar({
               <CaretCircleDoubleDownIcon
                 weight="duotone"
                 className={`absolute inset-0 h-3.5 w-3.5 transition-all duration-200 ease-out ${
-                  areAllGroupsOpen
-                    ? "-translate-y-1 opacity-0 scale-90"
-                    : "translate-y-0 opacity-100 scale-100"
+                  areAllGroupsOpen ? "-translate-y-1 opacity-0 scale-90" : "translate-y-0 opacity-100 scale-100"
                 }`}
               />
               <CaretCircleDoubleUpIcon
                 weight="duotone"
                 className={`absolute inset-0 h-3.5 w-3.5 transition-all duration-200 ease-out ${
-                  areAllGroupsOpen
-                    ? "translate-y-0 opacity-100 scale-100"
-                    : "translate-y-1 opacity-0 scale-90"
+                  areAllGroupsOpen ? "translate-y-0 opacity-100 scale-100" : "translate-y-1 opacity-0 scale-90"
                 }`}
               />
             </span>
             <span className="relative inline-grid overflow-hidden">
               <span
                 className={`col-start-1 row-start-1 transition-all duration-200 ease-out ${
-                  areAllGroupsOpen
-                    ? "-translate-y-1 opacity-0"
-                    : "translate-y-0 opacity-100"
+                  areAllGroupsOpen ? "-translate-y-1 opacity-0" : "translate-y-0 opacity-100"
                 }`}
               >
                 {s.expandAll}
               </span>
               <span
                 className={`col-start-1 row-start-1 transition-all duration-200 ease-out ${
-                  areAllGroupsOpen
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-1 opacity-0"
+                  areAllGroupsOpen ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
                 }`}
               >
                 {s.collapseAll}
@@ -316,9 +283,7 @@ export function Sidebar({
                 onItemClick={onItemClick}
                 globalOpenState={groupOpenState}
                 globalOpenVersion={groupOpenVersion}
-                onOpenChange={(open) =>
-                  handleGroupOpenChange("sidebar-email-templates-open", open)
-                }
+                onOpenChange={(open) => handleGroupOpenChange("sidebar-email-templates-open", open)}
               />
               <SidebarItem
                 to="/footer-builder"

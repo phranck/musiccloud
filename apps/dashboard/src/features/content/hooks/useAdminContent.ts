@@ -42,8 +42,7 @@ export function useSaveContentPage() {
 export function useCreateContentPage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { title: string; slug: string }) =>
-      api.post<ContentPage>("/admin/pages", data),
+    mutationFn: (data: { title: string; slug: string }) => api.post<ContentPage>("/admin/pages", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["content-pages"] }),
   });
 }

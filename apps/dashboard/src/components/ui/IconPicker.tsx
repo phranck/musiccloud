@@ -1,7 +1,6 @@
 import { useState } from "react";
-
-import { BUTTON_ICON_LIST, getButtonIconComponent } from "@/shared/ui/ButtonIcons";
 import { useI18n } from "@/context/I18nContext";
+import { BUTTON_ICON_LIST, getButtonIconComponent } from "@/shared/ui/ButtonIcons";
 
 interface IconPickerProps {
   value: string | undefined;
@@ -24,9 +23,7 @@ export function IconPicker({ value, onChange, label, noneLabel }: IconPickerProp
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs font-semibold text-[var(--ds-text-subtle)] uppercase tracking-wider">
-        {label}
-      </span>
+      <span className="text-xs font-semibold text-[var(--ds-text-subtle)] uppercase tracking-wider">{label}</span>
       <input
         type="search"
         value={query}
@@ -50,9 +47,7 @@ export function IconPicker({ value, onChange, label, noneLabel }: IconPickerProp
           </button>
         )}
         {icons.length === 0 ? (
-          <p className="col-span-6 py-4 text-center text-xs text-[var(--ds-text-muted)]">
-            {mp.iconPickerEmpty}
-          </p>
+          <p className="col-span-6 py-4 text-center text-xs text-[var(--ds-text-muted)]">{mp.iconPickerEmpty}</p>
         ) : (
           icons.map((entry) => {
             const Icon = getButtonIconComponent(entry.name);

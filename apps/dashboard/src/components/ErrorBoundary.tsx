@@ -1,5 +1,5 @@
-import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
+import { Component } from "react";
 
 import { resolveInitialLocale } from "@/context/I18nContext";
 import { DASHBOARD_MESSAGES } from "@/i18n/messages";
@@ -36,9 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
           <div className="text-center max-w-md bg-white dark:bg-slate-900 rounded-lg shadow-lg p-8">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-              {boundaryMessages.title}
-            </h1>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{boundaryMessages.title}</h1>
             <p className="text-slate-600 dark:text-slate-400 mb-6 break-words text-sm">
               {this.state.error?.message || boundaryMessages.fallbackMessage}
             </p>

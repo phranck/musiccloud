@@ -1,6 +1,5 @@
-import type { MediaAsset } from "@/shared/types/media";
-
 import type { DashboardLocale } from "@/i18n/messages";
+import type { MediaAsset } from "@/shared/types/media";
 
 export function isImageAsset(asset: MediaAsset) {
   return asset.kind === "image";
@@ -8,7 +7,8 @@ export function isImageAsset(asset: MediaAsset) {
 
 export function formatBytes(bytes: number, locale: DashboardLocale) {
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(bytes / 1024)} KB`;
+  if (bytes < 1024 * 1024)
+    return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(bytes / 1024)} KB`;
   return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(bytes / (1024 * 1024))} MB`;
 }
 

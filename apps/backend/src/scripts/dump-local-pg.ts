@@ -57,8 +57,8 @@ async function dumpDatabase() {
 
     fs.writeFileSync("/tmp/musiccloud-dump.sql", dump);
     console.log(`\n✅ Dump saved to /tmp/musiccloud-dump.sql (${(dump.length / 1024 / 1024).toFixed(2)} MB)`);
-  } catch (error: any) {
-    console.error("❌ Error:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error:", error instanceof Error ? error.message : String(error));
     process.exit(1);
   } finally {
     await sourceClient.end();

@@ -22,11 +22,7 @@ export function DashboardInfoCard({
   const content = (
     <>
       <p className="text-sm text-[var(--ds-text-muted)] mb-1">{label}</p>
-      <p
-        className={`text-3xl font-bold ${accent ? "text-[var(--ds-accent)]" : "text-[var(--ds-text)]"}`}
-      >
-        {value}
-      </p>
+      <p className={`text-3xl font-bold ${accent ? "text-[var(--ds-accent)]" : "text-[var(--ds-text)]"}`}>{value}</p>
       {sub && <p className="text-xs text-[var(--ds-text-subtle)] mt-1">{sub}</p>}
     </>
   );

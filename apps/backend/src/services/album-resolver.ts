@@ -4,7 +4,6 @@ import { CACHE_TTL_MS } from "../lib/config.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
-import { MATCH_MIN_CONFIDENCE } from "./constants.js";
 import { adapters } from "./index.js";
 import type { AlbumMatchResult, AlbumSearchQuery, NormalizedAlbum, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
@@ -295,7 +294,8 @@ async function resolveAlbumAcrossServices(
   excludeAdapter: ServiceAdapter,
 ): Promise<ResolvedAlbumLink[]> {
   const targetAdapters = adapters.filter(
-    (a): a is ServiceAdapter => Boolean(a?.isAvailable?.()) && a.id !== excludeAdapter.id && Boolean(a.albumCapabilities),
+    (a): a is ServiceAdapter =>
+      Boolean(a?.isAvailable?.()) && a.id !== excludeAdapter.id && Boolean(a.albumCapabilities),
   );
 
   const results = await Promise.allSettled(

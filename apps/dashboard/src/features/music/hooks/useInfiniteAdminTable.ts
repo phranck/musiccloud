@@ -39,21 +39,45 @@ function makeReducer<T extends { id: string }>() {
         };
       case "LOAD_MORE":
         if (state.tag !== "ready" || !state.hasMore) return state;
-        return { tag: "loading-more", items: state.items, total: state.total, nextPage: state.nextPage, hasMore: state.hasMore };
+        return {
+          tag: "loading-more",
+          items: state.items,
+          total: state.total,
+          nextPage: state.nextPage,
+          hasMore: state.hasMore,
+        };
       case "MORE_LOADED": {
         if (state.tag !== "loading-more") return state;
         const merged = [...state.items, ...action.items];
-        return { tag: "ready", items: merged, total: action.total, nextPage: state.nextPage + 1, hasMore: merged.length < action.total };
+        return {
+          tag: "ready",
+          items: merged,
+          total: action.total,
+          nextPage: state.nextPage + 1,
+          hasMore: merged.length < action.total,
+        };
       }
       case "REMOVE_MANY": {
         if (state.tag !== "ready") return state;
         const filtered = state.items.filter((item) => !action.ids.has(item.id));
         const newTotal = Math.max(0, state.total - action.ids.size);
-        return { tag: "ready", items: filtered, total: newTotal, nextPage: state.nextPage, hasMore: filtered.length < newTotal };
+        return {
+          tag: "ready",
+          items: filtered,
+          total: newTotal,
+          nextPage: state.nextPage,
+          hasMore: filtered.length < newTotal,
+        };
       }
       case "PREPEND": {
         if (state.tag !== "ready" && state.tag !== "loading-more") return state;
-        return { tag: "ready", items: [action.item, ...state.items], total: state.total + 1, nextPage: state.nextPage, hasMore: state.hasMore };
+        return {
+          tag: "ready",
+          items: [action.item, ...state.items],
+          total: state.total + 1,
+          nextPage: state.nextPage,
+          hasMore: state.hasMore,
+        };
       }
       case "ERROR":
         return { tag: "error", message: action.message };
@@ -96,7 +120,7 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Reset selection on filter change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery, sortBy and sortDir are intentional triggers to reset selection when filter/sort params change.
   useEffect(() => {
     setSelectedIds(new Set());
   }, [searchQuery, sortBy, sortDir]);
@@ -153,7 +177,7 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
   const fetchFirstPageRef = useRef(fetchFirstPage);
   fetchFirstPageRef.current = fetchFirstPage;
 
-  // Trigger first fetch
+  // biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery, sortBy and sortDir are intentional triggers to re-fetch when filter/sort params change, even though they are accessed via refs inside the effect body.
   useEffect(() => {
     const s = stateRef.current;
     const stale = s.tag === "ready" || s.tag === "loading-more" ? s.items : undefined;
@@ -191,7 +215,12 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
   );
 
   // Selection helpers
-  const items = state.tag === "ready" || state.tag === "loading-more" ? state.items : state.tag === "loading-first" && state.stale ? state.stale : [];
+  const items =
+    state.tag === "ready" || state.tag === "loading-more"
+      ? state.items
+      : state.tag === "loading-first" && state.stale
+        ? state.stale
+        : [];
   const total = state.tag === "ready" || state.tag === "loading-more" ? state.total : null;
   const visibleIds = items.map((item) => item.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));

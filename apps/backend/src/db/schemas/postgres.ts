@@ -1,12 +1,4 @@
-import {
-  index,
-  integer,
-  pgTable,
-  real,
-  text,
-  timestamp,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
+import { index, integer, pgTable, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const tracks = pgTable(
   "tracks",
@@ -26,7 +18,7 @@ export const tracks = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (table) => [index("idx_tracks_isrc").on(table.isrc)]
+  (table) => [index("idx_tracks_isrc").on(table.isrc)],
 );
 
 export const serviceLinks = pgTable(
@@ -46,7 +38,7 @@ export const serviceLinks = pgTable(
   (table) => [
     uniqueIndex("idx_service_links_track_service").on(table.trackId, table.service),
     index("idx_service_links_service_external").on(table.service, table.externalId),
-  ]
+  ],
 );
 
 export const shortUrls = pgTable("short_urls", {
@@ -74,7 +66,7 @@ export const albums = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (table) => [index("idx_albums_upc").on(table.upc)]
+  (table) => [index("idx_albums_upc").on(table.upc)],
 );
 
 export const albumServiceLinks = pgTable(
@@ -94,7 +86,7 @@ export const albumServiceLinks = pgTable(
   (table) => [
     uniqueIndex("idx_album_service_links_album_service").on(table.albumId, table.service),
     index("idx_album_service_links_service_external").on(table.service, table.externalId),
-  ]
+  ],
 );
 
 export const albumShortUrls = pgTable("album_short_urls", {
@@ -148,12 +140,18 @@ export const urlAliases = pgTable("url_aliases", {
 // Featured tracks / albums
 export const featuredTracks = pgTable("featured_tracks", {
   id: text("id").primaryKey(),
-  trackId: text("track_id").notNull().unique().references(() => tracks.id),
+  trackId: text("track_id")
+    .notNull()
+    .unique()
+    .references(() => tracks.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });
 
 export const featuredAlbums = pgTable("featured_albums", {
   id: text("id").primaryKey(),
-  albumId: text("album_id").notNull().unique().references(() => albums.id),
+  albumId: text("album_id")
+    .notNull()
+    .unique()
+    .references(() => albums.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });

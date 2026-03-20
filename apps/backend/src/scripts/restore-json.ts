@@ -6,13 +6,13 @@ const client = new pg.Client({
   connectionString: "postgresql://db:REDACTED@postgresql:5432",
 });
 
-const toDate = (val: any) => {
+const toDate = (val: unknown) => {
   if (typeof val === "string") return new Date(val);
   if (typeof val === "number") return new Date(val * 1000);
   return val;
 };
 
-async function insertTable(tableName: string, rows: any[], columns: string[]) {
+async function insertTable(tableName: string, rows: Record<string, unknown>[], columns: string[]) {
   if (!rows || rows.length === 0) {
     console.log(`  ${tableName}: 0 rows`);
     return;
@@ -33,8 +33,8 @@ async function insertTable(tableName: string, rows: any[], columns: string[]) {
       const sql = `INSERT INTO ${tableName} (${columns.join(", ")}) VALUES (${placeholders})`;
       await client.query(sql, values);
       inserted++;
-    } catch (error: any) {
-      console.error(`  Error on ${tableName}:`, error.message);
+    } catch (error: unknown) {
+      console.error(`  Error on ${tableName}:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -67,7 +67,7 @@ async function restore() {
       const rows = data[tableName];
       if (rows && Array.isArray(rows) && rows.length > 0) {
         const columns = Object.keys(rows[0]);
-        await insertTable(tableName, rows as any[], columns);
+        await insertTable(tableName, rows as Record<string, unknown>[], columns);
       } else {
         console.log(`  ${tableName}: 0 rows`);
       }
@@ -75,9 +75,9 @@ async function restore() {
 
     await client.query("COMMIT");
     console.log("\n✅ Restore completed successfully!");
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query("ROLLBACK");
-    console.error("\n❌ Restore failed:", error.message);
+    console.error("\n❌ Restore failed:", error instanceof Error ? error.message : String(error));
     process.exit(1);
   } finally {
     await client.end();

@@ -25,7 +25,6 @@ export function useSaveNav() {
   return useMutation({
     mutationFn: ({ navId, items }: { navId: string; items: NavItem[] }) =>
       api.put<NavConfig>(`/admin/nav/${navId}`, { items }),
-    onSuccess: (_data, variables) =>
-      qc.invalidateQueries({ queryKey: ["nav", variables.navId] }),
+    onSuccess: (_data, variables) => qc.invalidateQueries({ queryKey: ["nav", variables.navId] }),
   });
 }

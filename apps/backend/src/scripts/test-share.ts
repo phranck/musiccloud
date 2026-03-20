@@ -8,8 +8,8 @@ async function test() {
     const result = await repo.loadByShortId("Lrgzm");
     console.log("✅ Share lookup works!");
     console.log(JSON.stringify(result, null, 2));
-  } catch (error: any) {
-    console.error("❌ Error:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error:", error instanceof Error ? error.message : String(error));
   }
 }
 

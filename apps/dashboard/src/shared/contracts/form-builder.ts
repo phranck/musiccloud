@@ -79,10 +79,7 @@ export interface SubmissionStepCreateShopSuggestion {
   type: "create-shop-suggestion";
 }
 
-export type SubmissionStep =
-  | SubmissionStepStore
-  | SubmissionStepEmail
-  | SubmissionStepCreateShopSuggestion;
+export type SubmissionStep = SubmissionStepStore | SubmissionStepEmail | SubmissionStepCreateShopSuggestion;
 
 export interface SubmissionConfig {
   steps: SubmissionStep[];

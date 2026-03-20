@@ -1,26 +1,17 @@
 import { DownloadIcon, TrashIcon, TrayArrowUpIcon, UserCircleIcon } from "@phosphor-icons/react";
 import md5 from "blueimp-md5";
-import {
-  type ChangeEvent,
-  type Reducer,
-  type RefObject,
-  useEffect,
-  useReducer,
-  useRef,
-} from "react";
-
-import type { AdminLocale, AdminUser } from "@/shared/types/admin";
-import { FormLabel, formInputClass } from "@/shared/ui/FormPrimitives";
-
-import { AlertDialog } from "@/shared/ui/AlertDialog";
-import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
+import { type ChangeEvent, type Reducer, type RefObject, useEffect, useReducer, useRef } from "react";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
-import { OverlayCard } from "@/shared/ui/OverlayCard";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
 import { useI18n } from "@/context/I18nContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import type { DashboardMessages } from "@/i18n/messages";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
+import type { AdminLocale, AdminUser } from "@/shared/types/admin";
+import { AlertDialog } from "@/shared/ui/AlertDialog";
+import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
+import { FormLabel, formInputClass } from "@/shared/ui/FormPrimitives";
+import { OverlayCard } from "@/shared/ui/OverlayCard";
 
 import {
   useAdminUsers,
@@ -146,7 +137,9 @@ function UserAvatarEditor({
             width={96}
             height={96}
             className="w-full h-full object-cover"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
         ) : (
           <span className="text-3xl font-bold text-[var(--ds-text-subtle)] select-none">
@@ -222,24 +215,53 @@ function UserProfileFields({
     <div className="flex-1 space-y-3 min-w-0">
       <div>
         <FormLabel htmlFor="user-edit-username">{usersMessages.editCard.username}</FormLabel>
-        <input id="user-edit-username" type="text" value={draft.username} onChange={(e) => onFieldChange("username", e.target.value)} className={formInputClass} />
+        <input
+          id="user-edit-username"
+          type="text"
+          value={draft.username}
+          onChange={(e) => onFieldChange("username", e.target.value)}
+          className={formInputClass}
+        />
       </div>
       <div>
         <FormLabel htmlFor="user-edit-email">{usersMessages.editCard.email}</FormLabel>
-        <input id="user-edit-email" type="email" value={draft.email} onChange={(e) => onFieldChange("email", e.target.value)} className={formInputClass} />
+        <input
+          id="user-edit-email"
+          type="email"
+          value={draft.email}
+          onChange={(e) => onFieldChange("email", e.target.value)}
+          className={formInputClass}
+        />
       </div>
       <div>
         <FormLabel htmlFor="user-edit-first-name">{usersMessages.editCard.firstName}</FormLabel>
-        <input id="user-edit-first-name" type="text" value={draft.firstName} onChange={(e) => onFieldChange("firstName", e.target.value)} className={formInputClass} />
+        <input
+          id="user-edit-first-name"
+          type="text"
+          value={draft.firstName}
+          onChange={(e) => onFieldChange("firstName", e.target.value)}
+          className={formInputClass}
+        />
       </div>
       <div>
         <FormLabel htmlFor="user-edit-last-name">{usersMessages.editCard.lastName}</FormLabel>
-        <input id="user-edit-last-name" type="text" value={draft.lastName} onChange={(e) => onFieldChange("lastName", e.target.value)} className={formInputClass} />
+        <input
+          id="user-edit-last-name"
+          type="text"
+          value={draft.lastName}
+          onChange={(e) => onFieldChange("lastName", e.target.value)}
+          className={formInputClass}
+        />
       </div>
       {canChangeRole && (
         <div>
           <FormLabel htmlFor="user-edit-role">{usersMessages.editCard.role}</FormLabel>
-          <select id="user-edit-role" value={draft.role} onChange={(e) => onRoleChange(e.target.value as EditableRole)} className={formInputClass}>
+          <select
+            id="user-edit-role"
+            value={draft.role}
+            onChange={(e) => onRoleChange(e.target.value as EditableRole)}
+            className={formInputClass}
+          >
             <option value="admin">{usersMessages.editCard.roleAdmin}</option>
             <option value="moderator">{usersMessages.editCard.roleModerator}</option>
           </select>
@@ -247,7 +269,14 @@ function UserProfileFields({
       )}
       <div>
         <FormLabel htmlFor="user-edit-password">{usersMessages.editCard.password}</FormLabel>
-        <input id="user-edit-password" type="password" value={draft.password} onChange={(e) => onFieldChange("password", e.target.value)} placeholder={usersMessages.editCard.passwordPlaceholder} className={formInputClass} />
+        <input
+          id="user-edit-password"
+          type="password"
+          value={draft.password}
+          onChange={(e) => onFieldChange("password", e.target.value)}
+          placeholder={usersMessages.editCard.passwordPlaceholder}
+          className={formInputClass}
+        />
       </div>
       {me?.id === userId && (
         <>
@@ -271,7 +300,12 @@ function UserProfileFields({
             />
           </div>
           <label className="flex items-center gap-2 cursor-pointer select-none px-[5px] pt-1">
-            <input type="checkbox" checked={draft.logoutConfirm} onChange={(e) => onLogoutConfirmChange(e.target.checked)} className="w-4 h-4 rounded accent-[var(--color-primary)]" />
+            <input
+              type="checkbox"
+              checked={draft.logoutConfirm}
+              onChange={(e) => onLogoutConfirmChange(e.target.checked)}
+              className="w-4 h-4 rounded accent-[var(--color-primary)]"
+            />
             <span className="text-xs text-[var(--ds-text-muted)]">{logoutConfirmLabel}</span>
           </label>
         </>
@@ -281,7 +315,16 @@ function UserProfileFields({
 }
 
 function UserEditCardForm({
-  common, logoutConfirmLabel, me, onClose, onSaved, refreshAuth, savedPhase, showSaved, user, usersMessages,
+  common,
+  logoutConfirmLabel,
+  me,
+  onClose,
+  onSaved,
+  refreshAuth,
+  savedPhase,
+  showSaved,
+  user,
+  usersMessages,
 }: UserEditCardFormProps) {
   const savedLogoutConfirm = localStorage.getItem("logout-skip-confirm") !== "true";
   const [draft, dispatch] = useReducer(userEditDraftReducer, user, createInitialDraft);
@@ -301,11 +344,18 @@ function UserEditCardForm({
   const roleChanged = canChangeRole && draft.role !== (user.role === "moderator" ? "moderator" : "admin");
   const savedSessionTimeout = user.sessionTimeoutMinutes != null ? String(user.sessionTimeoutMinutes) : "";
   const hasChanges =
-    draft.username !== user.username || draft.email !== user.email || draft.password.trim() !== "" ||
-    draft.firstName !== (user.firstName ?? "") || draft.lastName !== (user.lastName ?? "") ||
-    draft.locale !== user.locale || roleChanged || draft.avatar.pendingFile !== null ||
-    draft.avatar.pendingGravatarUrl !== null || draft.avatar.deleted ||
-    (me?.id === user.id && (draft.logoutConfirm !== savedLogoutConfirm || draft.sessionTimeoutMinutes !== savedSessionTimeout));
+    draft.username !== user.username ||
+    draft.email !== user.email ||
+    draft.password.trim() !== "" ||
+    draft.firstName !== (user.firstName ?? "") ||
+    draft.lastName !== (user.lastName ?? "") ||
+    draft.locale !== user.locale ||
+    roleChanged ||
+    draft.avatar.pendingFile !== null ||
+    draft.avatar.pendingGravatarUrl !== null ||
+    draft.avatar.deleted ||
+    (me?.id === user.id &&
+      (draft.logoutConfirm !== savedLogoutConfirm || draft.sessionTimeoutMinutes !== savedSessionTimeout));
 
   const canSave = hasChanges && draft.username.trim() !== "" && draft.email.trim() !== "" && !isPending;
   const currentAvatarUrl = draft.avatar.previewUrl;
@@ -322,7 +372,12 @@ function UserEditCardForm({
     dispatch({ type: "setAvatar", value: next });
   }
 
-  useEffect(() => () => { if (previewObjectUrlRef.current) URL.revokeObjectURL(previewObjectUrlRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (previewObjectUrlRef.current) URL.revokeObjectURL(previewObjectUrlRef.current);
+    },
+    [],
+  );
 
   function handleFileSelect(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -352,11 +407,15 @@ function UserEditCardForm({
     if (draft.locale !== user.locale) profileChanges.locale = draft.locale;
     if (roleChanged) profileChanges.role = draft.role;
     if (me?.id === user.id && draft.sessionTimeoutMinutes !== savedSessionTimeout) {
-      profileChanges.sessionTimeoutMinutes = draft.sessionTimeoutMinutes === "" ? null : Number(draft.sessionTimeoutMinutes);
+      profileChanges.sessionTimeoutMinutes =
+        draft.sessionTimeoutMinutes === "" ? null : Number(draft.sessionTimeoutMinutes);
     }
 
     if (Object.keys(profileChanges).length > 0) {
-      await updateUser.mutateAsync({ id: user.id, data: profileChanges as Parameters<typeof updateUser.mutateAsync>[0]["data"] });
+      await updateUser.mutateAsync({
+        id: user.id,
+        data: profileChanges as Parameters<typeof updateUser.mutateAsync>[0]["data"],
+      });
     }
 
     if (draft.avatar.pendingFile) {
@@ -377,10 +436,17 @@ function UserEditCardForm({
     else showSaved();
   }
 
-  useKeyboardSave(() => { if (hasChanges) void handleSave(false); });
+  useKeyboardSave(() => {
+    if (hasChanges) void handleSave(false);
+  });
 
   return (
-    <OverlayCard open onClose={onClose} size={{ storageKey: "users:edit-card-size", defaultWidth: 512 }} aria-label={usersMessages.editCard.title}>
+    <OverlayCard
+      open
+      onClose={onClose}
+      size={{ storageKey: "users:edit-card-size", defaultWidth: 512 }}
+      aria-label={usersMessages.editCard.title}
+    >
       <OverlayCard.Header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <UserCircleIcon weight="duotone" className={dialogHeaderIconClass} />
@@ -391,20 +457,60 @@ function UserEditCardForm({
 
       <OverlayCard.Body>
         <div className="flex gap-6 items-start">
-          <UserAvatarEditor currentAvatarUrl={currentAvatarUrl} displayUsername={displayUsername} fileInputRef={fileInputRef} onFileChange={handleFileSelect} onRemoveAvatar={handleRemoveAvatar} onUseGravatar={handleGravatar} usersMessages={usersMessages} />
-          <UserProfileFields canChangeRole={canChangeRole} draft={draft} logoutConfirmLabel={logoutConfirmLabel} me={me} onFieldChange={(field, value) => dispatch({ type: "setField", field, value })} onLocaleChange={(value) => dispatch({ type: "setLocale", value })} onLogoutConfirmChange={(value) => dispatch({ type: "setLogoutConfirm", value })} onRoleChange={(value) => dispatch({ type: "setRole", value })} userId={user.id} usersMessages={usersMessages} />
+          <UserAvatarEditor
+            currentAvatarUrl={currentAvatarUrl}
+            displayUsername={displayUsername}
+            fileInputRef={fileInputRef}
+            onFileChange={handleFileSelect}
+            onRemoveAvatar={handleRemoveAvatar}
+            onUseGravatar={handleGravatar}
+            usersMessages={usersMessages}
+          />
+          <UserProfileFields
+            canChangeRole={canChangeRole}
+            draft={draft}
+            logoutConfirmLabel={logoutConfirmLabel}
+            me={me}
+            onFieldChange={(field, value) => dispatch({ type: "setField", field, value })}
+            onLocaleChange={(value) => dispatch({ type: "setLocale", value })}
+            onLogoutConfirmChange={(value) => dispatch({ type: "setLogoutConfirm", value })}
+            onRoleChange={(value) => dispatch({ type: "setRole", value })}
+            userId={user.id}
+            usersMessages={usersMessages}
+          />
         </div>
       </OverlayCard.Body>
 
       <OverlayCard.Footer className="flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="py-1.5 px-4 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-sm hover:border-[var(--ds-border-strong)] transition-colors">{common.cancel}</button>
-        <button type="button" onClick={() => void handleSave()} disabled={!canSave} className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-40">
+        <button
+          type="button"
+          onClick={onClose}
+          className="py-1.5 px-4 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-sm hover:border-[var(--ds-border-strong)] transition-colors"
+        >
+          {common.cancel}
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={!canSave}
+          className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-40"
+        >
           <DownloadIcon weight="duotone" className="w-3.5 h-3.5" />
           {isPending ? common.saving : common.save}
         </button>
       </OverlayCard.Footer>
 
-      <AlertDialog open={isError} title={usersMessages.editCard.errorSaving} onClose={() => { updateUser.reset(); saveAvatar.reset(); setGravatar.reset(); deleteAvatar.reset(); }} buttonLabel={common.close}>
+      <AlertDialog
+        open={isError}
+        title={usersMessages.editCard.errorSaving}
+        onClose={() => {
+          updateUser.reset();
+          saveAvatar.reset();
+          setGravatar.reset();
+          deleteAvatar.reset();
+        }}
+        buttonLabel={common.close}
+      >
         {error instanceof Error ? error.message : usersMessages.editCard.errorSaving}
       </AlertDialog>
     </OverlayCard>
@@ -423,7 +529,12 @@ export function UserEditCard({ userId, onClose, onSaved }: UserEditCardProps) {
 
   if (!user) {
     return (
-      <OverlayCard open onClose={onClose} size={{ storageKey: "users:edit-card-size", defaultWidth: 512 }} aria-label={usersMessages.editCard.title}>
+      <OverlayCard
+        open
+        onClose={onClose}
+        size={{ storageKey: "users:edit-card-size", defaultWidth: 512 }}
+        aria-label={usersMessages.editCard.title}
+      >
         <OverlayCard.Header className="flex items-center gap-3">
           <UserCircleIcon weight="duotone" className={dialogHeaderIconClass} />
           <h2 className="text-base font-semibold text-[var(--ds-text)]">{usersMessages.editCard.title}</h2>
@@ -435,9 +546,29 @@ export function UserEditCard({ userId, onClose, onSaved }: UserEditCardProps) {
     );
   }
 
-  const userKey = [user.id, user.username, user.email, user.firstName ?? "", user.lastName ?? "", user.avatarUrl ?? "", user.role].join(":");
+  const userKey = [
+    user.id,
+    user.username,
+    user.email,
+    user.firstName ?? "",
+    user.lastName ?? "",
+    user.avatarUrl ?? "",
+    user.role,
+  ].join(":");
 
   return (
-    <UserEditCardForm key={userKey} common={common} logoutConfirmLabel={messages.layout.sidebar.logoutConfirmLabel} me={me} onClose={onClose} onSaved={onSaved} refreshAuth={refresh} savedPhase={savedPhase} showSaved={showSaved} user={user} usersMessages={usersMessages} />
+    <UserEditCardForm
+      key={userKey}
+      common={common}
+      logoutConfirmLabel={messages.layout.sidebar.logoutConfirmLabel}
+      me={me}
+      onClose={onClose}
+      onSaved={onSaved}
+      refreshAuth={refresh}
+      savedPhase={savedPhase}
+      showSaved={showSaved}
+      user={user}
+      usersMessages={usersMessages}
+    />
   );
 }

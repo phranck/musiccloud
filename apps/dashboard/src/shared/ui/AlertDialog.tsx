@@ -1,4 +1,8 @@
-import { Info as InfoIcon, SealWarning as SealWarningIcon, WarningCircle as WarningCircleIcon } from "@phosphor-icons/react";
+import {
+  Info as InfoIcon,
+  SealWarning as SealWarningIcon,
+  WarningCircle as WarningCircleIcon,
+} from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import { Dialog, dialogBtnPrimary, dialogHeaderIconClass } from "./Dialog";
