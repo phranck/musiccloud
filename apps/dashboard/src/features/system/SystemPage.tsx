@@ -3,6 +3,104 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/context/I18nContext";
 import { api } from "@/lib/api";
 
+// ---------------------------------------------------------------------------
+// Qobuz API Diagnostics
+// ---------------------------------------------------------------------------
+
+interface QobuzDiagResult {
+  name: string;
+  status: number;
+  ok: boolean;
+  bodyPreview?: string;
+  error?: string;
+}
+
+interface QobuzDiagResponse {
+  appId: string;
+  env: { QOBUZ_APP_ID: string };
+  results: QobuzDiagResult[];
+}
+
+function QobuzDiagnostics() {
+  const { messages } = useI18n();
+  const m = messages.system;
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [data, setData] = useState<QobuzDiagResponse | null>(null);
+  const [error, setError] = useState("");
+
+  async function handleRun() {
+    setState("loading");
+    setError("");
+    try {
+      const result = await api.get<QobuzDiagResponse>("/admin/qobuz-diag");
+      setData(result);
+      setState("done");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+      setState("error");
+    }
+  }
+
+  return (
+    <div>
+      <h2 className="text-base font-semibold mb-1 text-[var(--ds-text)]">{m.qobuzDiagTitle}</h2>
+      <div className="rounded-lg border border-[var(--ds-border)] bg-[var(--ds-surface)] px-4">
+        <div className="flex items-start justify-between gap-4 py-4 border-b border-[var(--ds-border)]">
+          <div className="min-w-0">
+            <p className="text-xs text-[var(--ds-text-muted)]">{m.qobuzDiagDescription}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleRun}
+            disabled={state === "loading"}
+            className="flex-none h-8 px-3 rounded-md text-sm font-medium border border-[var(--ds-border)] text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] transition-colors disabled:opacity-50"
+          >
+            {state === "loading" ? m.qobuzDiagRunning : m.qobuzDiagRun}
+          </button>
+        </div>
+
+        {state === "error" && <p className="text-xs text-[var(--ds-btn-danger-text)] py-3">{error}</p>}
+
+        {data && (
+          <div className="py-3 space-y-3">
+            <div className="flex gap-4 text-xs">
+              <span className="text-[var(--ds-text-muted)]">
+                {m.qobuzDiagAppId}: <code className="text-[var(--ds-text)]">{data.appId}</code>
+              </span>
+              <span className="text-[var(--ds-text-muted)]">
+                {m.qobuzDiagEnvVar}:{" "}
+                <code
+                  className={data.env.QOBUZ_APP_ID === "set" ? "text-green-500" : "text-[var(--ds-btn-danger-text)]"}
+                >
+                  {data.env.QOBUZ_APP_ID === "set" ? m.qobuzDiagSet : m.qobuzDiagNotSet}
+                </code>
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              {data.results.map((r) => (
+                <div key={r.name} className="rounded border border-[var(--ds-border)] p-2">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className={`inline-block w-2 h-2 rounded-full ${r.ok ? "bg-green-500" : "bg-red-500"}`} />
+                    <span className="font-medium text-[var(--ds-text)]">{r.name}</span>
+                    <span className="text-[var(--ds-text-muted)]">HTTP {r.status}</span>
+                  </div>
+                  {r.error && <p className="text-xs text-[var(--ds-btn-danger-text)] mt-1">{r.error}</p>}
+                  {r.bodyPreview && (
+                    <pre className="text-[10px] text-[var(--ds-text-muted)] mt-1 overflow-x-auto whitespace-pre-wrap break-all max-h-20 overflow-y-auto">
+                      {r.bodyPreview}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface ClearResult {
   deleted: number;
 }
@@ -233,6 +331,8 @@ export function SystemPage() {
           />
         </div>
       </div>
+
+      <QobuzDiagnostics />
 
       <DangerZone />
     </div>
