@@ -187,11 +187,21 @@ export function TrackEditPage() {
 
           <div className="flex flex-col items-center gap-2">
             {track.sourceService && isValidPlatform(track.sourceService) ? (
-              <PlatformIcon
-                platform={track.sourceService}
-                colored
-                className="w-9 h-9"
-              />
+              track.sourceUrl ? (
+                <a href={track.sourceUrl} target="_blank" rel="noopener noreferrer">
+                  <PlatformIcon
+                    platform={track.sourceService}
+                    colored
+                    className="w-9 h-9"
+                  />
+                </a>
+              ) : (
+                <PlatformIcon
+                  platform={track.sourceService}
+                  colored
+                  className="w-9 h-9"
+                />
+              )
             ) : (
               <div className="w-9 h-9 rounded-lg bg-[var(--ds-surface-raised)] flex items-center justify-center text-[var(--ds-text-muted)] text-xs">
                 {track.sourceService ?? "\u2014"}
