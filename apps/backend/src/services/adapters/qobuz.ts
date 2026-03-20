@@ -41,6 +41,7 @@ const USER_AGENT =
 // --- App ID management ---
 
 const ENV_APP_ID = process.env.QOBUZ_APP_ID ?? null;
+if (ENV_APP_ID) log.debug("Qobuz", "Using QOBUZ_APP_ID from environment");
 let cachedAppId: string | null = ENV_APP_ID;
 let appIdFetchedAt = ENV_APP_ID ? Date.now() : 0;
 let appIdPromise: Promise<string | null> | null = null;
