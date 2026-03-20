@@ -130,4 +130,5 @@ export interface AdminRepository {
   clearArtistCache(): Promise<{ deleted: number }>;
   countAllData(): Promise<{ tracks: number; albums: number }>;
   resetAllData(): Promise<{ tracks: number; albums: number }>;
+  resolveShortIds(shortIds: string[]): Promise<Map<string, { title: string; artist: string }>>;
 }

@@ -1478,6 +1478,41 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     }
   }
 
+  async resolveShortIds(shortIds: string[]): Promise<Map<string, { title: string; artist: string }>> {
+    const result = new Map<string, { title: string; artist: string }>();
+    if (shortIds.length === 0) return result;
+
+    const placeholders = shortIds.map((_, i) => `$${i + 1}`).join(", ");
+
+    const trackRows = await this.pool.query(
+      `SELECT su.id AS short_id, t.title, t.artists
+       FROM short_urls su JOIN tracks t ON su.track_id = t.id
+       WHERE su.id IN (${placeholders})`,
+      shortIds,
+    );
+    for (const row of trackRows.rows) {
+      const artists = safeParseArray(row.artists);
+      result.set(row.short_id, { title: row.title, artist: artists[0] ?? "Unknown" });
+    }
+
+    const remaining = shortIds.filter((id) => !result.has(id));
+    if (remaining.length > 0) {
+      const albumPlaceholders = remaining.map((_, i) => `$${i + 1}`).join(", ");
+      const albumRows = await this.pool.query(
+        `SELECT asu.id AS short_id, a.title, a.artists
+         FROM album_short_urls asu JOIN albums a ON asu.album_id = a.id
+         WHERE asu.id IN (${albumPlaceholders})`,
+        remaining,
+      );
+      for (const row of albumRows.rows) {
+        const artists = safeParseArray(row.artists);
+        result.set(row.short_id, { title: row.title, artist: artists[0] ?? "Unknown" });
+      }
+    }
+
+    return result;
+  }
+
   // ============================================================================
   // SHARE PAGE LOADING (TrackRepository)
   // ============================================================================

@@ -596,15 +596,27 @@ function MetricList({ title, type, period, renderLabel }: MetricListProps) {
     <ul className="space-y-2">
       {listRows.map((row) => {
         const rowText = toMetricText(row.x);
-        const rowLabel = renderLabel ? renderLabel(rowText) : rowText || m.unknown;
+        const hasTrackInfo = type === "url" && row.title;
+        const rowLabel = hasTrackInfo
+          ? `${row.title} – ${row.artist}`
+          : renderLabel
+            ? renderLabel(rowText)
+            : rowText || m.unknown;
         return (
           <li key={`${type}-${rowText}`} className="flex items-center gap-2 text-sm">
             <span className="shrink-0 w-5 text-base leading-none">
               {type === "country" && rowText ? countryFlag(rowText) : null}
             </span>
-            <span className="flex-1 truncate text-[var(--ds-text-muted)]" title={rowLabel}>
-              {rowLabel}
-            </span>
+            {hasTrackInfo ? (
+              <span className="flex-1 min-w-0 flex flex-col" title={`${row.title} – ${row.artist} (${rowText})`}>
+                <span className="truncate text-[var(--ds-text)]">{row.title}</span>
+                <span className="truncate text-xs text-[var(--ds-text-subtle)]">{row.artist}</span>
+              </span>
+            ) : (
+              <span className="flex-1 truncate text-[var(--ds-text-muted)]" title={rowLabel}>
+                {rowLabel}
+              </span>
+            )}
             <div className="w-20 h-1.5 bg-[var(--ds-bg-elevated)] rounded-full overflow-hidden">
               <div
                 className="h-full bg-amber-400 rounded-full"

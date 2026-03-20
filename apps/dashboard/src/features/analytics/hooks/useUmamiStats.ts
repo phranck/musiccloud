@@ -22,6 +22,8 @@ export interface UmamiStats {
 export interface UmamiMetricRow {
   x: string;
   y: number;
+  title?: string;
+  artist?: string;
 }
 
 export interface UmamiEventValueRow {
