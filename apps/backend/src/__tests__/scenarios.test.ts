@@ -1,5 +1,5 @@
 /**
- * music.cloud MVP - Test Scenarios
+ * musiccloud.io MVP - Test Scenarios
  *
  * This file contains ALL test scenarios for the MVP, organized by category.
  * Each test has a description and expected behavior documented.

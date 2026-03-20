@@ -40,7 +40,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     });
 
     const user = await repo.findAdminById(id);
-    const baseUrl = process.env.PUBLIC_URL ?? "https://music.cloud";
+    const baseUrl = process.env.PUBLIC_URL;
     const inviteUrl = `${baseUrl}/dashboard/invite/${inviteToken}`;
 
     return reply.status(201).send({
