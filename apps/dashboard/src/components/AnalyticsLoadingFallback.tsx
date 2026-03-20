@@ -1,10 +1,13 @@
 export function AnalyticsLoadingFallback() {
-  const skeletonKeys = ["analytics-sk-1", "analytics-sk-2", "analytics-sk-3", "analytics-sk-4"];
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {skeletonKeys.map((key) => (
-        <div key={key} className="bg-slate-100 dark:bg-slate-800 rounded-lg h-64 animate-pulse" />
-      ))}
+    <div className="space-y-4">
+      <div className="h-48 bg-[var(--ds-bg-elevated)] rounded-xl animate-pulse" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        {Array.from({ length: 6 }, (_, i) => `kpi-sk-${i}`).map((k) => (
+          <div key={k} className="h-16 bg-[var(--ds-bg-elevated)] rounded-xl animate-pulse" />
+        ))}
+      </div>
+      <div className="h-48 bg-[var(--ds-bg-elevated)] rounded-xl animate-pulse" />
     </div>
   );
 }

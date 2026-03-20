@@ -1,6 +1,7 @@
 import { PLATFORM_CONFIG, type Platform } from "@musiccloud/shared";
 import { memo } from "react";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
+import { trackServiceLinkClick } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 interface PlatformButtonProps {
@@ -48,6 +49,7 @@ export const PlatformButton = memo(function PlatformButton({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Open ${songTitle} on ${label} (opens in new window)`}
+      onClick={() => trackServiceLinkClick(platform)}
       className={cn(
         "flex items-center gap-3 px-5 py-2.5 rounded-xl",
         "transition-all duration-150",

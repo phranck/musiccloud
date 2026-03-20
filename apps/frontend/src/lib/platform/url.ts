@@ -32,3 +32,22 @@ export function isMusicUrl(url: string): boolean {
 export function isAlbumUrl(url: string): boolean {
   return ALBUM_URL_PATTERNS.some((pattern) => pattern.test(url));
 }
+
+const SERVICE_HOST_MAP: [RegExp, string][] = [
+  [/spotify\.com/, "spotify"],
+  [/music\.apple\.com/, "apple-music"],
+  [/music\.youtube\.com/, "youtube-music"],
+  [/youtu(\.be|be\.com)/, "youtube"],
+  [/soundcloud\.com/, "soundcloud"],
+  [/tidal\.com/, "tidal"],
+  [/deezer\.com/, "deezer"],
+  [/qobuz\.com/, "qobuz"],
+  [/bandcamp\.com/, "bandcamp"],
+];
+
+export function detectServiceFromUrl(url: string): string {
+  for (const [pattern, service] of SERVICE_HOST_MAP) {
+    if (pattern.test(url)) return service;
+  }
+  return "unknown";
+}

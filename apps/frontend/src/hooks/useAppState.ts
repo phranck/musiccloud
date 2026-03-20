@@ -6,7 +6,8 @@ import type {
 } from "@musiccloud/shared";
 import { useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
-import { isAlbumUrl } from "@/lib/platform/url";
+import { trackResolve } from "@/lib/analytics";
+import { detectServiceFromUrl, isAlbumUrl } from "@/lib/platform/url";
 import { appReducer, parseAlbumResolveResponse, parseErrorKey, parseResolveResponse } from "@/lib/resolve/parsers";
 import type { ActiveResult, AppState } from "@/lib/types/app";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
@@ -61,6 +62,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
       if (endpoint === "/api/resolve-album") {
         const data = (await response.json()) as AlbumResolveSuccessResponse;
         dispatch({ type: "RESOLVE_SUCCESS", active: parseAlbumResolveResponse(data) });
+        trackResolve(detectServiceFromUrl(url));
         return;
       }
       const data = (await response.json()) as ResolveSuccessResponse | ResolveDisambiguationResponse;
@@ -69,6 +71,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
         return;
       }
       dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data as ResolveSuccessResponse) });
+      trackResolve(detectServiceFromUrl(url));
     } catch (err) {
       dispatch({ type: "ERROR", message: parseErrorKey(err) });
     }

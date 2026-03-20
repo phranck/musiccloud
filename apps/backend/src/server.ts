@@ -5,6 +5,7 @@ import sensible from "@fastify/sensible";
 import Fastify from "fastify";
 import { runMigrations } from "./db/run-migrations.js";
 import authPlugin from "./plugins/auth.js";
+import adminAnalyticsRoutes from "./routes/admin-analytics.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminDataRoutes from "./routes/admin-data.js";
 import adminSseRoutes from "./routes/admin-sse.js";
@@ -74,6 +75,7 @@ async function buildApp() {
   // Admin-protected API routes (Bearer JWT with role: "admin")
   await app.register(async function adminRoutes(adminApp) {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
+    await adminApp.register(adminAnalyticsRoutes);
     await adminApp.register(adminDataRoutes);
     await adminApp.register(adminSseRoutes);
     await adminApp.register(adminUserRoutes);
