@@ -40,8 +40,9 @@ const USER_AGENT =
 
 // --- App ID management ---
 
-let cachedAppId: string | null = null;
-let appIdFetchedAt = 0;
+const ENV_APP_ID = process.env.QOBUZ_APP_ID ?? null;
+let cachedAppId: string | null = ENV_APP_ID;
+let appIdFetchedAt = ENV_APP_ID ? Date.now() : 0;
 let appIdPromise: Promise<string | null> | null = null;
 const APP_ID_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (app_id changes rarely)
 
