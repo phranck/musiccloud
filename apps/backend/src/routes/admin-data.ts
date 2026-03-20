@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { getAdminRepository } from "../db/index.js";
+import { fetchWithTimeout } from "../lib/infra/fetch.js";
 
 export default async function adminDataRoutes(app: FastifyInstance) {
   app.get("/api/admin/tracks", async (request) => {
@@ -114,5 +115,45 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     const counts = await repo.countAllData();
     const adminCount = await repo.countAdmins();
     return { tracks: counts.tracks, albums: counts.albums, users: adminCount };
+  });
+
+  // --- Temporary Qobuz API diagnostics (remove after debugging) ---
+  app.get("/api/admin/qobuz-diag", async () => {
+    const APP_ID = process.env.QOBUZ_APP_ID ?? "377257687";
+    const API_BASE = "https://www.qobuz.com/api.json/0.2";
+    const UA =
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    const headers = { "User-Agent": UA, "X-App-Id": APP_ID };
+
+    const tests = [
+      { name: "track/get (ID 212123133)", url: `${API_BASE}/track/get?track_id=212123133` },
+      { name: "track/search (zebrahead)", url: `${API_BASE}/track/search?query=zebrahead&limit=1` },
+      { name: "catalog/search (zebrahead)", url: `${API_BASE}/catalog/search?query=zebrahead&limit=1` },
+      { name: "album/get (0060253780968)", url: `${API_BASE}/album/get?album_id=0060253780968` },
+    ];
+
+    const results = await Promise.all(
+      tests.map(async (test) => {
+        try {
+          const res = await fetchWithTimeout(test.url, { headers }, 10000);
+          const body = await res.text();
+          return {
+            name: test.name,
+            status: res.status,
+            ok: res.ok,
+            bodyPreview: body.slice(0, 300),
+          };
+        } catch (err) {
+          return {
+            name: test.name,
+            status: 0,
+            ok: false,
+            error: err instanceof Error ? err.message : "Unknown error",
+          };
+        }
+      }),
+    );
+
+    return { appId: APP_ID, env: { QOBUZ_APP_ID: process.env.QOBUZ_APP_ID ? "set" : "not set" }, results };
   });
 }
