@@ -258,7 +258,9 @@ export const qobuzAdapter = {
   },
 
   isAvailable(): boolean {
-    return cachedAppId !== null;
+    // Always report as available - getAppId() handles lazy fetching.
+    // Returning false would prevent URL detection and cross-service matching.
+    return true;
   },
 
   detectUrl(url: string): string | null {
