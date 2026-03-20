@@ -179,7 +179,7 @@ function AdminLayoutInner() {
       </header>
 
       {/* Main */}
-      <div className="sidebar-aware-main flex flex-col min-h-screen">
+      <div className="sidebar-aware-main flex flex-col h-screen overflow-hidden">
         <main className="flex-1 p-3 flex flex-col min-h-0">
           <Outlet />
         </main>
