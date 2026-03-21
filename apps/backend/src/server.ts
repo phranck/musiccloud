@@ -15,6 +15,7 @@ import authRoutes from "./routes/auth.js";
 import linkRoutes from "./routes/link.js";
 import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
+import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
 import resolveAlbumRoutes from "./routes/resolve-album.js";
 import shareRoutes from "./routes/share.js";
 import { warmAppleMusicToken } from "./services/adapters/apple-music.js";
@@ -62,6 +63,9 @@ async function buildApp() {
   // Artist info endpoint (public, no auth - fetched by React island)
   await app.register(artistInfoRoutes);
   await app.register(randomExampleRoutes);
+
+  // Public GET resolve endpoint (no auth - used for Shortcuts, etc.)
+  await app.register(resolvePublicGetRoutes);
 
   // Protected API routes (X-API-Key or Bearer JWT)
   await app.register(async function protectedRoutes(protectedApp) {
