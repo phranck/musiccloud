@@ -13,7 +13,10 @@ import { isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { deezerAdapter } from "../services/adapters/deezer.js";
 import type { ResolutionResult } from "../services/resolver.js";
-import { resolveQuery, resolveSelectedCandidate, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
+import {
+  resolveQuery,
+  resolveTextSearchWithDisambiguation,
+} from "../services/resolver.js";
 
 const ALLOWED_ORIGINS = ["https://musiccloud.io", "http://localhost:4321", "http://localhost:4322"];
 
@@ -36,9 +39,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
     const format = queryParams.format?.toLowerCase() ?? "json";
 
     if (!query) {
-      return reply
-        .status(400)
-        .send(jsonError("INVALID_URL", 400, "The 'query' parameter is required."));
+      return reply.status(400).send(jsonError("INVALID_URL", 400, "The 'query' parameter is required."));
     }
 
     if (query.length > 500) {
@@ -46,9 +47,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
     }
 
     if (!["json", "text"].includes(format)) {
-      return reply
-        .status(400)
-        .send(jsonError("INVALID_URL", 400, "Format must be 'json' or 'text'."));
+      return reply.status(400).send(jsonError("INVALID_URL", 400, "Format must be 'json' or 'text'."));
     }
 
     try {
@@ -64,9 +63,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
         if (textResult.kind === "resolved" && textResult.result) {
           result = textResult.result;
         } else {
-          return reply
-            .status(400)
-            .send(jsonError("NOT_FOUND", 400, "Could not resolve this query."));
+          return reply.status(400).send(jsonError("INVALID_URL", 400, "Could not resolve this query."));
         }
       }
 
@@ -147,7 +144,11 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
         previewUrl = deezerTrack.previewUrl;
       }
     } catch (err) {
-      log.debug("ResolvePublicGet", "Deezer preview enrichment failed:", err instanceof Error ? err.message : String(err));
+      log.debug(
+        "ResolvePublicGet",
+        "Deezer preview enrichment failed:",
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 
