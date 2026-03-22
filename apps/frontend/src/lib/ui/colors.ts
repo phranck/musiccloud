@@ -65,6 +65,10 @@ export function hslToRgb(h: number, s: number, l: number): [number, number, numb
   ];
 }
 
+function toHex(r: number, g: number, b: number): string {
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
 export function extractAccent(r: number, g: number, b: number): DynamicAccent | null {
   const [h, s] = rgbToHsl(r, g, b);
   if (s < 0.1) return null;
@@ -72,8 +76,8 @@ export function extractAccent(r: number, g: number, b: number): DynamicAccent | 
   const [hr, hg, hb] = hslToRgb(h, Math.max(s, 0.5), 0.65);
   const brightness = (0.299 * ar + 0.587 * ag + 0.114 * ab) / 255;
   return {
-    base: `rgb(${ar}, ${ag}, ${ab})`,
-    hover: `rgb(${hr}, ${hg}, ${hb})`,
+    base: toHex(ar, ag, ab),
+    hover: toHex(hr, hg, hb),
     glow: `rgba(${ar}, ${ag}, ${ab}, 0.25)`,
     contrastText: brightness > 0.55 ? "#000000" : "#ffffff",
   };
