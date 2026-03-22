@@ -218,19 +218,19 @@ export function DisambiguationPanel({
 
                   <div
                     className={cn(
-                      "flex-shrink-0 w-9 h-9 rounded-full",
+                      "flex-shrink-0 rounded-full",
                       "flex items-center justify-center",
                       "transition-all duration-150",
                       isThisSelected
-                        ? "bg-transparent"
+                        ? "bg-transparent w-11 h-11 md:w-12 md:h-12"
                         : [
-                            "bg-accent/10 text-accent",
+                            "w-9 h-9 bg-accent/10 text-accent",
                             !isAnimating && !loading && "group-hover:bg-accent group-hover:text-white",
                           ],
                     )}
                   >
                     {isThisSelected ? (
-                      <div className="relative w-7 h-7 animate-vinyl-spin">
+                      <div className="relative w-11 h-11 md:w-12 md:h-12 animate-vinyl-spin">
                         <div
                           className="absolute inset-0 rounded-full"
                           style={{
