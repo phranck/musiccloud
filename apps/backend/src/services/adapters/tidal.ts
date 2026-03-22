@@ -157,9 +157,20 @@ async function tidalFetch(endpoint: string): Promise<Response> {
   });
 }
 
-function parseDuration(duration: number | undefined): number | undefined {
+function parseDuration(duration: number | string | undefined): number | undefined {
   if (duration === undefined) return undefined;
-  // Tidal returns duration in seconds
+
+  // ISO 8601 duration format: PT5M41S (5 minutes 41 seconds)
+  if (typeof duration === "string") {
+    const match = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/.exec(duration);
+    if (!match) return undefined;
+    const hours = Number(match[1]) || 0;
+    const minutes = Number(match[2]) || 0;
+    const seconds = Number(match[3]) || 0;
+    return (hours * 3600 + minutes * 60 + seconds) * 1000;
+  }
+
+  // Fallback: assume duration is in seconds
   return duration * 1000;
 }
 
