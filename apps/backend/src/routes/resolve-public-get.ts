@@ -1,8 +1,4 @@
-import type {
-  ErrorCode,
-  ResolveErrorResponse,
-  ResolveSuccessResponse,
-} from "@musiccloud/shared";
+import type { ErrorCode, ResolveErrorResponse, ResolveSuccessResponse } from "@musiccloud/shared";
 import { ERROR_STATUS_MAP, USER_MESSAGES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
@@ -13,10 +9,7 @@ import { isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { deezerAdapter } from "../services/adapters/deezer.js";
 import type { ResolutionResult } from "../services/resolver.js";
-import {
-  resolveQuery,
-  resolveTextSearchWithDisambiguation,
-} from "../services/resolver.js";
+import { resolveQuery, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
 
 const ALLOWED_ORIGINS = ["https://musiccloud.io", "http://localhost:4321", "http://localhost:4322"];
 
