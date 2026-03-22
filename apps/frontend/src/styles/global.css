@@ -14,6 +14,7 @@
   --color-surface: #161618;
   --color-surface-elevated: #1C1C1E;
   --color-accent: #28A8D8;
+  --color-accent-rgb: 40 168 216;
   --color-accent-hover: #45BFE8;
   --color-accent-glow: rgba(40, 168, 216, 0.25);
   --color-accent-contrast: #ffffff;

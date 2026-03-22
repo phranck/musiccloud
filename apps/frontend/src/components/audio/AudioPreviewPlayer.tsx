@@ -165,9 +165,16 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
           isUnavailable
             ? "bg-white/[0.06] text-white/30 cursor-not-allowed"
             : isPlaying
-              ? "bg-[var(--color-accent)] text-[var(--color-accent-contrast)] hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]"
-              : "bg-[#3a3a3c] text-white/60 hover:bg-[#4a4a4c] hover:text-white/80 hover:scale-[1.05]"
+              ? "hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]"
+              : "hover:scale-[1.05]"
         }`}
+        style={
+          isUnavailable
+            ? undefined
+            : isPlaying
+              ? { backgroundColor: "rgb(var(--color-accent-rgb))", color: "var(--color-accent-contrast)" }
+              : { backgroundColor: "rgb(var(--color-accent-rgb) / 0.12)", color: "rgba(255, 255, 255, 0.6)" }
+        }
       >
         {isPlaying ? (
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
