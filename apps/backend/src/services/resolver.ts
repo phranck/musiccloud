@@ -289,6 +289,32 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     sourceTrack = { ...sourceTrack, previewUrl: bestPreviewUrl };
   }
 
+  // 7. If source service has no artwork but has ISRC, fetch artwork from Spotify/Apple Music
+  // (e.g., Tidal doesn't provide artworkUrl in API response)
+  if (!sourceTrack.artworkUrl && sourceTrack.isrc) {
+    try {
+      const spotifyAdapter = adapters.find((a) => a?.id === "spotify");
+      const appleAdapter = adapters.find((a) => a?.id === "apple-music");
+
+      if (spotifyAdapter?.isAvailable?.()) {
+        const spotifyTrack = await spotifyAdapter.findByIsrc(sourceTrack.isrc);
+        if (spotifyTrack?.artworkUrl) {
+          sourceTrack = { ...sourceTrack, artworkUrl: spotifyTrack.artworkUrl };
+        }
+      }
+
+      // Fallback to Apple Music if Spotify doesn't have artwork
+      if (!sourceTrack.artworkUrl && appleAdapter?.isAvailable?.()) {
+        const appleTrack = await appleAdapter.findByIsrc(sourceTrack.isrc);
+        if (appleTrack?.artworkUrl) {
+          sourceTrack = { ...sourceTrack, artworkUrl: appleTrack.artworkUrl };
+        }
+      }
+    } catch {
+      // Artwork fetch failed - continue with original (no artwork)
+    }
+  }
+
   return withAlias({ sourceTrack, links });
 }
 
