@@ -1,5 +1,5 @@
 import { buildMetaLine } from "@musiccloud/shared";
-import { memo, useState } from "react";
+import { memo, useEffect } from "react";
 
 interface SongInfoProps {
   title: string;
@@ -27,37 +27,34 @@ export const SongInfo = memo(function SongInfo({
 }: SongInfoProps) {
   const metaLine = metaOverride ?? buildMetaLine({ durationMs, releaseDate });
 
-  // CORS-retry: attempt crossOrigin="anonymous" first (needed for canvas color extraction).
-  // If the CDN blocks it (no Access-Control-Allow-Origin), fall back to a plain load
-  // without crossOrigin so the artwork still displays (color extraction is then skipped).
-  const [corsRetried, setCorsRetried] = useState(false);
-  const [prevArtUrl, setPrevArtUrl] = useState(albumArtUrl);
-  if (prevArtUrl !== albumArtUrl) {
-    setPrevArtUrl(albumArtUrl);
-    setCorsRetried(false);
-  }
+  // Load a hidden CORS image for color extraction. Using a separate Image object
+  // avoids the SSR hydration problem where the visible img is already loaded by the
+  // browser before React can attach the onLoad handler. The visible img never needs
+  // crossOrigin — only the hidden one used for canvas sampling does.
+  useEffect(() => {
+    if (!albumArtUrl || !onAlbumArtLoad) return;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => onAlbumArtLoad(img);
+    img.src = albumArtUrl;
+    return () => {
+      img.onload = null;
+      img.src = "";
+    };
+  }, [albumArtUrl, onAlbumArtLoad]);
 
   return (
     <div>
       <div className="aspect-square w-full overflow-hidden rounded-t-2xl sm:rounded-t-[36px]">
         {albumArtUrl ? (
           <img
-            key={corsRetried ? "display" : "cors"}
-            src={corsRetried ? `${albumArtUrl}?_r=1` : albumArtUrl}
+            src={albumArtUrl}
             alt={`"${title}" by ${artist} - album artwork`}
             className="w-full h-full object-cover"
             width={480}
             height={480}
-            crossOrigin={corsRetried ? undefined : "anonymous"}
-            onLoad={(e) => {
-              if (!corsRetried) onAlbumArtLoad?.(e.currentTarget);
-            }}
             onError={(e) => {
-              if (!corsRetried) {
-                setCorsRetried(true);
-              } else {
-                e.currentTarget.src = "/og/musiccloud.jpg";
-              }
+              e.currentTarget.src = "/og/musiccloud.jpg";
             }}
           />
         ) : (
