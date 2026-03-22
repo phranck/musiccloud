@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
+import { PlaybackButton } from "@/components/playback/PlaybackButton";
+import { ProgressTrack } from "@/components/playback/ProgressTrack";
 import { useT } from "@/i18n/context";
 
 interface AudioPreviewPlayerProps {
@@ -7,15 +9,16 @@ interface AudioPreviewPlayerProps {
 }
 
 /**
+ * AudioPreviewPlayer - Audio preview playback component
+ *
+ * Orchestrates generic playback components (PlaybackButton, ProgressTrack)
+ * for audio preview functionality. Handles audio element lifecycle and state management.
+ *
  * State machine phases:
  *   idle     — Ready to play. Duration defaults to 30s, updated once metadata loads.
  *   playing  — Playback active.
  *   paused   — Playback paused.
- *   error    — Audio URL unplayable. Component renders null.
- *
- * No probing phase: the player renders immediately. previewUrl is already
- * validated server-side (Deezer ISRC lookup). Probing via loadedmetadata is
- * unreliable — iOS Safari never fires it without user interaction.
+ *   error    — Audio URL unplayable. Component renders unavailable state.
  */
 type PlayerState =
   | { phase: "idle"; duration: number }
@@ -35,7 +38,6 @@ type PlayerAction =
 function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
   switch (action.type) {
     case "METADATA_LOADED":
-      // Update duration in any non-error phase without changing play state
       if (state.phase === "idle") return { ...state, duration: action.duration };
       if (state.phase === "playing" || state.phase === "paused") return { ...state, duration: action.duration };
       return state;
@@ -76,9 +78,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
 
   useEffect(() => {
     const audio = new Audio();
-    // No crossOrigin: browser loads audio in no-cors mode, works with any CDN
-    // regardless of CORS headers (Deezer/Spotify CDN nodes are inconsistent).
-    audio.preload = "none"; // Don't load until user presses play
+    audio.preload = "none";
     audio.src = previewUrl;
 
     audio.addEventListener("loadedmetadata", () => {
@@ -116,10 +116,9 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
     }
   }, [state.phase]);
 
-  const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSeek = useCallback((time: number) => {
     const audio = audioRef.current;
     if (!audio) return;
-    const time = Number(e.target.value);
     audio.currentTime = time;
     dispatch({ type: "SEEK", time });
   }, []);
@@ -150,91 +149,27 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
   const isPlaying = state.phase === "playing";
   const currentTime = state.phase === "playing" || state.phase === "paused" ? state.currentTime : 0;
   const duration = state.phase !== "error" ? state.duration : 30;
-  const progress = duration > 0 ? currentTime / duration : 0;
   const isUnavailable = state.phase === "error";
 
   return (
     <section aria-label={`Preview: ${trackTitle}`} className="flex items-center gap-3" onKeyDown={handleKeyDown}>
-      <button
-        type="button"
+      <PlaybackButton
+        isPlaying={isPlaying}
         onClick={togglePlay}
-        aria-label={isUnavailable ? t("audio.previewUnavailable") : isPlaying ? "Pause preview" : "Play preview"}
         disabled={isUnavailable}
+        ariaLabel={isUnavailable ? t("audio.previewUnavailable") : isPlaying ? "Pause preview" : "Play preview"}
         title={isUnavailable ? t("audio.previewUnavailable") : undefined}
-        className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 transition-all duration-[250ms] active:scale-[0.97] ${
-          isUnavailable
-            ? "bg-white/[0.06] text-white/30 cursor-not-allowed"
-            : isPlaying
-              ? "hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]"
-              : "hover:scale-[1.05]"
-        }`}
-        style={
-          isUnavailable
-            ? undefined
-            : isPlaying
-              ? { backgroundColor: "rgb(var(--color-accent-rgb))", color: "var(--color-accent-contrast)" }
-              : { backgroundColor: "rgb(var(--color-accent-rgb) / 0.12)", color: "rgba(255, 255, 255, 0.6)" }
-        }
-      >
-        {isPlaying ? (
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <rect x="6" y="4" width="4" height="16" rx="1" />
-            <rect x="14" y="4" width="4" height="16" rx="1" />
-          </svg>
-        ) : (
-          <svg className="w-4 h-4 translate-x-px" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M8 5.14v14l11-7-11-7z" />
-          </svg>
-        )}
-      </button>
+        size="medium"
+      />
 
-      <div className="relative flex-1 flex items-center h-4">
-        {/* Visual track — width transition smooths out the ~4 Hz timeupdate jumps */}
-        <div className="absolute inset-x-0 h-1 rounded-full bg-white/12 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-[250ms] ease-linear"
-            style={{ width: `${progress * 100}%` }}
-          />
-        </div>
-        {/* Range input overlaid for interaction; track transparent, thumb visible on hover */}
-        <input
-          type="range"
-          min={0}
-          max={duration}
-          step={0.1}
-          value={currentTime}
-          onChange={handleSeek}
-          disabled={state.phase === "idle" || isUnavailable}
-          aria-label="Preview position"
-          aria-valuemin={0}
-          aria-valuemax={duration}
-          aria-valuenow={Math.round(currentTime)}
-          aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
-          className="absolute inset-0 w-full appearance-none bg-transparent cursor-pointer
-            disabled:cursor-default
-            [&::-webkit-slider-runnable-track]:appearance-none
-            [&::-webkit-slider-runnable-track]:bg-transparent
-            [&::-webkit-slider-thumb]:appearance-none
-            [&::-webkit-slider-thumb]:w-3
-            [&::-webkit-slider-thumb]:h-3
-            [&::-webkit-slider-thumb]:rounded-full
-            [&::-webkit-slider-thumb]:bg-white
-            [&::-webkit-slider-thumb]:opacity-0
-            hover:[&::-webkit-slider-thumb]:opacity-100
-            focus-visible:[&::-webkit-slider-thumb]:opacity-100
-            [&::-moz-range-track]:bg-transparent
-            [&::-moz-range-thumb]:w-3
-            [&::-moz-range-thumb]:h-3
-            [&::-moz-range-thumb]:rounded-full
-            [&::-moz-range-thumb]:bg-white
-            [&::-moz-range-thumb]:border-0
-            [&::-moz-range-thumb]:opacity-0
-            hover:[&::-moz-range-thumb]:opacity-100
-            focus-visible:outline-none
-            focus-visible:ring-2
-            focus-visible:ring-white/40"
-        />
-      </div>
+      <ProgressTrack
+        currentTime={currentTime}
+        duration={duration}
+        isDisabled={state.phase === "idle" || isUnavailable}
+        onSeek={handleSeek}
+        ariaLabel="Preview position"
+        ariaValueText={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+      />
 
       <span
         className={`flex-shrink-0 text-xs min-w-[2.5rem] text-right ${isUnavailable ? "text-white/30" : "tabular-nums text-white/50"}`}
