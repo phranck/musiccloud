@@ -142,7 +142,7 @@ const pageTitle = isArtist
           </a>
         </h1>
       </div>
-      <ShareLayout client:load config={shareConfig} artistName={artistDisplay} />
+      <ShareLayout client:load config={shareConfig} artistName={isArtist ? displayTitle : artistDisplay} />
     </main>
 
     <AppFooterIsland client:load />
