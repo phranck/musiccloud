@@ -19,6 +19,8 @@ export interface ResolvedAlbumLink {
   externalId?: string;
   /** Preview URL of the most popular track from this service (Deezer only) */
   topTrackPreviewUrl?: string;
+  /** Artwork URL from the resolved album (used for artwork fallback) */
+  artworkUrl?: string;
 }
 
 export interface AlbumResolutionResult {
@@ -117,7 +119,20 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
   }
 
   const allLinks = [...cached.links, ...newLinks].sort((a, b) => b.confidence - a.confidence);
-  return { sourceAlbum: cached.sourceAlbum, links: allLinks, albumId: cached.albumId };
+
+  // Fill missing artwork from newly resolved links
+  let { sourceAlbum } = cached;
+  if (!sourceAlbum.artworkUrl) {
+    const artworkLink =
+      allLinks.find((l) => l.service === "spotify" && l.artworkUrl) ??
+      allLinks.find((l) => l.service === "apple-music" && l.artworkUrl) ??
+      allLinks.find((l) => l.artworkUrl);
+    if (artworkLink?.artworkUrl) {
+      sourceAlbum = { ...sourceAlbum, artworkUrl: artworkLink.artworkUrl };
+    }
+  }
+
+  return { sourceAlbum, links: allLinks, albumId: cached.albumId };
 }
 
 // ─── ISRC-based album inference ───────────────────────────────────────────────
@@ -220,6 +235,7 @@ async function resolveAlbumOnService(
           matchMethod: "upc",
           externalId: album.sourceId,
           topTrackPreviewUrl: album.topTrackPreviewUrl,
+          artworkUrl: album.artworkUrl,
         };
       }
     } catch (error) {
@@ -284,6 +300,7 @@ async function resolveAlbumViaSearch(
     matchMethod: result.matchMethod as ResolvedAlbumLink["matchMethod"],
     externalId: album.sourceId,
     topTrackPreviewUrl: album.topTrackPreviewUrl,
+    artworkUrl: album.artworkUrl,
   };
 }
 
@@ -398,7 +415,19 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   // 5. Resolve on all other services in parallel
   const links = await resolveAlbumAcrossServices(sourceAlbum, sourceAdapter);
 
-  // 6. Add source service link
+  // 6. If source album has no artwork, use artwork from a cross-service result
+  // (e.g., Tidal API v2 doesn't return imageLinks for albums)
+  if (!sourceAlbum.artworkUrl) {
+    const artworkLink =
+      links.find((l) => l.service === "spotify" && l.artworkUrl) ??
+      links.find((l) => l.service === "apple-music" && l.artworkUrl) ??
+      links.find((l) => l.artworkUrl);
+    if (artworkLink?.artworkUrl) {
+      sourceAlbum = { ...sourceAlbum, artworkUrl: artworkLink.artworkUrl };
+    }
+  }
+
+  // 7. Add source service link
   links.unshift({
     service: sourceAdapter.id,
     displayName: sourceAdapter.displayName,
@@ -441,17 +470,29 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
           if (cached) return fillMissingAlbumServices(cached);
         }
 
-        const links = await resolveAlbumAcrossServices(result.album, adapter);
+        let sourceAlbum = result.album;
+        const links = await resolveAlbumAcrossServices(sourceAlbum, adapter);
+
+        if (!sourceAlbum.artworkUrl) {
+          const artworkLink =
+            links.find((l) => l.service === "spotify" && l.artworkUrl) ??
+            links.find((l) => l.service === "apple-music" && l.artworkUrl) ??
+            links.find((l) => l.artworkUrl);
+          if (artworkLink?.artworkUrl) {
+            sourceAlbum = { ...sourceAlbum, artworkUrl: artworkLink.artworkUrl };
+          }
+        }
+
         links.unshift({
           service: adapter.id,
           displayName: adapter.displayName,
-          url: result.album.webUrl,
+          url: sourceAlbum.webUrl,
           confidence: result.confidence,
           matchMethod: "search",
-          externalId: result.album.sourceId,
+          externalId: sourceAlbum.sourceId,
         });
 
-        return { sourceAlbum: result.album, links };
+        return { sourceAlbum, links };
       }
     } catch {}
   }

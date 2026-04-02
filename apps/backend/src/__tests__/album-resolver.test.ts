@@ -279,6 +279,51 @@ describe("AlbumResolver: resolveAlbumTextSearch", () => {
   });
 });
 
+describe("AlbumResolver: artwork fallback", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRepo.findAlbumByUrl.mockResolvedValue(null);
+    mockRepo.findAlbumByUpc.mockResolvedValue(null);
+  });
+
+  it("should fill missing artwork from cross-service result (e.g. Tidal source)", async () => {
+    const tidalAlbumNoArtwork = {
+      ...MOCK_SOURCE_ALBUM,
+      sourceService: "tidal" as const,
+      sourceId: "999",
+      artworkUrl: undefined,
+      webUrl: "https://tidal.com/browse/album/999",
+    };
+
+    mockTidalAdapter.detectAlbumUrl.mockImplementation((url: string) =>
+      url.includes("tidal.com/album") ? "999" : null,
+    );
+    mockTidalAdapter.getAlbum.mockResolvedValue(tidalAlbumNoArtwork);
+
+    // Spotify finds the album via UPC with artwork
+    mockSpotifyAdapter.findAlbumByUpc.mockResolvedValue({
+      ...MOCK_SOURCE_ALBUM,
+      artworkUrl: "https://i.scdn.co/image/fallback-artwork.jpg",
+    });
+    mockDeezerAdapter.findAlbumByUpc.mockResolvedValue(MOCK_DEEZER_ALBUM);
+
+    const result = await resolveAlbumUrl("https://tidal.com/album/999");
+
+    expect(result.sourceAlbum.artworkUrl).toBe("https://i.scdn.co/image/fallback-artwork.jpg");
+  });
+
+  it("should keep existing artwork and not overwrite it", async () => {
+    mockSpotifyAdapter.getAlbum.mockResolvedValue(MOCK_SOURCE_ALBUM);
+    mockDeezerAdapter.findAlbumByUpc.mockResolvedValue(MOCK_DEEZER_ALBUM);
+    mockTidalAdapter.findAlbumByUpc.mockResolvedValue(null);
+    mockTidalAdapter.searchAlbum.mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" });
+
+    const result = await resolveAlbumUrl("https://open.spotify.com/album/6dVIqQ8qmQ5GBnJ9shOYGE");
+
+    expect(result.sourceAlbum.artworkUrl).toBe("https://example.com/artwork.jpg");
+  });
+});
+
 describe("AlbumResolver: ISRC-based inference", () => {
   it("should skip ISRC inference when source album has no tracks", async () => {
     const albumWithoutTracks = { ...MOCK_SOURCE_ALBUM, tracks: undefined };
