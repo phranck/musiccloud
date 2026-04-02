@@ -55,6 +55,12 @@ const AlbumsPage = lazy(() =>
   })),
 );
 
+const ArtistsPage = lazy(() =>
+  import("@/features/music/ArtistsPage").then((m) => ({
+    default: m.ArtistsPage,
+  })),
+);
+
 const UsersPage = lazy(() =>
   import("@/features/system/UsersPage").then((m) => ({
     default: m.UsersPage,
@@ -202,6 +208,14 @@ function AppRoutes() {
             element={
               <Suspense fallback={<ContentEditorLoadingFallback />}>
                 <AlbumsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="artists"
+            element={
+              <Suspense fallback={<ContentEditorLoadingFallback />}>
+                <ArtistsPage />
               </Suspense>
             }
           />

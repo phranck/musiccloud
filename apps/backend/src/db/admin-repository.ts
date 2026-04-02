@@ -42,6 +42,17 @@ export interface AlbumListItem {
   isFeatured: boolean;
 }
 
+export interface ArtistListItem {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  genres: string[];
+  sourceService: string | null;
+  linkCount: number;
+  createdAt: number;
+  shortId: string | null;
+}
+
 export interface TrackDetail {
   id: string;
   title: string;
@@ -121,6 +132,14 @@ export interface AdminRepository {
     sortBy?: string;
     sortDir?: "asc" | "desc";
   }): Promise<ListResult<AlbumListItem>>;
+  listArtists(params: {
+    page: number;
+    limit: number;
+    q?: string;
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
+  }): Promise<ListResult<ArtistListItem>>;
+  deleteArtists(ids: string[]): Promise<void>;
   getTrackById(id: string): Promise<TrackDetail | null>;
   updateTrack(id: string, data: TrackUpdateData): Promise<void>;
   deleteTracks(ids: string[]): Promise<void>;
@@ -128,7 +147,7 @@ export interface AdminRepository {
   setTrackFeatured(shortId: string, featured: boolean): Promise<void>;
   setAlbumFeatured(shortId: string, featured: boolean): Promise<void>;
   clearArtistCache(): Promise<{ deleted: number }>;
-  countAllData(): Promise<{ tracks: number; albums: number }>;
-  resetAllData(): Promise<{ tracks: number; albums: number }>;
+  countAllData(): Promise<{ tracks: number; albums: number; artists: number }>;
+  resetAllData(): Promise<{ tracks: number; albums: number; artists: number }>;
   resolveShortIds(shortIds: string[]): Promise<Map<string, { title: string; artist: string }>>;
 }

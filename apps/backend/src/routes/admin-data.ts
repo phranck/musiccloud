@@ -98,6 +98,28 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return reply.send(result);
   });
 
+  app.get("/api/admin/artists", async (request) => {
+    const q = request.query as { page?: string; limit?: string; q?: string; sortBy?: string; sortDir?: string };
+    const page = Math.max(1, parseInt(q.page ?? "1", 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(q.limit ?? "20", 10) || 20));
+    const search = q.q?.trim() || undefined;
+    const sortDir = q.sortDir === "asc" || q.sortDir === "desc" ? q.sortDir : undefined;
+
+    const repo = await getAdminRepository();
+    return repo.listArtists({ page, limit, q: search, sortBy: q.sortBy, sortDir });
+  });
+
+  app.delete("/api/admin/artists", async (request, reply) => {
+    const body = request.body as { ids?: unknown };
+    if (!Array.isArray(body?.ids) || body.ids.length === 0) {
+      return reply.status(400).send({ error: "ids array required" });
+    }
+    const ids = (body.ids as unknown[]).filter((id): id is string => typeof id === "string");
+    const repo = await getAdminRepository();
+    await repo.deleteArtists(ids);
+    return { deleted: ids.length };
+  });
+
   app.delete("/api/admin/albums", async (request, reply) => {
     const body = request.body as { ids?: unknown };
     if (!Array.isArray(body?.ids) || body.ids.length === 0) {
@@ -113,6 +135,6 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     const repo = await getAdminRepository();
     const counts = await repo.countAllData();
     const adminCount = await repo.countAdmins();
-    return { tracks: counts.tracks, albums: counts.albums, users: adminCount };
+    return { tracks: counts.tracks, albums: counts.albums, artists: counts.artists, users: adminCount };
   });
 }

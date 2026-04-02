@@ -4,7 +4,7 @@ import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedAlbum, NormalizedArtist, NormalizedTrack, TrackSource } from "../../services/types.js";
-import type { AdminRepository, AdminUser, AlbumListItem, ListResult, TrackListItem } from "../admin-repository.js";
+import type { AdminRepository, AdminUser, AlbumListItem, ArtistListItem, ListResult, TrackListItem } from "../admin-repository.js";
 import type {
   ArtistCacheData,
   ArtistCacheRow,
@@ -1681,22 +1681,117 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     }
   }
 
+  async listArtists(params: {
+    page: number;
+    limit: number;
+    q?: string;
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
+  }): Promise<ListResult<ArtistListItem>> {
+    const { page = 1, limit = 50, q, sortBy = "created_at", sortDir = "desc" } = params;
+    const offset = (page - 1) * limit;
+    const ALLOWED = ["created_at", "updated_at", "name"];
+    const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
+    const dir = sortDir === "asc" ? "ASC" : "DESC";
+
+    let whereClause = "";
+    let countResult: pgModule.QueryResult<CountRow>;
+    let queryParams: (string | number)[] = [];
+
+    if (q) {
+      whereClause = `WHERE a.name ILIKE $1`;
+      queryParams = [`%${q}%`];
+      countResult = await this.pool.query(`SELECT COUNT(*) as count FROM artists a ${whereClause}`, queryParams);
+    } else {
+      countResult = await this.pool.query(`SELECT COUNT(*) as count FROM artists a`);
+    }
+
+    const total = countResult.rows[0]?.count ?? 0;
+
+    // Add limit and offset to params
+    queryParams.push(limit, offset);
+
+    const query = `SELECT
+      a.id, a.name, a.image_url, a.genres, a.source_service, a.created_at,
+      asu.id as short_id, COUNT(asl.id) as link_count
+    FROM artists a
+    LEFT JOIN artist_service_links asl ON a.id = asl.artist_id
+    LEFT JOIN artist_short_urls asu ON a.id = asu.artist_id
+    ${whereClause}
+    GROUP BY a.id, asu.id
+    ORDER BY a.${col} ${dir}
+    LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
+
+    const rows = await this.pool.query(query, queryParams);
+
+    interface ArtistListRow extends ArtistRow {
+      short_id: string | null;
+      link_count: string;
+    }
+
+    const items = (rows.rows as ArtistListRow[]).map((r) => ({
+      id: r.id,
+      name: r.name,
+      imageUrl: r.image_url ?? null,
+      genres: safeParseArray(r.genres ?? "[]"),
+      sourceService: r.source_service ?? null,
+      linkCount: parseInt(r.link_count, 10),
+      createdAt: dateToMs(r.created_at),
+      shortId: r.short_id ?? null,
+    }));
+
+    return { items, total, page, limit };
+  }
+
+  async deleteArtists(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
+
+      // Delete associated records first
+      await client.query(`DELETE FROM artist_service_links WHERE artist_id IN (${placeholders})`, ids);
+      await client.query(`DELETE FROM artist_short_urls WHERE artist_id IN (${placeholders})`, ids);
+      await client.query(`DELETE FROM url_aliases WHERE artist_id IN (${placeholders})`, ids);
+
+      // Delete artists
+      await client.query(`DELETE FROM artists WHERE id IN (${placeholders}) RETURNING id`, ids);
+
+      await client.query("COMMIT");
+
+      adminEventBroadcaster.emit({
+        type: "artists-deleted",
+        data: { count: ids.length, ids },
+      });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async clearArtistCache(): Promise<{ deleted: number }> {
     const result = await this.pool.query(`DELETE FROM artist_cache RETURNING id`);
     return { deleted: result.rowCount ?? 0 };
   }
 
-  async countAllData(): Promise<{ tracks: number; albums: number }> {
+  async countAllData(): Promise<{ tracks: number; albums: number; artists: number }> {
     const tracksResult = await this.pool.query(`SELECT COUNT(*) as count FROM tracks`);
     const albumsResult = await this.pool.query(`SELECT COUNT(*) as count FROM albums`);
+    const artistsResult = await this.pool.query(`SELECT COUNT(*) as count FROM artists`);
 
     return {
       tracks: tracksResult.rows[0]?.count ?? 0,
       albums: albumsResult.rows[0]?.count ?? 0,
+      artists: artistsResult.rows[0]?.count ?? 0,
     };
   }
 
-  async resetAllData(): Promise<{ tracks: number; albums: number }> {
+  async resetAllData(): Promise<{ tracks: number; albums: number; artists: number }> {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
@@ -1704,9 +1799,11 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       // Get counts before deletion
       const tracksResult = await client.query(`SELECT COUNT(*) as count FROM tracks`);
       const albumsResult = await client.query(`SELECT COUNT(*) as count FROM albums`);
+      const artistsResult = await client.query(`SELECT COUNT(*) as count FROM artists`);
 
       const trackCount = tracksResult.rows[0]?.count ?? 0;
       const albumCount = albumsResult.rows[0]?.count ?? 0;
+      const artistCount = artistsResult.rows[0]?.count ?? 0;
 
       // Delete in reverse order of foreign key dependencies
       await client.query("DELETE FROM featured_albums");
@@ -1726,7 +1823,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await client.query("COMMIT");
       log.debug("DB", "All data reset successfully");
 
-      return { tracks: trackCount, albums: albumCount };
+      return { tracks: trackCount, albums: albumCount, artists: artistCount };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;

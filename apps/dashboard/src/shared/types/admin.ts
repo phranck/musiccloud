@@ -21,6 +21,7 @@ export interface AdminUser {
 export interface AdminStats {
   tracks: number;
   albums: number;
+  artists: number;
   users: number;
 }
 

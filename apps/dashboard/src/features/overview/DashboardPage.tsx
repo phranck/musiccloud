@@ -28,9 +28,10 @@ export function DashboardPage() {
   return (
     <PageLayout>
       <PageHeader title={dm.overviewTitle} />
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <DashboardInfoCard label={dm.cards.tracks} value={stats?.tracks ?? 0} />
         <DashboardInfoCard label={dm.cards.albums} value={stats?.albums ?? 0} />
+        <DashboardInfoCard label={dm.cards.artists} value={stats?.artists ?? 0} />
         <DashboardInfoCard label={dm.cards.users} value={stats?.users ?? 0} />
       </div>
     </PageLayout>

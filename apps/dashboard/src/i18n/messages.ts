@@ -33,6 +33,7 @@ export interface DashboardMessages {
       overview: string;
       tracks: string;
       albums: string;
+      artists: string;
       media: string;
       users: string;
       pages: string;
@@ -102,6 +103,7 @@ export interface DashboardMessages {
     cards: {
       tracks: string;
       albums: string;
+      artists: string;
       users: string;
     };
   };
@@ -145,6 +147,18 @@ export interface DashboardMessages {
       colArtists: string;
       colSource: string;
       colTracks: string;
+      colLinks: string;
+      colAdded: string;
+    };
+    artists: {
+      title: string;
+      searchPlaceholder: string;
+      total: string;
+      noArtists: string;
+      noArtistsHint: string;
+      colName: string;
+      colGenres: string;
+      colSource: string;
       colLinks: string;
       colAdded: string;
     };
@@ -679,6 +693,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         overview: "\u00dcbersicht",
         tracks: "Tracks",
         albums: "Alben",
+        artists: "K\u00fcnstler",
         media: "Medien",
         users: "Benutzer",
         pages: "Seiten",
@@ -748,6 +763,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       cards: {
         tracks: "Tracks",
         albums: "Alben",
+        artists: "K\u00fcnstler",
         users: "Benutzer",
       },
     },
@@ -791,6 +807,18 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         colArtists: "K\u00fcnstler",
         colSource: "Quelle",
         colTracks: "Tracks",
+        colLinks: "Services",
+        colAdded: "Hinzugef\u00fcgt",
+      },
+      artists: {
+        title: "K\u00fcnstler",
+        searchPlaceholder: "K\u00fcnstler suchen\u2026",
+        total: "K\u00fcnstler",
+        noArtists: "Keine K\u00fcnstler vorhanden",
+        noArtistsHint: "K\u00fcnstler werden automatisch beim Aufl\u00f6sen von Links erstellt.",
+        colName: "Name",
+        colGenres: "Genres",
+        colSource: "Quelle",
         colLinks: "Services",
         colAdded: "Hinzugef\u00fcgt",
       },
@@ -1295,6 +1323,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         overview: "Overview",
         tracks: "Tracks",
         albums: "Albums",
+        artists: "Artists",
         media: "Media",
         users: "Users",
         pages: "Pages",
@@ -1364,6 +1393,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       cards: {
         tracks: "Tracks",
         albums: "Albums",
+        artists: "Artists",
         users: "Users",
       },
     },
@@ -1407,6 +1437,18 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         colArtists: "Artists",
         colSource: "Source",
         colTracks: "Tracks",
+        colLinks: "Services",
+        colAdded: "Added",
+      },
+      artists: {
+        title: "Artists",
+        searchPlaceholder: "Search artists\u2026",
+        total: "artists",
+        noArtists: "No artists yet",
+        noArtistsHint: "Artists are created automatically when resolving links.",
+        colName: "Name",
+        colGenres: "Genres",
+        colSource: "Source",
         colLinks: "Services",
         colAdded: "Added",
       },

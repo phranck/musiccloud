@@ -8,6 +8,7 @@ import {
   ImageIcon,
   LinkIcon,
   MarkdownLogoIcon,
+  MicrophoneStageIcon,
   MusicNotesIcon,
   NotebookIcon,
   SquareHalfBottomIcon,
@@ -249,6 +250,13 @@ export function Sidebar({
             label={s.albums}
             icon={<VinylRecordIcon weight="duotone" className="w-4 h-4" />}
             badge={stats?.albums}
+            onClick={onItemClick}
+          />
+          <SidebarItem
+            to="/artists"
+            label={s.artists}
+            icon={<MicrophoneStageIcon weight="duotone" className="w-4 h-4" />}
+            badge={stats?.artists}
             onClick={onItemClick}
           />
         </div>
