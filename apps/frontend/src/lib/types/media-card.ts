@@ -6,7 +6,7 @@ export type { PlatformLink };
 // Content configuration protocol
 // ---------------------------------------------------------------------------
 
-export type MediaCardContentType = "song" | "album" | "share";
+export type MediaCardContentType = "song" | "album" | "artist" | "share";
 
 /**
  * Base configuration shared by all three content types.
@@ -58,6 +58,16 @@ export interface AlbumContentConfiguration extends MediaCardContentConfiguration
 }
 
 /**
+ * Artist result on the landing page.
+ * Shows ShareButton and sr-announcement.
+ */
+export interface ArtistContentConfiguration extends MediaCardContentConfiguration {
+  type: "artist";
+  shareUrl: string;
+  srAnnouncement?: string;
+}
+
+/**
  * Share page (`/[shortId]`).
  * No ShareButton, no sr-announcement.
  * Plain data fields are fully JSON-serializable (from Astro SSR).
@@ -72,9 +82,9 @@ export interface ShareContentConfiguration extends MediaCardContentConfiguration
   platformsLabelKey: string;
 }
 
-/** Type guard: true for song and album configs (both have shareUrl / srAnnouncement) */
+/** Type guard: true for song, album, and artist configs (all have shareUrl / srAnnouncement) */
 export function isShareableContent(
   content: MediaCardContentConfiguration,
-): content is SongContentConfiguration | AlbumContentConfiguration {
-  return content.type === "song" || content.type === "album";
+): content is SongContentConfiguration | AlbumContentConfiguration | ArtistContentConfiguration {
+  return content.type === "song" || content.type === "album" || content.type === "artist";
 }

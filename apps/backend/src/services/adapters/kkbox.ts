@@ -7,8 +7,12 @@ import type {
   AlbumMatchResult,
   AlbumSearchQuery,
   AlbumTrackEntry,
+  ArtistCapabilities,
+  ArtistMatchResult,
+  ArtistSearchQuery,
   MatchResult,
   NormalizedAlbum,
+  NormalizedArtist,
   NormalizedTrack,
   SearchQuery,
   ServiceAdapter,
@@ -19,6 +23,8 @@ const API_BASE = "https://api.kkbox.com/v1.1";
 const KKBOX_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?kkbox\.com\/[a-z]{2}\/[a-z]{2}\/song\/([A-Za-z0-9_-]+)/;
 // KKBOX album URLs: kkbox.com/{locale}/{locale}/album/{id}
 const KKBOX_ALBUM_REGEX = /(?:https?:\/\/)?(?:www\.)?kkbox\.com\/[a-z]{2}\/[a-z]{2}\/album\/([A-Za-z0-9_-]+)/;
+// KKBOX artist URLs: kkbox.com/{locale}/{locale}/artist/{id}
+const KKBOX_ARTIST_REGEX = /(?:https?:\/\/)?(?:www\.)?kkbox\.com\/[a-z]{2}\/[a-z]{2}\/artist\/([A-Za-z0-9_-]+)/;
 
 const tokenManager = new TokenManager({
   serviceName: "KKBOX",
@@ -82,6 +88,19 @@ interface KkboxAlbumResponse {
 interface KkboxAlbumSearchResponse {
   albums?: {
     data: KkboxAlbumResponse[];
+  };
+}
+
+interface KkboxArtistResponse {
+  id: string;
+  name: string;
+  url: string;
+  images?: Array<{ url: string; width: number; height: number }>;
+}
+
+interface KkboxArtistSearchResponse {
+  artists?: {
+    data: KkboxArtistResponse[];
   };
 }
 
@@ -366,5 +385,81 @@ export const kkboxAdapter = {
       log.debug("KKBOX", "Album search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+  },
+  // --- Artist support ---
+
+  artistCapabilities: {
+    supportsArtistSearch: true,
+  } satisfies ArtistCapabilities,
+
+  detectArtistUrl(url: string): string | null {
+    const match = KKBOX_ARTIST_REGEX.exec(url);
+    return match ? match[1] : null;
+  },
+
+  async getArtist(artistId: string): Promise<NormalizedArtist> {
+    const territory = getTerritory();
+    const response = await kkboxFetch(`/artists/${encodeURIComponent(artistId)}?territory=${territory}`);
+
+    if (!response.ok) {
+      throw new Error(`KKBOX getArtist failed: ${response.status}`);
+    }
+
+    const data: KkboxArtistResponse = await response.json();
+
+    return {
+      sourceService: "kkbox",
+      sourceId: data.id,
+      name: data.name,
+      imageUrl: pickLargestImage(data.images),
+      webUrl:
+        data.url || `https://www.kkbox.com/${territory.toLowerCase()}/${territory.toLowerCase()}/artist/${data.id}`,
+    };
+  },
+
+  async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
+    const territory = getTerritory();
+    const response = await kkboxFetch(
+      `/search?q=${encodeURIComponent(query.name)}&type=artist&territory=${territory}&limit=5`,
+    );
+
+    if (!response.ok) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const data: KkboxArtistSearchResponse = await response.json();
+    const items = data.artists?.data ?? [];
+
+    if (items.length === 0) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    let bestArtist: NormalizedArtist | null = null;
+    let bestConfidence = 0;
+
+    for (const item of items) {
+      const confidence = calculateConfidence(
+        { title: query.name, artists: [], durationMs: undefined },
+        { title: item.name, artists: [], durationMs: undefined },
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestArtist = {
+          sourceService: "kkbox",
+          sourceId: item.id,
+          name: item.name,
+          imageUrl: pickLargestImage(item.images),
+          webUrl:
+            item.url || `https://www.kkbox.com/${territory.toLowerCase()}/${territory.toLowerCase()}/artist/${item.id}`,
+        };
+      }
+    }
+
+    if (!bestArtist || bestConfidence < 0.6) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

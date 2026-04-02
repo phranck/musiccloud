@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAmbilightAnimation } from "@/hooks/useAmbilightAnimation";
 import { useLoadingMessages } from "@/hooks/useLoadingMessages";
 import { useT } from "@/i18n/context";
-import { isAlbumUrl, isMusicUrl } from "@/lib/platform/url";
+import { isAlbumUrl, isArtistUrl, isMusicUrl } from "@/lib/platform/url";
 import type { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
@@ -32,13 +32,14 @@ export function HeroInput({
   const t = useT();
   const [value, setValue] = useState("");
   const [isAlbum, setIsAlbum] = useState(false);
+  const [isArtist, setIsArtist] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const ambilightRef = useRef<HTMLDivElement>(null);
   const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevState = useRef(state);
 
   useAmbilightAnimation(ambilightRef);
-  const loadingMessage = useLoadingMessages(state, t, isAlbum);
+  const loadingMessage = useLoadingMessages(state, t, isAlbum, isArtist);
 
   // Focus input on mount for non-touch devices only (avoids iOS 26 keyboard suppression on load)
   useEffect(() => {
@@ -81,8 +82,10 @@ export function HeroInput({
           /^https?:\/\/(?:open\.spotify\.com|music\.apple\.com|(?:www\.)?youtube\.com|youtu\.be|(?:www\.|m\.)?soundcloud\.com|(?:listen\.)?tidal\.com|(?:www\.)?deezer\.com|link\.deezer\.com)/.test(
             pastedText,
           );
-        if (isMusicUrl(pastedText) || album || isMusicDomain) {
+        const artist = isArtistUrl(pastedText);
+        if (isMusicUrl(pastedText) || album || artist || isMusicDomain) {
           setIsAlbum(album);
+          setIsArtist(artist);
           autoSubmitTimer.current = setTimeout(() => {
             onSubmit(pastedText);
           }, 300);
@@ -106,6 +109,7 @@ export function HeroInput({
     cancelAutoSubmit();
     setValue("");
     setIsAlbum(false);
+    setIsArtist(false);
     onClear();
     inputRef.current?.focus();
   }, [onClear, cancelAutoSubmit]);

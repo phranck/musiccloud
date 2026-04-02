@@ -6,8 +6,12 @@ import type {
   AlbumCapabilities,
   AlbumMatchResult,
   AlbumSearchQuery,
+  ArtistCapabilities,
+  ArtistMatchResult,
+  ArtistSearchQuery,
   MatchResult,
   NormalizedAlbum,
+  NormalizedArtist,
   NormalizedTrack,
   SearchQuery,
   ServiceAdapter,
@@ -17,6 +21,7 @@ const API_BASE = "https://api.deezer.com";
 
 const DEEZER_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/;
 const DEEZER_ALBUM_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?album\/(\d+)/;
+const DEEZER_ARTIST_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?artist\/(\d+)/;
 
 // Minimal type for the Deezer API track response fields we use
 interface DeezerTrackResponse {
@@ -325,5 +330,92 @@ export const deezerAdapter = {
     }
 
     return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
+  },
+
+  // --- Artist support ---
+
+  artistCapabilities: {
+    supportsArtistSearch: true,
+  } satisfies ArtistCapabilities,
+
+  detectArtistUrl(url: string): string | null {
+    const match = DEEZER_ARTIST_REGEX.exec(url);
+    return match ? match[1] : null;
+  },
+
+  async getArtist(artistId: string): Promise<NormalizedArtist> {
+    const response = await deezerFetch(`/artist/${encodeURIComponent(artistId)}`);
+
+    if (!response.ok) {
+      throw new Error(`Deezer getArtist failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (isDeezerError(data)) {
+      throw new Error(`Deezer API error: ${data.error.message}`);
+    }
+
+    return {
+      sourceService: "deezer",
+      sourceId: String(data.id),
+      name: data.name,
+      imageUrl: data.picture_xl ?? data.picture_big,
+      webUrl: data.link ?? `https://www.deezer.com/artist/${data.id}`,
+    };
+  },
+
+  async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
+    const response = await deezerFetch(`/search/artist?q=${encodeURIComponent(query.name)}&limit=5`);
+
+    if (!response.ok) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const data = await response.json();
+
+    if (isDeezerError(data)) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const items = data.data ?? [];
+
+    if (items.length === 0) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const queryNameLower = query.name.toLowerCase().trim();
+    let bestArtist: NormalizedArtist | null = null;
+    let bestConfidence = 0;
+
+    for (const item of items) {
+      const nameLower = item.name.toLowerCase().trim();
+
+      let confidence: number;
+      if (nameLower === queryNameLower) {
+        confidence = 0.95;
+      } else if (nameLower.includes(queryNameLower) || queryNameLower.includes(nameLower)) {
+        confidence = 0.75;
+      } else {
+        confidence = 0.5;
+      }
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestArtist = {
+          sourceService: "deezer",
+          sourceId: String(item.id),
+          name: item.name,
+          imageUrl: item.picture_xl ?? item.picture_big,
+          webUrl: item.link ?? `https://www.deezer.com/artist/${item.id}`,
+        };
+      }
+    }
+
+    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

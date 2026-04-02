@@ -1,7 +1,15 @@
-import type { AlbumResolveSuccessResponse, ResolveSuccessResponse } from "@musiccloud/shared";
+import type {
+  AlbumResolveSuccessResponse,
+  ArtistResolveSuccessResponse,
+  ResolveSuccessResponse,
+} from "@musiccloud/shared";
 import { buildMetaLine, isValidPlatform, PLATFORM_CONFIG, type Platform } from "@musiccloud/shared";
-import type { ActiveResult, AlbumResult, AppAction, AppState, SongResult } from "@/lib/types/app";
-import type { AlbumContentConfiguration, SongContentConfiguration } from "@/lib/types/media-card";
+import type { ActiveResult, AlbumResult, AppAction, AppState, ArtistResult, SongResult } from "@/lib/types/app";
+import type {
+  AlbumContentConfiguration,
+  ArtistContentConfiguration,
+  SongContentConfiguration,
+} from "@/lib/types/media-card";
 import type { PlatformLink } from "@/lib/types/platform";
 
 // ---------------------------------------------------------------------------
@@ -83,6 +91,25 @@ export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): Al
   };
 }
 
+export function parseArtistResolveResponse(data: ArtistResolveSuccessResponse): ArtistResult {
+  const platforms: PlatformLink[] = data.links
+    .filter((link) => link.url && isValidPlatform(link.service))
+    .map((link) => ({
+      platform: link.service as Platform,
+      url: link.url,
+      displayName: link.displayName,
+      matchMethod: link.matchMethod,
+    }));
+  return {
+    kind: "artist",
+    name: data.artist.name,
+    imageUrl: data.artist.imageUrl ?? "",
+    genres: data.artist.genres,
+    platforms,
+    shareUrl: data.shortUrl,
+  };
+}
+
 export function parseErrorKey(err: unknown): string {
   if (err instanceof TypeError && err.message.includes("Failed to fetch")) return "error.offline";
   if (err instanceof Error && err.name === "AbortError") return "error.timeout";
@@ -113,7 +140,7 @@ export function buildActiveConfig(
   active: ActiveResult,
   t: TFunc,
   onAlbumArtLoad: (img: HTMLImageElement) => void,
-): SongContentConfiguration | AlbumContentConfiguration {
+): SongContentConfiguration | AlbumContentConfiguration | ArtistContentConfiguration {
   const platformsInfo = getPlatformsInfo(active.platforms, t);
 
   if (active.kind === "song") {
@@ -131,6 +158,24 @@ export function buildActiveConfig(
       platformsInfo,
       shareUrl: active.shareUrl,
       srAnnouncement: t("results.found", { title: active.title, artist: active.artist }),
+      onAlbumArtLoad,
+    };
+  }
+
+  if (active.kind === "artist") {
+    const genreLine = active.genres?.join(", ");
+
+    return {
+      type: "artist",
+      title: active.name,
+      artist: "",
+      artworkUrl: active.imageUrl,
+      metaLine: genreLine || undefined,
+      platforms: active.platforms,
+      platformsLabel: t("results.viewArtistOn"),
+      platformsInfo,
+      shareUrl: active.shareUrl,
+      srAnnouncement: t("results.foundArtist", { name: active.name }),
       onAlbumArtLoad,
     };
   }

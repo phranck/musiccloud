@@ -3,16 +3,19 @@ import { CACHE_TTL_MS } from "../../lib/config.js";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
-import type { NormalizedAlbum, NormalizedTrack, TrackSource } from "../../services/types.js";
+import type { NormalizedAlbum, NormalizedArtist, NormalizedTrack, TrackSource } from "../../services/types.js";
 import type { AdminRepository, AdminUser, AlbumListItem, ListResult, TrackListItem } from "../admin-repository.js";
 import type {
   ArtistCacheData,
   ArtistCacheRow,
   CachedAlbumResult,
+  CachedArtistResult,
   CachedTrackResult,
   PersistAlbumData,
+  PersistArtistData,
   PersistTrackData,
   SharePageAlbumResult,
+  SharePageArtistResult,
   SharePageDbResult,
   TrackRepository,
 } from "../repository.js";
@@ -123,6 +126,25 @@ interface AlbumListRow {
   short_id: string | null;
   link_count: string;
   is_featured: boolean;
+}
+
+interface ArtistRow {
+  id: string;
+  name: string;
+  image_url: string | null;
+  genres: string | null;
+  source_service: string | null;
+  source_url: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface ArtistWithLinkRow extends ArtistRow {
+  link_url: string | null;
+  service: string | null;
+  confidence: number | null;
+  match_method: string | null;
+  short_id: string | null;
 }
 
 interface ArtistCacheRow_DB {
@@ -936,6 +958,238 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   }
 
   // ============================================================================
+  // ARTIST RESOLUTION QUERIES (TrackRepository)
+  // ============================================================================
+
+  async findArtistByUrl(url: string): Promise<CachedArtistResult | null> {
+    const result = await this.pool.query(
+      `SELECT
+        ar.id, ar.name, ar.image_url, ar.genres, ar.source_service, ar.source_url,
+        asl.url as link_url, asl.service, asl.confidence, asl.match_method,
+        asu.id as short_id, ar.created_at, ar.updated_at
+      FROM artists ar
+      LEFT JOIN artist_service_links asl ON ar.id = asl.artist_id
+      LEFT JOIN artist_short_urls asu ON ar.id = asu.artist_id
+      WHERE ar.source_url = $1
+      ORDER BY asl.created_at ASC`,
+      [url],
+    );
+
+    if (result.rows.length === 0) return null;
+    return this.buildCachedArtistResult(result.rows as ArtistWithLinkRow[]);
+  }
+
+  async findArtistByName(name: string): Promise<CachedArtistResult | null> {
+    const result = await this.pool.query(
+      `SELECT
+        ar.id, ar.name, ar.image_url, ar.genres, ar.source_service, ar.source_url,
+        asl.url as link_url, asl.service, asl.confidence, asl.match_method,
+        asu.id as short_id, ar.created_at, ar.updated_at
+      FROM artists ar
+      LEFT JOIN artist_service_links asl ON ar.id = asl.artist_id
+      LEFT JOIN artist_short_urls asu ON ar.id = asu.artist_id
+      WHERE LOWER(ar.name) = LOWER($1)
+      ORDER BY asl.created_at ASC`,
+      [name],
+    );
+
+    if (result.rows.length === 0) return null;
+    return this.buildCachedArtistResult(result.rows as ArtistWithLinkRow[]);
+  }
+
+  async loadArtistByShortId(shortId: string): Promise<SharePageArtistResult | null> {
+    const result = await this.pool.query(
+      `SELECT
+        ar.id, ar.name, ar.image_url, ar.genres, ar.source_service, ar.source_url,
+        asl.url as link_url, asl.service,
+        asu.id as short_id
+      FROM artists ar
+      JOIN artist_short_urls asu ON ar.id = asu.artist_id
+      LEFT JOIN artist_service_links asl ON ar.id = asl.artist_id
+      WHERE asu.id = $1`,
+      [shortId],
+    );
+
+    if (result.rows.length === 0) return null;
+
+    const firstRow = result.rows[0] as ArtistWithLinkRow;
+
+    return {
+      artist: {
+        name: firstRow.name,
+        imageUrl: firstRow.image_url,
+        genres: safeParseArray(firstRow.genres ?? "[]"),
+      },
+      links: (result.rows as ArtistWithLinkRow[])
+        .filter((r) => r.link_url && r.service)
+        .map((r) => ({
+          service: r.service as string,
+          url: r.link_url as string,
+        })),
+      shortId,
+    };
+  }
+
+  async persistArtistWithLinks(data: PersistArtistData): Promise<{
+    artistId: string;
+    shortId: string;
+  }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const now = new Date();
+
+      // Look up existing artist by source_url or name to prevent duplicates
+      let existingArtistId: string | null = null;
+      let existingShortId: string | null = null;
+
+      if (data.sourceArtist.sourceUrl) {
+        const found = await client.query(
+          `SELECT ar.id, asu.id as short_id FROM artists ar
+           LEFT JOIN artist_short_urls asu ON ar.id = asu.artist_id
+           WHERE ar.source_url = $1 LIMIT 1`,
+          [data.sourceArtist.sourceUrl],
+        );
+        if (found.rows.length > 0) {
+          existingArtistId = found.rows[0].id;
+          existingShortId = found.rows[0].short_id;
+        }
+      }
+
+      if (!existingArtistId) {
+        const found = await client.query(
+          `SELECT ar.id, asu.id as short_id FROM artists ar
+           LEFT JOIN artist_short_urls asu ON ar.id = asu.artist_id
+           WHERE LOWER(ar.name) = LOWER($1) LIMIT 1`,
+          [data.sourceArtist.name],
+        );
+        if (found.rows.length > 0) {
+          existingArtistId = found.rows[0].id;
+          existingShortId = found.rows[0].short_id;
+        }
+      }
+
+      const artistId = existingArtistId ?? generateTrackId();
+      const shortId = existingShortId ?? generateShortId();
+
+      if (existingArtistId) {
+        // Update existing artist metadata
+        await client.query(
+          `UPDATE artists SET
+            name = $2, image_url = $3, genres = $4, updated_at = $5
+          WHERE id = $1`,
+          [
+            artistId,
+            data.sourceArtist.name,
+            data.sourceArtist.imageUrl ?? null,
+            data.sourceArtist.genres ? JSON.stringify(data.sourceArtist.genres) : null,
+            now,
+          ],
+        );
+      } else {
+        // Insert new artist
+        await client.query(
+          `INSERT INTO artists (
+            id, name, image_url, genres, source_service, source_url,
+            created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            artistId,
+            data.sourceArtist.name,
+            data.sourceArtist.imageUrl ?? null,
+            data.sourceArtist.genres ? JSON.stringify(data.sourceArtist.genres) : null,
+            data.sourceArtist.sourceService ?? null,
+            data.sourceArtist.sourceUrl ?? null,
+            now,
+            now,
+          ],
+        );
+      }
+
+      // Upsert service links
+      for (const link of data.links) {
+        await client.query(
+          `INSERT INTO artist_service_links (
+            id, artist_id, service, external_id, url, confidence, match_method, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT (artist_id, service) DO UPDATE SET
+            external_id = EXCLUDED.external_id,
+            url = EXCLUDED.url,
+            confidence = EXCLUDED.confidence`,
+          [
+            `${artistId}-${link.service}`,
+            artistId,
+            link.service,
+            link.externalId ?? null,
+            link.url,
+            link.confidence,
+            link.matchMethod,
+            now,
+          ],
+        );
+      }
+
+      // Insert short URL (only if new)
+      if (!existingShortId) {
+        await client.query(
+          `INSERT INTO artist_short_urls (id, artist_id, created_at) VALUES ($1, $2, $3)
+           ON CONFLICT DO NOTHING`,
+          [shortId, artistId, now],
+        );
+      }
+
+      await client.query("COMMIT");
+      return { artistId, shortId };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async addLinksToArtist(
+    artistId: string,
+    links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
+  ): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const now = new Date();
+
+      for (const link of links) {
+        await client.query(
+          `INSERT INTO artist_service_links (
+            id, artist_id, service, external_id, url, confidence, match_method, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT (artist_id, service) DO UPDATE SET
+            external_id = EXCLUDED.external_id,
+            url = EXCLUDED.url,
+            confidence = EXCLUDED.confidence`,
+          [
+            `${artistId}-${link.service}`,
+            artistId,
+            link.service,
+            link.externalId ?? null,
+            link.url,
+            link.confidence,
+            link.matchMethod,
+            now,
+          ],
+        );
+      }
+
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  // ============================================================================
   // ADMIN QUERIES (AdminRepository)
   // ============================================================================
 
@@ -1458,10 +1712,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await client.query("DELETE FROM featured_albums");
       await client.query("DELETE FROM featured_tracks");
       await client.query("DELETE FROM url_aliases");
+      await client.query("DELETE FROM artist_short_urls");
+      await client.query("DELETE FROM artist_service_links");
       await client.query("DELETE FROM album_short_urls");
       await client.query("DELETE FROM album_service_links");
       await client.query("DELETE FROM short_urls");
       await client.query("DELETE FROM service_links");
+      await client.query("DELETE FROM artists");
       await client.query("DELETE FROM albums");
       await client.query("DELETE FROM tracks");
       await client.query("DELETE FROM artist_cache");
@@ -1700,6 +1957,43 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       label: row.label ?? undefined,
       upc: row.upc ?? undefined,
       webUrl: row.source_url ?? "",
+    };
+  }
+
+  private buildCachedArtistResult(rows: ArtistWithLinkRow[]): CachedArtistResult | null {
+    if (rows.length === 0) return null;
+
+    const firstRow = rows[0];
+    const artist: NormalizedArtist = {
+      sourceService: (firstRow.source_service as TrackSource) ?? "cached",
+      sourceId: firstRow.id,
+      name: firstRow.name,
+      imageUrl: firstRow.image_url ?? undefined,
+      genres: safeParseArray(firstRow.genres ?? "[]"),
+      webUrl: firstRow.source_url ?? "",
+    };
+
+    const links = [
+      ...new Map(
+        rows
+          .filter((r) => r.link_url && r.service)
+          .map((r) => [
+            r.service,
+            {
+              service: r.service!,
+              url: r.link_url!,
+              confidence: r.confidence ?? 0,
+              matchMethod: r.match_method ?? "cache",
+            },
+          ]),
+      ).values(),
+    ];
+
+    return {
+      artistId: firstRow.id,
+      artist,
+      links,
+      updatedAt: dateToMs(firstRow.updated_at),
     };
   }
 }

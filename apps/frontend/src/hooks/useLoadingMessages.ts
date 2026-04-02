@@ -5,7 +5,12 @@ import type { InputState } from "@/lib/types/app";
  * Progressive loading messages for the HeroInput loading state.
  * Returns the current message to display while loading.
  */
-export function useLoadingMessages(state: InputState, t: (key: string) => string, isAlbum = false): string {
+export function useLoadingMessages(
+  state: InputState,
+  t: (key: string) => string,
+  isAlbum = false,
+  isArtist = false,
+): string {
   const [loadingMessage, setLoadingMessage] = useState("");
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -16,12 +21,13 @@ export function useLoadingMessages(state: InputState, t: (key: string) => string
       return;
     }
 
-    setLoadingMessage(t(isAlbum ? "loading.finding.album" : "loading.finding"));
+    const key = isArtist ? "loading.finding.artist" : isAlbum ? "loading.finding.album" : "loading.finding";
+    setLoadingMessage(t(key));
     const timer = setTimeout(() => setLoadingMessage(t("loading.still")), 2000);
     timersRef.current = [timer];
 
     return () => clearTimeout(timer);
-  }, [state, t, isAlbum]);
+  }, [state, t, isAlbum, isArtist]);
 
   return loadingMessage;
 }

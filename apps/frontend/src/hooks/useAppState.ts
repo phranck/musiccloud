@@ -1,5 +1,6 @@
 import type {
   AlbumResolveSuccessResponse,
+  ArtistResolveSuccessResponse,
   ResolveDisambiguationResponse,
   ResolveErrorResponse,
   ResolveSuccessResponse,
@@ -7,8 +8,14 @@ import type {
 import { useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
 import { trackResolve } from "@/lib/analytics";
-import { detectServiceFromUrl, isAlbumUrl } from "@/lib/platform/url";
-import { appReducer, parseAlbumResolveResponse, parseErrorKey, parseResolveResponse } from "@/lib/resolve/parsers";
+import { detectServiceFromUrl, isAlbumUrl, isArtistUrl } from "@/lib/platform/url";
+import {
+  appReducer,
+  parseAlbumResolveResponse,
+  parseArtistResolveResponse,
+  parseErrorKey,
+  parseResolveResponse,
+} from "@/lib/resolve/parsers";
 import type { ActiveResult, AppState } from "@/lib/types/app";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 
@@ -47,7 +54,11 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 20000);
-      const endpoint = isAlbumUrl(url) ? "/api/resolve-album" : "/api/resolve";
+      const endpoint = isArtistUrl(url)
+        ? "/api/resolve-artist"
+        : isAlbumUrl(url)
+          ? "/api/resolve-album"
+          : "/api/resolve";
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,6 +69,12 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
       if (!response.ok) {
         const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
         throw new Error(errorData.message || "error.generic");
+      }
+      if (endpoint === "/api/resolve-artist") {
+        const data = (await response.json()) as ArtistResolveSuccessResponse;
+        dispatch({ type: "RESOLVE_SUCCESS", active: parseArtistResolveResponse(data) });
+        trackResolve(detectServiceFromUrl(url));
+        return;
       }
       if (endpoint === "/api/resolve-album") {
         const data = (await response.json()) as AlbumResolveSuccessResponse;

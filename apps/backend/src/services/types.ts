@@ -108,6 +108,12 @@ export interface ServiceAdapter {
   getAlbum?(albumId: string): Promise<NormalizedAlbum>;
   findAlbumByUpc?(upc: string): Promise<NormalizedAlbum | null>;
   searchAlbum?(query: AlbumSearchQuery): Promise<AlbumMatchResult>;
+
+  // Optional artist support (adapters implement as needed)
+  readonly artistCapabilities?: ArtistCapabilities;
+  detectArtistUrl?(url: string): string | null;
+  getArtist?(artistId: string): Promise<NormalizedArtist>;
+  searchArtist?(query: ArtistSearchQuery): Promise<ArtistMatchResult>;
 }
 
 export interface SearchQuery {
@@ -200,4 +206,34 @@ export interface AlbumCapabilities {
   supportsUpc: boolean;
   supportsAlbumSearch: boolean;
   supportsTrackListing: boolean;
+}
+
+// ─── Artist Types ───────────────────────────────────────────────────────────
+
+/** Artist-level normalized data (parallel to NormalizedTrack / NormalizedAlbum) */
+export interface NormalizedArtist {
+  sourceService: TrackSource;
+  sourceId: string;
+  name: string;
+  imageUrl?: string;
+  genres?: string[];
+  webUrl: string;
+}
+
+/** Artist text/name search query */
+export interface ArtistSearchQuery {
+  name: string;
+}
+
+/** Artist match result (parallel to MatchResult / AlbumMatchResult) */
+export interface ArtistMatchResult {
+  found: boolean;
+  artist?: NormalizedArtist;
+  confidence: number;
+  matchMethod: MatchMethod;
+}
+
+/** Artist-level adapter capabilities */
+export interface ArtistCapabilities {
+  supportsArtistSearch: boolean;
 }

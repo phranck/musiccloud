@@ -97,6 +97,51 @@ export const albumShortUrls = pgTable("album_short_urls", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });
 
+// ─── Artist Resolution Tables ────────────────────────────────────────────────
+
+export const artists = pgTable(
+  "artists",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    imageUrl: text("image_url"),
+    genres: text("genres"), // JSON array
+    sourceService: text("source_service"),
+    sourceUrl: text("source_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("idx_artists_name").on(table.name)],
+);
+
+export const artistServiceLinks = pgTable(
+  "artist_service_links",
+  {
+    id: text("id").primaryKey(),
+    artistId: text("artist_id")
+      .notNull()
+      .references(() => artists.id),
+    service: text("service").notNull(),
+    externalId: text("external_id"),
+    url: text("url").notNull(),
+    confidence: real("confidence").notNull(),
+    matchMethod: text("match_method").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_artist_service_links_artist_service").on(table.artistId, table.service),
+    index("idx_artist_service_links_service_external").on(table.service, table.externalId),
+  ],
+);
+
+export const artistShortUrls = pgTable("artist_short_urls", {
+  id: text("id").primaryKey(),
+  artistId: text("artist_id")
+    .notNull()
+    .references(() => artists.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+});
+
 export const adminUsers = pgTable("admin_users", {
   id: text("id").primaryKey(),
   username: text("username").notNull().unique(),

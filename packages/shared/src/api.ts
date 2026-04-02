@@ -69,6 +69,23 @@ export interface AlbumResolveSuccessResponse {
 
 export type AlbumResolveResponse = AlbumResolveSuccessResponse | ResolveErrorResponse;
 
+// ─── Artist Resolve API Types ────────────────────────────────────────────────
+
+export interface ApiArtist {
+  name: string;
+  imageUrl?: string;
+  genres?: string[];
+}
+
+export interface ArtistResolveSuccessResponse {
+  id: string;
+  shortUrl: string;
+  artist: ApiArtist;
+  links: ApiLink[];
+}
+
+export type ArtistResolveResponse = ArtistResolveSuccessResponse | ResolveErrorResponse;
+
 // ─── Share Page Response ──────────────────────────────────────────────────────
 
 /** OG meta tags returned by the backend share endpoint */
@@ -81,10 +98,11 @@ export interface OgMeta {
 
 /** Unified share page data returned by GET /api/v1/share/:shortId */
 export interface SharePageResponse {
-  type: "track" | "album";
+  type: "track" | "album" | "artist";
   og: OgMeta;
   track?: ApiTrack;
   album?: ApiAlbum;
+  artist?: ApiArtist;
   links: ApiLink[];
   shortUrl: string;
 }

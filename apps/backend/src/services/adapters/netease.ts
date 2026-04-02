@@ -4,8 +4,12 @@ import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
+  ArtistCapabilities,
+  ArtistMatchResult,
+  ArtistSearchQuery,
   MatchResult,
   NormalizedAlbum,
+  NormalizedArtist,
   NormalizedTrack,
   SearchQuery,
   ServiceAdapter,
@@ -17,6 +21,8 @@ const MATCH_MIN_CONFIDENCE = 0.6;
 const NETEASE_TRACK_REGEX = /^https?:\/\/music\.163\.com\/(?:#\/)?song\?id=(\d+)/;
 // NetEase album URLs: music.163.com/album?id={id} or music.163.com/#/album?id={id}
 const NETEASE_ALBUM_REGEX = /^https?:\/\/music\.163\.com\/(?:#\/)?album\?id=(\d+)/;
+// NetEase artist URLs: music.163.com/artist?id={id} or music.163.com/#/artist?id={id}
+const NETEASE_ARTIST_REGEX = /^https?:\/\/music\.163\.com\/(?:#\/)?artist\?id=(\d+)/;
 
 interface NetEaseSong {
   id: number;
@@ -186,6 +192,67 @@ async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   }
 }
 
+interface NetEaseArtist {
+  id: number;
+  name: string;
+  picUrl?: string;
+  img1v1Url?: string;
+  alias?: string[];
+}
+
+interface NetEaseArtistDetailResponse {
+  artist?: NetEaseArtist;
+  code?: number;
+}
+
+interface NetEaseArtistSearchResponse {
+  result?: {
+    artists?: NetEaseArtist[];
+    artistCount?: number;
+  };
+  code?: number;
+}
+
+function mapNetEaseArtist(artist: NetEaseArtist): NormalizedArtist {
+  return {
+    sourceService: "netease",
+    sourceId: String(artist.id),
+    name: artist.name,
+    imageUrl: artist.picUrl ?? artist.img1v1Url,
+    webUrl: `https://music.163.com/artist?id=${artist.id}`,
+  };
+}
+
+async function getArtistById(artistId: string): Promise<NormalizedArtist | null> {
+  const response = await neteaseFetch(`https://music.163.com/api/artist/${artistId}`);
+  if (!response.ok) return null;
+
+  try {
+    const data = (await response.json()) as NetEaseArtistDetailResponse;
+    const artist = data.artist;
+    if (!artist) return null;
+    return mapNetEaseArtist(artist);
+  } catch {
+    return null;
+  }
+}
+
+async function searchNetEaseArtists(query: string): Promise<NetEaseArtist[]> {
+  const params = new URLSearchParams({ s: query, type: "100", offset: "0", limit: "5" });
+  const response = await neteaseFetch("https://music.163.com/api/search/get", {
+    method: "POST",
+    body: params.toString(),
+  });
+  if (!response.ok) return [];
+
+  try {
+    const data = (await response.json()) as NetEaseArtistSearchResponse;
+    return data.result?.artists ?? [];
+  } catch {
+    return [];
+  }
+}
+
 async function searchNetEaseAlbums(query: string): Promise<NetEaseAlbum[]> {
   const params = new URLSearchParams({ s: query, type: "10", offset: "0", limit: "5" });
   const response = await neteaseFetch("https://music.163.com/api/search/get", {
@@ -348,6 +415,63 @@ export const neteaseAdapter: ServiceAdapter = {
       return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
     } catch (error) {
       log.debug("NetEase", "Album search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+
+  // --- Artist support ---
+
+  artistCapabilities: {
+    supportsArtistSearch: true,
+  } satisfies ArtistCapabilities,
+
+  detectArtistUrl(url: string): string | null {
+    const match = NETEASE_ARTIST_REGEX.exec(url);
+    return match?.[1] ?? null;
+  },
+
+  async getArtist(artistId: string): Promise<NormalizedArtist> {
+    const artist = await getArtistById(artistId);
+    if (!artist) throw new Error(`NetEase: Artist not found: ${artistId}`);
+    return artist;
+  },
+
+  async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
+    try {
+      const results = await searchNetEaseArtists(query.name);
+      if (results.length === 0) {
+        log.debug("NetEase", "Artist search returned no results for:", query.name);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      log.debug("NetEase", `Artist search returned ${results.length} results for: ${query.name}`);
+
+      let bestArtist: NormalizedArtist | null = null;
+      let bestConfidence = 0;
+
+      for (const raw of results) {
+        if (!raw.id || !raw.name) continue;
+
+        const confidence = calculateConfidence(
+          { title: query.name, artists: [], durationMs: undefined },
+          { title: raw.name, artists: [], durationMs: undefined },
+        );
+
+        log.debug("NetEase", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
+
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestArtist = mapNetEaseArtist(raw);
+        }
+      }
+
+      if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+
+      return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("NetEase", "Artist search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

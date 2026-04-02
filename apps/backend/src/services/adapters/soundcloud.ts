@@ -6,8 +6,12 @@ import type {
   AlbumMatchResult,
   AlbumSearchQuery,
   AlbumTrackEntry,
+  ArtistCapabilities,
+  ArtistMatchResult,
+  ArtistSearchQuery,
   MatchResult,
   NormalizedAlbum,
+  NormalizedArtist,
   NormalizedTrack,
   SearchQuery,
   ServiceAdapter,
@@ -26,6 +30,8 @@ import type {
 const SOUNDCLOUD_TRACK_REGEX = /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([^/]+\/[^/?\s]+)(?:\?.*)?$/;
 // SoundCloud album (set) URLs: soundcloud.com/{user}/sets/{slug}
 const SOUNDCLOUD_ALBUM_REGEX = /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([^/]+\/sets\/[^/?\s]+)(?:\?.*)?$/;
+// SoundCloud artist (user) URLs: soundcloud.com/{username} (single path segment only)
+const SOUNDCLOUD_ARTIST_REGEX = /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([^/?\s]+)\/?(?:\?.*)?$/;
 
 const SC_API_BASE = "https://api-v2.soundcloud.com";
 
@@ -111,6 +117,14 @@ interface ScPlaylistData {
     full_duration?: number;
     track_number?: number;
   }>;
+}
+
+interface ScUserData {
+  id?: number;
+  username?: string;
+  full_name?: string;
+  avatar_url?: string;
+  permalink_url?: string;
 }
 
 interface ScTrackData {
@@ -428,6 +442,95 @@ export const soundcloudAdapter = {
       return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
     } catch (error) {
       log.debug("SoundCloud", "Album search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+  // --- Artist support ---
+
+  artistCapabilities: {
+    supportsArtistSearch: true,
+  } satisfies ArtistCapabilities,
+
+  detectArtistUrl(url: string): string | null {
+    const match = SOUNDCLOUD_ARTIST_REGEX.exec(url);
+    if (!match) return null;
+
+    const username = match[1];
+    // Exclude known non-artist paths
+    const reserved = ["discover", "search", "stream", "you", "stations", "upload", "settings", "messages", "charts"];
+    if (reserved.includes(username.toLowerCase())) return null;
+
+    return username;
+  },
+
+  async getArtist(artistId: string): Promise<NormalizedArtist> {
+    const pageUrl = `https://soundcloud.com/${artistId}`;
+
+    const response = await scApiFetch(`/resolve?url=${encodeURIComponent(pageUrl)}`);
+    if (!response.ok) {
+      throw new Error(`SoundCloud getArtist failed: ${response.status}`);
+    }
+
+    const data = (await response.json()) as ScUserData;
+
+    if (!data.username && !data.full_name) {
+      throw new Error("SoundCloud: Could not resolve artist profile");
+    }
+
+    return {
+      sourceService: "soundcloud",
+      sourceId: artistId,
+      name: data.full_name || data.username || artistId,
+      imageUrl: data.avatar_url?.replace("-large", "-t500x500"),
+      webUrl: data.permalink_url ?? pageUrl,
+    };
+  },
+
+  async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
+    try {
+      const response = await scApiFetch(`/search/users?q=${encodeURIComponent(query.name)}&limit=5`);
+
+      if (!response.ok) {
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      const result = (await response.json()) as { collection?: ScUserData[] };
+      const items = result.collection ?? [];
+
+      if (items.length === 0) {
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      let bestArtist: NormalizedArtist | null = null;
+      let bestConfidence = 0;
+
+      for (const item of items) {
+        const artistName = item.full_name || item.username || "";
+        const confidence = calculateConfidence(
+          { title: query.name, artists: [], durationMs: undefined },
+          { title: artistName, artists: [], durationMs: undefined },
+        );
+
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          const username = item.permalink_url?.replace("https://soundcloud.com/", "") ?? String(item.id);
+          bestArtist = {
+            sourceService: "soundcloud",
+            sourceId: username,
+            name: artistName,
+            imageUrl: item.avatar_url?.replace("-large", "-t500x500"),
+            webUrl: item.permalink_url ?? `https://soundcloud.com/${username}`,
+          };
+        }
+      }
+
+      if (!bestArtist || bestConfidence < 0.6) {
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+
+      return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("SoundCloud", "Artist search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

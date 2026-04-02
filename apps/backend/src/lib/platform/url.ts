@@ -59,6 +59,10 @@ export function isAlbumUrl(url: string): boolean {
   return Object.values(ALBUM_URL_PATTERNS).some((pattern) => pattern.test(url));
 }
 
+export function isArtistUrl(url: string): boolean {
+  return ARTIST_URL_PATTERNS.some((pattern) => pattern.test(url));
+}
+
 export function detectPlatform(url: string): DetectablePlatform | null {
   for (const [platform, pattern] of Object.entries(MUSIC_URL_PATTERNS)) {
     if (pattern.test(url)) {
@@ -134,8 +138,25 @@ const ALLOWED_HOSTS = [
 const PODCAST_REGEX = /spotify\.com\/(?:intl-\w+\/)?(?:episode|show)\//;
 const PLAYLIST_REGEX =
   /(?:spotify\.com\/(?:intl-\w+\/)?playlist\/|music\.apple\.com\/[a-z]{2}\/playlist\/|youtube\.com\/playlist\?list=(?!OLAK5uy_))/;
-const ARTIST_PAGE_REGEX =
-  /(?:spotify\.com\/(?:intl-\w+\/)?artist\/|music\.apple\.com\/[a-z]{2}\/artist\/|youtube\.com\/@|youtube\.com\/channel\/|youtube\.com\/c\/|youtube\.com\/user\/)/;
+export const ARTIST_URL_PATTERNS: RegExp[] = [
+  // Spotify: open.spotify.com/artist/{id} or open.spotify.com/intl-xx/artist/{id}
+  /^https?:\/\/(open\.)?spotify\.com\/(intl-\w+\/)?artist\/[a-zA-Z0-9]+/,
+  // Apple Music: music.apple.com/{cc}/artist/{slug}/{id}
+  /^https?:\/\/music\.apple\.com\/[a-z]{2}\/artist\//,
+  // YouTube / YouTube Music: /@handle, /channel/{id}
+  /^https?:\/\/(www\.)?youtube\.com\/(@[^/]+|channel\/[^/]+)\/?$/,
+  /^https?:\/\/music\.youtube\.com\/channel\/[^/]+/,
+  // Tidal: tidal.com/artist/{id} or tidal.com/browse/artist/{id}
+  /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?artist\/\d+/,
+  // Deezer: deezer.com/artist/{id} or deezer.com/{cc}/artist/{id}
+  /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?artist\/\d+/,
+  // SoundCloud: soundcloud.com/{username} (single path segment only)
+  /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/?$/,
+  // Bandcamp: {artist}.bandcamp.com (root path only)
+  /^https?:\/\/[a-z0-9-]+\.bandcamp\.com\/?$/,
+  // Audiomack: audiomack.com/{username}
+  /^https?:\/\/(?:www\.)?audiomack\.com\/[^/]+\/?$/,
+];
 
 export function validateMusicUrl(input: string): UrlValidationResult {
   // Check if it looks like a URL at all
@@ -163,14 +184,6 @@ export function validateMusicUrl(input: string): UrlValidationResult {
       valid: false,
       code: "PLAYLIST_NOT_SUPPORTED",
       message: "We support single tracks right now. Try pasting a link to a specific song.",
-    };
-  }
-
-  if (ARTIST_PAGE_REGEX.test(input)) {
-    return {
-      valid: false,
-      code: "NOT_MUSIC_LINK",
-      message: "This is an artist page, not a track. Please paste a link to a specific song.",
     };
   }
 

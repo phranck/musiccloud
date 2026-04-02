@@ -1,9 +1,23 @@
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { calculateConfidence, normalizeTitle } from "../../lib/resolve/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../constants.js";
-import type { AdapterCapabilities, MatchResult, NormalizedTrack, ServiceAdapter } from "../types.js";
+import type {
+  AdapterCapabilities,
+  ArtistCapabilities,
+  ArtistMatchResult,
+  ArtistSearchQuery,
+  MatchResult,
+  NormalizedArtist,
+  NormalizedTrack,
+  ServiceAdapter,
+} from "../types.js";
 
 const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.|music\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+
+// Matches YouTube channel/artist URLs:
+//   youtube.com/@handle, youtube.com/channel/UCxxxx, music.youtube.com/channel/UCxxxx
+const YOUTUBE_ARTIST_HANDLE_REGEX = /(?:https?:\/\/)?(?:www\.)?youtube\.com\/@([^/?]+)/;
+const YOUTUBE_ARTIST_CHANNEL_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:music\.)?youtube\.com\/channel\/([a-zA-Z0-9_-]+)/;
 
 const API_BASE = "https://www.googleapis.com/youtube/v3";
 
@@ -101,10 +115,38 @@ const capabilities: AdapterCapabilities = {
   supportsArtwork: true,
 };
 
+const artistCapabilities: ArtistCapabilities = {
+  supportsArtistSearch: true,
+};
+
+interface YouTubeChannelResource {
+  id: string;
+  snippet: {
+    title: string;
+    description: string;
+    customUrl?: string;
+    thumbnails: YouTubeSnippet["thumbnails"];
+  };
+}
+
+function mapChannelToArtist(channel: YouTubeChannelResource): NormalizedArtist {
+  const handle = channel.snippet.customUrl;
+  const webUrl = handle ? `https://www.youtube.com/${handle}` : `https://www.youtube.com/channel/${channel.id}`;
+
+  return {
+    sourceService: "youtube",
+    sourceId: channel.id,
+    name: channel.snippet.title,
+    imageUrl: getBestThumbnail(channel.snippet.thumbnails),
+    webUrl,
+  };
+}
+
 export const youtubeAdapter: ServiceAdapter = {
   id: "youtube",
   displayName: "YouTube",
   capabilities,
+  artistCapabilities,
 
   isAvailable(): boolean {
     return Boolean(process.env.YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY);
@@ -187,6 +229,94 @@ export const youtubeAdapter: ServiceAdapter = {
     return {
       found: true,
       track: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
+  },
+
+  detectArtistUrl(url: string): string | null {
+    const handleMatch = YOUTUBE_ARTIST_HANDLE_REGEX.exec(url);
+    if (handleMatch) return `handle:${handleMatch[1]}`;
+
+    const channelMatch = YOUTUBE_ARTIST_CHANNEL_REGEX.exec(url);
+    if (channelMatch) return channelMatch[1];
+
+    return null;
+  },
+
+  async getArtist(artistId: string): Promise<NormalizedArtist> {
+    let endpoint: string;
+    if (artistId.startsWith("handle:")) {
+      const handle = artistId.slice(7);
+      endpoint = `/channels?part=snippet&forHandle=${encodeURIComponent(handle)}`;
+    } else {
+      endpoint = `/channels?part=snippet&id=${encodeURIComponent(artistId)}`;
+    }
+
+    const response = await youtubeFetch(endpoint);
+
+    if (!response.ok) {
+      throw new Error(`YouTube getArtist failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const channels: YouTubeChannelResource[] = data.items ?? [];
+
+    if (channels.length === 0) {
+      throw new Error(`YouTube channel not found: ${artistId}`);
+    }
+
+    return mapChannelToArtist(channels[0]);
+  },
+
+  async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
+    const searchQuery = encodeURIComponent(query.name);
+    const response = await youtubeFetch(`/search?part=snippet&type=channel&q=${searchQuery}&maxResults=5`);
+
+    if (!response.ok) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const data = await response.json();
+    const items: Array<{ id: { channelId: string }; snippet: YouTubeSnippet }> = data.items ?? [];
+
+    if (items.length === 0) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    // Fetch full channel details for thumbnails
+    const channelIds = items.map((item) => item.id.channelId).join(",");
+    const detailsResponse = await youtubeFetch(`/channels?part=snippet&id=${channelIds}`);
+
+    let channels: YouTubeChannelResource[] = [];
+    if (detailsResponse.ok) {
+      const detailsData = await detailsResponse.json();
+      channels = detailsData.items ?? [];
+    }
+
+    let bestMatch: NormalizedArtist | null = null;
+    let bestConfidence = 0;
+
+    for (const channel of channels) {
+      const artist = mapChannelToArtist(channel);
+      const confidence = calculateConfidence(
+        { title: query.name, artists: [], durationMs: undefined },
+        { title: artist.name, artists: [], durationMs: undefined },
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = artist;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      artist: bestMatch,
       confidence: bestConfidence,
       matchMethod: "search",
     };

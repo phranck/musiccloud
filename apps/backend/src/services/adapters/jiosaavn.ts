@@ -5,8 +5,12 @@ import type {
   AlbumMatchResult,
   AlbumSearchQuery,
   AlbumTrackEntry,
+  ArtistCapabilities,
+  ArtistMatchResult,
+  ArtistSearchQuery,
   MatchResult,
   NormalizedAlbum,
+  NormalizedArtist,
   NormalizedTrack,
   SearchQuery,
   ServiceAdapter,
@@ -18,6 +22,8 @@ const MATCH_MIN_CONFIDENCE = 0.6;
 const JIOSAAVN_TRACK_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/song\/[^/]+\/([A-Za-z0-9_-]+)/;
 // JioSaavn album URLs: jiosaavn.com/album/{slug}/{id}
 const JIOSAAVN_ALBUM_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/album\/[^/]+\/([A-Za-z0-9_-]+)/;
+// JioSaavn artist URLs: jiosaavn.com/artist/{slug}/{id}
+const JIOSAAVN_ARTIST_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/artist\/[^/]+\/([A-Za-z0-9_-]+)/;
 
 interface JioSaavnAlbum {
   id: string;
@@ -228,6 +234,61 @@ async function searchAlbums(query: string): Promise<JioSaavnAlbumSearchResult[]>
   }
 }
 
+interface JioSaavnArtist {
+  artistId: string;
+  name: string;
+  image: string;
+  perma_url: string;
+}
+
+interface JioSaavnArtistSearchResult {
+  id: string;
+  name: string;
+  image: string;
+  perma_url: string;
+  description?: string;
+}
+
+async function getArtistById(artistId: string): Promise<NormalizedArtist | null> {
+  const url = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(artistId)}&type=artist&n_song=0&n_album=0&_format=json&_marker=0&ctx=web6dot0`;
+  const response = await jiosaavnFetch(url);
+  if (!response.ok) return null;
+
+  const text = await response.text();
+  if (text.startsWith("<!")) return null;
+
+  try {
+    const data = JSON.parse(text) as JioSaavnArtist;
+    if (!data?.artistId || !data?.name) return null;
+
+    return {
+      sourceService: "jiosaavn",
+      sourceId: data.artistId,
+      name: data.name,
+      imageUrl: data.image?.replace(/150x150|50x50/, "500x500"),
+      webUrl: data.perma_url ?? `https://www.jiosaavn.com/artist/-/${data.artistId}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function searchArtists(query: string): Promise<JioSaavnArtistSearchResult[]> {
+  const url = `https://www.jiosaavn.com/api.php?__call=search.getArtistResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=5&q=${encodeURIComponent(query)}`;
+  const response = await jiosaavnFetch(url);
+  if (!response.ok) return [];
+
+  const text = await response.text();
+  if (text.startsWith("<!")) return [];
+
+  try {
+    const data = JSON.parse(text) as { results?: JioSaavnArtistSearchResult[] };
+    return data.results ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export const jiosaavnAdapter: ServiceAdapter = {
   id: "jiosaavn",
   displayName: "JioSaavn",
@@ -371,6 +432,72 @@ export const jiosaavnAdapter: ServiceAdapter = {
       return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
     } catch (error) {
       log.debug("JioSaavn", "Album search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+  // --- Artist support ---
+
+  artistCapabilities: {
+    supportsArtistSearch: true,
+  } satisfies ArtistCapabilities,
+
+  detectArtistUrl(url: string): string | null {
+    const match = JIOSAAVN_ARTIST_REGEX.exec(url);
+    return match?.[1] ?? null;
+  },
+
+  async getArtist(artistId: string): Promise<NormalizedArtist> {
+    const artist = await getArtistById(artistId);
+    if (!artist) {
+      throw new Error(`JioSaavn: Artist not found: ${artistId}`);
+    }
+    return artist;
+  },
+
+  async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
+    try {
+      const results = await searchArtists(query.name);
+      if (results.length === 0) {
+        log.debug("JioSaavn", "Artist search returned no results for:", query.name);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      log.debug("JioSaavn", `Artist search returned ${results.length} results for: ${query.name}`);
+
+      let bestArtist: NormalizedArtist | null = null;
+      let bestConfidence = 0;
+
+      for (const item of results) {
+        const confidence = calculateConfidence(
+          { title: query.name, artists: [], durationMs: undefined },
+          { title: item.name, artists: [], durationMs: undefined },
+        );
+
+        log.debug("JioSaavn", `  "${item.name}" -> confidence=${confidence.toFixed(3)}`);
+
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestArtist = {
+            sourceService: "jiosaavn",
+            sourceId: item.id,
+            name: item.name,
+            imageUrl: item.image?.replace(/150x150|50x50/, "500x500"),
+            webUrl: item.perma_url ?? `https://www.jiosaavn.com/artist/-/${item.id}`,
+          };
+        }
+      }
+
+      if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
+        log.debug(
+          "JioSaavn",
+          `Best artist confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`,
+        );
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+
+      return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("JioSaavn", "Artist search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

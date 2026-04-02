@@ -33,6 +33,19 @@ export function isAlbumUrl(url: string): boolean {
   return ALBUM_URL_PATTERNS.some((pattern) => pattern.test(url));
 }
 
+const ARTIST_URL_PATTERNS: RegExp[] = [
+  /^https?:\/\/(open\.)?spotify\.com\/(intl-\w+\/)?artist\/[a-zA-Z0-9]+/,
+  /^https?:\/\/music\.apple\.com\/[a-z]{2}\/artist\//,
+  /^https?:\/\/(www\.)?youtube\.com\/(@[^/]+|channel\/[^/]+)\/?$/,
+  /^https?:\/\/music\.youtube\.com\/channel\/[^/]+/,
+  /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?artist\/\d+/,
+  /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?artist\/\d+/,
+];
+
+export function isArtistUrl(url: string): boolean {
+  return ARTIST_URL_PATTERNS.some((pattern) => pattern.test(url));
+}
+
 const SERVICE_HOST_MAP: [RegExp, string][] = [
   [/spotify\.com/, "spotify"],
   [/music\.apple\.com/, "apple-music"],

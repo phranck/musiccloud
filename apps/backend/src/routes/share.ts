@@ -1,6 +1,6 @@
 import type { SharePageResponse } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
-import { loadAlbumByShortId, loadByShortId } from "../lib/server/share-page.js";
+import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
 
 export default async function shareRoutes(app: FastifyInstance) {
   app.get<{ Params: { shortId: string } }>("/api/v1/share/:shortId", async (request, reply) => {
@@ -83,9 +83,39 @@ export default async function shareRoutes(app: FastifyInstance) {
       return reply.send(response);
     }
 
+    // Try artist
+    const artistData = await loadArtistByShortId(shortId, origin);
+    if (artistData) {
+      const response: SharePageResponse = {
+        type: "artist",
+        og: {
+          title: artistData.og.ogTitle,
+          description: artistData.og.ogDescription,
+          image: artistData.og.ogImageUrl,
+          url: artistData.og.ogUrl,
+        },
+        artist: {
+          name: artistData.artist.name,
+          imageUrl: artistData.artist.imageUrl ?? undefined,
+          genres: artistData.artist.genres,
+        },
+        links: artistData.links.map((l) => ({
+          service: l.service,
+          displayName: l.service,
+          url: l.url,
+          confidence: 1,
+          matchMethod: "cache" as const,
+        })),
+        shortUrl: artistData.og.ogUrl,
+      };
+
+      reply.header("Cache-Control", "private, max-age=3600");
+      return reply.send(response);
+    }
+
     return reply.status(404).send({
       error: "TRACK_NOT_FOUND",
-      message: "No track or album found for this short ID.",
+      message: "No track, album, or artist found for this short ID.",
     });
   });
 }

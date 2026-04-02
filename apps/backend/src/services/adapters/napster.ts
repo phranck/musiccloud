@@ -2,7 +2,16 @@ import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { calculateConfidence } from "../../lib/resolve/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../constants.js";
-import type { MatchResult, NormalizedTrack, SearchQuery, ServiceAdapter } from "../types.js";
+import type {
+  ArtistCapabilities,
+  ArtistMatchResult,
+  ArtistSearchQuery,
+  MatchResult,
+  NormalizedArtist,
+  NormalizedTrack,
+  SearchQuery,
+  ServiceAdapter,
+} from "../types.js";
 
 // NOTE: Napster Developer Portal no longer accepts new sign-ups (as of Feb 2026).
 // Existing API keys still work. Contact api-team@napster.com for new key requests.
@@ -13,6 +22,11 @@ const API_BASE = "https://api.napster.com/v2.2";
 // app.napster.com/artist/.../album/.../track/...
 const NAPSTER_TRACK_REGEX =
   /(?:https?:\/\/)?(?:play\.|web\.|app\.|www\.)?napster\.com\/(?:track\/(tra\.\d+)|.*\/track\/([^/?]+))/;
+
+// Matches: play.napster.com/artist/art.123, web.napster.com/artist/art.123,
+// app.napster.com/artist/artist-slug
+const NAPSTER_ARTIST_REGEX =
+  /(?:https?:\/\/)?(?:play\.|web\.|app\.|www\.)?napster\.com\/artist\/(art\.\d+|[^/?]+)(?:\/|$|\?)/;
 
 interface NapsterTrackResponse {
   type: string;
@@ -43,6 +57,30 @@ interface NapsterTracksResponse {
   tracks: NapsterTrackResponse[];
 }
 
+interface NapsterArtistResponse {
+  type: string;
+  id: string; // "art.12345"
+  name: string;
+  shortcut: string;
+  blurbs: string[];
+  albumGroups: Record<string, string[]>;
+}
+
+interface NapsterArtistsResponse {
+  artists: NapsterArtistResponse[];
+}
+
+interface NapsterArtistSearchResponse {
+  search: {
+    data: {
+      artists: NapsterArtistResponse[];
+    };
+  };
+  meta: {
+    totalCount: number;
+  };
+}
+
 function getApiKey(): string {
   const key = process.env.NAPSTER_API_KEY;
   if (!key) {
@@ -59,6 +97,10 @@ async function napsterFetch(endpoint: string): Promise<Response> {
 
 function artworkUrl(albumId: string): string {
   return `https://api.napster.com/imageserver/v2/albums/${albumId}/images/500x500.jpg`;
+}
+
+function artistImageUrl(artistId: string): string {
+  return `https://api.napster.com/imageserver/v2/artists/${artistId}/images/500x500.jpg`;
 }
 
 function mapTrack(raw: NapsterTrackResponse): NormalizedTrack {
@@ -211,5 +253,91 @@ export const napsterAdapter = {
       confidence: bestConfidence,
       matchMethod: "search",
     };
+  },
+  // --- Artist support ---
+
+  artistCapabilities: {
+    supportsArtistSearch: true,
+  } satisfies ArtistCapabilities,
+
+  detectArtistUrl(url: string): string | null {
+    const match = NAPSTER_ARTIST_REGEX.exec(url);
+    return match ? match[1] : null;
+  },
+
+  async getArtist(artistId: string): Promise<NormalizedArtist> {
+    const endpoint = `/artists/${encodeURIComponent(artistId)}`;
+    const response = await napsterFetch(endpoint);
+
+    if (!response.ok) {
+      throw new Error(`Napster getArtist failed: ${response.status}`);
+    }
+
+    const data = (await response.json()) as NapsterArtistsResponse;
+    const artists = data.artists;
+
+    if (!artists || artists.length === 0) {
+      throw new Error("Napster: artist not found");
+    }
+
+    const artist = artists[0];
+    return {
+      sourceService: "napster",
+      sourceId: artist.id,
+      name: artist.name,
+      imageUrl: artistImageUrl(artist.id),
+      genres: undefined,
+      webUrl: `https://play.napster.com/artist/${artist.id}`,
+    };
+  },
+
+  async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
+    const response = await napsterFetch(`/search?query=${encodeURIComponent(query.name)}&type=artist&per_type_limit=5`);
+
+    if (!response.ok) {
+      log.debug("Napster", "Artist search API failed:", response.status);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const data = (await response.json()) as NapsterArtistSearchResponse;
+    const items = data.search?.data?.artists ?? [];
+
+    if (items.length === 0) {
+      log.debug("Napster", "Artist search returned no results for:", query.name);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    log.debug("Napster", `Artist search returned ${items.length} results for: ${query.name}`);
+
+    let bestArtist: NormalizedArtist | null = null;
+    let bestConfidence = 0;
+
+    for (const item of items) {
+      const confidence = calculateConfidence(
+        { title: query.name, artists: [], durationMs: undefined },
+        { title: item.name, artists: [], durationMs: undefined },
+      );
+
+      log.debug("Napster", `  Artist "${item.name}" → confidence=${confidence.toFixed(3)}`);
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestArtist = {
+          sourceService: "napster",
+          sourceId: item.id,
+          name: item.name,
+          imageUrl: artistImageUrl(item.id),
+          genres: undefined,
+          webUrl: `https://play.napster.com/artist/${item.id}`,
+        };
+      }
+    }
+
+    if (!bestArtist || bestConfidence < 0.6) {
+      log.debug("Napster", `Best artist confidence ${bestConfidence.toFixed(3)} below threshold 0.6`);
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

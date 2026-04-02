@@ -40,14 +40,20 @@ if (!data) {
 }
 
 const isAlbum = data.type === "album";
+const isArtist = data.type === "artist";
 const og = data.og;
 const track = data.track ?? null;
 const album = data.album ?? null;
+const artist = data.artist ?? null;
 
-const artistDisplay = isAlbum ? (album?.artists.join(", ") ?? "") : (track?.artists.join(", ") ?? "");
+const artistDisplay = isArtist
+  ? ""
+  : isAlbum
+    ? (album?.artists.join(", ") ?? "")
+    : (track?.artists.join(", ") ?? "");
 
-const artworkUrl = isAlbum ? album?.artworkUrl : track?.artworkUrl;
-const displayTitle = isAlbum ? (album?.title ?? "") : (track?.title ?? "");
+const artworkUrl = isArtist ? artist?.imageUrl : isAlbum ? album?.artworkUrl : track?.artworkUrl;
+const displayTitle = isArtist ? (artist?.name ?? "") : isAlbum ? (album?.title ?? "") : (track?.title ?? "");
 
 // Pre-compute meta lines using server-side translations
 const trackMetaLine = track ? buildMetaLine({ durationMs: track.durationMs, releaseDate: track.releaseDate }) : null;
@@ -57,6 +63,7 @@ const albumMetaLine = isAlbum
       .filter(Boolean)
       .join(" \u00B7 ")
   : null;
+const artistMetaLine = isArtist ? artist?.genres?.join(", ") : null;
 
 // Build platform links (filter invalid services)
 const platformLinks = data.links
@@ -66,21 +73,30 @@ const platformLinks = data.links
     url: link.url,
   }));
 
+// Determine platforms label key
+const platformsLabelKey = isArtist
+  ? "results.viewArtistOn"
+  : isAlbum
+    ? "results.openAlbumOn"
+    : "results.listenOn";
+
 // Build the ShareContentConfiguration (fully JSON-serializable, passed to React island)
 const shareConfig: ShareContentConfiguration = {
   type: "share",
   title: displayTitle,
   artist: artistDisplay,
   artworkUrl: artworkUrl ?? "",
-  isExplicit: !isAlbum && track?.isExplicit ? true : undefined,
-  previewUrl: isAlbum ? (album?.previewUrl ?? undefined) : (track?.previewUrl ?? undefined),
-  metaLine: isAlbum ? albumMetaLine || undefined : trackMetaLine || undefined,
+  isExplicit: !isAlbum && !isArtist && track?.isExplicit ? true : undefined,
+  previewUrl: isArtist ? undefined : isAlbum ? (album?.previewUrl ?? undefined) : (track?.previewUrl ?? undefined),
+  metaLine: isArtist ? artistMetaLine || undefined : isAlbum ? albumMetaLine || undefined : trackMetaLine || undefined,
   platforms: platformLinks,
-  platformsLabel: t(isAlbum ? "results.openAlbumOn" : "results.listenOn"),
-  platformsLabelKey: isAlbum ? "results.openAlbumOn" : "results.listenOn",
+  platformsLabel: t(platformsLabelKey),
+  platformsLabelKey,
 };
 
-const pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
+const pageTitle = isArtist
+  ? `${displayTitle} - musiccloud`
+  : `${displayTitle} by ${artistDisplay} - musiccloud`;
 ---
 
 <BaseLayout
@@ -91,13 +107,13 @@ const pageTitle = `${displayTitle} by ${artistDisplay} - musiccloud`;
 >
   <Fragment slot="head">
     <!-- OpenGraph Tags (critical for link previews) -->
-    <meta property="og:type" content={isAlbum ? "music.album" : "music.song"} />
+    <meta property="og:type" content={isArtist ? "profile" : isAlbum ? "music.album" : "music.song"} />
     <meta property="og:title" content={og.title} />
     <meta property="og:description" content={og.description} />
     {og.image && <meta property="og:image" content={og.image} />}
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content={`${displayTitle} by ${artistDisplay}`} />
+    <meta property="og:image:alt" content={isArtist ? displayTitle : `${displayTitle} by ${artistDisplay}`} />
     <meta property="og:url" content={og.url} />
     <meta property="og:site_name" content="musiccloud" />
 

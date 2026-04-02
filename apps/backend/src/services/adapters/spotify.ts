@@ -8,8 +8,12 @@ import type {
   AlbumCapabilities,
   AlbumMatchResult,
   AlbumSearchQuery,
+  ArtistCapabilities,
+  ArtistMatchResult,
+  ArtistSearchQuery,
   MatchResult,
   NormalizedAlbum,
+  NormalizedArtist,
   NormalizedTrack,
   SearchResultWithCandidates,
   ServiceAdapter,
@@ -18,6 +22,7 @@ import type {
 const SPOTIFY_TRACK_REGEX = /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?track\/([a-zA-Z0-9]+)/;
 const SPOTIFY_URI_REGEX = /spotify:track:([a-zA-Z0-9]+)/;
 const SPOTIFY_ALBUM_REGEX = /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?album\/([a-zA-Z0-9]+)/;
+const SPOTIFY_ARTIST_REGEX = /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?artist\/([a-zA-Z0-9]+)/;
 
 const API_BASE = "https://api.spotify.com/v1";
 
@@ -383,5 +388,85 @@ export const spotifyAdapter = {
     }
 
     return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
+  },
+
+  // --- Artist support ---
+
+  artistCapabilities: {
+    supportsArtistSearch: true,
+  } satisfies ArtistCapabilities,
+
+  detectArtistUrl(url: string): string | null {
+    const match = SPOTIFY_ARTIST_REGEX.exec(url);
+    return match ? match[1] : null;
+  },
+
+  async getArtist(artistId: string): Promise<NormalizedArtist> {
+    const response = await spotifyFetch(`/artists/${encodeURIComponent(artistId)}`);
+
+    if (!response.ok) {
+      throw new Error(`Spotify getArtist failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      sourceService: "spotify",
+      sourceId: data.id,
+      name: data.name,
+      imageUrl: data.images?.[0]?.url,
+      genres: data.genres?.slice(0, 5),
+      webUrl: data.external_urls?.spotify ?? `https://open.spotify.com/artist/${data.id}`,
+    };
+  },
+
+  async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
+    const response = await spotifyFetch(`/search?type=artist&q=${encodeURIComponent(query.name)}&limit=5`);
+
+    if (!response.ok) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const data = await response.json();
+    const items = data.artists?.items ?? [];
+
+    if (items.length === 0) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const queryNameLower = query.name.toLowerCase().trim();
+    let bestArtist: NormalizedArtist | null = null;
+    let bestConfidence = 0;
+
+    for (const item of items) {
+      const nameLower = item.name.toLowerCase().trim();
+
+      let confidence: number;
+      if (nameLower === queryNameLower) {
+        confidence = 0.95;
+      } else if (nameLower.includes(queryNameLower) || queryNameLower.includes(nameLower)) {
+        confidence = 0.75;
+      } else {
+        confidence = 0.5;
+      }
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestArtist = {
+          sourceService: "spotify",
+          sourceId: item.id,
+          name: item.name,
+          imageUrl: item.images?.[0]?.url,
+          genres: item.genres?.slice(0, 5),
+          webUrl: item.external_urls?.spotify ?? `https://open.spotify.com/artist/${item.id}`,
+        };
+      }
+    }
+
+    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

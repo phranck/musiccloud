@@ -50,6 +50,15 @@ export async function resolveAlbum(body: { query?: string }, clientIp?: string):
   });
 }
 
+/** Forward an artist resolve request to the backend. */
+export async function resolveArtist(body: { query?: string }, clientIp?: string): Promise<Response> {
+  return fetch(backendUrl("/api/v1/resolve-artist"), {
+    method: "POST",
+    headers: internalHeaders(clientIp ? { "X-Forwarded-For": clientIp } : undefined),
+    body: JSON.stringify(body),
+  });
+}
+
 /** Fetch a random short ID from the backend for the landing page example teaser. */
 export async function fetchRandomExample(): Promise<{ shortId: string } | null> {
   const res = await fetch(backendUrl("/api/v1/random-example"), {

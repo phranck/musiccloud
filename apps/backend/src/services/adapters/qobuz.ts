@@ -6,8 +6,12 @@ import type {
   AlbumCapabilities,
   AlbumMatchResult,
   AlbumSearchQuery,
+  ArtistCapabilities,
+  ArtistMatchResult,
+  ArtistSearchQuery,
   MatchResult,
   NormalizedAlbum,
+  NormalizedArtist,
   NormalizedTrack,
   SearchQuery,
   ServiceAdapter,
@@ -31,6 +35,10 @@ const QOBUZ_TRACK_REGEX = /^https?:\/\/(?:open|play)\.qobuz\.com\/track\/(\d+)(?
 //   https://open.qobuz.com/album/0060253780968
 //   https://play.qobuz.com/album/0060253780968
 const QOBUZ_ALBUM_REGEX = /^https?:\/\/(?:open|play)\.qobuz\.com\/album\/([a-zA-Z0-9]+)(?:\?.*)?$/;
+// Artist URL formats:
+//   https://open.qobuz.com/artist/36819
+//   https://play.qobuz.com/artist/36819
+const QOBUZ_ARTIST_REGEX = /^https?:\/\/(?:open|play)\.qobuz\.com\/artist\/(\d+)(?:\?.*)?$/;
 
 const API_BASE = "https://www.qobuz.com/api.json/0.2";
 
@@ -266,6 +274,19 @@ interface QobuzAlbum {
 interface QobuzAlbumSearchResponse {
   albums?: {
     items?: QobuzAlbum[];
+    total?: number;
+  };
+}
+
+interface QobuzArtist {
+  id?: number;
+  name?: string;
+  image?: { small?: string; medium?: string; large?: string };
+}
+
+interface QobuzArtistSearchResponse {
+  artists?: {
+    items?: QobuzArtist[];
     total?: number;
   };
 }
@@ -552,6 +573,94 @@ export const qobuzAdapter = {
       return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
     } catch (error) {
       log.debug("Qobuz", "Album search failed:", error instanceof Error ? error.message : error);
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+  },
+
+  // --- Artist support ---
+
+  artistCapabilities: {
+    supportsArtistSearch: true,
+  } satisfies ArtistCapabilities,
+
+  detectArtistUrl(url: string): string | null {
+    const match = QOBUZ_ARTIST_REGEX.exec(url);
+    return match?.[1] ?? null;
+  },
+
+  async getArtist(artistId: string): Promise<NormalizedArtist> {
+    const response = await qobuzApiFetch(`/artist/get?artist_id=${encodeURIComponent(artistId)}`);
+
+    if (!response.ok) {
+      throw new Error(`Qobuz getArtist failed: ${response.status}`);
+    }
+
+    const data = (await response.json()) as QobuzArtist;
+    if (!data.name) {
+      throw new Error("Qobuz: No artist data in response");
+    }
+
+    const id = String(data.id ?? artistId);
+    return {
+      sourceService: "qobuz",
+      sourceId: id,
+      name: data.name,
+      imageUrl: data.image?.large ?? data.image?.medium ?? data.image?.small,
+      webUrl: `https://open.qobuz.com/artist/${id}`,
+    };
+  },
+
+  async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
+    try {
+      const response = await qobuzApiFetch(`/artist/search?query=${encodeURIComponent(query.name)}&limit=5`);
+
+      if (!response.ok) {
+        log.debug("Qobuz", "Artist search failed:", response.status);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      const result = (await response.json()) as QobuzArtistSearchResponse;
+      const items = result.artists?.items ?? [];
+
+      if (items.length === 0) {
+        log.debug("Qobuz", "Artist search returned no results for:", query.name);
+        return { found: false, confidence: 0, matchMethod: "search" };
+      }
+
+      let bestArtist: NormalizedArtist | null = null;
+      let bestConfidence = 0;
+
+      for (const item of items) {
+        if (!item.name) continue;
+
+        const confidence = calculateConfidence(
+          { title: query.name, artists: [], durationMs: undefined },
+          { title: item.name, artists: [], durationMs: undefined },
+        );
+
+        const id = String(item.id ?? "");
+        log.debug("Qobuz", `  Artist "${item.name}" -> confidence=${confidence.toFixed(3)}`);
+
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestArtist = {
+            sourceService: "qobuz",
+            sourceId: id,
+            name: item.name,
+            imageUrl: item.image?.large ?? item.image?.medium ?? item.image?.small,
+            webUrl: `https://open.qobuz.com/artist/${id}`,
+          };
+        }
+      }
+
+      if (!bestArtist || bestConfidence < 0.6) {
+        log.debug("Qobuz", `Best artist confidence ${bestConfidence.toFixed(3)} below threshold 0.6`);
+        return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      }
+
+      return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    } catch (error) {
+      log.debug("Qobuz", "Artist search failed:", error instanceof Error ? error.message : error);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
   },

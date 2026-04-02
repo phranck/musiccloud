@@ -32,7 +32,16 @@ export interface AlbumResult {
   shareUrl: string;
 }
 
-export type ActiveResult = SongResult | AlbumResult;
+export interface ArtistResult {
+  kind: "artist";
+  name: string;
+  imageUrl: string;
+  genres?: string[];
+  platforms: PlatformLink[];
+  shareUrl: string;
+}
+
+export type ActiveResult = SongResult | AlbumResult | ArtistResult;
 
 export type AppState =
   | { type: "idle" }

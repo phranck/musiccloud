@@ -7,8 +7,12 @@ import type {
   AlbumCapabilities,
   AlbumMatchResult,
   AlbumSearchQuery,
+  ArtistCapabilities,
+  ArtistMatchResult,
+  ArtistSearchQuery,
   MatchResult,
   NormalizedAlbum,
+  NormalizedArtist,
   NormalizedTrack,
   SearchQuery,
   ServiceAdapter,
@@ -18,6 +22,7 @@ const API_BASE = "https://openapi.tidal.com/v2";
 
 const TIDAL_TRACK_REGEX = /(?:https?:\/\/)?(?:listen\.)?tidal\.com\/(?:browse\/)?track\/(\d+)/;
 const TIDAL_ALBUM_REGEX = /(?:https?:\/\/)?(?:listen\.)?tidal\.com\/(?:browse\/)?album\/(\d+)/;
+const TIDAL_ARTIST_REGEX = /(?:https?:\/\/)?(?:listen\.)?tidal\.com\/(?:browse\/)?artist\/(\d+)/;
 
 const tokenManager = new TokenManager({
   serviceName: "Tidal",
@@ -404,5 +409,93 @@ export const tidalAdapter = {
     }
 
     return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
+  },
+
+  // --- Artist support ---
+
+  artistCapabilities: {
+    supportsArtistSearch: true,
+  } satisfies ArtistCapabilities,
+
+  detectArtistUrl(url: string): string | null {
+    const match = TIDAL_ARTIST_REGEX.exec(url);
+    return match ? match[1] : null;
+  },
+
+  async getArtist(artistId: string): Promise<NormalizedArtist> {
+    const response = await tidalFetch(`/artists/${encodeURIComponent(artistId)}?countryCode=US`);
+
+    if (!response.ok) {
+      throw new Error(`Tidal getArtist failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const resource = data.data;
+    const attrs = resource.attributes;
+
+    return {
+      sourceService: "tidal",
+      sourceId: resource.id,
+      name: attrs.name,
+      imageUrl: pickLargestImage(attrs.imageLinks),
+      webUrl: `https://tidal.com/browse/artist/${resource.id}`,
+    };
+  },
+
+  async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
+    const response = await tidalFetch(
+      `/searchresults/${encodeURIComponent(query.name)}/relationships/artists?countryCode=US&include=artists`,
+    );
+
+    if (!response.ok) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const data = await response.json();
+    const items = data.data ?? [];
+
+    if (items.length === 0) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    // Find best name match from included resources
+    const included = data.included ?? [];
+    let bestArtist: NormalizedArtist | null = null;
+    let bestConfidence = 0;
+    const queryNameLower = query.name.toLowerCase().trim();
+
+    for (const item of items.slice(0, 5)) {
+      const artistResource = included.find((i: { id: string; type: string }) => i.id === item.id && i.type === "artists");
+      if (!artistResource?.attributes?.name) continue;
+
+      const name = artistResource.attributes.name;
+      const nameLower = name.toLowerCase().trim();
+
+      let confidence: number;
+      if (nameLower === queryNameLower) {
+        confidence = 0.95;
+      } else if (nameLower.includes(queryNameLower) || queryNameLower.includes(nameLower)) {
+        confidence = 0.75;
+      } else {
+        confidence = 0.5;
+      }
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestArtist = {
+          sourceService: "tidal",
+          sourceId: item.id,
+          name,
+          imageUrl: pickLargestImage(artistResource.attributes.imageLinks),
+          webUrl: `https://tidal.com/browse/artist/${item.id}`,
+        };
+      }
+    }
+
+    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

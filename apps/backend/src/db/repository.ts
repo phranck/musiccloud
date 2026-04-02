@@ -1,4 +1,4 @@
-import type { NormalizedAlbum, NormalizedTrack } from "../services/types.js";
+import type { NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "../services/types.js";
 
 /** Cached track with its cross-service links (returned by URL/ISRC lookups) */
 export interface CachedTrackResult {
@@ -111,6 +111,50 @@ export interface PersistAlbumData {
   }>;
 }
 
+// ─── Artist Resolution Types ────────────────────────────────────────────────
+
+/** Cached artist with its cross-service links */
+export interface CachedArtistResult {
+  artistId: string;
+  updatedAt: number;
+  artist: NormalizedArtist;
+  links: Array<{
+    service: string;
+    url: string;
+    confidence: number;
+    matchMethod: string;
+  }>;
+}
+
+/** Minimal share-page data for artists */
+export interface SharePageArtistResult {
+  artist: {
+    name: string;
+    imageUrl: string | null;
+    genres: string[];
+  };
+  shortId: string;
+  links: Array<{ service: string; url: string }>;
+}
+
+/** Data needed to persist a resolved artist with its cross-service links */
+export interface PersistArtistData {
+  sourceArtist: {
+    name: string;
+    imageUrl?: string;
+    genres?: string[];
+    sourceService?: string;
+    sourceUrl?: string;
+  };
+  links: Array<{
+    service: string;
+    url: string;
+    confidence: number;
+    matchMethod: string;
+    externalId?: string;
+  }>;
+}
+
 // ─── Artist Cache Types ───────────────────────────────────────────────────────
 
 import type { ArtistEvent, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
@@ -175,6 +219,26 @@ export interface TrackRepository {
   persistAlbumWithLinks(data: PersistAlbumData): Promise<{ albumId: string; shortId: string }>;
   addLinksToAlbum(
     albumId: string,
+    links: Array<{
+      service: string;
+      url: string;
+      confidence: number;
+      matchMethod: string;
+      externalId?: string;
+    }>,
+  ): Promise<void>;
+
+  // Artist: Read operations
+  findArtistByUrl(url: string): Promise<CachedArtistResult | null>;
+  findArtistByName(name: string): Promise<CachedArtistResult | null>;
+
+  // Artist: Share page queries
+  loadArtistByShortId(shortId: string): Promise<SharePageArtistResult | null>;
+
+  // Artist: Write operations (transaction-safe)
+  persistArtistWithLinks(data: PersistArtistData): Promise<{ artistId: string; shortId: string }>;
+  addLinksToArtist(
+    artistId: string,
     links: Array<{
       service: string;
       url: string;

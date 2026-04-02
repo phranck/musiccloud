@@ -7,8 +7,12 @@ import type {
   AlbumMatchResult,
   AlbumSearchQuery,
   AlbumTrackEntry,
+  ArtistCapabilities,
+  ArtistMatchResult,
+  ArtistSearchQuery,
   MatchResult,
   NormalizedAlbum,
+  NormalizedArtist,
   NormalizedTrack,
   ServiceAdapter,
 } from "../types.js";
@@ -17,6 +21,9 @@ import type {
 //          music.apple.com/{storefront}/song/{name}/{trackId}
 const APPLE_MUSIC_REGEX =
   /(?:https?:\/\/)?music\.apple\.com\/([a-z]{2})\/(?:album\/[^/]+\/(\d+)(?:\?i=(\d+))?|song\/[^/]+\/(\d+))/;
+
+// Matches: music.apple.com/{storefront}/artist/{name}/{artistId}
+const APPLE_MUSIC_ARTIST_REGEX = /(?:https?:\/\/)?music\.apple\.com\/[a-z]{2}\/artist\/[^/]+\/(\d+)/;
 
 const API_BASE = "https://api.music.apple.com/v1";
 const DEFAULT_STOREFRONT = "us";
@@ -246,11 +253,51 @@ const albumCapabilities: AlbumCapabilities = {
   supportsTrackListing: true,
 };
 
+const artistCapabilities: ArtistCapabilities = {
+  supportsArtistSearch: true,
+};
+
+interface AppleMusicArtistAttributes {
+  name: string;
+  url: string;
+  genreNames?: string[];
+  artwork?: {
+    url: string;
+    width: number;
+    height: number;
+  };
+}
+
+interface AppleMusicArtistResource {
+  id: string;
+  type: "artists";
+  attributes: AppleMusicArtistAttributes;
+}
+
+function mapArtist(raw: AppleMusicArtistResource): NormalizedArtist {
+  const attrs = raw.attributes;
+  let imageUrl: string | undefined;
+
+  if (attrs.artwork?.url) {
+    imageUrl = attrs.artwork.url.replace("{w}", "640").replace("{h}", "640");
+  }
+
+  return {
+    sourceService: "apple-music",
+    sourceId: raw.id,
+    name: attrs.name,
+    imageUrl,
+    genres: attrs.genreNames?.filter((g) => g !== "Music"),
+    webUrl: attrs.url,
+  };
+}
+
 export const appleMusicAdapter: ServiceAdapter = {
   id: "apple-music",
   displayName: "Apple Music",
   capabilities,
   albumCapabilities,
+  artistCapabilities,
 
   isAvailable(): boolean {
     return Boolean(
@@ -418,6 +465,73 @@ export const appleMusicAdapter: ServiceAdapter = {
     return {
       found: true,
       album: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
+  },
+
+  detectArtistUrl(url: string): string | null {
+    const match = APPLE_MUSIC_ARTIST_REGEX.exec(url);
+    return match ? match[1] : null;
+  },
+
+  async getArtist(artistId: string): Promise<NormalizedArtist> {
+    const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
+    const response = await appleMusicFetch(`/catalog/${storefront}/artists/${encodeURIComponent(artistId)}`);
+
+    if (!response.ok) {
+      throw new Error(`Apple Music getArtist failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const artist: AppleMusicArtistResource = data.data[0];
+
+    if (!artist) {
+      throw new Error(`Apple Music artist not found: ${artistId}`);
+    }
+
+    return mapArtist(artist);
+  },
+
+  async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
+    const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
+    const term = encodeURIComponent(query.name);
+    const response = await appleMusicFetch(`/catalog/${storefront}/search?types=artists&term=${term}&limit=5`);
+
+    if (!response.ok) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    const data = await response.json();
+    const artists: AppleMusicArtistResource[] = data.results?.artists?.data ?? [];
+
+    if (artists.length === 0) {
+      return { found: false, confidence: 0, matchMethod: "search" };
+    }
+
+    let bestMatch: NormalizedArtist | null = null;
+    let bestConfidence = 0;
+
+    for (const raw of artists) {
+      const artist = mapArtist(raw);
+      const confidence = calculateConfidence(
+        { title: query.name, artists: [], durationMs: undefined },
+        { title: artist.name, artists: [], durationMs: undefined },
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = artist;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < 0.6) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      artist: bestMatch,
       confidence: bestConfidence,
       matchMethod: "search",
     };

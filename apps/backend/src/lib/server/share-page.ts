@@ -118,6 +118,45 @@ export async function loadAlbumByShortId(shortId: string, origin?: string): Prom
   };
 }
 
+// --- Artist Share Page ---
+
+export interface ShareArtistPageData {
+  artist: {
+    name: string;
+    imageUrl: string | null;
+    genres: string[];
+  };
+  shortId: string;
+  links: { service: string; url: string }[];
+  availablePlatforms: Platform[];
+  og: OGMeta;
+}
+
+/** Load artist share page data by short URL ID. Returns null if not found. */
+export async function loadArtistByShortId(shortId: string, origin?: string): Promise<ShareArtistPageData | null> {
+  const repo = await getRepository();
+  const data = await repo.loadArtistByShortId(shortId);
+  if (!data) return null;
+
+  const availablePlatforms: Platform[] = data.links.map((l) => l.service).filter(isValidPlatform);
+
+  const baseUrl = origin ?? "https://musiccloud.io";
+  const og: OGMeta = {
+    pageTitle: `${data.artist.name} - musiccloud`,
+    ogTitle: `${data.artist.name} - musiccloud`,
+    ogDescription: `Listen to ${data.artist.name} on ${availablePlatforms.length} platforms`,
+    ogImageUrl: data.artist.imageUrl ?? "/og/default.jpg",
+    ogUrl: `${baseUrl}/${shortId}`,
+    twitterCard: "summary_large_image",
+  };
+
+  return {
+    ...data,
+    availablePlatforms,
+    og,
+  };
+}
+
 function enrichWithOGMeta(
   data: {
     track: {
