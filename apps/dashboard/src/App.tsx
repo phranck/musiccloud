@@ -67,12 +67,6 @@ const UsersPage = lazy(() =>
   })),
 );
 
-const MediaPage = lazy(() =>
-  import("@/features/system/media/MediaPage").then((m) => ({
-    default: m.MediaPage,
-  })),
-);
-
 const AnalyticsPage = lazy(() =>
   import("@/features/analytics/AnalyticsPage").then((m) => ({
     default: m.AnalyticsPage,
@@ -233,14 +227,6 @@ function AppRoutes() {
           {user.role !== "moderator" && (
             <>
               <Route
-                path="media"
-                element={
-                  <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <MediaPage />
-                  </Suspense>
-                }
-              />
-              <Route
                 path="analytics"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
@@ -297,14 +283,6 @@ function AppRoutes() {
                 }
               />
               <Route
-                path="pages/navigations"
-                element={
-                  <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <EditorStubPage />
-                  </Suspense>
-                }
-              />
-              <Route
                 path="pages/:slug"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
@@ -317,14 +295,6 @@ function AppRoutes() {
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
                     <MarkdownWidgetsPage />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="footer-builder"
-                element={
-                  <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <EditorStubPage />
                   </Suspense>
                 }
               />

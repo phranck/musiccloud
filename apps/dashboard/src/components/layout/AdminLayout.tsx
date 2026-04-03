@@ -3,13 +3,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router";
 
 import { Sidebar } from "@/components/layout/Sidebar";
+import { FooterUserInfo } from "@/components/layout/SidebarFooter";
+import { Card } from "@/components/ui/Card";
 import { ThemeSegmentedControl } from "@/components/ui/ThemeSegmentedControl";
+import { BodyCardProvider, useBodyCard } from "@/context/BodyCardContext";
 import { useI18n } from "@/context/I18nContext";
+import { PageFooterProvider, usePageFooterContext } from "@/context/PageFooterContext";
 import { PageHeaderProvider, usePageHeaderContext } from "@/context/PageHeaderContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import { UserEditCard } from "@/features/system/UserEditCard";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
+import { BrandName } from "@/shared/ui/BrandName";
 
 const SIDEBAR_DEFAULT = 224;
 const SIDEBAR_MIN = 160;
@@ -28,17 +33,17 @@ function useSidebarWidth() {
   const startX = useRef(0);
   const startW = useRef(0);
 
-  const onMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      isResizing.current = true;
-      startX.current = e.clientX;
-      startW.current = width;
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-    },
-    [width],
-  );
+  const widthRef = useRef(width);
+  widthRef.current = width;
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    startX.current = e.clientX;
+    startW.current = widthRef.current;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
 
   useEffect(() => {
     function onMove(e: MouseEvent) {
@@ -85,8 +90,10 @@ function AdminLayoutInner() {
   const { messages } = useI18n();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [editingOwnProfile, setEditingOwnProfile] = useState(false);
   const { title, titleContent, setLeadingEl, setActionsEl } = usePageHeaderContext();
+  const { setActionsEl: setFooterActionsEl } = usePageFooterContext();
+  const { chromeless } = useBodyCard();
   const { width: sidebarWidth, onMouseDown: onResizeStart } = useSidebarWidth();
   const hasCustomTitleContent = titleContent !== null;
 
@@ -97,30 +104,91 @@ function AdminLayoutInner() {
 
   return (
     <div
-      className="min-h-screen bg-[var(--ds-bg)]"
+      className="dashboard-grid gap-3 p-3 bg-[var(--ds-bg)]"
       style={{ "--sidebar-w": `${sidebarWidth}px` } as React.CSSProperties}
     >
-      {/* Desktop Sidebar */}
-      <aside
-        className="hidden md:flex fixed inset-y-0 left-0 flex-col bg-[var(--ds-surface)] border-r border-[var(--ds-border)] z-40"
-        style={{ width: sidebarWidth }}
+      {/* Header Card */}
+      <Card
+        className={`col-span-2 md:col-span-2 flex items-center gap-3 py-4 shadow-sm ${import.meta.env.DEV ? "border-2 border-yellow-400 bg-yellow-400/5" : ""}`}
       >
+        <div
+          className="hidden md:flex items-center justify-center shrink-0 h-full px-3 text-2xl"
+          style={{ width: sidebarWidth }}
+        >
+          <BrandName />
+        </div>
+        <div className="flex-1 flex items-center justify-between px-3">
+          <div className="flex min-w-0 items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-2 -ml-2 text-[var(--ds-text-muted)] hover:text-[var(--ds-text)]"
+              aria-label={messages.layout.menuOpen}
+            >
+              <ListIcon weight="duotone" className="w-5 h-5" />
+            </button>
+            <div ref={setLeadingEl} className="flex items-center shrink-0" />
+            {hasCustomTitleContent ? (
+              <div className="min-w-0 overflow-hidden leading-tight">{titleContent}</div>
+            ) : (
+              <span className="font-semibold text-sm text-[var(--ds-text)] font-heading truncate">
+                {title || messages.layout.pageFallbackTitle}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 ml-auto">
+            <div ref={setActionsEl} className="flex items-center gap-2" />
+            <ThemeToggle userId={user?.id} />
+          </div>
+        </div>
+      </Card>
+
+      {/* Sidebar Card */}
+      <Card className="hidden md:flex flex-col overflow-y-auto overflow-x-hidden relative shadow-sm">
         <Sidebar
+          bare
           username={user?.username}
           firstName={user?.firstName}
           lastName={user?.lastName}
           avatarUrl={user?.avatarUrl}
           role={user?.role}
           onLogout={handleLogout}
-          onEditProfile={() => setEditProfileOpen(true)}
+          onEditProfile={() => setEditingOwnProfile(true)}
         />
         <button
           type="button"
           onMouseDown={onResizeStart}
           aria-label={messages.layout.resizeSidebar}
-          className="absolute right-0 top-0 bottom-0 w-1 z-20 cursor-col-resize hover:bg-[var(--color-primary)]/40 active:bg-[var(--color-primary)]/60"
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--color-primary)]/40 active:bg-[var(--color-primary)]/60"
         />
-      </aside>
+      </Card>
+
+      {/* Body Card */}
+      {chromeless ? (
+        <div className="flex items-center justify-center min-h-0 overflow-auto">
+          <Outlet />
+        </div>
+      ) : (
+        <Card className="overflow-auto p-3 flex flex-col min-h-0 shadow-sm">
+          <Outlet />
+        </Card>
+      )}
+
+      {/* Footer Card */}
+      <Card className="col-span-2 md:col-span-2 flex items-center gap-3 py-4 shadow-sm">
+        <div className="hidden md:flex items-center shrink-0 h-full px-3" style={{ width: sidebarWidth }}>
+          <FooterUserInfo
+            username={user?.username}
+            firstName={user?.firstName}
+            lastName={user?.lastName}
+            avatarUrl={user?.avatarUrl}
+            role={user?.role}
+            onLogout={handleLogout}
+            onEditProfile={() => setEditingOwnProfile(true)}
+          />
+        </div>
+        <div ref={setFooterActionsEl} className="flex-1 flex items-center justify-end gap-2 px-3" />
+      </Card>
 
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
@@ -143,53 +211,17 @@ function AdminLayoutInner() {
               role={user?.role}
               onLogout={handleLogout}
               onItemClick={() => setSidebarOpen(false)}
-              onEditProfile={() => setEditProfileOpen(true)}
+              onEditProfile={() => setEditingOwnProfile(true)}
             />
           </aside>
         </div>
       )}
 
-      {/* Fixed Header */}
-      <header className="sidebar-aware-header z-30 flex h-14 items-center justify-between px-6 bg-[var(--ds-surface)] border-b border-[var(--ds-border)]">
-        <div className="flex min-w-0 items-center gap-4">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="md:hidden p-2 -ml-2 text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] transition-colors"
-            aria-label={messages.layout.menuOpen}
-          >
-            <ListIcon weight="duotone" className="w-5 h-5" />
-          </button>
-
-          <div ref={setLeadingEl} className="flex items-center shrink-0" />
-
-          {hasCustomTitleContent ? (
-            <div className="min-w-0 overflow-hidden leading-tight">{titleContent}</div>
-          ) : (
-            <span className="font-semibold text-sm text-[var(--ds-text)] truncate">
-              {title || messages.layout.pageFallbackTitle}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3 ml-auto">
-          <div ref={setActionsEl} className="flex items-center gap-2" />
-          <ThemeToggle userId={user?.id} />
-        </div>
-      </header>
-
-      {/* Main */}
-      <div className="sidebar-aware-main flex flex-col h-screen overflow-hidden">
-        <main className="flex-1 p-3 flex flex-col min-h-0">
-          <Outlet />
-        </main>
-      </div>
-
-      {editProfileOpen && user?.id && (
+      {editingOwnProfile && user?.id && (
         <UserEditCard
           userId={user.id}
-          onClose={() => setEditProfileOpen(false)}
-          onSaved={() => setEditProfileOpen(false)}
+          onClose={() => setEditingOwnProfile(false)}
+          onSaved={() => setEditingOwnProfile(false)}
         />
       )}
     </div>
@@ -199,7 +231,11 @@ function AdminLayoutInner() {
 export function AdminLayout() {
   return (
     <PageHeaderProvider>
-      <AdminLayoutInner />
+      <PageFooterProvider>
+        <BodyCardProvider>
+          <AdminLayoutInner />
+        </BodyCardProvider>
+      </PageFooterProvider>
     </PageHeaderProvider>
   );
 }

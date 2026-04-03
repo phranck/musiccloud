@@ -17,7 +17,7 @@ export function ContentUnavailableView({ icon, title, subtitle, className }: Con
       <div className="flex flex-col items-center justify-center gap-3">
         <span className="text-[var(--ds-text-muted)] [&_svg]:w-12 [&_svg]:h-12">{icon}</span>
         <div className="space-y-1">
-          <p className="text-base font-bold text-[var(--ds-text)]">{title}</p>
+          <p className="text-lg font-bold font-heading text-[var(--ds-text)]">{title}</p>
           <p className="text-xs text-[var(--ds-text-muted)] max-w-[240px] mx-auto leading-relaxed">{subtitle}</p>
         </div>
       </div>

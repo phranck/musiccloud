@@ -1,4 +1,4 @@
-import { CaretDownIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, ChartLineIcon } from "@phosphor-icons/react";
 import {
   lazy,
   type ReactNode,
@@ -28,6 +28,7 @@ import {
   FaWindows,
 } from "react-icons/fa6";
 
+import { DashboardSection } from "@/components/ui/DashboardSection";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useI18n } from "@/context/I18nContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -393,12 +394,15 @@ function KpiCard({ label, value, trend, invertTrendColor = false, sub }: KpiCard
       : "bg-[var(--ds-badge-danger-bg)] text-[var(--ds-badge-danger-text)]";
 
   return (
-    <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] shadow-sm px-4 py-3">
-      <p className="text-sm text-[var(--ds-text-subtle)] mb-1">{label}</p>
-      <div className="flex items-end justify-between gap-2">
-        <p className="text-2xl font-semibold text-[var(--ds-text)]">{value}</p>
+    <div
+      className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] shadow-sm px-4 py-3 min-w-0"
+      style={{ containerType: "inline-size" }}
+    >
+      <p className="text-sm text-[var(--ds-text-subtle)] mb-1 truncate">{label}</p>
+      <div className="kpi-layout">
+        <p className="text-2xl font-semibold text-[var(--ds-text)] whitespace-nowrap min-w-0 kpi-value">{value}</p>
         <p
-          className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold tabular-nums ${trendTone}`}
+          className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold tabular-nums shrink-0 ${trendTone}`}
         >
           <span aria-hidden="true">{trendArrow}</span>
           <span>{trendText}</span>
@@ -487,87 +491,94 @@ function RealtimeCard() {
     : [];
   const rtMaxVal = Math.max(...chartData.map((d) => Math.max(d.visitors, d.pageviews)), 1);
 
+  const liveIcon = (
+    <span className="relative flex h-2 w-2">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+    </span>
+  );
+
+  const headerAddOn = (
+    <div className="flex items-center gap-5">
+      {realtime && (
+        <>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-xl font-bold text-[var(--ds-text)]">
+              {formatNumber(active?.visitors ?? realtime.totals?.visitors ?? 0)}
+            </span>
+            <span className="text-sm text-[var(--ds-text-subtle)]">
+              {active?.visitors != null ? m.realtime.active5m : m.visitors}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-xl font-bold text-[var(--ds-text)]">
+              {formatNumber(realtime.totals?.pageviews ?? realtime.totals?.views ?? 0)}
+            </span>
+            <span className="text-sm text-[var(--ds-text-subtle)]">{m.realtime.pageviews30m}</span>
+          </div>
+        </>
+      )}
+      <span className="text-sm text-[var(--ds-text-subtle)]">{m.realtime.updatedEvery30s}</span>
+    </div>
+  );
+
   return (
-    <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] shadow-sm p-4 mb-4">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-        </span>
-        <p className="text-base font-medium text-[var(--ds-text)]">{m.realtime.title}</p>
-
-        {realtime && (
-          <div className="flex items-center gap-5 ml-4">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-xl font-bold text-[var(--ds-text)]">
-                {formatNumber(active?.visitors ?? realtime.totals.visitors ?? 0)}
-              </span>
-              <span className="text-sm text-[var(--ds-text-subtle)]">
-                {active?.visitors != null ? m.realtime.active5m : m.visitors}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-xl font-bold text-[var(--ds-text)]">
-                {formatNumber(realtime.totals.pageviews ?? realtime.totals.views ?? 0)}
-              </span>
-              <span className="text-sm text-[var(--ds-text-subtle)]">{m.realtime.pageviews30m}</span>
-            </div>
-          </div>
-        )}
-
-        <span className="ml-auto text-sm text-[var(--ds-text-subtle)]">{m.realtime.updatedEvery30s}</span>
-      </div>
-
-      {rtLoading ? (
-        <div className="h-24 bg-[var(--ds-bg-elevated)] rounded-lg animate-pulse" />
-      ) : !realtime ? (
-        <p className="text-sm text-[var(--ds-text-subtle)]">{m.noRealtimeData}</p>
-      ) : (
-        <div className="flex gap-4 items-start">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-4 mb-2">
-              <span className="flex items-center gap-1.5 text-sm text-[var(--ds-text-muted)]">
-                <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block shrink-0" />
-                {m.visitors}
-              </span>
-              <span className="flex items-center gap-1.5 text-sm text-[var(--ds-text-muted)]">
-                <span className="w-2.5 h-2.5 rounded-sm bg-stone-400 inline-block shrink-0" />
-                {m.pageviews}
-              </span>
-            </div>
-            <Suspense fallback={<div className="h-40 bg-[var(--ds-bg-elevated)] rounded-lg animate-pulse" />}>
-              <RealtimeBarsChart
-                data={chartData}
-                maxValue={rtMaxVal}
-                ticks={intTicks(rtMaxVal)}
-                cursorColor={cursorColor}
-                theme={{ gridColor, tickColor, tooltipBg, tooltipBorder, tooltipColor }}
-                visitorsLabel={m.visitors}
-                pageviewsLabel={m.pageviews}
-                formatNumber={formatNumber}
-              />
-            </Suspense>
-          </div>
-
-          {topUrls.length > 0 && (
-            <div className="w-1/4 shrink-0 pl-4 border-l border-[var(--ds-border-subtle)]">
-              <p className="text-sm font-medium text-[var(--ds-text-muted)] mb-2">{m.topPages}</p>
-              <div className="space-y-1.5">
-                {topUrls.map(([url, count]) => (
-                  <div key={url} className="flex items-center gap-2 text-sm">
-                    <span className="flex-1 truncate text-[var(--ds-text-muted)]" title={url}>
-                      {url === "/" ? m.home : url}
-                    </span>
-                    <span className="shrink-0 text-right text-sm text-[var(--ds-text-subtle)]">
-                      {formatNumber(count)}
-                    </span>
-                  </div>
-                ))}
+    <div className="mb-4">
+      <DashboardSection>
+        <DashboardSection.Header icon={liveIcon} title={m.realtime.title} addOn={headerAddOn} />
+        <DashboardSection.Body>
+          {rtLoading ? (
+            <div className="h-24 bg-[var(--ds-bg-elevated)] rounded-lg animate-pulse" />
+          ) : !realtime ? (
+            <p className="text-sm text-[var(--ds-text-subtle)]">{m.noRealtimeData}</p>
+          ) : (
+            <div className="flex gap-4 items-start">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-4 mb-2">
+                  <span className="flex items-center gap-1.5 text-sm text-[var(--ds-text-muted)]">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block shrink-0" />
+                    {m.visitors}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-sm text-[var(--ds-text-muted)]">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-stone-400 inline-block shrink-0" />
+                    {m.pageviews}
+                  </span>
+                </div>
+                <Suspense fallback={<div className="h-40 bg-[var(--ds-bg-elevated)] rounded-lg animate-pulse" />}>
+                  <RealtimeBarsChart
+                    data={chartData}
+                    maxValue={rtMaxVal}
+                    ticks={intTicks(rtMaxVal)}
+                    cursorColor={cursorColor}
+                    theme={{ gridColor, tickColor, tooltipBg, tooltipBorder, tooltipColor }}
+                    visitorsLabel={m.visitors}
+                    pageviewsLabel={m.pageviews}
+                    formatNumber={formatNumber}
+                  />
+                </Suspense>
               </div>
+
+              {topUrls.length > 0 && (
+                <div className="w-1/4 shrink-0 pl-4 border-l border-[var(--ds-border-subtle)]">
+                  <p className="text-sm font-medium text-[var(--ds-text-muted)] mb-2">{m.topPages}</p>
+                  <div className="space-y-1.5">
+                    {topUrls.map(([url, count]) => (
+                      <div key={url} className="flex items-center gap-2 text-sm">
+                        <span className="flex-1 truncate text-[var(--ds-text-muted)]" title={url}>
+                          {url === "/" ? m.home : url}
+                        </span>
+                        <span className="shrink-0 text-right text-sm text-[var(--ds-text-subtle)]">
+                          {formatNumber(count)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
+        </DashboardSection.Body>
+      </DashboardSection>
     </div>
   );
 }
@@ -631,26 +642,26 @@ function MetricList({ title, type, period, renderLabel }: MetricListProps) {
   );
 
   return (
-    <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] shadow-sm p-4 flex flex-col gap-3">
-      <p className="text-base font-medium text-[var(--ds-text)]">{title}</p>
-      {isLoading && (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }, (_, i) => `sk-${i}`).map((k) => (
-            <div key={k} className="h-7 bg-[var(--ds-bg-elevated)] rounded animate-pulse" />
-          ))}
-        </div>
-      )}
-      {!isLoading && rows.length === 0 && (
-        <p className="text-sm text-[var(--ds-text-subtle)] py-4 text-center">{m.noData}</p>
-      )}
-      {!isLoading && rows.length > 0 && (
-        <CollapsibleList
-          canCollapse={canCollapse}
-          collapsedContent={renderRows(collapsedRows)}
-          expandedContent={renderRows(rows)}
-        />
-      )}
-    </div>
+    <DashboardSection>
+      <DashboardSection.Header icon={<FaGlobe className="w-4 h-4" />} title={title} />
+      <DashboardSection.Body>
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }, (_, i) => `sk-${i}`).map((k) => (
+              <div key={k} className="h-7 bg-[var(--ds-bg-elevated)] rounded animate-pulse" />
+            ))}
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-[var(--ds-text-subtle)] py-4 text-center">{m.noData}</p>
+        ) : (
+          <CollapsibleList
+            canCollapse={canCollapse}
+            collapsedContent={renderRows(collapsedRows)}
+            expandedContent={renderRows(rows)}
+          />
+        )}
+      </DashboardSection.Body>
+    </DashboardSection>
   );
 }
 
@@ -693,24 +704,26 @@ function EventListCard({ title, rows, isLoading }: EventListCardProps) {
   );
 
   return (
-    <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] shadow-sm p-4 flex flex-col gap-3">
-      <p className="text-base font-medium text-[var(--ds-text)]">{title}</p>
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }, (_, i) => `event-sk-${title}-${i}`).map((k) => (
-            <div key={k} className="h-7 bg-[var(--ds-bg-elevated)] rounded animate-pulse" />
-          ))}
-        </div>
-      ) : rows.length === 0 ? (
-        <p className="text-sm text-[var(--ds-text-subtle)] py-4 text-center">{m.noData}</p>
-      ) : (
-        <CollapsibleList
-          canCollapse={canCollapse}
-          collapsedContent={renderRows(collapsedRows)}
-          expandedContent={renderRows(rows)}
-        />
-      )}
-    </div>
+    <DashboardSection>
+      <DashboardSection.Header icon={<FaGlobe className="w-4 h-4" />} title={title} />
+      <DashboardSection.Body>
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }, (_, i) => `event-sk-${title}-${i}`).map((k) => (
+              <div key={k} className="h-7 bg-[var(--ds-bg-elevated)] rounded animate-pulse" />
+            ))}
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-[var(--ds-text-subtle)] py-4 text-center">{m.noData}</p>
+        ) : (
+          <CollapsibleList
+            canCollapse={canCollapse}
+            collapsedContent={renderRows(collapsedRows)}
+            expandedContent={renderRows(rows)}
+          />
+        )}
+      </DashboardSection.Body>
+    </DashboardSection>
   );
 }
 
@@ -772,39 +785,43 @@ function TabbedMetricCard({ title, tabs, period, storageKey }: TabbedMetricCardP
   );
 
   return (
-    <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] shadow-sm p-4">
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <p className="text-base font-semibold text-[var(--ds-text)]">{title}</p>
-        <SegmentedControl
-          value={activeType}
-          onChange={setActiveType}
-          storageKey={storageKey}
-          options={tabs.map((tab) => ({ value: tab.value, label: tab.label }))}
-        />
-      </div>
-
-      <div className="grid grid-cols-[1fr_auto_auto] gap-3 pb-2 border-b border-[var(--ds-border-subtle)] text-sm font-medium text-[var(--ds-text-subtle)]">
-        <span>{activeTab.columnLabel}</span>
-        <span className="text-right">{m.visitors}</span>
-        <span className="text-right">{m.percentColumn}</span>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2 pt-3">
-          {Array.from({ length: 6 }, (_, i) => `env-sk-${title}-${i}`).map((k) => (
-            <div key={k} className="h-6 bg-[var(--ds-bg-elevated)] rounded animate-pulse" />
-          ))}
+    <DashboardSection>
+      <DashboardSection.Header
+        icon={<FaGlobe className="w-4 h-4" />}
+        title={title}
+        addOn={
+          <SegmentedControl
+            value={activeType}
+            onChange={setActiveType}
+            storageKey={storageKey}
+            options={tabs.map((tab) => ({ value: tab.value, label: tab.label }))}
+          />
+        }
+      />
+      <DashboardSection.Body>
+        <div className="grid grid-cols-[1fr_auto_auto] gap-3 pb-2 border-b border-[var(--ds-border-subtle)] text-sm font-medium text-[var(--ds-text-subtle)]">
+          <span>{activeTab.columnLabel}</span>
+          <span className="text-right">{m.visitors}</span>
+          <span className="text-right">{m.percentColumn}</span>
         </div>
-      ) : rows.length === 0 ? (
-        <p className="text-sm text-[var(--ds-text-subtle)] py-6 text-center">{m.noData}</p>
-      ) : (
-        <CollapsibleList
-          canCollapse={canCollapse}
-          collapsedContent={renderRows(collapsedRows)}
-          expandedContent={renderRows(rows)}
-        />
-      )}
-    </div>
+
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }, (_, i) => `env-sk-${title}-${i}`).map((k) => (
+              <div key={k} className="h-6 bg-[var(--ds-bg-elevated)] rounded animate-pulse" />
+            ))}
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-[var(--ds-text-subtle)] py-6 text-center">{m.noData}</p>
+        ) : (
+          <CollapsibleList
+            canCollapse={canCollapse}
+            collapsedContent={renderRows(collapsedRows)}
+            expandedContent={renderRows(rows)}
+          />
+        )}
+      </DashboardSection.Body>
+    </DashboardSection>
   );
 }
 
@@ -960,35 +977,42 @@ export function AnalyticsSection() {
       </div>
 
       {(pvLoading || chartData.length > 0) && (
-        <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] shadow-sm p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-base font-medium text-[var(--ds-text)]">{m.traffic}</p>
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5 text-sm text-[var(--ds-text-muted)]">
-                <span className="w-3 h-0.5 rounded-full bg-amber-400 inline-block" />
-                {m.visitors}
-              </span>
-              <span className="flex items-center gap-1.5 text-sm text-[var(--ds-text-muted)]">
-                <span className="w-3 h-0.5 rounded-full bg-stone-400 inline-block" />
-                {m.pageviews}
-              </span>
-            </div>
-          </div>
-          {pvLoading ? (
-            <div className="h-40 bg-[var(--ds-bg-elevated)] rounded-lg animate-pulse" />
-          ) : (
-            <Suspense fallback={<div className="h-40 bg-[var(--ds-bg-elevated)] rounded-lg animate-pulse" />}>
-              <TrafficAreaChart
-                data={chartData}
-                maxValue={pvMaxVal}
-                ticks={intTicks(pvMaxVal)}
-                theme={{ gridColor, tickColor, tooltipBg, tooltipBorder, tooltipColor }}
-                visitorsLabel={m.visitors}
-                pageviewsLabel={m.pageviews}
-                formatNumber={formatNumber}
-              />
-            </Suspense>
-          )}
+        <div className="mb-4">
+          <DashboardSection>
+            <DashboardSection.Header
+              icon={<ChartLineIcon weight="duotone" className="w-4 h-4" />}
+              title={m.traffic}
+              addOn={
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1.5 text-sm text-[var(--ds-text-muted)]">
+                    <span className="w-3 h-0.5 rounded-full bg-amber-400 inline-block" />
+                    {m.visitors}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-sm text-[var(--ds-text-muted)]">
+                    <span className="w-3 h-0.5 rounded-full bg-stone-400 inline-block" />
+                    {m.pageviews}
+                  </span>
+                </div>
+              }
+            />
+            <DashboardSection.Body>
+              {pvLoading ? (
+                <div className="h-40 bg-[var(--ds-bg-elevated)] rounded-lg animate-pulse" />
+              ) : (
+                <Suspense fallback={<div className="h-40 bg-[var(--ds-bg-elevated)] rounded-lg animate-pulse" />}>
+                  <TrafficAreaChart
+                    data={chartData}
+                    maxValue={pvMaxVal}
+                    ticks={intTicks(pvMaxVal)}
+                    theme={{ gridColor, tickColor, tooltipBg, tooltipBorder, tooltipColor }}
+                    visitorsLabel={m.visitors}
+                    pageviewsLabel={m.pageviews}
+                    formatNumber={formatNumber}
+                  />
+                </Suspense>
+              )}
+            </DashboardSection.Body>
+          </DashboardSection>
         </div>
       )}
 
@@ -997,13 +1021,9 @@ export function AnalyticsSection() {
         <EventListCard title={m.topLinkClicksByService} rows={linkClicks ?? []} isLoading={linkClicksLoading} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-        <div className="md:col-span-3">
-          <MetricList title={m.topPages} type="url" period={period} renderLabel={(x) => (x === "/" ? m.home : x)} />
-        </div>
-        <div className="md:col-span-2">
-          <MetricList title={m.sources} type="referrer" period={period} renderLabel={(x) => x || m.direct} />
-        </div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+        <MetricList title={m.topPages} type="url" period={period} renderLabel={(x) => (x === "/" ? m.home : x)} />
+        <MetricList title={m.sources} type="referrer" period={period} renderLabel={(x) => x || m.direct} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3">
