@@ -465,7 +465,9 @@ export const tidalAdapter = {
     const queryNameLower = query.name.toLowerCase().trim();
 
     for (const item of items.slice(0, 5)) {
-      const artistResource = included.find((i: { id: string; type: string }) => i.id === item.id && i.type === "artists");
+      const artistResource = included.find(
+        (i: { id: string; type: string }) => i.id === item.id && i.type === "artists",
+      );
       if (!artistResource?.attributes?.name) continue;
 
       const name = artistResource.attributes.name;

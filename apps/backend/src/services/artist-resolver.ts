@@ -48,10 +48,7 @@ function mapCachedArtistLinks(
     }));
 }
 
-async function tryArtistCache(lookup: {
-  url?: string;
-  name?: string;
-}): Promise<ArtistResolutionResult | null> {
+async function tryArtistCache(lookup: { url?: string; name?: string }): Promise<ArtistResolutionResult | null> {
   try {
     const repo = await getRepository();
     let cached = lookup.url ? await repo.findArtistByUrl(lookup.url) : null;
@@ -89,9 +86,7 @@ async function fillMissingArtistServices(cached: ArtistResolutionResult): Promis
 
   log.debug("ArtistResolver", `Gap-filling ${missingAdapters.length} new services for cached artist`);
 
-  const results = await Promise.allSettled(
-    missingAdapters.map((a) => resolveArtistOnService(a, cached.sourceArtist)),
-  );
+  const results = await Promise.allSettled(missingAdapters.map((a) => resolveArtistOnService(a, cached.sourceArtist)));
 
   const newLinks: ResolvedArtistLink[] = [];
   for (const result of results) {
@@ -128,9 +123,7 @@ async function fillMissingArtistServices(cached: ArtistResolutionResult): Promis
   // Fill missing image from newly resolved links
   let { sourceArtist } = cached;
   if (!sourceArtist.imageUrl) {
-    const imageLink =
-      allLinks.find((l) => l.service === "spotify" && l.imageUrl) ??
-      allLinks.find((l) => l.imageUrl);
+    const imageLink = allLinks.find((l) => l.service === "spotify" && l.imageUrl) ?? allLinks.find((l) => l.imageUrl);
     if (imageLink?.imageUrl) {
       sourceArtist = { ...sourceArtist, imageUrl: imageLink.imageUrl };
     }
@@ -188,10 +181,7 @@ async function resolveArtistOnService(
       imageUrl: result.artist.imageUrl,
     };
   } catch (error) {
-    log.debug(
-      "ArtistResolver",
-      `[${adapter.id}] search failed: ${error instanceof Error ? error.message : error}`,
-    );
+    log.debug("ArtistResolver", `[${adapter.id}] search failed: ${error instanceof Error ? error.message : error}`);
     return null;
   }
 }
@@ -298,9 +288,7 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
 
   // 6. If source artist has no image, use image from a cross-service result
   if (!sourceArtist.imageUrl) {
-    const imageLink =
-      links.find((l) => l.service === "spotify" && l.imageUrl) ??
-      links.find((l) => l.imageUrl);
+    const imageLink = links.find((l) => l.service === "spotify" && l.imageUrl) ?? links.find((l) => l.imageUrl);
     if (imageLink?.imageUrl) {
       sourceArtist = { ...sourceArtist, imageUrl: imageLink.imageUrl };
     }
@@ -341,9 +329,7 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
 export async function resolveArtistTextSearch(query: string): Promise<ArtistResolutionResult> {
   const searchAdapters = adapters.filter(
     (a): a is ServiceAdapter =>
-      Boolean(a?.isAvailable?.()) &&
-      Boolean(a.artistCapabilities?.supportsArtistSearch) &&
-      Boolean(a.searchArtist),
+      Boolean(a?.isAvailable?.()) && Boolean(a.artistCapabilities?.supportsArtistSearch) && Boolean(a.searchArtist),
   );
 
   // Prioritize Spotify
@@ -365,9 +351,7 @@ export async function resolveArtistTextSearch(query: string): Promise<ArtistReso
         const links = await resolveArtistAcrossServices(sourceArtist, adapter);
 
         if (!sourceArtist.imageUrl) {
-          const imageLink =
-            links.find((l) => l.service === "spotify" && l.imageUrl) ??
-            links.find((l) => l.imageUrl);
+          const imageLink = links.find((l) => l.service === "spotify" && l.imageUrl) ?? links.find((l) => l.imageUrl);
           if (imageLink?.imageUrl) {
             sourceArtist = { ...sourceArtist, imageUrl: imageLink.imageUrl };
           }

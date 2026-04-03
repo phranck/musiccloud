@@ -153,7 +153,9 @@ function LandingPageInner() {
               onBlur={() => setIsFocused(false)}
               state={inputState}
               compact={showCompact}
-              songName={active ? (active.kind === "artist" ? active.name : `${active.title} - ${active.artist}`) : undefined}
+              songName={
+                active ? (active.kind === "artist" ? active.name : `${active.title} - ${active.artist}`) : undefined
+              }
               errorMessage={errorMessage}
             />
           </div>
@@ -196,7 +198,11 @@ function LandingPageInner() {
               onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
             >
               <div className="mt-6 sm:mt-8">
-                <ShareLayout config={activeConfig} artistName={active.kind === "artist" ? active.name : active.artist} animated />
+                <ShareLayout
+                  config={activeConfig}
+                  artistName={active.kind === "artist" ? active.name : active.artist}
+                  animated
+                />
               </div>
             </div>
           )}

@@ -4,7 +4,14 @@ import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedAlbum, NormalizedArtist, NormalizedTrack, TrackSource } from "../../services/types.js";
-import type { AdminRepository, AdminUser, AlbumListItem, ArtistListItem, ListResult, TrackListItem } from "../admin-repository.js";
+import type {
+  AdminRepository,
+  AdminUser,
+  AlbumListItem,
+  ArtistListItem,
+  ListResult,
+  TrackListItem,
+} from "../admin-repository.js";
 import type {
   ArtistCacheData,
   ArtistCacheRow,
