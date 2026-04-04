@@ -52,7 +52,7 @@ final class HistoryManager {
     private let store = NSUbiquitousKeyValueStore.default
     private let maxEntries = 100
 
-    private(set) var entries: [ConversionEntry] = []
+    private(set) var entries: [MediaInfo] = []
 
     /// Creates a new history manager.
     ///
@@ -89,7 +89,7 @@ extension HistoryManager {
     /// )
     /// historyManager.add(entry)
     /// ```
-    func add(_ entry: ConversionEntry) {
+    func add(_ entry: MediaInfo) {
         // Insert at the beginning (newest first)
         entries.insert(entry, at: 0)
 
@@ -113,7 +113,7 @@ extension HistoryManager {
     ///     historyManager.remove(entryToRemove)
     /// }
     /// ```
-    func remove(_ entry: ConversionEntry) {
+    func remove(_ entry: MediaInfo) {
         entries.removeAll { $0.id == entry.id }
         save()
         logger.debug("Removed entry: \(entry.id)")
@@ -146,7 +146,7 @@ extension HistoryManager {
     ///     print("Last converted: \(latest.shortUrl)")
     /// }
     /// ```
-    var mostRecent: ConversionEntry? {
+    var mostRecent: MediaInfo? {
         entries.first
     }
 }
@@ -185,7 +185,7 @@ private extension HistoryManager {
         }
 
         do {
-            entries = try JSONDecoder().decode([ConversionEntry].self, from: data)
+            entries = try JSONDecoder().decode([MediaInfo].self, from: data)
             logger.debug("Loaded \(self.entries.count) entries from iCloud")
         } catch {
             logger.error("Failed to load: \(error.localizedDescription)")

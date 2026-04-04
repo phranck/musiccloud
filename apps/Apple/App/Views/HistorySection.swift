@@ -30,7 +30,7 @@ import SwiftUI
 /// ### Properties
 /// - ``history``
 struct HistorySection: View {
-    var history: [ConversionEntry]
+    var history: [MediaInfo]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

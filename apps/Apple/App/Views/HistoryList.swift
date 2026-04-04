@@ -32,7 +32,7 @@ import SwiftUI
 /// ### Properties
 /// - ``history``
 struct HistoryList: View {
-    var history: [ConversionEntry]
+    var history: [MediaInfo]
 
     var body: some View {
         let prefixed = Array(history.prefix(20))

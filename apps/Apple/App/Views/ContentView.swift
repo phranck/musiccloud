@@ -53,7 +53,7 @@ struct ContentView: View {
 
 private extension ContentView {
     /// All conversion entries from the history manager.
-    var history: [ConversionEntry] {
+    var history: [MediaInfo] {
         historyManager.entries
     }
 }

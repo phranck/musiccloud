@@ -31,7 +31,7 @@ import SwiftUI
 /// ### Properties
 /// - ``entry``
 struct HistoryRow: View {
-    var entry: ConversionEntry
+    var entry: MediaInfo
 
     var body: some View {
         HStack {

@@ -40,7 +40,7 @@ import SwiftUI
 /// - ``includePadding``
 struct ContentItemView: View {
     /// The conversion entry to display
-    var entry: ConversionEntry
+    var entry: MediaInfo
     /// Whether to show the share button
     var showShareButton: Bool = true
     /// Whether to include padding around the content

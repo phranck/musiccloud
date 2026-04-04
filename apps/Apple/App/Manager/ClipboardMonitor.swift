@@ -177,7 +177,7 @@ extension ClipboardMonitor {
                 artworkData = await MusicCloudAPI.downloadArtwork(from: artworkUrl)
             }
 
-            let entry = ConversionEntry(
+            let entry = MediaInfo(
                 originalUrl: url,
                 shortUrl: result.shortUrl,
                 contentType: contentType,

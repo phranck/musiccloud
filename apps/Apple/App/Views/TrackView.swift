@@ -47,7 +47,7 @@ struct TrackView: View {
 
     var body: some View {
         ContentItemView(
-            entry: ConversionEntry(
+            entry: MediaInfo(
                 originalUrl: "",
                 shortUrl: shortUrl,
                 contentType: .track,
