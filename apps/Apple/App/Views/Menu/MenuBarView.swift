@@ -16,7 +16,7 @@ struct MenuBarView: View {
     @Environment(ClipboardMonitor.self) private var monitor
     @Environment(HistoryManager.self) private var historyManager
 
-    private var history: [ConversionEntry] {
+    private var history: [MediaInfo] {
         historyManager.entries
     }
 
@@ -24,8 +24,7 @@ struct MenuBarView: View {
         VStack(spacing: 0) {
             HeaderRow(isProcessing: monitor.status.isProcessing)
 
-            Divider()
-                .padding(.vertical, 4)
+            Divider().padding(.vertical, 4)
 
             if let error = monitor.status.errorMessage {
                 ErrorRow(message: error)
@@ -35,8 +34,12 @@ struct MenuBarView: View {
                 IdleRow()
             }
 
-            Divider()
-                .padding(.vertical, 4)
+            Divider().padding(.vertical, 4)
+
+            AboutMenuItem()
+            PreferencesMenuItem()
+
+            Divider().padding(.vertical, 4)
 
             QuitMenuItem()
         }

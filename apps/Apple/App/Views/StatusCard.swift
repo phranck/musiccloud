@@ -52,7 +52,7 @@ struct StatusCard: View {
                 errorView(message)
             }
         }
-        .padding(20)
+        .padding(10)
         .frame(maxWidth: .infinity)
         .background(.regularMaterial, in: .rect(cornerRadius: 16))
     }

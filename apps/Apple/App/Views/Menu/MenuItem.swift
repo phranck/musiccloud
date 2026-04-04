@@ -22,11 +22,12 @@ struct MenuItem: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: iconName)
-                .font(.system(size: 16))
-                .frame(width: 20)
+//            Image(systemName: iconName)
+//                .font(.system(size: 16))
+//                .frame(width: 20)
             Text(title)
                 .font(.system(size: 14))
+                .padding(.horizontal, 6)
             Spacer()
         }
         .padding(.horizontal, 8)
@@ -35,10 +36,10 @@ struct MenuItem: View {
         .contentShape(Rectangle())
         .background(
             UnevenRoundedRectangle(
-                topLeadingRadius: 5,
-                bottomLeadingRadius: isLastItem ? 12 : 5,
-                bottomTrailingRadius: isLastItem ? 12 : 5,
-                topTrailingRadius: 5
+                topLeadingRadius: 6,
+                bottomLeadingRadius: isLastItem ? 12 : 6,
+                bottomTrailingRadius: isLastItem ? 12 : 6,
+                topTrailingRadius: 6
             )
             .fill(isHovered ? Color.accentColor : Color.clear)
             .padding(.horizontal, 4)

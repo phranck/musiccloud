@@ -41,7 +41,7 @@ import OSLog
 struct MenuBarHistoryRow: View {
     @State private var isHovered = false
 
-    var entry: ConversionEntry
+    var entry: MediaInfo
 
     var body: some View {
         Group {
@@ -67,7 +67,7 @@ struct MenuBarHistoryRow: View {
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 5)
+            RoundedRectangle(cornerRadius: 6)
                 .fill(isHovered ? Color.accentColor : Color.clear)
                 .padding(.horizontal, 4)
         )
@@ -75,11 +75,9 @@ struct MenuBarHistoryRow: View {
         .contentShape(Rectangle())
         .onTapGesture {
             copyToClipboardAndOpen()
-            AppLogger.ui.debug("History row tapped: \(self.entry.shortUrl)")
         }
         .onHover { hovering in
             isHovered = hovering
-            AppLogger.ui.debug("History row hover changed: \(hovering)")
         }
     }
 }
@@ -118,7 +116,7 @@ private extension MenuBarHistoryRow {
             }
             shareButton()
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 10)
         .padding(.vertical, 5)
     }
 
