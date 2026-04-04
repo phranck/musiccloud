@@ -10,21 +10,16 @@ import SwiftUI
 struct MenuItem: View {
     @State private var isHovered = false
 
-    let iconName: String
     let title: String
     let isLastItem: Bool
 
-    init(iconName: String, title: String, isLastItem: Bool = false) {
-        self.iconName = iconName
+    init(title: String, isLastItem: Bool = false) {
         self.title = title
         self.isLastItem = isLastItem
     }
 
     var body: some View {
         HStack(spacing: 12) {
-//            Image(systemName: iconName)
-//                .font(.system(size: 16))
-//                .frame(width: 20)
             Text(title)
                 .font(.system(size: 14))
                 .padding(.horizontal, 6)

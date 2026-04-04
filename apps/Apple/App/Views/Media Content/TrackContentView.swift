@@ -15,37 +15,29 @@ struct TrackContentView: View {
     var track: TrackInfo
     /// The short URL to share
     var shortUrl: String
-    /// Whether to show the share button
-    var showShareButton: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             ArtworkView(url: track.artworkUrl)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(track.title)
-                    .font(.body)
-                    .fontWeight(.medium)
+                    .font(.system(size: 14))
                     .lineLimit(1)
                 Text(track.artistsString)
-                    .font(.subheadline)
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer(minLength: 8)
             if let duration = track.formattedDuration {
                 Text(duration)
-                    .font(.subheadline.monospacedDigit())
+                    .font(.system(size: 12).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
-            if showShareButton {
-                ShareLink(item: shortUrl) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel("Share \(shortUrl)")
-                .buttonStyle(.borderless)
-            }
+
+            ShareButton(shortUrl: shortUrl)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
     }
 }

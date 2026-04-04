@@ -12,7 +12,7 @@ import AppKit
 
 struct AboutMenuItem: View {
     var body: some View {
-        MenuItem(iconName: "", title: NSLocalizedString("About musiccloud", comment: ""))
+        MenuItem(title: NSLocalizedString("About musiccloud", comment: ""))
             .onTapGesture {
 #if os(macOS)
                 // Menü schließen

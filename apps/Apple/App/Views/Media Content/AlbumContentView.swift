@@ -9,48 +9,42 @@ import SwiftUI
 
 /// Displays album information in a horizontal layout.
 ///
-/// Shows artwork, name, artists, track count, and optional share button.
+/// Shows artwork, name, artists, track count, and share button.
 struct AlbumContentView: View {
     /// The album metadata to display
     var album: AlbumInfo
     /// The short URL to share
     var shortUrl: String
-    /// Whether to show the share button
-    var showShareButton: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             ArtworkView(url: album.artworkUrl)
-            VStack(alignment: .leading, spacing: 3) {
+
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Image(systemName: "square.stack")
-                        .font(.caption)
+                        .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                     Text(album.name)
-                        .font(.body)
-                        .fontWeight(.medium)
+                        .font(.system(size: 14))
                 }
                 .lineLimit(1)
                 Text(album.artistsString)
-                    .font(.subheadline)
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer(minLength: 8)
+
             if let totalTracks = album.totalTracks {
                 Text("\(totalTracks) tracks")
-                    .font(.subheadline)
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
-            if showShareButton {
-                ShareLink(item: shortUrl) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel("Share \(shortUrl)")
-                .buttonStyle(.borderless)
-            }
+
+            ShareButton(shortUrl: shortUrl)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
     }
 }

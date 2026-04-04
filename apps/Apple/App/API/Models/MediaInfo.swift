@@ -18,42 +18,20 @@ import Foundation
 /// - ``track``
 /// - ``album``
 /// - ``artist``
-enum ContentType: String, Codable {
+enum ContentType: Codable, Equatable {
     /// A single music track or song
-    case track
+    case track(info: TrackInfo)
     /// An album or EP containing multiple tracks
-    case album
+    case album(info: AlbumInfo)
     /// A music artist or band
-    case artist
+    case artist(info: ArtistInfo)
 }
 
 /// Represents a successful URL conversion from a streaming service to musiccloud.
 ///
-/// `ConversionEntry` stores all information about a converted URL including
-/// the original URL, short URL, metadata (track/album/artist info), and artwork.
+/// Stores all information about a converted URL including the original URL,
+/// short URL, content metadata (via ``ContentType`` associated values), and artwork.
 /// Each entry is uniquely identified and can be persisted for history tracking.
-///
-/// ## Storage
-///
-/// Entries are automatically managed by ``HistoryManager`` and displayed
-/// in the conversion history UI. They conform to `Codable` for persistence
-/// and `Identifiable` for use in SwiftUI lists.
-///
-/// ## Topics
-///
-/// ### Creating an Entry
-/// - ``init(id:originalUrl:shortUrl:contentType:track:album:artist:artworkImageData:date:)``
-///
-/// ### Properties
-/// - ``id``
-/// - ``originalUrl``
-/// - ``shortUrl``
-/// - ``contentType``
-/// - ``track``
-/// - ``album``
-/// - ``artist``
-/// - ``artworkImageData``
-/// - ``date``
 struct MediaInfo: Codable, Identifiable, Equatable {
     /// Unique identifier for this conversion entry
     let id: UUID
@@ -61,39 +39,18 @@ struct MediaInfo: Codable, Identifiable, Equatable {
     var originalUrl: String
     /// The shortened musiccloud.io URL
     var shortUrl: String
-    /// The type of content (track, album, or artist)
+    /// The type and metadata of the content (track, album, or artist)
     var contentType: ContentType
-    /// Track metadata if this is a track URL
-    var track: TrackInfo?
-    /// Album metadata if this is an album URL
-    var album: AlbumInfo?
-    /// Artist metadata if this is an artist URL
-    var artist: ArtistInfo?
     /// Downloaded artwork image data in PNG or JPEG format
     var artworkImageData: Data?
     /// Timestamp when this conversion was created
     var date: Date
 
-    /// Creates a new conversion entry.
-    ///
-    /// - Parameters:
-    ///   - id: Unique identifier (default: auto-generated UUID)
-    ///   - originalUrl: The source streaming URL
-    ///   - shortUrl: The generated musiccloud.io URL
-    ///   - contentType: Type of content (default: `.track`)
-    ///   - track: Track metadata if available
-    ///   - album: Album metadata if available
-    ///   - artist: Artist metadata if available
-    ///   - artworkImageData: Downloaded artwork data
-    ///   - date: Creation timestamp (default: current time)
     init(
         id: UUID = UUID(),
         originalUrl: String,
         shortUrl: String,
-        contentType: ContentType = .track,
-        track: TrackInfo? = nil,
-        album: AlbumInfo? = nil,
-        artist: ArtistInfo? = nil,
+        contentType: ContentType,
         artworkImageData: Data? = nil,
         date: Date = .now
     ) {
@@ -101,9 +58,6 @@ struct MediaInfo: Codable, Identifiable, Equatable {
         self.originalUrl = originalUrl
         self.shortUrl = shortUrl
         self.contentType = contentType
-        self.track = track
-        self.album = album
-        self.artist = artist
         self.artworkImageData = artworkImageData
         self.date = date
     }

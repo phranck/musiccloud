@@ -9,7 +9,7 @@ import SwiftUI
 
 struct PreferencesMenuItem: View {
     var body: some View {
-        MenuItem(iconName: "", title: NSLocalizedString("Preferences...", comment: ""))
+        MenuItem(title: NSLocalizedString("Preferences...", comment: ""))
             .onTapGesture {
 #if os(macOS)
                 // Menü schließen

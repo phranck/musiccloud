@@ -70,7 +70,6 @@ final class HistoryManager {
 // MARK: - Public API
 
 extension HistoryManager {
-    
     /// Adds a new conversion entry to the history.
     ///
     /// The entry is inserted at the beginning of the list (newest first) and
@@ -154,7 +153,6 @@ extension HistoryManager {
 // MARK: - Persistence
 
 private extension HistoryManager {
-    
     /// Saves the current entries to iCloud key-value store.
     ///
     /// Encodes all entries as JSON and stores them in `NSUbiquitousKeyValueStore`.
@@ -196,7 +194,6 @@ private extension HistoryManager {
 // MARK: - iCloud Sync
 
 private extension HistoryManager {
-    
     /// Sets up iCloud synchronization notifications.
     ///
     /// Registers for `didChangeExternallyNotification` to detect when the iCloud
@@ -232,4 +229,3 @@ private extension HistoryManager {
         loadEntries()
     }
 }
-

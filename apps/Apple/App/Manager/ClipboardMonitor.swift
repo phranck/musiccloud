@@ -155,20 +155,11 @@ extension ClipboardMonitor {
             let result = try await MusicCloudAPI.resolve(url: url)
 
             // Determine content type and artwork URL
-            let contentType: ContentType
-            var artworkUrlString: String?
-            
-            if let track = result.track {
-                contentType = .track
-                artworkUrlString = track.artworkUrl
-            } else if let album = result.album {
-                contentType = .album
-                artworkUrlString = album.artworkUrl
-            } else if let artist = result.artist {
-                contentType = .artist
-                artworkUrlString = artist.artworkUrl
-            } else {
-                contentType = result.contentType ?? .track
+            let contentType = result.contentType
+            let artworkUrlString: String? = switch contentType {
+            case .track(let info): info.artworkUrl
+            case .album(let info): info.artworkUrl
+            case .artist(let info): info.artworkUrl
             }
 
             // Download artwork if available
@@ -181,9 +172,6 @@ extension ClipboardMonitor {
                 originalUrl: url,
                 shortUrl: result.shortUrl,
                 contentType: contentType,
-                track: result.track,
-                album: result.album,
-                artist: result.artist,
                 artworkImageData: artworkData
             )
             historyManager.add(entry)
@@ -191,7 +179,7 @@ extension ClipboardMonitor {
             setPasteboardString(result.shortUrl)
             lastSeenContent = result.shortUrl
             status = .success(shortUrl: result.shortUrl)
-            AppLogger.clipboard.debug("resolve succeeded → \(result.shortUrl) (\(contentType.rawValue))")
+            AppLogger.clipboard.debug("resolve succeeded → \(result.shortUrl)")
         } catch {
             let errorMessage = error.localizedDescription
             status = .error(message: errorMessage)
@@ -230,10 +218,12 @@ private extension ClipboardMonitor {
     func checkClipboard() async {
         guard let content = pasteboardString() else { return }
         guard content != lastSeenContent else { return }
+
         lastSeenContent = content
         let isStreaming = StreamingServices.isStreamingURL(content)
         AppLogger.clipboard.debug("clipboard changed — isStreamingURL: \(isStreaming) — \(content)")
         guard isStreaming else { return }
+
         await resolve(url: content)
     }
 

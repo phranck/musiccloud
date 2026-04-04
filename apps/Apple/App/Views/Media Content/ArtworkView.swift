@@ -25,21 +25,22 @@ struct ArtworkView: View {
                     case .success(let image):
                         image.resizable().scaledToFill()
                     case .failure, .empty:
-                        placeholder
+                        PlaceholderImage()
                     @unknown default:
-                        placeholder
+                        PlaceholderImage()
                     }
                 }
             } else {
-                placeholder
+                PlaceholderImage()
             }
         }
         .frame(width: Self.size, height: Self.size)
         .clipShape(.rect(cornerRadius: 5))
     }
+}
 
-    /// Placeholder shown when artwork is unavailable.
-    var placeholder: some View {
+private struct PlaceholderImage: View {
+    var body: some View {
         Rectangle()
             .fill(.quaternary)
             .overlay {

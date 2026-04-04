@@ -35,7 +35,7 @@ struct HistorySection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(history) { entry in
-                MenuBarHistoryRow(entry: entry)
+                HistoryRow(entry: entry)
             }
         }
     }
