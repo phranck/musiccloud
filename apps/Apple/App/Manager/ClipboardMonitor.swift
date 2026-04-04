@@ -179,6 +179,7 @@ extension ClipboardMonitor {
             setPasteboardString(result.shortUrl)
             lastSeenContent = result.shortUrl
             status = .success(shortUrl: result.shortUrl)
+            NotificationManager.notifySuccess(entry: entry)
             AppLogger.clipboard.debug("resolve succeeded → \(result.shortUrl)")
         } catch {
             let errorMessage = error.localizedDescription
@@ -223,6 +224,16 @@ private extension ClipboardMonitor {
         let isStreaming = StreamingServices.isStreamingURL(content)
         AppLogger.clipboard.debug("clipboard changed — isStreamingURL: \(isStreaming) — \(content)")
         guard isStreaming else { return }
+
+        // Check if this URL was already resolved
+        if let existing = historyManager.entries.first(where: { $0.originalUrl == content }) {
+            lastShortUrl = existing.shortUrl
+            setPasteboardString(existing.shortUrl)
+            lastSeenContent = existing.shortUrl
+            status = .success(shortUrl: existing.shortUrl)
+            AppLogger.clipboard.debug("already resolved → \(existing.shortUrl)")
+            return
+        }
 
         await resolve(url: content)
     }

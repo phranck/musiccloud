@@ -37,8 +37,7 @@ struct MenuBarView: View {
 
                 Divider().padding(.vertical, 4)
 
-                AboutMenuItem()
-                PreferencesMenuItem()
+                DashboardMenuItem()
 
                 Divider().padding(.vertical, 4)
 

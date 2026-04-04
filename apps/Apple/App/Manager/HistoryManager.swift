@@ -89,13 +89,13 @@ extension HistoryManager {
     /// historyManager.add(entry)
     /// ```
     func add(_ entry: MediaInfo) {
-        // Insert at the beginning (newest first)
-        entries.insert(entry, at: 0)
-
-        // Limit to maxEntries
-        if entries.count > maxEntries {
-            entries = Array(entries.prefix(maxEntries))
+        // Replace entire array to ensure @Observable triggers change notification
+        var updated = entries
+        updated.insert(entry, at: 0)
+        if updated.count > maxEntries {
+            updated = Array(updated.prefix(maxEntries))
         }
+        entries = updated
 
         save()
         logger.debug("Added entry: \(entry.shortUrl)")

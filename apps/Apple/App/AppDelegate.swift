@@ -16,17 +16,22 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
     private var statusItem: NSStatusItem!
     private var panel: NSPanel!
+    private var dashboardWindow: NSWindow?
     private var iconHostingView: NSHostingView<MenuBarIcon>!
     private var eventMonitor: Any?
+
+    static private(set) var shared: AppDelegate!
 
     let historyManager = HistoryManager()
     private(set) lazy var monitor = ClipboardMonitor(historyManager: historyManager)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppDelegate.shared = self
         _ = monitor // force lazy init
         setupStatusItem()
         setupPanel()
         setupEventMonitor()
+        NotificationManager.requestPermission()
     }
 }
 
@@ -83,11 +88,11 @@ private extension AppDelegate {
         panel.hidesOnDeactivate = true
         panel.isReleasedWhenClosed = false
 
-        let menuBarView = MenuBarView()
-            .environment(historyManager)
-            .environment(monitor)
+        let wrapper = EnvironmentWrapper(historyManager: historyManager, monitor: monitor) {
+            MenuBarView()
+        }
 
-        let hostingView = NSHostingView(rootView: menuBarView)
+        let hostingView = NSHostingView(rootView: wrapper)
         hostingView.translatesAutoresizingMaskIntoConstraints = false
 
         panel.contentView = hostingView
@@ -120,6 +125,38 @@ private extension AppDelegate {
     func closePanel() {
         panel.orderOut(nil)
         NSApp.deactivate()
+    }
+}
+
+// MARK: - Dashboard Window
+
+extension AppDelegate {
+    /// Opens the dashboard window, creating it if needed.
+    func openDashboard() {
+        if let window = dashboardWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let dashboardView = EnvironmentWrapper(historyManager: historyManager, monitor: monitor) {
+            DashboardWindow()
+        }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "musiccloud"
+        window.contentView = NSHostingView(rootView: dashboardView)
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        dashboardWindow = window
     }
 }
 
