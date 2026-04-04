@@ -1,28 +1,40 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+build/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+
+# Astro
 .astro/
+
+# Database
 data/*.db
 data/*.db-wal
 data/*.db-shm
+
+# Environment
 .env
 .env.local
-.vercel/
-.DS_Store
-.vercel
 
 # Xcode
+xcuserdata/
 *.xcuserstate
 *.xcscmblueprint
 *.xccheckout
-xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 DerivedData/
-build/
 *.moved-aside
 *.hmap
 *.ipa
-*.dSYM.zip
 *.dSYM
-*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+*.dSYM.zip
+
+# Hosting
+.vercel/
+
+# OS
+.DS_Store
