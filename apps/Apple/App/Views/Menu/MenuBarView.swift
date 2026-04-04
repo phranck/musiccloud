@@ -29,7 +29,7 @@ struct MenuBarView: View {
             if let error = monitor.status.errorMessage {
                 ErrorRow(message: error)
             } else if !history.isEmpty {
-                HistorySection(history: Array(history.prefix(10)))
+                MediaSection(history: Array(history.prefix(10)))
             } else {
                 IdleRow()
             }

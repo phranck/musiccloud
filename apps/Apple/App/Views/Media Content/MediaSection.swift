@@ -1,5 +1,5 @@
 //
-//  HistorySection.swift
+//  MediaSection.swift
 //  musiccloud
 //
 //  Created by Frank Gregor on 03.04.26.
@@ -9,14 +9,14 @@ import SwiftUI
 
 /// A vertical list of conversion history rows for the menu bar.
 ///
-/// `HistorySection` displays a compact list of ``MenuBarHistoryRow`` items,
+/// `MediaSection` displays a compact list of ``MediaRow`` items,
 /// showing recent URL conversions in the menu bar dropdown interface.
 ///
 /// ## Usage
 ///
 /// ```swift
 /// // Display the 10 most recent conversions
-/// HistorySection(history: Array(historyManager.entries.prefix(10)))
+/// MediaSection(history: Array(historyManager.entries.prefix(10)))
 /// ```
 ///
 /// ## Layout
@@ -29,13 +29,13 @@ import SwiftUI
 ///
 /// ### Properties
 /// - ``history``
-struct HistorySection: View {
+struct MediaSection: View {
     var history: [MediaInfo]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(history) { entry in
-                HistoryRow(entry: entry)
+                MediaRow(entry: entry)
             }
         }
     }

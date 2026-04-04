@@ -1,5 +1,5 @@
 //
-//  TrackContentView.swift
+//  TrackItem.swift
 //  musiccloud
 //
 //  Created by Frank Gregor on 04.04.26.
@@ -10,7 +10,7 @@ import SwiftUI
 /// Displays track information in a horizontal layout.
 ///
 /// Shows artwork, title, artists, duration, and optional share button.
-struct TrackContentView: View {
+struct TrackItem: View {
     /// The track metadata to display
     var track: TrackInfo
     /// The short URL to share
@@ -18,7 +18,7 @@ struct TrackContentView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ArtworkView(url: track.artworkUrl)
+            MediaArtwork(url: track.artworkUrl)
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title)
                     .font(.system(size: 14))

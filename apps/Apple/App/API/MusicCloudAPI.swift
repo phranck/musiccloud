@@ -22,7 +22,7 @@ import OSLog
 /// print(response.shortUrl) // "https://musiccloud.io/abc123"
 ///
 /// // Download artwork
-/// if let artworkUrl = response.track?.artworkUrl {
+/// if case .track(let info) = response.contentType, let artworkUrl = info.artworkUrl {
 ///     let imageData = await MusicCloudAPI.downloadArtwork(from: artworkUrl)
 /// }
 /// ```
@@ -74,8 +74,8 @@ extension MusicCloudAPI {
     /// do {
     ///     let response = try await MusicCloudAPI.resolve(url: "https://open.spotify.com/track/...")
     ///     print("Short URL: \(response.shortUrl)")
-    ///     if let track = response.track {
-    ///         print("Track: \(track.title) by \(track.artistsString)")
+    ///     if case .track(let info) = response.contentType {
+    ///         print("Track: \(info.title) by \(info.artistsString)")
     ///     }
     /// } catch ResolveError.rateLimited {
     ///     print("Too many requests - please wait")

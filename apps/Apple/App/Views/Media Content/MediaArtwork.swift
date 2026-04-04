@@ -1,5 +1,5 @@
 //
-//  ArtworkView.swift
+//  MediaArtwork.swift
 //  musiccloud
 //
 //  Created by Frank Gregor on 04.04.26.
@@ -11,7 +11,7 @@ import SwiftUI
 ///
 /// Shows a 40×40pt square image loaded asynchronously from a URL,
 /// with a music note placeholder when unavailable.
-struct ArtworkView: View {
+struct MediaArtwork: View {
     private static let size: CGFloat = 40
 
     /// The artwork URL to load

@@ -9,15 +9,14 @@ import SwiftUI
 
 /// A menu item that quits the application when tapped.
 ///
-/// `QuitMenuItem` displays a power icon with "Quit musiccloud" text.
+/// `QuitMenuItem` displays "Quit musiccloud" text using ``MenuItem``.
 /// On macOS, tapping terminates the application. On other platforms, the tap
 /// gesture has no effect.
 ///
 /// ## Appearance
 ///
-/// - Icon: Power symbol (SF Symbol)
 /// - Text: "Quit musiccloud"
-/// - Style: Configured as the last item in the menu (extra bottom spacing)
+/// - Style: Configured as the last item in the menu (rounded bottom corners)
 ///
 /// ## Usage
 ///

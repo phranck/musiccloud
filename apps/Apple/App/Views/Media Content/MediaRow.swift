@@ -1,5 +1,5 @@
 //
-//  MenuBarHistoryRow.swift
+//  MediaRow.swift
 //  musiccloud
 //
 //  Created by Frank Gregor on 03.04.26.
@@ -9,26 +9,19 @@ import SwiftUI
 
 /// A menu bar row displaying a conversion entry with content-specific layouts.
 ///
-/// `MenuBarHistoryRow` adapts its appearance based on the content type (track, album, or artist),
-/// showing appropriate metadata, artwork, and actions. Includes hover effects and tap-to-open functionality.
-///
-/// ## Content Types
-///
-/// - **Track**: Shows artwork, title, artists, and duration
-/// - **Album**: Shows artwork, name, artists, and track count
-/// - **Artist**: Shows artwork, name, genres, and follower count
+/// `MediaRow` adapts its appearance based on the content type (track, album, or artist),
+/// delegating to ``MediaItem`` for content display. Includes hover effects and tap-to-open functionality.
 ///
 /// ## Interactions
 ///
 /// - **Hover**: Highlights with accent color background
 /// - **Tap**: Copies short URL to clipboard and opens in browser (macOS only)
-/// - **Share Button**: System share sheet for the short URL
 ///
 /// ## Usage
 ///
 /// ```swift
 /// ForEach(history) { entry in
-///     MenuBarHistoryRow(entry: entry)
+///     MediaRow(entry: entry)
 /// }
 /// ```
 ///
@@ -36,13 +29,13 @@ import SwiftUI
 ///
 /// ### Properties
 /// - ``entry``
-struct HistoryRow: View {
+struct MediaRow: View {
     @State private var isHovered = false
 
     var entry: MediaInfo
 
     var body: some View {
-        MediaContentView(entry: entry)
+        MediaItem(entry: entry)
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(isHovered ? Color.accentColor : Color.clear)
@@ -61,7 +54,7 @@ struct HistoryRow: View {
 
 // MARK: - Actions
 
-private extension HistoryRow {
+private extension MediaRow {
     /// Copies the short URL to clipboard and opens it in the browser (macOS only).
     func copyToClipboardAndOpen() {
 #if os(macOS)

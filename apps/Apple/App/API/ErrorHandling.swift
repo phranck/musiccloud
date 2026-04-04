@@ -1,5 +1,5 @@
 //
-//  ArtistInfo.swift
+//  ErrorHandling.swift
 //  musiccloud
 //
 //  Created by Frank Gregor on 04.04.26.

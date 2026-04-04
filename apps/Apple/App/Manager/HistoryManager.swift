@@ -81,10 +81,10 @@ extension HistoryManager {
     /// ## Example
     ///
     /// ```swift
-    /// let entry = ConversionEntry(
+    /// let entry = MediaInfo(
     ///     originalUrl: "https://open.spotify.com/track/...",
     ///     shortUrl: "https://musiccloud.io/abc123",
-    ///     track: trackInfo
+    ///     contentType: .track(info: trackInfo)
     /// )
     /// historyManager.add(entry)
     /// ```

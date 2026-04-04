@@ -1,5 +1,5 @@
 //
-//  ContentItemView.swift
+//  MediaItem.swift
 //  musiccloud
 //
 //  Created by Frank Gregor on 04.04.26.
@@ -11,7 +11,7 @@ import SwiftUI
 ///
 /// Adapts its presentation based on the ``ContentType`` of the entry,
 /// showing specialized layouts for tracks, albums, and artists.
-struct MediaContentView: View {
+struct MediaItem: View {
     /// The conversion entry to display
     var entry: MediaInfo
 
@@ -19,11 +19,11 @@ struct MediaContentView: View {
         Group {
             switch entry.contentType {
             case .track(let info):
-                TrackContentView(track: info, shortUrl: entry.shortUrl)
+                TrackItem(track: info, shortUrl: entry.shortUrl)
             case .album(let info):
-                AlbumContentView(album: info, shortUrl: entry.shortUrl)
+                AlbumItem(album: info, shortUrl: entry.shortUrl)
             case .artist(let info):
-                ArtistContentView(artist: info, shortUrl: entry.shortUrl)
+                ArtistItem(artist: info, shortUrl: entry.shortUrl)
             }
         }
     }
