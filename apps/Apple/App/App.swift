@@ -62,7 +62,7 @@ struct MusicCloudApp: App {
                 .environment(historyManager)
                 .environment(monitor)
         } label: {
-            Label("musiccloud", systemImage: "music.note.list")
+            MenuBarIcon(isProcessing: monitor.status.isProcessing)
         }
         .menuBarExtraStyle(.window)
 #else

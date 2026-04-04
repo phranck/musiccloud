@@ -15,6 +15,8 @@
 		8B76C213DB85A0116DCD1056 /* MusicCloudAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */; };
 		B67BEA72FC7A47A3C1F1DFCF /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = E68F162AF511C823C8D23690 /* App.swift */; };
 		C6125D3CCAE238F728B26B93 /* ErrorHandling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AD672A2C51AB9EE81F5CC40 /* ErrorHandling.swift */; };
+		FD0C89982F81B1DB00AE61FB /* MenuBarIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C89972F81B1DB00AE61FB /* MenuBarIcon.swift */; };
+		FD0C899A2F81B1FD00AE61FB /* RainbowPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */; };
 		FD1437752F81964000A5B46D /* ShareButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD1437742F81964000A5B46D /* ShareButton.swift */; };
 		FD2197D02F80995B00F4AD7D /* AboutMenuItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2197CF2F80995B00F4AD7D /* AboutMenuItem.swift */; };
 		FD2197D22F80996F00F4AD7D /* PreferencesMenuItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2197D12F80996F00F4AD7D /* PreferencesMenuItem.swift */; };
@@ -54,6 +56,8 @@
 		DF9C16C63FE6CBA4D6FFEBA8 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		E68F162AF511C823C8D23690 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicCloudAPI.swift; sourceTree = "<group>"; };
+		FD0C89972F81B1DB00AE61FB /* MenuBarIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIcon.swift; sourceTree = "<group>"; };
+		FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RainbowPalette.swift; sourceTree = "<group>"; };
 		FD1437742F81964000A5B46D /* ShareButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareButton.swift; sourceTree = "<group>"; };
 		FD2197CF2F80995B00F4AD7D /* AboutMenuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutMenuItem.swift; sourceTree = "<group>"; };
 		FD2197D12F80996F00F4AD7D /* PreferencesMenuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesMenuItem.swift; sourceTree = "<group>"; };
@@ -117,9 +121,9 @@
 				FD97C3812F80947100E8D788 /* AlbumItem.swift */,
 				FD97C3832F80948700E8D788 /* ArtistItem.swift */,
 				FD97C3852F80949C00E8D788 /* MediaArtwork.swift */,
-				FDDC7E282F805EDC005D779F /* MediaSection.swift */,
 				FD97C37D2F80943A00E8D788 /* MediaItem.swift */,
 				FDDC7E2A2F805F03005D779F /* MediaRow.swift */,
+				FDDC7E282F805EDC005D779F /* MediaSection.swift */,
 				FD1437742F81964000A5B46D /* ShareButton.swift */,
 				FD97C37F2F80945D00E8D788 /* TrackItem.swift */,
 			);
@@ -129,10 +133,11 @@
 		FD4CFB8F2F80788F006135A6 /* Menu */ = {
 			isa = PBXGroup;
 			children = (
+				FD2197CF2F80995B00F4AD7D /* AboutMenuItem.swift */,
+				FDDC7E222F805E82005D779F /* HeaderRow.swift */,
+				FD0C89972F81B1DB00AE61FB /* MenuBarIcon.swift */,
 				3D07C91D3461C5C97C2F4AC0 /* MenuBarView.swift */,
 				FD63D39A2F806884004B8E54 /* MenuItem.swift */,
-				FDDC7E222F805E82005D779F /* HeaderRow.swift */,
-				FD2197CF2F80995B00F4AD7D /* AboutMenuItem.swift */,
 				FD2197D12F80996F00F4AD7D /* PreferencesMenuItem.swift */,
 				FDDC7E2C2F805F1A005D779F /* QuitMenuItem.swift */,
 			);
@@ -168,6 +173,7 @@
 				FDDC7E262F805ECE005D779F /* IdleRow.swift */,
 				FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */,
 				FDDC7E302F806452005D779F /* LogoText.swift */,
+				FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -287,11 +293,13 @@
 				FD97C3842F80948700E8D788 /* ArtistItem.swift in Sources */,
 				170DCCFF835C9EB8AE1CD81F /* MenuBarView.swift in Sources */,
 				FD1437752F81964000A5B46D /* ShareButton.swift in Sources */,
+				FD0C89982F81B1DB00AE61FB /* MenuBarIcon.swift in Sources */,
 				C6125D3CCAE238F728B26B93 /* ErrorHandling.swift in Sources */,
 				FDDC7E272F805ECE005D779F /* IdleRow.swift in Sources */,
 				FDDC7E2D2F805F1A005D779F /* QuitMenuItem.swift in Sources */,
 				FD97C37E2F80943A00E8D788 /* MediaItem.swift in Sources */,
 				FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */,
+				FD0C899A2F81B1FD00AE61FB /* RainbowPalette.swift in Sources */,
 				FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */,
 				8B76C213DB85A0116DCD1056 /* MusicCloudAPI.swift in Sources */,
 				FDDC7E2B2F805F03005D779F /* MediaRow.swift in Sources */,
