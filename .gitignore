@@ -12,4 +12,17 @@ data/*.db-shm
 .vercel/
 .DS_Store
 .vercel
+
+# Xcode
 *.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+xcuserdata/
+DerivedData/
+build/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
