@@ -7,6 +7,7 @@ import {
   SpinnerGap as SpinnerGapIcon,
   Trash as TrashIcon,
 } from "@phosphor-icons/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { useI18n } from "@/context/I18nContext";
@@ -138,6 +139,7 @@ const PAGE_SIZE = 50;
 export function AdminDataTable<T extends { id: string }>({ config }: { config: AdminTableConfig<T> }) {
   const { messages } = useI18n();
   const m = messages.music.table;
+  const queryClient = useQueryClient();
 
   const [reducer] = useState(() => makeReducer<T>());
   const [state, dispatch] = useReducer(reducer, { tag: "idle" } as TableState<T>);
@@ -340,6 +342,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
         dispatch({ type: "REMOVE_MANY", ids: toDelete });
         setDeletingIds(new Set());
       }, 300);
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Delete failed");
     } finally {
