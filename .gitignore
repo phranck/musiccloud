@@ -12,3 +12,4 @@ data/*.db-shm
 .vercel/
 .DS_Store
 .vercel
+*.xcuserstate
