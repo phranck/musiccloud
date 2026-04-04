@@ -24,6 +24,10 @@
 	<false/>
 	<key>LSUIElement</key>
 	<true/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Nasalization Rg</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

@@ -1,0 +1,281 @@
+import SwiftUI
+import OSLog
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
+
+// MARK: - ClipboardMonitor
+
+/// Monitors the system clipboard for streaming service URLs and automatically converts them.
+///
+/// `ClipboardMonitor` continuously watches the clipboard for URLs from supported streaming services
+/// (Spotify, Apple Music, YouTube Music, etc.). When detected, it automatically converts the URL
+/// to a universal musiccloud.io short link and updates the clipboard.
+///
+/// ## Features
+///
+/// - Automatic URL detection using ``StreamingServices``
+/// - Asynchronous URL resolution via ``MusicCloudAPI``
+/// - Automatic artwork downloading
+/// - History tracking via ``HistoryManager``
+/// - Status reporting with ``Status`` enum
+///
+/// ## Usage
+///
+/// ```swift
+/// let monitor = ClipboardMonitor(historyManager: historyManager)
+/// // Monitoring starts automatically
+/// ```
+///
+/// The monitor uses the `@Observable` macro to publish status changes to SwiftUI views.
+///
+/// ## Topics
+///
+/// ### Initialization
+/// - ``init(historyManager:)``
+///
+/// ### Current State
+/// - ``status``
+/// - ``lastShortUrl``
+///
+/// ### Status Types
+/// - ``Status``
+///
+/// ### Methods
+/// - ``resolve(url:)``
+@Observable
+final class ClipboardMonitor {
+    private let historyManager: HistoryManager
+    private var lastSeenContent: String?
+    private var timer: Timer?
+
+    private(set) var status: Status = .idle
+    private(set) var lastShortUrl: String?
+
+    /// Creates a new clipboard monitor.
+    ///
+    /// Automatically starts monitoring the clipboard and restores the last short URL
+    /// from the history.
+    ///
+    /// - Parameter historyManager: The history manager to use for storing conversions
+    init(historyManager: HistoryManager) {
+        self.historyManager = historyManager
+        restoreLastShortUrl()
+        startMonitoring()
+    }
+
+    deinit {
+        timer?.invalidate()
+    }
+}
+
+// MARK: - Status
+
+extension ClipboardMonitor {
+    
+    /// Represents the current state of the clipboard monitor.
+    ///
+    /// The status enum provides a type-safe way to represent the monitor's current
+    /// state, with associated values containing relevant information for each state.
+    ///
+    /// ## Topics
+    ///
+    /// ### Status Cases
+    /// - ``idle``
+    /// - ``processing(url:)``
+    /// - ``success(shortUrl:)``
+    /// - ``error(message:)``
+    ///
+    /// ### Computed Properties
+    /// - ``isProcessing``
+    /// - ``errorMessage``
+    enum Status: Equatable {
+        
+        /// Monitor is idle, waiting for clipboard changes
+        case idle
+        
+        /// Currently processing a URL
+        /// - Parameter url: The URL being processed
+        case processing(url: String)
+        
+        /// Successfully converted a URL
+        /// - Parameter shortUrl: The resulting musiccloud.io short URL
+        case success(shortUrl: String)
+        
+        /// An error occurred during conversion
+        /// - Parameter message: Human-readable error description
+        case error(message: String)
+        
+        /// Returns `true` if currently processing a URL
+        var isProcessing: Bool {
+            if case .processing = self { return true }
+            return false
+        }
+        
+        /// Returns the error message if status is `.error`, otherwise `nil`
+        var errorMessage: String? {
+            if case .error(let message) = self { return message }
+            return nil
+        }
+    }
+}
+
+// MARK: - Public API
+
+extension ClipboardMonitor {
+    
+    /// Resolves a streaming service URL to a musiccloud.io short link.
+    ///
+    /// This method performs the following steps:
+    /// 1. Updates status to `.processing`
+    /// 2. Calls the musiccloud.io API to resolve the URL
+    /// 3. Downloads artwork if available
+    /// 4. Creates and stores a ``ConversionEntry`` in the history
+    /// 5. Updates the clipboard with the short URL
+    /// 6. Updates status to `.success` or `.error`
+    ///
+    /// - Parameter url: The streaming service URL to resolve
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// await monitor.resolve(url: "https://open.spotify.com/track/...")
+    /// // Status changes: idle → processing → success/error
+    /// // Clipboard now contains: "https://musiccloud.io/abc123"
+    /// ```
+    ///
+    /// - Note: This method must be called from the main actor
+    @MainActor
+    func resolve(url: String) async {
+        status = .processing(url: url)
+
+        do {
+            let result = try await MusicCloudAPI.resolve(url: url)
+
+            // Determine content type and artwork URL
+            let contentType: ContentType
+            var artworkUrlString: String?
+            
+            if let track = result.track {
+                contentType = .track
+                artworkUrlString = track.artworkUrl
+            } else if let album = result.album {
+                contentType = .album
+                artworkUrlString = album.artworkUrl
+            } else if let artist = result.artist {
+                contentType = .artist
+                artworkUrlString = artist.artworkUrl
+            } else {
+                contentType = result.contentType ?? .track
+            }
+
+            // Download artwork if available
+            var artworkData: Data?
+            if let artworkUrl = artworkUrlString {
+                artworkData = await MusicCloudAPI.downloadArtwork(from: artworkUrl)
+            }
+
+            let entry = ConversionEntry(
+                originalUrl: url,
+                shortUrl: result.shortUrl,
+                contentType: contentType,
+                track: result.track,
+                album: result.album,
+                artist: result.artist,
+                artworkImageData: artworkData
+            )
+            historyManager.add(entry)
+            lastShortUrl = result.shortUrl
+            setPasteboardString(result.shortUrl)
+            lastSeenContent = result.shortUrl
+            status = .success(shortUrl: result.shortUrl)
+            AppLogger.clipboard.debug("resolve succeeded → \(result.shortUrl) (\(contentType.rawValue))")
+        } catch {
+            let errorMessage = error.localizedDescription
+            status = .error(message: errorMessage)
+            AppLogger.clipboard.error("resolve failed: \(errorMessage)")
+        }
+    }
+}
+
+// MARK: - Monitoring
+
+private extension ClipboardMonitor {
+    
+    /// Starts the clipboard monitoring timer.
+    ///
+    /// Creates a timer that fires every 1 second to check the clipboard for changes.
+    /// The timer is added to the main run loop in common mode to ensure it continues
+    /// running during UI interactions.
+    func startMonitoring() {
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in await self.checkClipboard() }
+        }
+        RunLoop.main.add(timer!, forMode: .common)
+    }
+
+    /// Checks the clipboard for new streaming service URLs.
+    ///
+    /// This method is called every second by the monitoring timer. It:
+    /// 1. Reads the current clipboard content
+    /// 2. Compares it to the last seen content to avoid duplicates
+    /// 3. Checks if it's a streaming service URL using ``StreamingServices``
+    /// 4. Automatically triggers ``resolve(url:)`` if a new streaming URL is detected
+    ///
+    /// - Note: This method must be called from the main actor
+    @MainActor
+    func checkClipboard() async {
+        guard let content = pasteboardString() else { return }
+        guard content != lastSeenContent else { return }
+        lastSeenContent = content
+        let isStreaming = StreamingServices.isStreamingURL(content)
+        AppLogger.clipboard.debug("clipboard changed — isStreamingURL: \(isStreaming) — \(content)")
+        guard isStreaming else { return }
+        await resolve(url: content)
+    }
+
+    /// Restores the last short URL from the conversion history.
+    ///
+    /// Called during initialization to restore the most recent conversion
+    /// from the history manager, if available.
+    func restoreLastShortUrl() {
+        lastShortUrl = historyManager.mostRecent?.shortUrl
+    }
+}
+
+// MARK: - Pasteboard
+
+private extension ClipboardMonitor {
+    
+    /// Reads the current string content from the system clipboard.
+    ///
+    /// - Returns: The clipboard string content, or `nil` if empty or unavailable
+    ///
+    /// - Note: Uses `NSPasteboard` on macOS and `UIPasteboard` on iOS
+    func pasteboardString() -> String? {
+#if os(macOS)
+        NSPasteboard.general.string(forType: .string)
+#else
+        UIPasteboard.general.string
+#endif
+    }
+
+    /// Writes a string to the system clipboard, replacing any existing content.
+    ///
+    /// On macOS, this clears the clipboard before setting the new string.
+    /// On iOS, it directly sets the string value.
+    ///
+    /// - Parameter string: The string to write to the clipboard
+    func setPasteboardString(_ string: String) {
+#if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
+#else
+        UIPasteboard.general.string = string
+#endif
+    }
+}
+
