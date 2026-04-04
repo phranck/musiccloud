@@ -7,16 +7,25 @@
 
 import SwiftUI
 
-/// A menu bar icon that animates while processing.
+/// A menu bar icon that cycles through rainbow colors while processing.
 ///
 /// Displays the `music.note.list` SF Symbol. When `isProcessing` is true,
-/// the icon uses a variable color symbol effect to indicate activity.
+/// the icon color cycles through ``RainbowPalette`` at 30 FPS.
+/// When idle, it renders as a standard template icon.
 struct MenuBarIcon: View {
     /// Whether a URL is currently being resolved
     var isProcessing: Bool
 
     var body: some View {
-        Image(systemName: "music.note.list")
-            .symbolEffect(.pulse, isActive: isProcessing)
+        if isProcessing {
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                Image(systemName: "music.note.list")
+                    .font(.system(size: 16))
+                    .foregroundStyle(RainbowPalette.cyclingColor(for: timeline.date))
+            }
+        } else {
+            Image(systemName: "music.note.list")
+                .font(.system(size: 16))
+        }
     }
 }

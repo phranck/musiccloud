@@ -47,7 +47,7 @@ struct HeaderRow: View {
         HStack {
             Color.clear.frame(width: 8, height: 8)
             Spacer()
-            LogoText("musiccloud", isAnimating: isProcessing)
+            LogoText(isAnimating: isProcessing)
             Spacer()
             Circle()
                 .fill(isProcessing ? .yellow : .green)

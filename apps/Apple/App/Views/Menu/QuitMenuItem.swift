@@ -31,7 +31,7 @@ import SwiftUI
 /// but the tap action will not terminate the app.
 struct QuitMenuItem: View {
     var body: some View {
-        MenuItem(title: "Quit musiccloud", isLastItem: true)
+        MenuItem(title: "Quit musiccloud")
         .onTapGesture {
 #if os(macOS)
             NSApplication.shared.terminate(nil)

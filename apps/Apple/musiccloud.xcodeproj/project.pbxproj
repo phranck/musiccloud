@@ -17,6 +17,7 @@
 		C6125D3CCAE238F728B26B93 /* ErrorHandling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AD672A2C51AB9EE81F5CC40 /* ErrorHandling.swift */; };
 		FD0C89982F81B1DB00AE61FB /* MenuBarIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C89972F81B1DB00AE61FB /* MenuBarIcon.swift */; };
 		FD0C899A2F81B1FD00AE61FB /* RainbowPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */; };
+		FD0C899C2F81B50F00AE61FB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C899B2F81B50F00AE61FB /* AppDelegate.swift */; };
 		FD1437752F81964000A5B46D /* ShareButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD1437742F81964000A5B46D /* ShareButton.swift */; };
 		FD2197D02F80995B00F4AD7D /* AboutMenuItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2197CF2F80995B00F4AD7D /* AboutMenuItem.swift */; };
 		FD2197D22F80996F00F4AD7D /* PreferencesMenuItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2197D12F80996F00F4AD7D /* PreferencesMenuItem.swift */; };
@@ -58,6 +59,7 @@
 		F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicCloudAPI.swift; sourceTree = "<group>"; };
 		FD0C89972F81B1DB00AE61FB /* MenuBarIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIcon.swift; sourceTree = "<group>"; };
 		FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RainbowPalette.swift; sourceTree = "<group>"; };
+		FD0C899B2F81B50F00AE61FB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		FD1437742F81964000A5B46D /* ShareButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareButton.swift; sourceTree = "<group>"; };
 		FD2197CF2F80995B00F4AD7D /* AboutMenuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutMenuItem.swift; sourceTree = "<group>"; };
 		FD2197D12F80996F00F4AD7D /* PreferencesMenuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesMenuItem.swift; sourceTree = "<group>"; };
@@ -98,6 +100,7 @@
 			isa = PBXGroup;
 			children = (
 				E68F162AF511C823C8D23690 /* App.swift */,
+				FD0C899B2F81B50F00AE61FB /* AppDelegate.swift */,
 				FDDC7E212F805C8B005D779F /* API */,
 				FD97C3892F8094D600E8D788 /* Extensions */,
 				FDDC7E202F805C68005D779F /* Manager */,
@@ -283,6 +286,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FD0C899C2F81B50F00AE61FB /* AppDelegate.swift in Sources */,
 				FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */,
 				FDD5162B2F817F960043E187 /* ResolveResponse.swift in Sources */,
 				FD63D39B2F806884004B8E54 /* MenuItem.swift in Sources */,

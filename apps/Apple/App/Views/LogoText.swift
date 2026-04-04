@@ -7,30 +7,17 @@
 
 import SwiftUI
 
-/// A view that displays text with an animated rainbow gradient effect.
+/// A view that displays the musiccloud logo with an animated rainbow gradient effect.
 ///
-/// `LogoText` renders text using a custom font with a rainbow color gradient.
-/// When animated, it creates a C64-style palette shifting effect where colors
-/// flow smoothly from left to right through the text.
-///
-/// ## Usage
-///
-/// ```swift
-/// // Static rainbow text
-/// LogoText("musiccloud", size: 24)
-///
-/// // Animated rainbow text
-/// LogoText("musiccloud", size: 24, isAnimating: true)
-/// ```
+/// Renders "musi" + music.note.list icon + "oud" using a custom font with a
+/// rainbow color gradient. When animated, it creates a C64-style palette shifting
+/// effect where colors flow smoothly from left to right.
 ///
 /// ## Animation
 ///
 /// The animation uses a 30 FPS timeline view with palette shifting technique
 /// inspired by classic C64 demos. Colors are provided by ``RainbowPalette``.
 struct LogoText: View {
-
-    /// The text to display
-    let text: String
 
     /// The font size to use
     let fontSize: CGFloat
@@ -41,11 +28,9 @@ struct LogoText: View {
     /// Creates a new logo text view.
     ///
     /// - Parameters:
-    ///   - text: The text to display
     ///   - fontSize: The font size to use (default: 20)
     ///   - isAnimating: Whether to animate the gradient (default: false)
-    init(_ text: String, size fontSize: CGFloat = 20, isAnimating: Bool = false) {
-        self.text = text
+    init(size fontSize: CGFloat = 20, isAnimating: Bool = false) {
         self.fontSize = fontSize
         self.isAnimating = isAnimating
     }
@@ -53,12 +38,12 @@ struct LogoText: View {
     var body: some View {
         if isAnimating {
             TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-                styledText(
+                styledLogo(
                     colors: RainbowPalette.shiftedColors(for: timeline.date)
                 )
             }
         } else {
-            styledText(colors: RainbowPalette.colors)
+            styledLogo(colors: RainbowPalette.colors)
         }
     }
 }
@@ -66,16 +51,33 @@ struct LogoText: View {
 // MARK: - Private Helpers
 
 private extension LogoText {
-    func styledText(colors: [Color]) -> some View {
-        Text(text)
-            .font(.custom("Nasalization", size: fontSize).weight(.bold))
-            .foregroundStyle(
+    var font: Font {
+        .custom("Nasalization", size: fontSize).weight(.bold)
+    }
+
+    var logoContent: some View {
+        HStack(spacing: 0) {
+            Text("musicc")
+                .font(font)
+            Image(systemName: "music.note")
+                .font(.system(size: fontSize * 0.85, weight: .bold))
+                .baselineOffset(-fontSize * 0.05)
+            Text("oud")
+                .font(font)
+        }
+    }
+
+    func styledLogo(colors: [Color]) -> some View {
+        logoContent
+            .hidden()
+            .overlay {
                 LinearGradient(
                     colors: colors,
                     startPoint: .leading,
                     endPoint: .trailing
                 )
-            )
+                .mask { logoContent }
+            }
     }
 }
 
@@ -83,8 +85,8 @@ private extension LogoText {
 
 #Preview {
     VStack(spacing: 20) {
-        LogoText("musiccloud", size: 20)
-        LogoText("musiccloud", size: 20, isAnimating: true)
+        LogoText(size: 20)
+        LogoText(size: 20, isAnimating: true)
             .padding()
             .background(.black)
     }
