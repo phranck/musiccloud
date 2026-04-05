@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// The main entry point for the musiccloud application.
@@ -20,18 +21,27 @@ struct MusicCloudApp: App {
         }
     }
 #else
+    private let modelContainer: ModelContainer
     @State private var historyManager: HistoryManager
     @State private var monitor: ClipboardMonitor
 
     init() {
-        let history = HistoryManager()
-        _historyManager = State(initialValue: history)
-        _monitor = State(initialValue: ClipboardMonitor(historyManager: history))
+        do {
+            let config = ModelConfiguration(cloudKitDatabase: .automatic)
+            let container = try ModelContainer(for: MediaEntry.self, configurations: config)
+            modelContainer = container
+            let history = HistoryManager(modelContext: container.mainContext)
+            _historyManager = State(initialValue: history)
+            _monitor = State(initialValue: ClipboardMonitor(historyManager: history))
+        } catch {
+            fatalError("Failed to create ModelContainer: \(error)")
+        }
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .modelContainer(modelContainer)
                 .environment(historyManager)
                 .environment(monitor)
         }

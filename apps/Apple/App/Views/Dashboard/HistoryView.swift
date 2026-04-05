@@ -5,28 +5,28 @@
 //  Created by Frank Gregor on 05.04.26.
 //
 
+import SwiftData
 import SwiftUI
 
 /// Displays resolved media entries filtered by content type.
 ///
 /// Supports list and grid display modes with search filtering.
 struct HistoryView: View {
-    @Environment(HistoryManager.self) private var historyManager
+    @Environment(\.modelContext) private var modelContext
 
     let filter: SidebarItem
 
+    private static let pageSize = 50
+
+    @State private var allEntries: [MediaEntry] = []
     @State private var displayMode: DisplayMode = .list
     @State private var searchText = ""
+    @State private var loadedCount = HistoryView.pageSize
+    @State private var hasMore = true
 
-    private var filteredEntries: [MediaInfo] {
-        let byType = historyManager.entries.filter { entry in
-            switch (filter, entry.contentType) {
-            case (.tracks, .track):   true
-            case (.albums, .album):   true
-            case (.artists, .artist): true
-            default: false
-            }
-        }
+    private var filteredEntries: [MediaEntry] {
+        let mediaType = filter.mediaType
+        let byType = allEntries.filter { $0.mediaType == mediaType }
 
         guard !searchText.isEmpty else { return byType }
 
@@ -69,6 +69,10 @@ struct HistoryView: View {
                 .help(String(localized: "Display Mode"))
             }
         }
+        .onAppear { fetchEntries() }
+        .onReceive(NotificationCenter.default.publisher(for: .historyDidChange)) { _ in
+            fetchEntries()
+        }
     }
 }
 
@@ -94,6 +98,7 @@ private extension HistoryView {
     var listView: some View {
         List(filteredEntries) { entry in
             HistoryListRow(entry: entry)
+                .onAppear { loadMoreIfNeeded(entry) }
         }
         .listStyle(.inset(alternatesRowBackgrounds: true))
     }
@@ -110,6 +115,7 @@ private extension HistoryView {
             ) {
                 ForEach(filteredEntries) { entry in
                     HistoryGridCard(entry: entry)
+                        .onAppear { loadMoreIfNeeded(entry) }
                 }
             }
             .padding(20)
@@ -129,10 +135,35 @@ private extension HistoryView {
     }
 }
 
+// MARK: - Fetch
+
+private extension HistoryView {
+    func fetchEntries() {
+        loadedCount = HistoryView.pageSize
+        loadEntries()
+    }
+
+    func loadEntries() {
+        var descriptor = FetchDescriptor<MediaEntry>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        descriptor.fetchLimit = loadedCount
+        let results = (try? modelContext.fetch(descriptor)) ?? []
+        hasMore = results.count >= loadedCount
+        allEntries = results
+    }
+
+    func loadMoreIfNeeded(_ entry: MediaEntry) {
+        guard hasMore, entry.id == filteredEntries.last?.id else { return }
+        loadedCount += HistoryView.pageSize
+        loadEntries()
+    }
+}
+
 // MARK: - List Row
 
 private struct HistoryListRow: View {
-    let entry: MediaInfo
+    let entry: MediaEntry
 
     var body: some View {
         HStack(spacing: 12) {
@@ -209,7 +240,7 @@ private struct HistoryListRow: View {
 // MARK: - Grid Card
 
 private struct HistoryGridCard: View {
-    let entry: MediaInfo
+    let entry: MediaEntry
 
     @State private var isHovered = false
 

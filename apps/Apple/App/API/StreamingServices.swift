@@ -46,7 +46,7 @@ import Foundation
 /// ### URL Validation
 /// - ``isStreamingURL(_:)``
 enum StreamingServices {
-    
+
     /// Exact domain matches for streaming services.
     ///
     /// Contains fully-qualified domain names that must match exactly.
@@ -86,7 +86,7 @@ enum StreamingServices {
 // MARK: - URL Matching
 
 extension StreamingServices {
-    
+
     /// Determines if a URL string belongs to a supported streaming service.
     ///
     /// Validates the URL by checking its domain against known streaming services.
@@ -136,4 +136,3 @@ extension StreamingServices {
         return suffixDomains.contains { host.hasSuffix($0) || host == String($0.dropFirst()) }
     }
 }
-

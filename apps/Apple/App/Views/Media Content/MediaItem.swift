@@ -13,7 +13,7 @@ import SwiftUI
 /// showing specialized layouts for tracks, albums, and artists.
 struct MediaItem: View {
     /// The conversion entry to display
-    var entry: MediaInfo
+    var entry: MediaEntry
 
     var body: some View {
         Group {

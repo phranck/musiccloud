@@ -7,10 +7,12 @@
 	<key>com.apple.developer.aps-environment</key>
 	<string>development</string>
 	<key>com.apple.developer.icloud-container-identifiers</key>
-	<array/>
+	<array>
+		<string>iCloud.io.musiccloud.shared</string>
+	</array>
 	<key>com.apple.developer.icloud-services</key>
-	<array/>
-	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
-	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
+	<array>
+		<string>CloudKit</string>
+	</array>
 </dict>
 </plist>

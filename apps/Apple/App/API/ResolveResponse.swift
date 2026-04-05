@@ -5,6 +5,8 @@
 //  Created by Frank Gregor on 04.04.26.
 //
 
+import Foundation
+
 /// Response from the musiccloud.io resolve API endpoint.
 ///
 /// The API returns separate optional fields for track, album, and artist.
@@ -35,5 +37,34 @@ struct ResolveResponse: Decodable {
         } else {
             return .track(info: TrackInfo(title: "", artists: []))
         }
+    }
+
+    /// Creates a ``MediaEntry`` from this response.
+    ///
+    /// - Parameters:
+    ///   - originalUrl: The original streaming service URL
+    ///   - artworkData: Downloaded artwork image data
+    /// - Returns: A new ``MediaEntry`` ready for SwiftData persistence
+    func toMediaEntry(originalUrl: String, artworkData: Data?) -> MediaEntry {
+        let mediaType: String
+        if track != nil {
+            mediaType = "track"
+        } else if album != nil {
+            mediaType = "album"
+        } else if artist != nil {
+            mediaType = "artist"
+        } else {
+            mediaType = "track"
+        }
+
+        return MediaEntry(
+            originalUrl: originalUrl,
+            shortUrl: shortUrl,
+            mediaType: mediaType,
+            artworkImageData: artworkData,
+            track: track,
+            album: album,
+            artist: artist
+        )
     }
 }

@@ -5,6 +5,7 @@
 //  Created by Frank Gregor on 03.04.26.
 //
 
+import SwiftData
 import SwiftUI
 #if os(macOS)
 import AppKit
@@ -14,11 +15,9 @@ import AppKit
 
 struct MenuBarView: View {
     @Environment(ClipboardMonitor.self) private var monitor
-    @Environment(HistoryManager.self) private var historyManager
+    @Environment(\.modelContext) private var modelContext
 
-    private var history: [MediaInfo] {
-        historyManager.entries
-    }
+    @State private var entries: [MediaEntry] = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,8 +28,8 @@ struct MenuBarView: View {
 
                 if let error = monitor.status.errorMessage {
                     ErrorRow(message: error)
-                } else if !history.isEmpty {
-                    MediaSection(history: Array(history.prefix(10)))
+                } else if !entries.isEmpty {
+                    MediaSection(history: Array(entries.prefix(10)))
                 } else {
                     IdleRow()
                 }
@@ -48,6 +47,20 @@ struct MenuBarView: View {
             .clipShape(RoundedRectangle(cornerRadius: 9))
         }
         .frame(width: 320)
+        .onAppear { fetchEntries() }
+        .onReceive(NotificationCenter.default.publisher(for: .historyDidChange)) { _ in
+            fetchEntries()
+        }
     }
 }
 
+// MARK: - Private API
+
+private extension MenuBarView {
+    func fetchEntries() {
+        let descriptor = FetchDescriptor<MediaEntry>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        entries = (try? modelContext.fetch(descriptor)) ?? []
+    }
+}

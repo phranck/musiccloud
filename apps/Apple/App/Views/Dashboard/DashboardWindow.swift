@@ -30,8 +30,6 @@ enum NavigationItem: Hashable {
 ///
 /// Provides access to history (tracks, albums, artists), about, and settings.
 struct DashboardWindow: View {
-    @Environment(HistoryManager.self) private var historyManager
-
     @State private var selection: NavigationItem? = .history(.tracks)
 
     var body: some View {
@@ -101,7 +99,6 @@ private extension DashboardWindow {
         switch selection {
         case .history(let item):
             HistoryView(filter: item)
-                .environment(historyManager)
         case .footer(.about):
             AboutView()
         case .footer(.settings):
@@ -129,6 +126,14 @@ extension SidebarItem {
         case .tracks:  "music.note"
         case .albums:  "square.stack"
         case .artists: "person.circle"
+        }
+    }
+
+    var mediaType: String {
+        switch self {
+        case .tracks:  "track"
+        case .albums:  "album"
+        case .artists: "artist"
         }
     }
 }

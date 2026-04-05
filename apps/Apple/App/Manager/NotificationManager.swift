@@ -8,9 +8,10 @@
 import AppKit
 import UserNotifications
 
+// MARK: - Public API
+
 /// Handles local notifications for successful URL conversions.
 enum NotificationManager {
-
     /// Requests notification permission on first use.
     static func requestPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
@@ -26,7 +27,7 @@ enum NotificationManager {
     /// Shows title, artist/subtitle, and artwork matching the history row display.
     ///
     /// - Parameter entry: The successfully converted media info
-    static func notifySuccess(entry: MediaInfo) {
+    static func notifySuccess(entry: MediaEntry) {
         let content = UNMutableNotificationContent()
         content.sound = .none
 
@@ -62,11 +63,18 @@ enum NotificationManager {
             playSound()
         }
     }
+}
 
+// MARK: - Private API
+
+private extension NotificationManager {
     /// Plays the custom notification sound via NSSound.
-    private static func playSound() {
+    static func playSound() {
         guard let sound = NSSound(named: "universfield-notification") ?? {
-            guard let url = Bundle.main.url(forResource: "universfield-notification", withExtension: "caf") else { return nil }
+            guard let url = Bundle.main.url(
+                forResource: "universfield-notification",
+                withExtension: "caf"
+            ) else { return nil }
             return NSSound(contentsOf: url, byReference: true)
         }() else {
             AppLogger.ui.error("Notification sound not found")
@@ -76,7 +84,7 @@ enum NotificationManager {
     }
 
     /// Creates a notification attachment from image data.
-    private static func createAttachment(from data: Data, id: String) -> UNNotificationAttachment? {
+    static func createAttachment(from data: Data, id: String) -> UNNotificationAttachment? {
         let tempDir = FileManager.default.temporaryDirectory
         let fileURL = tempDir.appendingPathComponent("\(id).jpg")
 

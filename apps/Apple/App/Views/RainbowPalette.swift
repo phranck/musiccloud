@@ -38,30 +38,37 @@ enum RainbowPalette {
         Color(red: 1.0, green: 0.7, blue: 0.3)    // Orange
     ]
 
+    /// RGB color value for interpolation.
+    private struct RGB {
+        let red: Double
+        let green: Double
+        let blue: Double
+    }
+
     /// RGB values for each base color, used for interpolation.
-    private static let baseRGB: [(Double, Double, Double)] = [
-        (1.0, 0.4, 0.6),   // Pink/Magenta
-        (0.6, 0.4, 1.0),   // Purple
-        (0.3, 0.6, 1.0),   // Blue
-        (0.0, 0.8, 0.9),   // Cyan
-        (0.0, 0.9, 0.7),   // Teal
-        (0.5, 0.9, 0.3),   // Green
-        (0.9, 0.9, 0.3),   // Yellow
-        (1.0, 0.7, 0.3)    // Orange
+    private static let baseRGB: [RGB] = [
+        RGB(red: 1.0, green: 0.4, blue: 0.6),   // Pink/Magenta
+        RGB(red: 0.6, green: 0.4, blue: 1.0),   // Purple
+        RGB(red: 0.3, green: 0.6, blue: 1.0),   // Blue
+        RGB(red: 0.0, green: 0.8, blue: 0.9),   // Cyan
+        RGB(red: 0.0, green: 0.9, blue: 0.7),   // Teal
+        RGB(red: 0.5, green: 0.9, blue: 0.3),   // Green
+        RGB(red: 0.9, green: 0.9, blue: 0.3),   // Yellow
+        RGB(red: 1.0, green: 0.7, blue: 0.3)    // Orange
     ]
 
     /// Expanded rainbow palette with 32 interpolated colors (4 steps per base color).
     static let colors: [Color] = {
         var expanded: [Color] = []
-        for i in 0..<baseRGB.count {
-            let (r1, g1, b1) = baseRGB[i]
-            let (r2, g2, b2) = baseRGB[(i + 1) % baseRGB.count]
+        for index in 0..<baseRGB.count {
+            let from = baseRGB[index]
+            let next = baseRGB[(index + 1) % baseRGB.count]
             for step in 0..<4 {
-                let f = Double(step) / 4.0
+                let fraction = Double(step) / 4.0
                 expanded.append(Color(
-                    red: r1 + (r2 - r1) * f,
-                    green: g1 + (g2 - g1) * f,
-                    blue: b1 + (b2 - b1) * f
+                    red: from.red + (next.red - from.red) * fraction,
+                    green: from.green + (next.green - from.green) * fraction,
+                    blue: from.blue + (next.blue - from.blue) * fraction
                 ))
             }
         }

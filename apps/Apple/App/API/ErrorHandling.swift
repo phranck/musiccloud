@@ -69,9 +69,8 @@ extension ResolveError {
         case .invalidURL:        String(localized: "error.invalid_url")
         case .networkError:      String(localized: "error.network")
         case .serviceDown:       String(localized: "error.service_down")
-        case .httpError(let c):  "\(String(localized: "error.server")) (\(c))"
+        case .httpError(let code):  "\(String(localized: "error.server")) (\(code))"
         case .unknown(let msg):  msg
         }
     }
 }
-

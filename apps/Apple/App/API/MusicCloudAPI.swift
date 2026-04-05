@@ -40,7 +40,7 @@ import OSLog
 /// ### Downloading Content
 /// - ``downloadArtwork(from:)``
 enum MusicCloudAPI {
-    
+
     /// Base URL for the musiccloud.io API
     private static let baseURL = URL(string: "https://musiccloud.io")!
 }
@@ -48,7 +48,7 @@ enum MusicCloudAPI {
 // MARK: - Resolve
 
 extension MusicCloudAPI {
-    
+
     /// Resolves a streaming service URL to a musiccloud.io short link.
     ///
     /// Sends a POST request to the `/api/resolve` endpoint with the streaming URL.
@@ -182,7 +182,7 @@ extension MusicCloudAPI {
 // MARK: - Error Mapping
 
 private extension MusicCloudAPI {
-    
+
     /// Maps API error responses to typed ``ResolveError`` cases.
     ///
     /// Attempts to decode an ``APIError`` from the response data. If successful,
@@ -215,4 +215,3 @@ private extension MusicCloudAPI {
         }
     }
 }
-

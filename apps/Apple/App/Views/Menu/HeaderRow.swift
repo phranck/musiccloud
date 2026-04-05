@@ -68,4 +68,3 @@ struct HeaderRow: View {
 #Preview("Processing") {
     HeaderRow(isProcessing: true)
 }
-

@@ -32,7 +32,7 @@ import SwiftUI
 struct MediaRow: View {
     @State private var isHovered = false
 
-    var entry: MediaInfo
+    var entry: MediaEntry
 
     var body: some View {
         MediaItem(entry: entry)

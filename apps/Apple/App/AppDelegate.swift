@@ -7,6 +7,7 @@
 
 #if os(macOS)
 import AppKit
+import SwiftData
 import SwiftUI
 
 /// Manages the menu bar status item and popup panel.
@@ -22,12 +23,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
 
     static private(set) var shared: AppDelegate!
 
-    let historyManager = HistoryManager()
-    private(set) lazy var monitor = ClipboardMonitor(historyManager: historyManager)
+    let modelContainer: ModelContainer = {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let storeDir = appSupport.appendingPathComponent("io.musiccloud", isDirectory: true)
+        try! FileManager.default.createDirectory(at: storeDir, withIntermediateDirectories: true)
+        let storeURL = storeDir.appendingPathComponent("musiccloud.store")
+
+        do {
+            let config = ModelConfiguration(url: storeURL)
+            let container = try ModelContainer(for: MediaEntry.self, configurations: config)
+            AppLogger.history.debug("SwiftData store: \(container.configurations.first?.url.path ?? "unknown")")
+            return container
+        } catch {
+            fatalError("Failed to create ModelContainer: \(error)")
+        }
+    }()
+
+    private(set) var mainContext: ModelContext!
+    private(set) var historyManager: HistoryManager!
+    private(set) var monitor: ClipboardMonitor!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.shared = self
-        _ = monitor // force lazy init
+        mainContext = modelContainer.mainContext
+        historyManager = HistoryManager(modelContext: mainContext)
+        monitor = ClipboardMonitor(historyManager: historyManager)
         setupStatusItem()
         setupPanel()
         setupEventMonitor()
@@ -88,14 +108,11 @@ private extension AppDelegate {
         panel.hidesOnDeactivate = true
         panel.isReleasedWhenClosed = false
 
-        let wrapper = EnvironmentWrapper(historyManager: historyManager, monitor: monitor) {
-            MenuBarView()
-        }
+        let rootView = MenuBarView()
+            .environment(\.modelContext, mainContext)
+            .environment(monitor)
 
-        let hostingView = NSHostingView(rootView: wrapper)
-        hostingView.translatesAutoresizingMaskIntoConstraints = false
-
-        panel.contentView = hostingView
+        panel.contentViewController = NSHostingController(rootView: rootView)
     }
 
     @objc func togglePanel() {
@@ -139,9 +156,8 @@ extension AppDelegate {
             return
         }
 
-        let dashboardView = EnvironmentWrapper(historyManager: historyManager, monitor: monitor) {
-            DashboardWindow()
-        }
+        let rootView = DashboardWindow()
+            .environment(\.modelContext, mainContext)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
@@ -150,9 +166,12 @@ extension AppDelegate {
             defer: false
         )
         window.title = "musiccloud"
-        window.contentView = NSHostingView(rootView: dashboardView)
+        window.contentViewController = NSHostingController(rootView: rootView)
         window.isReleasedWhenClosed = false
-        window.center()
+        window.setFrameAutosaveName("DashboardWindow")
+        if !window.setFrameUsingName("DashboardWindow") {
+            window.center()
+        }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 

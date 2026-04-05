@@ -30,7 +30,7 @@ import SwiftUI
 /// ### Properties
 /// - ``history``
 struct MediaSection: View {
-    var history: [MediaInfo]
+    var history: [MediaEntry]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

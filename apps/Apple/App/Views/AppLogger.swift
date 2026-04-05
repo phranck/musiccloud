@@ -28,19 +28,19 @@ import OSLog
 /// - **Subsystem**: `io.musiccloud.app`
 /// - **Category**: `UI`, `ClipboardMonitor`, `API`, or `History`
 enum AppLogger {
-    
+
     /// The application subsystem identifier
     private static let subsystem = "io.musiccloud.app"
-    
+
     /// Logger for UI-related events and interactions
-    static let ui = Logger(subsystem: subsystem, category: "UI")
-    
+    static let ui = Logger(subsystem: subsystem, category: "UI") // swiftlint:disable:this identifier_name
+
     /// Logger for clipboard monitoring and URL detection
     static let clipboard = Logger(subsystem: subsystem, category: "ClipboardMonitor")
-    
+
     /// Logger for network requests and API interactions
     static let api = Logger(subsystem: subsystem, category: "API")
-    
+
     /// Logger for history management operations
     static let history = Logger(subsystem: subsystem, category: "History")
 }

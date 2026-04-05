@@ -74,7 +74,7 @@ final class ClipboardMonitor {
 // MARK: - Status
 
 extension ClipboardMonitor {
-    
+
     /// Represents the current state of the clipboard monitor.
     ///
     /// The status enum provides a type-safe way to represent the monitor's current
@@ -92,28 +92,28 @@ extension ClipboardMonitor {
     /// - ``isProcessing``
     /// - ``errorMessage``
     enum Status: Equatable {
-        
+
         /// Monitor is idle, waiting for clipboard changes
         case idle
-        
+
         /// Currently processing a URL
         /// - Parameter url: The URL being processed
         case processing(url: String)
-        
+
         /// Successfully converted a URL
         /// - Parameter shortUrl: The resulting musiccloud.io short URL
         case success(shortUrl: String)
-        
+
         /// An error occurred during conversion
         /// - Parameter message: Human-readable error description
         case error(message: String)
-        
+
         /// Returns `true` if currently processing a URL
         var isProcessing: Bool {
             if case .processing = self { return true }
             return false
         }
-        
+
         /// Returns the error message if status is `.error`, otherwise `nil`
         var errorMessage: String? {
             if case .error(let message) = self { return message }
@@ -125,7 +125,7 @@ extension ClipboardMonitor {
 // MARK: - Public API
 
 extension ClipboardMonitor {
-    
+
     /// Resolves a streaming service URL to a musiccloud.io short link.
     ///
     /// This method performs the following steps:
@@ -168,11 +168,9 @@ extension ClipboardMonitor {
                 artworkData = await MusicCloudAPI.downloadArtwork(from: artworkUrl)
             }
 
-            let entry = MediaInfo(
+            let entry = result.toMediaEntry(
                 originalUrl: url,
-                shortUrl: result.shortUrl,
-                contentType: contentType,
-                artworkImageData: artworkData
+                artworkData: artworkData
             )
             historyManager.add(entry)
             lastShortUrl = result.shortUrl
@@ -192,7 +190,7 @@ extension ClipboardMonitor {
 // MARK: - Monitoring
 
 private extension ClipboardMonitor {
-    
+
     /// Starts the clipboard monitoring timer.
     ///
     /// Creates a timer that fires every 1 second to check the clipboard for changes.
@@ -226,7 +224,7 @@ private extension ClipboardMonitor {
         guard isStreaming else { return }
 
         // Check if this URL was already resolved
-        if let existing = historyManager.entries.first(where: { $0.originalUrl == content }) {
+        if let existing = historyManager.entry(forOriginalUrl: content) {
             lastShortUrl = existing.shortUrl
             setPasteboardString(existing.shortUrl)
             lastSeenContent = existing.shortUrl
@@ -250,7 +248,7 @@ private extension ClipboardMonitor {
 // MARK: - Pasteboard
 
 private extension ClipboardMonitor {
-    
+
     /// Reads the current string content from the system clipboard.
     ///
     /// - Returns: The clipboard string content, or `nil` if empty or unavailable
@@ -279,4 +277,3 @@ private extension ClipboardMonitor {
 #endif
     }
 }
-

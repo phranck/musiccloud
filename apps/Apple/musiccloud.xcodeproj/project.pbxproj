@@ -32,6 +32,7 @@
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
 		FDD516292F817F360043E187 /* MediaInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516282F817F360043E187 /* MediaInfo.swift */; };
+		FD05A1022F82A00100000001 /* MediaEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1012F82A00100000001 /* MediaEntry.swift */; };
 		FDD5162B2F817F960043E187 /* ResolveResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD5162A2F817F960043E187 /* ResolveResponse.swift */; };
 		FDDC3A8F2F81BE7700FB68D9 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC3A8E2F81BE7700FB68D9 /* NotificationManager.swift */; };
 		FDDC7E232F805E82005D779F /* HeaderRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC7E222F805E82005D779F /* HeaderRow.swift */; };
@@ -47,7 +48,6 @@
 		FDF0E9582F81C6D8004DEFCE /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF0E9552F81C6D8004DEFCE /* SettingsView.swift */; };
 		FDF0E9592F81C6D8004DEFCE /* DashboardWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF0E9532F81C6D8004DEFCE /* DashboardWindow.swift */; };
 		FDF0E95A2F81C6D8004DEFCE /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF0E9542F81C6D8004DEFCE /* HistoryView.swift */; };
-		FDF0E95C2F81C912004DEFCE /* EnvironmentWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF0E95B2F81C912004DEFCE /* EnvironmentWrapper.swift */; };
 		FDF8735C2F7EEDE600D05057 /* HistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF8735B2F7EEDE600D05057 /* HistoryManager.swift */; };
 /* End PBXBuildFile section */
 
@@ -80,6 +80,7 @@
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
 		FDD516282F817F360043E187 /* MediaInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaInfo.swift; sourceTree = "<group>"; };
+		FD05A1012F82A00100000001 /* MediaEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaEntry.swift; sourceTree = "<group>"; };
 		FDD5162A2F817F960043E187 /* ResolveResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveResponse.swift; sourceTree = "<group>"; };
 		FDDC3A8E2F81BE7700FB68D9 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		FDDC7E222F805E82005D779F /* HeaderRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderRow.swift; sourceTree = "<group>"; };
@@ -95,7 +96,6 @@
 		FDF0E9532F81C6D8004DEFCE /* DashboardWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardWindow.swift; sourceTree = "<group>"; };
 		FDF0E9542F81C6D8004DEFCE /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		FDF0E9552F81C6D8004DEFCE /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		FDF0E95B2F81C912004DEFCE /* EnvironmentWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentWrapper.swift; sourceTree = "<group>"; };
 		FDF8735B2F7EEDE600D05057 /* HistoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -186,7 +186,6 @@
 				FD1437732F8185FE00A5B46D /* Media Content */,
 				FD4CFB8F2F80788F006135A6 /* Menu */,
 				FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */,
-				FDF0E95B2F81C912004DEFCE /* EnvironmentWrapper.swift */,
 				FDDC7E242F805EB6005D779F /* ErrorRow.swift */,
 				FDDC7E262F805ECE005D779F /* IdleRow.swift */,
 				FDDC7E302F806452005D779F /* LogoText.swift */,
@@ -200,6 +199,7 @@
 			children = (
 				FDD516242F817ECE0043E187 /* AlbumInfo.swift */,
 				FDD516262F817EDF0043E187 /* ArtistInfo.swift */,
+				FD05A1012F82A00100000001 /* MediaEntry.swift */,
 				FDD516282F817F360043E187 /* MediaInfo.swift */,
 				FDD516222F817EB50043E187 /* TrackInfo.swift */,
 			);
@@ -314,7 +314,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				FD0C899C2F81B50F00AE61FB /* AppDelegate.swift in Sources */,
-				FDF0E95C2F81C912004DEFCE /* EnvironmentWrapper.swift in Sources */,
 				FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */,
 				FDD5162B2F817F960043E187 /* ResolveResponse.swift in Sources */,
 				FD63D39B2F806884004B8E54 /* MenuItem.swift in Sources */,
@@ -350,6 +349,7 @@
 				FD4CFB8E2F8075F2006135A6 /* AppLogger.swift in Sources */,
 				FDDC7E292F805EDC005D779F /* MediaSection.swift in Sources */,
 				FDDC7E312F806452005D779F /* LogoText.swift in Sources */,
+				FD05A1022F82A00100000001 /* MediaEntry.swift in Sources */,
 				FDD516292F817F360043E187 /* MediaInfo.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
