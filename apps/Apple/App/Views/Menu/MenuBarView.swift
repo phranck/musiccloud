@@ -92,6 +92,7 @@ private struct FilterPicker: View {
             tintColor: .accentColor
         )
         .controlSize(.regular)
+        .segmentControlWidth(.fullWidth)
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
     }
