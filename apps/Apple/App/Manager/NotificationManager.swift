@@ -89,11 +89,12 @@ private extension NotificationManager {
         let fileURL = tempDir.appendingPathComponent("\(id).jpg")
 
         do {
-            try data.write(to: fileURL)
+            try data.write(to: fileURL, options: .atomic)
             let attachment = try UNNotificationAttachment(identifier: id, url: fileURL)
             return attachment
         } catch {
             AppLogger.ui.error("Notification attachment failed: \(error.localizedDescription)")
+            try? FileManager.default.removeItem(at: fileURL)
             return nil
         }
     }

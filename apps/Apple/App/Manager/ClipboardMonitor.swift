@@ -201,7 +201,8 @@ private extension ClipboardMonitor {
             guard let self else { return }
             Task { @MainActor in await self.checkClipboard() }
         }
-        RunLoop.main.add(timer!, forMode: .common)
+        guard let timer else { return }
+        RunLoop.main.add(timer, forMode: .common)
     }
 
     /// Checks the clipboard for new streaming service URLs.

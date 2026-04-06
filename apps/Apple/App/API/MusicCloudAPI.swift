@@ -43,9 +43,19 @@ enum MusicCloudAPI {
 
     /// Base URL for the musiccloud.io API and short links
     #if DEBUG
-    static let baseURL = URL(string: "http://localhost:3001")!
+    static let baseURL: URL = {
+        guard let url = URL(string: "http://localhost:3000") else {
+            fatalError("Invalid DEBUG base URL")
+        }
+        return url
+    }()
     #else
-    static let baseURL = URL(string: "https://musiccloud.io")!
+    static let baseURL: URL = {
+        guard let url = URL(string: "https://musiccloud.io") else {
+            fatalError("Invalid production base URL")
+        }
+        return url
+    }()
     #endif
 }
 
@@ -207,7 +217,11 @@ private extension MusicCloudAPI {
     /// - Unknown codes → `.unknown(message)`
     /// - Decode failure → `.httpError(statusCode)`
     static func resolveError(from data: Data, statusCode: Int) -> ResolveError {
-        guard let apiError = try? JSONDecoder().decode(APIError.self, from: data) else {
+        let apiError: APIError
+        do {
+            apiError = try JSONDecoder().decode(APIError.self, from: data)
+        } catch {
+            AppLogger.api.debug("Failed to decode API error response: \(error)")
             return .httpError(statusCode)
         }
         switch apiError.error {
