@@ -236,12 +236,14 @@
 		FDDC7E1E2F805C2E005D779F /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				FDAF979D2F840104002A3AC1 /* Components */,
 				FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */,
+				FDF0E9532F81C6D8004DEFCE /* DashboardView.swift */,
 				FDDC7E242F805EB6005D779F /* ErrorRow.swift */,
 				FDDC7E262F805ECE005D779F /* IdleRow.swift */,
-				FDAF979C2F83FBE3002A3AC1 /* LogoText */,
+				FDF0E9552F81C6D8004DEFCE /* SettingsView.swift */,
+				FDAF979D2F840104002A3AC1 /* Components */,
 				FDF0E9562F81C6D8004DEFCE /* Dashboard */,
+				FDAF979C2F83FBE3002A3AC1 /* LogoText */,
 				FD1437732F8185FE00A5B46D /* Media Content */,
 				FD4CFB8F2F80788F006135A6 /* Menu */,
 			);
@@ -288,9 +290,7 @@
 			isa = PBXGroup;
 			children = (
 				FDF0E9522F81C6D8004DEFCE /* AboutView.swift */,
-				FDF0E9532F81C6D8004DEFCE /* DashboardView.swift */,
 				FDF0E9542F81C6D8004DEFCE /* HistoryView.swift */,
-				FDF0E9552F81C6D8004DEFCE /* SettingsView.swift */,
 			);
 			path = Dashboard;
 			sourceTree = "<group>";
