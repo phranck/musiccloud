@@ -64,7 +64,7 @@ private extension LogoText {
                 .offset(x: -0.5, y: fontSize * -0.12)
             Text("oud")
                 .font(font)
-                .offset(x: -1.2)
+                .offset(x: -4)
         }
     }
 
