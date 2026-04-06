@@ -85,6 +85,7 @@ enum NotificationManager {
 private extension NotificationManager {
     /// Plays the custom notification sound via NSSound.
     static func playSound() {
+        guard UserDefaults.standard.object(forKey: "playNotificationSound") as? Bool ?? true else { return }
         guard let sound = NSSound(named: "universfield-notification") ?? {
             guard let url = Bundle.main.url(
                 forResource: "universfield-notification",

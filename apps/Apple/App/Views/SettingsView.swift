@@ -64,6 +64,7 @@ private enum SettingsTab: String, CaseIterable {
 
 private struct GeneralSettingsView: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @AppStorage("playNotificationSound") private var playNotificationSound = true
 
     var body: some View {
         Form {
@@ -80,6 +81,7 @@ private struct GeneralSettingsView: View {
                         launchAtLogin = SMAppService.mainApp.status == .enabled
                     }
                 }
+            Toggle(String(localized: "Play Notification Sound"), isOn: $playNotificationSound)
         }
         .formStyle(.grouped)
     }
