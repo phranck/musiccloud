@@ -5,6 +5,7 @@
 //  Created by Frank Gregor on 05.04.26.
 //
 
+import AppKit
 import SwiftUI
 
 /// Sidebar navigation items for the dashboard.
@@ -31,6 +32,7 @@ enum NavigationItem: Hashable {
 /// Provides access to history (tracks, albums, artists), about, and settings.
 struct DashboardWindow: View {
     @State private var selection: NavigationItem? = .history(.tracks)
+    @AppStorage("dashboard.sidebarWidth") private var sidebarWidth: Double = 200
 
     var body: some View {
         NavigationSplitView {
@@ -59,7 +61,14 @@ private extension DashboardWindow {
             sidebarFooter
         }
         .listStyle(.sidebar)
-        .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
+        .navigationSplitViewColumnWidth(min: 180, ideal: sidebarWidth, max: 300)
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEndLiveResizeNotification)) { notification in
+            guard let window = notification.object as? NSWindow,
+                  window.frameAutosaveName == "DashboardWindow",
+                  let splitView = window.contentView?.findSubview(ofType: NSSplitView.self),
+                  !splitView.arrangedSubviews.isEmpty else { return }
+            sidebarWidth = splitView.arrangedSubviews[0].frame.width
+        }
     }
 
     var sidebarFooter: some View {
@@ -153,5 +162,17 @@ extension SidebarFooterItem {
         case .about:    "info.circle"
         case .settings: "gearshape"
         }
+    }
+}
+
+// MARK: - NSView Helpers
+
+private extension NSView {
+    func findSubview<T: NSView>(ofType type: T.Type) -> T? {
+        if let match = self as? T { return match }
+        for sub in subviews {
+            if let found = sub.findSubview(ofType: type) { return found }
+        }
+        return nil
     }
 }

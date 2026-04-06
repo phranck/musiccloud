@@ -19,8 +19,20 @@ struct HistoryView: View {
     private static let pageSize = 50
 
     @State private var allEntries: [MediaEntry] = []
-    @State private var displayMode: DisplayMode = .list
+    @AppStorage private var displayModeRaw: String
     @State private var searchText = ""
+
+    init(filter: SidebarItem) {
+        self.filter = filter
+        _displayModeRaw = AppStorage(wrappedValue: DisplayMode.list.rawValue, "displayMode.\(filter.rawValue)")
+    }
+
+    private var displayMode: Binding<DisplayMode> {
+        Binding(
+            get: { DisplayMode(rawValue: displayModeRaw) ?? .list },
+            set: { displayModeRaw = $0.rawValue }
+        )
+    }
     @State private var loadedCount = HistoryView.pageSize
     @State private var hasMore = true
 
@@ -49,7 +61,7 @@ struct HistoryView: View {
             if filteredEntries.isEmpty {
                 emptyState
             } else {
-                switch displayMode {
+                switch displayMode.wrappedValue {
                 case .list: listView
                 case .grid: gridView
                 }
@@ -59,7 +71,7 @@ struct HistoryView: View {
         .searchable(text: $searchText, prompt: String(localized: "Search"))
         .toolbar {
             ToolbarItem(placement: .automatic) {
-                Picker("", selection: $displayMode) {
+                Picker("", selection: displayMode) {
                     ForEach(DisplayMode.allCases, id: \.self) { mode in
                         Image(systemName: mode.icon)
                             .tag(mode)
@@ -98,6 +110,7 @@ private extension HistoryView {
     var listView: some View {
         List(filteredEntries) { entry in
             HistoryListRow(entry: entry)
+                .entryActions(entry: entry, onDelete: { deleteEntry(entry) })
                 .onAppear { loadMoreIfNeeded(entry) }
         }
         .listStyle(.inset(alternatesRowBackgrounds: true))
@@ -115,6 +128,7 @@ private extension HistoryView {
             ) {
                 ForEach(filteredEntries) { entry in
                     HistoryGridCard(entry: entry)
+                        .entryActions(entry: entry, onDelete: { deleteEntry(entry) })
                         .onAppear { loadMoreIfNeeded(entry) }
                 }
             }
@@ -157,6 +171,13 @@ private extension HistoryView {
         guard hasMore, entry.id == filteredEntries.last?.id else { return }
         loadedCount += HistoryView.pageSize
         loadEntries()
+    }
+
+    func deleteEntry(_ entry: MediaEntry) {
+        modelContext.delete(entry)
+        try? modelContext.save()
+        fetchEntries()
+        NotificationCenter.default.post(name: .historyDidChange, object: nil)
     }
 }
 
@@ -334,6 +355,52 @@ private struct HistoryGridCard: View {
         case .album:  "square.stack"
         case .artist: "person.circle"
         }
+    }
+}
+
+// MARK: - Entry Actions
+
+private struct EntryActionsModifier: ViewModifier {
+    let entry: MediaEntry
+    let onDelete: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onTapGesture(count: 2) {
+                if let url = URL(string: entry.shortUrl) {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            .contextMenu {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(entry.shortUrl, forType: .string)
+                } label: {
+                    Label("Copy Share URL", systemImage: "doc.on.doc")
+                }
+
+                Button {
+                    if let url = URL(string: entry.shortUrl) {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    Label("Open in Browser...", systemImage: "safari")
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
+                    onDelete()
+                } label: {
+                    Label("Delete Entry", systemImage: "trash")
+                }
+            }
+    }
+}
+
+private extension View {
+    func entryActions(entry: MediaEntry, onDelete: @escaping () -> Void) -> some View {
+        modifier(EntryActionsModifier(entry: entry, onDelete: onDelete))
     }
 }
 

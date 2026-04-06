@@ -18,20 +18,18 @@ struct MenuBarView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var entries: [MediaEntry] = []
+    @State private var selectedFilter: SidebarItem = .tracks
 
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
                 HeaderRow(isProcessing: monitor.status.isProcessing)
 
-                Divider().padding(.vertical, 4)
-
                 if let error = monitor.status.errorMessage {
                     ErrorRow(message: error)
-                } else if !entries.isEmpty {
-                    MediaSection(history: Array(entries.prefix(10)))
                 } else {
-                    IdleRow()
+                    filterPicker
+                    filteredHistory
                 }
 
                 Divider().padding(.vertical, 4)
@@ -57,10 +55,46 @@ struct MenuBarView: View {
 // MARK: - Private API
 
 private extension MenuBarView {
+    var filterPicker: some View {
+        Picker("", selection: $selectedFilter) {
+            ForEach(SidebarItem.allCases, id: \.self) { item in
+                Text(item.title).tag(item)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
+    }
+
+    @ViewBuilder
+    var filteredHistory: some View {
+        let filtered = entries.filter { $0.mediaType == selectedFilter.mediaType }
+        if filtered.isEmpty {
+            ContentUnavailableView {
+                Label(selectedFilter.emptyPanelTitle, systemImage: selectedFilter.icon)
+            }
+            .frame(minHeight: 80)
+        } else {
+            MediaSection(history: Array(filtered.prefix(10)))
+        }
+    }
+
     func fetchEntries() {
         let descriptor = FetchDescriptor<MediaEntry>(
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         entries = (try? modelContext.fetch(descriptor)) ?? []
+    }
+}
+
+// MARK: - SidebarItem Panel Helpers
+
+private extension SidebarItem {
+    var emptyPanelTitle: String {
+        switch self {
+        case .tracks:  String(localized: "No Tracks")
+        case .albums:  String(localized: "No Albums")
+        case .artists: String(localized: "No Artists")
+        }
     }
 }
