@@ -15,8 +15,6 @@ import authRoutes from "./routes/auth.js";
 import linkRoutes from "./routes/link.js";
 import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
-import resolveAlbumRoutes from "./routes/resolve-album.js";
-import resolveArtistRoutes from "./routes/resolve-artist.js";
 import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
 import shareRoutes from "./routes/share.js";
 import { warmAppleMusicToken } from "./services/adapters/apple-music.js";
@@ -73,8 +71,6 @@ async function buildApp() {
     protectedApp.addHook("preHandler", protectedApp.authenticatePublic);
 
     await protectedApp.register(resolveRoutes);
-    await protectedApp.register(resolveAlbumRoutes);
-    await protectedApp.register(resolveArtistRoutes);
     await protectedApp.register(linkRoutes);
   });
 

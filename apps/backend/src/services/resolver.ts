@@ -184,7 +184,7 @@ const SHORT_LINK_HOSTS = new Set(["link.deezer.com"]);
  * If `url` is a known short link, follows the redirect (HEAD) and returns the
  * final canonical URL. Falls back to the original URL on network failure.
  */
-async function expandShortLink(url: string): Promise<string> {
+export async function expandShortLink(url: string): Promise<string> {
   let parsed: URL;
   try {
     parsed = new URL(url);

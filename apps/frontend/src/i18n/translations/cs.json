@@ -1,8 +1,6 @@
 {
   "hero.placeholder": "Vložte odkaz na album nebo skladbu a hledejte podle interpreta nebo názvu...",
   "loading.finding": "Hledám vaši skladbu...",
-  "loading.finding.album": "Hledám vaše album...",
-  "loading.finding.artist": "Hledám vašeho interpreta...",
   "loading.still": "Stále hledám...",
   "disambiguation.title": "Mysleli jste?",
   "disambiguation.subtitle": "Nalezli jsme více shod. Vyberte tu správnou.",

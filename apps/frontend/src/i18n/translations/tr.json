@@ -1,8 +1,6 @@
 {
   "hero.placeholder": "Bir albüm veya şarkı bağlantısı yapıştır ya da sanatçı veya başlık ile ara...",
   "loading.finding": "Şarkın aranıyor...",
-  "loading.finding.album": "Albümün aranıyor...",
-  "loading.finding.artist": "Sanatçın aranıyor...",
   "loading.still": "Hâlâ aranıyor...",
   "disambiguation.title": "Bunu mu demek istediniz?",
   "disambiguation.subtitle": "Birden fazla eşleşme bulduk. Doğru olanı seçin.",

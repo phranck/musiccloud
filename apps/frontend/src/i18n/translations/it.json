@@ -1,8 +1,6 @@
 {
   "hero.placeholder": "Incolla un link di un album o brano e cerca per artista o titolo...",
   "loading.finding": "Ricerca della tua canzone...",
-  "loading.finding.album": "Ricerca del tuo album...",
-  "loading.finding.artist": "Ricerca del tuo artista...",
   "loading.still": "Ancora in ricerca...",
   "disambiguation.title": "Intendevi?",
   "disambiguation.subtitle": "Abbiamo trovato più corrispondenze. Scegli quella giusta.",

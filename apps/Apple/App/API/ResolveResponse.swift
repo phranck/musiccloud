@@ -14,8 +14,27 @@ import Foundation
 /// with associated values.
 struct ResolveResponse: Decodable {
 
-    /// The shortened musiccloud.io URL
+    /// The shortened musiccloud.io URL (rewritten to match the current base URL)
     var shortUrl: String
+
+    /// Production origin used by the backend when building short URLs
+    private static let productionOrigin = "https://musiccloud.io"
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let rawUrl = try container.decode(String.self, forKey: .shortUrl)
+        shortUrl = rawUrl.replacingOccurrences(
+            of: Self.productionOrigin,
+            with: MusicCloudAPI.baseURL.absoluteString
+        )
+        track = try container.decodeIfPresent(TrackInfo.self, forKey: .track)
+        album = try container.decodeIfPresent(AlbumInfo.self, forKey: .album)
+        artist = try container.decodeIfPresent(ArtistInfo.self, forKey: .artist)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case shortUrl, track, album, artist
+    }
 
     /// Track metadata if the URL was for a track
     var track: TrackInfo?

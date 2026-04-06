@@ -47,6 +47,13 @@ export interface ResolveErrorResponse {
 
 export type ResolveResponse = ResolveSuccessResponse | ResolveDisambiguationResponse | ResolveErrorResponse;
 
+// ─── Unified Resolve Response ─────────────────────────────────────────────────
+
+export type UnifiedResolveSuccessResponse =
+  | ({ type: "track" } & ResolveSuccessResponse)
+  | ({ type: "album" } & AlbumResolveSuccessResponse)
+  | ({ type: "artist" } & ArtistResolveSuccessResponse);
+
 // ─── Album API Types ──────────────────────────────────────────────────────────
 
 export interface ApiAlbum {
@@ -67,8 +74,6 @@ export interface AlbumResolveSuccessResponse {
   links: ApiLink[];
 }
 
-export type AlbumResolveResponse = AlbumResolveSuccessResponse | ResolveErrorResponse;
-
 // ─── Artist Resolve API Types ────────────────────────────────────────────────
 
 export interface ApiArtist {
@@ -83,8 +88,6 @@ export interface ArtistResolveSuccessResponse {
   artist: ApiArtist;
   links: ApiLink[];
 }
-
-export type ArtistResolveResponse = ArtistResolveSuccessResponse | ResolveErrorResponse;
 
 // ─── Share Page Response ──────────────────────────────────────────────────────
 

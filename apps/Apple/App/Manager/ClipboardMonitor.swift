@@ -215,7 +215,9 @@ private extension ClipboardMonitor {
     /// - Note: This method must be called from the main actor
     @MainActor
     func checkClipboard() async {
-        guard let content = pasteboardString() else { return }
+        guard let raw = pasteboardString() else { return }
+        let content = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty else { return }
         guard content != lastSeenContent else { return }
 
         lastSeenContent = content

@@ -25,7 +25,7 @@ struct AlbumItem: View {
                     Image(systemName: "square.stack")
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
-                    Text(album.name)
+                    Text(album.title)
                         .font(.system(size: 14))
                 }
                 .lineLimit(1)

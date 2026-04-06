@@ -38,6 +38,9 @@ struct TrackInfo: Codable, Equatable {
 
     /// Track duration in milliseconds
     var durationMs: Int?
+
+    /// The track's release date (format varies by service, typically "YYYY-MM-DD")
+    var releaseDate: String?
 }
 
 extension TrackInfo {
@@ -60,5 +63,11 @@ extension TrackInfo {
         guard let millis = durationMs else { return nil }
         let total = millis / 1000
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
+    /// Returns the four-digit release year extracted from ``releaseDate``.
+    var releaseYear: String? {
+        guard let date = releaseDate, date.count >= 4 else { return nil }
+        return String(date.prefix(4))
     }
 }

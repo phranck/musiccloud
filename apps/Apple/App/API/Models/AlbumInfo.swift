@@ -13,7 +13,7 @@
 /// ## Topics
 ///
 /// ### Properties
-/// - ``name``
+/// - ``title``
 /// - ``artists``
 /// - ``releaseDate``
 /// - ``totalTracks``
@@ -23,8 +23,8 @@
 /// - ``artistsString``
 struct AlbumInfo: Codable, Equatable {
 
-    /// The album's name or title
-    var name: String
+    /// The album's title
+    var title: String
 
     /// Array of artist names who created this album
     var artists: [String]
@@ -45,10 +45,16 @@ extension AlbumInfo {
     ///
     /// ## Example
     /// ```swift
-    /// let album = AlbumInfo(name: "Album", artists: ["Artist 1", "Artist 2"])
+    /// let album = AlbumInfo(title: "Album", artists: ["Artist 1", "Artist 2"])
     /// print(album.artistsString) // "Artist 1, Artist 2"
     /// ```
     var artistsString: String {
         artists.joined(separator: ", ")
+    }
+
+    /// Returns the four-digit release year extracted from ``releaseDate``.
+    var releaseYear: String? {
+        guard let date = releaseDate, date.count >= 4 else { return nil }
+        return String(date.prefix(4))
     }
 }

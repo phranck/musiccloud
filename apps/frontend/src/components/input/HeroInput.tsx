@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAmbilightAnimation } from "@/hooks/useAmbilightAnimation";
 import { useLoadingMessages } from "@/hooks/useLoadingMessages";
 import { useT } from "@/i18n/context";
-import { isAlbumUrl, isArtistUrl, isMusicUrl } from "@/lib/platform/url";
+import { isMusicUrl } from "@/lib/platform/url";
 import type { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
@@ -31,15 +31,13 @@ export function HeroInput({
 }: HeroInputProps) {
   const t = useT();
   const [value, setValue] = useState("");
-  const [isAlbum, setIsAlbum] = useState(false);
-  const [isArtist, setIsArtist] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const ambilightRef = useRef<HTMLDivElement>(null);
   const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevState = useRef(state);
 
   useAmbilightAnimation(ambilightRef);
-  const loadingMessage = useLoadingMessages(state, t, isAlbum, isArtist);
+  const loadingMessage = useLoadingMessages(state, t);
 
   // Focus input on mount for non-touch devices only (avoids iOS 26 keyboard suppression on load)
   useEffect(() => {
@@ -74,18 +72,7 @@ export function HeroInput({
       if (!pastedText) return;
 
       setTimeout(() => {
-        const album = isAlbumUrl(pastedText);
-        // Auto-submit any URL from a known music service domain, even if it's not a
-        // recognised track/album URL (e.g. artist pages). The backend will return a
-        // descriptive error so the user gets immediate feedback instead of silence.
-        const isMusicDomain =
-          /^https?:\/\/(?:open\.spotify\.com|music\.apple\.com|(?:www\.)?youtube\.com|youtu\.be|(?:www\.|m\.)?soundcloud\.com|(?:listen\.)?tidal\.com|(?:www\.)?deezer\.com|link\.deezer\.com)/.test(
-            pastedText,
-          );
-        const artist = isArtistUrl(pastedText);
-        if (isMusicUrl(pastedText) || album || artist || isMusicDomain) {
-          setIsAlbum(album);
-          setIsArtist(artist);
+        if (isMusicUrl(pastedText)) {
           autoSubmitTimer.current = setTimeout(() => {
             onSubmit(pastedText);
           }, 300);
@@ -98,9 +85,7 @@ export function HeroInput({
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       cancelAutoSubmit();
-      const v = e.target.value;
-      setValue(v);
-      setIsAlbum(isAlbumUrl(v.trim()));
+      setValue(e.target.value);
     },
     [cancelAutoSubmit],
   );
@@ -108,8 +93,6 @@ export function HeroInput({
   const handleClear = useCallback(() => {
     cancelAutoSubmit();
     setValue("");
-    setIsAlbum(false);
-    setIsArtist(false);
     onClear();
     inputRef.current?.focus();
   }, [onClear, cancelAutoSubmit]);

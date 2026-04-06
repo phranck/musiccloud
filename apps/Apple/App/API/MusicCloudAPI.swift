@@ -41,8 +41,12 @@ import OSLog
 /// - ``downloadArtwork(from:)``
 enum MusicCloudAPI {
 
-    /// Base URL for the musiccloud.io API
-    private static let baseURL = URL(string: "https://musiccloud.io")!
+    /// Base URL for the musiccloud.io API and short links
+    #if DEBUG
+    static let baseURL = URL(string: "http://localhost:3001")!
+    #else
+    static let baseURL = URL(string: "https://musiccloud.io")!
+    #endif
 }
 
 // MARK: - Resolve

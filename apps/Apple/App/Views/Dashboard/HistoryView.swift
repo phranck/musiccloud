@@ -36,7 +36,7 @@ struct HistoryView: View {
                 info.title.localizedCaseInsensitiveContains(searchText) ||
                 info.artistsString.localizedCaseInsensitiveContains(searchText)
             case .album(let info):
-                info.name.localizedCaseInsensitiveContains(searchText) ||
+                info.title.localizedCaseInsensitiveContains(searchText) ||
                 info.artistsString.localizedCaseInsensitiveContains(searchText)
             case .artist(let info):
                 info.name.localizedCaseInsensitiveContains(searchText)
@@ -207,7 +207,7 @@ private struct HistoryListRow: View {
     private var title: String {
         switch entry.contentType {
         case .track(let info):  info.title
-        case .album(let info):  info.name
+        case .album(let info):  info.title
         case .artist(let info): info.name
         }
     }
@@ -230,9 +230,12 @@ private struct HistoryListRow: View {
 
     private var trailingDetail: String? {
         switch entry.contentType {
-        case .track(let info):  info.formattedDuration
-        case .album(let info):  info.totalTracks.map { "\($0) tracks" }
-        case .artist(let info): info.formattedFollowers
+        case .track(let info):
+            [info.releaseYear, info.formattedDuration].compactMap { $0 }.joined(separator: " · ").nilIfEmpty
+        case .album(let info):
+            [info.releaseYear, info.totalTracks.map { "\($0) tracks" }].compactMap { $0 }.joined(separator: " · ").nilIfEmpty
+        case .artist(let info):
+            info.formattedFollowers
         }
     }
 }
@@ -304,7 +307,7 @@ private struct HistoryGridCard: View {
     private var title: String {
         switch entry.contentType {
         case .track(let info):  info.title
-        case .album(let info):  info.name
+        case .album(let info):  info.title
         case .artist(let info): info.name
         }
     }
@@ -332,6 +335,12 @@ private struct HistoryGridCard: View {
         case .artist: "person.circle"
         }
     }
+}
+
+// MARK: - String Helpers
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
 
 // MARK: - SidebarItem Empty State Helpers

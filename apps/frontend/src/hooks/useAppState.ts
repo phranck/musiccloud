@@ -1,14 +1,13 @@
 import type {
-  AlbumResolveSuccessResponse,
-  ArtistResolveSuccessResponse,
   ResolveDisambiguationResponse,
   ResolveErrorResponse,
   ResolveSuccessResponse,
+  UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
 import { trackResolve } from "@/lib/analytics";
-import { detectServiceFromUrl, isAlbumUrl, isArtistUrl } from "@/lib/platform/url";
+import { detectServiceFromUrl } from "@/lib/platform/url";
 import {
   appReducer,
   parseAlbumResolveResponse,
@@ -54,12 +53,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 20000);
-      const endpoint = isArtistUrl(url)
-        ? "/api/resolve-artist"
-        : isAlbumUrl(url)
-          ? "/api/resolve-album"
-          : "/api/resolve";
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: url }),
@@ -70,24 +64,19 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
         const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
         throw new Error(errorData.message || "error.generic");
       }
-      if (endpoint === "/api/resolve-artist") {
-        const data = (await response.json()) as ArtistResolveSuccessResponse;
-        dispatch({ type: "RESOLVE_SUCCESS", active: parseArtistResolveResponse(data) });
-        trackResolve(detectServiceFromUrl(url));
-        return;
-      }
-      if (endpoint === "/api/resolve-album") {
-        const data = (await response.json()) as AlbumResolveSuccessResponse;
-        dispatch({ type: "RESOLVE_SUCCESS", active: parseAlbumResolveResponse(data) });
-        trackResolve(detectServiceFromUrl(url));
-        return;
-      }
-      const data = (await response.json()) as ResolveSuccessResponse | ResolveDisambiguationResponse;
+      const data = (await response.json()) as UnifiedResolveSuccessResponse | ResolveDisambiguationResponse;
       if ("status" in data && data.status === "disambiguation") {
         dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
         return;
       }
-      dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data as ResolveSuccessResponse) });
+      const resolved = data as UnifiedResolveSuccessResponse;
+      const active =
+        resolved.type === "artist"
+          ? parseArtistResolveResponse(resolved)
+          : resolved.type === "album"
+            ? parseAlbumResolveResponse(resolved)
+            : parseResolveResponse(resolved);
+      dispatch({ type: "RESOLVE_SUCCESS", active });
       trackResolve(detectServiceFromUrl(url));
     } catch (err) {
       dispatch({ type: "ERROR", message: parseErrorKey(err) });

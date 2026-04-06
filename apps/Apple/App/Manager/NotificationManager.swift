@@ -36,7 +36,7 @@ enum NotificationManager {
             content.title = info.title
             content.body = info.artistsString
         case .album(let info):
-            content.title = info.name
+            content.title = info.title
             content.body = info.artistsString
         case .artist(let info):
             content.title = info.name
