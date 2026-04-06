@@ -26,6 +26,7 @@ import SwiftUI
 enum PanelMetrics {
     static let spacing: CGFloat = 6
     static let cornerRadius: CGFloat = 21
+    static let panelWidth: CGFloat = 340
 }
 
 struct PanelSection<Content: View>: View {

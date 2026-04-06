@@ -112,7 +112,7 @@ private extension AppDelegate {
 private extension AppDelegate {
     func setupPanel() {
         panel = MenuBarPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 280),
+            contentRect: NSRect(x: 0, y: 0, width: PanelMetrics.panelWidth, height: 280),
             styleMask: [.nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -147,7 +147,7 @@ private extension AppDelegate {
 
         let fittingSize = panel.contentView?.fittingSize ?? .zero
         let contentSize = CGSize(
-            width: max(fittingSize.width, 320),
+            width: max(fittingSize.width, PanelMetrics.panelWidth),
             height: max(fittingSize.height, 280)
         )
         let panelRect = NSRect(
