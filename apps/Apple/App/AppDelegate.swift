@@ -209,10 +209,10 @@ extension AppDelegate {
             &settingsWindow,
             rootView: rootView,
             config: WindowConfig(
-                size: CGSize(width: 750, height: 500),
+                size: CGSize(width: 640, height: 400),
                 autosaveName: "SettingsWindow",
                 titleVisibility: .hidden,
-                titlebarAppearsTransparent: true
+                styleMask: [.titled, .closable, .miniaturizable]
             )
         )
     }
@@ -227,6 +227,7 @@ private extension AppDelegate {
         var title: String?
         var titleVisibility: NSWindow.TitleVisibility = .visible
         var titlebarAppearsTransparent: Bool = false
+        var styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
     }
 
     @discardableResult
@@ -243,7 +244,7 @@ private extension AppDelegate {
 
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: config.size),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: config.styleMask,
             backing: .buffered,
             defer: false
         )
@@ -252,9 +253,21 @@ private extension AppDelegate {
         window.titlebarAppearsTransparent = config.titlebarAppearsTransparent
         window.contentViewController = NSHostingController(rootView: rootView)
         window.isReleasedWhenClosed = false
-        window.setFrameAutosaveName(config.autosaveName)
-        if !window.setFrameUsingName(config.autosaveName) {
+        if let savedFrame = UserDefaults.standard.string(forKey: "WindowFrame.\(config.autosaveName)") {
+            window.setFrame(NSRectFromString(savedFrame), display: false)
+            if !config.styleMask.contains(.resizable) {
+                window.setContentSize(config.size)
+            }
+        } else {
             window.center()
+        }
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didMoveNotification,
+            object: window,
+            queue: .main
+        ) { notification in
+            guard let window = notification.object as? NSWindow else { return }
+            UserDefaults.standard.set(NSStringFromRect(window.frame), forKey: "WindowFrame.\(config.autosaveName)")
         }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
