@@ -8,25 +8,6 @@
 import AppKit
 import SwiftUI
 
-/// Sidebar navigation items for the dashboard.
-enum SidebarItem: String, Hashable, CaseIterable {
-    case tracks
-    case albums
-    case artists
-}
-
-/// Footer navigation items for the dashboard sidebar.
-enum SidebarFooterItem: String, Hashable {
-    case about
-    case settings
-}
-
-/// Wrapper type for all possible navigation destinations.
-enum NavigationItem: Hashable {
-    case history(SidebarItem)
-    case footer(SidebarFooterItem)
-}
-
 /// The main dashboard window with sidebar navigation.
 ///
 /// Provides access to history (tracks, albums, artists), about, and settings.
@@ -115,52 +96,6 @@ private extension DashboardWindow {
         case nil:
             Text(String(localized: "Select an item"))
                 .foregroundStyle(.secondary)
-        }
-    }
-}
-
-// MARK: - SidebarItem Helpers
-
-extension SidebarItem {
-    var title: String {
-        switch self {
-        case .tracks:  String(localized: "Tracks")
-        case .albums:  String(localized: "Albums")
-        case .artists: String(localized: "Artists")
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .tracks:  "music.note"
-        case .albums:  "square.stack"
-        case .artists: "person.circle"
-        }
-    }
-
-    var mediaType: String {
-        switch self {
-        case .tracks:  "track"
-        case .albums:  "album"
-        case .artists: "artist"
-        }
-    }
-}
-
-// MARK: - SidebarFooterItem Helpers
-
-extension SidebarFooterItem {
-    var title: String {
-        switch self {
-        case .about:    String(localized: "About")
-        case .settings: String(localized: "Settings")
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .about:    "info.circle"
-        case .settings: "gearshape"
         }
     }
 }

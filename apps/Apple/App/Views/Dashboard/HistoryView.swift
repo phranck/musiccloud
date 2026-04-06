@@ -142,9 +142,21 @@ private extension HistoryView {
 private extension HistoryView {
     var emptyState: some View {
         ContentUnavailableView {
-            Label(filter.emptyTitle, systemImage: filter.icon)
-        } description: {
-            Text(filter.emptyDescription)
+            Label {
+                Text(filter.emptyTitle)
+                    .font(.largeTitle)
+                    .fontDesign(.rounded)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                Text(filter.emptyDescription)
+                    .font(.callout)
+                    .fontDesign(.rounded)
+                    .foregroundColor(.secondary)
+            } icon: {
+                Image(systemName: filter.icon)
+                    .foregroundColor(.primary)
+                    .symbolRenderingMode(.hierarchical)
+            }
         }
     }
 }
@@ -162,7 +174,13 @@ private extension HistoryView {
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         descriptor.fetchLimit = loadedCount
-        let results = (try? modelContext.fetch(descriptor)) ?? []
+        let results: [MediaEntry]
+        do {
+            results = try modelContext.fetch(descriptor)
+        } catch {
+            AppLogger.history.error("Failed to fetch entries: \(error.localizedDescription)")
+            results = []
+        }
         hasMore = results.count >= loadedCount
         allEntries = results
     }
@@ -367,9 +385,11 @@ private struct EntryActionsModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onTapGesture(count: 2) {
-                if let url = URL(string: entry.shortUrl) {
-                    NSWorkspace.shared.open(url)
+                guard let url = URL(string: entry.shortUrl) else {
+                    AppLogger.ui.error("Invalid short URL: \(entry.shortUrl)")
+                    return
                 }
+                NSWorkspace.shared.open(url)
             }
             .contextMenu {
                 Button {
@@ -380,9 +400,11 @@ private struct EntryActionsModifier: ViewModifier {
                 }
 
                 Button {
-                    if let url = URL(string: entry.shortUrl) {
-                        NSWorkspace.shared.open(url)
+                    guard let url = URL(string: entry.shortUrl) else {
+                        AppLogger.ui.error("Invalid short URL: \(entry.shortUrl)")
+                        return
                     }
+                    NSWorkspace.shared.open(url)
                 } label: {
                     Label("Open in Browser...", systemImage: "safari")
                 }
@@ -391,9 +413,11 @@ private struct EntryActionsModifier: ViewModifier {
                     Menu {
                         ForEach(entry.serviceLinks, id: \.service) { link in
                             Button {
-                                if let url = URL(string: link.url) {
-                                    NSWorkspace.shared.open(url)
+                                guard let url = URL(string: link.url) else {
+                                    AppLogger.ui.error("Invalid service URL: \(link.url)")
+                                    return
                                 }
+                                NSWorkspace.shared.open(url)
                             } label: {
                                 Label {
                                     Text(link.displayName)
@@ -429,7 +453,7 @@ private extension View {
 private func serviceIcon(for service: String) -> NSImage {
     let canvasSize = NSSize(width: 16, height: 16)
     guard let original = NSImage(named: "ServiceIcons/\(service)") else {
-        return NSImage(systemSymbolName: "music.note", accessibilityDescription: service)!
+        return NSImage(systemSymbolName: "music.note", accessibilityDescription: service) ?? NSImage()
     }
     let originalSize = original.size
     let scale = min(canvasSize.width / originalSize.width, canvasSize.height / originalSize.height)
@@ -452,22 +476,3 @@ private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
 }
 
-// MARK: - SidebarItem Empty State Helpers
-
-private extension SidebarItem {
-    var emptyTitle: String {
-        switch self {
-        case .tracks:  String(localized: "No Tracks")
-        case .albums:  String(localized: "No Albums")
-        case .artists: String(localized: "No Artists")
-        }
-    }
-
-    var emptyDescription: String {
-        switch self {
-        case .tracks:  String(localized: "Resolved tracks will appear here.")
-        case .albums:  String(localized: "Resolved albums will appear here.")
-        case .artists: String(localized: "Resolved artists will appear here.")
-        }
-    }
-}
