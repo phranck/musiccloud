@@ -387,6 +387,26 @@ private struct EntryActionsModifier: ViewModifier {
                     Label("Open in Browser...", systemImage: "safari")
                 }
 
+                if entry.mediaType != "artist", !entry.serviceLinks.isEmpty {
+                    Menu {
+                        ForEach(entry.serviceLinks, id: \.service) { link in
+                            Button {
+                                if let url = URL(string: link.url) {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            } label: {
+                                Label {
+                                    Text(link.displayName)
+                                } icon: {
+                                    Image(nsImage: serviceIcon(for: link.service))
+                                }
+                            }
+                        }
+                    } label: {
+                        Label("Open in", systemImage: "arrow.up.forward.app")
+                    }
+                }
+
                 Divider()
 
                 Button(role: .destructive) {
@@ -402,6 +422,28 @@ private extension View {
     func entryActions(entry: MediaEntry, onDelete: @escaping () -> Void) -> some View {
         modifier(EntryActionsModifier(entry: entry, onDelete: onDelete))
     }
+}
+
+// MARK: - Service Icon Helper
+
+private func serviceIcon(for service: String) -> NSImage {
+    let canvasSize = NSSize(width: 16, height: 16)
+    guard let original = NSImage(named: "ServiceIcons/\(service)") else {
+        return NSImage(systemSymbolName: "music.note", accessibilityDescription: service)!
+    }
+    let originalSize = original.size
+    let scale = min(canvasSize.width / originalSize.width, canvasSize.height / originalSize.height)
+    let scaledSize = NSSize(width: originalSize.width * scale, height: originalSize.height * scale)
+    let origin = NSPoint(
+        x: (canvasSize.width - scaledSize.width) / 2,
+        y: (canvasSize.height - scaledSize.height) / 2
+    )
+    let resized = NSImage(size: canvasSize, flipped: false) { _ in
+        original.draw(in: NSRect(origin: origin, size: scaledSize))
+        return true
+    }
+    resized.isTemplate = true
+    return resized
 }
 
 // MARK: - String Helpers

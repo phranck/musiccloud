@@ -30,10 +30,11 @@ struct ResolveResponse: Decodable {
         track = try container.decodeIfPresent(TrackInfo.self, forKey: .track)
         album = try container.decodeIfPresent(AlbumInfo.self, forKey: .album)
         artist = try container.decodeIfPresent(ArtistInfo.self, forKey: .artist)
+        links = (try? container.decodeIfPresent([ServiceLink].self, forKey: .links)) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
-        case shortUrl, track, album, artist
+        case shortUrl, track, album, artist, links
     }
 
     /// Track metadata if the URL was for a track
@@ -44,6 +45,9 @@ struct ResolveResponse: Decodable {
 
     /// Artist metadata if the URL was for an artist
     var artist: ArtistInfo?
+
+    /// Resolved service links for cross-platform availability
+    var links: [ServiceLink]
 
     /// Derives the ``ContentType`` from the populated metadata field.
     var contentType: ContentType {
@@ -83,7 +87,8 @@ struct ResolveResponse: Decodable {
             artworkImageData: artworkData,
             track: track,
             album: album,
-            artist: artist
+            artist: artist,
+            serviceLinks: links
         )
     }
 }

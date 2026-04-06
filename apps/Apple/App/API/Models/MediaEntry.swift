@@ -30,6 +30,7 @@ final class MediaEntry {
     var track: TrackInfo?
     var album: AlbumInfo?
     var artist: ArtistInfo?
+    var serviceLinks: [ServiceLink] = []
 
     /// Reconstructs the ``ContentType`` enum from the stored flat properties.
     ///
@@ -56,7 +57,8 @@ final class MediaEntry {
         date: Date = .now,
         track: TrackInfo? = nil,
         album: AlbumInfo? = nil,
-        artist: ArtistInfo? = nil
+        artist: ArtistInfo? = nil,
+        serviceLinks: [ServiceLink] = []
     ) {
         self.id = id
         self.originalUrl = originalUrl
@@ -67,5 +69,6 @@ final class MediaEntry {
         self.track = track
         self.album = album
         self.artist = artist
+        self.serviceLinks = serviceLinks
     }
 }
