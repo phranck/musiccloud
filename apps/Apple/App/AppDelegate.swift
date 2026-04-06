@@ -166,69 +166,86 @@ private extension AppDelegate {
     }
 }
 
-// MARK: - Dashboard Window
+// MARK: - Window Management
 
 extension AppDelegate {
     /// Opens the dashboard window, creating it if needed.
     func openDashboard() {
-        if let window = dashboardWindow {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
-        let rootView = DashboardWindow()
+        let rootView = DashboardView()
             .environment(\.modelContext, mainContext)
             .symbolRenderingMode(.hierarchical)
 
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
+        dashboardWindow = showWindow(
+            &dashboardWindow,
+            rootView: rootView,
+            config: WindowConfig(
+                size: CGSize(width: 900, height: 600),
+                autosaveName: "DashboardWindow",
+                title: "musiccloud"
+            )
         )
-        window.title = "musiccloud"
-        window.contentViewController = NSHostingController(rootView: rootView)
-        window.isReleasedWhenClosed = false
-        window.setFrameAutosaveName("DashboardWindow")
-        if !window.setFrameUsingName("DashboardWindow") {
-            window.center()
-        }
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-
-        dashboardWindow = window
     }
 
     /// Opens the settings window, creating it if needed.
     func openSettings() {
-        if let window = settingsWindow {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
         let rootView = SettingsView()
             .symbolRenderingMode(.hierarchical)
 
+        settingsWindow = showWindow(
+            &settingsWindow,
+            rootView: rootView,
+            config: WindowConfig(
+                size: CGSize(width: 750, height: 500),
+                autosaveName: "SettingsWindow",
+                titleVisibility: .hidden,
+                titlebarAppearsTransparent: true
+            )
+        )
+    }
+}
+
+// MARK: - Window Helpers
+
+private extension AppDelegate {
+    struct WindowConfig {
+        var size: CGSize
+        var autosaveName: String
+        var title: String?
+        var titleVisibility: NSWindow.TitleVisibility = .visible
+        var titlebarAppearsTransparent: Bool = false
+    }
+
+    @discardableResult
+    func showWindow<Content: View>(
+        _ stored: inout NSWindow?,
+        rootView: Content,
+        config: WindowConfig
+    ) -> NSWindow {
+        if let window = stored {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return window
+        }
+
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 750, height: 500),
+            contentRect: NSRect(origin: .zero, size: config.size),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
+        if let title = config.title { window.title = title }
+        window.titleVisibility = config.titleVisibility
+        window.titlebarAppearsTransparent = config.titlebarAppearsTransparent
         window.contentViewController = NSHostingController(rootView: rootView)
         window.isReleasedWhenClosed = false
-        window.setFrameAutosaveName("SettingsWindow")
-        if !window.setFrameUsingName("SettingsWindow") {
+        window.setFrameAutosaveName(config.autosaveName)
+        if !window.setFrameUsingName(config.autosaveName) {
             window.center()
         }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        settingsWindow = window
+        return window
     }
 }
 

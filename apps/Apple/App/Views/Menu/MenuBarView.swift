@@ -118,7 +118,7 @@ private struct FilteredHistory: View {
             }
             .frame(maxWidth: .infinity, minHeight: 120)
         } else {
-            MediaSection(history: Array(filtered.prefix(10)))
+            MediaSection(history: Array(filtered.prefix(8)))
         }
     }
 }

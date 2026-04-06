@@ -11,30 +11,21 @@ import SwiftUI
 /// Displays resolved media entries filtered by content type.
 ///
 /// Supports list and grid display modes with search filtering.
+/// The filter is controlled via a centered `AnimatedSegmentControl` in the toolbar.
 struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
 
-    let filter: SidebarItem
+    @Binding var filter: SidebarItem
 
     private static let pageSize = 50
 
     @State private var allEntries: [MediaEntry] = []
-    @AppStorage private var displayModeRaw: String
     @State private var searchText = ""
-
-    init(filter: SidebarItem) {
-        self.filter = filter
-        _displayModeRaw = AppStorage(wrappedValue: DisplayMode.list.rawValue, "displayMode.\(filter.rawValue)")
-    }
-
-    private var displayMode: Binding<DisplayMode> {
-        Binding(
-            get: { DisplayMode(rawValue: displayModeRaw) ?? .list },
-            set: { displayModeRaw = $0.rawValue }
-        )
-    }
     @State private var loadedCount = HistoryView.pageSize
     @State private var hasMore = true
+    @AppStorage("gridItemSize") private var gridItemSize: Double = 200
+
+    private static let gridItemMinSize: CGFloat = 150
 
     private var filteredEntries: [MediaEntry] {
         let mediaType = filter.mediaType
@@ -57,63 +48,41 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        Group {
-            if filteredEntries.isEmpty {
-                emptyState
-            } else {
-                switch displayMode.wrappedValue {
-                case .list: listView
-                case .grid: gridView
+        VStack(spacing: 0) {
+            Group {
+                if filteredEntries.isEmpty {
+                    emptyState
+                } else {
+                    gridView
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Divider()
+            bottomBar
         }
-        .navigationTitle(filter.title)
         .searchable(text: $searchText, placement: .toolbar, prompt: String(localized: "Search"))
+        .background(WindowKeyMonitor())
         .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Picker("", selection: displayMode) {
-                    ForEach(DisplayMode.allCases, id: \.self) { mode in
-                        Image(systemName: mode.icon)
-                            .tag(mode)
+            ToolbarItem(placement: .principal) {
+                Picker("", selection: $filter) {
+                    ForEach(SidebarItem.allCases, id: \.self) { item in
+                        Label(item.title, systemImage: item.icon)
+                            .tag(item)
                     }
                 }
                 .pickerStyle(.segmented)
-                .help(String(localized: "Display Mode"))
+                .labelStyle(.titleAndIcon)
             }
         }
         .onAppear { fetchEntries() }
+        .onChange(of: filter) {
+            loadedCount = HistoryView.pageSize
+            loadEntries()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .historyDidChange)) { _ in
             fetchEntries()
         }
-    }
-}
-
-// MARK: - Display Mode
-
-extension HistoryView {
-    enum DisplayMode: String, CaseIterable {
-        case list
-        case grid
-
-        var icon: String {
-            switch self {
-            case .list: "list.bullet"
-            case .grid: "square.grid.2x2"
-            }
-        }
-    }
-}
-
-// MARK: - List View
-
-private extension HistoryView {
-    var listView: some View {
-        List(filteredEntries) { entry in
-            HistoryListRow(entry: entry)
-                .entryActions(entry: entry, onDelete: { deleteEntry(entry) })
-                .onAppear { loadMoreIfNeeded(entry) }
-        }
-        .listStyle(.inset(alternatesRowBackgrounds: true))
     }
 }
 
@@ -123,8 +92,8 @@ private extension HistoryView {
     var gridView: some View {
         ScrollView {
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 180, maximum: 220), spacing: 16)],
-                spacing: 16
+                columns: [GridItem(.adaptive(minimum: max(gridItemSize, HistoryView.gridItemMinSize), maximum: gridItemSize + 40), spacing: 20)],
+                spacing: 20
             ) {
                 ForEach(filteredEntries) { entry in
                     HistoryGridCard(entry: entry)
@@ -133,7 +102,29 @@ private extension HistoryView {
                 }
             }
             .padding(20)
+            .animation(.smooth(duration: 0.25), value: gridItemSize)
         }
+    }
+}
+
+// MARK: - Bottom Bar
+
+private extension HistoryView {
+    var bottomBar: some View {
+        HStack {
+            Spacer()
+            Image(systemName: "square.grid.3x3")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Slider(value: $gridItemSize, in: Double(HistoryView.gridItemMinSize)...320)
+                .frame(width: 120)
+            Image(systemName: "square.grid.2x2")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.bar)
     }
 }
 
@@ -199,86 +190,6 @@ private extension HistoryView {
     }
 }
 
-// MARK: - List Row
-
-private struct HistoryListRow: View {
-    let entry: MediaEntry
-
-    var body: some View {
-        HStack(spacing: 12) {
-            artwork
-            metadata
-            Spacer(minLength: 8)
-            trailing
-            ShareButton(shortUrl: entry.shortUrl)
-        }
-        .padding(.vertical, 4)
-    }
-
-    @ViewBuilder
-    private var artwork: some View {
-        MediaArtwork(url: artworkUrl)
-    }
-
-    @ViewBuilder
-    private var metadata: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.body)
-                .fontWeight(.medium)
-                .lineLimit(1)
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-    }
-
-    @ViewBuilder
-    private var trailing: some View {
-        if let detail = trailingDetail {
-            Text(detail)
-                .font(.subheadline.monospacedDigit())
-                .foregroundStyle(.tertiary)
-        }
-    }
-
-    private var title: String {
-        switch entry.contentType {
-        case .track(let info):  info.title
-        case .album(let info):  info.title
-        case .artist(let info): info.name
-        }
-    }
-
-    private var subtitle: String {
-        switch entry.contentType {
-        case .track(let info):  info.artistsString
-        case .album(let info):  info.artistsString
-        case .artist(let info): info.genresString ?? "Artist"
-        }
-    }
-
-    private var artworkUrl: String? {
-        switch entry.contentType {
-        case .track(let info):  info.artworkUrl
-        case .album(let info):  info.artworkUrl
-        case .artist(let info): info.artworkUrl
-        }
-    }
-
-    private var trailingDetail: String? {
-        switch entry.contentType {
-        case .track(let info):
-            [info.releaseYear, info.formattedDuration].compactMap { $0 }.joined(separator: " · ").nilIfEmpty
-        case .album(let info):
-            [info.releaseYear, info.totalTracks.map { "\($0) tracks" }].compactMap { $0 }.joined(separator: " · ").nilIfEmpty
-        case .artist(let info):
-            info.formattedFollowers
-        }
-    }
-}
-
 // MARK: - Grid Card
 
 private struct HistoryGridCard: View {
@@ -287,16 +198,14 @@ private struct HistoryGridCard: View {
     @State private var isHovered = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            gridArtwork
-            cardInfo
-        }
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(isHovered ? 0.2 : 0.08), radius: isHovered ? 12 : 6, y: isHovered ? 4 : 2)
-        .scaleEffect(isHovered ? 1.02 : 1.0)
-        .animation(.easeOut(duration: 0.15), value: isHovered)
-        .onHover { isHovered = $0 }
+        gridArtwork
+            .overlay(alignment: .bottom) { cardInfo }
+            .aspectRatio(1, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .black.opacity(isHovered ? 0.2 : 0.08), radius: isHovered ? 12 : 6, y: isHovered ? 4 : 2)
+            .scaleEffect(isHovered ? 1.02 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: isHovered)
+            .onHover { isHovered = $0 }
     }
 
     @ViewBuilder
@@ -315,8 +224,7 @@ private struct HistoryGridCard: View {
                 artworkPlaceholder
             }
         }
-        .frame(height: 180)
-        .clipped()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var artworkPlaceholder: some View {
@@ -330,17 +238,24 @@ private struct HistoryGridCard: View {
     }
 
     private var cardInfo: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+        VStack(alignment: .leading, spacing: 2) {
+            Text(subtitle)
                 .font(.headline)
                 .lineLimit(1)
-            Text(subtitle)
+            Text(title)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
+        .foregroundStyle(.white)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding(10)
+        .background(
+            LinearGradient(
+                colors: [.black.opacity(0.85), .clear],
+                startPoint: .bottom,
+                endPoint: .top
+            )
+        )
     }
 
     private var title: String {
@@ -474,5 +389,47 @@ private func serviceIcon(for service: String) -> NSImage {
 
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+// MARK: - Window Key Monitor
+
+/// Installs a local key-event monitor for Cmd+F (focus search) and Escape (close window).
+///
+/// The toolbar search field lives outside `contentView`, so we search from the
+/// window's theme frame (`contentView.superview`) which contains both content and toolbar.
+private struct WindowKeyMonitor: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        context.coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard let window = view.window else { return event }
+
+            if event.keyCode == 53 { // Escape
+                window.close()
+                return nil
+            }
+
+            if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "f" {
+                // Search from theme frame to include toolbar views
+                let root = window.contentView?.superview ?? window.contentView
+                if let searchField = root?.findFirst(NSSearchField.self) {
+                    window.makeFirstResponder(searchField)
+                    return nil
+                }
+            }
+
+            return event
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        var monitor: Any?
+        deinit {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+        }
+    }
 }
 
