@@ -23,7 +23,7 @@ struct HistoryView: View {
     @State private var searchText = ""
     @State private var loadedCount = HistoryView.pageSize
     @State private var hasMore = true
-    @AppStorage("gridItemSize") private var gridItemSize: Double = 200
+    @AppStorage("gridItemSize") private var gridItemSize: Double = 168
 
     private static let gridItemMinSize: CGFloat = 150
 

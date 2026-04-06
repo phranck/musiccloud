@@ -30,7 +30,7 @@ struct LogoText: View {
     /// - Parameters:
     ///   - fontSize: The font size to use (default: 20)
     ///   - isAnimating: Whether to animate the gradient (default: false)
-    init(size fontSize: CGFloat = 20, isAnimating: Bool = false) {
+    init(size fontSize: CGFloat = 25, isAnimating: Bool = false) {
         self.fontSize = fontSize
         self.isAnimating = isAnimating
     }

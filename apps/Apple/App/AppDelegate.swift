@@ -179,9 +179,10 @@ extension AppDelegate {
             &dashboardWindow,
             rootView: rootView,
             config: WindowConfig(
-                size: CGSize(width: 900, height: 600),
+                size: CGSize(width: 1000, height: 700),
                 autosaveName: "DashboardWindow",
-                title: "musiccloud"
+                title: "musiccloud",
+                titleVisibility: .hidden
             )
         )
     }
