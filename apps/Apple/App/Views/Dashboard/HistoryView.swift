@@ -391,45 +391,4 @@ private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
 }
 
-// MARK: - Window Key Monitor
-
-/// Installs a local key-event monitor for Cmd+F (focus search) and Escape (close window).
-///
-/// The toolbar search field lives outside `contentView`, so we search from the
-/// window's theme frame (`contentView.superview`) which contains both content and toolbar.
-private struct WindowKeyMonitor: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        context.coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard let window = view.window else { return event }
-
-            if event.keyCode == 53 { // Escape
-                window.close()
-                return nil
-            }
-
-            if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "f" {
-                // Search from theme frame to include toolbar views
-                let root = window.contentView?.superview ?? window.contentView
-                if let searchField = root?.findFirst(NSSearchField.self) {
-                    window.makeFirstResponder(searchField)
-                    return nil
-                }
-            }
-
-            return event
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {}
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator {
-        var monitor: Any?
-        deinit {
-            if let monitor { NSEvent.removeMonitor(monitor) }
-        }
-    }
-}
 
