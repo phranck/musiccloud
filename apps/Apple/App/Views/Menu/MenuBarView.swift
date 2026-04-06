@@ -21,30 +21,37 @@ struct MenuBarView: View {
     @State private var selectedFilter: SidebarItem = .tracks
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 0) {
-                HeaderRow(isProcessing: monitor.status.isProcessing)
-
-                if let error = monitor.status.errorMessage {
-                    ErrorRow(message: error)
-                } else {
-                    filterPicker
-                    filteredHistory
-                }
-
-                Divider().padding(.vertical, 4)
-
-                DashboardMenuItem()
-
-                Divider().padding(.vertical, 4)
-
-                QuitMenuItem()
+        VStack(spacing: 8) {
+            PanelSection {
+                HeaderRow(status: monitor.status)
             }
-            .padding(.vertical, 4)
-            .background(Color(nsColor: .windowBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 9))
+
+            if let error = monitor.status.errorMessage {
+                PanelSection(padding: 12) {
+                    ErrorRow(message: error)
+                }
+            }
+
+            PanelSection {
+                VStack(spacing: 0) {
+                    FilterPicker(selection: $selectedFilter)
+                    FilteredHistory(entries: entries, filter: selectedFilter)
+                        .frame(minHeight: 250, alignment: .top)
+                }
+            }
+
+            HStack(spacing: 8) {
+                PanelSection {
+                    DashboardMenuItem()
+                }
+                PanelSection {
+                    QuitMenuItem()
+                }
+            }
         }
+        .padding(8)
         .frame(width: 320)
+        .frame(maxHeight: .infinity, alignment: .top)
         .onAppear { fetchEntries() }
         .onReceive(NotificationCenter.default.publisher(for: .historyDidChange)) { _ in
             fetchEntries()
@@ -55,46 +62,60 @@ struct MenuBarView: View {
 // MARK: - Private API
 
 private extension MenuBarView {
-    var filterPicker: some View {
-        Picker("", selection: $selectedFilter) {
-            ForEach(SidebarItem.allCases, id: \.self) { item in
-                Text(item.title).tag(item)
-            }
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
-    }
-
-    @ViewBuilder
-    var filteredHistory: some View {
-        let filtered = entries.filter { $0.mediaType == selectedFilter.mediaType }
-        if filtered.isEmpty {
-            ContentUnavailableView {
-                Label(selectedFilter.emptyPanelTitle, systemImage: selectedFilter.icon)
-            }
-            .frame(minHeight: 80)
-        } else {
-            MediaSection(history: Array(filtered.prefix(10)))
-        }
-    }
-
     func fetchEntries() {
         let descriptor = FetchDescriptor<MediaEntry>(
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
-        entries = (try? modelContext.fetch(descriptor)) ?? []
+        do {
+            entries = try modelContext.fetch(descriptor)
+        } catch {
+            AppLogger.history.error("Failed to fetch entries: \(error.localizedDescription)")
+            entries = []
+        }
     }
 }
 
-// MARK: - SidebarItem Panel Helpers
+// MARK: - FilterPicker
 
-private extension SidebarItem {
-    var emptyPanelTitle: String {
-        switch self {
-        case .tracks:  String(localized: "No Tracks")
-        case .albums:  String(localized: "No Albums")
-        case .artists: String(localized: "No Artists")
+private struct FilterPicker: View {
+    @Binding var selection: SidebarItem
+
+    var body: some View {
+        AnimatedSegmentControl(
+            selection: $selection,
+            segments: SidebarItem.allCases.map { item in
+                .label(item.title, systemImage: item.icon, tag: item)
+            },
+            tintColor: .accentColor
+        )
+        .controlSize(.regular)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+}
+
+// MARK: - FilteredHistory
+
+private struct FilteredHistory: View {
+    let entries: [MediaEntry]
+    let filter: SidebarItem
+
+    var body: some View {
+        let filtered = entries.filter { $0.mediaType == filter.mediaType }
+        if filtered.isEmpty {
+            VStack(spacing: 8) {
+                Spacer()
+                Image(systemName: filter.icon)
+                    .font(.system(size: 28))
+                    .foregroundStyle(.secondary)
+                Text(filter.emptyPanelTitle)
+                    .font(.title3)
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, minHeight: 120)
+        } else {
+            MediaSection(history: Array(filtered.prefix(10)))
         }
     }
 }

@@ -7,31 +7,21 @@
 
 import SwiftUI
 
-/// A menu item that quits the application when tapped.
-///
-/// `QuitMenuItem` displays "Quit musiccloud" text using ``MenuItem``.
-/// On macOS, tapping terminates the application. On other platforms, the tap
-/// gesture has no effect.
-///
-/// ## Appearance
-///
-/// - Text: "Quit musiccloud"
-/// - Style: Configured as the last item in the menu (rounded bottom corners)
-///
-/// ## Usage
-///
-/// ```swift
-/// // In a menu bar extra or settings view
-/// QuitMenuItem()
-/// ```
-///
-/// ## Platform Support
-///
-/// The quit functionality is macOS-only. On iOS/iPadOS, this view can be displayed
-/// but the tap action will not terminate the app.
 struct QuitMenuItem: View {
+    @State private var isHovered = false
+
     var body: some View {
-        MenuItem(title: "Quit musiccloud")
+        VStack(spacing: 4) {
+            Image(systemName: "power")
+                .font(.system(size: 20))
+            Text("Quit")
+                .font(.caption)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .foregroundStyle(isHovered ? .white : .secondary)
+        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .onHover { isHovered = $0 }
         .onTapGesture {
 #if os(macOS)
             NSApplication.shared.terminate(nil)

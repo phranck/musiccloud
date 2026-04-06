@@ -55,17 +55,19 @@ struct MediaRow: View {
 // MARK: - Actions
 
 private extension MediaRow {
-    /// Copies the short URL to clipboard and opens it in the browser (macOS only).
+    /// Copies the short URL to clipboard, opens it in the browser, and closes the panel (macOS only).
     func copyToClipboardAndOpen() {
 #if os(macOS)
-        // 1. Copy to clipboard
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(entry.shortUrl, forType: .string)
 
-        // 2. Open in browser
-        if let url = URL(string: entry.shortUrl) {
-            NSWorkspace.shared.open(url)
+        guard let url = URL(string: entry.shortUrl) else {
+            AppLogger.ui.error("Invalid short URL: \(entry.shortUrl)")
+            return
         }
+        NSWorkspace.shared.open(url)
+
+        NSApp.keyWindow?.close()
 #endif
     }
 }

@@ -37,34 +37,56 @@ import SwiftUI
 /// ### Properties
 /// - ``isProcessing``
 struct HeaderRow: View {
-    var isProcessing: Bool
-
-    init(isProcessing: Bool) {
-        self.isProcessing = isProcessing
-    }
+    var status: ClipboardMonitor.Status
 
     var body: some View {
         HStack {
             Color.clear.frame(width: 8, height: 8)
             Spacer()
-            LogoText(isAnimating: isProcessing)
+            LogoText(isAnimating: status.isProcessing)
             Spacer()
             Circle()
-                .fill(isProcessing ? .yellow : .green)
+                .fill(indicatorColor)
                 .frame(width: 8, height: 8)
-                .accessibilityLabel("Monitoring active")
+                .accessibilityLabel(indicatorLabel)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
 }
 
+// MARK: - Private API
+
+private extension HeaderRow {
+    var indicatorColor: Color {
+        switch status {
+        case .idle:       .green
+        case .processing: .yellow
+        case .success:    .green
+        case .error:      .red
+        }
+    }
+
+    var indicatorLabel: String {
+        switch status {
+        case .idle:       "Monitoring active"
+        case .processing: "Processing"
+        case .success:    "Success"
+        case .error:      "Error"
+        }
+    }
+}
+
 // MARK: - Previews
 
-#Preview("Active") {
-    HeaderRow(isProcessing: false)
+#Preview("Idle") {
+    HeaderRow(status: .idle)
 }
 
 #Preview("Processing") {
-    HeaderRow(isProcessing: true)
+    HeaderRow(status: .processing(url: "https://open.spotify.com/track/..."))
+}
+
+#Preview("Error") {
+    HeaderRow(status: .error(message: "Could not connect"))
 }

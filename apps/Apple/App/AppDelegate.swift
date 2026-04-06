@@ -24,12 +24,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
     static private(set) var shared: AppDelegate!
 
     let modelContainer: ModelContainer = {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            fatalError("Unable to access Application Support directory")
+        }
         let storeDir = appSupport.appendingPathComponent("io.musiccloud", isDirectory: true)
-        try! FileManager.default.createDirectory(at: storeDir, withIntermediateDirectories: true)
-        let storeURL = storeDir.appendingPathComponent("musiccloud.store")
 
         do {
+            try FileManager.default.createDirectory(at: storeDir, withIntermediateDirectories: true)
+            let storeURL = storeDir.appendingPathComponent("musiccloud.store")
             let config = ModelConfiguration(url: storeURL)
             let container = try ModelContainer(for: MediaEntry.self, configurations: config)
             AppLogger.history.debug("SwiftData store: \(container.configurations.first?.url.path ?? "unknown")")
@@ -95,7 +97,7 @@ private extension AppDelegate {
 private extension AppDelegate {
     func setupPanel() {
         panel = MenuBarPanel(
-            contentRect: .zero,
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 280),
             styleMask: [.nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -130,7 +132,7 @@ private extension AppDelegate {
         let fittingSize = panel.contentView?.fittingSize ?? .zero
         let contentSize = CGSize(
             width: max(fittingSize.width, 320),
-            height: max(fittingSize.height, 120)
+            height: max(fittingSize.height, 280)
         )
         let panelRect = NSRect(
             x: buttonFrame.midX - contentSize.width / 2,
@@ -139,6 +141,7 @@ private extension AppDelegate {
             height: contentSize.height
         )
         panel.setFrame(panelRect, display: true)
+        panel.contentView?.layoutSubtreeIfNeeded()
         panel.makeKeyAndOrderFront(nil)
     }
 
@@ -188,9 +191,14 @@ private extension AppDelegate {
         eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
             guard let self, self.panel.isVisible else { return }
 
-            // Ignore clicks on the status item button itself (togglePanel handles those)
+            // Ignore clicks on the status item button (togglePanel handles those)
             if let buttonWindow = self.statusItem.button?.window,
                buttonWindow == event.window {
+                return
+            }
+
+            // Ignore clicks inside the panel itself
+            if self.panel == event.window {
                 return
             }
 
