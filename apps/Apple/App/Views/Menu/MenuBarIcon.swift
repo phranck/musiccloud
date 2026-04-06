@@ -18,7 +18,7 @@ struct MenuBarIcon: View {
 
     var body: some View {
         if isProcessing {
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+            TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { timeline in
                 Image(systemName: "music.note.list")
                     .font(.system(size: 16))
                     .foregroundStyle(RainbowPalette.cyclingColor(for: timeline.date))

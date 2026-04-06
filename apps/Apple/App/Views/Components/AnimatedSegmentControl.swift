@@ -99,7 +99,7 @@ private extension AnimatedSegmentControl {
             Text(segment.title)
                 .font(metrics.titleFont)
         }
-        .fontWeight(isSelected ? .regular : .regular)
+        .fontWeight(isSelected ? .semibold : .regular)
         .foregroundStyle(isSelected ? .primary : .secondary)
         .fixedSize()
         .padding(.horizontal, metrics.horizontalPadding)

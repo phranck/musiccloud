@@ -129,6 +129,8 @@ extension StreamingServices {
         guard
             urlString.count <= 500,
             let url = URL(string: urlString),
+            let scheme = url.scheme?.lowercased(),
+            scheme == "https" || scheme == "http",
             let host = url.host?.lowercased()
         else { return false }
 

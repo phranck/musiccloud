@@ -57,6 +57,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
         setupPanel()
         setupEventMonitor()
         NotificationManager.requestPermission()
+        NotificationManager.cleanupAttachmentCache()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        if let eventMonitor {
+            NSEvent.removeMonitor(eventMonitor)
+            self.eventMonitor = nil
+        }
     }
 }
 
@@ -82,11 +90,15 @@ private extension AppDelegate {
     func startObservingStatus() {
         func observe() {
             withObservationTracking {
-                _ = self.monitor.status.isProcessing
+                MainActor.assumeIsolated {
+                    _ = self.monitor.status.isProcessing
+                }
             } onChange: {
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
-                    self.iconHostingView.rootView = MenuBarIcon(isProcessing: self.monitor.status.isProcessing)
+                    MainActor.assumeIsolated {
+                        self.iconHostingView.rootView = MenuBarIcon(isProcessing: self.monitor.status.isProcessing)
+                    }
                     observe()
                 }
             }

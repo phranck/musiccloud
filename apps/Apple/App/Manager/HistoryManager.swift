@@ -7,9 +7,11 @@ import SwiftData
 
 /// Manages the history of URL conversions with SwiftData and CloudKit sync.
 @Observable
+@MainActor
 final class HistoryManager {
     private let logger = Logger(subsystem: "io.musiccloud.app", category: "HistoryManager")
     private let modelContext: ModelContext
+    @ObservationIgnored
     private var remoteChangeObserver: Any?
 
     /// All entries sorted by date (newest first), updated after every mutation.
@@ -96,8 +98,10 @@ private extension HistoryManager {
             queue: .main
         ) { [weak self] _ in
             guard let self else { return }
-            self.logger.debug("Remote change detected, refreshing entries")
-            self.refreshEntries()
+            Task { @MainActor in
+                self.logger.debug("Remote change detected, refreshing entries")
+                self.refreshEntries()
+            }
         }
     }
 

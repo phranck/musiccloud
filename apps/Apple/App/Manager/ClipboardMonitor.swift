@@ -46,9 +46,11 @@ import UIKit
 /// ### Methods
 /// - ``resolve(url:)``
 @Observable
+@MainActor
 final class ClipboardMonitor {
     private let historyManager: HistoryManager
     private var lastSeenContent: String?
+    @ObservationIgnored
     private var timer: Timer?
 
     private(set) var status: Status = .idle

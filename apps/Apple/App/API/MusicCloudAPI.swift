@@ -110,6 +110,7 @@ extension MusicCloudAPI {
         let endpoint = baseURL.appendingPathComponent("api/resolve")
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
+        request.timeoutInterval = 10
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(["query": url])
 
@@ -176,7 +177,9 @@ extension MusicCloudAPI {
 
         do {
             AppLogger.api.debug("→ Downloading artwork from \(url.absoluteString)")
-            let (data, response) = try await URLSession.shared.data(from: url)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 10
+            let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse,
                   (200..<300).contains(httpResponse.statusCode) else {

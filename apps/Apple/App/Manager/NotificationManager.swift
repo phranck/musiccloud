@@ -22,6 +22,21 @@ enum NotificationManager {
         }
     }
 
+    /// Removes leftover notification attachment files from previous sessions.
+    static func cleanupAttachmentCache() {
+        let tempDir = FileManager.default.temporaryDirectory
+        let enumerator = FileManager.default.enumerator(
+            at: tempDir,
+            includingPropertiesForKeys: nil,
+            options: [.skipsSubdirectoryDescendants]
+        )
+        while let fileURL = enumerator?.nextObject() as? URL {
+            guard fileURL.pathExtension == "jpg",
+                  UUID(uuidString: fileURL.deletingPathExtension().lastPathComponent) != nil else { continue }
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+    }
+
     /// Sends a notification for a successful URL conversion.
     ///
     /// Shows title, artist/subtitle, and artwork matching the history row display.
