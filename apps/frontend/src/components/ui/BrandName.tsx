@@ -65,8 +65,8 @@ function MusicNote({ containerRef }: { containerRef: React.RefObject<HTMLSpanEle
         display: "inline-block",
         verticalAlign: "baseline",
         marginLeft: "0.06em",
-        marginRight: "-0.08em",
-        marginBottom: "-0.05em",
+        marginRight: "-0.1em",
+        marginBottom: "-0.1em",
       }}
     >
       <defs>

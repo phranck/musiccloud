@@ -56,14 +56,15 @@ private extension LogoText {
     }
 
     var logoContent: some View {
-        HStack(spacing: 0) {
+        HStack(alignment: .lastTextBaseline, spacing: 0) {
             Text("musicc")
                 .font(font)
             Image(systemName: "music.note")
                 .font(.system(size: fontSize * 0.85, weight: .bold))
-                .baselineOffset(-fontSize * 0.05)
+                .offset(x: -0.5, y: fontSize * -0.12)
             Text("oud")
                 .font(font)
+                .offset(x: -1.2)
         }
     }
 
