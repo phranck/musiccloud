@@ -98,15 +98,16 @@ private extension AppDelegate {
             contentRect: .zero,
             styleMask: [.nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
-            defer: true
+            defer: false
         )
         panel.isFloatingPanel = true
         panel.level = .popUpMenu
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
-        panel.hidesOnDeactivate = true
+        panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
+        panel.animationBehavior = .utilityWindow
 
         let rootView = MenuBarView()
             .environment(\.modelContext, mainContext)
@@ -126,7 +127,11 @@ private extension AppDelegate {
     func openPanel() {
         guard let buttonFrame = statusItem.button?.window?.frame else { return }
 
-        let contentSize = panel.contentView?.fittingSize ?? CGSize(width: 280, height: 300)
+        let fittingSize = panel.contentView?.fittingSize ?? .zero
+        let contentSize = CGSize(
+            width: max(fittingSize.width, 320),
+            height: max(fittingSize.height, 120)
+        )
         let panelRect = NSRect(
             x: buttonFrame.midX - contentSize.width / 2,
             y: buttonFrame.minY - contentSize.height,
@@ -134,14 +139,11 @@ private extension AppDelegate {
             height: contentSize.height
         )
         panel.setFrame(panelRect, display: true)
-
-        NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
     }
 
     func closePanel() {
         panel.orderOut(nil)
-        NSApp.deactivate()
     }
 }
 
@@ -183,8 +185,15 @@ extension AppDelegate {
 
 private extension AppDelegate {
     func setupEventMonitor() {
-        eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+        eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
             guard let self, self.panel.isVisible else { return }
+
+            // Ignore clicks on the status item button itself (togglePanel handles those)
+            if let buttonWindow = self.statusItem.button?.window,
+               buttonWindow == event.window {
+                return
+            }
+
             self.closePanel()
         }
     }

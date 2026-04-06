@@ -38,3 +38,6 @@ DerivedData/
 
 # OS
 .DS_Store
+
+# Xcode build number counter
+apps/Apple/.build-number
