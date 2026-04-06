@@ -24,6 +24,13 @@ struct Segment<Tag: Hashable>: Identifiable {
     }
 }
 
+// MARK: - SegmentControlWidth
+
+enum SegmentControlWidth {
+    case fitted
+    case fullWidth
+}
+
 // MARK: - AnimatedSegmentControl
 
 struct AnimatedSegmentControl<Tag: Hashable>: View {
@@ -32,6 +39,7 @@ struct AnimatedSegmentControl<Tag: Hashable>: View {
     var tintColor: Color = .accentColor
 
     @Environment(\.controlSize) private var controlSize
+    @Environment(\.segmentControlWidth) private var widthStyle
     @Namespace private var namespace
 
     // MARK: Public API
@@ -78,6 +86,7 @@ private extension AnimatedSegmentControl {
             selection = segment.tag
         } label: {
             segmentLabel(for: segment, isSelected: isSelected)
+                .frame(maxWidth: widthStyle == .fullWidth ? .infinity : nil)
         }
         .buttonStyle(.plain)
         .background {
@@ -105,6 +114,25 @@ private extension AnimatedSegmentControl {
         .padding(.horizontal, metrics.horizontalPadding)
         .padding(.vertical, metrics.verticalPadding)
         .contentShape(.capsule)
+    }
+}
+
+// MARK: - SegmentControlWidth Environment
+
+private struct SegmentControlWidthKey: EnvironmentKey {
+    static let defaultValue: SegmentControlWidth = .fitted
+}
+
+extension EnvironmentValues {
+    var segmentControlWidth: SegmentControlWidth {
+        get { self[SegmentControlWidthKey.self] }
+        set { self[SegmentControlWidthKey.self] = newValue }
+    }
+}
+
+extension View {
+    func segmentControlWidth(_ width: SegmentControlWidth) -> some View {
+        environment(\.segmentControlWidth, width)
     }
 }
 
@@ -172,6 +200,26 @@ private enum PreviewNavTab: String, CaseIterable {
             .label("Settings", systemImage: "gearshape", tag: .settings),
         ], tintColor: .orange)
         .controlSize(.large)
+    }
+    .padding()
+}
+
+#Preview("Full Width") {
+    @Previewable @State var selection: PreviewTab = .all
+
+    VStack(spacing: 20) {
+        AnimatedSegmentControl(selection: $selection, segments: [
+            .text("All", tag: PreviewTab.all),
+            .text("Favorites", tag: .favorites),
+            .text("Recent", tag: .recent),
+        ])
+
+        AnimatedSegmentControl(selection: $selection, segments: [
+            .text("All", tag: PreviewTab.all),
+            .text("Favorites", tag: .favorites),
+            .text("Recent", tag: .recent),
+        ])
+        .segmentControlWidth(.fullWidth)
     }
     .padding()
 }
