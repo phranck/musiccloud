@@ -6,108 +6,93 @@
 //
 
 import AppKit
+import SwiftData
 import SwiftUI
 
 /// The main dashboard window with sidebar navigation.
 ///
-/// Provides access to history (tracks, albums, artists), about, and settings.
+/// Provides access to history (tracks, albums, artists).
 struct DashboardWindow: View {
-    @State private var selection: NavigationItem? = .history(.tracks)
+    @State private var selection: SidebarItem? = .tracks
     @AppStorage("dashboard.sidebarWidth") private var sidebarWidth: Double = 200
 
     var body: some View {
         NavigationSplitView {
-            sidebar
+            DashboardSidebar(selection: $selection, sidebarWidth: $sidebarWidth)
         } detail: {
-            detail
+            DashboardDetail(selection: selection)
         }
         .navigationTitle("")
         .frame(minWidth: 800, minHeight: 500)
+        .onKeyPress(.escape) {
+            NSApp.keyWindow?.close()
+            return .handled
+        }
     }
 }
 
-// MARK: - Sidebar
+// MARK: - DashboardSidebar
 
-private extension DashboardWindow {
-    var sidebar: some View {
+private struct DashboardSidebar: View {
+    @Environment(\.modelContext) private var modelContext
+    @Binding var selection: SidebarItem?
+    @Binding var sidebarWidth: Double
+
+    @State private var counts: [SidebarItem: Int] = [:]
+
+    var body: some View {
         List(selection: $selection) {
             Section(String(localized: "History")) {
                 ForEach(SidebarItem.allCases, id: \.self) { item in
                     Label(item.title, systemImage: item.icon)
-                        .tag(NavigationItem.history(item))
+                        .tag(item)
+                        .badge(counts[item] ?? 0)
                 }
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            sidebarFooter
-        }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 180, ideal: sidebarWidth, max: 300)
+        .onAppear { fetchCounts() }
+        .onReceive(NotificationCenter.default.publisher(for: .historyDidChange)) { _ in
+            fetchCounts()
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEndLiveResizeNotification)) { notification in
             guard let window = notification.object as? NSWindow,
                   window.frameAutosaveName == "DashboardWindow",
-                  let splitView = window.contentView?.findSubview(ofType: NSSplitView.self),
+                  let splitView = window.contentView?.findFirst(NSSplitView.self),
                   !splitView.arrangedSubviews.isEmpty else { return }
             sidebarWidth = splitView.arrangedSubviews[0].frame.width
         }
     }
+}
 
-    var sidebarFooter: some View {
-        VStack(spacing: 0) {
-            Divider()
-            VStack(spacing: 2) {
-                footerButton(.about)
-                footerButton(.settings)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
-        }
-    }
+// MARK: - Private API
 
-    func footerButton(_ item: SidebarFooterItem) -> some View {
-        Button {
-            selection = .footer(item)
-        } label: {
-            Label(item.title, systemImage: item.icon)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 4)
-                .padding(.horizontal, 6)
+private extension DashboardSidebar {
+    func fetchCounts() {
+        var result: [SidebarItem: Int] = [:]
+        for item in SidebarItem.allCases {
+            let mediaType = item.mediaType
+            let descriptor = FetchDescriptor<MediaEntry>(
+                predicate: #Predicate { $0.mediaType == mediaType }
+            )
+            result[item] = (try? modelContext.fetchCount(descriptor)) ?? 0
         }
-        .buttonStyle(.plain)
-        .background(
-            RoundedRectangle(cornerRadius: 5)
-                .fill(selection == .footer(item) ? Color.accentColor.opacity(0.2) : .clear)
-        )
+        counts = result
     }
 }
 
-// MARK: - Detail
+// MARK: - DashboardDetail
 
-private extension DashboardWindow {
-    @ViewBuilder
-    var detail: some View {
-        switch selection {
-        case .history(let item):
-            HistoryView(filter: item)
-        case .footer(.about):
-            AboutView()
-        case .footer(.settings):
-            SettingsView()
-        case nil:
+private struct DashboardDetail: View {
+    let selection: SidebarItem?
+
+    var body: some View {
+        if let selection {
+            HistoryView(filter: selection)
+        } else {
             Text(String(localized: "Select an item"))
                 .foregroundStyle(.secondary)
         }
-    }
-}
-
-// MARK: - NSView Helpers
-
-private extension NSView {
-    func findSubview<T: NSView>(ofType type: T.Type) -> T? {
-        if let match = self as? T { return match }
-        for sub in subviews {
-            if let found = sub.findSubview(ofType: type) { return found }
-        }
-        return nil
     }
 }

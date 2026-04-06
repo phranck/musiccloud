@@ -23,12 +23,21 @@ import SwiftUI
 ///     VStack { ... }
 /// }
 /// ```
+enum PanelMetrics {
+    static let spacing: CGFloat = 6
+    static let cornerRadius: CGFloat = 21
+}
+
 struct PanelSection<Content: View>: View {
     let padding: CGFloat
+    let hoverable: Bool
     @ViewBuilder let content: Content
 
-    init(padding: CGFloat = 0, @ViewBuilder content: () -> Content) {
+    @State private var isHovered = false
+
+    init(padding: CGFloat = 0, hoverable: Bool = false, @ViewBuilder content: () -> Content) {
         self.padding = padding
+        self.hoverable = hoverable
         self.content = content()
     }
 
@@ -38,6 +47,24 @@ struct PanelSection<Content: View>: View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 21))
+            .background(
+                RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius)
+                    .fill(.thinMaterial)
+                    .shadow(color: .white.opacity(isHovered ? 0.08 : 0), radius: 4, y: -1)
+            )
+            .overlay {
+                if isHovered {
+                    RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius)
+                        .fill(.white.opacity(0.04))
+                        .allowsHitTesting(false)
+                }
+            }
+            .scaleEffect(isHovered ? 1.04 : 1.0)
+            .onHover { hovered in
+                guard hoverable else { return }
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isHovered = hovered
+                }
+            }
     }
 }

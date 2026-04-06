@@ -68,9 +68,9 @@ struct HistoryView: View {
             }
         }
         .navigationTitle(filter.title)
-        .searchable(text: $searchText, prompt: String(localized: "Search"))
+        .searchable(text: $searchText, placement: .toolbar, prompt: String(localized: "Search"))
         .toolbar {
-            ToolbarItem(placement: .automatic) {
+            ToolbarItem(placement: .navigation) {
                 Picker("", selection: displayMode) {
                     ForEach(DisplayMode.allCases, id: \.self) { mode in
                         Image(systemName: mode.icon)

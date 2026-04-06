@@ -702,6 +702,9 @@
         }
       }
     },
+    "Settings" : {
+
+    },
     "Share" : {
       "extractionState" : "stale",
       "localizations" : {

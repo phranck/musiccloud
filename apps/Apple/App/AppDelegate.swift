@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
     private var statusItem: NSStatusItem!
     private var panel: NSPanel!
     private var dashboardWindow: NSWindow?
+    private var settingsWindow: NSWindow?
     private var iconHostingView: NSHostingView<MenuBarIcon>!
     private var eventMonitor: Any?
 
@@ -44,6 +45,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
     private(set) var mainContext: ModelContext!
     private(set) var historyManager: HistoryManager!
     private(set) var monitor: ClipboardMonitor!
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.shared = self
@@ -114,6 +117,7 @@ private extension AppDelegate {
         let rootView = MenuBarView()
             .environment(\.modelContext, mainContext)
             .environment(monitor)
+            .symbolRenderingMode(.hierarchical)
 
         panel.contentViewController = NSHostingController(rootView: rootView)
     }
@@ -163,6 +167,7 @@ extension AppDelegate {
 
         let rootView = DashboardWindow()
             .environment(\.modelContext, mainContext)
+            .symbolRenderingMode(.hierarchical)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
@@ -181,6 +186,37 @@ extension AppDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         dashboardWindow = window
+    }
+
+    /// Opens the settings window, creating it if needed.
+    func openSettings() {
+        if let window = settingsWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let rootView = SettingsView()
+            .symbolRenderingMode(.hierarchical)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 750, height: 500),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.contentViewController = NSHostingController(rootView: rootView)
+        window.isReleasedWhenClosed = false
+        window.setFrameAutosaveName("SettingsWindow")
+        if !window.setFrameUsingName("SettingsWindow") {
+            window.center()
+        }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        settingsWindow = window
     }
 }
 

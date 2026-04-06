@@ -21,7 +21,7 @@ struct MenuBarView: View {
     @State private var selectedFilter: SidebarItem = .tracks
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: PanelMetrics.spacing) {
             PanelSection {
                 HeaderRow(status: monitor.status)
             }
@@ -40,16 +40,19 @@ struct MenuBarView: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                PanelSection {
+            HStack(spacing: PanelMetrics.spacing) {
+                PanelSection(hoverable: true) {
                     DashboardMenuItem()
                 }
-                PanelSection {
+                PanelSection(hoverable: true) {
+                    SettingsMenuItem()
+                }
+                PanelSection(hoverable: true) {
                     QuitMenuItem()
                 }
             }
         }
-        .padding(8)
+        .padding(PanelMetrics.spacing)
         .frame(width: 320)
         .frame(maxHeight: .infinity, alignment: .top)
         .onAppear { fetchEntries() }
@@ -103,7 +106,7 @@ private struct FilteredHistory: View {
     var body: some View {
         let filtered = entries.filter { $0.mediaType == filter.mediaType }
         if filtered.isEmpty {
-            VStack(spacing: 8) {
+            VStack(spacing: PanelMetrics.spacing) {
                 Spacer()
                 Image(systemName: filter.icon)
                     .font(.system(size: 28))

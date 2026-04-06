@@ -16,9 +16,13 @@ struct MusicCloudApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        Settings {
+        WindowGroup {
             EmptyView()
+                .frame(width: 0, height: 0)
+                .hidden()
         }
+        .defaultSize(width: 0, height: 0)
+        .defaultLaunchBehavior(.suppressed)
     }
 #else
     private let modelContainer: ModelContainer
@@ -44,6 +48,7 @@ struct MusicCloudApp: App {
                 .modelContainer(modelContainer)
                 .environment(historyManager)
                 .environment(monitor)
+                .symbolRenderingMode(.hierarchical)
         }
     }
 #endif
