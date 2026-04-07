@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import SwiftData
 
@@ -6,6 +7,7 @@ import SwiftData
 /// Central configuration for the shared SwiftData store across App and ShareExtension.
 enum SharedStoreConfiguration {
     static let appGroupIdentifier = "group.io.musiccloud"
+    static let cloudKitContainerIdentifier = "iCloud.io.musiccloud.shared"
 
     static var storeURL: URL {
         let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)!
@@ -15,7 +17,10 @@ enum SharedStoreConfiguration {
     }
 
     static var modelConfiguration: ModelConfiguration {
-        ModelConfiguration(url: storeURL, cloudKitDatabase: .automatic)
+        ModelConfiguration(
+            url: storeURL,
+            cloudKitDatabase: .private(cloudKitContainerIdentifier)
+        )
     }
 
     static func makeContainer() throws -> ModelContainer {
