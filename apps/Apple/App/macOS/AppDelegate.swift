@@ -25,16 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
     static private(set) var shared: AppDelegate!
 
     let modelContainer: ModelContainer = {
-        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            fatalError("Unable to access Application Support directory")
-        }
-        let storeDir = appSupport.appendingPathComponent("io.musiccloud", isDirectory: true)
-
         do {
-            try FileManager.default.createDirectory(at: storeDir, withIntermediateDirectories: true)
-            let storeURL = storeDir.appendingPathComponent("musiccloud.store")
-            let config = ModelConfiguration(url: storeURL)
-            let container = try ModelContainer(for: MediaEntry.self, configurations: config)
+            let container = try SharedStoreConfiguration.makeContainer()
             AppLogger.history.debug("SwiftData store: \(container.configurations.first?.url.path ?? "unknown")")
             return container
         } catch {
@@ -194,7 +186,7 @@ extension AppDelegate {
             config: WindowConfig(
                 size: CGSize(width: 1000, height: 700),
                 autosaveName: "DashboardWindow",
-                title: "musiccloud",
+                title: Bundle.main.appName,
                 titleVisibility: .hidden
             )
         )
@@ -203,6 +195,7 @@ extension AppDelegate {
     /// Opens the settings window, creating it if needed.
     func openSettings() {
         let rootView = SettingsView()
+            .environment(historyManager)
             .symbolRenderingMode(.hierarchical)
 
         settingsWindow = showWindow(

@@ -12,8 +12,10 @@ struct SettingsView: View {
             Section("Notifications") {
                 Toggle("Sound on conversion", isOn: $notificationsEnabled)
             }
+            DangerZoneSection()
+
             Section("About") {
-                LabeledContent("Version", value: appVersion)
+                LabeledContent("Version", value: Bundle.main.appVersion)
                 Link(destination: URL(string: "https://musiccloud.io")!) {
                     HStack {
                         Text("musiccloud.io")
@@ -26,16 +28,6 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
-    }
-}
-
-// MARK: - Private API
-
-private extension SettingsView {
-    var appVersion: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
-        return "\(version) (\(build))"
     }
 }
 

@@ -1,25 +1,95 @@
 #if os(iOS)
+import SwiftData
 import UIKit
 import UniformTypeIdentifiers
 
 // MARK: - ShareViewController
 
-/// Receives URLs from the iOS Share Sheet and forwards them to the main app for conversion.
-///
-/// The extension accepts `public.url` and `public.plain-text` items from other apps
-/// (Spotify, Apple Music, etc.), validates them against known streaming services,
-/// and hands them off to the main app via a custom URL scheme.
+/// Receives URLs from the iOS Share Sheet, resolves them to musiccloud.io short links,
+/// saves to SwiftData (CloudKit synced), and copies the result to the clipboard.
 final class ShareViewController: UIViewController {
-    private let appGroupID = "group.io.musiccloud"
-    private let pendingURLKey = "pendingURL"
+    private var spinner: UIActivityIndicatorView!
+    private var statusLabel: UILabel!
+    private var iconView: UIImageView!
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        setupUI()
         handleSharedItems()
     }
 }
 
-// MARK: - Private API
+// MARK: - UI
+
+private extension ShareViewController {
+    func setupUI() {
+        view.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.95)
+
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        iconView = UIImageView()
+        iconView.contentMode = .scaleAspectFit
+        iconView.tintColor = .tintColor
+        iconView.isHidden = true
+
+        spinner = UIActivityIndicatorView(style: .medium)
+        spinner.startAnimating()
+
+        statusLabel = UILabel()
+        statusLabel.font = .preferredFont(forTextStyle: .subheadline)
+        statusLabel.textColor = .secondaryLabel
+        statusLabel.text = "Converting..."
+        statusLabel.textAlignment = .center
+        statusLabel.numberOfLines = 0
+
+        stack.addArrangedSubview(iconView)
+        stack.addArrangedSubview(spinner)
+        stack.addArrangedSubview(statusLabel)
+        view.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            iconView.widthAnchor.constraint(equalToConstant: 36),
+            iconView.heightAnchor.constraint(equalToConstant: 36),
+            stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 24),
+        ])
+    }
+
+    func showSuccess() {
+        spinner.stopAnimating()
+        spinner.isHidden = true
+        iconView.image = UIImage(systemName: "checkmark.circle.fill")
+        iconView.tintColor = .systemGreen
+        iconView.isHidden = false
+        statusLabel.text = "Copied to clipboard!"
+        statusLabel.textColor = .label
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            self?.complete()
+        }
+    }
+
+    func showError(_ message: String) {
+        spinner.stopAnimating()
+        spinner.isHidden = true
+        iconView.image = UIImage(systemName: "xmark.circle.fill")
+        iconView.tintColor = .systemRed
+        iconView.isHidden = false
+        statusLabel.text = message
+        statusLabel.textColor = .secondaryLabel
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.cancel()
+        }
+    }
+}
+
+// MARK: - URL Extraction
 
 private extension ShareViewController {
     func handleSharedItems() {
@@ -51,7 +121,7 @@ private extension ShareViewController {
             if let url = item as? URL {
                 self.processURL(url.absoluteString)
             } else {
-                self.cancel()
+                DispatchQueue.main.async { self.cancel() }
             }
         }
     }
@@ -62,45 +132,66 @@ private extension ShareViewController {
             if let text = item as? String {
                 self.processURL(text.trimmingCharacters(in: .whitespacesAndNewlines))
             } else {
-                self.cancel()
+                DispatchQueue.main.async { self.cancel() }
             }
         }
     }
+}
+
+// MARK: - Resolve + Persist
+
+private extension ShareViewController {
+    /// Extensions can't access local network -- always use production.
+    static let productionBaseURL = URL(string: "https://musiccloud.io")!
 
     func processURL(_ urlString: String) {
         guard StreamingServices.isStreamingURL(urlString) else {
-            cancel()
+            DispatchQueue.main.async { self.showError("Not a streaming URL") }
             return
         }
 
-        // Store in App Group for fallback
-        let defaults = UserDefaults(suiteName: appGroupID)
-        defaults?.set(urlString, forKey: pendingURLKey)
+        Task {
+            do {
+                let result = try await MusicCloudAPI.resolve(url: urlString, baseURL: Self.productionBaseURL)
 
-        // Open main app via custom URL scheme
-        guard let encoded = urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let appURL = URL(string: "musiccloud://resolve?url=\(encoded)") else {
-            cancel()
-            return
-        }
-
-        openURL(appURL)
-    }
-
-    func openURL(_ url: URL) {
-        var responder: UIResponder? = self
-        while let next = responder?.next {
-            if let application = next as? UIApplication {
-                application.open(url) { [weak self] _ in
-                    self?.complete()
+                let artworkUrlString: String? = switch result.contentType {
+                case .track(let info): info.artworkUrl
+                case .album(let info): info.artworkUrl
+                case .artist(let info): info.artworkUrl
                 }
-                return
+                let artworkData = if let artworkUrl = artworkUrlString {
+                    await MusicCloudAPI.downloadArtwork(from: artworkUrl)
+                } else {
+                    nil as Data?
+                }
+
+                let entry = result.toMediaEntry(originalUrl: urlString, artworkData: artworkData)
+                try saveToSwiftData(entry)
+
+                await MainActor.run {
+                    UIPasteboard.general.string = result.shortUrl
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    showSuccess()
+                }
+            } catch {
+                await MainActor.run {
+                    showError("\(error)")
+                }
             }
-            responder = next
         }
-        complete()
     }
 
+    func saveToSwiftData(_ entry: MediaEntry) throws {
+        let container = try SharedStoreConfiguration.makeContainer()
+        let context = ModelContext(container)
+        context.insert(entry)
+        try context.save()
+    }
+}
+
+// MARK: - Extension Lifecycle
+
+private extension ShareViewController {
     func complete() {
         extensionContext?.completeRequest(returningItems: nil)
     }

@@ -33,11 +33,11 @@ extension SidebarItem {
         }
     }
 
-    var mediaType: String {
+    var mediaType: MediaType {
         switch self {
-        case .tracks:  "track"
-        case .albums:  "album"
-        case .artists: "artist"
+        case .tracks:  .track
+        case .albums:  .album
+        case .artists: .artist
         }
     }
 

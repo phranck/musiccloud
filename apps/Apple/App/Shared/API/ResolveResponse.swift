@@ -69,15 +69,15 @@ struct ResolveResponse: Decodable {
     ///   - artworkData: Downloaded artwork image data
     /// - Returns: A new ``MediaEntry`` ready for SwiftData persistence
     func toMediaEntry(originalUrl: String, artworkData: Data?) -> MediaEntry {
-        let mediaType: String
+        let mediaType: MediaType
         if track != nil {
-            mediaType = "track"
+            mediaType = .track
         } else if album != nil {
-            mediaType = "album"
+            mediaType = .album
         } else if artist != nil {
-            mediaType = "artist"
+            mediaType = .artist
         } else {
-            mediaType = "track"
+            mediaType = .track
         }
 
         return MediaEntry(

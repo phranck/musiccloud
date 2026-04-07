@@ -85,6 +85,24 @@
 		CC00000000000011 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC00000000000001 /* ShareViewController.swift */; };
 		CC00000000000012 /* StreamingServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121F8EA83B3E06119BA82118 /* StreamingServices.swift */; };
 		CC00000000000013 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC00000000000004 /* ShareExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FF00000000000001 /* MediaType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000011 /* MediaType.swift */; };
+		FF00000000000002 /* Bundle+Version.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000012 /* Bundle+Version.swift */; };
+		FF00000000000003 /* DangerZoneSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000013 /* DangerZoneSection.swift */; };
+		FF00000000000004 /* SharedStoreConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000014 /* SharedStoreConfiguration.swift */; };
+		FF00000000000101 /* MediaType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000011 /* MediaType.swift */; };
+		FF00000000000102 /* MusicCloudAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */; };
+		FF00000000000103 /* ResolveResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD5162A2F817F960043E187 /* ResolveResponse.swift */; };
+		FF00000000000104 /* MediaEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1012F82A00100000001 /* MediaEntry.swift */; };
+		FF00000000000105 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
+		FF00000000000106 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
+		FF00000000000107 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
+		FF00000000000108 /* ServiceLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1032F83700100000001 /* ServiceLink.swift */; };
+		FF00000000000109 /* ContentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10B2F83900100000001 /* ContentType.swift */; };
+		FF0000000000010A /* SharedStoreConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000014 /* SharedStoreConfiguration.swift */; };
+		FF0000000000010B /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10D2F83900100000002 /* APIError.swift */; };
+		FF0000000000010C /* ResolveError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10F2F83900100000003 /* ResolveError.swift */; };
+		FF0000000000010D /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */; };
+		FF0000000000010E /* MediaInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516282F817F360043E187 /* MediaInfo.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -171,6 +189,10 @@
 		CC00000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CC00000000000003 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		CC00000000000004 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FF00000000000011 /* MediaType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaType.swift; sourceTree = "<group>"; };
+		FF00000000000012 /* Bundle+Version.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+Version.swift"; sourceTree = "<group>"; };
+		FF00000000000013 /* DangerZoneSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DangerZoneSection.swift; sourceTree = "<group>"; };
+		FF00000000000014 /* SharedStoreConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreConfiguration.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -310,6 +332,7 @@
 			isa = PBXGroup;
 			children = (
 				FD05A10B2F83900100000001 /* ContentType.swift */,
+				FF00000000000011 /* MediaType.swift */,
 				FD05A1052F83800100000001 /* SidebarItem.swift */,
 			);
 			path = Types;
@@ -328,6 +351,7 @@
 		AA00000000000017 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				FF00000000000012 /* Bundle+Version.swift */,
 				FD97C3872F8094B300E8D788 /* View+Extensions.swift */,
 			);
 			path = Extensions;
@@ -348,6 +372,7 @@
 			isa = PBXGroup;
 			children = (
 				FDAF979E2F8412A3002A3AC1 /* AnimatedSegmentControl.swift */,
+				FF00000000000013 /* DangerZoneSection.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -380,6 +405,7 @@
 			isa = PBXGroup;
 			children = (
 				AA00000000000002 /* PanelMetrics.swift */,
+				FF00000000000014 /* SharedStoreConfiguration.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -798,6 +824,10 @@
 				DD00000000000007 /* HistoryGridCard.swift in Sources */,
 				EE00000000000001 /* ConvertStreamingURLIntent.swift in Sources */,
 				EE00000000000002 /* MusicCloudShortcutsProvider.swift in Sources */,
+				FF00000000000001 /* MediaType.swift in Sources */,
+				FF00000000000002 /* Bundle+Version.swift in Sources */,
+				FF00000000000003 /* DangerZoneSection.swift in Sources */,
+				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -819,6 +849,20 @@
 			files = (
 				CC00000000000011 /* ShareViewController.swift in Sources */,
 				CC00000000000012 /* StreamingServices.swift in Sources */,
+				FF00000000000101 /* MediaType.swift in Sources */,
+				FF00000000000102 /* MusicCloudAPI.swift in Sources */,
+				FF00000000000103 /* ResolveResponse.swift in Sources */,
+				FF00000000000104 /* MediaEntry.swift in Sources */,
+				FF00000000000105 /* TrackInfo.swift in Sources */,
+				FF00000000000106 /* AlbumInfo.swift in Sources */,
+				FF00000000000107 /* ArtistInfo.swift in Sources */,
+				FF00000000000108 /* ServiceLink.swift in Sources */,
+				FF00000000000109 /* ContentType.swift in Sources */,
+				FF0000000000010A /* SharedStoreConfiguration.swift in Sources */,
+				FF0000000000010B /* APIError.swift in Sources */,
+				FF0000000000010C /* ResolveError.swift in Sources */,
+				FF0000000000010D /* AppLogger.swift in Sources */,
+				FF0000000000010E /* MediaInfo.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

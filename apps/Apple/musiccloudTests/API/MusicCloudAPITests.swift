@@ -14,7 +14,7 @@ struct MusicCloudAPITests {
         #expect(url.host != nil)
     }
 
-    @Test func debugBaseURLIsLocalhost() {
+    @Test func debugBaseURLIsLocal() {
         #if DEBUG
         #expect(MusicCloudAPI.baseURL.host == "localhost")
         #expect(MusicCloudAPI.baseURL.port == 3000)

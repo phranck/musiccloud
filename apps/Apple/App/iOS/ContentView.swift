@@ -106,7 +106,7 @@ private extension IPadSplitView {
                 HStack {
                     Label("Tracks", systemImage: "music.note")
                     Spacer()
-                    Text("\(countFor("track"))")
+                    Text("\(countFor(.track))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -114,7 +114,7 @@ private extension IPadSplitView {
                 HStack {
                     Label("Albums", systemImage: "square.stack")
                     Spacer()
-                    Text("\(countFor("album"))")
+                    Text("\(countFor(.album))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -122,7 +122,7 @@ private extension IPadSplitView {
                 HStack {
                     Label("Artists", systemImage: "person.2")
                     Spacer()
-                    Text("\(countFor("artist"))")
+                    Text("\(countFor(.artist))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -133,10 +133,10 @@ private extension IPadSplitView {
                     .tag(SidebarSelection.settings)
             }
         }
-        .navigationTitle("musiccloud")
+        .navigationTitle(Bundle.main.appName)
     }
 
-    func countFor(_ mediaType: String) -> Int {
+    func countFor(_ mediaType: MediaType) -> Int {
         allEntries.filter { $0.mediaType == mediaType }.count
     }
 }

@@ -106,8 +106,8 @@ extension MusicCloudAPI {
     /// - **Invalid JSON**: Throws decoding errors
     ///
     /// - Note: All requests and responses are logged via ``AppLogger/api``
-    static func resolve(url: String) async throws -> ResolveResponse {
-        let endpoint = baseURL.appendingPathComponent("api/resolve")
+    static func resolve(url: String, baseURL: URL? = nil) async throws -> ResolveResponse {
+        let endpoint = (baseURL ?? Self.baseURL).appendingPathComponent("api/resolve")
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.timeoutInterval = 10

@@ -21,7 +21,7 @@ struct HomeView: View {
             .padding()
             .animation(.spring(duration: 0.4), value: monitor.status)
         }
-        .navigationTitle("musiccloud")
+        .navigationTitle(Bundle.main.appName)
     }
 }
 

@@ -325,7 +325,7 @@ private struct EntryActionsModifier: ViewModifier {
                     Label("Open in Browser...", systemImage: "safari")
                 }
 
-                if entry.mediaType != "artist", !entry.serviceLinks.isEmpty {
+                if entry.mediaType != .artist, !entry.serviceLinks.isEmpty {
                     Menu {
                         ForEach(entry.serviceLinks, id: \.service) { link in
                             Button {

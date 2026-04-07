@@ -69,9 +69,9 @@ private extension HistoryView {
         allEntries.filter { entry in
             let matchesFilter: Bool = switch filter {
             case .all: true
-            case .tracks: entry.mediaType == "track"
-            case .albums: entry.mediaType == "album"
-            case .artists: entry.mediaType == "artist"
+            case .tracks: entry.mediaType == .track
+            case .albums: entry.mediaType == .album
+            case .artists: entry.mediaType == .artist
             }
             guard matchesFilter else { return false }
             guard !searchText.isEmpty else { return true }

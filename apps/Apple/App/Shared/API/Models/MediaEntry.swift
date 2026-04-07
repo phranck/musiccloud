@@ -23,7 +23,7 @@ final class MediaEntry {
     var id: UUID = UUID()
     var originalUrl: String = ""
     var shortUrl: String = ""
-    var mediaType: String = "track"
+    var mediaType: MediaType = MediaType.track
     @Attribute(.externalStorage) var artworkImageData: Data?
     var date: Date = Date()
 
@@ -52,7 +52,7 @@ final class MediaEntry {
         id: UUID = UUID(),
         originalUrl: String,
         shortUrl: String,
-        mediaType: String,
+        mediaType: MediaType,
         artworkImageData: Data? = nil,
         date: Date = .now,
         track: TrackInfo? = nil,

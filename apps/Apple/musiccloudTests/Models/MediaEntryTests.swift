@@ -12,7 +12,7 @@ struct MediaEntryTests {
         let entry = MediaEntry(
             originalUrl: "https://open.spotify.com/track/abc",
             shortUrl: "https://musiccloud.io/abc",
-            mediaType: "track",
+            mediaType: .track,
             track: TrackInfo(title: "Blinding Lights", artists: ["The Weeknd"])
         )
         if case .track(let info) = entry.contentType {
@@ -27,7 +27,7 @@ struct MediaEntryTests {
         let entry = MediaEntry(
             originalUrl: "https://open.spotify.com/album/abc",
             shortUrl: "https://musiccloud.io/abc",
-            mediaType: "album",
+            mediaType: .album,
             album: AlbumInfo(title: "After Hours", artists: ["The Weeknd"])
         )
         if case .album(let info) = entry.contentType {
@@ -41,7 +41,7 @@ struct MediaEntryTests {
         let entry = MediaEntry(
             originalUrl: "https://open.spotify.com/artist/abc",
             shortUrl: "https://musiccloud.io/abc",
-            mediaType: "artist",
+            mediaType: .artist,
             artist: ArtistInfo(name: "The Weeknd")
         )
         if case .artist(let info) = entry.contentType {
@@ -55,7 +55,7 @@ struct MediaEntryTests {
         let entry = MediaEntry(
             originalUrl: "https://example.com",
             shortUrl: "https://musiccloud.io/abc",
-            mediaType: "track"
+            mediaType: .track
         )
         if case .track(let info) = entry.contentType {
             #expect(info.title == "")
@@ -71,7 +71,7 @@ struct MediaEntryTests {
         let entry = MediaEntry(
             originalUrl: "https://open.spotify.com/track/abc",
             shortUrl: "https://musiccloud.io/abc",
-            mediaType: "track",
+            mediaType: .track,
             track: TrackInfo(title: "Track", artists: ["A"]),
             album: AlbumInfo(title: "Album", artists: ["A"])
         )
@@ -88,11 +88,11 @@ struct MediaEntryTests {
         let entry = MediaEntry(
             originalUrl: "https://test.com",
             shortUrl: "https://musiccloud.io/x",
-            mediaType: "track"
+            mediaType: .track
         )
         #expect(entry.originalUrl == "https://test.com")
         #expect(entry.shortUrl == "https://musiccloud.io/x")
-        #expect(entry.mediaType == "track")
+        #expect(entry.mediaType == .track)
         #expect(entry.artworkImageData == nil)
         #expect(entry.track == nil)
         #expect(entry.album == nil)

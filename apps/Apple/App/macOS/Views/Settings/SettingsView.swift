@@ -90,6 +90,8 @@ private struct GeneralSettingsView: View {
                     NotificationSoundPicker(selectedSound: $notificationSound)
                 }
             }
+
+            DangerZoneSection()
         }
         .formStyle(.grouped)
     }
