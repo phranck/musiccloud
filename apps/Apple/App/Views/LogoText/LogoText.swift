@@ -57,12 +57,13 @@ private extension LogoText {
 
     var logoContent: some View {
         HStack(alignment: .lastTextBaseline, spacing: 0) {
-            Text("musicc")
+            // Logo parts - must not be localized
+            Text(verbatim: "musicc")
                 .font(font)
             Image(systemName: "music.note")
                 .font(.system(size: fontSize * 0.85, weight: .bold))
                 .offset(x: -0.5, y: fontSize * -0.12)
-            Text("oud")
+            Text(verbatim: "oud")
                 .font(font)
                 .offset(x: -4)
         }
