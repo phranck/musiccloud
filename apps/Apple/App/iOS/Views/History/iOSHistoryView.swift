@@ -11,7 +11,11 @@ struct HistoryView: View {
     @Query(sort: \MediaEntry.date, order: .reverse, animation: .default)
     private var allEntries: [MediaEntry]
     @State private var searchText = ""
-    @State private var filter: ContentFilter = .all
+    @State private var filter: ContentFilter
+
+    init(initialFilter: ContentFilter = .all) {
+        _filter = State(initialValue: initialFilter)
+    }
 
     var body: some View {
         Group {
