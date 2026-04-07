@@ -68,6 +68,10 @@
 		FDF8735C2F7EEDE600D05057 /* HistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF8735B2F7EEDE600D05057 /* HistoryManager.swift */; };
 		AA00000000000001 /* PanelMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000002 /* PanelMetrics.swift */; };
 		AA00000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000004 /* ContentView.swift */; };
+		BB00000000000001 /* StreamingServicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000011 /* StreamingServicesTests.swift */; };
+		BB00000000000002 /* MusicCloudAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000012 /* MusicCloudAPITests.swift */; };
+		BB00000000000003 /* ClipboardMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000013 /* ClipboardMonitorTests.swift */; };
+		BB00000000000004 /* MediaEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000014 /* MediaEntryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -135,6 +139,11 @@
 		AA00000000000002 /* PanelMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelMetrics.swift; sourceTree = "<group>"; };
 		FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
 		AA00000000000004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		BB00000000000010 /* musiccloudTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = musiccloudTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB00000000000011 /* StreamingServicesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServicesTests.swift; sourceTree = "<group>"; };
+		BB00000000000012 /* MusicCloudAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicCloudAPITests.swift; sourceTree = "<group>"; };
+		BB00000000000013 /* ClipboardMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitorTests.swift; sourceTree = "<group>"; };
+		BB00000000000014 /* MediaEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaEntryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -142,6 +151,7 @@
 			isa = PBXGroup;
 			children = (
 				56B89EA2B7FB649CF35C1DC8 /* musiccloud.app */,
+				BB00000000000010 /* musiccloudTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -152,8 +162,46 @@
 			isa = PBXGroup;
 			children = (
 				9723BD104A0AE887713E6D8F /* App */,
+				BB00000000000020 /* musiccloudTests */,
 				29E444AD310A55D5A4A6FC5B /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+
+/* ========== musiccloudTests ========== */
+		BB00000000000020 /* musiccloudTests */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000000000021 /* API */,
+				BB00000000000022 /* Managers */,
+				BB00000000000023 /* Models */,
+			);
+			path = musiccloudTests;
+			sourceTree = "<group>";
+		};
+		BB00000000000021 /* API */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000000000011 /* StreamingServicesTests.swift */,
+				BB00000000000012 /* MusicCloudAPITests.swift */,
+			);
+			path = API;
+			sourceTree = "<group>";
+		};
+		BB00000000000022 /* Managers */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000000000013 /* ClipboardMonitorTests.swift */,
+			);
+			path = Managers;
+			sourceTree = "<group>";
+		};
+		BB00000000000023 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000000000014 /* MediaEntryTests.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 
@@ -474,7 +522,41 @@
 			productReference = 56B89EA2B7FB649CF35C1DC8 /* musiccloud.app */;
 			productType = "com.apple.product-type.application";
 		};
+		BB00000000000030 /* musiccloudTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB00000000000060 /* Build configuration list for PBXNativeTarget "musiccloudTests" */;
+			buildPhases = (
+				BB00000000000040 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BB00000000000052 /* PBXTargetDependency */,
+			);
+			name = musiccloudTests;
+			productName = musiccloudTests;
+			productReference = BB00000000000010 /* musiccloudTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXContainerItemProxy section */
+		BB00000000000051 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 87ED6BE46D2B397F308DB857 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A02F4E98FD93CA1768A15CE2;
+			remoteInfo = musiccloud;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		BB00000000000052 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A02F4E98FD93CA1768A15CE2 /* musiccloud */;
+			targetProxy = BB00000000000051 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		87ED6BE46D2B397F308DB857 /* Project object */ = {
@@ -504,6 +586,7 @@
 			projectRoot = "";
 			targets = (
 				A02F4E98FD93CA1768A15CE2 /* musiccloud */,
+				BB00000000000030 /* musiccloudTests */,
 			);
 		};
 /* End PBXProject section */
@@ -607,6 +690,17 @@
 				FDD516292F817F360043E187 /* MediaInfo.swift in Sources */,
 				AA00000000000001 /* PanelMetrics.swift in Sources */,
 				AA00000000000003 /* ContentView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB00000000000040 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB00000000000001 /* StreamingServicesTests.swift in Sources */,
+				BB00000000000002 /* MusicCloudAPITests.swift in Sources */,
+				BB00000000000003 /* ClipboardMonitorTests.swift in Sources */,
+				BB00000000000004 /* MediaEntryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -834,6 +928,54 @@
 			};
 			name = Release;
 		};
+		BB00000000000061 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/musiccloud.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/musiccloud";
+			};
+			name = Debug;
+		};
+		BB00000000000062 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/musiccloud.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/musiccloud";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -851,6 +993,15 @@
 			buildConfigurations = (
 				D78AC06099149C1A3A3CD33A /* Debug */,
 				0A5F3FBB399C57A7E9B0566C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BB00000000000060 /* Build configuration list for PBXNativeTarget "musiccloudTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB00000000000061 /* Debug */,
+				BB00000000000062 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
