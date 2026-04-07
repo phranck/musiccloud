@@ -75,10 +75,13 @@
 		DD00000000000005 /* ResultCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000015 /* ResultCardView.swift */; };
 		DD00000000000006 /* OpenInServiceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000016 /* OpenInServiceSheet.swift */; };
 		DD00000000000007 /* HistoryGridCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000017 /* HistoryGridCard.swift */; };
+		EE00000000000001 /* ConvertStreamingURLIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE00000000000011 /* ConvertStreamingURLIntent.swift */; };
+		EE00000000000002 /* MusicCloudShortcutsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE00000000000012 /* MusicCloudShortcutsProvider.swift */; };
 		BB00000000000001 /* StreamingServicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000011 /* StreamingServicesTests.swift */; };
 		BB00000000000002 /* MusicCloudAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000012 /* MusicCloudAPITests.swift */; };
 		BB00000000000003 /* ClipboardMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000013 /* ClipboardMonitorTests.swift */; };
 		BB00000000000004 /* MediaEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000014 /* MediaEntryTests.swift */; };
+		BB00000000000005 /* ConvertStreamingURLIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000015 /* ConvertStreamingURLIntentTests.swift */; };
 		CC00000000000011 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC00000000000001 /* ShareViewController.swift */; };
 		CC00000000000012 /* StreamingServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121F8EA83B3E06119BA82118 /* StreamingServices.swift */; };
 		CC00000000000013 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC00000000000004 /* ShareExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -156,11 +159,14 @@
 		DD00000000000015 /* ResultCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultCardView.swift; sourceTree = "<group>"; };
 		DD00000000000016 /* OpenInServiceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInServiceSheet.swift; sourceTree = "<group>"; };
 		DD00000000000017 /* HistoryGridCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryGridCard.swift; sourceTree = "<group>"; };
+		EE00000000000011 /* ConvertStreamingURLIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertStreamingURLIntent.swift; sourceTree = "<group>"; };
+		EE00000000000012 /* MusicCloudShortcutsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicCloudShortcutsProvider.swift; sourceTree = "<group>"; };
 		BB00000000000010 /* musiccloudTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = musiccloudTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB00000000000011 /* StreamingServicesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServicesTests.swift; sourceTree = "<group>"; };
 		BB00000000000012 /* MusicCloudAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicCloudAPITests.swift; sourceTree = "<group>"; };
 		BB00000000000013 /* ClipboardMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitorTests.swift; sourceTree = "<group>"; };
 		BB00000000000014 /* MediaEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaEntryTests.swift; sourceTree = "<group>"; };
+		BB00000000000015 /* ConvertStreamingURLIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertStreamingURLIntentTests.swift; sourceTree = "<group>"; };
 		CC00000000000001 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		CC00000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CC00000000000003 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
@@ -196,6 +202,7 @@
 			isa = PBXGroup;
 			children = (
 				BB00000000000021 /* API */,
+				BB00000000000024 /* Intents */,
 				BB00000000000022 /* Managers */,
 				BB00000000000023 /* Models */,
 			);
@@ -227,6 +234,14 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		BB00000000000024 /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000000000015 /* ConvertStreamingURLIntentTests.swift */,
+			);
+			path = Intents;
+			sourceTree = "<group>";
+		};
 
 /* --- App (top-level) --- */
 		9723BD104A0AE887713E6D8F /* App */ = {
@@ -247,6 +262,7 @@
 			isa = PBXGroup;
 			children = (
 				AA00000000000011 /* API */,
+				EE00000000000020 /* Intents */,
 				AA00000000000015 /* Types */,
 				AA00000000000016 /* Managers */,
 				AA00000000000017 /* Extensions */,
@@ -530,6 +546,16 @@
 			path = NotificationSounds;
 			sourceTree = "<group>";
 		};
+		EE00000000000020 /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				EE00000000000011 /* ConvertStreamingURLIntent.swift */,
+				EE00000000000012 /* MusicCloudShortcutsProvider.swift */,
+			);
+			path = Intents;
+			sourceTree = "<group>";
+		};
+
 /* ========== ShareExtension ========== */
 		CC00000000000020 /* ShareExtension */ = {
 			isa = PBXGroup;
@@ -770,6 +796,8 @@
 				DD00000000000005 /* ResultCardView.swift in Sources */,
 				DD00000000000006 /* OpenInServiceSheet.swift in Sources */,
 				DD00000000000007 /* HistoryGridCard.swift in Sources */,
+				EE00000000000001 /* ConvertStreamingURLIntent.swift in Sources */,
+				EE00000000000002 /* MusicCloudShortcutsProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -781,6 +809,7 @@
 				BB00000000000002 /* MusicCloudAPITests.swift in Sources */,
 				BB00000000000003 /* ClipboardMonitorTests.swift in Sources */,
 				BB00000000000004 /* MediaEntryTests.swift in Sources */,
+				BB00000000000005 /* ConvertStreamingURLIntentTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
