@@ -76,7 +76,6 @@ final class ClipboardMonitor {
 // MARK: - Status
 
 extension ClipboardMonitor {
-
     /// Represents the current state of the clipboard monitor.
     ///
     /// The status enum provides a type-safe way to represent the monitor's current
@@ -94,7 +93,6 @@ extension ClipboardMonitor {
     /// - ``isProcessing``
     /// - ``errorMessage``
     enum Status: Equatable {
-
         /// Monitor is idle, waiting for clipboard changes
         case idle
 
@@ -127,7 +125,6 @@ extension ClipboardMonitor {
 // MARK: - Public API
 
 extension ClipboardMonitor {
-
     /// Resolves a streaming service URL to a musiccloud.io short link.
     ///
     /// This method performs the following steps:
@@ -191,14 +188,14 @@ extension ClipboardMonitor {
 
 // MARK: - Monitoring
 
-private extension ClipboardMonitor {
-
+extension ClipboardMonitor {
     /// Starts the clipboard monitoring timer.
     ///
     /// Creates a timer that fires every 1 second to check the clipboard for changes.
     /// The timer is added to the main run loop in common mode to ensure it continues
     /// running during UI interactions.
     func startMonitoring() {
+        guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in await self.checkClipboard() }
@@ -207,6 +204,16 @@ private extension ClipboardMonitor {
         RunLoop.main.add(timer, forMode: .common)
     }
 
+    /// Stops the clipboard monitoring timer.
+    func stopMonitoring() {
+        timer?.invalidate()
+        timer = nil
+    }
+}
+
+// MARK: - Clipboard Checking
+
+private extension ClipboardMonitor {
     /// Checks the clipboard for new streaming service URLs.
     ///
     /// This method is called every second by the monitoring timer. It:
@@ -253,7 +260,6 @@ private extension ClipboardMonitor {
 // MARK: - Pasteboard
 
 private extension ClipboardMonitor {
-
     /// Reads the current string content from the system clipboard.
     ///
     /// - Returns: The clipboard string content, or `nil` if empty or unavailable

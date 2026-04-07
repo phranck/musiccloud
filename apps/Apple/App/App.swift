@@ -42,6 +42,8 @@ struct MusicCloudApp: App {
         }
     }
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -49,6 +51,13 @@ struct MusicCloudApp: App {
                 .environment(historyManager)
                 .environment(monitor)
                 .symbolRenderingMode(.hierarchical)
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        monitor.startMonitoring()
+                    } else {
+                        monitor.stopMonitoring()
+                    }
+                }
         }
     }
 #endif
