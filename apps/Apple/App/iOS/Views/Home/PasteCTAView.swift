@@ -12,7 +12,7 @@ struct PasteCTAView: View {
             Image(systemName: "music.note.list")
                 .font(.system(size: 40))
                 .foregroundStyle(.tint)
-            Text("Share a link from Spotify, Apple Music, or any streaming service")
+            Text("Share a link from any streaming service")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

@@ -6,7 +6,7 @@ import Foundation
 /// Shortcuts/Siri intent that converts a streaming service URL to a universal musiccloud.io link.
 struct ConvertStreamingURLIntent: AppIntent {
     static var title: LocalizedStringResource = "Convert Streaming URL"
-    static var description: IntentDescription = "Converts a Spotify, Apple Music, or other streaming URL to a universal musiccloud.io link"
+    static var description: IntentDescription = "Converts a streaming service URL to a universal musiccloud.io link"
 
     @Parameter(title: "URL")
     var url: URL
