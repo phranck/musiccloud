@@ -54,11 +54,32 @@ struct MusicCloudApp: App {
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         monitor.startMonitoring()
+                        checkPendingURL()
                     } else {
                         monitor.stopMonitoring()
                     }
                 }
+                .onOpenURL { url in
+                    handleIncomingURL(url)
+                }
         }
+    }
+
+    private func handleIncomingURL(_ url: URL) {
+        guard url.scheme == "musiccloud",
+              url.host == "resolve",
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let urlParam = components.queryItems?.first(where: { $0.name == "url" })?.value else {
+            return
+        }
+        Task { await monitor.resolve(url: urlParam) }
+    }
+
+    private func checkPendingURL() {
+        let defaults = UserDefaults(suiteName: "group.io.musiccloud")
+        guard let pending = defaults?.string(forKey: "pendingURL") else { return }
+        defaults?.removeObject(forKey: "pendingURL")
+        Task { await monitor.resolve(url: pending) }
     }
 #endif
 }
