@@ -38,5 +38,6 @@ struct MediaSection: View {
                 MediaRow(entry: entry)
             }
         }
+        .padding(.vertical, 4)
     }
 }

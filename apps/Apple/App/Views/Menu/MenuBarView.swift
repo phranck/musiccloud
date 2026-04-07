@@ -42,13 +42,13 @@ struct MenuBarView: View {
 
             HStack(spacing: PanelMetrics.spacing) {
                 PanelSection(hoverable: true) {
-                    DashboardMenuItem()
+                    DashboardItem()
                 }
                 PanelSection(hoverable: true) {
-                    SettingsMenuItem()
+                    SettingsItem()
                 }
                 PanelSection(hoverable: true) {
-                    QuitMenuItem()
+                    QuitItem()
                 }
             }
         }

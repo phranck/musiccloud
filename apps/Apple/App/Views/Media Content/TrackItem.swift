@@ -38,6 +38,6 @@ struct TrackItem: View {
             ShareButton(shortUrl: shortUrl)
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .padding(.vertical, 6)
     }
 }

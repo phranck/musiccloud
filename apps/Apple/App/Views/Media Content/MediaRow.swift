@@ -37,7 +37,7 @@ struct MediaRow: View {
     var body: some View {
         MediaItem(entry: entry)
             .background(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 16)
                     .fill(isHovered ? Color.accentColor : Color.clear)
                     .padding(.horizontal, 4)
             )

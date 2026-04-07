@@ -35,7 +35,7 @@ struct MediaArtwork: View {
             }
         }
         .frame(width: Self.size, height: Self.size)
-        .clipShape(.rect(cornerRadius: 5))
+        .clipShape(.rect(cornerRadius: 12))
     }
 }
 
