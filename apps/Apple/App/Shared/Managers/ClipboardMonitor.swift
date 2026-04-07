@@ -180,6 +180,9 @@ extension ClipboardMonitor {
             setPasteboardString(result.shortUrl)
             lastSeenContent = result.shortUrl
             status = .success(shortUrl: result.shortUrl)
+            #if os(iOS)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            #endif
             NotificationManager.notifySuccess(entry: entry)
             AppLogger.clipboard.debug("resolve succeeded → \(result.shortUrl)")
         } catch {

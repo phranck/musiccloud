@@ -1,19 +1,31 @@
 #if os(iOS)
-//
-//  ContentView.swift
-//  musiccloud
-//
-//  Created by Frank Gregor on 07.04.26.
-//
-
 import SwiftUI
 
+// MARK: - ContentView
+
+/// Root view for the iOS app with tab-based navigation.
 struct ContentView: View {
-
-    // MARK: Public API
-
     var body: some View {
-        Text("musiccloud iOS")
+        TabView {
+            NavigationStack {
+                HomeView()
+            }
+            .tabItem {
+                Label("Home", systemImage: "house")
+            }
+            NavigationStack {
+                HistoryView()
+            }
+            .tabItem {
+                Label("History", systemImage: "clock")
+            }
+            NavigationStack {
+                SettingsView()
+            }
+            .tabItem {
+                Label("Settings", systemImage: "gear")
+            }
+        }
     }
 }
 
