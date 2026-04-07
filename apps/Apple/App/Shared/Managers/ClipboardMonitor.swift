@@ -52,6 +52,10 @@ final class ClipboardMonitor {
     private var lastSeenContent: String?
     @ObservationIgnored
     private var timer: Timer?
+    #if os(iOS)
+    @ObservationIgnored
+    private var lastChangeCount: Int = -1
+    #endif
 
     private(set) var status: Status = .idle
     private(set) var lastShortUrl: String?
@@ -225,6 +229,15 @@ private extension ClipboardMonitor {
     /// - Note: This method must be called from the main actor
     @MainActor
     func checkClipboard() async {
+        #if os(iOS)
+        // Poll changeCount (no banner) then check hasURLs (no banner)
+        // Only read .string on actual change with a URL (triggers one system banner)
+        let currentCount = UIPasteboard.general.changeCount
+        guard currentCount != lastChangeCount else { return }
+        lastChangeCount = currentCount
+        guard UIPasteboard.general.hasURLs else { return }
+        #endif
+
         guard let raw = pasteboardString() else { return }
         let content = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }

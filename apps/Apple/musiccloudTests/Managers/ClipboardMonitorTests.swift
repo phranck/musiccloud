@@ -41,4 +41,45 @@ struct ClipboardMonitorTests {
         #expect(ClipboardMonitor.Status.error(message: "e") == .error(message: "e"))
         #expect(ClipboardMonitor.Status.idle != .error(message: "e"))
     }
+
+    // MARK: Status Transitions
+
+    @Test func statusTransitionIdleToProcessing() {
+        let idle = ClipboardMonitor.Status.idle
+        let processing = ClipboardMonitor.Status.processing(url: "https://open.spotify.com/track/abc")
+        #expect(idle != processing)
+        #expect(!idle.isProcessing)
+        #expect(processing.isProcessing)
+    }
+
+    @Test func statusTransitionProcessingToSuccess() {
+        let processing = ClipboardMonitor.Status.processing(url: "https://open.spotify.com/track/abc")
+        let success = ClipboardMonitor.Status.success(shortUrl: "https://musiccloud.io/abc")
+        #expect(processing != success)
+        #expect(processing.isProcessing)
+        #expect(!success.isProcessing)
+        #expect(success.errorMessage == nil)
+    }
+
+    @Test func statusTransitionProcessingToError() {
+        let processing = ClipboardMonitor.Status.processing(url: "https://open.spotify.com/track/abc")
+        let error = ClipboardMonitor.Status.error(message: "Service unavailable")
+        #expect(processing != error)
+        #expect(processing.isProcessing)
+        #expect(!error.isProcessing)
+        #expect(error.errorMessage == "Service unavailable")
+    }
+
+    @Test func statusSuccessPreservesShortUrl() {
+        let success = ClipboardMonitor.Status.success(shortUrl: "https://musiccloud.io/xyz789")
+        #expect(success == .success(shortUrl: "https://musiccloud.io/xyz789"))
+        #expect(success != .success(shortUrl: "https://musiccloud.io/other"))
+    }
+
+    @Test func statusErrorPreservesMessage() {
+        let error = ClipboardMonitor.Status.error(message: "Rate limited")
+        #expect(error.errorMessage == "Rate limited")
+        let different = ClipboardMonitor.Status.error(message: "Timeout")
+        #expect(error != different)
+    }
 }
