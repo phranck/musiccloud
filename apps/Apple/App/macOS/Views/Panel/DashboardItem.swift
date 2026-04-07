@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  DashboardMenuItem.swift
 //  musiccloud
@@ -34,3 +35,5 @@ struct DashboardItem: View {
         }
     }
 }
+
+#endif

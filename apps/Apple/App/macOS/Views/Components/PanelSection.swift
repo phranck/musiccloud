@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  PanelSection.swift
 //  musiccloud
@@ -23,12 +24,6 @@ import SwiftUI
 ///     VStack { ... }
 /// }
 /// ```
-enum PanelMetrics {
-    static let spacing: CGFloat = 6
-    static let cornerRadius: CGFloat = 21
-    static let panelWidth: CGFloat = 340
-}
-
 struct PanelSection<Content: View>: View {
     let padding: CGFloat
     let hoverable: Bool
@@ -69,3 +64,5 @@ struct PanelSection<Content: View>: View {
             }
     }
 }
+
+#endif

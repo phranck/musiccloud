@@ -5,7 +5,10 @@
 //  Created by Frank Gregor on 04.04.26.
 //
 
+#if os(macOS)
 import AppKit
+#endif
+import AVFoundation
 import UserNotifications
 
 // MARK: - NotificationSound
@@ -43,11 +46,20 @@ enum NotificationSound: String, CaseIterable, Identifiable {
             AppLogger.ui.error("Notification sound file not found: \(rawValue)")
             return
         }
+        #if os(macOS)
         guard let sound = NSSound(contentsOf: url, byReference: true) else {
             AppLogger.ui.error("Failed to load notification sound: \(rawValue)")
             return
         }
         sound.play()
+        #else
+        do {
+            let player = try AVAudioPlayer(contentsOf: url)
+            player.play()
+        } catch {
+            AppLogger.ui.error("Failed to play notification sound: \(error.localizedDescription)")
+        }
+        #endif
     }
 }
 

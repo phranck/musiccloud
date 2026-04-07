@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  AboutView.swift
 //  musiccloud
@@ -17,3 +18,5 @@ struct AboutView: View {
         }
     }
 }
+
+#endif

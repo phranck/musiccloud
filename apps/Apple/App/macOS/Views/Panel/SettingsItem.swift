@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  SettingsMenuItem.swift
 //  musiccloud
@@ -34,3 +35,5 @@ struct SettingsItem: View {
         }
     }
 }
+
+#endif

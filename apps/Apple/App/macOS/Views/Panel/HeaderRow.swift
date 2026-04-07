@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  HeaderRow.swift
 //  musiccloud
@@ -90,3 +91,5 @@ private extension HeaderRow {
 #Preview("Error") {
     HeaderRow(status: .error(message: "Could not connect"))
 }
+
+#endif

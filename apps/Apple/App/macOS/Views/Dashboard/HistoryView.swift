@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  HistoryView.swift
 //  musiccloud
@@ -392,3 +393,5 @@ private extension String {
 }
 
 
+
+#endif

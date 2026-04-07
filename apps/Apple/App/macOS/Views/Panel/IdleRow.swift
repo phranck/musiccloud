@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  IdleRow.swift
 //  musiccloud
@@ -16,3 +17,5 @@ struct IdleRow: View {
             .padding(.vertical, 14)
     }
 }
+
+#endif

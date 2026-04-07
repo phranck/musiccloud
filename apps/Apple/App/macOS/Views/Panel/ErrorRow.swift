@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  ErrorRow.swift
 //  musiccloud
@@ -45,3 +46,5 @@ struct ErrorRow: View {
         .padding(.vertical, 14)
     }
 }
+
+#endif

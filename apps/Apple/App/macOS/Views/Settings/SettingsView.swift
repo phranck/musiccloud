@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  SettingsView.swift
 //  musiccloud
@@ -116,3 +117,5 @@ private struct NotificationSoundPicker: View {
         }
     }
 }
+
+#endif

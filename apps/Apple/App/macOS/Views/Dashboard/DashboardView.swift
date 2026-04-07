@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  DashboardView.swift
 //  musiccloud
@@ -22,3 +23,5 @@ struct DashboardView: View {
         .frame(minWidth: 800, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
     }
 }
+
+#endif

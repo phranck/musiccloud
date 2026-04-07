@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  MenuBarIcon.swift
 //  musiccloud
@@ -29,3 +30,5 @@ struct MenuBarIcon: View {
         }
     }
 }
+
+#endif

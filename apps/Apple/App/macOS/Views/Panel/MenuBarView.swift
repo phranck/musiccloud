@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  MenuBarView.swift
 //  musiccloud
@@ -123,3 +124,5 @@ private struct FilteredHistory: View {
         }
     }
 }
+
+#endif

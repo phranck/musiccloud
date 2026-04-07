@@ -1,3 +1,4 @@
+#if os(macOS)
 //
 //  QuitMenuItem.swift
 //  musiccloud
@@ -29,3 +30,5 @@ struct QuitItem: View {
         }
     }
 }
+
+#endif
