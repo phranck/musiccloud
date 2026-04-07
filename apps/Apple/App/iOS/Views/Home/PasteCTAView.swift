@@ -27,6 +27,8 @@ struct PasteCTAView: View {
         .padding(24)
         .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Paste a streaming URL to convert")
     }
 }
 

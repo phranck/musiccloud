@@ -142,6 +142,55 @@ struct MediaEntryTests {
         #expect(info.releaseYear == nil)
     }
 
+    // MARK: AlbumInfo
+
+    @Test func albumInfoArtistsString() {
+        let info = AlbumInfo(title: "Album", artists: ["A", "B"])
+        #expect(info.artistsString == "A, B")
+    }
+
+    @Test func albumInfoReleaseYear() {
+        let info = AlbumInfo(title: "Album", artists: [], releaseDate: "2023-01-15")
+        #expect(info.releaseYear == "2023")
+    }
+
+    @Test func albumInfoReleaseYearNil() {
+        let info = AlbumInfo(title: "Album", artists: [])
+        #expect(info.releaseYear == nil)
+    }
+
+    // MARK: ArtistInfo
+
+    @Test func artistInfoGenresString() {
+        let info = ArtistInfo(name: "Artist", genres: ["Pop", "R&B"])
+        #expect(info.genresString == "Pop, R&B")
+    }
+
+    @Test func artistInfoGenresNil() {
+        let info = ArtistInfo(name: "Artist")
+        #expect(info.genresString == nil)
+    }
+
+    @Test func artistInfoFormattedFollowersMillions() {
+        let info = ArtistInfo(name: "Artist", followerCount: 1_500_000)
+        #expect(info.formattedFollowers == "1.5M")
+    }
+
+    @Test func artistInfoFormattedFollowersThousands() {
+        let info = ArtistInfo(name: "Artist", followerCount: 42_300)
+        #expect(info.formattedFollowers == "42.3K")
+    }
+
+    @Test func artistInfoFormattedFollowersSmall() {
+        let info = ArtistInfo(name: "Artist", followerCount: 99)
+        #expect(info.formattedFollowers == "99")
+    }
+
+    @Test func artistInfoFormattedFollowersNil() {
+        let info = ArtistInfo(name: "Artist")
+        #expect(info.formattedFollowers == nil)
+    }
+
     // MARK: ServiceLink
 
     @Test func serviceLinkEquality() {

@@ -23,6 +23,8 @@ struct HistoryGridCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(subtitle)")
     }
 }
 

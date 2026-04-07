@@ -59,6 +59,8 @@ struct ResultCardView: View {
         .sheet(isPresented: $showServiceSheet) {
             OpenInServiceSheet(links: entry.serviceLinks)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Converted: \(title) by \(subtitle)")
     }
 }
 

@@ -9,6 +9,7 @@ struct HomeView: View {
     @Environment(ClipboardMonitor.self) private var monitor
     @Query(sort: \MediaEntry.date, order: .reverse, animation: .default)
     private var entries: [MediaEntry]
+    @State private var lastResolvedUrl: String?
 
     var body: some View {
         ScrollView {
@@ -18,6 +19,7 @@ struct HomeView: View {
                 recentSection
             }
             .padding()
+            .animation(.spring(duration: 0.4), value: monitor.status)
         }
         .navigationTitle("musiccloud")
     }
@@ -31,6 +33,7 @@ private extension HomeView {
         switch monitor.status {
         case .processing(let url):
             processingCard(url: url)
+                .transition(.move(edge: .top).combined(with: .opacity))
         case .success(let shortUrl):
             if let entry = entries.first(where: { $0.shortUrl == shortUrl }) {
                 ResultCardView(entry: entry)
@@ -38,6 +41,7 @@ private extension HomeView {
             }
         case .error(let message):
             errorCard(message: message)
+                .transition(.move(edge: .top).combined(with: .opacity))
         case .idle:
             EmptyView()
         }
@@ -74,23 +78,36 @@ private extension HomeView {
         }
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Converting URL")
     }
 
     func errorCard(message: String) -> some View {
-        HStack(spacing: 12) {
+        let isRateLimit = message.lowercased().contains("rate") || message.lowercased().contains("429")
+        return HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Couldn't convert this URL")
+                Text(isRateLimit ? "Too many requests" : "Couldn't convert this URL")
                     .font(.subheadline.weight(.medium))
-                Text(message)
+                Text(isRateLimit ? "Try again in a moment" : message)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            Button {
+                monitor.status = .idle
+            } label: {
+                Text("Dismiss")
+                    .font(.caption.weight(.medium))
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
         }
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(isRateLimit ? "Rate limit error" : "Conversion error: \(message)")
     }
 }
 

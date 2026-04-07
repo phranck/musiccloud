@@ -57,7 +57,7 @@ final class ClipboardMonitor {
     private var lastChangeCount: Int = -1
     #endif
 
-    private(set) var status: Status = .idle
+    var status: Status = .idle
     private(set) var lastShortUrl: String?
 
     /// Creates a new clipboard monitor.
