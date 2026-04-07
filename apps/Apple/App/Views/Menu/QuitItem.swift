@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct QuitMenuItem: View {
+struct QuitItem: View {
     @State private var isHovered = false
 
     var body: some View {

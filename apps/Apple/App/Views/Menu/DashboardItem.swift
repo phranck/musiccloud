@@ -1,26 +1,26 @@
 //
-//  SettingsMenuItem.swift
+//  DashboardMenuItem.swift
 //  musiccloud
 //
-//  Created by Frank Gregor on 06.04.26.
+//  Created by Frank Gregor on 04.04.26.
 //
 
 import SwiftUI
 
-struct SettingsMenuItem: View {
+struct DashboardItem: View {
     @State private var isHovered = false
 
     var body: some View {
         VStack(spacing: 4) {
-            Image(systemName: "gearshape")
+            Image(systemName: "macwindow")
                 .font(.system(size: 20))
-            Text("Settings")
+            Text("Dashboard")
                 .font(.caption)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
         .foregroundStyle(isHovered ? .white : .secondary)
-        .contentShape(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius))
+        .contentShape(RoundedRectangle(cornerRadius: 14))
         .onHover { isHovered = $0 }
         .onTapGesture {
 #if os(macOS)
@@ -29,7 +29,7 @@ struct SettingsMenuItem: View {
                 AppLogger.ui.error("AppDelegate not initialized")
                 return
             }
-            delegate.openSettings()
+            delegate.openDashboard()
 #endif
         }
     }
