@@ -65,6 +65,7 @@ private enum SettingsTab: String, CaseIterable {
 private struct GeneralSettingsView: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @AppStorage("playNotificationSound") private var playNotificationSound = true
+    @AppStorage("notificationSound") private var notificationSound = NotificationSound.default.rawValue
 
     var body: some View {
         Form {
@@ -81,8 +82,37 @@ private struct GeneralSettingsView: View {
                         launchAtLogin = SMAppService.mainApp.status == .enabled
                     }
                 }
-            Toggle(String(localized: "Play Notification Sound"), isOn: $playNotificationSound)
+
+            Section {
+                Toggle(String(localized: "Play Notification Sound"), isOn: $playNotificationSound)
+                if playNotificationSound {
+                    NotificationSoundPicker(selectedSound: $notificationSound)
+                }
+            }
         }
         .formStyle(.grouped)
+    }
+}
+
+// MARK: - NotificationSoundPicker
+
+private struct NotificationSoundPicker: View {
+    @Binding var selectedSound: String
+
+    var body: some View {
+        HStack {
+            Picker(String(localized: "Sound"), selection: $selectedSound) {
+                ForEach(NotificationSound.allCases) { sound in
+                    Text(sound.displayName).tag(sound.rawValue)
+                }
+            }
+
+            Button {
+                let sound = NotificationSound(rawValue: selectedSound) ?? .default
+                sound.play()
+            } label: {
+                Image(systemName: "play.fill")
+            }
+        }
     }
 }

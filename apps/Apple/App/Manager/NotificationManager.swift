@@ -8,6 +8,49 @@
 import AppKit
 import UserNotifications
 
+// MARK: - NotificationSound
+
+enum NotificationSound: String, CaseIterable, Identifiable {
+    case sound1, sound2, sound3, sound4, sound5, sound6
+    case sound7, sound8, sound9, sound10, sound11
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .sound1:  "Sound 1"
+        case .sound2:  "Sound 2"
+        case .sound3:  "Sound 3"
+        case .sound4:  "Sound 4"
+        case .sound5:  "Sound 5"
+        case .sound6:  "Sound 6"
+        case .sound7:  "Sound 7"
+        case .sound8:  "Sound 8"
+        case .sound9:  "Sound 9"
+        case .sound10: "Sound 10"
+        case .sound11: "Sound 11"
+        }
+    }
+
+    static let `default`: NotificationSound = .sound6
+
+    /// Plays this sound once.
+    func play() {
+        guard let url = Bundle.main.url(
+            forResource: rawValue,
+            withExtension: "mp3"
+        ) else {
+            AppLogger.ui.error("Notification sound file not found: \(rawValue)")
+            return
+        }
+        guard let sound = NSSound(contentsOf: url, byReference: true) else {
+            AppLogger.ui.error("Failed to load notification sound: \(rawValue)")
+            return
+        }
+        sound.play()
+    }
+}
+
 // MARK: - Public API
 
 /// Handles local notifications for successful URL conversions.
@@ -83,19 +126,10 @@ enum NotificationManager {
 // MARK: - Private API
 
 private extension NotificationManager {
-    /// Plays the custom notification sound via NSSound.
     static func playSound() {
         guard UserDefaults.standard.object(forKey: "playNotificationSound") as? Bool ?? true else { return }
-        guard let sound = NSSound(named: "universfield-notification") ?? {
-            guard let url = Bundle.main.url(
-                forResource: "universfield-notification",
-                withExtension: "caf"
-            ) else { return nil }
-            return NSSound(contentsOf: url, byReference: true)
-        }() else {
-            AppLogger.ui.error("Notification sound not found")
-            return
-        }
+        let rawValue = UserDefaults.standard.string(forKey: "notificationSound") ?? NotificationSound.default.rawValue
+        let sound = NotificationSound(rawValue: rawValue) ?? .default
         sound.play()
     }
 
