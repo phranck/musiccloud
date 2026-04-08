@@ -9,19 +9,18 @@ import SwiftUI
 
 /// A view that displays music artwork with async loading and placeholder.
 ///
-/// Shows a 40×40pt square image loaded asynchronously from a URL,
+/// Shows a square image loaded asynchronously from a URL,
 /// with a music note placeholder when unavailable.
 struct MediaArtwork: View {
-    private static let size: CGFloat = 40
-
     /// The artwork URL to load
     var url: String?
+    var size: CGFloat = 40
 
     var body: some View {
         CachedAsyncImage(url: url.flatMap(URL.init(string:))) {
             PlaceholderImage()
         }
-        .frame(width: Self.size, height: Self.size)
+        .frame(width: size, height: size)
         .clipShape(.rect(cornerRadius: 12))
     }
 }
