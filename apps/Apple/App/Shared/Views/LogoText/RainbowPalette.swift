@@ -26,18 +26,6 @@ import SwiftUI
 /// ```
 enum RainbowPalette {
 
-    /// Base color palette containing 8 primary rainbow colors.
-    static let baseColors: [Color] = [
-        Color(red: 1.0, green: 0.4, blue: 0.6),   // Pink/Magenta
-        Color(red: 0.6, green: 0.4, blue: 1.0),   // Purple
-        Color(red: 0.3, green: 0.6, blue: 1.0),   // Blue
-        Color(red: 0.0, green: 0.8, blue: 0.9),   // Cyan
-        Color(red: 0.0, green: 0.9, blue: 0.7),   // Teal
-        Color(red: 0.5, green: 0.9, blue: 0.3),   // Green
-        Color(red: 0.9, green: 0.9, blue: 0.3),   // Yellow
-        Color(red: 1.0, green: 0.7, blue: 0.3)    // Orange
-    ]
-
     /// RGB color value for interpolation.
     private struct RGB {
         let red: Double
@@ -45,7 +33,7 @@ enum RainbowPalette {
         let blue: Double
     }
 
-    /// RGB values for each base color, used for interpolation.
+    /// RGB values for each base color, single source of truth.
     private static let baseRGB: [RGB] = [
         RGB(red: 1.0, green: 0.4, blue: 0.6),   // Pink/Magenta
         RGB(red: 0.6, green: 0.4, blue: 1.0),   // Purple
@@ -56,6 +44,9 @@ enum RainbowPalette {
         RGB(red: 0.9, green: 0.9, blue: 0.3),   // Yellow
         RGB(red: 1.0, green: 0.7, blue: 0.3)    // Orange
     ]
+
+    /// Base color palette containing 8 primary rainbow colors, derived from ``baseRGB``.
+    static let baseColors: [Color] = baseRGB.map { Color(red: $0.red, green: $0.green, blue: $0.blue) }
 
     /// Expanded rainbow palette with 32 interpolated colors (4 steps per base color).
     static let colors: [Color] = {
