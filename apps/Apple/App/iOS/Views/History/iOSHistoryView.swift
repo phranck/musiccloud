@@ -29,7 +29,7 @@ struct HistoryView: View {
                 HistoryGrid(entries: filteredEntries, historyManager: historyManager)
             }
         }
-        .animation(.smooth, value: allEntries.map(\.id))
+        .animation(.smooth, value: allEntries.count)
         .navigationTitle(Bundle.main.appName)
         .searchable(text: $searchText, prompt: "Search conversions")
         .toolbar {

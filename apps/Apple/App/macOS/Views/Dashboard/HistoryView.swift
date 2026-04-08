@@ -44,7 +44,7 @@ struct HistoryView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .animation(.smooth, value: allEntries.map(\.id))
+            .animation(.smooth, value: allEntries.count)
 
             Divider()
             GridSizeBar(gridItemSize: $gridItemSize, gridItemMinSize: HistoryView.gridItemMinSize)
