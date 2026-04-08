@@ -17,6 +17,8 @@ enum NotificationSound: String, CaseIterable, Identifiable {
     case sound1, sound2, sound3, sound4, sound5, sound6
     case sound7, sound8, sound9, sound10, sound11
 
+    private static var audioPlayer: AVAudioPlayer?
+
     var id: String { rawValue }
 
     var displayName: String {
@@ -54,8 +56,8 @@ enum NotificationSound: String, CaseIterable, Identifiable {
         sound.play()
         #else
         do {
-            let player = try AVAudioPlayer(contentsOf: url)
-            player.play()
+            Self.audioPlayer = try AVAudioPlayer(contentsOf: url)
+            Self.audioPlayer?.play()
         } catch {
             AppLogger.ui.error("Failed to play notification sound: \(error.localizedDescription)")
         }
