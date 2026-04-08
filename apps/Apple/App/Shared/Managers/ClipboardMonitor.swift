@@ -52,6 +52,8 @@ final class ClipboardMonitor {
     private var lastSeenContent: String?
     @ObservationIgnored
     private var timer: Timer?
+    @ObservationIgnored
+    private var checkTask: Task<Void, Never>?
     #if os(iOS)
     @ObservationIgnored
     private var lastChangeCount: Int = -1
@@ -205,7 +207,10 @@ extension ClipboardMonitor {
         guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
-            Task { @MainActor in await self.checkClipboard() }
+            MainActor.assumeIsolated {
+                self.checkTask?.cancel()
+                self.checkTask = Task { @MainActor in await self.checkClipboard() }
+            }
         }
         guard let timer else { return }
         RunLoop.main.add(timer, forMode: .common)
@@ -213,6 +218,8 @@ extension ClipboardMonitor {
 
     /// Stops the clipboard monitoring timer.
     func stopMonitoring() {
+        checkTask?.cancel()
+        checkTask = nil
         timer?.invalidate()
         timer = nil
     }
