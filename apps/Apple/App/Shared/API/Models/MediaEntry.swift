@@ -29,6 +29,13 @@ final class MediaEntry {
     private var artistData: Data?
     private var serviceLinksData: Data?
 
+    // MARK: - Decode Cache
+
+    @Transient private var _cachedTrack: TrackInfo??
+    @Transient private var _cachedAlbum: AlbumInfo??
+    @Transient private var _cachedArtist: ArtistInfo??
+    @Transient private var _cachedServiceLinks: [ServiceLink]?
+
     // MARK: - Typed Accessors
 
     @Transient var mediaType: MediaType {
@@ -37,23 +44,55 @@ final class MediaEntry {
     }
 
     @Transient var track: TrackInfo? {
-        get { trackData.flatMap { try? JSONDecoder().decode(TrackInfo.self, from: $0) } }
-        set { trackData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+        get {
+            if let cached = _cachedTrack { return cached }
+            let decoded = trackData.flatMap { try? JSONDecoder().decode(TrackInfo.self, from: $0) }
+            _cachedTrack = .some(decoded)
+            return decoded
+        }
+        set {
+            _cachedTrack = .some(newValue)
+            trackData = newValue.flatMap { try? JSONEncoder().encode($0) }
+        }
     }
 
     @Transient var album: AlbumInfo? {
-        get { albumData.flatMap { try? JSONDecoder().decode(AlbumInfo.self, from: $0) } }
-        set { albumData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+        get {
+            if let cached = _cachedAlbum { return cached }
+            let decoded = albumData.flatMap { try? JSONDecoder().decode(AlbumInfo.self, from: $0) }
+            _cachedAlbum = .some(decoded)
+            return decoded
+        }
+        set {
+            _cachedAlbum = .some(newValue)
+            albumData = newValue.flatMap { try? JSONEncoder().encode($0) }
+        }
     }
 
     @Transient var artist: ArtistInfo? {
-        get { artistData.flatMap { try? JSONDecoder().decode(ArtistInfo.self, from: $0) } }
-        set { artistData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+        get {
+            if let cached = _cachedArtist { return cached }
+            let decoded = artistData.flatMap { try? JSONDecoder().decode(ArtistInfo.self, from: $0) }
+            _cachedArtist = .some(decoded)
+            return decoded
+        }
+        set {
+            _cachedArtist = .some(newValue)
+            artistData = newValue.flatMap { try? JSONEncoder().encode($0) }
+        }
     }
 
     @Transient var serviceLinks: [ServiceLink] {
-        get { serviceLinksData.flatMap { try? JSONDecoder().decode([ServiceLink].self, from: $0) } ?? [] }
-        set { serviceLinksData = try? JSONEncoder().encode(newValue) }
+        get {
+            if let cached = _cachedServiceLinks { return cached }
+            let decoded = serviceLinksData.flatMap { try? JSONDecoder().decode([ServiceLink].self, from: $0) } ?? []
+            _cachedServiceLinks = decoded
+            return decoded
+        }
+        set {
+            _cachedServiceLinks = newValue
+            serviceLinksData = try? JSONEncoder().encode(newValue)
+        }
     }
 
     var contentType: ContentType {
