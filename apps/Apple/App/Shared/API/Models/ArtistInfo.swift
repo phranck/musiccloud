@@ -48,29 +48,19 @@ struct ArtistInfo: Codable, Equatable {
         self.followerCount = followerCount
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case name, genresRaw = "genres", artworkUrl, followerCount
+    /// Decodes from API JSON where `"genres"` is `[String]?`.
+    static func fromJSON(_ decoder: Decoder) throws -> ArtistInfo {
+        let c = try decoder.container(keyedBy: JSONKeys.self)
+        return ArtistInfo(
+            name: try c.decode(String.self, forKey: .name),
+            genres: try c.decodeIfPresent([String].self, forKey: .genres),
+            artworkUrl: try c.decodeIfPresent(String.self, forKey: .artworkUrl),
+            followerCount: try c.decodeIfPresent(Int.self, forKey: .followerCount)
+        )
     }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        name = try container.decode(String.self, forKey: .name)
-        // API sends [String], SwiftData stores String
-        if let genreArray = try? container.decode([String].self, forKey: .genresRaw) {
-            genresRaw = genreArray.joined(separator: ", ")
-        } else {
-            genresRaw = try? container.decode(String.self, forKey: .genresRaw)
-        }
-        artworkUrl = try container.decodeIfPresent(String.self, forKey: .artworkUrl)
-        followerCount = try container.decodeIfPresent(Int.self, forKey: .followerCount)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(name, forKey: .name)
-        try container.encodeIfPresent(genres, forKey: .genresRaw)
-        try container.encodeIfPresent(artworkUrl, forKey: .artworkUrl)
-        try container.encodeIfPresent(followerCount, forKey: .followerCount)
+    private enum JSONKeys: String, CodingKey {
+        case name, genres, artworkUrl, followerCount
     }
 }
 

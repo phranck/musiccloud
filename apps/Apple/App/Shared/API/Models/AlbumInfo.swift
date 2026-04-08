@@ -51,31 +51,20 @@ struct AlbumInfo: Codable, Equatable {
         self.artworkUrl = artworkUrl
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case title, artistsRaw = "artists", releaseDate, totalTracks, artworkUrl
+    /// Decodes from API JSON where `"artists"` is `[String]`.
+    static func fromJSON(_ decoder: Decoder) throws -> AlbumInfo {
+        let c = try decoder.container(keyedBy: JSONKeys.self)
+        return AlbumInfo(
+            title: try c.decode(String.self, forKey: .title),
+            artists: try c.decode([String].self, forKey: .artists),
+            releaseDate: try c.decodeIfPresent(String.self, forKey: .releaseDate),
+            totalTracks: try c.decodeIfPresent(Int.self, forKey: .totalTracks),
+            artworkUrl: try c.decodeIfPresent(String.self, forKey: .artworkUrl)
+        )
     }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        title = try container.decode(String.self, forKey: .title)
-        // API sends [String], SwiftData stores String
-        if let artistArray = try? container.decode([String].self, forKey: .artistsRaw) {
-            artistsRaw = artistArray.joined(separator: ", ")
-        } else {
-            artistsRaw = (try? container.decode(String.self, forKey: .artistsRaw)) ?? ""
-        }
-        releaseDate = try container.decodeIfPresent(String.self, forKey: .releaseDate)
-        totalTracks = try container.decodeIfPresent(Int.self, forKey: .totalTracks)
-        artworkUrl = try container.decodeIfPresent(String.self, forKey: .artworkUrl)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(title, forKey: .title)
-        try container.encode(artists, forKey: .artistsRaw)
-        try container.encodeIfPresent(releaseDate, forKey: .releaseDate)
-        try container.encodeIfPresent(totalTracks, forKey: .totalTracks)
-        try container.encodeIfPresent(artworkUrl, forKey: .artworkUrl)
+    private enum JSONKeys: String, CodingKey {
+        case title, artists, releaseDate, totalTracks, artworkUrl
     }
 }
 

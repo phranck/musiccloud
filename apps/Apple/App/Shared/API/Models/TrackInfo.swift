@@ -56,33 +56,21 @@ struct TrackInfo: Codable, Equatable {
         self.releaseDate = releaseDate
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case title, artistsRaw = "artists", albumName, artworkUrl, durationMs, releaseDate
+    /// Decodes from API JSON where `"artists"` is `[String]`.
+    static func fromJSON(_ decoder: Decoder) throws -> TrackInfo {
+        let c = try decoder.container(keyedBy: JSONKeys.self)
+        return TrackInfo(
+            title: try c.decode(String.self, forKey: .title),
+            artists: try c.decode([String].self, forKey: .artists),
+            albumName: try c.decodeIfPresent(String.self, forKey: .albumName),
+            artworkUrl: try c.decodeIfPresent(String.self, forKey: .artworkUrl),
+            durationMs: try c.decodeIfPresent(Int.self, forKey: .durationMs),
+            releaseDate: try c.decodeIfPresent(String.self, forKey: .releaseDate)
+        )
     }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        title = try container.decode(String.self, forKey: .title)
-        // API sends [String], SwiftData stores String
-        if let artistArray = try? container.decode([String].self, forKey: .artistsRaw) {
-            artistsRaw = artistArray.joined(separator: ", ")
-        } else {
-            artistsRaw = (try? container.decode(String.self, forKey: .artistsRaw)) ?? ""
-        }
-        albumName = try container.decodeIfPresent(String.self, forKey: .albumName)
-        artworkUrl = try container.decodeIfPresent(String.self, forKey: .artworkUrl)
-        durationMs = try container.decodeIfPresent(Int.self, forKey: .durationMs)
-        releaseDate = try container.decodeIfPresent(String.self, forKey: .releaseDate)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(title, forKey: .title)
-        try container.encode(artists, forKey: .artistsRaw)
-        try container.encodeIfPresent(albumName, forKey: .albumName)
-        try container.encodeIfPresent(artworkUrl, forKey: .artworkUrl)
-        try container.encodeIfPresent(durationMs, forKey: .durationMs)
-        try container.encodeIfPresent(releaseDate, forKey: .releaseDate)
+    private enum JSONKeys: String, CodingKey {
+        case title, artists, albumName, artworkUrl, durationMs, releaseDate
     }
 }
 
