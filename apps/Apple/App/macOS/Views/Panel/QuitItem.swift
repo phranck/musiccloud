@@ -9,24 +9,9 @@
 import SwiftUI
 
 struct QuitItem: View {
-    @State private var isHovered = false
-
     var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: "power")
-                .font(.system(size: 20))
-            Text("Quit")
-                .font(.caption)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .foregroundStyle(isHovered ? .white : .secondary)
-        .contentShape(RoundedRectangle(cornerRadius: 14))
-        .onHover { isHovered = $0 }
-        .onTapGesture {
-#if os(macOS)
+        PanelActionItem(icon: "power", title: "Quit") {
             NSApplication.shared.terminate(nil)
-#endif
         }
     }
 }

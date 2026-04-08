@@ -14,6 +14,7 @@
 		7BF3DC5D2349EDF131DF8E45 /* StreamingServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121F8EA83B3E06119BA82118 /* StreamingServices.swift */; };
 		8B76C213DB85A0116DCD1056 /* MusicCloudAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */; };
 		AA00000000000001 /* PanelMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000002 /* PanelMetrics.swift */; };
+		AA00000000000050 /* PanelActionItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000051 /* PanelActionItem.swift */; };
 		AA00000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000004 /* ContentView.swift */; };
 		B67BEA72FC7A47A3C1F1DFCF /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = E68F162AF511C823C8D23690 /* App.swift */; };
 		BB00000000000001 /* StreamingServicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000011 /* StreamingServicesTests.swift */; };
@@ -148,6 +149,7 @@
 		56B89EA2B7FB649CF35C1DC8 /* musiccloud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = musiccloud.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		65D30DA29D8EB6E7A8D6EF3C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA00000000000002 /* PanelMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelMetrics.swift; sourceTree = "<group>"; };
+		AA00000000000051 /* PanelActionItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelActionItem.swift; sourceTree = "<group>"; };
 		AA00000000000004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		BB00000000000010 /* musiccloudTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = musiccloudTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB00000000000011 /* StreamingServicesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServicesTests.swift; sourceTree = "<group>"; };
@@ -459,6 +461,7 @@
 			children = (
 				FD2197D12F80996F00F4AD7D /* DashboardItem.swift */,
 				FDDC7E242F805EB6005D779F /* ErrorRow.swift */,
+				AA00000000000051 /* PanelActionItem.swift */,
 				FDDC7E222F805E82005D779F /* HeaderRow.swift */,
 				FDDC7E262F805ECE005D779F /* IdleRow.swift */,
 				FD0C89972F81B1DB00AE61FB /* MenuBarIcon.swift */,
@@ -791,6 +794,7 @@
 				FD05A10E2F83900100000002 /* APIError.swift in Sources */,
 				FD05A1102F83900100000003 /* ResolveError.swift in Sources */,
 				FDDC7E272F805ECE005D779F /* IdleRow.swift in Sources */,
+				AA00000000000050 /* PanelActionItem.swift in Sources */,
 				FDDC7E2D2F805F1A005D779F /* QuitItem.swift in Sources */,
 				FDA7B3022F84200100000001 /* SettingsItem.swift in Sources */,
 				FD97C37E2F80943A00E8D788 /* MediaItem.swift in Sources */,
