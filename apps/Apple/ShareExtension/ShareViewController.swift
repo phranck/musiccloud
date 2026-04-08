@@ -120,10 +120,12 @@ private extension ShareViewController {
     func loadURL(from provider: NSItemProvider) {
         provider.loadItem(forTypeIdentifier: UTType.url.identifier) { [weak self] item, _ in
             guard let self else { return }
-            if let url = item as? URL {
-                self.processURL(url.absoluteString)
-            } else {
-                DispatchQueue.main.async { self.cancel() }
+            DispatchQueue.main.async {
+                if let url = item as? URL {
+                    self.processURL(url.absoluteString)
+                } else {
+                    self.cancel()
+                }
             }
         }
     }
@@ -131,10 +133,12 @@ private extension ShareViewController {
     func loadText(from provider: NSItemProvider) {
         provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { [weak self] item, _ in
             guard let self else { return }
-            if let text = item as? String {
-                self.processURL(text.trimmingCharacters(in: .whitespacesAndNewlines))
-            } else {
-                DispatchQueue.main.async { self.cancel() }
+            DispatchQueue.main.async {
+                if let text = item as? String {
+                    self.processURL(text.trimmingCharacters(in: .whitespacesAndNewlines))
+                } else {
+                    self.cancel()
+                }
             }
         }
     }
@@ -146,13 +150,14 @@ private extension ShareViewController {
     /// Extensions can't access local network -- always use production.
     static let productionBaseURL = URL(string: "https://musiccloud.io")!
 
+    @MainActor
     func processURL(_ urlString: String) {
         guard StreamingServices.isStreamingURL(urlString) else {
-            DispatchQueue.main.async { self.showError("Not a streaming URL") }
+            showError("Not a streaming URL")
             return
         }
 
-        Task {
+        Task { @MainActor in
             do {
                 let result = try await MusicCloudAPI.resolve(url: urlString, baseURL: Self.productionBaseURL)
 
@@ -170,15 +175,11 @@ private extension ShareViewController {
                 let entry = result.toMediaEntry(originalUrl: urlString, artworkData: artworkData)
                 try saveToSwiftData(entry)
 
-                await MainActor.run {
-                    UIPasteboard.general.string = result.shortUrl
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    showSuccess()
-                }
+                UIPasteboard.general.string = result.shortUrl
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                showSuccess()
             } catch {
-                await MainActor.run {
-                    showError("\(error)")
-                }
+                showError("\(error)")
             }
         }
     }
