@@ -14,7 +14,7 @@ import SwiftUI
 /// Provides access to history (tracks, albums, artists) via a centered
 /// `AnimatedSegmentControl` in the toolbar.
 struct DashboardView: View {
-    @State private var filter: SidebarItem = .tracks
+    @State private var filter: MediaFilter = .tracks
 
     var body: some View {
         NavigationStack {

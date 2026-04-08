@@ -17,7 +17,7 @@ struct MenuBarView: View {
     @Query(sort: \MediaEntry.date, order: .reverse)
     private var entries: [MediaEntry]
 
-    @State private var selectedFilter: SidebarItem = .tracks
+    @State private var selectedFilter: MediaFilter = .tracks
 
     var body: some View {
         VStack(spacing: PanelMetrics.spacing) {
@@ -60,12 +60,12 @@ struct MenuBarView: View {
 // MARK: - FilterPicker
 
 private struct FilterPicker: View {
-    @Binding var selection: SidebarItem
+    @Binding var selection: MediaFilter
 
     var body: some View {
         AnimatedSegmentControl(
             selection: $selection,
-            segments: SidebarItem.allCases.map { item in
+            segments: MediaFilter.mediaOnlyCases.map { item in
                 .label(item.title, systemImage: item.icon, tag: item)
             },
             tintColor: .accentColor
@@ -81,7 +81,7 @@ private struct FilterPicker: View {
 
 private struct FilteredHistory: View {
     let entries: [MediaEntry]
-    let filter: SidebarItem
+    let filter: MediaFilter
 
     var body: some View {
         let filtered = entries.filter { $0.mediaType == filter.mediaType }

@@ -18,7 +18,7 @@ struct HistoryView: View {
     @Query(sort: \MediaEntry.date, order: .reverse, animation: .default)
     private var allEntries: [MediaEntry]
 
-    @Binding var filter: SidebarItem
+    @Binding var filter: MediaFilter
 
     @State private var searchText = ""
     @AppStorage("gridItemSize") private var gridItemSize: Double = 168
@@ -26,15 +26,7 @@ struct HistoryView: View {
     private static let gridItemMinSize: CGFloat = 150
 
     private var filteredEntries: [MediaEntry] {
-        let byType = allEntries.filter { $0.mediaType == filter.mediaType }
-
-        guard !searchText.isEmpty else { return byType }
-
-        return byType.filter { entry in
-            let query = searchText.lowercased()
-            return entry.contentType.title.localizedCaseInsensitiveContains(query) ||
-                entry.contentType.subtitle.localizedCaseInsensitiveContains(query)
-        }
+        filter.filtered(allEntries, searchText: searchText)
     }
 
     var body: some View {
@@ -47,6 +39,7 @@ struct HistoryView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.smooth, value: allEntries.map(\.id))
 
             Divider()
             bottomBar
@@ -56,7 +49,7 @@ struct HistoryView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Picker("", selection: $filter) {
-                    ForEach(SidebarItem.allCases, id: \.self) { item in
+                    ForEach(MediaFilter.mediaOnlyCases, id: \.self) { item in
                         Label(item.title, systemImage: item.icon)
                             .tag(item)
                     }
@@ -131,100 +124,6 @@ private extension HistoryView {
             }
         }
     }
-}
-
-// MARK: - Entry Actions
-
-private struct EntryActionsModifier: ViewModifier {
-    let entry: MediaEntry
-    let onDelete: () -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .onTapGesture(count: 2) {
-                guard let url = URL(string: entry.shortUrl) else {
-                    AppLogger.ui.error("Invalid short URL: \(entry.shortUrl)")
-                    return
-                }
-                NSWorkspace.shared.open(url)
-            }
-            .contextMenu {
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(entry.shortUrl, forType: .string)
-                } label: {
-                    Label("Copy Share URL", systemImage: "doc.on.doc")
-                }
-
-                Button {
-                    guard let url = URL(string: entry.shortUrl) else {
-                        AppLogger.ui.error("Invalid short URL: \(entry.shortUrl)")
-                        return
-                    }
-                    NSWorkspace.shared.open(url)
-                } label: {
-                    Label("Open in Browser...", systemImage: "safari")
-                }
-
-                if entry.mediaType != .artist, !entry.serviceLinks.isEmpty {
-                    Menu {
-                        ForEach(entry.serviceLinks, id: \.service) { link in
-                            Button {
-                                guard let url = URL(string: link.url) else {
-                                    AppLogger.ui.error("Invalid service URL: \(link.url)")
-                                    return
-                                }
-                                NSWorkspace.shared.open(url)
-                            } label: {
-                                Label {
-                                    Text(link.displayName)
-                                } icon: {
-                                    Image(nsImage: serviceIcon(for: link.service))
-                                }
-                            }
-                        }
-                    } label: {
-                        Label("Open in", systemImage: "arrow.up.forward.app")
-                    }
-                }
-
-                Divider()
-
-                Button(role: .destructive) {
-                    onDelete()
-                } label: {
-                    Label("Delete Entry", systemImage: "trash")
-                }
-            }
-    }
-}
-
-private extension View {
-    func entryActions(entry: MediaEntry, onDelete: @escaping () -> Void) -> some View {
-        modifier(EntryActionsModifier(entry: entry, onDelete: onDelete))
-    }
-}
-
-// MARK: - Service Icon Helper
-
-private func serviceIcon(for service: String) -> NSImage {
-    let canvasSize = NSSize(width: 16, height: 16)
-    guard let original = NSImage(named: "ServiceIcons/\(service)") else {
-        return NSImage(systemSymbolName: "music.note", accessibilityDescription: service) ?? NSImage()
-    }
-    let originalSize = original.size
-    let scale = min(canvasSize.width / originalSize.width, canvasSize.height / originalSize.height)
-    let scaledSize = NSSize(width: originalSize.width * scale, height: originalSize.height * scale)
-    let origin = NSPoint(
-        x: (canvasSize.width - scaledSize.width) / 2,
-        y: (canvasSize.height - scaledSize.height) / 2
-    )
-    let resized = NSImage(size: canvasSize, flipped: false) { _ in
-        original.draw(in: NSRect(origin: origin, size: scaledSize))
-        return true
-    }
-    resized.isTemplate = true
-    return resized
 }
 
 #endif

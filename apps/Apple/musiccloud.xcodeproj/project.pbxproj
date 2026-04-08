@@ -36,7 +36,7 @@
 		EE00000000000002 /* MusicCloudShortcutsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE00000000000012 /* MusicCloudShortcutsProvider.swift */; };
 		FD05A1022F82A00100000001 /* MediaEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1012F82A00100000001 /* MediaEntry.swift */; };
 		FD05A1042F83700100000001 /* ServiceLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1032F83700100000001 /* ServiceLink.swift */; };
-		FD05A1062F83800100000001 /* SidebarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1052F83800100000001 /* SidebarItem.swift */; };
+		FD05A1062F83800100000001 /* MediaFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1052F83800100000001 /* MediaFilter.swift */; };
 		FD05A10C2F83900100000001 /* ContentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10B2F83900100000001 /* ContentType.swift */; };
 		FD05A10E2F83900100000002 /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10D2F83900100000002 /* APIError.swift */; };
 		FD05A1102F83900100000003 /* ResolveError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10F2F83900100000003 /* ResolveError.swift */; };
@@ -88,6 +88,7 @@
 		FF00000000000001 /* MediaType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000011 /* MediaType.swift */; };
 		FF00000000000002 /* Bundle+Version.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000012 /* Bundle+Version.swift */; };
 		FF00000000000003 /* DangerZoneSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000013 /* DangerZoneSection.swift */; };
+		FF00000000000006 /* EntryActionsModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000016 /* EntryActionsModifier.swift */; };
 		FF00000000000004 /* SharedStoreConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000014 /* SharedStoreConfiguration.swift */; };
 		FF00000000000021 /* CloudKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FF00000000000020 /* CloudKit.framework */; };
 		FF00000000000101 /* MediaType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000011 /* MediaType.swift */; };
@@ -172,7 +173,7 @@
 		F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicCloudAPI.swift; sourceTree = "<group>"; };
 		FD05A1012F82A00100000001 /* MediaEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaEntry.swift; sourceTree = "<group>"; };
 		FD05A1032F83700100000001 /* ServiceLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceLink.swift; sourceTree = "<group>"; };
-		FD05A1052F83800100000001 /* SidebarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarItem.swift; sourceTree = "<group>"; };
+		FD05A1052F83800100000001 /* MediaFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFilter.swift; sourceTree = "<group>"; };
 		FD05A10B2F83900100000001 /* ContentType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentType.swift; sourceTree = "<group>"; };
 		FD05A10D2F83900100000002 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
 		FD05A10F2F83900100000003 /* ResolveError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveError.swift; sourceTree = "<group>"; };
@@ -224,6 +225,7 @@
 		FF00000000000011 /* MediaType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaType.swift; sourceTree = "<group>"; };
 		FF00000000000012 /* Bundle+Version.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+Version.swift"; sourceTree = "<group>"; };
 		FF00000000000013 /* DangerZoneSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DangerZoneSection.swift; sourceTree = "<group>"; };
+		FF00000000000016 /* EntryActionsModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryActionsModifier.swift; sourceTree = "<group>"; };
 		FF00000000000014 /* SharedStoreConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreConfiguration.swift; sourceTree = "<group>"; };
 		FF00000000000020 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -326,7 +328,7 @@
 			children = (
 				FD05A10B2F83900100000001 /* ContentType.swift */,
 				FF00000000000011 /* MediaType.swift */,
-				FD05A1052F83800100000001 /* SidebarItem.swift */,
+				FD05A1052F83800100000001 /* MediaFilter.swift */,
 			);
 			path = Types;
 			sourceTree = "<group>";
@@ -366,6 +368,7 @@
 			children = (
 				FDAF979E2F8412A3002A3AC1 /* AnimatedSegmentControl.swift */,
 				FF00000000000013 /* DangerZoneSection.swift */,
+				FF00000000000016 /* EntryActionsModifier.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -817,7 +820,7 @@
 				FDDC7E312F806452005D779F /* LogoText.swift in Sources */,
 				FD05A1022F82A00100000001 /* MediaEntry.swift in Sources */,
 				FD05A1042F83700100000001 /* ServiceLink.swift in Sources */,
-				FD05A1062F83800100000001 /* SidebarItem.swift in Sources */,
+				FD05A1062F83800100000001 /* MediaFilter.swift in Sources */,
 				FDD516292F817F360043E187 /* MediaInfo.swift in Sources */,
 				AA00000000000001 /* PanelMetrics.swift in Sources */,
 				AA00000000000003 /* ContentView.swift in Sources */,
@@ -833,6 +836,7 @@
 				FF00000000000001 /* MediaType.swift in Sources */,
 				FF00000000000002 /* Bundle+Version.swift in Sources */,
 				FF00000000000003 /* DangerZoneSection.swift in Sources */,
+				FF00000000000006 /* EntryActionsModifier.swift in Sources */,
 				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -976,7 +980,7 @@
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 0.3.1;
+				MARKETING_VERSION = 0.3.2;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -1007,7 +1011,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.3.2;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -1031,7 +1035,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.3.2;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -1060,7 +1064,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.3.1;
+				MARKETING_VERSION = 0.3.2;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1087,7 +1091,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.3.1;
+				MARKETING_VERSION = 0.3.2;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1192,7 +1196,7 @@
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 0.3.1;
+				MARKETING_VERSION = 0.3.2;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;

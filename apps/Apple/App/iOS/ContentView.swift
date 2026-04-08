@@ -182,7 +182,7 @@ private extension IPadSplitView {
 
 /// A wrapper that pre-selects a content type filter for the HistoryView.
 private struct FilteredHistoryView: View {
-    var filter: HistoryView.ContentFilter
+    var filter: MediaFilter
 
     var body: some View {
         HistoryView(initialFilter: filter)
