@@ -31,7 +31,12 @@ struct ResolveResponse: Decodable {
         track = try container.decodeIfPresent(TrackInfo.self, forKey: .track)
         album = try container.decodeIfPresent(AlbumInfo.self, forKey: .album)
         artist = try container.decodeIfPresent(ArtistInfo.self, forKey: .artist)
-        links = (try? container.decodeIfPresent([ServiceLink].self, forKey: .links)) ?? []
+        do {
+            links = try container.decodeIfPresent([ServiceLink].self, forKey: .links) ?? []
+        } catch {
+            AppLogger.api.warning("Failed to decode service links: \(error)")
+            links = []
+        }
     }
 
     var contentType: ContentType {
