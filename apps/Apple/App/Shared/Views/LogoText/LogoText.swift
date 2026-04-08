@@ -38,24 +38,27 @@ struct LogoText: View {
     var body: some View {
         if isAnimating {
             TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-                styledLogo(
+                StyledLogo(
+                    fontSize: fontSize,
                     colors: RainbowPalette.shiftedColors(for: timeline.date)
                 )
             }
         } else {
-            styledLogo(colors: RainbowPalette.colors)
+            StyledLogo(fontSize: fontSize, colors: RainbowPalette.colors)
         }
     }
 }
 
-// MARK: - Private Helpers
+// MARK: - LogoContent
 
-private extension LogoText {
-    var font: Font {
+private struct LogoContent: View {
+    let fontSize: CGFloat
+
+    private var font: Font {
         .custom("Nasalization", size: fontSize).weight(.bold)
     }
 
-    var logoContent: some View {
+    var body: some View {
         HStack(alignment: .lastTextBaseline, spacing: 0) {
             // Logo parts - must not be localized
             Text(verbatim: "musicc")
@@ -68,9 +71,16 @@ private extension LogoText {
                 .offset(x: -4)
         }
     }
+}
 
-    func styledLogo(colors: [Color]) -> some View {
-        logoContent
+// MARK: - StyledLogo
+
+private struct StyledLogo: View {
+    let fontSize: CGFloat
+    let colors: [Color]
+
+    var body: some View {
+        LogoContent(fontSize: fontSize)
             .hidden()
             .overlay {
                 LinearGradient(
@@ -78,7 +88,7 @@ private extension LogoText {
                     startPoint: .leading,
                     endPoint: .trailing
                 )
-                .mask { logoContent }
+                .mask { LogoContent(fontSize: fontSize) }
             }
     }
 }

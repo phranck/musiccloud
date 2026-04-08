@@ -4,36 +4,22 @@ import SwiftData
 
 // MARK: - ContentView
 
-/// Root view for the iOS app. Uses TabView on iPhone and NavigationSplitView on iPad.
+/// Root view for the iOS app. Uses NavigationStack on iPhone and NavigationSplitView on iPad.
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         if sizeClass == .regular {
-            iPadLayout
+            IPadSplitView()
         } else {
-            iPhoneLayout
+            NavigationStack {
+                HistoryView()
+            }
         }
     }
 }
 
-// MARK: - iPhone Layout
-
-private extension ContentView {
-    var iPhoneLayout: some View {
-        NavigationStack {
-            HistoryView()
-        }
-    }
-}
-
-// MARK: - iPad Layout
-
-private extension ContentView {
-    var iPadLayout: some View {
-        IPadSplitView()
-    }
-}
+// MARK: - IPadSplitView
 
 /// iPad-specific split view with sidebar navigation.
 private struct IPadSplitView: View {
@@ -44,9 +30,9 @@ private struct IPadSplitView: View {
 
     var body: some View {
         NavigationSplitView {
-            sidebar
+            IPadSidebar(selection: $selection, allEntries: allEntries)
         } detail: {
-            detail
+            IPadDetail(selection: selection)
         }
         .dropDestination(for: URL.self) { urls, _ in
             handleDrop(urls.first?.absoluteString)
@@ -60,9 +46,16 @@ private struct IPadSplitView: View {
         }
         .overlay {
             if isDropTargeted {
-                dropOverlay
+                DropOverlay()
             }
         }
+    }
+
+    private func handleDrop(_ urlString: String?) -> Bool {
+        guard let urlString, StreamingServices.isStreamingURL(urlString) else { return false }
+        Task { await monitor.resolve(url: urlString) }
+        selection = .home
+        return true
     }
 }
 
@@ -76,10 +69,13 @@ private enum SidebarSelection: Hashable {
     case settings
 }
 
-// MARK: - iPad Sidebar
+// MARK: - IPadSidebar
 
-private extension IPadSplitView {
-    var sidebar: some View {
+private struct IPadSidebar: View {
+    @Binding var selection: SidebarSelection?
+    let allEntries: [MediaEntry]
+
+    var body: some View {
         List(selection: $selection) {
             Section {
                 Label("Home", systemImage: "house")
@@ -119,25 +115,26 @@ private extension IPadSplitView {
         .navigationTitle(Bundle.main.appName)
     }
 
-    func countFor(_ mediaType: MediaType) -> Int {
+    private func countFor(_ mediaType: MediaType) -> Int {
         allEntries.filter { $0.mediaType == mediaType }.count
     }
 }
 
-// MARK: - iPad Detail
+// MARK: - IPadDetail
 
-private extension IPadSplitView {
-    @ViewBuilder
-    var detail: some View {
+private struct IPadDetail: View {
+    let selection: SidebarSelection?
+
+    var body: some View {
         switch selection {
         case .home:
             HomeView()
         case .tracks:
-            FilteredHistoryView(filter: .tracks)
+            HistoryView(initialFilter: .tracks)
         case .albums:
-            FilteredHistoryView(filter: .albums)
+            HistoryView(initialFilter: .albums)
         case .artists:
-            FilteredHistoryView(filter: .artists)
+            HistoryView(initialFilter: .artists)
         case .settings:
             SettingsView()
         case nil:
@@ -146,17 +143,10 @@ private extension IPadSplitView {
     }
 }
 
-// MARK: - Drop Handling
+// MARK: - DropOverlay
 
-private extension IPadSplitView {
-    func handleDrop(_ urlString: String?) -> Bool {
-        guard let urlString, StreamingServices.isStreamingURL(urlString) else { return false }
-        Task { await monitor.resolve(url: urlString) }
-        selection = .home
-        return true
-    }
-
-    var dropOverlay: some View {
+private struct DropOverlay: View {
+    var body: some View {
         RoundedRectangle(cornerRadius: 20)
             .strokeBorder(.tint, lineWidth: 3)
             .background(
@@ -175,17 +165,6 @@ private extension IPadSplitView {
             }
             .padding()
             .allowsHitTesting(false)
-    }
-}
-
-// MARK: - FilteredHistoryView
-
-/// A wrapper that pre-selects a content type filter for the HistoryView.
-private struct FilteredHistoryView: View {
-    var filter: MediaFilter
-
-    var body: some View {
-        HistoryView(initialFilter: filter)
     }
 }
 

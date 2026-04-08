@@ -33,16 +33,21 @@ struct HistoryView: View {
         VStack(spacing: 0) {
             Group {
                 if filteredEntries.isEmpty {
-                    emptyState
+                    HistoryEmptyState(filter: filter)
                 } else {
-                    gridView
+                    HistoryGrid(
+                        entries: filteredEntries,
+                        gridItemSize: gridItemSize,
+                        gridItemMinSize: HistoryView.gridItemMinSize,
+                        historyManager: historyManager
+                    )
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.smooth, value: allEntries.map(\.id))
 
             Divider()
-            bottomBar
+            GridSizeBar(gridItemSize: $gridItemSize, gridItemMinSize: HistoryView.gridItemMinSize)
         }
         .searchable(text: $searchText, placement: .toolbar, prompt: String(localized: "Search"))
         .background(WindowKeyMonitor())
@@ -61,16 +66,21 @@ struct HistoryView: View {
     }
 }
 
-// MARK: - Grid View
+// MARK: - HistoryGrid
 
-private extension HistoryView {
-    var gridView: some View {
+private struct HistoryGrid: View {
+    let entries: [MediaEntry]
+    let gridItemSize: Double
+    let gridItemMinSize: CGFloat
+    let historyManager: HistoryManager
+
+    var body: some View {
         ScrollView {
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: max(gridItemSize, HistoryView.gridItemMinSize), maximum: gridItemSize + 40), spacing: 20)],
+                columns: [GridItem(.adaptive(minimum: max(gridItemSize, gridItemMinSize), maximum: gridItemSize + 40), spacing: 20)],
                 spacing: 20
             ) {
-                ForEach(filteredEntries) { entry in
+                ForEach(entries) { entry in
                     HistoryGridCard(entry: entry)
                         .entryActions(entry: entry, onDelete: { historyManager.remove(entry) })
                 }
@@ -81,16 +91,19 @@ private extension HistoryView {
     }
 }
 
-// MARK: - Bottom Bar
+// MARK: - GridSizeBar
 
-private extension HistoryView {
-    var bottomBar: some View {
+private struct GridSizeBar: View {
+    @Binding var gridItemSize: Double
+    let gridItemMinSize: CGFloat
+
+    var body: some View {
         HStack {
             Spacer()
             Image(systemName: "square.grid.3x3")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-            Slider(value: $gridItemSize, in: Double(HistoryView.gridItemMinSize)...320)
+            Slider(value: $gridItemSize, in: Double(gridItemMinSize)...320)
                 .frame(width: 120)
             Image(systemName: "square.grid.2x2")
                 .font(.caption)
@@ -102,10 +115,12 @@ private extension HistoryView {
     }
 }
 
-// MARK: - Empty State
+// MARK: - HistoryEmptyState
 
-private extension HistoryView {
-    var emptyState: some View {
+private struct HistoryEmptyState: View {
+    let filter: MediaFilter
+
+    var body: some View {
         ContentUnavailableView {
             Label {
                 Text(filter.emptyTitle)

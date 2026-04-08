@@ -24,18 +24,18 @@ struct EntryActionsModifier: ViewModifier {
             .onTapGesture { openSharePage() }
             #endif
             .contextMenu {
-                copyButton
+                CopyShareURLButton(shortUrl: entry.shortUrl)
                 #if os(iOS)
                 ShareLink(item: entry.shortUrl) {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
                 #endif
-                openButton
+                OpenInBrowserButton(shortUrl: entry.shortUrl)
                 #if os(macOS)
-                serviceLinksMenu
+                ServiceLinksMenu(entry: entry)
                 #endif
                 Divider()
-                deleteButton
+                DeleteEntryButton(onDelete: onDelete)
             }
     }
 }
@@ -47,40 +47,68 @@ private extension EntryActionsModifier {
         guard let url = URL(string: entry.shortUrl) else { return }
         openURL(url)
     }
+}
 
-    var copyButton: some View {
+// MARK: - CopyShareURLButton
+
+private struct CopyShareURLButton: View {
+    let shortUrl: String
+
+    var body: some View {
         Button {
             #if os(macOS)
             NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(entry.shortUrl, forType: .string)
+            NSPasteboard.general.setString(shortUrl, forType: .string)
             #else
-            UIPasteboard.general.string = entry.shortUrl
+            UIPasteboard.general.string = shortUrl
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             #endif
         } label: {
             Label("Copy Share URL", systemImage: "doc.on.doc")
         }
     }
+}
 
-    var openButton: some View {
+// MARK: - OpenInBrowserButton
+
+private struct OpenInBrowserButton: View {
+    let shortUrl: String
+
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
         Button {
-            openSharePage()
+            guard let url = URL(string: shortUrl) else { return }
+            openURL(url)
         } label: {
             Label("Open in Browser...", systemImage: "safari")
         }
     }
+}
 
-    var deleteButton: some View {
+// MARK: - DeleteEntryButton
+
+private struct DeleteEntryButton: View {
+    let onDelete: () -> Void
+
+    var body: some View {
         Button(role: .destructive) {
             onDelete()
         } label: {
             Label("Delete Entry", systemImage: "trash")
         }
     }
+}
 
-    #if os(macOS)
-    @ViewBuilder
-    var serviceLinksMenu: some View {
+// MARK: - ServiceLinksMenu
+
+#if os(macOS)
+private struct ServiceLinksMenu: View {
+    let entry: MediaEntry
+
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
         if entry.mediaType != .artist, !entry.serviceLinks.isEmpty {
             Menu {
                 ForEach(entry.serviceLinks, id: \.service) { link in
@@ -120,8 +148,8 @@ private extension EntryActionsModifier {
         resized.isTemplate = true
         return resized
     }
-    #endif
 }
+#endif
 
 // MARK: - View Extension
 

@@ -14,8 +14,8 @@ struct HistoryGridCard: View {
     #endif
 
     var body: some View {
-        gridArtwork
-            .overlay(alignment: .bottom) { cardInfo }
+        GridCardArtwork(entry: entry)
+            .overlay(alignment: .bottom) { GridCardInfo(entry: entry) }
             .aspectRatio(1, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             #if os(macOS)
@@ -31,11 +31,12 @@ struct HistoryGridCard: View {
     }
 }
 
-// MARK: - Private API
+// MARK: - GridCardArtwork
 
-private extension HistoryGridCard {
-    @ViewBuilder
-    var gridArtwork: some View {
+private struct GridCardArtwork: View {
+    let entry: MediaEntry
+
+    var body: some View {
         Group {
             #if os(iOS)
             if let data = entry.artworkImageData, let uiImage = UIImage(data: data) {
@@ -43,42 +44,59 @@ private extension HistoryGridCard {
                     .resizable()
                     .scaledToFill()
             } else {
-                asyncArtwork
+                AsyncGridArtwork(entry: entry)
             }
             #else
-            asyncArtwork
+            AsyncGridArtwork(entry: entry)
             #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
 
-    @ViewBuilder
-    var asyncArtwork: some View {
+// MARK: - AsyncGridArtwork
+
+private struct AsyncGridArtwork: View {
+    let entry: MediaEntry
+
+    var body: some View {
         if let urlString = entry.contentType.artworkUrl, let url = URL(string: urlString) {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
                     image.resizable().scaledToFill()
                 default:
-                    artworkPlaceholder
+                    ArtworkPlaceholder(icon: entry.contentType.placeholderIcon)
                 }
             }
         } else {
-            artworkPlaceholder
+            ArtworkPlaceholder(icon: entry.contentType.placeholderIcon)
         }
     }
+}
 
-    var artworkPlaceholder: some View {
+// MARK: - ArtworkPlaceholder
+
+private struct ArtworkPlaceholder: View {
+    let icon: String
+
+    var body: some View {
         Rectangle()
             .fill(.quaternary)
             .overlay {
-                Image(systemName: entry.contentType.placeholderIcon)
+                Image(systemName: icon)
                     .font(.system(size: 40))
                     .foregroundStyle(.tertiary)
             }
     }
+}
 
-    var cardInfo: some View {
+// MARK: - GridCardInfo
+
+private struct GridCardInfo: View {
+    let entry: MediaEntry
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(entry.contentType.subtitle)
                 .font(.headline)

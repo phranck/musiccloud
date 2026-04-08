@@ -16,8 +16,8 @@ struct HomeView: View {
         ScrollView {
             VStack(spacing: 20) {
                 PasteCTAView()
-                statusContent
-                recentSection
+                StatusContent(monitor: monitor, entries: entries)
+                RecentSection(entries: entries, openURL: openURL)
             }
             .padding()
             .animation(.spring(duration: 0.4), value: monitor.status)
@@ -26,14 +26,16 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Private API
+// MARK: - StatusContent
 
-private extension HomeView {
-    @ViewBuilder
-    var statusContent: some View {
+private struct StatusContent: View {
+    let monitor: ClipboardMonitor
+    let entries: [MediaEntry]
+
+    var body: some View {
         switch monitor.status {
         case .processing(let url):
-            processingCard(url: url)
+            ProcessingCard(url: url)
                 .transition(.move(edge: .top).combined(with: .opacity))
         case .success(let shortUrl):
             if let entry = entries.first(where: { $0.shortUrl == shortUrl }) {
@@ -41,35 +43,46 @@ private extension HomeView {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         case .error(let message):
-            errorCard(message: message)
+            ErrorCard(message: message, monitor: monitor)
                 .transition(.move(edge: .top).combined(with: .opacity))
         case .idle:
             EmptyView()
         }
     }
+}
 
-    var recentSection: some View {
-        Group {
-            if !entries.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Recent")
-                        .font(.headline)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
-                        ForEach(entries.prefix(6)) { entry in
-                            HistoryGridCard(entry: entry)
-                                .contentShape(RoundedRectangle(cornerRadius: 12))
-                                .onTapGesture {
-                                    guard let url = URL(string: entry.shortUrl) else { return }
-                                    openURL(url)
-                                }
-                        }
+// MARK: - RecentSection
+
+private struct RecentSection: View {
+    let entries: [MediaEntry]
+    let openURL: OpenURLAction
+
+    var body: some View {
+        if !entries.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Recent")
+                    .font(.headline)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
+                    ForEach(entries.prefix(6)) { entry in
+                        HistoryGridCard(entry: entry)
+                            .contentShape(RoundedRectangle(cornerRadius: 12))
+                            .onTapGesture {
+                                guard let url = URL(string: entry.shortUrl) else { return }
+                                openURL(url)
+                            }
                     }
                 }
             }
         }
     }
+}
 
-    func processingCard(url: String) -> some View {
+// MARK: - ProcessingCard
+
+private struct ProcessingCard: View {
+    let url: String
+
+    var body: some View {
         HStack(spacing: 12) {
             ProgressView()
             VStack(alignment: .leading, spacing: 2) {
@@ -87,10 +100,20 @@ private extension HomeView {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Converting URL")
     }
+}
 
-    func errorCard(message: String) -> some View {
-        let isRateLimit = message.lowercased().contains("rate") || message.lowercased().contains("429")
-        return HStack(spacing: 12) {
+// MARK: - ErrorCard
+
+private struct ErrorCard: View {
+    let message: String
+    let monitor: ClipboardMonitor
+
+    private var isRateLimit: Bool {
+        message.lowercased().contains("rate") || message.lowercased().contains("429")
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
             VStack(alignment: .leading, spacing: 2) {

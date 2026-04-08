@@ -17,12 +17,16 @@ struct HistoryView: View {
         _filter = State(initialValue: initialFilter)
     }
 
+    private var filteredEntries: [MediaEntry] {
+        filter.filtered(allEntries, searchText: searchText)
+    }
+
     var body: some View {
         Group {
             if filteredEntries.isEmpty {
-                emptyState
+                HistoryEmptyState(filter: filter, searchText: searchText)
             } else {
-                gridContent
+                HistoryGrid(entries: filteredEntries, historyManager: historyManager)
             }
         }
         .animation(.smooth, value: allEntries.map(\.id))
@@ -63,17 +67,16 @@ struct HistoryView: View {
     }
 }
 
-// MARK: - Private API
+// MARK: - HistoryGrid
 
-private extension HistoryView {
-    var filteredEntries: [MediaEntry] {
-        filter.filtered(allEntries, searchText: searchText)
-    }
+private struct HistoryGrid: View {
+    let entries: [MediaEntry]
+    let historyManager: HistoryManager
 
-    var gridContent: some View {
+    var body: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
-                ForEach(filteredEntries) { entry in
+                ForEach(entries) { entry in
                     HistoryGridCard(entry: entry)
                         .contentShape(RoundedRectangle(cornerRadius: 12))
                         .entryActions(entry: entry, onDelete: { historyManager.remove(entry) })
@@ -82,8 +85,15 @@ private extension HistoryView {
             .padding()
         }
     }
+}
 
-    var emptyState: some View {
+// MARK: - HistoryEmptyState
+
+private struct HistoryEmptyState: View {
+    let filter: MediaFilter
+    let searchText: String
+
+    var body: some View {
         ContentUnavailableView {
             Label(filter.emptyTitle, systemImage: searchText.isEmpty ? filter.icon : "magnifyingglass")
         } description: {
