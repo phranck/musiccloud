@@ -64,6 +64,7 @@
 		FD97C3822F80947100E8D788 /* AlbumItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD97C3812F80947100E8D788 /* AlbumItem.swift */; };
 		FD97C3842F80948700E8D788 /* ArtistItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD97C3832F80948700E8D788 /* ArtistItem.swift */; };
 		FD97C3862F80949C00E8D788 /* MediaArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD97C3852F80949C00E8D788 /* MediaArtwork.swift */; };
+		AA00000000000060 /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000061 /* CachedAsyncImage.swift */; };
 		FD97C3882F8094B300E8D788 /* View+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD97C3872F8094B300E8D788 /* View+Extensions.swift */; };
 		FDA7B3022F84200100000001 /* SettingsItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA7B3012F84200100000001 /* SettingsItem.swift */; };
 		FDAF979F2F8412A3002A3AC1 /* AnimatedSegmentControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDAF979E2F8412A3002A3AC1 /* AnimatedSegmentControl.swift */; };
@@ -202,6 +203,7 @@
 		FD97C3812F80947100E8D788 /* AlbumItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumItem.swift; sourceTree = "<group>"; };
 		FD97C3832F80948700E8D788 /* ArtistItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistItem.swift; sourceTree = "<group>"; };
 		FD97C3852F80949C00E8D788 /* MediaArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaArtwork.swift; sourceTree = "<group>"; };
+		AA00000000000061 /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
 		FD97C3872F8094B300E8D788 /* View+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+Extensions.swift"; sourceTree = "<group>"; };
 		FDA7B3012F84200100000001 /* SettingsItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsItem.swift; sourceTree = "<group>"; };
 		FDAF979E2F8412A3002A3AC1 /* AnimatedSegmentControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedSegmentControl.swift; sourceTree = "<group>"; };
@@ -390,6 +392,7 @@
 				FD97C3812F80947100E8D788 /* AlbumItem.swift */,
 				FD97C3832F80948700E8D788 /* ArtistItem.swift */,
 				DD00000000000017 /* HistoryGridCard.swift */,
+				AA00000000000061 /* CachedAsyncImage.swift */,
 				FD97C3852F80949C00E8D788 /* MediaArtwork.swift */,
 				FD97C37D2F80943A00E8D788 /* MediaItem.swift */,
 				FDDC7E2A2F805F03005D779F /* MediaRow.swift */,
@@ -814,6 +817,7 @@
 				FD97C3882F8094B300E8D788 /* View+Extensions.swift in Sources */,
 				DA05592DC35D842081D71462 /* NSView+Extensions.swift in Sources */,
 				7BF3DC5D2349EDF131DF8E45 /* StreamingServices.swift in Sources */,
+				AA00000000000060 /* CachedAsyncImage.swift in Sources */,
 				FD97C3862F80949C00E8D788 /* MediaArtwork.swift in Sources */,
 				FD97C3822F80947100E8D788 /* AlbumItem.swift in Sources */,
 				FDDC7E252F805EB6005D779F /* ErrorRow.swift in Sources */,

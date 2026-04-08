@@ -60,16 +60,7 @@ private struct AsyncGridArtwork: View {
     let entry: MediaEntry
 
     var body: some View {
-        if let urlString = entry.contentType.artworkUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    ArtworkPlaceholder(icon: entry.contentType.placeholderIcon)
-                }
-            }
-        } else {
+        CachedAsyncImage(url: entry.contentType.artworkUrl.flatMap(URL.init(string:))) {
             ArtworkPlaceholder(icon: entry.contentType.placeholderIcon)
         }
     }

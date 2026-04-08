@@ -18,21 +18,8 @@ struct MediaArtwork: View {
     var url: String?
 
     var body: some View {
-        Group {
-            if let urlString = url, let artworkURL = URL(string: urlString) {
-                AsyncImage(url: artworkURL) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    case .failure, .empty:
-                        PlaceholderImage()
-                    @unknown default:
-                        PlaceholderImage()
-                    }
-                }
-            } else {
-                PlaceholderImage()
-            }
+        CachedAsyncImage(url: url.flatMap(URL.init(string:))) {
+            PlaceholderImage()
         }
         .frame(width: Self.size, height: Self.size)
         .clipShape(.rect(cornerRadius: 12))
