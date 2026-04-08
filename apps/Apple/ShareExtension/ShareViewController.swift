@@ -11,6 +11,8 @@ final class ShareViewController: UIViewController {
     private var spinner: UIActivityIndicatorView!
     private var statusLabel: UILabel!
     private var iconView: UIImageView!
+    /// Kept alive so CloudKit has time to sync after saving.
+    private var syncContainer: ModelContainer?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -69,7 +71,7 @@ private extension ShareViewController {
         statusLabel.text = "Copied to clipboard!"
         statusLabel.textColor = .label
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
             self?.complete()
         }
     }
@@ -183,6 +185,7 @@ private extension ShareViewController {
 
     func saveToSwiftData(_ entry: MediaEntry) throws {
         let container = try SharedStoreConfiguration.makeContainer()
+        syncContainer = container
         let context = ModelContext(container)
         context.insert(entry)
         try context.save()
