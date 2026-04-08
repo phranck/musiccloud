@@ -10,38 +10,52 @@ import SwiftData
 
 /// SwiftData model representing a resolved media entry in the conversion history.
 ///
-/// Replaces the previous `NSUbiquitousKeyValueStore`-based persistence with
-/// SwiftData and CloudKit sync, removing the 1MB storage limit.
-///
-/// ## Storage Details
-///
-/// - `artworkImageData` uses `@Attribute(.externalStorage)` to store large images as external files
-/// - `track`, `album`, `artist` are stored as Codable transformable properties
-/// - CloudKit sync is handled automatically by the SwiftData `ModelContainer`
+/// Metadata structs (TrackInfo, AlbumInfo, ArtistInfo, [ServiceLink]) are stored
+/// as opaque JSON Data blobs to avoid CloudKit compatibility issues with
+/// SwiftData's Codable decomposition of `[String]` arrays.
 @Model
 final class MediaEntry {
     var id: UUID = UUID()
     var originalUrl: String = ""
     var shortUrl: String = ""
     private var mediaTypeRaw: String = MediaType.track.rawValue
+    @Attribute(.externalStorage) var artworkImageData: Data?
+    var date: Date = Date()
 
-    /// Type-safe accessor for the stored media type string.
+    // MARK: - JSON Data Storage
+
+    private var trackData: Data?
+    private var albumData: Data?
+    private var artistData: Data?
+    private var serviceLinksData: Data?
+
+    // MARK: - Typed Accessors
+
     @Transient var mediaType: MediaType {
         get { MediaType(rawValue: mediaTypeRaw) ?? .track }
         set { mediaTypeRaw = newValue.rawValue }
     }
-    @Attribute(.externalStorage) var artworkImageData: Data?
-    var date: Date = Date()
 
-    var track: TrackInfo?
-    var album: AlbumInfo?
-    var artist: ArtistInfo?
-    var serviceLinks: [ServiceLink] = []
+    @Transient var track: TrackInfo? {
+        get { trackData.flatMap { try? JSONDecoder().decode(TrackInfo.self, from: $0) } }
+        set { trackData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+    }
 
-    /// Reconstructs the ``ContentType`` enum from the stored flat properties.
-    ///
-    /// This computed property keeps Views compatible -- they can continue to
-    /// switch over `contentType` without knowing about the SwiftData storage layout.
+    @Transient var album: AlbumInfo? {
+        get { albumData.flatMap { try? JSONDecoder().decode(AlbumInfo.self, from: $0) } }
+        set { albumData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+    }
+
+    @Transient var artist: ArtistInfo? {
+        get { artistData.flatMap { try? JSONDecoder().decode(ArtistInfo.self, from: $0) } }
+        set { artistData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+    }
+
+    @Transient var serviceLinks: [ServiceLink] {
+        get { serviceLinksData.flatMap { try? JSONDecoder().decode([ServiceLink].self, from: $0) } ?? [] }
+        set { serviceLinksData = try? JSONEncoder().encode(newValue) }
+    }
+
     var contentType: ContentType {
         if let track {
             return .track(info: track)
@@ -72,9 +86,9 @@ final class MediaEntry {
         self.mediaTypeRaw = mediaType.rawValue
         self.artworkImageData = artworkImageData
         self.date = date
-        self.track = track
-        self.album = album
-        self.artist = artist
-        self.serviceLinks = serviceLinks
+        self.trackData = track.flatMap { try? JSONEncoder().encode($0) }
+        self.albumData = album.flatMap { try? JSONEncoder().encode($0) }
+        self.artistData = artist.flatMap { try? JSONEncoder().encode($0) }
+        self.serviceLinksData = try? JSONEncoder().encode(serviceLinks)
     }
 }

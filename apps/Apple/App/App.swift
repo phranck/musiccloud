@@ -31,8 +31,7 @@ struct MusicCloudApp: App {
 
     init() {
         do {
-            let config = ModelConfiguration(cloudKitDatabase: .automatic)
-            let container = try ModelContainer(for: MediaEntry.self, configurations: config)
+            let container = try SharedStoreConfiguration.makeContainer()
             modelContainer = container
             let history = HistoryManager(modelContext: container.mainContext)
             _historyManager = State(initialValue: history)
@@ -54,7 +53,6 @@ struct MusicCloudApp: App {
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         monitor.startMonitoring()
-                        checkPendingURL()
                     } else {
                         monitor.stopMonitoring()
                     }
@@ -75,11 +73,5 @@ struct MusicCloudApp: App {
         Task { await monitor.resolve(url: urlParam) }
     }
 
-    private func checkPendingURL() {
-        let defaults = UserDefaults(suiteName: "group.io.musiccloud")
-        guard let pending = defaults?.string(forKey: "pendingURL") else { return }
-        defaults?.removeObject(forKey: "pendingURL")
-        Task { await monitor.resolve(url: pending) }
-    }
 #endif
 }
