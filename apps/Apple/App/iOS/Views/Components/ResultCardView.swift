@@ -64,4 +64,17 @@ struct ResultCardView: View {
     }
 }
 
+// MARK: - Preview
+
+#Preview {
+    let entry = MediaEntry(
+        originalUrl: "https://open.spotify.com/track/123",
+        shortUrl: "https://musiccloud.io/abc",
+        mediaType: .track,
+        track: TrackInfo(title: "Bohemian Rhapsody", artists: ["Queen"], artworkUrl: nil)
+    )
+    ResultCardView(entry: entry)
+        .padding()
+}
+
 #endif

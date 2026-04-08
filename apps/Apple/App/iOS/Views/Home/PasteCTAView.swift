@@ -1,4 +1,5 @@
 #if os(iOS)
+import SwiftData
 import SwiftUI
 
 // MARK: - PasteCTAView
@@ -30,6 +31,15 @@ struct PasteCTAView: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Paste a streaming URL to convert")
     }
+}
+
+// MARK: - Preview
+
+#Preview {
+    let manager = HistoryManager(modelContext: try! ModelContainer(for: MediaEntry.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)).mainContext)
+    PasteCTAView()
+        .environment(ClipboardMonitor(historyManager: manager))
+        .padding()
 }
 
 #endif
