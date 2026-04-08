@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FF00000000000021 /* CloudKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FF00000000000020 /* CloudKit.framework */; };
 		170DCCFF835C9EB8AE1CD81F /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D07C91D3461C5C97C2F4AC0 /* MenuBarView.swift */; };
 		3740E6ECEB9CA883501A80B5 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C16C63FE6CBA4D6FFEBA8 /* ClipboardMonitor.swift */; };
 		41A30941322C3370DF2766CC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 26E51532D490E1A2DE32DF3C /* Assets.xcassets */; };
@@ -193,6 +194,7 @@
 		FF00000000000012 /* Bundle+Version.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+Version.swift"; sourceTree = "<group>"; };
 		FF00000000000013 /* DangerZoneSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DangerZoneSection.swift; sourceTree = "<group>"; };
 		FF00000000000014 /* SharedStoreConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreConfiguration.swift; sourceTree = "<group>"; };
+		FF00000000000020 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -206,6 +208,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		FF00000000000030 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				FF00000000000020 /* CloudKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 
 /* --- Root group --- */
 		A8800C23A7862F67E68038E7 = {
@@ -214,6 +224,7 @@
 				9723BD104A0AE887713E6D8F /* App */,
 				CC00000000000020 /* ShareExtension */,
 				BB00000000000020 /* musiccloudTests */,
+				FF00000000000030 /* Frameworks */,
 				29E444AD310A55D5A4A6FC5B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -603,6 +614,7 @@
 			buildPhases = (
 				FD00000000000001 /* Set Build Number */,
 				196EA75CACD0DE5A40732059 /* Sources */,
+				FF00000000000040 /* Frameworks */,
 				12EF42AD220F8CA474750FB1 /* Resources */,
 				CC00000000000080 /* Embed App Extensions */,
 			);
@@ -739,6 +751,17 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FF00000000000040 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FF00000000000021 /* CloudKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		FD00000000000001 /* Set Build Number */ = {
