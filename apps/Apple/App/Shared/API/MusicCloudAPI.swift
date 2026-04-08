@@ -41,21 +41,21 @@ import OSLog
 /// - ``downloadArtwork(from:)``
 enum MusicCloudAPI {
 
-    /// Base URL for the musiccloud.io API and short links
+    /// Base URL for the musiccloud.io API and short links.
+    ///
+    /// Override in DEBUG builds via the `MUSICCLOUD_BASE_URL` environment variable
+    /// (e.g. set in Xcode scheme). Falls back to `http://localhost:3000`.
     #if DEBUG
     static let baseURL: URL = {
-        guard let url = URL(string: "http://localhost:3000") else {
-            fatalError("Invalid DEBUG base URL")
+        if let envURL = ProcessInfo.processInfo.environment["MUSICCLOUD_BASE_URL"],
+           let url = URL(string: envURL) {
+            return url
         }
-        return url
+        return URL(string: "http://localhost:3000")!
     }()
     #else
-    static let baseURL: URL = {
-        guard let url = URL(string: "https://musiccloud.io") else {
-            fatalError("Invalid production base URL")
-        }
-        return url
-    }()
+    // swiftlint:disable:next force_unwrapping
+    static let baseURL = URL(string: "https://musiccloud.io")!
     #endif
 }
 
