@@ -21,25 +21,8 @@ struct ContentView: View {
 
 private extension ContentView {
     var iPhoneLayout: some View {
-        TabView {
-            NavigationStack {
-                HomeView()
-            }
-            .tabItem {
-                Label("Home", systemImage: "house")
-            }
-            NavigationStack {
-                HistoryView()
-            }
-            .tabItem {
-                Label("History", systemImage: "clock")
-            }
-            NavigationStack {
-                SettingsView()
-            }
-            .tabItem {
-                Label("Settings", systemImage: "gear")
-            }
+        NavigationStack {
+            HistoryView()
         }
     }
 }

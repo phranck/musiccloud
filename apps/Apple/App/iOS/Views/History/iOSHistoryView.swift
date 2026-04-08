@@ -12,6 +12,7 @@ struct HistoryView: View {
     private var allEntries: [MediaEntry]
     @State private var searchText = ""
     @State private var filter: ContentFilter
+    @State private var showSettings = false
 
     init(initialFilter: ContentFilter = .all) {
         _filter = State(initialValue: initialFilter)
@@ -25,19 +26,38 @@ struct HistoryView: View {
                 gridContent
             }
         }
-        .navigationTitle("History")
+        .navigationTitle(Bundle.main.appName)
         .searchable(text: $searchText, prompt: "Search conversions")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("Filter", selection: $filter) {
-                        ForEach(ContentFilter.allCases) { item in
-                            Text(item.label).tag(item)
+                HStack(spacing: 12) {
+                    Menu {
+                        Picker("Filter", selection: $filter) {
+                            ForEach(ContentFilter.allCases) { item in
+                                Text(item.label).tag(item)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                    }
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                SettingsView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") {
+                                showSettings = false
+                            }
                         }
                     }
-                } label: {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                }
             }
         }
     }
@@ -76,16 +96,21 @@ private extension HistoryView {
             guard matchesFilter else { return false }
             guard !searchText.isEmpty else { return true }
             let query = searchText.lowercased()
-            return entryTitle(entry).lowercased().contains(query)
-                || entrySubtitle(entry).lowercased().contains(query)
+            return entry.contentType.title.lowercased().contains(query)
+                || entry.contentType.subtitle.lowercased().contains(query)
         }
     }
 
     var gridContent: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
                 ForEach(filteredEntries) { entry in
                     HistoryGridCard(entry: entry)
+                        .contentShape(RoundedRectangle(cornerRadius: 12))
+                        .onTapGesture {
+                            guard let url = URL(string: entry.shortUrl) else { return }
+                            openURL(url)
+                        }
                         .contextMenu {
                             Button {
                                 UIPasteboard.general.string = entry.shortUrl
@@ -121,22 +146,6 @@ private extension HistoryView {
             Label(searchText.isEmpty ? "No Conversions Yet" : "No Results", systemImage: searchText.isEmpty ? "music.note.list" : "magnifyingglass")
         } description: {
             Text(searchText.isEmpty ? "Share a streaming link to get started" : "Try a different search term")
-        }
-    }
-
-    func entryTitle(_ entry: MediaEntry) -> String {
-        switch entry.contentType {
-        case .track(let info): info.title
-        case .album(let info): info.title
-        case .artist(let info): info.name
-        }
-    }
-
-    func entrySubtitle(_ entry: MediaEntry) -> String {
-        switch entry.contentType {
-        case .track(let info): info.artistsString
-        case .album(let info): info.artistsString
-        case .artist(let info): info.genresString ?? ""
         }
     }
 }

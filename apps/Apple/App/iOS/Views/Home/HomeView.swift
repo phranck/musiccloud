@@ -7,6 +7,7 @@ import SwiftData
 /// The main screen of the iOS app showing paste CTA, active conversion state, and recent history.
 struct HomeView: View {
     @Environment(ClipboardMonitor.self) private var monitor
+    @Environment(\.openURL) private var openURL
     @Query(sort: \MediaEntry.date, order: .reverse, animation: .default)
     private var entries: [MediaEntry]
     @State private var lastResolvedUrl: String?
@@ -53,9 +54,14 @@ private extension HomeView {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Recent")
                         .font(.headline)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
                         ForEach(entries.prefix(6)) { entry in
                             HistoryGridCard(entry: entry)
+                                .contentShape(RoundedRectangle(cornerRadius: 12))
+                                .onTapGesture {
+                                    guard let url = URL(string: entry.shortUrl) else { return }
+                                    openURL(url)
+                                }
                         }
                     }
                 }
