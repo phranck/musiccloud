@@ -16,12 +16,12 @@ struct ResultCardView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.green)
             HStack(spacing: 12) {
-                MediaArtwork(url: artworkUrl)
+                MediaArtwork(url: entry.contentType.artworkUrl)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
+                    Text(entry.contentType.title)
                         .font(.body.weight(.medium))
                         .lineLimit(1)
-                    Text(subtitle)
+                    Text(entry.contentType.subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -60,35 +60,7 @@ struct ResultCardView: View {
             OpenInServiceSheet(links: entry.serviceLinks)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Converted: \(title) by \(subtitle)")
-    }
-}
-
-// MARK: - Private API
-
-private extension ResultCardView {
-    var title: String {
-        switch entry.contentType {
-        case .track(let info): info.title
-        case .album(let info): info.title
-        case .artist(let info): info.name
-        }
-    }
-
-    var subtitle: String {
-        switch entry.contentType {
-        case .track(let info): info.artistsString
-        case .album(let info): info.artistsString
-        case .artist: ""
-        }
-    }
-
-    var artworkUrl: String? {
-        switch entry.contentType {
-        case .track(let info): info.artworkUrl
-        case .album(let info): info.artworkUrl
-        case .artist(let info): info.artworkUrl
-        }
+        .accessibilityLabel("Converted: \(entry.contentType.title) by \(entry.contentType.subtitle)")
     }
 }
 
