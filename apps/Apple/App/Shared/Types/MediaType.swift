@@ -6,7 +6,7 @@ import Foundation
 ///
 /// Replaces raw `"track"`, `"album"`, `"artist"` strings throughout the codebase.
 /// The raw values match the API and SwiftData storage format.
-enum MediaType: String {
+enum MediaType: String, Codable {
     case track
     case album
     case artist
