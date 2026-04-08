@@ -14,7 +14,8 @@ import SwiftUI
 ///
 /// Replaces SwiftUI's `MenuBarExtra` with a manual `NSStatusItem` + `NSPanel`
 /// approach to enable custom icon animations during URL resolution.
-final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var panel: NSPanel!
     private var dashboardWindow: NSWindow?
@@ -164,9 +165,11 @@ private extension AppDelegate {
             context.duration = 0.23
             context.timingFunction = CAMediaTimingFunction(name: .easeIn)
             panel.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
-            self?.panel.orderOut(nil)
-            self?.panel.alphaValue = 1
+        }, completionHandler: {
+            MainActor.assumeIsolated { [weak self] in
+                self?.panel.orderOut(nil)
+                self?.panel.alphaValue = 1
+            }
         })
     }
 }
