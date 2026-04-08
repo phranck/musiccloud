@@ -84,7 +84,7 @@ struct MusicCloudApp: App {
               let urlParam = components.queryItems?.first(where: { $0.name == "url" })?.value else {
             return
         }
-        Task { await monitor.resolve(url: urlParam) }
+        Task { await monitor?.resolve(url: urlParam) }
     }
 
 #endif
