@@ -178,6 +178,7 @@ extension AppDelegate {
     func openDashboard() {
         let rootView = DashboardView()
             .environment(\.modelContext, mainContext)
+            .environment(historyManager)
             .symbolRenderingMode(.hierarchical)
 
         dashboardWindow = showWindow(

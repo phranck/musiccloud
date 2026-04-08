@@ -7,15 +7,33 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FF00000000000021 /* CloudKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FF00000000000020 /* CloudKit.framework */; };
 		170DCCFF835C9EB8AE1CD81F /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D07C91D3461C5C97C2F4AC0 /* MenuBarView.swift */; };
 		3740E6ECEB9CA883501A80B5 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C16C63FE6CBA4D6FFEBA8 /* ClipboardMonitor.swift */; };
 		41A30941322C3370DF2766CC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 26E51532D490E1A2DE32DF3C /* Assets.xcassets */; };
 		769A0D50AC6FC83DE76D5000 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */; };
 		7BF3DC5D2349EDF131DF8E45 /* StreamingServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121F8EA83B3E06119BA82118 /* StreamingServices.swift */; };
 		8B76C213DB85A0116DCD1056 /* MusicCloudAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */; };
+		AA00000000000001 /* PanelMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000002 /* PanelMetrics.swift */; };
+		AA00000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000004 /* ContentView.swift */; };
 		B67BEA72FC7A47A3C1F1DFCF /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = E68F162AF511C823C8D23690 /* App.swift */; };
+		BB00000000000001 /* StreamingServicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000011 /* StreamingServicesTests.swift */; };
+		BB00000000000002 /* MusicCloudAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000012 /* MusicCloudAPITests.swift */; };
+		BB00000000000003 /* ClipboardMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000013 /* ClipboardMonitorTests.swift */; };
+		BB00000000000004 /* MediaEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000014 /* MediaEntryTests.swift */; };
+		BB00000000000005 /* ConvertStreamingURLIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000015 /* ConvertStreamingURLIntentTests.swift */; };
+		CC00000000000011 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC00000000000001 /* ShareViewController.swift */; };
+		CC00000000000012 /* StreamingServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121F8EA83B3E06119BA82118 /* StreamingServices.swift */; };
+		CC00000000000013 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC00000000000004 /* ShareExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DA05592DC35D842081D71462 /* NSView+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FFBDF887282094D7C460AE5 /* NSView+Extensions.swift */; };
+		DD00000000000001 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000011 /* HomeView.swift */; };
+		DD00000000000002 /* PasteCTAView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000012 /* PasteCTAView.swift */; };
+		DD00000000000003 /* iOSHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000013 /* iOSHistoryView.swift */; };
+		DD00000000000004 /* iOSSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000014 /* iOSSettingsView.swift */; };
+		DD00000000000005 /* ResultCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000015 /* ResultCardView.swift */; };
+		DD00000000000006 /* OpenInServiceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000016 /* OpenInServiceSheet.swift */; };
+		DD00000000000007 /* HistoryGridCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000017 /* HistoryGridCard.swift */; };
+		EE00000000000001 /* ConvertStreamingURLIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE00000000000011 /* ConvertStreamingURLIntent.swift */; };
+		EE00000000000002 /* MusicCloudShortcutsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE00000000000012 /* MusicCloudShortcutsProvider.swift */; };
 		FD05A1022F82A00100000001 /* MediaEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1012F82A00100000001 /* MediaEntry.swift */; };
 		FD05A1042F83700100000001 /* ServiceLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1032F83700100000001 /* ServiceLink.swift */; };
 		FD05A1062F83800100000001 /* SidebarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1052F83800100000001 /* SidebarItem.swift */; };
@@ -67,29 +85,11 @@
 		FDF0E9592F81C6D8004DEFCE /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF0E9532F81C6D8004DEFCE /* DashboardView.swift */; };
 		FDF0E95A2F81C6D8004DEFCE /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF0E9542F81C6D8004DEFCE /* HistoryView.swift */; };
 		FDF8735C2F7EEDE600D05057 /* HistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF8735B2F7EEDE600D05057 /* HistoryManager.swift */; };
-		AA00000000000001 /* PanelMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000002 /* PanelMetrics.swift */; };
-		AA00000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000004 /* ContentView.swift */; };
-		DD00000000000001 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000011 /* HomeView.swift */; };
-		DD00000000000002 /* PasteCTAView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000012 /* PasteCTAView.swift */; };
-		DD00000000000003 /* iOSHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000013 /* iOSHistoryView.swift */; };
-		DD00000000000004 /* iOSSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000014 /* iOSSettingsView.swift */; };
-		DD00000000000005 /* ResultCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000015 /* ResultCardView.swift */; };
-		DD00000000000006 /* OpenInServiceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000016 /* OpenInServiceSheet.swift */; };
-		DD00000000000007 /* HistoryGridCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000017 /* HistoryGridCard.swift */; };
-		EE00000000000001 /* ConvertStreamingURLIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE00000000000011 /* ConvertStreamingURLIntent.swift */; };
-		EE00000000000002 /* MusicCloudShortcutsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE00000000000012 /* MusicCloudShortcutsProvider.swift */; };
-		BB00000000000001 /* StreamingServicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000011 /* StreamingServicesTests.swift */; };
-		BB00000000000002 /* MusicCloudAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000012 /* MusicCloudAPITests.swift */; };
-		BB00000000000003 /* ClipboardMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000013 /* ClipboardMonitorTests.swift */; };
-		BB00000000000004 /* MediaEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000014 /* MediaEntryTests.swift */; };
-		BB00000000000005 /* ConvertStreamingURLIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000015 /* ConvertStreamingURLIntentTests.swift */; };
-		CC00000000000011 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC00000000000001 /* ShareViewController.swift */; };
-		CC00000000000012 /* StreamingServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121F8EA83B3E06119BA82118 /* StreamingServices.swift */; };
-		CC00000000000013 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC00000000000004 /* ShareExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FF00000000000001 /* MediaType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000011 /* MediaType.swift */; };
 		FF00000000000002 /* Bundle+Version.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000012 /* Bundle+Version.swift */; };
 		FF00000000000003 /* DangerZoneSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000013 /* DangerZoneSection.swift */; };
 		FF00000000000004 /* SharedStoreConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000014 /* SharedStoreConfiguration.swift */; };
+		FF00000000000021 /* CloudKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FF00000000000020 /* CloudKit.framework */; };
 		FF00000000000101 /* MediaType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000011 /* MediaType.swift */; };
 		FF00000000000102 /* MusicCloudAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */; };
 		FF00000000000103 /* ResolveResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD5162A2F817F960043E187 /* ResolveResponse.swift */; };
@@ -106,6 +106,37 @@
 		FF0000000000010E /* MediaInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516282F817F360043E187 /* MediaInfo.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		BB00000000000051 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 87ED6BE46D2B397F308DB857 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A02F4E98FD93CA1768A15CE2;
+			remoteInfo = musiccloud;
+		};
+		CC00000000000070 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 87ED6BE46D2B397F308DB857 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC00000000000030;
+			remoteInfo = ShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CC00000000000080 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CC00000000000013 /* ShareExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		121F8EA83B3E06119BA82118 /* StreamingServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServices.swift; sourceTree = "<group>"; };
 		1FFBDF887282094D7C460AE5 /* NSView+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSView+Extensions.swift"; sourceTree = "<group>"; };
@@ -115,8 +146,29 @@
 		4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		56B89EA2B7FB649CF35C1DC8 /* musiccloud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = musiccloud.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		65D30DA29D8EB6E7A8D6EF3C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AA00000000000002 /* PanelMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelMetrics.swift; sourceTree = "<group>"; };
+		AA00000000000004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		BB00000000000010 /* musiccloudTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = musiccloudTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB00000000000011 /* StreamingServicesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServicesTests.swift; sourceTree = "<group>"; };
+		BB00000000000012 /* MusicCloudAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicCloudAPITests.swift; sourceTree = "<group>"; };
+		BB00000000000013 /* ClipboardMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitorTests.swift; sourceTree = "<group>"; };
+		BB00000000000014 /* MediaEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaEntryTests.swift; sourceTree = "<group>"; };
+		BB00000000000015 /* ConvertStreamingURLIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertStreamingURLIntentTests.swift; sourceTree = "<group>"; };
+		CC00000000000001 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		CC00000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		CC00000000000003 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
+		CC00000000000004 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD00000000000011 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		DD00000000000012 /* PasteCTAView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteCTAView.swift; sourceTree = "<group>"; };
+		DD00000000000013 /* iOSHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSHistoryView.swift; sourceTree = "<group>"; };
+		DD00000000000014 /* iOSSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSSettingsView.swift; sourceTree = "<group>"; };
+		DD00000000000015 /* ResultCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultCardView.swift; sourceTree = "<group>"; };
+		DD00000000000016 /* OpenInServiceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInServiceSheet.swift; sourceTree = "<group>"; };
+		DD00000000000017 /* HistoryGridCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryGridCard.swift; sourceTree = "<group>"; };
 		DF9C16C63FE6CBA4D6FFEBA8 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		E68F162AF511C823C8D23690 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		EE00000000000011 /* ConvertStreamingURLIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertStreamingURLIntent.swift; sourceTree = "<group>"; };
+		EE00000000000012 /* MusicCloudShortcutsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicCloudShortcutsProvider.swift; sourceTree = "<group>"; };
 		F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicCloudAPI.swift; sourceTree = "<group>"; };
 		FD05A1012F82A00100000001 /* MediaEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaEntry.swift; sourceTree = "<group>"; };
 		FD05A1032F83700100000001 /* ServiceLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceLink.swift; sourceTree = "<group>"; };
@@ -129,6 +181,7 @@
 		FD0C899B2F81B50F00AE61FB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		FD1437742F81964000A5B46D /* ShareButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareButton.swift; sourceTree = "<group>"; };
 		FD2197D12F80996F00F4AD7D /* DashboardItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardItem.swift; sourceTree = "<group>"; };
+		FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
 		FD70F1B3AEE2E43BDEE0DC9D /* PanelSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelSection.swift; sourceTree = "<group>"; };
 		FD8BCE632F85225D00EC883B /* sound1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = sound1.mp3; sourceTree = "<group>"; };
 		FD8BCE642F85225D00EC883B /* sound2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = sound2.mp3; sourceTree = "<group>"; };
@@ -168,34 +221,23 @@
 		FDF0E9542F81C6D8004DEFCE /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		FDF0E9552F81C6D8004DEFCE /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FDF8735B2F7EEDE600D05057 /* HistoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryManager.swift; sourceTree = "<group>"; };
-		AA00000000000002 /* PanelMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelMetrics.swift; sourceTree = "<group>"; };
-		FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
-		AA00000000000004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		DD00000000000011 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
-		DD00000000000012 /* PasteCTAView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteCTAView.swift; sourceTree = "<group>"; };
-		DD00000000000013 /* iOSHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSHistoryView.swift; sourceTree = "<group>"; };
-		DD00000000000014 /* iOSSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSSettingsView.swift; sourceTree = "<group>"; };
-		DD00000000000015 /* ResultCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultCardView.swift; sourceTree = "<group>"; };
-		DD00000000000016 /* OpenInServiceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInServiceSheet.swift; sourceTree = "<group>"; };
-		DD00000000000017 /* HistoryGridCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryGridCard.swift; sourceTree = "<group>"; };
-		EE00000000000011 /* ConvertStreamingURLIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertStreamingURLIntent.swift; sourceTree = "<group>"; };
-		EE00000000000012 /* MusicCloudShortcutsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicCloudShortcutsProvider.swift; sourceTree = "<group>"; };
-		BB00000000000010 /* musiccloudTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = musiccloudTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		BB00000000000011 /* StreamingServicesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServicesTests.swift; sourceTree = "<group>"; };
-		BB00000000000012 /* MusicCloudAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicCloudAPITests.swift; sourceTree = "<group>"; };
-		BB00000000000013 /* ClipboardMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitorTests.swift; sourceTree = "<group>"; };
-		BB00000000000014 /* MediaEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaEntryTests.swift; sourceTree = "<group>"; };
-		BB00000000000015 /* ConvertStreamingURLIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertStreamingURLIntentTests.swift; sourceTree = "<group>"; };
-		CC00000000000001 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
-		CC00000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		CC00000000000003 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
-		CC00000000000004 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		FF00000000000011 /* MediaType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaType.swift; sourceTree = "<group>"; };
 		FF00000000000012 /* Bundle+Version.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+Version.swift"; sourceTree = "<group>"; };
 		FF00000000000013 /* DangerZoneSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DangerZoneSection.swift; sourceTree = "<group>"; };
 		FF00000000000014 /* SharedStoreConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreConfiguration.swift; sourceTree = "<group>"; };
 		FF00000000000020 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FF00000000000040 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FF00000000000021 /* CloudKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		29E444AD310A55D5A4A6FC5B /* Products */ = {
@@ -208,75 +250,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		FF00000000000030 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				FF00000000000020 /* CloudKit.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
-
-/* --- Root group --- */
-		A8800C23A7862F67E68038E7 = {
-			isa = PBXGroup;
-			children = (
-				9723BD104A0AE887713E6D8F /* App */,
-				CC00000000000020 /* ShareExtension */,
-				BB00000000000020 /* musiccloudTests */,
-				FF00000000000030 /* Frameworks */,
-				29E444AD310A55D5A4A6FC5B /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-
-/* ========== musiccloudTests ========== */
-		BB00000000000020 /* musiccloudTests */ = {
-			isa = PBXGroup;
-			children = (
-				BB00000000000021 /* API */,
-				BB00000000000024 /* Intents */,
-				BB00000000000022 /* Managers */,
-				BB00000000000023 /* Models */,
-			);
-			path = musiccloudTests;
-			sourceTree = "<group>";
-		};
-		BB00000000000021 /* API */ = {
-			isa = PBXGroup;
-			children = (
-				BB00000000000011 /* StreamingServicesTests.swift */,
-				BB00000000000012 /* MusicCloudAPITests.swift */,
-			);
-			path = API;
-			sourceTree = "<group>";
-		};
-		BB00000000000022 /* Managers */ = {
-			isa = PBXGroup;
-			children = (
-				BB00000000000013 /* ClipboardMonitorTests.swift */,
-			);
-			path = Managers;
-			sourceTree = "<group>";
-		};
-		BB00000000000023 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				BB00000000000014 /* MediaEntryTests.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		BB00000000000024 /* Intents */ = {
-			isa = PBXGroup;
-			children = (
-				BB00000000000015 /* ConvertStreamingURLIntentTests.swift */,
-			);
-			path = Intents;
-			sourceTree = "<group>";
-		};
-
-/* --- App (top-level) --- */
 		9723BD104A0AE887713E6D8F /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -289,8 +262,17 @@
 			path = App;
 			sourceTree = "<group>";
 		};
-
-/* ========== Shared ========== */
+		A8800C23A7862F67E68038E7 = {
+			isa = PBXGroup;
+			children = (
+				9723BD104A0AE887713E6D8F /* App */,
+				CC00000000000020 /* ShareExtension */,
+				BB00000000000020 /* musiccloudTests */,
+				FF00000000000030 /* Frameworks */,
+				29E444AD310A55D5A4A6FC5B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
 		AA00000000000010 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
@@ -402,6 +384,7 @@
 			children = (
 				FD97C3812F80947100E8D788 /* AlbumItem.swift */,
 				FD97C3832F80948700E8D788 /* ArtistItem.swift */,
+				DD00000000000017 /* HistoryGridCard.swift */,
 				FD97C3852F80949C00E8D788 /* MediaArtwork.swift */,
 				FD97C37D2F80943A00E8D788 /* MediaItem.swift */,
 				FDDC7E2A2F805F03005D779F /* MediaRow.swift */,
@@ -421,8 +404,6 @@
 			path = Utils;
 			sourceTree = "<group>";
 		};
-
-/* ========== macOS ========== */
 		AA00000000000020 /* macOS */ = {
 			isa = PBXGroup;
 			children = (
@@ -493,8 +474,6 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
-
-/* ========== iOS ========== */
 		AA00000000000030 /* iOS */ = {
 			isa = PBXGroup;
 			children = (
@@ -543,26 +522,73 @@
 		AA00000000000035 /* Components */ = {
 			isa = PBXGroup;
 			children = (
-				DD00000000000017 /* HistoryGridCard.swift */,
 				DD00000000000016 /* OpenInServiceSheet.swift */,
 				DD00000000000015 /* ResultCardView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
 		};
-
-/* ========== Supporting Files ========== */
-		FDDC7E1C2F805B3C005D779F /* Supporting Files */ = {
+		BB00000000000020 /* musiccloudTests */ = {
 			isa = PBXGroup;
 			children = (
-				2A6D1FBF4C2BE51299104362 /* musiccloud.entitlements */,
-				FDDC7E2E2F80622F005D779F /* Nasalization Rg.otf */,
-				65D30DA29D8EB6E7A8D6EF3C /* Info.plist */,
-				26E51532D490E1A2DE32DF3C /* Assets.xcassets */,
-				4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */,
-				FD8BCE6E2F85225D00EC883B /* NotificationSounds */,
+				BB00000000000021 /* API */,
+				BB00000000000024 /* Intents */,
+				BB00000000000022 /* Managers */,
+				BB00000000000023 /* Models */,
 			);
-			path = "Supporting Files";
+			path = musiccloudTests;
+			sourceTree = "<group>";
+		};
+		BB00000000000021 /* API */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000000000011 /* StreamingServicesTests.swift */,
+				BB00000000000012 /* MusicCloudAPITests.swift */,
+			);
+			path = API;
+			sourceTree = "<group>";
+		};
+		BB00000000000022 /* Managers */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000000000013 /* ClipboardMonitorTests.swift */,
+			);
+			path = Managers;
+			sourceTree = "<group>";
+		};
+		BB00000000000023 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000000000014 /* MediaEntryTests.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		BB00000000000024 /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000000000015 /* ConvertStreamingURLIntentTests.swift */,
+			);
+			path = Intents;
+			sourceTree = "<group>";
+		};
+		CC00000000000020 /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				CC00000000000001 /* ShareViewController.swift */,
+				CC00000000000002 /* Info.plist */,
+				CC00000000000003 /* ShareExtension.entitlements */,
+			);
+			path = ShareExtension;
+			sourceTree = "<group>";
+		};
+		EE00000000000020 /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				EE00000000000011 /* ConvertStreamingURLIntent.swift */,
+				EE00000000000012 /* MusicCloudShortcutsProvider.swift */,
+			);
+			path = Intents;
 			sourceTree = "<group>";
 		};
 		FD8BCE6E2F85225D00EC883B /* NotificationSounds */ = {
@@ -583,28 +609,27 @@
 			path = NotificationSounds;
 			sourceTree = "<group>";
 		};
-		EE00000000000020 /* Intents */ = {
+		FDDC7E1C2F805B3C005D779F /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
-				EE00000000000011 /* ConvertStreamingURLIntent.swift */,
-				EE00000000000012 /* MusicCloudShortcutsProvider.swift */,
+				2A6D1FBF4C2BE51299104362 /* musiccloud.entitlements */,
+				FDDC7E2E2F80622F005D779F /* Nasalization Rg.otf */,
+				65D30DA29D8EB6E7A8D6EF3C /* Info.plist */,
+				26E51532D490E1A2DE32DF3C /* Assets.xcassets */,
+				4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */,
+				FD8BCE6E2F85225D00EC883B /* NotificationSounds */,
 			);
-			path = Intents;
+			path = "Supporting Files";
 			sourceTree = "<group>";
 		};
-
-/* ========== ShareExtension ========== */
-		CC00000000000020 /* ShareExtension */ = {
+		FF00000000000030 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				CC00000000000001 /* ShareViewController.swift */,
-				CC00000000000002 /* Info.plist */,
-				CC00000000000003 /* ShareExtension.entitlements */,
+				FF00000000000020 /* CloudKit.framework */,
 			);
-			path = ShareExtension;
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
-
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -663,37 +688,6 @@
 		};
 /* End PBXNativeTarget section */
 
-/* Begin PBXContainerItemProxy section */
-		BB00000000000051 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 87ED6BE46D2B397F308DB857 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = A02F4E98FD93CA1768A15CE2;
-			remoteInfo = musiccloud;
-		};
-		CC00000000000070 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 87ED6BE46D2B397F308DB857 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = CC00000000000030;
-			remoteInfo = ShareExtension;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXTargetDependency section */
-		BB00000000000052 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = A02F4E98FD93CA1768A15CE2 /* musiccloud */;
-			targetProxy = BB00000000000051 /* PBXContainerItemProxy */;
-		};
-		CC00000000000071 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			platformFilter = ios;
-			target = CC00000000000030 /* ShareExtension */;
-			targetProxy = CC00000000000070 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
-
 /* Begin PBXProject section */
 		87ED6BE46D2B397F308DB857 /* Project object */ = {
 			isa = PBXProject;
@@ -751,17 +745,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXFrameworksBuildPhase section */
-		FF00000000000040 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				FF00000000000021 /* CloudKit.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		FD00000000000001 /* Set Build Number */ = {
@@ -891,19 +874,19 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		CC00000000000080 /* Embed App Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				CC00000000000013 /* ShareExtension.appex in Embed App Extensions */,
-			);
-			name = "Embed App Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
+/* Begin PBXTargetDependency section */
+		BB00000000000052 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A02F4E98FD93CA1768A15CE2 /* musiccloud */;
+			targetProxy = BB00000000000051 /* PBXContainerItemProxy */;
 		};
-/* End PBXCopyFilesBuildPhase section */
+		CC00000000000071 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = CC00000000000030 /* ShareExtension */;
+			targetProxy = CC00000000000070 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0A5F3FBB399C57A7E9B0566C /* Release */ = {
@@ -993,7 +976,7 @@
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -1012,6 +995,108 @@
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
+		};
+		BB00000000000061 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/musiccloud.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/musiccloud";
+			};
+			name = Debug;
+		};
+		BB00000000000062 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/musiccloud.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/musiccloud";
+			};
+			name = Release;
+		};
+		CC00000000000051 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.3.1;
+				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CC00000000000052 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.3.1;
+				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
 		};
 		D78AC06099149C1A3A3CD33A /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1107,7 +1192,7 @@
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -1127,129 +1212,9 @@
 			};
 			name = Release;
 		};
-		BB00000000000061 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/musiccloud.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/musiccloud";
-			};
-			name = Debug;
-		};
-		BB00000000000062 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/musiccloud.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/musiccloud";
-			};
-			name = Release;
-		};
-		CC00000000000051 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ShareExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 0.3.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud.ShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		CC00000000000052 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ShareExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 0.3.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud.ShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		DF3CC9B41A42CF171A0D5568 /* Build configuration list for PBXNativeTarget "musiccloud" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				7DB308ADC90F418D83F3B6E3 /* Debug */,
-				F5E45AB6C3C35DD54D9B33C5 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
-		};
-		F3584AD23C18E5F44482D611 /* Build configuration list for PBXProject "musiccloud" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				D78AC06099149C1A3A3CD33A /* Debug */,
-				0A5F3FBB399C57A7E9B0566C /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
-		};
 		BB00000000000060 /* Build configuration list for PBXNativeTarget "musiccloudTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1264,6 +1229,24 @@
 			buildConfigurations = (
 				CC00000000000051 /* Debug */,
 				CC00000000000052 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DF3CC9B41A42CF171A0D5568 /* Build configuration list for PBXNativeTarget "musiccloud" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7DB308ADC90F418D83F3B6E3 /* Debug */,
+				F5E45AB6C3C35DD54D9B33C5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F3584AD23C18E5F44482D611 /* Build configuration list for PBXProject "musiccloud" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D78AC06099149C1A3A3CD33A /* Debug */,
+				0A5F3FBB399C57A7E9B0566C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

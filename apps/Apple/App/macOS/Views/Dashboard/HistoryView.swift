@@ -11,40 +11,29 @@ import SwiftUI
 
 /// Displays resolved media entries filtered by content type.
 ///
-/// Supports list and grid display modes with search filtering.
-/// The filter is controlled via a centered `AnimatedSegmentControl` in the toolbar.
+/// Supports grid display mode with search filtering.
+/// The filter is controlled via a centered segmented control in the toolbar.
 struct HistoryView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(HistoryManager.self) private var historyManager
+    @Query(sort: \MediaEntry.date, order: .reverse, animation: .default)
+    private var allEntries: [MediaEntry]
 
     @Binding var filter: SidebarItem
 
-    private static let pageSize = 50
-
-    @State private var allEntries: [MediaEntry] = []
     @State private var searchText = ""
-    @State private var loadedCount = HistoryView.pageSize
-    @State private var hasMore = true
     @AppStorage("gridItemSize") private var gridItemSize: Double = 168
 
     private static let gridItemMinSize: CGFloat = 150
 
     private var filteredEntries: [MediaEntry] {
-        let mediaType = filter.mediaType
-        let byType = allEntries.filter { $0.mediaType == mediaType }
+        let byType = allEntries.filter { $0.mediaType == filter.mediaType }
 
         guard !searchText.isEmpty else { return byType }
 
         return byType.filter { entry in
-            switch entry.contentType {
-            case .track(let info):
-                info.title.localizedCaseInsensitiveContains(searchText) ||
-                info.artistsString.localizedCaseInsensitiveContains(searchText)
-            case .album(let info):
-                info.title.localizedCaseInsensitiveContains(searchText) ||
-                info.artistsString.localizedCaseInsensitiveContains(searchText)
-            case .artist(let info):
-                info.name.localizedCaseInsensitiveContains(searchText)
-            }
+            let query = searchText.lowercased()
+            return entry.contentType.title.localizedCaseInsensitiveContains(query) ||
+                entry.contentType.subtitle.localizedCaseInsensitiveContains(query)
         }
     }
 
@@ -76,14 +65,6 @@ struct HistoryView: View {
                 .labelStyle(.titleAndIcon)
             }
         }
-        .onAppear { fetchEntries() }
-        .onChange(of: filter) {
-            loadedCount = HistoryView.pageSize
-            loadEntries()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .historyDidChange)) { _ in
-            fetchEntries()
-        }
     }
 }
 
@@ -98,8 +79,7 @@ private extension HistoryView {
             ) {
                 ForEach(filteredEntries) { entry in
                     HistoryGridCard(entry: entry)
-                        .entryActions(entry: entry, onDelete: { deleteEntry(entry) })
-                        .onAppear { loadMoreIfNeeded(entry) }
+                        .entryActions(entry: entry, onDelete: { historyManager.remove(entry) })
                 }
             }
             .padding(20)
@@ -149,145 +129,6 @@ private extension HistoryView {
                     .foregroundColor(.primary)
                     .symbolRenderingMode(.hierarchical)
             }
-        }
-    }
-}
-
-// MARK: - Fetch
-
-private extension HistoryView {
-    func fetchEntries() {
-        loadedCount = HistoryView.pageSize
-        loadEntries()
-    }
-
-    func loadEntries() {
-        var descriptor = FetchDescriptor<MediaEntry>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-        descriptor.fetchLimit = loadedCount
-        let results: [MediaEntry]
-        do {
-            results = try modelContext.fetch(descriptor)
-        } catch {
-            AppLogger.history.error("Failed to fetch entries: \(error.localizedDescription)")
-            results = []
-        }
-        hasMore = results.count >= loadedCount
-        allEntries = results
-    }
-
-    func loadMoreIfNeeded(_ entry: MediaEntry) {
-        guard hasMore, entry.id == filteredEntries.last?.id else { return }
-        loadedCount += HistoryView.pageSize
-        loadEntries()
-    }
-
-    func deleteEntry(_ entry: MediaEntry) {
-        modelContext.delete(entry)
-        try? modelContext.save()
-        fetchEntries()
-        NotificationCenter.default.post(name: .historyDidChange, object: nil)
-    }
-}
-
-// MARK: - Grid Card
-
-private struct HistoryGridCard: View {
-    let entry: MediaEntry
-
-    @State private var isHovered = false
-
-    var body: some View {
-        gridArtwork
-            .overlay(alignment: .bottom) { cardInfo }
-            .aspectRatio(1, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(isHovered ? 0.2 : 0.08), radius: isHovered ? 12 : 6, y: isHovered ? 4 : 2)
-            .scaleEffect(isHovered ? 1.02 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: isHovered)
-            .onHover { isHovered = $0 }
-    }
-
-    @ViewBuilder
-    private var gridArtwork: some View {
-        Group {
-            if let urlString = artworkUrl, let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        artworkPlaceholder
-                    }
-                }
-            } else {
-                artworkPlaceholder
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var artworkPlaceholder: some View {
-        Rectangle()
-            .fill(.quaternary)
-            .overlay {
-                Image(systemName: placeholderIcon)
-                    .font(.system(size: 40))
-                    .foregroundStyle(.tertiary)
-            }
-    }
-
-    private var cardInfo: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(subtitle)
-                .font(.headline)
-                .lineLimit(1)
-            Text(title)
-                .font(.subheadline)
-                .lineLimit(1)
-        }
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(
-            LinearGradient(
-                colors: [.black.opacity(0.85), .clear],
-                startPoint: .bottom,
-                endPoint: .top
-            )
-        )
-    }
-
-    private var title: String {
-        switch entry.contentType {
-        case .track(let info):  info.title
-        case .album(let info):  info.title
-        case .artist(let info): info.name
-        }
-    }
-
-    private var subtitle: String {
-        switch entry.contentType {
-        case .track(let info):  info.artistsString
-        case .album(let info):  info.artistsString
-        case .artist(let info): info.genresString ?? "Artist"
-        }
-    }
-
-    private var artworkUrl: String? {
-        switch entry.contentType {
-        case .track(let info):  info.artworkUrl
-        case .album(let info):  info.artworkUrl
-        case .artist(let info): info.artworkUrl
-        }
-    }
-
-    private var placeholderIcon: String {
-        switch entry.contentType {
-        case .track:  "music.note"
-        case .album:  "square.stack"
-        case .artist: "person.circle"
         }
     }
 }
@@ -385,13 +226,5 @@ private func serviceIcon(for service: String) -> NSImage {
     resized.isTemplate = true
     return resized
 }
-
-// MARK: - String Helpers
-
-private extension String {
-    var nilIfEmpty: String? { isEmpty ? nil : self }
-}
-
-
 
 #endif

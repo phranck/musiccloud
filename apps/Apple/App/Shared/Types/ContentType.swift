@@ -25,4 +25,36 @@ enum ContentType: Codable, Equatable {
     case album(info: AlbumInfo)
     /// A music artist or band
     case artist(info: ArtistInfo)
+
+    var title: String {
+        switch self {
+        case .track(let info): info.title
+        case .album(let info): info.title
+        case .artist(let info): info.name
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .track(let info): info.artistsString
+        case .album(let info): info.artistsString
+        case .artist(let info): info.genresString ?? "Artist"
+        }
+    }
+
+    var artworkUrl: String? {
+        switch self {
+        case .track(let info): info.artworkUrl
+        case .album(let info): info.artworkUrl
+        case .artist(let info): info.artworkUrl
+        }
+    }
+
+    var placeholderIcon: String {
+        switch self {
+        case .track: "music.note"
+        case .album: "square.stack"
+        case .artist: "person.circle"
+        }
+    }
 }

@@ -6,19 +6,17 @@
 //  Created by Frank Gregor on 03.04.26.
 //
 
+import AppKit
 import SwiftData
 import SwiftUI
-#if os(macOS)
-import AppKit
-#endif
 
 // MARK: - MenuBarView
 
 struct MenuBarView: View {
     @Environment(ClipboardMonitor.self) private var monitor
-    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \MediaEntry.date, order: .reverse)
+    private var entries: [MediaEntry]
 
-    @State private var entries: [MediaEntry] = []
     @State private var selectedFilter: SidebarItem = .tracks
 
     var body: some View {
@@ -56,26 +54,6 @@ struct MenuBarView: View {
         .padding(PanelMetrics.spacing)
         .frame(width: 320)
         .frame(maxHeight: .infinity, alignment: .top)
-        .onAppear { fetchEntries() }
-        .onReceive(NotificationCenter.default.publisher(for: .historyDidChange)) { _ in
-            fetchEntries()
-        }
-    }
-}
-
-// MARK: - Private API
-
-private extension MenuBarView {
-    func fetchEntries() {
-        let descriptor = FetchDescriptor<MediaEntry>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-        do {
-            entries = try modelContext.fetch(descriptor)
-        } catch {
-            AppLogger.history.error("Failed to fetch entries: \(error.localizedDescription)")
-            entries = []
-        }
     }
 }
 
