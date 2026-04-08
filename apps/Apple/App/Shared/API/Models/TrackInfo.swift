@@ -63,8 +63,12 @@ struct TrackInfo: Codable, Equatable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         title = try container.decode(String.self, forKey: .title)
-        let artistArray = try container.decode([String].self, forKey: .artistsRaw)
-        artistsRaw = artistArray.joined(separator: ", ")
+        // API sends [String], SwiftData stores String
+        if let artistArray = try? container.decode([String].self, forKey: .artistsRaw) {
+            artistsRaw = artistArray.joined(separator: ", ")
+        } else {
+            artistsRaw = (try? container.decode(String.self, forKey: .artistsRaw)) ?? ""
+        }
         albumName = try container.decodeIfPresent(String.self, forKey: .albumName)
         artworkUrl = try container.decodeIfPresent(String.self, forKey: .artworkUrl)
         durationMs = try container.decodeIfPresent(Int.self, forKey: .durationMs)

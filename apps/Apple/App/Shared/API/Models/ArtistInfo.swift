@@ -55,8 +55,12 @@ struct ArtistInfo: Codable, Equatable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try container.decode(String.self, forKey: .name)
-        let genreArray = try container.decodeIfPresent([String].self, forKey: .genresRaw)
-        genresRaw = genreArray?.joined(separator: ", ")
+        // API sends [String], SwiftData stores String
+        if let genreArray = try? container.decode([String].self, forKey: .genresRaw) {
+            genresRaw = genreArray.joined(separator: ", ")
+        } else {
+            genresRaw = try? container.decode(String.self, forKey: .genresRaw)
+        }
         artworkUrl = try container.decodeIfPresent(String.self, forKey: .artworkUrl)
         followerCount = try container.decodeIfPresent(Int.self, forKey: .followerCount)
     }
