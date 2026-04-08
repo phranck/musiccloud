@@ -137,7 +137,7 @@ extension ClipboardMonitor {
     /// 1. Updates status to `.processing`
     /// 2. Calls the musiccloud.io API to resolve the URL
     /// 3. Downloads artwork if available
-    /// 4. Creates and stores a ``MediaInfo`` entry in the history
+    /// 4. Creates and stores a ``MediaEntry`` in the history
     /// 5. Updates the clipboard with the short URL
     /// 6. Updates status to `.success` or `.error`
     ///

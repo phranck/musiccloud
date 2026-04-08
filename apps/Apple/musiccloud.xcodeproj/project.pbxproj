@@ -71,7 +71,6 @@
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
-		FDD516292F817F360043E187 /* MediaInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516282F817F360043E187 /* MediaInfo.swift */; };
 		FDD5162B2F817F960043E187 /* ResolveResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD5162A2F817F960043E187 /* ResolveResponse.swift */; };
 		FDDC3A8F2F81BE7700FB68D9 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC3A8E2F81BE7700FB68D9 /* NotificationManager.swift */; };
 		FDDC7E232F805E82005D779F /* HeaderRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC7E222F805E82005D779F /* HeaderRow.swift */; };
@@ -108,7 +107,6 @@
 		FF0000000000010B /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10D2F83900100000002 /* APIError.swift */; };
 		FF0000000000010C /* ResolveError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10F2F83900100000003 /* ResolveError.swift */; };
 		FF0000000000010D /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */; };
-		FF0000000000010E /* MediaInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516282F817F360043E187 /* MediaInfo.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -212,7 +210,6 @@
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
-		FDD516282F817F360043E187 /* MediaInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaInfo.swift; sourceTree = "<group>"; };
 		FDD5162A2F817F960043E187 /* ResolveResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveResponse.swift; sourceTree = "<group>"; };
 		FDDC3A8E2F81BE7700FB68D9 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		FDDC7E222F805E82005D779F /* HeaderRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderRow.swift; sourceTree = "<group>"; };
@@ -323,7 +320,6 @@
 				FDD516242F817ECE0043E187 /* AlbumInfo.swift */,
 				FDD516262F817EDF0043E187 /* ArtistInfo.swift */,
 				FD05A1012F82A00100000001 /* MediaEntry.swift */,
-				FDD516282F817F360043E187 /* MediaInfo.swift */,
 				FD05A1032F83700100000001 /* ServiceLink.swift */,
 				FDD516222F817EB50043E187 /* TrackInfo.swift */,
 			);
@@ -833,7 +829,6 @@
 				FD05A1022F82A00100000001 /* MediaEntry.swift in Sources */,
 				FD05A1042F83700100000001 /* ServiceLink.swift in Sources */,
 				FD05A1062F83800100000001 /* MediaFilter.swift in Sources */,
-				FDD516292F817F360043E187 /* MediaInfo.swift in Sources */,
 				AA00000000000001 /* PanelMetrics.swift in Sources */,
 				AA00000000000003 /* ContentView.swift in Sources */,
 				DD00000000000001 /* HomeView.swift in Sources */,
@@ -886,7 +881,6 @@
 				FF0000000000010B /* APIError.swift in Sources */,
 				FF0000000000010C /* ResolveError.swift in Sources */,
 				FF0000000000010D /* AppLogger.swift in Sources */,
-				FF0000000000010E /* MediaInfo.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
