@@ -44,6 +44,8 @@ struct ErrorRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Error: \(message)")
     }
 }
 

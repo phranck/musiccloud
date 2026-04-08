@@ -15,6 +15,7 @@ struct IdleRow: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
+            .accessibilityLabel("Monitoring clipboard for streaming URLs")
     }
 }
 
