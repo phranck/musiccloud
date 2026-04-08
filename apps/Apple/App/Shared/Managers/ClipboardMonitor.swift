@@ -183,7 +183,7 @@ extension ClipboardMonitor {
             lastSeenContent = result.shortUrl
             status = .success(shortUrl: result.shortUrl)
             #if os(iOS)
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            HapticFeedback.success()
             #endif
             NotificationManager.notifySuccess(entry: entry)
             AppLogger.clipboard.debug("resolve succeeded → \(result.shortUrl)")

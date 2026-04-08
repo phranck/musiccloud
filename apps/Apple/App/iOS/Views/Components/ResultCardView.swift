@@ -35,7 +35,7 @@ struct ResultCardView: View {
             HStack(spacing: 12) {
                 Button {
                     UIPasteboard.general.string = entry.shortUrl
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    HapticFeedback.success()
                 } label: {
                     Label("Copy Link", systemImage: "doc.on.doc")
                 }

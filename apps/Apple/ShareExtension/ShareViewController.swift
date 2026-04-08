@@ -176,7 +176,7 @@ private extension ShareViewController {
                 try saveToSwiftData(entry)
 
                 UIPasteboard.general.string = result.shortUrl
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                HapticFeedback.success()
                 showSuccess()
             } catch {
                 showError("\(error)")

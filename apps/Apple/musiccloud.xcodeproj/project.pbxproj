@@ -92,6 +92,8 @@
 		FF00000000000003 /* DangerZoneSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000013 /* DangerZoneSection.swift */; };
 		FF00000000000006 /* EntryActionsModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000016 /* EntryActionsModifier.swift */; };
 		FF00000000000004 /* SharedStoreConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000014 /* SharedStoreConfiguration.swift */; };
+		AA00000000000070 /* HapticFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000071 /* HapticFeedback.swift */; };
+		AA00000000000072 /* HapticFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000071 /* HapticFeedback.swift */; };
 		FF00000000000021 /* CloudKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FF00000000000020 /* CloudKit.framework */; };
 		FF00000000000101 /* MediaType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000011 /* MediaType.swift */; };
 		FF00000000000102 /* MusicCloudAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */; };
@@ -231,6 +233,7 @@
 		FF00000000000013 /* DangerZoneSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DangerZoneSection.swift; sourceTree = "<group>"; };
 		FF00000000000016 /* EntryActionsModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryActionsModifier.swift; sourceTree = "<group>"; };
 		FF00000000000014 /* SharedStoreConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreConfiguration.swift; sourceTree = "<group>"; };
+		AA00000000000071 /* HapticFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticFeedback.swift; sourceTree = "<group>"; };
 		FF00000000000020 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -406,6 +409,7 @@
 		AA0000000000001F /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				AA00000000000071 /* HapticFeedback.swift */,
 				AA00000000000002 /* PanelMetrics.swift */,
 				FF00000000000014 /* SharedStoreConfiguration.swift */,
 			);
@@ -845,6 +849,7 @@
 				FF00000000000002 /* Bundle+Version.swift in Sources */,
 				FF00000000000003 /* DangerZoneSection.swift in Sources */,
 				FF00000000000006 /* EntryActionsModifier.swift in Sources */,
+				AA00000000000070 /* HapticFeedback.swift in Sources */,
 				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -876,6 +881,7 @@
 				FF00000000000107 /* ArtistInfo.swift in Sources */,
 				FF00000000000108 /* ServiceLink.swift in Sources */,
 				FF00000000000109 /* ContentType.swift in Sources */,
+				AA00000000000072 /* HapticFeedback.swift in Sources */,
 				FF0000000000010A /* SharedStoreConfiguration.swift in Sources */,
 				FF0000000000010B /* APIError.swift in Sources */,
 				FF0000000000010C /* ResolveError.swift in Sources */,
