@@ -23,7 +23,13 @@ final class MediaEntry {
     var id: UUID = UUID()
     var originalUrl: String = ""
     var shortUrl: String = ""
-    var mediaType: MediaType = MediaType.track
+    private var mediaTypeRaw: String = MediaType.track.rawValue
+
+    /// Type-safe accessor for the stored media type string.
+    @Transient var mediaType: MediaType {
+        get { MediaType(rawValue: mediaTypeRaw) ?? .track }
+        set { mediaTypeRaw = newValue.rawValue }
+    }
     @Attribute(.externalStorage) var artworkImageData: Data?
     var date: Date = Date()
 
@@ -63,7 +69,7 @@ final class MediaEntry {
         self.id = id
         self.originalUrl = originalUrl
         self.shortUrl = shortUrl
-        self.mediaType = mediaType
+        self.mediaTypeRaw = mediaType.rawValue
         self.artworkImageData = artworkImageData
         self.date = date
         self.track = track
