@@ -26,14 +26,48 @@ struct ArtistInfo: Codable, Equatable {
     /// The artist's name
     var name: String
 
-    /// Array of music genres associated with this artist
-    var genres: [String]?
+    /// Comma-separated genre names (stored as String for CloudKit compatibility)
+    var genresRaw: String?
 
     /// URL to the artist's profile or promotional image
     var artworkUrl: String?
 
     /// Number of followers on the streaming service
     var followerCount: Int?
+
+    /// Array accessor for genre names.
+    var genres: [String]? {
+        guard let raw = genresRaw, !raw.isEmpty else { return nil }
+        return raw.components(separatedBy: ", ")
+    }
+
+    init(name: String, genres: [String]? = nil, artworkUrl: String? = nil, followerCount: Int? = nil) {
+        self.name = name
+        self.genresRaw = genres?.joined(separator: ", ")
+        self.artworkUrl = artworkUrl
+        self.followerCount = followerCount
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case name, genresRaw = "genres", artworkUrl, followerCount
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        let genreArray = try container.decodeIfPresent([String].self, forKey: .genresRaw)
+        genresRaw = genreArray?.joined(separator: ", ")
+        artworkUrl = try container.decodeIfPresent(String.self, forKey: .artworkUrl)
+        followerCount = try container.decodeIfPresent(Int.self, forKey: .followerCount)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(genres, forKey: .genresRaw)
+        try container.encodeIfPresent(artworkUrl, forKey: .artworkUrl)
+        try container.encodeIfPresent(followerCount, forKey: .followerCount)
+    }
 }
 
 extension ArtistInfo {
@@ -48,8 +82,8 @@ extension ArtistInfo {
     /// print(artist.genresString) // "Pop, Rock"
     /// ```
     var genresString: String? {
-        guard let genres = genres, !genres.isEmpty else { return nil }
-        return genres.joined(separator: ", ")
+        guard let raw = genresRaw, !raw.isEmpty else { return nil }
+        return raw
     }
 
     /// Returns the follower count formatted with K/M suffixes.
