@@ -25,9 +25,10 @@ struct MusicCloudApp: App {
         .defaultLaunchBehavior(.suppressed)
     }
 #else
-    private let modelContainer: ModelContainer
-    @State private var historyManager: HistoryManager
-    @State private var monitor: ClipboardMonitor
+    private let modelContainer: ModelContainer?
+    @State private var historyManager: HistoryManager?
+    @State private var monitor: ClipboardMonitor?
+    private let storeError: String?
 
     init() {
         do {
@@ -36,8 +37,13 @@ struct MusicCloudApp: App {
             let history = HistoryManager(modelContext: container.mainContext)
             _historyManager = State(initialValue: history)
             _monitor = State(initialValue: ClipboardMonitor(historyManager: history))
+            storeError = nil
         } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
+            AppLogger.history.error("Failed to create ModelContainer: \(error)")
+            modelContainer = nil
+            _historyManager = State(initialValue: nil)
+            _monitor = State(initialValue: nil)
+            storeError = error.localizedDescription
         }
     }
 
@@ -45,21 +51,29 @@ struct MusicCloudApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .modelContainer(modelContainer)
-                .environment(historyManager)
-                .environment(monitor)
-                .symbolRenderingMode(.hierarchical)
-                .onChange(of: scenePhase) { _, newPhase in
-                    if newPhase == .active {
-                        monitor.startMonitoring()
-                    } else {
-                        monitor.stopMonitoring()
+            if let modelContainer, let historyManager, let monitor {
+                ContentView()
+                    .modelContainer(modelContainer)
+                    .environment(historyManager)
+                    .environment(monitor)
+                    .symbolRenderingMode(.hierarchical)
+                    .onChange(of: scenePhase) { _, newPhase in
+                        if newPhase == .active {
+                            monitor.startMonitoring()
+                        } else {
+                            monitor.stopMonitoring()
+                        }
                     }
-                }
-                .onOpenURL { url in
-                    handleIncomingURL(url)
-                }
+                    .onOpenURL { url in
+                        handleIncomingURL(url)
+                    }
+            } else {
+                ContentUnavailableView(
+                    "Database Error",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(storeError ?? "Unknown error")
+                )
+            }
         }
     }
 
