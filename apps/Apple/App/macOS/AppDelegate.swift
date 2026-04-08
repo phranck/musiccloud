@@ -250,21 +250,9 @@ private extension AppDelegate {
         window.titlebarAppearsTransparent = config.titlebarAppearsTransparent
         window.contentViewController = NSHostingController(rootView: rootView)
         window.isReleasedWhenClosed = false
-        if let savedFrame = UserDefaults.standard.string(forKey: "WindowFrame.\(config.autosaveName)") {
-            window.setFrame(NSRectFromString(savedFrame), display: false)
-            if !config.styleMask.contains(.resizable) {
-                window.setContentSize(config.size)
-            }
-        } else {
-            window.center()
-        }
-        NotificationCenter.default.addObserver(
-            forName: NSWindow.didMoveNotification,
-            object: window,
-            queue: .main
-        ) { notification in
-            guard let window = notification.object as? NSWindow else { return }
-            UserDefaults.standard.set(NSStringFromRect(window.frame), forKey: "WindowFrame.\(config.autosaveName)")
+        window.setFrameAutosaveName(config.autosaveName)
+        if !config.styleMask.contains(.resizable) {
+            window.setContentSize(config.size)
         }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
