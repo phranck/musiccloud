@@ -45,6 +45,9 @@ const { title, description, canonicalUrl, preloadImage, noindex, lang = "en" } =
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
 
+    <link rel="preload" href="/fonts/nasalization-rg.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preconnect" href="https://umami.layered.work" crossorigin />
+
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     {noindex && <meta name="robots" content="noindex" />}
