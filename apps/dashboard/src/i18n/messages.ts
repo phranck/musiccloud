@@ -189,6 +189,11 @@ export interface DashboardMessages {
     deleteAllConfirm: string;
     deleteAllCancel: string;
     entriesDeleted: string;
+    trackingTitle: string;
+    trackingLabel: string;
+    trackingDescription: string;
+    trackingEnabled: string;
+    trackingDisabled: string;
   };
   media: {
     title: string;
@@ -852,6 +857,12 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteAllConfirm: "Ja, alles l\u00f6schen",
       deleteAllCancel: "Abbrechen",
       entriesDeleted: "{count} Eintr\u00e4ge gel\u00f6scht.",
+      trackingTitle: "Website-Tracking",
+      trackingLabel: "Umami Analytics",
+      trackingDescription:
+        "Aktiviert das Umami-Tracking-Script auf der Website. Wenn deaktiviert, wird kein Tracking-Code eingebunden.",
+      trackingEnabled: "Aktiv",
+      trackingDisabled: "Deaktiviert",
     },
     media: {
       title: "Medien",
@@ -1482,6 +1493,12 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteAllConfirm: "Yes, delete all",
       deleteAllCancel: "Cancel",
       entriesDeleted: "{count} entries deleted.",
+      trackingTitle: "Website Tracking",
+      trackingLabel: "Umami Analytics",
+      trackingDescription:
+        "Enables the Umami tracking script on the website. When disabled, no tracking code is embedded.",
+      trackingEnabled: "Active",
+      trackingDisabled: "Disabled",
     },
     media: {
       title: "Media",

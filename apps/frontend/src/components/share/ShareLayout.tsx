@@ -148,22 +148,25 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
     [config, handleAlbumArtLoad],
   );
 
-  // Fetch artist data via Astro proxy (same-origin, no CORS issues)
+  // Fetch artist data after a short delay so the share card renders first
   useEffect(() => {
     let cancelled = false;
     dispatch({ type: "loading" });
-    const params = new URLSearchParams({ name: artistName });
-    if (userRegion) params.set("region", userRegion);
-    fetch(`/api/artist-info?${params.toString()}`)
-      .then((res) => (res.ok ? (res.json() as Promise<ArtistInfoResponse>) : null))
-      .then((data) => {
-        if (!cancelled) dispatch({ type: "done", data });
-      })
-      .catch(() => {
-        if (!cancelled) dispatch({ type: "done", data: null });
-      });
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({ name: artistName });
+      if (userRegion) params.set("region", userRegion);
+      fetch(`/api/artist-info?${params.toString()}`)
+        .then((res) => (res.ok ? (res.json() as Promise<ArtistInfoResponse>) : null))
+        .then((data) => {
+          if (!cancelled) dispatch({ type: "done", data });
+        })
+        .catch(() => {
+          if (!cancelled) dispatch({ type: "done", data: null });
+        });
+    }, 1500);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [artistName, userRegion]);
 

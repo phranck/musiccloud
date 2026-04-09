@@ -200,3 +200,10 @@ export const featuredAlbums = pgTable("featured_albums", {
     .references(() => albums.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });
+
+// Site-wide settings (key/value store)
+export const siteSettings = pgTable("site_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});

@@ -17,6 +17,7 @@ import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
 import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
 import shareRoutes from "./routes/share.js";
+import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site-settings.js";
 import { warmAppleMusicToken } from "./services/adapters/apple-music.js";
 import { validateAdapters } from "./services/index.js";
 
@@ -63,6 +64,9 @@ async function buildApp() {
   await app.register(artistInfoRoutes);
   await app.register(randomExampleRoutes);
 
+  // Site settings (public read for SSR)
+  await app.register(siteSettingsPublicRoutes);
+
   // Public GET resolve endpoint (no auth - used for Shortcuts, etc.)
   await app.register(resolvePublicGetRoutes);
 
@@ -81,6 +85,7 @@ async function buildApp() {
     await adminApp.register(adminDataRoutes);
     await adminApp.register(adminSseRoutes);
     await adminApp.register(adminUserRoutes);
+    await adminApp.register(siteSettingsAdminRoutes);
   });
 
   return app;

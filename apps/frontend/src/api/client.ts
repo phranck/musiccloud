@@ -41,6 +41,20 @@ export async function resolveTrack(
   });
 }
 
+/** Check if website tracking (Umami) is enabled. */
+export async function isTrackingEnabled(): Promise<boolean> {
+  try {
+    const res = await fetch(backendUrl("/api/v1/site-settings/tracking"), {
+      headers: internalHeaders(),
+    });
+    if (!res.ok) return true;
+    const data = (await res.json()) as { enabled: boolean };
+    return data.enabled;
+  } catch {
+    return true;
+  }
+}
+
 /** Fetch a random short ID from the backend for the landing page example teaser. */
 export async function fetchRandomExample(): Promise<{ shortId: string } | null> {
   const res = await fetch(backendUrl("/api/v1/random-example"), {
