@@ -54,6 +54,11 @@ struct MenuBarView: View {
         .padding(PanelMetrics.spacing)
         .frame(width: 320)
         .frame(maxHeight: .infinity, alignment: .top)
+        .onChange(of: monitor.status) {
+            if case .success(_, let mediaType) = monitor.status {
+                selectedFilter = MediaFilter(for: mediaType)
+            }
+        }
     }
 }
 

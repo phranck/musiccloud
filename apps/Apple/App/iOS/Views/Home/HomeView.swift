@@ -37,7 +37,7 @@ private struct StatusContent: View {
         case .processing(let url):
             ProcessingCard(url: url)
                 .transition(.move(edge: .top).combined(with: .opacity))
-        case .success(let shortUrl):
+        case .success(let shortUrl, _):
             if let entry = entries.first(where: { $0.shortUrl == shortUrl }) {
                 ResultCardView(entry: entry)
                     .transition(.move(edge: .bottom).combined(with: .opacity))

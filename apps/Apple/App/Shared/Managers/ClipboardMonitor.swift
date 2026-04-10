@@ -109,8 +109,10 @@ extension ClipboardMonitor {
         case processing(url: String)
 
         /// Successfully converted a URL
-        /// - Parameter shortUrl: The resulting musiccloud.io short URL
-        case success(shortUrl: String)
+        /// - Parameters:
+        ///   - shortUrl: The resulting musiccloud.io short URL
+        ///   - mediaType: The resolved content type (track, album, artist)
+        case success(shortUrl: String, mediaType: MediaType)
 
         /// An error occurred during conversion
         /// - Parameter message: Human-readable error description
@@ -183,7 +185,7 @@ extension ClipboardMonitor {
             lastShortUrl = result.shortUrl
             setPasteboardString(result.shortUrl)
             lastSeenContent = result.shortUrl
-            status = .success(shortUrl: result.shortUrl)
+            status = .success(shortUrl: result.shortUrl, mediaType: entry.mediaType)
             #if os(iOS)
             HapticFeedback.success()
             #endif
@@ -270,7 +272,7 @@ private extension ClipboardMonitor {
             lastShortUrl = existing.shortUrl
             setPasteboardString(existing.shortUrl)
             lastSeenContent = existing.shortUrl
-            status = .success(shortUrl: existing.shortUrl)
+            status = .success(shortUrl: existing.shortUrl, mediaType: existing.mediaType)
             AppLogger.clipboard.debug("already resolved → \(existing.shortUrl)")
             return
         }

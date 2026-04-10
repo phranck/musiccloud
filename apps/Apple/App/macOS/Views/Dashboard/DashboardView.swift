@@ -14,6 +14,7 @@ import SwiftUI
 /// Provides access to history (tracks, albums, artists) via a centered
 /// `AnimatedSegmentControl` in the toolbar.
 struct DashboardView: View {
+    @Environment(ClipboardMonitor.self) private var monitor
     @State private var filter: MediaFilter = .tracks
 
     var body: some View {
@@ -21,6 +22,11 @@ struct DashboardView: View {
             HistoryView(filter: $filter)
         }
         .frame(minWidth: 800, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
+        .onChange(of: monitor.status) {
+            if case .success(_, let mediaType) = monitor.status {
+                filter = MediaFilter(for: mediaType)
+            }
+        }
     }
 }
 
