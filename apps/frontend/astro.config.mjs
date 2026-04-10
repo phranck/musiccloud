@@ -9,6 +9,9 @@ export default defineConfig({
   integrations: [sitemap(), react()],
   vite: {
     plugins: [tailwindcss()],
+    server: {
+      allowedHosts: ["localhost", "localhost"],
+    },
   },
   site: "https://musiccloud.io",
 });
