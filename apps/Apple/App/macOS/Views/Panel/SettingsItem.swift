@@ -11,12 +11,13 @@ import SwiftUI
 struct SettingsItem: View {
     var body: some View {
         PanelActionItem(icon: "gearshape", title: "Settings") {
-            NSApp.keyWindow?.close()
             guard let delegate = AppDelegate.shared else {
                 AppLogger.ui.error("AppDelegate not initialized")
                 return
             }
+            NSApp.keyWindow?.close()
             delegate.openSettings()
+            NSApp.activate()
         }
     }
 }
