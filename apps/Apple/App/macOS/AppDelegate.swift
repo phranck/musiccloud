@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusItem()
         setupPanel()
         setupEventMonitor()
+        NSApplication.shared.registerForRemoteNotifications()
         NotificationManager.requestPermission()
         NotificationManager.cleanupAttachmentCache()
     }

@@ -67,6 +67,9 @@ struct MusicCloudApp: App {
                     .onOpenURL { url in
                         handleIncomingURL(url)
                     }
+                    .task {
+                        UIApplication.shared.registerForRemoteNotifications()
+                    }
             } else {
                 ContentUnavailableView(
                     "Database Error",
