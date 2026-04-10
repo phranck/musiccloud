@@ -54,6 +54,8 @@ final class ClipboardMonitor {
     private var timer: Timer?
     @ObservationIgnored
     private var checkTask: Task<Void, Never>?
+    @ObservationIgnored
+    private var resolveTask: Task<Void, Never>?
     #if os(iOS)
     @ObservationIgnored
     private var lastChangeCount: Int = -1
@@ -220,6 +222,8 @@ extension ClipboardMonitor {
     func stopMonitoring() {
         checkTask?.cancel()
         checkTask = nil
+        resolveTask?.cancel()
+        resolveTask = nil
         timer?.invalidate()
         timer = nil
     }
@@ -258,6 +262,9 @@ private extension ClipboardMonitor {
         AppLogger.clipboard.debug("clipboard changed — isStreamingURL: \(isStreaming) — \(content)")
         guard isStreaming else { return }
 
+        // Skip if a resolve is already in progress
+        guard !status.isProcessing else { return }
+
         // Check if this URL was already resolved
         if let existing = historyManager.entry(forOriginalUrl: content) {
             lastShortUrl = existing.shortUrl
@@ -268,7 +275,7 @@ private extension ClipboardMonitor {
             return
         }
 
-        await resolve(url: content)
+        resolveTask = Task { @MainActor in await resolve(url: content) }
     }
 
     /// Restores the last short URL from the conversion history.

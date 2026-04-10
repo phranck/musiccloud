@@ -235,7 +235,11 @@ private extension AppDelegate {
     ) -> NSWindow {
         if let window = stored {
             window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
+            DispatchQueue.main.async {
+                window.makeKeyAndOrderFront(nil)
+                NSApp.activate()
+            }
             return window
         }
 
@@ -255,7 +259,15 @@ private extension AppDelegate {
             window.setContentSize(config.size)
         }
         window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
+
+        // LSUIElement apps can lose focus between panel close and window open.
+        // Re-assert key window status on the next run-loop tick to guarantee
+        // the window is key across the entire desktop.
+        DispatchQueue.main.async {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate()
+        }
 
         return window
     }
