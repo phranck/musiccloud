@@ -17,7 +17,7 @@ import "@fontsource/roboto-condensed/700.css";
 import "../styles/global.css";
 import { isTrackingEnabled } from "@/api/client";
 
-const trackingEnabled = await isTrackingEnabled();
+const trackingEnabled = isTrackingEnabled();
 
 interface Props {
   title: string;
@@ -46,8 +46,6 @@ const { title, description, canonicalUrl, preloadImage, noindex, lang = "en" } =
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
 
     <link rel="preload" href="/fonts/nasalization-rg.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preconnect" href="https://umami.layered.work" crossorigin />
-
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     {noindex && <meta name="robots" content="noindex" />}
@@ -57,7 +55,7 @@ const { title, description, canonicalUrl, preloadImage, noindex, lang = "en" } =
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
     {preloadImage && <link rel="preload" as="image" href={preloadImage} />}
 
-    {trackingEnabled && <script defer src="https://umami.layered.work/script.js" data-website-id="3826f51b-34e0-4c61-a89d-a7de016fe712"></script>}
+    {trackingEnabled && <script defer src="/api/mc/script.js" data-website-id="3826f51b-34e0-4c61-a89d-a7de016fe712" data-host-url="/api/mc"></script>}
   </head>
   <body class="bg-background text-text-primary antialiased">
     <slot />
