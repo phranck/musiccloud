@@ -30,7 +30,7 @@ export const MUSIC_URL_PATTERNS: Record<DetectablePlatform, RegExp> = {
 
 export const ALBUM_URL_PATTERNS: Record<DetectablePlatform, RegExp> = {
   spotify: /^https?:\/\/(open\.)?spotify\.com\/(intl-\w+\/)?album\/[a-zA-Z0-9]+/,
-  "apple-music": /^https?:\/\/music\.apple\.com\/[a-z]{2}\/album\/[^?]+$/,
+  "apple-music": /^https?:\/\/music\.apple\.com\/[a-z]{2}\/album\/[^?\s]+(?:\?(?!i=).*)?$/,
   youtube: /^https?:\/\/music\.youtube\.com\/playlist\?list=OLAK5uy_/,
   soundcloud: /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/sets\/[^/]+/,
   tidal: /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?album\/\d+/,
@@ -234,6 +234,8 @@ export function stripTrackingParams(url: string): string {
       "start_radio",
       "pp",
       "playnext",
+      // Apple Music locale param
+      "l",
       // Generic
       "ref",
       "referral",
