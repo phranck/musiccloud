@@ -73,7 +73,15 @@ final class ClipboardMonitor {
     init(historyManager: HistoryManager) {
         self.historyManager = historyManager
         restoreLastShortUrl()
-        startMonitoring()
+        if Self.isEnabled {
+            startMonitoring()
+        }
+    }
+
+    /// Whether clipboard monitoring is enabled (persisted in UserDefaults).
+    static var isEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "clipboardMonitoringEnabled") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "clipboardMonitoringEnabled") }
     }
 
     deinit {

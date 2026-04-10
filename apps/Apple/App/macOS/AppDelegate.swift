@@ -202,6 +202,7 @@ extension AppDelegate {
     func openSettings() {
         let rootView = SettingsView()
             .environment(historyManager)
+            .environment(monitor)
             .symbolRenderingMode(.hierarchical)
 
         settingsWindow = showWindow(
@@ -256,10 +257,14 @@ private extension AppDelegate {
         window.titlebarAppearsTransparent = config.titlebarAppearsTransparent
         window.contentViewController = NSHostingController(rootView: rootView)
         window.isReleasedWhenClosed = false
-        window.setFrameAutosaveName(config.autosaveName)
+
+        // Set content size BEFORE autosave name so the restored frame
+        // is not overwritten by the hardcoded size.
         if !config.styleMask.contains(.resizable) {
             window.setContentSize(config.size)
         }
+        window.setFrameAutosaveName(config.autosaveName)
+
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
 

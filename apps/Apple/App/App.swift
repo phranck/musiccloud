@@ -56,9 +56,8 @@ struct MusicCloudApp: App {
                     .modelContainer(modelContainer)
                     .environment(historyManager)
                     .environment(monitor)
-                    .symbolRenderingMode(.hierarchical)
                     .onChange(of: scenePhase) { _, newPhase in
-                        if newPhase == .active {
+                        if newPhase == .active, ClipboardMonitor.isEnabled {
                             monitor.startMonitoring()
                         } else {
                             monitor.stopMonitoring()

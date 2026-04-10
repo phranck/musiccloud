@@ -64,7 +64,9 @@ private enum SettingsTab: String, CaseIterable {
 // MARK: - GeneralSettingsView
 
 private struct GeneralSettingsView: View {
+    @Environment(ClipboardMonitor.self) private var monitor
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @AppStorage("clipboardMonitoringEnabled") private var clipboardMonitoringEnabled = true
     @AppStorage("playNotificationSound") private var playNotificationSound = true
     @AppStorage("notificationSound") private var notificationSound = NotificationSound.default.rawValue
 
@@ -83,6 +85,19 @@ private struct GeneralSettingsView: View {
                         launchAtLogin = SMAppService.mainApp.status == .enabled
                     }
                 }
+
+            Section {
+                Toggle(String(localized: "Clipboard Monitoring"), isOn: $clipboardMonitoringEnabled)
+            } footer: {
+                Text("Automatically detects streaming URLs in your clipboard and converts them.")
+            }
+            .onChange(of: clipboardMonitoringEnabled) {
+                if clipboardMonitoringEnabled {
+                    monitor.startMonitoring()
+                } else {
+                    monitor.stopMonitoring()
+                }
+            }
 
             Section {
                 Toggle(String(localized: "Play Notification Sound"), isOn: $playNotificationSound)
