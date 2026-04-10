@@ -10,11 +10,10 @@ struct HistoryView: View {
     @Query(sort: \MediaEntry.date, order: .reverse, animation: .default)
     private var allEntries: [MediaEntry]
     @State private var searchText = ""
-    @State private var filter: MediaFilter
-    @State private var showSettings = false
+    private let filter: MediaFilter
 
     init(initialFilter: MediaFilter = .all) {
-        _filter = State(initialValue: initialFilter)
+        filter = initialFilter
     }
 
     private var filteredEntries: [MediaEntry] {
@@ -30,40 +29,13 @@ struct HistoryView: View {
             }
         }
         .animation(.smooth, value: allEntries.count)
-        .navigationTitle(Bundle.main.appName)
-        .searchable(text: $searchText, prompt: "Search conversions")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 12) {
-                    Menu {
-                        Picker("Filter", selection: $filter) {
-                            ForEach(MediaFilter.allCases) { item in
-                                Text(item.title).tag(item)
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                    }
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gear")
-                    }
-                }
+            ToolbarItem(placement: .principal) {
+                LogoText(size: 25)
             }
         }
-        .sheet(isPresented: $showSettings) {
-            NavigationStack {
-                SettingsView()
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("Done") {
-                                showSettings = false
-                            }
-                        }
-                    }
-            }
-        }
+        .searchable(text: $searchText, prompt: "Search conversions")
     }
 }
 

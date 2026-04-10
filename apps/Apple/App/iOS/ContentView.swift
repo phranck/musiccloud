@@ -9,11 +9,73 @@ struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
-        if sizeClass == .regular {
-            IPadSplitView()
-        } else {
+        Group {
+            if sizeClass == .regular {
+                IPadSplitView()
+            } else {
+                IPhoneTabView()
+            }
+        }
+        .symbolRenderingMode(.hierarchical)
+    }
+}
+
+// MARK: - IPhoneTabView
+
+/// iPhone-specific tab view with filter tabs and settings.
+private struct IPhoneTabView: View {
+    @Environment(ClipboardMonitor.self) private var monitor
+
+    @State private var selectedTab: TabSelection = .all
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
             NavigationStack {
-                HistoryView()
+                HistoryView(initialFilter: .all)
+            }
+            .tabItem { Label("All", systemImage: "music.note.list") }
+            .tag(TabSelection.all)
+
+            NavigationStack {
+                HistoryView(initialFilter: .tracks)
+            }
+            .tabItem { Label("Tracks", systemImage: "music.note") }
+            .tag(TabSelection.tracks)
+
+            NavigationStack {
+                HistoryView(initialFilter: .albums)
+            }
+            .tabItem { Label("Albums", systemImage: "square.stack") }
+            .tag(TabSelection.albums)
+
+            NavigationStack {
+                HistoryView(initialFilter: .artists)
+            }
+            .tabItem { Label("Artists", systemImage: "person.2") }
+            .tag(TabSelection.artists)
+
+            NavigationStack {
+                SettingsView()
+                    .navigationTitle("Settings")
+            }
+            .tabItem { Label("Settings", systemImage: "gear") }
+            .tag(TabSelection.settings)
+        }
+        .onChange(of: monitor.status) {
+            if case .success(_, let mediaType) = monitor.status {
+                selectedTab = TabSelection(for: mediaType)
+            }
+        }
+    }
+
+    private enum TabSelection: Hashable {
+        case all, tracks, albums, artists, settings
+
+        init(for mediaType: MediaType) {
+            switch mediaType {
+            case .track:  self = .tracks
+            case .album:  self = .albums
+            case .artist: self = .artists
             }
         }
     }
@@ -112,7 +174,12 @@ private struct IPadSidebar: View {
                     .tag(SidebarSelection.settings)
             }
         }
-        .navigationTitle(Bundle.main.appName)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                LogoText(size: 25)
+            }
+        }
     }
 
     private func countFor(_ mediaType: MediaType) -> Int {

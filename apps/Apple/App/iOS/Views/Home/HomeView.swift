@@ -22,7 +22,12 @@ struct HomeView: View {
             .padding()
             .animation(.spring(duration: 0.4), value: monitor.status)
         }
-        .navigationTitle(Bundle.main.appName)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                LogoText(size: 25)
+            }
+        }
     }
 }
 

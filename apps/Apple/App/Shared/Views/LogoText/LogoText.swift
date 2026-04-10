@@ -64,11 +64,19 @@ private struct LogoContent: View {
             Text(verbatim: "musicc")
                 .font(font)
             Image(systemName: "music.note")
-                .font(.system(size: fontSize * 0.85, weight: .bold))
-                .offset(x: -0.5, y: fontSize * -0.12)
+                .font(.system(size: fontSize * 0.95, weight: .semibold))
+#if os(iOS)
+                .offset(x: -0.5, y: fontSize * -0.24)
+#else
+                .offset(x: -0.3, y: fontSize * -0.12)
+#endif
             Text(verbatim: "oud")
                 .font(font)
-                .offset(x: -4)
+#if os(iOS)
+                .offset(x: -7)
+#else
+                .offset(x: -3.5)
+#endif
         }
     }
 }
