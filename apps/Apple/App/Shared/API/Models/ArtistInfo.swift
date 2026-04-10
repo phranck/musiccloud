@@ -11,6 +11,12 @@ struct ArtistInfo: Codable, Equatable {
     var genres: [String]?
     var artworkUrl: String?
     var followerCount: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case name, genres
+        case artworkUrl = "imageUrl"
+        case followerCount
+    }
 }
 
 // MARK: - Public API
