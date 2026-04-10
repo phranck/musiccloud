@@ -15,7 +15,7 @@ import SwiftUI
 /// `AnimatedSegmentControl` in the toolbar.
 struct DashboardView: View {
     @Environment(ClipboardMonitor.self) private var monitor
-    @State private var filter: MediaFilter = .tracks
+    @State private var filter: MediaFilter = .all
 
     var body: some View {
         NavigationStack {

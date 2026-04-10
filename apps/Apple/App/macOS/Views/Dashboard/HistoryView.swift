@@ -54,7 +54,7 @@ struct HistoryView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Picker("", selection: $filter) {
-                    ForEach(MediaFilter.mediaOnlyCases, id: \.self) { item in
+                    ForEach(MediaFilter.allCases, id: \.self) { item in
                         Label(item.title, systemImage: item.icon)
                             .tag(item)
                     }
@@ -135,7 +135,6 @@ private struct HistoryEmptyState: View {
             } icon: {
                 Image(systemName: filter.icon)
                     .foregroundColor(.primary)
-                    .symbolRenderingMode(.hierarchical)
             }
         }
     }

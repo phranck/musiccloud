@@ -17,7 +17,7 @@ struct MenuBarView: View {
     @Query(sort: \MediaEntry.date, order: .reverse)
     private var entries: [MediaEntry]
 
-    @State private var selectedFilter: MediaFilter = .tracks
+    @State private var selectedFilter: MediaFilter = .all
 
     var body: some View {
         VStack(spacing: PanelMetrics.spacing) {
@@ -52,7 +52,7 @@ struct MenuBarView: View {
             }
         }
         .padding(PanelMetrics.spacing)
-        .frame(width: 320)
+        .frame(width: 380)
         .frame(maxHeight: .infinity, alignment: .top)
         .onChange(of: monitor.status) {
             if case .success(_, let mediaType) = monitor.status {
@@ -70,7 +70,7 @@ private struct FilterPicker: View {
     var body: some View {
         AnimatedSegmentControl(
             selection: $selection,
-            segments: MediaFilter.mediaOnlyCases.map { item in
+            segments: MediaFilter.allCases.map { item in
                 .label(item.title, systemImage: item.icon, tag: item)
             },
             tintColor: .accentColor
@@ -89,7 +89,7 @@ private struct FilteredHistory: View {
     let filter: MediaFilter
 
     var body: some View {
-        let filtered = entries.filter { $0.mediaType == filter.mediaType }
+        let filtered = filter.filtered(entries, searchText: "")
         if filtered.isEmpty {
             VStack(spacing: PanelMetrics.spacing) {
                 Spacer()

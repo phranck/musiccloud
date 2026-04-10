@@ -37,20 +37,21 @@ private struct GridCardArtwork: View {
     let entry: MediaEntry
 
     var body: some View {
-        Group {
-            #if os(iOS)
-            if let data = entry.artworkImageData, let uiImage = UIImage(data: data) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-            } else {
+        Color.clear
+            .overlay {
+                #if os(iOS)
+                if let data = entry.artworkImageData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    AsyncGridArtwork(entry: entry)
+                }
+                #else
                 AsyncGridArtwork(entry: entry)
+                #endif
             }
-            #else
-            AsyncGridArtwork(entry: entry)
-            #endif
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
     }
 }
 
