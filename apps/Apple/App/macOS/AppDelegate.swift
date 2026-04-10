@@ -182,6 +182,7 @@ extension AppDelegate {
         let rootView = DashboardView()
             .environment(\.modelContext, mainContext)
             .environment(historyManager)
+            .environment(monitor)
             .symbolRenderingMode(.hierarchical)
 
         dashboardWindow = showWindow(
