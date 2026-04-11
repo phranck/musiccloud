@@ -1,0 +1,107 @@
+---
+/**
+ * Embed Page - Renders a minimal, iframe-friendly embed card.
+ *
+ * Query params:
+ *   ?size=small|regular|large (default: regular)
+ *
+ * Returns a standalone HTML page with just the embed card,
+ * no header, no footer, transparent-friendly dark background.
+ */
+export const prerender = false;
+
+import type { Platform } from "@musiccloud/shared";
+import { buildMetaLine, isValidPlatform } from "@musiccloud/shared";
+import { fetchShareData } from "@/api/client";
+import { EmbedCardIsland } from "@/components/embed/EmbedCardIsland";
+import { getLocaleFromCookie } from "@/i18n/locales";
+import { loadTranslations, makeT } from "@/i18n/server";
+
+import "@fontsource/barlow/400.css";
+import "@fontsource/barlow/500.css";
+import "@fontsource/barlow/600.css";
+import "@fontsource/barlow/700.css";
+import "@fontsource/roboto-condensed/400.css";
+import "@fontsource/roboto-condensed/500.css";
+import "../../styles/global.css";
+
+const { shortId } = Astro.params;
+const sizeParam = Astro.url.searchParams.get("size") ?? "regular";
+const size = ["small", "regular", "large"].includes(sizeParam) ? sizeParam : "regular";
+
+if (!shortId) {
+  return new Response("Not Found", { status: 404 });
+}
+
+const data = await fetchShareData(shortId);
+if (!data) {
+  return new Response("Not Found", { status: 404 });
+}
+
+const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
+const translations = await loadTranslations(locale);
+const t = makeT(translations);
+
+const isAlbum = data.type === "album";
+const isArtist = data.type === "artist";
+const track = data.track ?? null;
+const album = data.album ?? null;
+const artist = data.artist ?? null;
+
+const artistDisplay = isArtist ? "" : isAlbum ? (album?.artists.join(", ") ?? "") : (track?.artists.join(", ") ?? "");
+const displayTitle = isArtist ? (artist?.name ?? "") : isAlbum ? (album?.title ?? "") : (track?.title ?? "");
+const artworkUrl = isArtist ? (artist?.imageUrl ?? "") : isAlbum ? (album?.artworkUrl ?? "") : (track?.artworkUrl ?? "");
+
+const trackMetaLine = track ? buildMetaLine({ durationMs: track.durationMs, releaseDate: track.releaseDate }) : null;
+const albumYear = album?.releaseDate?.slice(0, 4);
+const albumMetaLine = isAlbum
+  ? [album?.totalTracks ? t("results.albumTracks", { count: String(album.totalTracks) }) : null, albumYear].filter(Boolean).join(" \u00B7 ")
+  : null;
+
+const metaLine = isArtist ? (artist?.genres?.join(", ") ?? undefined) : isAlbum ? (albumMetaLine ?? undefined) : (trackMetaLine ?? undefined);
+
+const platformLinks = data.links
+  .filter((link) => isValidPlatform(link.service))
+  .map((link) => ({ platform: link.service as Platform, url: link.url }));
+
+const shortUrl = data.shortUrl;
+const albumName = isAlbum ? undefined : (track?.albumName ?? undefined);
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <link rel="preload" href="/fonts/nasalization-rg.woff2" as="font" type="font/woff2" crossorigin />
+    <title>{displayTitle} - musiccloud</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        overflow: hidden;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+      }
+    </style>
+  </head>
+  <body class="text-text-primary antialiased">
+    <EmbedCardIsland
+      client:load
+      size={size}
+      title={displayTitle}
+      artist={artistDisplay}
+      artworkUrl={artworkUrl}
+      shortUrl={shortUrl}
+      metaLine={metaLine}
+      album={albumName}
+      platforms={platformLinks}
+    />
+  </body>
+</html>

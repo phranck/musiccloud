@@ -86,12 +86,14 @@ const shareConfig: ShareContentConfiguration = {
   title: displayTitle,
   artist: artistDisplay,
   artworkUrl: artworkUrl ?? "",
+  album: isAlbum ? undefined : (track?.albumName ?? undefined),
   isExplicit: !isAlbum && !isArtist && track?.isExplicit ? true : undefined,
   previewUrl: isArtist ? undefined : isAlbum ? (album?.previewUrl ?? undefined) : (track?.previewUrl ?? undefined),
   metaLine: isArtist ? artistMetaLine || undefined : isAlbum ? albumMetaLine || undefined : trackMetaLine || undefined,
   platforms: platformLinks,
   platformsLabel: t(platformsLabelKey),
   platformsLabelKey,
+  shortUrl: data.shortUrl,
 };
 
 const pageTitle = isArtist

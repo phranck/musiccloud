@@ -60,5 +60,15 @@
   "audio.pausePreview": "Voorbeeld pauzeren",
   "audio.replayPreview": "Opnieuw afspelen",
   "audio.previewUnavailable": "Voorbeeld niet beschikbaar",
-  "artist.profileProvidedBy": "Artiestgegevens aangeboden door Spotify & Last.fm"
+  "artist.profileProvidedBy": "Artiestgegevens aangeboden door Spotify & Last.fm",
+  "embed.button": "Nummer insluiten",
+  "embed.buttonAlbum": "Album insluiten",
+  "embed.title": "Nummer insluiten",
+  "embed.titleAlbum": "Album insluiten",
+  "embed.small": "Klein",
+  "embed.regular": "Normaal",
+  "embed.large": "Groot",
+  "embed.code": "Insluitcode",
+  "embed.copy": "Kopiëren",
+  "embed.copied": "Gekopieerd!"
 }

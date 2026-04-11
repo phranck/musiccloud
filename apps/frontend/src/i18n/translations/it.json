@@ -60,5 +60,15 @@
   "audio.pausePreview": "Metti in pausa",
   "audio.replayPreview": "Riproduci di nuovo",
   "audio.previewUnavailable": "Anteprima non disponibile",
-  "artist.profileProvidedBy": "Dati artista forniti da Spotify & Last.fm"
+  "artist.profileProvidedBy": "Dati artista forniti da Spotify & Last.fm",
+  "embed.button": "Incorpora brano",
+  "embed.buttonAlbum": "Incorpora album",
+  "embed.title": "Incorpora brano",
+  "embed.titleAlbum": "Incorpora album",
+  "embed.small": "Piccolo",
+  "embed.regular": "Normale",
+  "embed.large": "Grande",
+  "embed.code": "Codice di incorporamento",
+  "embed.copy": "Copia",
+  "embed.copied": "Copiato!"
 }

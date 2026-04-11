@@ -60,5 +60,15 @@
   "audio.pausePreview": "Pozastavit náhled",
   "audio.replayPreview": "Přehrát znovu",
   "audio.previewUnavailable": "Náhled není k dispozici",
-  "artist.profileProvidedBy": "Data umělce poskytují Spotify & Last.fm"
+  "artist.profileProvidedBy": "Data umělce poskytují Spotify & Last.fm",
+  "embed.button": "Vložit skladbu",
+  "embed.buttonAlbum": "Vložit album",
+  "embed.title": "Vložit skladbu",
+  "embed.titleAlbum": "Vložit album",
+  "embed.small": "Malý",
+  "embed.regular": "Normální",
+  "embed.large": "Velký",
+  "embed.code": "Kód pro vložení",
+  "embed.copy": "Kopírovat",
+  "embed.copied": "Zkopírováno!"
 }

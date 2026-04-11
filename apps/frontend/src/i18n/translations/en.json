@@ -60,5 +60,15 @@
   "audio.pausePreview": "Pause preview",
   "audio.replayPreview": "Replay preview",
   "audio.previewUnavailable": "Preview unavailable",
-  "artist.profileProvidedBy": "Artist data provided by Spotify & Last.fm"
+  "artist.profileProvidedBy": "Artist data provided by Spotify & Last.fm",
+  "embed.button": "Embed Track",
+  "embed.buttonAlbum": "Embed Album",
+  "embed.title": "Embed Track",
+  "embed.titleAlbum": "Embed Album",
+  "embed.small": "Small",
+  "embed.regular": "Regular",
+  "embed.large": "Large",
+  "embed.code": "Embed Code",
+  "embed.copy": "Copy",
+  "embed.copied": "Copied!"
 }

@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 import { GlassCard } from "@/components/cards/GlassCard";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { PlatformButton } from "@/components/platform/PlatformButton";
+import { EmbedModal } from "@/components/share/EmbedModal";
 import { ShareButton } from "@/components/share/ShareButton";
-import { isShareableContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
+import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
+import { useT } from "@/i18n/context";
 import { cn } from "@/lib/utils";
 
 export type {
@@ -23,10 +26,14 @@ interface MediaCardProps {
 }
 
 export function MediaCard({ content, className, animated = true }: MediaCardProps) {
+  const t = useT();
   const shareable = isShareableContent(content) ? content : null;
   const shareUrl = shareable?.shareUrl;
   const srAnnouncement = shareable?.srAnnouncement;
   const onAlbumArtLoad = content.onAlbumArtLoad;
+  const sharePageContent = isSharePageContent(content) ? content : null;
+  const [embedOpen, setEmbedOpen] = useState(false);
+  const isAlbum = content.type === "album" || sharePageContent?.platformsLabelKey === "results.openAlbumOn";
 
   return (
     <GlassCard
@@ -62,6 +69,44 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       {shareUrl && (
         <div className="border-t border-white/[0.12] px-6 pt-5 pb-5">
           <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
+        </div>
+      )}
+
+      {sharePageContent && (
+        <div className="border-t border-white/[0.12] px-6 pt-5 pb-5">
+          <div className="flex flex-col gap-3">
+            <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
+            <button
+              type="button"
+              onClick={() => setEmbedOpen(true)}
+              className={cn(
+                "flex items-center justify-center gap-2",
+                "w-full px-5 py-3.5 rounded-xl font-semibold text-[15px] tracking-[-0.01em]",
+                "min-h-[50px]",
+                "bg-white/[0.06] text-text-primary border border-white/[0.10]",
+                "hover:bg-white/[0.10] hover:scale-[1.02]",
+                "active:scale-[0.97]",
+                "transition-all duration-[250ms]",
+              )}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              {isAlbum ? t("embed.buttonAlbum") : t("embed.button")}
+            </button>
+          </div>
+          <EmbedModal
+            open={embedOpen}
+            onClose={() => setEmbedOpen(false)}
+            shortUrl={sharePageContent.shortUrl}
+            title={content.title}
+            artist={content.artist}
+            artworkUrl={content.artworkUrl}
+            metaLine={content.metaLine}
+            album={content.album}
+            isAlbum={isAlbum}
+            platforms={content.platforms}
+          />
         </div>
       )}
 

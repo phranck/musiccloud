@@ -60,5 +60,15 @@
   "audio.pausePreview": "Önizlemeyi duraklat",
   "audio.replayPreview": "Tekrar oynat",
   "audio.previewUnavailable": "Önizleme mevcut değil",
-  "artist.profileProvidedBy": "Sanatçı verileri Spotify & Last.fm tarafından sağlanmaktadır"
+  "artist.profileProvidedBy": "Sanatçı verileri Spotify & Last.fm tarafından sağlanmaktadır",
+  "embed.button": "Parçayı göm",
+  "embed.buttonAlbum": "Albümü göm",
+  "embed.title": "Parçayı göm",
+  "embed.titleAlbum": "Albümü göm",
+  "embed.small": "Küçük",
+  "embed.regular": "Normal",
+  "embed.large": "Büyük",
+  "embed.code": "Gömme kodu",
+  "embed.copy": "Kopyala",
+  "embed.copied": "Kopyalandı!"
 }
