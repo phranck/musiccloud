@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { EmbossedButton, embossedStyle } from "@/components/ui/EmbossedButton";
+import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
 import { cn } from "@/lib/utils";
 
@@ -64,11 +64,15 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
             ? "bg-accent text-[var(--color-accent-contrast)] hover:bg-accent-hover"
             : "bg-success/20 text-success",
         )}
-        style={state === "idle" ? {
-          boxShadow: "2px 2px 8px rgba(0,0,0,0.5), -1px -1px 4px rgba(255,255,255,0.05)",
-        } : {
-          boxShadow: "2px 2px 6px rgba(0,0,0,0.4), -2px -2px 6px rgba(48,209,88,0.05)",
-        }}
+        style={
+          state === "idle"
+            ? {
+                boxShadow: "2px 2px 8px rgba(0,0,0,0.5), -1px -1px 4px rgba(255,255,255,0.05)",
+              }
+            : {
+                boxShadow: "2px 2px 6px rgba(0,0,0,0.4), -2px -2px 6px rgba(48,209,88,0.05)",
+              }
+        }
       >
         {state === "idle" ? (
           <>

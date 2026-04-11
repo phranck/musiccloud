@@ -4,7 +4,7 @@
  * Square EmbossedButton with a backlit icon that glows in the accent color.
  */
 
-import { EmbossedButton, embossedStyle } from "@/components/ui/EmbossedButton";
+import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { cn } from "@/lib/utils";
 
 interface PlaybackButtonProps {
@@ -38,7 +38,11 @@ export function PlaybackButton({
 }: PlaybackButtonProps) {
   const accentColor = "rgb(var(--color-accent-rgb))";
   const iconColor = disabled ? "rgba(255,255,255,0.2)" : accentColor;
-  const glowFilter = disabled ? "none" : isPlaying ? `drop-shadow(0 0 6px ${accentColor}) drop-shadow(0 0 12px rgba(var(--color-accent-rgb) / 0.3))` : `drop-shadow(0 0 4px rgba(var(--color-accent-rgb) / 0.3))`;
+  const glowFilter = disabled
+    ? "none"
+    : isPlaying
+      ? `drop-shadow(0 0 6px ${accentColor}) drop-shadow(0 0 12px rgba(var(--color-accent-rgb) / 0.3))`
+      : `drop-shadow(0 0 4px rgba(var(--color-accent-rgb) / 0.3))`;
 
   return (
     <EmbossedButton
@@ -54,7 +58,6 @@ export function PlaybackButton({
         sizeClasses[size],
         disabled && "cursor-not-allowed opacity-50",
       )}
-      style={embossedStyle}
     >
       {isPlaying ? (
         <svg

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { recessedStyle } from "@/styles/neumorphic";
 
 interface RecessedCardProps {
   children: React.ReactNode;
@@ -18,14 +19,7 @@ export function RecessedCard({ children, className, style }: RecessedCardProps) 
   return (
     <div
       className={cn("bg-black/20 backdrop-blur-md p-4 overflow-hidden", className)}
-      style={{
-        boxShadow: "inset 1px 1px 4px rgba(0,0,0,0.25), inset -1px -1px 4px rgba(255,255,255,0.02)",
-        borderTop: "1px solid rgba(0,0,0,0.25)",
-        borderLeft: "1px solid rgba(0,0,0,0.2)",
-        borderBottom: "1px solid rgba(255,255,255,0.15)",
-        borderRight: "1px solid rgba(255,255,255,0.10)",
-        ...style,
-      }}
+      style={{ ...recessedStyle, ...style }}
     >
       {children}
     </div>

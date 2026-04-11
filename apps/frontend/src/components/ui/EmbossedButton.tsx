@@ -1,16 +1,10 @@
 import { cn } from "@/lib/utils";
+import { embossedStyle } from "@/styles/neumorphic";
 
-/** Shared embossed border/shadow styles. Light source top-left. */
-export const embossedStyle: React.CSSProperties = {
-  boxShadow: "2px 2px 6px rgba(0,0,0,0.4), -2px -2px 6px rgba(255,255,255,0.03)",
-  borderTop: "1px solid rgba(255,255,255,0.15)",
-  borderLeft: "1px solid rgba(255,255,255,0.10)",
-  borderBottom: "1px solid rgba(0,0,0,0.35)",
-  borderRight: "1px solid rgba(0,0,0,0.3)",
-};
+export { embossedStyle };
 
 const baseClasses = [
-  "bg-[#242425] px-5 py-2.5 overflow-hidden",
+  "bg-white/[0.07] px-5 py-2.5 overflow-hidden",
   "transition-all duration-150",
   "hover:bg-white/[0.10] hover:scale-[1.03]",
   "focus-visible:bg-white/[0.10] focus-visible:scale-[1.03]",
@@ -37,11 +31,7 @@ export function EmbossedButton({ children, className, style, ...props }: Embosse
   if ("as" in props && props.as === "button") {
     const { as: _, ...buttonProps } = props as ButtonProps;
     return (
-      <button
-        className={cn(baseClasses, className)}
-        style={mergedStyle}
-        {...buttonProps}
-      >
+      <button className={cn(baseClasses, className)} style={mergedStyle} {...buttonProps}>
         {children}
       </button>
     );
@@ -49,11 +39,7 @@ export function EmbossedButton({ children, className, style, ...props }: Embosse
 
   const { as: _, ...anchorProps } = props as AnchorProps;
   return (
-    <a
-      className={cn(baseClasses, className)}
-      style={mergedStyle}
-      {...anchorProps}
-    >
+    <a className={cn(baseClasses, className)} style={mergedStyle} {...anchorProps}>
       {children}
     </a>
   );

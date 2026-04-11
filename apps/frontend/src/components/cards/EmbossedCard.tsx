@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
+import { embossedStyle } from "@/styles/neumorphic";
 
 interface EmbossedCardProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -16,17 +17,7 @@ interface EmbossedCardProps {
  */
 export function EmbossedCard({ children, className, style }: EmbossedCardProps) {
   return (
-    <div
-      className={cn("bg-white/[0.07] p-4 overflow-hidden", className)}
-      style={{
-        boxShadow: "2px 2px 6px rgba(0,0,0,0.4), -2px -2px 6px rgba(255,255,255,0.03)",
-        borderTop: "1px solid rgba(255,255,255,0.15)",
-        borderLeft: "1px solid rgba(255,255,255,0.10)",
-        borderBottom: "1px solid rgba(0,0,0,0.35)",
-        borderRight: "1px solid rgba(0,0,0,0.3)",
-        ...style,
-      }}
-    >
+    <div className={cn("bg-white/[0.07] p-4 overflow-hidden", className)} style={{ ...embossedStyle, ...style }}>
       {children}
     </div>
   );
