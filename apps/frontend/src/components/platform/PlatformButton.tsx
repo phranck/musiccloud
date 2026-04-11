@@ -5,14 +5,23 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { trackServiceLinkClick } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
+type PlatformButtonSize = "sm" | "md" | "lg";
+
 interface PlatformButtonProps {
   platform: Platform;
   url: string;
   songTitle: string;
   displayName?: string;
   matchMethod?: "isrc" | "search" | "odesli" | "cache" | "upc" | "isrc-inference";
+  size?: PlatformButtonSize;
   className?: string;
 }
+
+const sizeConfig: Record<PlatformButtonSize, { minH: string; icon: string; text: string; gap: string }> = {
+  sm: { minH: "min-h-[36px]", icon: "w-5 h-5", text: "text-xs", gap: "gap-2" },
+  md: { minH: "min-h-[42px]", icon: "w-6 h-6", text: "text-sm", gap: "gap-2.5" },
+  lg: { minH: "min-h-[48px]", icon: "w-8 h-8", text: "text-base", gap: "gap-3" },
+};
 
 /**
  * Platform button for available services only.
@@ -23,11 +32,13 @@ export const PlatformButton = memo(function PlatformButton({
   songTitle,
   displayName,
   matchMethod,
+  size = "lg",
   className,
 }: PlatformButtonProps) {
   const config = PLATFORM_CONFIG[platform];
   const label = displayName || config.label;
   const isDev = import.meta.env.DEV;
+  const s = sizeConfig[size];
 
   const sourceLabel =
     matchMethod === "odesli"
@@ -52,18 +63,19 @@ export const PlatformButton = memo(function PlatformButton({
       aria-label={`Open ${songTitle} on ${label} (opens in new window)`}
       onClick={() => trackServiceLinkClick(platform)}
       className={cn(
-        "flex items-center gap-3 px-3 rounded-lg no-underline",
-        "min-h-[48px] w-full",
+        "flex items-center px-3 rounded-lg no-underline w-full",
+        s.minH,
+        s.gap,
         "hover:shadow-[0_0_16px_var(--platform-color)]",
         "focus-visible:shadow-[0_0_16px_var(--platform-color)]",
         className,
       )}
       style={{ "--platform-color": `${config.color}60` } as React.CSSProperties}
     >
-      <PlatformIcon platform={platform} className="w-8 h-8 flex-shrink-0" colored={true} />
+      <PlatformIcon platform={platform} className={cn(s.icon, "flex-shrink-0")} colored={true} />
       <div className="flex-1">
         <span
-          className="font-medium text-base text-text-primary tracking-[0]"
+          className={cn("font-medium text-text-primary tracking-[0]", s.text)}
           style={{ fontFamily: "var(--font-condensed)" }}
         >
           {label}
