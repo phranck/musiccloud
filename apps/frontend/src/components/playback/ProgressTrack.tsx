@@ -39,11 +39,26 @@ export function ProgressTrack({
 
   return (
     <div className="relative flex-1 flex items-center h-4">
-      {/* Visual track — width transition smooths out the ~4 Hz timeupdate jumps */}
-      <div className="absolute inset-x-0 h-1 rounded-full bg-white/12 overflow-hidden">
+      {/* Visual track — recessed groove with backlit accent trail */}
+      <div className="absolute inset-x-0 h-[6px] rounded-full overflow-hidden">
+        {/* Accent fill behind the recessed overlay */}
         <div
-          className="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-[250ms] ease-linear"
-          style={{ width: `${progress * 100}%` }}
+          className="absolute inset-0 rounded-full transition-[width] duration-[250ms] ease-linear"
+          style={{
+            width: `${progress * 100}%`,
+            background: "var(--color-accent)",
+            boxShadow: "0 0 8px rgba(var(--color-accent-rgb) / 0.5), 0 0 16px rgba(var(--color-accent-rgb) / 0.2)",
+          }}
+        />
+        {/* Recessed overlay — shadow falls on top of the trail */}
+        <div
+          className="absolute inset-0 rounded-full pointer-events-none"
+          style={{
+            boxShadow: "inset 1px 1px 3px rgba(0,0,0,0.5), inset -1px -1px 2px rgba(255,255,255,0.04)",
+            background: "rgba(0,0,0,0.15)",
+            borderTop: "1px solid rgba(0,0,0,0.3)",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}
         />
       </div>
 

@@ -69,7 +69,7 @@ export function PlaybackButton({
         </svg>
       ) : (
         <svg
-          className={cn(iconSizes[size], "translate-x-px")}
+          className={cn(iconSizes[size], "-translate-x-[1px]")}
           viewBox="0 0 24 24"
           fill={iconColor}
           aria-hidden="true"
