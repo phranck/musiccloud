@@ -7,6 +7,8 @@
   "disambiguation.cancel": "None of these? Try a different search.",
   "disambiguation.loading": "Loading selected track...",
   "disambiguation.found": "Found {count} possible matches. Please select the correct one.",
+  "disambiguation.resolving.title": "Resolving",
+  "disambiguation.resolving.subtitle": "We're fetching the streaming links for your selection.",
   "results.listenOn": "Listen on",
   "results.viewArtistOn": "View on",
   "results.openAlbumOn": "Open on",

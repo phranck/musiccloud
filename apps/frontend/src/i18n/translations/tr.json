@@ -7,6 +7,8 @@
   "disambiguation.cancel": "Bunların hiçbiri değil mi? Farklı bir arama deneyin.",
   "disambiguation.loading": "Seçilen parça yükleniyor...",
   "disambiguation.found": "{count} olası eşleşme bulundu. Lütfen doğru olanı seçin.",
+  "disambiguation.resolving.title": "Çözümleniyor",
+  "disambiguation.resolving.subtitle": "Seçiminiz için yayın bağlantılarını alıyoruz.",
   "results.listenOn": "Dinle:",
   "results.viewArtistOn": "Görüntüle:",
   "results.openAlbumOn": "Aç:",

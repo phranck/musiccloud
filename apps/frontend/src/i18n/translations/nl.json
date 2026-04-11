@@ -7,6 +7,8 @@
   "disambiguation.cancel": "Geen van deze? Probeer een andere zoekopdracht.",
   "disambiguation.loading": "Geselecteerd nummer laden...",
   "disambiguation.found": "{count} overeenkomsten gevonden. Selecteer de juiste.",
+  "disambiguation.resolving.title": "Bezig met oplossen",
+  "disambiguation.resolving.subtitle": "We halen de streaminglinks op voor je selectie.",
   "results.listenOn": "Luisteren op",
   "results.viewArtistOn": "Bekijken op",
   "results.openAlbumOn": "Openen op",

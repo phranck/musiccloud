@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GlassCard } from "@/components/cards/GlassCard";
+import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { RecessedCard } from "@/components/cards/RecessedCard";
+import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 import { cn } from "@/lib/utils";
@@ -88,12 +90,6 @@ export function DisambiguationPanel({
         el.style.transform = "translateY(0)";
       });
 
-      const headingEl = headingRef.current;
-      if (headingEl) {
-        headingEl.style.transition = "none";
-        headingEl.style.opacity = "1";
-      }
-
       // ── REFLOW: force browser to commit the setup before transitions ────────
       listEl.offsetHeight; // eslint-disable-line @typescript-eslint/no-unused-expressions
 
@@ -104,10 +100,7 @@ export function DisambiguationPanel({
       listEl.style.transition = `height ${ANIM_MS}ms ${ANIM_EASE}`;
       listEl.style.height = `${selectedCardHeight}px`;
 
-      if (headingEl) {
-        headingEl.style.transition = `opacity ${ANIM_MS}ms ${ANIM_EASE}`;
-        headingEl.style.opacity = "0";
-      }
+      // Heading stays visible -- content swaps via React state (isAnimating)
 
       allCardEls.forEach((el) => {
         const id = el.dataset.disambiguationCard!;
@@ -139,98 +132,56 @@ export function DisambiguationPanel({
 
   return (
     <div className="w-full max-w-full sm:max-w-[480px] mx-auto mt-8 animate-fade-in">
-      <div ref={headingRef} className="text-center mb-4">
-        <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">{t("disambiguation.title")}</h2>
-        <p className="text-sm text-text-secondary mt-1">{t("disambiguation.subtitle")}</p>
-      </div>
+      <EmbossedCard className="rounded-2xl p-5">
+        <div ref={headingRef} className="text-center mb-4">
+          {isAnimating || isLoadingSelected ? (
+            <div className="animate-fade-in">
+              <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
+                {t("disambiguation.resolving.title")}
+              </h2>
+              <p className="text-sm text-text-secondary mt-1">{t("disambiguation.resolving.subtitle")}</p>
+            </div>
+          ) : (
+            <>
+              <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
+                {t("disambiguation.title")}
+              </h2>
+              <p className="text-sm text-text-secondary mt-1">{t("disambiguation.subtitle")}</p>
+            </>
+          )}
+        </div>
 
-      <div ref={listRef} className="flex flex-col gap-3">
-        {candidates.map((candidate, index) => {
-          const isThisSelected =
-            (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
+        <RecessedCard className="rounded-xl p-2">
+          <div ref={listRef} className="flex flex-col gap-2">
+            {candidates.map((candidate, index) => {
+              const isThisSelected =
+                (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
 
-          return (
-            <div
-              key={candidate.id}
-              data-disambiguation-card={candidate.id}
-              className="animate-slide-up"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <GlassCard className={cn("group", isThisSelected && "ring-1 ring-accent/20")}>
-                <button
-                  type="button"
-                  onClick={() => handleClick(candidate)}
-                  disabled={isAnimating || loading}
-                  className={cn(
-                    "w-full flex items-center gap-4 p-4 text-left",
-                    "rounded-2xl",
-                    !isAnimating && !loading && "hover:bg-white/[0.04] transition-colors duration-150",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                    (isAnimating || loading) && "cursor-default",
-                  )}
-                  aria-label={
-                    isThisSelected
-                      ? t("disambiguation.loading")
-                      : `Select "${candidate.title}" by ${candidate.artists.join(", ")}`
-                  }
+              return (
+                <div
+                  key={candidate.id}
+                  data-disambiguation-card={candidate.id}
+                  className="animate-slide-up"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-md overflow-hidden shadow-md flex-shrink-0 bg-surface">
-                    {candidate.artworkUrl ? (
-                      <img
-                        src={candidate.artworkUrl}
-                        alt={`"${candidate.title}" by ${candidate.artists.join(", ")} - album artwork`}
-                        className="w-full h-full object-cover"
-                        width={64}
-                        height={64}
-                        loading="lazy"
-                        onError={(e) => {
-                          e.currentTarget.src = "/og/default.jpg";
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
-                        <svg
-                          className="w-6 h-6 text-text-muted"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={1.5}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z"
-                          />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <p className="text-base font-medium tracking-[-0.01em] text-text-primary truncate">
-                      {candidate.title}
-                    </p>
-                    <p className="text-sm text-text-secondary truncate mt-0.5">{candidate.artists.join(", ")}</p>
-                    {candidate.albumName && (
-                      <p className="text-xs text-text-muted truncate mt-0.5">{candidate.albumName}</p>
-                    )}
-                  </div>
-
-                  <div
+                  <EmbossedButton
+                    as="button"
+                    type="button"
+                    onClick={() => handleClick(candidate)}
+                    disabled={isAnimating || loading}
                     className={cn(
-                      "flex-shrink-0 rounded-full",
-                      "flex items-center justify-center",
-                      "transition-all duration-150",
-                      isThisSelected
-                        ? "bg-transparent w-11 h-11 md:w-12 md:h-12"
-                        : [
-                            "w-9 h-9 bg-accent/10 text-accent",
-                            !isAnimating && !loading && "group-hover:bg-accent group-hover:text-white",
-                          ],
+                      "w-full flex items-center gap-4 px-3 py-3 text-left rounded-lg",
+                      isThisSelected && "ring-1 ring-accent/20",
+                      (isAnimating || loading) && "cursor-default",
                     )}
+                    aria-label={
+                      isThisSelected
+                        ? t("disambiguation.loading")
+                        : `Select "${candidate.title}" by ${candidate.artists.join(", ")}`
+                    }
                   >
                     {isThisSelected ? (
-                      <div className="relative w-11 h-11 md:w-12 md:h-12 animate-vinyl-spin">
+                      <div className="relative flex-shrink-0 w-14 h-14 md:w-16 md:h-16 animate-vinyl-spin">
                         <div
                           className="absolute inset-0 rounded-full"
                           style={{
@@ -258,39 +209,77 @@ export function DisambiguationPanel({
                         />
                       </div>
                     ) : (
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
+                      <div className="w-14 h-14 md:w-16 md:h-16 rounded-md overflow-hidden shadow-md flex-shrink-0 bg-surface">
+                        {candidate.artworkUrl ? (
+                          <img
+                            src={candidate.artworkUrl}
+                            alt={`"${candidate.title}" by ${candidate.artists.join(", ")} - album artwork`}
+                            className="w-full h-full object-cover"
+                            width={64}
+                            height={64}
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.src = "/og/default.jpg";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
+                            <svg
+                              className="w-6 h-6 text-text-muted"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={1.5}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
                     )}
-                  </div>
-                </button>
-              </GlassCard>
-            </div>
-          );
-        })}
-      </div>
 
-      {!isAnimating && !loading && (
-        <div className="text-center mt-4">
-          <button
-            type="button"
-            onClick={onCancel}
-            className={cn(
-              "text-sm text-text-muted hover:text-text-secondary",
-              "transition-colors duration-150",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
-            )}
-          >
-            {t("disambiguation.cancel")}
-          </button>
-        </div>
-      )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-medium tracking-[-0.01em] text-text-primary truncate">
+                        {candidate.title}
+                      </p>
+                      <p className="text-sm text-text-secondary truncate mt-0.5">{candidate.artists.join(", ")}</p>
+                      {candidate.albumName && (
+                        <p className="text-xs text-text-muted truncate mt-0.5">{candidate.albumName}</p>
+                      )}
+                    </div>
+                  </EmbossedButton>
+                </div>
+              );
+            })}
+          </div>
+        </RecessedCard>
 
-      <p className="sr-only" aria-live="polite">
-        {isAnimating || loading
-          ? t("disambiguation.loading")
-          : t("disambiguation.found", { count: String(candidates.length) })}
-      </p>
+        {!isAnimating && !loading && (
+          <div className="text-center mt-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className={cn(
+                "text-sm text-text-muted hover:text-text-secondary",
+                "transition-colors duration-150",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
+              )}
+            >
+              {t("disambiguation.cancel")}
+            </button>
+          </div>
+        )}
+
+        <p className="sr-only" aria-live="polite">
+          {isAnimating || loading
+            ? t("disambiguation.loading")
+            : t("disambiguation.found", { count: String(candidates.length) })}
+        </p>
+      </EmbossedCard>
     </div>
   );
 }

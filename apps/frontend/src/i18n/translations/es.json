@@ -7,6 +7,8 @@
   "disambiguation.cancel": "¿Ninguno de estos? Prueba una búsqueda diferente.",
   "disambiguation.loading": "Cargando pista seleccionada...",
   "disambiguation.found": "{count} coincidencias encontradas. Selecciona la correcta.",
+  "disambiguation.resolving.title": "Resolviendo",
+  "disambiguation.resolving.subtitle": "Estamos obteniendo los enlaces de streaming para tu selección.",
   "results.listenOn": "Escuchar en",
   "results.viewArtistOn": "Ver en",
   "results.openAlbumOn": "Abrir en",

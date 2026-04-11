@@ -7,6 +7,8 @@
   "disambiguation.cancel": "Aucun de ces résultats ? Essayez une autre recherche.",
   "disambiguation.loading": "Chargement du titre sélectionné...",
   "disambiguation.found": "{count} correspondances trouvées. Veuillez sélectionner la bonne.",
+  "disambiguation.resolving.title": "Résolution en cours",
+  "disambiguation.resolving.subtitle": "Nous récupérons les liens de streaming pour votre sélection.",
   "results.listenOn": "Écouter sur",
   "results.viewArtistOn": "Voir sur",
   "results.openAlbumOn": "Ouvrir sur",
