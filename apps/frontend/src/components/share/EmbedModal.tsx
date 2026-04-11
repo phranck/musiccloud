@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
+import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { BrandName } from "@/components/ui/BrandName";
@@ -103,11 +104,10 @@ export function EmbedModal({ open, onClose, shortUrl, title, artist, artworkUrl,
       />
 
       {/* Modal */}
-      <div
+      <EmbossedCard
         className={cn(
-          "relative bg-surface-elevated border border-white/[0.08] rounded-3xl",
+          "relative rounded-3xl p-0 bg-surface-elevated/95",
           "max-w-[520px] w-full max-h-[90dvh] overflow-y-auto",
-          "shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]",
           "transition-all duration-300",
           open ? "scale-100 opacity-100" : "scale-95 opacity-0",
         )}
@@ -189,7 +189,7 @@ export function EmbedModal({ open, onClose, shortUrl, title, artist, artworkUrl,
             {buildEmbedCode(shortUrl, size)}
           </RecessedCard>
         </div>
-      </div>
+      </EmbossedCard>
     </div>,
     document.body,
   );
