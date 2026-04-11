@@ -63,7 +63,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
 
       {content.previewUrl && (
         <div className="px-6 py-4">
-          <RecessedCard className="rounded-xl px-4 py-3">
+          <RecessedCard className="rounded-xl p-2.5">
             <AudioPreviewPlayer previewUrl={content.previewUrl} trackTitle={content.title} />
           </RecessedCard>
         </div>
