@@ -1,14 +1,14 @@
 /**
  * ArtistInfoCard – displays popular tracks, artist profile, and tour dates.
  * Pure display component; data is fetched by the parent (ShareLayout).
- * Visually matches MediaCard: GlassCard elevated, same tokens, same dividers.
+ * Visually matches MediaCard: EmbossedCard, same tokens, same dividers.
  */
 
 import type { ArtistEvent, ArtistInfoResponse, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaCircleInfo } from "react-icons/fa6";
-import { GlassCard } from "@/components/cards/GlassCard";
+import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { useLocale, useT } from "@/i18n/context";
 import { cn } from "@/lib/utils";
 
@@ -59,7 +59,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
       : false;
 
   return (
-    <GlassCard elevated className="w-full rounded-2xl sm:rounded-[36px] overflow-hidden">
+    <EmbossedCard className="w-full rounded-2xl sm:rounded-[36px] p-0">
       <div className="relative">
         {onClose && (
           <button
@@ -132,7 +132,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
           />
         </CollapsibleSection>
       </div>
-    </GlassCard>
+    </EmbossedCard>
   );
 }
 
