@@ -40,7 +40,7 @@ export function ProgressTrack({
   return (
     <div className="relative flex-1 flex items-center h-4">
       {/* Visual track — recessed groove with backlit accent trail */}
-      <div className="absolute inset-x-0 h-[6px] rounded-full overflow-hidden">
+      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[8px] rounded-full overflow-hidden">
         {/* Accent fill behind the recessed overlay */}
         <div
           className="absolute inset-0 rounded-full transition-[width] duration-[250ms] ease-linear"

@@ -62,24 +62,24 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       />
 
       {content.previewUrl && (
-        <div className="px-6 py-4">
-          <RecessedCard className="rounded-xl p-2.5">
+        <div className="px-5 py-3">
+          <RecessedCard className="rounded-2xl p-2">
             <AudioPreviewPlayer previewUrl={content.previewUrl} trackTitle={content.title} />
           </RecessedCard>
         </div>
       )}
 
       {shareUrl && (
-        <div className="px-6 pt-3 pb-5">
-          <RecessedCard className="rounded-xl p-2.5">
+        <div className="px-5 py-3">
+          <RecessedCard className="rounded-2xl p-2">
             <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
           </RecessedCard>
         </div>
       )}
 
       {sharePageContent && (
-        <div className="px-6 pt-3 pb-5">
-          <RecessedCard className="rounded-xl p-2.5">
+        <div className="px-5 py-3">
+          <RecessedCard className="rounded-2xl p-2">
             <div className="flex flex-col gap-2">
               <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
               <EmbossedButton
@@ -115,9 +115,9 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       )}
 
       {content.platforms.length > 0 && (
-        <div className="px-6 pt-3 pb-6">
+        <div className="px-5 pt-3 pb-5">
           <p className="text-sm uppercase tracking-widest text-text-secondary mb-3 px-(--spacing-card-inset)">{content.platformsLabel}</p>
-          <RecessedCard className="rounded-xl p-2.5">
+          <RecessedCard className="rounded-2xl p-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[...content.platforms]
                 .sort((a, b) => PLATFORM_CONFIG[a.platform].label.localeCompare(PLATFORM_CONFIG[b.platform].label))
@@ -140,7 +140,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       )}
 
       {content.platforms.length === 0 && content.platformsInfo && (
-        <div className="px-6 pb-6 pt-2">
+        <div className="px-5 py-3">
           <p className="text-sm text-text-secondary text-center">{content.platformsInfo}</p>
         </div>
       )}
