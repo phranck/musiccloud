@@ -5,6 +5,7 @@ import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { BrandName } from "@/components/ui/BrandName";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useT } from "@/i18n/context";
 import { cn } from "@/lib/utils";
 import type { PlatformLink } from "@/lib/types/media-card";
@@ -129,24 +130,12 @@ export function EmbedModal({ open, onClose, shortUrl, title, artist, artworkUrl,
         </div>
 
         {/* Size Tabs */}
-        <div className="mx-6 mb-4 flex gap-1 bg-white/[0.04] rounded-[10px] p-1">
-          {sizes.map(({ key, label }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setSize(key)}
-              className={cn(
-                "flex-1 py-2 px-3 rounded-lg text-[13px] font-semibold text-center transition-all duration-150",
-                "border-none font-[var(--font-sans)]",
-                key === size
-                  ? "bg-white/[0.10] text-text-primary"
-                  : "text-text-secondary hover:text-text-primary",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          className="mx-6 mb-4"
+          segments={sizes}
+          value={size}
+          onChange={setSize}
+        />
 
         {/* Preview Area */}
         <div className="px-6 pb-4">
