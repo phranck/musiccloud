@@ -65,18 +65,8 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
             : "bg-success/20 text-success",
         )}
         style={state === "idle" ? {
-          ...embossedStyle,
-          borderTop: "1px solid rgba(255,255,255,0.25)",
-          borderLeft: "1px solid rgba(255,255,255,0.15)",
-          borderBottom: "1px solid rgba(0,0,0,0.5)",
-          borderRight: "1px solid rgba(0,0,0,0.4)",
           boxShadow: "2px 2px 8px rgba(0,0,0,0.5), -1px -1px 4px rgba(255,255,255,0.05)",
         } : {
-          ...embossedStyle,
-          borderTop: "1px solid rgba(48,209,88,0.3)",
-          borderLeft: "1px solid rgba(48,209,88,0.2)",
-          borderBottom: "1px solid rgba(0,0,0,0.35)",
-          borderRight: "1px solid rgba(0,0,0,0.3)",
           boxShadow: "2px 2px 6px rgba(0,0,0,0.4), -2px -2px 6px rgba(48,209,88,0.05)",
         }}
       >
