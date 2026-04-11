@@ -65,8 +65,8 @@ export function PlaybackButton({
           <filter id="icon-inset">
             <feFlood floodColor="black" floodOpacity="0.7" />
             <feComposite operator="out" in2="SourceGraphic" />
-            <feMorphology operator="dilate" radius="1" />
-            <feGaussianBlur stdDeviation="1.5" />
+            <feMorphology operator="dilate" radius="0.5" />
+            <feGaussianBlur stdDeviation="0.8" />
             <feOffset dx="1" dy="1" />
             <feComposite operator="atop" in2="SourceGraphic" />
           </filter>
