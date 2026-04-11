@@ -13,7 +13,7 @@ interface PageHeaderProps {
  */
 export function PageHeader({ showInfoButton = false, onInfoClick }: PageHeaderProps) {
   return (
-    <div className="fixed top-4 right-4 z-40 flex items-center gap-1">
+    <div className="fixed top-4 right-4 z-40 hidden sm:flex items-center gap-1">
       <LanguageSwitcher />
       {showInfoButton && onInfoClick && <InfoButton onClick={onInfoClick} />}
     </div>

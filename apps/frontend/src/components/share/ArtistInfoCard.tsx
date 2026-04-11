@@ -60,7 +60,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
       : false;
 
   return (
-    <EmbossedCard className="w-full rounded-2xl sm:rounded-[36px] p-0">
+    <EmbossedCard className="w-full rounded-3xl sm:rounded-[36px] p-0">
       <div className="relative">
         {onClose && (
           <button
@@ -76,8 +76,8 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         )}
 
         {/* 1. Artist Profile */}
-        <CollapsibleSection visible={showProfile} sectionClass="px-5 pt-5 pb-3">
-          <RecessedCard className="rounded-2xl p-4">
+        <CollapsibleSection visible={showProfile} sectionClass="px-3 sm:px-5 pt-3 sm:pt-5 pb-3">
+          <RecessedCard className="rounded-xl sm:rounded-2xl p-4">
             <CrossFade
               contentReady={contentReady}
               skeleton={<ProfileSkeleton />}
@@ -95,8 +95,8 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         </CollapsibleSection>
 
         {/* 2. Popular Tracks */}
-        <CollapsibleSection visible={showTracks} sectionClass="px-5 py-3">
-          <RecessedCard className="rounded-2xl p-4">
+        <CollapsibleSection visible={showTracks} sectionClass="px-3 sm:px-5 py-3">
+          <RecessedCard className="rounded-xl sm:rounded-2xl p-4">
             <CrossFade
               contentReady={contentReady}
               skeleton={<TracksSkeleton />}
@@ -106,8 +106,8 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         </CollapsibleSection>
 
         {/* 3. Tour Dates */}
-        <CollapsibleSection visible={showEvents} sectionClass="px-5 py-3">
-          <RecessedCard className="rounded-2xl p-4">
+        <CollapsibleSection visible={showEvents} sectionClass="px-3 sm:px-5 py-3">
+          <RecessedCard className="rounded-xl sm:rounded-2xl p-4">
             <CrossFade
               contentReady={contentReady}
               skeleton={<EventsSkeleton />}
@@ -127,8 +127,8 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         </CollapsibleSection>
 
         {/* 4. Similar Artists */}
-        <CollapsibleSection visible={showSimilar} sectionClass="px-5 pt-3 pb-5">
-          <RecessedCard className="rounded-2xl p-4">
+        <CollapsibleSection visible={showSimilar} sectionClass="px-3 sm:px-5 pt-3 pb-3 sm:pb-5">
+          <RecessedCard className="rounded-xl sm:rounded-2xl p-4">
             <CrossFade
               contentReady={contentReady}
               skeleton={<SimilarArtistsSkeleton />}
@@ -450,30 +450,32 @@ function EventsSection({
         {events.map((event) => {
           const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
           return (
-            <li key={`${event.date}-${event.venueName || event.city}`} className="flex items-center gap-3">
-              <div className="min-w-0 flex-1">
-                <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
-                  {formatEventDate(event.date, locale)}
-                  {isLocal && " ★"}
-                </p>
-                <p className="text-base text-text-primary truncate">
-                  {event.venueName}
-                  <span className="text-text-secondary">
-                    {" · "}
-                    {event.city}, {event.country}
-                  </span>
-                </p>
+            <li key={`${event.date}-${event.venueName || event.city}`}>
+              <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
+                    {formatEventDate(event.date, locale)}
+                    {isLocal && " ★"}
+                  </p>
+                  <p className="text-base text-text-primary break-words">
+                    {event.venueName}
+                    <span className="text-text-secondary">
+                      {" · "}
+                      {event.city}, {event.country}
+                    </span>
+                  </p>
+                </div>
+                {event.ticketUrl && (
+                  <a
+                    href={event.ticketUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-none text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.10] text-text-secondary hover:text-text-primary hover:bg-white/[0.10] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                  >
+                    {t("artist.tickets")} →
+                  </a>
+                )}
               </div>
-              {event.ticketUrl && (
-                <a
-                  href={event.ticketUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-none text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.10] text-text-secondary hover:text-text-primary hover:bg-white/[0.10] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-                >
-                  {t("artist.tickets")} →
-                </a>
-              )}
             </li>
           );
         })}

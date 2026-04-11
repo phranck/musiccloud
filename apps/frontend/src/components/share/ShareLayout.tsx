@@ -21,6 +21,8 @@ function artistReducer(_: ArtistState, action: ArtistAction): ArtistState {
 
 import { ArtistInfoCard } from "@/components/share/ArtistInfoCard";
 import { SharePageCard } from "@/components/share/SharePageCard";
+import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { cn } from "@/lib/utils";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { LocaleProvider, useT } from "@/i18n/context";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
@@ -189,10 +191,11 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
       <div className="block sm:hidden">
         <SharePageCard config={enrichedConfig} animated={animated} />
         <div className="mt-3 flex justify-center">
-          <button
+          <EmbossedButton
+            as="button"
             type="button"
             onClick={openSheet}
-            className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--border)] bg-[var(--card)] text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm text-text-primary"
           >
             <svg
               width="15"
@@ -207,24 +210,53 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
               <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
             </svg>
             {t("artist.mobileButton")}
-          </button>
+          </EmbossedButton>
         </div>
       </div>
 
       {/* Bottom Sheet (mobile) */}
-      {sheetOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeSheet} aria-hidden="true" />
-          <div className="relative z-10 rounded-t-3xl bg-[var(--background)] shadow-2xl max-h-[85dvh] overflow-y-auto">
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-[var(--border)]" />
-            </div>
-            <div className="px-4 pb-8 pt-2">
-              <ArtistInfoCard data={artistData} isLoading={isLoading} userRegion={userRegion} onClose={closeSheet} />
-            </div>
+      <div
+        className={cn(
+          "fixed inset-0 z-50 flex flex-col justify-end",
+          sheetOpen ? "pointer-events-auto" : "pointer-events-none",
+        )}
+      >
+        <div
+          className={cn(
+            "absolute inset-0 transition-all duration-300",
+            sheetOpen ? "bg-black/70 backdrop-blur-lg" : "bg-black/0 backdrop-blur-none",
+          )}
+          onClick={closeSheet}
+          aria-hidden="true"
+        />
+        <div
+          className={cn(
+            "relative z-10 rounded-t-[36px] bg-surface-elevated shadow-2xl max-h-[85dvh] flex flex-col",
+            "transition-transform duration-300 ease-out",
+            sheetOpen ? "translate-y-0" : "translate-y-full",
+          )}
+        >
+          {/* Fixed header with handle and close button */}
+          <div className="flex items-center justify-between px-5 pt-3 pb-2 flex-shrink-0">
+            <div className="w-8" />
+            <div className="w-10 h-1 rounded-full bg-[var(--border)]" />
+            <button
+              type="button"
+              onClick={closeSheet}
+              className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-colors"
+              aria-label={t("artist.closeInfo")}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M12 4 4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          {/* Scrollable content */}
+          <div className="overflow-y-auto px-3 pb-8">
+            <ArtistInfoCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

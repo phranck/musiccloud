@@ -143,7 +143,7 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
 
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden="true">
-      <div className="absolute inset-0 animate-starfield-rotate" style={{ transformOrigin: "50vw 50dvh" }}>
+      <div className="absolute inset-0 animate-starfield-rotate hidden sm:block" style={{ transformOrigin: "50vw 50dvh" }}>
         <div className="absolute w-px h-px top-0 left-0" style={{ boxShadow: starfieldShadow }} />
         <div className="absolute w-px h-px top-0 left-0" style={{ boxShadow: orionShadow }} />
         <div className="absolute w-px h-px top-0 left-0" style={{ boxShadow: canisMajorShadow }} />

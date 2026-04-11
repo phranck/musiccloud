@@ -10,7 +10,7 @@ export const embossedStyle: React.CSSProperties = {
 };
 
 const baseClasses = [
-  "bg-white/[0.07] px-5 py-2.5 overflow-hidden",
+  "bg-[#242425] px-5 py-2.5 overflow-hidden",
   "transition-all duration-150",
   "hover:bg-white/[0.10] hover:scale-[1.03]",
   "focus-visible:bg-white/[0.10] focus-visible:scale-[1.03]",
