@@ -178,7 +178,7 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
   return (
     <div style={accentStyle}>
       {/* Desktop: beide Cards nebeneinander */}
-      <div className="hidden sm:flex items-start gap-6 mx-auto" style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}>
+      <div className="hidden min-[1080px]:flex items-start gap-6 mx-auto" style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}>
         <div style={{ width: `${MEDIA_W}px`, flexShrink: 0 }}>
           <SharePageCard config={enrichedConfig} animated={animated} />
         </div>
@@ -188,7 +188,7 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
       </div>
 
       {/* Mobile: nur MediaCard + Button für BottomSheet */}
-      <div className="block sm:hidden">
+      <div className="block min-[1080px]:hidden">
         <SharePageCard config={enrichedConfig} animated={animated} />
         <div className="mt-3 flex justify-center">
           <EmbossedButton
