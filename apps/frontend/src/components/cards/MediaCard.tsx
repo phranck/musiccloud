@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
+import { useState } from "react";
 import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -8,8 +8,8 @@ import { PlatformButton } from "@/components/platform/PlatformButton";
 import { EmbedModal } from "@/components/share/EmbedModal";
 import { ShareButton } from "@/components/share/ShareButton";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { useT } from "@/i18n/context";
+import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
 
 export type {
@@ -116,7 +116,9 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
 
       {content.platforms.length > 0 && (
         <div className="px-5 pt-3 pb-5">
-          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3 px-(--spacing-card-inset)">{content.platformsLabel}</p>
+          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3 px-(--spacing-card-inset)">
+            {content.platformsLabel}
+          </p>
           <RecessedCard className="rounded-2xl p-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[...content.platforms]

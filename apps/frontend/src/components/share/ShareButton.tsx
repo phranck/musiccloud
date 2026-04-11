@@ -57,16 +57,17 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
         aria-label={t("share.copyLink")}
         className={cn(
           "flex-1 flex items-center justify-center gap-2",
-          "rounded-lg font-semibold text-[15px] tracking-[-0.01em]",
+          "rounded-lg font-bold text-[15px] tracking-[-0.01em]",
           "min-h-[50px]",
           "shadow-sm",
           state === "idle"
-            ? "bg-accent text-[var(--color-accent-contrast)] hover:bg-accent-hover"
+            ? "bg-accent hover:bg-accent-hover"
             : "bg-success/20 text-success",
         )}
         style={
           state === "idle"
             ? {
+                color: "var(--color-accent-contrast)",
                 boxShadow: "3px 3px 10px rgba(0,0,0,0.6), -2px -2px 6px rgba(255,255,255,0.10)",
               }
             : {

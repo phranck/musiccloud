@@ -63,7 +63,9 @@ export const SongInfo = memo(function SongInfo({
       </div>
 
       <div className="px-5 pt-5 pb-4">
-        <h2 className="text-xl md:text-2xl font-semibold tracking-[-0.02em] text-text-primary">{title}</h2>
+        <h2 className="text-xl md:text-2xl font-semibold tracking-[-0.02em] text-text-primary">
+          {title}
+        </h2>
         <p className="text-base text-text-secondary mt-1">{artist}</p>
         {album ? (
           <div className="flex items-baseline justify-between gap-3 mt-1">

@@ -79,7 +79,7 @@ export function extractAccent(r: number, g: number, b: number): DynamicAccent | 
     base: toHex(ar, ag, ab),
     hover: toHex(hr, hg, hb),
     glow: `rgba(${ar}, ${ag}, ${ab}, 0.25)`,
-    contrastText: brightness > 0.55 ? "#000000" : "#ffffff",
+    contrastText: brightness > 0.6 ? "#000000" : "#ffffff",
   };
 }
 
