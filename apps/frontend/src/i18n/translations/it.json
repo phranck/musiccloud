@@ -19,7 +19,7 @@
   "results.foundArtist": "Artista {name} trovato",
   "results.found": "{title} di {artist} trovato",
   "share.copyLink": "Copia link di condivisione",
-  "share.shareLink": "Condividi link",
+  "share.shareLink": "Copia link",
   "share.copied": "Copiato!",
   "share.createYourOwn": "Crea il tuo link su musiccloud",
   "share.explicit": "Esplicito",
