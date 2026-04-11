@@ -17,7 +17,7 @@ interface RecessedCardProps {
 export function RecessedCard({ children, className, style }: RecessedCardProps) {
   return (
     <div
-      className={cn("bg-black/20 p-4 overflow-hidden", className)}
+      className={cn("bg-black/20 backdrop-blur-md p-4 overflow-hidden", className)}
       style={{
         boxShadow: "inset 1px 1px 4px rgba(0,0,0,0.25), inset -1px -1px 4px rgba(255,255,255,0.02)",
         borderTop: "1px solid rgba(0,0,0,0.25)",

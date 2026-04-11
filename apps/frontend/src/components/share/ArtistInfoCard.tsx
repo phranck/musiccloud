@@ -1,7 +1,7 @@
 /**
  * ArtistInfoCard – displays popular tracks, artist profile, and tour dates.
  * Pure display component; data is fetched by the parent (ShareLayout).
- * Visually matches MediaCard: EmbossedCard, same tokens, same dividers.
+ * Visually matches MediaCard: EmbossedCard with RecessedCard sections.
  */
 
 import type { ArtistEvent, ArtistInfoResponse, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaCircleInfo } from "react-icons/fa6";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { RecessedCard } from "@/components/cards/RecessedCard";
 import { useLocale, useT } from "@/i18n/context";
 import { cn } from "@/lib/utils";
 
@@ -75,61 +76,69 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         )}
 
         {/* 1. Artist Profile */}
-        <CollapsibleSection visible={showProfile} innerClass="px-6 pt-6 pb-3">
-          <CrossFade
-            contentReady={contentReady}
-            skeleton={<ProfileSkeleton />}
-            content={
-              data?.profile ? (
-                <>
-                  <ProfileSection profile={data.profile} t={t} />
-                  {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
-                  <p className="mt-4 text-xs text-text-muted text-center">{t("artist.profileProvidedBy")}</p>
-                </>
-              ) : null
-            }
-          />
+        <CollapsibleSection visible={showProfile} sectionClass="px-5 pt-5 pb-3">
+          <RecessedCard className="rounded-2xl p-4">
+            <CrossFade
+              contentReady={contentReady}
+              skeleton={<ProfileSkeleton />}
+              content={
+                data?.profile ? (
+                  <>
+                    <ProfileSection profile={data.profile} t={t} />
+                    {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
+                    <p className="mt-4 text-xs text-text-muted text-center">{t("artist.profileProvidedBy")}</p>
+                  </>
+                ) : null
+              }
+            />
+          </RecessedCard>
         </CollapsibleSection>
 
         {/* 2. Popular Tracks */}
-        <CollapsibleSection visible={showTracks} withBorder>
-          <CrossFade
-            contentReady={contentReady}
-            skeleton={<TracksSkeleton />}
-            content={data && data.topTracks.length > 0 ? <TopTracksSection tracks={data.topTracks} t={t} /> : null}
-          />
+        <CollapsibleSection visible={showTracks} sectionClass="px-5 py-3">
+          <RecessedCard className="rounded-2xl p-4">
+            <CrossFade
+              contentReady={contentReady}
+              skeleton={<TracksSkeleton />}
+              content={data && data.topTracks.length > 0 ? <TopTracksSection tracks={data.topTracks} t={t} /> : null}
+            />
+          </RecessedCard>
         </CollapsibleSection>
 
         {/* 3. Tour Dates */}
-        <CollapsibleSection visible={showEvents} withBorder innerClass="px-6 pt-5 pb-3">
-          <CrossFade
-            contentReady={contentReady}
-            skeleton={<EventsSkeleton />}
-            content={
-              data && data.events.length > 0 ? (
-                <EventsSection
-                  events={data.events}
-                  userRegion={userRegion}
-                  hasLocalEvents={hasLocalEvents}
-                  t={t}
-                  locale={locale}
-                />
-              ) : null
-            }
-          />
+        <CollapsibleSection visible={showEvents} sectionClass="px-5 py-3">
+          <RecessedCard className="rounded-2xl p-4">
+            <CrossFade
+              contentReady={contentReady}
+              skeleton={<EventsSkeleton />}
+              content={
+                data && data.events.length > 0 ? (
+                  <EventsSection
+                    events={data.events}
+                    userRegion={userRegion}
+                    hasLocalEvents={hasLocalEvents}
+                    t={t}
+                    locale={locale}
+                  />
+                ) : null
+              }
+            />
+          </RecessedCard>
         </CollapsibleSection>
 
         {/* 4. Similar Artists */}
-        <CollapsibleSection visible={showSimilar} withBorder>
-          <CrossFade
-            contentReady={contentReady}
-            skeleton={<SimilarArtistsSkeleton />}
-            content={
-              data?.profile && data.profile.similarArtists.length > 0 ? (
-                <SimilarArtistsSection similarArtists={data.profile.similarArtists} t={t} />
-              ) : null
-            }
-          />
+        <CollapsibleSection visible={showSimilar} sectionClass="px-5 pt-3 pb-5">
+          <RecessedCard className="rounded-2xl p-4">
+            <CrossFade
+              contentReady={contentReady}
+              skeleton={<SimilarArtistsSkeleton />}
+              content={
+                data?.profile && data.profile.similarArtists.length > 0 ? (
+                  <SimilarArtistsSection similarArtists={data.profile.similarArtists} t={t} />
+                ) : null
+              }
+            />
+          </RecessedCard>
         </CollapsibleSection>
       </div>
     </EmbossedCard>
@@ -144,13 +153,11 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
  */
 function CollapsibleSection({
   visible,
-  withBorder = false,
-  innerClass,
+  sectionClass,
   children,
 }: {
   visible: boolean;
-  withBorder?: boolean;
-  innerClass?: string;
+  sectionClass?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -160,9 +167,8 @@ function CollapsibleSection({
         visible ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
       )}
     >
-      {/* overflow-hidden is required for the grid-rows collapse to clip content */}
       <div className="overflow-hidden">
-        <div className={cn(withBorder && "border-t border-white/[0.12]", "px-6 pt-5 pb-6", innerClass)}>{children}</div>
+        <div className={cn("px-5 py-3", sectionClass)}>{children}</div>
       </div>
     </div>
   );
