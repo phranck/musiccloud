@@ -60,9 +60,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
           "rounded-lg font-bold text-[15px] tracking-[-0.01em]",
           "min-h-[50px]",
           "shadow-sm",
-          state === "idle"
-            ? "bg-accent hover:bg-accent-hover"
-            : "bg-success/20 text-success",
+          state === "idle" ? "bg-accent hover:bg-accent-hover" : "bg-success/20 text-success",
         )}
         style={
           state === "idle"

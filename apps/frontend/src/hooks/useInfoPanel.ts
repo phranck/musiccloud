@@ -75,10 +75,11 @@ export function useInfoPanel(
     setContentHeight(null);
     setIsLoading(true);
 
+    const controller = new AbortController();
     const fetchMd = async (file: string): Promise<string> => {
-      const r = await fetch(`/content/${locale}/${file}`);
+      const r = await fetch(`/content/${locale}/${file}`, { signal: controller.signal });
       if (r.ok) return r.text();
-      const fallback = await fetch(`/content/en/${file}`);
+      const fallback = await fetch(`/content/en/${file}`, { signal: controller.signal });
       return fallback.text();
     };
 
@@ -107,6 +108,7 @@ export function useInfoPanel(
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [isOpen, locale, t]);
 

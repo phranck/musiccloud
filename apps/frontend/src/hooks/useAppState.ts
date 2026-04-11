@@ -52,7 +52,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
     dispatch({ type: "SUBMIT" });
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20000);
+      const timeout = setTimeout(() => controller.abort(), 15000);
       const response = await fetch("/api/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,7 +87,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
     dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20000);
+      const timeout = setTimeout(() => controller.abort(), 15000);
       const response = await fetch("/api/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

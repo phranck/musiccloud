@@ -22,10 +22,10 @@ function artistReducer(_: ArtistState, action: ArtistAction): ArtistState {
 import { ArtistInfoCard } from "@/components/share/ArtistInfoCard";
 import { SharePageCard } from "@/components/share/SharePageCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { cn } from "@/lib/utils";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { LocaleProvider, useT } from "@/i18n/context";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
+import { cn } from "@/lib/utils";
 
 // Convert hex color to RGB string (e.g. "#FF5733" -> "255 87 51")
 function hexToRgb(hex: string): string {
@@ -150,25 +150,26 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
     [config, handleAlbumArtLoad],
   );
 
-  // Fetch artist data after a short delay so the share card renders first
+  // Fetch artist data immediately (SSR already rendered the share card)
   useEffect(() => {
     let cancelled = false;
     dispatch({ type: "loading" });
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams({ name: artistName });
-      if (userRegion) params.set("region", userRegion);
-      fetch(`/api/artist-info?${params.toString()}`)
-        .then((res) => (res.ok ? (res.json() as Promise<ArtistInfoResponse>) : null))
-        .then((data) => {
-          if (!cancelled) dispatch({ type: "done", data });
-        })
-        .catch(() => {
-          if (!cancelled) dispatch({ type: "done", data: null });
-        });
-    }, 1500);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const params = new URLSearchParams({ name: artistName });
+    if (userRegion) params.set("region", userRegion);
+    fetch(`/api/artist-info?${params.toString()}`, { signal: controller.signal })
+      .then((res) => (res.ok ? (res.json() as Promise<ArtistInfoResponse>) : null))
+      .then((data) => {
+        if (!cancelled) dispatch({ type: "done", data });
+      })
+      .catch(() => {
+        if (!cancelled) dispatch({ type: "done", data: null });
+      })
+      .finally(() => clearTimeout(timeout));
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      controller.abort();
     };
   }, [artistName, userRegion]);
 
@@ -178,7 +179,10 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
   return (
     <div style={accentStyle}>
       {/* Desktop: beide Cards nebeneinander */}
-      <div className="hidden min-[1080px]:flex items-start gap-6 mx-auto" style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}>
+      <div
+        className="hidden min-[1080px]:flex items-start gap-6 mx-auto"
+        style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}
+      >
         <div style={{ width: `${MEDIA_W}px`, flexShrink: 0 }}>
           <SharePageCard config={enrichedConfig} animated={animated} />
         </div>

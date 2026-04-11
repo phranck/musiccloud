@@ -11,7 +11,7 @@
  * To make this work, we measure the container width and pass it to the SVG.
  */
 
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const colors = [
   [0, "#FF6699"],
@@ -49,9 +49,17 @@ function MusicNote({ containerRef }: { containerRef: React.RefObject<HTMLSpanEle
       setGradCoords({ x1: -offsetX, x2: totalWidth - offsetX });
     };
 
+    let rafId: number;
+    const throttledUpdate = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(update);
+    };
     document.fonts.ready.then(update);
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    window.addEventListener("resize", throttledUpdate);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", throttledUpdate);
+    };
   }, [containerRef]);
 
   return (

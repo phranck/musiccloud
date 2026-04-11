@@ -44,15 +44,29 @@
   }
 }
 
-/* Utility: input focus glow pulse - subtle */
+/* Utility: input focus glow pulse - GPU-accelerated via opacity */
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 15px rgba(40, 168, 216, 0.15);
+    opacity: 0.5;
   }
   50% {
-    box-shadow: 0 0 30px rgba(40, 168, 216, 0.3);
+    opacity: 1;
   }
+}
+
+/* Glow layer for pulse-glow: parent must be position:relative */
+.animate-pulse-glow {
+  position: relative;
+}
+.animate-pulse-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 30px rgba(40, 168, 216, 0.3);
+  animation: pulse-glow 2.5s ease-in-out infinite;
+  pointer-events: none;
 }
 
 /* Card entrance - zoom from behind with fade */
@@ -135,50 +149,6 @@
   }
 }
 
-/* Cosmic glow - subtle wavering glow with slow rainbow drift */
-@keyframes cosmic-glow {
-  0% {
-    box-shadow:
-      0 0 20px rgba(40, 168, 216, 0.12),
-      0 0 50px rgba(40, 168, 216, 0.06);
-  }
-  16% {
-    box-shadow:
-      0 0 25px rgba(80, 140, 220, 0.14),
-      0 0 55px rgba(100, 120, 210, 0.07),
-      -10px 0 40px rgba(140, 100, 200, 0.05);
-  }
-  33% {
-    box-shadow:
-      0 0 18px rgba(160, 100, 190, 0.11),
-      0 0 45px rgba(180, 90, 170, 0.06),
-      10px 0 35px rgba(200, 100, 150, 0.04);
-  }
-  50% {
-    box-shadow:
-      0 0 22px rgba(210, 140, 120, 0.12),
-      0 0 50px rgba(212, 168, 67, 0.07),
-      -8px 0 40px rgba(200, 180, 80, 0.05);
-  }
-  66% {
-    box-shadow:
-      0 0 18px rgba(120, 200, 100, 0.10),
-      0 0 45px rgba(80, 190, 140, 0.06),
-      8px 0 35px rgba(60, 180, 180, 0.04);
-  }
-  83% {
-    box-shadow:
-      0 0 24px rgba(50, 170, 200, 0.13),
-      0 0 55px rgba(40, 160, 210, 0.07),
-      -6px 0 40px rgba(60, 140, 220, 0.05);
-  }
-  100% {
-    box-shadow:
-      0 0 20px rgba(40, 168, 216, 0.12),
-      0 0 50px rgba(40, 168, 216, 0.06);
-  }
-}
-
 /* Starfield slow rotation - pivoting at bottom center */
 @keyframes starfield-rotate {
   from {
@@ -212,10 +182,7 @@
   .animate-starfield-rotate {
     animation: none !important;
   }
-  .animate-cosmic-glow {
-    animation: none !important;
-  }
-  .animate-pulse-glow {
+  .animate-pulse-glow::after {
     animation: none !important;
   }
 }

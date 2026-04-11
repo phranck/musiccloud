@@ -4,7 +4,13 @@
  * Visually matches MediaCard: EmbossedCard with RecessedCard sections.
  */
 
-import type { ArtistEvent, ArtistInfoResponse, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
+import type {
+  ArtistEvent,
+  ArtistInfoResponse,
+  ArtistProfile,
+  ArtistTopTrack,
+  SimilarArtistTrack,
+} from "@musiccloud/shared";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaCircleInfo } from "react-icons/fa6";
@@ -49,7 +55,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
   const showProfile = isLoading || !!data?.profile;
   const showTracks = isLoading || (data?.topTracks.length ?? 0) > 0;
   const showEvents = isLoading || (data?.events.length ?? 0) > 0;
-  const showSimilar = isLoading || (data?.profile?.similarArtists.length ?? 0) > 0;
+  const showSimilar = isLoading || (data?.similarArtistTracks?.length ?? 0) > 0;
 
   // All sections empty after load → nothing to render
   if (!isLoading && !showProfile && !showTracks && !showEvents && !showSimilar) return null;
@@ -133,8 +139,8 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
               contentReady={contentReady}
               skeleton={<SimilarArtistsSkeleton />}
               content={
-                data?.profile && data.profile.similarArtists.length > 0 ? (
-                  <SimilarArtistsSection similarArtists={data.profile.similarArtists} t={t} />
+                data?.similarArtistTracks && data.similarArtistTracks.length > 0 ? (
+                  <SimilarArtistsSection similarArtistTracks={data.similarArtistTracks} t={t} />
                 ) : null
               }
             />
@@ -488,79 +494,29 @@ function EventsSection({
 // ─── Similar Artists Section ──────────────────────────────────────────────────
 
 function SimilarArtistsSection({
-  similarArtists,
+  similarArtistTracks,
   t,
 }: {
-  similarArtists: string[];
+  similarArtistTracks: SimilarArtistTrack[];
   t: (key: string, vars?: Record<string, string>) => string;
 }) {
-  const first3 = similarArtists.slice(0, 3);
   return (
     <div>
       <SectionHeading>{t("artist.similarArtists")}</SectionHeading>
       <ul className="divide-y divide-white/[0.06]">
-        {first3.map((name) => (
-          <li key={name} className="py-3 first:pt-0 last:pb-0">
-            <SimilarArtistTopTrack artistName={name} t={t} />
+        {similarArtistTracks.map(({ artistName, track }) => (
+          <li key={artistName} className="py-3 first:pt-0 last:pb-0">
+            {track ? (
+              <div>
+                <p className="text-sm text-text-primary mb-1.5">{artistName}</p>
+                <PopularTrack track={track} t={t} />
+              </div>
+            ) : (
+              <p className="text-sm text-text-primary">{artistName}</p>
+            )}
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function SimilarArtistTopTrack({
-  artistName,
-  t,
-}: {
-  artistName: string;
-  t: (key: string, vars?: Record<string, string>) => string;
-}) {
-  const [{ isLoading, track }, setState] = useState<{ isLoading: boolean; track: ArtistTopTrack | null }>({
-    isLoading: true,
-    track: null,
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    const params = new URLSearchParams({ name: artistName });
-    fetch(`/api/artist-info?${params.toString()}`)
-      .then((res) => (res.ok ? (res.json() as Promise<ArtistInfoResponse>) : null))
-      .then((data) => {
-        if (!cancelled) setState({ isLoading: false, track: data?.topTracks[0] ?? null });
-      })
-      .catch(() => {
-        if (!cancelled) setState({ isLoading: false, track: null });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [artistName]);
-
-  if (isLoading) {
-    return (
-      <div className="animate-pulse">
-        <div className="h-3 bg-white/[0.08] rounded w-1/4 mb-2" />
-        <div className="flex gap-3 items-center">
-          <div className="w-12 h-12 rounded-lg bg-white/[0.08] flex-none" />
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 bg-white/[0.08] rounded w-4/5" />
-            <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
-          </div>
-          <div className="h-7 w-16 rounded-lg bg-white/[0.08] flex-none" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!track) {
-    return <p className="text-sm text-text-primary">{artistName}</p>;
-  }
-
-  return (
-    <div>
-      <p className="text-sm text-text-primary mb-1.5">{artistName}</p>
-      <PopularTrack track={track} t={t} />
     </div>
   );
 }

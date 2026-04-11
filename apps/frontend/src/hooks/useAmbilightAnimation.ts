@@ -40,7 +40,7 @@ export function useAmbilightAnimation(ref: RefObject<HTMLDivElement | null>): vo
     let raf: number;
     const startTime = performance.now();
     const { hues, speeds, widths, alphas } = waveSeeds;
-    const STEPS = 72;
+    const STEPS = 36;
     const DEG_STEP = 360 / STEPS;
 
     function animate(now: number) {

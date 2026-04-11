@@ -143,9 +143,15 @@ export interface ArtistEvent {
   source: "bandsintown" | "ticketmaster";
 }
 
+export interface SimilarArtistTrack {
+  artistName: string;
+  track: ArtistTopTrack | null;
+}
+
 export interface ArtistInfoResponse {
   artistName: string;
   topTracks: ArtistTopTrack[]; // empty if Deezer unavailable
   profile: ArtistProfile | null; // null if Spotify not configured
   events: ArtistEvent[]; // empty if no keys or no upcoming events
+  similarArtistTracks?: SimilarArtistTrack[]; // top track per similar artist
 }

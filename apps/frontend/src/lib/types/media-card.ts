@@ -92,8 +92,6 @@ export function isShareableContent(
 }
 
 /** Type guard: true for share page config (has shortUrl for embed) */
-export function isSharePageContent(
-  content: MediaCardContentConfiguration,
-): content is ShareContentConfiguration {
+export function isSharePageContent(content: MediaCardContentConfiguration): content is ShareContentConfiguration {
   return content.type === "share";
 }

@@ -55,19 +55,14 @@ export async function resolveTrack(
 
 /** Check if website tracking (Umami) is enabled via environment variable. */
 export function isTrackingEnabled(): boolean {
-  const val =
-    (import.meta.env.TRACKING_ENABLED as string | undefined) ?? process.env.TRACKING_ENABLED ?? "true";
+  const val = (import.meta.env.TRACKING_ENABLED as string | undefined) ?? process.env.TRACKING_ENABLED ?? "true";
   return val === "true";
 }
 
 /** Fetch a random short ID from the backend for the landing page example teaser. */
 export async function fetchRandomExample(): Promise<{ shortId: string } | null> {
   try {
-    const res = await fetchWithTimeout(
-      backendUrl("/api/v1/random-example"),
-      { headers: internalHeaders() },
-      3000,
-    );
+    const res = await fetchWithTimeout(backendUrl("/api/v1/random-example"), { headers: internalHeaders() }, 3000);
     if (!res.ok) return null;
     return res.json() as Promise<{ shortId: string }>;
   } catch {

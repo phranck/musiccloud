@@ -1,4 +1,4 @@
-import type { ArtistInfoResponse } from "@musiccloud/shared";
+import type { ArtistInfoResponse, SimilarArtistTrack } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
@@ -90,11 +90,36 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       }),
     );
 
+    // Fetch top track for each similar artist (max 3) in parallel
+    const similarNames = (profile?.similarArtists ?? []).slice(0, 3);
+    const similarArtistTracks: SimilarArtistTrack[] = await Promise.all(
+      similarNames.map(async (name) => {
+        try {
+          const normalizedName = name.toLowerCase();
+          const similarCached = await repo.findArtistCache(normalizedName);
+          let tracks = similarCached?.topTracks ?? [];
+          if (!similarCached || now - similarCached.tracksUpdatedAt > TTL_TRACKS_MS) {
+            tracks = await fetchArtistTopTracks(name);
+            await repo.saveArtistCache({ artistName: normalizedName, topTracks: tracks });
+          }
+          const topTrack = tracks[0] ?? null;
+          if (topTrack) {
+            const shortId = await repo.findShortIdByTrackUrl(topTrack.deezerUrl);
+            return { artistName: name, track: { ...topTrack, shortId } };
+          }
+          return { artistName: name, track: null };
+        } catch {
+          return { artistName: name, track: null };
+        }
+      }),
+    );
+
     const response: ArtistInfoResponse = {
       artistName: rawName,
       topTracks: enrichedTracks,
       profile,
       events: sortedEvents,
+      similarArtistTracks,
     };
 
     return reply.send(response);

@@ -25,7 +25,12 @@ import {
   resolveTextSearchWithDisambiguation,
 } from "../services/resolver.js";
 
-const ALLOWED_ORIGINS = ["https://musiccloud.io", "http://localhost:3000", "http://localhost:4321", "http://localhost:4322"];
+const ALLOWED_ORIGINS = [
+  "https://musiccloud.io",
+  "http://localhost:3000",
+  "http://localhost:4321",
+  "http://localhost:4322",
+];
 
 export default async function resolveRoutes(app: FastifyInstance) {
   app.post("/api/v1/resolve", async (request, reply) => {
