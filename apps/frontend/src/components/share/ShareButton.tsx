@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { EmbossedButton, iconInnerShadow } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
 import { cn } from "@/lib/utils";
 
@@ -101,14 +101,16 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
           type="button"
           onClick={handleNativeShare}
           className="rounded-lg px-4 py-3"
+          hasInnerShadow
           aria-label={songTitle ? t("share.nativeShare", { title: songTitle }) : t("share.shareLink")}
         >
           <svg
-            className="w-5 h-5 text-text-primary"
+            className="w-6 h-6 text-text-primary"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
             strokeWidth={2}
+            style={{ filter: iconInnerShadow }}
           >
             <path
               strokeLinecap="round"
