@@ -1,11 +1,11 @@
 /**
  * PlaybackButton - Tape deck style play/pause button
  *
- * SVG filter creates an inner shadow that follows the icon contours,
- * giving a pressed/recessed look matching the ProgressTrack style.
+ * Uses EmbossedButton with hasInnerShadow for a contour-following
+ * inner shadow on the play/pause icons.
  */
 
-import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { EmbossedButton, iconInnerShadow } from "@/components/ui/EmbossedButton";
 import { cn } from "@/lib/utils";
 
 interface PlaybackButtonProps {
@@ -47,6 +47,7 @@ export function PlaybackButton({
       disabled={disabled}
       aria-label={ariaLabel}
       title={title}
+      hasInnerShadow={!disabled}
       className={cn(
         "relative flex-shrink-0 flex items-center justify-center rounded-lg",
         "px-0 py-0",
@@ -59,18 +60,8 @@ export function PlaybackButton({
         viewBox="0 0 24 24"
         fill={accentColor}
         aria-hidden="true"
-        style={{ filter: disabled ? "none" : "url(#icon-inset)" }}
+        style={{ filter: disabled ? "none" : iconInnerShadow }}
       >
-        <defs>
-          <filter id="icon-inset">
-            <feFlood floodColor="black" floodOpacity="0.7" />
-            <feComposite operator="out" in2="SourceGraphic" />
-            <feMorphology operator="dilate" radius="0.5" />
-            <feGaussianBlur stdDeviation="0.8" />
-            <feOffset dx="1" dy="1" />
-            <feComposite operator="atop" in2="SourceGraphic" />
-          </filter>
-        </defs>
         {isPlaying ? (
           <>
             <rect x="6" y="4" width="4" height="16" rx="1" />
