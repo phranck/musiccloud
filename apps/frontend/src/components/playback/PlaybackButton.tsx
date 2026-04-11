@@ -1,7 +1,8 @@
 /**
  * PlaybackButton - Tape deck style play/pause button
  *
- * Square EmbossedButton with a backlit icon that glows in the accent color.
+ * SVG filter creates an inner shadow that follows the icon contours,
+ * giving a pressed/recessed look matching the ProgressTrack style.
  */
 
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -36,13 +37,7 @@ export function PlaybackButton({
   title,
   size = "medium",
 }: PlaybackButtonProps) {
-  const accentColor = "rgb(var(--color-accent-rgb))";
-  const iconColor = disabled ? "rgba(255,255,255,0.2)" : accentColor;
-  const glowFilter = disabled
-    ? "none"
-    : isPlaying
-      ? `drop-shadow(0 0 6px ${accentColor}) drop-shadow(0 0 12px rgba(var(--color-accent-rgb) / 0.3))`
-      : `drop-shadow(0 0 4px rgba(var(--color-accent-rgb) / 0.3))`;
+  const accentColor = disabled ? "rgba(255,255,255,0.2)" : "rgb(var(--color-accent-rgb))";
 
   return (
     <EmbossedButton
@@ -53,34 +48,38 @@ export function PlaybackButton({
       aria-label={ariaLabel}
       title={title}
       className={cn(
-        "flex-shrink-0 flex items-center justify-center rounded-lg",
+        "relative flex-shrink-0 flex items-center justify-center rounded-lg",
         "px-0 py-0",
         sizeClasses[size],
         disabled && "cursor-not-allowed opacity-50",
       )}
     >
-      {isPlaying ? (
-        <svg
-          className={iconSizes[size]}
-          viewBox="0 0 24 24"
-          fill={iconColor}
-          aria-hidden="true"
-          style={{ filter: glowFilter }}
-        >
-          <rect x="6" y="4" width="4" height="16" rx="1" />
-          <rect x="14" y="4" width="4" height="16" rx="1" />
-        </svg>
-      ) : (
-        <svg
-          className={cn(iconSizes[size], "-translate-x-[1px]")}
-          viewBox="0 0 24 24"
-          fill={iconColor}
-          aria-hidden="true"
-          style={{ filter: glowFilter }}
-        >
+      <svg
+        className={cn(iconSizes[size], !isPlaying && "-translate-x-[1px]")}
+        viewBox="0 0 24 24"
+        fill={accentColor}
+        aria-hidden="true"
+        style={{ filter: disabled ? "none" : "url(#icon-inset)" }}
+      >
+        <defs>
+          <filter id="icon-inset">
+            <feFlood floodColor="black" floodOpacity="0.7" />
+            <feComposite operator="out" in2="SourceGraphic" />
+            <feMorphology operator="dilate" radius="1" />
+            <feGaussianBlur stdDeviation="1.5" />
+            <feOffset dx="1" dy="1" />
+            <feComposite operator="atop" in2="SourceGraphic" />
+          </filter>
+        </defs>
+        {isPlaying ? (
+          <>
+            <rect x="6" y="4" width="4" height="16" rx="1" />
+            <rect x="14" y="4" width="4" height="16" rx="1" />
+          </>
+        ) : (
           <path d="M8 5.14v14l11-7-11-7z" />
-        </svg>
-      )}
+        )}
+      </svg>
     </EmbossedButton>
   );
 }

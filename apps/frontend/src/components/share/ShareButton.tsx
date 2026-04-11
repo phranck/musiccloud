@@ -67,10 +67,10 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
         style={
           state === "idle"
             ? {
-                boxShadow: "2px 2px 8px rgba(0,0,0,0.5), -1px -1px 4px rgba(255,255,255,0.05)",
+                boxShadow: "3px 3px 10px rgba(0,0,0,0.6), -2px -2px 6px rgba(255,255,255,0.10)",
               }
             : {
-                boxShadow: "2px 2px 6px rgba(0,0,0,0.4), -2px -2px 6px rgba(48,209,88,0.05)",
+                boxShadow: "3px 3px 10px rgba(0,0,0,0.6), -2px -2px 6px rgba(48,209,88,0.10)",
               }
         }
       >
