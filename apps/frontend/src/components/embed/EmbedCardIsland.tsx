@@ -59,7 +59,7 @@ export function EmbedCardIsland({
           artworkUrl={artworkUrl}
           shortUrl={shortUrl}
           metaLine={metaLine}
-          platforms={sorted}
+          platforms={sorted.slice(0, 6)}
         />
       );
   }
@@ -131,26 +131,26 @@ function EmbedRegular({
   platforms: PlatformLink[];
 }) {
   return (
-    <div className="w-[400px] bg-surface-elevated border border-white/[0.08] rounded-xl shadow-lg overflow-hidden">
+    <div className="w-[320px] bg-surface-elevated border border-white/[0.08] rounded-xl shadow-lg overflow-hidden">
       <div className="w-full aspect-square overflow-hidden">
         <a href={shortUrl} target="_blank" rel="noopener noreferrer">
           <img className="w-full h-full object-cover" src={artworkUrl} alt={title} />
         </a>
       </div>
-      <div className="p-4 flex flex-col gap-2.5">
+      <div className="p-3.5 flex flex-col gap-2">
         <div>
           <a
             href={shortUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-base font-semibold text-text-primary truncate block no-underline"
+            className="text-[15px] font-semibold text-text-primary truncate block no-underline"
           >
             {title}
           </a>
           <p className="text-[13px] text-text-secondary">{artist}</p>
           {metaLine && <p className="text-xs text-text-muted font-mono">{metaLine}</p>}
         </div>
-        <RecessedCard className="rounded-lg p-2">
+        <RecessedCard className="rounded-lg p-1.5">
           <div className="flex justify-between flex-wrap">
             {platforms.map((p) => (
               <a

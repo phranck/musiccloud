@@ -1,5 +1,5 @@
 import { compareByDisplayOrder } from "@musiccloud/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -224,13 +224,16 @@ function EmbedPreviewArea({
   const contentRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState<number | undefined>(undefined);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: must re-measure on every render after size change
-  useEffect(() => {
-    if (!contentRef.current) return;
-    const activeChild = contentRef.current.querySelector("[data-active='true']") as HTMLElement | null;
-    if (activeChild) {
-      setHeight(activeChild.offsetHeight);
-    }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: must re-measure after size change
+  useLayoutEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      if (!contentRef.current) return;
+      const activeChild = contentRef.current.querySelector("[data-active='true']") as HTMLElement | null;
+      if (activeChild) {
+        setHeight(activeChild.offsetHeight);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [size]);
 
   // padding-top + padding-bottom of the RecessedCard (p-6 = 24px each)
