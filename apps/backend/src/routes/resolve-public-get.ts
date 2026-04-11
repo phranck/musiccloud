@@ -11,7 +11,7 @@ import { deezerAdapter } from "../services/adapters/deezer.js";
 import type { ResolutionResult } from "../services/resolver.js";
 import { resolveQuery, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
 
-const ALLOWED_ORIGINS = ["https://musiccloud.io", "http://localhost:4321", "http://localhost:4322"];
+const ALLOWED_ORIGINS = ["https://musiccloud.io", "http://localhost:3000", "http://localhost:4321", "http://localhost:4322"];
 
 /**
  * Public GET endpoint: /api/v1/resolve?query=...&format=text|json
