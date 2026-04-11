@@ -116,13 +116,17 @@ export function EmbedModal({
       )}
     >
       {/* Backdrop */}
-      <div
+      <button
+        type="button"
+        aria-label="Close"
         className={cn(
-          "absolute inset-0 transition-all duration-300",
+          "absolute inset-0 transition-all duration-300 cursor-default",
           open ? "bg-black/60 backdrop-blur-lg" : "bg-black/0 backdrop-blur-none",
         )}
         onClick={onClose}
-      />
+      >
+        {/* backdrop click target */}
+      </button>
 
       {/* Modal */}
       <EmbossedCard
@@ -234,7 +238,7 @@ function EmbedPreviewArea({
     if (activeChild) {
       setHeight(activeChild.scrollHeight);
     }
-  }, [size]);
+  });
 
   return (
     <RecessedCard
