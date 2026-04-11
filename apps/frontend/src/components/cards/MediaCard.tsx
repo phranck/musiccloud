@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
-import { GlassCard } from "@/components/cards/GlassCard";
+import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { EmbedModal } from "@/components/share/EmbedModal";
@@ -36,10 +37,9 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
   const isAlbum = content.type === "album" || sharePageContent?.platformsLabelKey === "results.openAlbumOn";
 
   return (
-    <GlassCard
-      elevated
+    <EmbossedCard
       className={cn(
-        "w-full max-w-full sm:max-w-lg mx-auto rounded-2xl sm:rounded-[36px]",
+        "w-full max-w-full sm:max-w-lg mx-auto rounded-2xl sm:rounded-[36px] p-0",
         animated && "animate-zoom-in",
         className,
       )}
@@ -111,22 +111,24 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       )}
 
       {content.platforms.length > 0 && (
-        <div className="border-t border-white/[0.12] px-6 pt-5 pb-6">
-          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3">{content.platformsLabel}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[...content.platforms]
-              .sort((a, b) => PLATFORM_CONFIG[a.platform].label.localeCompare(PLATFORM_CONFIG[b.platform].label))
-              .map((p) => (
-                <PlatformButton
-                  key={p.platform}
-                  platform={p.platform}
-                  url={p.url}
-                  songTitle={content.title}
-                  displayName={p.displayName}
-                  matchMethod={p.matchMethod}
-                />
-              ))}
-          </div>
+        <div className="px-6 pt-5 pb-6">
+          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3 px-(--spacing-card-inset)">{content.platformsLabel}</p>
+          <RecessedCard className="rounded-xl p-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {[...content.platforms]
+                .sort((a, b) => PLATFORM_CONFIG[a.platform].label.localeCompare(PLATFORM_CONFIG[b.platform].label))
+                .map((p) => (
+                  <PlatformButton
+                    key={p.platform}
+                    platform={p.platform}
+                    url={p.url}
+                    songTitle={content.title}
+                    displayName={p.displayName}
+                    matchMethod={p.matchMethod}
+                  />
+                ))}
+            </div>
+          </RecessedCard>
           {content.platformsInfo && (
             <p className="text-sm text-text-secondary text-center mt-4">{content.platformsInfo}</p>
           )}
@@ -138,6 +140,6 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
           <p className="text-sm text-text-secondary text-center">{content.platformsInfo}</p>
         </div>
       )}
-    </GlassCard>
+    </EmbossedCard>
   );
 }
