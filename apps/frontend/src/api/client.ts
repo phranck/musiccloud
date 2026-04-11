@@ -41,12 +41,16 @@ export async function fetchShareData(shortId: string): Promise<SharePageResponse
 export async function resolveTrack(
   body: { query?: string; selectedCandidate?: string },
   clientIp?: string,
+  origin?: string,
 ): Promise<Response> {
+  const extra: Record<string, string> = {};
+  if (clientIp) extra["X-Forwarded-For"] = clientIp;
+  if (origin) extra["Origin"] = origin;
   return fetchWithTimeout(
     backendUrl("/api/v1/resolve"),
     {
       method: "POST",
-      headers: internalHeaders(clientIp ? { "X-Forwarded-For": clientIp } : undefined),
+      headers: internalHeaders(Object.keys(extra).length > 0 ? extra : undefined),
       body: JSON.stringify(body),
     },
     15000,

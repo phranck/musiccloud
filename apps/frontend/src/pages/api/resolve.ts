@@ -5,7 +5,8 @@ export const prerender = false;
 
 export const POST: APIRoute = async ({ request, clientAddress }) => {
   const body = await request.json();
-  const backendRes = await resolveTrack(body, clientAddress);
+  const origin = request.headers.get("Origin") ?? undefined;
+  const backendRes = await resolveTrack(body, clientAddress, origin);
 
   return new Response(backendRes.body, {
     status: backendRes.status,

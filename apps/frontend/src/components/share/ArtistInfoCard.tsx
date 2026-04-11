@@ -11,7 +11,7 @@ import type {
   ArtistTopTrack,
   SimilarArtistTrack,
 } from "@musiccloud/shared";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaCircleInfo } from "react-icons/fa6";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -198,12 +198,12 @@ function CrossFade({
 }) {
   return (
     <div className="grid">
-      {/* Skeleton layer — fades out when content is ready */}
+      {/* Skeleton layer — fades out, then collapses so it doesn't inflate height */}
       <div
         aria-hidden="true"
         className={cn(
-          "col-start-1 row-start-1 transition-opacity duration-300",
-          contentReady ? "opacity-0 pointer-events-none" : "opacity-100",
+          "col-start-1 row-start-1 transition-all duration-300",
+          contentReady ? "opacity-0 pointer-events-none h-0 overflow-hidden" : "opacity-100",
         )}
       >
         {skeleton}
@@ -393,6 +393,41 @@ function PopularTrack({
   t: (key: string, vars?: Record<string, string>) => string;
 }) {
   const showAlbum = track.albumName && track.albumName !== track.title;
+  const [resolving, setResolving] = useState(false);
+
+  const handleListen = useCallback(() => {
+    if (track.shortId) {
+      window.location.href = `/${track.shortId}`;
+      return;
+    }
+    setResolving(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    fetch("/api/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: track.deezerUrl }),
+      signal: controller.signal,
+    })
+      .then((res) => {
+        clearTimeout(timeout);
+        if (!res.ok) throw new Error("resolve failed");
+        return res.json() as Promise<{ shortUrl?: string }>;
+      })
+      .then((data) => {
+        if (data.shortUrl) {
+          const path = new URL(data.shortUrl).pathname;
+          window.location.href = path;
+        } else {
+          setResolving(false);
+        }
+      })
+      .catch(() => {
+        clearTimeout(timeout);
+        setResolving(false);
+      });
+  }, [track.shortId, track.deezerUrl]);
+
   return (
     <div className="flex items-center gap-3">
       <div className="w-12 h-12 flex-none">
@@ -421,13 +456,47 @@ function PopularTrack({
         {track.durationMs != null && (
           <span className="text-xs text-text-muted tabular-nums">{formatDuration(track.durationMs)}</span>
         )}
-        <a
-          href={`/?url=${encodeURIComponent(track.deezerUrl)}`}
-          className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.10] text-text-secondary hover:text-text-primary hover:bg-white/[0.10] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-        >
-          {t("artist.listen")} →
-        </a>
+        {resolving ? (
+          <SpinningCD size={28} />
+        ) : (
+          <button
+            type="button"
+            onClick={handleListen}
+            className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.10] text-text-secondary hover:text-text-primary hover:bg-white/[0.10] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+          >
+            {t("artist.listen")} →
+          </button>
+        )}
       </div>
+    </div>
+  );
+}
+
+function SpinningCD({ size = 28 }: { size?: number }) {
+  return (
+    <div className="relative animate-vinyl-spin" style={{ width: size, height: size }}>
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: "radial-gradient(circle at 50% 50%, #e8e8f0 0%, #a0a0b0 40%, #c8c8d0 70%, #b0b0b8 100%)",
+        }}
+      />
+      <div
+        className="absolute inset-0 rounded-full animate-cd-shimmer"
+        style={{
+          background:
+            "conic-gradient(from 30deg, #a060ff 0%, #40b0ff 20%, #40ffc0 35%, #ffe040 50%, #ff6090 65%, #a060ff 80%, transparent 95%)",
+          opacity: 0.45,
+        }}
+      />
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{ background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0%, transparent 40%)" }}
+      />
+      <div
+        className="absolute rounded-full bg-[#0a0a0c]"
+        style={{ top: "38%", left: "38%", width: "24%", height: "24%" }}
+      />
     </div>
   );
 }
