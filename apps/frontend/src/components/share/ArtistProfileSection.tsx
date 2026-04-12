@@ -1,0 +1,57 @@
+import type { ArtistProfile } from "@musiccloud/shared";
+
+interface ArtistProfileSectionProps {
+  profile: ArtistProfile;
+  t: (key: string) => string;
+}
+
+export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) {
+  return (
+    <>
+      <div className="flex gap-4">
+        {profile.imageUrl && (
+          <img
+            src={profile.imageUrl}
+            alt=""
+            width={96}
+            height={96}
+            className="w-24 h-24 rounded-xl object-cover flex-none"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
+        )}
+        <div className="min-w-0 flex-1 pt-1">
+          {profile.genres.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {profile.genres.map((g) => (
+                <span
+                  key={g}
+                  className="text-xs px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-text-secondary capitalize"
+                >
+                  {g}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="text-sm text-text-secondary">
+            {formatCount(profile.followers)} {t("artist.spotifyFollowers")}
+            {profile.scrobbles != null && ` \u00B7 ${formatCount(profile.scrobbles)} ${t("artist.lastfmPlays")}`}
+          </p>
+          {profile.similarArtists.length > 0 && (
+            <p className="text-sm text-text-secondary mt-1">
+              {t("artist.similar")}: {profile.similarArtists.join(" \u00B7 ")}
+            </p>
+          )}
+        </div>
+      </div>
+      {profile.bioSummary && <p className="text-base text-text-secondary leading-relaxed mt-3">{profile.bioSummary}</p>}
+    </>
+  );
+}
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}

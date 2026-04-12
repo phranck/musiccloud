@@ -1,22 +1,18 @@
 /**
- * ArtistInfoCard – displays popular tracks, artist profile, and tour dates.
+ * ArtistInfoCard -- displays artist profile, popular tracks, upcoming events, and similar artists.
  * Pure display component; data is fetched by the parent (ShareLayout).
  * Visually matches MediaCard: EmbossedCard with RecessedCard sections.
  */
 
-import type {
-  ArtistEvent,
-  ArtistInfoResponse,
-  ArtistProfile,
-  ArtistTopTrack,
-  SimilarArtistTrack,
-} from "@musiccloud/shared";
-import { Info, Ticket, X } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import type { ArtistInfoResponse } from "@musiccloud/shared";
+import { X } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { ArtistProfileSection } from "@/components/share/ArtistProfileSection";
+import { PopularTracksSection } from "@/components/share/PopularTracksSection";
+import { SimilarArtistsSection } from "@/components/share/SimilarArtistsSection";
+import { UpcomingEventsSection } from "@/components/share/UpcomingEventsSection";
 import { useLocale, useT } from "@/i18n/context";
 import { cn } from "@/lib/utils";
 
@@ -32,8 +28,8 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
   const { locale } = useLocale();
 
   // contentReady triggers the crossfade. Double-rAF ensures:
-  //   Frame 1: React renders with contentReady=false → content enters DOM at opacity-0
-  //   Frame 2: setContentReady(true) → skeleton fades to 0, content fades to 1 (simultaneously)
+  //   Frame 1: React renders with contentReady=false -> content enters DOM at opacity-0
+  //   Frame 2: setContentReady(true) -> skeleton fades to 0, content fades to 1 (simultaneously)
   const [contentReady, setContentReady] = useState(false);
 
   useEffect(() => {
@@ -58,7 +54,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
   const showEvents = isLoading || (data?.events.length ?? 0) > 0;
   const showSimilar = isLoading || (data?.similarArtistTracks?.length ?? 0) > 0;
 
-  // All sections empty after load → nothing to render
+  // All sections empty after load -> nothing to render
   if (!isLoading && !showProfile && !showTracks && !showEvents && !showSimilar) return null;
 
   const hasLocalEvents =
@@ -86,14 +82,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
             <CrossFade
               contentReady={contentReady}
               skeleton={<ProfileSkeleton />}
-              content={
-                data?.profile ? (
-                  <>
-                    <ProfileSection profile={data.profile} t={t} />
-                    {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
-                  </>
-                ) : null
-              }
+              content={data?.profile ? <ArtistProfileSection profile={data.profile} t={t} /> : null}
             />
           </RecessedCard>
           {contentReady && data?.profile && (
@@ -107,12 +96,14 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
             <CrossFade
               contentReady={contentReady}
               skeleton={<TracksSkeleton />}
-              content={data && data.topTracks.length > 0 ? <TopTracksSection tracks={data.topTracks} t={t} /> : null}
+              content={
+                data && data.topTracks.length > 0 ? <PopularTracksSection tracks={data.topTracks} t={t} /> : null
+              }
             />
           </RecessedCard>
         </CollapsibleSection>
 
-        {/* 3. Tour Dates */}
+        {/* 3. Upcoming Events */}
         <CollapsibleSection visible={showEvents} sectionClass="px-3 sm:px-5 py-3">
           <RecessedCard className="rounded-xl sm:rounded-2xl p-2">
             <CrossFade
@@ -120,7 +111,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
               skeleton={<EventsSkeleton />}
               content={
                 data && data.events.length > 0 ? (
-                  <EventsSection
+                  <UpcomingEventsSection
                     events={data.events}
                     userRegion={userRegion}
                     hasLocalEvents={hasLocalEvents}
@@ -155,12 +146,8 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
   );
 }
 
-// ─── Layout helpers ────────────────────────────────────────────────────────────
+// --- Layout helpers ---
 
-/**
- * Animates both height (via grid-template-rows) and opacity.
- * All at 300ms so height-collapse and fade never fight each other.
- */
 function CollapsibleSection({
   visible,
   sectionClass,
@@ -184,13 +171,6 @@ function CollapsibleSection({
   );
 }
 
-/**
- * CrossFade: skeleton and content live in the same grid cell (CSS overlay).
- * When contentReady flips to true, both transitions fire in the same render:
- *   skeleton: opacity 1→0 (fade out)
- *   content:  opacity 0→1 (fade in)
- * → true simultaneous crossfade, no blank gap.
- */
 function CrossFade({
   contentReady,
   skeleton,
@@ -202,7 +182,6 @@ function CrossFade({
 }) {
   return (
     <div className="grid">
-      {/* Skeleton layer — fades out, then collapses so it doesn't inflate height */}
       <div
         aria-hidden="true"
         className={cn(
@@ -212,8 +191,6 @@ function CrossFade({
       >
         {skeleton}
       </div>
-
-      {/* Content layer — fades in when content is ready */}
       {content && (
         <div
           className={cn(
@@ -228,7 +205,7 @@ function CrossFade({
   );
 }
 
-// ─── Skeletons ─────────────────────────────────────────────────────────────────
+// --- Skeletons ---
 
 function ProfileSkeleton() {
   return (
@@ -244,7 +221,6 @@ function ProfileSkeleton() {
           <div className="h-3 bg-white/[0.08] rounded w-1/2" />
         </div>
       </div>
-      {/* Bio placeholder */}
       <div className="mt-3 space-y-1.5">
         <div className="h-3 bg-white/[0.08] rounded w-full" />
         <div className="h-3 bg-white/[0.08] rounded w-[90%]" />
@@ -314,359 +290,4 @@ function SimilarArtistsSkeleton() {
       </div>
     </div>
   );
-}
-
-// ─── Profile Section ──────────────────────────────────────────────────────────
-
-function ProfileSection({ profile, t }: { profile: ArtistProfile; t: (key: string) => string }) {
-  return (
-    <div className="flex gap-4">
-      {profile.imageUrl && (
-        <img
-          src={profile.imageUrl}
-          alt=""
-          width={96}
-          height={96}
-          className="w-24 h-24 rounded-xl object-cover flex-none"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).style.display = "none";
-          }}
-        />
-      )}
-      <div className="min-w-0 flex-1 pt-1">
-        {profile.genres.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {profile.genres.map((g) => (
-              <span
-                key={g}
-                className="text-xs px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-text-secondary capitalize"
-              >
-                {g}
-              </span>
-            ))}
-          </div>
-        )}
-        <p className="text-sm text-text-secondary">
-          {formatCount(profile.followers)} {t("artist.spotifyFollowers")}
-          {profile.scrobbles != null && ` · ${formatCount(profile.scrobbles)} ${t("artist.lastfmPlays")}`}
-        </p>
-        {profile.similarArtists.length > 0 && (
-          <p className="text-sm text-text-secondary mt-1">
-            {t("artist.similar")}: {profile.similarArtists.join(" · ")}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function BioSection({ bio }: { bio: string }) {
-  return <p className="text-base text-text-secondary leading-relaxed mt-3">{bio}</p>;
-}
-
-// ─── Top Tracks Section ───────────────────────────────────────────────────────
-
-function TopTracksSection({
-  tracks,
-  t,
-}: {
-  tracks: ArtistTopTrack[];
-  t: (key: string, vars?: Record<string, string>) => string;
-}) {
-  return (
-    <div>
-      <SectionHeading info={t("artist.popularTracksInfo")}>{t("artist.popularTracks")}</SectionHeading>
-      <div className="flex flex-col gap-2">
-        {tracks.map((track) => (
-          <PopularTrack key={track.deezerUrl} track={track} t={t} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Popular Track ─────────────────────────────────────────────────────────────
-
-function PopularTrack({
-  track,
-  t,
-  artistLabel,
-}: {
-  track: ArtistTopTrack;
-  t: (key: string, vars?: Record<string, string>) => string;
-  artistLabel?: string;
-}) {
-  const showAlbum = !artistLabel && track.albumName && track.albumName !== track.title;
-  const [resolving, setResolving] = useState(false);
-
-  const handleListen = useCallback(() => {
-    if (track.shortId) {
-      window.location.href = `/${track.shortId}`;
-      return;
-    }
-    setResolving(true);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    fetch("/api/resolve", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: track.deezerUrl }),
-      signal: controller.signal,
-    })
-      .then((res) => {
-        clearTimeout(timeout);
-        if (!res.ok) throw new Error("resolve failed");
-        return res.json() as Promise<{ shortUrl?: string }>;
-      })
-      .then((data) => {
-        if (data.shortUrl) {
-          const path = new URL(data.shortUrl).pathname;
-          window.location.href = path;
-        } else {
-          setResolving(false);
-        }
-      })
-      .catch(() => {
-        clearTimeout(timeout);
-        setResolving(false);
-      });
-  }, [track.shortId, track.deezerUrl]);
-
-  return (
-    <EmbossedButton
-      as="button"
-      type="button"
-      onClick={handleListen}
-      className="flex items-center gap-3 w-full rounded-lg px-3 py-2"
-    >
-      <div className="w-10 h-10 flex-none">
-        {resolving ? (
-          <SpinningCD size={40} />
-        ) : track.artworkUrl ? (
-          <img
-            src={track.artworkUrl}
-            alt=""
-            width={40}
-            height={40}
-            className="w-full h-full rounded-lg object-cover"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
-        ) : (
-          <div className="w-full h-full rounded-lg bg-white/[0.06]" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1 text-left">
-        <p className="text-sm font-medium text-text-primary truncate">{track.title}</p>
-        {artistLabel && <p className="text-xs text-text-secondary mt-0.5 truncate">{artistLabel}</p>}
-        {showAlbum && <p className="text-xs text-text-secondary mt-0.5 truncate">{track.albumName}</p>}
-      </div>
-      {track.durationMs != null && (
-        <span className="text-xs text-text-secondary tabular-nums flex-none">{formatDuration(track.durationMs)}</span>
-      )}
-    </EmbossedButton>
-  );
-}
-
-function SpinningCD({ size = 28 }: { size?: number }) {
-  return (
-    <div className="relative animate-vinyl-spin" style={{ width: size, height: size }}>
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: "radial-gradient(circle at 50% 50%, #e8e8f0 0%, #a0a0b0 40%, #c8c8d0 70%, #b0b0b8 100%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 rounded-full animate-cd-shimmer"
-        style={{
-          background:
-            "conic-gradient(from 30deg, #a060ff 0%, #40b0ff 20%, #40ffc0 35%, #ffe040 50%, #ff6090 65%, #a060ff 80%, transparent 95%)",
-          opacity: 0.45,
-        }}
-      />
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{ background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0%, transparent 40%)" }}
-      />
-      <div
-        className="absolute rounded-full bg-[#0a0a0c]"
-        style={{ top: "38%", left: "38%", width: "24%", height: "24%" }}
-      />
-    </div>
-  );
-}
-
-// ─── Events Section ───────────────────────────────────────────────────────────
-
-function EventsSection({
-  events,
-  userRegion,
-  hasLocalEvents,
-  t,
-  locale,
-}: {
-  events: ArtistEvent[];
-  userRegion: string;
-  hasLocalEvents: boolean;
-  t: (key: string, vars?: Record<string, string>) => string;
-  locale: string;
-}) {
-  return (
-    <div>
-      <SectionHeading info={hasLocalEvents ? t("artist.upcomingShowsInfo") : undefined}>
-        {t("artist.upcomingShows")}
-      </SectionHeading>
-      <div className="flex flex-col gap-2">
-        {events.map((event) => {
-          const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
-          const Wrapper = event.ticketUrl ? EmbossedButton : "div";
-          const wrapperProps = event.ticketUrl
-            ? { href: event.ticketUrl, target: "_blank", rel: "noopener noreferrer" }
-            : {};
-          return (
-            <Wrapper
-              key={`${event.date}-${event.venueName || event.city}`}
-              className="flex items-center gap-3 w-full rounded-lg px-3 py-2 no-underline"
-              {...wrapperProps}
-            >
-              <div className="min-w-0 flex-1">
-                <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
-                  {formatEventDate(event.date, locale)}
-                  {isLocal && " \u2605"}
-                </p>
-                <p className="text-sm text-text-primary break-words">
-                  {event.venueName}
-                  <span className="text-text-secondary">
-                    {" \u00B7 "}
-                    {event.city}, {event.country}
-                  </span>
-                </p>
-              </div>
-              {event.ticketUrl && <Ticket size={24} weight="duotone" className="text-text-secondary flex-none" />}
-            </Wrapper>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── Similar Artists Section ──────────────────────────────────────────────────
-
-function SimilarArtistsSection({
-  similarArtistTracks,
-  t,
-}: {
-  similarArtistTracks: SimilarArtistTrack[];
-  t: (key: string, vars?: Record<string, string>) => string;
-}) {
-  return (
-    <div>
-      <SectionHeading>{t("artist.similarArtists")}</SectionHeading>
-      <div className="flex flex-col gap-2">
-        {similarArtistTracks.map(({ artistName, track }) =>
-          track ? (
-            <PopularTrack key={artistName} track={track} t={t} artistLabel={artistName} />
-          ) : (
-            <p key={artistName} className="text-sm text-text-primary px-2">
-              {artistName}
-            </p>
-          ),
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Shared UI ────────────────────────────────────────────────────────────────
-
-function SectionHeading({ children, info }: { children: React.ReactNode; info?: string }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (buttonRef.current?.contains(e.target as Node) || popoverRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  function handleToggle() {
-    if (!open && buttonRef.current) {
-      const r = buttonRef.current.getBoundingClientRect();
-      setPos({ top: r.top, left: r.left + r.width / 2 });
-    }
-    setOpen((o) => !o);
-  }
-
-  return (
-    <div className="flex items-center justify-between mb-3 px-2">
-      <p
-        className="text-sm uppercase tracking-widest text-text-secondary font-bold"
-        style={{ fontFamily: "var(--font-condensed)" }}
-      >
-        {children}
-      </p>
-      {info && (
-        <>
-          <button
-            ref={buttonRef}
-            type="button"
-            onClick={handleToggle}
-            className="p-1 text-white/30 hover:text-white/60 transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-            aria-label="Info"
-          >
-            <Info size={20} weight="duotone" />
-          </button>
-          {open &&
-            createPortal(
-              <div
-                ref={popoverRef}
-                className="fixed w-60 p-3 rounded-xl bg-surface-elevated border border-white/[0.10] shadow-xl z-[200] text-sm text-text-secondary leading-relaxed"
-                style={{
-                  top: pos.top,
-                  left: pos.left,
-                  transform: "translate(-50%, calc(-100% - 8px))",
-                }}
-              >
-                {info}
-              </div>,
-              document.body,
-            )}
-        </>
-      )}
-    </div>
-  );
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
-
-function formatDuration(ms: number): string {
-  const s = Math.round(ms / 1000);
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${m}:${sec.toString().padStart(2, "0")}`;
-}
-
-function formatEventDate(iso: string, locale: string): string {
-  try {
-    return new Intl.DateTimeFormat(locale || "en", { month: "short", day: "numeric" }).format(
-      new Date(`${iso}T00:00:00`),
-    );
-  } catch {
-    return iso;
-  }
 }
