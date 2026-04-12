@@ -1,124 +1,94 @@
-import { useEffect, useRef } from "react";
+import { useMemo } from "react";
 
 /**
  * Ambient particle effect: small glowing dots that briefly flash in,
- * then fade out while drifting a short distance toward the page center.
- * Pure DOM + CSS animations, no canvas.
+ * then fade out while drifting toward the page center.
+ *
+ * Pure CSS animation -- all particles are rendered once at mount with
+ * randomized positions, delays, and durations. No JS after mount,
+ * no DOM manipulation, fully GPU-accelerated.
+ *
+ * Hidden on touch devices and when prefers-reduced-motion is set (via CSS).
  */
+
+interface Particle {
+  id: string;
+  x: number;
+  y: number;
+  size: number;
+  glowSize: number;
+  duration: number;
+  delay: number;
+  driftX: number;
+  driftY: number;
+  drift: boolean;
+  bright: boolean;
+}
+
+const PARTICLE_COUNT = 24;
+
+function generateParticles(): Particle[] {
+  const particles: Particle[] = [];
+  const totalCycleDuration = 8;
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    const centerX = 50;
+    const centerY = 45;
+
+    const dx = centerX - x;
+    const dy = centerY - y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const isLongRange = Math.random() > 0.6;
+    const driftLength = isLongRange ? 8 + Math.random() * 10 : 3 + Math.random() * 5;
+    const driftX = (dx / dist) * driftLength;
+    const driftY = (dy / dist) * driftLength;
+
+    const size = 2 + Math.random() * 2;
+    const glowSize = size * 5 + Math.random() * 8;
+    const duration = isLongRange ? 3.5 + Math.random() * 3 : 2.5 + Math.random() * 2;
+    const delay = (i / PARTICLE_COUNT) * totalCycleDuration + Math.random() * 1.5;
+    const drift = Math.random() > 0.15;
+    const bright = Math.random() > 0.7;
+
+    particles.push({ id: `sp-${i}`, x, y, size, glowSize, duration, delay, driftX, driftY, drift, bright });
+  }
+  return particles;
+}
+
 export function SparklingStars() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const particles = useMemo(generateParticles, []);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (motionQuery.matches) return;
-
-    if (window.matchMedia("(pointer: coarse)").matches) return;
-
-    let active = true;
-    const particles: HTMLDivElement[] = [];
-
-    function spawn() {
-      if (!active || !container) return;
-
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const centerX = vw / 2;
-      const centerY = vh * 0.45;
-      const startX = Math.random() * vw;
-      const startY = Math.random() * vh;
-
-      const dx = centerX - startX;
-      const dy = centerY - startY;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const isLongRange = Math.random() > 0.6;
-      const driftLength = isLongRange ? 160 + Math.random() * 200 : 60 + Math.random() * 80;
-      const driftX = (dx / dist) * driftLength;
-      const driftY = (dy / dist) * driftLength;
-
-      const size = 2 + Math.random() * 2;
-      const glowSize = size * 5 + Math.random() * 8;
-      const duration = isLongRange ? 3.5 + Math.random() * 3 : 2.5 + Math.random() * 2;
-      const shouldDrift = Math.random() > 0.15;
-      const isBright = Math.random() > 0.7;
-
-      const el = document.createElement("div");
-      el.className = "sparkling-star";
-      el.style.cssText = `
-        position: fixed;
-        left: ${startX}px;
-        top: ${startY}px;
-        width: ${size}px;
-        height: ${size}px;
-        border-radius: 50%;
-        background: var(--color-accent);
-        filter: blur(${size * 0.4}px);
-        box-shadow: 0 0 ${glowSize * (isBright ? 1.5 : 1)}px var(--color-accent-glow), 0 0 ${glowSize * (isBright ? 3.5 : 2.5)}px var(--color-accent-glow), 0 0 ${glowSize * 4}px rgba(44, 185, 200, ${isBright ? 0.15 : 0.08});
-        pointer-events: none;
-        opacity: ${isBright ? 1 : 0.7};
-        animation: ${shouldDrift ? "sparkle-drift" : "sparkle-fade"} ${duration}s ease-in forwards;
-        --drift-x: ${driftX}px;
-        --drift-y: ${driftY}px;
-      `;
-
-      container.appendChild(el);
-      particles.push(el);
-
-      setTimeout(
-        () => {
-          el.remove();
-          const idx = particles.indexOf(el);
-          if (idx !== -1) particles.splice(idx, 1);
-        },
-        duration * 1000 + 50,
-      );
-    }
-
-    let timeout: ReturnType<typeof setTimeout>;
-    function scheduleNext() {
-      if (!active) return;
-      const delay = 250 + Math.random() * 450;
-      timeout = setTimeout(() => {
-        spawn();
-        scheduleNext();
-      }, delay);
-    }
-
-    scheduleNext();
-
-    const handleMotionChange = () => {
-      if (motionQuery.matches) {
-        active = false;
-        clearTimeout(timeout);
-        particles.forEach((p) => p.remove());
-        particles.length = 0;
-      }
-    };
-    motionQuery.addEventListener("change", handleMotionChange);
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        active = false;
-        clearTimeout(timeout);
-        particles.forEach((p) => p.remove());
-        particles.length = 0;
-      } else if (!motionQuery.matches) {
-        active = true;
-        scheduleNext();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      active = false;
-      clearTimeout(timeout);
-      motionQuery.removeEventListener("change", handleMotionChange);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      particles.forEach((p) => p.remove());
-    };
-  }, []);
-
-  return <div ref={containerRef} className="fixed inset-0 pointer-events-none z-0" aria-hidden="true" />;
+  return (
+    <div
+      className="fixed inset-0 pointer-events-none z-0 hidden sm:block"
+      aria-hidden="true"
+      style={{ ["--sparkle-display" as string]: "block" }}
+    >
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="absolute rounded-full"
+          style={{
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            width: p.size,
+            height: p.size,
+            background: "var(--color-accent)",
+            filter: `blur(${p.size * 0.4}px)`,
+            boxShadow: [
+              `0 0 ${p.glowSize * (p.bright ? 1.5 : 1)}px var(--color-accent-glow)`,
+              `0 0 ${p.glowSize * (p.bright ? 3.5 : 2.5)}px var(--color-accent-glow)`,
+              `0 0 ${p.glowSize * 4}px rgba(44, 185, 200, ${p.bright ? 0.15 : 0.08})`,
+            ].join(", "),
+            opacity: 0,
+            animation: `${p.drift ? "sparkle-drift" : "sparkle-fade"} ${p.duration}s ease-in ${p.delay}s infinite`,
+            ["--drift-x" as string]: `${p.driftX}vw`,
+            ["--drift-y" as string]: `${p.driftY}vh`,
+          }}
+        />
+      ))}
+    </div>
+  );
 }
