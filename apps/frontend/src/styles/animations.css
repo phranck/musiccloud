@@ -136,16 +136,25 @@
   }
 }
 
-/* Lightning flash - brief illumination behind clouds */
-@keyframes lightning-flash {
+/* Ambilight ring - rotate gradient origin + shift hue, GPU-accelerated */
+@property --ambilight-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@property --ambilight-hue {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes ambilight-spin {
   0% {
-    opacity: 0;
-  }
-  30% {
-    opacity: 0.35;
+    --ambilight-angle: 0deg;
+    --ambilight-hue: 0deg;
   }
   100% {
-    opacity: 0;
+    --ambilight-angle: 360deg;
+    --ambilight-hue: 360deg;
   }
 }
 

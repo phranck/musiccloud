@@ -23,7 +23,6 @@ const DEFAULT_COLORS = {
 
 export function GradientBackground({ albumColors }: GradientBackgroundProps) {
   const colors = albumColors ?? DEFAULT_COLORS;
-  const flashRef = useRef<HTMLDivElement>(null);
   const blobRefs = useRef<(HTMLDivElement | null)[]>([null, null, null]);
 
   const starfieldShadow = useMemo(() => generateStarfield(), []);
@@ -77,70 +76,6 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
     };
   }, [waveParams]);
 
-  // Lightning flash effect
-  useEffect(() => {
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (motionQuery.matches) return;
-
-    if (window.matchMedia("(pointer: coarse)").matches) return;
-
-    let active = true;
-    let timeout: ReturnType<typeof setTimeout>;
-
-    function triggerFlash() {
-      if (!active || !flashRef.current) return;
-
-      const el = flashRef.current;
-      const x = 15 + Math.random() * 70;
-      const y = 10 + Math.random() * 60;
-      const size = 25 + Math.random() * 30;
-
-      el.style.left = `${x}%`;
-      el.style.top = `${y}%`;
-      el.style.width = `${size}vw`;
-      el.style.height = `${size}vw`;
-      el.style.animation = "none";
-      void el.offsetWidth;
-      el.style.animation = `lightning-flash ${0.15 + Math.random() * 0.2}s ease-out`;
-
-      scheduleNext();
-    }
-
-    function scheduleNext() {
-      if (!active) return;
-      const delay = 8000 + Math.random() * 18000;
-      timeout = setTimeout(triggerFlash, delay);
-    }
-
-    scheduleNext();
-
-    const handleMotionChange = () => {
-      if (motionQuery.matches) {
-        active = false;
-        clearTimeout(timeout);
-      }
-    };
-    motionQuery.addEventListener("change", handleMotionChange);
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        active = false;
-        clearTimeout(timeout);
-      } else if (!motionQuery.matches) {
-        active = true;
-        scheduleNext();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      active = false;
-      clearTimeout(timeout);
-      motionQuery.removeEventListener("change", handleMotionChange);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
-
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden="true">
       <div
@@ -151,15 +86,6 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
         <div className="absolute w-px h-px top-0 left-0" style={{ boxShadow: orionShadow }} />
         <div className="absolute w-px h-px top-0 left-0" style={{ boxShadow: canisMajorShadow }} />
       </div>
-
-      <div
-        ref={flashRef}
-        className="absolute rounded-full opacity-0 pointer-events-none"
-        style={{
-          filter: "blur(80px)",
-          background: "radial-gradient(circle, var(--color-accent-glow), transparent 70%)",
-        }}
-      />
 
       <div
         ref={(el) => {
