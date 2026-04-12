@@ -1,3 +1,4 @@
+import { CheckCircle, type Icon, Info, XCircle } from "@phosphor-icons/react";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 
@@ -17,10 +18,10 @@ const variantStyles: Record<ToastVariant, string> = {
   info: "border-blue-400/30",
 };
 
-const variantIcons: Record<ToastVariant, string> = {
-  success: "M5 13l4 4L19 7",
-  error: "M6 18L18 6M6 6l12 12",
-  info: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+const variantIcons: Record<ToastVariant, Icon> = {
+  success: CheckCircle,
+  error: XCircle,
+  info: Info,
 };
 
 export function Toast({ message, variant, visible, onDismiss, duration = 3000 }: ToastProps) {
@@ -46,9 +47,10 @@ export function Toast({ message, variant, visible, onDismiss, duration = 3000 }:
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none",
       )}
     >
-      <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d={variantIcons[variant]} />
-      </svg>
+      {(() => {
+        const Icon = variantIcons[variant];
+        return <Icon size={20} weight="duotone" className="flex-shrink-0" />;
+      })()}
       <span className="text-sm font-medium text-text-primary">{message}</span>
     </div>
   );

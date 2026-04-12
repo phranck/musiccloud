@@ -1,4 +1,5 @@
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
+import { Code } from "@phosphor-icons/react";
 import { useState } from "react";
 import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -92,9 +93,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
                   "min-h-[50px]",
                 )}
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
+                <Code size={20} weight="duotone" />
                 {isAlbum ? t("embed.buttonAlbum") : t("embed.button")}
               </EmbossedButton>
             </div>
@@ -116,7 +115,10 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
 
       {content.platforms.length > 0 && (
         <div className="px-5 pt-3 pb-5">
-          <p className="text-sm uppercase tracking-widest text-text-secondary mb-3 px-(--spacing-card-inset)">
+          <p
+            className="text-sm uppercase tracking-widest text-text-secondary font-bold mb-3 px-(--spacing-card-inset)"
+            style={{ fontFamily: "var(--font-condensed)" }}
+          >
             {content.platformsLabel}
           </p>
           <RecessedCard className="rounded-2xl p-2">

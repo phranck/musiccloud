@@ -9,6 +9,7 @@
  */
 
 import type { ArtistInfoResponse } from "@musiccloud/shared";
+import { User, X } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 
 type ArtistState = { isLoading: boolean; artistData: ArtistInfoResponse | null };
@@ -201,18 +202,7 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
             onClick={openSheet}
             className="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm text-text-primary"
           >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
-            </svg>
+            <User size={15} weight="duotone" />
             {t("artist.mobileButton")}
           </EmbossedButton>
         </div>
@@ -250,9 +240,7 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
               className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-colors"
               aria-label={t("artist.closeInfo")}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path d="M12 4 4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
+              <X size={16} weight="duotone" />
             </button>
           </div>
           {/* Scrollable content */}

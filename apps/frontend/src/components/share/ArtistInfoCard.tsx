@@ -11,11 +11,12 @@ import type {
   ArtistTopTrack,
   SimilarArtistTrack,
 } from "@musiccloud/shared";
+import { Info, Ticket, X } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FaCircleInfo } from "react-icons/fa6";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useLocale, useT } from "@/i18n/context";
 import { cn } from "@/lib/utils";
 
@@ -75,9 +76,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
             className="absolute top-3 right-3 z-10 p-1.5 rounded-full text-text-secondary hover:text-text-primary hover:bg-white/[0.08] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             aria-label={t("artist.closeInfo")}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M12 4 4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            <X size={16} weight="duotone" />
           </button>
         )}
 
@@ -92,17 +91,19 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
                   <>
                     <ProfileSection profile={data.profile} t={t} />
                     {data.profile.bioSummary && <BioSection bio={data.profile.bioSummary} />}
-                    <p className="mt-4 text-xs text-text-muted text-center">{t("artist.profileProvidedBy")}</p>
                   </>
                 ) : null
               }
             />
           </RecessedCard>
+          {contentReady && data?.profile && (
+            <p className="mt-2 text-xs text-text-muted text-center px-2">{t("artist.profileProvidedBy")}</p>
+          )}
         </CollapsibleSection>
 
         {/* 2. Popular Tracks */}
         <CollapsibleSection visible={showTracks} sectionClass="px-3 sm:px-5 py-3">
-          <RecessedCard className="rounded-xl sm:rounded-2xl p-4">
+          <RecessedCard className="rounded-xl sm:rounded-2xl p-2">
             <CrossFade
               contentReady={contentReady}
               skeleton={<TracksSkeleton />}
@@ -113,7 +114,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 3. Tour Dates */}
         <CollapsibleSection visible={showEvents} sectionClass="px-3 sm:px-5 py-3">
-          <RecessedCard className="rounded-xl sm:rounded-2xl p-4">
+          <RecessedCard className="rounded-xl sm:rounded-2xl p-2">
             <CrossFade
               contentReady={contentReady}
               skeleton={<EventsSkeleton />}
@@ -130,11 +131,14 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
               }
             />
           </RecessedCard>
+          {contentReady && data && data.events.length > 0 && (
+            <p className="mt-2 text-xs text-text-muted text-center px-2">{t("artist.eventsProvidedBy")}</p>
+          )}
         </CollapsibleSection>
 
         {/* 4. Similar Artists */}
         <CollapsibleSection visible={showSimilar} sectionClass="px-3 sm:px-5 pt-3 pb-3 sm:pb-5">
-          <RecessedCard className="rounded-xl sm:rounded-2xl p-4">
+          <RecessedCard className="rounded-xl sm:rounded-2xl p-2">
             <CrossFade
               contentReady={contentReady}
               skeleton={<SimilarArtistsSkeleton />}
@@ -372,13 +376,11 @@ function TopTracksSection({
   return (
     <div>
       <SectionHeading info={t("artist.popularTracksInfo")}>{t("artist.popularTracks")}</SectionHeading>
-      <ul className="divide-y divide-white/[0.06]">
+      <div className="flex flex-col gap-2">
         {tracks.map((track) => (
-          <li key={track.deezerUrl} className="py-3 first:pt-0 last:pb-0">
-            <PopularTrack track={track} t={t} />
-          </li>
+          <PopularTrack key={track.deezerUrl} track={track} t={t} />
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
@@ -388,11 +390,13 @@ function TopTracksSection({
 function PopularTrack({
   track,
   t,
+  artistLabel,
 }: {
   track: ArtistTopTrack;
   t: (key: string, vars?: Record<string, string>) => string;
+  artistLabel?: string;
 }) {
-  const showAlbum = track.albumName && track.albumName !== track.title;
+  const showAlbum = !artistLabel && track.albumName && track.albumName !== track.title;
   const [resolving, setResolving] = useState(false);
 
   const handleListen = useCallback(() => {
@@ -429,14 +433,21 @@ function PopularTrack({
   }, [track.shortId, track.deezerUrl]);
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="w-12 h-12 flex-none">
-        {track.artworkUrl ? (
+    <EmbossedButton
+      as="button"
+      type="button"
+      onClick={handleListen}
+      className="flex items-center gap-3 w-full rounded-lg px-3 py-2"
+    >
+      <div className="w-10 h-10 flex-none">
+        {resolving ? (
+          <SpinningCD size={40} />
+        ) : track.artworkUrl ? (
           <img
             src={track.artworkUrl}
             alt=""
-            width={48}
-            height={48}
+            width={40}
+            height={40}
             className="w-full h-full rounded-lg object-cover"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = "none";
@@ -446,29 +457,15 @@ function PopularTrack({
           <div className="w-full h-full rounded-lg bg-white/[0.06]" />
         )}
       </div>
-
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-text-primary">{track.title}</p>
-        {showAlbum && <p className="text-xs text-text-secondary mt-0.5">{track.albumName}</p>}
+      <div className="min-w-0 flex-1 text-left">
+        <p className="text-sm font-medium text-text-primary truncate">{track.title}</p>
+        {artistLabel && <p className="text-xs text-text-secondary mt-0.5 truncate">{artistLabel}</p>}
+        {showAlbum && <p className="text-xs text-text-secondary mt-0.5 truncate">{track.albumName}</p>}
       </div>
-
-      <div className="flex items-center gap-2 flex-none">
-        {track.durationMs != null && (
-          <span className="text-xs text-text-muted tabular-nums">{formatDuration(track.durationMs)}</span>
-        )}
-        {resolving ? (
-          <SpinningCD size={28} />
-        ) : (
-          <button
-            type="button"
-            onClick={handleListen}
-            className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.10] text-text-secondary hover:text-text-primary hover:bg-white/[0.10] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-          >
-            {t("artist.listen")} →
-          </button>
-        )}
-      </div>
-    </div>
+      {track.durationMs != null && (
+        <span className="text-xs text-text-secondary tabular-nums flex-none">{formatDuration(track.durationMs)}</span>
+      )}
+    </EmbossedButton>
   );
 }
 
@@ -521,41 +518,37 @@ function EventsSection({
       <SectionHeading info={hasLocalEvents ? t("artist.upcomingShowsInfo") : undefined}>
         {t("artist.upcomingShows")}
       </SectionHeading>
-      <ul className="space-y-3">
+      <div className="flex flex-col gap-2">
         {events.map((event) => {
           const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
+          const Wrapper = event.ticketUrl ? EmbossedButton : "div";
+          const wrapperProps = event.ticketUrl
+            ? { href: event.ticketUrl, target: "_blank", rel: "noopener noreferrer" }
+            : {};
           return (
-            <li key={`${event.date}-${event.venueName || event.city}`}>
-              <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
-                    {formatEventDate(event.date, locale)}
-                    {isLocal && " ★"}
-                  </p>
-                  <p className="text-base text-text-primary break-words">
-                    {event.venueName}
-                    <span className="text-text-secondary">
-                      {" · "}
-                      {event.city}, {event.country}
-                    </span>
-                  </p>
-                </div>
-                {event.ticketUrl && (
-                  <a
-                    href={event.ticketUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-none text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.10] text-text-secondary hover:text-text-primary hover:bg-white/[0.10] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-                  >
-                    {t("artist.tickets")} →
-                  </a>
-                )}
+            <Wrapper
+              key={`${event.date}-${event.venueName || event.city}`}
+              className="flex items-center gap-3 w-full rounded-lg px-3 py-2 no-underline"
+              {...wrapperProps}
+            >
+              <div className="min-w-0 flex-1">
+                <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
+                  {formatEventDate(event.date, locale)}
+                  {isLocal && " \u2605"}
+                </p>
+                <p className="text-sm text-text-primary break-words">
+                  {event.venueName}
+                  <span className="text-text-secondary">
+                    {" \u00B7 "}
+                    {event.city}, {event.country}
+                  </span>
+                </p>
               </div>
-            </li>
+              {event.ticketUrl && <Ticket size={24} weight="duotone" className="text-text-secondary flex-none" />}
+            </Wrapper>
           );
         })}
-      </ul>
-      <p className="mt-4 text-xs text-text-muted text-center">{t("artist.eventsProvidedBy")}</p>
+      </div>
     </div>
   );
 }
@@ -572,20 +565,17 @@ function SimilarArtistsSection({
   return (
     <div>
       <SectionHeading>{t("artist.similarArtists")}</SectionHeading>
-      <ul className="divide-y divide-white/[0.06]">
-        {similarArtistTracks.map(({ artistName, track }) => (
-          <li key={artistName} className="py-3 first:pt-0 last:pb-0">
-            {track ? (
-              <div>
-                <p className="text-sm text-text-primary mb-1.5">{artistName}</p>
-                <PopularTrack track={track} t={t} />
-              </div>
-            ) : (
-              <p className="text-sm text-text-primary">{artistName}</p>
-            )}
-          </li>
-        ))}
-      </ul>
+      <div className="flex flex-col gap-2">
+        {similarArtistTracks.map(({ artistName, track }) =>
+          track ? (
+            <PopularTrack key={artistName} track={track} t={t} artistLabel={artistName} />
+          ) : (
+            <p key={artistName} className="text-sm text-text-primary px-2">
+              {artistName}
+            </p>
+          ),
+        )}
+      </div>
     </div>
   );
 }
@@ -617,8 +607,13 @@ function SectionHeading({ children, info }: { children: React.ReactNode; info?: 
   }
 
   return (
-    <div className="flex items-center justify-between mb-3">
-      <p className="text-sm uppercase tracking-widest text-text-secondary">{children}</p>
+    <div className="flex items-center justify-between mb-3 px-2">
+      <p
+        className="text-sm uppercase tracking-widest text-text-secondary font-bold"
+        style={{ fontFamily: "var(--font-condensed)" }}
+      >
+        {children}
+      </p>
       {info && (
         <>
           <button
@@ -628,7 +623,7 @@ function SectionHeading({ children, info }: { children: React.ReactNode; info?: 
             className="p-1 text-white/30 hover:text-white/60 transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             aria-label="Info"
           >
-            <FaCircleInfo className="w-3.5 h-3.5" />
+            <Info size={20} weight="duotone" />
           </button>
           {open &&
             createPortal(

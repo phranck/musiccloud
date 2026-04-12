@@ -16,6 +16,7 @@
     "@fontsource/barlow": "^5.2.8",
     "@fontsource/roboto-condensed": "^5.2.8",
     "@musiccloud/shared": "*",
+    "@phosphor-icons/react": "^2.1.10",
     "astro": "5.17.3",
     "clsx": "^2.1.1",
     "marked": "^17.0.4",

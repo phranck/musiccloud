@@ -1,4 +1,4 @@
-import { FaCircleInfo } from "react-icons/fa6";
+import { Info } from "@phosphor-icons/react";
 import { useT } from "@/i18n/context";
 
 interface InfoButtonProps {
@@ -14,7 +14,7 @@ export function InfoButton({ onClick }: InfoButtonProps) {
       aria-label={t("a11y.infoButton")}
       className="p-2 text-white/30 hover:text-white/70 transition-colors duration-150 rounded-lg focus:outline-none"
     >
-      <FaCircleInfo className="w-5 h-5" />
+      <Info size={20} weight="duotone" />
     </button>
   );
 }

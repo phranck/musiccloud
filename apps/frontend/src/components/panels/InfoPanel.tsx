@@ -1,4 +1,4 @@
-import { FaXmark } from "react-icons/fa6";
+import { X } from "@phosphor-icons/react";
 import { type InfoPanelTab, useInfoPanel } from "@/hooks/useInfoPanel";
 import { useLocale, useT } from "@/i18n/context";
 
@@ -96,7 +96,7 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
               aria-label={t("infopanel.close")}
               className="mb-2 p-1.5 text-white/30 hover:text-white/70 transition-colors duration-150 rounded-lg focus:outline-none"
             >
-              <FaXmark className="w-4 h-4" />
+              <X size={16} weight="duotone" />
             </button>
           </div>
 

@@ -1,4 +1,5 @@
 import { compareByDisplayOrder } from "@musiccloud/shared";
+import { Check, CopySimple, X } from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -142,9 +143,7 @@ export function EmbedModal({
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-all duration-150"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X size={16} weight="duotone" />
           </button>
         </div>
 
@@ -168,25 +167,18 @@ export function EmbedModal({
         {/* Code Section */}
         <div className="px-6 pb-6">
           <div className="flex items-center justify-between mb-2 px-(--spacing-card-inset)">
-            <p className="text-xs uppercase tracking-widest text-text-secondary">{t("embed.code")}</p>
+            <p
+              className="text-xs uppercase tracking-widest text-text-secondary font-bold"
+              style={{ fontFamily: "var(--font-condensed)" }}
+            >
+              {t("embed.code")}
+            </p>
             <button
               type="button"
               onClick={handleCopy}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.08] text-text-secondary text-xs font-medium hover:bg-white/[0.12] hover:text-text-primary transition-all duration-150"
             >
-              {copyState === "idle" ? (
-                <svg className="w-4 h-4" viewBox="0 0 256 256" fill="currentColor">
-                  <path
-                    opacity="0.2"
-                    d="M184,72V216a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V72a8,8,0,0,1,8-8H176A8,8,0,0,1,184,72Z"
-                  />
-                  <path d="M216,32H88a8,8,0,0,0-8,8V80H48a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H56V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" viewBox="0 0 256 256" fill="currentColor">
-                  <path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z" />
-                </svg>
-              )}
+              {copyState === "idle" ? <CopySimple size={16} weight="duotone" /> : <Check size={16} weight="duotone" />}
               {copyState === "idle" ? t("embed.copy") : t("embed.copied")}
             </button>
           </div>
