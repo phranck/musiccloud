@@ -113,11 +113,12 @@ interface ShareLayoutProps {
   config: MediaCardContentConfiguration;
   artistName: string;
   animated?: boolean;
+  initialLocale?: string;
 }
 
-export function ShareLayout(props: ShareLayoutProps) {
+export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
   return (
-    <LocaleProvider>
+    <LocaleProvider initialLocale={initialLocale as import("@/i18n/locales").Locale | undefined}>
       <ShareLayoutInner {...props} />
     </LocaleProvider>
   );

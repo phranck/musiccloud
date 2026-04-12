@@ -24,10 +24,23 @@ const detectedLocale = () => detectLocale();
 const serverLocale = () => "en" as Locale;
 const noopSubscribe = () => () => {};
 
-export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const initialLocale = useSyncExternalStore(noopSubscribe, detectedLocale, serverLocale);
-  const [locale, setLocaleState] = useState<Locale>(initialLocale);
+export function LocaleProvider({
+  children,
+  initialLocale: initialLocaleProp,
+}: {
+  children: React.ReactNode;
+  initialLocale?: Locale;
+}) {
+  const detected = useSyncExternalStore(noopSubscribe, detectedLocale, serverLocale);
+  const [locale, setLocaleState] = useState<Locale>(initialLocaleProp ?? detected);
   const [translations, setTranslations] = useState<Translations>({});
+
+  // Persist detected locale to cookie + localStorage on first mount
+  // so SSR pages can read it even without explicit language switch
+  useEffect(() => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    document.cookie = `${LOCALE_STORAGE_KEY}=${locale}; max-age=31536000; path=/; SameSite=Lax`;
+  }, [locale]);
 
   // Sync with other islands on the same page via custom window event
   useEffect(() => {
