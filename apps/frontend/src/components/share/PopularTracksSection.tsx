@@ -92,9 +92,9 @@ export function PopularTrack({
         )}
       </div>
       <div className="min-w-0 flex-1 text-left">
-        <p className="text-sm font-medium text-text-primary truncate">{track.title}</p>
-        {artistLabel && <p className="text-xs text-text-secondary mt-0.5 truncate">{artistLabel}</p>}
-        {showAlbum && <p className="text-xs text-text-secondary mt-0.5 truncate">{track.albumName}</p>}
+        <p className="text-sm font-medium text-text-primary break-words">{track.title}</p>
+        {artistLabel && <p className="text-xs text-text-secondary mt-0.5 break-words">{artistLabel}</p>}
+        {showAlbum && <p className="text-xs text-text-secondary mt-0.5 break-words">{track.albumName}</p>}
       </div>
       {track.durationMs != null && (
         <span className="text-xs text-text-secondary tabular-nums flex-none">{formatDuration(track.durationMs)}</span>
