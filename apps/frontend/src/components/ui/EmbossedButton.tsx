@@ -6,9 +6,9 @@ export { embossedStyle };
 const baseClasses = [
   "bg-white/[0.07] px-5 py-2.5 overflow-hidden cursor-pointer",
   "transition-all duration-150",
-  "hover:bg-white/[0.10] hover:scale-[1.03]",
-  "focus-visible:bg-white/[0.10] focus-visible:scale-[1.03]",
-  "active:scale-[0.97]",
+  "hover:bg-white/[0.10] hover:scale-[1.015] hover:shadow-[0_0_16px_var(--embossed-glow,rgba(255,255,255,0.15))]",
+  "focus-visible:bg-white/[0.10] focus-visible:scale-[1.015] focus-visible:shadow-[0_0_16px_var(--embossed-glow,rgba(255,255,255,0.15))]",
+  "active:scale-[0.985]",
 ];
 
 type AnchorProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & { as?: "a" };

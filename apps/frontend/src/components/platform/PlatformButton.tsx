@@ -62,15 +62,8 @@ export const PlatformButton = memo(function PlatformButton({
       rel="noopener noreferrer"
       aria-label={`Open ${songTitle} on ${label} (opens in new window)`}
       onClick={() => trackServiceLinkClick(platform)}
-      className={cn(
-        "flex items-center px-3 rounded-lg no-underline w-full",
-        s.minH,
-        s.gap,
-        "hover:shadow-[0_0_16px_var(--platform-color)]",
-        "focus-visible:shadow-[0_0_16px_var(--platform-color)]",
-        className,
-      )}
-      style={{ "--platform-color": `${config.color}60` } as React.CSSProperties}
+      className={cn("flex items-center px-3 rounded-lg no-underline w-full", s.minH, s.gap, className)}
+      style={{ "--embossed-glow": `${config.color}60` } as React.CSSProperties}
     >
       <PlatformIcon platform={platform} className={cn(s.icon, "flex-shrink-0")} colored={true} />
       <div className="flex-1">
