@@ -1,14 +1,6 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import type { AlbumColors } from "@/lib/ui/colors";
-import {
-  CANIS_MAJOR_STARS,
-  CYCLE_DURATION_MS,
-  computeBlobTransform,
-  generateConstellationShadow,
-  generateStarfield,
-  ORION_STARS,
-  randomWaveParams,
-} from "@/lib/ui/starfield";
+import { CANIS_MAJOR_STARS, generateConstellationShadow, generateStarfield, ORION_STARS } from "@/lib/ui/starfield";
 import { cn } from "@/lib/utils";
 
 interface GradientBackgroundProps {
@@ -23,58 +15,10 @@ const DEFAULT_COLORS = {
 
 export function GradientBackground({ albumColors }: GradientBackgroundProps) {
   const colors = albumColors ?? DEFAULT_COLORS;
-  const blobRefs = useRef<(HTMLDivElement | null)[]>([null, null, null]);
 
   const starfieldShadow = useMemo(() => generateStarfield(), []);
   const orionShadow = useMemo(() => generateConstellationShadow(ORION_STARS, 72, 4, 16, 28), []);
   const canisMajorShadow = useMemo(() => generateConstellationShadow(CANIS_MAJOR_STARS, 12, 55, 14, 28), []);
-
-  const waveParams = useMemo(() => [randomWaveParams(), randomWaveParams(), randomWaveParams()], []);
-
-  // Blob drift animation via requestAnimationFrame
-  useEffect(() => {
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (motionQuery.matches) return;
-
-    if (window.matchMedia("(pointer: coarse)").matches) return;
-
-    let raf: number;
-    const startTime = performance.now();
-
-    function animate(now: number) {
-      const elapsed = now - startTime;
-      const t = (elapsed / CYCLE_DURATION_MS) * Math.PI * 2;
-
-      for (let i = 0; i < 3; i++) {
-        const el = blobRefs.current[i];
-        if (el) el.style.transform = computeBlobTransform(waveParams[i], t);
-      }
-
-      raf = requestAnimationFrame(animate);
-    }
-
-    raf = requestAnimationFrame(animate);
-
-    const handleMotionChange = () => {
-      if (motionQuery.matches) cancelAnimationFrame(raf);
-    };
-    motionQuery.addEventListener("change", handleMotionChange);
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        cancelAnimationFrame(raf);
-      } else if (!motionQuery.matches) {
-        raf = requestAnimationFrame(animate);
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      motionQuery.removeEventListener("change", handleMotionChange);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [waveParams]);
 
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden="true">
@@ -88,37 +32,37 @@ export function GradientBackground({ albumColors }: GradientBackgroundProps) {
       </div>
 
       <div
-        ref={(el) => {
-          blobRefs.current[0] = el;
-        }}
         className={cn(
           "absolute rounded-full blur-[150px] w-[50vw] h-[50vw]",
           "top-[-5%] left-[-5%]",
           "transition-[background-color] duration-800 ease-in-out",
         )}
-        style={{ backgroundColor: colors.primary }}
+        style={{
+          backgroundColor: colors.primary,
+          animation: "blob-drift-1 120s ease-in-out infinite",
+        }}
       />
       <div
-        ref={(el) => {
-          blobRefs.current[1] = el;
-        }}
         className={cn(
           "absolute rounded-full blur-[160px] w-[45vw] h-[45vw]",
           "top-[30%] right-[-10%]",
           "transition-[background-color] duration-800 ease-in-out",
         )}
-        style={{ backgroundColor: colors.secondary }}
+        style={{
+          backgroundColor: colors.secondary,
+          animation: "blob-drift-2 150s ease-in-out infinite",
+        }}
       />
       <div
-        ref={(el) => {
-          blobRefs.current[2] = el;
-        }}
         className={cn(
           "absolute rounded-full blur-[170px] w-[55vw] h-[55vw]",
           "bottom-[-10%] left-[30%]",
           "transition-[background-color] duration-800 ease-in-out",
         )}
-        style={{ backgroundColor: colors.tertiary }}
+        style={{
+          backgroundColor: colors.tertiary,
+          animation: "blob-drift-3 180s ease-in-out infinite",
+        }}
       />
     </div>
   );
