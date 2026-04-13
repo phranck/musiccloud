@@ -57,6 +57,7 @@
 }
 
 @import "./animations.css";
+@import "./neumorphic.css";
 
 /* Safe area padding for notch / home indicator (iPhone X+) */
 .pb-safe {

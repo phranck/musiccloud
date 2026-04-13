@@ -17,7 +17,7 @@ interface EmbossedCardProps {
  */
 export function EmbossedCard({ children, className, style }: EmbossedCardProps) {
   return (
-    <div className={cn("bg-white/[0.07] p-4 overflow-hidden", className)} style={{ ...embossedStyle, ...style }}>
+    <div className={cn("embossed-gradient-border bg-white/[0.07] p-4 overflow-hidden", className)} style={{ ...embossedStyle, ...style }}>
       {children}
     </div>
   );

@@ -1,0 +1,67 @@
+/**
+ * Neumorphic gradient border classes.
+ *
+ * Uses a ::before pseudo-element with mask-composite: exclude to paint
+ * a 1px gradient border. The mask subtracts the content-box from the
+ * border-box, leaving only the 1px border strip visible.
+ *
+ * Gradient direction: `to bottom right`. CSS computes this as an angle
+ * *perpendicular* to the top-right/bottom-left diagonal, so that
+ * top-right and bottom-left corners always sit at the 50% stop --
+ * independent of element aspect ratio.
+ *
+ * The gradient blend span is controlled by --neu-radius (defaults to
+ * 16px, matching rounded-2xl). It should match the actual border-radius
+ * of the consuming component so the light→shadow fade aligns with the
+ * rounded corner arc. Override via inline style when needed, e.g.:
+ *   <EmbossedCard style={{ "--neu-radius": "0.5rem" }} className="rounded-lg" />
+ *
+ * Light source: top-left.
+ *   Embossed: top-left=bright, bottom-right=dark
+ *   Recessed: top-left=dark,   bottom-right=bright
+ */
+
+.embossed-gradient-border,
+.recessed-gradient-border {
+  --neu-radius: 16px;
+  position: relative;
+}
+
+.embossed-gradient-border::before,
+.recessed-gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  /* Subtract the content-box from the border-box → only the 1px strip remains */
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+}
+
+.embossed-gradient-border::before {
+  background: linear-gradient(
+    to bottom right,
+    rgba(255, 255, 255, 0.18),
+    rgba(255, 255, 255, 0.18) calc(50% - var(--neu-radius) / 2.5),
+    rgba(0, 0, 0, 0.35) calc(50% + var(--neu-radius) / 2.5),
+    rgba(0, 0, 0, 0.35)
+  );
+}
+
+.recessed-gradient-border::before {
+  background: linear-gradient(
+    to bottom right,
+    rgba(0, 0, 0, 0.28),
+    rgba(0, 0, 0, 0.28) calc(50% - var(--neu-radius) / 2.5),
+    rgba(255, 255, 255, 0.16) calc(50% + var(--neu-radius) / 2.5),
+    rgba(255, 255, 255, 0.16)
+  );
+}

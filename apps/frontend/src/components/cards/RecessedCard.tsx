@@ -18,7 +18,7 @@ interface RecessedCardProps {
 export function RecessedCard({ children, className, style }: RecessedCardProps) {
   return (
     <div
-      className={cn("bg-black/20 backdrop-blur-md p-4 overflow-hidden", className)}
+      className={cn("recessed-gradient-border bg-black/20 backdrop-blur-md p-4 overflow-hidden", className)}
       style={{ ...recessedStyle, ...style }}
     >
       {children}
