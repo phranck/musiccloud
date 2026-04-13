@@ -86,6 +86,48 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return reply.send(result);
   });
 
+  // Per-share cache invalidation. Marks the underlying row as stale so the
+  // next resolve of its URL re-fetches — share URL stays intact.
+  app.post("/api/admin/tracks/:shortId/invalidate-cache", async (request, reply) => {
+    const { shortId } = request.params as { shortId: string };
+    try {
+      const repo = await getAdminRepository();
+      const result = await repo.invalidateTrackCache(shortId);
+      return reply.send(result);
+    } catch (err) {
+      return reply.status(404).send({ error: err instanceof Error ? err.message : "Not found" });
+    }
+  });
+
+  app.post("/api/admin/albums/:shortId/invalidate-cache", async (request, reply) => {
+    const { shortId } = request.params as { shortId: string };
+    try {
+      const repo = await getAdminRepository();
+      const result = await repo.invalidateAlbumCache(shortId);
+      return reply.send(result);
+    } catch (err) {
+      return reply.status(404).send({ error: err instanceof Error ? err.message : "Not found" });
+    }
+  });
+
+  app.post("/api/admin/artists/:shortId/invalidate-cache", async (request, reply) => {
+    const { shortId } = request.params as { shortId: string };
+    try {
+      const repo = await getAdminRepository();
+      const result = await repo.invalidateArtistCache(shortId);
+      return reply.send(result);
+    } catch (err) {
+      return reply.status(404).send({ error: err instanceof Error ? err.message : "Not found" });
+    }
+  });
+
+  // Bulk: stale every track + album + artist row.
+  app.post("/api/admin/cache/invalidate-all", async (_request, reply) => {
+    const repo = await getAdminRepository();
+    const result = await repo.invalidateAllCaches();
+    return reply.send(result);
+  });
+
   app.get("/api/admin/data-counts", async (_request, reply) => {
     const repo = await getAdminRepository();
     const counts = await repo.countAllData();

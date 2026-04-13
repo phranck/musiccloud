@@ -16,6 +16,7 @@ import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
+import { InvalidateCacheButton } from "@/features/music/InvalidateCacheButton";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog, dialogBtnDestructive, dialogBtnSecondary } from "@/shared/ui/Dialog";
 
@@ -65,6 +66,11 @@ export function ArtistsPage() {
             } satisfies ColumnDef<ArtistListItem>,
           ]
         : []),
+      {
+        id: "invalidate-cache",
+        className: "w-10",
+        cell: (artist) => <InvalidateCacheButton shortId={artist.shortId} kind="artists" />,
+      },
       {
         id: "image",
         className: "w-16",

@@ -1688,6 +1688,72 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     }
   }
 
+  // ─── Cache invalidation ────────────────────────────────────────────────────
+  //
+  // Resolvers treat a row as fresh while (now - updated_at) < CACHE_TTL_MS
+  // (see lib/config.ts, tryCache / tryAlbumCache / tryArtistCache). Rewinding
+  // `updated_at` to the Unix epoch therefore guarantees the row is considered
+  // expired and the next resolve re-fetches from the source services. The
+  // share's short URL, user-facing links, and any cross-references stay intact
+  // because we don't touch short_urls / service_links.
+
+  async invalidateTrackCache(shortId: string): Promise<{ ok: true }> {
+    const result = await this.pool.query(
+      `UPDATE tracks SET updated_at = to_timestamp(0)
+       WHERE id = (SELECT track_id FROM short_urls WHERE id = $1)`,
+      [shortId],
+    );
+    if ((result.rowCount ?? 0) === 0) {
+      throw new Error(`Track short URL not found: ${shortId}`);
+    }
+    return { ok: true };
+  }
+
+  async invalidateAlbumCache(shortId: string): Promise<{ ok: true }> {
+    const result = await this.pool.query(
+      `UPDATE albums SET updated_at = to_timestamp(0)
+       WHERE id = (SELECT album_id FROM album_short_urls WHERE id = $1)`,
+      [shortId],
+    );
+    if ((result.rowCount ?? 0) === 0) {
+      throw new Error(`Album short URL not found: ${shortId}`);
+    }
+    return { ok: true };
+  }
+
+  async invalidateArtistCache(shortId: string): Promise<{ ok: true }> {
+    const result = await this.pool.query(
+      `UPDATE artists SET updated_at = to_timestamp(0)
+       WHERE id = (SELECT artist_id FROM artist_short_urls WHERE id = $1)`,
+      [shortId],
+    );
+    if ((result.rowCount ?? 0) === 0) {
+      throw new Error(`Artist short URL not found: ${shortId}`);
+    }
+    return { ok: true };
+  }
+
+  async invalidateAllCaches(): Promise<{ tracks: number; albums: number; artists: number }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const tracksResult = await client.query(`UPDATE tracks SET updated_at = to_timestamp(0)`);
+      const albumsResult = await client.query(`UPDATE albums SET updated_at = to_timestamp(0)`);
+      const artistsResult = await client.query(`UPDATE artists SET updated_at = to_timestamp(0)`);
+      await client.query("COMMIT");
+      return {
+        tracks: tracksResult.rowCount ?? 0,
+        albums: albumsResult.rowCount ?? 0,
+        artists: artistsResult.rowCount ?? 0,
+      };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   async listArtists(params: {
     page: number;
     limit: number;

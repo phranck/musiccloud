@@ -18,6 +18,7 @@ import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
+import { InvalidateCacheButton } from "@/features/music/InvalidateCacheButton";
 import { api } from "@/lib/api";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog, dialogBtnDestructive, dialogBtnSecondary } from "@/shared/ui/Dialog";
@@ -115,6 +116,11 @@ export function TracksPage() {
         id: "featured",
         className: "w-10",
         cell: (track) => <FeaturedToggle track={track} />,
+      },
+      {
+        id: "invalidate-cache",
+        className: "w-10",
+        cell: (track) => <InvalidateCacheButton shortId={track.shortId} kind="tracks" />,
       },
       {
         id: "artwork",

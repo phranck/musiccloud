@@ -150,4 +150,23 @@ export interface AdminRepository {
   countAllData(): Promise<{ tracks: number; albums: number; artists: number }>;
   resetAllData(): Promise<{ tracks: number; albums: number; artists: number }>;
   resolveShortIds(shortIds: string[]): Promise<Map<string, { title: string; artist: string }>>;
+
+  /**
+   * Mark a single share's resolved data as stale. The share's URL mapping
+   * stays intact — only the `updated_at` timestamp on the underlying row is
+   * rewound, so the next resolve of the same URL misses the TTL cache and
+   * re-fetches fresh data from the source services.
+   *
+   * Throws if the shortId is unknown.
+   */
+  invalidateTrackCache(shortId: string): Promise<{ ok: true }>;
+  invalidateAlbumCache(shortId: string): Promise<{ ok: true }>;
+  invalidateArtistCache(shortId: string): Promise<{ ok: true }>;
+
+  /**
+   * Bulk version of the above — stales every track/album/artist row. Shares
+   * remain alive; the next access to each triggers a fresh resolve.
+   * Returns the number of rows touched per kind.
+   */
+  invalidateAllCaches(): Promise<{ tracks: number; albums: number; artists: number }>;
 }

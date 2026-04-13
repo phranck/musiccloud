@@ -171,6 +171,8 @@ export interface DashboardMessages {
       deleteConfirmAction: string;
       featuredAdd: string;
       featuredRemove: string;
+      invalidateCache: string;
+      invalidateCacheConfirm: string;
     };
   };
   system: {
@@ -179,6 +181,10 @@ export interface DashboardMessages {
     artistCacheLabel: string;
     artistCacheDescription: string;
     artistCacheClear: string;
+    shareCacheLabel: string;
+    shareCacheDescription: string;
+    shareCacheClear: string;
+    shareCacheSuccess: string;
     dangerZoneTitle: string;
     deleteAllLabel: string;
     deleteAllDescriptionWithCounts: string;
@@ -836,6 +842,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         deleteConfirmAction: "L\u00f6schen",
         featuredAdd: "Als Featured markieren",
         featuredRemove: "Featured entfernen",
+        invalidateCache: "Cache auffrischen",
+        invalidateCacheConfirm: "Cache aufgefrischt",
       },
     },
     system: {
@@ -845,6 +853,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       artistCacheDescription:
         "L\u00f6scht alle gecachten Artist-Infos (Top-Tracks, Profil, Tourdaten). Werden beim n\u00e4chsten Aufruf neu geladen.",
       artistCacheClear: "Leeren",
+      shareCacheLabel: "Share-Cache auffrischen",
+      shareCacheDescription:
+        "Markiert alle Tracks, Alben und Artists als stale. Beim n\u00e4chsten Aufruf eines Shares werden die Quelldaten neu von den Services geladen. Share-URLs bleiben erhalten.",
+      shareCacheClear: "Auffrischen",
+      shareCacheSuccess: "{tracks} Tracks, {albums} Alben, {artists} Artists aufgefrischt.",
       dangerZoneTitle: "Danger Zone",
       deleteAllLabel: "Alle Daten l\u00f6schen",
       deleteAllDescriptionWithCounts:
@@ -1472,6 +1485,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         deleteConfirmAction: "Delete",
         featuredAdd: "Mark as featured",
         featuredRemove: "Remove featured",
+        invalidateCache: "Refresh cache",
+        invalidateCacheConfirm: "Cache refreshed",
       },
     },
     system: {
@@ -1481,6 +1496,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       artistCacheDescription:
         "Deletes all cached artist info (top tracks, profile, tour dates). Will be reloaded on next request.",
       artistCacheClear: "Clear",
+      shareCacheLabel: "Refresh share cache",
+      shareCacheDescription:
+        "Marks every track, album and artist as stale. The next request to a share re-fetches fresh source data from the services. Share URLs remain intact.",
+      shareCacheClear: "Refresh",
+      shareCacheSuccess: "{tracks} tracks, {albums} albums, {artists} artists refreshed.",
       dangerZoneTitle: "Danger Zone",
       deleteAllLabel: "Delete all data",
       deleteAllDescriptionWithCounts:

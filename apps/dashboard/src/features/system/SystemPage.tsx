@@ -9,16 +9,19 @@ interface ClearResult {
 
 type ActionState = "idle" | "loading" | "success" | "error";
 
-function CacheAction({
+function CacheAction<T = ClearResult>({
   label,
   description,
   buttonLabel,
   endpoint,
+  formatSuccess,
 }: {
   label: string;
   description: string;
   buttonLabel: string;
   endpoint: string;
+  /** Turn the API response into the success message. Defaults to `${messages.system.entriesDeleted}` using `{count}` from `(result as ClearResult).deleted`. */
+  formatSuccess?: (result: T) => string;
 }) {
   const { messages } = useI18n();
   const [state, setState] = useState<ActionState>("idle");
@@ -28,9 +31,14 @@ function CacheAction({
     setState("loading");
     setMessage("");
     try {
-      const result = await api.post<ClearResult>(endpoint);
+      const result = await api.post<T>(endpoint);
       setState("success");
-      setMessage(messages.system.entriesDeleted.replace("{count}", String(result.deleted)));
+      if (formatSuccess) {
+        setMessage(formatSuccess(result));
+      } else {
+        const deleted = (result as unknown as ClearResult).deleted ?? 0;
+        setMessage(messages.system.entriesDeleted.replace("{count}", String(deleted)));
+      }
     } catch (err) {
       setState("error");
       setMessage(err instanceof Error ? err.message : messages.common.unknownError);
@@ -292,6 +300,18 @@ export function SystemPage() {
             description={m.artistCacheDescription}
             buttonLabel={m.artistCacheClear}
             endpoint="/admin/artist-cache/clear"
+          />
+          <CacheAction<{ tracks: number; albums: number; artists: number }>
+            label={m.shareCacheLabel}
+            description={m.shareCacheDescription}
+            buttonLabel={m.shareCacheClear}
+            endpoint="/admin/cache/invalidate-all"
+            formatSuccess={(r) =>
+              m.shareCacheSuccess
+                .replace("{tracks}", String(r.tracks))
+                .replace("{albums}", String(r.albums))
+                .replace("{artists}", String(r.artists))
+            }
           />
         </div>
       </div>
