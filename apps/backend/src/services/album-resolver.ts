@@ -429,6 +429,9 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   try {
     sourceAlbum = await sourceAdapter.getAlbum(albumId);
   } catch (error) {
+    // Preserve the adapter's MC code (e.g. MC-API-1404, MC-AUTH-2401) so the
+    // user sees the specific reason rather than a generic "service down".
+    if (error instanceof ResolveError) throw error;
     throw new ResolveError(
       "SERVICE_DOWN",
       `Failed to fetch album from ${sourceAdapter.id}: ${error instanceof Error ? error.message : error}`,

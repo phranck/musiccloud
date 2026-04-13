@@ -273,6 +273,7 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
   try {
     sourceArtist = await sourceAdapter.getArtist(artistId);
   } catch (error) {
+    if (error instanceof ResolveError) throw error;
     throw new ResolveError(
       "SERVICE_DOWN",
       `Failed to fetch artist from ${sourceAdapter.id}: ${error instanceof Error ? error.message : error}`,

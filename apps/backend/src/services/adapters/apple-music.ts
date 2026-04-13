@@ -1,5 +1,6 @@
 import { importPKCS8, SignJWT } from "jose";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
+import { ResolveError } from "../../lib/resolve/errors";
 import { calculateConfidence } from "../../lib/resolve/normalize";
 import type {
   AdapterCapabilities,
@@ -153,7 +154,10 @@ async function generateToken(): Promise<string> {
   const privateKeyPem = process.env.APPLE_MUSIC_PRIVATE_KEY;
 
   if (!keyId || !teamId || !privateKeyPem) {
-    throw new Error("Apple Music requires APPLE_MUSIC_KEY_ID + APPLE_MUSIC_TEAM_ID + APPLE_MUSIC_PRIVATE_KEY");
+    throw new ResolveError(
+      "MC-CFG-1001",
+      "Apple Music requires APPLE_MUSIC_KEY_ID + APPLE_MUSIC_TEAM_ID + APPLE_MUSIC_PRIVATE_KEY",
+    );
   }
 
   // The private key may be base64-encoded or raw PEM.
@@ -164,15 +168,25 @@ async function generateToken(): Promise<string> {
     : Buffer.from(privateKeyPem, "base64").toString("utf-8");
   const pem = rawPem.replace(/\\n/g, "\n");
 
-  const privateKey = await importPKCS8(pem, "ES256");
+  let privateKey: Awaited<ReturnType<typeof importPKCS8>>;
+  try {
+    privateKey = await importPKCS8(pem, "ES256");
+  } catch (err) {
+    throw new ResolveError("MC-AUTH-1501", `Apple Music private key could not be parsed: ${(err as Error).message}`);
+  }
 
   const now = Math.floor(Date.now() / 1000);
-  const token = await new SignJWT({})
-    .setProtectedHeader({ alg: "ES256", kid: keyId })
-    .setIssuer(teamId)
-    .setIssuedAt(now)
-    .setExpirationTime(now + TOKEN_LIFETIME_SECONDS)
-    .sign(privateKey);
+  let token: string;
+  try {
+    token = await new SignJWT({})
+      .setProtectedHeader({ alg: "ES256", kid: keyId })
+      .setIssuer(teamId)
+      .setIssuedAt(now)
+      .setExpirationTime(now + TOKEN_LIFETIME_SECONDS)
+      .sign(privateKey);
+  } catch (err) {
+    throw new ResolveError("MC-AUTH-1501", `Apple Music JWT signing failed: ${(err as Error).message}`);
+  }
 
   cachedJwt = {
     token,
@@ -215,6 +229,35 @@ async function appleMusicFetch(endpoint: string): Promise<Response> {
     },
     5000,
   );
+}
+
+/**
+ * Map an Apple Music HTTP error status to the right MC code so the user
+ * sees an honest, specific message (404 = "not in this region", 401 =
+ * "credentials rejected", 429 = rate-limited, anything else = generic).
+ */
+function appleMusicHttpError(
+  status: number,
+  kind: "track" | "album" | "artist",
+  id: string,
+  storefront: string,
+  fn: string,
+): ResolveError {
+  const ctx = { kind, storefront, id, status };
+  switch (status) {
+    case 401:
+      return new ResolveError("MC-AUTH-1401", `Apple Music ${fn} rejected (401)`, ctx);
+    case 404:
+      return new ResolveError(
+        "MC-API-1404",
+        `Apple Music ${fn} 404: ${kind} ${id} not in storefront ${storefront}`,
+        ctx,
+      );
+    case 429:
+      return new ResolveError("MC-API-1429", `Apple Music ${fn} rate-limited (429)`, ctx);
+    default:
+      return new ResolveError("MC-API-1001", `Apple Music ${fn} failed: ${status}`, ctx);
+  }
 }
 
 interface AppleMusicSongAttributes {
@@ -448,14 +491,17 @@ export const appleMusicAdapter: ServiceAdapter = {
     const response = await appleMusicFetch(`/catalog/${storefront}/songs/${encodeURIComponent(id)}`);
 
     if (!response.ok) {
-      throw new Error(`Apple Music getTrack failed: ${response.status}`);
+      throw appleMusicHttpError(response.status, "track", id, storefront, "getTrack");
     }
 
     const data = await response.json();
     const song: AppleMusicSongResource = data.data[0];
 
     if (!song) {
-      throw new Error(`Apple Music track not found: ${id}`);
+      throw new ResolveError("MC-API-1404", `Apple Music track not found: ${id} (storefront=${storefront})`, {
+        kind: "track",
+        storefront,
+      });
     }
 
     return mapTrack(song);
@@ -539,14 +585,17 @@ export const appleMusicAdapter: ServiceAdapter = {
     const response = await appleMusicFetch(`/catalog/${storefront}/albums/${encodeURIComponent(id)}?include=tracks`);
 
     if (!response.ok) {
-      throw new Error(`Apple Music getAlbum failed: ${response.status}`);
+      throw appleMusicHttpError(response.status, "album", id, storefront, "getAlbum");
     }
 
     const data = await response.json();
     const album: AppleMusicAlbumResource = data.data[0];
 
     if (!album) {
-      throw new Error(`Apple Music album not found: ${id}`);
+      throw new ResolveError("MC-API-1404", `Apple Music album not found: ${id} (storefront=${storefront})`, {
+        kind: "album",
+        storefront,
+      });
     }
 
     return mapAlbum(album);
@@ -614,14 +663,17 @@ export const appleMusicAdapter: ServiceAdapter = {
     const response = await appleMusicFetch(`/catalog/${storefront}/artists/${encodeURIComponent(id)}`);
 
     if (!response.ok) {
-      throw new Error(`Apple Music getArtist failed: ${response.status}`);
+      throw appleMusicHttpError(response.status, "artist", id, storefront, "getArtist");
     }
 
     const data = await response.json();
     const artist: AppleMusicArtistResource = data.data[0];
 
     if (!artist) {
-      throw new Error(`Apple Music artist not found: ${id}`);
+      throw new ResolveError("MC-API-1404", `Apple Music artist not found: ${id} (storefront=${storefront})`, {
+        kind: "artist",
+        storefront,
+      });
     }
 
     return mapArtist(artist);

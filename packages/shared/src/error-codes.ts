@@ -214,6 +214,81 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     internalNote: "A timeout fired on an outbound request or the whole pipeline.",
     source: "apps/backend/src/lib/infra/fetch.ts fetchWithTimeout",
   },
+
+  // ─── Apple Music (group 1) ─────────────────────────────────────────────────
+  "MC-API-1001": {
+    code: "MC-API-1001",
+    httpStatus: 503,
+    userMessage: "Apple Music returned an unexpected response. Please try again later.",
+    internalNote: "Apple Music API returned a non-OK status that isn't 401/404/429. Status is included in the message.",
+    source: "apps/backend/src/services/adapters/apple-music.ts getTrack/getAlbum/getArtist",
+  },
+  "MC-API-1404": {
+    code: "MC-API-1404",
+    httpStatus: 404,
+    userMessage: "Apple Music doesn't have this {kind} in the {storefront} region.",
+    internalNote: "Catalog returned 404 — the id is regional and doesn't exist in the storefront we queried.",
+    source: "apps/backend/src/services/adapters/apple-music.ts getTrack/getAlbum/getArtist",
+  },
+  "MC-API-1429": {
+    code: "MC-API-1429",
+    httpStatus: 429,
+    userMessage: "Apple Music is rate-limiting us. Please try again in a moment.",
+    internalNote: "Apple Music API returned 429.",
+    source: "apps/backend/src/services/adapters/apple-music.ts",
+  },
+  "MC-AUTH-1401": {
+    code: "MC-AUTH-1401",
+    httpStatus: 503,
+    userMessage: "Apple Music rejected our credentials. The dev token may be expired or misconfigured.",
+    internalNote: "401 from Apple Music — JWT signature/issuer rejected. Check APPLE_MUSIC_KEY_ID/TEAM_ID/PRIVATE_KEY.",
+    source: "apps/backend/src/services/adapters/apple-music.ts",
+  },
+  "MC-CFG-1001": {
+    code: "MC-CFG-1001",
+    httpStatus: 503,
+    userMessage: "Apple Music is not configured on this server.",
+    internalNote: "APPLE_MUSIC_KEY_ID + APPLE_MUSIC_TEAM_ID + APPLE_MUSIC_PRIVATE_KEY env vars are missing.",
+    source: "apps/backend/src/services/adapters/apple-music.ts generateToken",
+  },
+  "MC-AUTH-1501": {
+    code: "MC-AUTH-1501",
+    httpStatus: 503,
+    userMessage: "Apple Music token signing failed on the server.",
+    internalNote: "JWT signing threw — the private key is malformed or not valid PKCS8.",
+    source: "apps/backend/src/services/adapters/apple-music.ts generateToken",
+  },
+
+  // ─── Qobuz (group 2) ───────────────────────────────────────────────────────
+  "MC-API-2001": {
+    code: "MC-API-2001",
+    httpStatus: 503,
+    userMessage: "Qobuz returned an unexpected response. Please try again later.",
+    internalNote: "Qobuz API returned a non-OK status that isn't 401/404. Status is included in the message.",
+    source: "apps/backend/src/services/adapters/qobuz.ts getTrack/getAlbum",
+  },
+  "MC-API-2404": {
+    code: "MC-API-2404",
+    httpStatus: 404,
+    userMessage: "Qobuz doesn't have this track or album anymore.",
+    internalNote: "Qobuz API returned 404 / empty body for the requested id.",
+    source: "apps/backend/src/services/adapters/qobuz.ts getTrack/getAlbum",
+  },
+  "MC-AUTH-2401": {
+    code: "MC-AUTH-2401",
+    httpStatus: 503,
+    userMessage: "Qobuz rejected our login. Credentials or app id may be wrong.",
+    internalNote:
+      "401 from Qobuz API. Likely causes: QOBUZ_EMAIL/PASSWORD wrong/expired, QOBUZ_APP_ID set to a web-player id (use the Chromecast id 425621600 or unset).",
+    source: "apps/backend/src/services/adapters/qobuz.ts qobuzApiFetch",
+  },
+  "MC-CFG-2001": {
+    code: "MC-CFG-2001",
+    httpStatus: 503,
+    userMessage: "Qobuz is not configured on this server.",
+    internalNote: "QOBUZ_EMAIL or QOBUZ_PASSWORD env var is missing — no auth token can be obtained.",
+    source: "apps/backend/src/services/adapters/qobuz.ts fetchAuthToken",
+  },
 };
 
 /** Resolve a raw code (MC or legacy) to its registry entry. */
