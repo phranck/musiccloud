@@ -134,17 +134,21 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
   });
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  // Dynamic accent color extraction from album artwork
+  // Dynamic accent color extraction from album artwork.
+  // `--accent-ready` acts as a boolean gate for elements that should only
+  // appear once the dynamic accent has been computed — prevents the brief
+  // flash of the default global accent on page load.
   const { dynamicAccent, handleAlbumArtLoad } = useAlbumColors();
-  const accentStyle = dynamicAccent
-    ? ({
-        "--color-accent": dynamicAccent.base,
-        "--color-accent-rgb": hexToRgb(dynamicAccent.base),
-        "--color-accent-hover": dynamicAccent.hover,
-        "--color-accent-glow": dynamicAccent.glow,
-        "--color-accent-contrast": dynamicAccent.contrastText,
-      } as React.CSSProperties)
-    : undefined;
+  const accentStyle = {
+    "--accent-ready": dynamicAccent ? "1" : "0",
+    ...(dynamicAccent && {
+      "--color-accent": dynamicAccent.base,
+      "--color-accent-rgb": hexToRgb(dynamicAccent.base),
+      "--color-accent-hover": dynamicAccent.hover,
+      "--color-accent-glow": dynamicAccent.glow,
+      "--color-accent-contrast": dynamicAccent.contrastText,
+    }),
+  } as React.CSSProperties;
 
   // Inject the client-side onAlbumArtLoad callback into the (SSR-serialized) config
   const enrichedConfig = useMemo(

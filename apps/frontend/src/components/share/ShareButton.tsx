@@ -62,6 +62,11 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
             ? {
                 color: "var(--color-accent-contrast)",
                 boxShadow: "3px 3px 10px rgba(0,0,0,0.6), -2px -2px 6px rgba(255,255,255,0.10)",
+                // Hide until the parent container signals that the dynamic accent
+                // is ready (e.g. after album art color extraction). Fallback `1`
+                // keeps the button visible in non-share contexts.
+                opacity: "var(--accent-ready, 1)",
+                transition: "opacity 180ms ease-out",
               }
             : {
                 boxShadow: "3px 3px 10px rgba(0,0,0,0.6), -2px -2px 6px rgba(48,209,88,0.10)",
