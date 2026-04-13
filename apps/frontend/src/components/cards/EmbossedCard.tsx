@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { embossedStyle } from "@/styles/neumorphic";
+import { embossedCardStyle } from "@/styles/neumorphic";
 
 interface EmbossedCardProps {
   children?: React.ReactNode;
@@ -17,7 +17,7 @@ interface EmbossedCardProps {
  */
 export function EmbossedCard({ children, className, style }: EmbossedCardProps) {
   return (
-    <div className={cn("embossed-gradient-border bg-white/[0.07] p-4 overflow-hidden", className)} style={{ ...embossedStyle, ...style }}>
+    <div className={cn("embossed-gradient-border bg-white/[0.07] p-4 overflow-hidden", className)} style={{ ...embossedCardStyle, ...style }}>
       {children}
     </div>
   );

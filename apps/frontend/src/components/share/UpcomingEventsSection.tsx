@@ -20,15 +20,14 @@ export function UpcomingEventsSection({ events, userRegion, hasLocalEvents, t, l
       <div className="flex flex-col gap-2">
         {events.map((event) => {
           const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
-          const Wrapper = event.ticketUrl ? EmbossedButton : "div";
-          const wrapperProps = event.ticketUrl
-            ? { href: event.ticketUrl, target: "_blank", rel: "noopener noreferrer" }
+          const linkProps = event.ticketUrl
+            ? ({ href: event.ticketUrl, target: "_blank", rel: "noopener noreferrer" } as const)
             : {};
           return (
-            <Wrapper
+            <EmbossedButton
               key={`${event.date}-${event.venueName || event.city}`}
               className="flex items-center gap-3 w-full rounded-lg px-3 py-2 no-underline"
-              {...wrapperProps}
+              {...linkProps}
             >
               <div className="min-w-0 flex-1">
                 <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
@@ -44,7 +43,7 @@ export function UpcomingEventsSection({ events, userRegion, hasLocalEvents, t, l
                 </p>
               </div>
               {event.ticketUrl && <TicketIcon size={24} weight="duotone" className="text-text-secondary flex-none" />}
-            </Wrapper>
+            </EmbossedButton>
           );
         })}
       </div>

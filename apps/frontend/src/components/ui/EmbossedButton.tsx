@@ -1,13 +1,10 @@
 import { cn } from "@/lib/utils";
-import { embossedStyle } from "@/styles/neumorphic";
-
-export { embossedStyle };
 
 const baseClasses = [
-  "embossed-gradient-border bg-white/[0.07] px-5 py-2.5 overflow-hidden cursor-pointer",
+  "embossed-gradient-border bg-white/[0.03] px-5 py-2.5 overflow-hidden cursor-pointer",
   "transition-all duration-150",
-  "hover:bg-white/[0.10] hover:scale-[1.015] hover:shadow-[0_0_16px_var(--embossed-glow,rgba(255,255,255,0.15))]",
-  "focus-visible:bg-white/[0.10] focus-visible:scale-[1.015] focus-visible:shadow-[0_0_16px_var(--embossed-glow,rgba(255,255,255,0.15))]",
+  "hover:bg-white/[0.10] hover:scale-[1.015]",
+  "focus-visible:bg-white/[0.10] focus-visible:scale-[1.015]",
   "active:scale-[0.985]",
 ];
 
@@ -45,12 +42,10 @@ const InnerShadowFilter = () => (
 );
 
 export function EmbossedButton({ children, className, style, hasInnerShadow, ...props }: EmbossedButtonProps) {
-  const mergedStyle = { ...embossedStyle, ...style };
-
   if ("as" in props && props.as === "button") {
     const { as: _, ...buttonProps } = props as ButtonProps;
     return (
-      <button className={cn(baseClasses, className)} style={mergedStyle} {...buttonProps}>
+      <button className={cn(baseClasses, className)} style={style} {...buttonProps}>
         {hasInnerShadow && <InnerShadowFilter />}
         {children}
       </button>
@@ -59,7 +54,7 @@ export function EmbossedButton({ children, className, style, hasInnerShadow, ...
 
   const { as: _, ...anchorProps } = props as AnchorProps;
   return (
-    <a className={cn(baseClasses, className)} style={mergedStyle} {...anchorProps}>
+    <a className={cn(baseClasses, className)} style={style} {...anchorProps}>
       {hasInnerShadow && <InnerShadowFilter />}
       {children}
     </a>
