@@ -1,6 +1,8 @@
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceHttpError, serviceNotFoundError } from "../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../constants.js";
 import type {
   AlbumMatchResult,
@@ -164,7 +166,7 @@ export const audiusAdapter = {
     const response = await audiusFetch(`/tracks/${encodeURIComponent(trackId)}`);
 
     if (!response.ok) {
-      throw new Error(`Audius getTrack failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.AUDIUS, response.status, RESOURCE_KIND.TRACK, trackId);
     }
 
     const data = (await response.json()) as AudiusTrackDetailResponse;
@@ -241,7 +243,7 @@ export const audiusAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchAlbumById(albumId);
-    if (!album) throw new Error(`Audius: Album not found: ${albumId}`);
+    if (!album) throw serviceNotFoundError(SERVICE.AUDIUS, RESOURCE_KIND.ALBUM, albumId);
     return album;
   },
 

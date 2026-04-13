@@ -104,12 +104,12 @@ describe("Boomplay: getTrack", () => {
 
   it("should handle page without JSON-LD", async () => {
     mockFetch.mockReturnValueOnce(ok("<html><head><title>Boomplay</title></head><body></body></html>"));
-    await expect(boomplayAdapter.getTrack("999")).rejects.toThrow("Boomplay: Track not found");
+    await expect(boomplayAdapter.getTrack("999")).rejects.toThrow("BoomPlay: Track not found");
   });
 
   it("should handle HTTP error", async () => {
     mockFetch.mockReturnValueOnce(notOk(404));
-    await expect(boomplayAdapter.getTrack("999")).rejects.toThrow("Boomplay: Track not found");
+    await expect(boomplayAdapter.getTrack("999")).rejects.toThrow("BoomPlay: Track not found");
   });
 
   it("should handle duration with hours", async () => {

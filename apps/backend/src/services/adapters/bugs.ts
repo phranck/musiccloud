@@ -1,6 +1,8 @@
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceNotFoundError } from "../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -184,7 +186,7 @@ export const bugsAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await fetchTrackById(trackId);
     if (!track) {
-      throw new Error(`Bugs!: Track not found: ${trackId}`);
+      throw serviceNotFoundError(SERVICE.BUGS, RESOURCE_KIND.TRACK, trackId);
     }
     return track;
   },
@@ -269,7 +271,7 @@ export const bugsAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchAlbumById(albumId);
-    if (!album) throw new Error(`Bugs!: Album not found: ${albumId}`);
+    if (!album) throw serviceNotFoundError(SERVICE.BUGS, RESOURCE_KIND.ALBUM, albumId);
     return album;
   },
 

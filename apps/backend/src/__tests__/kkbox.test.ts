@@ -153,7 +153,7 @@ describe("KKBOX: getTrack", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
       .mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
 
-    await expect(kkboxAdapter.getTrack("invalid")).rejects.toThrow("KKBOX getTrack failed: 404");
+    await expect(kkboxAdapter.getTrack("invalid")).rejects.toThrow("KKBOX track fetch failed: 404");
   });
 
   it("should throw on auth failure", async () => {

@@ -149,7 +149,7 @@ describe("Deezer: getTrack", () => {
   it("should throw on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
 
-    await expect(deezerAdapter.getTrack("999999")).rejects.toThrow("Deezer getTrack failed: 404");
+    await expect(deezerAdapter.getTrack("999999")).rejects.toThrow("Deezer track fetch failed: 404");
   });
 
   it("should throw on Deezer API error response", async () => {
@@ -162,7 +162,7 @@ describe("Deezer: getTrack", () => {
       ),
     );
 
-    await expect(deezerAdapter.getTrack("999999")).rejects.toThrow("Deezer API error: no data");
+    await expect(deezerAdapter.getTrack("999999")).rejects.toThrow(/Deezer: Track not found: 999999 \(no data\)/);
   });
 
   it("should use cover_big as fallback when cover_xl is missing", async () => {

@@ -1,6 +1,8 @@
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceHttpError } from "../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../constants.js";
 import type {
   ArtistCapabilities,
@@ -162,7 +164,7 @@ export const napsterAdapter = {
     const response = await napsterFetch(endpoint);
 
     if (!response.ok) {
-      throw new Error(`Napster getTrack failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.NAPSTER, response.status, RESOURCE_KIND.TRACK, trackId);
     }
 
     const data = (await response.json()) as NapsterTracksResponse;
@@ -270,7 +272,7 @@ export const napsterAdapter = {
     const response = await napsterFetch(endpoint);
 
     if (!response.ok) {
-      throw new Error(`Napster getArtist failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.NAPSTER, response.status, RESOURCE_KIND.ARTIST, artistId);
     }
 
     const data = (await response.json()) as NapsterArtistsResponse;

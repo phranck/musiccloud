@@ -221,7 +221,7 @@ describe("Tidal: getTrack", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
       .mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
 
-    await expect(tidalAdapter.getTrack("999999")).rejects.toThrow("Tidal getTrack failed: 404");
+    await expect(tidalAdapter.getTrack("999999")).rejects.toThrow("Tidal track fetch failed: 404");
   });
 
   it("should throw on auth failure", async () => {

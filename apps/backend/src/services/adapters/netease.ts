@@ -1,6 +1,8 @@
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceNotFoundError } from "../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -290,7 +292,7 @@ export const neteaseAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await getTrackById(trackId);
     if (!track) {
-      throw new Error(`NetEase: Track not found: ${trackId}`);
+      throw serviceNotFoundError(SERVICE.NETEASE, RESOURCE_KIND.TRACK, trackId);
     }
     return track;
   },
@@ -372,7 +374,7 @@ export const neteaseAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await getAlbumById(albumId);
-    if (!album) throw new Error(`NetEase: Album not found: ${albumId}`);
+    if (!album) throw serviceNotFoundError(SERVICE.NETEASE, RESOURCE_KIND.ALBUM, albumId);
     return album;
   },
 
@@ -432,7 +434,7 @@ export const neteaseAdapter: ServiceAdapter = {
 
   async getArtist(artistId: string): Promise<NormalizedArtist> {
     const artist = await getArtistById(artistId);
-    if (!artist) throw new Error(`NetEase: Artist not found: ${artistId}`);
+    if (!artist) throw serviceNotFoundError(SERVICE.NETEASE, RESOURCE_KIND.ARTIST, artistId);
     return artist;
   },
 

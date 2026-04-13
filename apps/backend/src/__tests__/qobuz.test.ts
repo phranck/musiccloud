@@ -148,13 +148,13 @@ describe("Qobuz: getTrack", () => {
   it("should throw on HTTP error", async () => {
     fetchMock.mockResolvedValueOnce(mockResponse({}, 404));
 
-    await expect(qobuzAdapter.getTrack("99999")).rejects.toThrow("Qobuz track/get failed: 404");
+    await expect(qobuzAdapter.getTrack("99999")).rejects.toThrow("Qobuz track fetch failed: 404");
   });
 
   it("should throw when response has no title", async () => {
     fetchMock.mockResolvedValueOnce(mockResponse({ id: 123 }));
 
-    await expect(qobuzAdapter.getTrack("123")).rejects.toThrow("Qobuz: No track data in response");
+    await expect(qobuzAdapter.getTrack("123")).rejects.toThrow("Qobuz: Track not found: 123");
   });
 
   it("should handle missing album artwork gracefully", async () => {

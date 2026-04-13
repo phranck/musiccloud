@@ -1,7 +1,8 @@
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
-import { ResolveError } from "../../lib/resolve/errors";
 import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceHttpError, serviceNotFoundError } from "../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../constants.js";
 import type {
   AlbumCapabilities,
@@ -161,24 +162,6 @@ async function qobuzApiFetch(endpoint: string): Promise<Response> {
   return response;
 }
 
-/**
- * Map a Qobuz HTTP error status to the right MC code so the user sees a
- * specific message: 401 = login/credentials issue (the most common cause
- * after the Phase 1 Chromecast app_id fix is QOBUZ_EMAIL/PASSWORD wrong),
- * 404 = id unknown, anything else = generic upstream error.
- */
-function qobuzHttpError(status: number, kind: "track" | "album" | "artist", id: string, fn: string): ResolveError {
-  const ctx = { kind, id, status };
-  switch (status) {
-    case 401:
-      return new ResolveError("MC-AUTH-2401", `Qobuz ${fn} failed: 401 (auth)`, ctx);
-    case 404:
-      return new ResolveError("MC-API-2404", `Qobuz ${fn} failed: 404 (${kind} ${id} not found)`, ctx);
-    default:
-      return new ResolveError("MC-API-2001", `Qobuz ${fn} failed: ${status}`, ctx);
-  }
-}
-
 // --- Response types ---
 
 interface QobuzTrack {
@@ -333,15 +316,12 @@ export const qobuzAdapter = {
     const response = await qobuzApiFetch(`/track/get?track_id=${trackId}`);
 
     if (!response.ok) {
-      throw qobuzHttpError(response.status, "track", trackId, "track/get");
+      throw serviceHttpError(SERVICE.QOBUZ, response.status, RESOURCE_KIND.TRACK, trackId);
     }
 
     const data = (await response.json()) as QobuzTrack;
     if (!data.title) {
-      throw new ResolveError("MC-API-2404", `Qobuz: No track data in response (id=${trackId})`, {
-        kind: "track",
-        id: trackId,
-      });
+      throw serviceNotFoundError(SERVICE.QOBUZ, RESOURCE_KIND.TRACK, trackId);
     }
 
     return mapTrack(data);
@@ -451,15 +431,12 @@ export const qobuzAdapter = {
     const response = await qobuzApiFetch(`/album/get?album_id=${encodeURIComponent(albumId)}`);
 
     if (!response.ok) {
-      throw qobuzHttpError(response.status, "album", albumId, "album/get");
+      throw serviceHttpError(SERVICE.QOBUZ, response.status, RESOURCE_KIND.ALBUM, albumId);
     }
 
     const data = (await response.json()) as QobuzAlbum;
     if (!data.title) {
-      throw new ResolveError("MC-API-2404", `Qobuz: No album data in response (id=${albumId})`, {
-        kind: "album",
-        id: albumId,
-      });
+      throw serviceNotFoundError(SERVICE.QOBUZ, RESOURCE_KIND.ALBUM, albumId);
     }
 
     return mapAlbum(data);
@@ -553,15 +530,12 @@ export const qobuzAdapter = {
     const response = await qobuzApiFetch(`/artist/get?artist_id=${encodeURIComponent(artistId)}`);
 
     if (!response.ok) {
-      throw qobuzHttpError(response.status, "artist", artistId, "artist/get");
+      throw serviceHttpError(SERVICE.QOBUZ, response.status, RESOURCE_KIND.ARTIST, artistId);
     }
 
     const data = (await response.json()) as QobuzArtist;
     if (!data.name) {
-      throw new ResolveError("MC-API-2404", `Qobuz: No artist data in response (id=${artistId})`, {
-        kind: "artist",
-        id: artistId,
-      });
+      throw serviceNotFoundError(SERVICE.QOBUZ, RESOURCE_KIND.ARTIST, artistId);
     }
 
     const id = String(data.id ?? artistId);

@@ -1,6 +1,8 @@
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceNotFoundError } from "../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -313,7 +315,7 @@ export const beatportAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await fetchTrackById(trackId);
     if (!track) {
-      throw new Error(`Beatport: Track not found: ${trackId}`);
+      throw serviceNotFoundError(SERVICE.BEATPORT, RESOURCE_KIND.TRACK, trackId);
     }
     return track;
   },
@@ -427,7 +429,7 @@ export const beatportAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchReleaseById(albumId);
-    if (!album) throw new Error(`Beatport: Album not found: ${albumId}`);
+    if (!album) throw serviceNotFoundError(SERVICE.BEATPORT, RESOURCE_KIND.ALBUM, albumId);
     return album;
   },
 

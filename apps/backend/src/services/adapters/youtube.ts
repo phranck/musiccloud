@@ -1,5 +1,8 @@
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
+import { ResolveError } from "../../lib/resolve/errors";
 import { calculateConfidence, normalizeTitle } from "../../lib/resolve/normalize";
+import { serviceHttpError, serviceNotFoundError } from "../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../constants.js";
 import type {
   AdapterCapabilities,
@@ -87,7 +90,7 @@ function parseArtistFromTitle(title: string): { artist: string; trackTitle: stri
 async function youtubeFetch(endpoint: string): Promise<Response> {
   const apiKey = process.env.YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
-    throw new Error("YOUTUBE_API_KEY must be set");
+    throw new ResolveError("MC-CFG-6001", "YOUTUBE_API_KEY must be set");
   }
 
   const separator = endpoint.includes("?") ? "&" : "?";
@@ -161,14 +164,14 @@ export const youtubeAdapter: ServiceAdapter = {
     const response = await youtubeFetch(`/videos?part=snippet,contentDetails&id=${encodeURIComponent(videoId)}`);
 
     if (!response.ok) {
-      throw new Error(`YouTube getTrack failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.YOUTUBE, response.status, RESOURCE_KIND.TRACK, videoId);
     }
 
     const data = await response.json();
     const items: YouTubeVideoResource[] = data.items ?? [];
 
     if (items.length === 0) {
-      throw new Error(`YouTube video not found: ${videoId}`);
+      throw serviceNotFoundError(SERVICE.YOUTUBE, RESOURCE_KIND.TRACK, videoId);
     }
 
     return mapVideoToTrack(items[0]);
@@ -256,14 +259,14 @@ export const youtubeAdapter: ServiceAdapter = {
     const response = await youtubeFetch(endpoint);
 
     if (!response.ok) {
-      throw new Error(`YouTube getArtist failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.YOUTUBE, response.status, RESOURCE_KIND.ARTIST, artistId);
     }
 
     const data = await response.json();
     const channels: YouTubeChannelResource[] = data.items ?? [];
 
     if (channels.length === 0) {
-      throw new Error(`YouTube channel not found: ${artistId}`);
+      throw serviceNotFoundError(SERVICE.YOUTUBE, RESOURCE_KIND.ARTIST, artistId);
     }
 
     return mapChannelToArtist(channels[0]);

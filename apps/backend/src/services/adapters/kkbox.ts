@@ -1,7 +1,9 @@
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { TokenManager } from "../../lib/infra/token-manager";
 import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceHttpError, serviceNotFoundError } from "../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../constants.js";
 import type {
   AlbumMatchResult,
@@ -222,7 +224,7 @@ export const kkboxAdapter = {
     const response = await kkboxFetch(`/tracks/${encodeURIComponent(trackId)}?territory=${territory}`);
 
     if (!response.ok) {
-      throw new Error(`KKBOX getTrack failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.KKBOX, response.status, RESOURCE_KIND.TRACK, trackId);
     }
 
     const data: KkboxTrackResponse = await response.json();
@@ -332,7 +334,7 @@ export const kkboxAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await getAlbumById(albumId);
-    if (!album) throw new Error(`KKBOX: Album not found: ${albumId}`);
+    if (!album) throw serviceNotFoundError(SERVICE.KKBOX, RESOURCE_KIND.ALBUM, albumId);
     return album;
   },
 
@@ -402,7 +404,7 @@ export const kkboxAdapter = {
     const response = await kkboxFetch(`/artists/${encodeURIComponent(artistId)}?territory=${territory}`);
 
     if (!response.ok) {
-      throw new Error(`KKBOX getArtist failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.KKBOX, response.status, RESOURCE_KIND.ARTIST, artistId);
     }
 
     const data: KkboxArtistResponse = await response.json();

@@ -1,7 +1,9 @@
+import { OPERATION, RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { TokenManager } from "../../lib/infra/token-manager";
 import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceHttpError } from "../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../constants.js";
 import type {
   AdapterCapabilities,
@@ -148,7 +150,7 @@ export const spotifyAdapter = {
     const response = await spotifyFetch(`/tracks/${encodeURIComponent(trackId)}`);
 
     if (!response.ok) {
-      throw new Error(`Spotify getTrack failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.SPOTIFY, response.status, RESOURCE_KIND.TRACK, trackId);
     }
 
     const data: SpotifyTrackResponse = await response.json();
@@ -160,7 +162,7 @@ export const spotifyAdapter = {
     const response = await spotifyFetch(`/search?type=track&q=${query}&limit=1`);
 
     if (!response.ok) {
-      throw new Error(`Spotify findByIsrc failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.SPOTIFY, response.status, RESOURCE_KIND.TRACK, isrc, OPERATION.ISRC_LOOKUP);
     }
 
     const data = await response.json();
@@ -330,7 +332,7 @@ export const spotifyAdapter = {
     const response = await spotifyFetch(`/albums/${encodeURIComponent(albumId)}`);
 
     if (!response.ok) {
-      throw new Error(`Spotify getAlbum failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.SPOTIFY, response.status, RESOURCE_KIND.ALBUM, albumId);
     }
 
     const data: SpotifyAlbumResponse = await response.json();
@@ -405,7 +407,7 @@ export const spotifyAdapter = {
     const response = await spotifyFetch(`/artists/${encodeURIComponent(artistId)}`);
 
     if (!response.ok) {
-      throw new Error(`Spotify getArtist failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.SPOTIFY, response.status, RESOURCE_KIND.ARTIST, artistId);
     }
 
     const data = await response.json();

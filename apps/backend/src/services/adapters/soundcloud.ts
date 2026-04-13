@@ -1,6 +1,8 @@
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceHttpError, serviceNotFoundError } from "../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../constants.js";
 import type {
   AlbumMatchResult,
@@ -408,7 +410,7 @@ export const soundcloudAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchAlbumByPath(albumId);
-    if (!album) throw new Error(`SoundCloud: Album not found: ${albumId}`);
+    if (!album) throw serviceNotFoundError(SERVICE.SOUNDCLOUD, RESOURCE_KIND.ALBUM, albumId);
     return album;
   },
 
@@ -468,7 +470,7 @@ export const soundcloudAdapter = {
 
     const response = await scApiFetch(`/resolve?url=${encodeURIComponent(pageUrl)}`);
     if (!response.ok) {
-      throw new Error(`SoundCloud getArtist failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.SOUNDCLOUD, response.status, RESOURCE_KIND.ARTIST, artistId);
     }
 
     const data = (await response.json()) as ScUserData;

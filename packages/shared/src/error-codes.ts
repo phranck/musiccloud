@@ -291,7 +291,23 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
   },
 };
 
-/** Resolve a raw code (MC or legacy) to its registry entry. */
+/** Pattern that recognises any well-formed MC error code, even if not in the registry. */
+const MC_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP)-\d{3,4}$/;
+
+/**
+ * Resolve a raw code (MC or legacy) to its registry entry.
+ *
+ * Lookup order:
+ * 1. Exact MC code match in `ERROR_CODE_REGISTRY`
+ * 2. Legacy code mapped via `LEGACY_TO_MC`
+ * 3. Well-formed MC code with no registry entry: synthesise a generic entry
+ *    that **keeps the original code**. This lets `serviceHttpError` etc.
+ *    emit per-adapter codes (`MC-API-3001`, `MC-API-8404`, …) without
+ *    requiring a registry entry per (adapter × failure type) — the code is
+ *    still grep-able to the helper that produced it. Specific entries can
+ *    be added later when a particular failure deserves a tailored message.
+ * 4. Anything else: fall back to the catch-all `MC-API-0004`.
+ */
 export function getErrorEntry(code: string): ErrorCodeEntry {
   if (code in ERROR_CODE_REGISTRY) {
     return ERROR_CODE_REGISTRY[code as McErrorCode];
@@ -299,8 +315,52 @@ export function getErrorEntry(code: string): ErrorCodeEntry {
   if (code in LEGACY_TO_MC) {
     return ERROR_CODE_REGISTRY[LEGACY_TO_MC[code as LegacyErrorCode]];
   }
-  // Unknown code — return a generic entry so callers can still respond.
+  if (MC_CODE_PATTERN.test(code)) {
+    const area = code.split("-")[1] as ErrorArea;
+    return {
+      code: code as McErrorCode,
+      httpStatus: defaultHttpStatusForArea(area),
+      userMessage: defaultMessageForArea(area),
+      internalNote: "Synthesised entry — no specific registry entry for this code yet.",
+      source: "(dynamic — see the helper that produced this code, e.g. serviceHttpError)",
+    };
+  }
   return ERROR_CODE_REGISTRY["MC-API-0004"];
+}
+
+function defaultHttpStatusForArea(area: ErrorArea): number {
+  switch (area) {
+    case "URL":
+      return 400;
+    case "AUTH":
+    case "API":
+      return 503;
+    case "RES":
+      return 404;
+    case "CFG":
+    case "DB":
+    case "MAP":
+      return 500;
+  }
+}
+
+function defaultMessageForArea(area: ErrorArea): string {
+  switch (area) {
+    case "URL":
+      return "That URL can't be processed right now.";
+    case "API":
+      return "An external service returned an unexpected response. Please try again.";
+    case "AUTH":
+      return "We couldn't authenticate against an external service.";
+    case "RES":
+      return "We couldn't resolve this request.";
+    case "CFG":
+      return "A required configuration is missing on the server.";
+    case "DB":
+      return "A database error occurred.";
+    case "MAP":
+      return "An external service returned data we couldn't parse.";
+  }
 }
 
 /**

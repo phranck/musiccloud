@@ -1,7 +1,9 @@
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { TokenManager } from "../../lib/infra/token-manager";
 import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceHttpError } from "../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../constants.js";
 import type {
   AlbumCapabilities,
@@ -248,7 +250,7 @@ export const tidalAdapter = {
     const response = await tidalFetch(`/tracks/${encodeURIComponent(trackId)}?countryCode=US&include=artists,albums`);
 
     if (!response.ok) {
-      throw new Error(`Tidal getTrack failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.TIDAL, response.status, RESOURCE_KIND.TRACK, trackId);
     }
 
     const data: TidalTrackResponse = await response.json();
@@ -344,7 +346,7 @@ export const tidalAdapter = {
     const response = await tidalFetch(`/albums/${encodeURIComponent(albumId)}?countryCode=US&include=artists,items`);
 
     if (!response.ok) {
-      throw new Error(`Tidal getAlbum failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.TIDAL, response.status, RESOURCE_KIND.ALBUM, albumId);
     }
 
     const data: TidalAlbumResponse = await response.json();
@@ -426,7 +428,7 @@ export const tidalAdapter = {
     const response = await tidalFetch(`/artists/${encodeURIComponent(artistId)}?countryCode=US`);
 
     if (!response.ok) {
-      throw new Error(`Tidal getArtist failed: ${response.status}`);
+      throw serviceHttpError(SERVICE.TIDAL, response.status, RESOURCE_KIND.ARTIST, artistId);
     }
 
     const data = await response.json();

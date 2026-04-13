@@ -8,9 +8,11 @@
  * - findByIsrc: Not supported (Boomplay exposes no ISRC data)
  */
 
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceNotFoundError } from "../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -194,7 +196,7 @@ export const boomplayAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await fetchTrackById(trackId);
     if (!track) {
-      throw new Error(`Boomplay: Track not found: ${trackId}`);
+      throw serviceNotFoundError(SERVICE.BOOMPLAY, RESOURCE_KIND.TRACK, trackId);
     }
     return track;
   },
@@ -302,7 +304,7 @@ export const boomplayAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchAlbumById(albumId);
-    if (!album) throw new Error(`Boomplay: Album not found: ${albumId}`);
+    if (!album) throw serviceNotFoundError(SERVICE.BOOMPLAY, RESOURCE_KIND.ALBUM, albumId);
     return album;
   },
 

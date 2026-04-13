@@ -1,6 +1,8 @@
+import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { log } from "../../lib/infra/logger";
 import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceNotFoundError } from "../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -217,7 +219,7 @@ export const audiomackAdapter: ServiceAdapter = {
     }
     const track = await fetchTrackPage(parts[0], parts[1]);
     if (!track) {
-      throw new Error(`Audiomack: Track not found: ${trackId}`);
+      throw serviceNotFoundError(SERVICE.AUDIOMACK, RESOURCE_KIND.TRACK, trackId);
     }
     return track;
   },
@@ -302,7 +304,7 @@ export const audiomackAdapter: ServiceAdapter = {
     const parts = albumId.split("/");
     if (parts.length !== 2) throw new Error(`Audiomack: Invalid album ID: ${albumId}`);
     const album = await fetchAlbumPage(parts[0], parts[1]);
-    if (!album) throw new Error(`Audiomack: Album not found: ${albumId}`);
+    if (!album) throw serviceNotFoundError(SERVICE.AUDIOMACK, RESOURCE_KIND.ALBUM, albumId);
     return album;
   },
 

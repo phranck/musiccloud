@@ -1,7 +1,9 @@
+import { RESOURCE_KIND, type ResourceKind, SERVICE } from "@musiccloud/shared";
 import { importPKCS8, SignJWT } from "jose";
 import { fetchWithTimeout } from "../../lib/infra/fetch";
 import { ResolveError } from "../../lib/resolve/errors";
 import { calculateConfidence } from "../../lib/resolve/normalize";
+import { serviceHttpError, serviceNotFoundError } from "../../lib/resolve/service-errors";
 import type {
   AdapterCapabilities,
   AlbumCapabilities,
@@ -232,32 +234,15 @@ async function appleMusicFetch(endpoint: string): Promise<Response> {
 }
 
 /**
- * Map an Apple Music HTTP error status to the right MC code so the user
- * sees an honest, specific message (404 = "not in this region", 401 =
- * "credentials rejected", 429 = rate-limited, anything else = generic).
+ * Apple Music wrapper around {@link serviceHttpError} that adds the
+ * storefront to the error context (Apple Music's regional 404 case is the
+ * most common cause of "track not found" and the storefront is the key
+ * diagnostic detail).
  */
-function appleMusicHttpError(
-  status: number,
-  kind: "track" | "album" | "artist",
-  id: string,
-  storefront: string,
-  fn: string,
-): ResolveError {
-  const ctx = { kind, storefront, id, status };
-  switch (status) {
-    case 401:
-      return new ResolveError("MC-AUTH-1401", `Apple Music ${fn} rejected (401)`, ctx);
-    case 404:
-      return new ResolveError(
-        "MC-API-1404",
-        `Apple Music ${fn} 404: ${kind} ${id} not in storefront ${storefront}`,
-        ctx,
-      );
-    case 429:
-      return new ResolveError("MC-API-1429", `Apple Music ${fn} rate-limited (429)`, ctx);
-    default:
-      return new ResolveError("MC-API-1001", `Apple Music ${fn} failed: ${status}`, ctx);
-  }
+function appleMusicHttpError(status: number, kind: ResourceKind, id: string, storefront: string): ResolveError {
+  const err = serviceHttpError(SERVICE.APPLE_MUSIC, status, kind, id);
+  if (err.context) (err.context as Record<string, string | number>).storefront = storefront;
+  return err;
 }
 
 interface AppleMusicSongAttributes {
@@ -491,17 +476,16 @@ export const appleMusicAdapter: ServiceAdapter = {
     const response = await appleMusicFetch(`/catalog/${storefront}/songs/${encodeURIComponent(id)}`);
 
     if (!response.ok) {
-      throw appleMusicHttpError(response.status, "track", id, storefront, "getTrack");
+      throw appleMusicHttpError(response.status, RESOURCE_KIND.TRACK, id, storefront);
     }
 
     const data = await response.json();
     const song: AppleMusicSongResource = data.data[0];
 
     if (!song) {
-      throw new ResolveError("MC-API-1404", `Apple Music track not found: ${id} (storefront=${storefront})`, {
-        kind: "track",
-        storefront,
-      });
+      const err = serviceNotFoundError(SERVICE.APPLE_MUSIC, RESOURCE_KIND.TRACK, id, `storefront=${storefront}`);
+      if (err.context) (err.context as Record<string, string | number>).storefront = storefront;
+      throw err;
     }
 
     return mapTrack(song);
@@ -585,17 +569,16 @@ export const appleMusicAdapter: ServiceAdapter = {
     const response = await appleMusicFetch(`/catalog/${storefront}/albums/${encodeURIComponent(id)}?include=tracks`);
 
     if (!response.ok) {
-      throw appleMusicHttpError(response.status, "album", id, storefront, "getAlbum");
+      throw appleMusicHttpError(response.status, RESOURCE_KIND.ALBUM, id, storefront);
     }
 
     const data = await response.json();
     const album: AppleMusicAlbumResource = data.data[0];
 
     if (!album) {
-      throw new ResolveError("MC-API-1404", `Apple Music album not found: ${id} (storefront=${storefront})`, {
-        kind: "album",
-        storefront,
-      });
+      const err = serviceNotFoundError(SERVICE.APPLE_MUSIC, RESOURCE_KIND.ALBUM, id, `storefront=${storefront}`);
+      if (err.context) (err.context as Record<string, string | number>).storefront = storefront;
+      throw err;
     }
 
     return mapAlbum(album);
@@ -663,17 +646,16 @@ export const appleMusicAdapter: ServiceAdapter = {
     const response = await appleMusicFetch(`/catalog/${storefront}/artists/${encodeURIComponent(id)}`);
 
     if (!response.ok) {
-      throw appleMusicHttpError(response.status, "artist", id, storefront, "getArtist");
+      throw appleMusicHttpError(response.status, RESOURCE_KIND.ARTIST, id, storefront);
     }
 
     const data = await response.json();
     const artist: AppleMusicArtistResource = data.data[0];
 
     if (!artist) {
-      throw new ResolveError("MC-API-1404", `Apple Music artist not found: ${id} (storefront=${storefront})`, {
-        kind: "artist",
-        storefront,
-      });
+      const err = serviceNotFoundError(SERVICE.APPLE_MUSIC, RESOURCE_KIND.ARTIST, id, `storefront=${storefront}`);
+      if (err.context) (err.context as Record<string, string | number>).storefront = storefront;
+      throw err;
     }
 
     return mapArtist(artist);

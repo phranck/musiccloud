@@ -154,7 +154,7 @@ describe("Napster: getTrack", () => {
   it("should throw on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
 
-    await expect(napsterAdapter.getTrack("tra.999")).rejects.toThrow("Napster getTrack failed: 404");
+    await expect(napsterAdapter.getTrack("tra.999")).rejects.toThrow("Napster track fetch failed: 404");
   });
 
   it("should throw for slug-based track IDs", async () => {
