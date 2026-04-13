@@ -17,10 +17,7 @@
     "format": "biome format --write .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",
-    "db:studio": "drizzle-kit studio",
-    "db:supabase:generate": "drizzle-kit generate --config drizzle.config.supabase.ts",
-    "db:supabase:migrate": "node scripts/migrate-supabase.mjs",
-    "db:supabase:studio": "drizzle-kit studio --config drizzle.config.supabase.ts"
+    "db:studio": "drizzle-kit studio"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
