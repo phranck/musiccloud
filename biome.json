@@ -39,6 +39,7 @@
       "apps/**",
       "packages/**",
       "!**/*.astro",
+      "!apps/Apple",
       "!apps/backend/src/db/migrations",
       "!apps/backend/src/scripts",
       "!apps/frontend/src/styles",

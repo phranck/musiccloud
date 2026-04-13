@@ -9,7 +9,7 @@
  * the container's gradient position, so it appears as one seamless gradient.
  */
 
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const colors = [
   [0, "#FF6699"],
