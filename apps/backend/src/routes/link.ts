@@ -1,9 +1,10 @@
+import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 
 export default async function linkRoutes(app: FastifyInstance) {
-  app.get<{ Params: { id: string } }>("/api/v1/link/:id", async (request, reply) => {
+  app.get<{ Params: { id: string } }>(ROUTE_TEMPLATES.v1.link, async (request, reply) => {
     const clientIp = request.ip;
     if (apiRateLimiter.isLimited(clientIp)) {
       return reply.status(429).send({

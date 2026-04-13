@@ -1,4 +1,4 @@
-import type { ArtistInfoResponse, SimilarArtistTrack } from "@musiccloud/shared";
+import { type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
@@ -10,7 +10,7 @@ const TTL_PROFILE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const TTL_EVENTS_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export default async function artistInfoRoutes(app: FastifyInstance) {
-  app.get("/api/v1/artist-info", async (request, reply) => {
+  app.get(ENDPOINTS.v1.artistInfo, async (request, reply) => {
     const query = request.query as { name?: string; region?: string };
 
     const rawName = query.name?.trim();

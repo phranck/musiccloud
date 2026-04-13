@@ -1,3 +1,4 @@
+import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
@@ -6,14 +7,14 @@ import { getAdminRepository } from "../db/index.js";
 
 export default async function adminUserRoutes(app: FastifyInstance) {
   // GET /api/admin/users
-  app.get("/api/admin/users", async () => {
+  app.get(ENDPOINTS.admin.users.list, async () => {
     const repo = await getAdminRepository();
     const users = await repo.listAdminUsers();
     return users.map(toResponse);
   });
 
   // POST /api/admin/users (owner only)
-  app.post("/api/admin/users", async (request, reply) => {
+  app.post(ENDPOINTS.admin.users.list, async (request, reply) => {
     const caller = await getCaller(request);
     if (!caller || caller.role !== "owner") {
       return reply.status(403).send({ error: "FORBIDDEN" });
@@ -50,7 +51,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
   });
 
   // PATCH /api/admin/users/:id
-  app.patch<{ Params: { id: string } }>("/api/admin/users/:id", async (request, reply) => {
+  app.patch<{ Params: { id: string } }>(ROUTE_TEMPLATES.admin.users.detail, async (request, reply) => {
     const { id } = request.params;
     const caller = await getCaller(request);
     if (!caller) return reply.status(401).send({ error: "UNAUTHORIZED" });
@@ -93,7 +94,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
   });
 
   // DELETE /api/admin/users/:id (owner only)
-  app.delete<{ Params: { id: string } }>("/api/admin/users/:id", async (request, reply) => {
+  app.delete<{ Params: { id: string } }>(ROUTE_TEMPLATES.admin.users.detail, async (request, reply) => {
     const { id } = request.params;
     const caller = await getCaller(request);
     if (!caller || caller.role !== "owner") {
@@ -110,7 +111,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
 
   // POST /api/admin/users/:id/avatar (upload)
   app.post<{ Params: { id: string } }>(
-    "/api/admin/users/:id/avatar",
+    ROUTE_TEMPLATES.admin.users.avatar,
     { bodyLimit: 8 * 1024 * 1024 },
     async (request, reply) => {
       const { id } = request.params;
@@ -143,7 +144,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
   );
 
   // PATCH /api/admin/users/:id/avatar (gravatar)
-  app.patch<{ Params: { id: string } }>("/api/admin/users/:id/avatar", async (request, reply) => {
+  app.patch<{ Params: { id: string } }>(ROUTE_TEMPLATES.admin.users.avatar, async (request, reply) => {
     const { id } = request.params;
     const caller = await getCaller(request);
     if (!caller) return reply.status(401).send({ error: "UNAUTHORIZED" });
@@ -164,7 +165,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
   });
 
   // DELETE /api/admin/users/:id/avatar
-  app.delete<{ Params: { id: string } }>("/api/admin/users/:id/avatar", async (request, reply) => {
+  app.delete<{ Params: { id: string } }>(ROUTE_TEMPLATES.admin.users.avatar, async (request, reply) => {
     const { id } = request.params;
     const caller = await getCaller(request);
     if (!caller) return reply.status(401).send({ error: "UNAUTHORIZED" });

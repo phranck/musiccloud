@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getAdminRepository } from "../db/index.js";
 import {
@@ -14,17 +15,17 @@ import {
 } from "../services/admin-umami.js";
 
 export default async function adminAnalyticsRoutes(app: FastifyInstance) {
-  app.get("/api/admin/analytics/stats", async (request) => {
+  app.get(ENDPOINTS.admin.analytics.stats, async (request) => {
     const q = request.query as { period?: string };
     return (await getManagedUmamiStats(q.period)) ?? {};
   });
 
-  app.get("/api/admin/analytics/pageviews", async (request) => {
+  app.get(ENDPOINTS.admin.analytics.pageviews, async (request) => {
     const q = request.query as { period?: string };
     return (await getManagedUmamiPageviews(q.period)) ?? {};
   });
 
-  app.get("/api/admin/analytics/metrics", async (request) => {
+  app.get(ENDPOINTS.admin.analytics.metrics, async (request) => {
     const q = request.query as { period?: string; type?: string };
     const raw = (await getManagedUmamiMetrics(q.type, q.period)) ?? [];
 
@@ -46,37 +47,37 @@ export default async function adminAnalyticsRoutes(app: FastifyInstance) {
     return raw;
   });
 
-  app.get("/api/admin/analytics/active", async () => {
+  app.get(ENDPOINTS.admin.analytics.active, async () => {
     return (await getManagedUmamiActive()) ?? {};
   });
 
-  app.get("/api/admin/analytics/realtime", async () => {
+  app.get(ENDPOINTS.admin.analytics.realtime, async () => {
     return (await getManagedUmamiRealtime()) ?? {};
   });
 
   // --- musiccloud-specific event endpoints ---
 
-  app.get("/api/admin/analytics/events/resolves", async (request) => {
+  app.get(ENDPOINTS.admin.analytics.events.resolves, async (request) => {
     const q = request.query as { period?: string };
     return (await getManagedUmamiResolvesByService(q.period)) ?? [];
   });
 
-  app.get("/api/admin/analytics/events/resolves/total", async (request) => {
+  app.get(ENDPOINTS.admin.analytics.events.resolvesTotal, async (request) => {
     const q = request.query as { period?: string };
     return (await getManagedUmamiResolveTotal(q.period)) ?? { total: 0 };
   });
 
-  app.get("/api/admin/analytics/events/link-clicks", async (request) => {
+  app.get(ENDPOINTS.admin.analytics.events.linkClicks, async (request) => {
     const q = request.query as { period?: string };
     return (await getManagedUmamiLinkClicksByService(q.period)) ?? [];
   });
 
-  app.get("/api/admin/analytics/events/link-clicks/total", async (request) => {
+  app.get(ENDPOINTS.admin.analytics.events.linkClicksTotal, async (request) => {
     const q = request.query as { period?: string };
     return (await getManagedUmamiLinkClickTotal(q.period)) ?? { total: 0 };
   });
 
-  app.get("/api/admin/analytics/events/interactions/total", async (request) => {
+  app.get(ENDPOINTS.admin.analytics.events.interactionsTotal, async (request) => {
     const q = request.query as { period?: string };
     return (await getManagedUmamiInteractionTotal(q.period)) ?? { total: 0 };
   });

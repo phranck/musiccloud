@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
@@ -37,7 +38,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
    * GET /api/admin/auth/setup-status
    * Returns whether first-run setup is required (no admin users exist yet).
    */
-  app.get("/api/admin/auth/setup-status", async (_request, reply) => {
+  app.get(ENDPOINTS.admin.auth.setupStatus, async (_request, reply) => {
     const repo = await getAdminRepository();
     const count = await repo.countAdmins();
     return reply.send({ needsSetup: count === 0 });
@@ -47,7 +48,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
    * POST /api/admin/auth/setup
    * Creates the first admin user. Returns 409 if any admin already exists.
    */
-  app.post("/api/admin/auth/setup", async (request, reply) => {
+  app.post(ENDPOINTS.admin.auth.setup, async (request, reply) => {
     const body = request.body as SetupBody | null;
 
     if (!body?.username || !body?.password) {
@@ -88,7 +89,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
    * POST /api/admin/auth/login
    * Authenticates an admin user and returns a signed JWT.
    */
-  app.post("/api/admin/auth/login", async (request, reply) => {
+  app.post(ENDPOINTS.admin.auth.login, async (request, reply) => {
     const body = request.body as LoginBody | null;
 
     if (!body?.username || !body?.password) {
@@ -122,7 +123,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
    * GET /api/admin/auth/me
    * Returns the currently authenticated admin user from the JWT.
    */
-  app.get("/api/admin/auth/me", async (request, reply) => {
+  app.get(ENDPOINTS.admin.auth.me, async (request, reply) => {
     const authHeader = request.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });
@@ -154,7 +155,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
    * Issues a new JWT for the currently authenticated admin user.
    * Requires a valid (non-expired) JWT.
    */
-  app.post("/api/admin/auth/refresh", async (request, reply) => {
+  app.post(ENDPOINTS.admin.auth.refresh, async (request, reply) => {
     const authHeader = request.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });

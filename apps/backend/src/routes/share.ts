@@ -1,9 +1,9 @@
-import type { SharePageResponse } from "@musiccloud/shared";
+import { ROUTE_TEMPLATES, type SharePageResponse } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
 
 export default async function shareRoutes(app: FastifyInstance) {
-  app.get<{ Params: { shortId: string } }>("/api/v1/share/:shortId", async (request, reply) => {
+  app.get<{ Params: { shortId: string } }>(ROUTE_TEMPLATES.v1.share, async (request, reply) => {
     const { shortId } = request.params;
 
     if (!shortId) {

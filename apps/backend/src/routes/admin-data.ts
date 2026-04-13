@@ -1,8 +1,9 @@
+import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getAdminRepository } from "../db/index.js";
 
 export default async function adminDataRoutes(app: FastifyInstance) {
-  app.get("/api/admin/tracks", async (request) => {
+  app.get(ENDPOINTS.admin.tracks.list, async (request) => {
     const q = request.query as { page?: string; limit?: string; q?: string; sortBy?: string; sortDir?: string };
     const page = Math.max(1, parseInt(q.page ?? "1", 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(q.limit ?? "20", 10) || 20));
@@ -13,7 +14,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return repo.listTracks({ page, limit, q: search, sortBy: q.sortBy, sortDir });
   });
 
-  app.get("/api/admin/albums", async (request) => {
+  app.get(ENDPOINTS.admin.albums.list, async (request) => {
     const q = request.query as { page?: string; limit?: string; q?: string; sortBy?: string; sortDir?: string };
     const page = Math.max(1, parseInt(q.page ?? "1", 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(q.limit ?? "20", 10) || 20));
@@ -24,7 +25,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return repo.listAlbums({ page, limit, q: search, sortBy: q.sortBy, sortDir });
   });
 
-  app.get("/api/admin/tracks/:id", async (request, reply) => {
+  app.get(ROUTE_TEMPLATES.admin.tracks.detail, async (request, reply) => {
     const { id } = request.params as { id: string };
     const repo = await getAdminRepository();
     const track = await repo.getTrackById(id);
@@ -32,7 +33,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return track;
   });
 
-  app.patch("/api/admin/tracks/:id", async (request, reply) => {
+  app.patch(ROUTE_TEMPLATES.admin.tracks.detail, async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = request.body as Record<string, unknown>;
     const data: Record<string, unknown> = {};
@@ -47,7 +48,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  app.delete("/api/admin/tracks", async (request, reply) => {
+  app.delete(ENDPOINTS.admin.tracks.list, async (request, reply) => {
     const body = request.body as { ids?: unknown };
     if (!Array.isArray(body?.ids) || body.ids.length === 0) {
       return reply.status(400).send({ error: "ids array required" });
@@ -58,7 +59,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return { deleted: ids.length };
   });
 
-  app.patch("/api/admin/tracks/:shortId/featured", async (request, reply) => {
+  app.patch(ROUTE_TEMPLATES.admin.tracks.setFeatured, async (request, reply) => {
     const { shortId } = request.params as { shortId: string };
     const body = request.body as { featured?: unknown };
     if (typeof body?.featured !== "boolean") {
@@ -69,7 +70,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  app.patch("/api/admin/albums/:shortId/featured", async (request, reply) => {
+  app.patch(ROUTE_TEMPLATES.admin.albums.setFeatured, async (request, reply) => {
     const { shortId } = request.params as { shortId: string };
     const body = request.body as { featured?: unknown };
     if (typeof body?.featured !== "boolean") {
@@ -80,7 +81,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  app.post("/api/admin/artist-cache/clear", async (_request, reply) => {
+  app.post(ENDPOINTS.admin.cache.artistClear, async (_request, reply) => {
     const repo = await getAdminRepository();
     const result = await repo.clearArtistCache();
     return reply.send(result);
@@ -88,7 +89,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
 
   // Per-share cache invalidation. Marks the underlying row as stale so the
   // next resolve of its URL re-fetches — share URL stays intact.
-  app.post("/api/admin/tracks/:shortId/invalidate-cache", async (request, reply) => {
+  app.post(ROUTE_TEMPLATES.admin.tracks.invalidateCache, async (request, reply) => {
     const { shortId } = request.params as { shortId: string };
     try {
       const repo = await getAdminRepository();
@@ -99,7 +100,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     }
   });
 
-  app.post("/api/admin/albums/:shortId/invalidate-cache", async (request, reply) => {
+  app.post(ROUTE_TEMPLATES.admin.albums.invalidateCache, async (request, reply) => {
     const { shortId } = request.params as { shortId: string };
     try {
       const repo = await getAdminRepository();
@@ -110,7 +111,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     }
   });
 
-  app.post("/api/admin/artists/:shortId/invalidate-cache", async (request, reply) => {
+  app.post(ROUTE_TEMPLATES.admin.artists.invalidateCache, async (request, reply) => {
     const { shortId } = request.params as { shortId: string };
     try {
       const repo = await getAdminRepository();
@@ -122,25 +123,25 @@ export default async function adminDataRoutes(app: FastifyInstance) {
   });
 
   // Bulk: stale every track + album + artist row.
-  app.post("/api/admin/cache/invalidate-all", async (_request, reply) => {
+  app.post(ENDPOINTS.admin.cache.invalidateAll, async (_request, reply) => {
     const repo = await getAdminRepository();
     const result = await repo.invalidateAllCaches();
     return reply.send(result);
   });
 
-  app.get("/api/admin/data-counts", async (_request, reply) => {
+  app.get(ENDPOINTS.admin.dataCounts, async (_request, reply) => {
     const repo = await getAdminRepository();
     const counts = await repo.countAllData();
     return reply.send(counts);
   });
 
-  app.post("/api/admin/reset-all", async (_request, reply) => {
+  app.post(ENDPOINTS.admin.resetAll, async (_request, reply) => {
     const repo = await getAdminRepository();
     const result = await repo.resetAllData();
     return reply.send(result);
   });
 
-  app.get("/api/admin/artists", async (request) => {
+  app.get(ENDPOINTS.admin.artists.list, async (request) => {
     const q = request.query as { page?: string; limit?: string; q?: string; sortBy?: string; sortDir?: string };
     const page = Math.max(1, parseInt(q.page ?? "1", 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(q.limit ?? "20", 10) || 20));
@@ -151,7 +152,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return repo.listArtists({ page, limit, q: search, sortBy: q.sortBy, sortDir });
   });
 
-  app.delete("/api/admin/artists", async (request, reply) => {
+  app.delete(ENDPOINTS.admin.artists.list, async (request, reply) => {
     const body = request.body as { ids?: unknown };
     if (!Array.isArray(body?.ids) || body.ids.length === 0) {
       return reply.status(400).send({ error: "ids array required" });
@@ -162,7 +163,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return { deleted: ids.length };
   });
 
-  app.delete("/api/admin/albums", async (request, reply) => {
+  app.delete(ENDPOINTS.admin.albums.list, async (request, reply) => {
     const body = request.body as { ids?: unknown };
     if (!Array.isArray(body?.ids) || body.ids.length === 0) {
       return reply.status(400).send({ error: "ids array required" });
@@ -173,7 +174,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return { deleted: ids.length };
   });
 
-  app.get("/api/admin/stats", async () => {
+  app.get(ENDPOINTS.admin.stats, async () => {
     const repo = await getAdminRepository();
     const counts = await repo.countAllData();
     const adminCount = await repo.countAdmins();

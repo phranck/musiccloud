@@ -3,7 +3,7 @@ import type {
   ResolveErrorResponse,
   UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
-import { formatUserMessage, getErrorEntry } from "@musiccloud/shared";
+import { ENDPOINTS, formatUserMessage, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
@@ -32,7 +32,7 @@ const ALLOWED_ORIGINS = [
 ];
 
 export default async function resolveRoutes(app: FastifyInstance) {
-  app.post("/api/v1/resolve", async (request, reply) => {
+  app.post(ENDPOINTS.v1.resolve, async (request, reply) => {
     // Rate limiting
     const clientIp = request.ip;
     if (apiRateLimiter.isLimited(clientIp)) {

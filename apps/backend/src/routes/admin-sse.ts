@@ -1,8 +1,9 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { adminEventBroadcaster } from "../lib/event-broadcaster.js";
 
 export default async function adminSseRoutes(app: FastifyInstance) {
-  app.get("/api/admin/events", async (request, reply) => {
+  app.get(ENDPOINTS.admin.events, async (request, reply) => {
     // Take over the raw response – Fastify must not touch it afterwards
     reply.hijack();
 

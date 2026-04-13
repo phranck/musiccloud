@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 
 interface TokenRequestBody {
@@ -11,7 +12,7 @@ export default async function authRoutes(app: FastifyInstance) {
    * POST /api/auth/token
    * OAuth 2.0 Client Credentials flow for public API consumers (iOS/macOS apps).
    */
-  app.post("/api/auth/token", async (request, reply) => {
+  app.post(ENDPOINTS.auth.token, async (request, reply) => {
     const body = request.body as TokenRequestBody | null;
 
     if (!body || body.grant_type !== "client_credentials") {

@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
@@ -13,7 +14,7 @@ import { resolveQuery } from "../services/resolver.js";
  * On any failure (invalid URL, not resolvable, network error) redirects back to /.
  */
 export default async function urlRedirectRoutes(app: FastifyInstance) {
-  app.get("/api/v1/redirect", async (request, reply) => {
+  app.get(ENDPOINTS.v1.redirect, async (request, reply) => {
     const clientIp = request.ip;
     if (apiRateLimiter.isLimited(clientIp)) {
       return reply.redirect("/", 302);
