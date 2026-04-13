@@ -14,22 +14,14 @@ export function PopularTracksSection({ tracks, t }: PopularTracksSectionProps) {
       <SectionHeading info={t("artist.popularTracksInfo")}>{t("artist.popularTracks")}</SectionHeading>
       <div className="flex flex-col gap-2">
         {tracks.map((track) => (
-          <PopularTrack key={track.deezerUrl} track={track} t={t} />
+          <PopularTrack key={track.deezerUrl} track={track} />
         ))}
       </div>
     </div>
   );
 }
 
-export function PopularTrack({
-  track,
-  t,
-  artistLabel,
-}: {
-  track: ArtistTopTrack;
-  t: (key: string, vars?: Record<string, string>) => string;
-  artistLabel?: string;
-}) {
+export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; artistLabel?: string }) {
   const showAlbum = !artistLabel && track.albumName && track.albumName !== track.title;
   const [resolving, setResolving] = useState(false);
 

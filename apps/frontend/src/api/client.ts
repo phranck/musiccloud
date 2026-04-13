@@ -45,7 +45,7 @@ export async function resolveTrack(
 ): Promise<Response> {
   const extra: Record<string, string> = {};
   if (clientIp) extra["X-Forwarded-For"] = clientIp;
-  if (origin) extra["Origin"] = origin;
+  if (origin) extra.Origin = origin;
   return fetchWithTimeout(
     backendUrl("/api/v1/resolve"),
     {

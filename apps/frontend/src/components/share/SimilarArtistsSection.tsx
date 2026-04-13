@@ -14,7 +14,7 @@ export function SimilarArtistsSection({ similarArtistTracks, t }: SimilarArtists
       <div className="flex flex-col gap-2">
         {similarArtistTracks.map(({ artistName, track }) =>
           track ? (
-            <PopularTrack key={artistName} track={track} t={t} artistLabel={artistName} />
+            <PopularTrack key={artistName} track={track} artistLabel={artistName} />
           ) : (
             <p key={artistName} className="text-sm text-text-primary px-2">
               {artistName}
