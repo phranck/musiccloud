@@ -9,7 +9,7 @@
  */
 
 import { type ArtistInfoResponse, ENDPOINTS } from "@musiccloud/shared";
-import { User, X } from "@phosphor-icons/react";
+import { UserIcon, XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 
 type ArtistState = { isLoading: boolean; artistData: ArtistInfoResponse | null };
@@ -203,7 +203,7 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
             onClick={openSheet}
             className="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm text-text-primary"
           >
-            <User size={15} weight="duotone" />
+            <UserIcon size={15} weight="duotone" />
             {t("artist.mobileButton")}
           </EmbossedButton>
         </div>
@@ -241,7 +241,7 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
               className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-colors"
               aria-label={t("artist.closeInfo")}
             >
-              <X size={16} weight="duotone" />
+              <XIcon size={16} weight="duotone" />
             </button>
           </div>
           {/* Scrollable content */}

@@ -1,4 +1,4 @@
-import { MusicNote } from "@phosphor-icons/react";
+import { MusicNoteIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -225,7 +225,7 @@ export function DisambiguationPanel({
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
-                            <MusicNote size={24} weight="duotone" className="text-text-muted" />
+                            <MusicNoteIcon size={24} weight="duotone" className="text-text-muted" />
                           </div>
                         )}
                       </div>

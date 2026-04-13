@@ -1,5 +1,5 @@
 import type { ArtistEvent } from "@musiccloud/shared";
-import { Ticket } from "@phosphor-icons/react";
+import { TicketIcon } from "@phosphor-icons/react";
 import { SectionHeading } from "@/components/share/SectionHeading";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 
@@ -43,7 +43,7 @@ export function UpcomingEventsSection({ events, userRegion, hasLocalEvents, t, l
                   </span>
                 </p>
               </div>
-              {event.ticketUrl && <Ticket size={24} weight="duotone" className="text-text-secondary flex-none" />}
+              {event.ticketUrl && <TicketIcon size={24} weight="duotone" className="text-text-secondary flex-none" />}
             </Wrapper>
           );
         })}

@@ -1,4 +1,4 @@
-import { Info } from "@phosphor-icons/react";
+import { InfoIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -48,7 +48,7 @@ export function SectionHeading({ children, info }: SectionHeadingProps) {
             className="p-1 text-white/30 hover:text-white/60 transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             aria-label="Info"
           >
-            <Info size={20} weight="duotone" />
+            <InfoIcon size={20} weight="duotone" />
           </button>
           {open &&
             createPortal(

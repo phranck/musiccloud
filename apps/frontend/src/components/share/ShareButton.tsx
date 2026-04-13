@@ -1,4 +1,4 @@
-import { Check, LinkSimple, ShareNetwork } from "@phosphor-icons/react";
+import { CheckIcon, LinkSimpleIcon, ShareNetworkIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
 import { EmbossedButton, iconInnerShadow } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
@@ -19,20 +19,11 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setState("copied");
-      setTimeout(() => setState("idle"), 2000);
     } catch {
-      const textarea = document.createElement("textarea");
-      textarea.value = shareUrl;
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
-      setState("copied");
-      setTimeout(() => setState("idle"), 2000);
+      // Clipboard unavailable (non-secure context or permissions denied)
     }
+    setState("copied");
+    setTimeout(() => setState("idle"), 2000);
   }, [shareUrl]);
 
   const handleNativeShare = useCallback(async () => {
@@ -79,12 +70,12 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
       >
         {state === "idle" ? (
           <>
-            <LinkSimple size={20} weight="duotone" />
+            <LinkSimpleIcon size={20} weight="duotone" />
             {t("share.shareLink")}
           </>
         ) : (
           <>
-            <Check size={16} weight="duotone" />
+            <CheckIcon size={16} weight="duotone" />
             {t("share.copied")}
           </>
         )}
@@ -99,7 +90,12 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
           hasInnerShadow
           aria-label={songTitle ? t("share.nativeShare", { title: songTitle }) : t("share.shareLink")}
         >
-          <ShareNetwork size={24} weight="duotone" className="text-text-primary" style={{ filter: iconInnerShadow }} />
+          <ShareNetworkIcon
+            size={24}
+            weight="duotone"
+            className="text-text-primary"
+            style={{ filter: iconInnerShadow }}
+          />
         </EmbossedButton>
       )}
     </div>

@@ -55,7 +55,7 @@ const { title, description, canonicalUrl, preloadImage, noindex, lang = "en" } =
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
     {preloadImage && <link rel="preload" as="image" href={preloadImage} />}
 
-    {trackingEnabled && <script defer src={`${ENDPOINTS.frontend.umami}/script.js`} data-website-id="3826f51b-34e0-4c61-a89d-a7de016fe712" data-host-url={ENDPOINTS.frontend.umami}></script>}
+    {trackingEnabled && <script is:inline defer src={`${ENDPOINTS.frontend.umami}/script.js`} data-website-id="3826f51b-34e0-4c61-a89d-a7de016fe712" data-host-url={ENDPOINTS.frontend.umami}></script>}
   </head>
   <body class="bg-background text-text-primary antialiased">
     <slot />

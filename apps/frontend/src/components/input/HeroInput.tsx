@@ -1,4 +1,4 @@
-import { ArrowRight, Check, X as XIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, CheckIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAmbilightAnimation } from "@/hooks/useAmbilightAnimation";
 import { useLoadingMessages } from "@/hooks/useLoadingMessages";
@@ -193,7 +193,7 @@ export function HeroInput({
               )}
               aria-label="Clear search"
             >
-              <XIcon size={20} weight="duotone" />
+              <XCircleIcon size={20} weight="duotone" />
             </button>
           )}
 
@@ -249,9 +249,9 @@ export function HeroInput({
                 />
               </div>
             ) : state === "success" ? (
-              <Check size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
+              <CheckIcon size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
             ) : (
-              <ArrowRight size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
+              <ArrowRightIcon size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
             )}
           </button>
         </div>

@@ -1,5 +1,5 @@
 import { compareByDisplayOrder } from "@musiccloud/shared";
-import { Check, CopySimple, X } from "@phosphor-icons/react";
+import { CheckIcon, CopySimpleIcon, XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -80,14 +80,7 @@ export function EmbedModal({
     try {
       await navigator.clipboard.writeText(code);
     } catch {
-      // fallback
-      const ta = document.createElement("textarea");
-      ta.value = code;
-      ta.style.cssText = "position:fixed;opacity:0";
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
+      // Clipboard unavailable (non-secure context or permissions denied)
     }
     setCopyState("copied");
     setTimeout(() => setCopyState("idle"), 2000);
@@ -143,7 +136,7 @@ export function EmbedModal({
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-all duration-150"
           >
-            <X size={16} weight="duotone" />
+            <XIcon size={16} weight="duotone" />
           </button>
         </div>
 
@@ -178,7 +171,11 @@ export function EmbedModal({
               onClick={handleCopy}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.08] text-text-secondary text-xs font-medium hover:bg-white/[0.12] hover:text-text-primary transition-all duration-150"
             >
-              {copyState === "idle" ? <CopySimple size={16} weight="duotone" /> : <Check size={16} weight="duotone" />}
+              {copyState === "idle" ? (
+                <CopySimpleIcon size={16} weight="duotone" />
+              ) : (
+                <CheckIcon size={16} weight="duotone" />
+              )}
               {copyState === "idle" ? t("embed.copy") : t("embed.copied")}
             </button>
           </div>

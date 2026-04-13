@@ -34,7 +34,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
     <meta name="twitter:image" content="https://musiccloud.io/og/musiccloud.jpg" />
 
     <!-- JSON-LD: WebApplication -->
-    <script type="application/ld+json" set:html={JSON.stringify({
+    <script is:inline type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "musiccloud",

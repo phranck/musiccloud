@@ -5,7 +5,7 @@
  */
 
 import type { ArtistInfoResponse } from "@musiccloud/shared";
-import { X } from "@phosphor-icons/react";
+import { XIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -72,7 +72,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
             className="absolute top-3 right-3 z-10 p-1.5 rounded-full text-text-secondary hover:text-text-primary hover:bg-white/[0.08] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             aria-label={t("artist.closeInfo")}
           >
-            <X size={16} weight="duotone" />
+            <XIcon size={16} weight="duotone" />
           </button>
         )}
 

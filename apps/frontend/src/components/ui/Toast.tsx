@@ -1,4 +1,4 @@
-import { CheckCircle, type Icon, Info, XCircle } from "@phosphor-icons/react";
+import { CheckCircleIcon, type Icon, InfoIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 
@@ -19,9 +19,9 @@ const variantStyles: Record<ToastVariant, string> = {
 };
 
 const variantIcons: Record<ToastVariant, Icon> = {
-  success: CheckCircle,
-  error: XCircle,
-  info: Info,
+  success: CheckCircleIcon,
+  error: XCircleIcon,
+  info: InfoIcon,
 };
 
 export function Toast({ message, variant, visible, onDismiss, duration = 3000 }: ToastProps) {

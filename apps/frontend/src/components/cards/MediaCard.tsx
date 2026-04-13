@@ -1,5 +1,5 @@
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
-import { Code } from "@phosphor-icons/react";
+import { CodeIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -93,7 +93,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
                   "min-h-[50px]",
                 )}
               >
-                <Code size={20} weight="duotone" />
+                <CodeIcon size={20} weight="duotone" />
                 {isAlbum ? t("embed.buttonAlbum") : t("embed.button")}
               </EmbossedButton>
             </div>
