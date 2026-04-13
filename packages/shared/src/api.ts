@@ -1,5 +1,3 @@
-import type { ErrorCode } from "./errors.js";
-
 export interface ApiTrack {
   title: string;
   artists: string[];
@@ -41,7 +39,18 @@ export interface ResolveDisambiguationResponse {
 }
 
 export interface ResolveErrorResponse {
-  error: ErrorCode;
+  /**
+   * Canonical error code. During the Phase 2 sweep this is typically an MC
+   * code (`MC-URL-0001`, …) but a handful of older call sites still emit
+   * legacy codes like `TRACK_NOT_FOUND`. Both forms are resolvable against
+   * the registry in `./error-codes` via `getErrorEntry()`.
+   */
+  error: string;
+  /**
+   * User-facing message. Ends with the canonical code in parentheses so it
+   * can be quoted verbatim in bug reports — e.g. "Track not found.
+   * (MC-RES-0001)".
+   */
   message: string;
 }
 

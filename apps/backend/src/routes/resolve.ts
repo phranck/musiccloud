@@ -1,10 +1,9 @@
 import type {
-  ErrorCode,
   ResolveDisambiguationResponse,
   ResolveErrorResponse,
   UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
-import { ERROR_STATUS_MAP, USER_MESSAGES } from "@musiccloud/shared";
+import { formatUserMessage, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
@@ -37,32 +36,28 @@ export default async function resolveRoutes(app: FastifyInstance) {
     // Rate limiting
     const clientIp = request.ip;
     if (apiRateLimiter.isLimited(clientIp)) {
-      return reply.status(429).send(jsonError("RATE_LIMITED", 429));
+      return reply.status(429).send(jsonError("RATE_LIMITED"));
     }
 
     // Parse body
     const body = request.body as { query?: string; selectedCandidate?: string } | null;
     if (!body) {
-      return reply
-        .status(400)
-        .send(jsonError("INVALID_URL", 400, "Request body must be valid JSON with a 'query' field."));
+      return reply.status(400).send(jsonError("INVALID_URL", "Request body must be valid JSON with a 'query' field."));
     }
 
     const query = body.query?.trim();
     const selectedCandidate = body.selectedCandidate?.trim();
 
     if (!query && !selectedCandidate) {
-      return reply
-        .status(400)
-        .send(jsonError("INVALID_URL", 400, "The 'query' or 'selectedCandidate' field is required."));
+      return reply.status(400).send(jsonError("INVALID_URL", "The 'query' or 'selectedCandidate' field is required."));
     }
 
     if (query && query.length > 500) {
-      return reply.status(400).send(jsonError("INVALID_URL", 400, "Query must be 500 characters or fewer."));
+      return reply.status(400).send(jsonError("INVALID_URL", "Query must be 500 characters or fewer."));
     }
 
     if (selectedCandidate && selectedCandidate.length > 200) {
-      return reply.status(400).send(jsonError("INVALID_URL", 400, "Invalid candidate selection."));
+      return reply.status(400).send(jsonError("INVALID_URL", "Invalid candidate selection."));
     }
 
     try {
@@ -106,16 +101,16 @@ export default async function resolveRoutes(app: FastifyInstance) {
       return reply.send(disambiguationBody);
     } catch (error) {
       if (error instanceof ResolveError) {
-        const code = error.code as ErrorCode;
-        const status = ERROR_STATUS_MAP[code] ?? 500;
-        return reply.status(status).send(jsonError(code, status, error.message));
+        return reply
+          .status(getErrorEntry(error.code).httpStatus)
+          .send(jsonError(error.code, error.message || undefined, error.context));
       }
 
       log.error("Resolve", "Unexpected error:", error instanceof Error ? error.message : "Unknown error");
       if (process.env.NODE_ENV !== "production" && error instanceof Error) {
         log.error("Resolve", "Stack:", error.stack);
       }
-      return reply.status(500).send(jsonError("NETWORK_ERROR", 500));
+      return reply.status(500).send(jsonError("NETWORK_ERROR"));
     }
   });
 }
@@ -127,10 +122,21 @@ function getOrigin(headerOrigin?: string): string {
   return ALLOWED_ORIGINS[0];
 }
 
-function jsonError(code: ErrorCode, _status: number, customMessage?: string): ResolveErrorResponse {
+/**
+ * Build the on-wire error payload. `code` may be an MC code or a legacy code
+ * — {@link getErrorEntry} resolves either; the response always carries the
+ * canonical MC code and a user-facing message with the code appended as a
+ * grep-friendly suffix.
+ */
+function jsonError(
+  code: string,
+  overrideMessage?: string,
+  context?: Record<string, string | number>,
+): ResolveErrorResponse {
+  const entry = getErrorEntry(code);
   return {
-    error: code,
-    message: customMessage ?? USER_MESSAGES[code] ?? "Something went wrong.",
+    error: entry.code,
+    message: formatUserMessage(entry.code, context, overrideMessage),
   };
 }
 

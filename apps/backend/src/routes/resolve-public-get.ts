@@ -1,5 +1,5 @@
-import type { ErrorCode, ResolveErrorResponse, ResolveSuccessResponse } from "@musiccloud/shared";
-import { ERROR_STATUS_MAP, USER_MESSAGES } from "@musiccloud/shared";
+import type { ResolveErrorResponse, ResolveSuccessResponse } from "@musiccloud/shared";
+import { formatUserMessage, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
@@ -28,7 +28,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
     // Rate limiting
     const clientIp = request.ip;
     if (apiRateLimiter.isLimited(clientIp)) {
-      return reply.status(429).send(jsonError("RATE_LIMITED", 429));
+      return reply.status(429).send(jsonError("RATE_LIMITED"));
     }
 
     // Parse query parameters
@@ -37,15 +37,15 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
     const format = queryParams.format?.toLowerCase() ?? "json";
 
     if (!query) {
-      return reply.status(400).send(jsonError("INVALID_URL", 400, "The 'query' parameter is required."));
+      return reply.status(400).send(jsonError("INVALID_URL", "The 'query' parameter is required."));
     }
 
     if (query.length > 500) {
-      return reply.status(400).send(jsonError("INVALID_URL", 400, "Query must be 500 characters or fewer."));
+      return reply.status(400).send(jsonError("INVALID_URL", "Query must be 500 characters or fewer."));
     }
 
     if (!["json", "text"].includes(format)) {
-      return reply.status(400).send(jsonError("INVALID_URL", 400, "Format must be 'json' or 'text'."));
+      return reply.status(400).send(jsonError("INVALID_URL", "Format must be 'json' or 'text'."));
     }
 
     try {
@@ -61,7 +61,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
         if (textResult.kind === "resolved" && textResult.result) {
           result = textResult.result;
         } else {
-          return reply.status(400).send(jsonError("INVALID_URL", 400, "Could not resolve this query."));
+          return reply.status(400).send(jsonError("INVALID_URL", "Could not resolve this query."));
         }
       }
 
@@ -75,16 +75,16 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
       return reply.send(response);
     } catch (error) {
       if (error instanceof ResolveError) {
-        const code = error.code as ErrorCode;
-        const status = ERROR_STATUS_MAP[code] ?? 500;
-        return reply.status(status).send(jsonError(code, status, error.message));
+        return reply
+          .status(getErrorEntry(error.code).httpStatus)
+          .send(jsonError(error.code, error.message || undefined, error.context));
       }
 
       log.error("ResolvePublicGet", "Unexpected error:", error instanceof Error ? error.message : "Unknown error");
       if (process.env.NODE_ENV !== "production" && error instanceof Error) {
         log.error("ResolvePublicGet", "Stack:", error.stack);
       }
-      return reply.status(500).send(jsonError("NETWORK_ERROR", 500));
+      return reply.status(500).send(jsonError("NETWORK_ERROR"));
     }
   });
 }
@@ -96,10 +96,15 @@ function getOrigin(headerOrigin?: string): string {
   return ALLOWED_ORIGINS[0];
 }
 
-function jsonError(code: ErrorCode, _status: number, customMessage?: string): ResolveErrorResponse {
+function jsonError(
+  code: string,
+  overrideMessage?: string,
+  context?: Record<string, string | number>,
+): ResolveErrorResponse {
+  const entry = getErrorEntry(code);
   return {
-    error: code,
-    message: customMessage ?? USER_MESSAGES[code] ?? "Something went wrong.",
+    error: entry.code,
+    message: formatUserMessage(entry.code, context, overrideMessage),
   };
 }
 

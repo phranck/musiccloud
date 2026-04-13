@@ -1,0 +1,250 @@
+/**
+ * Musiccloud Error Code Registry
+ * ===============================
+ *
+ * Format: `MC-{AREA}-{NNNN}`
+ *
+ * ## Areas
+ *
+ * | Prefix | Meaning                                                  |
+ * |--------|----------------------------------------------------------|
+ * | `URL`  | URL parsing / detection                                  |
+ * | `API`  | External service HTTP call failed or returned bad data   |
+ * | `AUTH` | Authentication against an external service failed        |
+ * | `RES`  | Resolver logic / cross-service resolution                |
+ * | `DB`   | Database / persistence                                   |
+ * | `CFG`  | Configuration / environment missing                      |
+ * | `MAP`  | Mapping / malformed response data                        |
+ *
+ * ## Number scheme (first digit of NNNN = adapter group)
+ *
+ * | Digit | Adapter group                                            |
+ * |-------|----------------------------------------------------------|
+ * | `0`   | Cross-cutting / no specific adapter                      |
+ * | `1`   | Apple Music                                              |
+ * | `2`   | Qobuz                                                    |
+ * | `3`   | Spotify                                                  |
+ * | `4`   | Tidal                                                    |
+ * | `5`   | Deezer                                                   |
+ * | `6`   | YouTube / YouTube Music                                  |
+ * | `7`   | Napster                                                  |
+ * | `8`   | KKBOX, Beatport, Bandcamp, Audiomack, Audius, SoundCloud,|
+ * |       | BoomPlay                                                 |
+ * | `9`   | Pandora, Bugs, Melon, Netease, QQMusic, JioSaavn         |
+ *
+ * The remaining three digits identify the specific failure within that group.
+ *
+ * ## Usage
+ *
+ * - Backend throws `ResolveError(code, context?, overrideMessage?)`.
+ * - Route handler calls `getErrorEntry(code)` and `formatUserMessage(...)` to
+ *   produce the wire response. Both the canonical MC code and the rendered
+ *   user message (which embeds the code as a suffix) are returned.
+ * - Legacy code strings (`UNSUPPORTED_SERVICE`, `TRACK_NOT_FOUND`, …) are
+ *   accepted and transparently mapped to their MC equivalents via
+ *   {@link LEGACY_TO_MC}, so migration can proceed adapter by adapter.
+ *
+ * When a user reports an error, grep this file for the code — each entry
+ * points at the file/function where the throw originates.
+ */
+
+export type ErrorArea = "URL" | "API" | "AUTH" | "RES" | "DB" | "CFG" | "MAP";
+
+/**
+ * Canonical error code. Narrow enough to distinguish areas in the type system,
+ * loose enough to accept any 4-digit number without touching the type for
+ * every new code.
+ */
+export type McErrorCode = `MC-${ErrorArea}-${string}`;
+
+export interface ErrorCodeEntry {
+  /** The canonical `MC-…` code. */
+  code: McErrorCode;
+  /** HTTP status the route should respond with. */
+  httpStatus: number;
+  /**
+   * Default English user-facing message. May contain `{name}` placeholders
+   * which are substituted from the `context` passed to `formatUserMessage`.
+   * The rendered message always has the code appended as `(MC-…-…)` so the
+   * user can quote it in bug reports.
+   */
+  userMessage: string;
+  /** Short note for maintainers — why this code exists, what happened. */
+  internalNote: string;
+  /** File path + function hint for fast grep-to-source. */
+  source: string;
+}
+
+/**
+ * Legacy coarse error codes (used before the MC system existed). Kept alive
+ * for backwards compatibility — the resolver, URL validator, and route
+ * handler can continue emitting these until each adapter is migrated to an
+ * MC code explicitly.
+ */
+export type LegacyErrorCode =
+  | "UNSUPPORTED_SERVICE"
+  | "NOT_MUSIC_LINK"
+  | "INVALID_URL"
+  | "PLAYLIST_NOT_SUPPORTED"
+  | "PODCAST_NOT_SUPPORTED"
+  | "ALBUM_NOT_SUPPORTED"
+  | "TRACK_NOT_FOUND"
+  | "NO_MATCHES"
+  | "SERVICE_DOWN"
+  | "ALL_DOWN"
+  | "RATE_LIMITED"
+  | "NETWORK_ERROR"
+  | "TIMEOUT";
+
+export const LEGACY_TO_MC: Record<LegacyErrorCode, McErrorCode> = {
+  UNSUPPORTED_SERVICE: "MC-URL-0001",
+  NOT_MUSIC_LINK: "MC-URL-0002",
+  INVALID_URL: "MC-URL-0003",
+  PLAYLIST_NOT_SUPPORTED: "MC-URL-0004",
+  PODCAST_NOT_SUPPORTED: "MC-URL-0005",
+  ALBUM_NOT_SUPPORTED: "MC-URL-0006",
+  TRACK_NOT_FOUND: "MC-RES-0001",
+  NO_MATCHES: "MC-RES-0002",
+  SERVICE_DOWN: "MC-API-0001",
+  ALL_DOWN: "MC-API-0002",
+  RATE_LIMITED: "MC-API-0003",
+  NETWORK_ERROR: "MC-API-0004",
+  TIMEOUT: "MC-API-0005",
+};
+
+/**
+ * Full registry of error codes. Adapter-specific codes are added here as the
+ * adapter sweep in Phase 2b/2c migrates each service off the generic
+ * `SERVICE_DOWN`/`NETWORK_ERROR` fallbacks.
+ */
+export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
+  // ─── URL parsing / detection ───────────────────────────────────────────────
+  "MC-URL-0001": {
+    code: "MC-URL-0001",
+    httpStatus: 400,
+    userMessage: "This platform isn't supported yet. Try a link from Spotify, Apple Music, or YouTube.",
+    internalNote: "No adapter matched the URL. Either the host is unknown or the URL shape is off.",
+    source: "apps/backend/src/lib/platform/url.ts validateMusicUrl",
+  },
+  "MC-URL-0002": {
+    code: "MC-URL-0002",
+    httpStatus: 400,
+    userMessage: "This doesn't look like a music link. Try pasting a link from a supported service.",
+    internalNote: "Input parses as a URL but none of the music adapters claim it.",
+    source: "apps/backend/src/lib/platform/url.ts isMusicUrl",
+  },
+  "MC-URL-0003": {
+    code: "MC-URL-0003",
+    httpStatus: 400,
+    userMessage: "That URL looks malformed. Please paste the full link from the streaming service.",
+    internalNote: "URL failed validation (protocol missing, host empty, or similar).",
+    source: "apps/backend/src/routes/resolve.ts body validation",
+  },
+  "MC-URL-0004": {
+    code: "MC-URL-0004",
+    httpStatus: 400,
+    userMessage: "Playlists aren't supported yet — paste a link to a single track or album instead.",
+    internalNote: "URL identifies a playlist; we only support tracks/albums/artists.",
+    source: "apps/backend/src/lib/platform/url.ts validateMusicUrl",
+  },
+  "MC-URL-0005": {
+    code: "MC-URL-0005",
+    httpStatus: 400,
+    userMessage: "We only support music tracks at the moment. Podcasts aren't resolved.",
+    internalNote: "URL identifies a podcast.",
+    source: "apps/backend/src/lib/platform/url.ts validateMusicUrl",
+  },
+  "MC-URL-0006": {
+    code: "MC-URL-0006",
+    httpStatus: 400,
+    userMessage: "Try pasting a link to a specific song or open the album page and share from there.",
+    internalNote: "Legacy — older clients used this when album URLs weren't yet supported. Retained for compat.",
+    source: "apps/backend/src/lib/platform/url.ts validateMusicUrl",
+  },
+
+  // ─── Resolver / cross-service ──────────────────────────────────────────────
+  "MC-RES-0001": {
+    code: "MC-RES-0001",
+    httpStatus: 404,
+    userMessage: "This track doesn't seem to be available anymore on the source service.",
+    internalNote: "Adapter.getTrack returned null/empty or 404 on the source service.",
+    source: "apps/backend/src/services/resolver.ts resolveUrl",
+  },
+  "MC-RES-0002": {
+    code: "MC-RES-0002",
+    httpStatus: 404,
+    userMessage: "We couldn't find this on other services. It may be exclusive to the source.",
+    internalNote: "Cross-service resolution produced no matches above the quality threshold.",
+    source: "apps/backend/src/services/resolver.ts resolveAcrossServices",
+  },
+
+  // ─── External API / network ────────────────────────────────────────────────
+  "MC-API-0001": {
+    code: "MC-API-0001",
+    httpStatus: 503,
+    userMessage: "One of the services is temporarily unavailable. We returned what we could find.",
+    internalNote: "Generic service-down fallback. Adapter threw but wasn't marked unavailable.",
+    source: "apps/backend/src/services/resolver.ts / album-resolver.ts",
+  },
+  "MC-API-0002": {
+    code: "MC-API-0002",
+    httpStatus: 503,
+    userMessage: "All services are currently unreachable. Please try again in a few minutes.",
+    internalNote: "Every adapter threw or returned nothing — likely a network-wide issue.",
+    source: "apps/backend/src/services/resolver.ts",
+  },
+  "MC-API-0003": {
+    code: "MC-API-0003",
+    httpStatus: 429,
+    userMessage: "Too many requests — please wait a moment and try again.",
+    internalNote: "Rate limiter tripped. See apps/backend/src/lib/infra/rate-limiter.ts.",
+    source: "apps/backend/src/routes/resolve.ts apiRateLimiter",
+  },
+  "MC-API-0004": {
+    code: "MC-API-0004",
+    httpStatus: 500,
+    userMessage: "Something went wrong talking to a service. Please try again.",
+    internalNote: "Unhandled exception in the resolve pipeline. Legacy mapping — prefer a specific code.",
+    source: "apps/backend/src/routes/resolve.ts catch-all",
+  },
+  "MC-API-0005": {
+    code: "MC-API-0005",
+    httpStatus: 408,
+    userMessage: "This is taking longer than usual. Please try again.",
+    internalNote: "A timeout fired on an outbound request or the whole pipeline.",
+    source: "apps/backend/src/lib/infra/fetch.ts fetchWithTimeout",
+  },
+};
+
+/** Resolve a raw code (MC or legacy) to its registry entry. */
+export function getErrorEntry(code: string): ErrorCodeEntry {
+  if (code in ERROR_CODE_REGISTRY) {
+    return ERROR_CODE_REGISTRY[code as McErrorCode];
+  }
+  if (code in LEGACY_TO_MC) {
+    return ERROR_CODE_REGISTRY[LEGACY_TO_MC[code as LegacyErrorCode]];
+  }
+  // Unknown code — return a generic entry so callers can still respond.
+  return ERROR_CODE_REGISTRY["MC-API-0004"];
+}
+
+/**
+ * Render the user-facing message for an error.
+ *
+ * - Substitutes `{placeholder}` segments in the registry's `userMessage`
+ *   using values from `context`.
+ * - Appends the canonical MC code as a suffix so users can quote it in bug
+ *   reports.
+ * - An explicit `override` wins over the registry template but still gets
+ *   the code appended.
+ */
+export function formatUserMessage(code: string, context?: Record<string, string | number>, override?: string): string {
+  const entry = getErrorEntry(code);
+  let message = override ?? entry.userMessage;
+  if (context) {
+    for (const [k, v] of Object.entries(context)) {
+      message = message.replaceAll(`{${k}}`, String(v));
+    }
+  }
+  return `${message} (${entry.code})`;
+}
