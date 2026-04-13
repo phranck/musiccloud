@@ -161,7 +161,9 @@ async function inferAlbumViaIsrc(
   const step = Math.max(1, Math.floor(tracksWithIsrc.length / ISRC_SAMPLE_SIZE));
   const sampled = tracksWithIsrc.filter((_, i) => i % step === 0).slice(0, ISRC_SAMPLE_SIZE);
 
-  const albumHits: Map<string, { url: string; count: number }> = new Map();
+  // Each hit captures the original (mixed-case) album name + the track URL
+  // we can fall back to if the follow-up searchAlbum lookup fails.
+  const albumHits: Map<string, { albumName: string; trackUrl: string; count: number }> = new Map();
 
   const results = await Promise.allSettled(
     sampled.map((t) => (t.isrc ? adapter.findByIsrc(t.isrc) : Promise.resolve(null))),
@@ -170,39 +172,66 @@ async function inferAlbumViaIsrc(
   for (const r of results) {
     if (r.status !== "fulfilled" || !r.value) continue;
     const track = r.value;
-    // Use albumName as grouping key (lowercase, trimmed)
     if (!track.albumName) continue;
     const key = track.albumName.toLowerCase().trim();
-    // Derive album URL: replace /track/ with /album/ as best-effort
-    // For services that don't expose album URL on track, use the track URL as reference
-    const albumUrl = track.webUrl.replace(/\/track(\/|$)/, "/album$1");
     const existing = albumHits.get(key);
     if (existing) {
       existing.count++;
     } else {
-      albumHits.set(key, { url: albumUrl, count: 1 });
+      albumHits.set(key, { albumName: track.albumName, trackUrl: track.webUrl, count: 1 });
     }
   }
 
   if (albumHits.size === 0) return null;
 
   // Pick the most common album name
-  const [bestKey, best] = [...albumHits.entries()].reduce((a, b) => (b[1].count > a[1].count ? b : a));
+  const [, best] = [...albumHits.entries()].reduce((a, b) => (b[1].count > a[1].count ? b : a));
   const matchFraction = best.count / sampled.length;
 
   log.debug(
     "AlbumResolver",
-    `[${adapter.id}] ISRC inference: "${bestKey}" matched ${best.count}/${sampled.length} tracks`,
+    `[${adapter.id}] ISRC inference: "${best.albumName}" matched ${best.count}/${sampled.length} tracks`,
   );
 
   if (matchFraction < ISRC_INFERENCE_MIN_MATCH_FRACTION) return null;
 
   const confidence = 0.7 + matchFraction * 0.2; // 0.7–0.9 range
 
+  // Look up the matched album via resolveAlbumViaSearch to get a proper album
+  // URL, top-track preview URL, and artwork. The previous derived-URL approach
+  // (replace `/track/` with `/album/`) only works on services where track id
+  // == album id (e.g. Spotify) and produces broken links elsewhere (Deezer
+  // uses different ids). It also missed `topTrackPreviewUrl`, which is what
+  // the share page's preview player needs.
+  //
+  // We feed the matched album name (not the source title) into the search and
+  // override the confidence/matchMethod with our ISRC-derived values, since
+  // ISRC verification is stronger than text-similarity. resolveAlbumViaSearch
+  // also performs a getAlbum follow-up when the search response lacks tracks
+  // (Deezer's /search/album does), so previews come through.
+  //
+  // Caching: the resolved link (incl. preview URL) is persisted by
+  // persistAlbumWithLinks. Future resolves of the same source URL hit the DB
+  // cache (CACHE_TTL_MS = 48h) and skip every external API call here.
+  try {
+    const link = await resolveAlbumViaSearch(adapter, { ...sourceAlbum, title: best.albumName });
+    if (link) {
+      return { ...link, confidence, matchMethod: "isrc-inference" };
+    }
+  } catch (err) {
+    log.debug(
+      "AlbumResolver",
+      `[${adapter.id}] ISRC-inference follow-up search failed: ${err instanceof Error ? err.message : err}`,
+    );
+  }
+
+  // Fallback: at least return a track URL that actually works. Better than
+  // synthesising a broken /album/{trackId} URL — the user lands on the track
+  // and can navigate to the album from there.
   return {
     service: adapter.id,
     displayName: adapter.displayName,
-    url: best.url,
+    url: best.trackUrl,
     confidence,
     matchMethod: "isrc-inference",
   };
