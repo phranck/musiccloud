@@ -20,9 +20,14 @@ import type {
 /**
  * Qobuz Adapter
  *
- * Uses the Qobuz REST API (www.qobuz.com/api.json/0.2/) with an app_id
- * extracted from the Qobuz web player's JavaScript bundle plus user
- * authentication via QOBUZ_EMAIL/QOBUZ_PASSWORD to bypass geo-restrictions.
+ * Uses the Qobuz REST API (www.qobuz.com/api.json/0.2/) with the Chromecast
+ * app_id (publicly referenced in the Qobuz web bundle) plus user authentication
+ * via QOBUZ_EMAIL/QOBUZ_PASSWORD.
+ *
+ * The Chromecast app_id is used because the web-player app_ids (377257687,
+ * 798273057) are blocked from /user/login (return 401 even with valid creds),
+ * while the Chromecast id accepts the standard email/password login flow.
+ * Override via QOBUZ_APP_ID env var if Qobuz revokes this id in the future.
  *
  * Supports: URL detection, track resolution, search, ISRC lookup, album support
  */
@@ -47,75 +52,14 @@ const USER_AGENT =
 
 // --- App ID management ---
 
-const ENV_APP_ID = process.env.QOBUZ_APP_ID ?? null;
-if (ENV_APP_ID) log.debug("Qobuz", "Using QOBUZ_APP_ID from environment");
-let cachedAppId: string | null = ENV_APP_ID;
-let appIdFetchedAt = ENV_APP_ID ? Date.now() : 0;
-let appIdPromise: Promise<string | null> | null = null;
-const APP_ID_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (app_id changes rarely)
+// Chromecast app_id from Qobuz web bundle. The web-player app_ids are blocked
+// from /user/login (401), so we use this one instead. Override via env if needed.
+const DEFAULT_APP_ID = "425621600";
+let cachedAppId: string = process.env.QOBUZ_APP_ID || DEFAULT_APP_ID;
+if (process.env.QOBUZ_APP_ID) log.debug("Qobuz", "Using QOBUZ_APP_ID from environment");
 
-async function getAppId(): Promise<string | null> {
-  if (cachedAppId && Date.now() - appIdFetchedAt < APP_ID_TTL_MS) {
-    return cachedAppId;
-  }
-
-  // Promise coalescing: prevent parallel requests from each fetching independently
-  if (appIdPromise) return appIdPromise;
-  appIdPromise = fetchAppId().finally(() => {
-    appIdPromise = null;
-  });
-  return appIdPromise;
-}
-
-async function fetchAppId(): Promise<string | null> {
-  try {
-    // Step 1: Fetch play.qobuz.com login page to find bundle script URLs
-    const pageResponse = await qobuzFetch("https://play.qobuz.com/login", 8000);
-    if (!pageResponse.ok) {
-      log.debug("Qobuz", "Failed to fetch login page:", pageResponse.status);
-      return cachedAppId;
-    }
-
-    const html = await pageResponse.text();
-
-    // Find all JS bundle URLs (typically /resources/xxx.xxx.bundle.js)
-    const scriptMatches = html.matchAll(/<script[^>]+src=["']([^"']*bundle[^"']*\.js)["']/gi);
-    const scriptUrls: string[] = [];
-    for (const m of scriptMatches) {
-      const src = m[1];
-      scriptUrls.push(src.startsWith("http") ? src : `https://play.qobuz.com${src}`);
-    }
-
-    if (scriptUrls.length === 0) {
-      log.debug("Qobuz", "No bundle scripts found on login page");
-      return cachedAppId;
-    }
-
-    // Step 2: Fetch each bundle and look for appId pattern
-    for (const scriptUrl of scriptUrls) {
-      try {
-        const jsResponse = await qobuzFetch(scriptUrl, 10000);
-        if (!jsResponse.ok) continue;
-
-        const js = await jsResponse.text();
-
-        // Bundle uses camelCase: appId:"377257687" (inside config object)
-        const appIdMatch = /appId:"(\d{9,10})"/.exec(js);
-        if (appIdMatch?.[1]) {
-          cachedAppId = appIdMatch[1];
-          appIdFetchedAt = Date.now();
-          log.debug("Qobuz", "Extracted app_id from bundle");
-          return cachedAppId;
-        }
-      } catch {}
-    }
-
-    log.error("Qobuz", "app_id not found in any bundle - adapter will be unavailable");
-    return cachedAppId;
-  } catch {
-    log.debug("Qobuz", "Failed to extract app_id");
-    return cachedAppId;
-  }
+function getAppId(): string {
+  return cachedAppId;
 }
 
 // --- User auth token management ---
@@ -146,8 +90,7 @@ async function fetchAuthToken(): Promise<string | null> {
   const password = process.env.QOBUZ_PASSWORD;
   if (!email || !password) return null;
 
-  const appId = await getAppId();
-  if (!appId) return null;
+  const appId = getAppId();
 
   try {
     const response = await fetchWithTimeout(
@@ -187,17 +130,10 @@ async function fetchAuthToken(): Promise<string | null> {
 
 // --- Fetch helpers ---
 
-async function qobuzFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  return fetchWithTimeout(url, { headers: { "User-Agent": USER_AGENT } }, timeoutMs);
-}
-
 async function qobuzApiFetch(endpoint: string): Promise<Response> {
-  const appId = await getAppId();
-  if (!appId) throw new Error("Qobuz: No app_id available");
-
   const headers: Record<string, string> = {
     "User-Agent": USER_AGENT,
-    "X-App-Id": appId,
+    "X-App-Id": getAppId(),
   };
 
   // Add auth token if available (required for geo-restricted regions)
@@ -349,10 +285,8 @@ function mapTrack(data: QobuzTrack): NormalizedTrack {
   };
 }
 
-// Eagerly fetch app_id and auth token on import
-getAppId()
-  .then(() => getAuthToken())
-  .catch(() => {});
+// Eagerly authenticate on import so the first user request doesn't pay the latency
+getAuthToken().catch(() => {});
 
 // --- Adapter ---
 
@@ -366,7 +300,7 @@ export const qobuzAdapter = {
   },
 
   isAvailable(): boolean {
-    // Always report as available - getAppId() handles lazy fetching.
+    // Always report as available - the adapter has a default app_id baked in.
     // Returning false would prevent URL detection and cross-service matching.
     return true;
   },
@@ -490,7 +424,9 @@ export const qobuzAdapter = {
   },
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
-    const response = await qobuzApiFetch(`/album/get?album_id=${encodeURIComponent(albumId)}&extra=tracks`);
+    // Tracks are included in the response by default; the `extra=tracks` parameter
+    // is rejected by the Chromecast app_id (Invalid argument: extra).
+    const response = await qobuzApiFetch(`/album/get?album_id=${encodeURIComponent(albumId)}`);
 
     if (!response.ok) {
       throw new Error(`Qobuz getAlbum failed: ${response.status}`);
@@ -668,13 +604,11 @@ export const qobuzAdapter = {
 
 // Export for testing
 export function _resetAppIdCache(): void {
-  cachedAppId = null;
-  appIdFetchedAt = 0;
+  cachedAppId = process.env.QOBUZ_APP_ID || DEFAULT_APP_ID;
 }
 
 export function _setAppIdForTest(appId: string): void {
   cachedAppId = appId;
-  appIdFetchedAt = Date.now();
 }
 
 export function _resetAuthTokenCache(): void {

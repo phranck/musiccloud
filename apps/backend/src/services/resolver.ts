@@ -257,7 +257,11 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     if (!sourceAdapter.isAvailable()) {
       return withAlias(await resolveUrlViaScrape(cleanUrl, sourceAdapter.id));
     }
-    throw error;
+    if (error instanceof ResolveError) throw error;
+    throw new ResolveError(
+      "SERVICE_DOWN",
+      `Failed to fetch track from ${sourceAdapter.id}: ${error instanceof Error ? error.message : error}`,
+    );
   }
 
   // 3b. Cache lookup by ISRC (in case same track was resolved via different URL)

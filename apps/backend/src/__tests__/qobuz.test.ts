@@ -168,14 +168,6 @@ describe("Qobuz: getTrack", () => {
     const track = await qobuzAdapter.getTrack("59954869");
     expect(track.artworkUrl).toBeUndefined();
   });
-
-  it("should handle missing app_id", async () => {
-    _resetAppIdCache();
-    // Mock: page fetch returns no bundle scripts
-    fetchMock.mockResolvedValueOnce(mockResponse("<html><body>No scripts</body></html>"));
-
-    await expect(qobuzAdapter.getTrack("123")).rejects.toThrow("Qobuz: No app_id available");
-  });
 });
 
 describe("Qobuz: findByIsrc", () => {
@@ -232,17 +224,6 @@ describe("Qobuz: searchTrack", () => {
 
     expect(result.found).toBe(true);
     expect(result.confidence).toBeGreaterThanOrEqual(0.4);
-  });
-
-  it("should gracefully handle missing app_id", async () => {
-    _resetAppIdCache();
-    // Mock: page fetch returns no bundle scripts
-    fetchMock.mockResolvedValueOnce(mockResponse("<html><body>No scripts</body></html>"));
-
-    const result = await qobuzAdapter.searchTrack({ title: "Test", artist: "Test" });
-
-    expect(result.found).toBe(false);
-    expect(result.confidence).toBe(0);
   });
 
   it("should convert duration from seconds to milliseconds", async () => {
