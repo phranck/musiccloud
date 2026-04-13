@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -28,7 +29,7 @@ export function SetupPage() {
     }
 
     try {
-      await api.post("/admin/auth/setup", {
+      await api.post(ENDPOINTS.admin.auth.setup, {
         username: fd.get("username"),
         email: fd.get("email"),
         password: fd.get("password"),

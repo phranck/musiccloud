@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import { ArrowsClockwise as ArrowsClockwiseIcon, Check as CheckIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
@@ -5,6 +6,12 @@ import { useI18n } from "@/context/I18nContext";
 import { api } from "@/lib/api";
 
 type Kind = "tracks" | "albums" | "artists";
+
+const INVALIDATE_CACHE_ENDPOINT: Record<Kind, (shortId: string) => string> = {
+  tracks: ENDPOINTS.admin.tracks.invalidateCache,
+  albums: ENDPOINTS.admin.albums.invalidateCache,
+  artists: ENDPOINTS.admin.artists.invalidateCache,
+};
 
 interface InvalidateCacheButtonProps {
   shortId: string | null;
@@ -33,7 +40,7 @@ export function InvalidateCacheButton({ shortId, kind }: InvalidateCacheButtonPr
     if (busy || !shortId) return;
     setBusy(true);
     try {
-      await api.post(`/admin/${kind}/${shortId}/invalidate-cache`);
+      await api.post(INVALIDATE_CACHE_ENDPOINT[kind](shortId));
       setConfirmed(true);
       setTimeout(() => setConfirmed(false), 1500);
     } catch {

@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
@@ -57,28 +58,28 @@ interface UmamiActiveData {
 export function useUmamiStats(period: UmamiPeriod) {
   return useQuery({
     queryKey: ["umami-stats", period],
-    queryFn: () => api.get<UmamiStats>(`/admin/analytics/stats?period=${period}`),
+    queryFn: () => api.get<UmamiStats>(`${ENDPOINTS.admin.analytics.stats}?period=${period}`),
   });
 }
 
 export function useUmamiPageviews(period: UmamiPeriod) {
   return useQuery({
     queryKey: ["umami-pageviews", period],
-    queryFn: () => api.get<UmamiPageviewSeries>(`/admin/analytics/pageviews?period=${period}`),
+    queryFn: () => api.get<UmamiPageviewSeries>(`${ENDPOINTS.admin.analytics.pageviews}?period=${period}`),
   });
 }
 
 export function useUmamiMetrics(type: UmamiMetricType, period: UmamiPeriod) {
   return useQuery({
     queryKey: ["umami-metrics", type, period],
-    queryFn: () => api.get<UmamiMetricRow[]>(`/admin/analytics/metrics?type=${type}&period=${period}`),
+    queryFn: () => api.get<UmamiMetricRow[]>(`${ENDPOINTS.admin.analytics.metrics}?type=${type}&period=${period}`),
   });
 }
 
 export function useUmamiActive() {
   return useQuery({
     queryKey: ["umami-active"],
-    queryFn: () => api.get<UmamiActiveData>("/admin/analytics/active"),
+    queryFn: () => api.get<UmamiActiveData>(ENDPOINTS.admin.analytics.active),
     refetchInterval: 30_000,
   });
 }
@@ -86,7 +87,7 @@ export function useUmamiActive() {
 export function useUmamiRealtime() {
   return useQuery({
     queryKey: ["umami-realtime"],
-    queryFn: () => api.get<UmamiRealtimeData>("/admin/analytics/realtime"),
+    queryFn: () => api.get<UmamiRealtimeData>(ENDPOINTS.admin.analytics.realtime),
     refetchInterval: 30_000,
   });
 }
@@ -96,34 +97,34 @@ export function useUmamiRealtime() {
 export function useUmamiResolvesByService(period: UmamiPeriod) {
   return useQuery({
     queryKey: ["umami-resolves", period],
-    queryFn: () => api.get<UmamiEventValueRow[]>(`/admin/analytics/events/resolves?period=${period}`),
+    queryFn: () => api.get<UmamiEventValueRow[]>(`${ENDPOINTS.admin.analytics.events.resolves}?period=${period}`),
   });
 }
 
 export function useUmamiResolveTotal(period: UmamiPeriod) {
   return useQuery({
     queryKey: ["umami-resolves-total", period],
-    queryFn: () => api.get<UmamiEventTotal>(`/admin/analytics/events/resolves/total?period=${period}`),
+    queryFn: () => api.get<UmamiEventTotal>(`${ENDPOINTS.admin.analytics.events.resolvesTotal}?period=${period}`),
   });
 }
 
 export function useUmamiLinkClicksByService(period: UmamiPeriod) {
   return useQuery({
     queryKey: ["umami-link-clicks", period],
-    queryFn: () => api.get<UmamiEventValueRow[]>(`/admin/analytics/events/link-clicks?period=${period}`),
+    queryFn: () => api.get<UmamiEventValueRow[]>(`${ENDPOINTS.admin.analytics.events.linkClicks}?period=${period}`),
   });
 }
 
 export function useUmamiLinkClickTotal(period: UmamiPeriod) {
   return useQuery({
     queryKey: ["umami-link-clicks-total", period],
-    queryFn: () => api.get<UmamiEventTotal>(`/admin/analytics/events/link-clicks/total?period=${period}`),
+    queryFn: () => api.get<UmamiEventTotal>(`${ENDPOINTS.admin.analytics.events.linkClicksTotal}?period=${period}`),
   });
 }
 
 export function useUmamiInteractionTotal(period: UmamiPeriod) {
   return useQuery({
     queryKey: ["umami-interactions-total", period],
-    queryFn: () => api.get<UmamiEventTotal>(`/admin/analytics/events/interactions/total?period=${period}`),
+    queryFn: () => api.get<UmamiEventTotal>(`${ENDPOINTS.admin.analytics.events.interactionsTotal}?period=${period}`),
   });
 }

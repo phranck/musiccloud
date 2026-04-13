@@ -1,5 +1,5 @@
 import type { Platform } from "@musiccloud/shared";
-import { isValidPlatform, PLATFORM_CONFIG, SERVICE_DISPLAY_ORDER } from "@musiccloud/shared";
+import { ENDPOINTS, isValidPlatform, PLATFORM_CONFIG, SERVICE_DISPLAY_ORDER } from "@musiccloud/shared";
 import {
   ArrowSquareOut as ArrowSquareOutIcon,
   CheckCircle as CheckCircleIcon,
@@ -69,7 +69,7 @@ export function TrackEditPage() {
     if (!id) return;
     setLoading(true);
     api
-      .get<TrackDetail>(`/admin/tracks/${id}`)
+      .get<TrackDetail>(ENDPOINTS.admin.tracks.detail(id))
       .then((data) => {
         setTrack(data);
         setTitle(data.title);
@@ -88,7 +88,7 @@ export function TrackEditPage() {
     setError(null);
     setSaved(false);
     try {
-      await api.patch(`/admin/tracks/${id}`, {
+      await api.patch(ENDPOINTS.admin.tracks.detail(id), {
         title,
         artists: artists
           .split(",")

@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import {
   MagnifyingGlass as MagnifyingGlassIcon,
   MicrophoneStage as MicrophoneStageIcon,
@@ -8,7 +9,6 @@ import {
   XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
-
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
@@ -46,8 +46,8 @@ export function ArtistsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const table = useInfiniteAdminTable<ArtistListItem>({
-    endpoint: "/admin/artists",
-    deleteEndpoint: "/admin/artists",
+    endpoint: ENDPOINTS.admin.artists.list,
+    deleteEndpoint: ENDPOINTS.admin.artists.list,
     sseEventType: "artist-added",
     sseToItem: (data) => data as unknown as ArtistListItem,
   });

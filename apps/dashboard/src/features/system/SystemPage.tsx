@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import { useEffect, useState } from "react";
 
 import { useI18n } from "@/context/I18nContext";
@@ -80,7 +81,7 @@ function TrackingToggle() {
 
   useEffect(() => {
     api
-      .get<Record<string, string>>("/admin/site-settings")
+      .get<Record<string, string>>(ENDPOINTS.admin.siteSettings.base)
       .then((settings) => setEnabled(settings.tracking_enabled === "true"))
       .catch(() => setEnabled(true));
   }, []);
@@ -90,7 +91,7 @@ function TrackingToggle() {
     const newValue = !enabled;
     setSaving(true);
     try {
-      await api.patch("/admin/site-settings", { tracking_enabled: String(newValue) });
+      await api.patch(ENDPOINTS.admin.siteSettings.base, { tracking_enabled: String(newValue) });
       setEnabled(newValue);
     } catch {
       // revert on error
@@ -138,7 +139,7 @@ function DangerZone() {
 
   useEffect(() => {
     api
-      .get<{ tracks: number; albums: number }>("/admin/data-counts")
+      .get<{ tracks: number; albums: number }>(ENDPOINTS.admin.dataCounts)
       .then(setCounts)
       .catch(() => {});
   }, []);
@@ -164,7 +165,7 @@ function DangerZone() {
     setPhase("fetching");
     setError("");
     try {
-      const data = await api.get<{ tracks: number; albums: number }>("/admin/data-counts");
+      const data = await api.get<{ tracks: number; albums: number }>(ENDPOINTS.admin.dataCounts);
       setCounts(data);
       setPhase("confirm");
     } catch (err) {
@@ -176,7 +177,7 @@ function DangerZone() {
   async function handleConfirm() {
     setPhase("resetting");
     try {
-      const result = await api.post<{ tracks: number; albums: number }>("/admin/reset-all");
+      const result = await api.post<{ tracks: number; albums: number }>(ENDPOINTS.admin.resetAll);
       setCounts(result);
       setPhase("done");
     } catch (err) {
@@ -299,13 +300,13 @@ export function SystemPage() {
             label={m.artistCacheLabel}
             description={m.artistCacheDescription}
             buttonLabel={m.artistCacheClear}
-            endpoint="/admin/artist-cache/clear"
+            endpoint={ENDPOINTS.admin.cache.artistClear}
           />
           <CacheAction<{ tracks: number; albums: number; artists: number }>
             label={m.shareCacheLabel}
             description={m.shareCacheDescription}
             buttonLabel={m.shareCacheClear}
-            endpoint="/admin/cache/invalidate-all"
+            endpoint={ENDPOINTS.admin.cache.invalidateAll}
             formatSuccess={(r) =>
               m.shareCacheSuccess
                 .replace("{tracks}", String(r.tracks))

@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import {
   MagnifyingGlass as MagnifyingGlassIcon,
   MusicNotes as MusicNotesIcon,
@@ -10,7 +11,6 @@ import {
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
@@ -57,7 +57,7 @@ function FeaturedToggle({ track }: { track: TrackListItem }) {
     setFeatured(next);
     setBusy(true);
     try {
-      await api.patch(`/admin/tracks/${track.shortId}/featured`, { featured: next });
+      await api.patch(ENDPOINTS.admin.tracks.setFeatured(track.shortId), { featured: next });
     } catch {
       setFeatured(!next);
     } finally {
@@ -92,8 +92,8 @@ export function TracksPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const table = useInfiniteAdminTable<TrackListItem>({
-    endpoint: "/admin/tracks",
-    deleteEndpoint: "/admin/tracks",
+    endpoint: ENDPOINTS.admin.tracks.list,
+    deleteEndpoint: ENDPOINTS.admin.tracks.list,
     sseEventType: "track-added",
     sseToItem: (data) => data as unknown as TrackListItem,
   });

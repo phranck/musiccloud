@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import { useEffect, useRef } from "react";
 
 export type SSEEvent =
@@ -43,7 +44,7 @@ export function useAdminSSE(onEvent: (event: SSEEvent) => void): void {
     async function connect() {
       controller = new AbortController();
       try {
-        const res = await fetch("/api/admin/events", {
+        const res = await fetch(ENDPOINTS.admin.events, {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
         });

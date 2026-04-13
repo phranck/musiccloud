@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import {
   Disc as DiscIcon,
   MagnifyingGlass as MagnifyingGlassIcon,
@@ -9,7 +10,6 @@ import {
   XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
-
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
@@ -62,7 +62,7 @@ function FeaturedToggle({ album }: { album: AlbumListItem }) {
     setFeatured(next);
     setBusy(true);
     try {
-      await api.patch(`/admin/albums/${album.shortId}/featured`, { featured: next });
+      await api.patch(ENDPOINTS.admin.albums.setFeatured(album.shortId), { featured: next });
     } catch {
       setFeatured(!next);
     } finally {
@@ -96,8 +96,8 @@ export function AlbumsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const table = useInfiniteAdminTable<AlbumListItem>({
-    endpoint: "/admin/albums",
-    deleteEndpoint: "/admin/albums",
+    endpoint: ENDPOINTS.admin.albums.list,
+    deleteEndpoint: ENDPOINTS.admin.albums.list,
     sseEventType: "album-added",
     sseToItem: (data) => data as unknown as AlbumListItem,
   });

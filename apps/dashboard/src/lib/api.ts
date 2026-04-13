@@ -4,6 +4,19 @@ const API_BASE = "/api";
 const FETCH_TIMEOUT_MS = 30_000;
 const TOKEN_KEY = "admin_token";
 
+/**
+ * Resolve a caller-supplied path to a full URL.
+ *
+ * - Paths from `@musiccloud/shared`'s ENDPOINTS already start with `/api/`
+ *   and are used verbatim.
+ * - Legacy callers that still pass a leading-slash path without the `/api`
+ *   prefix (e.g. `"/admin/users"`) get the prefix prepended for backwards
+ *   compatibility while the migration is in progress.
+ */
+function resolvePath(path: string): string {
+  return path.startsWith("/api/") ? path : `${API_BASE}${path}`;
+}
+
 function getAuthHeaders(): Record<string, string> {
   try {
     const stored = localStorage.getItem(TOKEN_KEY);
@@ -36,33 +49,33 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = FETC
 
 export const api = {
   get: <T>(path: string): Promise<T> =>
-    fetchWithTimeout(`${API_BASE}${path}`, {
+    fetchWithTimeout(resolvePath(path), {
       headers: { ...getAuthHeaders() },
     }).then((r) => handleResponse<T>(r)),
 
   post: <T>(path: string, body?: unknown): Promise<T> =>
-    fetchWithTimeout(`${API_BASE}${path}`, {
+    fetchWithTimeout(resolvePath(path), {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     }).then((r) => handleResponse<T>(r)),
 
   patch: <T>(path: string, body: unknown): Promise<T> =>
-    fetchWithTimeout(`${API_BASE}${path}`, {
+    fetchWithTimeout(resolvePath(path), {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(body),
     }).then((r) => handleResponse<T>(r)),
 
   put: <T>(path: string, body: unknown): Promise<T> =>
-    fetchWithTimeout(`${API_BASE}${path}`, {
+    fetchWithTimeout(resolvePath(path), {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(body),
     }).then((r) => handleResponse<T>(r)),
 
   delete: <T>(path: string, body?: unknown): Promise<T> =>
-    fetchWithTimeout(`${API_BASE}${path}`, {
+    fetchWithTimeout(resolvePath(path), {
       method: "DELETE",
       headers: {
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -72,7 +85,7 @@ export const api = {
     }).then((r) => handleResponse<T>(r)),
 
   upload: <T>(path: string, formData: FormData): Promise<T> =>
-    fetchWithTimeout(`${API_BASE}${path}`, {
+    fetchWithTimeout(resolvePath(path), {
       method: "POST",
       headers: { ...getAuthHeaders() },
       body: formData,
