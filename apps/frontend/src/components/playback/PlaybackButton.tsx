@@ -46,8 +46,10 @@ export function PlaybackButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
+      aria-pressed={isPlaying}
       title={title}
       hasInnerShadow={!disabled}
+      pressed={isPlaying && !disabled}
       className={cn(
         "relative flex-shrink-0 flex items-center justify-center rounded-lg",
         "px-0 py-0",
