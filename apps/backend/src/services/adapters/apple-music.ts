@@ -17,24 +17,58 @@ import type {
   ServiceAdapter,
 } from "../types.js";
 
-// Matches: music.apple.com/{storefront}/album/{name}/{albumId}?i={trackId}
-//          music.apple.com/{storefront}/song/{name}/{trackId}
+/**
+ * Apple Music URL regex — URL-based flows (detectUrl / detectAlbumUrl).
+ *
+ * Matches:
+ * - `music.apple.com/{storefront}/album/{name}/{albumId}?i={trackId}`
+ * - `music.apple.com/{storefront}/song/{name}/{trackId}`
+ *
+ * Capture groups:
+ * 1. storefront — 2-letter ISO country code (us, de, gb, fr, jp, …); generic,
+ *    matches any Apple Music storefront (there are 100+).
+ * 2. albumId — numeric id; present for /album/ URLs.
+ * 3. trackId (via `?i=`) — numeric id; present when an /album/ URL links a
+ *    specific track.
+ * 4. trackId (from /song/) — numeric id; present for /song/ URLs.
+ */
 const APPLE_MUSIC_REGEX =
   /(?:https?:\/\/)?music\.apple\.com\/([a-z]{2})\/(?:album\/[^/]+\/(\d+)(?:\?i=(\d+))?|song\/[^/]+\/(\d+))/;
 
-// Matches: music.apple.com/{storefront}/artist/{name}/{artistId}
+/**
+ * Apple Music artist URL regex.
+ *
+ * Matches: `music.apple.com/{storefront}/artist/{name}/{artistId}`.
+ *
+ * Capture groups:
+ * 1. storefront — 2-letter ISO country code.
+ * 2. artistId — numeric id.
+ */
 const APPLE_MUSIC_ARTIST_REGEX = /(?:https?:\/\/)?music\.apple\.com\/([a-z]{2})\/artist\/[^/]+\/(\d+)/;
 
 const API_BASE = "https://api.music.apple.com/v1";
 const DEFAULT_STOREFRONT = "us";
 
 /**
- * Apple Music track/album/artist IDs are storefront-specific — the same numeric
- * ID may exist in one store but return 404 in another. `detectUrl` extracts the
- * storefront from the URL and encodes it into the returned id as `{storefront}:{id}`
- * so that `getTrack`/`getAlbum`/`getArtist` can issue the API call against the
- * correct storefront. When called with a bare numeric id (no prefix), we fall
- * back to the env/default storefront.
+ * Apple Music track / album / artist IDs are **storefront-specific**: the same
+ * numeric ID may exist in one country's catalog and return 404 in another.
+ * Resolving a URL against the wrong storefront therefore fails with a confusing
+ * "not found" — even though the item is perfectly legal in its own region.
+ *
+ * Flow:
+ * 1. `detectUrl` / `detectAlbumUrl` / `detectArtistUrl` extract the storefront
+ *    from the URL and encode it into the returned id as `{storefront}:{id}`.
+ * 2. The resolver passes that composite straight back to
+ *    `getTrack` / `getAlbum` / `getArtist`.
+ * 3. `parseStorefrontId` splits it apart; the API call is issued against the
+ *    same storefront the URL came from.
+ * 4. `mapTrack` / `mapAlbum` / `mapArtist` store the bare numeric id as
+ *    `sourceId` — no composite leaks into the DB.
+ *
+ * Fallback: when called with a bare numeric id (no storefront prefix — e.g.
+ * from a cache or from `findByIsrc`), we use `APPLE_MUSIC_STOREFRONT` env or
+ * `DEFAULT_STOREFRONT` ("us"). The id format is generic — any 2-letter ISO
+ * code works, not just the ones seen in tests.
  */
 function parseStorefrontId(input: string): { storefront: string; id: string } {
   const colonIdx = input.indexOf(":");
@@ -322,6 +356,12 @@ export const appleMusicAdapter: ServiceAdapter = {
     );
   },
 
+  /**
+   * Returns the track id encoded as `{storefront}:{trackId}` (see
+   * {@link parseStorefrontId}). Returning just the numeric id would lose the
+   * storefront and cause `getTrack` to fail for any region the default
+   * storefront doesn't cover (e.g. DE-only tracks when env defaults to `us`).
+   */
   detectUrl(url: string): string | null {
     const match = APPLE_MUSIC_REGEX.exec(url);
     if (!match) return null;
@@ -334,6 +374,10 @@ export const appleMusicAdapter: ServiceAdapter = {
     return null;
   },
 
+  /**
+   * Returns the album id encoded as `{storefront}:{albumId}`. See
+   * {@link detectUrl} for why the storefront must travel with the id.
+   */
   detectAlbumUrl(url: string): string | null {
     const match = APPLE_MUSIC_REGEX.exec(url);
     if (!match) return null;
@@ -344,6 +388,12 @@ export const appleMusicAdapter: ServiceAdapter = {
     return null;
   },
 
+  /**
+   * Accepts either a composite id `{storefront}:{trackId}` (preferred, produced
+   * by {@link detectUrl}) or a bare numeric trackId (falls back to default
+   * storefront). The API call targets the extracted storefront so regional
+   * tracks resolve correctly.
+   */
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const { storefront, id } = parseStorefrontId(trackId);
     const response = await appleMusicFetch(`/catalog/${storefront}/songs/${encodeURIComponent(id)}`);
@@ -362,6 +412,22 @@ export const appleMusicAdapter: ServiceAdapter = {
     return mapTrack(song);
   },
 
+  /**
+   * ISRC lookup — used in cross-service matching when another adapter is the
+   * source.
+   *
+   * **Limitation (not yet storefront-aware):** queries only the env/default
+   * storefront. Apple Music's ISRC index is per-storefront, so a track that
+   * exists in DE but not in US returns null when the default is `us`. This can
+   * silently drop Apple Music links from the result set for regional content.
+   *
+   * Future improvement: derive a candidate storefront from the ISRC's first
+   * two characters (country of registration — e.g. `DEE…` → `de`, `USS…` →
+   * `us`, `GBU…` → `gb`) and cascade through a small list of likely stores
+   * (registration country → env default → us → de → gb → jp). Since ISRC
+   * country prefixes do not always match the storefront where the track is
+   * published, the cascade should be small (≤ 4 attempts) to bound latency.
+   */
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
     const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
     const response = await appleMusicFetch(`/catalog/${storefront}/songs?filter[isrc]=${encodeURIComponent(isrc)}`);
@@ -378,6 +444,14 @@ export const appleMusicAdapter: ServiceAdapter = {
     return mapTrack(songs[0]);
   },
 
+  /**
+   * Text search for a track.
+   *
+   * **Limitation (not yet storefront-aware):** Apple Music's search index is
+   * per-storefront. A track that exists in DE but not in US is invisible when
+   * the default is `us`. See {@link findByIsrc} for a sketched fix; the search
+   * methods would benefit from the same cascade.
+   */
   async searchTrack(query: { title: string; artist: string; album?: string }): Promise<MatchResult> {
     const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
     const term = encodeURIComponent(`${query.artist} ${query.title}`);
@@ -422,6 +496,10 @@ export const appleMusicAdapter: ServiceAdapter = {
     };
   },
 
+  /**
+   * Accepts a composite id `{storefront}:{albumId}` from {@link detectAlbumUrl}
+   * or a bare numeric albumId (falls back to default storefront).
+   */
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const { storefront, id } = parseStorefrontId(albumId);
     const response = await appleMusicFetch(`/catalog/${storefront}/albums/${encodeURIComponent(id)}?include=tracks`);
@@ -440,6 +518,11 @@ export const appleMusicAdapter: ServiceAdapter = {
     return mapAlbum(album);
   },
 
+  /**
+   * Text search for an album.
+   *
+   * **Limitation (not yet storefront-aware):** see {@link searchTrack}.
+   */
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
     const term = encodeURIComponent(`${query.artist} ${query.title}`);
@@ -484,11 +567,19 @@ export const appleMusicAdapter: ServiceAdapter = {
     };
   },
 
+  /**
+   * Returns the artist id encoded as `{storefront}:{artistId}`. See
+   * {@link detectUrl} for why the storefront must travel with the id.
+   */
   detectArtistUrl(url: string): string | null {
     const match = APPLE_MUSIC_ARTIST_REGEX.exec(url);
     return match ? `${match[1]}:${match[2]}` : null;
   },
 
+  /**
+   * Accepts a composite id `{storefront}:{artistId}` from {@link detectArtistUrl}
+   * or a bare numeric artistId (falls back to default storefront).
+   */
   async getArtist(artistId: string): Promise<NormalizedArtist> {
     const { storefront, id } = parseStorefrontId(artistId);
     const response = await appleMusicFetch(`/catalog/${storefront}/artists/${encodeURIComponent(id)}`);
@@ -507,6 +598,11 @@ export const appleMusicAdapter: ServiceAdapter = {
     return mapArtist(artist);
   },
 
+  /**
+   * Text search for an artist.
+   *
+   * **Limitation (not yet storefront-aware):** see {@link searchTrack}.
+   */
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
     const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
     const term = encodeURIComponent(query.name);
