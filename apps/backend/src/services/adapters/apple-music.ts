@@ -23,10 +23,26 @@ const APPLE_MUSIC_REGEX =
   /(?:https?:\/\/)?music\.apple\.com\/([a-z]{2})\/(?:album\/[^/]+\/(\d+)(?:\?i=(\d+))?|song\/[^/]+\/(\d+))/;
 
 // Matches: music.apple.com/{storefront}/artist/{name}/{artistId}
-const APPLE_MUSIC_ARTIST_REGEX = /(?:https?:\/\/)?music\.apple\.com\/[a-z]{2}\/artist\/[^/]+\/(\d+)/;
+const APPLE_MUSIC_ARTIST_REGEX = /(?:https?:\/\/)?music\.apple\.com\/([a-z]{2})\/artist\/[^/]+\/(\d+)/;
 
 const API_BASE = "https://api.music.apple.com/v1";
 const DEFAULT_STOREFRONT = "us";
+
+/**
+ * Apple Music track/album/artist IDs are storefront-specific — the same numeric
+ * ID may exist in one store but return 404 in another. `detectUrl` extracts the
+ * storefront from the URL and encodes it into the returned id as `{storefront}:{id}`
+ * so that `getTrack`/`getAlbum`/`getArtist` can issue the API call against the
+ * correct storefront. When called with a bare numeric id (no prefix), we fall
+ * back to the env/default storefront.
+ */
+function parseStorefrontId(input: string): { storefront: string; id: string } {
+  const colonIdx = input.indexOf(":");
+  if (colonIdx > 0 && /^[a-z]{2}$/i.test(input.slice(0, colonIdx))) {
+    return { storefront: input.slice(0, colonIdx).toLowerCase(), id: input.slice(colonIdx + 1) };
+  }
+  return { storefront: process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT, id: input };
+}
 
 // Token cache: JWT is valid for 1 hour, we refresh 5 minutes early
 const TOKEN_LIFETIME_SECONDS = 3600;
@@ -312,7 +328,7 @@ export const appleMusicAdapter: ServiceAdapter = {
 
     // Track ID is either ?i= param (from album link) or direct song ID
     const trackId = match[3] ?? match[4];
-    if (trackId) return trackId;
+    if (trackId) return `${match[1]}:${trackId}`;
 
     // Album-only link without ?i= - not a track link
     return null;
@@ -323,14 +339,14 @@ export const appleMusicAdapter: ServiceAdapter = {
     if (!match) return null;
 
     // Album-only link: has albumId (match[2]) but no ?i= track param (match[3])
-    if (match[2] && !match[3]) return match[2];
+    if (match[2] && !match[3]) return `${match[1]}:${match[2]}`;
 
     return null;
   },
 
   async getTrack(trackId: string): Promise<NormalizedTrack> {
-    const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
-    const response = await appleMusicFetch(`/catalog/${storefront}/songs/${encodeURIComponent(trackId)}`);
+    const { storefront, id } = parseStorefrontId(trackId);
+    const response = await appleMusicFetch(`/catalog/${storefront}/songs/${encodeURIComponent(id)}`);
 
     if (!response.ok) {
       throw new Error(`Apple Music getTrack failed: ${response.status}`);
@@ -340,7 +356,7 @@ export const appleMusicAdapter: ServiceAdapter = {
     const song: AppleMusicSongResource = data.data[0];
 
     if (!song) {
-      throw new Error(`Apple Music track not found: ${trackId}`);
+      throw new Error(`Apple Music track not found: ${id}`);
     }
 
     return mapTrack(song);
@@ -407,10 +423,8 @@ export const appleMusicAdapter: ServiceAdapter = {
   },
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
-    const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
-    const response = await appleMusicFetch(
-      `/catalog/${storefront}/albums/${encodeURIComponent(albumId)}?include=tracks`,
-    );
+    const { storefront, id } = parseStorefrontId(albumId);
+    const response = await appleMusicFetch(`/catalog/${storefront}/albums/${encodeURIComponent(id)}?include=tracks`);
 
     if (!response.ok) {
       throw new Error(`Apple Music getAlbum failed: ${response.status}`);
@@ -420,7 +434,7 @@ export const appleMusicAdapter: ServiceAdapter = {
     const album: AppleMusicAlbumResource = data.data[0];
 
     if (!album) {
-      throw new Error(`Apple Music album not found: ${albumId}`);
+      throw new Error(`Apple Music album not found: ${id}`);
     }
 
     return mapAlbum(album);
@@ -472,12 +486,12 @@ export const appleMusicAdapter: ServiceAdapter = {
 
   detectArtistUrl(url: string): string | null {
     const match = APPLE_MUSIC_ARTIST_REGEX.exec(url);
-    return match ? match[1] : null;
+    return match ? `${match[1]}:${match[2]}` : null;
   },
 
   async getArtist(artistId: string): Promise<NormalizedArtist> {
-    const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
-    const response = await appleMusicFetch(`/catalog/${storefront}/artists/${encodeURIComponent(artistId)}`);
+    const { storefront, id } = parseStorefrontId(artistId);
+    const response = await appleMusicFetch(`/catalog/${storefront}/artists/${encodeURIComponent(id)}`);
 
     if (!response.ok) {
       throw new Error(`Apple Music getArtist failed: ${response.status}`);
@@ -487,7 +501,7 @@ export const appleMusicAdapter: ServiceAdapter = {
     const artist: AppleMusicArtistResource = data.data[0];
 
     if (!artist) {
-      throw new Error(`Apple Music artist not found: ${artistId}`);
+      throw new Error(`Apple Music artist not found: ${id}`);
     }
 
     return mapArtist(artist);

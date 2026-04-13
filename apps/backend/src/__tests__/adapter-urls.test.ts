@@ -59,19 +59,19 @@ describe("Apple Music: detectUrl", () => {
   it("should extract track ID from album URL with ?i= param", () => {
     expect(
       appleMusicAdapter.detectUrl("https://music.apple.com/us/album/bohemian-rhapsody/1440806041?i=1440806768"),
-    ).toBe("1440806768");
+    ).toBe("us:1440806768");
   });
 
   it("should extract track ID from direct song URL", () => {
     expect(appleMusicAdapter.detectUrl("https://music.apple.com/us/song/bohemian-rhapsody/1440806768")).toBe(
-      "1440806768",
+      "us:1440806768",
     );
   });
 
-  it("should handle regional URLs (German store)", () => {
+  it("should preserve regional storefront (German store)", () => {
     expect(
       appleMusicAdapter.detectUrl("https://music.apple.com/de/album/bohemian-rhapsody/1440806041?i=1440806768"),
-    ).toBe("1440806768");
+    ).toBe("de:1440806768");
   });
 
   it("should return null for album-only URL (no ?i= param)", () => {
