@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GradientBackground } from "@/components/background/GradientBackground";
 import { SparklingStars } from "@/components/background/SparklingStars";
@@ -67,7 +68,7 @@ function LandingPageInner() {
   }, [handleSubmit]);
 
   useEffect(() => {
-    fetch("/api/random-example")
+    fetch(ENDPOINTS.frontend.randomExample)
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { shortId: string } | null) => {
         if (data?.shortId) setExampleShortId(data.shortId);

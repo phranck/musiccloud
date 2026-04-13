@@ -1,6 +1,7 @@
 ---
 export const prerender = true;
 
+import { ENDPOINTS } from "@musiccloud/shared";
 import { LandingPage } from "@/components/LandingPage";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import BaseLayout from "@/layouts/BaseLayout.astro";
@@ -47,10 +48,10 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
   </Fragment>
 
   <!-- Redirect ?url=<streaming-url> to the share page via the backend. Runs before React hydration. -->
-  <script is:inline>
+  <script is:inline define:vars={{ redirectEndpoint: ENDPOINTS.frontend.redirect }}>
     (function () {
       var u = new URLSearchParams(location.search).get("url");
-      if (u) location.replace("/api/redirect?url=" + encodeURIComponent(u));
+      if (u) location.replace(redirectEndpoint + "?url=" + encodeURIComponent(u));
     })();
   </script>
 

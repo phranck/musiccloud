@@ -1,8 +1,9 @@
-import type {
-  ResolveDisambiguationResponse,
-  ResolveErrorResponse,
-  ResolveSuccessResponse,
-  UnifiedResolveSuccessResponse,
+import {
+  ENDPOINTS,
+  type ResolveDisambiguationResponse,
+  type ResolveErrorResponse,
+  type ResolveSuccessResponse,
+  type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
@@ -53,7 +54,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch("/api/resolve", {
+      const response = await fetch(ENDPOINTS.frontend.resolve, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: url }),
@@ -88,7 +89,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch("/api/resolve", {
+      const response = await fetch(ENDPOINTS.frontend.resolve, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ selectedCandidate: candidate.id }),

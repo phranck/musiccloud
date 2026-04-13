@@ -8,7 +8,7 @@
  *                as a bottom sheet.
  */
 
-import type { ArtistInfoResponse } from "@musiccloud/shared";
+import { type ArtistInfoResponse, ENDPOINTS } from "@musiccloud/shared";
 import { User, X } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 
@@ -160,7 +160,7 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
     const timeout = setTimeout(() => controller.abort(), 5000);
     const params = new URLSearchParams({ name: artistName });
     if (userRegion) params.set("region", userRegion);
-    fetch(`/api/artist-info?${params.toString()}`, { signal: controller.signal })
+    fetch(`${ENDPOINTS.frontend.artistInfo}?${params.toString()}`, { signal: controller.signal })
       .then((res) => (res.ok ? (res.json() as Promise<ArtistInfoResponse>) : null))
       .then((data) => {
         if (!cancelled) dispatch({ type: "done", data });

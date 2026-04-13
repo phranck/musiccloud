@@ -1,4 +1,4 @@
-import type { ArtistTopTrack } from "@musiccloud/shared";
+import { type ArtistTopTrack, ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useState } from "react";
 import { SectionHeading } from "@/components/share/SectionHeading";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -33,7 +33,7 @@ export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; ar
     setResolving(true);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    fetch("/api/resolve", {
+    fetch(ENDPOINTS.frontend.resolve, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query: track.deezerUrl }),

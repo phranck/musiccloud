@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 
 export const prerender = false;
@@ -20,7 +21,7 @@ export const GET: APIRoute = async ({ url }) => {
   const params = new URLSearchParams({ name });
   if (region) params.set("region", region);
 
-  const res = await fetch(`${BACKEND_URL}/api/v1/artist-info?${params.toString()}`);
+  const res = await fetch(`${BACKEND_URL}${ENDPOINTS.v1.artistInfo}?${params.toString()}`);
 
   return new Response(res.body, {
     status: res.status,

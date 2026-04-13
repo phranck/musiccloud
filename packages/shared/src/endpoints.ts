@@ -66,6 +66,27 @@ export const ENDPOINTS = {
     token: "/api/auth/token",
   },
 
+  /**
+   * Astro-frontend proxy routes. The public site exposes a short-form
+   * `/api/<name>` layer that the React islands call; the corresponding
+   * Astro handler in `apps/frontend/src/pages/api/<name>.ts` forwards to
+   * the real backend at `ENDPOINTS.v1.*`. Distinct constant set because
+   * the URLs are different (no `/v1/` segment) and live on a different
+   * origin from the backend in prod.
+   */
+  frontend: {
+    /** POST — React components call this; Astro forwards to `ENDPOINTS.v1.resolve`. */
+    resolve: "/api/resolve",
+    /** GET — forwarded to `ENDPOINTS.v1.randomExample`. */
+    randomExample: "/api/random-example",
+    /** GET — forwarded to `ENDPOINTS.v1.artistInfo`. */
+    artistInfo: "/api/artist-info",
+    /** GET — forwarded to `ENDPOINTS.v1.redirect`. */
+    redirect: "/api/redirect",
+    /** Umami analytics proxy prefix (script.js + event endpoint live beneath). */
+    umami: "/api/mc",
+  },
+
   /** `/api/admin/...` — admin dashboard endpoints (JWT-protected). */
   admin: {
     auth: {

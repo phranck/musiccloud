@@ -1,4 +1,4 @@
-import type { SharePageResponse } from "@musiccloud/shared";
+import { ENDPOINTS, type SharePageResponse } from "@musiccloud/shared";
 
 const BACKEND_URL =
   (import.meta.env.BACKEND_URL as string | undefined) ?? process.env.BACKEND_URL ?? "http://localhost:4000";
@@ -26,7 +26,7 @@ function internalHeaders(extra?: Record<string, string>): Record<string, string>
 export async function fetchShareData(shortId: string): Promise<SharePageResponse | null> {
   try {
     const res = await fetchWithTimeout(
-      backendUrl(`/api/v1/share/${encodeURIComponent(shortId)}`),
+      backendUrl(ENDPOINTS.v1.share(shortId)),
       { headers: internalHeaders(), cache: "no-store" },
       5000,
     );
@@ -47,7 +47,7 @@ export async function resolveTrack(
   if (clientIp) extra["X-Forwarded-For"] = clientIp;
   if (origin) extra.Origin = origin;
   return fetchWithTimeout(
-    backendUrl("/api/v1/resolve"),
+    backendUrl(ENDPOINTS.v1.resolve),
     {
       method: "POST",
       headers: internalHeaders(Object.keys(extra).length > 0 ? extra : undefined),
@@ -66,7 +66,7 @@ export function isTrackingEnabled(): boolean {
 /** Fetch a random short ID from the backend for the landing page example teaser. */
 export async function fetchRandomExample(): Promise<{ shortId: string } | null> {
   try {
-    const res = await fetchWithTimeout(backendUrl("/api/v1/random-example"), { headers: internalHeaders() }, 3000);
+    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.randomExample), { headers: internalHeaders() }, 3000);
     if (!res.ok) return null;
     return res.json() as Promise<{ shortId: string }>;
   } catch {
