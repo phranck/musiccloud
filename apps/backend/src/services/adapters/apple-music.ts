@@ -78,6 +78,55 @@ function parseStorefrontId(input: string): { storefront: string; id: string } {
   return { storefront: process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT, id: input };
 }
 
+/**
+ * Fallback storefronts for cross-service queries that have no URL-derived
+ * storefront (i.e. {@link findByIsrc}, {@link searchTrack}, {@link searchAlbum},
+ * {@link searchArtist}). Ordered by global catalog size; the cascade is bounded
+ * to keep latency predictable.
+ */
+const FALLBACK_STOREFRONTS = ["us", "gb", "de", "jp", "fr"] as const;
+
+/**
+ * Maximum number of storefronts to query in a cascade. Each step costs one
+ * sequential API round-trip (~150-300ms), so 5 caps worst-case latency at
+ * ~1-2s. Most queries hit on the first store and never reach the cap.
+ */
+const STOREFRONT_CASCADE_LIMIT = 5;
+
+/**
+ * Builds the priority-ordered storefront list for catalog/search queries that
+ * don't carry a storefront in the URL. Apple Music's catalog and search index
+ * are per-storefront — a track present in `de` is invisible to a `us` query.
+ *
+ * Priority:
+ * 1. ISRC country code (registrant — strongest signal when present)
+ * 2. APPLE_MUSIC_STOREFRONT env override (operator preference)
+ * 3. {@link FALLBACK_STOREFRONTS} (large global catalogs)
+ *
+ * Notes:
+ * - ISRC country codes are ISO 3166-1 alpha-2, matching Apple's storefront
+ *   codes 1:1 for the common cases (DE, US, GB, JP, FR, …). Synthetic prefixes
+ *   like `QM*`/`ZA*` are accepted but the API will simply return no results
+ *   for unknown storefronts; the cascade then falls through to the next entry.
+ * - The list is deduped (case-insensitive) and capped at
+ *   {@link STOREFRONT_CASCADE_LIMIT}.
+ */
+function getStorefrontCascade(isrcHint?: string): string[] {
+  const out: string[] = [];
+  const add = (s: string | null | undefined): void => {
+    const v = s?.toLowerCase();
+    if (v && /^[a-z]{2}$/.test(v) && !out.includes(v)) out.push(v);
+  };
+
+  if (isrcHint && isrcHint.length >= 2) add(isrcHint.slice(0, 2));
+  add(process.env.APPLE_MUSIC_STOREFRONT);
+  for (const s of FALLBACK_STOREFRONTS) add(s);
+  return out.slice(0, STOREFRONT_CASCADE_LIMIT);
+}
+
+/** Confidence at/above which {@link searchTrack} et al. early-exit the cascade. */
+const SEARCH_EARLY_EXIT_CONFIDENCE = 0.85;
+
 // Token cache: JWT is valid for 1 hour, we refresh 5 minutes early
 const TOKEN_LIFETIME_SECONDS = 3600;
 const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
@@ -413,75 +462,60 @@ export const appleMusicAdapter: ServiceAdapter = {
   },
 
   /**
-   * ISRC lookup — used in cross-service matching when another adapter is the
-   * source.
+   * ISRC lookup — used by the resolver when matching a source track from
+   * another service to its Apple Music counterpart.
    *
-   * **Limitation (not yet storefront-aware):** queries only the env/default
-   * storefront. Apple Music's ISRC index is per-storefront, so a track that
-   * exists in DE but not in US returns null when the default is `us`. This can
-   * silently drop Apple Music links from the result set for regional content.
-   *
-   * Future improvement: derive a candidate storefront from the ISRC's first
-   * two characters (country of registration — e.g. `DEE…` → `de`, `USS…` →
-   * `us`, `GBU…` → `gb`) and cascade through a small list of likely stores
-   * (registration country → env default → us → de → gb → jp). Since ISRC
-   * country prefixes do not always match the storefront where the track is
-   * published, the cascade should be small (≤ 4 attempts) to bound latency.
+   * Cascades through {@link getStorefrontCascade} (ISRC country → env default →
+   * fallback list) and returns the first non-empty hit. ISRC matches are
+   * exact, so the first store that has the track is the right answer; we don't
+   * need to compare across stores.
    */
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
-    const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
-    const response = await appleMusicFetch(`/catalog/${storefront}/songs?filter[isrc]=${encodeURIComponent(isrc)}`);
+    for (const storefront of getStorefrontCascade(isrc)) {
+      const response = await appleMusicFetch(`/catalog/${storefront}/songs?filter[isrc]=${encodeURIComponent(isrc)}`);
+      if (!response.ok) continue;
 
-    if (!response.ok) {
-      return null;
+      const data = await response.json();
+      const songs: AppleMusicSongResource[] = data.data ?? [];
+      if (songs.length === 0) continue;
+
+      return mapTrack(songs[0]);
     }
-
-    const data = await response.json();
-    const songs: AppleMusicSongResource[] = data.data ?? [];
-
-    if (songs.length === 0) return null;
-
-    return mapTrack(songs[0]);
+    return null;
   },
 
   /**
-   * Text search for a track.
-   *
-   * **Limitation (not yet storefront-aware):** Apple Music's search index is
-   * per-storefront. A track that exists in DE but not in US is invisible when
-   * the default is `us`. See {@link findByIsrc} for a sketched fix; the search
-   * methods would benefit from the same cascade.
+   * Text search for a track. Cascades across storefronts (see
+   * {@link getStorefrontCascade}) keeping the best match across all attempted
+   * stores; early-exits once a match reaches
+   * {@link SEARCH_EARLY_EXIT_CONFIDENCE} so the common case stays fast.
    */
   async searchTrack(query: { title: string; artist: string; album?: string }): Promise<MatchResult> {
-    const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
     const term = encodeURIComponent(`${query.artist} ${query.title}`);
-    const response = await appleMusicFetch(`/catalog/${storefront}/search?types=songs&term=${term}&limit=5`);
-
-    if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const data = await response.json();
-    const songs: AppleMusicSongResource[] = data.results?.songs?.data ?? [];
-
-    if (songs.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
 
-    for (const song of songs) {
-      const track = mapTrack(song);
-      const confidence = calculateConfidence(
-        { title: query.title, artists: [query.artist], durationMs: undefined },
-        { title: track.title, artists: track.artists, durationMs: track.durationMs },
-      );
+    for (const storefront of getStorefrontCascade()) {
+      const response = await appleMusicFetch(`/catalog/${storefront}/search?types=songs&term=${term}&limit=5`);
+      if (!response.ok) continue;
 
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
+      const data = await response.json();
+      const songs: AppleMusicSongResource[] = data.results?.songs?.data ?? [];
+
+      for (const song of songs) {
+        const track = mapTrack(song);
+        const confidence = calculateConfidence(
+          { title: query.title, artists: [query.artist], durationMs: undefined },
+          { title: track.title, artists: track.artists, durationMs: track.durationMs },
+        );
+
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = track;
+        }
       }
+
+      if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
     }
 
     if (!bestMatch || bestConfidence < 0.6) {
@@ -519,40 +553,35 @@ export const appleMusicAdapter: ServiceAdapter = {
   },
 
   /**
-   * Text search for an album.
-   *
-   * **Limitation (not yet storefront-aware):** see {@link searchTrack}.
+   * Text search for an album. Storefront-cascading mirror of
+   * {@link searchTrack} — see that method for the cascade strategy.
    */
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
-    const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
     const term = encodeURIComponent(`${query.artist} ${query.title}`);
-    const response = await appleMusicFetch(`/catalog/${storefront}/search?types=albums&term=${term}&limit=5`);
-
-    if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const data = await response.json();
-    const albums: AppleMusicAlbumResource[] = data.results?.albums?.data ?? [];
-
-    if (albums.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
     let bestMatch: NormalizedAlbum | null = null;
     let bestConfidence = 0;
 
-    for (const album of albums) {
-      const normalized = mapAlbum(album);
-      const confidence = calculateConfidence(
-        { title: query.title, artists: [query.artist], durationMs: undefined },
-        { title: normalized.title, artists: normalized.artists, durationMs: undefined },
-      );
+    for (const storefront of getStorefrontCascade()) {
+      const response = await appleMusicFetch(`/catalog/${storefront}/search?types=albums&term=${term}&limit=5`);
+      if (!response.ok) continue;
 
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = normalized;
+      const data = await response.json();
+      const albums: AppleMusicAlbumResource[] = data.results?.albums?.data ?? [];
+
+      for (const album of albums) {
+        const normalized = mapAlbum(album);
+        const confidence = calculateConfidence(
+          { title: query.title, artists: [query.artist], durationMs: undefined },
+          { title: normalized.title, artists: normalized.artists, durationMs: undefined },
+        );
+
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = normalized;
+        }
       }
+
+      if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
     }
 
     if (!bestMatch || bestConfidence < 0.6) {
@@ -599,40 +628,35 @@ export const appleMusicAdapter: ServiceAdapter = {
   },
 
   /**
-   * Text search for an artist.
-   *
-   * **Limitation (not yet storefront-aware):** see {@link searchTrack}.
+   * Text search for an artist. Storefront-cascading mirror of
+   * {@link searchTrack} — see that method for the cascade strategy.
    */
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
-    const storefront = process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT;
     const term = encodeURIComponent(query.name);
-    const response = await appleMusicFetch(`/catalog/${storefront}/search?types=artists&term=${term}&limit=5`);
-
-    if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const data = await response.json();
-    const artists: AppleMusicArtistResource[] = data.results?.artists?.data ?? [];
-
-    if (artists.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
     let bestMatch: NormalizedArtist | null = null;
     let bestConfidence = 0;
 
-    for (const raw of artists) {
-      const artist = mapArtist(raw);
-      const confidence = calculateConfidence(
-        { title: query.name, artists: [], durationMs: undefined },
-        { title: artist.name, artists: [], durationMs: undefined },
-      );
+    for (const storefront of getStorefrontCascade()) {
+      const response = await appleMusicFetch(`/catalog/${storefront}/search?types=artists&term=${term}&limit=5`);
+      if (!response.ok) continue;
 
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = artist;
+      const data = await response.json();
+      const artists: AppleMusicArtistResource[] = data.results?.artists?.data ?? [];
+
+      for (const raw of artists) {
+        const artist = mapArtist(raw);
+        const confidence = calculateConfidence(
+          { title: query.name, artists: [], durationMs: undefined },
+          { title: artist.name, artists: [], durationMs: undefined },
+        );
+
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestMatch = artist;
+        }
       }
+
+      if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
     }
 
     if (!bestMatch || bestConfidence < 0.6) {
