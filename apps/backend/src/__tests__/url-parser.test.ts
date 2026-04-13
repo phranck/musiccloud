@@ -26,6 +26,10 @@ describe("validateMusicUrl", () => {
     it("should accept Apple Music album URL with ?i= track param", () => {
       expect(validateMusicUrl("https://music.apple.com/us/album/name/123?i=456")).toEqual({ valid: true });
     });
+
+    it("should accept SoundCloud short URL (on.soundcloud.com)", () => {
+      expect(validateMusicUrl("https://on.soundcloud.com/BOT0GlrIxJ3iGawWmK")).toEqual({ valid: true });
+    });
   });
 
   describe("unsupported content types", () => {

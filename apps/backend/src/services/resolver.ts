@@ -178,7 +178,7 @@ export { LINK_QUALITY_THRESHOLD, MATCH_MIN_CONFIDENCE };
 // CACHE_TTL_MS imported from ../lib/constants.js
 
 /** Hosts that serve redirect short links pointing to canonical music platform URLs. */
-const SHORT_LINK_HOSTS = new Set(["link.deezer.com"]);
+const SHORT_LINK_HOSTS = new Set(["link.deezer.com", "on.soundcloud.com"]);
 
 /**
  * If `url` is a known short link, follows the redirect (HEAD) and returns the

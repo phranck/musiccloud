@@ -87,6 +87,7 @@ const ALLOWED_HOSTS = [
   "soundcloud.com",
   "www.soundcloud.com",
   "m.soundcloud.com",
+  "on.soundcloud.com",
   // Tidal
   "tidal.com",
   "listen.tidal.com",

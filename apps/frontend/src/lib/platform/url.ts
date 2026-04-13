@@ -9,6 +9,7 @@ const MUSIC_URL_PATTERNS: RegExp[] = [
   /^https?:\/\/music\.apple\.com\//,
   /^https?:\/\/(www\.)?(youtube\.com\/(watch|shorts|@|channel\/)|youtu\.be\/|music\.youtube\.com\/)/,
   /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/[^/]+/,
+  /^https?:\/\/on\.soundcloud\.com\/[A-Za-z0-9]+/,
   /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?(track|album|artist)\//,
   /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?(track|album|artist)\//,
   /^https?:\/\/link\.deezer\.com\/s\//,
