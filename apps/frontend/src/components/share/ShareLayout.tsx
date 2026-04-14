@@ -139,8 +139,20 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
   // appear once the dynamic accent has been computed — prevents the brief
   // flash of the default global accent on page load.
   const { dynamicAccent, handleAlbumArtLoad } = useAlbumColors();
+
+  // Safety net: if color extraction never fires (broken artwork URL, CORS,
+  // or a canvas failure), gate-controlled elements like the ShareButton
+  // would stay hidden forever. Force `--accent-ready` to 1 after a short
+  // grace period so the UI never feels stuck — the default global accent
+  // is acceptable as a fallback, an invisible button is not.
+  const [accentFallback, setAccentFallback] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setAccentFallback(true), 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
   const accentStyle = {
-    "--accent-ready": dynamicAccent ? "1" : "0",
+    "--accent-ready": dynamicAccent || accentFallback ? "1" : "0",
     ...(dynamicAccent && {
       "--color-accent": dynamicAccent.base,
       "--color-accent-rgb": hexToRgb(dynamicAccent.base),
