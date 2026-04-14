@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { _resetAppIdCache, _setAppIdForTest, qobuzAdapter } from "../services/adapters/qobuz";
+import { _resetAppIdCache, _setAppIdForTest, qobuzAdapter } from "../adapter";
 
 // =============================================================================
 // Mock data

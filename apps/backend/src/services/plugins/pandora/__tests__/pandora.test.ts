@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { _resetCsrfTokenCache, _setCsrfTokenForTest, pandoraAdapter } from "../services/adapters/pandora";
+import { _resetCsrfTokenCache, _setCsrfTokenForTest, pandoraAdapter } from "../adapter";
 
 // =============================================================================
 // Mock data

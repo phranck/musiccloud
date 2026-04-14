@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { melonAdapter } from "../services/adapters/melon";
+import { melonAdapter } from "../adapter";
 
 afterEach(() => {
   vi.restoreAllMocks();

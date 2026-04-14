@@ -1,9 +1,9 @@
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../lib/infra/fetch";
-import { log } from "../../lib/infra/logger";
-import { calculateConfidence } from "../../lib/resolve/normalize";
-import { serviceHttpError } from "../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../constants.js";
+import { fetchWithTimeout } from "../../../lib/infra/fetch";
+import { log } from "../../../lib/infra/logger";
+import { calculateConfidence } from "../../../lib/resolve/normalize";
+import { serviceHttpError } from "../../../lib/resolve/service-errors";
+import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   ArtistCapabilities,
   ArtistMatchResult,
@@ -13,7 +13,7 @@ import type {
   NormalizedTrack,
   SearchQuery,
   ServiceAdapter,
-} from "../types.js";
+} from "../../types.js";
 
 // NOTE: Napster Developer Portal no longer accepts new sign-ups (as of Feb 2026).
 // Existing API keys still work. Contact api-team@napster.com for new key requests.

@@ -1,9 +1,4 @@
 import { log } from "../lib/infra/logger.js";
-import { melonAdapter } from "./adapters/melon.js";
-import { napsterAdapter } from "./adapters/napster.js";
-import { neteaseAdapter } from "./adapters/netease.js";
-import { pandoraAdapter } from "./adapters/pandora.js";
-import { qobuzAdapter } from "./adapters/qobuz.js";
 import { qqmusicAdapter } from "./adapters/qqmusic.js";
 import { soundcloudAdapter } from "./adapters/soundcloud.js";
 import { spotifyAdapter } from "./adapters/spotify.js";
@@ -19,6 +14,11 @@ import { bugsAdapter } from "./plugins/bugs/adapter.js";
 import { deezerAdapter } from "./plugins/deezer/adapter.js";
 import { jiosaavnAdapter } from "./plugins/jiosaavn/adapter.js";
 import { kkboxAdapter } from "./plugins/kkbox/adapter.js";
+import { melonAdapter } from "./plugins/melon/adapter.js";
+import { napsterAdapter } from "./plugins/napster/adapter.js";
+import { neteaseAdapter } from "./plugins/netease/adapter.js";
+import { pandoraAdapter } from "./plugins/pandora/adapter.js";
+import { qobuzAdapter } from "./plugins/qobuz/adapter.js";
 import type { ServiceAdapter } from "./types.js";
 
 // All registered adapters. Add new adapters here.

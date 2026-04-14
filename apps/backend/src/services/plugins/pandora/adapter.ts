@@ -1,9 +1,9 @@
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../lib/infra/fetch";
-import { log } from "../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateConfidence } from "../../lib/resolve/normalize";
-import { serviceNotFoundError } from "../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../constants.js";
+import { fetchWithTimeout } from "../../../lib/infra/fetch";
+import { log } from "../../../lib/infra/logger";
+import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -12,7 +12,7 @@ import type {
   NormalizedTrack,
   SearchQuery,
   ServiceAdapter,
-} from "../types";
+} from "../../types";
 
 /**
  * Pandora Scrape Adapter

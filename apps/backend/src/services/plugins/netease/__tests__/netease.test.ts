@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { neteaseAdapter } from "../services/adapters/netease";
+import { neteaseAdapter } from "../adapter";
 
 afterEach(() => {
   vi.restoreAllMocks();

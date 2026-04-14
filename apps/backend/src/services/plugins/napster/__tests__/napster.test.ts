@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { napsterAdapter } from "../services/adapters/napster";
+import { napsterAdapter } from "../adapter";
 
 // =============================================================================
 // Mock data
