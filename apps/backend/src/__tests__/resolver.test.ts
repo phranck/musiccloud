@@ -10,7 +10,7 @@ import type { MatchResult, NormalizedTrack, SearchResultWithCandidates, ServiceA
 
 // Mock the adapter registry
 vi.mock("../services/index.js", () => ({
-  adapters: [] as ServiceAdapter[],
+  getActiveAdapters: vi.fn().mockResolvedValue([]),
   identifyService: vi.fn(),
 }));
 
@@ -37,7 +37,7 @@ vi.mock("../lib/fetch.js", () => ({
 // =============================================================================
 
 import { getRepository } from "../db/index";
-import { adapters, identifyService } from "../services/index";
+import { getActiveAdapters, identifyService } from "../services/index";
 import {
   MATCH_MIN_CONFIDENCE,
   resolveQuery,
@@ -110,8 +110,8 @@ let mockRepo: TrackRepository;
 beforeEach(() => {
   vi.restoreAllMocks();
 
-  // Clear the adapters array and re-populate
-  (adapters as ServiceAdapter[]).length = 0;
+  // Reset mock surface to an empty adapter set; each test overrides as needed.
+  vi.mocked(getActiveAdapters).mockResolvedValue([]);
 
   // Fresh mock repository
   mockRepo = createMockRepository();
@@ -151,8 +151,8 @@ describe("resolveQuery: URL resolution", () => {
       }),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, deezerAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     const result = await resolveQuery("https://open.spotify.com/track/track123");
 
@@ -173,7 +173,7 @@ describe("resolveQuery: URL resolution", () => {
   });
 
   it("should throw NOT_MUSIC_LINK for an unsupported URL", async () => {
-    vi.mocked(identifyService).mockReturnValue(undefined);
+    vi.mocked(identifyService).mockResolvedValue(undefined);
 
     // A random non-music URL that passes URL validation but is not recognized
     // The URL parser rejects unknown hosts as UNSUPPORTED_SERVICE
@@ -193,8 +193,8 @@ describe("resolveQuery: URL resolution", () => {
       detectUrl: vi.fn(() => null), // cannot extract track ID
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     // Must use a Spotify URL that passes validateMusicUrl but detectUrl returns null
     await expect(resolveQuery("https://open.spotify.com/track/")).rejects.toThrow(ResolveError);
@@ -225,7 +225,7 @@ describe("resolveTextSearchWithDisambiguation", () => {
       } satisfies SearchResultWithCandidates),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
 
     const result = await resolveTextSearchWithDisambiguation("Bohemian Rhapsody Queen");
 
@@ -255,7 +255,7 @@ describe("resolveTextSearchWithDisambiguation", () => {
       } satisfies SearchResultWithCandidates),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
 
     const result = await resolveTextSearchWithDisambiguation("Bohemian Rhapsody");
 
@@ -287,7 +287,7 @@ describe("resolveTextSearchWithDisambiguation", () => {
       } satisfies SearchResultWithCandidates),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
 
     const result = await resolveTextSearchWithDisambiguation("Bohemian Rhapsody");
 
@@ -311,7 +311,7 @@ describe("resolveTextSearchWithDisambiguation", () => {
       } satisfies MatchResult),
     });
 
-    (adapters as ServiceAdapter[]).push(deezerAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([deezerAdapter]);
 
     const result = await resolveTextSearchWithDisambiguation("Bohemian Rhapsody Queen");
 
@@ -330,7 +330,7 @@ describe("resolveTextSearchWithDisambiguation", () => {
       }),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
 
     await expect(resolveTextSearchWithDisambiguation("xyznonexistent123")).rejects.toThrow(ResolveError);
 
@@ -373,8 +373,8 @@ describe("resolveQuery: cache behavior", () => {
       displayName: "Deezer",
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, deezerAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     const result = await resolveQuery("https://open.spotify.com/track/track123");
 
@@ -410,8 +410,8 @@ describe("resolveQuery: cache behavior", () => {
       getTrack: vi.fn().mockResolvedValue(sourceTrack),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     const result = await resolveQuery("https://open.spotify.com/track/track123");
 
@@ -459,8 +459,8 @@ describe("resolveQuery: gap fill for cached tracks", () => {
       findByIsrc: vi.fn().mockResolvedValue(deezerTrack),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, deezerAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     const result = await resolveQuery("https://open.spotify.com/track/track123");
 
@@ -502,8 +502,8 @@ describe("resolveQuery: gap fill for cached tracks", () => {
       searchTrack: vi.fn(),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, deezerAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     await resolveQuery("https://open.spotify.com/track/track123");
 
@@ -546,8 +546,8 @@ describe("resolveQuery: error handling", () => {
       searchTrack: vi.fn().mockRejectedValue(new Error("Tidal is down")),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, deezerAdapter, tidalAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter, tidalAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     // Should NOT throw - partial results are valid
     const result = await resolveQuery("https://open.spotify.com/track/track123");
@@ -570,7 +570,7 @@ describe("resolveQuery: error handling", () => {
       }),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
 
     await expect(resolveQuery("totally nonexistent track xyz")).rejects.toThrow(ResolveError);
 
@@ -601,7 +601,7 @@ describe("resolveQuery: error handling", () => {
       }),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, deezerAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
 
     const result = await resolveQuery("Bohemian Rhapsody Queen");
 
@@ -637,8 +637,8 @@ describe("resolveQuery: ISRC-based resolution", () => {
       findByIsrc: vi.fn().mockResolvedValue(tidalTrack),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, tidalAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, tidalAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     const result = await resolveQuery("https://open.spotify.com/track/track123");
 
@@ -677,8 +677,8 @@ describe("resolveQuery: ISRC-based resolution", () => {
       }),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, deezerAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     const result = await resolveQuery("https://open.spotify.com/track/track123");
 
@@ -719,8 +719,8 @@ describe("resolveQuery: ISRC-based resolution", () => {
       }),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, soundcloudAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, soundcloudAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     await resolveQuery("https://open.spotify.com/track/track123");
 
@@ -744,7 +744,7 @@ describe("resolveSelectedCandidate", () => {
       getTrack: vi.fn().mockResolvedValue(track),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
 
     const result = await resolveSelectedCandidate("spotify:track123");
 
@@ -766,13 +766,10 @@ describe("resolveSelectedCandidate", () => {
     }
   });
 
-  it("should throw SERVICE_DOWN when adapter is not available", async () => {
-    const spotifyAdapter = createMockAdapter({
-      id: "spotify",
-      isAvailable: () => false,
-    });
-
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
+  it("should throw SERVICE_DOWN when adapter is not active (disabled or unavailable)", async () => {
+    // getActiveAdapters filters out both disabled plugins and unavailable
+    // adapters — callers see the same "not in the active list" signal.
+    vi.mocked(getActiveAdapters).mockResolvedValue([]);
 
     await expect(resolveSelectedCandidate("spotify:track123")).rejects.toThrow(ResolveError);
 
@@ -801,7 +798,7 @@ describe("resolveSelectedCandidate", () => {
       getTrack: vi.fn().mockResolvedValue(track),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
     vi.mocked(mockRepo.findTrackByIsrc).mockResolvedValue(cachedResult);
 
     const result = await resolveSelectedCandidate("spotify:track123");
@@ -843,8 +840,8 @@ describe("resolveQuery: YouTube Music link derivation", () => {
       }),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, youtubeAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, youtubeAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     const result = await resolveQuery("https://open.spotify.com/track/track123");
 
@@ -925,8 +922,8 @@ describe("resolveQuery: link quality filtering", () => {
       }),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, deezerAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     const result = await resolveQuery("https://open.spotify.com/track/track123");
 
@@ -946,8 +943,8 @@ describe("resolveQuery: link quality filtering", () => {
     });
 
     // No YouTube adapter -- resolver will add a search fallback
-    (adapters as ServiceAdapter[]).push(spotifyAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     const result = await resolveQuery("https://open.spotify.com/track/track123");
 
@@ -964,7 +961,9 @@ describe("resolveQuery: link quality filtering", () => {
 // =============================================================================
 
 describe("resolveQuery: adapter availability", () => {
-  it("should skip unavailable adapters during cross-service resolution", async () => {
+  it("should skip inactive adapters during cross-service resolution", async () => {
+    // Inactive adapters (disabled via toggle or missing credentials) are
+    // filtered out by getActiveAdapters; the resolver never sees them.
     const sourceTrack = createMockTrack();
 
     const spotifyAdapter = createMockAdapter({
@@ -974,20 +973,21 @@ describe("resolveQuery: adapter availability", () => {
       getTrack: vi.fn().mockResolvedValue(sourceTrack),
     });
 
+    // Tidal is tracked in the test to assert it's NOT called, but it's
+    // never returned by getActiveAdapters (mimicking a toggled-off plugin).
     const tidalAdapter = createMockAdapter({
       id: "tidal",
       displayName: "Tidal",
-      isAvailable: () => false, // not available
       findByIsrc: vi.fn(),
       searchTrack: vi.fn(),
     });
 
-    (adapters as ServiceAdapter[]).push(spotifyAdapter, tidalAdapter);
-    vi.mocked(identifyService).mockReturnValue(spotifyAdapter);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 
     await resolveQuery("https://open.spotify.com/track/track123");
 
-    // Tidal should NOT be called since it's unavailable
+    // Tidal should NOT be called since it's not in the active list
     expect(tidalAdapter.findByIsrc).not.toHaveBeenCalled();
     expect(tidalAdapter.searchTrack).not.toHaveBeenCalled();
   });

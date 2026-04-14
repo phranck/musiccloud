@@ -4,7 +4,7 @@ import { CACHE_TTL_MS } from "../lib/config.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
-import { adapters } from "./index.js";
+import { getActiveAdapters } from "./index.js";
 import type { AlbumMatchResult, AlbumSearchQuery, NormalizedAlbum, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
 
@@ -76,13 +76,10 @@ async function tryAlbumCache(lookup: { url?: string; upc?: string }): Promise<Al
 
 async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<AlbumResolutionResult> {
   const coveredServices = new Set(cached.links.map((l) => l.service));
+  const active = await getActiveAdapters();
 
-  const missingAdapters = adapters.filter(
-    (a): a is ServiceAdapter =>
-      Boolean(a?.isAvailable?.()) &&
-      Boolean(a.albumCapabilities) &&
-      !coveredServices.has(a.id) &&
-      a.id !== cached.sourceAlbum.sourceService,
+  const missingAdapters = active.filter(
+    (a) => Boolean(a.albumCapabilities) && !coveredServices.has(a.id) && a.id !== cached.sourceAlbum.sourceService,
   );
 
   if (missingAdapters.length === 0) return cached;
@@ -339,10 +336,8 @@ async function resolveAlbumAcrossServices(
   sourceAlbum: NormalizedAlbum,
   excludeAdapter: ServiceAdapter,
 ): Promise<ResolvedAlbumLink[]> {
-  const targetAdapters = adapters.filter(
-    (a): a is ServiceAdapter =>
-      Boolean(a?.isAvailable?.()) && a.id !== excludeAdapter.id && Boolean(a.albumCapabilities),
-  );
+  const active = await getActiveAdapters();
+  const targetAdapters = active.filter((a) => a.id !== excludeAdapter.id && Boolean(a.albumCapabilities));
 
   const results = await Promise.allSettled(
     targetAdapters.map((adapter) => resolveAlbumOnService(adapter, sourceAlbum)),
@@ -396,11 +391,9 @@ async function resolveAlbumAcrossServices(
 
 // ─── Identify album service ───────────────────────────────────────────────────
 
-function identifyAlbumService(url: string): ServiceAdapter | undefined {
-  return adapters.find((a): a is ServiceAdapter => {
-    if (!a?.isAvailable?.() || !a.detectAlbumUrl) return false;
-    return a.detectAlbumUrl(url) !== null;
-  });
+async function identifyAlbumService(url: string): Promise<ServiceAdapter | undefined> {
+  const active = await getActiveAdapters();
+  return active.find((a) => Boolean(a.detectAlbumUrl) && a.detectAlbumUrl?.(url) !== null);
 }
 
 // ─── Main entry points ────────────────────────────────────────────────────────
@@ -414,7 +407,7 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   if (cached) return fillMissingAlbumServices(cached);
 
   // 2. Identify which service the URL belongs to
-  const sourceAdapter = identifyAlbumService(cleanUrl);
+  const sourceAdapter = await identifyAlbumService(cleanUrl);
   if (!sourceAdapter || !sourceAdapter.getAlbum || !sourceAdapter.detectAlbumUrl) {
     throw new ResolveError("NOT_MUSIC_LINK", "Unrecognized album URL");
   }
@@ -477,9 +470,9 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
  * Tries Spotify first (best album search API), then other adapters.
  */
 export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolutionResult> {
-  const searchAdapters = adapters.filter(
-    (a): a is ServiceAdapter =>
-      Boolean(a?.isAvailable?.()) && Boolean(a.albumCapabilities?.supportsAlbumSearch) && Boolean(a.searchAlbum),
+  const active = await getActiveAdapters();
+  const searchAdapters = active.filter(
+    (a) => Boolean(a.albumCapabilities?.supportsAlbumSearch) && Boolean(a.searchAlbum),
   );
 
   // Prioritize Spotify (most reliable album search)

@@ -6,7 +6,7 @@ import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { stringSimilarity } from "../lib/resolve/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "./constants.js";
-import { adapters } from "./index.js";
+import { getActiveAdapters } from "./index.js";
 import type { ArtistMatchResult, ArtistSearchQuery, NormalizedArtist, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
 
@@ -73,13 +73,10 @@ async function tryArtistCache(lookup: { url?: string; name?: string }): Promise<
 
 async function fillMissingArtistServices(cached: ArtistResolutionResult): Promise<ArtistResolutionResult> {
   const coveredServices = new Set(cached.links.map((l) => l.service));
+  const active = await getActiveAdapters();
 
-  const missingAdapters = adapters.filter(
-    (a): a is ServiceAdapter =>
-      Boolean(a?.isAvailable?.()) &&
-      Boolean(a.artistCapabilities) &&
-      !coveredServices.has(a.id) &&
-      a.id !== cached.sourceArtist.sourceService,
+  const missingAdapters = active.filter(
+    (a) => Boolean(a.artistCapabilities) && !coveredServices.has(a.id) && a.id !== cached.sourceArtist.sourceService,
   );
 
   if (missingAdapters.length === 0) return cached;
@@ -192,10 +189,8 @@ async function resolveArtistAcrossServices(
   sourceArtist: NormalizedArtist,
   excludeAdapter: ServiceAdapter,
 ): Promise<ResolvedArtistLink[]> {
-  const targetAdapters = adapters.filter(
-    (a): a is ServiceAdapter =>
-      Boolean(a?.isAvailable?.()) && a.id !== excludeAdapter.id && Boolean(a.artistCapabilities),
-  );
+  const active = await getActiveAdapters();
+  const targetAdapters = active.filter((a) => a.id !== excludeAdapter.id && Boolean(a.artistCapabilities));
 
   const results = await Promise.allSettled(
     targetAdapters.map((adapter) => resolveArtistOnService(adapter, sourceArtist)),
@@ -240,11 +235,9 @@ async function resolveArtistAcrossServices(
 
 // --- Identify artist service ---
 
-function identifyArtistService(url: string): ServiceAdapter | undefined {
-  return adapters.find((a): a is ServiceAdapter => {
-    if (!a?.isAvailable?.() || !a.detectArtistUrl) return false;
-    return a.detectArtistUrl(url) !== null;
-  });
+async function identifyArtistService(url: string): Promise<ServiceAdapter | undefined> {
+  const active = await getActiveAdapters();
+  return active.find((a) => Boolean(a.detectArtistUrl) && a.detectArtistUrl?.(url) !== null);
 }
 
 // --- Main entry points ---
@@ -258,7 +251,7 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
   if (cached) return fillMissingArtistServices(cached);
 
   // 2. Identify which service the URL belongs to
-  const sourceAdapter = identifyArtistService(cleanUrl);
+  const sourceAdapter = await identifyArtistService(cleanUrl);
   if (!sourceAdapter || !sourceAdapter.getArtist || !sourceAdapter.detectArtistUrl) {
     throw new ResolveError("NOT_MUSIC_LINK", "Unrecognized artist URL");
   }
@@ -300,7 +293,8 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
     const spotifyLink = links.find((l) => l.service === "spotify");
     if (spotifyLink?.externalId && sourceAdapter.id !== "spotify") {
       try {
-        const spotifyAdapter = adapters.find((a) => a.id === "spotify");
+        const active = await getActiveAdapters();
+        const spotifyAdapter = active.find((a) => a.id === "spotify");
         if (spotifyAdapter?.getArtist) {
           const spotifyArtist = await spotifyAdapter.getArtist(spotifyLink.externalId);
           if (spotifyArtist.genres && spotifyArtist.genres.length > 0) {
@@ -328,9 +322,9 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
 
 /** Text search for artists. Tries Spotify first (best artist search API). */
 export async function resolveArtistTextSearch(query: string): Promise<ArtistResolutionResult> {
-  const searchAdapters = adapters.filter(
-    (a): a is ServiceAdapter =>
-      Boolean(a?.isAvailable?.()) && Boolean(a.artistCapabilities?.supportsArtistSearch) && Boolean(a.searchArtist),
+  const active = await getActiveAdapters();
+  const searchAdapters = active.filter(
+    (a) => Boolean(a.artistCapabilities?.supportsArtistSearch) && Boolean(a.searchArtist),
   );
 
   // Prioritize Spotify

@@ -1,71 +1,38 @@
+/**
+ * Thin re-export layer over the plugin registry. The actual adapter list,
+ * enabled-state cache, and URL identification live in
+ * `services/plugins/registry.ts`. Consumers should import from here to
+ * keep their import paths short and stable.
+ */
 import { log } from "../lib/infra/logger.js";
-import { appleMusicAdapter } from "./plugins/apple-music/adapter.js";
-import { audiomackAdapter } from "./plugins/audiomack/adapter.js";
-import { audiusAdapter } from "./plugins/audius/adapter.js";
-import { bandcampAdapter } from "./plugins/bandcamp/adapter.js";
-import { beatportAdapter } from "./plugins/beatport/adapter.js";
-import { boomplayAdapter } from "./plugins/boomplay/adapter.js";
-import { bugsAdapter } from "./plugins/bugs/adapter.js";
-import { deezerAdapter } from "./plugins/deezer/adapter.js";
-import { jiosaavnAdapter } from "./plugins/jiosaavn/adapter.js";
-import { kkboxAdapter } from "./plugins/kkbox/adapter.js";
-import { melonAdapter } from "./plugins/melon/adapter.js";
-import { napsterAdapter } from "./plugins/napster/adapter.js";
-import { neteaseAdapter } from "./plugins/netease/adapter.js";
-import { pandoraAdapter } from "./plugins/pandora/adapter.js";
-import { qobuzAdapter } from "./plugins/qobuz/adapter.js";
-import { qqmusicAdapter } from "./plugins/qqmusic/adapter.js";
-import { soundcloudAdapter } from "./plugins/soundcloud/adapter.js";
-import { spotifyAdapter } from "./plugins/spotify/adapter.js";
-import { tidalAdapter } from "./plugins/tidal/adapter.js";
-import { youtubeAdapter } from "./plugins/youtube/adapter.js";
-import type { ServiceAdapter } from "./types.js";
+import { listPlugins } from "./plugins/registry.js";
 
-// All registered adapters. Add new adapters here.
-export const adapters: ServiceAdapter[] = [
-  spotifyAdapter,
-  appleMusicAdapter,
-  youtubeAdapter,
-  deezerAdapter,
-  tidalAdapter,
-  audiusAdapter,
-  napsterAdapter,
-  soundcloudAdapter,
-  pandoraAdapter,
-  qobuzAdapter,
-  boomplayAdapter,
-  kkboxAdapter,
-  bandcampAdapter,
-  audiomackAdapter,
-  neteaseAdapter,
-  qqmusicAdapter,
-  melonAdapter,
-  bugsAdapter,
-  jiosaavnAdapter,
-  beatportAdapter,
-];
+export {
+  getActiveAdapters,
+  getEnabledMap,
+  identifyService,
+  identifyServiceIncludingDisabled,
+  invalidateEnabledCache,
+  isPluginEnabled,
+  listPlugins,
+} from "./plugins/registry.js";
 
-export function getAdapters(): ServiceAdapter[] {
-  return adapters;
-}
-
+/**
+ * Sanity-check that every plugin's adapter.id matches its manifest.id.
+ * Mismatches here mean a plugin barrel was wired up with the wrong
+ * adapter and resolves against it will silently drop those URLs.
+ */
 export function validateAdapters(): void {
-  for (let i = 0; i < adapters.length; i++) {
-    if (!adapters[i]) {
-      log.error("Services", `Adapter at index ${i} is undefined — check imports in services/index.ts`);
+  for (const plugin of listPlugins()) {
+    if (!plugin.adapter) {
+      log.error(
+        "Services",
+        `Plugin ${plugin.manifest.id} has no adapter — check plugins/${plugin.manifest.id}/index.ts`,
+      );
+      continue;
+    }
+    if (plugin.adapter.id !== plugin.manifest.id) {
+      log.error("Services", `Plugin ${plugin.manifest.id} has mismatched adapter.id=${plugin.adapter.id}`);
     }
   }
-}
-
-export function registerAdapter(adapter: ServiceAdapter): void {
-  const safeAdapter = adapter as ServiceAdapter | null | undefined;
-  if (!safeAdapter) {
-    log.error("Services", "registerAdapter called with undefined/null — adapter not registered");
-    return;
-  }
-  adapters.push(adapter);
-}
-
-export function identifyService(url: string): ServiceAdapter | undefined {
-  return adapters.find((a) => a && a.detectUrl(url) !== null);
 }

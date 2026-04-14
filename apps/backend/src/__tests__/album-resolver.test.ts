@@ -118,7 +118,7 @@ const mockTidalAdapter = {
 
 // Mock adapter list
 vi.mock("../services/index.js", () => ({
-  adapters: [mockSpotifyAdapter, mockDeezerAdapter, mockTidalAdapter],
+  getActiveAdapters: vi.fn().mockResolvedValue([mockSpotifyAdapter, mockDeezerAdapter, mockTidalAdapter]),
   identifyService: vi.fn(),
 }));
 

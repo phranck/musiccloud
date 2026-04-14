@@ -13,7 +13,7 @@ import {
   MAX_CANDIDATES,
   SEARCH_FALLBACK_CONFIDENCE,
 } from "./constants.js";
-import { adapters, identifyService } from "./index.js";
+import { getActiveAdapters, identifyService } from "./index.js";
 import type { MatchResult, NormalizedTrack, SearchCandidate, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
 
@@ -88,20 +88,18 @@ async function tryCache(lookup: { url?: string; isrc?: string }): Promise<Resolu
 
 async function fillMissingServices(cached: ResolutionResult): Promise<ResolutionResult> {
   const coveredServices = new Set(cached.links.map((l) => l.service));
+  const active = await getActiveAdapters();
 
-  const missingAdapters = adapters.filter(
-    (a) => a.isAvailable() && !coveredServices.has(a.id) && a.id !== cached.sourceTrack.sourceService,
-  );
+  const missingAdapters = active.filter((a) => !coveredServices.has(a.id) && a.id !== cached.sourceTrack.sourceService);
 
   // When the cached track has no preview URL, also re-fetch Deezer (even if already covered)
   // to get a fresh permanent CDN preview URL. Skip if Deezer is the source service
   // (it already had a chance to return one) or is already in missingAdapters.
   const needsPreview = !cached.sourceTrack.previewUrl;
   const deezerAdapter = needsPreview
-    ? adapters.find(
+    ? active.find(
         (a) =>
           a.id === "deezer" &&
-          a.isAvailable() &&
           a.id !== cached.sourceTrack.sourceService &&
           !missingAdapters.some((m) => m.id === "deezer"),
       )
@@ -239,7 +237,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   }
 
   // 2. Identify which service the URL belongs to
-  const sourceAdapter = identifyService(cleanUrl);
+  const sourceAdapter = await identifyService(cleanUrl);
   if (!sourceAdapter) {
     throw new ResolveError("NOT_MUSIC_LINK", "Unrecognized music service URL");
   }
@@ -298,10 +296,11 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   if (!sourceTrack.artworkUrl && sourceTrack.isrc) {
     const isrc = sourceTrack.isrc;
     try {
-      const spotifyAdapter = adapters.find((a) => a?.id === "spotify");
-      const appleAdapter = adapters.find((a) => a?.id === "apple-music");
+      const active = await getActiveAdapters();
+      const spotifyAdapter = active.find((a) => a.id === "spotify");
+      const appleAdapter = active.find((a) => a.id === "apple-music");
 
-      if (spotifyAdapter?.isAvailable?.()) {
+      if (spotifyAdapter) {
         const spotifyTrack = await spotifyAdapter.findByIsrc(isrc);
         if (spotifyTrack?.artworkUrl) {
           sourceTrack = { ...sourceTrack, artworkUrl: spotifyTrack.artworkUrl };
@@ -309,7 +308,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
       }
 
       // Fallback to Apple Music if Spotify doesn't have artwork
-      if (!sourceTrack.artworkUrl && appleAdapter?.isAvailable?.()) {
+      if (!sourceTrack.artworkUrl && appleAdapter) {
         const appleTrack = await appleAdapter.findByIsrc(isrc);
         if (appleTrack?.artworkUrl) {
           sourceTrack = { ...sourceTrack, artworkUrl: appleTrack.artworkUrl };
@@ -324,8 +323,8 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
 }
 
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
-  // Service search: try all available adapters
-  const searchAdapters = adapters.filter((a): a is ServiceAdapter => Boolean(a?.isAvailable?.()));
+  // Service search: try all active adapters
+  const searchAdapters = await getActiveAdapters();
   for (const adapter of searchAdapters) {
     try {
       const result = await adapter.searchTrack({
@@ -367,7 +366,7 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
   log.debug("Resolver", "resolveTextSearchWithDisambiguation called with:", query);
 
   // Service search: try adapters that support searchTrackWithCandidates, then fall back
-  const searchAdapters = adapters.filter((a): a is ServiceAdapter => Boolean(a?.isAvailable?.()));
+  const searchAdapters = await getActiveAdapters();
 
   for (const adapter of searchAdapters) {
     try {
@@ -461,8 +460,9 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
     throw new ResolveError("INVALID_URL", "Invalid candidate ID format");
   }
 
-  const adapter = adapters.find((a) => a.id === service);
-  if (!adapter || !adapter.isAvailable()) {
+  const active = await getActiveAdapters();
+  const adapter = active.find((a) => a.id === service);
+  if (!adapter) {
     throw new ResolveError("SERVICE_DOWN", `${service} is not available`);
   }
 
@@ -492,13 +492,8 @@ async function resolveAcrossServices(
   sourceTrack: NormalizedTrack,
   excludeAdapter: ServiceAdapter,
 ): Promise<ResolvedLink[]> {
-  const targetAdapters = adapters.filter((a): a is ServiceAdapter => {
-    if (!a) {
-      log.error("Resolver", "resolveAcrossServices: undefined entry in adapter registry");
-      return false;
-    }
-    return a.id !== excludeAdapter.id && a.isAvailable();
-  });
+  const active = await getActiveAdapters();
+  const targetAdapters = active.filter((a) => a.id !== excludeAdapter.id);
 
   const ADAPTER_TIMEOUT_MS = 10_000;
 
@@ -720,8 +715,8 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
 
   log.debug("Resolver", `Scraped from page: "${scraped.title}" by ${scraped.artist}`);
 
-  // Search across all available adapters
-  const searchAdapters = adapters.filter((a) => a.isAvailable());
+  // Search across all active adapters
+  const searchAdapters = await getActiveAdapters();
   const query = { title: scraped.title, artist: scraped.artist };
 
   let bestSourceTrack: NormalizedTrack | null = null;
