@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { _resetClientIdCache, soundcloudAdapter } from "../services/adapters/soundcloud";
+import { _resetClientIdCache, soundcloudAdapter } from "../adapter";
 
 // =============================================================================
 // Mock data

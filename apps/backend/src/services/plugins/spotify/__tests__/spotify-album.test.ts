@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { spotifyAdapter } from "../services/adapters/spotify";
+import { spotifyAdapter } from "../adapter";
 
 // =============================================================================
 // detectAlbumUrl

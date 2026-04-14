@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { _resetTokenCache, tidalAdapter } from "../services/adapters/tidal";
+import { _resetTokenCache, tidalAdapter } from "../adapter";
 
 // =============================================================================
 // Mock data

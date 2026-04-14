@@ -1,9 +1,9 @@
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../lib/infra/fetch";
-import { ResolveError } from "../../lib/resolve/errors";
-import { calculateConfidence, normalizeTitle } from "../../lib/resolve/normalize";
-import { serviceHttpError, serviceNotFoundError } from "../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../constants.js";
+import { fetchWithTimeout } from "../../../lib/infra/fetch";
+import { ResolveError } from "../../../lib/resolve/errors";
+import { calculateConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
+import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AdapterCapabilities,
   ArtistCapabilities,
@@ -13,7 +13,7 @@ import type {
   NormalizedArtist,
   NormalizedTrack,
   ServiceAdapter,
-} from "../types.js";
+} from "../../types.js";
 
 const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.|music\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 

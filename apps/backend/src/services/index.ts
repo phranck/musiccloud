@@ -1,9 +1,4 @@
 import { log } from "../lib/infra/logger.js";
-import { qqmusicAdapter } from "./adapters/qqmusic.js";
-import { soundcloudAdapter } from "./adapters/soundcloud.js";
-import { spotifyAdapter } from "./adapters/spotify.js";
-import { tidalAdapter } from "./adapters/tidal.js";
-import { youtubeAdapter } from "./adapters/youtube.js";
 import { appleMusicAdapter } from "./plugins/apple-music/adapter.js";
 import { audiomackAdapter } from "./plugins/audiomack/adapter.js";
 import { audiusAdapter } from "./plugins/audius/adapter.js";
@@ -19,6 +14,11 @@ import { napsterAdapter } from "./plugins/napster/adapter.js";
 import { neteaseAdapter } from "./plugins/netease/adapter.js";
 import { pandoraAdapter } from "./plugins/pandora/adapter.js";
 import { qobuzAdapter } from "./plugins/qobuz/adapter.js";
+import { qqmusicAdapter } from "./plugins/qqmusic/adapter.js";
+import { soundcloudAdapter } from "./plugins/soundcloud/adapter.js";
+import { spotifyAdapter } from "./plugins/spotify/adapter.js";
+import { tidalAdapter } from "./plugins/tidal/adapter.js";
+import { youtubeAdapter } from "./plugins/youtube/adapter.js";
 import type { ServiceAdapter } from "./types.js";
 
 // All registered adapters. Add new adapters here.
