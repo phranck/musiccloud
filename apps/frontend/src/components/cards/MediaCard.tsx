@@ -64,7 +64,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
 
       {content.previewUrl && (
         <div className="px-5 py-3">
-          <RecessedCard className="rounded-2xl p-2">
+          <RecessedCard className="p-2" radius="1rem">
             <AudioPreviewPlayer previewUrl={content.previewUrl} trackTitle={content.title} />
           </RecessedCard>
         </div>
@@ -72,7 +72,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
 
       {shareUrl && (
         <div className="px-5 py-3">
-          <RecessedCard className="rounded-2xl p-2">
+          <RecessedCard className="p-2" radius="1rem">
             <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
           </RecessedCard>
         </div>
@@ -80,7 +80,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
 
       {sharePageContent && (
         <div className="px-5 py-3">
-          <RecessedCard className="rounded-2xl p-2">
+          <RecessedCard className="p-2" radius="1rem">
             <div className="flex flex-col gap-2">
               <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
               <EmbossedButton
@@ -121,7 +121,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
           >
             {content.platformsLabel}
           </p>
-          <RecessedCard className="rounded-2xl p-2">
+          <RecessedCard className="p-2" radius="1rem">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[...content.platforms]
                 .sort((a, b) => PLATFORM_CONFIG[a.platform].label.localeCompare(PLATFORM_CONFIG[b.platform].label))

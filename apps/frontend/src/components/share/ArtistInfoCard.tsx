@@ -78,7 +78,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 1. Artist Profile */}
         <CollapsibleSection visible={showProfile} sectionClass="px-3 sm:px-5 pt-3 sm:pt-5 pb-3">
-          <RecessedCard className="rounded-xl sm:rounded-2xl p-4">
+          <RecessedCard className="p-4" radius={{ base: "0.75rem", sm: "1rem" }}>
             <CrossFade
               contentReady={contentReady}
               skeleton={<ProfileSkeleton />}
@@ -92,7 +92,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 2. Popular Tracks */}
         <CollapsibleSection visible={showTracks} sectionClass="px-3 sm:px-5 py-3">
-          <RecessedCard className="rounded-xl sm:rounded-2xl p-2">
+          <RecessedCard className="p-2" radius={{ base: "0.75rem", sm: "1rem" }}>
             <CrossFade
               contentReady={contentReady}
               skeleton={<TracksSkeleton />}
@@ -105,7 +105,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 3. Upcoming Events */}
         <CollapsibleSection visible={showEvents} sectionClass="px-3 sm:px-5 py-3">
-          <RecessedCard className="rounded-xl sm:rounded-2xl p-2">
+          <RecessedCard className="p-2" radius={{ base: "0.75rem", sm: "1rem" }}>
             <CrossFade
               contentReady={contentReady}
               skeleton={<EventsSkeleton />}
@@ -129,7 +129,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 4. Similar Artists */}
         <CollapsibleSection visible={showSimilar} sectionClass="px-3 sm:px-5 pt-3 pb-3 sm:pb-5">
-          <RecessedCard className="rounded-xl sm:rounded-2xl p-2">
+          <RecessedCard className="p-2" radius={{ base: "0.75rem", sm: "1rem" }}>
             <CrossFade
               contentReady={contentReady}
               skeleton={<SimilarArtistsSkeleton />}

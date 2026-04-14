@@ -17,7 +17,9 @@ export const embossedCardStyle: React.CSSProperties = {
   boxShadow: "0 2px 6px rgba(0,0,0,0.4), 0 -2px 6px rgba(255,255,255,0.03)",
 };
 
-/** Inset/recessed shadow — unchanged (the inset glow does the "pushed-in" work). */
+/** Inset/recessed shadow — single dark inset from top-left.
+ *  No bottom-right highlight: the pushed-in impression should come from
+ *  shadow alone, not from a competing rim light. */
 export const recessedStyle: React.CSSProperties = {
-  boxShadow: "inset 1px 1px 4px rgba(0,0,0,0.25), inset -1px -1px 4px rgba(255,255,255,0.02)",
+  boxShadow: "inset 1px 1px 4px rgba(0,0,0,0.25)",
 };

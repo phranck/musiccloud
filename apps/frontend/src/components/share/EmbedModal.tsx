@@ -179,7 +179,10 @@ export function EmbedModal({
               {copyState === "idle" ? t("embed.copy") : t("embed.copied")}
             </button>
           </div>
-          <RecessedCard className="rounded-xl font-mono text-xs leading-relaxed text-text-secondary whitespace-pre-wrap break-all">
+          <RecessedCard
+            className="font-mono text-xs leading-relaxed text-text-secondary whitespace-pre-wrap break-all"
+            radius="0.75rem"
+          >
             {buildEmbedCode(shortUrl, size)}
           </RecessedCard>
         </div>

@@ -150,7 +150,7 @@ function EmbedRegular({
           <p className="text-[13px] text-text-secondary">{artist}</p>
           {metaLine && <p className="text-xs text-text-muted font-mono">{metaLine}</p>}
         </div>
-        <RecessedCard className="rounded-lg p-1.5">
+        <RecessedCard className="p-1.5" radius="0.5rem">
           <div className="flex justify-between flex-wrap">
             {platforms.map((p) => (
               <a
@@ -218,7 +218,7 @@ function EmbedLarge({
           {album && <p className="text-xs text-text-muted italic">{album}</p>}
           {metaLine && <p className="text-xs text-text-muted font-mono">{metaLine}</p>}
         </div>
-        <RecessedCard className="rounded-lg p-1.5">
+        <RecessedCard className="p-1.5" radius="0.5rem">
           <div className="grid grid-cols-2 gap-1.5">
             {platforms.map((p) => (
               <PlatformButton key={p.platform} platform={p.platform} url={p.url} songTitle={title} size="sm" />

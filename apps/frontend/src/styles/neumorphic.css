@@ -23,8 +23,32 @@
 
 .embossed-gradient-border,
 .recessed-gradient-border {
-  --neu-radius: 16px;
+  /* `--neu-radius-base` / `--neu-radius-sm` are set inline by RecessedCard.
+     We do NOT let callers set `--neu-radius` directly because an inline
+     custom property would outrank the @media override below. Default is
+     16 px — matches `rounded-2xl`. */
+  --neu-radius: var(--neu-radius-base, 16px);
   position: relative;
+}
+
+/* `border-radius` is NOT set on `.recessed-gradient-border` itself,
+   because the same class is reused by EmbossedButton in its pressed
+   state — overriding the radius there would unexpectedly change the
+   button shape on toggle. RecessedCard sets `border-radius` inline
+   (referencing the same `var(--neu-radius)`) so the corner and the
+   gradient transition stay in lockstep without leaking into other
+   consumers of the class. */
+
+/* Responsive corner radius: switch to `--neu-radius-sm` from the `sm`
+   breakpoint (Tailwind default 640px) if the consumer supplied one.
+   Because `--neu-radius` is consumed by both the border-radius rule above
+   and the ::before gradient stops below, updating it here updates both
+   the rounded corner AND the gradient transition in lockstep. */
+@media (min-width: 640px) {
+  .embossed-gradient-border,
+  .recessed-gradient-border {
+    --neu-radius: var(--neu-radius-sm, var(--neu-radius-base, 16px));
+  }
 }
 
 /* Per-surface highlight/shadow colors (HSL with alpha). Overridable via
@@ -36,8 +60,8 @@
   --neu-shadow: hsl(0 0% 0% / 0.35);
 }
 .recessed-gradient-border {
-  --neu-light: hsl(0 0% 100% / 0.16);
-  --neu-shadow: hsl(0 0% 0% / 0.28);
+  --neu-light: hsl(0 0% 100% / 0.22);
+  --neu-shadow: hsl(0 0% 0% / 0.3);
 }
 
 .embossed-gradient-border::before,

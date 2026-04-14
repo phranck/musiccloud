@@ -152,7 +152,7 @@ export function DisambiguationPanel({
           )}
         </div>
 
-        <RecessedCard className="rounded-xl p-2">
+        <RecessedCard className="p-2" radius="0.75rem">
           <div ref={listRef} className="flex flex-col gap-2">
             {candidates.map((candidate, index) => {
               const isThisSelected =

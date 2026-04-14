@@ -11,7 +11,7 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
     <>
       <div className="flex gap-4">
         {profile.imageUrl && (
-          <RecessedCard className="rounded-xl p-0 w-24 h-24 flex-none relative overflow-hidden" borderWidth="2px">
+          <RecessedCard className="p-0 w-24 h-24 flex-none relative overflow-hidden" radius="0.75rem" borderWidth="2px">
             <img
               src={profile.imageUrl}
               alt=""
@@ -29,7 +29,7 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
             <div
               aria-hidden="true"
               className="absolute inset-0 rounded-[inherit] pointer-events-none"
-              style={{ boxShadow: "inset 2px 2px 6px rgba(0,0,0,0.9)" }}
+              style={{ boxShadow: "inset 4px 4px 7px rgba(0,0,0,0.9)" }}
             />
           </RecessedCard>
         )}

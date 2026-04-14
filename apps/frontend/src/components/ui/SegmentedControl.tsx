@@ -24,7 +24,7 @@ export function SegmentedControl<T extends string>({ segments, value, onChange, 
   const count = segments.length;
 
   return (
-    <RecessedCard className={cn("relative flex rounded-xl p-1", className)}>
+    <RecessedCard className={cn("relative flex p-1", className)} radius="0.75rem">
       {/* Sliding embossed indicator */}
       <div
         className="absolute top-1 bottom-1 transition-[left] duration-250 ease-out"
