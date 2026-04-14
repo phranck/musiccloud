@@ -9,7 +9,7 @@ interface ArtistProfileSectionProps {
 export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) {
   return (
     <>
-      <div className="flex gap-4">
+      <div className="flex gap-4 min-h-24">
         {profile.imageUrl && (
           <RecessedCard className="p-0 w-24 h-24 flex-none relative overflow-hidden" radius="8px" borderWidth="2px">
             <img
@@ -41,7 +41,7 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
             />
           </RecessedCard>
         )}
-        <div className="min-w-0 flex-1 pt-1">
+        <div className="min-w-0 flex-1">
           {profile.genres.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
               {profile.genres.map((g) => (
@@ -65,7 +65,9 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
           )}
         </div>
       </div>
-      {profile.bioSummary && <p className="text-base text-text-secondary leading-relaxed mt-3">{profile.bioSummary}</p>}
+      {profile.bioSummary && (
+        <p className="text-base text-text-secondary leading-relaxed mt-3 px-[5px]">{profile.bioSummary}</p>
+      )}
     </>
   );
 }

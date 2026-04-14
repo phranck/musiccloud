@@ -78,7 +78,11 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 1. Artist Profile */}
         <CollapsibleSection visible={showProfile} sectionClass="px-3 sm:px-5 pt-3 sm:pt-5 pb-3">
-          <RecessedCard className="p-3" radius={{ base: "0.75rem", sm: "1rem" }}>
+          {/* min-h = artwork (96) + 2 × 10 padding = 116 px. Guarantees the
+              card never collapses below the artwork height when the profile
+              has minimal text (no genres, no similar artists, no bio), so the
+              bottom edge doesn't slide up against the artwork. */}
+          <RecessedCard className="p-[10px] min-h-[116px]" radius={{ base: "0.75rem", sm: "1rem" }}>
             <CrossFade
               contentReady={contentReady}
               skeleton={<ProfileSkeleton />}
