@@ -76,7 +76,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
                 // Embossed border tints: only meaningful once the accent has
                 // resolved. Before that, fall back to neutral whites/blacks
                 // so the border looks right on the raw embossed surface.
-                "--neu-light": "color-mix(in hsl, var(--color-accent-resolved, rgba(255,255,255,0.6)), white 55%)",
+                "--neu-light": "color-mix(in hsl, var(--color-accent-resolved, rgba(255,255,255,0.6)), white 40%)",
                 "--neu-shadow": "color-mix(in hsl, var(--color-accent-resolved, rgba(0,0,0,0.6)), black 65%)",
                 transition: "background-color 220ms ease-out, color 220ms ease-out, box-shadow 220ms ease-out",
               } as React.CSSProperties)
