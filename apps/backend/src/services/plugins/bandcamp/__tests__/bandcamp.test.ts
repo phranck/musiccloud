@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bandcampAdapter } from "../services/adapters/bandcamp";
+import { bandcampAdapter } from "../adapter";
 
 afterEach(() => {
   vi.restoreAllMocks();

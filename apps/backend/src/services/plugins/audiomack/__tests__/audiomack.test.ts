@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { audiomackAdapter } from "../services/adapters/audiomack";
+import { audiomackAdapter } from "../adapter";
 
 afterEach(() => {
   vi.restoreAllMocks();

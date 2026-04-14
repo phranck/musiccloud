@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { audiusAdapter } from "../services/adapters/audius";
+import { audiusAdapter } from "../adapter";
 
 // =============================================================================
 // Mock data

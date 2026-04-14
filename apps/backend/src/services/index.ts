@@ -1,9 +1,4 @@
 import { log } from "../lib/infra/logger.js";
-import { appleMusicAdapter } from "./adapters/apple-music.js";
-import { audiomackAdapter } from "./adapters/audiomack.js";
-import { audiusAdapter } from "./adapters/audius.js";
-import { bandcampAdapter } from "./adapters/bandcamp.js";
-import { beatportAdapter } from "./adapters/beatport.js";
 import { boomplayAdapter } from "./adapters/boomplay.js";
 import { bugsAdapter } from "./adapters/bugs.js";
 import { deezerAdapter } from "./adapters/deezer.js";
@@ -19,6 +14,11 @@ import { soundcloudAdapter } from "./adapters/soundcloud.js";
 import { spotifyAdapter } from "./adapters/spotify.js";
 import { tidalAdapter } from "./adapters/tidal.js";
 import { youtubeAdapter } from "./adapters/youtube.js";
+import { appleMusicAdapter } from "./plugins/apple-music/adapter.js";
+import { audiomackAdapter } from "./plugins/audiomack/adapter.js";
+import { audiusAdapter } from "./plugins/audius/adapter.js";
+import { bandcampAdapter } from "./plugins/bandcamp/adapter.js";
+import { beatportAdapter } from "./plugins/beatport/adapter.js";
 import type { ServiceAdapter } from "./types.js";
 
 // All registered adapters. Add new adapters here.

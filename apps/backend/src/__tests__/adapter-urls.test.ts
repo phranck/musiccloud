@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { appleMusicAdapter } from "../services/adapters/apple-music";
-import { audiusAdapter } from "../services/adapters/audius";
 import { napsterAdapter } from "../services/adapters/napster";
 import { pandoraAdapter } from "../services/adapters/pandora";
 import { soundcloudAdapter } from "../services/adapters/soundcloud";
 import { spotifyAdapter } from "../services/adapters/spotify";
 import { youtubeAdapter } from "../services/adapters/youtube";
+import { appleMusicAdapter } from "../services/plugins/apple-music/adapter";
+import { audiusAdapter } from "../services/plugins/audius/adapter";
 
 // =============================================================================
 // Spotify adapter: detectUrl

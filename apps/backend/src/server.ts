@@ -18,8 +18,8 @@ import resolveRoutes from "./routes/resolve.js";
 import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
 import shareRoutes from "./routes/share.js";
 import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site-settings.js";
-import { warmAppleMusicToken } from "./services/adapters/apple-music.js";
 import { validateAdapters } from "./services/index.js";
+import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);

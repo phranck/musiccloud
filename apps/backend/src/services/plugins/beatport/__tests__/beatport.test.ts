@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { beatportAdapter } from "../services/adapters/beatport";
+import { beatportAdapter } from "../adapter";
 
 afterEach(() => {
   vi.restoreAllMocks();

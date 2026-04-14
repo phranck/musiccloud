@@ -1,9 +1,9 @@
 import { RESOURCE_KIND, type ResourceKind, SERVICE } from "@musiccloud/shared";
 import { importPKCS8, SignJWT } from "jose";
-import { fetchWithTimeout } from "../../lib/infra/fetch";
-import { ResolveError } from "../../lib/resolve/errors";
-import { calculateConfidence } from "../../lib/resolve/normalize";
-import { serviceHttpError, serviceNotFoundError } from "../../lib/resolve/service-errors";
+import { fetchWithTimeout } from "../../../lib/infra/fetch";
+import { ResolveError } from "../../../lib/resolve/errors";
+import { calculateConfidence } from "../../../lib/resolve/normalize";
+import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AdapterCapabilities,
   AlbumCapabilities,
@@ -18,7 +18,7 @@ import type {
   NormalizedArtist,
   NormalizedTrack,
   ServiceAdapter,
-} from "../types.js";
+} from "../../types.js";
 
 /**
  * Apple Music URL regex — URL-based flows (detectUrl / detectAlbumUrl).
