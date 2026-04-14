@@ -7,7 +7,7 @@ import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
-import { deezerAdapter } from "../services/adapters/deezer.js";
+import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
 import type { ResolutionResult } from "../services/resolver.js";
 import { resolveQuery, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
 

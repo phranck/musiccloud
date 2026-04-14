@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { _resetTokenCache, kkboxAdapter } from "../services/adapters/kkbox";
+import { _resetTokenCache, kkboxAdapter } from "../adapter";
 
 // =============================================================================
 // Mock data

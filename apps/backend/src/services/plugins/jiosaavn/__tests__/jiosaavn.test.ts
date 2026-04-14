@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { jiosaavnAdapter } from "../services/adapters/jiosaavn";
+import { jiosaavnAdapter } from "../adapter";
 
 afterEach(() => {
   vi.restoreAllMocks();

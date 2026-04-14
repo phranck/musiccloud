@@ -1,6 +1,6 @@
 import { isValidPlatform, type Platform } from "@musiccloud/shared";
 import { getRepository } from "../../db/index.js";
-import { deezerAdapter } from "../../services/adapters/deezer.js";
+import { deezerAdapter } from "../../services/plugins/deezer/adapter.js";
 import { log } from "../infra/logger.js";
 import { isExpiredDeezerPreviewUrl } from "../preview-url.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";

@@ -11,11 +11,11 @@ import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
-import { deezerAdapter } from "../services/adapters/deezer.js";
 import type { AlbumResolutionResult } from "../services/album-resolver.js";
 import { resolveAlbumUrl } from "../services/album-resolver.js";
 import type { ArtistResolutionResult } from "../services/artist-resolver.js";
 import { resolveArtistUrl } from "../services/artist-resolver.js";
+import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
 import type { ResolutionResult } from "../services/resolver.js";
 import {
   expandShortLink,

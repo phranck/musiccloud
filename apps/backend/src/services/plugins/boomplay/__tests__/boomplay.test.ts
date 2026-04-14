@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { boomplayAdapter } from "../services/adapters/boomplay";
+import { boomplayAdapter } from "../adapter";
 
 // Mock global fetch
 const mockFetch = vi.fn();

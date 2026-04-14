@@ -1,9 +1,4 @@
 import { log } from "../lib/infra/logger.js";
-import { boomplayAdapter } from "./adapters/boomplay.js";
-import { bugsAdapter } from "./adapters/bugs.js";
-import { deezerAdapter } from "./adapters/deezer.js";
-import { jiosaavnAdapter } from "./adapters/jiosaavn.js";
-import { kkboxAdapter } from "./adapters/kkbox.js";
 import { melonAdapter } from "./adapters/melon.js";
 import { napsterAdapter } from "./adapters/napster.js";
 import { neteaseAdapter } from "./adapters/netease.js";
@@ -19,6 +14,11 @@ import { audiomackAdapter } from "./plugins/audiomack/adapter.js";
 import { audiusAdapter } from "./plugins/audius/adapter.js";
 import { bandcampAdapter } from "./plugins/bandcamp/adapter.js";
 import { beatportAdapter } from "./plugins/beatport/adapter.js";
+import { boomplayAdapter } from "./plugins/boomplay/adapter.js";
+import { bugsAdapter } from "./plugins/bugs/adapter.js";
+import { deezerAdapter } from "./plugins/deezer/adapter.js";
+import { jiosaavnAdapter } from "./plugins/jiosaavn/adapter.js";
+import { kkboxAdapter } from "./plugins/kkbox/adapter.js";
 import type { ServiceAdapter } from "./types.js";
 
 // All registered adapters. Add new adapters here.

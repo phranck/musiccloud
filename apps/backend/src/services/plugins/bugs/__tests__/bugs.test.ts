@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bugsAdapter } from "../services/adapters/bugs";
+import { bugsAdapter } from "../adapter";
 
 afterEach(() => {
   vi.restoreAllMocks();

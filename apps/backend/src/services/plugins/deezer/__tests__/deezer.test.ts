@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { deezerAdapter } from "../services/adapters/deezer";
+import { deezerAdapter } from "../adapter";
 
 // =============================================================================
 // Mock data
