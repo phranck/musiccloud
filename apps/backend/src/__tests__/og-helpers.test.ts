@@ -1,4 +1,4 @@
-import type { Platform } from "@musiccloud/shared";
+import type { ServiceId } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 import { generateOGMeta } from "@/lib/server/og";
 
@@ -8,7 +8,7 @@ describe("generateOGMeta", () => {
     artist: "Queen",
     albumArtUrl: "https://img.example.com/art.jpg",
     shortId: "abc12",
-    availablePlatforms: ["spotify", "apple-music", "youtube"] as Platform[],
+    availablePlatforms: ["spotify", "apple-music", "youtube"] as ServiceId[],
   };
 
   it("should generate og:title as 'title - artist'", () => {
@@ -34,7 +34,7 @@ describe("generateOGMeta", () => {
   it("should generate description with 2 platforms", () => {
     const og = generateOGMeta({
       ...baseInput,
-      availablePlatforms: ["spotify", "apple-music"] as Platform[],
+      availablePlatforms: ["spotify", "apple-music"] as ServiceId[],
     });
     expect(og.ogDescription).toBe("Listen on Spotify and Apple Music");
   });
@@ -42,7 +42,7 @@ describe("generateOGMeta", () => {
   it("should generate description with 1 platform", () => {
     const og = generateOGMeta({
       ...baseInput,
-      availablePlatforms: ["spotify"] as Platform[],
+      availablePlatforms: ["spotify"] as ServiceId[],
     });
     expect(og.ogDescription).toBe("Listen on Spotify");
   });
@@ -59,7 +59,7 @@ describe("generateOGMeta", () => {
     const og = generateOGMeta({
       ...baseInput,
       album: "A Night at the Opera",
-      availablePlatforms: ["spotify"] as Platform[],
+      availablePlatforms: ["spotify"] as ServiceId[],
     });
     expect(og.ogDescription).toContain("A Night at the Opera");
     expect(og.ogDescription.length).toBeLessThanOrEqual(65);

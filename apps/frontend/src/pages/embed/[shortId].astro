@@ -10,8 +10,8 @@
  */
 export const prerender = false;
 
-import type { Platform } from "@musiccloud/shared";
-import { buildMetaLine, isValidPlatform } from "@musiccloud/shared";
+import type { ServiceId } from "@musiccloud/shared";
+import { buildMetaLine, isValidServiceId } from "@musiccloud/shared";
 import { fetchShareData } from "@/api/client";
 import { EmbedCardIsland } from "@/components/embed/EmbedCardIsland";
 import { getLocaleFromCookie } from "@/i18n/locales";
@@ -61,8 +61,8 @@ const albumMetaLine = isAlbum
 const metaLine = isArtist ? (artist?.genres?.join(", ") ?? undefined) : isAlbum ? (albumMetaLine ?? undefined) : (trackMetaLine ?? undefined);
 
 const platformLinks = data.links
-  .filter((link) => isValidPlatform(link.service))
-  .map((link) => ({ platform: link.service as Platform, url: link.url }));
+  .filter((link) => isValidServiceId(link.service))
+  .map((link) => ({ platform: link.service as ServiceId, url: link.url }));
 
 const shortUrl = data.shortUrl;
 const albumName = isAlbum ? undefined : (track?.albumName ?? undefined);

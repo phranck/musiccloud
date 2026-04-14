@@ -1,5 +1,5 @@
-import type { Platform } from "@musiccloud/shared";
-import { ENDPOINTS, isValidPlatform, PLATFORM_CONFIG, SERVICE_DISPLAY_ORDER } from "@musiccloud/shared";
+import type { ServiceId } from "@musiccloud/shared";
+import { ENDPOINTS, isValidServiceId, PLATFORM_CONFIG, SERVICE_DISPLAY_ORDER } from "@musiccloud/shared";
 import {
   ArrowSquareOut as ArrowSquareOutIcon,
   CheckCircle as CheckCircleIcon,
@@ -190,7 +190,7 @@ export function TrackEditPage() {
           </div>
 
           <div className="flex flex-col items-center gap-2">
-            {track.sourceService && isValidPlatform(track.sourceService) ? (
+            {track.sourceService && isValidServiceId(track.sourceService) ? (
               track.sourceUrl ? (
                 <a href={track.sourceUrl} target="_blank" rel="noopener noreferrer">
                   <PlatformIcon platform={track.sourceService} colored className="w-9 h-9" />
@@ -285,10 +285,10 @@ export function TrackEditPage() {
             <div className="space-y-3">
               {[...SERVICE_DISPLAY_ORDER]
                 .sort((a, b) =>
-                  PLATFORM_CONFIG[a as Platform].label.localeCompare(PLATFORM_CONFIG[b as Platform].label),
+                  PLATFORM_CONFIG[a as ServiceId].label.localeCompare(PLATFORM_CONFIG[b as ServiceId].label),
                 )
                 .map((service) => {
-                  const platform = service as Platform;
+                  const platform = service as ServiceId;
                   const label = PLATFORM_CONFIG[platform].label;
                   const url = linksByService.get(service);
                   return (

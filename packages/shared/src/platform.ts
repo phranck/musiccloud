@@ -1,11 +1,5 @@
-import { isValidServiceId, type ServiceId } from "./services.js";
+import type { ServiceId } from "./services.js";
 import { formatDuration, formatYear } from "./utils.js";
-
-/**
- * @deprecated Use {@link ServiceId} from `@musiccloud/shared` instead.
- * Kept as an alias during the `Platform` → `ServiceId` consolidation.
- */
-export type Platform = ServiceId;
 
 export interface PlatformConfig {
   label: string;
@@ -35,14 +29,6 @@ export const PLATFORM_CONFIG: Record<ServiceId, PlatformConfig> = {
   jiosaavn: { label: "JioSaavn", color: "#2BC5B4" },
   beatport: { label: "Beatport", color: "#94D500" },
 };
-
-/**
- * Runtime validation for Platform values from external/DB data.
- * @deprecated Use {@link isValidServiceId} from `@musiccloud/shared` instead.
- */
-export function isValidPlatform(value: unknown): value is Platform {
-  return isValidServiceId(value);
-}
 
 /**
  * User-facing display order for platforms.

@@ -1,9 +1,7 @@
-import type { Platform } from "@musiccloud/shared";
-
-export type { Platform };
+import type { ServiceId } from "@musiccloud/shared";
 
 export interface PlatformLink {
-  platform: Platform;
+  platform: ServiceId;
   url: string;
   displayName?: string;
   matchMethod?: "isrc" | "search" | "odesli" | "cache" | "upc" | "isrc-inference";

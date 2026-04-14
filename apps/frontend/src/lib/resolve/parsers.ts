@@ -3,7 +3,7 @@ import type {
   ArtistResolveSuccessResponse,
   ResolveSuccessResponse,
 } from "@musiccloud/shared";
-import { buildMetaLine, isValidPlatform, PLATFORM_CONFIG, type Platform } from "@musiccloud/shared";
+import { buildMetaLine, isValidServiceId, PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 import type { ActiveResult, AlbumResult, AppAction, AppState, ArtistResult, SongResult } from "@/lib/types/app";
 import type {
   AlbumContentConfiguration,
@@ -44,9 +44,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
 export function parseResolveResponse(data: ResolveSuccessResponse): SongResult {
   const platforms: PlatformLink[] = data.links
-    .filter((link) => link.url && isValidPlatform(link.service))
+    .filter((link) => link.url && isValidServiceId(link.service))
     .map((link) => ({
-      platform: link.service as Platform,
+      platform: link.service as ServiceId,
       url: link.url,
       displayName: link.displayName,
       matchMethod: link.matchMethod,
@@ -69,9 +69,9 @@ export function parseResolveResponse(data: ResolveSuccessResponse): SongResult {
 
 export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): AlbumResult {
   const platforms: PlatformLink[] = data.links
-    .filter((link) => link.url && isValidPlatform(link.service))
+    .filter((link) => link.url && isValidServiceId(link.service))
     .map((link) => ({
-      platform: link.service as Platform,
+      platform: link.service as ServiceId,
       url: link.url,
       displayName: link.displayName,
       matchMethod: link.matchMethod,
@@ -93,9 +93,9 @@ export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): Al
 
 export function parseArtistResolveResponse(data: ArtistResolveSuccessResponse): ArtistResult {
   const platforms: PlatformLink[] = data.links
-    .filter((link) => link.url && isValidPlatform(link.service))
+    .filter((link) => link.url && isValidServiceId(link.service))
     .map((link) => ({
-      platform: link.service as Platform,
+      platform: link.service as ServiceId,
       url: link.url,
       displayName: link.displayName,
       matchMethod: link.matchMethod,

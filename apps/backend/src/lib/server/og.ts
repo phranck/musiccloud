@@ -1,4 +1,4 @@
-import { PLATFORM_CONFIG, type Platform } from "@musiccloud/shared";
+import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 
 interface OGMetaInput {
   title: string;
@@ -6,7 +6,7 @@ interface OGMetaInput {
   album?: string;
   albumArtUrl: string;
   shortId: string;
-  availablePlatforms: Platform[];
+  availablePlatforms: ServiceId[];
   origin?: string;
 }
 
@@ -26,7 +26,7 @@ interface AlbumOGMetaInput {
   releaseDate?: string;
   albumArtUrl: string;
   shortId: string;
-  availablePlatforms: Platform[];
+  availablePlatforms: ServiceId[];
   origin?: string;
 }
 

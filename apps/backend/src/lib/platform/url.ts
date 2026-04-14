@@ -1,11 +1,11 @@
-import type { ErrorCode, Platform } from "@musiccloud/shared";
+import type { ErrorCode, ServiceId } from "@musiccloud/shared";
 
 export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorCode; message: string };
 
-/** Platforms with URL detection support (YouTube Music is derived from YouTube) */
-type DetectablePlatform = Exclude<Platform, "youtube-music">;
+/** Services with URL detection support (YouTube Music is derived from YouTube) */
+type DetectableService = Exclude<ServiceId, "youtube-music">;
 
-export const MUSIC_URL_PATTERNS: Record<DetectablePlatform, RegExp> = {
+export const MUSIC_URL_PATTERNS: Record<DetectableService, RegExp> = {
   spotify: /^https?:\/\/(open\.)?spotify\.com\/(track|album|intl-\w+\/track)\//,
   "apple-music": /^https?:\/\/music\.apple\.com\//,
   youtube: /^https?:\/\/(www\.)?(youtube\.com\/(watch|shorts)|youtu\.be\/|music\.youtube\.com\/)/,
@@ -28,7 +28,7 @@ export const MUSIC_URL_PATTERNS: Record<DetectablePlatform, RegExp> = {
   beatport: /^https?:\/\/(?:www\.)?beatport\.com\/track\//,
 };
 
-export const ALBUM_URL_PATTERNS: Record<DetectablePlatform, RegExp> = {
+export const ALBUM_URL_PATTERNS: Record<DetectableService, RegExp> = {
   spotify: /^https?:\/\/(open\.)?spotify\.com\/(intl-\w+\/)?album\/[a-zA-Z0-9]+/,
   "apple-music": /^https?:\/\/music\.apple\.com\/[a-z]{2}\/album\/[^?\s]+(?:\?(?!i=).*)?$/,
   youtube: /^https?:\/\/music\.youtube\.com\/playlist\?list=OLAK5uy_/,
@@ -63,10 +63,10 @@ export function isArtistUrl(url: string): boolean {
   return ARTIST_URL_PATTERNS.some((pattern) => pattern.test(url));
 }
 
-export function detectPlatform(url: string): DetectablePlatform | null {
+export function detectPlatform(url: string): DetectableService | null {
   for (const [platform, pattern] of Object.entries(MUSIC_URL_PATTERNS)) {
     if (pattern.test(url)) {
-      return platform as DetectablePlatform;
+      return platform as DetectableService;
     }
   }
   return null;

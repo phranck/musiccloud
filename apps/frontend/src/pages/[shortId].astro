@@ -8,8 +8,8 @@
  */
 export const prerender = false;
 
-import type { Platform } from "@musiccloud/shared";
-import { buildMetaLine, isValidPlatform } from "@musiccloud/shared";
+import type { ServiceId } from "@musiccloud/shared";
+import { buildMetaLine, isValidServiceId } from "@musiccloud/shared";
 import { fetchShareData } from "@/api/client";
 import GradientBackground from "@/components/background/GradientBackground.astro";
 import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
@@ -67,9 +67,9 @@ const artistMetaLine = isArtist ? artist?.genres?.join(", ") : null;
 
 // Build platform links (filter invalid services)
 const platformLinks = data.links
-  .filter((link) => isValidPlatform(link.service))
+  .filter((link) => isValidServiceId(link.service))
   .map((link) => ({
-    platform: link.service as Platform,
+    platform: link.service as ServiceId,
     url: link.url,
   }));
 

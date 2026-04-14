@@ -1,4 +1,4 @@
-import { PLATFORM_CONFIG, type Platform } from "@musiccloud/shared";
+import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 import { memo } from "react";
 import { FaBug, FaCompactDisc, FaMusic, FaRadio, FaRecordVinyl } from "react-icons/fa6";
 import {
@@ -15,7 +15,7 @@ import {
 } from "react-icons/si";
 
 interface PlatformIconProps {
-  platform: Platform;
+  platform: ServiceId;
   className?: string;
   colored?: boolean;
 }

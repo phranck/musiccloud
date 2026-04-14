@@ -1,4 +1,4 @@
-import { isValidPlatform, type Platform } from "@musiccloud/shared";
+import { isValidServiceId, type ServiceId } from "@musiccloud/shared";
 import { getRepository } from "../../db/index.js";
 import { deezerAdapter } from "../../services/plugins/deezer/adapter.js";
 import { log } from "../infra/logger.js";
@@ -20,7 +20,7 @@ export interface SharePageData {
   artistDisplay: string;
   shortId: string;
   links: { service: string; url: string }[];
-  availablePlatforms: Platform[];
+  availablePlatforms: ServiceId[];
   og: OGMeta;
 }
 
@@ -88,7 +88,7 @@ export interface ShareAlbumPageData {
   artistDisplay: string;
   shortId: string;
   links: { service: string; url: string }[];
-  availablePlatforms: Platform[];
+  availablePlatforms: ServiceId[];
   og: OGMeta;
 }
 
@@ -98,7 +98,7 @@ export async function loadAlbumByShortId(shortId: string, origin?: string): Prom
   const data = await repo.loadAlbumByShortId(shortId);
   if (!data) return null;
 
-  const availablePlatforms: Platform[] = data.links.map((l) => l.service).filter(isValidPlatform);
+  const availablePlatforms: ServiceId[] = data.links.map((l) => l.service).filter(isValidServiceId);
 
   const og = generateAlbumOGMeta({
     title: data.album.title,
@@ -128,7 +128,7 @@ export interface ShareArtistPageData {
   };
   shortId: string;
   links: { service: string; url: string }[];
-  availablePlatforms: Platform[];
+  availablePlatforms: ServiceId[];
   og: OGMeta;
 }
 
@@ -138,7 +138,7 @@ export async function loadArtistByShortId(shortId: string, origin?: string): Pro
   const data = await repo.loadArtistByShortId(shortId);
   if (!data) return null;
 
-  const availablePlatforms: Platform[] = data.links.map((l) => l.service).filter(isValidPlatform);
+  const availablePlatforms: ServiceId[] = data.links.map((l) => l.service).filter(isValidServiceId);
 
   const baseUrl = origin ?? "https://musiccloud.io";
   const og: OGMeta = {
@@ -177,7 +177,7 @@ function enrichWithOGMeta(
   shortId: string,
   origin?: string,
 ): SharePageData {
-  const availablePlatforms: Platform[] = data.links.map((l) => l.service).filter(isValidPlatform);
+  const availablePlatforms: ServiceId[] = data.links.map((l) => l.service).filter(isValidServiceId);
 
   const og = generateOGMeta({
     title: data.track.title,

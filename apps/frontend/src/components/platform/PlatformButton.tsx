@@ -1,4 +1,4 @@
-import { PLATFORM_CONFIG, type Platform } from "@musiccloud/shared";
+import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 import { memo } from "react";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 type PlatformButtonSize = "sm" | "md" | "lg";
 
 interface PlatformButtonProps {
-  platform: Platform;
+  platform: ServiceId;
   url: string;
   songTitle: string;
   displayName?: string;
