@@ -8,6 +8,7 @@ import authPlugin from "./plugins/auth.js";
 import adminAnalyticsRoutes from "./routes/admin-analytics.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminDataRoutes from "./routes/admin-data.js";
+import adminPluginsRoutes from "./routes/admin-plugins.js";
 import adminSseRoutes from "./routes/admin-sse.js";
 import adminUserRoutes from "./routes/admin-users.js";
 import artistInfoRoutes from "./routes/artist-info.js";
@@ -16,6 +17,7 @@ import linkRoutes from "./routes/link.js";
 import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
 import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
+import servicesPublicRoutes from "./routes/services-public.js";
 import shareRoutes from "./routes/share.js";
 import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site-settings.js";
 import { validateAdapters } from "./services/index.js";
@@ -26,9 +28,8 @@ const PORT = Number(process.env.PORT ?? 4000);
 
 async function buildApp() {
   const app = Fastify({
-    logger: {
-      level: process.env.NODE_ENV === "production" ? "info" : "debug",
-    },
+    // Silence log noise under vitest — integration tests stay quiet.
+    logger: process.env.VITEST === "true" ? false : { level: process.env.NODE_ENV === "production" ? "info" : "debug" },
   });
 
   // Security & utility plugins
@@ -67,6 +68,9 @@ async function buildApp() {
   // Site settings (public read for SSR)
   await app.register(siteSettingsPublicRoutes);
 
+  // Active-services list (public read for SSR — marquee, resolve pages)
+  await app.register(servicesPublicRoutes);
+
   // Public GET resolve endpoint (no auth - used for Shortcuts, etc.)
   await app.register(resolvePublicGetRoutes);
 
@@ -86,6 +90,7 @@ async function buildApp() {
     await adminApp.register(adminSseRoutes);
     await adminApp.register(adminUserRoutes);
     await adminApp.register(siteSettingsAdminRoutes);
+    await adminApp.register(adminPluginsRoutes);
   });
 
   return app;
@@ -117,6 +122,11 @@ async function start() {
   }
 }
 
-start();
+// Only auto-start when invoked as the entry point (`node dist/server.js` /
+// `tsup --onSuccess`). Skip when imported by tests or other modules so
+// buildApp can be unit-tested without spawning a real listener.
+if (process.env.VITEST !== "true") {
+  start();
+}
 
 export { buildApp };

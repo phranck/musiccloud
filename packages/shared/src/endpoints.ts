@@ -58,6 +58,11 @@ export const ENDPOINTS = {
       /** GET — public site settings exposed to the frontend (currently: tracking flag). */
       tracking: "/api/v1/site-settings/tracking",
     },
+    services: {
+      /** GET — list of currently enabled + available resolve plugins.
+       * Feeds the Marquee and resolve/embed pages at SSR time. */
+      active: "/api/v1/services/active",
+    },
   },
 
   /** `/api/auth/...` — public auth endpoints (machine-to-machine token issuance). */
@@ -155,6 +160,13 @@ export const ENDPOINTS = {
       base: "/api/admin/site-settings",
     },
 
+    plugins: {
+      /** GET — list all installed resolve plugins with their runtime state. */
+      list: "/api/admin/plugins",
+      /** PATCH — toggle a plugin on/off. Body: { enabled: boolean }. */
+      detail: (id: string) => `/api/admin/plugins/${id}`,
+    },
+
     analytics: {
       /** GET — overall stats summary (visitors, pageviews, bounce, duration). */
       stats: "/api/admin/analytics/stats",
@@ -207,6 +219,9 @@ export const ROUTE_TEMPLATES = {
     },
     artists: {
       invalidateCache: "/api/admin/artists/:shortId/invalidate-cache",
+    },
+    plugins: {
+      detail: "/api/admin/plugins/:id",
     },
   },
 } as const;
