@@ -59,28 +59,6 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return { deleted: ids.length };
   });
 
-  app.patch(ROUTE_TEMPLATES.admin.tracks.setFeatured, async (request, reply) => {
-    const { shortId } = request.params as { shortId: string };
-    const body = request.body as { featured?: unknown };
-    if (typeof body?.featured !== "boolean") {
-      return reply.status(400).send({ error: "featured (boolean) required" });
-    }
-    const repo = await getAdminRepository();
-    await repo.setTrackFeatured(shortId, body.featured);
-    return { ok: true };
-  });
-
-  app.patch(ROUTE_TEMPLATES.admin.albums.setFeatured, async (request, reply) => {
-    const { shortId } = request.params as { shortId: string };
-    const body = request.body as { featured?: unknown };
-    if (typeof body?.featured !== "boolean") {
-      return reply.status(400).send({ error: "featured (boolean) required" });
-    }
-    const repo = await getAdminRepository();
-    await repo.setAlbumFeatured(shortId, body.featured);
-    return { ok: true };
-  });
-
   app.post(ENDPOINTS.admin.cache.artistClear, async (_request, reply) => {
     const repo = await getAdminRepository();
     const result = await repo.clearArtistCache();

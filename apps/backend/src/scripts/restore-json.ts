@@ -58,8 +58,6 @@ async function restore() {
       "short_urls",
       "album_service_links",
       "album_short_urls",
-      "featured_tracks",
-      "featured_albums",
       "url_aliases"
     ];
 

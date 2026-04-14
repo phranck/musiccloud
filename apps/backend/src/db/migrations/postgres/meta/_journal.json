@@ -36,6 +36,13 @@
       "when": 1775756635010,
       "tag": "0004_broad_wild_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776165845593,
+      "tag": "0005_remove-featured-tables",
+      "breakpoints": true
     }
   ]
 }

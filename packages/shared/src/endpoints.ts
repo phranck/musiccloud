@@ -50,7 +50,7 @@ export const ENDPOINTS = {
     redirect: "/api/v1/redirect",
     /** GET `/api/v1/artist-info?…` — Last.fm + Ticketmaster aggregated artist info. */
     artistInfo: "/api/v1/artist-info",
-    /** GET `/api/v1/random-example` — pick a random featured track. */
+    /** GET `/api/v1/random-example` — pick a random short URL (track or album). */
     randomExample: "/api/v1/random-example",
     /** GET `/api/v1/link/:id` — link metadata by id. */
     link: (id: string) => `/api/v1/link/${id}`,
@@ -116,8 +116,6 @@ export const ENDPOINTS = {
       list: "/api/admin/tracks",
       /** GET — fetch one / PATCH — update one. */
       detail: (id: string) => `/api/admin/tracks/${id}`,
-      /** PATCH — toggle the featured flag for a single track. */
-      setFeatured: (shortId: string) => `/api/admin/tracks/${shortId}/featured`,
       /** POST — mark this track's cached resolution as stale; share URL stays alive. */
       invalidateCache: (shortId: string) => `/api/admin/tracks/${shortId}/invalidate-cache`,
     },
@@ -125,8 +123,6 @@ export const ENDPOINTS = {
     albums: {
       /** GET — list / DELETE — bulk delete. */
       list: "/api/admin/albums",
-      /** PATCH — toggle the featured flag. */
-      setFeatured: (shortId: string) => `/api/admin/albums/${shortId}/featured`,
       /** POST — mark this album's cached resolution as stale. */
       invalidateCache: (shortId: string) => `/api/admin/albums/${shortId}/invalidate-cache`,
     },
@@ -204,11 +200,9 @@ export const ROUTE_TEMPLATES = {
     },
     tracks: {
       detail: "/api/admin/tracks/:id",
-      setFeatured: "/api/admin/tracks/:shortId/featured",
       invalidateCache: "/api/admin/tracks/:shortId/invalidate-cache",
     },
     albums: {
-      setFeatured: "/api/admin/albums/:shortId/featured",
       invalidateCache: "/api/admin/albums/:shortId/invalidate-cache",
     },
     artists: {

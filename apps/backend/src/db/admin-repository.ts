@@ -24,7 +24,6 @@ export interface TrackListItem {
   linkCount: number;
   createdAt: number;
   shortId: string | null;
-  isFeatured: boolean;
 }
 
 export interface AlbumListItem {
@@ -39,7 +38,6 @@ export interface AlbumListItem {
   linkCount: number;
   createdAt: number;
   shortId: string | null;
-  isFeatured: boolean;
 }
 
 export interface ArtistListItem {
@@ -67,7 +65,6 @@ export interface TrackDetail {
   sourceService: string | null;
   sourceUrl: string | null;
   shortId: string | null;
-  isFeatured: boolean;
   createdAt: number;
   serviceLinks: { service: string; url: string }[];
 }
@@ -144,8 +141,6 @@ export interface AdminRepository {
   updateTrack(id: string, data: TrackUpdateData): Promise<void>;
   deleteTracks(ids: string[]): Promise<void>;
   deleteAlbums(ids: string[]): Promise<void>;
-  setTrackFeatured(shortId: string, featured: boolean): Promise<void>;
-  setAlbumFeatured(shortId: string, featured: boolean): Promise<void>;
   clearArtistCache(): Promise<{ deleted: number }>;
   countAllData(): Promise<{ tracks: number; albums: number; artists: number }>;
   resetAllData(): Promise<{ tracks: number; albums: number; artists: number }>;

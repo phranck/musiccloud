@@ -31,7 +31,6 @@ interface TrackDetail {
   sourceService: string | null;
   sourceUrl: string | null;
   shortId: string | null;
-  isFeatured: boolean;
   createdAt: number;
   serviceLinks: { service: string; url: string }[];
 }

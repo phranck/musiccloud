@@ -182,25 +182,6 @@ export const urlAliases = pgTable("url_aliases", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });
 
-// Featured tracks / albums
-export const featuredTracks = pgTable("featured_tracks", {
-  id: text("id").primaryKey(),
-  trackId: text("track_id")
-    .notNull()
-    .unique()
-    .references(() => tracks.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-});
-
-export const featuredAlbums = pgTable("featured_albums", {
-  id: text("id").primaryKey(),
-  albumId: text("album_id")
-    .notNull()
-    .unique()
-    .references(() => albums.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-});
-
 // Site-wide settings (key/value store)
 export const siteSettings = pgTable("site_settings", {
   key: text("key").primaryKey(),

@@ -25,8 +25,7 @@ interface InvalidateCacheButtonProps {
  * row as stale (`updated_at = epoch`). The share URL keeps working — only the
  * cached resolved metadata is forced to re-fetch on the next access.
  *
- * Renders a small icon button consistent with FeaturedToggle. Briefly shows a
- * checkmark on success.
+ * Renders a small icon button. Briefly shows a checkmark on success.
  */
 export function InvalidateCacheButton({ shortId, kind }: InvalidateCacheButtonProps) {
   const { messages } = useI18n();

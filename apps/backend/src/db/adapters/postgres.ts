@@ -117,7 +117,6 @@ interface TrackListRow {
   created_at: Date;
   short_id: string | null;
   link_count: string;
-  is_featured: boolean;
 }
 
 interface AlbumListRow {
@@ -132,7 +131,6 @@ interface AlbumListRow {
   created_at: Date;
   short_id: string | null;
   link_count: string;
-  is_featured: boolean;
 }
 
 interface ArtistRow {
@@ -683,10 +681,18 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   }
 
   async getRandomShortId(): Promise<string | null> {
+    // Uniformly pick one short URL across BOTH track and album short URLs.
+    // Offset trick avoids `ORDER BY RANDOM()` full sort; UNION ALL is fine
+    // because track/album short_url ids share the same namespace by design.
     const result = await this.pool.query(
-      `SELECT su.id FROM short_urls su
-       INNER JOIN featured_tracks ft ON su.track_id = ft.track_id
-       ORDER BY RANDOM() LIMIT 1`,
+      `WITH all_urls AS (
+         SELECT id FROM short_urls
+         UNION ALL
+         SELECT id FROM album_short_urls
+       )
+       SELECT id FROM all_urls
+       OFFSET floor(random() * (SELECT COUNT(*) FROM all_urls))::int
+       LIMIT 1`,
     );
 
     if (result.rows.length === 0) return null;
@@ -1362,13 +1368,11 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       `SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
         t.source_service, t.source_url, t.created_at,
-        su.id as short_id,
-        CASE WHEN ft.id IS NOT NULL THEN true ELSE false END as is_featured
+        su.id as short_id
       FROM tracks t
       LEFT JOIN short_urls su ON t.id = su.track_id
-      LEFT JOIN featured_tracks ft ON t.id = ft.track_id
       WHERE t.id = $1
-      GROUP BY t.id, su.id, ft.id`,
+      GROUP BY t.id, su.id`,
       [id],
     );
     if (trackResult.rows.length === 0) return null;
@@ -1393,7 +1397,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       sourceService: r.source_service ?? null,
       sourceUrl: r.source_url ?? null,
       shortId: r.short_id ?? null,
-      isFeatured: r.is_featured,
       createdAt: dateToMs(r.created_at),
       serviceLinks: (linksResult.rows as ServiceLinkRow[]).map((l) => ({ service: l.service, url: l.url })),
     };
@@ -1480,14 +1483,12 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const query = `SELECT
       t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
       t.source_service, t.created_at,
-      su.id as short_id, COUNT(sl.id) as link_count,
-      CASE WHEN ft.id IS NOT NULL THEN true ELSE false END as is_featured
+      su.id as short_id, COUNT(sl.id) as link_count
     FROM tracks t
     LEFT JOIN service_links sl ON t.id = sl.track_id
     LEFT JOIN short_urls su ON t.id = su.track_id
-    LEFT JOIN featured_tracks ft ON t.id = ft.track_id
     ${whereClause}
-    GROUP BY t.id, su.id, ft.id
+    GROUP BY t.id, su.id
     ORDER BY t.${col} ${dir}
     LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
 
@@ -1504,7 +1505,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       linkCount: parseInt(r.link_count, 10),
       createdAt: dateToMs(r.created_at),
       shortId: r.short_id ?? null,
-      isFeatured: r.is_featured,
     }));
 
     return { items, total, page, limit };
@@ -1543,14 +1543,12 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const query = `SELECT
       a.id, a.title, a.artists, a.release_date, a.total_tracks,
       a.artwork_url, a.upc, a.source_service, a.created_at,
-      asu.id as short_id, COUNT(asl.id) as link_count,
-      CASE WHEN fa.id IS NOT NULL THEN true ELSE false END as is_featured
+      asu.id as short_id, COUNT(asl.id) as link_count
     FROM albums a
     LEFT JOIN album_service_links asl ON a.id = asl.album_id
     LEFT JOIN album_short_urls asu ON a.id = asu.album_id
-    LEFT JOIN featured_albums fa ON a.id = fa.album_id
     ${whereClause}
-    GROUP BY a.id, asu.id, fa.id
+    GROUP BY a.id, asu.id
     ORDER BY a.${col} ${dir}
     LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
 
@@ -1568,7 +1566,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       linkCount: parseInt(r.link_count, 10),
       createdAt: dateToMs(r.created_at),
       shortId: r.short_id ?? null,
-      isFeatured: r.is_featured,
     }));
 
     return { items, total, page, limit };
@@ -1590,7 +1587,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       // Delete associated records first (due to foreign keys)
       await client.query(`DELETE FROM service_links WHERE track_id IN (${placeholders})`, ids);
       await client.query(`DELETE FROM short_urls WHERE track_id IN (${placeholders})`, ids);
-      await client.query(`DELETE FROM featured_tracks WHERE track_id IN (${placeholders})`, ids);
       await client.query(`DELETE FROM url_aliases WHERE track_id IN (${placeholders})`, ids);
 
       // Delete tracks
@@ -1622,7 +1618,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       // Delete associated records first
       await client.query(`DELETE FROM album_service_links WHERE album_id IN (${placeholders})`, ids);
       await client.query(`DELETE FROM album_short_urls WHERE album_id IN (${placeholders})`, ids);
-      await client.query(`DELETE FROM featured_albums WHERE album_id IN (${placeholders})`, ids);
       await client.query(`DELETE FROM url_aliases WHERE album_id IN (${placeholders})`, ids);
 
       // Delete albums
@@ -1639,52 +1634,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       throw error;
     } finally {
       client.release();
-    }
-  }
-
-  async setTrackFeatured(shortId: string, featured: boolean): Promise<void> {
-    // Find the track_id from the short_url
-    const result = await this.pool.query(`SELECT track_id FROM short_urls WHERE id = $1`, [shortId]);
-
-    if (result.rows.length === 0) {
-      throw new Error(`Short URL not found: ${shortId}`);
-    }
-
-    const trackId = result.rows[0].track_id;
-
-    if (featured) {
-      const id = `featured-${trackId}`;
-      const now = new Date();
-      await this.pool.query(
-        `INSERT INTO featured_tracks (id, track_id, created_at) VALUES ($1, $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [id, trackId, now],
-      );
-    } else {
-      await this.pool.query(`DELETE FROM featured_tracks WHERE track_id = $1`, [trackId]);
-    }
-  }
-
-  async setAlbumFeatured(shortId: string, featured: boolean): Promise<void> {
-    // Find the album_id from the short_url
-    const result = await this.pool.query(`SELECT album_id FROM album_short_urls WHERE id = $1`, [shortId]);
-
-    if (result.rows.length === 0) {
-      throw new Error(`Album short URL not found: ${shortId}`);
-    }
-
-    const albumId = result.rows[0].album_id;
-
-    if (featured) {
-      const id = `featured-${albumId}`;
-      const now = new Date();
-      await this.pool.query(
-        `INSERT INTO featured_albums (id, album_id, created_at) VALUES ($1, $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [id, albumId, now],
-      );
-    } else {
-      await this.pool.query(`DELETE FROM featured_albums WHERE album_id = $1`, [albumId]);
     }
   }
 
@@ -1879,8 +1828,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       const artistCount = artistsResult.rows[0]?.count ?? 0;
 
       // Delete in reverse order of foreign key dependencies
-      await client.query("DELETE FROM featured_albums");
-      await client.query("DELETE FROM featured_tracks");
       await client.query("DELETE FROM url_aliases");
       await client.query("DELETE FROM artist_short_urls");
       await client.query("DELETE FROM artist_service_links");

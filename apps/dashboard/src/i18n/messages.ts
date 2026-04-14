@@ -169,8 +169,6 @@ export interface DashboardMessages {
       deleteConfirmDescription: string;
       deleteConfirmCancel: string;
       deleteConfirmAction: string;
-      featuredAdd: string;
-      featuredRemove: string;
       invalidateCache: string;
       invalidateCacheConfirm: string;
     };
@@ -840,8 +838,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         deleteConfirmDescription: "{count} Eintr\u00e4ge werden unwiderruflich gel\u00f6scht.",
         deleteConfirmCancel: "Abbrechen",
         deleteConfirmAction: "L\u00f6schen",
-        featuredAdd: "Als Featured markieren",
-        featuredRemove: "Featured entfernen",
         invalidateCache: "Cache auffrischen",
         invalidateCacheConfirm: "Cache aufgefrischt",
       },
@@ -1483,8 +1479,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         deleteConfirmDescription: "{count} entries will be permanently deleted.",
         deleteConfirmCancel: "Cancel",
         deleteConfirmAction: "Delete",
-        featuredAdd: "Mark as featured",
-        featuredRemove: "Remove featured",
         invalidateCache: "Refresh cache",
         invalidateCacheConfirm: "Cache refreshed",
       },

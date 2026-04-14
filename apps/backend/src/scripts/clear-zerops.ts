@@ -12,8 +12,6 @@ async function clear() {
     const tables = [
       "url_aliases",
       "artist_cache",
-      "featured_albums",
-      "featured_tracks",
       "album_short_urls",
       "album_service_links",
       "short_urls",
