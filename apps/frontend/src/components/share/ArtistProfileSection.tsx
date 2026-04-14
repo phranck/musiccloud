@@ -36,7 +36,7 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
               className="absolute inset-0 pointer-events-none"
               style={{
                 borderRadius: "var(--neu-radius-inner)",
-                boxShadow: "inset 4px 4px 7px rgba(0,0,0,0.9)",
+                boxShadow: "inset 4px 4px 12px rgba(0,0,0,0.9)",
               }}
             />
           </RecessedCard>
