@@ -1,4 +1,4 @@
-import { ENDPOINTS, type SharePageResponse } from "@musiccloud/shared";
+import { type ActiveService, ENDPOINTS, type SharePageResponse } from "@musiccloud/shared";
 
 const BACKEND_URL =
   (import.meta.env.BACKEND_URL as string | undefined) ?? process.env.BACKEND_URL ?? "http://localhost:4000";
@@ -75,5 +75,16 @@ export async function fetchRandomExample(): Promise<{ shortId: string } | null> 
     return res.json() as Promise<{ shortId: string }>;
   } catch {
     return null;
+  }
+}
+
+/** Fetch the current active-services list for the frontend marquee. */
+export async function fetchActiveServices(): Promise<ActiveService[]> {
+  try {
+    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.services.active), { headers: internalHeaders() }, 5000);
+    if (!res.ok) return [];
+    return (await res.json()) as ActiveService[];
+  } catch {
+    return [];
   }
 }

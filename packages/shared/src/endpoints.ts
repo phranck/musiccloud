@@ -90,6 +90,8 @@ export const ENDPOINTS = {
     redirect: "/api/redirect",
     /** Umami analytics proxy prefix (script.js + event endpoint live beneath). */
     umami: "/api/mc",
+    /** GET — forwarded to `ENDPOINTS.v1.services.active`. */
+    activeServices: "/api/services/active",
   },
 
   /** `/api/admin/...` — admin dashboard endpoints (JWT-protected). */
