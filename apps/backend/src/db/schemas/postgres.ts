@@ -1,4 +1,4 @@
-import { index, integer, pgTable, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const tracks = pgTable(
   "tracks",
@@ -186,5 +186,13 @@ export const urlAliases = pgTable("url_aliases", {
 export const siteSettings = pgTable("site_settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
+// Per-plugin runtime state (enabled flag). Sparse: missing row = use
+// manifest.defaultEnabled. See services/plugins/registry.ts.
+export const servicePlugins = pgTable("service_plugins", {
+  id: text("id").primaryKey(),
+  enabled: boolean("enabled").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });

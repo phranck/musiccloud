@@ -43,6 +43,13 @@
       "when": 1776165845593,
       "tag": "0005_remove-featured-tables",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776198556756,
+      "tag": "0006_steep_malice",
+      "breakpoints": true
     }
   ]
 }
