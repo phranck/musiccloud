@@ -6,7 +6,7 @@ import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { stringSimilarity } from "../lib/resolve/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "./constants.js";
-import { getActiveAdapters } from "./index.js";
+import { getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
 import type { ArtistMatchResult, ArtistSearchQuery, NormalizedArtist, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
 
@@ -250,7 +250,13 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
   const cached = await tryArtistCache({ url: cleanUrl });
   if (cached) return fillMissingArtistServices(cached);
 
-  // 2. Identify which service the URL belongs to
+  // 2. Identify which service the URL belongs to. Check disabled plugins
+  //    first so a known-but-toggled-off source surfaces SERVICE_DISABLED
+  //    instead of the generic NOT_MUSIC_LINK.
+  const identified = await identifyServiceIncludingDisabled(cleanUrl);
+  if (identified?.detectArtistUrl?.(cleanUrl) && !(await isPluginEnabled(identified.id))) {
+    throw new ResolveError("SERVICE_DISABLED", undefined, { service: identified.id });
+  }
   const sourceAdapter = await identifyArtistService(cleanUrl);
   if (!sourceAdapter || !sourceAdapter.getArtist || !sourceAdapter.detectArtistUrl) {
     throw new ResolveError("NOT_MUSIC_LINK", "Unrecognized artist URL");

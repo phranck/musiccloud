@@ -13,7 +13,7 @@ import {
   MAX_CANDIDATES,
   SEARCH_FALLBACK_CONFIDENCE,
 } from "./constants.js";
-import { getActiveAdapters, identifyService } from "./index.js";
+import { getActiveAdapters, identifyService, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
 import type { MatchResult, NormalizedTrack, SearchCandidate, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
 
@@ -236,7 +236,15 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     if (cachedByAlias) return withAlias(await fillMissingServices(cachedByAlias));
   }
 
-  // 2. Identify which service the URL belongs to
+  // 2. Identify which service the URL belongs to.
+  //    Check against ALL plugins first so we can distinguish a truly
+  //    unknown URL (NOT_MUSIC_LINK) from a known-but-disabled one
+  //    (SERVICE_DISABLED) — the user controls which link to paste; the
+  //    admin controls which plugins are on.
+  const identified = await identifyServiceIncludingDisabled(cleanUrl);
+  if (identified && !(await isPluginEnabled(identified.id))) {
+    throw new ResolveError("SERVICE_DISABLED", undefined, { service: identified.id });
+  }
   const sourceAdapter = await identifyService(cleanUrl);
   if (!sourceAdapter) {
     throw new ResolveError("NOT_MUSIC_LINK", "Unrecognized music service URL");

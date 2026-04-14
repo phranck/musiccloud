@@ -120,6 +120,8 @@ const mockTidalAdapter = {
 vi.mock("../services/index.js", () => ({
   getActiveAdapters: vi.fn().mockResolvedValue([mockSpotifyAdapter, mockDeezerAdapter, mockTidalAdapter]),
   identifyService: vi.fn(),
+  identifyServiceIncludingDisabled: vi.fn().mockResolvedValue(undefined),
+  isPluginEnabled: vi.fn().mockResolvedValue(true),
 }));
 
 // Import AFTER mocks are set up

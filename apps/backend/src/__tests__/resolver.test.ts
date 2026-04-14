@@ -12,6 +12,8 @@ import type { MatchResult, NormalizedTrack, SearchResultWithCandidates, ServiceA
 vi.mock("../services/index.js", () => ({
   getActiveAdapters: vi.fn().mockResolvedValue([]),
   identifyService: vi.fn(),
+  identifyServiceIncludingDisabled: vi.fn().mockResolvedValue(undefined),
+  isPluginEnabled: vi.fn().mockResolvedValue(true),
 }));
 
 // Mock the DB singleton
@@ -37,7 +39,12 @@ vi.mock("../lib/fetch.js", () => ({
 // =============================================================================
 
 import { getRepository } from "../db/index";
-import { getActiveAdapters, identifyService } from "../services/index";
+import {
+  getActiveAdapters,
+  identifyService,
+  identifyServiceIncludingDisabled,
+  isPluginEnabled,
+} from "../services/index";
 import {
   MATCH_MIN_CONFIDENCE,
   resolveQuery,
@@ -110,8 +117,10 @@ let mockRepo: TrackRepository;
 beforeEach(() => {
   vi.restoreAllMocks();
 
-  // Reset mock surface to an empty adapter set; each test overrides as needed.
+  // Reset registry mock surface; each test overrides the ones it cares about.
   vi.mocked(getActiveAdapters).mockResolvedValue([]);
+  vi.mocked(identifyServiceIncludingDisabled).mockResolvedValue(undefined);
+  vi.mocked(isPluginEnabled).mockResolvedValue(true);
 
   // Fresh mock repository
   mockRepo = createMockRepository();
@@ -990,5 +999,46 @@ describe("resolveQuery: adapter availability", () => {
     // Tidal should NOT be called since it's not in the active list
     expect(tidalAdapter.findByIsrc).not.toHaveBeenCalled();
     expect(tidalAdapter.searchTrack).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveQuery: SERVICE_DISABLED", () => {
+  it("should throw SERVICE_DISABLED when the source service is toggled off", async () => {
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      displayName: "Spotify",
+      detectUrl: vi.fn(() => "track123"),
+    });
+
+    // identifyServiceIncludingDisabled finds it (plugin exists),
+    // but isPluginEnabled says "off" — resolver must surface SERVICE_DISABLED
+    // rather than falling through to NOT_MUSIC_LINK.
+    vi.mocked(identifyServiceIncludingDisabled).mockResolvedValue(spotifyAdapter);
+    vi.mocked(isPluginEnabled).mockResolvedValue(false);
+    vi.mocked(getActiveAdapters).mockResolvedValue([]);
+    vi.mocked(identifyService).mockResolvedValue(undefined);
+
+    await expect(resolveQuery("https://open.spotify.com/track/track123")).rejects.toMatchObject({
+      code: "SERVICE_DISABLED",
+      context: { service: "spotify" },
+    });
+  });
+
+  it("should NOT throw SERVICE_DISABLED when the plugin is enabled", async () => {
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      displayName: "Spotify",
+      detectUrl: vi.fn(() => "track123"),
+      getTrack: vi.fn().mockResolvedValue(createMockTrack()),
+    });
+
+    // Plugin enabled → identifyServiceIncludingDisabled hit doesn't short-circuit.
+    vi.mocked(identifyServiceIncludingDisabled).mockResolvedValue(spotifyAdapter);
+    vi.mocked(isPluginEnabled).mockResolvedValue(true);
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
+
+    const result = await resolveQuery("https://open.spotify.com/track/track123");
+    expect(result.links.length).toBeGreaterThan(0);
   });
 });

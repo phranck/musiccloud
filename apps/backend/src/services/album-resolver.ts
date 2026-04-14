@@ -4,7 +4,7 @@ import { CACHE_TTL_MS } from "../lib/config.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
-import { getActiveAdapters } from "./index.js";
+import { getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
 import type { AlbumMatchResult, AlbumSearchQuery, NormalizedAlbum, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
 
@@ -406,7 +406,13 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   const cached = await tryAlbumCache({ url: cleanUrl });
   if (cached) return fillMissingAlbumServices(cached);
 
-  // 2. Identify which service the URL belongs to
+  // 2. Identify which service the URL belongs to. Check disabled plugins
+  //    first so a known-but-toggled-off source surfaces SERVICE_DISABLED
+  //    instead of the generic NOT_MUSIC_LINK.
+  const identified = await identifyServiceIncludingDisabled(cleanUrl);
+  if (identified?.detectAlbumUrl?.(cleanUrl) && !(await isPluginEnabled(identified.id))) {
+    throw new ResolveError("SERVICE_DISABLED", undefined, { service: identified.id });
+  }
   const sourceAdapter = await identifyAlbumService(cleanUrl);
   if (!sourceAdapter || !sourceAdapter.getAlbum || !sourceAdapter.detectAlbumUrl) {
     throw new ResolveError("NOT_MUSIC_LINK", "Unrecognized album URL");

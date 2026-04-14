@@ -5,6 +5,7 @@ export type ErrorCode =
   | "PLAYLIST_NOT_SUPPORTED"
   | "PODCAST_NOT_SUPPORTED"
   | "ALBUM_NOT_SUPPORTED"
+  | "SERVICE_DISABLED"
   | "TRACK_NOT_FOUND"
   | "NO_MATCHES"
   | "SERVICE_DOWN"
@@ -20,6 +21,7 @@ export const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
   PLAYLIST_NOT_SUPPORTED: 400,
   PODCAST_NOT_SUPPORTED: 400,
   ALBUM_NOT_SUPPORTED: 400,
+  SERVICE_DISABLED: 503,
   TRACK_NOT_FOUND: 404,
   NO_MATCHES: 404,
   SERVICE_DOWN: 503,
@@ -36,6 +38,7 @@ export const USER_MESSAGES: Record<ErrorCode, string> = {
   PLAYLIST_NOT_SUPPORTED: "We support single tracks right now. Try pasting a link to a specific song.",
   PODCAST_NOT_SUPPORTED: "We only support music tracks at the moment.",
   ALBUM_NOT_SUPPORTED: "Try pasting a link to a specific song from this album.",
+  SERVICE_DISABLED: "This service is currently disabled. Please try a link from another service.",
   TRACK_NOT_FOUND: "This track doesn't seem to be available anymore.",
   NO_MATCHES: "We couldn't find this song on other platforms. It might be exclusive to the source.",
   SERVICE_DOWN: "One or more services are temporarily unavailable. We're showing what we found.",

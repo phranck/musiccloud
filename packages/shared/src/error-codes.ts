@@ -88,6 +88,7 @@ export type LegacyErrorCode =
   | "PLAYLIST_NOT_SUPPORTED"
   | "PODCAST_NOT_SUPPORTED"
   | "ALBUM_NOT_SUPPORTED"
+  | "SERVICE_DISABLED"
   | "TRACK_NOT_FOUND"
   | "NO_MATCHES"
   | "SERVICE_DOWN"
@@ -103,6 +104,7 @@ export const LEGACY_TO_MC: Record<LegacyErrorCode, McErrorCode> = {
   PLAYLIST_NOT_SUPPORTED: "MC-URL-0004",
   PODCAST_NOT_SUPPORTED: "MC-URL-0005",
   ALBUM_NOT_SUPPORTED: "MC-URL-0006",
+  SERVICE_DISABLED: "MC-URL-0007",
   TRACK_NOT_FOUND: "MC-RES-0001",
   NO_MATCHES: "MC-RES-0002",
   SERVICE_DOWN: "MC-API-0001",
@@ -160,6 +162,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     userMessage: "Try pasting a link to a specific song or open the album page and share from there.",
     internalNote: "Legacy — older clients used this when album URLs weren't yet supported. Retained for compat.",
     source: "apps/backend/src/lib/platform/url.ts validateMusicUrl",
+  },
+  "MC-URL-0007": {
+    code: "MC-URL-0007",
+    httpStatus: 503,
+    userMessage: "This service is currently disabled. Please try a link from another service.",
+    internalNote:
+      "URL recognised but the source plugin is toggled off in service_plugins. See registry.isPluginEnabled.",
+    source: "apps/backend/src/services/resolver.ts / album-resolver.ts / artist-resolver.ts URL entry points",
   },
 
   // ─── Resolver / cross-service ──────────────────────────────────────────────
