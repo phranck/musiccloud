@@ -1,0 +1,88 @@
+---
+/**
+ * Ambient particle effect: small glowing dots that briefly flash in,
+ * then fade out while drifting toward the page center.
+ *
+ * Rendered statically at build-time (prerendered pages) or request-time
+ * (SSR pages). Pure CSS animation — no JavaScript, no hydration.
+ * Particle positions are randomized once and baked into the HTML.
+ *
+ * Hidden on touch devices and when prefers-reduced-motion is set (via CSS).
+ */
+
+interface Particle {
+  x: number;
+  y: number;
+  size: number;
+  glowSize: number;
+  duration: number;
+  delay: number;
+  driftX: number;
+  driftY: number;
+  drift: boolean;
+  bright: boolean;
+}
+
+const PARTICLE_COUNT = 24;
+const TOTAL_CYCLE = 8;
+
+function generateParticles(): Particle[] {
+  const particles: Particle[] = [];
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    const centerX = 50;
+    const centerY = 45;
+
+    const dx = centerX - x;
+    const dy = centerY - y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const isLongRange = Math.random() > 0.6;
+    const driftLength = isLongRange ? 8 + Math.random() * 10 : 3 + Math.random() * 5;
+    const driftX = (dx / dist) * driftLength;
+    const driftY = (dy / dist) * driftLength;
+
+    const size = 2 + Math.random() * 2;
+    const glowSize = size * 5 + Math.random() * 8;
+    const duration = isLongRange ? 3.5 + Math.random() * 3 : 2.5 + Math.random() * 2;
+    const delay = (i / PARTICLE_COUNT) * TOTAL_CYCLE + Math.random() * 1.5;
+    const drift = Math.random() > 0.15;
+    const bright = Math.random() > 0.7;
+
+    particles.push({ x, y, size, glowSize, duration, delay, driftX, driftY, drift, bright });
+  }
+  return particles;
+}
+
+const particles = generateParticles();
+---
+
+<div
+  class="fixed inset-0 pointer-events-none z-0 hidden sm:block"
+  aria-hidden="true"
+  style="--sparkle-display: block"
+>
+  {
+    particles.map((p) => {
+      const boxShadow = [
+        `0 0 ${p.glowSize * (p.bright ? 1.5 : 1)}px var(--color-accent-glow)`,
+        `0 0 ${p.glowSize * (p.bright ? 3.5 : 2.5)}px var(--color-accent-glow)`,
+        `0 0 ${p.glowSize * 4}px rgba(44, 185, 200, ${p.bright ? 0.15 : 0.08})`,
+      ].join(", ");
+      const style = [
+        `left: ${p.x}%`,
+        `top: ${p.y}%`,
+        `width: ${p.size}px`,
+        `height: ${p.size}px`,
+        `background: var(--color-accent)`,
+        `filter: blur(${p.size * 0.4}px)`,
+        `box-shadow: ${boxShadow}`,
+        `opacity: 0`,
+        `animation: ${p.drift ? "sparkle-drift" : "sparkle-fade"} ${p.duration}s ease-in ${p.delay}s infinite`,
+        `--drift-x: ${p.driftX}vw`,
+        `--drift-y: ${p.driftY}vh`,
+      ].join(";");
+      return <div class="absolute rounded-full" style={style}></div>;
+    })
+  }
+</div>

@@ -1,3 +1,4 @@
+import { marked } from "marked";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Locale } from "@/i18n/locales";
 
@@ -39,6 +40,11 @@ export function useInfoPanel(
   const [content, setContent] = useState<InfoPanelContent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [contentHeight, setContentHeight] = useState<number | null>(null);
+
+  // Keep a stable ref to `t` so the content-fetch effect doesn't re-run
+  // (and abort its fetches) every time translations finish loading.
+  const tRef = useRef(t);
+  tRef.current = t;
 
   const contentCacheRef = useRef<Map<Locale, InfoPanelContent>>(new Map());
   const tabRefs = useRef<Record<InfoPanelTab, HTMLDivElement | null>>({
@@ -87,7 +93,6 @@ export function useInfoPanel(
     Promise.all([fetchMd("about.md"), fetchMd("services.md"), fetchMd("imprint.md"), fetchMd("privacy.md")])
       .then(async ([aboutMd, servicesMd, imprintMd, privacyMd]) => {
         if (cancelled) return;
-        const { marked } = await import("marked");
         const data: InfoPanelContent = {
           about: await marked(aboutMd),
           services: await marked(servicesMd),
@@ -97,9 +102,10 @@ export function useInfoPanel(
         contentCacheRef.current.set(locale, data);
         setContent(data);
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return;
-        const err = `<p>${t("infopanel.unavailable")}</p>`;
+        if (import.meta.env.DEV) console.error("[InfoPanel] Content load failed:", error);
+        const err = `<p>${tRef.current("infopanel.unavailable")}</p>`;
         setContent({ about: err, services: err, imprint: err, dsgvo: err });
       })
       .finally(() => {
@@ -110,7 +116,11 @@ export function useInfoPanel(
       cancelled = true;
       controller.abort();
     };
-  }, [isOpen, locale, t]);
+    // `t` is read via tRef.current in the catch branch so it does not need
+    // to be in the dep array; including it would abort in-flight fetches
+    // every time translations finish loading.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, locale]);
 
   // Measure active tab height for smooth tab-switch animation
   useLayoutEffect(() => {

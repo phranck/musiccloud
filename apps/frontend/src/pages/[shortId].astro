@@ -11,7 +11,7 @@ export const prerender = false;
 import type { Platform } from "@musiccloud/shared";
 import { buildMetaLine, isValidPlatform } from "@musiccloud/shared";
 import { fetchShareData } from "@/api/client";
-import { GradientBackground } from "@/components/background/GradientBackground";
+import GradientBackground from "@/components/background/GradientBackground.astro";
 import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
 import { ShareLayout } from "@/components/share/ShareLayout";
@@ -137,7 +137,7 @@ const pageTitle = isArtist
   <!-- Page header island (top-right, no InfoButton on share page) -->
   <PageHeaderIsland client:idle />
 
-  <GradientBackground client:idle />
+  <GradientBackground />
 
   <div class="min-h-dvh flex flex-col">
     <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">

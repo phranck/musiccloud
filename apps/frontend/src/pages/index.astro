@@ -3,7 +3,8 @@ export const prerender = true;
 
 import { ENDPOINTS } from "@musiccloud/shared";
 import { LandingPage } from "@/components/LandingPage";
-import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import GradientBackground from "@/components/background/GradientBackground.astro";
+import SparklingStars from "@/components/background/SparklingStars.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
@@ -55,11 +56,15 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
     })();
   </script>
 
+  <!-- Static ambient background: no JS, no hydration -->
+  <GradientBackground />
+
   <div class="min-h-dvh flex flex-col">
-    <ErrorBoundary client:load>
-      <LandingPage client:load />
-    </ErrorBoundary>
+    <LandingPage client:idle />
   </div>
+
+  <!-- Non-essential ambient UI: static (CSS-only animation) -->
+  <SparklingStars />
 
   <!-- SSR fallback for no-JS -->
   <noscript>

@@ -1,23 +1,127 @@
 import { ENDPOINTS } from "@musiccloud/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { GradientBackground } from "@/components/background/GradientBackground";
-import { SparklingStars } from "@/components/background/SparklingStars";
+import { Component, lazy, type ReactNode, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { HeroInput } from "@/components/input/HeroInput";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { HeroSection } from "@/components/layout/HeroSection";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { DisambiguationPanel } from "@/components/panels/DisambiguationPanel";
-import { InfoPanel } from "@/components/panels/InfoPanel";
-import { PlatformIconRow } from "@/components/platform/PlatformIconRow";
-import { ShareLayout } from "@/components/share/ShareLayout";
 import { BrandName } from "@/components/ui/BrandName";
-import { Toast } from "@/components/ui/Toast";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { useAppState } from "@/hooks/useAppState";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
 import { LocaleProvider, useT } from "@/i18n/context";
 import { buildActiveConfig } from "@/lib/resolve/parsers";
 import type { InputState } from "@/lib/types/app";
+
+// Lazy-loaded panels — only pulled into the bundle when the user needs them.
+// Fallback is `null` because each is only rendered behind a visibility flag anyway.
+const DisambiguationPanel = lazy(() =>
+  import("@/components/panels/DisambiguationPanel").then((m) => ({ default: m.DisambiguationPanel })),
+);
+const InfoPanel = lazy(() => import("@/components/panels/InfoPanel").then((m) => ({ default: m.InfoPanel })));
+const ShareLayout = lazy(() => import("@/components/share/ShareLayout").then((m) => ({ default: m.ShareLayout })));
+const Toast = lazy(() => import("@/components/ui/Toast").then((m) => ({ default: m.Toast })));
+const PlatformIconRow = lazy(() =>
+  import("@/components/platform/PlatformIconRow").then((m) => ({ default: m.PlatformIconRow })),
+);
+
+// Inline ErrorBoundary — avoids a second client:load island just to wrap the page.
+interface EbStrings {
+  title: string;
+  message: string;
+  reload: string;
+}
+
+const EB_STRINGS: Record<string, EbStrings> = {
+  de: {
+    title: "Etwas ist schiefgelaufen",
+    message: "Ein unerwarteter Fehler ist aufgetreten. Bitte lade die Seite neu.",
+    reload: "Seite neu laden",
+  },
+  fr: {
+    title: "Une erreur s'est produite",
+    message: "Une erreur inattendue s'est produite. Veuillez recharger la page.",
+    reload: "Recharger la page",
+  },
+  it: {
+    title: "Qualcosa è andato storto",
+    message: "Si è verificato un errore imprevisto. Ricarica la pagina.",
+    reload: "Ricarica la pagina",
+  },
+  es: {
+    title: "Algo salió mal",
+    message: "Ocurrió un error inesperado. Por favor, recarga la página.",
+    reload: "Recargar la página",
+  },
+  pt: {
+    title: "Algo correu mal",
+    message: "Ocorreu um erro inesperado. Por favor, recarregue a página.",
+    reload: "Recarregar página",
+  },
+  nl: {
+    title: "Er is iets misgegaan",
+    message: "Er is een onverwachte fout opgetreden. Probeer de pagina opnieuw te laden.",
+    reload: "Pagina herladen",
+  },
+  tr: {
+    title: "Bir şeyler ters gitti",
+    message: "Beklenmedik bir hata oluştu. Lütfen sayfayı yeniden yükleyin.",
+    reload: "Sayfayı yenile",
+  },
+  cs: {
+    title: "Něco se pokazilo",
+    message: "Došlo k neočekávané chybě. Zkuste prosím znovu načíst stránku.",
+    reload: "Znovu načíst stránku",
+  },
+};
+
+const EB_DEFAULT: EbStrings = {
+  title: "Something went wrong",
+  message: "An unexpected error occurred. Please try reloading the page.",
+  reload: "Reload page",
+};
+
+function getEbStrings(): EbStrings {
+  try {
+    const locale = localStorage.getItem("mc:locale") ?? "en";
+    return EB_STRINGS[locale] ?? EB_DEFAULT;
+  } catch {
+    return EB_DEFAULT;
+  }
+}
+
+class LandingErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    if (import.meta.env.DEV) {
+      console.error("[LandingErrorBoundary]", error.message, error.stack);
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      const s = getEbStrings();
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+          <h1 className="text-2xl font-bold text-text-primary mb-4">{s.title}</h1>
+          <p className="text-text-secondary mb-6">{s.message}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent-hover transition-colors"
+          >
+            {s.reload}
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Convert hex color to RGB string (e.g. "#FF5733" -> "255 87 51")
 function hexToRgb(hex: string): string {
@@ -36,7 +140,7 @@ function LandingPageInner() {
   const disambiguationRef = useRef<HTMLDivElement>(null);
   const searchFieldRef = useRef<HTMLDivElement>(null);
 
-  const { albumColors, dynamicAccent, handleAlbumArtLoad, resetColors } = useAlbumColors();
+  const { dynamicAccent, handleAlbumArtLoad, resetColors } = useAlbumColors();
   const {
     state,
     active,
@@ -131,11 +235,10 @@ function LandingPageInner() {
             : undefined
         }
       >
-        <GradientBackground albumColors={albumColors} />
-        <SparklingStars />
-
         <PageHeader showInfoButton onInfoClick={() => setIsInfoOpen(true)} />
-        <InfoPanel isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
+        <Suspense fallback={null}>
+          <InfoPanel isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
+        </Suspense>
 
         <div className="flex-1 flex flex-col items-center justify-center w-full">
           {!active && !candidates && <HeroSection className={isReturning ? "animate-fade-in" : ""} />}
@@ -181,13 +284,15 @@ function LandingPageInner() {
 
           {candidates && candidates.length > 0 && (
             <div ref={disambiguationRef} tabIndex={-1} className="outline-none w-full">
-              <DisambiguationPanel
-                candidates={candidates}
-                onSelect={handleSelectCandidate}
-                onCancel={handleClear}
-                selectedId={selectedCandidateId}
-                loading={state.type === "disambiguation_loading"}
-              />
+              <Suspense fallback={null}>
+                <DisambiguationPanel
+                  candidates={candidates}
+                  onSelect={handleSelectCandidate}
+                  onCancel={handleClear}
+                  selectedId={selectedCandidateId}
+                  loading={state.type === "disambiguation_loading"}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -199,23 +304,34 @@ function LandingPageInner() {
               onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
             >
               <div className="mt-6 sm:mt-8">
-                <ShareLayout
-                  config={activeConfig}
-                  artistName={active.kind === "artist" ? active.name : active.artist}
-                  animated
-                />
+                <Suspense fallback={null}>
+                  <ShareLayout
+                    config={activeConfig}
+                    artistName={active.kind === "artist" ? active.name : active.artist}
+                    animated
+                  />
+                </Suspense>
               </div>
-            </div>
-          )}
-
-          {state.type === "idle" && (
-            <div className={isReturning ? "animate-fade-in" : ""}>
-              <PlatformIconRow />
             </div>
           )}
         </div>
 
-        <Toast message={toast.message} variant={toast.variant} visible={toast.visible} onDismiss={handleToastDismiss} />
+        {state.type === "idle" && (
+          <Suspense fallback={null}>
+            <div className={isReturning ? "animate-fade-in" : ""}>
+              <PlatformIconRow />
+            </div>
+          </Suspense>
+        )}
+
+        <Suspense fallback={null}>
+          <Toast
+            message={toast.message}
+            variant={toast.variant}
+            visible={toast.visible}
+            onDismiss={handleToastDismiss}
+          />
+        </Suspense>
       </div>
 
       <AppFooter />
@@ -225,8 +341,10 @@ function LandingPageInner() {
 
 export function LandingPage() {
   return (
-    <LocaleProvider>
-      <LandingPageInner />
-    </LocaleProvider>
+    <LandingErrorBoundary>
+      <LocaleProvider>
+        <LandingPageInner />
+      </LocaleProvider>
+    </LandingErrorBoundary>
   );
 }
