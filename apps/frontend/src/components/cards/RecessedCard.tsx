@@ -46,8 +46,15 @@ export function RecessedCard({ children, className, style, borderWidth, radius }
     // which assigns the active value into `--neu-radius` via a media query.
     // We cannot set `--neu-radius` inline directly — inline custom props
     // outrank @media rules, so the sm override would never apply.
+    //
+    // Both variables MUST be set on every RecessedCard, even when the
+    // caller didn't provide an sm override. Custom properties inherit by
+    // default, so an ancestor RecessedCard with `{ base, sm }` would leak
+    // its `--neu-radius-sm` into a child that only has a string `radius`,
+    // and the child would render with the ancestor's sm value at ≥ 640 px.
+    // Defaulting sm to base here makes every card self-contained.
     "--neu-radius-base": radiusBase,
-    ...(radiusSm ? { "--neu-radius-sm": radiusSm } : {}),
+    "--neu-radius-sm": radiusSm ?? radiusBase,
     ...(borderWidth ? { "--neu-border-width": borderWidth } : {}),
     // border-radius is set INLINE (not via the `.recessed-gradient-border`
     // class) because that class is also used by EmbossedButton in its

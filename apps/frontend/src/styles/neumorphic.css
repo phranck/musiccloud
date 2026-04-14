@@ -28,6 +28,12 @@
      custom property would outrank the @media override below. Default is
      16 px — matches `rounded-2xl`. */
   --neu-radius: var(--neu-radius-base, 16px);
+  /* The effective radius one border-width inside the gradient stroke.
+     Use this on child elements that sit flush against the inner edge of
+     the border (images, inset-shadow overlays) so their curvature aligns
+     with where the content actually starts — `rounded-[inherit]` would
+     inherit the OUTER radius and sit slightly too round. */
+  --neu-radius-inner: calc(var(--neu-radius) - var(--neu-border-width, 1px));
   position: relative;
 }
 

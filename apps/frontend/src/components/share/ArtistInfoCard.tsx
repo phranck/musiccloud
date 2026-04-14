@@ -78,7 +78,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 1. Artist Profile */}
         <CollapsibleSection visible={showProfile} sectionClass="px-3 sm:px-5 pt-3 sm:pt-5 pb-3">
-          <RecessedCard className="p-4" radius={{ base: "0.75rem", sm: "1rem" }}>
+          <RecessedCard className="p-3" radius={{ base: "0.75rem", sm: "1rem" }}>
             <CrossFade
               contentReady={contentReady}
               skeleton={<ProfileSkeleton />}

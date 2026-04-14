@@ -11,13 +11,14 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
     <>
       <div className="flex gap-4">
         {profile.imageUrl && (
-          <RecessedCard className="p-0 w-24 h-24 flex-none relative overflow-hidden" radius="0.75rem" borderWidth="2px">
+          <RecessedCard className="p-0 w-24 h-24 flex-none relative overflow-hidden" radius="8px" borderWidth="2px">
             <img
               src={profile.imageUrl}
               alt=""
               width={96}
               height={96}
-              className="w-full h-full object-cover rounded-[inherit]"
+              className="w-full h-full object-cover"
+              style={{ borderRadius: "var(--neu-radius-inner)" }}
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = "none";
               }}
@@ -25,11 +26,18 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
             {/* Inner shadow overlay: same visual deboss feel as the
                 PlaybackButton's iconInnerShadow filter, but implemented
                 with box-shadow: inset since raster images have no alpha
-                edges for the SVG filter to hook into. */}
+                edges for the SVG filter to hook into.
+                Uses --neu-radius-inner (outer radius minus border width)
+                so the inset-shadow curvature matches the inner edge of
+                the gradient border — `rounded-[inherit]` would round at
+                the OUTER radius and leave a slight mismatch. */}
             <div
               aria-hidden="true"
-              className="absolute inset-0 rounded-[inherit] pointer-events-none"
-              style={{ boxShadow: "inset 4px 4px 7px rgba(0,0,0,0.9)" }}
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                borderRadius: "var(--neu-radius-inner)",
+                boxShadow: "inset 4px 4px 7px rgba(0,0,0,0.9)",
+              }}
             />
           </RecessedCard>
         )}
