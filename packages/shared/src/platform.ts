@@ -1,35 +1,18 @@
+import { isValidServiceId, type ServiceId } from "./services.js";
 import { formatDuration, formatYear } from "./utils.js";
 
-/** All supported music platforms */
-export type Platform =
-  | "spotify"
-  | "apple-music"
-  | "youtube"
-  | "youtube-music"
-  | "soundcloud"
-  | "tidal"
-  | "deezer"
-  | "audius"
-  | "napster"
-  | "pandora"
-  | "qobuz"
-  | "boomplay"
-  | "kkbox"
-  | "bandcamp"
-  | "audiomack"
-  | "netease"
-  | "qqmusic"
-  | "melon"
-  | "bugs"
-  | "jiosaavn"
-  | "beatport";
+/**
+ * @deprecated Use {@link ServiceId} from `@musiccloud/shared` instead.
+ * Kept as an alias during the `Platform` → `ServiceId` consolidation.
+ */
+export type Platform = ServiceId;
 
 export interface PlatformConfig {
   label: string;
   color: string;
 }
 
-export const PLATFORM_CONFIG: Record<Platform, PlatformConfig> = {
+export const PLATFORM_CONFIG: Record<ServiceId, PlatformConfig> = {
   spotify: { label: "Spotify", color: "#1DB954" },
   "apple-music": { label: "Apple Music", color: "#FC3C44" },
   youtube: { label: "YouTube", color: "#FF0000" },
@@ -53,9 +36,12 @@ export const PLATFORM_CONFIG: Record<Platform, PlatformConfig> = {
   beatport: { label: "Beatport", color: "#94D500" },
 };
 
-/** Runtime validation for Platform values from external/DB data */
+/**
+ * Runtime validation for Platform values from external/DB data.
+ * @deprecated Use {@link isValidServiceId} from `@musiccloud/shared` instead.
+ */
 export function isValidPlatform(value: unknown): value is Platform {
-  return typeof value === "string" && value in PLATFORM_CONFIG;
+  return isValidServiceId(value);
 }
 
 /**

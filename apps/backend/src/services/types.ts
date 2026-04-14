@@ -1,56 +1,13 @@
-export type ServiceId =
-  | "spotify"
-  | "apple-music"
-  | "youtube"
-  | "youtube-music"
-  | "soundcloud"
-  | "tidal"
-  | "deezer"
-  | "audius"
-  | "napster"
-  | "pandora"
-  | "qobuz"
-  | "boomplay"
-  | "kkbox"
-  | "bandcamp"
-  | "audiomack"
-  | "netease"
-  | "qqmusic"
-  | "melon"
-  | "bugs"
-  | "jiosaavn"
-  | "beatport";
+import type { ServiceId } from "@musiccloud/shared";
+
+export type { ServiceId } from "@musiccloud/shared";
+// Canonical ServiceId / isValidServiceId live in `@musiccloud/shared`
+// (services.ts). Re-exported here so backend call sites can keep their
+// short relative imports.
+export { isValidServiceId } from "@musiccloud/shared";
 
 /** ServiceId plus "cached" for tracks loaded from the database cache */
 export type TrackSource = ServiceId | "cached";
-
-const VALID_SERVICE_IDS: readonly ServiceId[] = [
-  "spotify",
-  "apple-music",
-  "youtube",
-  "youtube-music",
-  "soundcloud",
-  "tidal",
-  "deezer",
-  "audius",
-  "napster",
-  "pandora",
-  "qobuz",
-  "boomplay",
-  "kkbox",
-  "bandcamp",
-  "audiomack",
-  "netease",
-  "qqmusic",
-  "melon",
-  "bugs",
-  "jiosaavn",
-  "beatport",
-];
-
-export function isValidServiceId(value: unknown): value is ServiceId {
-  return typeof value === "string" && VALID_SERVICE_IDS.includes(value as ServiceId);
-}
 
 export interface NormalizedTrack {
   isrc?: string;
