@@ -24,32 +24,7 @@
 .embossed-gradient-border,
 .recessed-gradient-border {
   --neu-radius: 16px;
-  --neu-grain-opacity: 0.18;
   position: relative;
-  /* Create a stacking context so the ::after grain layer (z-index:-1) sits
-     above the element's background but below any in-flow content. */
-  isolation: isolate;
-}
-
-/* Subtle film-grain surface texture.
-   Plain translucent fractalNoise SVG -- NO mix-blend-mode. Blend modes
-   like `overlay` break on semi-transparent white backdrops (bg-white/[0.07])
-   because the formula uses backdrop color = 1.0 white, which collapses
-   every grain pixel to pure white regardless of the source value, turning
-   the "grain" into a uniform white film. Straight compositing keeps the
-   noise variance intact: bright specks lighten, dark specks darken.
-   Tune via --neu-grain-opacity (0 disables). */
-.embossed-gradient-border::after,
-.recessed-gradient-border::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: -1;
-  opacity: var(--neu-grain-opacity);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  background-size: 160px 160px;
 }
 
 .embossed-gradient-border::before,
