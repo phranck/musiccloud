@@ -46,6 +46,7 @@ export interface DashboardMessages {
       footerBuilder: string;
       markdownWidgets: string;
       system: string;
+      services: string;
       expandAll: string;
       collapseAll: string;
       expandAllAria: string;
@@ -198,6 +199,27 @@ export interface DashboardMessages {
     trackingDescription: string;
     trackingEnabled: string;
     trackingDisabled: string;
+  };
+  services: {
+    title: string;
+    subtitle: string;
+    lastServiceWarning: string;
+    enabled: string;
+    disabled: string;
+    availableLabel: string;
+    credentialsMissingLabel: string;
+    missingEnvPrefix: string;
+    capabilityTrack: string;
+    capabilityAlbum: string;
+    capabilityArtist: string;
+    capabilityIsrc: string;
+    capabilityPreview: string;
+    capabilityArtwork: string;
+    toggleAction: string;
+    toggleError: string;
+    loadError: string;
+    loading: string;
+    empty: string;
   };
   media: {
     title: string;
@@ -715,6 +737,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         footerBuilder: "Footer-Builder",
         markdownWidgets: "Markdown-Widgets",
         system: "System",
+        services: "Services",
         expandAll: "Alle aufklappen",
         collapseAll: "Alle zuklappen",
         expandAllAria: "Alle Gruppen aufklappen",
@@ -872,6 +895,28 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         "Aktiviert das Umami-Tracking-Script auf der Website. Wenn deaktiviert, wird kein Tracking-Code eingebunden.",
       trackingEnabled: "Aktiv",
       trackingDisabled: "Deaktiviert",
+    },
+    services: {
+      title: "Services",
+      subtitle:
+        "Aktiviere oder deaktiviere Resolve-Plugins. Bei deaktivierten Services wird kein Cross-Service-Matching gegen sie ausgef\u00fchrt und bestehende Links werden in Share-Seiten ausgeblendet.",
+      lastServiceWarning: "Mindestens ein Plugin muss aktiv sein, damit Resolves funktionieren.",
+      enabled: "Aktiv",
+      disabled: "Inaktiv",
+      availableLabel: "Verf\u00fcgbar",
+      credentialsMissingLabel: "Credentials fehlen",
+      missingEnvPrefix: "Fehlend:",
+      capabilityTrack: "Track",
+      capabilityAlbum: "Album",
+      capabilityArtist: "Artist",
+      capabilityIsrc: "ISRC",
+      capabilityPreview: "Preview",
+      capabilityArtwork: "Artwork",
+      toggleAction: "Umschalten",
+      toggleError: "Umschalten fehlgeschlagen.",
+      loadError: "Plugin-Liste konnte nicht geladen werden.",
+      loading: "Wird geladen\u2026",
+      empty: "Keine Plugins installiert.",
     },
     media: {
       title: "Medien",
@@ -1356,6 +1401,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         footerBuilder: "Footer Builder",
         markdownWidgets: "Markdown Widgets",
         system: "System",
+        services: "Services",
         expandAll: "Expand all",
         collapseAll: "Collapse all",
         expandAllAria: "Expand all groups",
@@ -1513,6 +1559,28 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         "Enables the Umami tracking script on the website. When disabled, no tracking code is embedded.",
       trackingEnabled: "Active",
       trackingDisabled: "Disabled",
+    },
+    services: {
+      title: "Services",
+      subtitle:
+        "Enable or disable resolve plugins. Disabled services are skipped during cross-service matching and their cached links are hidden on share pages.",
+      lastServiceWarning: "At least one plugin must be enabled for resolves to work.",
+      enabled: "Enabled",
+      disabled: "Disabled",
+      availableLabel: "Available",
+      credentialsMissingLabel: "Credentials missing",
+      missingEnvPrefix: "Missing:",
+      capabilityTrack: "Track",
+      capabilityAlbum: "Album",
+      capabilityArtist: "Artist",
+      capabilityIsrc: "ISRC",
+      capabilityPreview: "Preview",
+      capabilityArtwork: "Artwork",
+      toggleAction: "Toggle",
+      toggleError: "Toggle failed.",
+      loadError: "Failed to load the plugin list.",
+      loading: "Loading\u2026",
+      empty: "No plugins installed.",
     },
     media: {
       title: "Media",

@@ -10,6 +10,7 @@ import {
   MicrophoneStageIcon,
   MusicNotesIcon,
   NotebookIcon,
+  PlugsConnectedIcon,
   SquaresFourIcon,
   UsersThreeIcon,
   VinylRecordIcon,
@@ -375,6 +376,15 @@ export function Sidebar({
                     <DashboardSection.Item
                       icon={<MarkdownLogoIcon weight="duotone" className="w-4 h-4" />}
                       label={s.markdownWidgets}
+                      active={isActive}
+                    />
+                  )}
+                </NavLink>
+                <NavLink to="/services" onClick={onItemClick} className="contents">
+                  {({ isActive }) => (
+                    <DashboardSection.Item
+                      icon={<PlugsConnectedIcon weight="duotone" className="w-4 h-4" />}
+                      label={s.services}
                       active={isActive}
                     />
                   )}

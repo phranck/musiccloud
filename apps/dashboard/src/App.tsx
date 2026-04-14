@@ -103,6 +103,12 @@ const SystemPage = lazy(() =>
   })),
 );
 
+const ServicesPage = lazy(() =>
+  import("@/features/services/ServicesPage").then((m) => ({
+    default: m.ServicesPage,
+  })),
+);
+
 // Stub for complex editor pages not yet ported (require MarkdownEditor, dnd-kit, etc.)
 const EditorStubPage = lazy(() =>
   Promise.resolve({
@@ -303,6 +309,14 @@ function AppRoutes() {
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
                     <SystemPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="services"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <ServicesPage />
                   </Suspense>
                 }
               />
