@@ -12,7 +12,7 @@
 
 /** EmbossedCard drop shadow — vertical only (no X offset) for a clean
  *  "floating card" feel against the page. EmbossedButton does NOT apply this:
- *  buttons stay flat and rely on the gradient border + grain alone. */
+ *  buttons stay flat and rely on the gradient border alone. */
 export const embossedCardStyle: React.CSSProperties = {
   boxShadow: "0 2px 6px rgba(0,0,0,0.4), 0 -2px 6px rgba(255,255,255,0.03)",
 };
