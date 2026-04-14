@@ -34,16 +34,25 @@
   inset: 0;
   padding: 1px;
   border-radius: inherit;
-  /* Subtract the content-box from the border-box → only the 1px strip remains */
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
+  /* Subtract the content-box from the border-box → only the 1px strip remains.
+     Note: LightningCSS (used by Tailwind v4) collapses `mask-composite` and
+     `-webkit-mask-composite` into a single property, dropping one. The
+     @supports block below isolates the modern syntax so it survives the build. */
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   pointer-events: none;
+}
+
+@supports (mask-composite: exclude) {
+  .embossed-gradient-border::before,
+  .recessed-gradient-border::before {
+    mask-composite: exclude;
+  }
 }
 
 .embossed-gradient-border::before {
