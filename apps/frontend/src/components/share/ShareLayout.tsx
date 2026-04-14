@@ -134,33 +134,50 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
   });
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  // Dynamic accent color extraction from album artwork.
-  // `--accent-ready` acts as a boolean gate for elements that should only
-  // appear once the dynamic accent has been computed — prevents the brief
-  // flash of the default global accent on page load.
+  // Dynamic accent color extraction from album artwork. The accent kicks in
+  // as soon as the image has loaded and the colors are computed.
+  //
+  // Rendering strategy (see ShareButton): accent-tinted elements read
+  // `--color-accent-resolved` — a sentinel that is ONLY set once we have a
+  // real dynamic accent. Until then they render in a neutral pre-accent
+  // state. This avoids the "flash from wrong accent to right accent" on
+  // first paint: users see a neutral surface, which then gently reveals
+  // the dynamic accent — never a jarring color swap.
+  //
+  // Safety net: if extraction hasn't produced an accent after 3 s
+  // (broken CORS, dead artwork URL, canvas tainted), we fall back to the
+  // brand default so the button doesn't stay visually muted forever.
   const { dynamicAccent, handleAlbumArtLoad } = useAlbumColors();
-
-  // Safety net: if color extraction never fires (broken artwork URL, CORS,
-  // or a canvas failure), gate-controlled elements like the ShareButton
-  // would stay hidden forever. Force `--accent-ready` to 1 after a short
-  // grace period so the UI never feels stuck — the default global accent
-  // is acceptable as a fallback, an invisible button is not.
-  const [accentFallback, setAccentFallback] = useState(false);
+  const [extractionTimedOut, setExtractionTimedOut] = useState(false);
   useEffect(() => {
-    const timer = setTimeout(() => setAccentFallback(true), 1500);
+    if (dynamicAccent) return;
+    const timer = setTimeout(() => setExtractionTimedOut(true), 3000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [dynamicAccent]);
 
-  const accentStyle = {
-    "--accent-ready": dynamicAccent || accentFallback ? "1" : "0",
-    ...(dynamicAccent && {
-      "--color-accent": dynamicAccent.base,
-      "--color-accent-rgb": hexToRgb(dynamicAccent.base),
-      "--color-accent-hover": dynamicAccent.hover,
-      "--color-accent-glow": dynamicAccent.glow,
-      "--color-accent-contrast": dynamicAccent.contrastText,
-    }),
-  } as React.CSSProperties;
+  const accentStyle = (
+    dynamicAccent
+      ? {
+          "--color-accent": dynamicAccent.base,
+          "--color-accent-rgb": hexToRgb(dynamicAccent.base),
+          "--color-accent-hover": dynamicAccent.hover,
+          "--color-accent-glow": dynamicAccent.glow,
+          "--color-accent-contrast": dynamicAccent.contrastText,
+          // Sentinel: presence signals "we have a real dynamic accent".
+          "--color-accent-resolved": dynamicAccent.base,
+          "--color-accent-hover-resolved": dynamicAccent.hover,
+          "--color-accent-contrast-resolved": dynamicAccent.contrastText,
+        }
+      : extractionTimedOut
+        ? {
+            // Graceful fallback after timeout — use the brand/global accent
+            // so the button is never left in its neutral waiting state.
+            "--color-accent-resolved": "var(--color-accent)",
+            "--color-accent-hover-resolved": "var(--color-accent-hover)",
+            "--color-accent-contrast-resolved": "var(--color-accent-contrast)",
+          }
+        : {}
+  ) as React.CSSProperties;
 
   // Inject the client-side onAlbumArtLoad callback into the (SSR-serialized) config
   const enrichedConfig = useMemo(

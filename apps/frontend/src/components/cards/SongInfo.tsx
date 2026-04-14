@@ -31,10 +31,18 @@ export const SongInfo = memo(function SongInfo({
   // avoids the SSR hydration problem where the visible img is already loaded by the
   // browser before React can attach the onLoad handler. The visible img never needs
   // crossOrigin — only the hidden one used for canvas sampling does.
+  //
+  // fetchPriority="high" + eager decode minimises the gap between first paint and
+  // the point at which the dynamic accent becomes available, because the button
+  // stays in its neutral pre-accent state until this image resolves.
   useEffect(() => {
     if (!albumArtUrl || !onAlbumArtLoad) return;
     const img = new Image();
     img.crossOrigin = "anonymous";
+    img.decoding = "async";
+    if ("fetchPriority" in img) {
+      (img as HTMLImageElement & { fetchPriority: string }).fetchPriority = "high";
+    }
     img.onload = () => onAlbumArtLoad(img);
     img.src = albumArtUrl;
     return () => {

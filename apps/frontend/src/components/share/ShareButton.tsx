@@ -55,24 +55,30 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
           "rounded-lg font-bold text-[15px] tracking-[-0.01em]",
           "min-h-[50px]",
           "shadow-sm",
-          state === "idle" ? "bg-accent hover:bg-accent-hover" : "bg-success/20 text-success",
+          state === "idle"
+            ? [
+                // Background resolves through a sentinel CSS var: when the
+                // dynamic accent has been extracted from the album art (see
+                // ShareLayout), `--color-accent-resolved` is set and the
+                // button shows the accent. Until then the var is absent and
+                // the fallback keeps the button in the neutral embossed
+                // state — no "flash of default accent" on first paint.
+                "bg-[var(--color-accent-resolved,rgba(255,255,255,0.09))]",
+                "hover:bg-[var(--color-accent-hover-resolved,rgba(255,255,255,0.12))]",
+              ]
+            : "bg-success/20 text-success",
         )}
         style={
           state === "idle"
             ? ({
-                color: "var(--color-accent-contrast)",
+                color: "var(--color-accent-contrast-resolved, var(--color-text-primary))",
                 boxShadow: "3px 3px 10px rgba(0,0,0,0.6), -2px -2px 6px rgba(255,255,255,0.10)",
-                // Stronger embossed border contrast against the saturated
-                // accent surface: a much lighter and a much darker tint of
-                // the accent hue (mixed in HSL, so the hue is preserved —
-                // no drift toward pure white/black).
-                "--neu-light": "color-mix(in hsl, var(--color-accent), white 55%)",
-                "--neu-shadow": "color-mix(in hsl, var(--color-accent), black 65%)",
-                // Hide until the parent container signals that the dynamic accent
-                // is ready (e.g. after album art color extraction). Fallback `1`
-                // keeps the button visible in non-share contexts.
-                opacity: "var(--accent-ready, 1)",
-                transition: "opacity 180ms ease-out",
+                // Embossed border tints: only meaningful once the accent has
+                // resolved. Before that, fall back to neutral whites/blacks
+                // so the border looks right on the raw embossed surface.
+                "--neu-light": "color-mix(in hsl, var(--color-accent-resolved, rgba(255,255,255,0.6)), white 55%)",
+                "--neu-shadow": "color-mix(in hsl, var(--color-accent-resolved, rgba(0,0,0,0.6)), black 65%)",
+                transition: "background-color 220ms ease-out, color 220ms ease-out, box-shadow 220ms ease-out",
               } as React.CSSProperties)
             : {
                 boxShadow: "3px 3px 10px rgba(0,0,0,0.6), -2px -2px 6px rgba(48,209,88,0.10)",
