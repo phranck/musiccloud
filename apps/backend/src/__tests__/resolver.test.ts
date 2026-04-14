@@ -14,6 +14,9 @@ vi.mock("../services/index.js", () => ({
   identifyService: vi.fn(),
   identifyServiceIncludingDisabled: vi.fn().mockResolvedValue(undefined),
   isPluginEnabled: vi.fn().mockResolvedValue(true),
+  // Identity pass-through — all tests assume every service is enabled unless
+  // they opt in to the SERVICE_DISABLED scenario.
+  filterDisabledLinks: vi.fn(async <T>(links: T[]) => links),
 }));
 
 // Mock the DB singleton
@@ -40,6 +43,7 @@ vi.mock("../lib/fetch.js", () => ({
 
 import { getRepository } from "../db/index";
 import {
+  filterDisabledLinks,
   getActiveAdapters,
   identifyService,
   identifyServiceIncludingDisabled,
@@ -1022,6 +1026,40 @@ describe("resolveQuery: SERVICE_DISABLED", () => {
       code: "SERVICE_DISABLED",
       context: { service: "spotify" },
     });
+  });
+
+  it("should filter cached links whose plugin is currently disabled", async () => {
+    // Simulate a cached resolve: spotify source + deezer cross-link.
+    // Admin has toggled deezer off → filterDisabledLinks drops that link.
+    const track = createMockTrack({ isrc: "GBUM71029604" });
+    const cachedResult: CachedTrackResult = {
+      trackId: "tid1",
+      updatedAt: Date.now() - 1000,
+      track,
+      links: [
+        { service: "spotify", url: "https://open.spotify.com/track/track123", confidence: 1.0, matchMethod: "isrc" },
+        { service: "deezer", url: "https://www.deezer.com/track/456", confidence: 0.9, matchMethod: "search" },
+      ],
+    };
+    vi.mocked(mockRepo.findTrackByUrl).mockResolvedValue(cachedResult);
+
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      displayName: "Spotify",
+      detectUrl: vi.fn(() => "track123"),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
+
+    // Override filter: drop any deezer link (plugin off).
+    vi.mocked(filterDisabledLinks).mockImplementation(async <T extends { service: string }>(links: T[]) =>
+      links.filter((l) => l.service !== "deezer"),
+    );
+
+    const result = await resolveQuery("https://open.spotify.com/track/track123");
+
+    expect(result.links.find((l) => l.service === "deezer")).toBeUndefined();
+    expect(result.links.find((l) => l.service === "spotify")).toBeDefined();
   });
 
   it("should NOT throw SERVICE_DISABLED when the plugin is enabled", async () => {

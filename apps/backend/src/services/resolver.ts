@@ -13,7 +13,13 @@ import {
   MAX_CANDIDATES,
   SEARCH_FALLBACK_CONFIDENCE,
 } from "./constants.js";
-import { getActiveAdapters, identifyService, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
+import {
+  filterDisabledLinks,
+  getActiveAdapters,
+  identifyService,
+  identifyServiceIncludingDisabled,
+  isPluginEnabled,
+} from "./index.js";
 import type { MatchResult, NormalizedTrack, SearchCandidate, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
 
@@ -107,7 +113,7 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
 
   const adaptersToFetch = deezerAdapter ? [...missingAdapters, deezerAdapter] : missingAdapters;
 
-  if (adaptersToFetch.length === 0) return cached;
+  if (adaptersToFetch.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
   log.debug(
     "Resolver",
@@ -124,7 +130,7 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
     }
   }
 
-  if (newLinks.length === 0) return cached;
+  if (newLinks.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
   // Only persist genuinely new service links (not Deezer re-fetched for preview only)
   const genuinelyNewLinks = newLinks.filter((l) => !coveredServices.has(l.service));
@@ -158,7 +164,7 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
     sourceTrack = { ...sourceTrack, previewUrl: anyGapPreview.previewUrl };
   }
 
-  return { sourceTrack, links: allLinks, trackId: cached.trackId };
+  return { sourceTrack, links: await filterDisabledLinks(allLinks), trackId: cached.trackId };
 }
 
 /**
@@ -394,7 +400,12 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
           // Cache lookup by ISRC before full resolve
           if (topCandidate.track.isrc) {
             const cached = await tryCache({ isrc: topCandidate.track.isrc });
-            if (cached) return { kind: "resolved", result: cached };
+            if (cached) {
+              return {
+                kind: "resolved",
+                result: { ...cached, links: await filterDisabledLinks(cached.links) },
+              };
+            }
           }
 
           const links = await resolveAcrossServices(topCandidate.track, adapter);
@@ -437,7 +448,12 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
         // Cache lookup by ISRC before full resolve
         if (result.track.isrc) {
           const cached = await tryCache({ isrc: result.track.isrc });
-          if (cached) return { kind: "resolved", result: cached };
+          if (cached) {
+            return {
+              kind: "resolved",
+              result: { ...cached, links: await filterDisabledLinks(cached.links) },
+            };
+          }
         }
 
         const links = await resolveAcrossServices(result.track, adapter);
@@ -479,7 +495,7 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
   // Cache lookup by ISRC before full cross-service resolve
   if (sourceTrack.isrc) {
     const cached = await tryCache({ isrc: sourceTrack.isrc });
-    if (cached) return cached;
+    if (cached) return { ...cached, links: await filterDisabledLinks(cached.links) };
   }
 
   const links = await resolveAcrossServices(sourceTrack, adapter);
@@ -749,7 +765,7 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
   // ISRC cache check
   if (bestSourceTrack.isrc) {
     const cached = await tryCache({ isrc: bestSourceTrack.isrc });
-    if (cached) return cached;
+    if (cached) return { ...cached, links: await filterDisabledLinks(cached.links) };
   }
 
   // Resolve across all other services

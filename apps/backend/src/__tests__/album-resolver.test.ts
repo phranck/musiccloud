@@ -122,6 +122,7 @@ vi.mock("../services/index.js", () => ({
   identifyService: vi.fn(),
   identifyServiceIncludingDisabled: vi.fn().mockResolvedValue(undefined),
   isPluginEnabled: vi.fn().mockResolvedValue(true),
+  filterDisabledLinks: vi.fn(async <T>(links: T[]) => links),
 }));
 
 // Import AFTER mocks are set up

@@ -6,7 +6,7 @@ import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { stringSimilarity } from "../lib/resolve/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "./constants.js";
-import { getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
+import { filterDisabledLinks, getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
 import type { ArtistMatchResult, ArtistSearchQuery, NormalizedArtist, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
 
@@ -79,7 +79,7 @@ async function fillMissingArtistServices(cached: ArtistResolutionResult): Promis
     (a) => Boolean(a.artistCapabilities) && !coveredServices.has(a.id) && a.id !== cached.sourceArtist.sourceService,
   );
 
-  if (missingAdapters.length === 0) return cached;
+  if (missingAdapters.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
   log.debug("ArtistResolver", `Gap-filling ${missingAdapters.length} new services for cached artist`);
 
@@ -92,7 +92,7 @@ async function fillMissingArtistServices(cached: ArtistResolutionResult): Promis
     }
   }
 
-  if (newLinks.length === 0) return cached;
+  if (newLinks.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
   if (cached.artistId) {
     try {
@@ -126,7 +126,7 @@ async function fillMissingArtistServices(cached: ArtistResolutionResult): Promis
     }
   }
 
-  return { sourceArtist, links: allLinks, artistId: cached.artistId };
+  return { sourceArtist, links: await filterDisabledLinks(allLinks), artistId: cached.artistId };
 }
 
 // --- Per-service resolution ---

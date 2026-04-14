@@ -141,3 +141,15 @@ export async function isPluginEnabled(id: ServiceId): Promise<boolean> {
   const enabled = await getEnabledMap();
   return enabled.get(id) === true;
 }
+
+/**
+ * Drop entries whose `service` corresponds to a plugin that is currently
+ * toggled off. Links for services with no plugin (e.g. derived
+ * `youtube-music` cross-links) pass through — the admin has no direct
+ * toggle over them. Used to filter cached resolve results so disabled
+ * services don't reappear on share pages after a toggle.
+ */
+export async function filterDisabledLinks<T extends { service: string }>(links: T[]): Promise<T[]> {
+  const enabled = await getEnabledMap();
+  return links.filter((l) => enabled.get(l.service as ServiceId) !== false);
+}

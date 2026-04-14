@@ -4,7 +4,7 @@ import { CACHE_TTL_MS } from "../lib/config.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
-import { getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
+import { filterDisabledLinks, getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
 import type { AlbumMatchResult, AlbumSearchQuery, NormalizedAlbum, ServiceAdapter, ServiceId } from "./types.js";
 import { isValidServiceId } from "./types.js";
 
@@ -82,7 +82,7 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
     (a) => Boolean(a.albumCapabilities) && !coveredServices.has(a.id) && a.id !== cached.sourceAlbum.sourceService,
   );
 
-  if (missingAdapters.length === 0) return cached;
+  if (missingAdapters.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
   log.debug("AlbumResolver", `Gap-filling ${missingAdapters.length} new services for cached album`);
 
@@ -95,7 +95,7 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
     }
   }
 
-  if (newLinks.length === 0) return cached;
+  if (newLinks.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
   if (cached.albumId) {
     try {
@@ -129,7 +129,7 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
     }
   }
 
-  return { sourceAlbum, links: allLinks, albumId: cached.albumId };
+  return { sourceAlbum, links: await filterDisabledLinks(allLinks), albumId: cached.albumId };
 }
 
 // ─── ISRC-based album inference ───────────────────────────────────────────────
