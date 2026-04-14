@@ -27,6 +27,19 @@
   position: relative;
 }
 
+/* Per-surface highlight/shadow colors (HSL with alpha). Overridable via
+   inline style for custom-contrast cases like the accent "Copy Share Link"
+   button. Defaults match the original rgba(255,255,255,…) / rgba(0,0,0,…)
+   stops below. */
+.embossed-gradient-border {
+  --neu-light: hsl(0 0% 100% / 0.18);
+  --neu-shadow: hsl(0 0% 0% / 0.35);
+}
+.recessed-gradient-border {
+  --neu-light: hsl(0 0% 100% / 0.16);
+  --neu-shadow: hsl(0 0% 0% / 0.28);
+}
+
 .embossed-gradient-border::before,
 .recessed-gradient-border::before {
   content: "";
@@ -58,19 +71,19 @@
 .embossed-gradient-border::before {
   background: linear-gradient(
     to bottom right,
-    rgba(255, 255, 255, 0.18),
-    rgba(255, 255, 255, 0.18) calc(50% - var(--neu-radius) / 2.5),
-    rgba(0, 0, 0, 0.35) calc(50% + var(--neu-radius) / 2.5),
-    rgba(0, 0, 0, 0.35)
+    var(--neu-light),
+    var(--neu-light) calc(50% - var(--neu-radius) / 2.5),
+    var(--neu-shadow) calc(50% + var(--neu-radius) / 2.5),
+    var(--neu-shadow)
   );
 }
 
 .recessed-gradient-border::before {
   background: linear-gradient(
     to bottom right,
-    rgba(0, 0, 0, 0.28),
-    rgba(0, 0, 0, 0.28) calc(50% - var(--neu-radius) / 2.5),
-    rgba(255, 255, 255, 0.16) calc(50% + var(--neu-radius) / 2.5),
-    rgba(255, 255, 255, 0.16)
+    var(--neu-shadow),
+    var(--neu-shadow) calc(50% - var(--neu-radius) / 2.5),
+    var(--neu-light) calc(50% + var(--neu-radius) / 2.5),
+    var(--neu-light)
   );
 }
