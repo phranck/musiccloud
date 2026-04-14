@@ -45,7 +45,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  padding: 1px;
+  padding: var(--neu-border-width, 1px);
   border-radius: inherit;
   /* Subtract the content-box from the border-box → only the 1px strip remains.
      Note: LightningCSS (used by Tailwind v4) collapses `mask-composite` and

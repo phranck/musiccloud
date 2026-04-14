@@ -5,6 +5,8 @@ interface RecessedCardProps {
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  /** Width of the gradient border. Defaults to 1px. */
+  borderWidth?: string;
 }
 
 /**
@@ -15,11 +17,16 @@ interface RecessedCardProps {
  * No default border-radius -- the caller must set it to match
  * the rule: outer radius - padding = inner radius.
  */
-export function RecessedCard({ children, className, style }: RecessedCardProps) {
+export function RecessedCard({ children, className, style, borderWidth }: RecessedCardProps) {
+  const mergedStyle: React.CSSProperties = {
+    ...recessedStyle,
+    ...(borderWidth ? ({ "--neu-border-width": borderWidth } as React.CSSProperties) : {}),
+    ...style,
+  };
   return (
     <div
       className={cn("recessed-gradient-border bg-black/25 backdrop-blur-md p-4 overflow-hidden", className)}
-      style={{ ...recessedStyle, ...style }}
+      style={mergedStyle}
     >
       {children}
     </div>

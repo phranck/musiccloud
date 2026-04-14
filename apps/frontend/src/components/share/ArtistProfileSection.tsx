@@ -1,4 +1,5 @@
 import type { ArtistProfile } from "@musiccloud/shared";
+import { RecessedCard } from "@/components/cards/RecessedCard";
 
 interface ArtistProfileSectionProps {
   profile: ArtistProfile;
@@ -10,16 +11,27 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
     <>
       <div className="flex gap-4">
         {profile.imageUrl && (
-          <img
-            src={profile.imageUrl}
-            alt=""
-            width={96}
-            height={96}
-            className="w-24 h-24 rounded-xl object-cover flex-none"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
+          <RecessedCard className="rounded-xl p-0 w-24 h-24 flex-none relative overflow-hidden" borderWidth="2px">
+            <img
+              src={profile.imageUrl}
+              alt=""
+              width={96}
+              height={96}
+              className="w-full h-full object-cover rounded-[inherit]"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+            {/* Inner shadow overlay: same visual deboss feel as the
+                PlaybackButton's iconInnerShadow filter, but implemented
+                with box-shadow: inset since raster images have no alpha
+                edges for the SVG filter to hook into. */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 rounded-[inherit] pointer-events-none"
+              style={{ boxShadow: "inset 2px 2px 6px rgba(0,0,0,0.9)" }}
+            />
+          </RecessedCard>
         )}
         <div className="min-w-0 flex-1 pt-1">
           {profile.genres.length > 0 && (
