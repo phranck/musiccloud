@@ -78,7 +78,11 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
 
   useEffect(() => {
     const audio = new Audio();
-    audio.preload = "none";
+    // `metadata` lets the browser fetch just the audio headers on mount, so a
+    // dead URL (404 / CORS / unplayable codec) surfaces an `error` event
+    // immediately instead of only after the user clicks Play. That keeps the
+    // Play button from appearing active for an unavailable preview.
+    audio.preload = "metadata";
     audio.src = previewUrl;
 
     audio.addEventListener("loadedmetadata", () => {
