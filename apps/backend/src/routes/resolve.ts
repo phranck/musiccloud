@@ -101,9 +101,12 @@ export default async function resolveRoutes(app: FastifyInstance) {
     {
       schema: {
         tags: ["Resolve"],
-        summary: "Resolve a music URL or free-text query",
+        summary: "Resolve a music URL, free-text query, or genre-discovery query",
         description:
-          "Accepts a streaming-service URL or a free-text query. Returns unified metadata (track, album, or artist) or a disambiguation list when a text search yields multiple plausible matches. A follow-up call with `selectedCandidate` completes the resolve.",
+          "Accepts one of three query shapes:\n" +
+          "1. A streaming-service URL (e.g. `https://open.spotify.com/track/...`) — returns unified cross-service metadata.\n" +
+          "2. A free-text query — returns either a resolved match or a disambiguation list (follow up with `selectedCandidate` to complete).\n" +
+          "3. A genre-discovery query starting with `genre:` (e.g. `genre: jazz|r&b, tracks: 20, vibe: mixed`) — returns up to three parallel candidate lists (tracks, albums, artists) sourced from Deezer's chart API. Supported fields: `genre` (required, `|` = OR), `tracks`/`albums`/`artists` (1–50), `vibe` (`hot` or `mixed`).",
         security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
         body: {
           type: "object",
@@ -129,7 +132,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
         response: {
           200: {
             description:
-              "Success: either a resolved track/album/artist (`UnifiedResolveSuccessResponse`) or a disambiguation list (`ResolveDisambiguationResponse`).",
+              "Success. One of three discriminated variants: a resolved track/album/artist (`UnifiedResolveSuccessResponse`), a disambiguation list (`ResolveDisambiguationResponse` with `status: \"disambiguation\"`), or a genre-discovery result (`ResolveGenreSearchResponse` with `status: \"genre-search\"` and a `results` object carrying nullable `tracks`/`albums`/`artists` arrays).",
             type: "object",
             additionalProperties: true,
           },
