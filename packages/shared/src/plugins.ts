@@ -10,7 +10,7 @@ export interface PluginCapabilities {
 }
 
 /**
- * Shape returned by `GET /api/admin/plugins` — one entry per installed
+ * Shape returned by `GET /api/admin/plugins`: one entry per installed
  * plugin. Combines static manifest data (displayName, description,
  * requiredEnv, defaultEnabled) with runtime state (enabled, available,
  * missingEnv).
@@ -21,7 +21,7 @@ export interface PluginInfo {
   description: string;
   /** Admin toggle state (DB override or manifest.defaultEnabled). */
   enabled: boolean;
-  /** `adapter.isAvailable()` — credentials present / reachable. */
+  /** `adapter.isAvailable()`: credentials present / reachable. */
   available: boolean;
   requiredEnv: readonly string[];
   /** Subset of requiredEnv whose values are missing from process.env. */
@@ -35,7 +35,7 @@ export interface PluginInfo {
 
 /**
  * Shape returned by the public `GET /api/v1/services/active` endpoint.
- * Trimmed down: no secrets, no capability internals — only what the
+ * Trimmed down: no secrets, no capability internals: only what the
  * public frontend (marquee, resolve pages) needs to render.
  */
 export interface ActiveService {

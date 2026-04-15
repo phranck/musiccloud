@@ -44,7 +44,7 @@
  *   accepted and transparently mapped to their MC equivalents via
  *   {@link LEGACY_TO_MC}, so migration can proceed adapter by adapter.
  *
- * When a user reports an error, grep this file for the code — each entry
+ * When a user reports an error, grep this file for the code: each entry
  * points at the file/function where the throw originates.
  */
 
@@ -69,7 +69,7 @@ export interface ErrorCodeEntry {
    * user can quote it in bug reports.
    */
   userMessage: string;
-  /** Short note for maintainers — why this code exists, what happened. */
+  /** Short note for maintainers: why this code exists, what happened. */
   internalNote: string;
   /** File path + function hint for fast grep-to-source. */
   source: string;
@@ -77,7 +77,7 @@ export interface ErrorCodeEntry {
 
 /**
  * Legacy coarse error codes (used before the MC system existed). Kept alive
- * for backwards compatibility — the resolver, URL validator, and route
+ * for backwards compatibility: the resolver, URL validator, and route
  * handler can continue emitting these until each adapter is migrated to an
  * MC code explicitly.
  */
@@ -145,7 +145,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
   "MC-URL-0004": {
     code: "MC-URL-0004",
     httpStatus: 400,
-    userMessage: "Playlists aren't supported yet — paste a link to a single track or album instead.",
+    userMessage: "Playlists aren't supported yet. Paste a link to a single track or album instead.",
     internalNote: "URL identifies a playlist; we only support tracks/albums/artists.",
     source: "apps/backend/src/lib/platform/url.ts validateMusicUrl",
   },
@@ -160,7 +160,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     code: "MC-URL-0006",
     httpStatus: 400,
     userMessage: "Try pasting a link to a specific song or open the album page and share from there.",
-    internalNote: "Legacy — older clients used this when album URLs weren't yet supported. Retained for compat.",
+    internalNote: "Legacy: older clients used this when album URLs weren't yet supported. Retained for compat.",
     source: "apps/backend/src/lib/platform/url.ts validateMusicUrl",
   },
   "MC-URL-0007": {
@@ -200,13 +200,13 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     code: "MC-API-0002",
     httpStatus: 503,
     userMessage: "All services are currently unreachable. Please try again in a few minutes.",
-    internalNote: "Every adapter threw or returned nothing — likely a network-wide issue.",
+    internalNote: "Every adapter threw or returned nothing: likely a network-wide issue.",
     source: "apps/backend/src/services/resolver.ts",
   },
   "MC-API-0003": {
     code: "MC-API-0003",
     httpStatus: 429,
-    userMessage: "Too many requests — please wait a moment and try again.",
+    userMessage: "Too many requests. Please wait a moment and try again.",
     internalNote: "Rate limiter tripped. See apps/backend/src/lib/infra/rate-limiter.ts.",
     source: "apps/backend/src/routes/resolve.ts apiRateLimiter",
   },
@@ -214,7 +214,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     code: "MC-API-0004",
     httpStatus: 500,
     userMessage: "Something went wrong talking to a service. Please try again.",
-    internalNote: "Unhandled exception in the resolve pipeline. Legacy mapping — prefer a specific code.",
+    internalNote: "Unhandled exception in the resolve pipeline. Legacy mapping: prefer a specific code.",
     source: "apps/backend/src/routes/resolve.ts catch-all",
   },
   "MC-API-0005": {
@@ -237,7 +237,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     code: "MC-API-1404",
     httpStatus: 404,
     userMessage: "Apple Music doesn't have this {kind} in the {storefront} region.",
-    internalNote: "Catalog returned 404 — the id is regional and doesn't exist in the storefront we queried.",
+    internalNote: "Catalog returned 404: the id is regional and doesn't exist in the storefront we queried.",
     source: "apps/backend/src/services/plugins/apple-music/adapter.ts getTrack/getAlbum/getArtist",
   },
   "MC-API-1429": {
@@ -251,7 +251,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     code: "MC-AUTH-1401",
     httpStatus: 503,
     userMessage: "Apple Music rejected our credentials. The dev token may be expired or misconfigured.",
-    internalNote: "401 from Apple Music — JWT signature/issuer rejected. Check APPLE_MUSIC_KEY_ID/TEAM_ID/PRIVATE_KEY.",
+    internalNote: "401 from Apple Music: JWT signature/issuer rejected. Check APPLE_MUSIC_KEY_ID/TEAM_ID/PRIVATE_KEY.",
     source: "apps/backend/src/services/plugins/apple-music/adapter.ts",
   },
   "MC-CFG-1001": {
@@ -265,7 +265,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     code: "MC-AUTH-1501",
     httpStatus: 503,
     userMessage: "Apple Music token signing failed on the server.",
-    internalNote: "JWT signing threw — the private key is malformed or not valid PKCS8.",
+    internalNote: "JWT signing threw: the private key is malformed or not valid PKCS8.",
     source: "apps/backend/src/services/plugins/apple-music/adapter.ts generateToken",
   },
 
@@ -296,7 +296,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     code: "MC-CFG-2001",
     httpStatus: 503,
     userMessage: "Qobuz is not configured on this server.",
-    internalNote: "QOBUZ_EMAIL or QOBUZ_PASSWORD env var is missing — no auth token can be obtained.",
+    internalNote: "QOBUZ_EMAIL or QOBUZ_PASSWORD env var is missing: no auth token can be obtained.",
     source: "apps/backend/src/services/plugins/qobuz/adapter.ts fetchAuthToken",
   },
 };
@@ -313,7 +313,7 @@ const MC_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP)-\d{3,4}$/;
  * 3. Well-formed MC code with no registry entry: synthesise a generic entry
  *    that **keeps the original code**. This lets `serviceHttpError` etc.
  *    emit per-adapter codes (`MC-API-3001`, `MC-API-8404`, …) without
- *    requiring a registry entry per (adapter × failure type) — the code is
+ *    requiring a registry entry per (adapter × failure type): the code is
  *    still grep-able to the helper that produced it. Specific entries can
  *    be added later when a particular failure deserves a tailored message.
  * 4. Anything else: fall back to the catch-all `MC-API-0004`.
@@ -331,8 +331,8 @@ export function getErrorEntry(code: string): ErrorCodeEntry {
       code: code as McErrorCode,
       httpStatus: defaultHttpStatusForArea(area),
       userMessage: defaultMessageForArea(area),
-      internalNote: "Synthesised entry — no specific registry entry for this code yet.",
-      source: "(dynamic — see the helper that produced this code, e.g. serviceHttpError)",
+      internalNote: "Synthesised entry: no specific registry entry for this code yet.",
+      source: "(dynamic: see the helper that produced this code, e.g. serviceHttpError)",
     };
   }
   return ERROR_CODE_REGISTRY["MC-API-0004"];

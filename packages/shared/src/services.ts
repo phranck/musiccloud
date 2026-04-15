@@ -1,6 +1,6 @@
 /**
  * Namespace of service identifiers. Prefer these constants over raw string
- * literals at call sites (`serviceHttpError(SERVICE.QOBUZ, …)`) — they give
+ * literals at call sites (`serviceHttpError(SERVICE.QOBUZ, …)`): they give
  * IDE autocomplete, grep-ability (`SERVICE.QOBUZ` is unique; `"qobuz"` is
  * everywhere), and compile-time typo protection.
  */

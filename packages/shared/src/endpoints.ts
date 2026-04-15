@@ -31,7 +31,7 @@
  * ## How to extend
  *
  * Add the entry here first, then use it at every call site. If you need a
- * new sub-group, add a new nested object — keep the path layout in the
+ * new sub-group, add a new nested object: keep the path layout in the
  * registry matching the URL exactly so a code reader can grep both ways.
  */
 
@@ -40,32 +40,32 @@
 // -----------------------------------------------------------------------------
 
 export const ENDPOINTS = {
-  /** `/api/v1/...` — public, versioned API. */
+  /** `/api/v1/...`: public, versioned API. */
   v1: {
     /** Resolve a music URL or text query. POST for full-feature, GET for read-only. */
     resolve: "/api/v1/resolve",
-    /** GET `/api/v1/share/:shortId` — fetch a previously-resolved share. */
+    /** GET `/api/v1/share/:shortId`: fetch a previously-resolved share. */
     share: (shortId: string) => `/api/v1/share/${shortId}`,
-    /** GET `/api/v1/artist-info?…` — Last.fm + Ticketmaster aggregated artist info. */
+    /** GET `/api/v1/artist-info?…`: Last.fm + Ticketmaster aggregated artist info. */
     artistInfo: "/api/v1/artist-info",
-    /** GET `/api/v1/random-example` — pick a random short URL (track or album). */
+    /** GET `/api/v1/random-example`: pick a random short URL (track or album). */
     randomExample: "/api/v1/random-example",
-    /** GET `/api/v1/link/:id` — link metadata by id. */
+    /** GET `/api/v1/link/:id`: link metadata by id. */
     link: (id: string) => `/api/v1/link/${id}`,
     siteSettings: {
-      /** GET — public site settings exposed to the frontend (currently: tracking flag). */
+      /** GET: public site settings exposed to the frontend (currently: tracking flag). */
       tracking: "/api/v1/site-settings/tracking",
     },
     services: {
-      /** GET — list of currently enabled + available resolve plugins.
+      /** GET: list of currently enabled + available resolve plugins.
        * Feeds the Marquee and resolve/embed pages at SSR time. */
       active: "/api/v1/services/active",
     },
   },
 
-  /** `/api/auth/...` — public auth endpoints (machine-to-machine token issuance). */
+  /** `/api/auth/...`: public auth endpoints (machine-to-machine token issuance). */
   auth: {
-    /** POST — exchange a long-lived secret for a short-lived JWT. */
+    /** POST: exchange a long-lived secret for a short-lived JWT. */
     token: "/api/auth/token",
   },
 
@@ -78,117 +78,117 @@ export const ENDPOINTS = {
    * origin from the backend in prod.
    */
   frontend: {
-    /** POST — React components call this; Astro forwards to `ENDPOINTS.v1.resolve`. */
+    /** POST: React components call this; Astro forwards to `ENDPOINTS.v1.resolve`. */
     resolve: "/api/resolve",
-    /** GET — forwarded to `ENDPOINTS.v1.randomExample`. */
+    /** GET: forwarded to `ENDPOINTS.v1.randomExample`. */
     randomExample: "/api/random-example",
-    /** GET — forwarded to `ENDPOINTS.v1.artistInfo`. */
+    /** GET: forwarded to `ENDPOINTS.v1.artistInfo`. */
     artistInfo: "/api/artist-info",
-    /** GET — handled entirely by Astro (`pages/api/redirect.ts`): takes `?url=`,
+    /** GET: handled entirely by Astro (`pages/api/redirect.ts`): takes `?url=`,
      * calls `ENDPOINTS.v1.resolve`, then 302s to the resolved share page. */
     redirect: "/api/redirect",
     /** Umami analytics proxy prefix (script.js + event endpoint live beneath). */
     umami: "/api/mc",
-    /** GET — forwarded to `ENDPOINTS.v1.services.active`. */
+    /** GET: forwarded to `ENDPOINTS.v1.services.active`. */
     activeServices: "/api/services/active",
   },
 
-  /** `/api/admin/...` — admin dashboard endpoints (JWT-protected). */
+  /** `/api/admin/...`: admin dashboard endpoints (JWT-protected). */
   admin: {
     auth: {
-      /** GET — whether an admin account already exists. */
+      /** GET: whether an admin account already exists. */
       setupStatus: "/api/admin/auth/setup-status",
-      /** POST — create the initial admin account (one-time). */
+      /** POST: create the initial admin account (one-time). */
       setup: "/api/admin/auth/setup",
-      /** POST — log in with email + password. */
+      /** POST: log in with email + password. */
       login: "/api/admin/auth/login",
-      /** GET — currently authenticated admin. */
+      /** GET: currently authenticated admin. */
       me: "/api/admin/auth/me",
-      /** POST — refresh the JWT. */
+      /** POST: refresh the JWT. */
       refresh: "/api/admin/auth/refresh",
     },
 
     users: {
-      /** GET — list / POST — create. */
+      /** GET: list / POST: create. */
       list: "/api/admin/users",
-      /** PATCH / DELETE — single user by id. */
+      /** PATCH / DELETE: single user by id. */
       detail: (id: string) => `/api/admin/users/${id}`,
-      /** POST — upload, PATCH — set, DELETE — remove a user's avatar. */
+      /** POST: upload, PATCH: set, DELETE: remove a user's avatar. */
       avatar: (id: string) => `/api/admin/users/${id}/avatar`,
     },
 
     tracks: {
-      /** GET — list / DELETE — bulk delete (ids in body). */
+      /** GET: list / DELETE: bulk delete (ids in body). */
       list: "/api/admin/tracks",
-      /** GET — fetch one / PATCH — update one. */
+      /** GET: fetch one / PATCH: update one. */
       detail: (id: string) => `/api/admin/tracks/${id}`,
-      /** POST — mark this track's cached resolution as stale; share URL stays alive. */
+      /** POST: mark this track's cached resolution as stale; share URL stays alive. */
       invalidateCache: (shortId: string) => `/api/admin/tracks/${shortId}/invalidate-cache`,
     },
 
     albums: {
-      /** GET — list / DELETE — bulk delete. */
+      /** GET: list / DELETE: bulk delete. */
       list: "/api/admin/albums",
-      /** POST — mark this album's cached resolution as stale. */
+      /** POST: mark this album's cached resolution as stale. */
       invalidateCache: (shortId: string) => `/api/admin/albums/${shortId}/invalidate-cache`,
     },
 
     artists: {
-      /** GET — list / DELETE — bulk delete. */
+      /** GET: list / DELETE: bulk delete. */
       list: "/api/admin/artists",
-      /** POST — mark this artist's cached resolution as stale. */
+      /** POST: mark this artist's cached resolution as stale. */
       invalidateCache: (shortId: string) => `/api/admin/artists/${shortId}/invalidate-cache`,
     },
 
     cache: {
-      /** POST — bulk: stale every track + album + artist. Share URLs stay alive. */
+      /** POST: bulk: stale every track + album + artist. Share URLs stay alive. */
       invalidateAll: "/api/admin/cache/invalidate-all",
-      /** POST — drop the artist-info (top tracks / profile / tour dates) cache. */
+      /** POST: drop the artist-info (top tracks / profile / tour dates) cache. */
       artistClear: "/api/admin/artist-cache/clear",
     },
 
-    /** GET — counts of tracks / albums / artists in the DB. */
+    /** GET: counts of tracks / albums / artists in the DB. */
     dataCounts: "/api/admin/data-counts",
-    /** POST — destructive: nuke all tracks, albums, artists, links, short URLs. */
+    /** POST: destructive: nuke all tracks, albums, artists, links, short URLs. */
     resetAll: "/api/admin/reset-all",
-    /** GET — aggregated stats. */
+    /** GET: aggregated stats. */
     stats: "/api/admin/stats",
-    /** GET — admin activity log (SSE). */
+    /** GET: admin activity log (SSE). */
     events: "/api/admin/events",
 
     siteSettings: {
-      /** GET — read all site settings / PATCH — update. */
+      /** GET: read all site settings / PATCH: update. */
       base: "/api/admin/site-settings",
     },
 
     plugins: {
-      /** GET — list all installed resolve plugins with their runtime state. */
+      /** GET: list all installed resolve plugins with their runtime state. */
       list: "/api/admin/plugins",
-      /** PATCH — toggle a plugin on/off. Body: { enabled: boolean }. */
+      /** PATCH: toggle a plugin on/off. Body: { enabled: boolean }. */
       detail: (id: string) => `/api/admin/plugins/${id}`,
     },
 
     analytics: {
-      /** GET — overall stats summary (visitors, pageviews, bounce, duration). */
+      /** GET: overall stats summary (visitors, pageviews, bounce, duration). */
       stats: "/api/admin/analytics/stats",
-      /** GET — pageviews timeline. */
+      /** GET: pageviews timeline. */
       pageviews: "/api/admin/analytics/pageviews",
-      /** GET — top metric (url / referrer / country / browser / etc.). Type via ?type=… */
+      /** GET: top metric (url / referrer / country / browser / etc.). Type via ?type=… */
       metrics: "/api/admin/analytics/metrics",
-      /** GET — currently active visitors count. */
+      /** GET: currently active visitors count. */
       active: "/api/admin/analytics/active",
-      /** GET — realtime active visitors + top pages. */
+      /** GET: realtime active visitors + top pages. */
       realtime: "/api/admin/analytics/realtime",
       events: {
-        /** GET — track-resolve events (timeline). */
+        /** GET: track-resolve events (timeline). */
         resolves: "/api/admin/analytics/events/resolves",
-        /** GET — track-resolve events (total count). */
+        /** GET: track-resolve events (total count). */
         resolvesTotal: "/api/admin/analytics/events/resolves/total",
-        /** GET — service-link-click events (timeline). */
+        /** GET: service-link-click events (timeline). */
         linkClicks: "/api/admin/analytics/events/link-clicks",
-        /** GET — service-link-click events (total count). */
+        /** GET: service-link-click events (total count). */
         linkClicksTotal: "/api/admin/analytics/events/link-clicks/total",
-        /** GET — interactions (total count). */
+        /** GET: interactions (total count). */
         interactionsTotal: "/api/admin/analytics/events/interactions/total",
       },
     },
@@ -196,7 +196,7 @@ export const ENDPOINTS = {
 } as const;
 
 // -----------------------------------------------------------------------------
-// Backend route templates — Fastify needs `:param` syntax for parameterised
+// Backend route templates: Fastify needs `:param` syntax for parameterised
 // paths. Keeping these in lockstep with the function-form constants above
 // guarantees both consumers point at the same URL.
 // -----------------------------------------------------------------------------

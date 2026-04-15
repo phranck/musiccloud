@@ -48,7 +48,7 @@ export interface ResolveErrorResponse {
   error: string;
   /**
    * User-facing message. Ends with the canonical code in parentheses so it
-   * can be quoted verbatim in bug reports — e.g. "Track not found.
+   * can be quoted verbatim in bug reports: e.g. "Track not found.
    * (MC-RES-0001)".
    */
   message: string;
