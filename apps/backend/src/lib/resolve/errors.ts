@@ -1,7 +1,27 @@
+/**
+ * Two error classes for two audiences.
+ *
+ * `ServiceError` is adapter-internal: thrown inside a plugin's private
+ * helpers when an upstream call fails, always carries a canonical MC code,
+ * and gets caught by the adapter's own catch block before it reaches the
+ * resolver. It exists so adapter internals can fail with a structured code
+ * instead of opaque Error strings.
+ *
+ * `ResolveError` is user-facing: thrown by the resolver, album-resolver,
+ * artist-resolver, and any adapter method surfaced to the route layer.
+ * It is what the HTTP error handler maps to `{ code, message }` in the
+ * response body.
+ *
+ * Why the split instead of one class: adapters sometimes wrap a
+ * `ServiceError` in a `ResolveError` with richer context (e.g. include the
+ * storefront parameter the user hit). Keeping them distinct lets the catch
+ * block decide whether to re-throw verbatim or re-wrap.
+ */
+
 import type { ErrorCode, ServiceId } from "@musiccloud/shared";
 
 export type { ErrorCode } from "@musiccloud/shared";
-// Re-export shared error types for convenience
+// Re-export shared error types for convenience.
 export { ERROR_STATUS_MAP, USER_MESSAGES } from "@musiccloud/shared";
 
 export class ServiceError extends Error {

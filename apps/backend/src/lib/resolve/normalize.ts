@@ -1,3 +1,51 @@
+/**
+ * Track/album matching primitives.
+ *
+ * When the resolver searches a secondary service ("this Spotify track also
+ * exists on Deezer"), it gets back a list of candidates and has to decide
+ * which (if any) really matches. That decision is a score in [0, 1]. This
+ * file is the scoring rulebook.
+ *
+ * Design notes:
+ *
+ * 1. **ISRC/UPC beat everything.** The industry already has a unique
+ *    identifier for a recording (ISRC) and a release (UPC). If both sides
+ *    report the same one, the match is definitional: return 1.0 and skip
+ *    fuzzy comparison entirely. Fuzzy scoring is only the fallback for
+ *    services that do not expose the code or return a wrong one.
+ *
+ * 2. **Dice coefficient over bigrams for strings.** Dice is order-agnostic
+ *    ("Lennon John" vs "John Lennon" scores high), handles short strings
+ *    gracefully, and ships in ~10 lines. Levenshtein is sensitive to
+ *    insertion/deletion positioning and would penalise reordered artists.
+ *    External libs (fast-fuzzy, string-similarity) would add a dep for a
+ *    function we can hand-write.
+ *
+ * 3. **Artist scoring is "best pairwise average".** For each source artist,
+ *    pick the best-matching candidate artist and average those scores.
+ *    That way "A, B" vs "B, A" scores 1.0, and "A feat. B" vs "A" scores
+ *    ~0.5 instead of failing. Order-sensitive comparison would miss both.
+ *
+ * 4. **Track weights 0.4/0.4/0.2 (title/artist/duration).** Title and
+ *    artist carry equal weight; duration is a weak confirmer because
+ *    different masterings, radio edits, and explicit/clean variants drift
+ *    by a few seconds even for the "same" track.
+ *
+ * 5. **Album weights 0.35/0.35/0.15/0.15 (title/artist/year/trackcount).**
+ *    Release year alone is weak (re-releases share title+artist) but
+ *    combined with track count it distinguishes "Deluxe Edition" from
+ *    "Standard". Both remixed to 15% so title+artist still dominate.
+ *
+ * 6. **3000ms duration tolerance.** Empirical: matching masterings usually
+ *    agree within 1s, plus ~2s of rounding between services' seconds-vs-ms
+ *    precision. Tighter thresholds rejected too many genuine matches.
+ *
+ * 7. **YouTube-only title stripping.** Official uploads bake "(Official
+ *    Music Video)", "(Audio)", "[Lyrics Video]", "(HD)" into the title.
+ *    Other services return clean metadata, so applying these rules
+ *    globally would corrupt titles that legitimately contain those words.
+ */
+
 import type { ServiceId } from "../../services/types";
 
 export function normalizeTitle(title: string, service: ServiceId): string {

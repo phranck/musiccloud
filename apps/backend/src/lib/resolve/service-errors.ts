@@ -1,3 +1,25 @@
+/**
+ * HTTP-to-MC-code translator for adapter error paths.
+ *
+ * When a plugin's `getTrack`/`getAlbum`/`getArtist` catches a non-OK response
+ * from its upstream, it must produce a `ResolveError` the route layer can
+ * turn into `{ code, message }`. Every adapter used to hand-roll that
+ * mapping, which scattered the error-code rules and drifted across
+ * services. This module is the single source of truth:
+ *
+ *   adapter catch block  ->  serviceHttpError(status, …)  ->  ResolveError
+ *
+ * Why a separate module from `errors.ts`: `errors.ts` defines the error
+ * classes (the data structure); this file defines the translation policy
+ * (status 429 becomes MC-API-NNN29 etc.). Splitting them keeps the class
+ * definitions short and lets the policy evolve without touching the types.
+ *
+ * Why per-service prefixes (1 = Apple Music, 3 = Spotify, 80 = KKBOX, …):
+ * a user reporting "I got MC-API-3404" tells us immediately that Spotify
+ * returned 404, without needing log correlation. The prefix table below
+ * mirrors `packages/shared/src/error-codes.ts` and must stay in sync.
+ */
+
 import type { Operation, ResourceKind, ServiceId } from "@musiccloud/shared";
 import { OPERATION } from "@musiccloud/shared";
 import { ResolveError } from "./errors.js";
@@ -71,7 +93,7 @@ const ADAPTER_LABEL: Record<ServiceId, string> = {
  */
 function buildSuffix(prefix: string, statusToken: string): string {
   if (prefix.length === 1) {
-    // 1xxx — three trailing digits: HTTP-statusy.
+    // 1xxx: three trailing digits, HTTP-statusy.
     return `${prefix}${statusToken.padStart(3, "0").slice(-3)}`;
   }
   // 2-digit prefix, 2-digit status hint: 8004 / 8104 / 9004 / …
@@ -89,7 +111,7 @@ function buildSuffix(prefix: string, statusToken: string): string {
  * rate-limited us. (MC-API-3429)") instead of a generic
  * "Looks like you're offline".
  *
- * `op` defaults to `OPERATION.FETCH` (canonical "look up by id") — pass
+ * `op` defaults to `OPERATION.FETCH` (canonical "look up by id"). Pass
  * `OPERATION.ISRC_LOOKUP`, `OPERATION.UPC_LOOKUP`, etc. for alternate paths.
  */
 export function serviceHttpError(
