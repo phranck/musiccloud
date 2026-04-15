@@ -1,3 +1,45 @@
+/**
+ * @file Beatport adapter: track + release resolves via __NEXT_DATA__ scraping.
+ *
+ * Keyless (always available). Beatport has no public developer API,
+ * but its Next.js-powered pages embed a `__NEXT_DATA__` JSON blob
+ * that includes structured track and release data pulled from the
+ * private API. This adapter parses that blob rather than scraping
+ * HTML, which gives it access to fields like ISRC, BPM, key, and
+ * release metadata that are not in the visible page markup.
+ *
+ * "Album" in the rest of the app maps to Beatport's "release".
+ * Release URLs are `beatport.com/release/{slug}/{id}` (not `/album/`)
+ * and the adapter routes them through `albumCapabilities`.
+ *
+ * ## Mix-name composition
+ *
+ * Beatport tracks have both `name` and `mix_name`. For display, the
+ * full title is `"Name (Mix Name)"` unless `mix_name` is the
+ * default `"Original Mix"`, in which case only `name` is used.
+ * This keeps club edits distinguishable while avoiding noisy
+ * "(Original Mix)" suffixes on bread-and-butter releases.
+ *
+ * ## Duration from `length` string fallback
+ *
+ * Modern responses carry `length_ms` (milliseconds). Some older
+ * entries only have `length` as a `"mm:ss"` string. The adapter
+ * parses the string when `length_ms` is absent.
+ *
+ * ## ISRC present but no `findByIsrc`
+ *
+ * Tracks carry an ISRC field, but Beatport exposes no ISRC-based
+ * lookup endpoint that works without auth. `capabilities.supportsIsrc`
+ * is false; the resolver falls back to text search.
+ *
+ * ## OG-title fallback parsing
+ *
+ * If `__NEXT_DATA__` parsing fails (e.g. Beatport redesigns its
+ * internals), `fetchTrackById` drops to OG-title parsing. The title
+ * format is `"Artist - Track (Mix) [Label] | Beatport"` which the
+ * regex strips down to artist + track. This path has no ISRC or
+ * duration data but at least yields a valid track row.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

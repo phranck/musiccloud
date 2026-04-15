@@ -1,3 +1,39 @@
+/**
+ * @file Melon (Korean) adapter: scraping-based track + album resolves.
+ *
+ * Keyless (always available). Same playbook as the Boomplay adapter:
+ * the melon.com web pages embed `application/ld+json` for
+ * MusicRecording / MusicAlbum, and the adapter prefers that over the
+ * weaker OG-tag fallback because the schema survives UI refreshes.
+ *
+ * ## Search via `data-song-no`
+ *
+ * Melon's search page embeds song IDs as `data-song-no="..."` HTML
+ * attributes. The adapter regex-extracts up to 5 IDs, then fetches
+ * each song page in parallel to get the structured payload. Same
+ * N+1 pattern and 5-item cap as Boomplay; same rationale.
+ *
+ * ## `byArtist` can be object or array
+ *
+ * Melon's JSON-LD block inconsistently emits `byArtist` either as a
+ * single object (`{ name: "Artist" }`) or an array of objects for
+ * multi-artist tracks. The parser branches on `Array.isArray` and
+ * normalises both into the `string[]` shape that
+ * `NormalizedTrack.artists` expects.
+ *
+ * ## No ISRC
+ *
+ * Melon's public pages do not publish ISRC. `findByIsrc` returns
+ * null; cross-service resolves into Melon always go through text
+ * search.
+ *
+ * ## Accept-Language
+ *
+ * The fetch helper sends `en-US,en;q=0.9,ko;q=0.8`. Without this,
+ * Melon returns Korean-only pages that still parse (OG fallback
+ * handles Unicode fine) but produce downstream noise when logs mix
+ * scripts. The preference hint does not change the schema content.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

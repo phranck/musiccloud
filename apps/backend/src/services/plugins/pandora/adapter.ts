@@ -18,16 +18,51 @@ import { scoreSearchCandidate } from "../_shared/confidence.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
- * Pandora Scrape Adapter
+ * @file Pandora adapter: internal API + page-scrape hybrid.
  *
- * Uses Pandora's internal REST API (www.pandora.com/api/v3/sod/search) with a
- * CSRF token extracted from the homepage cookie. Falls back to HTML scraping
- * for direct track resolution.
+ * Keyless (always available in terms of config), but Pandora geo-
+ * blocks non-US IPs and will return 403 from outside North America.
+ * The backend runs on Zerops (EU) plus Vercel (us-east-1); only the
+ * US hop gets through. Track resolution fails silently from EU
+ * deployments, which is known and intentional.
  *
- * Supports: URL detection, track resolution (scrape + API), search (internal API)
- * No auth needed - CSRF token is public and extracted on demand.
- * Note: Pandora is US-only. Requests from non-US IPs may be blocked.
- * On Vercel (us-east-1) this works fine.
+ * ## CSRF token from homepage cookie
+ *
+ * The search endpoint (`/api/v3/sod/search`) is a POST that requires
+ * a CSRF token supplied BOTH in the `X-CsrfToken` header AND in a
+ * `Cookie: csrftoken=...` value. The token itself is minted from the
+ * `set-cookie` response when hitting the homepage, then cached for
+ * 24h. `fetchCsrfToken` is coalesced through `csrfTokenPromise` so
+ * concurrent requests share one homepage fetch.
+ *
+ * ## Two resolution paths
+ *
+ * `getTrack` first tries the embedded `storeData` JSON from the
+ * track page (`extractFromStore`), then falls back to JSON-LD
+ * (`extractFromJsonLd`). `storeData` is richer (ISRC, explicitness,
+ * duration) but only present for logged-out crawler views; JSON-LD
+ * is a cross-browser floor.
+ *
+ * ## URL format: four-part slug
+ *
+ * Pandora track URLs have four slug segments:
+ * `pandora.com/artist/{artist}/{album}/{track}/TR{trackId}`. The
+ * track ID is the `TR`-prefixed last segment; `detectUrl` captures
+ * everything after `/artist/` which is what the scrape endpoint
+ * wants back.
+ *
+ * ## Artwork URL: relative paths
+ *
+ * Pandora's `icon.artUrl` can be either a full URL or a relative
+ * path that needs prepending with `content-images.p-cdn.com/`.
+ * `buildArtworkUrl` handles both.
+ *
+ * ## No ISRC-lookup endpoint
+ *
+ * Pandora has ISRC metadata per track but no ISRC-to-track endpoint
+ * is reachable without an authenticated subscriber session.
+ * `findByIsrc` is not implemented; the resolver falls back to text
+ * search.
  */
 
 // URL format: pandora.com/artist/{artist}/{album}/{track}/{trackId}

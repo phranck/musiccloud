@@ -1,3 +1,57 @@
+/**
+ * @file Spotify adapter: track + album + artist resolves against the Web API.
+ *
+ * Credentialed: requires `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`
+ * from the Spotify Developer Dashboard. Token lifecycle goes through
+ * the shared `TokenManager` (OAuth 2.0 client credentials flow).
+ *
+ * Spotify plays three distinct roles in the resolve pipeline:
+ *
+ * 1. **Disambiguation source.** The text-search variant with
+ *    candidates (`searchTrackWithCandidates`) is implemented here and
+ *    used by the POST resolve endpoint when the user enters free
+ *    text and multiple plausible matches exist. Spotify's search
+ *    relevance is the best of the credentialed services, so it is
+ *    tried first in that flow.
+ * 2. **Artwork provider.** When a source track lacks `artworkUrl`
+ *    but has an ISRC, the resolver falls back to Spotify's
+ *    `findByIsrc` to pull its artwork. Spotify serves consistent
+ *    high-resolution images.
+ * 3. **Genre provider.** The artist resolver uses Spotify's
+ *    `getArtist` specifically for the `genres` field, which almost
+ *    no other service exposes reliably.
+ *
+ * ## Two search methods
+ *
+ * `searchTrack` (one-shot match) and `searchTrackWithCandidates`
+ * (disambiguation) coexist because the cross-service resolve
+ * (resolver.ts) calls `searchTrack` with structured queries and does
+ * not need candidates, while the POST route calls
+ * `searchTrackWithCandidates` for free-text input so it can surface
+ * a picker UI.
+ *
+ * ## Structured vs free-text query syntax
+ *
+ * Both search methods branch on `query.title === query.artist` (the
+ * resolver's free-text signal). Structured queries use Spotify's
+ * field syntax (`track:X artist:Y album:Z`) which scopes the search
+ * to those fields; free-text queries pass the raw string, trusting
+ * Spotify's relevance ranking.
+ *
+ * ## Preview URL expiry
+ *
+ * Spotify preview URLs expire after roughly 30 to 60 days. The
+ * resolver deliberately overwrites them with Deezer previews when
+ * available (see `resolver.ts`). The `previewUrl` field is still
+ * populated here so that Spotify-only tracks have a working preview
+ * for that 30-60d window.
+ *
+ * ## `intl-<locale>` URL prefix
+ *
+ * Spotify URLs can include an optional `intl-de` / `intl-fr` segment
+ * inserted by the web player in localized regions. The regexes allow
+ * both the base and the intl-prefixed forms.
+ */
 import { OPERATION, RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

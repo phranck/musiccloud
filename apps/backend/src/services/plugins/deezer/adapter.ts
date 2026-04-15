@@ -1,3 +1,51 @@
+/**
+ * @file Deezer adapter: full-featured API client against the public Deezer API.
+ *
+ * Keyless (always available). The public Deezer API (`api.deezer.com`)
+ * accepts unauthenticated track, album, artist, ISRC, and search
+ * queries. No credentials are required, no rate limit unless abused.
+ *
+ * Deezer is the linchpin of the cross-service resolve pipeline for
+ * two reasons:
+ *
+ * 1. **Permanent preview URLs.** Deezer's preview URLs are signed
+ *    CDN links that never expire (see `lib/preview-url.ts`). Other
+ *    services (notably Spotify) issue URLs that die after 30-60 days.
+ *    The resolver preferentially plucks Deezer previews out of
+ *    cross-service results and uses them as the stable preview on
+ *    share pages.
+ * 2. **Broad coverage + keyless.** Deezer has ISRC lookups
+ *    (`/track/isrc:...`) and full album detail including track
+ *    listings, so it powers the ISRC-inference fallback used by the
+ *    album resolver when other services lack a direct UPC match.
+ *
+ * ## Error shape
+ *
+ * Deezer signals errors by returning `200 OK` with an `{ error: { ... } }`
+ * body rather than HTTP status codes. `isDeezerError` sniffs that
+ * shape so the adapter does not misread an error as a valid result.
+ *
+ * ## Structured search query syntax
+ *
+ * `searchTrack` builds a structured query (`artist:"X" track:"Y"`)
+ * when the resolver provides both fields, and a free-text query
+ * when `title === artist`. Deezer's search endpoint interprets the
+ * structured form more precisely than a plain concatenation.
+ *
+ * ## Top-track preview heuristic
+ *
+ * For album resolves, the "most popular track preview" is derived
+ * by picking the track with the highest `rank` field. This goes
+ * into `topTrackPreviewUrl` which is what the album share page's
+ * inline player uses.
+ *
+ * ## Artwork size
+ *
+ * Album responses include multiple cover sizes; `cover_xl` is
+ * roughly 1000x1000, `cover_big` roughly 500x500. The adapter
+ * prefers `cover_xl` with `cover_big` as fallback to keep the share
+ * page rendering sharp at retina resolutions.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

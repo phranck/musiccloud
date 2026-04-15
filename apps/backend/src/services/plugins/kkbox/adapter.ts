@@ -1,3 +1,43 @@
+/**
+ * @file KKBOX (Taiwan / Japan / SE Asia) adapter: full-featured API client.
+ *
+ * Credentialed: requires `KKBOX_CLIENT_ID` and `KKBOX_CLIENT_SECRET`
+ * from the KKBOX developer portal. Token lifecycle is handled by the
+ * shared `TokenManager` (OAuth 2.0 client credentials flow against
+ * `account.kkbox.com/oauth2/token`).
+ *
+ * ## Territory parameter
+ *
+ * All KKBOX endpoints require a `territory` query parameter (ISO
+ * country code). The adapter reads `KKBOX_TERRITORY` from the
+ * environment and defaults to `"TW"` (Taiwan). KKBOX's catalog
+ * varies by territory: the same track ID can be available in one
+ * region and blocked in another, so selecting the right territory
+ * affects both `getTrack` and search completeness.
+ *
+ * ## URL-format locale placeholders
+ *
+ * KKBOX URLs include two locale segments (`/tw/en/song/{id}`).
+ * The track regex allows any two-letter codes to match all shipped
+ * locales without explicit enumeration. On the output side we fall
+ * back to `/tw/en/...` URLs if the API does not include a canonical
+ * one.
+ *
+ * ## ISRC via search endpoint
+ *
+ * KKBOX has no direct ISRC-to-track endpoint, so `findByIsrc`
+ * queries the regular search endpoint with the ISRC as the query
+ * string. KKBOX indexes ISRC as searchable metadata, so the top
+ * result is usually the right track when a match exists.
+ *
+ * ## Album track listing
+ *
+ * Album pages need a separate `/albums/{id}/tracks` call in addition
+ * to `/albums/{id}` because KKBOX does not inline track listings.
+ * Failure of the track-listing call is tolerated (empty array
+ * fallback); the album still resolves but without per-track ISRCs,
+ * so downstream ISRC-based inference skips it.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

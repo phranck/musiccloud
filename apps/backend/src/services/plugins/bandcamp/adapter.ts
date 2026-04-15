@@ -1,3 +1,43 @@
+/**
+ * @file Bandcamp adapter: scraping-based track + album resolves.
+ *
+ * Keyless (always available). Bandcamp has no public API. Each
+ * artist gets their own subdomain (`{artist}.bandcamp.com`), so the
+ * sourceId for tracks and albums is the full URL rather than a
+ * numeric ID.
+ *
+ * ## JSON-LD first, OG fallback
+ *
+ * Track and album pages embed `application/ld+json` blocks
+ * (`MusicRecording` / `MusicAlbum`). The adapter prefers those for
+ * their structured artist, album, and track-listing data. If parsing
+ * fails (or the `@type` is wrong on a rare page), it falls back to
+ * OG tags: title format on Bandcamp is `"Track, by Artist"` which
+ * splits cleanly on `", by "`.
+ *
+ * ## ISO 8601 with hours (`P00H03M45S`)
+ *
+ * Bandcamp's durations have an unusual form: `P00H03M45S` (no `T`
+ * delimiter, always starts with `P`). `parseDuration` accepts this
+ * format. Unparseable values yield `undefined` so the UI can
+ * distinguish "missing" from "zero".
+ *
+ * ## Search via HTML scraping
+ *
+ * The `/search?q=...&item_type=t` endpoint returns an HTML results
+ * page, not JSON. The adapter regex-matches `<div class="result-info">`
+ * blocks, extracts track URL + title + artist per result, and caps
+ * at 5. Confidence scoring then fetches each URL in parallel to get
+ * the JSON-LD payload.
+ *
+ * ## `sourceId = full URL`
+ *
+ * Unlike most adapters, Bandcamp's sourceId is the full track/album
+ * URL rather than an extracted ID fragment. This is because tracks
+ * are only reachable via their full `{artist}.bandcamp.com/track/{slug}`
+ * shape; no numeric-ID fallback exists. Downstream consumers should
+ * treat the sourceId as opaque.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

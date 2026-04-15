@@ -22,13 +22,54 @@ import { scoreSearchCandidate } from "../_shared/confidence.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
- * SoundCloud Scrape Adapter
+ * @file SoundCloud adapter: internal API with self-extracted client_id.
  *
- * Uses SoundCloud's internal API (api-v2.soundcloud.com) with a client_id
- * extracted from the public page. Falls back to HTML scraping if API fails.
+ * Keyless (always available). SoundCloud's official developer API
+ * has been closed to new registrations for years, but the web player
+ * talks to a public `api-v2.soundcloud.com` endpoint using a
+ * `client_id` that is minted server-side and embedded in the
+ * homepage's hydration JSON. This adapter extracts that client_id
+ * on first use and caches it for 24 hours.
  *
- * Supports: URL detection, track resolution, search
- * No auth needed - client_id is public and extracted on demand.
+ * ## client_id lifecycle
+ *
+ * - First call: `fetchClientId` hits `soundcloud.com`, parses the
+ *   `window.__sc_hydration` array for a `{ hydratable: "apiClient" }`
+ *   entry, and pulls the `id` field.
+ * - Cached for 24h. SoundCloud rotates these periodically; an
+ *   expired id returns 401 on API calls and the cache resets.
+ * - Concurrent callers coalesce through `clientIdPromise` so a burst
+ *   of resolves does not re-fetch the homepage N times.
+ *
+ * ## URL shape: catch-all artist/track path
+ *
+ * SoundCloud URLs put the track slug as the second segment under
+ * the uploader's handle: `soundcloud.com/{user}/{track-slug}`.
+ * Albums ("sets" in SoundCloud's vocabulary) insert `/sets/` in the
+ * middle. Artists are the handle alone. The three regexes are
+ * mutually exclusive in matching order.
+ *
+ * ## ISRC exposed but no direct lookup
+ *
+ * SoundCloud tracks carry ISRC in `publisher_metadata.isrc`, but
+ * the API has no ISRC-to-track endpoint. `capabilities.supportsIsrc`
+ * is true from the perspective of "we extract it when present" but
+ * `findByIsrc` returns null because we have no way to query by it.
+ * The flag primarily helps other adapters decide whether to trust
+ * a SoundCloud-sourced ISRC for their own ISRC lookups.
+ *
+ * ## Artwork upscale
+ *
+ * SoundCloud's `artwork_url` ships at 100x100 by default. Swapping
+ * `-large` to `-t500x500` in the path yields the high-resolution
+ * variant, which the share page needs.
+ *
+ * ## Hydration vs OG fallback
+ *
+ * `extractFromHtml` first tries the `__sc_hydration` JSON (richer,
+ * includes ISRC and duration). Only if that parse fails does it fall
+ * back to OG + Twitter meta tags. The fallback yields track/artist/
+ * duration but no ISRC.
  */
 
 const SOUNDCLOUD_TRACK_REGEX = /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([^/]+\/[^/?\s]+)(?:\?.*)?$/;

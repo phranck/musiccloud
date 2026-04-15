@@ -1,13 +1,36 @@
 /**
- * Boomplay Scrape Adapter
+ * @file Boomplay adapter: scraping-based track + album resolves.
  *
- * Boomplay has no public API. This adapter scrapes the web player pages:
- * - getTrack: Fetches song page HTML, parses JSON-LD MusicRecording schema
- * - searchTrack: Fetches search page, extracts song IDs, then fetches each
- *   result page for JSON-LD metadata (N+1 pattern, limited to top 5)
- * - findByIsrc: Not supported (Boomplay exposes no ISRC data)
+ * Keyless (always available). Boomplay has no public API, so the
+ * adapter scrapes the web-player pages. Both tracks and albums embed
+ * `application/ld+json` schema blocks (`MusicRecording` / `MusicAlbum`)
+ * which is sturdier than OG-tag parsing: the schema is intended for
+ * crawlers and tends to stay stable through UI refreshes.
+ *
+ * ## Search is N+1
+ *
+ * `searchTrack` has to make two trips per result because Boomplay's
+ * search response page lists songs only by ID (`data-id="..."` on HTML
+ * nodes). The adapter extracts up to 5 IDs, then fetches each song page
+ * in parallel to pull the JSON-LD payload. This is the deliberate
+ * upper bound: more than 5 starts costing noticeable latency on
+ * cross-service resolves, while the first 5 cover the realistic
+ * relevance cone.
+ *
+ * ## No ISRC
+ *
+ * Boomplay does not surface ISRC anywhere in its schema output.
+ * `findByIsrc` returns null; cross-service resolves into Boomplay
+ * always go through text search.
+ *
+ * ## ISO 8601 duration
+ *
+ * The JSON-LD `duration` field is formatted as `"PT03M45S"` (ISO 8601
+ * period). `parseDuration` handles the three components (hours,
+ * minutes, seconds) and yields milliseconds; an unparseable value
+ * yields `undefined` rather than zero so the downstream display can
+ * distinguish "no duration data" from "zero-length track".
  */
-
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

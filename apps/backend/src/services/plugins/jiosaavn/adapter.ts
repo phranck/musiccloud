@@ -1,3 +1,39 @@
+/**
+ * @file JioSaavn (Indian) adapter: API client against the public `api.php`.
+ *
+ * Keyless (always available). JioSaavn's web and mobile clients talk
+ * to a public `jiosaavn.com/api.php` endpoint with a `__call` query
+ * parameter selecting the operation (`search.getResults`,
+ * `content.getAlbumDetails`, etc.). The adapter calls the same
+ * surface directly.
+ *
+ * ## HTML-instead-of-JSON guard
+ *
+ * The API occasionally responds with an HTML error page instead of
+ * JSON (maintenance windows, rate limiting, geo blocks). Every parser
+ * pre-checks `text.startsWith("<!")` and bails to a null return
+ * rather than throwing on `JSON.parse`. This keeps upstream hiccups
+ * from tanking the whole resolve.
+ *
+ * ## Variable response shape: `{ songs: [...] }` or direct object
+ *
+ * `webapi.get` returns either a `{ songs: [...] }` wrapper or a direct
+ * song object, depending on the token shape. `getTrackById` handles
+ * both branches.
+ *
+ * ## Image URL upscaling
+ *
+ * JioSaavn image URLs embed size as `150x150` or `50x50` in the path.
+ * The adapter rewrites these to `500x500` for higher-resolution
+ * artwork in the share page render. There is no metadata endpoint
+ * that returns the larger size directly.
+ *
+ * ## Duration as stringified seconds
+ *
+ * `more_info.duration` is a string like `"241"` (seconds), not a
+ * number. Every code path parses with `parseInt(..., 10)` and
+ * multiplies by 1000.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

@@ -1,3 +1,35 @@
+/**
+ * @file QQ Music (Chinese) adapter: track + album resolves via the internal API.
+ *
+ * Keyless (always available). QQ Music does not publish a developer
+ * API, but the desktop client talks to the public `u.y.qq.com/cgi-bin/musicu.fcg`
+ * endpoint with a JSON-RPC-ish payload. This adapter POSTs the same
+ * shape the desktop client does, imitating the `DoSearchForQQMusicDesktop`
+ * method. The `Referer: https://y.qq.com/` header is required;
+ * requests without it return 403.
+ *
+ * ## One endpoint, two search types via `search_type`
+ *
+ * Track search uses `search_type: 0`, album search uses `search_type: 8`.
+ * There is no direct song-by-mid detail endpoint that works without an
+ * authenticated session, so `getTrackByMid` re-uses the search endpoint:
+ * searching for the exact mid usually returns it as the top result.
+ * Same trick on the album side.
+ *
+ * ## Artwork URL template
+ *
+ * QQ Music embeds album art on a predictable CDN path:
+ * `y.qq.com/music/photo_new/T002R<size>x<size>M000<album_mid>.jpg`.
+ * The adapter synthesises URLs at 300x300 for tracks and 500x500 for
+ * album cards (the latter higher because the album share page renders
+ * the artwork bigger). API responses do not include an image URL, so
+ * this template is the only source.
+ *
+ * ## No ISRC, no preview
+ *
+ * The publicly-reachable endpoint surfaces neither. `findByIsrc`
+ * returns null; cross-service resolves go through text search.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

@@ -1,3 +1,39 @@
+/**
+ * @file NetEase Cloud Music (Chinese) adapter: API client against the
+ *       internal `music.163.com/api/*` endpoints.
+ *
+ * Keyless (always available). NetEase exposes no public developer API
+ * but its web player talks to unauthenticated `/api/*` endpoints that
+ * the adapter calls directly. The `Referer: https://music.163.com/`
+ * header is required; requests without it return empty bodies.
+ *
+ * ## URL format includes a hash fragment
+ *
+ * NetEase URLs can have two shapes:
+ * - `music.163.com/song?id=123` (clean form)
+ * - `music.163.com/#/song?id=123` (hash-router form from the SPA)
+ *
+ * Both reach the same page. The URL regexes accept either via the
+ * optional `#/` group so that pasted SPA URLs still resolve.
+ *
+ * ## Form-encoded POST for search
+ *
+ * `searchSongs` uses `Content-Type: application/x-www-form-urlencoded`
+ * with a `URLSearchParams` body (not JSON). This matches what the web
+ * player sends; the endpoint ignores JSON bodies.
+ *
+ * ## Search type parameter
+ *
+ * The `/api/search/get` endpoint handles multiple result types via a
+ * `type` parameter: `1` = tracks, `10` = albums, `100` = artists. Each
+ * type yields a differently-shaped `result` object, which is why this
+ * file has three search helpers instead of one.
+ *
+ * ## No ISRC, no preview
+ *
+ * Public NetEase endpoints surface neither. `findByIsrc` returns
+ * null; cross-service resolves go through text search.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

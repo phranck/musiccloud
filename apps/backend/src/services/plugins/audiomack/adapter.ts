@@ -1,3 +1,31 @@
+/**
+ * @file Audiomack adapter: track + album resolves via public search API + OG scraping.
+ *
+ * Keyless (always available). Two-track strategy:
+ *
+ * - **Search**: `api.audiomack.com/v1/music/search` returns structured JSON
+ *   with song/album objects. Public endpoint, no key required.
+ * - **Individual track/album fetch**: no JSON endpoint exists for a single
+ *   item by slug, so `getTrack` / `getAlbum` scrape the web page and parse
+ *   the `og:title` / `og:image` tags from the HTML head.
+ *
+ * The OG-title format on Audiomack is `"Track by Artist"` (English only),
+ * which this adapter parses with a single regex. If the pattern does not
+ * match, the full title is kept and artist falls back to `"Unknown Artist"`.
+ *
+ * ## No ISRC, no preview
+ *
+ * Audiomack does not publish ISRC or preview-URL fields. `findByIsrc`
+ * returns null and `capabilities.supportsPreview` is false, so cross-
+ * service resolves into Audiomack always go through text search.
+ *
+ * ## Artist splitting
+ *
+ * The `artist` field is a single string that may include `", "`, `" & "`,
+ * or `" feat. "` (case-insensitive). Custom split regex here (rather than
+ * `splitArtistNames` from `_shared`) because Audiomack is the only
+ * adapter that also needs to split on `feat.`.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

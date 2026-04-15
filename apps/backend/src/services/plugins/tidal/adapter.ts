@@ -1,3 +1,46 @@
+/**
+ * @file Tidal adapter: track + album + artist resolves via Tidal OpenAPI v2.
+ *
+ * Credentialed: requires `TIDAL_CLIENT_ID` and `TIDAL_CLIENT_SECRET`
+ * from the Tidal developer portal. Token lifecycle goes through the
+ * shared `TokenManager` (OAuth 2.0 client credentials).
+ *
+ * ## JSON:API response shape
+ *
+ * Tidal OpenAPI v2 uses the JSON:API standard: responses have a
+ * top-level `data` field for the primary resource and an `included`
+ * array for related resources. Artist names, for example, live in
+ * `included` as separate resources referenced by ID from the track's
+ * `relationships.artists.data`. The adapter's `extractArtistNames`
+ * and `mapAlbum` walk this structure rather than expecting nested
+ * objects.
+ *
+ * ## ISO 8601 duration (fixed 2026-03-22)
+ *
+ * Tidal's `duration` field is an ISO 8601 period string (`"PT5M41S"`),
+ * not a number of seconds as the older API version used. The adapter
+ * previously parsed it as raw seconds, producing dramatically wrong
+ * durations; `parseDuration` now handles the ISO form with a
+ * fractional-seconds fallback for exotic edge cases. Pure-number
+ * responses from older endpoints still work as a fallback.
+ *
+ * ## No artwork from API for albums
+ *
+ * Tidal API v2 does not return `imageLinks` on album resources in
+ * all responses. The resolver's cross-service artwork fallback
+ * (Spotify -> Apple Music -> ...) fills this gap downstream; the
+ * adapter itself leaves `artworkUrl` empty rather than fabricating
+ * a broken URL.
+ *
+ * ## URL formats
+ *
+ * Tidal URLs have multiple forms:
+ * - `listen.tidal.com/track/...`
+ * - `tidal.com/browse/track/...`
+ * - `tidal.com/track/...`
+ *
+ * The regexes accept all three via optional segments.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";

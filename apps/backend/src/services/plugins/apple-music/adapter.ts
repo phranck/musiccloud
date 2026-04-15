@@ -1,3 +1,58 @@
+/**
+ * @file Apple Music adapter: track + album + artist resolves against Apple's API.
+ *
+ * Credentialed, but the auth flow differs from OAuth-based services:
+ * Apple Music uses a signed developer JWT rather than a client_id /
+ * client_secret exchange. Required env vars:
+ *
+ * - `APPLE_MUSIC_KEY_ID`: 10-char key identifier from App Store Connect
+ * - `APPLE_MUSIC_TEAM_ID`: 10-char team identifier
+ * - `APPLE_MUSIC_PRIVATE_KEY`: the contents of the downloaded `.p8`
+ *   private key (PKCS#8 PEM). Line breaks can be `\n`-escaped when
+ *   the env var is set from a config UI; the loader handles both.
+ *
+ * The token is signed here with `jose` using ES256, valid for 180
+ * days, and cached in-process. See `warmAppleMusicToken` which is
+ * called once at server startup so the first real request does not
+ * pay the JWT-sign cost.
+ *
+ * ## Storefront-specific IDs
+ *
+ * Apple Music IDs are scoped to storefronts (countries). The same
+ * numeric track ID can exist in one country's catalog and 404 in
+ * another, so the adapter encodes the storefront into the ID it
+ * returns from `detectUrl` as `{storefront}:{id}` (e.g. `"de:1234"`).
+ * `parseStorefrontId` unpacks this on the way back in, ensuring the
+ * API call goes against the same storefront the URL came from. Bare
+ * numeric IDs (from cache or ISRC lookups) fall back to
+ * `APPLE_MUSIC_STOREFRONT` or `"us"`.
+ *
+ * ## URL shapes
+ *
+ * Apple Music has two track-URL forms that both need handling:
+ * - `music.apple.com/{country}/song/{name}/{trackId}` (canonical song URL)
+ * - `music.apple.com/{country}/album/{name}/{albumId}?i={trackId}`
+ *   (song-within-album URL, common in Apple's share flows)
+ *
+ * The regex captures both with separate optional groups; `detectUrl`
+ * preferentially extracts the `?i=` track ID before falling back to
+ * the `/song/` form.
+ *
+ * ## Full capability surface
+ *
+ * Track, album (with UPC + track listing), and artist resolves are
+ * all supported. ISRC lookup (`findByIsrc`) works via the search
+ * endpoint with exact-ISRC filter. This makes Apple Music a primary
+ * source in the cross-service resolve pipeline along with Spotify
+ * and Deezer.
+ *
+ * ## Artwork URL template
+ *
+ * Apple Music artwork URLs arrive with a `{w}x{h}` placeholder that
+ * the client is expected to substitute (e.g. `1000x1000bb.jpg`).
+ * `buildArtworkUrl` does this substitution at a fixed 1000x1000 so
+ * the share page gets a large enough image for retina rendering.
+ */
 import { RESOURCE_KIND, type ResourceKind, SERVICE } from "@musiccloud/shared";
 import { importPKCS8, SignJWT } from "jose";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
@@ -21,19 +76,19 @@ import type {
 } from "../../types.js";
 
 /**
- * Apple Music URL regex — URL-based flows (detectUrl / detectAlbumUrl).
+ * Apple Music URL regex - URL-based flows (detectUrl / detectAlbumUrl).
  *
  * Matches:
  * - `music.apple.com/{storefront}/album/{name}/{albumId}?i={trackId}`
  * - `music.apple.com/{storefront}/song/{name}/{trackId}`
  *
  * Capture groups:
- * 1. storefront — 2-letter ISO country code (us, de, gb, fr, jp, …); generic,
+ * 1. storefront - 2-letter ISO country code (us, de, gb, fr, jp, …); generic,
  *    matches any Apple Music storefront (there are 100+).
- * 2. albumId — numeric id; present for /album/ URLs.
- * 3. trackId (via `?i=`) — numeric id; present when an /album/ URL links a
+ * 2. albumId - numeric id; present for /album/ URLs.
+ * 3. trackId (via `?i=`) - numeric id; present when an /album/ URL links a
  *    specific track.
- * 4. trackId (from /song/) — numeric id; present for /song/ URLs.
+ * 4. trackId (from /song/) - numeric id; present for /song/ URLs.
  */
 const APPLE_MUSIC_REGEX =
   /(?:https?:\/\/)?music\.apple\.com\/([a-z]{2})\/(?:album\/[^/]+\/(\d+)(?:\?i=(\d+))?|song\/[^/]+\/(\d+))/;
@@ -44,8 +99,8 @@ const APPLE_MUSIC_REGEX =
  * Matches: `music.apple.com/{storefront}/artist/{name}/{artistId}`.
  *
  * Capture groups:
- * 1. storefront — 2-letter ISO country code.
- * 2. artistId — numeric id.
+ * 1. storefront - 2-letter ISO country code.
+ * 2. artistId - numeric id.
  */
 const APPLE_MUSIC_ARTIST_REGEX = /(?:https?:\/\/)?music\.apple\.com\/([a-z]{2})\/artist\/[^/]+\/(\d+)/;
 
@@ -56,7 +111,7 @@ const DEFAULT_STOREFRONT = "us";
  * Apple Music track / album / artist IDs are **storefront-specific**: the same
  * numeric ID may exist in one country's catalog and return 404 in another.
  * Resolving a URL against the wrong storefront therefore fails with a confusing
- * "not found" — even though the item is perfectly legal in its own region.
+ * "not found" - even though the item is perfectly legal in its own region.
  *
  * Flow:
  * 1. `detectUrl` / `detectAlbumUrl` / `detectArtistUrl` extract the storefront
@@ -66,11 +121,11 @@ const DEFAULT_STOREFRONT = "us";
  * 3. `parseStorefrontId` splits it apart; the API call is issued against the
  *    same storefront the URL came from.
  * 4. `mapTrack` / `mapAlbum` / `mapArtist` store the bare numeric id as
- *    `sourceId` — no composite leaks into the DB.
+ *    `sourceId` - no composite leaks into the DB.
  *
- * Fallback: when called with a bare numeric id (no storefront prefix — e.g.
+ * Fallback: when called with a bare numeric id (no storefront prefix - e.g.
  * from a cache or from `findByIsrc`), we use `APPLE_MUSIC_STOREFRONT` env or
- * `DEFAULT_STOREFRONT` ("us"). The id format is generic — any 2-letter ISO
+ * `DEFAULT_STOREFRONT` ("us"). The id format is generic - any 2-letter ISO
  * code works, not just the ones seen in tests.
  */
 function parseStorefrontId(input: string): { storefront: string; id: string } {
@@ -99,10 +154,10 @@ const STOREFRONT_CASCADE_LIMIT = 5;
 /**
  * Builds the priority-ordered storefront list for catalog/search queries that
  * don't carry a storefront in the URL. Apple Music's catalog and search index
- * are per-storefront — a track present in `de` is invisible to a `us` query.
+ * are per-storefront - a track present in `de` is invisible to a `us` query.
  *
  * Priority:
- * 1. ISRC country code (registrant — strongest signal when present)
+ * 1. ISRC country code (registrant - strongest signal when present)
  * 2. APPLE_MUSIC_STOREFRONT env override (operator preference)
  * 3. {@link FALLBACK_STOREFRONTS} (large global catalogs)
  *
@@ -492,7 +547,7 @@ export const appleMusicAdapter: ServiceAdapter = {
   },
 
   /**
-   * ISRC lookup — used by the resolver when matching a source track from
+   * ISRC lookup - used by the resolver when matching a source track from
    * another service to its Apple Music counterpart.
    *
    * Cascades through {@link getStorefrontCascade} (ISRC country → env default →
@@ -586,7 +641,7 @@ export const appleMusicAdapter: ServiceAdapter = {
 
   /**
    * Text search for an album. Storefront-cascading mirror of
-   * {@link searchTrack} — see that method for the cascade strategy.
+   * {@link searchTrack} - see that method for the cascade strategy.
    */
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const term = encodeURIComponent(`${query.artist} ${query.title}`);
@@ -663,7 +718,7 @@ export const appleMusicAdapter: ServiceAdapter = {
 
   /**
    * Text search for an artist. Storefront-cascading mirror of
-   * {@link searchTrack} — see that method for the cascade strategy.
+   * {@link searchTrack} - see that method for the cascade strategy.
    */
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
     const term = encodeURIComponent(query.name);

@@ -22,18 +22,50 @@ import { scoreSearchCandidate } from "../_shared/confidence.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
- * Qobuz Adapter
+ * @file Qobuz adapter: track + album + artist resolves against the Qobuz API.
  *
- * Uses the Qobuz REST API (www.qobuz.com/api.json/0.2/) with the Chromecast
- * app_id (publicly referenced in the Qobuz web bundle) plus user authentication
- * via QOBUZ_EMAIL/QOBUZ_PASSWORD.
+ * Technically keyless in the credential sense (`isAvailable()` always
+ * returns true) but in practice credentialed: the public endpoints
+ * return 401 from Czech Republic / other geo-restricted regions
+ * unless a user auth token is attached. The adapter supports both
+ * modes via `QOBUZ_EMAIL` / `QOBUZ_PASSWORD`. Without them, resolves
+ * work from unrestricted IPs but fail from Zerops (CZ-based).
  *
- * The Chromecast app_id is used because the web-player app_ids (377257687,
- * 798273057) are blocked from /user/login (return 401 even with valid creds),
- * while the Chromecast id accepts the standard email/password login flow.
- * Override via QOBUZ_APP_ID env var if Qobuz revokes this id in the future.
+ * ## App-ID workaround
  *
- * Supports: URL detection, track resolution, search, ISRC lookup, album support
+ * Qobuz's web-player app_ids (`377257687`, `798273057`) are blocked
+ * from `/user/login`: even with valid credentials they return 401.
+ * The Chromecast app_id (`425621600`, extracted from the Qobuz web
+ * bundle and referenced publicly) accepts the standard email/password
+ * login flow, so that is the default. `QOBUZ_APP_ID` is a user-
+ * settable env override for the case where Qobuz revokes this id.
+ *
+ * ## 24h auth token with 401-retry
+ *
+ * User auth tokens live 24 hours. The adapter caches one and re-uses
+ * it for all subsequent calls. If any API call returns 401 with a
+ * valid-looking cached token, the cache is cleared and a fresh login
+ * is attempted once; that single retry covers cases where Qobuz
+ * invalidated the token early (on password change, server cycle,
+ * etc.). Login request coalescing via `authTokenPromise` ensures a
+ * burst of resolves does not re-login N times on cache miss.
+ *
+ * ## `isAvailable()` returns true regardless of config
+ *
+ * Unlike most credentialed adapters, Qobuz reports itself as
+ * available even when `QOBUZ_EMAIL` is unset. This is intentional:
+ * the URL detection path (`detectUrl`) must still work so that a
+ * pasted Qobuz URL gets routed here (and produces a
+ * `SERVICE_DISABLED` or a specific API error) instead of falling
+ * through to `NOT_MUSIC_LINK`. Without it, disabled/unconfigured
+ * Qobuz URLs would look like unknown music services.
+ *
+ * ## Full capability surface
+ *
+ * Track, album (with UPC + track listing), and artist resolves are
+ * all supported. ISRC lookup works via the search endpoint with
+ * exact-match filter. This makes Qobuz one of the richer sources
+ * for cross-service resolves despite its niche catalog.
  */
 
 // URL formats:
