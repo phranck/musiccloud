@@ -1,3 +1,4 @@
+import path from "node:path";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
@@ -128,6 +129,11 @@ async function buildApp() {
     routePrefix: "/docs",
     uiConfig: { docExpansion: "list", deepLinking: true },
     staticCSP: false,
+    // After tsup bundles the plugin, its internal
+    // `path.join(__dirname, '..', 'static')` resolves to the parent of the
+    // bundle (apps/backend/) instead of the package folder. Point it at the
+    // copy we place next to `server.js` during build (see tsup.config.ts).
+    baseDir: path.join(__dirname, "static"),
   });
 
   // Health check (no auth)
