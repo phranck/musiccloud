@@ -49,12 +49,16 @@ function makeReducer<T extends { id: string }>() {
       case "MORE_LOADED": {
         if (state.tag !== "loading-more") return state;
         const merged = [...state.items, ...action.items];
+        // Backend skips the COUNT query on page > 1 and returns total = -1
+        // to signal "unchanged". Keep the cached value from page 1 so
+        // `hasMore` stays meaningful across the rest of the infinite scroll.
+        const total = action.total >= 0 ? action.total : state.total;
         return {
           tag: "ready",
           items: merged,
-          total: action.total,
+          total,
           nextPage: state.nextPage + 1,
-          hasMore: merged.length < action.total,
+          hasMore: merged.length < total,
         };
       }
       case "REMOVE_MANY": {

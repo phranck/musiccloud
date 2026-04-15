@@ -1463,36 +1463,45 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
     const dir = sortDir === "asc" ? "ASC" : "DESC";
 
+    // Build WHERE clause and data-query params once.
     let whereClause = "";
-    let countResult: pgModule.QueryResult<CountRow>;
-    let queryParams: (string | number)[] = [];
-
+    const dataParams: (string | number)[] = [];
     if (q) {
       whereClause = `WHERE t.title ILIKE $1 OR t.artists ILIKE $1`;
-      queryParams = [`%${q}%`];
-      countResult = await this.pool.query(`SELECT COUNT(*) as count FROM tracks t ${whereClause}`, queryParams);
-    } else {
-      countResult = await this.pool.query(`SELECT COUNT(*) as count FROM tracks t`);
+      dataParams.push(`%${q}%`);
     }
 
-    const total = countResult.rows[0]?.count ?? 0;
+    // Total row count is only meaningful for page 1 of an infinite-scroll
+    // session. The client caches the value and reuses it for subsequent
+    // pages, so re-running COUNT on every loadMore() is wasted work.
+    // Sentinel `-1` tells the frontend to keep its cached total.
+    let total: number | string = -1;
+    if (page === 1) {
+      const countResult = await this.pool.query<CountRow>(
+        `SELECT COUNT(*) as count FROM tracks t ${whereClause}`,
+        q ? dataParams : [],
+      );
+      total = countResult.rows[0]?.count ?? 0;
+    }
 
-    // Add limit and offset to params
-    queryParams.push(limit, offset);
-
+    // link_count is computed via correlated subquery instead of
+    // LEFT JOIN service_links + GROUP BY. The old pattern scanned the
+    // entire service_links table on every page; this one evaluates the
+    // count only for the 50 tracks actually returned, hitting the
+    // (track_id, service) composite index for each.
+    dataParams.push(limit, offset);
     const query = `SELECT
       t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
       t.source_service, t.created_at,
-      su.id as short_id, COUNT(sl.id) as link_count
+      su.id as short_id,
+      (SELECT COUNT(*) FROM service_links sl WHERE sl.track_id = t.id) as link_count
     FROM tracks t
-    LEFT JOIN service_links sl ON t.id = sl.track_id
     LEFT JOIN short_urls su ON t.id = su.track_id
     ${whereClause}
-    GROUP BY t.id, su.id
     ORDER BY t.${col} ${dir}
-    LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
+    LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
 
-    const rows = await this.pool.query(query, queryParams);
+    const rows = await this.pool.query(query, dataParams);
 
     const items = (rows.rows as TrackListRow[]).map((r) => ({
       id: r.id,
@@ -1523,36 +1532,37 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
     const dir = sortDir === "asc" ? "ASC" : "DESC";
 
+    // See listTracks for the rationale behind the query shape, the
+    // correlated link_count subquery, and the page-1-only COUNT.
     let whereClause = "";
-    let countResult: pgModule.QueryResult<CountRow>;
-    let queryParams: (string | number)[] = [];
-
+    const dataParams: (string | number)[] = [];
     if (q) {
       whereClause = `WHERE a.title ILIKE $1 OR a.artists ILIKE $1`;
-      queryParams = [`%${q}%`];
-      countResult = await this.pool.query(`SELECT COUNT(*) as count FROM albums a ${whereClause}`, queryParams);
-    } else {
-      countResult = await this.pool.query(`SELECT COUNT(*) as count FROM albums a`);
+      dataParams.push(`%${q}%`);
     }
 
-    const total = countResult.rows[0]?.count ?? 0;
+    let total: number | string = -1;
+    if (page === 1) {
+      const countResult = await this.pool.query<CountRow>(
+        `SELECT COUNT(*) as count FROM albums a ${whereClause}`,
+        q ? dataParams : [],
+      );
+      total = countResult.rows[0]?.count ?? 0;
+    }
 
-    // Add limit and offset to params
-    queryParams.push(limit, offset);
-
+    dataParams.push(limit, offset);
     const query = `SELECT
       a.id, a.title, a.artists, a.release_date, a.total_tracks,
       a.artwork_url, a.upc, a.source_service, a.created_at,
-      asu.id as short_id, COUNT(asl.id) as link_count
+      asu.id as short_id,
+      (SELECT COUNT(*) FROM album_service_links asl WHERE asl.album_id = a.id) as link_count
     FROM albums a
-    LEFT JOIN album_service_links asl ON a.id = asl.album_id
     LEFT JOIN album_short_urls asu ON a.id = asu.album_id
     ${whereClause}
-    GROUP BY a.id, asu.id
     ORDER BY a.${col} ${dir}
-    LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
+    LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
 
-    const rows = await this.pool.query(query, queryParams);
+    const rows = await this.pool.query(query, dataParams);
 
     const items = (rows.rows as AlbumListRow[]).map((r) => ({
       id: r.id,
@@ -1716,35 +1726,36 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
     const dir = sortDir === "asc" ? "ASC" : "DESC";
 
+    // See listTracks for the rationale behind the query shape, the
+    // correlated link_count subquery, and the page-1-only COUNT.
     let whereClause = "";
-    let countResult: pgModule.QueryResult<CountRow>;
-    let queryParams: (string | number)[] = [];
-
+    const dataParams: (string | number)[] = [];
     if (q) {
       whereClause = `WHERE a.name ILIKE $1`;
-      queryParams = [`%${q}%`];
-      countResult = await this.pool.query(`SELECT COUNT(*) as count FROM artists a ${whereClause}`, queryParams);
-    } else {
-      countResult = await this.pool.query(`SELECT COUNT(*) as count FROM artists a`);
+      dataParams.push(`%${q}%`);
     }
 
-    const total = countResult.rows[0]?.count ?? 0;
+    let total: number | string = -1;
+    if (page === 1) {
+      const countResult = await this.pool.query<CountRow>(
+        `SELECT COUNT(*) as count FROM artists a ${whereClause}`,
+        q ? dataParams : [],
+      );
+      total = countResult.rows[0]?.count ?? 0;
+    }
 
-    // Add limit and offset to params
-    queryParams.push(limit, offset);
-
+    dataParams.push(limit, offset);
     const query = `SELECT
       a.id, a.name, a.image_url, a.genres, a.source_service, a.created_at,
-      asu.id as short_id, COUNT(asl.id) as link_count
+      asu.id as short_id,
+      (SELECT COUNT(*) FROM artist_service_links asl WHERE asl.artist_id = a.id) as link_count
     FROM artists a
-    LEFT JOIN artist_service_links asl ON a.id = asl.artist_id
     LEFT JOIN artist_short_urls asu ON a.id = asu.artist_id
     ${whereClause}
-    GROUP BY a.id, asu.id
     ORDER BY a.${col} ${dir}
-    LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
+    LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
 
-    const rows = await this.pool.query(query, queryParams);
+    const rows = await this.pool.query(query, dataParams);
 
     interface ArtistListRow extends ArtistRow {
       short_id: string | null;
