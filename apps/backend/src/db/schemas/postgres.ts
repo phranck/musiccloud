@@ -18,7 +18,12 @@ export const tracks = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (table) => [index("idx_tracks_isrc").on(table.isrc)],
+  (table) => [
+    index("idx_tracks_isrc").on(table.isrc),
+    // Dashboard TracksPage default sort is `created_at DESC`; without this
+    // index every page load does a top-N heapsort on the whole table.
+    index("idx_tracks_created_at").on(table.createdAt.desc()),
+  ],
 );
 
 export const serviceLinks = pgTable(
@@ -41,13 +46,19 @@ export const serviceLinks = pgTable(
   ],
 );
 
-export const shortUrls = pgTable("short_urls", {
-  id: text("id").primaryKey(),
-  trackId: text("track_id")
-    .notNull()
-    .references(() => tracks.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-});
+export const shortUrls = pgTable(
+  "short_urls",
+  {
+    id: text("id").primaryKey(),
+    trackId: text("track_id")
+      .notNull()
+      .references(() => tracks.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  // LEFT JOIN target in listTracks. Without this index the join degrades to
+  // a sequential scan of every short_urls row on every list-page request.
+  (table) => [index("idx_short_urls_track_id").on(table.trackId)],
+);
 
 export const albums = pgTable(
   "albums",
@@ -66,7 +77,11 @@ export const albums = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (table) => [index("idx_albums_upc").on(table.upc)],
+  (table) => [
+    index("idx_albums_upc").on(table.upc),
+    // Mirror of idx_tracks_created_at: AlbumsPage default sort.
+    index("idx_albums_created_at").on(table.createdAt.desc()),
+  ],
 );
 
 export const albumServiceLinks = pgTable(
@@ -89,13 +104,18 @@ export const albumServiceLinks = pgTable(
   ],
 );
 
-export const albumShortUrls = pgTable("album_short_urls", {
-  id: text("id").primaryKey(),
-  albumId: text("album_id")
-    .notNull()
-    .references(() => albums.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-});
+export const albumShortUrls = pgTable(
+  "album_short_urls",
+  {
+    id: text("id").primaryKey(),
+    albumId: text("album_id")
+      .notNull()
+      .references(() => albums.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  // Same rationale as idx_short_urls_track_id: LEFT JOIN in listAlbums.
+  (table) => [index("idx_album_short_urls_album_id").on(table.albumId)],
+);
 
 // ─── Artist Resolution Tables ────────────────────────────────────────────────
 
@@ -111,7 +131,11 @@ export const artists = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (table) => [index("idx_artists_name").on(table.name)],
+  (table) => [
+    index("idx_artists_name").on(table.name),
+    // Mirror of idx_tracks_created_at: ArtistsPage default sort.
+    index("idx_artists_created_at").on(table.createdAt.desc()),
+  ],
 );
 
 export const artistServiceLinks = pgTable(
@@ -134,13 +158,18 @@ export const artistServiceLinks = pgTable(
   ],
 );
 
-export const artistShortUrls = pgTable("artist_short_urls", {
-  id: text("id").primaryKey(),
-  artistId: text("artist_id")
-    .notNull()
-    .references(() => artists.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-});
+export const artistShortUrls = pgTable(
+  "artist_short_urls",
+  {
+    id: text("id").primaryKey(),
+    artistId: text("artist_id")
+      .notNull()
+      .references(() => artists.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  // Same rationale as idx_short_urls_track_id: LEFT JOIN in listArtists.
+  (table) => [index("idx_artist_short_urls_artist_id").on(table.artistId)],
+);
 
 export const adminUsers = pgTable("admin_users", {
   id: text("id").primaryKey(),
