@@ -2,7 +2,7 @@ import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
-import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -19,6 +19,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { scoreSearchCandidate } from "../_shared/confidence.js";
 
 const API_BASE = "https://openapi.tidal.com/v2";
 
@@ -295,23 +296,12 @@ export const tidalAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    const isFreeText = query.title === query.artist;
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
 
     for (let i = 0; i < Math.min(items.length, 5); i++) {
       const track = mapTrack(items[i], data.included);
-      let confidence: number;
-
-      if (isFreeText) {
-        confidence = Math.max(0.4, 0.85 - i * 0.05);
-      } else {
-        confidence = calculateConfidence(
-          { title: query.title, artists: [query.artist], durationMs: undefined },
-          { title: track.title, artists: track.artists, durationMs: track.durationMs },
-        );
-      }
-
+      const confidence = scoreSearchCandidate(query, track, i);
       if (confidence > bestConfidence) {
         bestConfidence = confidence;
         bestMatch = track;

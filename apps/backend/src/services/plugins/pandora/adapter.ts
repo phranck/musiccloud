@@ -1,7 +1,7 @@
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -13,6 +13,9 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types";
+import { splitArtistNames } from "../_shared/artists.js";
+import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
  * Pandora Scrape Adapter
@@ -34,9 +37,6 @@ const PANDORA_TRACK_REGEX =
 const PANDORA_ALBUM_REGEX = /^https?:\/\/(?:www\.)?pandora\.com\/artist\/([^/]+\/[^/]+\/AL[a-zA-Z0-9]+)(?:\?.*)?$/;
 
 const PANDORA_BASE = "https://www.pandora.com";
-
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 const IMG_BASE = "https://content-images.p-cdn.com/";
 
@@ -84,7 +84,7 @@ async function fetchCsrfToken(): Promise<string | null> {
 // --- Fetch helpers ---
 
 async function pandoraFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  return fetchWithTimeout(url, { headers: { "User-Agent": USER_AGENT } }, timeoutMs);
+  return fetchWithTimeout(url, { headers: { "User-Agent": SCRAPER_USER_AGENT } }, timeoutMs);
 }
 
 async function pandoraApiFetch(endpoint: string, body: unknown): Promise<Response> {
@@ -96,7 +96,7 @@ async function pandoraApiFetch(endpoint: string, body: unknown): Promise<Respons
     {
       method: "POST",
       headers: {
-        "User-Agent": USER_AGENT,
+        "User-Agent": SCRAPER_USER_AGENT,
         "Content-Type": "application/json",
         "X-CsrfToken": csrfToken,
         Cookie: `csrftoken=${csrfToken}`,
@@ -161,14 +161,7 @@ function buildArtworkUrl(artUrl: string | undefined): string | undefined {
 
 function mapTrackData(data: PandoraTrackData, sourceId: string): NormalizedTrack {
   const webPath = data.shareableUrlPath ?? `/artist/${sourceId}`;
-
-  // Split combined artist names (e.g. "A, B & C") into individual entries
-  const artists = data.artistName
-    ? data.artistName
-        .split(/[,&]/)
-        .map((a) => a.trim())
-        .filter(Boolean)
-    : ["Unknown Artist"];
+  const artists = splitArtistNames(data.artistName);
 
   return {
     sourceService: "pandora",
@@ -185,12 +178,7 @@ function mapTrackData(data: PandoraTrackData, sourceId: string): NormalizedTrack
 }
 
 function mapJsonLdTrack(jsonLd: JsonLdMusicRecording, sourceId: string): NormalizedTrack {
-  const artists = jsonLd.byArtist?.name
-    ? jsonLd.byArtist.name
-        .split(/[,&]/)
-        .map((a) => a.trim())
-        .filter(Boolean)
-    : ["Unknown Artist"];
+  const artists = splitArtistNames(jsonLd.byArtist?.name);
 
   return {
     sourceService: "pandora",
@@ -396,7 +384,6 @@ export const pandoraAdapter = {
 
       log.debug("Pandora", `Search returned ${trackIds.length} tracks for: ${q}`);
 
-      const isFreeText = query.title === query.artist;
       let bestMatch: NormalizedTrack | null = null;
       let bestConfidence = 0;
 
@@ -406,16 +393,7 @@ export const pandoraAdapter = {
 
         const urlPath = data.shareableUrlPath?.replace(/^\/artist\//, "") ?? `search-${i}`;
         const track = mapTrackData(data, urlPath);
-        let confidence: number;
-
-        if (isFreeText) {
-          confidence = Math.max(0.4, 0.85 - i * 0.05);
-        } else {
-          confidence = calculateConfidence(
-            { title: query.title, artists: [query.artist], durationMs: undefined },
-            { title: track.title, artists: track.artists, durationMs: track.durationMs },
-          );
-        }
+        const confidence = scoreSearchCandidate(query, track, i);
 
         log.debug(
           "Pandora",

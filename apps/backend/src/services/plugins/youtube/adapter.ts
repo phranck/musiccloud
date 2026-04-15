@@ -1,3 +1,45 @@
+/**
+ * @file YouTube adapter: video-as-track + channel-as-artist resolves.
+ *
+ * Credentialed: requires `YOUTUBE_API_KEY` (Google Cloud Console, YouTube
+ * Data API v3). Missing the key means the adapter reports `isAvailable()
+ * === false` and is skipped across resolves.
+ *
+ * ## Track = video (no album support)
+ *
+ * YouTube has no native album concept. We treat each video as a track,
+ * and every search pins `videoCategoryId=10` ("Music") so the API
+ * does not return unrelated content like tutorials or commentary. The
+ * `" official"` suffix on the query string biases the search towards
+ * official music videos over covers or reaction uploads. Album
+ * resolution is handled by the album resolver via the OLAK5uy_
+ * playlist derivation, not here.
+ *
+ * ## Free-form titles, heuristic title parsing
+ *
+ * YouTube titles are free text ("Artist - Track Title", "Track Title",
+ * "Track Title (Official Video)"). The API gives us `title` and
+ * `channelTitle`, but no structured artist/track split. `parseArtistFromTitle`
+ * assumes "Artist - Track" (with hyphen, en-dash, or em-dash as
+ * separator) and falls back to using the channel name as the artist
+ * when the heuristic fails. `normalizeTitle` strips common suffixes
+ * like "(Official Video)" per our service-specific rules.
+ *
+ * ## Artist = channel, two URL shapes
+ *
+ * The artist resolve handles both modern handle URLs (`/@handle`) and
+ * legacy channel IDs (`/channel/UCxxx`). The YouTube Data API takes
+ * them through different query params (`forHandle` vs `id`), so
+ * `detectArtistUrl` prefixes handles with `"handle:"` to preserve the
+ * distinction through the pipeline. When serving a resolved artist we
+ * prefer `customUrl` (the `/@handle` form) over the raw channel ID
+ * because it produces a shorter, user-friendlier URL.
+ *
+ * ## No ISRC, no preview
+ *
+ * YouTube exposes neither. `findByIsrc` returns null; the preview
+ * player falls back to other services.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { ResolveError } from "../../../lib/resolve/errors";

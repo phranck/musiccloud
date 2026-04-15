@@ -18,6 +18,8 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types";
+import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
  * Qobuz Adapter
@@ -48,9 +50,6 @@ const QOBUZ_ALBUM_REGEX = /^https?:\/\/(?:open|play)\.qobuz\.com\/album\/([a-zA-
 const QOBUZ_ARTIST_REGEX = /^https?:\/\/(?:open|play)\.qobuz\.com\/artist\/(\d+)(?:\?.*)?$/;
 
 const API_BASE = "https://www.qobuz.com/api.json/0.2";
-
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // --- App ID management ---
 
@@ -100,7 +99,7 @@ async function fetchAuthToken(): Promise<string | null> {
       {
         method: "POST",
         headers: {
-          "User-Agent": USER_AGENT,
+          "User-Agent": SCRAPER_USER_AGENT,
           "X-App-Id": appId,
           "Content-Type": "application/x-www-form-urlencoded",
         },
@@ -134,7 +133,7 @@ async function fetchAuthToken(): Promise<string | null> {
 
 async function qobuzApiFetch(endpoint: string): Promise<Response> {
   const headers: Record<string, string> = {
-    "User-Agent": USER_AGENT,
+    "User-Agent": SCRAPER_USER_AGENT,
     "X-App-Id": getAppId(),
   };
 
@@ -365,7 +364,6 @@ export const qobuzAdapter = {
 
       log.debug("Qobuz", `Search returned ${items.length} tracks for: ${q}`);
 
-      const isFreeText = query.title === query.artist;
       let bestMatch: NormalizedTrack | null = null;
       let bestConfidence = 0;
 
@@ -374,16 +372,7 @@ export const qobuzAdapter = {
         if (!item.title) continue;
 
         const track = mapTrack(item);
-        let confidence: number;
-
-        if (isFreeText) {
-          confidence = Math.max(0.4, 0.85 - i * 0.05);
-        } else {
-          confidence = calculateConfidence(
-            { title: query.title, artists: [query.artist], durationMs: undefined },
-            { title: track.title, artists: track.artists, durationMs: track.durationMs },
-          );
-        }
+        const confidence = scoreSearchCandidate(query, track, i);
 
         log.debug(
           "Qobuz",

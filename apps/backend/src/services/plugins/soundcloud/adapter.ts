@@ -18,6 +18,8 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types";
+import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
  * SoundCloud Scrape Adapter
@@ -36,9 +38,6 @@ const SOUNDCLOUD_ALBUM_REGEX = /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([^/]
 const SOUNDCLOUD_ARTIST_REGEX = /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([^/?\s]+)\/?(?:\?.*)?$/;
 
 const SC_API_BASE = "https://api-v2.soundcloud.com";
-
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // --- Client ID management ---
 
@@ -89,7 +88,7 @@ async function fetchClientId(): Promise<string | null> {
 // --- Fetch helpers ---
 
 async function scFetch(url: string, timeoutMs = 5000): Promise<Response> {
-  return fetchWithTimeout(url, { headers: { "User-Agent": USER_AGENT } }, timeoutMs);
+  return fetchWithTimeout(url, { headers: { "User-Agent": SCRAPER_USER_AGENT } }, timeoutMs);
 }
 
 async function scApiFetch(endpoint: string): Promise<Response> {
@@ -357,23 +356,13 @@ export const soundcloudAdapter = {
         return { found: false, confidence: 0, matchMethod: "search" };
       }
 
-      const isFreeText = query.title === query.artist;
       let bestMatch: NormalizedTrack | null = null;
       let bestConfidence = 0;
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         const track = mapApiTrack(item, item.permalink_url?.replace("https://soundcloud.com/", "") ?? `search-${i}`);
-        let confidence: number;
-
-        if (isFreeText) {
-          confidence = Math.max(0.4, 0.85 - i * 0.05);
-        } else {
-          confidence = calculateConfidence(
-            { title: query.title, artists: [query.artist], durationMs: undefined },
-            { title: track.title, artists: track.artists, durationMs: track.durationMs },
-          );
-        }
+        const confidence = scoreSearchCandidate(query, track, i);
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

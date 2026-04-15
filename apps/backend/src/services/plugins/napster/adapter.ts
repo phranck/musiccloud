@@ -1,3 +1,47 @@
+/**
+ * @file Napster adapter: track + artist resolves against the Napster v2.2 API.
+ *
+ * Credentialed: requires `NAPSTER_API_KEY`.
+ *
+ * ## No new API keys available
+ *
+ * The Napster Developer Portal stopped accepting new sign-ups
+ * (last confirmed Feb 2026). Existing keys still work. A new key
+ * requires writing to `api-team@napster.com` directly. Scraping is
+ * not a viable backup: the Napster web app is a pure SPA with no
+ * server-rendered OG metadata, so the `scrapeTrackFromPage` fallback
+ * in `resolver.ts` returns nothing useful.
+ *
+ * ## URL shapes: direct ID vs slug
+ *
+ * Napster URLs come in two forms:
+ *
+ * - `play.napster.com/track/tra.{digits}` - direct, resolvable track ID.
+ * - `app.napster.com/artist/.../album/.../track/my-track-slug` - slug URL
+ *   from the legacy app layout, without the `tra.` prefix.
+ *
+ * `detectUrl` accepts both but `getTrack` can only look up the `tra.`
+ * form: Napster's API has no slug-to-ID endpoint, so a slug URL
+ * throws a clear error rather than silently falling back to an
+ * arbitrary track. The `albumCapabilities`/artist branches stick to
+ * the `art.{digits}` convention for the same reason.
+ *
+ * ## No album support
+ *
+ * Tracks carry `albumName` and `albumId`, and artwork is derived from
+ * `albumId`, but the adapter does not implement `albumCapabilities`.
+ * Napster's album surface was not wired up because the service's
+ * catalog gap on albums relative to tracks did not justify the work.
+ *
+ * ## Artwork via URL template, not API field
+ *
+ * Track responses do not include an artwork URL. Instead, the image
+ * server exposes a predictable URL
+ * (`imageserver/v2/albums/{albumId}/images/500x500.jpg`) that we
+ * synthesise in `artworkUrl()` from the album ID. The same pattern
+ * holds for artist images.
+ *
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
@@ -14,10 +58,9 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { splitArtistNames } from "../_shared/artists.js";
+import { scoreSearchCandidate } from "../_shared/confidence.js";
 
-// NOTE: Napster Developer Portal no longer accepts new sign-ups (as of Feb 2026).
-// Existing API keys still work. Contact api-team@napster.com for new key requests.
-// Scraping not viable: Napster is a pure SPA with no SSR metadata.
 const API_BASE = "https://api.napster.com/v2.2";
 
 // Matches: play.napster.com/track/tra.123, web.napster.com/track/tra.123,
@@ -106,13 +149,7 @@ function artistImageUrl(artistId: string): string {
 }
 
 function mapTrack(raw: NapsterTrackResponse): NormalizedTrack {
-  // Split combined artist names (e.g. "A, B & C") into individual entries
-  const artists = raw.artistName
-    ? raw.artistName
-        .split(/[,&]/)
-        .map((a) => a.trim())
-        .filter(Boolean)
-    : ["Unknown Artist"];
+  const artists = splitArtistNames(raw.artistName);
 
   return {
     sourceService: "napster",
@@ -216,22 +253,12 @@ export const napsterAdapter = {
 
     log.debug("Napster", `Search returned ${items.length} tracks for: ${q}`);
 
-    const isFreeText = query.title === query.artist;
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
 
     for (let i = 0; i < items.length; i++) {
       const track = mapTrack(items[i]);
-      let confidence: number;
-
-      if (isFreeText) {
-        confidence = Math.max(0.4, 0.85 - i * 0.05);
-      } else {
-        confidence = calculateConfidence(
-          { title: query.title, artists: [query.artist], durationMs: undefined },
-          { title: track.title, artists: track.artists, durationMs: track.durationMs },
-        );
-      }
+      const confidence = scoreSearchCandidate(query, track, i);
 
       log.debug(
         "Napster",

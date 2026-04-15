@@ -19,6 +19,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { scoreSearchCandidate } from "../_shared/confidence.js";
 
 const API_BASE = "https://api.kkbox.com/v1.1";
 
@@ -279,7 +280,6 @@ export const kkboxAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    const isFreeText = query.title === query.artist;
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
 
@@ -287,16 +287,7 @@ export const kkboxAdapter = {
 
     for (let i = 0; i < Math.min(items.length, 5); i++) {
       const track = mapTrack(items[i]);
-      let confidence: number;
-
-      if (isFreeText) {
-        confidence = Math.max(0.4, 0.85 - i * 0.05);
-      } else {
-        confidence = calculateConfidence(
-          { title: query.title, artists: [query.artist], durationMs: undefined },
-          { title: track.title, artists: track.artists, durationMs: track.durationMs },
-        );
-      }
+      const confidence = scoreSearchCandidate(query, track, i);
 
       log.debug(
         "KKBOX",

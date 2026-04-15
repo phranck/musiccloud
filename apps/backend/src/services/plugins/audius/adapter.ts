@@ -1,7 +1,43 @@
+/**
+ * @file Audius adapter: track + album resolves against the public Audius API.
+ *
+ * Keyless service (always available). The `app_name` query parameter
+ * is not auth but identification required by the API for usage
+ * tracking; omitting it yields 403.
+ *
+ * ## URL shape: tracks and albums share the same pattern
+ *
+ * Both `/handle/track-slug` and `/handle/album-slug` look identical
+ * from the outside. `detectUrl` and `detectAlbumUrl` use the same
+ * regex; the only way to tell the two apart is through the API
+ * response, which is why `fetchAlbumById` filters on `is_album`
+ * after fetching and returns null for non-albums.
+ *
+ * ## Two ID shapes reach the adapter
+ *
+ * `detectUrl` returns a path-style ID (`handle/slug`) extracted from
+ * the user-facing URL, but the resolver sometimes passes direct
+ * numeric track IDs (e.g. for cross-service lookups via external ID).
+ * Each getter branches on whether the ID contains a `/` and dispatches
+ * to `/resolve?url=...` for paths or `/tracks/{id}` / `/playlists/{id}`
+ * for numeric IDs.
+ *
+ * ## No ISRC
+ *
+ * Audius is a decentralized platform; uploaders rarely supply ISRC
+ * metadata, so `findByIsrc` returns null unconditionally. The cross-
+ * service resolver falls back to text search for Audius.
+ *
+ * ## Confidence scoring
+ *
+ * Uses `scoreSearchCandidate` from `_shared/confidence.ts`, which handles
+ * both the structured and the free-text query branches uniformly across
+ * every adapter. See that file for the scoring rationale.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -13,6 +49,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { scoreSearchCandidate } from "../_shared/confidence.js";
 
 const API_BASE = "https://api.audius.co/v1";
 const APP_NAME = "music_cloud";
@@ -150,7 +187,8 @@ export const audiusAdapter = {
   },
 
   async getTrack(trackId: string): Promise<NormalizedTrack> {
-    // trackId from detectUrl is a path like "handle/slug", use resolve endpoint
+    // See file header: path-style IDs use the resolve endpoint, numeric
+    // IDs use the direct tracks endpoint.
     if (trackId.includes("/")) {
       const response = await audiusFetch(`/resolve?url=https://audius.co/${encodeURIComponent(trackId)}`);
 
@@ -194,23 +232,12 @@ export const audiusAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    const isFreeText = query.title === query.artist;
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
 
     for (let i = 0; i < items.length; i++) {
       const track = mapTrack(items[i]);
-      let confidence: number;
-
-      if (isFreeText) {
-        confidence = Math.max(0.4, 0.85 - i * 0.05);
-      } else {
-        confidence = calculateConfidence(
-          { title: query.title, artists: [query.artist], durationMs: undefined },
-          { title: track.title, artists: track.artists, durationMs: track.durationMs },
-        );
-      }
-
+      const confidence = scoreSearchCandidate(query, track, i);
       if (confidence > bestConfidence) {
         bestConfidence = confidence;
         bestMatch = track;

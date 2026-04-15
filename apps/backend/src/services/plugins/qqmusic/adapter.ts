@@ -1,7 +1,7 @@
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
@@ -12,6 +12,8 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
 
@@ -72,7 +74,7 @@ async function qqmusicFetch(url: string, init?: RequestInit, timeoutMs = 8000): 
       ...init,
       headers: {
         Referer: "https://y.qq.com/",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "User-Agent": SCRAPER_USER_AGENT,
         ...init?.headers,
       },
     },
@@ -287,7 +289,6 @@ export const qqmusicAdapter: ServiceAdapter = {
 
       log.debug("QQ Music", `Search returned ${songs.length} results for: ${q}`);
 
-      const isFreeText = query.title === query.artist;
       let bestMatch: NormalizedTrack | null = null;
       let bestConfidence = 0;
 
@@ -296,16 +297,7 @@ export const qqmusicAdapter: ServiceAdapter = {
         if (!song.mid || !song.name) continue;
 
         const track = mapSong(song);
-        let confidence: number;
-
-        if (isFreeText) {
-          confidence = Math.max(0.4, 0.85 - i * 0.05);
-        } else {
-          confidence = calculateConfidence(
-            { title: query.title, artists: [query.artist], durationMs: undefined },
-            { title: track.title, artists: track.artists, durationMs: track.durationMs },
-          );
-        }
+        const confidence = scoreSearchCandidate(query, track, i);
 
         log.debug(
           "QQ Music",

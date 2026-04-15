@@ -1,7 +1,7 @@
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
@@ -13,10 +13,11 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { extractOgTags } from "../_shared/og.js";
+import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // Bandcamp URLs: {artist}.bandcamp.com/track/{slug}
 const BANDCAMP_TRACK_REGEX = /^https?:\/\/([a-z0-9-]+)\.bandcamp\.com\/track\/([a-z0-9-]+)/;
@@ -65,7 +66,7 @@ async function bandcampFetch(url: string, timeoutMs = 8000): Promise<Response> {
     url,
     {
       headers: {
-        "User-Agent": USER_AGENT,
+        "User-Agent": SCRAPER_USER_AGENT,
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
       },
@@ -85,16 +86,6 @@ function parseJsonLd(html: string): BandcampJsonLd | null {
   } catch {
     return null;
   }
-}
-
-function extractOgTags(html: string): Record<string, string> {
-  const tags: Record<string, string> = {};
-  const regex = /<meta\s+property="og:(\w+)"\s+content="([^"]*)"[^>]*>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(html)) !== null) {
-    tags[m[1]] = m[2];
-  }
-  return tags;
 }
 
 async function fetchTrackByUrl(trackUrl: string): Promise<NormalizedTrack | null> {
@@ -289,7 +280,6 @@ export const bandcampAdapter: ServiceAdapter = {
 
       log.debug("Bandcamp", `Search returned ${results.length} results for: ${q}`);
 
-      const isFreeText = query.title === query.artist;
       let bestMatch: NormalizedTrack | null = null;
       let bestConfidence = 0;
 
@@ -301,16 +291,7 @@ export const bandcampAdapter: ServiceAdapter = {
         if (result.status !== "fulfilled" || !result.value) continue;
 
         const track = result.value;
-        let confidence: number;
-
-        if (isFreeText) {
-          confidence = Math.max(0.4, 0.85 - i * 0.05);
-        } else {
-          confidence = calculateConfidence(
-            { title: query.title, artists: [query.artist], durationMs: undefined },
-            { title: track.title, artists: track.artists, durationMs: track.durationMs },
-          );
-        }
+        const confidence = scoreSearchCandidate(query, track, i);
 
         log.debug(
           "Bandcamp",

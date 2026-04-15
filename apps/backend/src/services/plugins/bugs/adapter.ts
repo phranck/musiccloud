@@ -1,7 +1,38 @@
+/**
+ * @file Bugs! (Korean) adapter: HTML-scraping track + album resolves.
+ *
+ * Keyless (always available). Bugs! publishes no external API, so the
+ * adapter scrapes the user-facing pages at `music.bugs.co.kr`:
+ *
+ * - Track/album lookup: fetch the page, parse `og:title` and `og:image`.
+ *   The `og:title` is formatted as `"Name / Artist"`; we split on that.
+ * - Text search: fetch `/search/track?q=...` (or `/search/album`),
+ *   regex the returned HTML for `/track/{id}` (or `/album/{id}`) hrefs,
+ *   then fetch each page to get the structured metadata.
+ *
+ * The User-Agent is a full desktop Chrome string because Bugs! returns
+ * different (or blocked) content for missing/bot UAs. The Accept-Language
+ * favours English + Korean; leaving it at the default would often get
+ * Korean-only pages that the OG-parse below can still handle but that
+ * produce worse downstream search behaviour.
+ *
+ * ## No ISRC
+ *
+ * Bugs!'s public pages do not expose ISRC. `findByIsrc` returns null,
+ * so cross-service resolves into Bugs! always go through text search.
+ *
+ * ## Scraping fragility
+ *
+ * Any change to the Bugs! page template (OG-title format, HTML of the
+ * search results) can break this adapter. Log messages on each step
+ * make failures debuggable: look for `Search returned 0 IDs` or
+ * `confidence below threshold` to tell fetch-failure from
+ * parse-failure.
+ */
 import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
@@ -12,10 +43,12 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { splitArtistNames } from "../_shared/artists.js";
+import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { extractOgTags } from "../_shared/og.js";
+import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // Bugs! URLs: music.bugs.co.kr/track/{trackId}
 const BUGS_TRACK_REGEX = /^https?:\/\/music\.bugs\.co\.kr\/track\/(\d+)/;
@@ -27,23 +60,13 @@ async function bugsFetch(url: string, timeoutMs = 8000): Promise<Response> {
     url,
     {
       headers: {
-        "User-Agent": USER_AGENT,
+        "User-Agent": SCRAPER_USER_AGENT,
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9,ko;q=0.8",
       },
     },
     timeoutMs,
   );
-}
-
-function extractOgTags(html: string): Record<string, string> {
-  const tags: Record<string, string> = {};
-  const regex = /<meta\s+(?:property|name)="og:(\w+)"\s+content="([^"]*)"[^>]*>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(html)) !== null) {
-    tags[m[1]] = m[2];
-  }
-  return tags;
 }
 
 async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> {
@@ -69,12 +92,7 @@ async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> 
     artist = "Unknown Artist";
   }
 
-  // Split multiple artists
-  const artists = artist
-    .split(/[,&]/)
-    .map((a) => a.trim())
-    .filter(Boolean);
-  if (artists.length === 0) artists.push("Unknown Artist");
+  const artists = splitArtistNames(artist);
 
   return {
     sourceService: "bugs",
@@ -125,16 +143,11 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
   if (og.title.includes(" / ")) {
     const parts = og.title.split(" / ");
     title = parts[0].trim();
-    const artistStr = parts.slice(1).join(" / ").trim();
-    artists = artistStr
-      .split(/[,&]/)
-      .map((a) => a.trim())
-      .filter(Boolean);
+    artists = splitArtistNames(parts.slice(1).join(" / ").trim());
   } else {
     title = og.title;
     artists = ["Unknown Artist"];
   }
-  if (artists.length === 0) artists.push("Unknown Artist");
 
   return {
     sourceService: "bugs",
@@ -210,7 +223,6 @@ export const bugsAdapter: ServiceAdapter = {
       // Fetch track pages in parallel
       const trackResults = await Promise.allSettled(trackIds.map((id) => fetchTrackById(id)));
 
-      const isFreeText = query.title === query.artist;
       let bestMatch: NormalizedTrack | null = null;
       let bestConfidence = 0;
 
@@ -219,16 +231,7 @@ export const bugsAdapter: ServiceAdapter = {
         if (result.status !== "fulfilled" || !result.value) continue;
 
         const track = result.value;
-        let confidence: number;
-
-        if (isFreeText) {
-          confidence = Math.max(0.4, 0.85 - i * 0.05);
-        } else {
-          confidence = calculateConfidence(
-            { title: query.title, artists: [query.artist], durationMs: undefined },
-            { title: track.title, artists: track.artists, durationMs: track.durationMs },
-          );
-        }
+        const confidence = scoreSearchCandidate(query, track, i);
 
         log.debug(
           "Bugs!",

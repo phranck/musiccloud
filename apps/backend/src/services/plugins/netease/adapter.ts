@@ -16,6 +16,8 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
 
@@ -87,7 +89,7 @@ async function neteaseFetch(url: string, init?: RequestInit, timeoutMs = 8000): 
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Referer: "https://music.163.com/",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "User-Agent": SCRAPER_USER_AGENT,
         ...init?.headers,
       },
     },
@@ -313,7 +315,6 @@ export const neteaseAdapter: ServiceAdapter = {
 
       log.debug("NetEase", `Search returned ${songs.length} results for: ${q}`);
 
-      const isFreeText = query.title === query.artist;
       let bestMatch: NormalizedTrack | null = null;
       let bestConfidence = 0;
 
@@ -322,16 +323,7 @@ export const neteaseAdapter: ServiceAdapter = {
         if (!song.id || !song.name) continue;
 
         const track = mapSearchSong(song);
-        let confidence: number;
-
-        if (isFreeText) {
-          confidence = Math.max(0.4, 0.85 - i * 0.05);
-        } else {
-          confidence = calculateConfidence(
-            { title: query.title, artists: [query.artist], durationMs: undefined },
-            { title: track.title, artists: track.artists, durationMs: track.durationMs },
-          );
-        }
+        const confidence = scoreSearchCandidate(query, track, i);
 
         log.debug(
           "NetEase",
