@@ -110,7 +110,7 @@ jobs:
           ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
         run: |
           zcli login "$ZEROPS_TOKEN"
-          zcli push --serviceId vftiwXaYQGCnnwEEaiGPYA --wait
+          zcli push --serviceId vftiwXaYQGCnnwEEaiGPYA
 
   deploy-frontend:
     name: Deploy Frontend
@@ -128,7 +128,7 @@ jobs:
           ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
         run: |
           zcli login "$ZEROPS_TOKEN"
-          zcli push --serviceId bMY4g66BRDOfq1AAi8Q85A --wait
+          zcli push --serviceId bMY4g66BRDOfq1AAi8Q85A
 
   deploy-dashboard:
     name: Deploy Dashboard
@@ -146,4 +146,4 @@ jobs:
           ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
         run: |
           zcli login "$ZEROPS_TOKEN"
-          zcli push --serviceId IF9Xp4YFRxuQKRQxmAWFBA --wait
+          zcli push --serviceId IF9Xp4YFRxuQKRQxmAWFBA
