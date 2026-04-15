@@ -1,3 +1,21 @@
+/**
+ * Wire-format types for the public resolve / share / artist-info APIs.
+ *
+ * Every type in this file is a direct shape of a JSON payload that crosses
+ * the backend-frontend boundary. Changing one of these is a wire-format
+ * breaking change: cached share pages rendered against the old shape will
+ * stop hydrating. When a field needs to evolve, prefer adding an optional
+ * sibling over renaming.
+ *
+ * `ResolveResponse` is a discriminated union because callers must switch on
+ * the shape anyway (success vs disambiguation vs error); encoding the cases
+ * at the type level forces every consumer to handle all three.
+ *
+ * `UnifiedResolveSuccessResponse` additionally discriminates by resource
+ * kind (`type: "track" | "album" | "artist"`) so the share route can return
+ * one endpoint for all three without the frontend probing fields.
+ */
+
 export interface ApiTrack {
   title: string;
   artists: string[];

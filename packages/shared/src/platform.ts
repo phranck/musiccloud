@@ -1,3 +1,23 @@
+/**
+ * Single source of truth for platform display metadata.
+ *
+ * Project rule (code-quality): "No duplicate display name or color maps"
+ * (`.claude/CLAUDE.md` > Database). Historically the frontend, backend, and
+ * dashboard each maintained their own `{spotify: "#1DB954", …}` map; drift
+ * between them produced wrong brand colors in the marquee vs the share page
+ * vs the admin UI. `PLATFORM_CONFIG` here is the one that every consumer
+ * imports from `@musiccloud/shared`.
+ *
+ * `color` values are brand colors lifted from each service's press kit.
+ * Tidal is white (`#FFFFFF`) on purpose: the brand mark on a dark UI is
+ * white; layout decides its background.
+ *
+ * `SERVICE_DISPLAY_ORDER` is separate from `PLATFORM_CONFIG` because
+ * display order is a product choice (major services first, regional later)
+ * while the config is brand data. Unknown services get rank 999 so newly
+ * added plugins sort to the end until their order is curated.
+ */
+
 import type { ServiceId } from "./services.js";
 import { formatDuration, formatYear } from "./utils.js";
 

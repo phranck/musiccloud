@@ -1,3 +1,21 @@
+/**
+ * Legacy coarse error codes.
+ *
+ * This file predates `./error-codes.ts`: the MC code registry is the
+ * current system, this union is the legacy shim. Both live side-by-side
+ * because:
+ *
+ * 1. Route handlers and the URL validator still emit these string codes
+ *    directly. Migrating them to MC codes is tracked as ongoing work.
+ * 2. `LEGACY_TO_MC` in `./error-codes.ts` maps every code here to a
+ *    canonical MC code, so wire responses always carry both (legacy code
+ *    in `error`, MC code appended to `message`).
+ *
+ * When adding a new error, prefer an entry in `ERROR_CODE_REGISTRY` over
+ * extending this union. Only keep the legacy form if another subsystem
+ * reads the coarse code directly.
+ */
+
 export type ErrorCode =
   | "UNSUPPORTED_SERVICE"
   | "NOT_MUSIC_LINK"

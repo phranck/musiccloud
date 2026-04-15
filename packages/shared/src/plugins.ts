@@ -1,3 +1,19 @@
+/**
+ * Wire-format types for the plugin admin and public-active endpoints.
+ *
+ * Two shapes for two audiences:
+ *
+ * - `PluginInfo` is returned by `GET /api/admin/plugins` (JWT-protected).
+ *   It exposes everything the Services dashboard page needs to render a
+ *   toggle: runtime state, credential status, capabilities, defaults.
+ *
+ * - `ActiveService` is returned by the public `GET /api/v1/services/active`
+ *   and is intentionally minimal: the marquee on the landing page is a
+ *   public surface, so this type carries only what gets rendered (id,
+ *   display name, brand color). No credential state, no capability flags,
+ *   no environment hints that could help probe the server's configuration.
+ */
+
 import type { ServiceId } from "./services.js";
 
 /** Track-level capabilities reported by a resolve plugin. Mirrors the
@@ -35,7 +51,7 @@ export interface PluginInfo {
 
 /**
  * Shape returned by the public `GET /api/v1/services/active` endpoint.
- * Trimmed down: no secrets, no capability internals: only what the
+ * Trimmed down: no secrets, no capability internals, only what the
  * public frontend (marquee, resolve pages) needs to render.
  */
 export interface ActiveService {
