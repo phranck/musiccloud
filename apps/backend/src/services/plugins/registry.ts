@@ -1,3 +1,58 @@
+/**
+ * @file Central registry for all resolve plugins.
+ *
+ * Single source of truth for "which plugins exist", "which of them
+ * are enabled right now", and "which adapters can serve traffic".
+ * The resolvers in `services/resolver.ts`, `album-resolver.ts`, and
+ * `artist-resolver.ts` reach for adapters through this module rather
+ * than importing them directly, so the enabled/available gate is
+ * uniformly enforced.
+ *
+ * ## Plugin list is build-time
+ *
+ * `PLUGINS` is a plain array literal. New plugins are added by
+ * appending the imported plugin object; nothing scans the filesystem.
+ * That means removing a plugin requires deleting the import line, and
+ * the compiler will flag any code that still referenced the adapter.
+ *
+ * ## Enabled map: 30s cache + promise coalescing
+ *
+ * `getEnabledMap` is on the resolve hot path, so its result is
+ * memoized for 30 seconds. A burst of concurrent cache misses is
+ * coalesced onto a single in-flight DB read via `pendingRead`,
+ * matching the project rule against parallel DB roundtrips for the
+ * same lookup. The 30s TTL means toggling a plugin off in the admin
+ * UI takes up to 30 seconds to propagate to other processes; the
+ * process that wrote the toggle busts its own cache via
+ * `invalidateEnabledCache` for same-second visibility.
+ *
+ * ## "Enabled" vs "available"
+ *
+ * `enabled` is an admin toggle stored in `service_plugins`, falling
+ * back to `manifest.defaultEnabled` for rows that have never been
+ * touched. `available` is the adapter's self-report: for keyless
+ * services it is always true; for credentialed services it is true
+ * only when the env vars are present. A plugin has to be BOTH for
+ * `getActiveAdapters` to include it.
+ *
+ * ## `identifyServiceIncludingDisabled`
+ *
+ * Deliberately separate from `identifyService`: the resolver calls the
+ * disabled-aware variant first to tell the difference between "URL
+ * from an unknown service" (`NOT_MUSIC_LINK`) and "URL from a service
+ * the admin has turned off" (`SERVICE_DISABLED`). Only the former is
+ * a user error; the latter is actionable feedback ("the admin turned
+ * Apple Music off").
+ *
+ * ## `filterDisabledLinks`
+ *
+ * Runs over cached resolve results. A link whose service is currently
+ * disabled must not reappear on a share page just because it was
+ * persisted while the service was on. Links for services that have no
+ * plugin at all (derived cross-links like `youtube-music`) pass
+ * through: the admin has no direct toggle over them, and they follow
+ * the state of the service they were derived from.
+ */
 import type { ServiceId } from "@musiccloud/shared";
 import { readPluginStatesFromDb } from "../../db/plugin-repository.js";
 import type { ServiceAdapter } from "../types.js";
@@ -58,7 +113,7 @@ let pendingRead: Promise<ReadonlyMap<ServiceId, boolean>> | null = null;
 
 /**
  * Sync, cheap access to the plugin manifest list. Used by the admin
- * endpoint to render the Dashboard — manifest data is static.
+ * endpoint to render the Dashboard. Manifest data is static.
  */
 export function listPlugins(): readonly ServicePlugin[] {
   return PLUGINS;
@@ -145,7 +200,7 @@ export async function isPluginEnabled(id: ServiceId): Promise<boolean> {
 /**
  * Drop entries whose `service` corresponds to a plugin that is currently
  * toggled off. Links for services with no plugin (e.g. derived
- * `youtube-music` cross-links) pass through — the admin has no direct
+ * `youtube-music` cross-links) pass through; the admin has no direct
  * toggle over them. Used to filter cached resolve results so disabled
  * services don't reappear on share pages after a toggle.
  */
