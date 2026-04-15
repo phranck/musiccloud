@@ -46,8 +46,6 @@ export const ENDPOINTS = {
     resolve: "/api/v1/resolve",
     /** GET `/api/v1/share/:shortId` — fetch a previously-resolved share. */
     share: (shortId: string) => `/api/v1/share/${shortId}`,
-    /** GET `/api/v1/redirect?short=…` — short-link redirect. */
-    redirect: "/api/v1/redirect",
     /** GET `/api/v1/artist-info?…` — Last.fm + Ticketmaster aggregated artist info. */
     artistInfo: "/api/v1/artist-info",
     /** GET `/api/v1/random-example` — pick a random short URL (track or album). */
@@ -86,7 +84,8 @@ export const ENDPOINTS = {
     randomExample: "/api/random-example",
     /** GET — forwarded to `ENDPOINTS.v1.artistInfo`. */
     artistInfo: "/api/artist-info",
-    /** GET — forwarded to `ENDPOINTS.v1.redirect`. */
+    /** GET — handled entirely by Astro (`pages/api/redirect.ts`): takes `?url=`,
+     * calls `ENDPOINTS.v1.resolve`, then 302s to the resolved share page. */
     redirect: "/api/redirect",
     /** Umami analytics proxy prefix (script.js + event endpoint live beneath). */
     umami: "/api/mc",
