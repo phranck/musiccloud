@@ -1,3 +1,22 @@
+/**
+ * In-memory sliding-window rate limiter.
+ *
+ * Backend runs as a single Node process per Zerops replica, so a Map is
+ * sufficient: no Redis or shared cache needed. If horizontal scaling ever
+ * lands, this becomes per-instance (which is fine for its current purpose:
+ * accidental client loops, not distributed abuse).
+ *
+ * Sliding window (not fixed bucket) because fixed buckets let a client fire
+ * 2x the quota around the bucket boundary. The window here keeps a
+ * per-key timestamp array and filters it on every check (O(n) per call,
+ * but `n <= maxRequests` so it stays cheap).
+ *
+ * Memory hygiene (see Project rule "Rate limiter cleanup must be scheduled"):
+ * the `cleanup()` method drops fully-expired entries. Without a scheduled
+ * caller the Map grows unbounded across IPs seen at least once. The
+ * `apiRateLimiter` export at the bottom of this file sets up that interval
+ * for the shared instance.
+ */
 export class RateLimiter {
   private windows: Map<string, number[]> = new Map();
 
@@ -37,5 +56,12 @@ export class RateLimiter {
   }
 }
 
+// Shared instance used by public API routes. 30 requests per 60s protects the
+// backend from runaway client loops (landing page retry storms, accidental
+// useEffect polling) without throttling a human user.
+//
+// Cleanup cadence is 5 minutes: aggressive enough that a burst of unique IPs
+// does not bloat the Map for long, slack enough that cleanup itself is
+// background noise on the event loop.
 export const apiRateLimiter = new RateLimiter(30, 60_000);
 setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);
