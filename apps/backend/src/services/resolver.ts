@@ -1,3 +1,117 @@
+/**
+ * @file Track resolve pipeline: URL or text -> cross-service link set.
+ *
+ * This is the core of the product. Every track resolve (whether driven
+ * by POST `/api/v1/resolve`, GET `/api/v1/resolve`, or a background
+ * job) ends up here. The album and artist resolvers (`album-resolver.ts`,
+ * `artist-resolver.ts`) are parallel siblings at a similar abstraction.
+ *
+ * ## Entry points (public)
+ *
+ * - `resolveQuery(input)` - front door. Dispatches to URL vs text.
+ * - `resolveUrl(url)` - URL input pipeline; handles short-link expansion.
+ * - `resolveTextSearch(query)` - single-result text search (used by
+ *   the unauthenticated GET endpoint, which cannot carry disambiguation).
+ * - `resolveTextSearchWithDisambiguation(query)` - returns either a
+ *   resolved track (when confidence is high enough) or a candidate list
+ *   (used by the POST endpoint for interactive disambiguation).
+ * - `resolveSelectedCandidate(id)` - second leg of the disambiguation
+ *   flow, called after a client picks a candidate.
+ * - `expandShortLink(url)` - HEAD-request short-link unroller;
+ *   exported because the POST route inspects expanded URLs before
+ *   content-type routing.
+ *
+ * ## Cache strategy: three layers
+ *
+ * Any incoming request tries to avoid upstream API calls in this order:
+ *
+ * 1. Cache by canonical URL (after tracking-param stripping + short-link
+ *    expansion).
+ * 2. Cache by the short-link alias (only if the URL was expanded), so a
+ *    `link.deezer.com/s/abc` that gets written once as an alias hits the
+ *    cache on subsequent visits.
+ * 3. Cache by ISRC after we fetched the source metadata. Catches the
+ *    same track pasted from a different service the second time around.
+ *
+ * All three layers respect `CACHE_TTL_MS`. A cache hit still goes
+ * through `fillMissingServices` so that enabling a new plugin over
+ * time organically enriches the cached row.
+ *
+ * ## Preview URL preference (Deezer first)
+ *
+ * Deezer CDN preview URLs are permanent; Spotify preview URLs expire
+ * after roughly 30-60 days. Whenever we see a Deezer preview among the
+ * resolved links we prefer it over the source track's preview, even
+ * going as far as issuing a gap-fill Deezer lookup from
+ * `fillMissingServices` when the cached track has no preview at all.
+ *
+ * ## Artwork fallback chain
+ *
+ * Some services (notably Tidal's API v2) do not return artwork. When
+ * the source track lacks one but has an ISRC, we try Spotify first
+ * and Apple Music second, both via `findByIsrc`. The OG-scrape
+ * fallback path (`scrapeTrackFromPage`) provides a further artwork
+ * source for pages that ship `og:image`.
+ *
+ * ## SERVICE_DISABLED vs NOT_MUSIC_LINK
+ *
+ * Before throwing the generic "unrecognized URL" error, the resolver
+ * checks against *all* plugins including disabled ones. If the URL
+ * matches a disabled plugin, the user sees the more actionable
+ * `SERVICE_DISABLED` error with the service name, not a misleading
+ * `NOT_MUSIC_LINK`. The admin controls which plugins are enabled;
+ * the user only controls which link they paste.
+ *
+ * ## YouTube Music derivation
+ *
+ * YouTube and YouTube Music share video IDs. When we match a YouTube
+ * video URL, we synthesise the YouTube Music link by swapping the
+ * hostname + path prefix, rather than running a separate YT Music
+ * search. Same trick as in the album and artist resolvers.
+ *
+ * ## YouTube search-fallback link
+ *
+ * If no YouTube match is found but the track has a title and artist,
+ * we still emit a `music.youtube.com/search?q=...` link flagged with
+ * `isSearchFallback: true`. This guarantees every resolved track has
+ * at least a "search on YouTube" option even when the YouTube API
+ * could not pin the exact video.
+ *
+ * ## Adapter timeout
+ *
+ * `resolveAcrossServices` races each adapter lookup against a 10s
+ * timeout via `Promise.race`. Without this cap, a single hung adapter
+ * would block the entire resolve until the HTTP client's own timeout
+ * (which can be much longer).
+ *
+ * ## OG-scrape fallback (`scrapeTrackFromPage`)
+ *
+ * When a URL belongs to a service whose adapter has no API
+ * credentials (`isAvailable() === false`), we fall back to fetching
+ * the page and parsing OG meta tags. The trick is the
+ * `User-Agent: facebookexternalhit/1.1` header: single-page app shells
+ * do not server-render OG tags for regular browsers, but they DO render
+ * them for known social media crawlers because the page relies on
+ * social unfurl previews working. We pretend to be Facebook's link
+ * previewer to get the server-rendered variant.
+ *
+ * The OG-title string is parsed with five language-specific patterns
+ * ("Title by Artist on Service" / "Title von Artist bei Service" /
+ * etc.) because services localize the OG title based on the request
+ * locale. Falling out of all patterns drops to a dash-split and then
+ * to a last-resort free-text search.
+ *
+ * ## Confidence thresholds (in `constants.ts`)
+ *
+ * | Constant                    | Meaning                                                |
+ * | --------------------------- | ------------------------------------------------------ |
+ * | `MATCH_MIN_CONFIDENCE`      | Minimum for an adapter to report a result as "found"   |
+ * | `LINK_QUALITY_THRESHOLD`    | Minimum for a link to appear in the final result set   |
+ * | `AUTO_SELECT_THRESHOLD`     | Above this, text search skips disambiguation entirely  |
+ * | `CANDIDATE_MIN_CONFIDENCE`  | Minimum for a candidate to appear in disambiguation    |
+ * | `MAX_CANDIDATES`            | Disambiguation list size cap                           |
+ * | `SEARCH_FALLBACK_CONFIDENCE`| Confidence of synthesised "search on X" fallback links |
+ */
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { CACHE_TTL_MS } from "../lib/config.js";
@@ -155,7 +269,7 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
   // Don't add Deezer twice to allLinks if it was only re-fetched for preview
   const allLinks = [...cached.links, ...genuinelyNewLinks].sort((a, b) => b.confidence - a.confidence);
 
-  // Always prefer a fresh Deezer preview URL — Deezer CDN URLs are permanent,
+  // Always prefer a fresh Deezer preview URL. Deezer CDN URLs are permanent,
   // Spotify preview URLs expire after ~30-60 days. Overwrite any existing value.
   let sourceTrack = cached.sourceTrack;
   const deezerGapLink = newLinks.find((l) => l.service === "deezer" && l.previewUrl);
@@ -206,7 +320,17 @@ export async function expandShortLink(url: string): Promise<string> {
 }
 
 /**
- * Main entry point: accepts a URL or free-text query, returns cross-service links.
+ * Main entry point used by both public resolve routes. Dispatches to
+ * `resolveUrl` for URL input and `resolveTextSearch` for free text.
+ * URL validation runs *before* dispatch so unsupported content types
+ * (e.g. playlists, podcasts) surface a precise error rather than
+ * entering the track pipeline.
+ *
+ * @param input - raw user input, URL or text
+ * @returns resolved track result
+ * @throws `ResolveError` with the validation code when the input is a
+ *         non-track URL, or any of the pipeline errors documented on
+ *         `resolveUrl` / `resolveTextSearch`
  */
 export async function resolveQuery(input: string): Promise<ResolutionResult> {
   const trimmed = input.trim();
@@ -224,6 +348,20 @@ export async function resolveQuery(input: string): Promise<ResolutionResult> {
   return resolveTextSearch(trimmed);
 }
 
+/**
+ * URL input pipeline. See the file header for the three-layer cache,
+ * SERVICE_DISABLED vs NOT_MUSIC_LINK ordering, preview URL preference,
+ * artwork fallback chain, and OG-scrape escape hatch.
+ *
+ * @param inputUrl - streaming-service URL identifying a track
+ * @returns resolved track result, with `inputUrl` set when the input
+ *          was a short link that got expanded (route handler uses this
+ *          to persist the short link as a cache alias)
+ * @throws `ResolveError("SERVICE_DISABLED")` if the URL belongs to a currently-disabled plugin
+ * @throws `ResolveError("NOT_MUSIC_LINK")` if no adapter recognizes the URL shape
+ * @throws `ResolveError("INVALID_URL")` if the adapter cannot extract a track ID
+ * @throws `ResolveError("SERVICE_DOWN")` (or adapter MC code) if metadata fetch fails and scrape also fails
+ */
 export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   // Strip tracking params, then expand short links (e.g. link.deezer.com/s/…)
   const strippedInput = stripTrackingParams(inputUrl);
@@ -245,7 +383,7 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   // 2. Identify which service the URL belongs to.
   //    Check against ALL plugins first so we can distinguish a truly
   //    unknown URL (NOT_MUSIC_LINK) from a known-but-disabled one
-  //    (SERVICE_DISABLED) — the user controls which link to paste; the
+  //    (SERVICE_DISABLED). The user controls which link to paste; the
   //    admin controls which plugins are on.
   const identified = await identifyServiceIncludingDisabled(cleanUrl);
   if (identified && !(await isPluginEnabled(identified.id))) {
@@ -372,9 +510,22 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
 }
 
 /**
- * Text search with disambiguation support.
- * Returns candidates for user selection when no single result has high enough confidence.
- * Auto-selects when top result confidence > 0.9.
+ * Text search variant used by the authenticated POST endpoint.
+ *
+ * Returns `{ kind: "resolved" }` when a single clear match exists
+ * (either through the adapter's native candidate API, or a good
+ * confidence on the plain `searchTrack`). Returns
+ * `{ kind: "disambiguation" }` with up to `MAX_CANDIDATES` candidates
+ * when confidence is below `AUTO_SELECT_THRESHOLD`. The client then
+ * calls `resolveSelectedCandidate` with the picked candidate's ID.
+ *
+ * Adapters that implement `searchTrackWithCandidates` (e.g. Spotify)
+ * get the richer path; others fall back to single-result
+ * `searchTrack`, which can only trigger the auto-resolve branch.
+ *
+ * @param query - free-text search query
+ * @returns either a resolved track or a candidate list
+ * @throws `ResolveError("TRACK_NOT_FOUND")` if no adapter returns anything usable
  */
 export async function resolveTextSearchWithDisambiguation(query: string): Promise<TextSearchResult> {
   log.debug("Resolver", "resolveTextSearchWithDisambiguation called with:", query);
@@ -475,7 +626,16 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
 }
 
 /**
- * Resolves a specific Spotify track by ID (after user selects from disambiguation list).
+ * Second leg of the disambiguation flow. The client passes back the ID
+ * of the candidate it picked (format: `<service>:<trackId>`), and the
+ * resolver completes the full cross-service resolve against that track.
+ *
+ * @param candidateId - stable ID from a disambiguation candidate
+ *                      (`sourceService:sourceId` as minted in
+ *                      `resolveTextSearchWithDisambiguation`)
+ * @returns resolved track result
+ * @throws `ResolveError("INVALID_URL")` if the candidate ID is malformed
+ * @throws `ResolveError("SERVICE_DOWN")` if the referenced service adapter is unavailable
  */
 export async function resolveSelectedCandidate(candidateId: string): Promise<ResolutionResult> {
   // candidateId format: "spotify:trackId"

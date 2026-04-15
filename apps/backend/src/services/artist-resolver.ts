@@ -1,3 +1,74 @@
+/**
+ * @file Artist resolve pipeline: URL -> cross-service link set.
+ *
+ * Parallel in structure to `resolver.ts` (tracks) and `album-resolver.ts`
+ * (albums). The public entry points are `resolveArtistUrl` (when the
+ * input is a streaming-service URL) and `resolveArtistTextSearch` (when
+ * the input is a free-text artist name).
+ *
+ * ## Pipeline at a glance
+ *
+ * For a URL input the flow is:
+ *
+ * 1. Strip tracking params, try cache by URL, gap-fill on hit.
+ * 2. If the URL belongs to a disabled plugin, throw `SERVICE_DISABLED`
+ *    (more actionable than the generic `NOT_MUSIC_LINK`).
+ * 3. Identify source adapter, extract artist ID, fetch source metadata.
+ * 4. Try cache by normalized name (dedup across different source URLs
+ *    for the same artist).
+ * 5. Resolve on every other adapter that implements
+ *    `artistCapabilities.supportsArtistSearch`, in parallel.
+ * 6. Enrich missing `imageUrl` / `genres` from the cross-service
+ *    results (Spotify preferred).
+ * 7. Prepend the source link with confidence 1.0 and return.
+ *
+ * ## Confidence scoring (`calculateArtistNameConfidence`)
+ *
+ * Names match a case-normalized pair of rules before falling through
+ * to fuzzy similarity:
+ *
+ * - Exact match (case/whitespace only): 0.95. Not 1.0 because two
+ *   different real artists can share a name.
+ * - "The" prefix stripped on both sides and equal: 0.9.
+ * - `stringSimilarity > 0.85`: 0.85 (high-confidence fuzzy).
+ * - `> 0.7` or substring either way: 0.75.
+ * - Otherwise: `similarity * 0.7`, so fuzzy matches never exceed 0.7.
+ *
+ * Results below `MATCH_MIN_CONFIDENCE` are dropped at the per-service
+ * level; results below `ARTIST_LINK_QUALITY_THRESHOLD` (0.6) are dropped
+ * at the cross-service aggregate level. The two thresholds differ
+ * because the per-service check runs against scored candidates while
+ * the aggregate check decides what ends up in the user-visible link
+ * list.
+ *
+ * ## YouTube Music derivation
+ *
+ * YouTube Music shares channel IDs with regular YouTube, so any
+ * successful YouTube channel match mechanically yields a YouTube Music
+ * link by hostname swap. This saves us from running a separate
+ * YouTube-Music search (which would be redundant) and guarantees both
+ * links stay in lockstep.
+ *
+ * ## Spotify-first enrichment
+ *
+ * Two artist fields get opportunistic enrichment from the cross-service
+ * results when missing on the source:
+ *
+ * - `imageUrl`: Spotify's artist images are consistently high quality,
+ *   so they are the first preference; any other link with an image is
+ *   the fallback.
+ * - `genres`: only Spotify exposes genre data reliably. If the source
+ *   did not include genres but Spotify was matched, a targeted
+ *   `getArtist(spotifyId)` call fetches them. Enrichment failure is
+ *   swallowed (genres are optional).
+ *
+ * ## Text search prioritizes Spotify
+ *
+ * `resolveArtistTextSearch` iterates adapters with Spotify first because
+ * Spotify's artist search endpoint gives the best name-based matches.
+ * Other adapters serve as fallbacks if Spotify is down or not
+ * configured.
+ */
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { CACHE_TTL_MS } from "../lib/config.js";
@@ -71,6 +142,19 @@ async function tryArtistCache(lookup: { url?: string; name?: string }): Promise<
   }
 }
 
+/**
+ * "Gap-fill" for a cached hit: runs artist search on every active
+ * adapter that supports artist resolution and is not yet represented
+ * in the cached link set. New links are persisted back onto the
+ * cached row so the next cache hit is more complete.
+ *
+ * This exists so that enabling a new adapter after an artist was
+ * already cached does not require a hard cache eviction: the next
+ * request for that artist opportunistically picks up the new service.
+ *
+ * @param cached - cached artist result (already validated as fresh)
+ * @returns the result augmented with links from newly-enabled services
+ */
 async function fillMissingArtistServices(cached: ArtistResolutionResult): Promise<ArtistResolutionResult> {
   const coveredServices = new Set(cached.links.map((l) => l.service));
   const active = await getActiveAdapters();
@@ -215,7 +299,10 @@ async function resolveArtistAcrossServices(
     }
   }
 
-  // Derive YouTube Music link from YouTube channel
+  // YouTube and YouTube Music share channel IDs, so an existing
+  // YouTube match produces a valid YouTube Music URL by hostname swap.
+  // Skipping the lookup avoids a redundant search call and keeps the
+  // two links in lockstep.
   const youtubeLink = links.find((l) => l.service === "youtube");
   if (youtubeLink && !links.some((l) => l.service === "youtube-music")) {
     links.push({
@@ -242,7 +329,16 @@ async function identifyArtistService(url: string): Promise<ServiceAdapter | unde
 
 // --- Main entry points ---
 
-/** Resolve an artist URL: fetch metadata from source, then find on all other services. */
+/**
+ * Main URL entry point. See the file header for the full pipeline.
+ *
+ * @param inputUrl - streaming-service URL identifying an artist
+ * @returns resolved result with source plus cross-service links
+ * @throws `ResolveError("SERVICE_DISABLED")` if the URL belongs to a currently-disabled plugin
+ * @throws `ResolveError("NOT_MUSIC_LINK")` if no adapter recognizes the URL shape
+ * @throws `ResolveError("INVALID_URL")` if the adapter cannot extract an artist ID
+ * @throws `ResolveError("SERVICE_DOWN")` if the source adapter fails to fetch metadata
+ */
 export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResolutionResult> {
   const cleanUrl = stripTrackingParams(inputUrl);
 
@@ -326,7 +422,16 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
   return { sourceArtist, links };
 }
 
-/** Text search for artists. Tries Spotify first (best artist search API). */
+/**
+ * Text-search entry point. Iterates adapters in Spotify-first order (see
+ * file header for why). First adapter with a `found` match wins; the
+ * result then goes through the same cache-by-name and cross-service
+ * enrichment as the URL path.
+ *
+ * @param query - free-text artist name
+ * @returns resolved artist result
+ * @throws `ResolveError("TRACK_NOT_FOUND")` if no adapter finds the artist
+ */
 export async function resolveArtistTextSearch(query: string): Promise<ArtistResolutionResult> {
   const active = await getActiveAdapters();
   const searchAdapters = active.filter(

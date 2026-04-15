@@ -28,7 +28,7 @@ export function validateAdapters(): void {
     if (!plugin.adapter) {
       log.error(
         "Services",
-        `Plugin ${plugin.manifest.id} has no adapter — check plugins/${plugin.manifest.id}/index.ts`,
+        `Plugin ${plugin.manifest.id} has no adapter. Check plugins/${plugin.manifest.id}/index.ts`,
       );
       continue;
     }

@@ -1,9 +1,49 @@
+/**
+ * @file Adapter contract and shared shapes for the resolve subsystem.
+ *
+ * This file defines what a streaming-service adapter has to look like so
+ * the generic resolver (`services/resolver.ts`) can run across any of
+ * them without knowing which one it is dealing with. Every plugin under
+ * `services/plugins/<name>/adapter.ts` implements `ServiceAdapter`.
+ *
+ * ## Three layers of support, each optional
+ *
+ * `ServiceAdapter` has a mandatory **track** surface (every adapter must
+ * resolve tracks) and two optional surfaces for **albums** and
+ * **artists**. Optional means: if the fields (`albumCapabilities`,
+ * `detectAlbumUrl`, etc.) are present the adapter participates in album
+ * resolves; if they are absent the resolver simply skips it for album
+ * work. That is how we can ship, say, Deezer with full album+artist
+ * support and a smaller service with only tracks without forking the
+ * interface.
+ *
+ * ## Why re-export `ServiceId` / `isValidServiceId`
+ *
+ * The canonical definitions live in `@musiccloud/shared` so that the
+ * frontend and dashboard share the same ID set. The re-exports exist
+ * purely so backend call sites can use short relative imports
+ * (`../services/types.js`) instead of reaching into the workspace
+ * package on every file.
+ *
+ * ## `TrackSource` includes "cached"
+ *
+ * When the resolver returns a track loaded from the DB cache rather than
+ * from a live adapter call, the source is reported as `"cached"` in
+ * place of a real `ServiceId`. Callers that need to know whether the
+ * data is fresh should branch on this.
+ *
+ * ## Optional `searchTrackWithCandidates`
+ *
+ * The core track search returns a single `MatchResult`. Adapters that
+ * can return more than one candidate (used by the POST resolve endpoint
+ * to build a disambiguation list) implement this richer variant on top.
+ * The resolver falls back to `searchTrack` when the richer variant is
+ * not provided, so adapters without it still work for URL resolves and
+ * for text searches that do not need disambiguation.
+ */
 import type { ServiceId } from "@musiccloud/shared";
 
 export type { ServiceId } from "@musiccloud/shared";
-// Canonical ServiceId / isValidServiceId live in `@musiccloud/shared`
-// (services.ts). Re-exported here so backend call sites can keep their
-// short relative imports.
 export { isValidServiceId } from "@musiccloud/shared";
 
 /** ServiceId plus "cached" for tracks loaded from the database cache */

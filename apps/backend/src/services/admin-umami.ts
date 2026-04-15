@@ -1,3 +1,41 @@
+/**
+ * @file Admin-facing Umami queries, built on top of `umami.ts`.
+ *
+ * Exposes the function surface consumed by `routes/admin-analytics.ts`.
+ * Every public function follows the same contract:
+ *
+ * - Returns `null` when Umami is not configured (`umamiConfigured === false`).
+ * - Returns `null` when the underlying call throws (error is logged).
+ * - Otherwise returns the shaped payload the dashboard expects.
+ *
+ * This "null on any failure" pattern is what lets the admin route
+ * render a "no data" state instead of propagating errors to the client
+ * when Umami is down or deliberately unconfigured (e.g. local dev).
+ *
+ * ## Two kinds of custom-event queries
+ *
+ * Musiccloud emits two custom events into Umami: `track-resolve` (fired
+ * every time a track resolves) and `service-link-click` (fired when a
+ * user opens a resolved service link). Two Umami endpoints cover them:
+ *
+ * - `/event-data/values` returns the *values* of one property for one
+ *   event, sorted by frequency, capped to `EVENT_REPORT_LIMIT`. We use
+ *   it for the "top N services by resolves / clicks" bars.
+ * - `/event-data/events` returns aggregated totals per property for one
+ *   event. We use it for the single "total resolves / clicks / all
+ *   interactions" KPIs.
+ *
+ * ## Legacy response-shape tolerance
+ *
+ * Older Umami versions return event-data rows as `{ x, y }`, newer
+ * versions as `{ value, total }`. `normalizeEventValueRows` accepts
+ * either and yields `UmamiEventValueRow` with canonical field names.
+ *
+ * ## `EVENT_REPORT_LIMIT`
+ *
+ * Capped at 10 because the dashboard bar cards only render the top 10
+ * entries. Querying more would waste Umami's DB budget.
+ */
 import { log } from "../lib/infra/logger.js";
 import {
   normalizeUmamiMetricType,
@@ -70,6 +108,15 @@ function extractEventPropertyTotal(raw: unknown, propertyName: string): number {
   return 0;
 }
 
+/**
+ * Whitelists the incoming query-string period to a known `UmamiPeriod`.
+ * Anything else (including `undefined` and malicious values) falls back
+ * to `7d`, which keeps the API honest and prevents unknown period
+ * strings from bleeding through to Umami.
+ *
+ * @param period - raw `period` query param as received on the wire
+ * @returns a valid `UmamiPeriod` value
+ */
 export function normalizePeriod(period: string | undefined): UmamiPeriod {
   switch (period) {
     case "today":
@@ -228,6 +275,16 @@ export async function getManagedUmamiLinkClickTotal(periodRaw: string | undefine
   return getManagedUmamiEventTotal("service-link-click", "service", periodRaw);
 }
 
+/**
+ * Sums `track-resolve` and `service-link-click` totals into a single
+ * "interactions" KPI for the dashboard overview. Each underlying call
+ * can independently return `null` on failure; a `null` contributes `0`
+ * rather than failing the whole KPI so one degraded event source does
+ * not blank the combined card.
+ *
+ * @param periodRaw - raw period query param
+ * @returns `{ total }` or `null` if Umami is unconfigured / unreachable
+ */
 export async function getManagedUmamiInteractionTotal(periodRaw: string | undefined) {
   if (!umamiConfigured) return null;
 

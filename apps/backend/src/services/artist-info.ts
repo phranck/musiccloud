@@ -187,7 +187,7 @@ async function spotifyArtistTopTracks(artistName: string): Promise<ArtistTopTrac
         albumName: t.album.name ?? null,
         artworkUrl: pickSpotifyImage(t.album.images) ?? null,
         durationMs: t.duration_ms ?? null,
-        deezerUrl: t.external_urls.spotify, // Spotify URL — resolver handles both
+        deezerUrl: t.external_urls.spotify, // Spotify URL, resolver handles both
         shortId: null,
       }),
     );

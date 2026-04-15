@@ -1,3 +1,75 @@
+/**
+ * @file Album resolve pipeline: URL -> cross-service link set.
+ *
+ * Parallel in structure to `artist-resolver.ts` and the track half of
+ * `resolver.ts`, but with album-specific identifiers and matching
+ * strategies. Entry points are `resolveAlbumUrl` (URL input) and
+ * `resolveAlbumTextSearch` (free-text input).
+ *
+ * ## Three matching strategies, in order
+ *
+ * Per target service, `resolveAlbumOnService` tries three strategies
+ * and stops at the first hit. The order is deliberately from strongest
+ * to weakest evidence:
+ *
+ * | Strategy          | Evidence                     | Confidence  |
+ * | ----------------- | ---------------------------- | ----------- |
+ * | UPC lookup        | Shared Universal Product Code| 1.0         |
+ * | ISRC inference    | Sampled track ISRCs agree    | 0.7 to 0.9  |
+ * | Text search       | Title + artist fuzzy match   | scored      |
+ *
+ * UPC is the album-level analogue of ISRC: a strict, globally unique
+ * ID assigned by the music industry, so a UPC match is as strong as an
+ * identifier match gets.
+ *
+ * ## ISRC inference (`inferAlbumViaIsrc`)
+ *
+ * Many services expose `findByIsrc` for tracks but not an album-level
+ * ID lookup. We piggyback on the track API: sample up to
+ * `ISRC_SAMPLE_SIZE` (5) tracks from the source album, call
+ * `findByIsrc` on each against the target service, collect the album
+ * names those tracks belong to, and pick the most common. If at least
+ * `ISRC_INFERENCE_MIN_MATCH_FRACTION` (1/3) of sampled tracks agree on
+ * the same album name, we accept it.
+ *
+ * Confidence is scored in the 0.7 to 0.9 range: stronger than pure
+ * text search (ISRCs verify the tracks exist on the target) but
+ * weaker than a direct UPC match (album identity is inferred, not
+ * asserted). The sampling step spreads across the tracklist evenly so
+ * a single disc-one block does not dominate the vote.
+ *
+ * Once the name is inferred, we follow up with a real album search
+ * (`resolveAlbumViaSearch`) to get a proper album URL, artwork, and
+ * `topTrackPreviewUrl`. If that follow-up fails, we fall back to the
+ * first sampled track's URL - a working link on the target, even if
+ * it points at a track rather than the album.
+ *
+ * ## `topTrackPreviewUrl` threading
+ *
+ * Album payloads carry a preview URL for the share page's inline
+ * player. Deezer's `/search/album` endpoint does not return tracks,
+ * so `resolveAlbumViaSearch` follows up with `getAlbum(sourceId)`
+ * when the search result lacks a preview but the adapter can serve
+ * full album detail. Without this, Deezer-matched albums would ship
+ * a silent preview player.
+ *
+ * ## YouTube Music derivation
+ *
+ * YouTube exposes albums as playlists with an `OLAK5uy_` prefix in
+ * the `list=` query param. The YT and YT Music URLs map mechanically:
+ * swap `www.youtube.com/...?list=OLAK5uy_...` to
+ * `music.youtube.com/playlist?list=OLAK5uy_...`. If YouTube matched
+ * via its playlist endpoint, we synthesise the YouTube Music link
+ * from the same playlist ID instead of running a separate search.
+ *
+ * ## Artwork fallback
+ *
+ * Tidal's API v2 does not return artwork for albums. When the source
+ * album lacks an `artworkUrl`, we borrow one from the cross-service
+ * results in preference order Spotify -> Apple Music -> any. The
+ * preference mirrors image-quality: Spotify and Apple Music both
+ * serve high-resolution artwork consistently.
+ */
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { CACHE_TTL_MS } from "../lib/config.js";
@@ -223,7 +295,7 @@ async function inferAlbumViaIsrc(
   }
 
   // Fallback: at least return a track URL that actually works. Better than
-  // synthesising a broken /album/{trackId} URL — the user lands on the track
+  // synthesising a broken /album/{trackId} URL. The user lands on the track
   // and can navigate to the album from there.
   return {
     service: adapter.id,
@@ -314,7 +386,7 @@ async function resolveAlbumViaSearch(
       const full = await adapter.getAlbum(album.sourceId);
       if (full.topTrackPreviewUrl) album = full;
     } catch {
-      // ignore — use search result as-is
+      // ignore, use search result as-is
     }
   }
 
@@ -398,7 +470,18 @@ async function identifyAlbumService(url: string): Promise<ServiceAdapter | undef
 
 // ─── Main entry points ────────────────────────────────────────────────────────
 
-/** Resolve an album URL: fetch metadata from source, then find on all other services. */
+/**
+ * Main URL entry point. Strips tracking params, cache-hits by URL or
+ * UPC, otherwise walks the full pipeline: identify source, fetch
+ * metadata, resolve across other services, enrich, persist.
+ *
+ * @param inputUrl - streaming-service URL identifying an album
+ * @returns resolved album result with source plus cross-service links
+ * @throws `ResolveError("SERVICE_DISABLED")` if the URL belongs to a currently-disabled plugin
+ * @throws `ResolveError("NOT_MUSIC_LINK")` if no adapter recognizes the URL shape
+ * @throws `ResolveError("INVALID_URL")` if the adapter cannot extract an album ID
+ * @throws `ResolveError("SERVICE_DOWN")` (or the adapter's own MC code) if metadata fetch fails
+ */
 export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolutionResult> {
   const cleanUrl = stripTrackingParams(inputUrl);
 
@@ -472,8 +555,14 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
 }
 
 /**
- * Task 2.7: Text search for albums.
- * Tries Spotify first (best album search API), then other adapters.
+ * Text-search entry point. Iterates adapters in Spotify-first order
+ * (Spotify's album search is the most reliable), returns on the first
+ * match. Caches by UPC before running cross-service resolve.
+ *
+ * @param query - free-text album title (also used as artist in the
+ *                search, since adapters accept both in one query field)
+ * @returns resolved album result
+ * @throws `ResolveError("TRACK_NOT_FOUND")` if no adapter finds a matching album
  */
 export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolutionResult> {
   const active = await getActiveAdapters();
