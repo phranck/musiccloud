@@ -2,6 +2,7 @@ import {
   ENDPOINTS,
   type ResolveDisambiguationResponse,
   type ResolveErrorResponse,
+  type ResolveGenreSearchResponse,
   type ResolveSuccessResponse,
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
@@ -16,7 +17,7 @@ import {
   parseErrorKey,
   parseResolveResponse,
 } from "@/lib/resolve/parsers";
-import type { ActiveResult, AppState } from "@/lib/types/app";
+import type { ActiveResult, AppState, GenreSearchResults } from "@/lib/types/app";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 
 interface UseAppStateResult {
@@ -24,10 +25,12 @@ interface UseAppStateResult {
   active: ActiveResult | null;
   candidates: DisambiguationCandidate[] | null;
   selectedCandidateId: string | null;
+  genreSearchResults: GenreSearchResults | null;
   errorMessage: string | undefined;
   showCompact: boolean;
   isClearing: boolean;
   isDisambiguating: boolean;
+  isGenreSearching: boolean;
   handleSubmit: (url: string) => Promise<void>;
   handleSelectCandidate: (candidate: DisambiguationCandidate) => Promise<void>;
   handleClear: () => void;
@@ -43,11 +46,13 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
 
   const isDisambiguating = state.type === "disambiguation" || state.type === "disambiguation_loading";
   const isClearing = state.type === "clearing";
+  const isGenreSearching = state.type === "genre-search";
   const active = state.type === "result" ? state.active : state.type === "clearing" ? state.active : null;
   const candidates = isDisambiguating ? state.candidates : null;
   const selectedCandidateId = state.type === "disambiguation_loading" ? state.selectedId : null;
+  const genreSearchResults = isGenreSearching ? state.results : null;
   const errorMessage = state.type === "error" ? t(state.message) : undefined;
-  const showCompact = !!(active || candidates);
+  const showCompact = !!(active || candidates || genreSearchResults);
 
   const handleSubmit = useCallback(async (url: string) => {
     dispatch({ type: "SUBMIT" });
@@ -65,9 +70,16 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
         const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
         throw new Error(errorData.message || "error.generic");
       }
-      const data = (await response.json()) as UnifiedResolveSuccessResponse | ResolveDisambiguationResponse;
+      const data = (await response.json()) as
+        | UnifiedResolveSuccessResponse
+        | ResolveDisambiguationResponse
+        | ResolveGenreSearchResponse;
       if ("status" in data && data.status === "disambiguation") {
         dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
+        return;
+      }
+      if ("status" in data && data.status === "genre-search") {
+        dispatch({ type: "GENRE_SEARCH", results: data.results });
         return;
       }
       const resolved = data as UnifiedResolveSuccessResponse;
@@ -117,10 +129,12 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
     active,
     candidates,
     selectedCandidateId,
+    genreSearchResults,
     errorMessage,
     showCompact,
     isClearing,
     isDisambiguating,
+    isGenreSearching,
     handleSubmit,
     handleSelectCandidate,
     handleClear,

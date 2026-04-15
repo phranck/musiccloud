@@ -1,6 +1,7 @@
 import { type ArtistTopTrack, ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useState } from "react";
 import { SectionHeading } from "@/components/share/SectionHeading";
+import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 
 interface PopularTracksSectionProps {
@@ -67,7 +68,7 @@ export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; ar
     >
       <div className="w-10 h-10 flex-none">
         {resolving ? (
-          <SpinningCD size={40} />
+          <CDSpinArtwork className="w-10 h-10" />
         ) : track.artworkUrl ? (
           <img
             src={track.artworkUrl}
@@ -92,35 +93,6 @@ export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; ar
         <span className="text-xs text-text-secondary tabular-nums flex-none">{formatDuration(track.durationMs)}</span>
       )}
     </EmbossedButton>
-  );
-}
-
-function SpinningCD({ size = 28 }: { size?: number }) {
-  return (
-    <div className="relative animate-vinyl-spin" style={{ width: size, height: size }}>
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: "radial-gradient(circle at 50% 50%, #e8e8f0 0%, #a0a0b0 40%, #c8c8d0 70%, #b0b0b8 100%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 rounded-full animate-cd-shimmer"
-        style={{
-          background:
-            "conic-gradient(from 30deg, #a060ff 0%, #40b0ff 20%, #40ffc0 35%, #ffe040 50%, #ff6090 65%, #a060ff 80%, transparent 95%)",
-          opacity: 0.45,
-        }}
-      />
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{ background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0%, transparent 40%)" }}
-      />
-      <div
-        className="absolute rounded-full bg-[#0a0a0c]"
-        style={{ top: "38%", left: "38%", width: "24%", height: "24%" }}
-      />
-    </div>
   );
 }
 

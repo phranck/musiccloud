@@ -111,6 +111,88 @@ export interface ServiceAdapter {
   detectArtistUrl?(url: string): string | null;
   getArtist?(artistId: string): Promise<NormalizedArtist>;
   searchArtist?(query: ArtistSearchQuery): Promise<ArtistMatchResult>;
+
+  // Optional genre-based discovery search (adapters implement as needed).
+  // The generic orchestrator picks whichever adapter declares this.
+  searchByGenre?(input: GenreSearchInput): Promise<GenreSearchResult>;
+}
+
+// ─── Genre-search Types ─────────────────────────────────────────────────────
+
+/** Input to an adapter's genre-based discovery search. */
+export interface GenreSearchInput {
+  /** User-supplied genre names, already parsed. OR-combined. */
+  genres: string[];
+  /** Sampling mode: `"hot"` = top-N, `"mixed"` = stratified random sample. */
+  vibe: "hot" | "mixed";
+  /** Desired count per type. `0` means "don't fetch this type". */
+  tracks: number;
+  albums: number;
+  artists: number;
+}
+
+/** Result of a genre-based discovery search. */
+export interface GenreSearchResult {
+  tracks: NormalizedTrack[];
+  albums: NormalizedAlbum[];
+  artists: NormalizedArtist[];
+}
+
+/**
+ * Track-level row in a genre-search response. Shape is intentionally
+ * similar to `SearchCandidate` so the existing disambiguation row
+ * component can render it with minimal work. `webUrl` is what the click
+ * handler feeds back into the resolve endpoint to trigger the full
+ * cross-service resolve flow.
+ */
+export interface GenreTrackCandidate {
+  id: string;
+  title: string;
+  artists: string[];
+  albumName?: string;
+  artworkUrl?: string;
+  durationMs?: number;
+  webUrl: string;
+}
+
+/** Album-level row in a genre-search response. */
+export interface GenreAlbumCandidate {
+  id: string;
+  title: string;
+  artists: string[];
+  artworkUrl?: string;
+  webUrl: string;
+}
+
+/** Artist-level row in a genre-search response. */
+export interface GenreArtistCandidate {
+  id: string;
+  name: string;
+  imageUrl?: string;
+  webUrl: string;
+}
+
+/**
+ * The third variant of the `POST /api/v1/resolve` response, produced when
+ * the incoming query carries a `genre:` prefix. Carries up to three
+ * parallel candidate lists (any of which may be `null` if the user did
+ * not request that type).
+ */
+export interface GenreSearchResponse {
+  status: "genre-search";
+  query: {
+    genres: string[];
+    vibe: "hot" | "mixed";
+    /** `null` = type not requested; positive integer = requested count */
+    tracks: number | null;
+    albums: number | null;
+    artists: number | null;
+  };
+  results: {
+    tracks: GenreTrackCandidate[] | null;
+    albums: GenreAlbumCandidate[] | null;
+    artists: GenreArtistCandidate[] | null;
+  };
 }
 
 export interface SearchQuery {

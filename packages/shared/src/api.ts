@@ -72,7 +72,63 @@ export interface ResolveErrorResponse {
   message: string;
 }
 
-export type ResolveResponse = ResolveSuccessResponse | ResolveDisambiguationResponse | ResolveErrorResponse;
+export type ResolveResponse =
+  | ResolveSuccessResponse
+  | ResolveDisambiguationResponse
+  | ResolveGenreSearchResponse
+  | ResolveErrorResponse;
+
+// ─── Genre Search Response ────────────────────────────────────────────────────
+
+/** Track row returned by a genre-search query. */
+export interface ApiGenreTrackCandidate {
+  id: string;
+  title: string;
+  artists: string[];
+  albumName?: string;
+  artworkUrl?: string;
+  durationMs?: number;
+  /** Deezer URL — click handler feeds this into a follow-up resolve. */
+  webUrl: string;
+}
+
+/** Album row returned by a genre-search query. */
+export interface ApiGenreAlbumCandidate {
+  id: string;
+  title: string;
+  artists: string[];
+  artworkUrl?: string;
+  webUrl: string;
+}
+
+/** Artist row returned by a genre-search query. */
+export interface ApiGenreArtistCandidate {
+  id: string;
+  name: string;
+  imageUrl?: string;
+  webUrl: string;
+}
+
+/**
+ * Third resolve response variant, produced when the query starts with
+ * `genre:`. Each list in `results` is either a populated array or `null`
+ * when the user did not request that type.
+ */
+export interface ResolveGenreSearchResponse {
+  status: "genre-search";
+  query: {
+    genres: string[];
+    vibe: "hot" | "mixed";
+    tracks: number | null;
+    albums: number | null;
+    artists: number | null;
+  };
+  results: {
+    tracks: ApiGenreTrackCandidate[] | null;
+    albums: ApiGenreAlbumCandidate[] | null;
+    artists: ApiGenreArtistCandidate[] | null;
+  };
+}
 
 // ─── Unified Resolve Response ─────────────────────────────────────────────────
 

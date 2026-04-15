@@ -1,5 +1,16 @@
+import type { ApiGenreAlbumCandidate, ApiGenreArtistCandidate, ApiGenreTrackCandidate } from "@musiccloud/shared";
 import type { DisambiguationCandidate } from "./disambiguation";
 import type { PlatformLink } from "./platform";
+
+/**
+ * Results of a genre-search query, held on the app state while the
+ * landing page renders the three-column discovery view.
+ */
+export interface GenreSearchResults {
+  tracks: ApiGenreTrackCandidate[] | null;
+  albums: ApiGenreAlbumCandidate[] | null;
+  artists: ApiGenreArtistCandidate[] | null;
+}
 
 export type InputState = "idle" | "focused" | "loading" | "success" | "error";
 
@@ -50,13 +61,15 @@ export type AppState =
   | { type: "clearing"; active: ActiveResult }
   | { type: "error"; message: string }
   | { type: "disambiguation"; candidates: DisambiguationCandidate[] }
-  | { type: "disambiguation_loading"; candidates: DisambiguationCandidate[]; selectedId: string };
+  | { type: "disambiguation_loading"; candidates: DisambiguationCandidate[]; selectedId: string }
+  | { type: "genre-search"; results: GenreSearchResults };
 
 export type AppAction =
   | { type: "SUBMIT" }
   | { type: "RESOLVE_SUCCESS"; active: ActiveResult }
   | { type: "DISAMBIGUATION"; candidates: DisambiguationCandidate[] }
   | { type: "SELECT_CANDIDATE"; selectedId: string }
+  | { type: "GENRE_SEARCH"; results: GenreSearchResults }
   | { type: "ERROR"; message: string }
   | { type: "CLEAR_START" }
   | { type: "CLEAR" };

@@ -59,6 +59,8 @@ import type {
   ArtistCapabilities,
   ArtistMatchResult,
   ArtistSearchQuery,
+  GenreSearchInput,
+  GenreSearchResult,
   MatchResult,
   NormalizedAlbum,
   NormalizedArtist,
@@ -67,6 +69,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { deezerSearchByGenre } from "./genre-search.js";
 
 const API_BASE = "https://api.deezer.com";
 
@@ -462,5 +465,13 @@ export const deezerAdapter = {
     }
 
     return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+  },
+
+  // --- Genre-search support ---
+  // Thin delegate to keep adapter.ts focused on resolve-oriented work.
+  // Full implementation lives in `./genre-search.ts`.
+
+  async searchByGenre(input: GenreSearchInput): Promise<GenreSearchResult> {
+    return deezerSearchByGenre(input);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

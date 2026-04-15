@@ -68,6 +68,13 @@ import type { AlbumResolutionResult } from "../services/album-resolver.js";
 import { resolveAlbumUrl } from "../services/album-resolver.js";
 import type { ArtistResolutionResult } from "../services/artist-resolver.js";
 import { resolveArtistUrl } from "../services/artist-resolver.js";
+import {
+  GenreQueryParseError,
+  isGenreSearchQuery,
+  NoGenreSearchAdapterError,
+  runGenreSearch,
+  UnknownGenreError,
+} from "../services/genre-search/index.js";
 import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
 import type { ResolutionResult } from "../services/resolver.js";
 import {
@@ -157,6 +164,30 @@ export default async function resolveRoutes(app: FastifyInstance) {
 
       try {
         const origin = getOrigin(request.headers.origin);
+
+        // Flow 0: genre-based discovery search. Detected by the `genre:`
+        // prefix on the trimmed query. Returns its own discriminated
+        // response variant, does not persist anything (discovery is
+        // non-committal — the follow-up resolve happens when the user
+        // clicks a result).
+        if (query && isGenreSearchQuery(query)) {
+          try {
+            const genreResponse = await runGenreSearch(query);
+            return reply.send(genreResponse);
+          } catch (err) {
+            if (err instanceof GenreQueryParseError || err instanceof UnknownGenreError) {
+              return reply.status(400).send(jsonError("INVALID_URL", err.message));
+            }
+            if (err instanceof NoGenreSearchAdapterError) {
+              return reply.status(503).send(jsonError("SERVICE_DOWN", err.message));
+            }
+            log.error("GenreSearch", err instanceof Error ? err.message : "Unknown error");
+            if (process.env.NODE_ENV !== "production" && err instanceof Error) {
+              log.error("GenreSearch", "Stack:", err.stack);
+            }
+            return reply.status(503).send(jsonError("SERVICE_DOWN"));
+          }
+        }
 
         if (selectedCandidate) {
           // Flow 1: completing a previous disambiguation. The candidate

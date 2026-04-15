@@ -1,5 +1,6 @@
 import { ArrowRightIcon, CheckIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { useAmbilightAnimation } from "@/hooks/useAmbilightAnimation";
 import { useLoadingMessages } from "@/hooks/useLoadingMessages";
 import { useT } from "@/i18n/context";
@@ -221,33 +222,7 @@ export function HeroInput({
             aria-label={state === "loading" ? "Searching..." : "Search"}
           >
             {state === "loading" ? (
-              <div className="relative w-11 h-11 md:w-12 md:h-12 animate-vinyl-spin">
-                <div
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background:
-                      "radial-gradient(circle at 50% 50%, #e8e8f0 0%, #a0a0b0 40%, #c8c8d0 70%, #b0b0b8 100%)",
-                  }}
-                />
-                <div
-                  className="absolute inset-0 rounded-full animate-cd-shimmer"
-                  style={{
-                    background:
-                      "conic-gradient(from 30deg, #a060ff 0%, #40b0ff 20%, #40ffc0 35%, #ffe040 50%, #ff6090 65%, #a060ff 80%, transparent 95%)",
-                    opacity: 0.45,
-                  }}
-                />
-                <div
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0%, transparent 40%)",
-                  }}
-                />
-                <div
-                  className="absolute rounded-full bg-[#0a0a0c]"
-                  style={{ top: "38%", left: "38%", width: "24%", height: "24%" }}
-                />
-              </div>
+              <CDSpinArtwork className="w-11 h-11 md:w-12 md:h-12" />
             ) : state === "success" ? (
               <CheckIcon size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
             ) : (

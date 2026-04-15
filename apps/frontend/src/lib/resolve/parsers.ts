@@ -28,6 +28,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       if (state.type === "disambiguation")
         return { type: "disambiguation_loading", candidates: state.candidates, selectedId: action.selectedId };
       return state;
+    case "GENRE_SEARCH":
+      return { type: "genre-search", results: action.results };
     case "ERROR":
       return { type: "error", message: action.message };
     case "CLEAR_START":

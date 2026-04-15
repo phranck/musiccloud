@@ -1,7 +1,8 @@
-import { MusicNoteIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
+import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
@@ -181,65 +182,17 @@ export function DisambiguationPanel({
                         : `Select "${candidate.title}" by ${candidate.artists.join(", ")}`
                     }
                   >
-                    {isThisSelected ? (
-                      <div className="relative flex-shrink-0 w-14 h-14 md:w-16 md:h-16 animate-vinyl-spin">
-                        <div
-                          className="absolute inset-0 rounded-full"
-                          style={{
-                            background:
-                              "radial-gradient(circle at 50% 50%, #e8e8f0 0%, #a0a0b0 40%, #c8c8d0 70%, #b0b0b8 100%)",
-                          }}
-                        />
-                        <div
-                          className="absolute inset-0 rounded-full animate-cd-shimmer"
-                          style={{
-                            background:
-                              "conic-gradient(from 30deg, #a060ff 0%, #40b0ff 20%, #40ffc0 35%, #ffe040 50%, #ff6090 65%, #a060ff 80%, transparent 95%)",
-                            opacity: 0.45,
-                          }}
-                        />
-                        <div
-                          className="absolute inset-0 rounded-full"
-                          style={{
-                            background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0%, transparent 40%)",
-                          }}
-                        />
-                        <div
-                          className="absolute rounded-full bg-[#0a0a0c]"
-                          style={{ top: "38%", left: "38%", width: "24%", height: "24%" }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-14 h-14 md:w-16 md:h-16 rounded-md overflow-hidden shadow-md flex-shrink-0 bg-surface">
-                        {candidate.artworkUrl ? (
-                          <img
-                            src={candidate.artworkUrl}
-                            alt={`"${candidate.title}" by ${candidate.artists.join(", ")} - album artwork`}
-                            className="w-full h-full object-cover"
-                            width={64}
-                            height={64}
-                            loading="lazy"
-                            onError={(e) => {
-                              e.currentTarget.src = "/og/default.jpg";
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
-                            <MusicNoteIcon size={24} weight="duotone" className="text-text-muted" />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-base font-medium tracking-[-0.01em] text-text-primary truncate">
-                        {candidate.title}
-                      </p>
-                      <p className="text-sm text-text-secondary truncate mt-0.5">{candidate.artists.join(", ")}</p>
-                      {candidate.albumName && (
-                        <p className="text-xs text-text-muted truncate mt-0.5">{candidate.albumName}</p>
-                      )}
-                    </div>
+                    <CandidateRowContent
+                      artwork={
+                        isThisSelected ? (
+                          <CDSpinArtwork className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" />
+                        ) : undefined
+                      }
+                      artworkUrl={candidate.artworkUrl}
+                      primary={candidate.title}
+                      secondary={candidate.artists.join(", ")}
+                      tertiary={candidate.albumName}
+                    />
                   </EmbossedButton>
                 </div>
               );

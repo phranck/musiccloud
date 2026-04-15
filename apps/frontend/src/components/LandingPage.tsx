@@ -17,6 +17,9 @@ import type { InputState } from "@/lib/types/app";
 const DisambiguationPanel = lazy(() =>
   import("@/components/panels/DisambiguationPanel").then((m) => ({ default: m.DisambiguationPanel })),
 );
+const GenreSearchResults = lazy(() =>
+  import("@/components/panels/GenreSearchResults").then((m) => ({ default: m.GenreSearchResults })),
+);
 const InfoPanel = lazy(() => import("@/components/panels/InfoPanel").then((m) => ({ default: m.InfoPanel })));
 const ShareLayout = lazy(() => import("@/components/share/ShareLayout").then((m) => ({ default: m.ShareLayout })));
 const Toast = lazy(() => import("@/components/ui/Toast").then((m) => ({ default: m.Toast })));
@@ -146,10 +149,12 @@ function LandingPageInner() {
     active,
     candidates,
     selectedCandidateId,
+    genreSearchResults,
     errorMessage,
     showCompact,
     isClearing,
     isDisambiguating,
+    isGenreSearching,
     handleSubmit,
     handleSelectCandidate,
     handleClear,
@@ -186,17 +191,26 @@ function LandingPageInner() {
   });
 
   const baseInputState: InputState =
-    isDisambiguating || isClearing ? "idle" : state.type === "result" ? "success" : (state.type as InputState);
+    isDisambiguating || isClearing || isGenreSearching
+      ? "idle"
+      : state.type === "result"
+        ? "success"
+        : (state.type as InputState);
   const inputState = baseInputState === "idle" && isFocused ? "focused" : baseInputState;
 
   const focusActive = state.type === "result" ? state.active : null;
   const focusCandidates = state.type === "disambiguation" ? state.candidates : null;
+  const focusGenreResults = state.type === "genre-search" ? state.results : null;
+  const genreSearchRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (focusActive) resultsPanelRef.current?.focus();
   }, [focusActive]);
   useEffect(() => {
     if (focusCandidates) disambiguationRef.current?.focus();
   }, [focusCandidates]);
+  useEffect(() => {
+    if (focusGenreResults) genreSearchRef.current?.focus();
+  }, [focusGenreResults]);
 
   const handleToastDismiss = useCallback(() => setToast((p) => ({ ...p, visible: false })), []);
 
@@ -241,7 +255,9 @@ function LandingPageInner() {
         </Suspense>
 
         <div className="flex-1 flex flex-col items-center justify-center w-full">
-          {!active && !candidates && <HeroSection className={isReturning ? "animate-fade-in" : ""} />}
+          {!active && !candidates && !genreSearchResults && (
+            <HeroSection className={isReturning ? "animate-fade-in" : ""} />
+          )}
 
           {showCompact && (
             <h1 className="text-3xl font-bold tracking-[-0.04em] text-text-primary mb-6">
@@ -294,6 +310,17 @@ function LandingPageInner() {
                 />
               </Suspense>
             </div>
+          )}
+
+          {genreSearchResults && (
+            <Suspense fallback={null}>
+              <GenreSearchResults
+                ref={genreSearchRef}
+                results={genreSearchResults}
+                onSelect={handleSubmit}
+                onCancel={handleClear}
+              />
+            </Suspense>
           )}
 
           {activeConfig && active && (
