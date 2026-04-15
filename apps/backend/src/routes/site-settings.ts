@@ -25,11 +25,33 @@ import { getAllSettings, getSetting, setSetting } from "../services/site-setting
  * within a minute rather than propagating through shared caches.
  */
 export async function siteSettingsPublicRoutes(app: FastifyInstance) {
-  app.get(ENDPOINTS.v1.siteSettings.tracking, async (_request, reply) => {
-    const value = await getSetting("tracking_enabled");
-    reply.header("Cache-Control", "private, max-age=60");
-    return { enabled: value === "true" };
-  });
+  app.get(
+    ENDPOINTS.v1.siteSettings.tracking,
+    {
+      schema: {
+        tags: ["Site"],
+        summary: "Read the public `tracking_enabled` flag",
+        description:
+          "Returns whether the site currently has analytics tracking enabled. Consumed by the Astro frontend during SSR to decide whether to inject the Umami script.",
+        response: {
+          200: {
+            description: "Current tracking flag.",
+            type: "object",
+            required: ["enabled"],
+            properties: {
+              enabled: { type: "boolean", description: "`true` if analytics tracking is currently enabled." },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+    },
+    async (_request, reply) => {
+      const value = await getSetting("tracking_enabled");
+      reply.header("Cache-Control", "private, max-age=60");
+      return { enabled: value === "true" };
+    },
+  );
 }
 
 /**

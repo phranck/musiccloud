@@ -67,121 +67,156 @@ const TTL_PROFILE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const TTL_EVENTS_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export default async function artistInfoRoutes(app: FastifyInstance) {
-  app.get(ENDPOINTS.v1.artistInfo, async (request, reply) => {
-    const query = request.query as { name?: string; region?: string };
+  app.get(
+    ENDPOINTS.v1.artistInfo,
+    {
+      schema: {
+        tags: ["Artist"],
+        summary: "Aggregated artist info (top tracks, profile, events)",
+        description:
+          "Combines Deezer top tracks, Spotify/Last.fm profile, and Bandsintown/Ticketmaster tour dates into a single card payload. Sections refresh on independent TTLs. When `region` is set, matching events bubble to the top of the events list.",
+        querystring: {
+          type: "object",
+          required: ["name"],
+          properties: {
+            name: {
+              type: "string",
+              minLength: 1,
+              maxLength: 200,
+              description:
+                "Artist name (free text). Used both as the cache key (lowercased) and as the upstream search input.",
+            },
+            region: {
+              type: "string",
+              description:
+                "ISO country code (2-letter, case-insensitive). When present, events in this country are sorted first.",
+            },
+          },
+          additionalProperties: false,
+        },
+        response: {
+          200: {
+            description: "`ArtistInfoResponse` with top tracks, profile, events, and similar-artist top tracks.",
+            type: "object",
+            additionalProperties: true,
+          },
+          400: { $ref: "ErrorResponse#" },
+        },
+      },
+    },
+    async (request, reply) => {
+      const query = request.query as { name: string; region?: string };
 
-    const rawName = query.name?.trim();
-    if (!rawName) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Query param 'name' is required." });
-    }
-    if (rawName.length > 200) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "'name' must be 200 characters or fewer." });
-    }
+      const rawName = query.name.trim();
+      if (!rawName) {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: "Query param 'name' is required." });
+      }
 
-    const artistName = rawName.toLowerCase();
-    const region = (query.region ?? "").toUpperCase().slice(0, 2);
+      const artistName = rawName.toLowerCase();
+      const region = (query.region ?? "").toUpperCase().slice(0, 2);
 
-    const repo = await getRepository();
-    const cached = await repo.findArtistCache(artistName);
-    const now = Date.now();
+      const repo = await getRepository();
+      const cached = await repo.findArtistCache(artistName);
+      const now = Date.now();
 
-    let topTracks = cached?.topTracks ?? [];
-    let profile = cached?.profile ?? null;
-    let events = cached?.events ?? [];
+      let topTracks = cached?.topTracks ?? [];
+      let profile = cached?.profile ?? null;
+      let events = cached?.events ?? [];
 
-    const needsTracks = !cached || now - cached.tracksUpdatedAt > TTL_TRACKS_MS;
-    const needsProfile = !cached || now - cached.profileUpdatedAt > TTL_PROFILE_MS;
-    const needsEvents = !cached || now - cached.eventsUpdatedAt > TTL_EVENTS_MS;
+      const needsTracks = !cached || now - cached.tracksUpdatedAt > TTL_TRACKS_MS;
+      const needsProfile = !cached || now - cached.profileUpdatedAt > TTL_PROFILE_MS;
+      const needsEvents = !cached || now - cached.eventsUpdatedAt > TTL_EVENTS_MS;
 
-    // Only the stale sections are refetched, and they run in parallel.
-    // `saveArtistCache` takes a partial so each section writes
-    // independently without clobbering the other two.
-    const fetches: Promise<void>[] = [];
+      // Only the stale sections are refetched, and they run in parallel.
+      // `saveArtistCache` takes a partial so each section writes
+      // independently without clobbering the other two.
+      const fetches: Promise<void>[] = [];
 
-    if (needsTracks) {
-      fetches.push(
-        fetchArtistTopTracks(rawName).then(async (tracks) => {
-          topTracks = tracks;
-          await repo.saveArtistCache({ artistName, topTracks: tracks });
+      if (needsTracks) {
+        fetches.push(
+          fetchArtistTopTracks(rawName).then(async (tracks) => {
+            topTracks = tracks;
+            await repo.saveArtistCache({ artistName, topTracks: tracks });
+          }),
+        );
+      }
+
+      if (needsProfile) {
+        fetches.push(
+          fetchArtistProfile(rawName).then(async (p) => {
+            profile = p;
+            await repo.saveArtistCache({ artistName, profile: p });
+          }),
+        );
+      }
+
+      if (needsEvents) {
+        fetches.push(
+          fetchArtistEvents(rawName).then(async (ev) => {
+            events = ev;
+            await repo.saveArtistCache({ artistName, events: ev });
+          }),
+        );
+      }
+
+      if (fetches.length > 0) {
+        log.debug("ArtistInfo", `Fetching fresh data for "${rawName}" (region: ${region || "none"})`);
+        await Promise.all(fetches);
+      } else {
+        log.debug("ArtistInfo", `Cache hit for "${rawName}"`);
+      }
+
+      // Two-key sort. `aLocal - bLocal` is the primary comparator: local
+      // events get `-1`, remote stay `0`, so locals bubble to the top. The
+      // `|| a.date.localeCompare(b.date)` tie-breaker then orders each
+      // group by date ascending (ISO date strings sort correctly as text).
+      const sortedEvents = region
+        ? [...events].sort((a, b) => {
+            const aLocal = a.country.toUpperCase() === region ? -1 : 0;
+            const bLocal = b.country.toUpperCase() === region ? -1 : 0;
+            return aLocal - bLocal || a.date.localeCompare(b.date);
+          })
+        : events;
+
+      const enrichedTracks = await Promise.all(
+        topTracks.map(async (track) => {
+          const shortId = await repo.findShortIdByTrackUrl(track.deezerUrl);
+          return { ...track, shortId };
         }),
       );
-    }
 
-    if (needsProfile) {
-      fetches.push(
-        fetchArtistProfile(rawName).then(async (p) => {
-          profile = p;
-          await repo.saveArtistCache({ artistName, profile: p });
-        }),
-      );
-    }
-
-    if (needsEvents) {
-      fetches.push(
-        fetchArtistEvents(rawName).then(async (ev) => {
-          events = ev;
-          await repo.saveArtistCache({ artistName, events: ev });
-        }),
-      );
-    }
-
-    if (fetches.length > 0) {
-      log.debug("ArtistInfo", `Fetching fresh data for "${rawName}" (region: ${region || "none"})`);
-      await Promise.all(fetches);
-    } else {
-      log.debug("ArtistInfo", `Cache hit for "${rawName}"`);
-    }
-
-    // Two-key sort. `aLocal - bLocal` is the primary comparator: local
-    // events get `-1`, remote stay `0`, so locals bubble to the top. The
-    // `|| a.date.localeCompare(b.date)` tie-breaker then orders each
-    // group by date ascending (ISO date strings sort correctly as text).
-    const sortedEvents = region
-      ? [...events].sort((a, b) => {
-          const aLocal = a.country.toUpperCase() === region ? -1 : 0;
-          const bLocal = b.country.toUpperCase() === region ? -1 : 0;
-          return aLocal - bLocal || a.date.localeCompare(b.date);
-        })
-      : events;
-
-    const enrichedTracks = await Promise.all(
-      topTracks.map(async (track) => {
-        const shortId = await repo.findShortIdByTrackUrl(track.deezerUrl);
-        return { ...track, shortId };
-      }),
-    );
-
-    const similarNames = (profile?.similarArtists ?? []).slice(0, 3);
-    const similarArtistTracks: SimilarArtistTrack[] = await Promise.all(
-      similarNames.map(async (name) => {
-        try {
-          const normalizedName = name.toLowerCase();
-          const similarCached = await repo.findArtistCache(normalizedName);
-          let tracks = similarCached?.topTracks ?? [];
-          if (!similarCached || now - similarCached.tracksUpdatedAt > TTL_TRACKS_MS) {
-            tracks = await fetchArtistTopTracks(name);
-            await repo.saveArtistCache({ artistName: normalizedName, topTracks: tracks });
+      const similarNames = (profile?.similarArtists ?? []).slice(0, 3);
+      const similarArtistTracks: SimilarArtistTrack[] = await Promise.all(
+        similarNames.map(async (name) => {
+          try {
+            const normalizedName = name.toLowerCase();
+            const similarCached = await repo.findArtistCache(normalizedName);
+            let tracks = similarCached?.topTracks ?? [];
+            if (!similarCached || now - similarCached.tracksUpdatedAt > TTL_TRACKS_MS) {
+              tracks = await fetchArtistTopTracks(name);
+              await repo.saveArtistCache({ artistName: normalizedName, topTracks: tracks });
+            }
+            const topTrack = tracks[0] ?? null;
+            if (topTrack) {
+              const shortId = await repo.findShortIdByTrackUrl(topTrack.deezerUrl);
+              return { artistName: name, track: { ...topTrack, shortId } };
+            }
+            return { artistName: name, track: null };
+          } catch {
+            return { artistName: name, track: null };
           }
-          const topTrack = tracks[0] ?? null;
-          if (topTrack) {
-            const shortId = await repo.findShortIdByTrackUrl(topTrack.deezerUrl);
-            return { artistName: name, track: { ...topTrack, shortId } };
-          }
-          return { artistName: name, track: null };
-        } catch {
-          return { artistName: name, track: null };
-        }
-      }),
-    );
+        }),
+      );
 
-    const response: ArtistInfoResponse = {
-      artistName: rawName,
-      topTracks: enrichedTracks,
-      profile,
-      events: sortedEvents,
-      similarArtistTracks,
-    };
+      const response: ArtistInfoResponse = {
+        artistName: rawName,
+        topTracks: enrichedTracks,
+        profile,
+        events: sortedEvents,
+        similarArtistTracks,
+      };
 
-    return reply.send(response);
-  });
+      return reply.send(response);
+    },
+  );
 }

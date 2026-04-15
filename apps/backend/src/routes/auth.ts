@@ -39,57 +39,84 @@ interface TokenRequestBody {
 }
 
 export default async function authRoutes(app: FastifyInstance) {
-  app.post(ENDPOINTS.auth.token, async (request, reply) => {
-    const body = request.body as TokenRequestBody | null;
+  app.post(
+    ENDPOINTS.auth.token,
+    {
+      schema: {
+        tags: ["Auth"],
+        summary: "Issue an API access token (OAuth client credentials)",
+        description:
+          "Exchanges a registered `client_id` + `client_secret` for a short-lived JWT (1 hour). The token is accepted as `Authorization: Bearer <token>` on protected endpoints (`/api/v1/resolve`, `/api/v1/link/:id`).",
+        body: {
+          type: "object",
+          required: ["client_id", "client_secret", "grant_type"],
+          properties: {
+            client_id: { type: "string", description: "Registered API client identifier." },
+            client_secret: { type: "string", description: "Matching client secret." },
+            grant_type: {
+              type: "string",
+              enum: ["client_credentials"],
+              description: "Only `client_credentials` is supported.",
+            },
+          },
+          additionalProperties: false,
+        },
+        response: {
+          200: {
+            description: "Newly-issued access token.",
+            type: "object",
+            required: ["access_token", "token_type", "expires_in"],
+            properties: {
+              access_token: { type: "string", description: "JWT to send as `Authorization: Bearer <token>`." },
+              token_type: { type: "string", enum: ["Bearer"] },
+              expires_in: { type: "integer", description: "Token lifetime in seconds." },
+            },
+            additionalProperties: false,
+          },
+          400: { $ref: "ErrorResponse#" },
+          401: { $ref: "ErrorResponse#" },
+          500: { $ref: "ErrorResponse#" },
+        },
+      },
+    },
+    async (request, reply) => {
+      // Schema guarantees grant_type === "client_credentials" and that both
+      // credentials are present non-empty strings.
+      const { client_id, client_secret } = request.body as TokenRequestBody;
 
-    if (!body || body.grant_type !== "client_credentials") {
-      return reply.status(400).send({
-        error: "invalid_grant",
-        message: "grant_type must be 'client_credentials'.",
+      const validClientId = process.env.API_CLIENT_ID;
+      const validClientSecret = process.env.API_CLIENT_SECRET;
+
+      // Missing credentials is a server misconfiguration, not a client
+      // mistake: returning 401 would be misleading and invite the caller to
+      // retry with different credentials. 500 makes the cause visible in
+      // dashboards and in the client's error path.
+      if (!validClientId || !validClientSecret) {
+        app.log.warn("API_CLIENT_ID or API_CLIENT_SECRET not configured");
+        return reply.status(500).send({
+          error: "server_error",
+          message: "OAuth client credentials not configured.",
+        });
+      }
+
+      if (client_id !== validClientId || client_secret !== validClientSecret) {
+        return reply.status(401).send({
+          error: "invalid_client",
+          message: "Invalid client credentials.",
+        });
+      }
+
+      // JWT payload kept minimal: `sub` identifies the client for log
+      // correlation, `scope: "api"` reserves room for a later split between
+      // general API scope and narrower scopes (e.g. resolve-only, read-only)
+      // without invalidating existing tokens.
+      const token = app.jwt.sign({ sub: client_id, scope: "api" }, { expiresIn: "1h" });
+
+      return reply.send({
+        access_token: token,
+        token_type: "Bearer",
+        expires_in: 3600,
       });
-    }
-
-    const { client_id, client_secret } = body;
-
-    if (!client_id || !client_secret) {
-      return reply.status(400).send({
-        error: "invalid_request",
-        message: "client_id and client_secret are required.",
-      });
-    }
-
-    const validClientId = process.env.API_CLIENT_ID;
-    const validClientSecret = process.env.API_CLIENT_SECRET;
-
-    // Missing credentials is a server misconfiguration, not a client
-    // mistake: returning 401 would be misleading and invite the caller to
-    // retry with different credentials. 500 makes the cause visible in
-    // dashboards and in the client's error path.
-    if (!validClientId || !validClientSecret) {
-      app.log.warn("API_CLIENT_ID or API_CLIENT_SECRET not configured");
-      return reply.status(500).send({
-        error: "server_error",
-        message: "OAuth client credentials not configured.",
-      });
-    }
-
-    if (client_id !== validClientId || client_secret !== validClientSecret) {
-      return reply.status(401).send({
-        error: "invalid_client",
-        message: "Invalid client credentials.",
-      });
-    }
-
-    // JWT payload kept minimal: `sub` identifies the client for log
-    // correlation, `scope: "api"` reserves room for a later split between
-    // general API scope and narrower scopes (e.g. resolve-only, read-only)
-    // without invalidating existing tokens.
-    const token = app.jwt.sign({ sub: client_id, scope: "api" }, { expiresIn: "1h" });
-
-    return reply.send({
-      access_token: token,
-      token_type: "Bearer",
-      expires_in: 3600,
-    });
-  });
+    },
+  );
 }

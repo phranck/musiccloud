@@ -22,14 +22,41 @@ import type { FastifyInstance } from "fastify";
 import { getActiveAdapters } from "../services/plugins/registry.js";
 
 export default async function servicesPublicRoutes(app: FastifyInstance) {
-  app.get(ENDPOINTS.v1.services.active, async (_request, reply) => {
-    const adapters = await getActiveAdapters();
-    const services: ActiveService[] = adapters.map((a) => ({
-      id: a.id,
-      displayName: a.displayName,
-      color: PLATFORM_CONFIG[a.id]?.color ?? "#ffffff",
-    }));
-    reply.header("Cache-Control", "public, max-age=30");
-    return services;
-  });
+  app.get(
+    ENDPOINTS.v1.services.active,
+    {
+      schema: {
+        tags: ["Services"],
+        summary: "List currently-enabled resolver services",
+        description:
+          "Returns the list of services that are both registered and have passing availability checks. Used by the frontend marquee and resolve pages. Cache TTL: 30s.",
+        response: {
+          200: {
+            description: "Array of active service descriptors.",
+            type: "array",
+            items: {
+              type: "object",
+              required: ["id", "displayName", "color"],
+              properties: {
+                id: { type: "string", description: "Internal service id (e.g. `spotify`, `deezer`)." },
+                displayName: { type: "string", description: "Human-readable service name." },
+                color: { type: "string", description: "Hex brand color, e.g. `#1db954`." },
+              },
+              additionalProperties: false,
+            },
+          },
+        },
+      },
+    },
+    async (_request, reply) => {
+      const adapters = await getActiveAdapters();
+      const services: ActiveService[] = adapters.map((a) => ({
+        id: a.id,
+        displayName: a.displayName,
+        color: PLATFORM_CONFIG[a.id]?.color ?? "#ffffff",
+      }));
+      reply.header("Cache-Control", "public, max-age=30");
+      return services;
+    },
+  );
 }

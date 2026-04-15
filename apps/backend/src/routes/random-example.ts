@@ -16,10 +16,33 @@ import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 
 export default async function randomExampleRoutes(app: FastifyInstance) {
-  app.get(ENDPOINTS.v1.randomExample, async (_request, reply) => {
-    const repo = await getRepository();
-    const shortId = await repo.getRandomShortId();
-    if (!shortId) return reply.code(404).send({ error: "No examples available" });
-    return { shortId };
-  });
+  app.get(
+    ENDPOINTS.v1.randomExample,
+    {
+      schema: {
+        tags: ["Services"],
+        summary: "Random example share ID",
+        description:
+          "Returns one randomly-picked short ID drawn uniformly across the existing track and album namespaces. Used by the frontend to power a discovery shortcut.",
+        response: {
+          200: {
+            description: "A short ID that can be appended to the site root to reach a share page.",
+            type: "object",
+            required: ["shortId"],
+            properties: {
+              shortId: { type: "string", description: "Short ID (track or album)." },
+            },
+            additionalProperties: false,
+          },
+          404: { $ref: "ErrorResponse#" },
+        },
+      },
+    },
+    async (_request, reply) => {
+      const repo = await getRepository();
+      const shortId = await repo.getRandomShortId();
+      if (!shortId) return reply.code(404).send({ error: "No examples available" });
+      return { shortId };
+    },
+  );
 }

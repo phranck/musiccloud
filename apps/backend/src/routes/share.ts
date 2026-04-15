@@ -39,116 +39,147 @@ import type { FastifyInstance } from "fastify";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
 
 export default async function shareRoutes(app: FastifyInstance) {
-  app.get<{ Params: { shortId: string } }>(ROUTE_TEMPLATES.v1.share, async (request, reply) => {
-    const { shortId } = request.params;
-
-    if (!shortId) {
-      return reply.status(400).send({ error: "INVALID_URL", message: "Short ID is required." });
-    }
-
-    const origin = request.headers["x-forwarded-host"] ? `https://${request.headers["x-forwarded-host"]}` : undefined;
-
-    const trackData = await loadByShortId(shortId, origin);
-    if (trackData) {
-      const response: SharePageResponse = {
-        type: "track",
-        og: {
-          title: trackData.og.ogTitle,
-          description: trackData.og.ogDescription,
-          image: trackData.og.ogImageUrl,
-          url: trackData.og.ogUrl,
+  app.get<{ Params: { shortId: string } }>(
+    ROUTE_TEMPLATES.v1.share,
+    {
+      schema: {
+        tags: ["Share"],
+        summary: "Fetch a previously-resolved share",
+        description:
+          "Returns the unified share-page payload for the given short ID. Looks up tracks, albums, and artists in a single namespace and returns the first match. Feeds SSR and OG meta tags on the frontend share page.",
+        params: {
+          type: "object",
+          required: ["shortId"],
+          properties: {
+            shortId: {
+              type: "string",
+              minLength: 1,
+              maxLength: 64,
+              pattern: "^[A-Za-z0-9_-]+$",
+              description: "Short ID minted by a previous resolve call.",
+            },
+          },
+          additionalProperties: false,
         },
-        track: {
-          title: trackData.track.title,
-          artists: trackData.artists,
-          albumName: trackData.track.albumName ?? undefined,
-          artworkUrl: trackData.track.artworkUrl ?? undefined,
-          durationMs: trackData.track.durationMs ?? undefined,
-          isrc: trackData.track.isrc ?? undefined,
-          releaseDate: trackData.track.releaseDate ?? undefined,
-          isExplicit: trackData.track.isExplicit ?? undefined,
-          previewUrl: trackData.track.previewUrl ?? undefined,
+        response: {
+          200: {
+            description:
+              "`SharePageResponse`: type-discriminated payload (track/album/artist) with OG meta, details, links, and short URL.",
+            type: "object",
+            additionalProperties: true,
+          },
+          400: { $ref: "ErrorResponse#" },
+          404: { $ref: "ErrorResponse#" },
         },
-        links: trackData.links.map((l) => ({
-          service: l.service,
-          displayName: l.service,
-          url: l.url,
-          confidence: 1,
-          matchMethod: "cache" as const,
-        })),
-        shortUrl: trackData.og.ogUrl,
-      };
+      },
+    },
+    async (request, reply) => {
+      const { shortId } = request.params;
 
-      reply.header("Cache-Control", "private, max-age=3600");
-      return reply.send(response);
-    }
+      const origin = request.headers["x-forwarded-host"] ? `https://${request.headers["x-forwarded-host"]}` : undefined;
 
-    const albumData = await loadAlbumByShortId(shortId, origin);
-    if (albumData) {
-      const response: SharePageResponse = {
-        type: "album",
-        og: {
-          title: albumData.og.ogTitle,
-          description: albumData.og.ogDescription,
-          image: albumData.og.ogImageUrl,
-          url: albumData.og.ogUrl,
-        },
-        album: {
-          title: albumData.album.title,
-          artists: albumData.artists,
-          releaseDate: albumData.album.releaseDate ?? undefined,
-          totalTracks: albumData.album.totalTracks ?? undefined,
-          artworkUrl: albumData.album.artworkUrl ?? undefined,
-          label: albumData.album.label ?? undefined,
-          upc: albumData.album.upc ?? undefined,
-          previewUrl: albumData.album.previewUrl ?? undefined,
-        },
-        links: albumData.links.map((l) => ({
-          service: l.service,
-          displayName: l.service,
-          url: l.url,
-          confidence: 1,
-          matchMethod: "cache" as const,
-        })),
-        shortUrl: albumData.og.ogUrl,
-      };
+      const trackData = await loadByShortId(shortId, origin);
+      if (trackData) {
+        const response: SharePageResponse = {
+          type: "track",
+          og: {
+            title: trackData.og.ogTitle,
+            description: trackData.og.ogDescription,
+            image: trackData.og.ogImageUrl,
+            url: trackData.og.ogUrl,
+          },
+          track: {
+            title: trackData.track.title,
+            artists: trackData.artists,
+            albumName: trackData.track.albumName ?? undefined,
+            artworkUrl: trackData.track.artworkUrl ?? undefined,
+            durationMs: trackData.track.durationMs ?? undefined,
+            isrc: trackData.track.isrc ?? undefined,
+            releaseDate: trackData.track.releaseDate ?? undefined,
+            isExplicit: trackData.track.isExplicit ?? undefined,
+            previewUrl: trackData.track.previewUrl ?? undefined,
+          },
+          links: trackData.links.map((l) => ({
+            service: l.service,
+            displayName: l.service,
+            url: l.url,
+            confidence: 1,
+            matchMethod: "cache" as const,
+          })),
+          shortUrl: trackData.og.ogUrl,
+        };
 
-      reply.header("Cache-Control", "private, max-age=3600");
-      return reply.send(response);
-    }
+        reply.header("Cache-Control", "private, max-age=3600");
+        return reply.send(response);
+      }
 
-    const artistData = await loadArtistByShortId(shortId, origin);
-    if (artistData) {
-      const response: SharePageResponse = {
-        type: "artist",
-        og: {
-          title: artistData.og.ogTitle,
-          description: artistData.og.ogDescription,
-          image: artistData.og.ogImageUrl,
-          url: artistData.og.ogUrl,
-        },
-        artist: {
-          name: artistData.artist.name,
-          imageUrl: artistData.artist.imageUrl ?? undefined,
-          genres: artistData.artist.genres,
-        },
-        links: artistData.links.map((l) => ({
-          service: l.service,
-          displayName: l.service,
-          url: l.url,
-          confidence: 1,
-          matchMethod: "cache" as const,
-        })),
-        shortUrl: artistData.og.ogUrl,
-      };
+      const albumData = await loadAlbumByShortId(shortId, origin);
+      if (albumData) {
+        const response: SharePageResponse = {
+          type: "album",
+          og: {
+            title: albumData.og.ogTitle,
+            description: albumData.og.ogDescription,
+            image: albumData.og.ogImageUrl,
+            url: albumData.og.ogUrl,
+          },
+          album: {
+            title: albumData.album.title,
+            artists: albumData.artists,
+            releaseDate: albumData.album.releaseDate ?? undefined,
+            totalTracks: albumData.album.totalTracks ?? undefined,
+            artworkUrl: albumData.album.artworkUrl ?? undefined,
+            label: albumData.album.label ?? undefined,
+            upc: albumData.album.upc ?? undefined,
+            previewUrl: albumData.album.previewUrl ?? undefined,
+          },
+          links: albumData.links.map((l) => ({
+            service: l.service,
+            displayName: l.service,
+            url: l.url,
+            confidence: 1,
+            matchMethod: "cache" as const,
+          })),
+          shortUrl: albumData.og.ogUrl,
+        };
 
-      reply.header("Cache-Control", "private, max-age=3600");
-      return reply.send(response);
-    }
+        reply.header("Cache-Control", "private, max-age=3600");
+        return reply.send(response);
+      }
 
-    return reply.status(404).send({
-      error: "TRACK_NOT_FOUND",
-      message: "No track, album, or artist found for this short ID.",
-    });
-  });
+      const artistData = await loadArtistByShortId(shortId, origin);
+      if (artistData) {
+        const response: SharePageResponse = {
+          type: "artist",
+          og: {
+            title: artistData.og.ogTitle,
+            description: artistData.og.ogDescription,
+            image: artistData.og.ogImageUrl,
+            url: artistData.og.ogUrl,
+          },
+          artist: {
+            name: artistData.artist.name,
+            imageUrl: artistData.artist.imageUrl ?? undefined,
+            genres: artistData.artist.genres,
+          },
+          links: artistData.links.map((l) => ({
+            service: l.service,
+            displayName: l.service,
+            url: l.url,
+            confidence: 1,
+            matchMethod: "cache" as const,
+          })),
+          shortUrl: artistData.og.ogUrl,
+        };
+
+        reply.header("Cache-Control", "private, max-age=3600");
+        return reply.send(response);
+      }
+
+      return reply.status(404).send({
+        error: "TRACK_NOT_FOUND",
+        message: "No track, album, or artist found for this short ID.",
+      });
+    },
+  );
 }

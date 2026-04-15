@@ -89,98 +89,139 @@ const ALLOWED_ORIGINS = [
 ];
 
 export default async function resolveRoutes(app: FastifyInstance) {
-  app.post(ENDPOINTS.v1.resolve, async (request, reply) => {
-    // Rate limiting
-    const clientIp = request.ip;
-    if (apiRateLimiter.isLimited(clientIp)) {
-      return reply.status(429).send(jsonError("RATE_LIMITED"));
-    }
-
-    // Parse body
-    const body = request.body as { query?: string; selectedCandidate?: string } | null;
-    if (!body) {
-      return reply.status(400).send(jsonError("INVALID_URL", "Request body must be valid JSON with a 'query' field."));
-    }
-
-    const query = body.query?.trim();
-    const selectedCandidate = body.selectedCandidate?.trim();
-
-    if (!query && !selectedCandidate) {
-      return reply.status(400).send(jsonError("INVALID_URL", "The 'query' or 'selectedCandidate' field is required."));
-    }
-
-    if (query && query.length > 500) {
-      return reply.status(400).send(jsonError("INVALID_URL", "Query must be 500 characters or fewer."));
-    }
-
-    if (selectedCandidate && selectedCandidate.length > 200) {
-      return reply.status(400).send(jsonError("INVALID_URL", "Invalid candidate selection."));
-    }
-
-    try {
-      const origin = getOrigin(request.headers.origin);
-
-      if (selectedCandidate) {
-        // Flow 1: completing a previous disambiguation. The candidate
-        // string came from the client's earlier disambiguation response,
-        // so no input classification is needed here.
-        const result = await resolveSelectedCandidate(selectedCandidate);
-        return reply.send(await persistTrackAndRespond(result, origin));
+  app.post(
+    ENDPOINTS.v1.resolve,
+    {
+      schema: {
+        tags: ["Resolve"],
+        summary: "Resolve a music URL or free-text query",
+        description:
+          "Accepts a streaming-service URL or a free-text query. Returns unified metadata (track, album, or artist) or a disambiguation list when a text search yields multiple plausible matches. A follow-up call with `selectedCandidate` completes the resolve.",
+        security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+        body: {
+          type: "object",
+          description:
+            "Exactly one of `query` or `selectedCandidate` must be present. `query` is a URL or search string; `selectedCandidate` completes a prior disambiguation round.",
+          properties: {
+            query: {
+              type: "string",
+              minLength: 1,
+              maxLength: 500,
+              description: "Streaming-service URL or free-text search string.",
+            },
+            selectedCandidate: {
+              type: "string",
+              minLength: 1,
+              maxLength: 200,
+              description: "Identifier of a candidate returned by a previous disambiguation response.",
+            },
+          },
+          anyOf: [{ required: ["query"] }, { required: ["selectedCandidate"] }],
+          additionalProperties: false,
+        },
+        response: {
+          200: {
+            description:
+              "Success: either a resolved track/album/artist (`UnifiedResolveSuccessResponse`) or a disambiguation list (`ResolveDisambiguationResponse`).",
+            type: "object",
+            additionalProperties: true,
+          },
+          400: { $ref: "ErrorResponse#" },
+          401: { $ref: "ErrorResponse#" },
+          404: { $ref: "ErrorResponse#" },
+          408: { $ref: "ErrorResponse#" },
+          429: { $ref: "ErrorResponse#" },
+          500: { $ref: "ErrorResponse#" },
+          503: { $ref: "ErrorResponse#" },
+        },
+      },
+    },
+    async (request, reply) => {
+      // Rate limiting
+      const clientIp = request.ip;
+      if (apiRateLimiter.isLimited(clientIp)) {
+        return reply.status(429).send(jsonError("RATE_LIMITED"));
       }
 
-      if (isUrl(query!)) {
-        // Flow 2. See the file header for why `stripTrackingParams` runs
-        // on both sides of `expandShortLink`.
-        const expanded = await expandShortLink(stripTrackingParams(query!));
-        const cleanUrl = stripTrackingParams(expanded);
+      // Schema guarantees the object shape and length caps; we still trim
+      // so downstream code never sees pure-whitespace input treated as valid.
+      const body = request.body as { query?: string; selectedCandidate?: string };
+      const query = body.query?.trim();
+      const selectedCandidate = body.selectedCandidate?.trim();
 
-        // Content-type routing. The order (album -> artist -> track) is
-        // a negative-check chain: `isAlbumUrl` / `isArtistUrl` match
-        // specific URL shapes per service; anything that falls through
-        // is treated as a track URL, which is the common case.
-        if (isAlbumUrl(cleanUrl)) {
-          const result = await resolveAlbumUrl(cleanUrl);
-          return reply.send(await persistAlbumAndRespond(result, origin));
-        }
-        if (isArtistUrl(cleanUrl)) {
-          const result = await resolveArtistUrl(cleanUrl);
-          return reply.send(await persistArtistAndRespond(result, origin));
-        }
-        const result = await resolveQuery(query!);
-        return reply.send(await persistTrackAndRespond(result, origin));
-      }
-
-      // Flow 3: free-text search. Unlike the GET endpoint, we can return
-      // candidates back to an interactive client and wait for Flow 1.
-      const textResult = await resolveTextSearchWithDisambiguation(query!);
-
-      if (textResult.kind === "resolved" && textResult.result) {
-        return reply.send(await persistTrackAndRespond(textResult.result, origin));
-      }
-
-      // Disambiguation branch: do NOT persist anything. Writing a track
-      // here would create a DB row we cannot safely associate with any of
-      // the candidates; the commit happens in the Flow 1 follow-up when
-      // the client tells us which candidate was picked.
-      const disambiguationBody: ResolveDisambiguationResponse = {
-        status: "disambiguation",
-        candidates: textResult.candidates ?? [],
-      };
-      return reply.send(disambiguationBody);
-    } catch (error) {
-      if (error instanceof ResolveError) {
+      if (!query && !selectedCandidate) {
         return reply
-          .status(getErrorEntry(error.code).httpStatus)
-          .send(jsonError(error.code, error.message || undefined, error.context));
+          .status(400)
+          .send(jsonError("INVALID_URL", "The 'query' or 'selectedCandidate' field is required."));
       }
 
-      log.error("Resolve", "Unexpected error:", error instanceof Error ? error.message : "Unknown error");
-      if (process.env.NODE_ENV !== "production" && error instanceof Error) {
-        log.error("Resolve", "Stack:", error.stack);
+      try {
+        const origin = getOrigin(request.headers.origin);
+
+        if (selectedCandidate) {
+          // Flow 1: completing a previous disambiguation. The candidate
+          // string came from the client's earlier disambiguation response,
+          // so no input classification is needed here.
+          const result = await resolveSelectedCandidate(selectedCandidate);
+          return reply.send(await persistTrackAndRespond(result, origin));
+        }
+
+        if (isUrl(query!)) {
+          // Flow 2. See the file header for why `stripTrackingParams` runs
+          // on both sides of `expandShortLink`.
+          const expanded = await expandShortLink(stripTrackingParams(query!));
+          const cleanUrl = stripTrackingParams(expanded);
+
+          // Content-type routing. The order (album -> artist -> track) is
+          // a negative-check chain: `isAlbumUrl` / `isArtistUrl` match
+          // specific URL shapes per service; anything that falls through
+          // is treated as a track URL, which is the common case.
+          if (isAlbumUrl(cleanUrl)) {
+            const result = await resolveAlbumUrl(cleanUrl);
+            return reply.send(await persistAlbumAndRespond(result, origin));
+          }
+          if (isArtistUrl(cleanUrl)) {
+            const result = await resolveArtistUrl(cleanUrl);
+            return reply.send(await persistArtistAndRespond(result, origin));
+          }
+          const result = await resolveQuery(query!);
+          return reply.send(await persistTrackAndRespond(result, origin));
+        }
+
+        // Flow 3: free-text search. Unlike the GET endpoint, we can return
+        // candidates back to an interactive client and wait for Flow 1.
+        const textResult = await resolveTextSearchWithDisambiguation(query!);
+
+        if (textResult.kind === "resolved" && textResult.result) {
+          return reply.send(await persistTrackAndRespond(textResult.result, origin));
+        }
+
+        // Disambiguation branch: do NOT persist anything. Writing a track
+        // here would create a DB row we cannot safely associate with any of
+        // the candidates; the commit happens in the Flow 1 follow-up when
+        // the client tells us which candidate was picked.
+        const disambiguationBody: ResolveDisambiguationResponse = {
+          status: "disambiguation",
+          candidates: textResult.candidates ?? [],
+        };
+        return reply.send(disambiguationBody);
+      } catch (error) {
+        if (error instanceof ResolveError) {
+          // httpStatus is `number` in the error registry; the schema declares
+          // every code the registry can actually emit (400/401/404/408/429/500/503),
+          // so the cast is safe at runtime.
+          const httpStatus = getErrorEntry(error.code).httpStatus as 400 | 401 | 404 | 408 | 429 | 500 | 503;
+          return reply.status(httpStatus).send(jsonError(error.code, error.message || undefined, error.context));
+        }
+
+        log.error("Resolve", "Unexpected error:", error instanceof Error ? error.message : "Unknown error");
+        if (process.env.NODE_ENV !== "production" && error instanceof Error) {
+          log.error("Resolve", "Stack:", error.stack);
+        }
+        return reply.status(500).send(jsonError("NETWORK_ERROR"));
       }
-      return reply.status(500).send(jsonError("NETWORK_ERROR"));
-    }
-  });
+    },
+  );
 }
 
 /**

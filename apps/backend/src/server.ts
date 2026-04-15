@@ -2,6 +2,8 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
 import sensible from "@fastify/sensible";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
 import Fastify from "fastify";
 import { runMigrations } from "./db/run-migrations.js";
 import authPlugin from "./plugins/auth.js";
@@ -36,7 +38,18 @@ async function buildApp() {
   await app.register(cors, {
     origin: process.env.CORS_ORIGIN?.split(",") ?? ["http://localhost:3000", "http://localhost:4321"],
   });
-  await app.register(helmet);
+  await app.register(helmet, {
+    // Relaxed CSP so swagger-ui at /docs can render its inline bundle.
+    // Normal API responses are JSON and unaffected.
+    contentSecurityPolicy: {
+      directives: {
+        "default-src": ["'self'"],
+        "script-src": ["'self'", "'unsafe-inline'"],
+        "style-src": ["'self'", "'unsafe-inline'", "https:"],
+        "img-src": ["'self'", "data:", "validator.swagger.io"],
+      },
+    },
+  });
   await app.register(sensible);
 
   // JWT plugin (used by auth routes and public API auth)
@@ -47,10 +60,97 @@ async function buildApp() {
   // Auth decorators (authenticateInternal, authenticatePublic)
   await app.register(authPlugin);
 
-  // Health check (no auth)
-  app.get("/health", async () => {
-    return { status: "ok" };
+  // Shared error response shape, registered via `addSchema` so that BOTH
+  // the AJV validator AND the fast-json-stringify serializer can resolve
+  // `{ $ref: "ErrorResponse#" }` in route schemas. `@fastify/swagger`
+  // picks this up automatically and re-publishes it under
+  // `components.schemas.ErrorResponse` in the generated OpenAPI doc.
+  app.addSchema({
+    $id: "ErrorResponse",
+    type: "object",
+    required: ["error"],
+    properties: {
+      error: {
+        type: "string",
+        description: "Machine-readable error code (e.g. INVALID_URL, RATE_LIMITED, SERVICE_DOWN).",
+      },
+      message: { type: "string", description: "Human-readable error detail." },
+    },
   });
+
+  // OpenAPI spec collector. MUST be registered before routes so it sees
+  // their `schema` blocks as they are declared. The `transform` filters
+  // admin routes out of the public documentation.
+  await app.register(swagger, {
+    openapi: {
+      openapi: "3.0.3",
+      info: {
+        title: "musiccloud API",
+        description:
+          "Public REST API for musiccloud.io. Resolve music URLs or text queries across 20+ streaming services and retrieve unified metadata.",
+        version: "0.1.0",
+      },
+      servers: [
+        { url: "https://api.musiccloud.io", description: "Production" },
+        { url: "http://localhost:4000", description: "Local development" },
+      ],
+      tags: [
+        { name: "Resolve", description: "Resolve music URLs or text queries" },
+        { name: "Share", description: "Fetch previously-resolved shares" },
+        { name: "Links", description: "Link metadata" },
+        { name: "Artist", description: "Artist info (Last.fm + Ticketmaster)" },
+        { name: "Services", description: "Active resolver plugins and examples" },
+        { name: "Site", description: "Public site settings" },
+        { name: "Auth", description: "OAuth client-credentials token endpoint" },
+        { name: "Health", description: "Server health" },
+      ],
+      components: {
+        securitySchemes: {
+          ApiKeyAuth: { type: "apiKey", in: "header", name: "X-API-Key" },
+          BearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+        },
+      },
+    },
+    // Use the schema's `$id` as the component key, so `ErrorResponse`
+    // shows up as `#/components/schemas/ErrorResponse` in the doc.
+    refResolver: {
+      buildLocalReference: (json, _baseUri, _fragment, i) => (typeof json.$id === "string" ? json.$id : `def-${i}`),
+    },
+    transform: ({ schema, url }) => {
+      if (url.startsWith("/api/admin")) {
+        return { schema: { ...schema, hide: true }, url };
+      }
+      return { schema, url };
+    },
+  });
+
+  await app.register(swaggerUi, {
+    routePrefix: "/docs",
+    uiConfig: { docExpansion: "list", deepLinking: true },
+    staticCSP: false,
+  });
+
+  // Health check (no auth)
+  app.get(
+    "/health",
+    {
+      schema: {
+        tags: ["Health"],
+        summary: "Server health",
+        description: "Returns 200 if the Fastify process is alive and serving requests.",
+        response: {
+          200: {
+            type: "object",
+            properties: { status: { type: "string", enum: ["ok"] } },
+            required: ["status"],
+          },
+        },
+      },
+    },
+    async () => {
+      return { status: "ok" };
+    },
+  );
 
   // Auth routes (no auth required)
   await app.register(authRoutes);

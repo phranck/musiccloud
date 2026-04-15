@@ -31,47 +31,102 @@ import { getRepository } from "../db/index.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 
 export default async function linkRoutes(app: FastifyInstance) {
-  app.get<{ Params: { id: string } }>(ROUTE_TEMPLATES.v1.link, async (request, reply) => {
-    const clientIp = request.ip;
-    if (apiRateLimiter.isLimited(clientIp)) {
-      return reply.status(429).send({
-        error: "RATE_LIMITED",
-        message: "Too many requests. Please try again later.",
-      });
-    }
-
-    const { id } = request.params;
-
-    if (!id) {
-      return reply.status(400).send({
-        error: "INVALID_URL",
-        message: "Track ID is required.",
-      });
-    }
-
-    const repo = await getRepository();
-    const data = await repo.loadByTrackId(id);
-
-    if (!data) {
-      return reply.status(404).send({
-        error: "TRACK_NOT_FOUND",
-        message: "Track not found.",
-      });
-    }
-
-    reply.header("Cache-Control", "public, max-age=3600");
-    return reply.send({
-      id,
-      track: {
-        title: data.track.title,
-        artists: data.artists,
-        albumName: data.track.albumName,
-        artworkUrl: data.track.artworkUrl,
+  app.get<{ Params: { id: string } }>(
+    ROUTE_TEMPLATES.v1.link,
+    {
+      schema: {
+        tags: ["Links"],
+        summary: "Fetch link metadata for a previously-resolved track",
+        description:
+          "Slim, cache-friendly read against an already-persisted track. No external adapter calls. Use this when you already hold the track id (e.g. from a prior resolve) and just want the service links for rendering.",
+        security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: {
+            id: {
+              type: "string",
+              minLength: 1,
+              maxLength: 64,
+              description: "Internal track id returned by a previous resolve.",
+            },
+          },
+          additionalProperties: false,
+        },
+        response: {
+          200: {
+            description: "Track core metadata and resolved service links.",
+            type: "object",
+            required: ["id", "track", "links"],
+            properties: {
+              id: { type: "string" },
+              track: {
+                type: "object",
+                required: ["title", "artists"],
+                properties: {
+                  title: { type: "string" },
+                  artists: { type: "array", items: { type: "string" } },
+                  albumName: { type: "string", nullable: true },
+                  artworkUrl: { type: "string", nullable: true },
+                },
+                additionalProperties: true,
+              },
+              links: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: ["service", "url"],
+                  properties: {
+                    service: { type: "string" },
+                    url: { type: "string" },
+                  },
+                  additionalProperties: true,
+                },
+              },
+            },
+            additionalProperties: true,
+          },
+          401: { $ref: "ErrorResponse#" },
+          404: { $ref: "ErrorResponse#" },
+          429: { $ref: "ErrorResponse#" },
+        },
       },
-      links: data.links.map((l) => ({
-        service: l.service,
-        url: l.url,
-      })),
-    });
-  });
+    },
+    async (request, reply) => {
+      const clientIp = request.ip;
+      if (apiRateLimiter.isLimited(clientIp)) {
+        return reply.status(429).send({
+          error: "RATE_LIMITED",
+          message: "Too many requests. Please try again later.",
+        });
+      }
+
+      const { id } = request.params;
+
+      const repo = await getRepository();
+      const data = await repo.loadByTrackId(id);
+
+      if (!data) {
+        return reply.status(404).send({
+          error: "TRACK_NOT_FOUND",
+          message: "Track not found.",
+        });
+      }
+
+      reply.header("Cache-Control", "public, max-age=3600");
+      return reply.send({
+        id,
+        track: {
+          title: data.track.title,
+          artists: data.artists,
+          albumName: data.track.albumName,
+          artworkUrl: data.track.artworkUrl,
+        },
+        links: data.links.map((l) => ({
+          service: l.service,
+          url: l.url,
+        })),
+      });
+    },
+  );
 }

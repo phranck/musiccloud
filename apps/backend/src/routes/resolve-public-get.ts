@@ -53,88 +53,123 @@ const ALLOWED_ORIGINS = [
 ];
 
 export default async function resolvePublicGetRoutes(app: FastifyInstance) {
-  app.get(ENDPOINTS.v1.resolve, async (request, reply) => {
-    // Without a JWT preHandler in front of this route, the IP-based rate
-    // limiter is the primary abuse defense. Note: the effective key is
-    // whatever Fastify resolves as `request.ip`, which depends on proxy
-    // configuration: behind a reverse proxy without `trustProxy`, all
-    // clients will share one key.
-    const clientIp = request.ip;
-    if (apiRateLimiter.isLimited(clientIp)) {
-      return reply.status(429).send(jsonError("RATE_LIMITED"));
-    }
+  app.get(
+    ENDPOINTS.v1.resolve,
+    {
+      schema: {
+        tags: ["Resolve"],
+        summary: "Resolve a music URL or query (unauthenticated, GET)",
+        description:
+          "Unauthenticated companion to POST `/api/v1/resolve`, designed for scripting consumers (Apple Shortcuts, curl, bookmarklets). Rate-limited per client IP. Returns a resolved track or errors on ambiguous text searches (no interactive disambiguation over GET).",
+        querystring: {
+          type: "object",
+          required: ["query"],
+          properties: {
+            query: {
+              type: "string",
+              minLength: 1,
+              maxLength: 500,
+              description: "Streaming-service URL or free-text query.",
+            },
+            format: {
+              type: "string",
+              enum: ["json", "text"],
+              default: "json",
+              description: "`json` returns the full response; `text` returns the short URL as plain text.",
+            },
+          },
+          additionalProperties: false,
+        },
+        response: {
+          200: {
+            description:
+              "Resolved track payload (`ResolveSuccessResponse`) when `format=json`; plain-text short URL when `format=text`.",
+            type: "object",
+            additionalProperties: true,
+          },
+          400: { $ref: "ErrorResponse#" },
+          404: { $ref: "ErrorResponse#" },
+          408: { $ref: "ErrorResponse#" },
+          429: { $ref: "ErrorResponse#" },
+          500: { $ref: "ErrorResponse#" },
+          503: { $ref: "ErrorResponse#" },
+        },
+      },
+    },
+    async (request, reply) => {
+      // Without a JWT preHandler in front of this route, the IP-based rate
+      // limiter is the primary abuse defense. Note: the effective key is
+      // whatever Fastify resolves as `request.ip`, which depends on proxy
+      // configuration: behind a reverse proxy without `trustProxy`, all
+      // clients will share one key.
+      const clientIp = request.ip;
+      if (apiRateLimiter.isLimited(clientIp)) {
+        return reply.status(429).send(jsonError("RATE_LIMITED"));
+      }
 
-    const queryParams = request.query as { query?: string; format?: string };
-    const query = queryParams.query?.trim();
-    const format = queryParams.format?.toLowerCase() ?? "json";
+      // Schema guarantees presence, type, and length caps of the query string
+      // fields. Trim post-validation so a pure-whitespace query does not reach
+      // the resolver.
+      const queryParams = request.query as { query: string; format?: "json" | "text" };
+      const query = queryParams.query.trim();
+      const format = queryParams.format ?? "json";
 
-    if (!query) {
-      return reply.status(400).send(jsonError("INVALID_URL", "The 'query' parameter is required."));
-    }
+      if (!query) {
+        return reply.status(400).send(jsonError("INVALID_URL", "The 'query' parameter is required."));
+      }
 
-    // Upper bound on input size. No legitimate track title / artist / URL
-    // combination reaches 500 chars; the cap exists to stop pathological
-    // inputs from reaching the FTS5 text search in resolver.ts.
-    if (query.length > 500) {
-      return reply.status(400).send(jsonError("INVALID_URL", "Query must be 500 characters or fewer."));
-    }
+      try {
+        const origin = getOrigin(request.headers.origin);
 
-    if (!["json", "text"].includes(format)) {
-      return reply.status(400).send(jsonError("INVALID_URL", "Format must be 'json' or 'text'."));
-    }
-
-    try {
-      const origin = getOrigin(request.headers.origin);
-
-      let result: ResolutionResult;
-      if (isUrl(query)) {
-        // Flow 1: input is a streaming-service URL. The resolver handles
-        // cache lookup and cross-service expansion via adapters.
-        result = await resolveQuery(query);
-      } else {
-        // Flow 2: free-text search. The POST endpoint (resolve.ts) can
-        // return a `disambiguation` kind with multiple candidates for an
-        // interactive client to choose from. A stateless GET cannot carry
-        // that follow-up round-trip, so here we accept only the unambiguous
-        // `resolved` outcome and 400 on anything else. This is the
-        // deliberate trade-off for the unauth + one-shot nature of this
-        // endpoint.
-        const textResult = await resolveTextSearchWithDisambiguation(query);
-        if (textResult.kind === "resolved" && textResult.result) {
-          result = textResult.result;
+        let result: ResolutionResult;
+        if (isUrl(query)) {
+          // Flow 1: input is a streaming-service URL. The resolver handles
+          // cache lookup and cross-service expansion via adapters.
+          result = await resolveQuery(query);
         } else {
-          return reply.status(400).send(jsonError("INVALID_URL", "Could not resolve this query."));
+          // Flow 2: free-text search. The POST endpoint (resolve.ts) can
+          // return a `disambiguation` kind with multiple candidates for an
+          // interactive client to choose from. A stateless GET cannot carry
+          // that follow-up round-trip, so here we accept only the unambiguous
+          // `resolved` outcome and 400 on anything else. This is the
+          // deliberate trade-off for the unauth + one-shot nature of this
+          // endpoint.
+          const textResult = await resolveTextSearchWithDisambiguation(query);
+          if (textResult.kind === "resolved" && textResult.result) {
+            result = textResult.result;
+          } else {
+            return reply.status(400).send(jsonError("INVALID_URL", "Could not resolve this query."));
+          }
         }
-      }
 
-      const response = await persistAndRespond(result, origin);
+        const response = await persistAndRespond(result, origin);
 
-      if (format === "text") {
-        return reply.type("text/plain").send(response.shortUrl);
-      }
+        if (format === "text") {
+          return reply.type("text/plain").send(response.shortUrl);
+        }
 
-      return reply.send(response);
-    } catch (error) {
-      // Domain errors from the resolver carry their own HTTP status in the
-      // shared error table (`getErrorEntry`), so we forward those faithfully
-      // with a user-facing message. Anything else is an unexpected bug and
-      // collapses to a generic 500 so we do not leak internals to an
-      // unauthenticated caller.
-      if (error instanceof ResolveError) {
-        return reply
-          .status(getErrorEntry(error.code).httpStatus)
-          .send(jsonError(error.code, error.message || undefined, error.context));
-      }
+        return reply.send(response);
+      } catch (error) {
+        // Domain errors from the resolver carry their own HTTP status in the
+        // shared error table (`getErrorEntry`), so we forward those faithfully
+        // with a user-facing message. Anything else is an unexpected bug and
+        // collapses to a generic 500 so we do not leak internals to an
+        // unauthenticated caller.
+        if (error instanceof ResolveError) {
+          const httpStatus = getErrorEntry(error.code).httpStatus as 400 | 404 | 408 | 429 | 500 | 503;
+          return reply.status(httpStatus).send(jsonError(error.code, error.message || undefined, error.context));
+        }
 
-      log.error("ResolvePublicGet", "Unexpected error:", error instanceof Error ? error.message : "Unknown error");
-      // Stack traces stay out of production logs per the project security
-      // rules; they are invaluable locally but a disclosure risk in prod.
-      if (process.env.NODE_ENV !== "production" && error instanceof Error) {
-        log.error("ResolvePublicGet", "Stack:", error.stack);
+        log.error("ResolvePublicGet", "Unexpected error:", error instanceof Error ? error.message : "Unknown error");
+        // Stack traces stay out of production logs per the project security
+        // rules; they are invaluable locally but a disclosure risk in prod.
+        if (process.env.NODE_ENV !== "production" && error instanceof Error) {
+          log.error("ResolvePublicGet", "Stack:", error.stack);
+        }
+        return reply.status(500).send(jsonError("NETWORK_ERROR"));
       }
-      return reply.status(500).send(jsonError("NETWORK_ERROR"));
-    }
-  });
+    },
+  );
 }
 
 /**
