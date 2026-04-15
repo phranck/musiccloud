@@ -1,3 +1,61 @@
+/**
+ * @file Admin user management endpoints (invite, update, delete, avatar).
+ *
+ * Registered inside the admin scope in `server.ts`, so every handler runs
+ * after `authenticateAdmin`. On top of the JWT gate, each handler pulls
+ * the caller's full DB record via `getCaller` and enforces a second
+ * permission layer.
+ *
+ * ## Permission model
+ *
+ * Three roles live in the DB: `owner`, `admin`, `moderator`. The JWT
+ * always carries `role: "admin"` for Fastify's auth plugin (the gate), so
+ * finer-grained distinctions are resolved here against `dbRole` / the DB
+ * row:
+ *
+ * | Action                 | owner | self | others |
+ * | ---------------------- | ----- | ---- | ------ |
+ * | List users             |  yes  | yes  |  yes   |
+ * | Create user (invite)   |  yes  |  -   |  no    |
+ * | Update own fields      |  yes  | yes  |  no    |
+ * | Change any user's role |  yes  |  no  |  no    |
+ * | Delete user            |  yes  |  no  |  no    |
+ * | Update avatar          |  yes  | yes  |  no    |
+ *
+ * ## Self-lockout guards
+ *
+ * Two rules guard against the only owner accidentally locking themselves
+ * out of the dashboard:
+ *
+ * - **Role change on self is forbidden.** An owner who demotes themselves
+ *   to admin would leave the system with zero owners and no way back.
+ * - **Self-deletion is forbidden.** Same motivation, stronger version.
+ *
+ * An owner who genuinely wants to demote or remove themselves must first
+ * promote a second user to owner from a different session.
+ *
+ * ## Invite flow
+ *
+ * Creating a user hands out a single-use invite URL, not a password. The
+ * raw token is returned in the response body, but the DB stores only its
+ * bcrypt hash (`inviteTokenHash`). Expiry is 7 days. A placeholder random
+ * password is written into `passwordHash` so the row is a valid
+ * `AdminUser`; the real password is set when the invitee completes the
+ * invite flow (handled elsewhere).
+ *
+ * ## Avatar endpoints (three of them)
+ *
+ * Avatars can come from three sources and each has its own route:
+ *
+ * - **POST** (`avatar`): direct upload as `data:image/<mime>;base64,...`.
+ *   Accepts JPEG/PNG/WebP only. Fastify route body limit is 8 MB to
+ *   accommodate base64 overhead, the logical image limit is 5 MB after
+ *   decode (`base64Part.length * 0.75` is the standard approximation).
+ * - **PATCH** (`avatar`): external Gravatar URL. The handler whitelists
+ *   `https://www.gravatar.com/avatar/` explicitly, to block SSRF/phishing
+ *   via arbitrary image hosts.
+ * - **DELETE** (`avatar`): clears the column.
+ */
 import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
@@ -28,12 +86,19 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const repo = await getAdminRepository();
     const id = nanoid();
     const inviteToken = nanoid(48);
+    // Store only the hash so a DB dump does not expose usable invite
+    // tokens. Work factor 10 is fine for one-time tokens that expire in
+    // a week; bcrypt 12 (used on real passwords) is overkill here.
     const inviteTokenHash = await bcrypt.hash(inviteToken, 10);
 
     await repo.createAdminUser({
       id,
       username: body.username,
-      passwordHash: await bcrypt.hash(nanoid(32), 12), // random password, user sets via invite
+      // Placeholder random password: the invitee sets the real password
+      // via the invite flow. bcrypt 12 here to match the normal password
+      // path in case the row is ever inspected without the invite
+      // finishing.
+      passwordHash: await bcrypt.hash(nanoid(32), 12),
       email: body.email,
       role: body.role || "admin",
       inviteTokenHash,
@@ -56,7 +121,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const caller = await getCaller(request);
     if (!caller) return reply.status(401).send({ error: "UNAUTHORIZED" });
 
-    // Permission: owner can edit anyone, others only themselves
+    // Field updates: owner can edit any user, everyone else only themselves.
     if (caller.role !== "owner" && caller.id !== id) {
       return reply.status(403).send({ error: "FORBIDDEN" });
     }
@@ -74,7 +139,10 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     if (body.sessionTimeoutMinutes !== undefined)
       updates.sessionTimeoutMinutes = body.sessionTimeoutMinutes as number | null;
 
-    // Role changes: owner only, not self
+    // Role change gets the stricter permission check: owner only, and
+    // never on themselves. The self-guard prevents an owner from
+    // demoting themselves to admin (which would leave the system with
+    // no owner and no way back through the UI).
     if (body.role !== undefined) {
       if (caller.role !== "owner" || caller.id === id) {
         return reply.status(403).send({ error: "FORBIDDEN" });
@@ -100,6 +168,9 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     if (!caller || caller.role !== "owner") {
       return reply.status(403).send({ error: "FORBIDDEN" });
     }
+    // Self-deletion would strand the system without an owner in the
+    // single-owner case. See the "Self-lockout guards" section in the
+    // file header.
     if (caller.id === id) {
       return reply.status(400).send({ error: "Cannot delete yourself" });
     }
@@ -124,11 +195,21 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       const body = request.body as { dataUrl?: string } | null;
       if (!body?.dataUrl) return reply.status(400).send({ error: "No image provided" });
 
+      // Whitelist MIME types. Accepting arbitrary `image/*` would let a
+      // client drop SVG (XSS vector through `<script>` or `<foreignObject>`)
+      // or non-image binaries with a spoofed header.
       const match = body.dataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,/);
       if (!match) {
         return reply.status(400).send({ error: "Only JPEG, PNG or WebP" });
       }
 
+      // Logical size check on the decoded image. The 0.75 factor is the
+      // standard base64 overhead (3 input bytes per 4 output chars), so
+      // the check is a fast approximation of the post-decode size
+      // without actually decoding. Fastify's `bodyLimit: 8 MB` above
+      // already caps the HTTP body; this inner cap of 5 MB keeps the
+      // stored column size reasonable for DB storage and for the
+      // avatar render path.
       const base64Part = body.dataUrl.slice(body.dataUrl.indexOf(",") + 1);
       const approxBytes = Math.ceil(base64Part.length * 0.75);
       if (approxBytes > 5 * 1024 * 1024) {
@@ -153,6 +234,10 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     }
 
     const body = request.body as { gravatarUrl?: string } | null;
+    // Origin whitelist on the URL itself. Accepting arbitrary external
+    // URLs would let an attacker coax the dashboard (and any image proxy
+    // in front of it) into fetching internal / malicious endpoints by
+    // storing the URL as an avatar.
     if (!body?.gravatarUrl?.startsWith("https://www.gravatar.com/avatar/")) {
       return reply.status(400).send({ error: "Must be a Gravatar URL" });
     }
@@ -181,7 +266,17 @@ export default async function adminUserRoutes(app: FastifyInstance) {
   });
 }
 
-// Helper: get caller from JWT
+/**
+ * Resolves the caller's full DB record from the verified JWT payload.
+ * Used by every mutating endpoint instead of trusting `request.user`
+ * directly: the payload contains only `sub` and `role`, but the
+ * permission rules here need the fresh DB row (the user's role may have
+ * changed since the token was issued, and we want the latest truth).
+ *
+ * @param request - incoming Fastify request, post `jwtVerify` hook
+ * @returns the admin user record, or `null` if the token is malformed or
+ *          the referenced user has since been deleted
+ */
 async function getCaller(request: { user?: unknown }) {
   const payload = request.user as { sub?: string; role?: string } | undefined;
   if (!payload?.sub) return null;
@@ -189,7 +284,16 @@ async function getCaller(request: { user?: unknown }) {
   return repo.findAdminById(payload.sub);
 }
 
-// Helper: convert DB AdminUser to API response (never expose passwordHash)
+/**
+ * Shapes a DB `AdminUser` row into the public response. Critically,
+ * strips every sensitive column (`passwordHash`, `inviteTokenHash`,
+ * `inviteExpiresAt`) by inclusion list rather than exclusion list, so
+ * adding a new sensitive column cannot accidentally leak it through this
+ * endpoint.
+ *
+ * @param user - row from the admin repository
+ * @returns the API-safe user payload
+ */
 function toResponse(user: AdminUser) {
   return {
     id: user.id,

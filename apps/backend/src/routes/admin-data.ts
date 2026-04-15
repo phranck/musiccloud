@@ -1,3 +1,55 @@
+/**
+ * @file Admin data-management endpoints (tracks, albums, artists, caches).
+ *
+ * Registered inside the admin scope in `server.ts`; every handler runs
+ * after `authenticateAdmin`.
+ *
+ * Grouped endpoints in this file:
+ *
+ * 1. **List + search** (tracks / albums / artists) - paginated, searchable,
+ *    sortable. Heavy lifting is in `getAdminRepository().list*`.
+ * 2. **Track detail GET + PATCH** - per-row view/edit for manual metadata
+ *    fixes (wrong title, missing ISRC, bad artwork URL).
+ * 3. **Bulk DELETE** - delete by `{ ids: string[] }` body across tracks,
+ *    albums, artists.
+ * 4. **Cache invalidation** - per-share (track/album/artist) plus a bulk
+ *    "invalidate everything". Invalidation marks rows stale; it does not
+ *    delete them, so the short URL keeps resolving while the next
+ *    resolver call re-fetches the upstream data.
+ * 5. **Meta** - `dataCounts`, `stats` (adds admin user count for the
+ *    dashboard overview), and the destructive `resetAll`.
+ *
+ * ## Input hardening
+ *
+ * Query params arrive as strings and get coerced:
+ *
+ * - `page` is clamped to `>= 1` (invalid or `NaN` falls back to 1).
+ * - `limit` is clamped to `1..100`. The upper cap is not arbitrary:
+ *   larger pages both strain the list queries and stall the dashboard
+ *   table render, so the server enforces it regardless of what the UI
+ *   sends.
+ * - `sortDir` is whitelisted to `asc | desc`; anything else becomes
+ *   `undefined` so the repository can fall back to its default.
+ *
+ * ## PATCH semantics
+ *
+ * Track PATCH is a partial update with a two-tier rule set:
+ *
+ * - `title` / `artists` must be the correct type to be accepted; if
+ *   wrong type, they are silently dropped (the 400 comes from "no
+ *   fields to update").
+ * - Optional fields (`albumName`, `isrc`, `artworkUrl`) accept either a
+ *   value or `null`. Passing `null` clears the field, which is a
+ *   deliberate way to wipe a bad auto-filled value (e.g. wrong artwork
+ *   URL) without deleting the whole row.
+ *
+ * ## `resetAll` is destructive
+ *
+ * `POST /api/admin/reset-all` wipes all track / album / artist data. It
+ * carries no confirmation body; the admin UI is expected to prompt the
+ * operator before issuing the call. Treat this route the same as
+ * `DROP TABLE` for review purposes.
+ */
 import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getAdminRepository } from "../db/index.js";
@@ -66,7 +118,8 @@ export default async function adminDataRoutes(app: FastifyInstance) {
   });
 
   // Per-share cache invalidation. Marks the underlying row as stale so the
-  // next resolve of its URL re-fetches — share URL stays intact.
+  // next resolve of its URL re-fetches. The short URL itself stays intact,
+  // so bookmarks and share links keep working through the re-fetch.
   app.post(ROUTE_TEMPLATES.admin.tracks.invalidateCache, async (request, reply) => {
     const { shortId } = request.params as { shortId: string };
     try {

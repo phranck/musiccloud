@@ -1,3 +1,39 @@
+/**
+ * @file GET `/api/v1/share/:shortId` - share-page payload for SSR.
+ *
+ * Registered unauthenticated in `server.ts` because the Astro frontend
+ * calls it during server-side rendering of every `/:shortId` page (the
+ * user-facing share URL). The payload is shaped to feed the OG meta tags
+ * on that page directly, so crawlers and message previews (iMessage,
+ * Slack, Telegram) can render a rich preview without JavaScript.
+ *
+ * ## Three-tier lookup
+ *
+ * Short IDs live in a single namespace across three kinds of entity
+ * (track, album, artist), so the handler tries each loader in turn and
+ * returns the first hit. Order is track then album then artist, reflecting
+ * observed frequency; changing the order is a pure performance tweak and
+ * cannot change correctness as long as short IDs stay unique across the
+ * three tables. A 404 means the ID does not exist in ANY of the three.
+ *
+ * ## Origin detection
+ *
+ * `x-forwarded-host` is read to reconstruct the user-facing origin when
+ * the backend runs behind an ingress (Zerops). Without this, the OG URLs
+ * embedded in the response would point at the internal backend host the
+ * crawler can never reach. The header is not whitelisted here because
+ * this endpoint is internal to our own frontend call path: trusting the
+ * header is acceptable at the trust boundary the ingress already enforces.
+ * Local dev leaves `origin` undefined and lets the loader fall back to
+ * its own default.
+ *
+ * ## Hardcoded `confidence: 1`, `matchMethod: "cache"`
+ *
+ * These fields are required by `SharePageResponse` but meaningless on a
+ * cache read: the links were already scored during the original resolve,
+ * and a share page has no per-link confidence to show. They are set to
+ * the sentinel values the schema treats as "trusted cache entry".
+ */
 import { ROUTE_TEMPLATES, type SharePageResponse } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
@@ -12,7 +48,6 @@ export default async function shareRoutes(app: FastifyInstance) {
 
     const origin = request.headers["x-forwarded-host"] ? `https://${request.headers["x-forwarded-host"]}` : undefined;
 
-    // Try track first
     const trackData = await loadByShortId(shortId, origin);
     if (trackData) {
       const response: SharePageResponse = {
@@ -48,7 +83,6 @@ export default async function shareRoutes(app: FastifyInstance) {
       return reply.send(response);
     }
 
-    // Try album
     const albumData = await loadAlbumByShortId(shortId, origin);
     if (albumData) {
       const response: SharePageResponse = {
@@ -83,7 +117,6 @@ export default async function shareRoutes(app: FastifyInstance) {
       return reply.send(response);
     }
 
-    // Try artist
     const artistData = await loadArtistByShortId(shortId, origin);
     if (artistData) {
       const response: SharePageResponse = {

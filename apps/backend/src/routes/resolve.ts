@@ -1,3 +1,56 @@
+/**
+ * @file POST `/api/v1/resolve` - full-feature authenticated resolve endpoint.
+ *
+ * Registered inside the `authenticatePublic` scope in `server.ts`, so the
+ * request has already presented an X-API-Key (frontend BFF) or a Bearer
+ * JWT (external API client). See `resolve-public-get.ts` for the
+ * unauthenticated GET companion used by curl / Apple Shortcuts.
+ *
+ * This POST endpoint carries two capabilities the GET endpoint does not:
+ *
+ * 1. **Disambiguation.** When a text search turns up multiple plausible
+ *    matches, it returns a `ResolveDisambiguationResponse` with a list of
+ *    candidates. The client then issues a follow-up POST with
+ *    `selectedCandidate` set to the chosen candidate string, which enters
+ *    Flow 1 below and completes the resolve.
+ * 2. **Multi-kind routing.** URLs are classified into track, album, or
+ *    artist and dispatched to the matching resolver, producing a
+ *    `UnifiedResolveSuccessResponse` discriminated on `type`.
+ *
+ * ## Three flows
+ *
+ * The handler branches on what the body contains:
+ *
+ * - **Flow 1** (`selectedCandidate` present): the client is completing a
+ *   disambiguation round from a previous call. Tracks only, because
+ *   text-search-based disambiguation only ever fires for tracks.
+ * - **Flow 2** (`query` is a URL): short links (`link.deezer.com/s/...`)
+ *   are expanded, the canonical URL is classified, and the matching
+ *   resolver runs (album / artist / default track).
+ * - **Flow 3** (`query` is free text): text search with disambiguation.
+ *   A single clear match resolves immediately; multiple matches return
+ *   the disambiguation list (no DB persistence at that point - nothing
+ *   to persist until the user picks).
+ *
+ * ## URL cleaning order
+ *
+ * Flow 2 strips tracking params twice:
+ *
+ * 1. Before `expandShortLink`: the user-pasted URL itself may carry
+ *    `utm_*` etc.; stripping first gives us a clean canonical short link.
+ * 2. After `expandShortLink`: the short-link target frequently injects
+ *    fresh tracking params into the redirect URL, so the expanded form
+ *    needs another pass.
+ *
+ * Skipping either pass leaves tracking junk in either the DB or the
+ * response, which breaks cache identity (same track, different URL).
+ *
+ * ## 500-character query cap, 200-character candidate cap
+ *
+ * Same rationale as in `resolve-public-get.ts`: the cap is there so that
+ * pathological inputs cannot reach the FTS5 text search. The selected
+ * candidate is a shorter serialized identifier, hence the tighter limit.
+ */
 import type {
   ResolveDisambiguationResponse,
   ResolveErrorResponse,
@@ -24,6 +77,10 @@ import {
   resolveTextSearchWithDisambiguation,
 } from "../services/resolver.js";
 
+/**
+ * Same whitelist as in `routes/resolve-public-get.ts`; the full rationale
+ * lives there. Kept in sync between the two files manually.
+ */
 const ALLOWED_ORIGINS = [
   "https://musiccloud.io",
   "http://localhost:3000",
@@ -63,17 +120,24 @@ export default async function resolveRoutes(app: FastifyInstance) {
     try {
       const origin = getOrigin(request.headers.origin);
 
-      // Flow 1: User selected a candidate from disambiguation list (tracks only)
       if (selectedCandidate) {
+        // Flow 1: completing a previous disambiguation. The candidate
+        // string came from the client's earlier disambiguation response,
+        // so no input classification is needed here.
         const result = await resolveSelectedCandidate(selectedCandidate);
         return reply.send(await persistTrackAndRespond(result, origin));
       }
 
-      // Flow 2: URL input - expand short links first, then detect content type
       if (isUrl(query!)) {
+        // Flow 2. See the file header for why `stripTrackingParams` runs
+        // on both sides of `expandShortLink`.
         const expanded = await expandShortLink(stripTrackingParams(query!));
         const cleanUrl = stripTrackingParams(expanded);
 
+        // Content-type routing. The order (album -> artist -> track) is
+        // a negative-check chain: `isAlbumUrl` / `isArtistUrl` match
+        // specific URL shapes per service; anything that falls through
+        // is treated as a track URL, which is the common case.
         if (isAlbumUrl(cleanUrl)) {
           const result = await resolveAlbumUrl(cleanUrl);
           return reply.send(await persistAlbumAndRespond(result, origin));
@@ -86,14 +150,18 @@ export default async function resolveRoutes(app: FastifyInstance) {
         return reply.send(await persistTrackAndRespond(result, origin));
       }
 
-      // Flow 3: Text search with disambiguation (tracks only)
+      // Flow 3: free-text search. Unlike the GET endpoint, we can return
+      // candidates back to an interactive client and wait for Flow 1.
       const textResult = await resolveTextSearchWithDisambiguation(query!);
 
       if (textResult.kind === "resolved" && textResult.result) {
         return reply.send(await persistTrackAndRespond(textResult.result, origin));
       }
 
-      // Return disambiguation candidates (no DB persistence yet)
+      // Disambiguation branch: do NOT persist anything. Writing a track
+      // here would create a DB row we cannot safely associate with any of
+      // the candidates; the commit happens in the Flow 1 follow-up when
+      // the client tells us which candidate was picked.
       const disambiguationBody: ResolveDisambiguationResponse = {
         status: "disambiguation",
         candidates: textResult.candidates ?? [],
@@ -115,6 +183,13 @@ export default async function resolveRoutes(app: FastifyInstance) {
   });
 }
 
+/**
+ * Picks a safe origin for the short URL embedded in the response. Same
+ * shape and motivation as the helper in `routes/resolve-public-get.ts`.
+ *
+ * @param headerOrigin - raw `Origin` header value from the incoming request
+ * @returns a whitelisted origin string
+ */
 function getOrigin(headerOrigin?: string): string {
   if (headerOrigin && ALLOWED_ORIGINS.includes(headerOrigin)) {
     return headerOrigin;
@@ -123,10 +198,15 @@ function getOrigin(headerOrigin?: string): string {
 }
 
 /**
- * Build the on-wire error payload. `code` may be an MC code or a legacy code
- * — {@link getErrorEntry} resolves either; the response always carries the
- * canonical MC code and a user-facing message with the code appended as a
- * grep-friendly suffix.
+ * Builds the wire-format error payload. `code` may be either an MC code
+ * or a legacy code: `getErrorEntry` resolves both and the response always
+ * carries the canonical MC code along with a user-facing message that
+ * includes the code as a grep-friendly suffix.
+ *
+ * @param code            - error code (MC or legacy) from the shared table
+ * @param overrideMessage - optional caller-specific message replacing the template output
+ * @param context         - values interpolated into the message template when no override is given
+ * @returns `ResolveErrorResponse` ready to send as the JSON body
  */
 function jsonError(
   code: string,
@@ -140,6 +220,18 @@ function jsonError(
   };
 }
 
+/**
+ * Persists a track resolve result, opportunistically refreshes a stale
+ * Deezer preview, and shapes the unified success response. The logic is
+ * identical to `persistAndRespond` in `routes/resolve-public-get.ts`
+ * (track branch); see that file for the full rationale on the
+ * `inputUrl` alias write, the Deezer preview refresh, and the
+ * double-stripping of tracking params.
+ *
+ * @param result - resolver output (source track + cross-service links)
+ * @param origin - already-validated origin used to mint the short URL
+ * @returns unified success payload with `type: "track"`
+ */
 async function persistTrackAndRespond(
   result: ResolutionResult,
   origin: string,
@@ -215,13 +307,32 @@ async function persistTrackAndRespond(
   };
 }
 
+/**
+ * Persists an album resolve result and shapes the unified success response.
+ *
+ * Album payloads carry `previewUrl` pointing at the album's lead-off
+ * track preview, because the frontend renders an inline player on the
+ * album share page. The album resolver may or may not have populated
+ * `topTrackPreviewUrl` (depends on the source service); if the source
+ * left it empty, this function looks through the resolved cross-service
+ * links for a Deezer entry that does have a preview URL. Deezer is the
+ * fallback of choice because it is keyless and has broad preview
+ * coverage.
+ *
+ * Unlike tracks, there is no inline staleness check here: the fallback
+ * writes whatever Deezer served into the DB, and a later refresh of the
+ * individual track rows will pick up any expired signed URLs.
+ *
+ * @param result - album resolver output (source album + cross-service links)
+ * @param origin - already-validated origin used to mint the short URL
+ * @returns unified success payload with `type: "album"`
+ */
 async function persistAlbumAndRespond(
   result: AlbumResolutionResult,
   origin: string,
 ): Promise<UnifiedResolveSuccessResponse> {
   const repo = await getRepository();
 
-  // Deezer preview fallback: if source has no topTrackPreviewUrl, use one from Deezer link
   let previewUrl = result.sourceAlbum.topTrackPreviewUrl;
   if (!previewUrl) {
     const deezerLink = result.links.find((l) => l.service === "deezer" && l.topTrackPreviewUrl);
@@ -269,6 +380,17 @@ async function persistAlbumAndRespond(
   };
 }
 
+/**
+ * Persists an artist resolve result and shapes the unified success response.
+ *
+ * Unlike track and album, the artist payload has no `previewUrl` - an
+ * artist is not a playable unit, so there is no Deezer refresh path and
+ * no preview-URL threading.
+ *
+ * @param result - artist resolver output (source artist + cross-service links)
+ * @param origin - already-validated origin used to mint the short URL
+ * @returns unified success payload with `type: "artist"`
+ */
 async function persistArtistAndRespond(
   result: ArtistResolutionResult,
   origin: string,

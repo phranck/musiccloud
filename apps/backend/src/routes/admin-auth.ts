@@ -1,3 +1,53 @@
+/**
+ * @file Admin dashboard authentication (setup, login, me, refresh).
+ *
+ * Registered at the root scope in `server.ts` (unauth), because the
+ * endpoints here are how an admin first obtains a JWT. Routes that
+ * require an existing session verify the Bearer token inline via
+ * `request.jwtVerify()` rather than through the `authenticateAdmin`
+ * decorator, because the handlers need the decoded payload to look up
+ * the user anyway.
+ *
+ * ## First-run setup
+ *
+ * `setup-status` + `setup` together implement a single-use bootstrap: on
+ * a fresh install, the dashboard shows a setup form; after a successful
+ * POST, any further setup attempt returns 409. The created user gets
+ * `role: "owner"`, distinct from regular `admin`/`moderator` users
+ * invited later (managed by `routes/admin-users.ts`).
+ *
+ * ## Login flow and timing-attack protection
+ *
+ * If the username does not exist, the handler still runs `bcrypt.compare`
+ * against a dummy hash. This keeps response time statistically identical
+ * between "unknown user" and "known user + wrong password", so an
+ * attacker cannot enumerate valid usernames by measuring latency. bcrypt
+ * is already a constant-time comparator for its own purposes; the dummy
+ * compare covers the outer shape of the check.
+ *
+ * bcrypt work factor is 12. That is two rungs above the library default
+ * of 10 (roughly 4x slower), accepted here as a deliberate trade against
+ * brute-force budget at the cost of per-login latency.
+ *
+ * ## JWT shape and lifetime
+ *
+ * Tokens carry `sub`, `username`, `role: "admin"`, and `dbRole`. `role`
+ * is hardcoded to `"admin"` because `authenticateAdmin` checks that exact
+ * string; `dbRole` preserves the real user role (`owner`/`admin`/
+ * `moderator`) for finer-grained authorization in downstream handlers.
+ * Lifetime is 24h (vs 1h on the public API): admin sessions are
+ * interactive and a shorter expiry would thrash the dashboard.
+ *
+ * The refresh endpoint issues a new 24h token provided the current one
+ * still verifies. Once a token is expired, the user must log in again:
+ * there is no refresh-token flow.
+ *
+ * ## Fire-and-forget last-login
+ *
+ * `updateLastLogin` is intentionally not awaited. A failed stat write
+ * must not block or fail the login response, so the promise's rejection
+ * is swallowed.
+ */
 import { ENDPOINTS } from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
@@ -16,6 +66,21 @@ interface LoginBody {
   password: string;
 }
 
+/**
+ * Shapes an internal `AdminUser` row into the public user payload returned
+ * by `/login` and `/me`. Centralized here so the two endpoints cannot
+ * drift apart accidentally (they are consumed by the same React store on
+ * the dashboard, which assumes one shape).
+ *
+ * Fields coerced here, not in the DB layer:
+ * - `email` goes from DB `null` to wire-level `undefined` (tells the
+ *   frontend to omit the field rather than render an empty value).
+ * - `locale` falls back to `"de"` when the DB row predates the column.
+ * - `createdAt`/`lastLoginAt` become ISO strings for JSON-safe transport.
+ *
+ * @param user - row as returned by the admin repository
+ * @returns user payload with DB types normalised for the dashboard client
+ */
 function buildUserResponse(user: AdminUser) {
   return {
     id: user.id,

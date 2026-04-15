@@ -1,10 +1,67 @@
+/**
+ * @file GET `/api/v1/artist-info?name=&region=` - aggregated artist card data.
+ *
+ * Registered unauthenticated in `server.ts`. Consumed by the artist card
+ * React island on share pages and the artist detail pages.
+ *
+ * Upstream data (Deezer top tracks, Last.fm + Spotify profile, Bandsintown
+ * + Ticketmaster events) is gathered in `services/artist-info.ts`; this
+ * route is the caching and enrichment layer around it.
+ *
+ * ## Per-section TTLs
+ *
+ * The three data sections refresh on independent schedules because their
+ * upstream sources change at very different rates:
+ *
+ * | Section     | TTL  | Rationale                                         |
+ * | ----------- | ---- | ------------------------------------------------- |
+ * | `topTracks` |  7 d | Chart positions move on weekly cycles             |
+ * | `profile`   |  7 d | Bio / genres / similar-artist set is stable       |
+ * | `events`    | 24 h | Tour dates can add, reschedule, or cancel daily   |
+ *
+ * Having one TTL per section means a daily event refresh does not burn
+ * the Spotify / Last.fm rate budget that the weekly profile refresh sits
+ * on. When any section is stale, only that section is refetched; the
+ * fresh sections are reused from cache.
+ *
+ * ## Cache key normalization
+ *
+ * The artist name is lowercased for the cache key (`"Radiohead"` and
+ * `"radiohead"` must hit the same entry). The untouched `rawName` is still
+ * sent to the upstream APIs because some of them are case-sensitive in
+ * search. `region` is uppercased and truncated to 2 chars to coerce free
+ * user input (e.g. `"Germany"`, `"de"`) into a clean ISO country code.
+ *
+ * ## Region-local events first
+ *
+ * Events are sorted by a two-key comparator: primary key "matches user's
+ * region" (local first), secondary key "date ascending". This surfaces
+ * the concerts a user can actually attend without dropping faraway shows
+ * from the list.
+ *
+ * ## Similar-artist top-track enrichment
+ *
+ * For each of the top 3 similar artists (UI cap) we fetch their top track
+ * in parallel. Each lookup is wrapped in its own `try/catch` that returns
+ * `{ track: null }` on failure, so one upstream hiccup cannot collapse the
+ * whole response. The limit of 3 matches what the similar-artists carousel
+ * renders.
+ *
+ * ## shortId enrichment (not cached)
+ *
+ * Every track (both `topTracks` and the similar-artists tracks) gets a
+ * `shortId` attached when we can map its Deezer URL to one of our own
+ * resolved tracks. This is deliberately NOT cached alongside the
+ * Last.fm/Deezer payload: a user may have resolved the artist's track
+ * after the cache entry was written, and the card should show the
+ * short-link immediately once the resolve exists.
+ */
 import { type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { fetchArtistEvents, fetchArtistProfile, fetchArtistTopTracks } from "../services/artist-info.js";
 
-// TTLs in milliseconds
 const TTL_TRACKS_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const TTL_PROFILE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const TTL_EVENTS_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -21,8 +78,8 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "'name' must be 200 characters or fewer." });
     }
 
-    const artistName = rawName.toLowerCase(); // normalized cache key
-    const region = (query.region ?? "").toUpperCase().slice(0, 2); // e.g. "DE"
+    const artistName = rawName.toLowerCase();
+    const region = (query.region ?? "").toUpperCase().slice(0, 2);
 
     const repo = await getRepository();
     const cached = await repo.findArtistCache(artistName);
@@ -36,7 +93,9 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
     const needsProfile = !cached || now - cached.profileUpdatedAt > TTL_PROFILE_MS;
     const needsEvents = !cached || now - cached.eventsUpdatedAt > TTL_EVENTS_MS;
 
-    // Fetch stale sections in parallel
+    // Only the stale sections are refetched, and they run in parallel.
+    // `saveArtistCache` takes a partial so each section writes
+    // independently without clobbering the other two.
     const fetches: Promise<void>[] = [];
 
     if (needsTracks) {
@@ -73,7 +132,10 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       log.debug("ArtistInfo", `Cache hit for "${rawName}"`);
     }
 
-    // Sort events: events in user's region first (if region provided)
+    // Two-key sort. `aLocal - bLocal` is the primary comparator: local
+    // events get `-1`, remote stay `0`, so locals bubble to the top. The
+    // `|| a.date.localeCompare(b.date)` tie-breaker then orders each
+    // group by date ascending (ISO date strings sort correctly as text).
     const sortedEvents = region
       ? [...events].sort((a, b) => {
           const aLocal = a.country.toUpperCase() === region ? -1 : 0;
@@ -82,7 +144,6 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         })
       : events;
 
-    // Enrich top tracks with shortIds from our own DB (not cached, always fresh)
     const enrichedTracks = await Promise.all(
       topTracks.map(async (track) => {
         const shortId = await repo.findShortIdByTrackUrl(track.deezerUrl);
@@ -90,7 +151,6 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       }),
     );
 
-    // Fetch top track for each similar artist (max 3) in parallel
     const similarNames = (profile?.similarArtists ?? []).slice(0, 3);
     const similarArtistTracks: SimilarArtistTrack[] = await Promise.all(
       similarNames.map(async (name) => {
