@@ -99,148 +99,154 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
       )}
     >
       <EmbossedCard className="rounded-2xl p-5 flex flex-col max-h-[calc(100vh-16rem)]">
-        <div className="text-center mb-4 flex-shrink-0">
+        <EmbossedCard.Header className="text-center mb-4 flex-shrink-0">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">{headline}</h2>
           <p className="text-sm text-text-secondary mt-1">{t("genreSearch.subtitle")}</p>
-        </div>
+        </EmbossedCard.Header>
 
-        {!hasAny ? (
-          <p className="text-center text-sm text-text-muted py-8">{t("genreSearch.empty")}</p>
-        ) : (
-          <div
-            className={cn(
-              "grid grid-cols-1 gap-4 flex-1 min-h-0",
-              columnCount === 2 && "md:grid-cols-2",
-              columnCount >= 3 && "md:grid-cols-3",
-            )}
-          >
-            {results.tracks && (
-              <GenreColumn label={t("genreSearch.tracks", { count: String(results.tracks.length) })}>
-                {results.tracks.map((track, i) => {
-                  const isSelected = loading && selectedId === track.id;
-                  return (
-                    <GenreRowButton
-                      key={track.id}
-                      index={i}
-                      onClick={() => onSelect(track.webUrl, track.id)}
-                      disabled={loading}
-                      ariaLabel={
-                        isSelected
-                          ? t("genreSearch.loading")
-                          : `Resolve track "${track.title}" by ${track.artists.join(", ")}`
-                      }
-                    >
-                      <CandidateRowContent
-                        compact
-                        artwork={
-                          <SlideArtwork
-                            active={isSelected}
-                            artworkUrl={track.artworkUrl}
-                            sizeClass={COMPACT_ART_SIZE}
-                          />
-                        }
-                        primary={track.title}
-                        secondary={track.artists.join(", ")}
-                        tertiary={track.albumName}
-                      />
-                    </GenreRowButton>
-                  );
-                })}
-              </GenreColumn>
-            )}
-
-            {results.albums && (
-              <GenreColumn label={t("genreSearch.albums", { count: String(results.albums.length) })}>
-                {results.albums.map((album, i) => {
-                  const isSelected = loading && selectedId === album.id;
-                  return (
-                    <GenreRowButton
-                      key={album.id}
-                      index={i}
-                      onClick={() => onSelect(album.webUrl, album.id)}
-                      disabled={loading}
-                      ariaLabel={
-                        isSelected
-                          ? t("genreSearch.loading")
-                          : `Resolve album "${album.title}" by ${album.artists.join(", ")}`
-                      }
-                    >
-                      <CandidateRowContent
-                        compact
-                        artwork={
-                          <SlideArtwork
-                            active={isSelected}
-                            artworkUrl={album.artworkUrl}
-                            sizeClass={COMPACT_ART_SIZE}
-                          />
-                        }
-                        primary={album.title}
-                        secondary={album.artists.join(", ")}
-                      />
-                    </GenreRowButton>
-                  );
-                })}
-              </GenreColumn>
-            )}
-
-            {results.artists && (
-              <GenreColumn label={t("genreSearch.artists", { count: String(results.artists.length) })}>
-                {results.artists.map((artist, i) => {
-                  const isSelected = loading && selectedId === artist.id;
-                  return (
-                    <GenreRowButton
-                      key={artist.id}
-                      index={i}
-                      onClick={() => onSelect(artist.webUrl, artist.id)}
-                      disabled={loading}
-                      ariaLabel={isSelected ? t("genreSearch.loading") : `Resolve artist ${artist.name}`}
-                    >
-                      <CandidateRowContent
-                        compact
-                        artwork={
-                          <SlideArtwork
-                            active={isSelected}
-                            artworkUrl={artist.imageUrl}
-                            kind="round"
-                            sizeClass={COMPACT_ART_SIZE}
-                          />
-                        }
-                        artworkKind="round"
-                        primary={artist.name}
-                      />
-                    </GenreRowButton>
-                  );
-                })}
-              </GenreColumn>
-            )}
-          </div>
-        )}
-
-        {warnings && warnings.length > 0 && (
-          <ul className="mt-4 space-y-1 text-xs text-text-muted flex-shrink-0" aria-live="polite">
-            {warnings.map((w) => (
-              <li key={w} className="flex items-start gap-1.5">
-                <span aria-hidden="true">⚠</span>
-                <span>{w}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {onCancel && (
-          <div className="text-center mt-4 flex-shrink-0">
-            <button
-              type="button"
-              onClick={onCancel}
+        <EmbossedCard.Body className="flex-1 min-h-0">
+          {!hasAny ? (
+            <p className="text-center text-sm text-text-muted py-8">{t("genreSearch.empty")}</p>
+          ) : (
+            <div
               className={cn(
-                "text-sm text-text-muted hover:text-text-secondary",
-                "transition-colors duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
+                "grid grid-cols-1 gap-4",
+                columnCount === 2 && "md:grid-cols-2",
+                columnCount >= 3 && "md:grid-cols-3",
               )}
             >
-              {t("genreSearch.cancel")}
-            </button>
-          </div>
+              {results.tracks && (
+                <GenreColumn label={t("genreSearch.tracks", { count: String(results.tracks.length) })}>
+                  {results.tracks.map((track, i) => {
+                    const isSelected = loading && selectedId === track.id;
+                    return (
+                      <GenreRowButton
+                        key={track.id}
+                        index={i}
+                        onClick={() => onSelect(track.webUrl, track.id)}
+                        disabled={loading}
+                        ariaLabel={
+                          isSelected
+                            ? t("genreSearch.loading")
+                            : `Resolve track "${track.title}" by ${track.artists.join(", ")}`
+                        }
+                      >
+                        <CandidateRowContent
+                          compact
+                          artwork={
+                            <SlideArtwork
+                              active={isSelected}
+                              artworkUrl={track.artworkUrl}
+                              sizeClass={COMPACT_ART_SIZE}
+                            />
+                          }
+                          primary={track.title}
+                          secondary={track.artists.join(", ")}
+                          tertiary={track.albumName}
+                        />
+                      </GenreRowButton>
+                    );
+                  })}
+                </GenreColumn>
+              )}
+
+              {results.albums && (
+                <GenreColumn label={t("genreSearch.albums", { count: String(results.albums.length) })}>
+                  {results.albums.map((album, i) => {
+                    const isSelected = loading && selectedId === album.id;
+                    return (
+                      <GenreRowButton
+                        key={album.id}
+                        index={i}
+                        onClick={() => onSelect(album.webUrl, album.id)}
+                        disabled={loading}
+                        ariaLabel={
+                          isSelected
+                            ? t("genreSearch.loading")
+                            : `Resolve album "${album.title}" by ${album.artists.join(", ")}`
+                        }
+                      >
+                        <CandidateRowContent
+                          compact
+                          artwork={
+                            <SlideArtwork
+                              active={isSelected}
+                              artworkUrl={album.artworkUrl}
+                              sizeClass={COMPACT_ART_SIZE}
+                            />
+                          }
+                          primary={album.title}
+                          secondary={album.artists.join(", ")}
+                        />
+                      </GenreRowButton>
+                    );
+                  })}
+                </GenreColumn>
+              )}
+
+              {results.artists && (
+                <GenreColumn label={t("genreSearch.artists", { count: String(results.artists.length) })}>
+                  {results.artists.map((artist, i) => {
+                    const isSelected = loading && selectedId === artist.id;
+                    return (
+                      <GenreRowButton
+                        key={artist.id}
+                        index={i}
+                        onClick={() => onSelect(artist.webUrl, artist.id)}
+                        disabled={loading}
+                        ariaLabel={isSelected ? t("genreSearch.loading") : `Resolve artist ${artist.name}`}
+                      >
+                        <CandidateRowContent
+                          compact
+                          artwork={
+                            <SlideArtwork
+                              active={isSelected}
+                              artworkUrl={artist.imageUrl}
+                              kind="round"
+                              sizeClass={COMPACT_ART_SIZE}
+                            />
+                          }
+                          artworkKind="round"
+                          primary={artist.name}
+                        />
+                      </GenreRowButton>
+                    );
+                  })}
+                </GenreColumn>
+              )}
+            </div>
+          )}
+        </EmbossedCard.Body>
+
+        {(warnings?.length || onCancel) && (
+          <EmbossedCard.Footer>
+            {warnings && warnings.length > 0 && (
+              <ul className="mt-4 space-y-1 text-xs text-text-muted flex-shrink-0" aria-live="polite">
+                {warnings.map((w) => (
+                  <li key={w} className="flex items-start gap-1.5">
+                    <span aria-hidden="true">⚠</span>
+                    <span>{w}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {onCancel && (
+              <div className="text-center mt-4 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className={cn(
+                    "text-sm text-text-muted hover:text-text-secondary",
+                    "transition-colors duration-150",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
+                  )}
+                >
+                  {t("genreSearch.cancel")}
+                </button>
+              </div>
+            )}
+          </EmbossedCard.Footer>
         )}
       </EmbossedCard>
     </div>

@@ -27,12 +27,12 @@ export const GenreBrowseGrid = forwardRef<HTMLDivElement, GenreBrowseGridProps>(
       className="w-full max-w-full md:max-w-5xl mx-auto mt-8 mb-8 animate-fade-in focus:outline-none"
     >
       <EmbossedCard className="rounded-2xl p-5 flex flex-col max-h-[calc(100vh-16rem)]">
-        <div className="text-center mb-4 flex-shrink-0">
+        <EmbossedCard.Header className="text-center mb-4 flex-shrink-0">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">{t("genreBrowse.title")}</h2>
           <p className="text-sm text-text-secondary mt-1">{t("genreBrowse.subtitle")}</p>
-        </div>
+        </EmbossedCard.Header>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 flex-1 min-h-0 overflow-y-auto">
+        <EmbossedCard.Body className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 flex-1 min-h-0 overflow-y-auto">
           {genres.map((genre, i) => (
             <div key={genre.name} className="animate-slide-up" style={{ animationDelay: `${Math.min(i * 30, 600)}ms` }}>
               <EmbossedButton
@@ -73,7 +73,7 @@ export const GenreBrowseGrid = forwardRef<HTMLDivElement, GenreBrowseGridProps>(
               </EmbossedButton>
             </div>
           ))}
-        </div>
+        </EmbossedCard.Body>
       </EmbossedCard>
     </div>
   );

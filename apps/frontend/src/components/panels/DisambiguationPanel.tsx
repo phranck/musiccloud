@@ -31,7 +31,6 @@ export function DisambiguationPanel({
   const [animatingId, setAnimatingId] = useState<string | null>(null);
 
   const listRef = useRef<HTMLDivElement>(null);
-  const headingRef = useRef<HTMLDivElement>(null);
   const resolveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -135,7 +134,7 @@ export function DisambiguationPanel({
   return (
     <div className="w-full max-w-full sm:max-w-[480px] mx-auto mt-8 animate-fade-in">
       <EmbossedCard className="rounded-2xl p-5">
-        <div ref={headingRef} className="text-center mb-4">
+        <EmbossedCard.Header className="text-center mb-4">
           {isAnimating || isLoadingSelected ? (
             <div className="animate-fade-in">
               <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
@@ -151,76 +150,80 @@ export function DisambiguationPanel({
               <p className="text-sm text-text-secondary mt-1">{t("disambiguation.subtitle")}</p>
             </>
           )}
-        </div>
+        </EmbossedCard.Header>
 
-        <RecessedCard className="p-2" radius="0.75rem">
-          <div ref={listRef} className="flex flex-col gap-2">
-            {candidates.map((candidate, index) => {
-              const isThisSelected =
-                (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
+        <EmbossedCard.Body>
+          <RecessedCard className="p-2" radius="0.75rem">
+            <div ref={listRef} className="flex flex-col gap-2">
+              {candidates.map((candidate, index) => {
+                const isThisSelected =
+                  (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
 
-              return (
-                <div
-                  key={candidate.id}
-                  data-disambiguation-card={candidate.id}
-                  className="animate-slide-up"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <EmbossedButton
-                    as="button"
-                    type="button"
-                    onClick={() => handleClick(candidate)}
-                    disabled={isAnimating || loading}
-                    className={cn(
-                      "w-full flex items-center gap-4 px-3 py-3 text-left rounded-lg",
-                      isThisSelected && "ring-1 ring-accent/20",
-                      (isAnimating || loading) && "cursor-default",
-                    )}
-                    aria-label={
-                      isThisSelected
-                        ? t("disambiguation.loading")
-                        : `Select "${candidate.title}" by ${candidate.artists.join(", ")}`
-                    }
+                return (
+                  <div
+                    key={candidate.id}
+                    data-disambiguation-card={candidate.id}
+                    className="animate-slide-up"
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <CandidateRowContent
-                      artwork={
-                        isThisSelected ? (
-                          <CDSpinArtwork className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" />
-                        ) : undefined
+                    <EmbossedButton
+                      as="button"
+                      type="button"
+                      onClick={() => handleClick(candidate)}
+                      disabled={isAnimating || loading}
+                      className={cn(
+                        "w-full flex items-center gap-4 px-3 py-3 text-left rounded-lg",
+                        isThisSelected && "ring-1 ring-accent/20",
+                        (isAnimating || loading) && "cursor-default",
+                      )}
+                      aria-label={
+                        isThisSelected
+                          ? t("disambiguation.loading")
+                          : `Select "${candidate.title}" by ${candidate.artists.join(", ")}`
                       }
-                      artworkUrl={candidate.artworkUrl}
-                      primary={candidate.title}
-                      secondary={candidate.artists.join(", ")}
-                      tertiary={candidate.albumName}
-                    />
-                  </EmbossedButton>
-                </div>
-              );
-            })}
-          </div>
-        </RecessedCard>
+                    >
+                      <CandidateRowContent
+                        artwork={
+                          isThisSelected ? (
+                            <CDSpinArtwork className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" />
+                          ) : undefined
+                        }
+                        artworkUrl={candidate.artworkUrl}
+                        primary={candidate.title}
+                        secondary={candidate.artists.join(", ")}
+                        tertiary={candidate.albumName}
+                      />
+                    </EmbossedButton>
+                  </div>
+                );
+              })}
+            </div>
+          </RecessedCard>
+        </EmbossedCard.Body>
 
-        {!isAnimating && !loading && (
-          <div className="text-center mt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className={cn(
-                "text-sm text-text-muted hover:text-text-secondary",
-                "transition-colors duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
-              )}
-            >
-              {t("disambiguation.cancel")}
-            </button>
-          </div>
-        )}
+        <EmbossedCard.Footer>
+          {!isAnimating && !loading && (
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={onCancel}
+                className={cn(
+                  "text-sm text-text-muted hover:text-text-secondary",
+                  "transition-colors duration-150",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
+                )}
+              >
+                {t("disambiguation.cancel")}
+              </button>
+            </div>
+          )}
 
-        <p className="sr-only" aria-live="polite">
-          {isAnimating || loading
-            ? t("disambiguation.loading")
-            : t("disambiguation.found", { count: String(candidates.length) })}
-        </p>
+          <p className="sr-only" aria-live="polite">
+            {isAnimating || loading
+              ? t("disambiguation.loading")
+              : t("disambiguation.found", { count: String(candidates.length) })}
+          </p>
+        </EmbossedCard.Footer>
       </EmbossedCard>
     </div>
   );
