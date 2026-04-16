@@ -9,6 +9,7 @@ describe("parseGenreQuery — defaults", () => {
       albums: 10,
       artists: 10,
       vibe: "hot",
+      warnings: [],
     });
   });
 
@@ -43,6 +44,7 @@ describe("parseGenreQuery — whitespace tolerance", () => {
       albums: null,
       artists: null,
       vibe: "mixed",
+      warnings: [],
     });
   });
 });
@@ -92,6 +94,7 @@ describe("parseGenreQuery — type-specific mode", () => {
       albums: null,
       artists: null,
       vibe: "hot",
+      warnings: [],
     });
   });
 
@@ -107,6 +110,119 @@ describe("parseGenreQuery — type-specific mode", () => {
     expect(result.tracks).toBeNull();
     expect(result.albums).toBeNull();
     expect(result.artists).toBe(15);
+  });
+});
+
+describe("parseGenreQuery — auto-insert missing commas", () => {
+  it("fixes a missing comma between genre value and count", () => {
+    expect(parseGenreQuery("genre: jazz count: 15")).toEqual({
+      genres: ["jazz"],
+      tracks: 15,
+      albums: 15,
+      artists: 15,
+      vibe: "hot",
+      warnings: [],
+    });
+  });
+
+  it("fixes a missing comma between genre value and tracks", () => {
+    const r = parseGenreQuery("genre: jazz tracks: 20");
+    expect(r.tracks).toBe(20);
+    expect(r.albums).toBeNull();
+  });
+
+  it("fixes multiple missing commas in one query", () => {
+    expect(parseGenreQuery("genre: jazz tracks: 20 vibe: mixed")).toEqual({
+      genres: ["jazz"],
+      tracks: 20,
+      albums: null,
+      artists: null,
+      vibe: "mixed",
+      warnings: [],
+    });
+  });
+
+  it("preserves multi-word genre values when a keyword follows", () => {
+    const r = parseGenreQuery("genre: hip hop tracks: 10");
+    expect(r.genres).toEqual(["hip hop"]);
+    expect(r.tracks).toBe(10);
+  });
+
+  it("does not touch queries that already use commas", () => {
+    const r = parseGenreQuery("genre: jazz, count: 15");
+    expect(r).toEqual({ genres: ["jazz"], tracks: 15, albums: 15, artists: 15, vibe: "hot", warnings: [] });
+  });
+
+  it("leaves values alone when a keyword-shaped word has no colon", () => {
+    // "albums" here is part of the (nonsense) genre value, not a key.
+    // Because there's no colon after "albums", the auto-comma fix-up
+    // doesn't fire and the genre-name resolver will reject it later.
+    const r = parseGenreQuery("genre: albums rock");
+    expect(r.genres).toEqual(["albums rock"]);
+  });
+});
+
+describe("parseGenreQuery — count (global shorthand)", () => {
+  it("applies count to all three types when no type-specific keys are given", () => {
+    expect(parseGenreQuery("genre: jazz, count: 15")).toEqual({
+      genres: ["jazz"],
+      tracks: 15,
+      albums: 15,
+      artists: 15,
+      vibe: "hot",
+      warnings: [],
+    });
+  });
+
+  it("pairs cleanly with vibe", () => {
+    expect(parseGenreQuery("genre: jazz, count: 20, vibe: mixed")).toEqual({
+      genres: ["jazz"],
+      tracks: 20,
+      albums: 20,
+      artists: 20,
+      vibe: "mixed",
+      warnings: [],
+    });
+  });
+
+  it("applies last-wins when count is followed by tracks, with a warning", () => {
+    const r = parseGenreQuery("genre: jazz, count: 15, tracks: 20");
+    expect(r.tracks).toBe(20);
+    expect(r.albums).toBe(15);
+    expect(r.artists).toBe(15);
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toMatch(/count/i);
+  });
+
+  it("applies last-wins when count follows tracks, with a warning", () => {
+    // tracks set first → 20; count after → all three set to 15
+    const r = parseGenreQuery("genre: jazz, tracks: 20, count: 15");
+    expect(r.tracks).toBe(15);
+    expect(r.albums).toBe(15);
+    expect(r.artists).toBe(15);
+    expect(r.warnings).toHaveLength(1);
+  });
+
+  it("applies last-wins for mixed count+albums+artists", () => {
+    const r = parseGenreQuery("genre: jazz, count: 15, albums: 5, artists: 3");
+    expect(r.tracks).toBe(15);
+    expect(r.albums).toBe(5);
+    expect(r.artists).toBe(3);
+    expect(r.warnings).toHaveLength(1);
+  });
+
+  it("emits no warning when count is used alone", () => {
+    expect(parseGenreQuery("genre: jazz, count: 15").warnings).toEqual([]);
+  });
+
+  it("emits no warning when only per-type fields are used", () => {
+    expect(parseGenreQuery("genre: jazz, tracks: 20, albums: 5").warnings).toEqual([]);
+  });
+
+  it("validates count as a positive integer within range", () => {
+    expect(() => parseGenreQuery("genre: jazz, count: 0")).toThrow(/at least 1/i);
+    expect(() => parseGenreQuery("genre: jazz, count: 100")).toThrow(/at most 50/i);
+    expect(() => parseGenreQuery("genre: jazz, count: abc")).toThrow(/positive integer/i);
   });
 });
 

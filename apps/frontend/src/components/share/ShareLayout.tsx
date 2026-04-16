@@ -22,6 +22,7 @@ function artistReducer(_: ArtistState, action: ArtistAction): ArtistState {
 
 import { ArtistInfoCard } from "@/components/share/ArtistInfoCard";
 import { SharePageCard } from "@/components/share/SharePageCard";
+import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { LocaleProvider, useT } from "@/i18n/context";
@@ -114,6 +115,15 @@ interface ShareLayoutProps {
   artistName: string;
   animated?: boolean;
   initialLocale?: string;
+  /**
+   * Optional back action. When present, a subtle "back" link is rendered
+   * above the share cards so users who arrived here from a list view
+   * (currently: genre-search discovery) can navigate back to that list
+   * without losing it.
+   */
+  onBack?: () => void;
+  /** Translated label for the back link. Required if `onBack` is given. */
+  backLabel?: string;
 }
 
 export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
@@ -124,7 +134,7 @@ export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
   );
 }
 
-function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutProps) {
+function ShareLayoutInner({ config, artistName, animated = false, onBack, backLabel }: ShareLayoutProps) {
   const t = useT();
   // Detect region synchronously on first render (client-only, Astro island)
   const [userRegion] = useState(detectRegion);
@@ -213,6 +223,18 @@ function ShareLayoutInner({ config, artistName, animated = false }: ShareLayoutP
 
   return (
     <div style={accentStyle}>
+      {onBack && backLabel && (
+        <div
+          // Width-matched to the desktop card row so the link sits flush with
+          // the left edge of the media card; on mobile it sits at the screen's
+          // own left gutter.
+          className="mx-auto mb-3 min-[1080px]:mb-4"
+          style={{ maxWidth: `${MEDIA_W + GAP + ARTIST_W}px` }}
+        >
+          <BackLink onClick={onBack} label={backLabel} />
+        </div>
+      )}
+
       {/* Desktop: beide Cards nebeneinander */}
       <div
         className="hidden min-[1080px]:flex items-start gap-6 mx-auto"

@@ -193,6 +193,12 @@ export interface GenreSearchResponse {
     albums: GenreAlbumCandidate[] | null;
     artists: GenreArtistCandidate[] | null;
   };
+  /**
+   * Non-fatal notes about how the query was interpreted — e.g. when
+   * `count` and per-type fields were combined and last-wins kicked in.
+   * Always present; empty array means the query was clean.
+   */
+  warnings: string[];
 }
 
 export interface SearchQuery {

@@ -20,8 +20,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "SUBMIT":
       return { type: "loading" };
-    case "RESOLVE_SUCCESS":
-      return { type: "result", active: action.active };
+    case "RESOLVE_SUCCESS": {
+      // Carry the previous genre-search payload into the result state so the
+      // share layout can surface a "back to discovery" button. Any other
+      // source state resolves to a plain result with no return path.
+      const returnTo = state.type === "genre-search_loading" ? state.payload : undefined;
+      return returnTo ? { type: "result", active: action.active, returnTo } : { type: "result", active: action.active };
+    }
     case "DISAMBIGUATION":
       return { type: "disambiguation", candidates: action.candidates };
     case "SELECT_CANDIDATE":
@@ -29,7 +34,18 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         return { type: "disambiguation_loading", candidates: state.candidates, selectedId: action.selectedId };
       return state;
     case "GENRE_SEARCH":
-      return { type: "genre-search", results: action.results };
+      return { type: "genre-search", payload: action.payload };
+    case "SELECT_GENRE_RESULT":
+      // Only valid transition from the `genre-search` (idle) state — guards against
+      // stray dispatches while already loading or after a clear.
+      if (state.type === "genre-search")
+        return { type: "genre-search_loading", payload: state.payload, selectedId: action.selectedId };
+      return state;
+    case "BACK_TO_GENRE_SEARCH":
+      // Triggered by the back button on the share layout. Only valid when the
+      // current result was reached via genre-search (i.e. carries `returnTo`).
+      if (state.type === "result" && state.returnTo) return { type: "genre-search", payload: state.returnTo };
+      return state;
     case "ERROR":
       return { type: "error", message: action.message };
     case "CLEAR_START":

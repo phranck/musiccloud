@@ -1,12 +1,12 @@
 /**
  * Integration test for Deezer's genre-search implementation. Exercises the
  * whole pipeline end-to-end against a mocked `fetch`: genre-name resolution,
- * chart fan-out per type, interleave + dedupe across multiple genres, hot
- * vs. mixed sampling, and the module-level pool cache.
+ * single-endpoint chart fetch, interleave + dedupe, projection into tracks /
+ * albums / artists, hot vs. mixed sampling, and the track pool cache.
  *
- * The mocked fetch routes by URL so a single `mockImplementation` covers any
- * number of chart calls in any order — adding a new test case doesn't require
- * threading `mockResolvedValueOnce` calls in call order.
+ * Only `/genre` and `/chart/{id}/tracks` are ever requested — albums and
+ * artists are derived from the same track pool (see file header in
+ * `plugins/deezer/genre-search.ts` for why).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { _resetGenreCacheForTests } from "@/services/genre-search/genre-map";
@@ -23,62 +23,62 @@ const MOCK_GENRES = {
   ],
 };
 
-function makeTrack(id: number, title: string, artistName: string, artistId = 100): unknown {
+/**
+ * Build a fully-typed DeezerChartTrack mock. The embedded `artist` and
+ * `album` sub-objects carry the picture/cover URLs we need for the
+ * derived artist and album rows — this mirrors the real Deezer response.
+ */
+function makeTrack(opts: {
+  id: number;
+  title: string;
+  artistId?: number;
+  artistName?: string;
+  albumId?: number;
+  albumTitle?: string;
+  explicit?: boolean;
+}): unknown {
+  const artistId = opts.artistId ?? 100 + opts.id;
+  const albumId = opts.albumId ?? 900 + opts.id;
   return {
-    id,
-    title,
+    id: opts.id,
+    title: opts.title,
     duration: 200,
-    preview: `https://cdns-preview.dzcdn.net/stream/${id}.mp3`,
-    link: `https://www.deezer.com/track/${id}`,
-    explicit_lyrics: false,
-    artist: { id: artistId, name: artistName },
-    album: { id: 900 + id, title: `Album ${id}`, cover_xl: "https://cdn/xl.jpg" },
-  };
-}
-
-function makeAlbum(id: number, title: string, artistName: string): unknown {
-  return {
-    id,
-    title,
-    link: `https://www.deezer.com/album/${id}`,
-    cover_xl: "https://cdn/xl.jpg",
-    artist: { id: 200, name: artistName },
-  };
-}
-
-function makeArtist(id: number, name: string): unknown {
-  return {
-    id,
-    name,
-    link: `https://www.deezer.com/artist/${id}`,
-    picture_xl: "https://cdn/pic.jpg",
+    preview: `https://cdns-preview.dzcdn.net/stream/${opts.id}.mp3`,
+    link: `https://www.deezer.com/track/${opts.id}`,
+    explicit_lyrics: opts.explicit ?? false,
+    artist: {
+      id: artistId,
+      name: opts.artistName ?? `Artist ${artistId}`,
+      link: `https://www.deezer.com/artist/${artistId}`,
+      picture_xl: `https://cdn/artist/${artistId}/xl.jpg`,
+    },
+    album: {
+      id: albumId,
+      title: opts.albumTitle ?? `Album ${albumId}`,
+      link: `https://www.deezer.com/album/${albumId}`,
+      cover_xl: `https://cdn/album/${albumId}/xl.jpg`,
+    },
   };
 }
 
 /**
- * Stand up a `fetch` mock that routes based on URL substring, so tests don't
- * care about the order in which the implementation fires requests.
- *
- * @param chart  maps `"tracks:<genreId>" | "albums:<genreId>" | "artists:<genreId>"`
- *               to the array of items the chart endpoint should return.
+ * Stand up a `fetch` mock that routes based on URL substring. Only
+ * `/genre` (genre list) and `/chart/{id}/tracks` (per-genre track pool)
+ * are routed; anything else returns a 500 so a stray request is loud.
  */
-function installFetchMock(chart: Record<string, unknown[]>): ReturnType<typeof vi.spyOn> {
+function installFetchMock(tracksByGenre: Record<number, unknown[]>): ReturnType<typeof vi.spyOn> {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL) => {
     const url = String(input);
-
     if (url.endsWith("/genre")) {
       return new Response(JSON.stringify(MOCK_GENRES));
     }
-
-    const chartMatch = /\/chart\/(\d+)\/(tracks|albums|artists)/.exec(url);
+    const chartMatch = /\/chart\/(\d+)\/tracks/.exec(url);
     if (chartMatch) {
-      const [, genreId, kind] = chartMatch;
-      const key = `${kind}:${genreId}`;
-      const items = chart[key] ?? [];
+      const genreId = Number(chartMatch[1]);
+      const items = tracksByGenre[genreId] ?? [];
       return new Response(JSON.stringify({ data: items }));
     }
-
-    return new Response("not mocked", { status: 500 });
+    return new Response(`not mocked: ${url}`, { status: 500 });
   });
 }
 
@@ -94,14 +94,83 @@ describe("deezerSearchByGenre (integration)", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns three lists for a single genre in hot mode", async () => {
+  it("returns all three types derived from the single track pool (hot mode)", async () => {
+    // Three tracks, three distinct artists, three distinct albums.
     installFetchMock({
-      "tracks:129": Array.from({ length: 15 }, (_, i) => makeTrack(i + 1, `Track ${i + 1}`, "Miles Davis")),
-      "albums:129": Array.from({ length: 15 }, (_, i) => makeAlbum(i + 1, `Album ${i + 1}`, "Miles Davis")),
-      "artists:129": Array.from({ length: 15 }, (_, i) => makeArtist(i + 1, `Artist ${i + 1}`)),
+      129: Array.from({ length: 3 }, (_, i) =>
+        makeTrack({
+          id: i + 1,
+          title: `Track ${i + 1}`,
+          artistId: 10 + i,
+          artistName: `Artist ${10 + i}`,
+          albumId: 20 + i,
+          albumTitle: `Album ${20 + i}`,
+        }),
+      ),
     });
 
     const result = await deezerSearchByGenre({
+      genres: ["Jazz"],
+      vibe: "hot",
+      tracks: 3,
+      albums: 3,
+      artists: 3,
+    });
+
+    expect(result.tracks.map((t) => t.sourceId)).toEqual(["1", "2", "3"]);
+    expect(result.albums.map((a) => a.sourceId)).toEqual(["20", "21", "22"]);
+    expect(result.artists.map((a) => a.sourceId)).toEqual(["10", "11", "12"]);
+  });
+
+  it("dedupes artists and albums when the same artist/album appears in multiple tracks", async () => {
+    // Six tracks but only three unique artists and three unique albums
+    // (artist/album reused round-robin).
+    installFetchMock({
+      129: [
+        makeTrack({ id: 1, title: "A1", artistId: 10, albumId: 20 }),
+        makeTrack({ id: 2, title: "B1", artistId: 11, albumId: 21 }),
+        makeTrack({ id: 3, title: "C1", artistId: 12, albumId: 22 }),
+        makeTrack({ id: 4, title: "A2", artistId: 10, albumId: 20 }), // dup
+        makeTrack({ id: 5, title: "B2", artistId: 11, albumId: 21 }), // dup
+        makeTrack({ id: 6, title: "C2", artistId: 12, albumId: 22 }), // dup
+      ],
+    });
+
+    const result = await deezerSearchByGenre({
+      genres: ["Jazz"],
+      vibe: "hot",
+      tracks: 0,
+      albums: 10,
+      artists: 10,
+    });
+
+    expect(result.albums.map((a) => a.sourceId)).toEqual(["20", "21", "22"]);
+    expect(result.artists.map((a) => a.sourceId)).toEqual(["10", "11", "12"]);
+  });
+
+  it("carries artwork URLs from the nested artist/album refs", async () => {
+    installFetchMock({
+      129: [makeTrack({ id: 1, title: "Solo", artistId: 10, albumId: 20 })],
+    });
+
+    const result = await deezerSearchByGenre({
+      genres: ["Jazz"],
+      vibe: "hot",
+      tracks: 0,
+      albums: 1,
+      artists: 1,
+    });
+
+    expect(result.albums[0].artworkUrl).toBe("https://cdn/album/20/xl.jpg");
+    expect(result.artists[0].imageUrl).toBe("https://cdn/artist/10/xl.jpg");
+  });
+
+  it("never calls /chart/{id}/albums or /chart/{id}/artists — only the tracks endpoint", async () => {
+    const fetchSpy = installFetchMock({
+      129: [makeTrack({ id: 1, title: "Solo" })],
+    });
+
+    await deezerSearchByGenre({
       genres: ["Jazz"],
       vibe: "hot",
       tracks: 10,
@@ -109,72 +178,68 @@ describe("deezerSearchByGenre (integration)", () => {
       artists: 10,
     });
 
-    expect(result.tracks).toHaveLength(10);
-    expect(result.albums).toHaveLength(10);
-    expect(result.artists).toHaveLength(10);
-    // Hot mode = top-N from ranked chart → first 10 in order.
-    expect(result.tracks[0].title).toBe("Track 1");
-    expect(result.tracks[9].title).toBe("Track 10");
+    const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes("/chart/129/tracks"))).toBe(true);
+    expect(urls.some((u) => u.includes("/chart/129/albums"))).toBe(false);
+    expect(urls.some((u) => u.includes("/chart/129/artists"))).toBe(false);
   });
 
-  it("does not fetch chart endpoints for types with count 0", async () => {
-    const fetchSpy = installFetchMock({
-      "artists:129": [makeArtist(1, "Solo")],
-    });
+  it("makes no chart request at all when nothing is requested", async () => {
+    const fetchSpy = installFetchMock({});
 
-    await deezerSearchByGenre({
+    const result = await deezerSearchByGenre({
       genres: ["Jazz"],
       vibe: "hot",
       tracks: 0,
       albums: 0,
-      artists: 5,
+      artists: 0,
     });
 
+    expect(result).toEqual({ tracks: [], albums: [], artists: [] });
     const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
-    expect(urls.some((u) => u.endsWith("/genre"))).toBe(true);
-    expect(urls.some((u) => u.includes("/artists"))).toBe(true);
-    expect(urls.some((u) => u.includes("/tracks"))).toBe(false);
-    expect(urls.some((u) => u.includes("/albums"))).toBe(false);
+    // Genre list isn't touched either — nothing to resolve.
+    expect(urls).toEqual([]);
   });
 
-  it("interleaves and dedupes across multiple OR'd genres", async () => {
-    // Two genres with partial overlap: jazz returns artists A,B; rock returns B,C.
-    // After interleave + dedup we expect order [A, B, C] (B from jazz beats dup in rock).
+  it("interleaves and dedupes tracks across multiple OR'd genres", async () => {
+    // Jazz [t1, t2]; Rock [t2, t3]. Interleave → [t1, t2, t2, t3]; dedupe → [t1, t2, t3].
     installFetchMock({
-      "artists:129": [makeArtist(1, "Artist A"), makeArtist(2, "Artist B")],
-      "artists:152": [makeArtist(2, "Artist B"), makeArtist(3, "Artist C")],
+      129: [makeTrack({ id: 1, title: "t1", artistId: 10 }), makeTrack({ id: 2, title: "t2", artistId: 11 })],
+      152: [makeTrack({ id: 2, title: "t2", artistId: 11 }), makeTrack({ id: 3, title: "t3", artistId: 12 })],
     });
 
     const result = await deezerSearchByGenre({
       genres: ["Jazz", "Rock"],
       vibe: "hot",
-      tracks: 0,
+      tracks: 10,
       albums: 0,
       artists: 10,
     });
 
-    expect(result.artists.map((a) => a.sourceId)).toEqual(["1", "2", "3"]);
+    expect(result.tracks.map((t) => t.sourceId)).toEqual(["1", "2", "3"]);
+    expect(result.artists.map((a) => a.sourceId)).toEqual(["10", "11", "12"]);
   });
 
-  it("uses the pool cache on repeat calls", async () => {
+  it("reuses the cached track pool across calls with the same genre set", async () => {
     const fetchSpy = installFetchMock({
-      "tracks:129": [makeTrack(1, "T1", "X"), makeTrack(2, "T2", "Y")],
+      129: [makeTrack({ id: 1, title: "t1" })],
     });
 
-    await deezerSearchByGenre({ genres: ["Jazz"], vibe: "hot", tracks: 2, albums: 0, artists: 0 });
-    await deezerSearchByGenre({ genres: ["Jazz"], vibe: "hot", tracks: 2, albums: 0, artists: 0 });
+    await deezerSearchByGenre({ genres: ["Jazz"], vibe: "hot", tracks: 1, albums: 0, artists: 0 });
+    await deezerSearchByGenre({ genres: ["Jazz"], vibe: "hot", tracks: 0, albums: 1, artists: 0 });
+    await deezerSearchByGenre({ genres: ["Jazz"], vibe: "hot", tracks: 0, albums: 0, artists: 1 });
 
     const trackCalls = fetchSpy.mock.calls.filter((c) => String(c[0]).includes("/chart/129/tracks"));
-    // One chart fetch for the first call; the second is served from the cache.
     expect(trackCalls).toHaveLength(1);
-    // Genre list is also cached → exactly one `/genre` call across both invocations.
     const genreCalls = fetchSpy.mock.calls.filter((c) => String(c[0]).endsWith("/genre"));
     expect(genreCalls).toHaveLength(1);
   });
 
-  it("vibe=mixed draws from a larger pool and yields different samples on repeat", async () => {
-    const pool = Array.from({ length: 100 }, (_, i) => makeTrack(i + 1, `T${i + 1}`, `A${i + 1}`, 300 + i));
-    installFetchMock({ "tracks:129": pool });
+  it("vibe=mixed yields different samples on repeat calls against the same pool", async () => {
+    const pool = Array.from({ length: 100 }, (_, i) =>
+      makeTrack({ id: i + 1, title: `T${i + 1}`, artistId: 300 + i, albumId: 400 + i }),
+    );
+    installFetchMock({ 129: pool });
 
     const first = await deezerSearchByGenre({
       genres: ["Jazz"],
@@ -193,53 +258,118 @@ describe("deezerSearchByGenre (integration)", () => {
 
     expect(first.tracks).toHaveLength(9);
     expect(second.tracks).toHaveLength(9);
-    // Two fresh samples of size 9 from a 100-item pool are extremely unlikely
-    // to collide exactly — if this ever flakes we should reduce the pool.
+    // Two independent samples of 9 from a 100-item pool should not coincide.
     expect(first.tracks.map((t) => t.sourceId)).not.toEqual(second.tracks.map((t) => t.sourceId));
   });
 
-  it("requests the max pool size (100) regardless of target count when vibe=mixed", async () => {
+  it("always requests the max pool (limit=100) irrespective of requested count", async () => {
     const fetchSpy = installFetchMock({
-      "tracks:129": Array.from({ length: 100 }, (_, i) => makeTrack(i + 1, `T${i + 1}`, "X", 400 + i)),
+      129: [makeTrack({ id: 1, title: "t1" })],
     });
 
-    await deezerSearchByGenre({ genres: ["Jazz"], vibe: "mixed", tracks: 5, albums: 0, artists: 0 });
+    await deezerSearchByGenre({ genres: ["Jazz"], vibe: "hot", tracks: 3, albums: 0, artists: 0 });
 
     const chartCall = fetchSpy.mock.calls.find((c) => String(c[0]).includes("/chart/129/tracks"));
-    expect(chartCall).toBeDefined();
     expect(String(chartCall?.[0])).toContain("limit=100");
   });
 
-  it("uses target count as the fetch limit when vibe=hot", async () => {
-    const fetchSpy = installFetchMock({
-      "tracks:129": Array.from({ length: 7 }, (_, i) => makeTrack(i + 1, `T${i + 1}`, "X", 500 + i)),
-    });
-
-    await deezerSearchByGenre({ genres: ["Jazz"], vibe: "hot", tracks: 7, albums: 0, artists: 0 });
-
-    const chartCall = fetchSpy.mock.calls.find((c) => String(c[0]).includes("/chart/129/tracks"));
-    // hot mode fills the pool at MAX_POOL too (pool-first design) — if the impl
-    // later decides to economise on hot mode, tighten this to `=7`.
-    expect(String(chartCall?.[0])).toMatch(/limit=\d+/);
-  });
-
-  it("propagates UnknownGenreError for an unrecognised genre", async () => {
+  it("propagates UnknownGenreError when a genre name cannot be resolved", async () => {
     installFetchMock({});
 
     await expect(
-      deezerSearchByGenre({
-        genres: ["Bebop Noir"],
-        vibe: "hot",
-        tracks: 10,
-        albums: 10,
-        artists: 10,
-      }),
+      deezerSearchByGenre({ genres: ["Bebop Noir"], vibe: "hot", tracks: 5, albums: 0, artists: 0 }),
     ).rejects.toThrow(/Unknown genre/);
   });
 
-  it("matches 'hip hop' substring against 'Rap/Hip Hop'", async () => {
+  it("spreads albums and artists evenly across the pool in hot mode (vs top-N for tracks)", async () => {
+    // 20 tracks, each with its own unique artist and album. With the
+    // hot-spread clamp `min(100, max(30, 3*count)) = 30` and a pool of 20,
+    // the effective range is still 20 → full pool.
     installFetchMock({
-      "tracks:116": [makeTrack(42, "Hit", "Nas")],
+      129: Array.from({ length: 20 }, (_, i) =>
+        makeTrack({
+          id: i + 1,
+          title: `Track ${i + 1}`,
+          artistId: 10 + i,
+          albumId: 100 + i,
+        }),
+      ),
+    });
+
+    const result = await deezerSearchByGenre({
+      genres: ["Jazz"],
+      vibe: "hot",
+      tracks: 10,
+      albums: 10,
+      artists: 10,
+    });
+
+    // Tracks are top-N → pool indices 0..9 → track ids 1..10
+    expect(result.tracks.map((t) => t.sourceId)).toEqual(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
+
+    // Albums + artists are evenly spaced → pool indices 0, 2, 4, …, 18
+    // (floor(i * 20 / 10) for i = 0..9)
+    expect(result.albums.map((a) => a.sourceId)).toEqual([
+      "100",
+      "102",
+      "104",
+      "106",
+      "108",
+      "110",
+      "112",
+      "114",
+      "116",
+      "118",
+    ]);
+    expect(result.artists.map((a) => a.sourceId)).toEqual(["10", "12", "14", "16", "18", "20", "22", "24", "26", "28"]);
+  });
+
+  it("caps hot-mode spread at the top of a large pool to avoid the noisy tail", async () => {
+    // 100-item pool: with count=10 the spread range is min(100, max(30, 30)) = 30.
+    // So indices are 0, 3, 6, …, 27 — nothing from positions 30-99.
+    installFetchMock({
+      129: Array.from({ length: 100 }, (_, i) =>
+        makeTrack({
+          id: i + 1,
+          title: `T${i + 1}`,
+          artistId: 1000 + i,
+          albumId: 2000 + i,
+        }),
+      ),
+    });
+
+    const result = await deezerSearchByGenre({
+      genres: ["Jazz"],
+      vibe: "hot",
+      tracks: 0,
+      albums: 10,
+      artists: 10,
+    });
+
+    // All sourceIds must come from the top-30 range.
+    for (const a of result.albums) {
+      const id = Number(a.sourceId);
+      expect(id).toBeGreaterThanOrEqual(2000);
+      expect(id).toBeLessThan(2030);
+    }
+    // Exact deterministic indices from evenSpacedSample(pool.slice(0,30), 10).
+    expect(result.albums.map((a) => a.sourceId)).toEqual([
+      "2000",
+      "2003",
+      "2006",
+      "2009",
+      "2012",
+      "2015",
+      "2018",
+      "2021",
+      "2024",
+      "2027",
+    ]);
+  });
+
+  it("matches 'hip hop' (substring) against Deezer's 'Rap/Hip Hop'", async () => {
+    installFetchMock({
+      116: [makeTrack({ id: 42, title: "Hit", artistName: "Nas" })],
     });
 
     const result = await deezerSearchByGenre({
@@ -252,5 +382,6 @@ describe("deezerSearchByGenre (integration)", () => {
 
     expect(result.tracks).toHaveLength(1);
     expect(result.tracks[0].title).toBe("Hit");
+    expect(result.tracks[0].artists).toEqual(["Nas"]);
   });
 });

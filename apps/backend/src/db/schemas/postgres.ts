@@ -218,6 +218,17 @@ export const siteSettings = pgTable("site_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
 
+// Permanent cache for artist images (Spotify-backed). Used by genre-search
+// and artist-info to avoid redundant Spotify lookups. No TTL — images are
+// small URLs that don't change often enough to warrant expiry.
+export const artistImages = pgTable("artist_images", {
+  nameKey: text("name_key").primaryKey(),
+  displayName: text("display_name").notNull(),
+  imageUrl: text("image_url").notNull(),
+  source: text("source").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+});
+
 // Per-plugin runtime state (enabled flag). Sparse: missing row = use
 // manifest.defaultEnabled. See services/plugins/registry.ts.
 export const servicePlugins = pgTable("service_plugins", {

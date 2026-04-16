@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stratifiedSample } from "@/services/genre-search/sampler";
+import { evenSpacedSample, stratifiedSample } from "@/services/genre-search/sampler";
 
 /** Deterministic pseudo-RNG: simple LCG-ish, good enough for tests. */
 function seededRng(seed: number): () => number {
@@ -124,5 +124,57 @@ describe("stratifiedSample — determinism under a fixed RNG", () => {
     const a = stratifiedSample(input, 9, seededRng(1));
     const b = stratifiedSample(input, 9, seededRng(2));
     expect(a).not.toEqual(b);
+  });
+});
+
+describe("evenSpacedSample", () => {
+  it("returns [] for count <= 0", () => {
+    expect(evenSpacedSample([1, 2, 3], 0)).toEqual([]);
+    expect(evenSpacedSample([1, 2, 3], -5)).toEqual([]);
+  });
+
+  it("returns [] for an empty pool", () => {
+    expect(evenSpacedSample([], 10)).toEqual([]);
+  });
+
+  it("returns a copy of the pool when count >= pool.length", () => {
+    const pool = [1, 2, 3];
+    const out = evenSpacedSample(pool, 5);
+    expect(out).toEqual([1, 2, 3]);
+    expect(out).not.toBe(pool);
+  });
+
+  it("picks items at evenly spaced indices for a divisible pool", () => {
+    // pool of 100 items, count 10 → indices 0, 10, 20, …, 90
+    const pool = Array.from({ length: 100 }, (_, i) => i);
+    const out = evenSpacedSample(pool, 10);
+    expect(out).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80, 90]);
+  });
+
+  it("handles a non-divisible pool/count pairing without gaps", () => {
+    // pool=7, count=3 → indices 0, 2, 4 (floor(i*7/3))
+    const pool = [10, 11, 12, 13, 14, 15, 16];
+    expect(evenSpacedSample(pool, 3)).toEqual([10, 12, 14]);
+  });
+
+  it("always includes the first item of the pool (index 0)", () => {
+    const pool = Array.from({ length: 50 }, (_, i) => `item-${i}`);
+    for (const n of [1, 2, 5, 10, 25, 49]) {
+      const out = evenSpacedSample(pool, n);
+      expect(out[0]).toBe(pool[0]);
+      expect(out).toHaveLength(n);
+    }
+  });
+
+  it("returns deterministic output for the same inputs", () => {
+    const pool = Array.from({ length: 80 }, (_, i) => i);
+    expect(evenSpacedSample(pool, 7)).toEqual(evenSpacedSample(pool, 7));
+  });
+
+  it("does not mutate the input array", () => {
+    const pool = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const snapshot = [...pool];
+    evenSpacedSample(pool, 3);
+    expect(pool).toEqual(snapshot);
   });
 });

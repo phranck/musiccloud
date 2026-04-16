@@ -13,6 +13,7 @@ import type { ArtistEvent, ArtistProfile, ArtistTopTrack } from "@musiccloud/sha
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { TokenManager } from "../lib/infra/token-manager.js";
+import { cacheArtistImage } from "./artist-images.js";
 
 const DEEZER_BASE = "https://api.deezer.com";
 const SPOTIFY_BASE = "https://api.spotify.com/v1";
@@ -243,6 +244,12 @@ export async function fetchArtistProfile(artistName: string): Promise<ArtistProf
   if (!spotifyArtist) return null;
 
   const imageUrl = pickSpotifyImage(spotifyArtist.images);
+
+  // Opportunistic write-through: persist the image in the shared cache
+  // so genre-search and future lookups can skip the Spotify round-trip.
+  if (imageUrl) {
+    cacheArtistImage(artistName, imageUrl, "spotify").catch(() => {});
+  }
 
   const profile: ArtistProfile = {
     spotifyId: spotifyArtist.id,

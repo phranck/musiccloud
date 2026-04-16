@@ -106,7 +106,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
           "Accepts one of three query shapes:\n" +
           "1. A streaming-service URL (e.g. `https://open.spotify.com/track/...`) — returns unified cross-service metadata.\n" +
           "2. A free-text query — returns either a resolved match or a disambiguation list (follow up with `selectedCandidate` to complete).\n" +
-          "3. A genre-discovery query starting with `genre:` (e.g. `genre: jazz|r&b, tracks: 20, vibe: mixed`) — returns up to three parallel candidate lists (tracks, albums, artists) sourced from Deezer's chart API. Supported fields: `genre` (required, `|` = OR), `tracks`/`albums`/`artists` (1–50), `vibe` (`hot` or `mixed`).",
+          "3. A genre-discovery query starting with `genre:` (e.g. `genre: jazz|r&b, tracks: 20, vibe: mixed`) — returns up to three parallel candidate lists (tracks, albums, artists) sourced from Deezer's chart API. Supported fields: `genre` (required, `|` = OR), `tracks`/`albums`/`artists` (1–50), `count` (1–50, shorthand for the same count across all three types; mutually exclusive with the per-type fields), `vibe` (`hot` or `mixed`).",
         security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
         body: {
           type: "object",

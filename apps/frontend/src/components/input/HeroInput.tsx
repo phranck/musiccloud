@@ -19,6 +19,14 @@ interface HeroInputProps {
   compact?: boolean;
   songName?: string;
   errorMessage?: string;
+  /**
+   * Query string to restore into the input when transitioning away from a
+   * result view back to an idle/focused state. Without this, the clear
+   * effect would wipe the field — which is wrong when the user clicks
+   * "back to discovery" and should see their original query again.
+   * Undefined → falls back to clearing, as before.
+   */
+  preservedQuery?: string;
 }
 
 export function HeroInput({
@@ -30,6 +38,7 @@ export function HeroInput({
   compact = false,
   songName,
   errorMessage,
+  preservedQuery,
 }: HeroInputProps) {
   const t = useT();
   const [value, setValue] = useState("");
@@ -49,17 +58,19 @@ export function HeroInput({
     }
   }, []);
 
-  // Clear input value when transitioning away from results/error (e.g. global ESC)
+  // Clear input value when transitioning away from results/error (e.g. global ESC).
+  // If a `preservedQuery` is provided (e.g. on back-navigation from a result
+  // that was reached via genre-search), restore that instead of clearing.
   useEffect(() => {
     if (
       (prevState.current === "success" || prevState.current === "error") &&
       (state === "idle" || state === "focused")
     ) {
-      setValue("");
+      setValue(preservedQuery ?? "");
       inputRef.current?.focus();
     }
     prevState.current = state;
-  }, [state]);
+  }, [state, preservedQuery]);
 
   const cancelAutoSubmit = useCallback(() => {
     if (autoSubmitTimer.current) {

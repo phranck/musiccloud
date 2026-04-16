@@ -86,6 +86,7 @@ export async function runGenreSearch(queryString: string): Promise<GenreSearchRe
       albums: parsed.albums !== null ? raw.albums.map(toAlbumCandidate) : null,
       artists: parsed.artists !== null ? raw.artists.map(toArtistCandidate) : null,
     },
+    warnings: parsed.warnings,
   };
 }
 

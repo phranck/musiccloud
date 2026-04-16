@@ -61,6 +61,31 @@ export function stratifiedSample<T>(input: T[], count: number, rng: () => number
 }
 
 /**
+ * Pick `count` items from `pool`, evenly spaced across the entire list.
+ * Deterministic: the same input always yields the same output.
+ *
+ * For `count=10` and `pool.length=100` this returns items at indices
+ * 0, 10, 20, …, 90 — one from every decile of the ranked pool. Useful
+ * when you want a "top-to-bottom spread" without the randomness of
+ * `stratifiedSample`: our `vibe: "hot"` branch uses it for the derived
+ * album and artist lists so the three result columns don't all end up
+ * as variants of the same top-of-chart few rows.
+ *
+ * If `pool.length <= count`, the whole pool is returned (a copy) — there
+ * is nothing to spread across.
+ */
+export function evenSpacedSample<T>(pool: T[], count: number): T[] {
+  if (count <= 0 || pool.length === 0) return [];
+  if (pool.length <= count) return pool.slice();
+
+  const out: T[] = [];
+  for (let i = 0; i < count; i++) {
+    out.push(pool[Math.floor((i * pool.length) / count)]);
+  }
+  return out;
+}
+
+/**
  * Random subset of size `k` from `pool` without modifying `pool`. Uses a
  * partial Fisher-Yates shuffle on a copy, so it's O(pool.length) even for
  * small `k`.

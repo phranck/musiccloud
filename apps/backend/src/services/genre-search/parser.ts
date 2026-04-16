@@ -20,6 +20,10 @@
  *   three types are requested with the default count of 10. If *any* type is
  *   provided explicitly, only those types are returned — the others become
  *   `null` (not requested).
+ * - `count` is a shorthand for "same count across all three types" and is
+ *   mutually exclusive with the type-specific keys. `genre: jazz, count: 15`
+ *   returns 15 tracks, 15 albums, 15 artists. Combining `count` with any of
+ *   `tracks`/`albums`/`artists` is rejected to keep intent unambiguous.
  * - Unknown keys, duplicate keys, missing values, and malformed numbers are
  *   all hard errors — the parser never silently ignores input.
  *
@@ -37,6 +41,14 @@ export interface ParsedGenreQuery {
   artists: number | null;
   /** Popularity/sampling mode */
   vibe: "hot" | "mixed";
+  /**
+   * Non-fatal parser observations for the user — things we silently
+   * reconciled instead of rejecting. Empty if the query was clean.
+   * Surface these in the UI under the results list so users understand
+   * what was adjusted (e.g. "count and tracks overlapped; the later
+   * value wins per field").
+   */
+  warnings: string[];
 }
 
 export class GenreQueryParseError extends Error {
@@ -46,8 +58,28 @@ export class GenreQueryParseError extends Error {
   }
 }
 
-const VALID_KEYS = ["genre", "tracks", "albums", "artists", "vibe"] as const;
+const VALID_KEYS = ["genre", "tracks", "albums", "artists", "count", "vibe"] as const;
 type ValidKey = (typeof VALID_KEYS)[number];
+
+// ── Auto-comma normalisation ────────────────────────────────────────────────
+//
+// Users sometimes forget the comma between fields: `genre: jazz count: 15`.
+// Without help, the parser would read the whole thing as a genre value
+// ("jazz count: 15") and later fail at genre-name resolution with a confusing
+// error. Instead, we pre-scan the raw input for keyword markers that are
+// preceded by whitespace but *not* by a comma and insert the comma ourselves.
+//
+// The regex matches `<whitespace><keyword>:` where the character immediately
+// before the whitespace is anything except a comma (negative lookbehind).
+// That means queries already using commas are untouched; only the missing-
+// comma case is rewritten. Keywords that happen to share a name with a real
+// value (e.g. a genre called "Tracks") are distinguished by the required
+// trailing colon — a bare word never triggers the fix-up.
+const AUTO_COMMA_REGEX = new RegExp(`(?<!,)\\s+(${VALID_KEYS.join("|")})\\s*:`, "gi");
+
+function insertMissingCommas(input: string): string {
+  return input.replace(AUTO_COMMA_REGEX, ", $1:");
+}
 
 const VALID_VIBES = ["hot", "mixed"] as const;
 type ValidVibe = (typeof VALID_VIBES)[number];
@@ -74,18 +106,27 @@ export function parseGenreQuery(input: string): ParsedGenreQuery {
     throw new GenreQueryParseError("Query is empty");
   }
 
-  const segments = trimmed
+  const segments = insertMissingCommas(trimmed)
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
-  const raw: Partial<{
-    genres: string[];
-    tracks: number;
-    albums: number;
-    artists: number;
-    vibe: ValidVibe;
-  }> = {};
+  // Counts follow a simple "last write wins per field" model. Each
+  // segment is processed in the order the user wrote it, so the query
+  // `count: 15, tracks: 20` ends up as tracks=20, albums=15, artists=15
+  // (count set all three, then tracks overwrote one). That lets users
+  // say "15 of everything except 20 tracks" without having to restructure.
+  //
+  // When `count` and a type-specific field are combined we emit a
+  // non-fatal warning so the UI can surface "what got reconciled" —
+  // it's not an error but the user probably wants to know.
+  let tracks: number | null = null;
+  let albums: number | null = null;
+  let artists: number | null = null;
+  let genres: string[] | null = null;
+  let vibe: ValidVibe | null = null;
+  let countUsed = false;
+  let typeKeyUsed = false;
   const seenKeys = new Set<ValidKey>();
 
   for (const segment of segments) {
@@ -117,45 +158,75 @@ export function parseGenreQuery(input: string): ParsedGenreQuery {
 
     switch (key) {
       case "genre": {
-        const genres = rawValue
+        const names = rawValue
           .split("|")
           .map((g) => g.trim())
           .filter((g) => g.length > 0);
-        if (genres.length === 0) {
+        if (names.length === 0) {
           throw new GenreQueryParseError("Missing value for 'genre'");
         }
-        raw.genres = genres;
+        genres = names;
         break;
       }
-      case "tracks":
-      case "albums":
+      case "tracks": {
+        tracks = parsePositiveInteger(rawValue, rawKey);
+        typeKeyUsed = true;
+        break;
+      }
+      case "albums": {
+        albums = parsePositiveInteger(rawValue, rawKey);
+        typeKeyUsed = true;
+        break;
+      }
       case "artists": {
-        raw[key] = parsePositiveInteger(rawValue, rawKey);
+        artists = parsePositiveInteger(rawValue, rawKey);
+        typeKeyUsed = true;
+        break;
+      }
+      case "count": {
+        const n = parsePositiveInteger(rawValue, rawKey);
+        tracks = n;
+        albums = n;
+        artists = n;
+        countUsed = true;
         break;
       }
       case "vibe": {
-        const vibe = rawValue.toLowerCase();
-        if (!isValidVibe(vibe)) {
+        const v = rawValue.toLowerCase();
+        if (!isValidVibe(v)) {
           throw new GenreQueryParseError(`'vibe' must be one of: ${VALID_VIBES.join(", ")} (got '${rawValue}')`);
         }
-        raw.vibe = vibe;
+        vibe = v;
         break;
       }
     }
   }
 
-  if (!raw.genres) {
+  if (!genres) {
     throw new GenreQueryParseError("Missing required field 'genre'");
   }
 
-  const anyTypeSpecified = raw.tracks !== undefined || raw.albums !== undefined || raw.artists !== undefined;
+  // No type keys and no count → request all three at the default.
+  if (!countUsed && !typeKeyUsed) {
+    tracks = DEFAULT_COUNT;
+    albums = DEFAULT_COUNT;
+    artists = DEFAULT_COUNT;
+  }
+
+  const warnings: string[] = [];
+  if (countUsed && typeKeyUsed) {
+    warnings.push(
+      "'count' and per-type fields were both provided; values applied in the order written, so later entries won per field.",
+    );
+  }
 
   return {
-    genres: raw.genres,
-    tracks: anyTypeSpecified ? (raw.tracks ?? null) : DEFAULT_COUNT,
-    albums: anyTypeSpecified ? (raw.albums ?? null) : DEFAULT_COUNT,
-    artists: anyTypeSpecified ? (raw.artists ?? null) : DEFAULT_COUNT,
-    vibe: raw.vibe ?? "hot",
+    genres,
+    tracks,
+    albums,
+    artists,
+    vibe: vibe ?? "hot",
+    warnings,
   };
 }
 

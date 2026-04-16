@@ -57,6 +57,13 @@
       "when": 1776263528499,
       "tag": "0007_brief_korvac",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1776333926276,
+      "tag": "0008_needy_warpath",
+      "breakpoints": true
     }
   ]
 }

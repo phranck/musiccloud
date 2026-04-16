@@ -149,14 +149,19 @@ function LandingPageInner() {
     active,
     candidates,
     selectedCandidateId,
-    genreSearchResults,
+    genreSearchPayload,
+    selectedGenreResultId,
+    canReturnToGenreSearch,
     errorMessage,
     showCompact,
     isClearing,
     isDisambiguating,
     isGenreSearching,
+    isGenreSearchLoading,
     handleSubmit,
     handleSelectCandidate,
+    handleSelectGenreResult,
+    handleBackToGenreSearch,
     handleClear,
   } = useAppState(resetColors);
   const { isReturning, capturePosition, triggerReturn } = useFlipAnimation(searchFieldRef);
@@ -198,9 +203,20 @@ function LandingPageInner() {
         : (state.type as InputState);
   const inputState = baseInputState === "idle" && isFocused ? "focused" : baseInputState;
 
+  // Make the original query survive the success→back round-trip so users
+  // see it in the hero input when they return to the discovery list. The
+  // query is stored on the payload directly in the genre-search states
+  // and carried via `returnTo` while a result is open.
+  const preservedGenreQuery =
+    state.type === "genre-search" || state.type === "genre-search_loading"
+      ? state.payload.query
+      : state.type === "result"
+        ? state.returnTo?.query
+        : undefined;
+
   const focusActive = state.type === "result" ? state.active : null;
   const focusCandidates = state.type === "disambiguation" ? state.candidates : null;
-  const focusGenreResults = state.type === "genre-search" ? state.results : null;
+  const focusGenreResults = state.type === "genre-search" ? state.payload : null;
   const genreSearchRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (focusActive) resultsPanelRef.current?.focus();
@@ -255,7 +271,7 @@ function LandingPageInner() {
         </Suspense>
 
         <div className="flex-1 flex flex-col items-center justify-center w-full">
-          {!active && !candidates && !genreSearchResults && (
+          {!active && !candidates && !genreSearchPayload && (
             <HeroSection className={isReturning ? "animate-fade-in" : ""} />
           )}
 
@@ -277,6 +293,7 @@ function LandingPageInner() {
                 active ? (active.kind === "artist" ? active.name : `${active.title} - ${active.artist}`) : undefined
               }
               errorMessage={errorMessage}
+              preservedQuery={preservedGenreQuery}
             />
           </div>
 
@@ -312,13 +329,17 @@ function LandingPageInner() {
             </div>
           )}
 
-          {genreSearchResults && (
+          {genreSearchPayload && (
             <Suspense fallback={null}>
               <GenreSearchResults
                 ref={genreSearchRef}
-                results={genreSearchResults}
-                onSelect={handleSubmit}
+                results={genreSearchPayload.results}
+                queryDetails={genreSearchPayload.queryDetails}
+                warnings={genreSearchPayload.warnings}
+                onSelect={handleSelectGenreResult}
                 onCancel={handleClear}
+                selectedId={selectedGenreResultId}
+                loading={isGenreSearchLoading}
               />
             </Suspense>
           )}
@@ -336,6 +357,8 @@ function LandingPageInner() {
                     config={activeConfig}
                     artistName={active.kind === "artist" ? active.name : active.artist}
                     animated
+                    onBack={canReturnToGenreSearch ? handleBackToGenreSearch : undefined}
+                    backLabel={canReturnToGenreSearch ? t("genreSearch.backToResults") : undefined}
                   />
                 </Suspense>
               </div>

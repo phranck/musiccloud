@@ -128,6 +128,14 @@ export interface ResolveGenreSearchResponse {
     albums: ApiGenreAlbumCandidate[] | null;
     artists: ApiGenreArtistCandidate[] | null;
   };
+  /**
+   * Non-fatal observations from the query parser — things that were
+   * reconciled rather than rejected (e.g. `count` and per-type fields
+   * combined with last-wins). The UI should surface these under the
+   * result lists so users see what was adjusted. Always present;
+   * empty array means the query was clean.
+   */
+  warnings: string[];
 }
 
 // ─── Unified Resolve Response ─────────────────────────────────────────────────
