@@ -1,14 +1,14 @@
 /* Core animations - deliberate, Apple-inspired */
 
-/* 1. Results card entrance - smooth reveal */
+/* 1. Row entrance - gentle reveal with subtle scale */
 @keyframes slide-up {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(12px) scale(0.97);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 

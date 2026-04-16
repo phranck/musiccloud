@@ -1,9 +1,9 @@
 import { forwardRef } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
-import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
-import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
-import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { GenreColumn } from "@/components/ui/GenreColumn";
+import { GenreRowButton } from "@/components/ui/GenreRowButton";
+import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useLocale, useT } from "@/i18n/context";
 import type { Locale } from "@/i18n/locales";
 import type { GenreSearchPayload, GenreSearchResults as GenreSearchResultsData } from "@/lib/types/app";
@@ -42,7 +42,7 @@ interface GenreSearchResultsProps {
 // Size classes for the spinning CD that replaces a row's artwork while the
 // clicked candidate is being resolved. Must match the compact artwork tile
 // dimensions in `CandidateRowContent` so there is no layout shift.
-const COMPACT_CD_CLASSES = "w-12 h-12 md:w-14 md:h-14 flex-shrink-0";
+const COMPACT_ART_SIZE = "w-12 h-12 md:w-14 md:h-14";
 
 /**
  * Three-column (desktop) / stacked (mobile) rendering of a genre-search
@@ -69,6 +69,11 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
     (results.albums && results.albums.length > 0) ||
     (results.artists && results.artists.length > 0);
 
+  const columnCount =
+    (results.tracks && results.tracks.length > 0 ? 1 : 0) +
+    (results.albums && results.albums.length > 0 ? 1 : 0) +
+    (results.artists && results.artists.length > 0 ? 1 : 0);
+
   return (
     <div
       ref={ref}
@@ -86,7 +91,12 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
       // Combined with `flex flex-col` on the card and `min-h-0 overflow-y-auto`
       // on each Column, this keeps the card inside the viewport and lets
       // overflow scroll *within* each column instead of scrolling the page.
-      className="w-full max-w-full md:max-w-5xl mx-auto mt-8 mb-8 animate-fade-in focus:outline-none"
+      className={cn(
+        "w-full max-w-full mx-auto mt-8 mb-8 animate-fade-in focus:outline-none",
+        columnCount === 1 && "md:max-w-sm",
+        columnCount === 2 && "md:max-w-2xl",
+        columnCount >= 3 && "md:max-w-5xl",
+      )}
     >
       <EmbossedCard className="rounded-2xl p-5 flex flex-col max-h-[calc(100vh-16rem)]">
         <div className="text-center mb-4 flex-shrink-0">
@@ -97,13 +107,19 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
         {!hasAny ? (
           <p className="text-center text-sm text-text-muted py-8">{t("genreSearch.empty")}</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 min-h-0">
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-4 flex-1 min-h-0",
+              columnCount === 2 && "md:grid-cols-2",
+              columnCount >= 3 && "md:grid-cols-3",
+            )}
+          >
             {results.tracks && (
-              <Column label={t("genreSearch.tracks", { count: String(results.tracks.length) })}>
+              <GenreColumn label={t("genreSearch.tracks", { count: String(results.tracks.length) })}>
                 {results.tracks.map((track, i) => {
                   const isSelected = loading && selectedId === track.id;
                   return (
-                    <RowButton
+                    <GenreRowButton
                       key={track.id}
                       index={i}
                       onClick={() => onSelect(track.webUrl, track.id)}
@@ -116,24 +132,29 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
                     >
                       <CandidateRowContent
                         compact
-                        artwork={isSelected ? <CDSpinArtwork className={COMPACT_CD_CLASSES} /> : undefined}
-                        artworkUrl={track.artworkUrl}
+                        artwork={
+                          <SlideArtwork
+                            active={isSelected}
+                            artworkUrl={track.artworkUrl}
+                            sizeClass={COMPACT_ART_SIZE}
+                          />
+                        }
                         primary={track.title}
                         secondary={track.artists.join(", ")}
                         tertiary={track.albumName}
                       />
-                    </RowButton>
+                    </GenreRowButton>
                   );
                 })}
-              </Column>
+              </GenreColumn>
             )}
 
             {results.albums && (
-              <Column label={t("genreSearch.albums", { count: String(results.albums.length) })}>
+              <GenreColumn label={t("genreSearch.albums", { count: String(results.albums.length) })}>
                 {results.albums.map((album, i) => {
                   const isSelected = loading && selectedId === album.id;
                   return (
-                    <RowButton
+                    <GenreRowButton
                       key={album.id}
                       index={i}
                       onClick={() => onSelect(album.webUrl, album.id)}
@@ -146,23 +167,28 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
                     >
                       <CandidateRowContent
                         compact
-                        artwork={isSelected ? <CDSpinArtwork className={COMPACT_CD_CLASSES} /> : undefined}
-                        artworkUrl={album.artworkUrl}
+                        artwork={
+                          <SlideArtwork
+                            active={isSelected}
+                            artworkUrl={album.artworkUrl}
+                            sizeClass={COMPACT_ART_SIZE}
+                          />
+                        }
                         primary={album.title}
                         secondary={album.artists.join(", ")}
                       />
-                    </RowButton>
+                    </GenreRowButton>
                   );
                 })}
-              </Column>
+              </GenreColumn>
             )}
 
             {results.artists && (
-              <Column label={t("genreSearch.artists", { count: String(results.artists.length) })}>
+              <GenreColumn label={t("genreSearch.artists", { count: String(results.artists.length) })}>
                 {results.artists.map((artist, i) => {
                   const isSelected = loading && selectedId === artist.id;
                   return (
-                    <RowButton
+                    <GenreRowButton
                       key={artist.id}
                       index={i}
                       onClick={() => onSelect(artist.webUrl, artist.id)}
@@ -171,15 +197,21 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
                     >
                       <CandidateRowContent
                         compact
-                        artwork={isSelected ? <CDSpinArtwork className={COMPACT_CD_CLASSES} /> : undefined}
-                        artworkUrl={artist.imageUrl}
+                        artwork={
+                          <SlideArtwork
+                            active={isSelected}
+                            artworkUrl={artist.imageUrl}
+                            kind="round"
+                            sizeClass={COMPACT_ART_SIZE}
+                          />
+                        }
                         artworkKind="round"
                         primary={artist.name}
                       />
-                    </RowButton>
+                    </GenreRowButton>
                   );
                 })}
-              </Column>
+              </GenreColumn>
             )}
           </div>
         )}
@@ -214,52 +246,6 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
     </div>
   );
 });
-
-// ─── Internal presentational parts ──────────────────────────────────────────
-
-function Column({ label, children }: { label: string; children: React.ReactNode }) {
-  // The column itself is a flex container that owns the available height of
-  // the grid cell. The header is pinned (`flex-shrink-0`) and the list of
-  // items (`flex-1 min-h-0 overflow-y-auto`) scrolls internally whenever the
-  // number of rows exceeds the column height.
-  return (
-    <RecessedCard className="p-2 flex flex-col min-h-0" radius="0.75rem">
-      <h3 className="text-xs uppercase tracking-wider text-text-muted font-semibold px-2 pt-1 pb-2 flex-shrink-0">
-        {label}
-      </h3>
-      <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">{children}</div>
-    </RecessedCard>
-  );
-}
-
-function RowButton({
-  index,
-  onClick,
-  ariaLabel,
-  children,
-  disabled = false,
-}: {
-  index: number;
-  onClick: () => void;
-  ariaLabel: string;
-  children: React.ReactNode;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="animate-slide-up" style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}>
-      <EmbossedButton
-        as="button"
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        className={cn("w-full flex items-center gap-3 px-2 py-2 text-left rounded-lg", disabled && "cursor-default")}
-        aria-label={ariaLabel}
-      >
-        {children}
-      </EmbossedButton>
-    </div>
-  );
-}
 
 // ─── Headline builder ───────────────────────────────────────────────────────
 //

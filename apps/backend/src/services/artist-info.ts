@@ -14,6 +14,7 @@ import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { TokenManager } from "../lib/infra/token-manager.js";
 import { cacheArtistImage } from "./artist-images.js";
+import { extractPrimaryArtist } from "./artist-utils.js";
 
 const DEEZER_BASE = "https://api.deezer.com";
 const SPOTIFY_BASE = "https://api.spotify.com/v1";
@@ -109,20 +110,6 @@ interface TicketmasterResponse {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * For collaboration names like "Sonic Gap & Panic Girl" or "Artist feat. Other",
- * returns only the primary (first) artist. Falls back to the original name if no
- * separator is found.
- */
-function extractPrimaryArtist(name: string): string {
-  const separators = [" & ", " feat. ", " feat ", " ft. ", " ft ", " x ", " X "];
-  for (const sep of separators) {
-    const idx = name.indexOf(sep);
-    if (idx > 0) return name.slice(0, idx).trim();
-  }
-  return name;
-}
 
 async function deezerArtistTopTracks(artistName: string): Promise<ArtistTopTrack[]> {
   const searchRes = await fetchWithTimeout(

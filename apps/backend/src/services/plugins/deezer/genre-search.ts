@@ -61,6 +61,7 @@
  */
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
 import { getArtistImages } from "../../artist-images.js";
+import { extractPrimaryArtist } from "../../artist-utils.js";
 import { resolveGenreName } from "../../genre-search/genre-map.js";
 import { evenSpacedSample, stratifiedSample } from "../../genre-search/sampler.js";
 import type { NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "../../types.js";
@@ -316,7 +317,9 @@ export async function deezerSearchByGenre(input: GenreSearchInput): Promise<Genr
   // column with their back-catalog — four Sinatra songs in a row isn't
   // discovery, it's repetition.
   const tracksPool: NormalizedTrack[] =
-    input.tracks > 0 ? dedupeBy(rawPool.map(mapChartTrack), (t) => t.artists[0] || t.sourceId) : [];
+    input.tracks > 0
+      ? dedupeBy(rawPool.map(mapChartTrack), (t) => extractPrimaryArtist(t.artists[0] || t.sourceId))
+      : [];
   const albumsPool: NormalizedAlbum[] =
     input.albums > 0
       ? dedupeBy(

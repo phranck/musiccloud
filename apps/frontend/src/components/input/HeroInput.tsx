@@ -146,7 +146,7 @@ export function HeroInput({
       <div className="relative">
         <div
           ref={ambilightRef}
-          className="absolute inset-[-4px] rounded-full blur-[10px] opacity-90 pointer-events-none"
+          className="absolute inset-[-3px] rounded-full blur-[10px] opacity-90 pointer-events-none"
           aria-hidden="true"
           style={{
             maskImage:
@@ -186,7 +186,7 @@ export function HeroInput({
             className={cn(
               "flex-1 bg-transparent border-0 px-6 text-lg font-medium text-text-primary tracking-[-0.01em]",
               "placeholder:text-text-muted placeholder:text-base placeholder:tracking-normal outline-none",
-              "h-14 md:h-16",
+              "h-[51px] md:h-[59px]",
               state === "loading" && "opacity-50",
             )}
             style={{ touchAction: "manipulation" }}
@@ -205,7 +205,7 @@ export function HeroInput({
               )}
               aria-label="Clear search"
             >
-              <XCircleIcon size={20} weight="duotone" />
+              <XCircleIcon size={24} weight="duotone" />
             </button>
           )}
 
@@ -216,7 +216,7 @@ export function HeroInput({
             className={cn(
               "flex items-center justify-center",
               compact ? "hidden" : "flex",
-              "w-11 h-11 md:w-12 md:h-12 mr-2 flex-shrink-0",
+              "w-10 h-10 md:w-11 md:h-11 mr-1.5 flex-shrink-0",
               "rounded-full",
               "transition-all duration-[250ms]",
               state === "loading"
@@ -233,7 +233,7 @@ export function HeroInput({
             aria-label={state === "loading" ? "Searching..." : "Search"}
           >
             {state === "loading" ? (
-              <CDSpinArtwork className="w-11 h-11 md:w-12 md:h-12" />
+              <CDSpinArtwork className="w-10 h-10 md:w-11 md:h-11" />
             ) : state === "success" ? (
               <CheckIcon size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
             ) : (

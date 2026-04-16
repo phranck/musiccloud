@@ -13,8 +13,9 @@ import { ArtistProfileSection } from "@/components/share/ArtistProfileSection";
 import { PopularTracksSection } from "@/components/share/PopularTracksSection";
 import { SimilarArtistsSection } from "@/components/share/SimilarArtistsSection";
 import { UpcomingEventsSection } from "@/components/share/UpcomingEventsSection";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { CrossFade } from "@/components/ui/CrossFade";
 import { useLocale, useT } from "@/i18n/context";
-import { cn } from "@/lib/utils";
 
 interface ArtistInfoCardProps {
   data: ArtistInfoResponse | null;
@@ -147,65 +148,6 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         </CollapsibleSection>
       </div>
     </EmbossedCard>
-  );
-}
-
-// --- Layout helpers ---
-
-function CollapsibleSection({
-  visible,
-  sectionClass,
-  children,
-}: {
-  visible: boolean;
-  sectionClass?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out",
-        visible ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
-      )}
-    >
-      <div className="overflow-hidden">
-        <div className={cn("px-5 py-3", sectionClass)}>{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function CrossFade({
-  contentReady,
-  skeleton,
-  content,
-}: {
-  contentReady: boolean;
-  skeleton: React.ReactNode;
-  content: React.ReactNode | null;
-}) {
-  return (
-    <div className="grid">
-      <div
-        aria-hidden="true"
-        className={cn(
-          "col-start-1 row-start-1 transition-all duration-300",
-          contentReady ? "opacity-0 pointer-events-none h-0 overflow-hidden" : "opacity-100",
-        )}
-      >
-        {skeleton}
-      </div>
-      {content && (
-        <div
-          className={cn(
-            "col-start-1 row-start-1 transition-opacity duration-300",
-            contentReady ? "opacity-100" : "opacity-0 pointer-events-none",
-          )}
-        >
-          {content}
-        </div>
-      )}
-    </div>
   );
 }
 

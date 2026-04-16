@@ -43,6 +43,7 @@
 
 import { log } from "../../../lib/infra/logger.js";
 import { getArtistImages } from "../../artist-images.js";
+import { extractPrimaryArtist } from "../../artist-utils.js";
 import { evenSpacedSample, stratifiedSample } from "../../genre-search/sampler.js";
 import type { NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "../../types.js";
 import { appleMusicFetch } from "./adapter.js";
@@ -419,7 +420,7 @@ export async function appleSearchByGenre(input: GenreSearchInput): Promise<Genre
   // names rather than the same artist's back-catalog (Frank Sinatra × 4 is
   // not discovery, it's repetition).
   const tracksPool: NormalizedTrack[] =
-    input.tracks > 0 ? dedupeBy(pool.songs.map(mapSong), (t) => t.artists[0] || t.sourceId) : [];
+    input.tracks > 0 ? dedupeBy(pool.songs.map(mapSong), (t) => extractPrimaryArtist(t.artists[0] || t.sourceId)) : [];
   const albumsPool: NormalizedAlbum[] = input.albums > 0 ? pool.albums.map(mapAlbum) : [];
   const artistsPool: NormalizedArtist[] =
     input.artists > 0

@@ -24,6 +24,7 @@
  * Any other thrown error comes from the adapter itself (Deezer HTTP/API
  * failure) and should also translate to 503.
  */
+import { UnknownAppleGenreError } from "../plugins/apple-music/genre-search.js";
 import { getActiveAdapters } from "../plugins/registry.js";
 import type {
   GenreAlbumCandidate,
@@ -34,6 +35,7 @@ import type {
   NormalizedArtist,
   NormalizedTrack,
 } from "../types.js";
+import { UnknownGenreError } from "./genre-map.js";
 import { parseGenreQuery } from "./parser.js";
 
 export { listSupportedGenres, UnknownGenreError } from "./genre-map.js";
@@ -64,13 +66,23 @@ export async function runGenreSearch(queryString: string): Promise<GenreSearchRe
     throw new NoGenreSearchAdapterError();
   }
 
-  const raw = await adapter.searchByGenre({
-    genres: parsed.genres,
-    vibe: parsed.vibe,
-    tracks: parsed.tracks ?? 0,
-    albums: parsed.albums ?? 0,
-    artists: parsed.artists ?? 0,
-  });
+  let raw: import("../types.js").GenreSearchResult;
+  try {
+    raw = await adapter.searchByGenre({
+      genres: parsed.genres,
+      vibe: parsed.vibe,
+      tracks: parsed.tracks ?? 0,
+      albums: parsed.albums ?? 0,
+      artists: parsed.artists ?? 0,
+    });
+  } catch (err) {
+    // Normalize adapter-specific unknown-genre errors into the shared type
+    // so the route handler only needs to check one error class.
+    if (err instanceof UnknownAppleGenreError) {
+      throw new UnknownGenreError(err.input, err.supportedGenres);
+    }
+    throw err;
+  }
 
   return {
     status: "genre-search",
