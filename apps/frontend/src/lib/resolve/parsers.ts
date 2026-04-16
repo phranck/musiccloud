@@ -4,7 +4,7 @@ import type {
   ResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { buildMetaLine, isValidServiceId, PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
-import type { ActiveResult, AlbumResult, AppAction, AppState, ArtistResult, SongResult } from "@/lib/types/app";
+import type { ActiveResult, AlbumResult, AppAction, ArtistResult, ReducerState, SongResult } from "@/lib/types/app";
 import type {
   AlbumContentConfiguration,
   ArtistContentConfiguration,
@@ -16,45 +16,47 @@ import type { PlatformLink } from "@/lib/types/platform";
 // App state reducer
 // ---------------------------------------------------------------------------
 
-export function appReducer(state: AppState, action: AppAction): AppState {
+export function appReducer({ screen, stack }: ReducerState, action: AppAction): ReducerState {
   switch (action.type) {
     case "SUBMIT":
-      return { type: "loading" };
-    case "RESOLVE_SUCCESS": {
-      // Carry the previous genre-search payload into the result state so the
-      // share layout can surface a "back to discovery" button. Any other
-      // source state resolves to a plain result with no return path.
-      const returnTo = state.type === "genre-search_loading" ? state.payload : undefined;
-      return returnTo ? { type: "result", active: action.active, returnTo } : { type: "result", active: action.active };
-    }
+      // Navigating from genre-browse preserves the browse state for back-navigation.
+      // Any other submission starts a fresh journey (stack cleared).
+      if (screen.type === "genre-browse") return { screen: { type: "loading" }, stack: [...stack, screen] };
+      return { screen: { type: "loading" }, stack: [] };
+    case "RESOLVE_SUCCESS":
+      return { screen: { type: "result", active: action.active }, stack };
     case "DISAMBIGUATION":
-      return { type: "disambiguation", candidates: action.candidates };
+      return { screen: { type: "disambiguation", candidates: action.candidates }, stack };
     case "SELECT_CANDIDATE":
-      if (state.type === "disambiguation")
-        return { type: "disambiguation_loading", candidates: state.candidates, selectedId: action.selectedId };
-      return state;
+      if (screen.type === "disambiguation")
+        return {
+          screen: { type: "disambiguation_loading", candidates: screen.candidates, selectedId: action.selectedId },
+          stack,
+        };
+      return { screen, stack };
     case "GENRE_BROWSE":
-      return { type: "genre-browse", genres: action.genres };
+      return { screen: { type: "genre-browse", genres: action.genres }, stack };
     case "GENRE_SEARCH":
-      return { type: "genre-search", payload: action.payload };
+      return { screen: { type: "genre-search", payload: action.payload }, stack };
     case "SELECT_GENRE_RESULT":
-      // Only valid transition from the `genre-search` (idle) state — guards against
-      // stray dispatches while already loading or after a clear.
-      if (state.type === "genre-search")
-        return { type: "genre-search_loading", payload: state.payload, selectedId: action.selectedId };
-      return state;
-    case "BACK_TO_GENRE_SEARCH":
-      // Triggered by the back button on the share layout. Only valid when the
-      // current result was reached via genre-search (i.e. carries `returnTo`).
-      if (state.type === "result" && state.returnTo) return { type: "genre-search", payload: state.returnTo };
-      return state;
+      if (screen.type === "genre-search")
+        return {
+          screen: { type: "genre-search_loading", payload: screen.payload, selectedId: action.selectedId },
+          stack: [...stack, screen],
+        };
+      return { screen, stack };
+    case "NAV_BACK": {
+      if (stack.length === 0) return { screen, stack };
+      const restored = stack[stack.length - 1];
+      return { screen: restored, stack: stack.slice(0, -1) };
+    }
     case "ERROR":
-      return { type: "error", message: action.message };
+      return { screen: { type: "error", message: action.message }, stack: [] };
     case "CLEAR_START":
-      if (state.type === "result") return { type: "clearing", active: state.active };
-      return { type: "idle" };
+      if (screen.type === "result") return { screen: { type: "clearing", active: screen.active }, stack: [] };
+      return { screen: { type: "idle" }, stack: [] };
     case "CLEAR":
-      return { type: "idle" };
+      return { screen: { type: "idle" }, stack: [] };
   }
 }
 

@@ -18,7 +18,7 @@ import {
   parseErrorKey,
   parseResolveResponse,
 } from "@/lib/resolve/parsers";
-import type { ActiveResult, AppState, GenreSearchPayload } from "@/lib/types/app";
+import type { ActiveResult, AppState, GenreSearchPayload, ReducerState } from "@/lib/types/app";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 
 interface UseAppStateResult {
@@ -29,7 +29,7 @@ interface UseAppStateResult {
   genreBrowseGenres: import("@musiccloud/shared").ApiGenreTile[] | null;
   genreSearchPayload: GenreSearchPayload | null;
   selectedGenreResultId: string | null;
-  canReturnToGenreSearch: boolean;
+  canGoBack: boolean;
   errorMessage: string | undefined;
   showCompact: boolean;
   isClearing: boolean;
@@ -40,7 +40,7 @@ interface UseAppStateResult {
   handleSubmit: (url: string) => Promise<void>;
   handleSelectCandidate: (candidate: DisambiguationCandidate) => Promise<void>;
   handleSelectGenreResult: (webUrl: string, id: string) => Promise<void>;
-  handleBackToGenreSearch: () => void;
+  handleBack: () => void;
   handleClear: () => void;
 }
 
@@ -50,21 +50,22 @@ interface UseAppStateResult {
  */
 export function useAppState(onClearColors: () => void): UseAppStateResult {
   const t = useT();
-  const [state, dispatch] = useReducer(appReducer, { type: "idle" });
+  const initialState: ReducerState = { screen: { type: "idle" }, stack: [] };
+  const [{ screen, stack }, dispatch] = useReducer(appReducer, initialState);
 
-  const isDisambiguating = state.type === "disambiguation" || state.type === "disambiguation_loading";
-  const isClearing = state.type === "clearing";
-  const isGenreBrowsing = state.type === "genre-browse";
-  const isGenreSearchLoading = state.type === "genre-search_loading";
-  const isGenreSearching = state.type === "genre-search" || isGenreSearchLoading;
-  const active = state.type === "result" ? state.active : state.type === "clearing" ? state.active : null;
-  const candidates = isDisambiguating ? state.candidates : null;
-  const selectedCandidateId = state.type === "disambiguation_loading" ? state.selectedId : null;
-  const genreBrowseGenres = isGenreBrowsing ? state.genres : null;
-  const genreSearchPayload = isGenreSearching ? state.payload : null;
-  const selectedGenreResultId = state.type === "genre-search_loading" ? state.selectedId : null;
-  const canReturnToGenreSearch = state.type === "result" && !!state.returnTo;
-  const errorMessage = state.type === "error" ? t(state.message) : undefined;
+  const isDisambiguating = screen.type === "disambiguation" || screen.type === "disambiguation_loading";
+  const isClearing = screen.type === "clearing";
+  const isGenreBrowsing = screen.type === "genre-browse";
+  const isGenreSearchLoading = screen.type === "genre-search_loading";
+  const isGenreSearching = screen.type === "genre-search" || isGenreSearchLoading;
+  const active = screen.type === "result" ? screen.active : screen.type === "clearing" ? screen.active : null;
+  const candidates = isDisambiguating ? screen.candidates : null;
+  const selectedCandidateId = screen.type === "disambiguation_loading" ? screen.selectedId : null;
+  const genreBrowseGenres = isGenreBrowsing ? screen.genres : null;
+  const genreSearchPayload = isGenreSearching ? screen.payload : null;
+  const selectedGenreResultId = screen.type === "genre-search_loading" ? screen.selectedId : null;
+  const canGoBack = stack.length > 0;
+  const errorMessage = screen.type === "error" ? t(screen.message) : undefined;
   const showCompact = !!(active || candidates || genreBrowseGenres || genreSearchPayload);
 
   const handleSubmit = useCallback(async (url: string) => {
@@ -191,25 +192,20 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
     onClearColors();
   }, [onClearColors]);
 
-  /**
-   * Return from the share layout back to the genre-search discovery list the
-   * user came from. The album-cover-derived accent of the current result no
-   * longer applies, so we also reset the accent to the brand default.
-   */
-  const handleBackToGenreSearch = useCallback(() => {
-    dispatch({ type: "BACK_TO_GENRE_SEARCH" });
+  const handleBack = useCallback(() => {
+    dispatch({ type: "NAV_BACK" });
     onClearColors();
   }, [onClearColors]);
 
   return {
-    state,
+    state: screen,
     active,
     candidates,
     selectedCandidateId,
     genreBrowseGenres,
     genreSearchPayload,
     selectedGenreResultId,
-    canReturnToGenreSearch,
+    canGoBack,
     errorMessage,
     showCompact,
     isClearing,
@@ -220,7 +216,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
     handleSubmit,
     handleSelectCandidate,
     handleSelectGenreResult,
-    handleBackToGenreSearch,
+    handleBack,
     handleClear,
   };
 }

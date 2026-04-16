@@ -155,7 +155,7 @@ function LandingPageInner() {
     genreBrowseGenres,
     genreSearchPayload,
     selectedGenreResultId,
-    canReturnToGenreSearch,
+    canGoBack,
     errorMessage,
     showCompact,
     isClearing,
@@ -166,7 +166,7 @@ function LandingPageInner() {
     handleSubmit,
     handleSelectCandidate,
     handleSelectGenreResult,
-    handleBackToGenreSearch,
+    handleBack,
     handleClear,
   } = useAppState(resetColors);
   const { isReturning, capturePosition, triggerReturn } = useFlipAnimation(searchFieldRef);
@@ -209,14 +209,12 @@ function LandingPageInner() {
         : (state.type as InputState);
   const inputState = baseInputState === "idle" && isFocused ? "focused" : baseInputState;
 
-  // Sync input value with genre-search payload so back-navigation restores it.
+  // Sync input value when back-navigation restores a previous screen.
   useEffect(() => {
     if (state.type === "genre-search" || state.type === "genre-search_loading") {
       setInputValue(state.payload.query);
-    } else if (state.type === "result" && state.returnTo) {
-      // Keep the genre query available for when the user navigates back
-    } else if (state.type === "idle") {
-      // Don't clear — the user might have typed something
+    } else if (state.type === "genre-browse") {
+      setInputValue("genre:?");
     }
   }, [state]);
 
@@ -363,6 +361,7 @@ function LandingPageInner() {
                 warnings={genreSearchPayload.warnings}
                 onSelect={handleSelectGenreResult}
                 onCancel={handleClear}
+                onBack={canGoBack ? handleBack : undefined}
                 selectedId={selectedGenreResultId}
                 loading={isGenreSearchLoading}
               />
@@ -382,8 +381,8 @@ function LandingPageInner() {
                     config={activeConfig}
                     artistName={active.kind === "artist" ? active.name : active.artist}
                     animated
-                    onBack={canReturnToGenreSearch ? handleBackToGenreSearch : undefined}
-                    backLabel={canReturnToGenreSearch ? t("genreSearch.backToResults") : undefined}
+                    onBack={canGoBack ? handleBack : undefined}
+                    backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
                   />
                 </Suspense>
               </div>

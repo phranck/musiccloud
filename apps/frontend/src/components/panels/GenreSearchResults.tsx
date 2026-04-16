@@ -30,6 +30,7 @@ interface GenreSearchResultsProps {
    */
   onSelect: (webUrl: string, id: string) => void;
   onCancel?: () => void;
+  onBack?: () => void;
   /**
    * Id of the row the user just clicked. While `loading` is true, that row
    * swaps its cover for the spinning CD and every row is non-interactive.
@@ -57,7 +58,7 @@ const COMPACT_ART_SIZE = "w-12 h-12 md:w-14 md:h-14";
  * and the normal loading state covers the transition.
  */
 export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsProps>(function GenreSearchResults(
-  { results, queryDetails, warnings, onSelect, onCancel, selectedId, loading = false },
+  { results, queryDetails, warnings, onSelect, onCancel, onBack, selectedId, loading = false },
   ref,
 ) {
   const t = useT();
@@ -99,6 +100,21 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
       )}
     >
       <EmbossedCard className="rounded-2xl p-5 flex flex-col max-h-[calc(100vh-16rem)]">
+        {onBack && (
+          <EmbossedCard.AddOn align="leading">
+            <button
+              type="button"
+              onClick={onBack}
+              className={cn(
+                "text-sm text-text-muted hover:text-text-secondary",
+                "transition-colors duration-150",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
+              )}
+            >
+              {t("genreSearch.backToBrowse")}
+            </button>
+          </EmbossedCard.AddOn>
+        )}
         <EmbossedCard.Header className="text-center mb-4 flex-shrink-0">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">{headline}</h2>
           <p className="text-sm text-text-secondary mt-1">{t("genreSearch.subtitle")}</p>

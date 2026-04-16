@@ -16,6 +16,7 @@
   "genreSearch.cancel": "Neue Suche starten",
   "genreSearch.loading": "Ausgewähltes Ergebnis wird geladen...",
   "genreSearch.backToResults": "Zurück zu den Ergebnissen",
+  "genreSearch.backToBrowse": "\u2190 Alle Genres",
   "genreSearch.summary.hot": "{counts} aus {genres}",
   "genreSearch.summary.mixed": "{counts} aus {genres} – bunt gemischt",
   "genreSearch.summary.allTypes": "Tracks, Alben und Künstler",

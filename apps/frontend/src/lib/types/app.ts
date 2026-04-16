@@ -84,7 +84,7 @@ export type ActiveResult = SongResult | AlbumResult | ArtistResult;
 export type AppState =
   | { type: "idle" }
   | { type: "loading" }
-  | { type: "result"; active: ActiveResult; returnTo?: GenreSearchPayload }
+  | { type: "result"; active: ActiveResult }
   | { type: "clearing"; active: ActiveResult }
   | { type: "error"; message: string }
   | { type: "disambiguation"; candidates: DisambiguationCandidate[] }
@@ -92,6 +92,11 @@ export type AppState =
   | { type: "genre-browse"; genres: ApiGenreTile[] }
   | { type: "genre-search"; payload: GenreSearchPayload }
   | { type: "genre-search_loading"; payload: GenreSearchPayload; selectedId: string };
+
+export interface ReducerState {
+  screen: AppState;
+  stack: AppState[];
+}
 
 export type AppAction =
   | { type: "SUBMIT" }
@@ -101,7 +106,7 @@ export type AppAction =
   | { type: "GENRE_BROWSE"; genres: ApiGenreTile[] }
   | { type: "GENRE_SEARCH"; payload: GenreSearchPayload }
   | { type: "SELECT_GENRE_RESULT"; selectedId: string }
-  | { type: "BACK_TO_GENRE_SEARCH" }
+  | { type: "NAV_BACK" }
   | { type: "ERROR"; message: string }
   | { type: "CLEAR_START" }
   | { type: "CLEAR" };
