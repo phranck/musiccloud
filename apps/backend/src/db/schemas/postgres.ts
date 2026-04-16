@@ -229,6 +229,29 @@ export const artistImages = pgTable("artist_images", {
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
 });
 
+// Permanent cache for track artwork URLs (typically album covers).
+// Key: normalized "artist|title" composite. Populated by Last.fm
+// track.getInfo during genre-search, reused on repeat queries.
+export const trackImages = pgTable("track_images", {
+  lookupKey: text("lookup_key").primaryKey(),
+  artistName: text("artist_name").notNull(),
+  trackTitle: text("track_title").notNull(),
+  imageUrl: text("image_url").notNull(),
+  source: text("source").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+});
+
+// Permanent cache for album artwork URLs. Key: normalized "artist|title"
+// composite. Populated directly from Last.fm tag.getTopAlbums responses.
+export const albumImages = pgTable("album_images", {
+  lookupKey: text("lookup_key").primaryKey(),
+  artistName: text("artist_name").notNull(),
+  albumTitle: text("album_title").notNull(),
+  imageUrl: text("image_url").notNull(),
+  source: text("source").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+});
+
 // Per-plugin runtime state (enabled flag). Sparse: missing row = use
 // manifest.defaultEnabled. See services/plugins/registry.ts.
 export const servicePlugins = pgTable("service_plugins", {

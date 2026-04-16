@@ -225,12 +225,42 @@ async function loadGenres(): Promise<AppleGenre[]> {
   if (genreCache && genreCache.expiresAt > Date.now()) return genreCache.genres;
   if (genreCacheInflight) return genreCacheInflight;
   genreCacheInflight = (async () => {
+    // 1. Top-level genres
     const res = await appleMusicFetch(`/catalog/${storefront()}/genres?limit=200`);
     if (!res.ok) throw new Error(`Apple /genres returned HTTP ${res.status}`);
     const body = (await res.json()) as AppleGenresResponse;
-    const genres = body.data ?? [];
-    genreCache = { genres, expiresAt: Date.now() + GENRE_LIST_TTL_MS };
-    return genres;
+    const topLevel = body.data ?? [];
+
+    // 2. Subgenres for each top-level genre (parallel)
+    // Apple's charts endpoint accepts subgenre IDs, so "Trance" (under
+    // "Electronic") resolves to its own chart — much better results than
+    // falling back to the parent genre.
+    const subgenreLists = await Promise.all(
+      topLevel.map(async (g) => {
+        try {
+          const subRes = await appleMusicFetch(`/catalog/${storefront()}/genres/${g.id}/subgenres?limit=200`);
+          if (!subRes.ok) return [];
+          const subBody = (await subRes.json()) as AppleGenresResponse;
+          return subBody.data ?? [];
+        } catch {
+          return [];
+        }
+      }),
+    );
+
+    // 3. Merge into a flat deduplicated list (top-level first, then subgenres)
+    const seen = new Set<string>();
+    const all: AppleGenre[] = [];
+    for (const g of [...topLevel, ...subgenreLists.flat()]) {
+      if (!seen.has(g.id)) {
+        seen.add(g.id);
+        all.push(g);
+      }
+    }
+
+    log.debug("AppleGenreSearch", `Loaded ${topLevel.length} top-level + ${all.length - topLevel.length} sub-genres`);
+    genreCache = { genres: all, expiresAt: Date.now() + GENRE_LIST_TTL_MS };
+    return all;
   })().finally(() => {
     genreCacheInflight = null;
   });

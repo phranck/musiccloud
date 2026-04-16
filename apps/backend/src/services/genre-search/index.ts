@@ -1,31 +1,29 @@
 /**
  * @file Public entry point for the genre-search feature.
  *
- * Ties the parser, the adapter registry, and the response-type mapper
- * together. Called from `POST /api/v1/resolve` whenever the incoming
- * query starts with `genre:`.
+ * Ties the parser and the Last.fm genre-search adapter together.
+ * Called from `POST /api/v1/resolve` whenever the incoming query
+ * starts with `genre:`.
  *
- * ## Adapter selection
+ * ## Data source: Last.fm tags
  *
- * The orchestrator picks the first *active* adapter (enabled + available)
- * whose `searchByGenre` is defined. In v1 that is Deezer. No fallback
- * chain — if Deezer is down or disabled, the caller gets a
- * `NoGenreSearchAdapterError` and should return 503 to the user.
+ * Last.fm's community-curated tag system provides thousands of genres
+ * and subgenres (trance, bebop, shoegaze, krautrock, ...) far beyond
+ * the ~22 top-level genres offered by Spotify, Apple Music, or Deezer.
+ * No fallback chain — Last.fm is the sole genre-search backend.
  *
  * ## Error surface
  *
- * Three typed errors bubble out of this module so the route handler can
- * map them to precise HTTP status codes:
+ * Two typed errors bubble out so the route handler can map them to
+ * precise HTTP status codes:
  *
- *   - `GenreQueryParseError`      → 400 (bad syntax)
- *   - `UnknownGenreError`         → 400 (unknown genre, with supported list)
- *   - `NoGenreSearchAdapterError` → 503 (no adapter available)
+ *   - `GenreQueryParseError` → 400 (bad syntax)
+ *   - `NoGenreSearchAdapterError` → 503 (LASTFM_API_KEY missing)
  *
- * Any other thrown error comes from the adapter itself (Deezer HTTP/API
- * failure) and should also translate to 503.
+ * Last.fm tags are free-form — any string is accepted. If a tag has
+ * no results, the response simply comes back with empty lists rather
+ * than an error.
  */
-import { UnknownAppleGenreError } from "../plugins/apple-music/genre-search.js";
-import { getActiveAdapters } from "../plugins/registry.js";
 import type {
   GenreAlbumCandidate,
   GenreArtistCandidate,
@@ -35,16 +33,15 @@ import type {
   NormalizedArtist,
   NormalizedTrack,
 } from "../types.js";
-import { UnknownGenreError } from "./genre-map.js";
+import { isLastfmAvailable, lastfmSearchByGenre } from "./lastfm.js";
 import { parseGenreQuery } from "./parser.js";
 
-export { listSupportedGenres, UnknownGenreError } from "./genre-map.js";
 export type { ParsedGenreQuery } from "./parser.js";
 export { GenreQueryParseError, parseGenreQuery } from "./parser.js";
 
 export class NoGenreSearchAdapterError extends Error {
   constructor() {
-    super("No active adapter supports genre search");
+    super("Genre search unavailable (LASTFM_API_KEY not configured)");
     this.name = "NoGenreSearchAdapterError";
   }
 }
@@ -54,35 +51,22 @@ export class NoGenreSearchAdapterError extends Error {
  * response variant.
  *
  * @throws {GenreQueryParseError} on syntactic errors
- * @throws {UnknownGenreError} when a genre name cannot be resolved
- * @throws {NoGenreSearchAdapterError} when no active adapter implements it
+ * @throws {NoGenreSearchAdapterError} when LASTFM_API_KEY is missing
  */
 export async function runGenreSearch(queryString: string): Promise<GenreSearchResponse> {
   const parsed = parseGenreQuery(queryString);
 
-  const adapters = await getActiveAdapters();
-  const adapter = adapters.find((a) => typeof a.searchByGenre === "function");
-  if (!adapter?.searchByGenre) {
+  if (!isLastfmAvailable()) {
     throw new NoGenreSearchAdapterError();
   }
 
-  let raw: import("../types.js").GenreSearchResult;
-  try {
-    raw = await adapter.searchByGenre({
-      genres: parsed.genres,
-      vibe: parsed.vibe,
-      tracks: parsed.tracks ?? 0,
-      albums: parsed.albums ?? 0,
-      artists: parsed.artists ?? 0,
-    });
-  } catch (err) {
-    // Normalize adapter-specific unknown-genre errors into the shared type
-    // so the route handler only needs to check one error class.
-    if (err instanceof UnknownAppleGenreError) {
-      throw new UnknownGenreError(err.input, err.supportedGenres);
-    }
-    throw err;
-  }
+  const raw = await lastfmSearchByGenre({
+    genres: parsed.genres,
+    vibe: parsed.vibe,
+    tracks: parsed.tracks ?? 0,
+    albums: parsed.albums ?? 0,
+    artists: parsed.artists ?? 0,
+  });
 
   return {
     status: "genre-search",

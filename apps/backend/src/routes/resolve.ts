@@ -73,7 +73,6 @@ import {
   isGenreSearchQuery,
   NoGenreSearchAdapterError,
   runGenreSearch,
-  UnknownGenreError,
 } from "../services/genre-search/index.js";
 import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
 import type { ResolutionResult } from "../services/resolver.js";
@@ -178,7 +177,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
             const genreResponse = await runGenreSearch(query);
             return reply.send(genreResponse);
           } catch (err) {
-            if (err instanceof GenreQueryParseError || err instanceof UnknownGenreError) {
+            if (err instanceof GenreQueryParseError) {
               return reply.status(400).send(jsonError("INVALID_URL", err.message));
             }
             if (err instanceof NoGenreSearchAdapterError) {

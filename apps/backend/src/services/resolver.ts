@@ -336,6 +336,11 @@ export async function resolveQuery(input: string): Promise<ResolutionResult> {
   const trimmed = input.trim();
 
   if (isUrl(trimmed)) {
+    // Last.fm URLs from genre-search are not a streaming service — extract
+    // artist + title and resolve as a text search.
+    const lastfmQuery = parseLastfmUrl(trimmed);
+    if (lastfmQuery) return resolveTextSearch(lastfmQuery);
+
     // Validate URL for unsupported content types
     const validation = validateMusicUrl(trimmed);
     if (!validation.valid) {
@@ -956,4 +961,41 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
   }
 
   return { sourceTrack: bestSourceTrack, links };
+}
+
+// ─── Last.fm URL → text query ──────────────────────────────────────────────
+//
+// Last.fm URLs from genre-search have three shapes:
+//   /music/Artist/_/Track   → "Artist - Track"
+//   /music/Artist/Album     → "Artist - Album"
+//   /music/Artist           → "Artist"
+//
+// Path segments are URL-encoded (`%20`, `+`). We decode them and return
+// a plain-text query string that resolveTextSearch can handle.
+
+const LASTFM_HOST_RE = /^(?:www\.)?last\.fm$/i;
+
+function parseLastfmUrl(url: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (!LASTFM_HOST_RE.test(parsed.hostname)) return null;
+
+  // /music/Artist/_/Track  or  /music/Artist/Album  or  /music/Artist
+  const match = parsed.pathname.match(/^\/music\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?/);
+  if (!match) return null;
+
+  const artist = decodeURIComponent(match[1].replace(/\+/g, " "));
+  const second = match[2] ? decodeURIComponent(match[2].replace(/\+/g, " ")) : null;
+  const third = match[3] ? decodeURIComponent(match[3].replace(/\+/g, " ")) : null;
+
+  // /music/Artist/_/Track → text search "Artist - Track"
+  if (second === "_" && third) return `${artist} - ${third}`;
+  // /music/Artist/Album → text search "Artist - Album"
+  if (second && second !== "_") return `${artist} - ${second}`;
+  // /music/Artist → text search "Artist"
+  return artist;
 }
