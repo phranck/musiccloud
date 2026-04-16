@@ -2,7 +2,6 @@ import { ArrowRightIcon, CheckIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { useAmbilightAnimation } from "@/hooks/useAmbilightAnimation";
-import { useLoadingMessages } from "@/hooks/useLoadingMessages";
 import { useT } from "@/i18n/context";
 import { isMusicUrl } from "@/lib/platform/url";
 import type { InputState } from "@/lib/types/app";
@@ -48,7 +47,6 @@ export function HeroInput({
   const prevState = useRef(state);
 
   useAmbilightAnimation(ambilightRef);
-  const loadingMessage = useLoadingMessages(state, t);
 
   // Focus input on mount for non-touch devices only (avoids iOS 26 keyboard suppression on load)
   useEffect(() => {
@@ -137,12 +135,6 @@ export function HeroInput({
         state === "success" || compact ? "max-w-full sm:max-w-[480px]" : "max-w-full sm:max-w-[520px] md:max-w-[640px]",
       )}
     >
-      {state === "loading" && (
-        <p className="text-sm text-text-secondary text-center mb-3 animate-fade-in" aria-live="polite">
-          {loadingMessage}
-        </p>
-      )}
-
       <div className="relative">
         <div
           ref={ambilightRef}
@@ -186,7 +178,7 @@ export function HeroInput({
             className={cn(
               "flex-1 bg-transparent border-0 px-6 text-lg font-medium text-text-primary tracking-[-0.01em]",
               "placeholder:text-text-muted placeholder:text-base placeholder:tracking-normal outline-none",
-              "h-[51px] md:h-[59px]",
+              "h-[40px] md:h-[48px]",
               state === "loading" && "opacity-50",
             )}
             style={{ touchAction: "manipulation" }}
@@ -216,7 +208,7 @@ export function HeroInput({
             className={cn(
               "flex items-center justify-center",
               compact ? "hidden" : "flex",
-              "w-10 h-10 md:w-11 md:h-11 mr-1.5 flex-shrink-0",
+              "w-8 h-8 md:w-10 md:h-10 mr-1.5 flex-shrink-0",
               "rounded-full",
               "transition-all duration-[250ms]",
               state === "loading"
@@ -233,7 +225,7 @@ export function HeroInput({
             aria-label={state === "loading" ? "Searching..." : "Search"}
           >
             {state === "loading" ? (
-              <CDSpinArtwork className="w-10 h-10 md:w-11 md:h-11" />
+              <CDSpinArtwork className="w-8 h-8 md:w-10 md:h-10" />
             ) : state === "success" ? (
               <CheckIcon size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
             ) : (

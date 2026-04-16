@@ -64,6 +64,7 @@ export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; ar
       as="button"
       type="button"
       onClick={handleListen}
+      noScale
       className="flex items-center gap-3 w-full rounded-lg p-2"
     >
       <SlideArtwork active={resolving} artworkUrl={track.artworkUrl ?? undefined} sizeClass="w-10 h-10" imgDim={40} />

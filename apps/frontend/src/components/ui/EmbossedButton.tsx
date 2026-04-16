@@ -3,11 +3,9 @@ import { recessedStyle } from "@/styles/neumorphic";
 
 const baseClasses = ["bg-white/[0.09] px-5 py-2.5 overflow-hidden cursor-pointer", "transition-all duration-150"];
 
-const raisedInteractionClasses = [
-  "hover:bg-white/[0.12] hover:scale-[1.015]",
-  "focus-visible:bg-white/[0.12] focus-visible:scale-[1.015]",
-  "active:scale-[0.985]",
-];
+const raisedHoverClasses = ["hover:bg-white/[0.12]", "focus-visible:bg-white/[0.12]"];
+
+const raisedScaleClasses = ["hover:scale-[1.015]", "focus-visible:scale-[1.015]", "active:scale-[0.985]"];
 
 type AnchorProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & { as?: "a" };
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { as: "button" };
@@ -18,6 +16,8 @@ type EmbossedButtonProps = (AnchorProps | ButtonProps) & {
   hasInnerShadow?: boolean;
   /** When true, render as a latched/pressed-in button (recessed look, no hover scale). */
   pressed?: boolean;
+  /** When true, disable the hover/active scale transition. */
+  noScale?: boolean;
 };
 
 /**
@@ -50,10 +50,17 @@ export function EmbossedButton({
   style,
   hasInnerShadow,
   pressed = false,
+  noScale = false,
   ...props
 }: EmbossedButtonProps) {
   const surfaceClass = pressed ? "recessed-gradient-border" : "embossed-gradient-border";
-  const mergedClassName = cn(surfaceClass, baseClasses, !pressed && raisedInteractionClasses, className);
+  const mergedClassName = cn(
+    surfaceClass,
+    baseClasses,
+    !pressed && raisedHoverClasses,
+    !pressed && !noScale && raisedScaleClasses,
+    className,
+  );
   const mergedStyle: React.CSSProperties = pressed ? { ...recessedStyle, ...style } : (style ?? {});
 
   if ("as" in props && props.as === "button") {
