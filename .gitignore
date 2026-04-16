@@ -20,10 +20,11 @@ data/*.db-shm
 .env
 .env.local
 
-# Claude / agent / Serena / notes (local only)
+# Claude / agent / Serena / OpenSpec / notes (local only)
 .agents/
 .claude/
 .serena/
+openspec/
 papers/
 WHATS-NEXT.md
 
