@@ -17,6 +17,9 @@ import type { InputState } from "@/lib/types/app";
 const DisambiguationPanel = lazy(() =>
   import("@/components/panels/DisambiguationPanel").then((m) => ({ default: m.DisambiguationPanel })),
 );
+const GenreBrowseGrid = lazy(() =>
+  import("@/components/panels/GenreBrowseGrid").then((m) => ({ default: m.GenreBrowseGrid })),
+);
 const GenreSearchResults = lazy(() =>
   import("@/components/panels/GenreSearchResults").then((m) => ({ default: m.GenreSearchResults })),
 );
@@ -149,6 +152,7 @@ function LandingPageInner() {
     active,
     candidates,
     selectedCandidateId,
+    genreBrowseGenres,
     genreSearchPayload,
     selectedGenreResultId,
     canReturnToGenreSearch,
@@ -156,6 +160,7 @@ function LandingPageInner() {
     showCompact,
     isClearing,
     isDisambiguating,
+    isGenreBrowsing,
     isGenreSearching,
     isGenreSearchLoading,
     handleSubmit,
@@ -166,6 +171,7 @@ function LandingPageInner() {
   } = useAppState(resetColors);
   const { isReturning, capturePosition, triggerReturn } = useFlipAnimation(searchFieldRef);
 
+  const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [exampleShortId, setExampleShortId] = useState<string | null>(null);
@@ -196,23 +202,23 @@ function LandingPageInner() {
   });
 
   const baseInputState: InputState =
-    isDisambiguating || isClearing || isGenreSearching
+    isDisambiguating || isClearing || isGenreBrowsing || isGenreSearching
       ? "idle"
       : state.type === "result"
         ? "success"
         : (state.type as InputState);
   const inputState = baseInputState === "idle" && isFocused ? "focused" : baseInputState;
 
-  // Make the original query survive the success→back round-trip so users
-  // see it in the hero input when they return to the discovery list. The
-  // query is stored on the payload directly in the genre-search states
-  // and carried via `returnTo` while a result is open.
-  const preservedGenreQuery =
-    state.type === "genre-search" || state.type === "genre-search_loading"
-      ? state.payload.query
-      : state.type === "result"
-        ? state.returnTo?.query
-        : undefined;
+  // Sync input value with genre-search payload so back-navigation restores it.
+  useEffect(() => {
+    if (state.type === "genre-search" || state.type === "genre-search_loading") {
+      setInputValue(state.payload.query);
+    } else if (state.type === "result" && state.returnTo) {
+      // Keep the genre query available for when the user navigates back
+    } else if (state.type === "idle") {
+      // Don't clear — the user might have typed something
+    }
+  }, [state]);
 
   const focusActive = state.type === "result" ? state.active : null;
   const focusCandidates = state.type === "disambiguation" ? state.candidates : null;
@@ -233,6 +239,7 @@ function LandingPageInner() {
   const handleClearAnimationEnd = useCallback(() => {
     capturePosition();
     triggerReturn();
+    setInputValue("");
     handleClear();
   }, [capturePosition, triggerReturn, handleClear]);
 
@@ -240,6 +247,7 @@ function LandingPageInner() {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && showCompact) {
         e.preventDefault();
+        setInputValue("");
         handleClear();
       }
     };
@@ -271,7 +279,7 @@ function LandingPageInner() {
         </Suspense>
 
         <div className="flex-1 flex flex-col items-center justify-center w-full">
-          {!active && !candidates && !genreSearchPayload && (
+          {!active && !candidates && !genreBrowseGenres && !genreSearchPayload && (
             <HeroSection className={isReturning ? "animate-fade-in" : ""} />
           )}
 
@@ -283,8 +291,13 @@ function LandingPageInner() {
 
           <div ref={searchFieldRef} className="w-full flex flex-col items-center">
             <HeroInput
+              value={inputValue}
+              onChange={setInputValue}
               onSubmit={handleSubmit}
-              onClear={handleClear}
+              onClear={() => {
+                setInputValue("");
+                handleClear();
+              }}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               state={inputState}
@@ -293,7 +306,6 @@ function LandingPageInner() {
                 active ? (active.kind === "artist" ? active.name : `${active.title} - ${active.artist}`) : undefined
               }
               errorMessage={errorMessage}
-              preservedQuery={preservedGenreQuery}
             />
           </div>
 
@@ -327,6 +339,19 @@ function LandingPageInner() {
                 />
               </Suspense>
             </div>
+          )}
+
+          {genreBrowseGenres && (
+            <Suspense fallback={null}>
+              <GenreBrowseGrid
+                genres={genreBrowseGenres}
+                onSelect={(name) => {
+                  const query = `genre: ${name}`;
+                  setInputValue(query);
+                  handleSubmit(query);
+                }}
+              />
+            </Suspense>
           )}
 
           {genreSearchPayload && (

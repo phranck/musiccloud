@@ -87,6 +87,54 @@ interface LfmArtist {
   image?: LfmImage[];
 }
 
+// ─── Non-genre tag blocklist ───────────────────────────────────────────────
+//
+// Last.fm's top tags include descriptors, demographics, decades, and
+// personal-collection labels that are not music genres. Filter these out
+// when building the browse grid.
+
+const TAG_BLOCKLIST = new Set([
+  "seen live",
+  "female vocalists",
+  "male vocalists",
+  "british",
+  "american",
+  "german",
+  "french",
+  "russian",
+  "swedish",
+  "japanese",
+  "canadian",
+  "australian",
+  "italian",
+  "finnish",
+  "norwegian",
+  "irish",
+  "80s",
+  "90s",
+  "70s",
+  "60s",
+  "00s",
+  "instrumental",
+  "acoustic",
+  "bookmark",
+  "cover",
+  "favorites",
+  "favourite",
+  "albums i own",
+  "under 2000 listeners",
+  "love",
+  "beautiful",
+  "mellow",
+  "guitar",
+  "piano",
+  "oldies",
+]);
+
+function isGenreTag(name: string): boolean {
+  return !TAG_BLOCKLIST.has(name.toLowerCase());
+}
+
 // ─── Fetch helpers ─────────────────────────────────────────────────────────
 
 async function lfmFetch<T>(method: string, params: Record<string, string>): Promise<T> {
@@ -325,4 +373,85 @@ export async function lastfmSearchByGenre(input: LastfmGenreSearchInput): Promis
     albums: finalAlbums,
     artists: finalArtists,
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Genre Browse (`genre:?`)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface GenreTile {
+  name: string;
+  displayName: string;
+  imageUrl?: string;
+}
+
+// In-memory cache for the genre browse grid (refreshed every 24h).
+let browseCache: { tiles: GenreTile[]; expiresAt: number } | null = null;
+let browseCacheInflight: Promise<GenreTile[]> | null = null;
+const BROWSE_TTL_MS = 24 * 60 * 60 * 1000;
+const BROWSE_GENRE_COUNT = 120;
+
+function capitalize(s: string): string {
+  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Fetch the genre browse grid: popular tags with album-cover thumbnails.
+ *
+ * The tag list is fetched from `chart.getTopTags`, filtered through the
+ * blocklist, and enriched with a thumbnail from `tag.getTopAlbums&limit=1`.
+ * The result is cached in memory for 24h and the thumbnails are also
+ * written to the `album_images` DB table for permanent persistence.
+ */
+export async function getGenreBrowseGrid(): Promise<GenreTile[]> {
+  if (browseCache && browseCache.expiresAt > Date.now()) return browseCache.tiles;
+  if (browseCacheInflight) return browseCacheInflight;
+
+  browseCacheInflight = (async () => {
+    // Fetch a large pool, filter out non-genre tags
+    const data = await lfmFetch<{ tags?: { tag?: { name: string; reach?: string }[] } }>("chart.getTopTags", {
+      limit: "200",
+    });
+    const candidates = (data.tags?.tag ?? []).filter((t) => isGenreTag(t.name));
+
+    // Enrich all candidates with album covers (parallel).
+    // Try up to 5 albums per tag to find one with a real image.
+    const allTiles = await Promise.all(
+      candidates.map(async (tag): Promise<GenreTile> => {
+        let imageUrl: string | undefined;
+        try {
+          const albums = await fetchTopAlbums(tag.name, 5);
+          for (const album of albums) {
+            const url = pickImage(album.image);
+            if (url) {
+              imageUrl = url;
+              cacheAlbumImage(album.artist.name, album.name, url, "lastfm").catch(() => {});
+              break;
+            }
+          }
+        } catch {
+          // Best-effort; tile renders without image
+        }
+        return {
+          name: tag.name.toLowerCase(),
+          displayName: capitalize(tag.name),
+          imageUrl,
+        };
+      }),
+    );
+
+    // Keep only tiles with images, trim to target count, sort alphabetically
+    const result = allTiles
+      .filter((t) => t.imageUrl)
+      .slice(0, BROWSE_GENRE_COUNT)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, "en", { sensitivity: "base" }));
+
+    log.debug("LastfmGenreSearch", `Browse grid: ${result.length} genres with images (${allTiles.length - result.length} dropped)`);
+    browseCache = { tiles: result, expiresAt: Date.now() + BROWSE_TTL_MS };
+    return result;
+  })().finally(() => {
+    browseCacheInflight = null;
+  });
+
+  return browseCacheInflight;
 }

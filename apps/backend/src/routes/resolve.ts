@@ -70,8 +70,10 @@ import type { ArtistResolutionResult } from "../services/artist-resolver.js";
 import { resolveArtistUrl } from "../services/artist-resolver.js";
 import {
   GenreQueryParseError,
+  isGenreBrowseQuery,
   isGenreSearchQuery,
   NoGenreSearchAdapterError,
+  runGenreBrowse,
   runGenreSearch,
 } from "../services/genre-search/index.js";
 import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
@@ -172,6 +174,18 @@ export default async function resolveRoutes(app: FastifyInstance) {
         // response variant, does not persist anything (discovery is
         // non-committal — the follow-up resolve happens when the user
         // clicks a result).
+        if (query && isGenreBrowseQuery(query)) {
+          try {
+            const browseResponse = await runGenreBrowse();
+            return reply.send(browseResponse);
+          } catch (err) {
+            if (err instanceof NoGenreSearchAdapterError) {
+              return reply.status(503).send(jsonError("SERVICE_DOWN", err.message));
+            }
+            throw err;
+          }
+        }
+
         if (query && isGenreSearchQuery(query)) {
           try {
             const genreResponse = await runGenreSearch(query);

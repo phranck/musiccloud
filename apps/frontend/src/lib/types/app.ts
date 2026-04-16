@@ -1,4 +1,9 @@
-import type { ApiGenreAlbumCandidate, ApiGenreArtistCandidate, ApiGenreTrackCandidate } from "@musiccloud/shared";
+import type {
+  ApiGenreAlbumCandidate,
+  ApiGenreArtistCandidate,
+  ApiGenreTile,
+  ApiGenreTrackCandidate,
+} from "@musiccloud/shared";
 import type { DisambiguationCandidate } from "./disambiguation";
 import type { PlatformLink } from "./platform";
 
@@ -84,6 +89,7 @@ export type AppState =
   | { type: "error"; message: string }
   | { type: "disambiguation"; candidates: DisambiguationCandidate[] }
   | { type: "disambiguation_loading"; candidates: DisambiguationCandidate[]; selectedId: string }
+  | { type: "genre-browse"; genres: ApiGenreTile[] }
   | { type: "genre-search"; payload: GenreSearchPayload }
   | { type: "genre-search_loading"; payload: GenreSearchPayload; selectedId: string };
 
@@ -92,6 +98,7 @@ export type AppAction =
   | { type: "RESOLVE_SUCCESS"; active: ActiveResult }
   | { type: "DISAMBIGUATION"; candidates: DisambiguationCandidate[] }
   | { type: "SELECT_CANDIDATE"; selectedId: string }
+  | { type: "GENRE_BROWSE"; genres: ApiGenreTile[] }
   | { type: "GENRE_SEARCH"; payload: GenreSearchPayload }
   | { type: "SELECT_GENRE_RESULT"; selectedId: string }
   | { type: "BACK_TO_GENRE_SEARCH" }

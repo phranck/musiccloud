@@ -1,5 +1,5 @@
 import { ArrowRightIcon, CheckIcon, XCircleIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { useAmbilightAnimation } from "@/hooks/useAmbilightAnimation";
 import { useT } from "@/i18n/context";
@@ -10,7 +10,11 @@ import { cn } from "@/lib/utils";
 export type { InputState };
 
 interface HeroInputProps {
-  onSubmit: (url: string) => void;
+  /** Current input value (controlled). */
+  value: string;
+  /** Called on every keystroke / paste. */
+  onChange: (value: string) => void;
+  onSubmit: (query: string) => void;
   onClear: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -18,17 +22,11 @@ interface HeroInputProps {
   compact?: boolean;
   songName?: string;
   errorMessage?: string;
-  /**
-   * Query string to restore into the input when transitioning away from a
-   * result view back to an idle/focused state. Without this, the clear
-   * effect would wipe the field — which is wrong when the user clicks
-   * "back to discovery" and should see their original query again.
-   * Undefined → falls back to clearing, as before.
-   */
-  preservedQuery?: string;
 }
 
 export function HeroInput({
+  value,
+  onChange,
   onSubmit,
   onClear,
   onFocus,
@@ -37,14 +35,11 @@ export function HeroInput({
   compact = false,
   songName,
   errorMessage,
-  preservedQuery,
 }: HeroInputProps) {
   const t = useT();
-  const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const ambilightRef = useRef<HTMLDivElement>(null);
   const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevState = useRef(state);
 
   useAmbilightAnimation(ambilightRef);
 
@@ -55,20 +50,6 @@ export function HeroInput({
       return () => clearTimeout(timer);
     }
   }, []);
-
-  // Clear input value when transitioning away from results/error (e.g. global ESC).
-  // If a `preservedQuery` is provided (e.g. on back-navigation from a result
-  // that was reached via genre-search), restore that instead of clearing.
-  useEffect(() => {
-    if (
-      (prevState.current === "success" || prevState.current === "error") &&
-      (state === "idle" || state === "focused")
-    ) {
-      setValue(preservedQuery ?? "");
-      inputRef.current?.focus();
-    }
-    prevState.current = state;
-  }, [state, preservedQuery]);
 
   const cancelAutoSubmit = useCallback(() => {
     if (autoSubmitTimer.current) {
@@ -96,17 +77,17 @@ export function HeroInput({
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       cancelAutoSubmit();
-      setValue(e.target.value);
+      onChange(e.target.value);
     },
-    [cancelAutoSubmit],
+    [cancelAutoSubmit, onChange],
   );
 
   const handleClear = useCallback(() => {
     cancelAutoSubmit();
-    setValue("");
+    onChange("");
     onClear();
     inputRef.current?.focus();
-  }, [onClear, cancelAutoSubmit]);
+  }, [onClear, cancelAutoSubmit, onChange]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {

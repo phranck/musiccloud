@@ -201,6 +201,12 @@ export interface GenreSearchResponse {
   warnings: string[];
 }
 
+/** Produced when the query is exactly `genre:?`. */
+export interface GenreBrowseResponse {
+  status: "genre-browse";
+  genres: { name: string; displayName: string; imageUrl?: string }[];
+}
+
 export interface SearchQuery {
   title: string;
   artist: string;

@@ -27,13 +27,14 @@
 import type {
   GenreAlbumCandidate,
   GenreArtistCandidate,
+  GenreBrowseResponse,
   GenreSearchResponse,
   GenreTrackCandidate,
   NormalizedAlbum,
   NormalizedArtist,
   NormalizedTrack,
 } from "../types.js";
-import { isLastfmAvailable, lastfmSearchByGenre } from "./lastfm.js";
+import { getGenreBrowseGrid, isLastfmAvailable, lastfmSearchByGenre } from "./lastfm.js";
 import { parseGenreQuery } from "./parser.js";
 
 export type { ParsedGenreQuery } from "./parser.js";
@@ -44,6 +45,25 @@ export class NoGenreSearchAdapterError extends Error {
     super("Genre search unavailable (LASTFM_API_KEY not configured)");
     this.name = "NoGenreSearchAdapterError";
   }
+}
+
+/**
+ * Check whether the query is a genre-browse request (`genre:?`).
+ * Must be called before `runGenreSearch` to intercept the special case.
+ */
+export function isGenreBrowseQuery(query: string): boolean {
+  return /^\s*genre\s*:\s*\?\s*$/i.test(query);
+}
+
+/**
+ * Return the genre browse grid (popular tags with thumbnails).
+ *
+ * @throws {NoGenreSearchAdapterError} when LASTFM_API_KEY is missing
+ */
+export async function runGenreBrowse(): Promise<GenreBrowseResponse> {
+  if (!isLastfmAvailable()) throw new NoGenreSearchAdapterError();
+  const genres = await getGenreBrowseGrid();
+  return { status: "genre-browse", genres };
 }
 
 /**

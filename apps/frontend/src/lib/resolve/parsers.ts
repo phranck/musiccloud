@@ -33,6 +33,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       if (state.type === "disambiguation")
         return { type: "disambiguation_loading", candidates: state.candidates, selectedId: action.selectedId };
       return state;
+    case "GENRE_BROWSE":
+      return { type: "genre-browse", genres: action.genres };
     case "GENRE_SEARCH":
       return { type: "genre-search", payload: action.payload };
     case "SELECT_GENRE_RESULT":

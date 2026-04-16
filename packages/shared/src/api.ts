@@ -76,6 +76,7 @@ export type ResolveResponse =
   | ResolveSuccessResponse
   | ResolveDisambiguationResponse
   | ResolveGenreSearchResponse
+  | ResolveGenreBrowseResponse
   | ResolveErrorResponse;
 
 // ─── Genre Search Response ────────────────────────────────────────────────────
@@ -136,6 +137,27 @@ export interface ResolveGenreSearchResponse {
    * empty array means the query was clean.
    */
   warnings: string[];
+}
+
+// ─── Genre Browse Response ────────────────────────────────────────────────────
+
+/** A single genre tile in the browse grid. */
+export interface ApiGenreTile {
+  /** Tag name as used in `genre:<name>` queries. */
+  name: string;
+  /** Capitalised display name for the UI. */
+  displayName: string;
+  /** Album cover thumbnail representing this genre. */
+  imageUrl?: string;
+}
+
+/**
+ * Produced when the query is exactly `genre:?`. Returns a grid of popular
+ * genres the user can click to trigger a full genre search.
+ */
+export interface ResolveGenreBrowseResponse {
+  status: "genre-browse";
+  genres: ApiGenreTile[];
 }
 
 // ─── Unified Resolve Response ─────────────────────────────────────────────────
