@@ -132,7 +132,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
         response: {
           200: {
             description:
-              "Success. One of three discriminated variants: a resolved track/album/artist (`UnifiedResolveSuccessResponse`), a disambiguation list (`ResolveDisambiguationResponse` with `status: \"disambiguation\"`), or a genre-discovery result (`ResolveGenreSearchResponse` with `status: \"genre-search\"` and a `results` object carrying nullable `tracks`/`albums`/`artists` arrays).",
+              'Success. One of three discriminated variants: a resolved track/album/artist (`UnifiedResolveSuccessResponse`), a disambiguation list (`ResolveDisambiguationResponse` with `status: "disambiguation"`), or a genre-discovery result (`ResolveGenreSearchResponse` with `status: "genre-search"` and a `results` object carrying nullable `tracks`/`albums`/`artists` arrays).',
             type: "object",
             additionalProperties: true,
           },
