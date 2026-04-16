@@ -17,7 +17,7 @@ interface SlideArtworkProps {
 }
 
 /**
- * Artwork tile with RecessedCard + inner shadow, matching the artist profile
+ * Artwork tile with RecessedCard + inner shadow matching the artist profile
  * image in ArtistInfoCard. When `active` becomes true a spinning CD slides
  * in from above, pushing the cover image out downward. The RecessedCard
  * border and inner shadow stay fixed on top of both layers.
