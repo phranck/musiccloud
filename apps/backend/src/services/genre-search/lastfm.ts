@@ -446,7 +446,10 @@ export async function getGenreBrowseGrid(): Promise<GenreTile[]> {
       .slice(0, BROWSE_GENRE_COUNT)
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "en", { sensitivity: "base" }));
 
-    log.debug("LastfmGenreSearch", `Browse grid: ${result.length} genres with images (${allTiles.length - result.length} dropped)`);
+    log.debug(
+      "LastfmGenreSearch",
+      `Browse grid: ${result.length} genres with images (${allTiles.length - result.length} dropped)`,
+    );
     browseCache = { tiles: result, expiresAt: Date.now() + BROWSE_TTL_MS };
     return result;
   })().finally(() => {
