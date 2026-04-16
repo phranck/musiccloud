@@ -24,7 +24,11 @@ interface SlideArtworkProps {
  */
 export function SlideArtwork({ active, artworkUrl, kind = "square", sizeClass, imgDim = 56 }: SlideArtworkProps) {
   const FallbackIcon = kind === "round" ? UserIcon : MusicNoteIcon;
-  const borderRadius = kind === "round" ? "50%" : "8px";
+  const borderRadius = kind === "round" ? "50%" : imgDim <= 40 ? "6px" : "8px";
+  // Scale inner shadow proportionally: 56px tile → 4/4/12, 40px tile → 3/3/8
+  const shadowOffset = Math.max(2, Math.round((imgDim / 56) * 4));
+  const shadowBlur = Math.max(4, Math.round((imgDim / 56) * 12));
+  const innerShadow = `inset ${shadowOffset}px ${shadowOffset}px ${shadowBlur}px rgba(0,0,0,0.9)`;
 
   const [entered, setEntered] = useState(false);
   useEffect(() => {
@@ -87,7 +91,7 @@ export function SlideArtwork({ active, artworkUrl, kind = "square", sizeClass, i
         className="absolute inset-0 pointer-events-none z-10"
         style={{
           borderRadius: "var(--neu-radius-inner)",
-          boxShadow: "inset 4px 4px 12px rgba(0,0,0,0.9)",
+          boxShadow: innerShadow,
         }}
       />
     </RecessedCard>

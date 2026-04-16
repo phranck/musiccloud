@@ -1,8 +1,8 @@
 import { type ArtistTopTrack, ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useState } from "react";
 import { SectionHeading } from "@/components/share/SectionHeading";
-import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { SlideArtwork } from "@/components/ui/SlideArtwork";
 
 interface PopularTracksSectionProps {
   tracks: ArtistTopTrack[];
@@ -64,26 +64,9 @@ export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; ar
       as="button"
       type="button"
       onClick={handleListen}
-      className="flex items-center gap-3 w-full rounded-lg px-3 py-2"
+      className="flex items-center gap-3 w-full rounded-lg p-2"
     >
-      <div className="w-10 h-10 flex-none">
-        {resolving ? (
-          <CDSpinArtwork className="w-10 h-10" />
-        ) : track.artworkUrl ? (
-          <img
-            src={track.artworkUrl}
-            alt=""
-            width={40}
-            height={40}
-            className="w-full h-full rounded-lg object-cover"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
-        ) : (
-          <div className="w-full h-full rounded-lg bg-white/[0.06]" />
-        )}
-      </div>
+      <SlideArtwork active={resolving} artworkUrl={track.artworkUrl ?? undefined} sizeClass="w-10 h-10" imgDim={40} />
       <div className="min-w-0 flex-1 text-left">
         <p className="text-sm font-medium text-text-primary break-words">{track.title}</p>
         {artistLabel && <p className="text-xs text-text-secondary mt-0.5 break-words">{artistLabel}</p>}
