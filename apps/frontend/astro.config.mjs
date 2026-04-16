@@ -10,7 +10,7 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     server: {
-      allowedHosts: ["localhost", "localhost"],
+      allowedHosts: ["localhost"],
     },
   },
   site: "https://musiccloud.io",

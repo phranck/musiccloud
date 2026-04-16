@@ -20,6 +20,13 @@ data/*.db-shm
 .env
 .env.local
 
+# Claude / agent / Serena / notes (local only)
+.agents/
+.claude/
+.serena/
+papers/
+WHATS-NEXT.md
+
 # Xcode
 xcuserdata/
 *.xcuserstate

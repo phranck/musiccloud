@@ -27,7 +27,7 @@ export default defineConfig({
   },
   server: {
     port: 4001,
-    allowedHosts: ["localhost", "localhost"],
+    allowedHosts: ["localhost"],
     proxy: {
       "/api": {
         target: process.env.BACKEND_URL ?? "http://localhost:4000",
