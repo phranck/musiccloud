@@ -3,6 +3,7 @@ import { forwardRef } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { LazyGenreArtwork } from "@/components/ui/LazyGenreArtwork";
 import { useT } from "@/i18n/context";
 
 interface GenreBrowseGridProps {
@@ -56,17 +57,7 @@ export const GenreBrowseGrid = forwardRef<HTMLDivElement, GenreBrowseGridProps>(
                       className="w-full h-full rounded-xl p-0 overflow-hidden"
                       aria-label={`Search ${genre.displayName}`}
                     >
-                      <img
-                        src={genre.artworkUrl}
-                        alt=""
-                        width={512}
-                        height={512}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.currentTarget.src = "/og/default.jpg";
-                        }}
-                      />
+                      <LazyGenreArtwork url={genre.artworkUrl} />
                     </EmbossedButton>
                   </div>
                 );
