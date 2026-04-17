@@ -16,10 +16,7 @@ interface NavigationBackButtonProps {
  */
 export function NavigationBackButton({ onClick, label, className }: NavigationBackButtonProps) {
   return (
-    <RecessedCard
-      radius="0.625rem"
-      className={cn("inline-flex items-center p-0.5", className)}
-    >
+    <RecessedCard radius="0.625rem" className={cn("inline-flex items-center p-0.5", className)}>
       <EmbossedButton
         as="button"
         onClick={onClick}

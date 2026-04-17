@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore } from "react";
+import { detectLocale, LOCALE_STORAGE_KEY, type Locale } from "./locales";
 import csTranslations from "./translations/cs.json";
 import deTranslations from "./translations/de.json";
 import enTranslations from "./translations/en.json";
@@ -8,7 +9,6 @@ import itTranslations from "./translations/it.json";
 import nlTranslations from "./translations/nl.json";
 import ptTranslations from "./translations/pt.json";
 import trTranslations from "./translations/tr.json";
-import { detectLocale, LOCALE_STORAGE_KEY, type Locale } from "./locales";
 
 type Translations = Record<string, string>;
 
