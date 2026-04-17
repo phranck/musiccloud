@@ -16,7 +16,7 @@
 import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { ensureArtwork, getCachedArtwork } from "../services/genre-artwork/index.js";
-import { getGenreCoverUrl } from "../services/genre-search/lastfm.js";
+import { getCachedGenreCoverUrl, getGenreCoverUrl } from "../services/genre-search/lastfm.js";
 
 const GENRE_KEY_PATTERN = /^[a-z0-9][a-z0-9 &'.\-+]{0,63}$/;
 
@@ -65,7 +65,14 @@ export default async function genreArtworkRoutes(app: FastifyInstance) {
           .send(cached.jpeg);
       }
 
-      const coverUrl = await getGenreCoverUrl(genreKey);
+      // Prefer the cover URL that was already captured when the browse
+      // grid was built — the grid build already paid for one Last.fm call
+      // per genre, and reusing its result avoids a parallel fan-out of
+      // duplicate `tag.getTopAlbums` requests once the browser starts
+      // loading all tiles at once. Only fall back to a fresh Last.fm
+      // lookup when the browse cache was never populated (e.g. direct
+      // URL hits after a cold restart).
+      const coverUrl = getCachedGenreCoverUrl(genreKey) ?? (await getGenreCoverUrl(genreKey));
       // No cover? We still generate an artwork using the fallback color
       // so the grid never shows a broken tile. Only refuse if the key is
       // genuinely nonsense (handled above).

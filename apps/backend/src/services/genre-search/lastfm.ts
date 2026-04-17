@@ -409,12 +409,25 @@ let browseCache: { tiles: GenreTile[]; expiresAt: number } | null = null;
 let browseCacheInflight: Promise<GenreTile[]> | null = null;
 const BROWSE_TTL_MS = 24 * 60 * 60 * 1000;
 
+// Cover URL that the browse-grid builder discovered for each genre key.
+// The artwork route consults this map first so a cold-cache artwork burst
+// does NOT duplicate the `tag.getTopAlbums` call that the grid build just
+// made — in production those duplicate parallel Last.fm calls hit rate
+// limits / timeouts and the generator fell through to its blue fallback.
+const genreCoverUrls = new Map<string, string>();
+
+/** Look up the cover URL captured during the most recent browse-grid build. */
+export function getCachedGenreCoverUrl(genreKey: string): string | null {
+  return genreCoverUrls.get(genreKey) ?? null;
+}
+
 /**
  * Drop the in-memory browse-grid cache so the next `getGenreBrowseGrid()`
  * call re-fetches from Last.fm and re-runs the album-cover probes.
  */
 export function resetBrowseCache(): void {
   browseCache = null;
+  genreCoverUrls.clear();
 }
 const BROWSE_GENRE_COUNT = 250;
 
@@ -522,6 +535,7 @@ export async function getGenreBrowseGrid(): Promise<GenreTile[]> {
             const url = pickImage(album.image);
             if (url) {
               hasCover = true;
+              genreCoverUrls.set(name, url);
               cacheAlbumImage(album.artist.name, album.name, url, "lastfm").catch(() => {});
               break;
             }
