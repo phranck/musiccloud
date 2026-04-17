@@ -72,10 +72,13 @@ export function isTrackingEnabled(): boolean {
  * the raw `Response` so the Astro proxy can stream the JPEG body straight
  * through to the browser with the upstream headers intact (Content-Type,
  * Cache-Control). Cold-path generation can take a few seconds, so the
- * timeout is generous.
+ * timeout is generous — on a cache purge the browser kicks off ~250
+ * parallel tile requests and Jimp-based rendering is CPU-bound, so
+ * under contention a single tile can legitimately wait well past 15 s
+ * for its turn on the event loop.
  */
 export async function fetchGenreArtwork(genreKey: string): Promise<Response> {
-  return fetchWithTimeout(backendUrl(ENDPOINTS.v1.genreArtwork(genreKey)), { headers: internalHeaders() }, 15000);
+  return fetchWithTimeout(backendUrl(ENDPOINTS.v1.genreArtwork(genreKey)), { headers: internalHeaders() }, 60000);
 }
 
 /** Fetch a random short ID from the backend for the landing page example teaser. */
