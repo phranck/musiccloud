@@ -53,7 +53,7 @@ export const SongInfo = memo(function SongInfo({
 
   return (
     <div>
-      <div className="aspect-square w-full overflow-hidden rounded-t-2xl sm:rounded-t-[36px]">
+      <div className="aspect-square w-full overflow-hidden rounded-t-[1.375rem] sm:rounded-t-[1.625rem]">
         {albumArtUrl ? (
           <img
             src={albumArtUrl}

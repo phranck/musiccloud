@@ -21,7 +21,7 @@ export function CollapsibleSection({
       )}
     >
       <div className="overflow-hidden">
-        <div className={cn("px-5 py-3", sectionClass)}>{children}</div>
+        <div className={cn(sectionClass)}>{children}</div>
       </div>
     </div>
   );
