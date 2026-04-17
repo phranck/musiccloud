@@ -459,18 +459,35 @@ function capitalize(s: string): string {
 }
 
 /**
+ * Hard-coded aliases for genre shortforms whose letters sit directly
+ * next to each other — regex normalisation can't tell them apart from a
+ * real word (e.g. `rnb` vs `sundance`), so we treat them as an explicit
+ * lookup table. Keys are already in the regex-normalised form (lowercase,
+ * "&" → "and", spaces collapsed).
+ */
+const GENRE_ALIASES: Record<string, string> = {
+  rnb: "r and b",
+  "r'n'b": "r and b",
+  dnb: "drum and bass",
+  "d'n'b": "drum and bass",
+};
+
+/**
  * Fold "&", "n", "'n'" and surrounding whitespace variants into a single
  * canonical "and" so different spellings of the same genre (e.g.
  * "Rock and Roll" / "rock n roll" / "drum 'n' bass") collapse onto one
  * key. Used both for dedupe and as the tile's stable id / cache key.
+ * Tight shortforms like `rnb` or `dnb` are resolved through `GENRE_ALIASES`
+ * because a letter-level regex would be too eager (would catch `sundance`).
  */
 function canonicalizeGenreKey(name: string): string {
-  return name
+  const normalized = name
     .toLowerCase()
     .replace(/\s*&\s*/g, " and ")
     .replace(/\s+'?n'?\s+/g, " and ")
     .replace(/\s+/g, " ")
     .trim();
+  return GENRE_ALIASES[normalized] ?? normalized;
 }
 
 /**
