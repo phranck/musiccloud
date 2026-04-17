@@ -33,15 +33,18 @@ export function PlatformIconRow() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
 
-    fetch(ENDPOINTS.frontend.activeServices, { signal: controller.signal })
-      .then((res) => (res.ok ? (res.json() as Promise<ActiveService[]>) : []))
-      .then((list) => {
-        if (!cancelled) setServices(list);
-      })
-      .catch(() => {
-        if (!cancelled) setServices([]);
-      })
-      .finally(() => clearTimeout(timeout));
+    (async () => {
+      let result: ActiveService[] = [];
+      try {
+        const res = await fetch(ENDPOINTS.frontend.activeServices, { signal: controller.signal });
+        if (res.ok) result = (await res.json()) as ActiveService[];
+      } catch {
+        // fall through with empty list
+      } finally {
+        clearTimeout(timeout);
+      }
+      if (!cancelled) setServices(result);
+    })();
 
     return () => {
       cancelled = true;

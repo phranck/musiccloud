@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useI18n } from "@/context/I18nContext";
 import { AuthBackground } from "@/features/auth/AuthBackground";
@@ -9,6 +9,37 @@ import type { AdminInviteState, AdminUser } from "@/shared/types/admin";
 const inputClassName =
   "w-full h-9 px-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-sm text-[var(--ds-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 
+interface UiState {
+  phase: "loading" | "loaded" | "error";
+  data: AdminInviteState | null;
+  error: string;
+  submitting: boolean;
+}
+
+type Action =
+  | { type: "loadSuccess"; data: AdminInviteState }
+  | { type: "loadError"; error: string }
+  | { type: "setError"; error: string }
+  | { type: "submitStart" }
+  | { type: "submitError"; error: string };
+
+const initialState: UiState = { phase: "loading", data: null, error: "", submitting: false };
+
+function reducer(state: UiState, action: Action): UiState {
+  switch (action.type) {
+    case "loadSuccess":
+      return { phase: "loaded", data: action.data, error: "", submitting: false };
+    case "loadError":
+      return { phase: "error", data: null, error: action.error, submitting: false };
+    case "setError":
+      return { ...state, error: action.error };
+    case "submitStart":
+      return { ...state, error: "", submitting: true };
+    case "submitError":
+      return { ...state, error: action.error, submitting: false };
+  }
+}
+
 export function InvitePage() {
   const { token } = useParams();
   const navigate = useNavigate();
@@ -17,36 +48,28 @@ export function InvitePage() {
   const common = messages.common;
   const inviteMessages = messages.auth.invite;
 
-  const [inviteState, setInviteState] = useState<AdminInviteState | null>(null);
+  const [ui, dispatch] = useReducer(reducer, initialState);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadInvite() {
       if (!token) {
-        setError(inviteMessages.invalidLink);
-        setIsLoading(false);
+        dispatch({ type: "loadError", error: inviteMessages.invalidLink });
         return;
       }
 
       try {
         const state = await api.get<AdminInviteState>(`/admin/invite/${token}`);
-        if (!cancelled) {
-          setInviteState(state);
-          setError("");
-        }
+        if (!cancelled) dispatch({ type: "loadSuccess", data: state });
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : inviteMessages.invalidLink);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
+          dispatch({
+            type: "loadError",
+            error: err instanceof Error ? err.message : inviteMessages.invalidLink,
+          });
         }
       }
     }
@@ -60,20 +83,20 @@ export function InvitePage() {
   async function handleSubmit() {
     if (!token || password.length < 8) return;
     if (password !== confirmPassword) {
-      setError(inviteMessages.passwordMismatch);
+      dispatch({ type: "setError", error: inviteMessages.passwordMismatch });
       return;
     }
 
-    setError("");
-    setIsSubmitting(true);
+    dispatch({ type: "submitStart" });
     try {
       await api.post<AdminUser>("/admin/invite/accept", { token, password });
       await refresh();
       navigate("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : common.unknownError);
-    } finally {
-      setIsSubmitting(false);
+      dispatch({
+        type: "submitError",
+        error: err instanceof Error ? err.message : common.unknownError,
+      });
     }
   }
 
@@ -86,15 +109,15 @@ export function InvitePage() {
           </div>
 
           <div className="px-5 py-4 flex flex-col gap-4">
-            {isLoading ? (
+            {ui.phase === "loading" ? (
               <p className="text-sm text-[var(--ds-text-muted)]">{common.loading}</p>
-            ) : inviteState ? (
+            ) : ui.data ? (
               <>
                 <p className="text-sm text-[var(--ds-text-muted)]">{inviteMessages.subtitle}</p>
 
                 <div className="rounded-[var(--radius-card)] border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] p-3">
-                  <p className="font-medium text-[var(--ds-text)]">{inviteState.username}</p>
-                  <p className="text-sm text-[var(--ds-text-muted)]">{inviteState.email}</p>
+                  <p className="font-medium text-[var(--ds-text)]">{ui.data.username}</p>
+                  <p className="text-sm text-[var(--ds-text-muted)]">{ui.data.email}</p>
                 </div>
 
                 <div>
@@ -129,10 +152,10 @@ export function InvitePage() {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-[var(--ds-text-muted)]">{error || inviteMessages.invalidLink}</p>
+              <p className="text-sm text-[var(--ds-text-muted)]">{ui.error || inviteMessages.invalidLink}</p>
             )}
 
-            {error && inviteState && <p className="text-red-500 text-sm">{error}</p>}
+            {ui.error && ui.data && <p className="text-red-500 text-sm">{ui.error}</p>}
           </div>
 
           <div className="bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border-subtle)] px-5 py-4 flex justify-end gap-2">
@@ -143,14 +166,14 @@ export function InvitePage() {
             >
               {inviteMessages.toLogin}
             </button>
-            {inviteState && (
+            {ui.data && (
               <button
                 type="button"
-                disabled={isSubmitting || password.length < 8 || confirmPassword.length < 8}
+                disabled={ui.submitting || password.length < 8 || confirmPassword.length < 8}
                 onClick={handleSubmit}
                 className="h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-60"
               >
-                {isSubmitting ? inviteMessages.submitLoading : inviteMessages.submit}
+                {ui.submitting ? inviteMessages.submitLoading : inviteMessages.submit}
               </button>
             )}
           </div>

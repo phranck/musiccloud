@@ -241,3 +241,11 @@ body {
   font-kerning: normal;
   text-rendering: optimizeLegibility;
 }
+
+.auth-logo-mask {
+  width: 120px;
+  height: 120px;
+  background-color: var(--color-primary);
+  -webkit-mask: url(/logo.png) no-repeat center / contain;
+  mask: url(/logo.png) no-repeat center / contain;
+}

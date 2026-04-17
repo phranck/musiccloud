@@ -7,6 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import * as React from "react";
 import { createPortal } from "react-dom";
+import { zIndex } from "@/shared/ui/z-index";
 
 function cn(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(" ");
@@ -152,7 +153,7 @@ export function MultiSelect({
               top: dropdownRect.bottom + 4,
               left: dropdownRect.left,
               width: dropdownRect.width,
-              zIndex: 9999,
+              zIndex: zIndex.popover,
               backgroundColor: "var(--ds-surface)",
             }}
             className="border border-[var(--ds-border)] rounded-control shadow-lg overflow-hidden"

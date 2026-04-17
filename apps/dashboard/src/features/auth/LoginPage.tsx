@@ -87,24 +87,7 @@ export function LoginPage() {
         <div className="text-center mb-8">
           <div className="relative mx-auto w-[120px] h-[120px]">
             <div className="absolute inset-0 rounded-full animate-[auth-glow_8s_ease-in-out_infinite] bg-[var(--color-primary)]" />
-            <div
-              role="img"
-              aria-label={messages.auth.logoAlt}
-              style={{
-                width: 120,
-                height: 120,
-                backgroundColor: "var(--color-primary)",
-                WebkitMaskImage: "url(/logo.png)",
-                WebkitMaskSize: "contain",
-                WebkitMaskRepeat: "no-repeat",
-                WebkitMaskPosition: "center",
-                maskImage: "url(/logo.png)",
-                maskSize: "contain",
-                maskRepeat: "no-repeat",
-                maskPosition: "center",
-              }}
-              className="relative"
-            />
+            <div role="img" aria-label={messages.auth.logoAlt} className="auth-logo-mask relative" />
           </div>
         </div>
 

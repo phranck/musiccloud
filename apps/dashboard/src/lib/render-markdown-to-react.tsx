@@ -1,5 +1,5 @@
 import type { Marked } from "marked";
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 type MarkdownToken = {
   type: string;
@@ -32,94 +32,138 @@ function getSafeHref(href: string | null | undefined): string | null {
   return null;
 }
 
-function renderInlineTokens(tokens: MarkdownToken[], keyPrefix: string): ReactNode[] {
-  return tokens.flatMap((token, index) => {
-    const key = `${keyPrefix}-${index}`;
-
-    switch (token.type) {
-      case "br":
-        return <br key={key} />;
-      case "codespan":
-        return <code key={key}>{token.text ?? ""}</code>;
-      case "em":
-        return <em key={key}>{renderInlineTokens(token.tokens ?? [], key)}</em>;
-      case "link":
-      case "url": {
-        const href = getSafeHref(token.href);
-        const children =
-          token.tokens && token.tokens.length > 0 ? renderInlineTokens(token.tokens, key) : (token.text ?? href ?? "");
-
-        return href ? (
-          <a key={key} href={href} target="_blank" rel="noopener noreferrer">
-            {children}
-          </a>
-        ) : (
-          <Fragment key={key}>{children}</Fragment>
-        );
-      }
-      case "strong":
-        return <strong key={key}>{renderInlineTokens(token.tokens ?? [], key)}</strong>;
-      case "text":
-        return token.tokens && token.tokens.length > 0 ? (
-          <Fragment key={key}>{renderInlineTokens(token.tokens, key)}</Fragment>
-        ) : (
-          <Fragment key={key}>{token.text ?? ""}</Fragment>
-        );
-      default:
-        return <Fragment key={key}>{token.text ?? token.raw ?? ""}</Fragment>;
-    }
-  });
+function InlineTokens({ tokens, keyPrefix }: { tokens: MarkdownToken[]; keyPrefix: string }) {
+  return (
+    <>
+      {tokens.map((token, index) => {
+        const key = `${keyPrefix}-${index}`;
+        return <InlineToken key={key} token={token} keyPrefix={key} />;
+      })}
+    </>
+  );
 }
 
-function renderBlockTokens(tokens: MarkdownToken[], keyPrefix: string): ReactNode[] {
-  return tokens.flatMap((token, index) => {
-    const key = `${keyPrefix}-${index}`;
-
-    switch (token.type) {
-      case "blockquote":
-        return <blockquote key={key}>{renderBlockTokens(token.tokens ?? [], key)}</blockquote>;
-      case "code":
-        return (
-          <pre key={key}>
-            <code>{token.text ?? ""}</code>
-          </pre>
-        );
-      case "heading": {
-        const Tag = HEADING_TAGS[Math.min(Math.max(token.depth ?? 1, 1), 6) - 1] ?? "h1";
-        return <Tag key={key}>{renderInlineTokens(token.tokens ?? [], key)}</Tag>;
-      }
-      case "html":
-        return null;
-      case "list": {
-        const ListTag = token.ordered ? "ol" : "ul";
-        return (
-          <ListTag key={key} start={token.ordered ? token.start : undefined}>
-            {(token.items ?? []).map((item) => (
-              <li key={`${key}-item-${item.raw ?? item.text ?? "item"}`}>
-                {item.tokens && item.tokens.length > 0
-                  ? renderBlockTokens(item.tokens, `${key}-item-${item.raw ?? item.text ?? "item"}`)
-                  : renderInlineTokens(item.tokens ?? [], `${key}-item-${item.raw ?? item.text ?? "item"}`)}
-              </li>
-            ))}
-          </ListTag>
-        );
-      }
-      case "paragraph":
-        return <p key={key}>{renderInlineTokens(token.tokens ?? [], key)}</p>;
-      case "space":
-        return null;
-      case "text":
-        return token.tokens && token.tokens.length > 0 ? (
-          <Fragment key={key}>{renderInlineTokens(token.tokens, key)}</Fragment>
+function InlineToken({ token, keyPrefix }: { token: MarkdownToken; keyPrefix: string }) {
+  switch (token.type) {
+    case "br":
+      return <br />;
+    case "codespan":
+      return <code>{token.text ?? ""}</code>;
+    case "em":
+      return (
+        <em>
+          <InlineTokens tokens={token.tokens ?? []} keyPrefix={keyPrefix} />
+        </em>
+      );
+    case "link":
+    case "url": {
+      const href = getSafeHref(token.href);
+      const children =
+        token.tokens && token.tokens.length > 0 ? (
+          <InlineTokens tokens={token.tokens} keyPrefix={keyPrefix} />
         ) : (
-          <p key={key}>{token.text ?? ""}</p>
+          (token.text ?? href ?? "")
         );
-      default:
-        return null;
+
+      return href ? (
+        <a href={href} target="_blank" rel="noopener noreferrer">
+          {children}
+        </a>
+      ) : (
+        <>{children}</>
+      );
     }
-  });
+    case "strong":
+      return (
+        <strong>
+          <InlineTokens tokens={token.tokens ?? []} keyPrefix={keyPrefix} />
+        </strong>
+      );
+    case "text":
+      return token.tokens && token.tokens.length > 0 ? (
+        <InlineTokens tokens={token.tokens} keyPrefix={keyPrefix} />
+      ) : (
+        <>{token.text ?? ""}</>
+      );
+    default:
+      return <>{token.text ?? token.raw ?? ""}</>;
+  }
+}
+
+function BlockTokens({ tokens, keyPrefix }: { tokens: MarkdownToken[]; keyPrefix: string }) {
+  return (
+    <>
+      {tokens.map((token, index) => {
+        const key = `${keyPrefix}-${index}`;
+        return <BlockToken key={key} token={token} keyPrefix={key} />;
+      })}
+    </>
+  );
+}
+
+function BlockToken({ token, keyPrefix }: { token: MarkdownToken; keyPrefix: string }) {
+  switch (token.type) {
+    case "blockquote":
+      return (
+        <blockquote>
+          <BlockTokens tokens={token.tokens ?? []} keyPrefix={keyPrefix} />
+        </blockquote>
+      );
+    case "code":
+      return (
+        <pre>
+          <code>{token.text ?? ""}</code>
+        </pre>
+      );
+    case "heading": {
+      const Tag = HEADING_TAGS[Math.min(Math.max(token.depth ?? 1, 1), 6) - 1] ?? "h1";
+      return (
+        <Tag>
+          <InlineTokens tokens={token.tokens ?? []} keyPrefix={keyPrefix} />
+        </Tag>
+      );
+    }
+    case "html":
+      return null;
+    case "list": {
+      const ListTag = token.ordered ? "ol" : "ul";
+      return (
+        <ListTag start={token.ordered ? token.start : undefined}>
+          {(token.items ?? []).map((item) => {
+            const itemKey = `${keyPrefix}-item-${item.raw ?? item.text ?? "item"}`;
+            return (
+              <li key={itemKey}>
+                {item.tokens && item.tokens.length > 0 ? (
+                  <BlockTokens tokens={item.tokens} keyPrefix={itemKey} />
+                ) : (
+                  <InlineTokens tokens={item.tokens ?? []} keyPrefix={itemKey} />
+                )}
+              </li>
+            );
+          })}
+        </ListTag>
+      );
+    }
+    case "paragraph":
+      return (
+        <p>
+          <InlineTokens tokens={token.tokens ?? []} keyPrefix={keyPrefix} />
+        </p>
+      );
+    case "space":
+      return null;
+    case "text":
+      return token.tokens && token.tokens.length > 0 ? (
+        <InlineTokens tokens={token.tokens} keyPrefix={keyPrefix} />
+      ) : (
+        <p>{token.text ?? ""}</p>
+      );
+    default:
+      return null;
+  }
 }
 
 export function renderMarkdownToReact(markdown: string, marked: Pick<Marked, "lexer">): ReactNode {
-  return renderBlockTokens(marked.lexer(markdown) as MarkdownToken[], "md");
+  const tokens = marked.lexer(markdown) as MarkdownToken[];
+  return <BlockTokens tokens={tokens} keyPrefix="md" />;
 }

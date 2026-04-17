@@ -308,7 +308,7 @@ export function AlbumsPage() {
                   .join(" ")
               }
               stickyHeader
-              initialSort={{ id: "createdAt", dir: "desc" }}
+              defaultSort={{ id: "createdAt", dir: "desc" }}
             />
             <div ref={table.sentinelRef} className="h-px" />
             {table.isLoadingMore && (

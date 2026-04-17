@@ -1,16 +1,14 @@
 import {
   ArrowsClockwiseIcon,
-  CopyIcon,
   FileIcon,
   ImageIcon,
-  LinkIcon,
   ListBulletsIcon,
   PlusCircleIcon,
   SquaresFourIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
-import { Card, SectionCard } from "@/components/ui/Card";
+import { useEffect, useReducer, useRef, useState } from "react";
+import { Card } from "@/components/ui/Card";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout, PageSplitAside, PageSplitLayout, PageSplitMain } from "@/components/ui/PageLayout";
@@ -25,33 +23,43 @@ import {
   useSyncMedia,
   useUploadMedia,
 } from "@/features/system/hooks/useAdminMedia";
+import { MediaAssetDetails } from "@/features/system/media/MediaAssetDetails";
 import { MediaGridItem } from "@/features/system/media/MediaGridItem";
 import { MediaTable } from "@/features/system/media/MediaTable";
-import { formatBytes, formatMediaDate, getMediaTypeLabel, isImageAsset } from "@/features/system/media/media-utils";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
 import type { MediaAsset } from "@/shared/types/media";
 import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 type ViewMode = "list" | "grid";
 
-function MediaPreview({ asset, unsupportedPreview }: { asset: MediaAsset; unsupportedPreview: string }) {
-  if (isImageAsset(asset)) {
-    return (
-      <div className="aspect-[4/3] rounded-xl overflow-hidden bg-[var(--ds-bg-elevated)]">
-        <img src={asset.url} alt="" className="w-full h-full object-cover" />
-      </div>
-    );
-  }
+interface EditorState {
+  draftName: string;
+  copied: boolean;
+  actionError: string | null;
+}
 
-  return (
-    <div className="aspect-[4/3] rounded-xl bg-[var(--ds-bg-elevated)] border border-dashed border-[var(--ds-border)] flex flex-col items-center justify-center gap-3 text-[var(--ds-text-subtle)]">
-      <FileIcon weight="duotone" className="w-12 h-12" />
-      <div className="text-center">
-        <p className="text-sm font-medium text-[var(--ds-text)]">{getMediaTypeLabel(asset)}</p>
-        <p className="text-xs">{unsupportedPreview}</p>
-      </div>
-    </div>
-  );
+type EditorAction =
+  | { type: "resetFor"; name: string }
+  | { type: "setDraftName"; value: string }
+  | { type: "markCopied" }
+  | { type: "clearCopied" }
+  | { type: "setError"; error: string | null };
+
+const editorInitial: EditorState = { draftName: "", copied: false, actionError: null };
+
+function editorReducer(state: EditorState, action: EditorAction): EditorState {
+  switch (action.type) {
+    case "resetFor":
+      return { draftName: action.name, copied: false, actionError: state.actionError };
+    case "setDraftName":
+      return { ...state, draftName: action.value };
+    case "markCopied":
+      return { ...state, copied: true };
+    case "clearCopied":
+      return { ...state, copied: false };
+    case "setError":
+      return { ...state, actionError: action.error };
+  }
 }
 
 export function MediaPage() {
@@ -61,9 +69,7 @@ export function MediaPage() {
   const common = messages.common;
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [draftName, setDraftName] = useState("");
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [editor, editorDispatch] = useReducer(editorReducer, editorInitial);
   const [deleteTarget, setDeleteTarget] = useState<MediaAsset | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -89,20 +95,19 @@ export function MediaPage() {
   }, [assets, selectedId]);
 
   useEffect(() => {
-    setDraftName(selectedAsset?.displayName ?? "");
-    setCopied(false);
+    editorDispatch({ type: "resetFor", name: selectedAsset?.displayName ?? "" });
   }, [selectedAsset]);
 
   useEffect(() => {
-    if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), 1500);
+    if (!editor.copied) return;
+    const timer = window.setTimeout(() => editorDispatch({ type: "clearCopied" }), 1500);
     return () => window.clearTimeout(timer);
-  }, [copied]);
+  }, [editor.copied]);
 
   async function handleUpload(files: FileList | null) {
     if (!files?.length) return;
 
-    setActionError(null);
+    editorDispatch({ type: "setError", error: null });
     let lastUploaded: MediaAsset | null = null;
 
     try {
@@ -114,7 +119,10 @@ export function MediaPage() {
         setSelectedId(lastUploaded.id);
       }
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : mediaMessages.uploadError);
+      editorDispatch({
+        type: "setError",
+        error: error instanceof Error ? error.message : mediaMessages.uploadError,
+      });
     }
   }
 
@@ -155,24 +163,27 @@ export function MediaPage() {
   async function handleCopyUrl() {
     if (!selectedAsset) return;
     await navigator.clipboard.writeText(selectedAsset.url);
-    setCopied(true);
+    editorDispatch({ type: "markCopied" });
   }
 
   async function handleSaveMeta() {
     if (!selectedAsset) return;
 
-    const nextName = draftName.trim();
+    const nextName = editor.draftName.trim();
     if (!nextName) return;
 
     const nameChanged = nextName !== selectedAsset.displayName;
     if (!nameChanged) return;
 
-    setActionError(null);
+    editorDispatch({ type: "setError", error: null });
 
     try {
       await renameMedia.mutateAsync({ id: selectedAsset.id, displayName: nextName });
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : mediaMessages.renameError);
+      editorDispatch({
+        type: "setError",
+        error: error instanceof Error ? error.message : mediaMessages.renameError,
+      });
     }
   }
 
@@ -225,7 +236,7 @@ export function MediaPage() {
         </button>
       </PageHeader>
 
-      {actionError && <p className="text-sm text-red-500 mb-3">{actionError}</p>}
+      {editor.actionError && <p className="text-sm text-red-500 mb-3">{editor.actionError}</p>}
 
       <PageBody
         className="relative"
@@ -273,108 +284,19 @@ export function MediaPage() {
             <PageSplitAside>
               <Card className="p-4 h-fit xl:sticky xl:top-[4.75rem]">
                 {selectedAsset ? (
-                  <div className="space-y-4">
-                    <SectionCard title={mediaMessages.previewTitle}>
-                      <MediaPreview asset={selectedAsset} unsupportedPreview={mediaMessages.unsupportedPreview} />
-                    </SectionCard>
-
-                    <SectionCard title={mediaMessages.detailsTitle}>
-                      <label className="block space-y-1.5">
-                        <span className="text-sm font-medium text-[var(--ds-text)]">{mediaMessages.displayName}</span>
-                        <input
-                          type="text"
-                          value={draftName}
-                          onChange={(event) => setDraftName(event.target.value)}
-                          className="w-full px-3 py-2.5 border border-[var(--ds-border)] rounded-control text-sm bg-[var(--ds-input-bg)] text-[var(--ds-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-                        />
-                      </label>
-
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => void handleSaveMeta()}
-                          disabled={
-                            renameMedia.isPending ||
-                            draftName.trim().length === 0 ||
-                            draftName.trim() === selectedAsset.displayName
-                          }
-                          className="flex-1 h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-60"
-                        >
-                          {renameMedia.isPending ? common.saving : mediaMessages.saveName}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(selectedAsset)}
-                          className="h-9 px-4 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-danger-hover-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors"
-                        >
-                          <TrashIcon weight="duotone" className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </SectionCard>
-
-                    <SectionCard title={mediaMessages.infoTitle}>
-                      <div className="space-y-3 text-sm">
-                        <div>
-                          <p className="text-[var(--ds-text-subtle)]">{mediaMessages.originalName}</p>
-                          <p className="text-[var(--ds-text)] break-all">{selectedAsset.originalName}</p>
-                        </div>
-                        <div>
-                          <p className="text-[var(--ds-text-subtle)]">{mediaMessages.fileType}</p>
-                          <p className="text-[var(--ds-text)]">{selectedAsset.mimeType}</p>
-                        </div>
-                        <div>
-                          <p className="text-[var(--ds-text-subtle)]">{mediaMessages.fileSize}</p>
-                          <p className="text-[var(--ds-text)]">{formatBytes(selectedAsset.sizeBytes, locale)}</p>
-                        </div>
-                        {selectedAsset.width && selectedAsset.height && (
-                          <div>
-                            <p className="text-[var(--ds-text-subtle)]">{mediaMessages.dimensions}</p>
-                            <p className="text-[var(--ds-text)]">
-                              {selectedAsset.width} x {selectedAsset.height}px
-                            </p>
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-[var(--ds-text-subtle)]">{mediaMessages.createdAt}</p>
-                          <p className="text-[var(--ds-text)]">{formatMediaDate(selectedAsset.createdAt, locale)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[var(--ds-text-subtle)]">{mediaMessages.updatedAt}</p>
-                          <p className="text-[var(--ds-text)]">{formatMediaDate(selectedAsset.updatedAt, locale)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[var(--ds-text-subtle)]">{mediaMessages.uploadedBy}</p>
-                          <p className="text-[var(--ds-text)]">{selectedAsset.createdByUsername ?? "\u2014"}</p>
-                        </div>
-                        <div>
-                          <p className="text-[var(--ds-text-subtle)]">{mediaMessages.internalUrl}</p>
-                          <div className="mt-1 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3 py-2 font-mono text-xs text-[var(--ds-text)] break-all">
-                            {selectedAsset.url}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => void handleCopyUrl()}
-                          className="flex-1 h-9 px-4 border border-[var(--ds-border)] rounded-control text-sm text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] transition-colors flex items-center justify-center gap-2"
-                        >
-                          <CopyIcon weight="duotone" className="w-4 h-4" />
-                          {copied ? mediaMessages.copied : mediaMessages.copyUrl}
-                        </button>
-                        <a
-                          href={selectedAsset.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 h-9 px-4 border border-[var(--ds-border)] rounded-control text-sm text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] transition-colors flex items-center justify-center gap-2"
-                        >
-                          <LinkIcon weight="duotone" className="w-4 h-4" />
-                          {mediaMessages.openFile}
-                        </a>
-                      </div>
-                    </SectionCard>
-                  </div>
+                  <MediaAssetDetails
+                    asset={selectedAsset}
+                    draftName={editor.draftName}
+                    copied={editor.copied}
+                    saving={renameMedia.isPending}
+                    savingLabel={common.saving}
+                    locale={locale}
+                    messages={mediaMessages}
+                    onDraftNameChange={(value) => editorDispatch({ type: "setDraftName", value })}
+                    onSave={() => void handleSaveMeta()}
+                    onRequestDelete={() => setDeleteTarget(selectedAsset)}
+                    onCopyUrl={() => void handleCopyUrl()}
+                  />
                 ) : (
                   <ContentUnavailableView
                     icon={<FileIcon weight="duotone" aria-hidden />}
@@ -445,7 +367,10 @@ export function MediaPage() {
                   setDeleteTarget(null);
                 },
                 onError: (error) => {
-                  setActionError(error instanceof Error ? error.message : common.unknownError);
+                  editorDispatch({
+                    type: "setError",
+                    error: error instanceof Error ? error.message : common.unknownError,
+                  });
                 },
               });
             }}

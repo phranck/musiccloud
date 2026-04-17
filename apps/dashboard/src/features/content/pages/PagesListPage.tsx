@@ -1,5 +1,5 @@
 import { CheckCircleIcon, CircleIcon, EyeSlashIcon, FileIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useReducer } from "react";
 import { useNavigate } from "react-router";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
@@ -17,6 +17,42 @@ function slugify(str: string): string {
     .replace(/ss/g, "ss")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+type CreateState =
+  | { phase: "closed" }
+  | { phase: "open"; title: string; slug: string; slugManual: boolean; error: string | null };
+
+type CreateAction =
+  | { type: "open" }
+  | { type: "close" }
+  | { type: "setTitle"; title: string }
+  | { type: "setSlug"; slug: string }
+  | { type: "setError"; error: string };
+
+const closedState: CreateState = { phase: "closed" };
+const openState: CreateState = { phase: "open", title: "", slug: "", slugManual: false, error: null };
+
+function createReducer(state: CreateState, action: CreateAction): CreateState {
+  switch (action.type) {
+    case "open":
+      return openState;
+    case "close":
+      return closedState;
+    case "setTitle":
+      if (state.phase !== "open") return state;
+      return {
+        ...state,
+        title: action.title,
+        slug: state.slugManual ? state.slug : slugify(action.title),
+      };
+    case "setSlug":
+      if (state.phase !== "open") return state;
+      return { ...state, slug: action.slug, slugManual: true };
+    case "setError":
+      if (state.phase !== "open") return state;
+      return { ...state, error: action.error };
+  }
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -55,45 +91,21 @@ export function PagesListPage() {
   const deletePage = useDeleteContentPage();
   const navigate = useNavigate();
 
-  const [showCreate, setShowCreate] = useState(false);
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugManual, setSlugManual] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  function handleTitleChange(val: string) {
-    setTitle(val);
-    if (!slugManual) {
-      setSlug(slugify(val));
-    }
-  }
-
-  function handleSlugChange(val: string) {
-    setSlug(val);
-    setSlugManual(true);
-  }
+  const [create, createDispatch] = useReducer(createReducer, closedState);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    setCreateError(null);
+    if (create.phase !== "open") return;
     try {
-      const page = await createPage.mutateAsync({ slug, title });
-      setShowCreate(false);
-      setTitle("");
-      setSlug("");
-      setSlugManual(false);
+      const page = await createPage.mutateAsync({ slug: create.slug, title: create.title });
+      createDispatch({ type: "close" });
       navigate(`/pages/${page.slug}`);
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : (text.createError ?? ""));
+      createDispatch({
+        type: "setError",
+        error: err instanceof Error ? err.message : (text.createError ?? ""),
+      });
     }
-  }
-
-  function handleCancelCreate() {
-    setShowCreate(false);
-    setTitle("");
-    setSlug("");
-    setSlugManual(false);
-    setCreateError(null);
   }
 
   async function handleDelete(slug: string, title: string) {
@@ -104,10 +116,10 @@ export function PagesListPage() {
   return (
     <PageLayout>
       <PageHeader title={text.title}>
-        {!showCreate && (
+        {create.phase === "closed" && (
           <button
             type="button"
-            onClick={() => setShowCreate(true)}
+            onClick={() => createDispatch({ type: "open" })}
             className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors"
           >
             <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
@@ -117,7 +129,7 @@ export function PagesListPage() {
       </PageHeader>
 
       <PageBody className="space-y-6">
-        {showCreate && (
+        {create.phase === "open" && (
           <form
             onSubmit={handleCreate}
             className="bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-control p-5 space-y-4"
@@ -134,8 +146,8 @@ export function PagesListPage() {
                 <input
                   id="content-page-title"
                   type="text"
-                  value={title}
-                  onChange={(e) => handleTitleChange(e.target.value)}
+                  value={create.title}
+                  onChange={(e) => createDispatch({ type: "setTitle", title: e.target.value })}
                   required
                   placeholder={text.titlePlaceholder}
                   className="w-full px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
@@ -153,8 +165,8 @@ export function PagesListPage() {
                   <input
                     id="content-page-slug"
                     type="text"
-                    value={slug}
-                    onChange={(e) => handleSlugChange(e.target.value)}
+                    value={create.slug}
+                    onChange={(e) => createDispatch({ type: "setSlug", slug: e.target.value })}
                     required
                     pattern="[a-z0-9-]+"
                     placeholder={text.slugPlaceholder}
@@ -163,11 +175,11 @@ export function PagesListPage() {
                 </div>
               </div>
             </div>
-            {createError && <p className="text-xs text-red-500">{createError}</p>}
+            {create.error && <p className="text-xs text-red-500">{create.error}</p>}
             <div className="flex items-center gap-3">
               <button
                 type="submit"
-                disabled={createPage.isPending || !slug || !title}
+                disabled={createPage.isPending || !create.slug || !create.title}
                 className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] disabled:opacity-60 transition-colors"
               >
                 <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
@@ -175,7 +187,7 @@ export function PagesListPage() {
               </button>
               <button
                 type="button"
-                onClick={handleCancelCreate}
+                onClick={() => createDispatch({ type: "close" })}
                 className="px-4 py-1.5 text-sm text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] transition-colors"
               >
                 {cancel}

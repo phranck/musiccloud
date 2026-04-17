@@ -11,16 +11,12 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ title, titleContent, leading, children }: PageHeaderProps) {
-  const { setTitle, setTitleContent, leadingEl, actionsEl } = usePageHeaderContext();
+  const { setTitle, clearTitle, leadingEl, actionsEl } = usePageHeaderContext();
 
   useEffect(() => {
-    setTitle(title);
-    setTitleContent(titleContent ?? null);
-    return () => {
-      setTitle("");
-      setTitleContent(null);
-    };
-  }, [title, titleContent, setTitle, setTitleContent]);
+    setTitle(title, titleContent ?? null);
+    return clearTitle;
+  }, [title, titleContent, setTitle, clearTitle]);
 
   return (
     <>

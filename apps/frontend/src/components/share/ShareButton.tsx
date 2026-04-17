@@ -1,8 +1,10 @@
 import { CheckIcon, LinkSimpleIcon, ShareNetworkIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { EmbossedButton, iconInnerShadow } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
 import { cn } from "@/lib/utils";
+
+const subscribe = () => () => {};
 
 interface ShareButtonProps {
   shareUrl: string;
@@ -38,10 +40,11 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
     }
   }, [shareUrl, songTitle, artistName]);
 
-  const [supportsNativeShare, setSupportsNativeShare] = useState(false);
-  useEffect(() => {
-    setSupportsNativeShare(!!navigator.share);
-  }, []);
+  const supportsNativeShare = useSyncExternalStore(
+    subscribe,
+    () => !!navigator.share,
+    () => false,
+  );
 
   return (
     <div className="flex gap-1.5">

@@ -11,9 +11,11 @@ export const formInputClass =
 export const formHelpClass = "text-xs text-[var(--ds-text-subtle)]";
 export const formErrorClass = "text-red-500 text-xs mt-1";
 
-export function FormLabel({ className, ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
-  // biome-ignore lint/a11y/noLabelWithoutControl: htmlFor is passed via spread props from call site
-  return <label className={cx(formLabelClass, className)} {...props} />;
+type FormLabelProps = LabelHTMLAttributes<HTMLLabelElement> & { htmlFor: string };
+
+export function FormLabel({ className, htmlFor, ...props }: FormLabelProps) {
+  // biome-ignore lint/a11y/noLabelWithoutControl: htmlFor is a required prop (typed), connecting this to the referenced control at every call site.
+  return <label htmlFor={htmlFor} className={cx(formLabelClass, className)} {...props} />;
 }
 
 export function FormLabelText({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {

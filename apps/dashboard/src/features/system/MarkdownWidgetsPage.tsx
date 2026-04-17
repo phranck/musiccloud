@@ -1,5 +1,5 @@
-import { DownloadIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
-import { useEffect, useMemo, useState } from "react";
+import { DownloadIcon, PlusCircleIcon } from "@phosphor-icons/react";
+import { useEffect, useMemo, useReducer } from "react";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout, PageSplitAside, PageSplitLayout, PageSplitMain } from "@/components/ui/PageLayout";
@@ -11,28 +11,50 @@ import {
   useMarkdownWidgets,
   useSaveMarkdownWidget,
 } from "@/features/system/hooks/useMarkdownWidgets";
+import { WidgetEditorPanel } from "@/features/system/WidgetEditorPanel";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 
-const fieldLabelClass = "px-1 text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-subtle)]";
-const fieldHintClass = "px-1 text-xs leading-5 text-[var(--ds-text-subtle)]";
-const textInputClass =
-  "h-9 w-full rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3 text-sm text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:border-[var(--color-primary)]";
-const textAreaClass =
-  "w-full rounded-[calc(var(--radius-control)-2px)] border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3 py-1.5 text-sm text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:border-[var(--color-primary)]";
-const checkboxRowClass =
-  "flex h-9 items-center gap-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3";
-const insetCardClass =
-  "space-y-3 rounded-[calc(var(--radius-card)-12px)] border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] p-3";
+type DraftPatch = Partial<MarkdownWidget>;
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: The children prop always contains an input/select/textarea element, but Biome cannot statically verify this.
-    <label className="flex flex-col gap-1">
-      <span className={fieldLabelClass}>{label}</span>
-      {children}
-      {hint ? <p className={fieldHintClass}>{hint}</p> : null}
-    </label>
-  );
+function draftFromWidget(widget: MarkdownWidget): DraftPatch {
+  return {
+    key: widget.key,
+    name: widget.name,
+    type: widget.type,
+    enabled: widget.enabled,
+    description: widget.description,
+    defaultHeight: widget.defaultHeight,
+    snippet: widget.snippet,
+    url: widget.url,
+  };
+}
+
+interface EditorState {
+  selectedId: number | null;
+  draft: DraftPatch | null;
+  savedOk: boolean;
+}
+
+type EditorAction =
+  | { type: "select"; widget: MarkdownWidget }
+  | { type: "clearSelection" }
+  | { type: "updateDraft"; updater: (d: DraftPatch) => DraftPatch }
+  | { type: "markSaved" };
+
+const editorInitial: EditorState = { selectedId: null, draft: null, savedOk: false };
+
+function editorReducer(state: EditorState, action: EditorAction): EditorState {
+  switch (action.type) {
+    case "select":
+      return { selectedId: action.widget.id, draft: draftFromWidget(action.widget), savedOk: false };
+    case "clearSelection":
+      return editorInitial;
+    case "updateDraft":
+      if (!state.draft) return state;
+      return { ...state, draft: action.updater(state.draft), savedOk: false };
+    case "markSaved":
+      return { ...state, savedOk: true };
+  }
 }
 
 export function MarkdownWidgetsPage() {
@@ -43,35 +65,18 @@ export function MarkdownWidgetsPage() {
   const saveWidget = useSaveMarkdownWidget();
   const createWidget = useCreateMarkdownWidget();
   const deleteWidget = useDeleteMarkdownWidget();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [draft, setDraft] = useState<Partial<MarkdownWidget> | null>(null);
-  const [savedOk, setSavedOk] = useState(false);
 
+  const [editor, dispatch] = useReducer(editorReducer, editorInitial);
+  const { selectedId, draft, savedOk } = editor;
+
+  // Auto-select first widget on initial load only.
   useEffect(() => {
-    if (widgets.length > 0 && selectedId === null) {
-      setSelectedId(widgets[0].id);
+    if (selectedId === null && widgets.length > 0) {
+      dispatch({ type: "select", widget: widgets[0] });
     }
   }, [widgets, selectedId]);
 
   const selectedWidget = useMemo(() => widgets.find((w) => w.id === selectedId) ?? null, [widgets, selectedId]);
-
-  useEffect(() => {
-    if (selectedWidget) {
-      setDraft({
-        key: selectedWidget.key,
-        name: selectedWidget.name,
-        type: selectedWidget.type,
-        enabled: selectedWidget.enabled,
-        description: selectedWidget.description,
-        defaultHeight: selectedWidget.defaultHeight,
-        snippet: selectedWidget.snippet,
-        url: selectedWidget.url,
-      });
-      setSavedOk(false);
-    } else {
-      setDraft(null);
-    }
-  }, [selectedWidget]);
 
   const widgetTypeOptions = useMemo(
     () => [
@@ -89,9 +94,8 @@ export function MarkdownWidgetsPage() {
     [widgetMessages],
   );
 
-  function updateDraft(updater: (d: Partial<MarkdownWidget>) => Partial<MarkdownWidget>) {
-    setDraft((current) => (current ? updater(current) : current));
-    setSavedOk(false);
+  function updateDraft(updater: (d: DraftPatch) => DraftPatch) {
+    dispatch({ type: "updateDraft", updater });
   }
 
   function handleAddWidget() {
@@ -104,9 +108,7 @@ export function MarkdownWidgetsPage() {
         defaultHeight: 320,
       },
       {
-        onSuccess: (created) => {
-          setSelectedId(created.id);
-        },
+        onSuccess: (created) => dispatch({ type: "select", widget: created }),
       },
     );
   }
@@ -114,9 +116,10 @@ export function MarkdownWidgetsPage() {
   function handleDeleteWidget(id: number) {
     deleteWidget.mutate(id, {
       onSuccess: () => {
-        if (selectedId === id) {
-          setSelectedId(widgets.find((w) => w.id !== id)?.id ?? null);
-        }
+        if (selectedId !== id) return;
+        const next = widgets.find((w) => w.id !== id);
+        if (next) dispatch({ type: "select", widget: next });
+        else dispatch({ type: "clearSelection" });
       },
     });
   }
@@ -126,9 +129,7 @@ export function MarkdownWidgetsPage() {
     saveWidget.mutate(
       { id: selectedId, data: draft },
       {
-        onSuccess: () => {
-          setSavedOk(true);
-        },
+        onSuccess: () => dispatch({ type: "markSaved" }),
       },
     );
   }
@@ -186,7 +187,7 @@ export function MarkdownWidgetsPage() {
                         <button
                           key={widget.id}
                           type="button"
-                          onClick={() => setSelectedId(widget.id)}
+                          onClick={() => dispatch({ type: "select", widget })}
                           className={`w-full rounded-card border px-3 py-3 text-left transition-colors ${
                             isSelected
                               ? "border-[var(--color-primary)] bg-[var(--ds-bg-elevated)]"
@@ -217,149 +218,14 @@ export function MarkdownWidgetsPage() {
 
             <PageSplitMain>
               {draft && selectedWidget ? (
-                <div className="space-y-4">
-                  <Card className="p-4 space-y-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h2 className="text-lg font-semibold text-[var(--ds-text)]">{draft.name}</h2>
-                        <p className="mt-1 text-sm text-[var(--ds-text-muted)]">
-                          {widgetMessages.markdownLabel}:
-                          <span className="ml-2 rounded bg-[var(--ds-bg-elevated)] px-2 py-1 font-mono text-xs">
-                            [[widget:{draft.key}]]
-                          </span>
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteWidget(selectedWidget.id)}
-                        className="inline-flex h-9 items-center gap-2 rounded-control border border-[var(--ds-btn-danger-border)] px-3 text-sm font-medium text-[var(--ds-btn-danger-text)] hover:bg-[var(--ds-btn-danger-hover-bg)]"
-                      >
-                        <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
-                        {widgetMessages.deleteWidget}
-                      </button>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <Field label={widgetMessages.keyLabel} hint={widgetMessages.keyHint}>
-                        <input
-                          value={draft.key ?? ""}
-                          onChange={(event) => updateDraft((d) => ({ ...d, key: event.target.value.toLowerCase() }))}
-                          className={textInputClass}
-                        />
-                      </Field>
-
-                      <Field label={widgetMessages.nameLabel}>
-                        <input
-                          value={draft.name ?? ""}
-                          onChange={(event) => updateDraft((d) => ({ ...d, name: event.target.value }))}
-                          className={textInputClass}
-                        />
-                      </Field>
-
-                      <Field label={widgetMessages.typeLabel} hint={widgetMessages.typeHint}>
-                        <select
-                          value={draft.type ?? "html"}
-                          onChange={(event) =>
-                            updateDraft((d) => ({
-                              ...d,
-                              type: event.target.value as MarkdownWidget["type"],
-                            }))
-                          }
-                          className={textInputClass}
-                        >
-                          {widgetTypeOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-
-                      <Field label={widgetMessages.defaultHeightLabel} hint={widgetMessages.defaultHeightHint}>
-                        <input
-                          type="number"
-                          min={80}
-                          max={2400}
-                          value={draft.defaultHeight ?? 320}
-                          onChange={(event) =>
-                            updateDraft((d) => ({
-                              ...d,
-                              defaultHeight: Number(event.target.value) || 320,
-                            }))
-                          }
-                          className={textInputClass}
-                        />
-                      </Field>
-                    </div>
-
-                    <label className={checkboxRowClass}>
-                      <input
-                        type="checkbox"
-                        checked={draft.enabled ?? false}
-                        onChange={(event) => updateDraft((d) => ({ ...d, enabled: event.target.checked }))}
-                      />
-                      <span className="text-sm text-[var(--ds-text)]">{widgetMessages.enabledLabel}</span>
-                    </label>
-
-                    <Field label={widgetMessages.descriptionLabel} hint={widgetMessages.descriptionHint}>
-                      <textarea
-                        rows={3}
-                        value={draft.description ?? ""}
-                        onChange={(event) => updateDraft((d) => ({ ...d, description: event.target.value }))}
-                        className={textAreaClass}
-                      />
-                    </Field>
-
-                    <div className={insetCardClass}>
-                      <h3 className="text-sm font-semibold text-[var(--ds-text)]">
-                        {widgetMessages.configurationTitle}
-                      </h3>
-                      <p className={fieldHintClass}>
-                        {widgetTypeOptions.find((option) => option.value === draft.type)?.description}
-                      </p>
-
-                      {draft.type === "html" ? (
-                        <Field
-                          label={widgetMessages.types.html.snippetLabel}
-                          hint={widgetMessages.types.html.snippetHint}
-                        >
-                          <textarea
-                            rows={14}
-                            value={draft.snippet ?? ""}
-                            onChange={(event) => updateDraft((d) => ({ ...d, snippet: event.target.value }))}
-                            className={`${textAreaClass} font-mono text-xs`}
-                          />
-                        </Field>
-                      ) : (
-                        <Field label={widgetMessages.types.iframe.urlLabel} hint={widgetMessages.types.iframe.urlHint}>
-                          <input
-                            type="url"
-                            value={draft.url ?? ""}
-                            onChange={(event) => updateDraft((d) => ({ ...d, url: event.target.value }))}
-                            className={textInputClass}
-                          />
-                        </Field>
-                      )}
-                    </div>
-                  </Card>
-
-                  <Card className="p-4 space-y-2">
-                    <h3 className="text-sm font-semibold text-[var(--ds-text)]">{widgetMessages.usageTitle}</h3>
-                    <p className={`${fieldHintClass} leading-5`}>
-                      {widgetMessages.widgetUsage}:<span className="ml-2 font-mono">[[widget:{draft.key}]]</span>
-                    </p>
-                    <p className={`${fieldHintClass} leading-5`}>
-                      {widgetMessages.imageUsage}:
-                      <span className="ml-2 font-mono">[[image:/uploads/datei.jpg alt="Alt" width=320]]</span>
-                    </p>
-                    <p className={`${fieldHintClass} leading-5`}>
-                      {widgetMessages.pdfUsage}:
-                      <span className="ml-2 font-mono">
-                        {`[[pdf:/uploads/datei.pdf label="${widgetMessages.pdfExampleLabel}"]]`}
-                      </span>
-                    </p>
-                  </Card>
-                </div>
+                <WidgetEditorPanel
+                  draft={draft}
+                  selectedWidgetId={selectedWidget.id}
+                  widgetTypeOptions={widgetTypeOptions}
+                  messages={widgetMessages}
+                  onUpdateDraft={updateDraft}
+                  onDelete={handleDeleteWidget}
+                />
               ) : (
                 <Card className="flex min-h-[24rem] items-center justify-center p-6 text-sm text-[var(--ds-text-muted)]">
                   {widgetMessages.emptySelection}

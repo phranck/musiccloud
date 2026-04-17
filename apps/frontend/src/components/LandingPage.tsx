@@ -8,6 +8,7 @@ import { BrandName } from "@/components/ui/BrandName";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { useAppState } from "@/hooks/useAppState";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
+import { useToast } from "@/hooks/useToast";
 import { LocaleProvider, useT } from "@/i18n/context";
 import { buildActiveConfig } from "@/lib/resolve/parsers";
 import type { InputState } from "@/lib/types/app";
@@ -195,11 +196,7 @@ function LandingPageInner() {
       })
       .catch(() => {});
   }, []);
-  const [toast, setToast] = useState<{ message: string; variant: "success" | "error" | "info"; visible: boolean }>({
-    message: "",
-    variant: "info",
-    visible: false,
-  });
+  const toast = useToast();
 
   const baseInputState: InputState =
     isDisambiguating || isClearing || isGenreBrowsing || isGenreSearching
@@ -231,8 +228,6 @@ function LandingPageInner() {
   useEffect(() => {
     if (focusGenreResults) genreSearchRef.current?.focus();
   }, [focusGenreResults]);
-
-  const handleToastDismiss = useCallback(() => setToast((p) => ({ ...p, visible: false })), []);
 
   const handleClearAnimationEnd = useCallback(() => {
     capturePosition();
@@ -400,10 +395,10 @@ function LandingPageInner() {
 
         <Suspense fallback={null}>
           <Toast
-            message={toast.message}
-            variant={toast.variant}
-            visible={toast.visible}
-            onDismiss={handleToastDismiss}
+            message={toast.state.message}
+            variant={toast.state.variant}
+            visible={toast.state.visible}
+            onDismiss={toast.dismiss}
           />
         </Suspense>
       </div>

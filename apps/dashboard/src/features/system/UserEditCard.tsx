@@ -10,7 +10,7 @@ import { useKeyboardSave } from "@/lib/useKeyboardSave";
 import type { AdminLocale, AdminUser } from "@/shared/types/admin";
 import { AlertDialog } from "@/shared/ui/AlertDialog";
 import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
-import { FormLabel, formInputClass } from "@/shared/ui/FormPrimitives";
+import { FormLabel, FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
 import { OverlayCard } from "@/shared/ui/OverlayCard";
 
 import {
@@ -281,7 +281,7 @@ function UserProfileFields({
       {me?.id === userId && (
         <>
           <div>
-            <FormLabel>{usersMessages.editCard.language}</FormLabel>
+            <FormLabelText>{usersMessages.editCard.language}</FormLabelText>
             <div className="inline-block">
               <LanguageToggle value={draft.locale} onChange={onLocaleChange} />
             </div>

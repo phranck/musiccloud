@@ -133,6 +133,64 @@ export interface AdminTableConfig<T extends { id: string }> {
 const PAGE_SIZE = 50;
 
 // ---------------------------------------------------------------------------
+// Selection / Delete reducer
+// ---------------------------------------------------------------------------
+
+interface SelectionState {
+  selectedIds: Set<string>;
+  deletingIds: Set<string>;
+  confirmOpen: boolean;
+  deleting: boolean;
+  error: string | null;
+}
+
+type SelectionAction =
+  | { type: "selectAll"; ids: string[] }
+  | { type: "clear" }
+  | { type: "toggle"; id: string }
+  | { type: "openDialog" }
+  | { type: "closeDialog" }
+  | { type: "deleteStart" }
+  | { type: "deleteDone"; ids: Set<string> }
+  | { type: "deleteSettled" }
+  | { type: "deleteError"; error: string };
+
+const selectionInitial: SelectionState = {
+  selectedIds: new Set(),
+  deletingIds: new Set(),
+  confirmOpen: false,
+  deleting: false,
+  error: null,
+};
+
+function selectionReducer(state: SelectionState, action: SelectionAction): SelectionState {
+  switch (action.type) {
+    case "selectAll":
+      return { ...state, selectedIds: new Set(action.ids) };
+    case "clear":
+      return { ...state, selectedIds: new Set() };
+    case "toggle": {
+      const next = new Set(state.selectedIds);
+      if (next.has(action.id)) next.delete(action.id);
+      else next.add(action.id);
+      return { ...state, selectedIds: next };
+    }
+    case "openDialog":
+      return { ...state, confirmOpen: true, error: null };
+    case "closeDialog":
+      return { ...state, confirmOpen: false };
+    case "deleteStart":
+      return { ...state, deleting: true, error: null };
+    case "deleteDone":
+      return { ...state, deleting: false, confirmOpen: false, selectedIds: new Set(), deletingIds: action.ids };
+    case "deleteSettled":
+      return { ...state, deletingIds: new Set() };
+    case "deleteError":
+      return { ...state, deleting: false, error: action.error };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -144,19 +202,10 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
   const [reducer] = useState(() => makeReducer<T>());
   const [state, dispatch] = useReducer(reducer, { tag: "idle" } as TableState<T>);
 
-  const [inputValue, setInputValue] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const [sortBy, setSortBy] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc" | null>(null);
-
+  const [search, setSearch] = useState({ input: "", query: "" });
+  const [sort, setSort] = useState<{ by: string; dir: "asc" | "desc" } | null>(null);
   const [editMode, setEditMode] = useState(false);
-
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [selection, selectionDispatch] = useReducer(selectionReducer, selectionInitial);
 
   const tableWrapperRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -176,16 +225,18 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
       const params = new URLSearchParams();
       params.set("page", "1");
       params.set("limit", String(PAGE_SIZE));
-      if (searchQuery) params.set("q", searchQuery);
-      if (sortBy) params.set("sortBy", sortBy);
-      if (sortDir) params.set("sortDir", sortDir);
+      if (search.query) params.set("q", search.query);
+      if (sort) {
+        params.set("sortBy", sort.by);
+        params.set("sortDir", sort.dir);
+      }
 
       api
         .get<Page<T>>(`${endpoint}?${params}`)
         .then((data) => dispatch({ type: "FIRST_PAGE", items: data.items, total: data.total }))
         .catch((err: Error) => dispatch({ type: "ERROR", message: err.message }));
     },
-    [endpoint, searchQuery, sortBy, sortDir],
+    [endpoint, search.query, sort],
   );
 
   const loadMore = useCallback(() => {
@@ -197,15 +248,17 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
     const params = new URLSearchParams();
     params.set("page", String(nextPage));
     params.set("limit", String(PAGE_SIZE));
-    if (searchQuery) params.set("q", searchQuery);
-    if (sortBy) params.set("sortBy", sortBy);
-    if (sortDir) params.set("sortDir", sortDir);
+    if (search.query) params.set("q", search.query);
+    if (sort) {
+      params.set("sortBy", sort.by);
+      params.set("sortDir", sort.dir);
+    }
 
     api
       .get<Page<T>>(`${endpoint}?${params}`)
       .then((data) => dispatch({ type: "MORE_LOADED", items: data.items, total: data.total }))
       .catch((err: Error) => dispatch({ type: "ERROR", message: err.message }));
-  }, [endpoint, searchQuery, sortBy, sortDir]);
+  }, [endpoint, search.query, sort]);
 
   const loadMoreRef = useRef(loadMore);
   loadMoreRef.current = loadMore;
@@ -216,29 +269,30 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
   // Trigger first-page fetch
   // ---------------------------------------------------------------------------
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery, sortBy and sortDir are intentional triggers to re-fetch when filter/sort params change, even though they are not read inside the effect body (accessed via refs).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: search.query and sort are intentional triggers to re-fetch when filter/sort params change, even though they are not read inside the effect body (accessed via refs).
   useEffect(() => {
     const stale =
       stateRef.current.tag === "ready" || stateRef.current.tag === "loading-more" ? stateRef.current.items : undefined;
     fetchFirstPageRef.current(stale);
-  }, [searchQuery, sortBy, sortDir]);
+  }, [search.query, sort]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: search.input is intentionally the trigger for re-running the debounce; setSearch reads s.input via the functional updater, so it is not a "used" dep.
   useEffect(() => {
-    const timer = setTimeout(() => setSearchQuery(inputValue), 400);
+    const timer = setTimeout(() => setSearch((s) => ({ ...s, query: s.input })), 400);
     return () => clearTimeout(timer);
-  }, [inputValue]);
+  }, [search.input]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery, sortBy and sortDir are intentional triggers to reset selection when filter/sort params change.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: search.query and sort are intentional triggers to reset selection when filter/sort params change.
   useEffect(() => {
-    setSelectedIds(new Set());
-  }, [searchQuery, sortBy, sortDir]);
+    selectionDispatch({ type: "clear" });
+  }, [search.query, sort]);
 
   useEffect(() => {
     if (!editMode) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setEditMode(false);
-        setSelectedIds(new Set());
+        selectionDispatch({ type: "clear" });
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -274,10 +328,10 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
   useAdminSSE(
     useCallback(
       (event) => {
-        if (!sseEventType || !sseToItem || event.type !== sseEventType || searchQuery !== "" || sortBy !== null) return;
+        if (!sseEventType || !sseToItem || event.type !== sseEventType || search.query !== "" || sort !== null) return;
         dispatch({ type: "PREPEND", item: sseToItem(event.data) });
       },
-      [searchQuery, sseEventType, sseToItem, sortBy],
+      [search.query, sseEventType, sseToItem, sort],
     ),
   );
 
@@ -286,15 +340,11 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
   // ---------------------------------------------------------------------------
 
   function handleSortClick(key: string) {
-    if (sortBy !== key) {
-      setSortBy(key);
-      setSortDir("asc");
-    } else if (sortDir === "asc") {
-      setSortDir("desc");
-    } else {
-      setSortBy(null);
-      setSortDir(null);
-    }
+    setSort((prev) => {
+      if (!prev || prev.by !== key) return { by: key, dir: "asc" };
+      if (prev.dir === "asc") return { by: key, dir: "desc" };
+      return null;
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -303,25 +353,21 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
 
   const currentItems = state.tag === "ready" || state.tag === "loading-more" ? state.items : [];
   const visibleIds = currentItems.map((item) => item.id);
-  const selectedCount = selectedIds.size;
-  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const selectedCount = selection.selectedIds.size;
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
 
   function toggleAll() {
-    setSelectedIds(allSelected ? new Set() : new Set(visibleIds));
+    if (allSelected) selectionDispatch({ type: "clear" });
+    else selectionDispatch({ type: "selectAll", ids: visibleIds });
   }
 
   function toggleRow(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    selectionDispatch({ type: "toggle", id });
   }
 
   function handleEditToggle() {
     setEditMode((prev) => !prev);
-    if (editMode) setSelectedIds(new Set());
+    if (editMode) selectionDispatch({ type: "clear" });
   }
 
   // ---------------------------------------------------------------------------
@@ -330,23 +376,18 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
 
   async function handleConfirmDelete() {
     if (!config.deleteEndpoint) return;
-    setDeleting(true);
-    setDeleteError(null);
+    selectionDispatch({ type: "deleteStart" });
     try {
-      const toDelete = new Set(selectedIds);
+      const toDelete = new Set(selection.selectedIds);
       await api.delete(config.deleteEndpoint, { ids: [...toDelete] });
-      setSelectedIds(new Set());
-      setConfirmOpen(false);
-      setDeletingIds(toDelete);
+      selectionDispatch({ type: "deleteDone", ids: toDelete });
       setTimeout(() => {
         dispatch({ type: "REMOVE_MANY", ids: toDelete });
-        setDeletingIds(new Set());
+        selectionDispatch({ type: "deleteSettled" });
       }, 300);
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "Delete failed");
-    } finally {
-      setDeleting(false);
+      selectionDispatch({ type: "deleteError", error: err instanceof Error ? err.message : "Delete failed" });
     }
   }
 
@@ -381,8 +422,8 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
         <input
           type="text"
           placeholder={config.searchPlaceholder}
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+          value={search.input}
+          onChange={(e) => setSearch((s) => ({ ...s, input: e.target.value }))}
           className="h-9 max-w-sm w-full rounded-md border border-[var(--ds-border)] bg-[var(--ds-surface)] px-3 text-sm text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] outline-none focus:border-[var(--ds-border-strong)] transition-colors"
         />
         {total !== null && (
@@ -395,10 +436,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
           {hasDelete && editMode && selectedCount > 0 && (
             <button
               type="button"
-              onClick={() => {
-                setDeleteError(null);
-                setConfirmOpen(true);
-              }}
+              onClick={() => selectionDispatch({ type: "openDialog" })}
               className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium bg-[var(--ds-btn-danger-bg)] text-[var(--ds-btn-danger-text)] border border-[var(--ds-btn-danger-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors"
             >
               <TrashIcon className="w-4 h-4" />
@@ -469,7 +507,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
                           onClick={() => handleSortClick(col.sortKey!)}
                         >
                           {col.header}
-                          <SortIcon colKey={col.sortKey} sortBy={sortBy} sortDir={sortDir} />
+                          <SortIcon colKey={col.sortKey} sort={sort} />
                         </button>
                       ) : (
                         col.header
@@ -491,10 +529,10 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
                   <tr
                     key={item.id}
                     className={`border-t border-[var(--ds-border)] hover:bg-[var(--ds-surface-raised)] transition-colors ${
-                      selectedIds.has(item.id) ? "bg-[var(--ds-accent-subtle)]" : ""
+                      selection.selectedIds.has(item.id) ? "bg-[var(--ds-accent-subtle)]" : ""
                     }`}
                     style={{
-                      opacity: deletingIds.has(item.id) ? 0 : 1,
+                      opacity: selection.deletingIds.has(item.id) ? 0 : 1,
                       transition: "opacity 0.3s ease",
                     }}
                   >
@@ -504,7 +542,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
                           editMode ? "w-10 px-3 py-2 opacity-100" : "w-0 max-w-0 p-0 opacity-0"
                         }`}
                       >
-                        <Checkbox checked={selectedIds.has(item.id)} onChange={() => toggleRow(item.id)} />
+                        <Checkbox checked={selection.selectedIds.has(item.id)} onChange={() => toggleRow(item.id)} />
                       </td>
                     )}
                     {config.columns.map((col, i) => {
@@ -531,24 +569,33 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
       )}
 
       {/* Delete confirmation dialog */}
-      <Dialog open={confirmOpen} title={m.deleteConfirmTitle} onClose={() => setConfirmOpen(false)}>
+      <Dialog
+        open={selection.confirmOpen}
+        title={m.deleteConfirmTitle}
+        onClose={() => selectionDispatch({ type: "closeDialog" })}
+      >
         <div className="px-6 py-4 space-y-3">
           <p className="text-sm text-[var(--ds-text)]">
             {m.deleteConfirmDescription.replace("{count}", String(selectedCount))}
           </p>
-          {deleteError && <p className="text-sm text-[var(--ds-btn-danger-text)]">{deleteError}</p>}
+          {selection.error && <p className="text-sm text-[var(--ds-btn-danger-text)]">{selection.error}</p>}
         </div>
         <Dialog.Footer>
           <button
             type="button"
             className={dialogBtnSecondary}
-            onClick={() => setConfirmOpen(false)}
-            disabled={deleting}
+            onClick={() => selectionDispatch({ type: "closeDialog" })}
+            disabled={selection.deleting}
           >
             {m.deleteConfirmCancel}
           </button>
-          <button type="button" className={dialogBtnDestructive} onClick={handleConfirmDelete} disabled={deleting}>
-            {deleting ? "\u2026" : m.deleteConfirmAction}
+          <button
+            type="button"
+            className={dialogBtnDestructive}
+            onClick={handleConfirmDelete}
+            disabled={selection.deleting}
+          >
+            {selection.deleting ? "\u2026" : m.deleteConfirmAction}
           </button>
         </Dialog.Footer>
       </Dialog>
@@ -556,17 +603,9 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
   );
 }
 
-function SortIcon({
-  colKey,
-  sortBy,
-  sortDir,
-}: {
-  colKey: string;
-  sortBy: string | null;
-  sortDir: "asc" | "desc" | null;
-}) {
-  if (sortBy !== colKey)
+function SortIcon({ colKey, sort }: { colKey: string; sort: { by: string; dir: "asc" | "desc" } | null }) {
+  if (!sort || sort.by !== colKey)
     return <ArrowsDownUpIcon className="ml-1 inline w-3.5 h-3.5 opacity-35 group-hover:opacity-60" />;
-  if (sortDir === "asc") return <ArrowUpIcon className="ml-1 inline w-3.5 h-3.5" />;
+  if (sort.dir === "asc") return <ArrowUpIcon className="ml-1 inline w-3.5 h-3.5" />;
   return <ArrowDownIcon className="ml-1 inline w-3.5 h-3.5" />;
 }

@@ -6,6 +6,7 @@ import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbedCardIsland } from "@/components/embed/EmbedCardIsland";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { useIsClient } from "@/hooks/useIsClient";
 import { useT } from "@/i18n/context";
 import type { PlatformLink } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
@@ -59,12 +60,8 @@ export function EmbedModal({
   const t = useT();
   const [size, setSize] = useState<EmbedSize>("small");
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsClient();
   const overlayRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!open) return;

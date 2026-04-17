@@ -31,11 +31,17 @@ export function Dropdown<T extends string = string>({ value, onChange, options, 
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  useEffect(() => {
-    if (open) {
-      setHighlightIndex(options.findIndex((o) => o.value === value));
-    }
-  }, [open, options, value]);
+  const openDropdown = useCallback(() => {
+    setHighlightIndex(options.findIndex((o) => o.value === value));
+    setOpen(true);
+  }, [options, value]);
+
+  const toggleDropdown = useCallback(() => {
+    setOpen((prev) => {
+      if (!prev) setHighlightIndex(options.findIndex((o) => o.value === value));
+      return !prev;
+    });
+  }, [options, value]);
 
   const selectOption = useCallback(
     (v: T) => {
@@ -50,7 +56,7 @@ export function Dropdown<T extends string = string>({ value, onChange, options, 
       if (!open) {
         if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          setOpen(true);
+          openDropdown();
         }
         return;
       }
@@ -77,7 +83,7 @@ export function Dropdown<T extends string = string>({ value, onChange, options, 
           break;
       }
     },
-    [open, options, highlightIndex, selectOption],
+    [open, options, highlightIndex, selectOption, openDropdown],
   );
 
   const current = options.find((o) => o.value === value);
@@ -90,7 +96,7 @@ export function Dropdown<T extends string = string>({ value, onChange, options, 
       <div ref={ref} className="relative">
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={toggleDropdown}
           onKeyDown={handleKeyDown}
           aria-haspopup="listbox"
           aria-expanded={open}

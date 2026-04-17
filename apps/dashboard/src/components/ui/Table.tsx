@@ -80,7 +80,7 @@ interface DataTableProps<T> {
   getRowKey: (row: T) => string | number;
   getRowClassName?: (row: T) => string;
   stickyHeader?: boolean;
-  initialSort?: SortState | null;
+  defaultSort?: SortState | null;
   allowUnsorted?: boolean;
 }
 
@@ -90,13 +90,13 @@ export function DataTable<T>({
   getRowKey,
   getRowClassName,
   stickyHeader = false,
-  initialSort = null,
+  defaultSort = null,
   allowUnsorted = true,
 }: DataTableProps<T>) {
   const columnIds = useMemo(() => columns.map((col) => col.id), [columns]);
   const columnStorageKey = getColumnWidthStorageKey(columnIds);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => loadColumnWidths(columnStorageKey));
-  const [sort, setSort] = useState<SortState | null>(initialSort);
+  const [sort, setSort] = useState<SortState | null>(() => defaultSort);
   const mouseMoveHandlerRef = useRef<(event: MouseEvent) => void>(() => {});
   const resizeStateRef = useRef<{
     leftColId: string;

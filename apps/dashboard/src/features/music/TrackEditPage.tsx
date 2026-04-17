@@ -7,7 +7,7 @@ import {
   SpinnerGap as SpinnerGapIcon,
   XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { EditorPageShell } from "@/components/ui/EditorPageShell";
@@ -43,6 +43,63 @@ const readOnlyClass =
 
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
+interface LoadState {
+  phase: "loading" | "loaded" | "notFound";
+  track: TrackDetail | null;
+}
+type LoadAction = { type: "loaded"; track: TrackDetail } | { type: "notFound" } | { type: "reload" };
+
+function loadReducer(_state: LoadState, action: LoadAction): LoadState {
+  switch (action.type) {
+    case "loaded":
+      return { phase: "loaded", track: action.track };
+    case "notFound":
+      return { phase: "notFound", track: null };
+    case "reload":
+      return { phase: "loading", track: null };
+  }
+}
+
+interface FormState {
+  title: string;
+  artists: string;
+  albumName: string;
+  isrc: string;
+  artworkUrl: string;
+}
+type FormAction = { type: "set"; field: keyof FormState; value: string } | { type: "hydrate"; form: FormState };
+
+function formReducer(state: FormState, action: FormAction): FormState {
+  switch (action.type) {
+    case "set":
+      return { ...state, [action.field]: action.value };
+    case "hydrate":
+      return action.form;
+  }
+}
+
+const emptyForm: FormState = { title: "", artists: "", albumName: "", isrc: "", artworkUrl: "" };
+
+interface SaveState {
+  saving: boolean;
+  saved: boolean;
+  error: string | null;
+}
+type SaveAction = { type: "start" } | { type: "success" } | { type: "clearSaved" } | { type: "error"; error: string };
+
+function saveReducer(state: SaveState, action: SaveAction): SaveState {
+  switch (action.type) {
+    case "start":
+      return { saving: true, saved: false, error: null };
+    case "success":
+      return { saving: false, saved: true, error: null };
+    case "clearSaved":
+      return { ...state, saved: false };
+    case "error":
+      return { saving: false, saved: false, error: action.error };
+  }
+}
+
 export function TrackEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -50,61 +107,51 @@ export function TrackEditPage() {
   const m = messages.music.trackEdit;
   const common = messages.common;
 
-  const [track, setTrack] = useState<TrackDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-
-  const [title, setTitle] = useState("");
-  const [artists, setArtists] = useState("");
-  const [albumName, setAlbumName] = useState("");
-  const [isrc, setIsrc] = useState("");
-  const [artworkUrl, setArtworkUrl] = useState("");
-
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [load, loadDispatch] = useReducer(loadReducer, { phase: "loading", track: null });
+  const [form, formDispatch] = useReducer(formReducer, emptyForm);
+  const [save, saveDispatch] = useReducer(saveReducer, { saving: false, saved: false, error: null });
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
+    loadDispatch({ type: "reload" });
     api
       .get<TrackDetail>(ENDPOINTS.admin.tracks.detail(id))
       .then((data) => {
-        setTrack(data);
-        setTitle(data.title);
-        setArtists(data.artists.join(", "));
-        setAlbumName(data.albumName ?? "");
-        setIsrc(data.isrc ?? "");
-        setArtworkUrl(data.artworkUrl ?? "");
+        loadDispatch({ type: "loaded", track: data });
+        formDispatch({
+          type: "hydrate",
+          form: {
+            title: data.title,
+            artists: data.artists.join(", "),
+            albumName: data.albumName ?? "",
+            isrc: data.isrc ?? "",
+            artworkUrl: data.artworkUrl ?? "",
+          },
+        });
       })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
+      .catch(() => loadDispatch({ type: "notFound" }));
   }, [id]);
 
   const handleSave = useCallback(async () => {
-    if (!id || saving) return;
-    setSaving(true);
-    setError(null);
-    setSaved(false);
+    if (!id || save.saving) return;
+    saveDispatch({ type: "start" });
     try {
       await api.patch(ENDPOINTS.admin.tracks.detail(id), {
-        title,
-        artists: artists
-          .split(",")
-          .map((a) => a.trim())
-          .filter(Boolean),
-        albumName: albumName || null,
-        isrc: isrc || null,
-        artworkUrl: artworkUrl || null,
+        title: form.title,
+        artists: form.artists.split(",").flatMap((a) => {
+          const trimmed = a.trim();
+          return trimmed ? [trimmed] : [];
+        }),
+        albumName: form.albumName || null,
+        isrc: form.isrc || null,
+        artworkUrl: form.artworkUrl || null,
       });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      saveDispatch({ type: "success" });
+      setTimeout(() => saveDispatch({ type: "clearSaved" }), 2000);
     } catch {
-      setError(m.saveError);
-    } finally {
-      setSaving(false);
+      saveDispatch({ type: "error", error: m.saveError });
     }
-  }, [id, saving, title, artists, albumName, isrc, artworkUrl, m.saveError]);
+  }, [id, save.saving, form, m.saveError]);
 
   useKeyboardSave(handleSave);
 
@@ -112,7 +159,7 @@ export function TrackEditPage() {
     navigate("/tracks");
   }
 
-  if (loading) {
+  if (load.phase === "loading") {
     return (
       <EditorPageShell title="" backLabel={m.backLabel} onBack={handleCancel}>
         <div className="flex items-center justify-center py-12">
@@ -122,7 +169,7 @@ export function TrackEditPage() {
     );
   }
 
-  if (notFound || !track) {
+  if (load.phase === "notFound" || !load.track) {
     return (
       <EditorPageShell title="" backLabel={m.backLabel} onBack={handleCancel}>
         <p className="text-sm text-[var(--ds-text-muted)] text-center py-12">{m.notFound}</p>
@@ -130,17 +177,18 @@ export function TrackEditPage() {
     );
   }
 
+  const track = load.track;
   const linksByService = new Map(track.serviceLinks.map((l) => [l.service, l.url]));
 
   const toolbar = (
     <div className="flex items-center gap-3 ml-auto">
-      {saved && (
+      {save.saved && (
         <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
           <CheckCircleIcon weight="duotone" className="w-3.5 h-3.5" />
           {common.saved}
         </span>
       )}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {save.error && <p className="text-xs text-red-500">{save.error}</p>}
       <EditorToolbarButton
         variant="neutral"
         icon={<XCircleIcon weight="duotone" className="w-3.5 h-3.5" />}
@@ -152,9 +200,9 @@ export function TrackEditPage() {
         variant="primary"
         icon={<FloppyDiskIcon weight="duotone" className="w-3.5 h-3.5" />}
         onClick={handleSave}
-        disabled={saving}
+        disabled={save.saving}
       >
-        {saving ? common.saving : common.save}
+        {save.saving ? common.saving : common.save}
       </EditorToolbarButton>
     </div>
   );
@@ -219,8 +267,8 @@ export function TrackEditPage() {
               <input
                 id="track-title"
                 type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                value={form.title}
+                onChange={(e) => formDispatch({ type: "set", field: "title", value: e.target.value })}
                 className={fieldClass}
               />
             </div>
@@ -231,8 +279,8 @@ export function TrackEditPage() {
               <input
                 id="track-artists"
                 type="text"
-                value={artists}
-                onChange={(e) => setArtists(e.target.value)}
+                value={form.artists}
+                onChange={(e) => formDispatch({ type: "set", field: "artists", value: e.target.value })}
                 className={fieldClass}
                 placeholder={m.artistsHint}
               />
@@ -244,8 +292,8 @@ export function TrackEditPage() {
               <input
                 id="track-album"
                 type="text"
-                value={albumName}
-                onChange={(e) => setAlbumName(e.target.value)}
+                value={form.albumName}
+                onChange={(e) => formDispatch({ type: "set", field: "albumName", value: e.target.value })}
                 className={fieldClass}
               />
             </div>
@@ -256,8 +304,8 @@ export function TrackEditPage() {
               <input
                 id="track-isrc"
                 type="text"
-                value={isrc}
-                onChange={(e) => setIsrc(e.target.value)}
+                value={form.isrc}
+                onChange={(e) => formDispatch({ type: "set", field: "isrc", value: e.target.value })}
                 className={fieldClass}
               />
             </div>
@@ -271,8 +319,8 @@ export function TrackEditPage() {
             <input
               id="track-artwork-url"
               type="text"
-              value={artworkUrl}
-              onChange={(e) => setArtworkUrl(e.target.value)}
+              value={form.artworkUrl}
+              onChange={(e) => formDispatch({ type: "set", field: "artworkUrl", value: e.target.value })}
               className={fieldClass}
             />
           </div>
