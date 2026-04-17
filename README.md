@@ -1,10 +1,10 @@
-[![Astro](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/astro?filename=apps%2Ffrontend%2Fpackage.json&label=astro&color=ff5d01&style=flat)](https://astro.build)
-[![Biome](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/dev/@biomejs/biome?label=biome&color=60a5fa&style=flat)](https://biomejs.dev)
-[![CI](https://img.shields.io/github/actions/workflow/status/phranck/musiccloud.io/ci.yml?branch=main&label=CI&style=flat)](https://github.com/phranck/musiccloud.io/actions/workflows/ci.yml)
-[![Fastify](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/fastify?filename=apps%2Fbackend%2Fpackage.json&label=fastify&color=000000&style=flat)](https://fastify.dev)
-[![React](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/react?filename=apps%2Ffrontend%2Fpackage.json&label=react&color=61dafb&style=flat)](https://react.dev)
-[![TypeScript](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/dev/typescript?label=typescript&color=3178c6&style=flat)](https://www.typescriptlang.org)
-[![License: MIT](https://img.shields.io/github/license/phranck/musiccloud.io?style=flat)](LICENSE)
+[![Astro](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/astro?filename=apps%2Ffrontend%2Fpackage.json&label=astro&color=e40303&style=flat)](https://astro.build)
+[![Biome](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/dev/@biomejs/biome?label=biome&color=ff8c00&style=flat)](https://biomejs.dev)
+[![CI](https://img.shields.io/github/actions/workflow/status/phranck/musiccloud.io/ci.yml?branch=main&label=CI&color=ffd700&style=flat)](https://github.com/phranck/musiccloud.io/actions/workflows/ci.yml)
+[![Fastify](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/fastify?filename=apps%2Fbackend%2Fpackage.json&label=fastify&color=008026&style=flat)](https://fastify.dev)
+[![React](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/react?filename=apps%2Ffrontend%2Fpackage.json&label=react&color=0057b7&style=flat)](https://react.dev)
+[![TypeScript](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/dev/typescript?label=typescript&color=4b0082&style=flat)](https://www.typescriptlang.org)
+[![License: MIT](https://img.shields.io/github/license/phranck/musiccloud.io?label=license&color=9400d3&style=flat)](LICENSE)
 
 # musiccloud.io
 
