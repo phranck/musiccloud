@@ -11,7 +11,11 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
     <>
       <div className="flex gap-4 min-h-24">
         {profile.imageUrl && (
-          <RecessedCard className="p-0 w-24 h-24 flex-none relative overflow-hidden" radius="8px" borderWidth="2px">
+          <RecessedCard
+            className="p-0 w-24 h-24 flex-none relative overflow-hidden"
+            radius={{ base: "4px", sm: "8px" }}
+            borderWidth="2px"
+          >
             <img
               src={profile.imageUrl}
               alt=""

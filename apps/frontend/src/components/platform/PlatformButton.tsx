@@ -63,7 +63,7 @@ export const PlatformButton = memo(function PlatformButton({
       aria-label={`Open ${songTitle} on ${label} (opens in new window)`}
       onClick={() => trackServiceLinkClick(platform)}
       className={cn(
-        "flex items-center px-3 rounded-lg no-underline w-full",
+        "flex items-center px-3 rounded-[4px] sm:rounded-lg no-underline w-full",
         "hover:shadow-[0_0_8px_var(--embossed-glow)] focus-visible:shadow-[0_0_8px_var(--embossed-glow)]",
         s.minH,
         s.gap,

@@ -51,7 +51,7 @@ export function PlaybackButton({
       hasInnerShadow={!disabled}
       pressed={isPlaying && !disabled}
       className={cn(
-        "relative flex-shrink-0 flex items-center justify-center rounded-lg",
+        "relative flex-shrink-0 flex items-center justify-center rounded-[4px] sm:rounded-lg",
         "px-0 py-0",
         sizeClasses[size],
         disabled && "cursor-not-allowed opacity-50",

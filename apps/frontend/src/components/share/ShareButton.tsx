@@ -44,7 +44,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
   }, []);
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-1.5">
       <EmbossedButton
         as="button"
         type="button"
@@ -52,7 +52,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
         aria-label={t("share.copyLink")}
         className={cn(
           "flex-1 flex items-center justify-center gap-2",
-          "rounded-lg font-bold text-[15px] tracking-[-0.01em]",
+          "rounded-[4px] sm:rounded-lg font-bold text-[15px] tracking-[-0.01em]",
           "min-h-[50px]",
           "shadow-sm",
           state === "idle"
@@ -103,7 +103,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
           as="button"
           type="button"
           onClick={handleNativeShare}
-          className="rounded-lg px-4 py-3"
+          className="rounded-[4px] sm:rounded-lg px-4 py-3"
           hasInnerShadow
           aria-label={songTitle ? t("share.nativeShare", { title: songTitle }) : t("share.shareLink")}
         >

@@ -17,7 +17,7 @@ export function UpcomingEventsSection({ events, userRegion, hasLocalEvents, t, l
       <SectionHeading info={hasLocalEvents ? t("artist.upcomingEventsInfo") : undefined}>
         {t("artist.upcomingEvents")}
       </SectionHeading>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         {events.map((event) => {
           const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
           const linkProps = event.ticketUrl
@@ -27,7 +27,7 @@ export function UpcomingEventsSection({ events, userRegion, hasLocalEvents, t, l
             <EmbossedButton
               key={`${event.date}-${event.venueName || event.city}`}
               noScale
-              className="flex items-center gap-3 w-full rounded-lg px-3 py-2 no-underline"
+              className="flex items-center gap-3 w-full rounded-[4px] sm:rounded-lg px-3 py-2 no-underline"
               {...linkProps}
             >
               <div className="min-w-0 flex-1">

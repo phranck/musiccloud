@@ -64,7 +64,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
       : false;
 
   return (
-    <EmbossedCard className="w-full rounded-3xl sm:rounded-[36px] p-0">
+    <EmbossedCard className="w-full rounded-[1.375rem] sm:rounded-[2.125rem] p-0">
       <div className="relative">
         {onClose && (
           <button
@@ -79,11 +79,11 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 1. Artist Profile */}
         <CollapsibleSection visible={showProfile} sectionClass="px-3 sm:px-5 pt-3 sm:pt-5 pb-3">
-          {/* min-h = artwork (96) + 2 × 10 padding = 116 px. Guarantees the
+          {/* min-h = artwork (96) + 2 × 6 padding = 108 px. Guarantees the
               card never collapses below the artwork height when the profile
               has minimal text (no genres, no similar artists, no bio), so the
               bottom edge doesn't slide up against the artwork. */}
-          <RecessedCard className="p-[10px] min-h-[116px]" radius={{ base: "0.75rem", sm: "1rem" }}>
+          <RecessedCard className="p-1.5 min-h-[108px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <CrossFade
               contentReady={contentReady}
               skeleton={<ProfileSkeleton />}
@@ -97,7 +97,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 2. Popular Tracks */}
         <CollapsibleSection visible={showTracks} sectionClass="px-3 sm:px-5 py-3">
-          <RecessedCard className="p-2" radius={{ base: "0.75rem", sm: "1rem" }}>
+          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <CrossFade
               contentReady={contentReady}
               skeleton={<TracksSkeleton />}
@@ -110,7 +110,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 3. Upcoming Events */}
         <CollapsibleSection visible={showEvents} sectionClass="px-3 sm:px-5 py-3">
-          <RecessedCard className="p-2" radius={{ base: "0.75rem", sm: "1rem" }}>
+          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <CrossFade
               contentReady={contentReady}
               skeleton={<EventsSkeleton />}
@@ -134,7 +134,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
         {/* 4. Similar Artists */}
         <CollapsibleSection visible={showSimilar} sectionClass="px-3 sm:px-5 pt-3 pb-3 sm:pb-5">
-          <RecessedCard className="p-2" radius={{ base: "0.75rem", sm: "1rem" }}>
+          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <CrossFade
               contentReady={contentReady}
               skeleton={<SimilarArtistsSkeleton />}
@@ -157,7 +157,7 @@ function ProfileSkeleton() {
   return (
     <div className="animate-pulse">
       <div className="flex gap-4">
-        <div className="w-24 h-24 rounded-xl bg-white/[0.08] flex-none" />
+        <div className="w-24 h-24 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
         <div className="flex-1 space-y-2 pt-1">
           <div className="flex gap-1.5 flex-wrap">
             <div className="h-5 w-14 rounded-full bg-white/[0.08]" />
@@ -183,12 +183,12 @@ function TracksSkeleton() {
       <div className="space-y-4">
         {(["sk-a", "sk-b", "sk-c"] as const).map((k) => (
           <div key={k} className="flex gap-3 items-center">
-            <div className="w-12 h-12 rounded-lg bg-white/[0.08] flex-none" />
+            <div className="w-12 h-12 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
             <div className="flex-1 space-y-1.5">
               <div className="h-3 bg-white/[0.08] rounded w-4/5" />
               <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
             </div>
-            <div className="h-7 w-16 rounded-lg bg-white/[0.08] flex-none" />
+            <div className="h-7 w-16 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
           </div>
         ))}
       </div>
@@ -207,7 +207,7 @@ function EventsSkeleton() {
               <div className="h-3 bg-white/[0.08] rounded w-16" />
               <div className="h-4 bg-white/[0.08] rounded w-3/4" />
             </div>
-            <div className="h-7 w-20 rounded-lg bg-white/[0.08] flex-none" />
+            <div className="h-7 w-20 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
           </div>
         ))}
       </div>
@@ -224,12 +224,12 @@ function SimilarArtistsSkeleton() {
           <div key={k}>
             <div className="h-3 bg-white/[0.08] rounded w-1/4 mb-2" />
             <div className="flex gap-3 items-center">
-              <div className="w-12 h-12 rounded-lg bg-white/[0.08] flex-none" />
+              <div className="w-12 h-12 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
               <div className="flex-1 space-y-1.5">
                 <div className="h-3 bg-white/[0.08] rounded w-4/5" />
                 <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
               </div>
-              <div className="h-7 w-16 rounded-lg bg-white/[0.08] flex-none" />
+              <div className="h-7 w-16 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
             </div>
           </div>
         ))}

@@ -41,7 +41,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
   return (
     <EmbossedCard
       className={cn(
-        "w-full max-w-full sm:max-w-lg mx-auto rounded-2xl sm:rounded-[36px] p-0",
+        "w-full max-w-full sm:max-w-lg mx-auto rounded-[1.875rem] sm:rounded-[2.125rem] p-0",
         animated && "animate-zoom-in",
         className,
       )}
@@ -64,7 +64,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
 
       {content.previewUrl && (
         <div className="px-5 py-3">
-          <RecessedCard className="p-2" radius="1rem">
+          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <AudioPreviewPlayer previewUrl={content.previewUrl} trackTitle={content.title} />
           </RecessedCard>
         </div>
@@ -72,7 +72,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
 
       {shareUrl && (
         <div className="px-5 py-3">
-          <RecessedCard className="p-2" radius="1rem">
+          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
           </RecessedCard>
         </div>
@@ -80,8 +80,8 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
 
       {sharePageContent && (
         <div className="px-5 py-3">
-          <RecessedCard className="p-2" radius="1rem">
-            <div className="flex flex-col gap-2">
+          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+            <div className="flex flex-col gap-1.5">
               <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
               <EmbossedButton
                 as="button"
@@ -89,7 +89,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
                 onClick={() => setEmbedOpen(true)}
                 className={cn(
                   "flex items-center justify-center gap-2",
-                  "w-full rounded-lg font-semibold text-[15px] tracking-[-0.01em]",
+                  "w-full rounded-[4px] sm:rounded-lg font-semibold text-[15px] tracking-[-0.01em]",
                   "min-h-[50px]",
                 )}
               >
@@ -121,8 +121,8 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
           >
             {content.platformsLabel}
           </p>
-          <RecessedCard className="p-2" radius="1rem">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {[...content.platforms]
                 .sort((a, b) => PLATFORM_CONFIG[a.platform].label.localeCompare(PLATFORM_CONFIG[b.platform].label))
                 .map((p) => (

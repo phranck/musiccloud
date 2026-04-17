@@ -24,7 +24,7 @@ export function SimilarArtistsSection({ similarArtistTracks, t }: SimilarArtists
   return (
     <div>
       <SectionHeading>{t("artist.similarArtists")}</SectionHeading>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         {withTrack.map(({ artistName, track }) => (
           <PopularTrack key={artistName} track={track} artistLabel={artistName} />
         ))}

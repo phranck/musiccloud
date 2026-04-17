@@ -13,7 +13,7 @@ export function PopularTracksSection({ tracks, t }: PopularTracksSectionProps) {
   return (
     <div>
       <SectionHeading info={t("artist.popularTracksInfo")}>{t("artist.popularTracks")}</SectionHeading>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         {tracks.map((track) => (
           <PopularTrack key={track.deezerUrl} track={track} />
         ))}
@@ -65,7 +65,7 @@ export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; ar
       type="button"
       onClick={handleListen}
       noScale
-      className="flex items-center gap-3 w-full rounded-lg p-2"
+      className="flex items-center gap-3 w-full rounded-[4px] sm:rounded-lg p-2"
     >
       <SlideArtwork active={resolving} artworkUrl={track.artworkUrl ?? undefined} sizeClass="w-10 h-10" imgDim={40} />
       <div className="min-w-0 flex-1 text-left">
