@@ -116,10 +116,14 @@ export function EmbossedCard({ children, className, style }: EmbossedCardProps) 
       {isCompound ? (
         <>
           {hasAddOns ? (
-            <div className="relative flex items-center flex-shrink-0">
-              {leadingAddOns.length > 0 && <div className="absolute left-0 z-10">{leadingAddOns}</div>}
-              {headerChild && <div className="flex-1 text-center">{headerChild}</div>}
-              {trailingAddOns.length > 0 && <div className="absolute right-0 z-10">{trailingAddOns}</div>}
+            <div className="relative flex-shrink-0">
+              {headerChild && <div className="text-center">{headerChild}</div>}
+              {leadingAddOns.length > 0 && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10">{leadingAddOns}</div>
+              )}
+              {trailingAddOns.length > 0 && (
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10">{trailingAddOns}</div>
+              )}
             </div>
           ) : (
             headerChild

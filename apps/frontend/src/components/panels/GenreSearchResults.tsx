@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { NavigationBackButton } from "@/components/navigation/NavigationBackButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { GenreColumn } from "@/components/ui/GenreColumn";
 import { GenreRowButton } from "@/components/ui/GenreRowButton";
@@ -102,17 +103,7 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
       <EmbossedCard className="rounded-2xl p-5 flex flex-col max-h-[calc(100vh-16rem)]">
         {onBack && (
           <EmbossedCard.AddOn align="leading">
-            <button
-              type="button"
-              onClick={onBack}
-              className={cn(
-                "text-sm text-text-muted hover:text-text-secondary",
-                "transition-colors duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
-              )}
-            >
-              {t("genreSearch.backToBrowse")}
-            </button>
+            <NavigationBackButton onClick={onBack} label={t("genreSearch.backToBrowse")} />
           </EmbossedCard.AddOn>
         )}
         <EmbossedCard.Header className="text-center mb-4 flex-shrink-0">
