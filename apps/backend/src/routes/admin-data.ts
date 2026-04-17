@@ -53,6 +53,8 @@
 import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getAdminRepository } from "../db/index.js";
+import { clearAllArtworks } from "../services/genre-artwork/index.js";
+import { resetBrowseCache } from "../services/genre-search/lastfm.js";
 
 export default async function adminDataRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.tracks.list, async (request) => {
@@ -114,6 +116,15 @@ export default async function adminDataRoutes(app: FastifyInstance) {
   app.post(ENDPOINTS.admin.cache.artistClear, async (_request, reply) => {
     const repo = await getAdminRepository();
     const result = await repo.clearArtistCache();
+    return reply.send(result);
+  });
+
+  // Purge every stored genre artwork AND reset the in-memory browse-grid
+  // cache. The next `genre:?` tile fetch refetches Last.fm top tags and
+  // re-generates all tile JPEGs with the current generator settings.
+  app.post(ENDPOINTS.admin.cache.genreClear, async (_request, reply) => {
+    const result = await clearAllArtworks();
+    resetBrowseCache();
     return reply.send(result);
   });
 

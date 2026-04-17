@@ -20,7 +20,7 @@ import { generateArtwork } from "./generator.js";
 import { getArtwork, type StoredArtwork, saveArtwork } from "./repository.js";
 
 export type { StoredArtwork } from "./repository.js";
-export { getAccentColors, getArtwork as getCachedArtwork } from "./repository.js";
+export { clearAllArtworks, getAccentColors, getArtwork as getCachedArtwork } from "./repository.js";
 
 const inflight = new Map<string, Promise<StoredArtwork>>();
 

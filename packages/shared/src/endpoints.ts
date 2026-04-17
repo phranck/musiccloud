@@ -149,6 +149,8 @@ export const ENDPOINTS = {
       invalidateAll: "/api/admin/cache/invalidate-all",
       /** POST: drop the artist-info (top tracks / profile / tour dates) cache. */
       artistClear: "/api/admin/artist-cache/clear",
+      /** POST: drop all stored genre-browse artworks AND reset the in-memory browse-grid cache. */
+      genreClear: "/api/admin/cache/genre/clear",
     },
 
     /** GET: counts of tracks / albums / artists in the DB. */

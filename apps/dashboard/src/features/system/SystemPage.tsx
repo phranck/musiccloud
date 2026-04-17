@@ -314,6 +314,12 @@ export function SystemPage() {
                 .replace("{artists}", String(r.artists))
             }
           />
+          <CacheAction
+            label={m.genreCacheLabel}
+            description={m.genreCacheDescription}
+            buttonLabel={m.genreCacheClear}
+            endpoint={ENDPOINTS.admin.cache.genreClear}
+          />
         </div>
       </div>
 

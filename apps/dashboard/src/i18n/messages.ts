@@ -184,6 +184,9 @@ export interface DashboardMessages {
     shareCacheDescription: string;
     shareCacheClear: string;
     shareCacheSuccess: string;
+    genreCacheLabel: string;
+    genreCacheDescription: string;
+    genreCacheClear: string;
     dangerZoneTitle: string;
     deleteAllLabel: string;
     deleteAllDescriptionWithCounts: string;
@@ -877,6 +880,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         "Markiert alle Tracks, Alben und Artists als stale. Beim n\u00e4chsten Aufruf eines Shares werden die Quelldaten neu von den Services geladen. Share-URLs bleiben erhalten.",
       shareCacheClear: "Auffrischen",
       shareCacheSuccess: "{tracks} Tracks, {albums} Alben, {artists} Artists aufgefrischt.",
+      genreCacheLabel: "Genre-Cache leeren",
+      genreCacheDescription:
+        "L\u00f6scht alle generierten Genre-Artworks aus der Datenbank und den In-Memory-Browse-Grid-Cache. Beim n\u00e4chsten Aufruf von `genre:?` werden die Kacheln neu geladen und die Artworks frisch gerendert.",
+      genreCacheClear: "Leeren",
       dangerZoneTitle: "Danger Zone",
       deleteAllLabel: "Alle Daten l\u00f6schen",
       deleteAllDescriptionWithCounts:
@@ -1541,6 +1548,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         "Marks every track, album and artist as stale. The next request to a share re-fetches fresh source data from the services. Share URLs remain intact.",
       shareCacheClear: "Refresh",
       shareCacheSuccess: "{tracks} tracks, {albums} albums, {artists} artists refreshed.",
+      genreCacheLabel: "Clear genre cache",
+      genreCacheDescription:
+        "Drops every generated genre artwork from the database and resets the in-memory browse-grid cache. The next `genre:?` request refetches tiles and re-renders the artworks.",
+      genreCacheClear: "Clear",
       dangerZoneTitle: "Danger Zone",
       deleteAllLabel: "Delete all data",
       deleteAllDescriptionWithCounts:

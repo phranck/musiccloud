@@ -408,6 +408,14 @@ export interface GenreTile {
 let browseCache: { tiles: GenreTile[]; expiresAt: number } | null = null;
 let browseCacheInflight: Promise<GenreTile[]> | null = null;
 const BROWSE_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Drop the in-memory browse-grid cache so the next `getGenreBrowseGrid()`
+ * call re-fetches from Last.fm and re-runs the album-cover probes.
+ */
+export function resetBrowseCache(): void {
+  browseCache = null;
+}
 const BROWSE_GENRE_COUNT = 250;
 
 // Decades we always want in the browse grid. Last.fm's top-tags list

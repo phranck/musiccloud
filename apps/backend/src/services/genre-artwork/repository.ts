@@ -52,6 +52,16 @@ export async function saveArtwork(
 }
 
 /**
+ * Drop every stored artwork. Used by the admin "purge genre cache" action
+ * so a subsequent request to `/genre-artwork/:key` re-generates with the
+ * latest generator code / style.
+ */
+export async function clearAllArtworks(): Promise<{ deleted: number }> {
+  const result = await getPool().query(`DELETE FROM genre_artworks`);
+  return { deleted: result.rowCount ?? 0 };
+}
+
+/**
  * Batch-fetch accent colors for a list of genres. Used by the browse-grid
  * endpoint to inline already-known accents without pulling the JPEG bytes.
  */
