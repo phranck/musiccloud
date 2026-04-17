@@ -54,9 +54,11 @@ async function buildApp() {
   await app.register(sensible);
 
   // JWT plugin (used by auth routes and public API auth)
-  await app.register(jwt, {
-    secret: process.env.JWT_SECRET ?? "dev-secret-change-in-production",
-  });
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error("JWT_SECRET environment variable is required");
+  }
+  await app.register(jwt, { secret: jwtSecret });
 
   // Auth decorators (authenticateInternal, authenticatePublic)
   await app.register(authPlugin);
