@@ -41,7 +41,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
   return (
     <EmbossedCard
       className={cn(
-        "w-full max-w-full sm:max-w-lg mx-auto rounded-[1.875rem] sm:rounded-[2.125rem] p-0",
+        "w-full max-w-full sm:max-w-lg mx-auto rounded-[1.375rem] sm:rounded-[1.625rem] p-0",
         animated && "animate-zoom-in",
         className,
       )}
@@ -63,7 +63,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       />
 
       {content.previewUrl && (
-        <div className="px-5 py-3">
+        <div className="p-3">
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <AudioPreviewPlayer previewUrl={content.previewUrl} trackTitle={content.title} />
           </RecessedCard>
@@ -71,7 +71,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       )}
 
       {shareUrl && (
-        <div className="px-5 py-3">
+        <div className="p-3">
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
           </RecessedCard>
@@ -79,7 +79,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       )}
 
       {sharePageContent && (
-        <div className="px-5 py-3">
+        <div className="p-3">
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <div className="flex flex-col gap-1.5">
               <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
@@ -114,7 +114,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       )}
 
       {content.platforms.length > 0 && (
-        <div className="px-5 pt-3 pb-5">
+        <div className="p-3">
           <p
             className="text-sm uppercase tracking-widest text-text-secondary font-bold mb-3 px-(--spacing-card-inset)"
             style={{ fontFamily: "var(--font-condensed)" }}
@@ -144,7 +144,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       )}
 
       {content.platforms.length === 0 && content.platformsInfo && (
-        <div className="px-5 py-3">
+        <div className="p-3">
           <p className="text-sm text-text-secondary text-center">{content.platformsInfo}</p>
         </div>
       )}

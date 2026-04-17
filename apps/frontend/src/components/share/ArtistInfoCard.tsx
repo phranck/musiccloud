@@ -64,7 +64,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
       : false;
 
   return (
-    <EmbossedCard className="w-full rounded-[1.375rem] sm:rounded-[2.125rem] p-0">
+    <EmbossedCard className="w-full rounded-[1.375rem] sm:rounded-[1.625rem] p-0">
       <div className="relative">
         {onClose && (
           <button
@@ -78,7 +78,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         )}
 
         {/* 1. Artist Profile */}
-        <CollapsibleSection visible={showProfile} sectionClass="px-3 sm:px-5 pt-3 sm:pt-5 pb-3">
+        <CollapsibleSection visible={showProfile} sectionClass="p-3">
           {/* min-h = artwork (96) + 2 × 6 padding = 108 px. Guarantees the
               card never collapses below the artwork height when the profile
               has minimal text (no genres, no similar artists, no bio), so the
@@ -96,7 +96,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         </CollapsibleSection>
 
         {/* 2. Popular Tracks */}
-        <CollapsibleSection visible={showTracks} sectionClass="px-3 sm:px-5 py-3">
+        <CollapsibleSection visible={showTracks} sectionClass="p-3">
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <CrossFade
               contentReady={contentReady}
@@ -109,7 +109,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         </CollapsibleSection>
 
         {/* 3. Upcoming Events */}
-        <CollapsibleSection visible={showEvents} sectionClass="px-3 sm:px-5 py-3">
+        <CollapsibleSection visible={showEvents} sectionClass="p-3">
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <CrossFade
               contentReady={contentReady}
@@ -133,7 +133,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
         </CollapsibleSection>
 
         {/* 4. Similar Artists */}
-        <CollapsibleSection visible={showSimilar} sectionClass="px-3 sm:px-5 pt-3 pb-3 sm:pb-5">
+        <CollapsibleSection visible={showSimilar} sectionClass="p-3">
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <CrossFade
               contentReady={contentReady}
