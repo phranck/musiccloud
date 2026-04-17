@@ -100,7 +100,7 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
         columnCount >= 3 && "md:max-w-5xl",
       )}
     >
-      <EmbossedCard className="rounded-2xl p-5 flex flex-col max-h-[calc(100vh-16rem)]">
+      <EmbossedCard className="rounded-[1.875rem] p-3 flex flex-col max-h-[calc(100vh-16rem)]">
         {onBack && (
           <EmbossedCard.AddOn align="leading">
             <NavigationBackButton onClick={onBack} label={t("genreSearch.backToBrowse")} />
