@@ -7,6 +7,7 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { EmbedModal } from "@/components/share/EmbedModal";
+import { SectionHeading } from "@/components/share/SectionHeading";
 import { ShareButton } from "@/components/share/ShareButton";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
@@ -115,13 +116,8 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
 
       {content.platforms.length > 0 && (
         <div className="p-3">
-          <p
-            className="text-sm uppercase tracking-widest text-text-secondary font-bold mb-3 px-(--spacing-card-inset)"
-            style={{ fontFamily: "var(--font-condensed)" }}
-          >
-            {content.platformsLabel}
-          </p>
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+            <SectionHeading>{content.platformsLabel}</SectionHeading>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {[...content.platforms]
                 .sort((a, b) => PLATFORM_CONFIG[a.platform].label.localeCompare(PLATFORM_CONFIG[b.platform].label))
