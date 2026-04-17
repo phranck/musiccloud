@@ -1,7 +1,31 @@
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore } from "react";
+import csTranslations from "./translations/cs.json";
+import deTranslations from "./translations/de.json";
+import enTranslations from "./translations/en.json";
+import esTranslations from "./translations/es.json";
+import frTranslations from "./translations/fr.json";
+import itTranslations from "./translations/it.json";
+import nlTranslations from "./translations/nl.json";
+import ptTranslations from "./translations/pt.json";
+import trTranslations from "./translations/tr.json";
 import { detectLocale, LOCALE_STORAGE_KEY, type Locale } from "./locales";
 
 type Translations = Record<string, string>;
+
+// Translations are bundled eagerly so they're available at first render —
+// a lazy `import('./translations/${locale}.json')` would briefly show raw
+// keys (e.g. "hero.placeholder") until the module resolves.
+const TRANSLATIONS_BY_LOCALE: Record<Locale, Translations> = {
+  cs: csTranslations,
+  de: deTranslations,
+  en: enTranslations,
+  es: esTranslations,
+  fr: frTranslations,
+  it: itTranslations,
+  nl: nlTranslations,
+  pt: ptTranslations,
+  tr: trTranslations,
+};
 
 interface LocaleContextValue {
   locale: Locale;
@@ -33,7 +57,7 @@ export function LocaleProvider({
 }) {
   const detected = useSyncExternalStore(noopSubscribe, detectedLocale, serverLocale);
   const [locale, setLocaleState] = useState<Locale>(initialLocaleProp ?? detected);
-  const [translations, setTranslations] = useState<Translations>({});
+  const translations = TRANSLATIONS_BY_LOCALE[locale] ?? TRANSLATIONS_BY_LOCALE.en;
 
   // Persist detected locale to cookie + localStorage on first mount
   // so SSR pages can read it even without explicit language switch
@@ -50,13 +74,6 @@ export function LocaleProvider({
     window.addEventListener(LOCALE_EVENT, handler);
     return () => window.removeEventListener(LOCALE_EVENT, handler);
   }, []);
-
-  // Load translation file whenever locale changes
-  useEffect(() => {
-    import(`./translations/${locale}.json`)
-      .then((mod) => setTranslations(mod.default as Translations))
-      .catch(() => import("./translations/en.json").then((mod) => setTranslations(mod.default as Translations)));
-  }, [locale]);
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);

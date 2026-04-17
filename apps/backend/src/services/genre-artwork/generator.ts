@@ -20,7 +20,8 @@ import type opentype from "opentype.js";
 
 const SIZE = 512;
 const JPEG_QUALITY = 82;
-const COVER_SIZE = 280;
+const COVER_SIZE = 320;
+const COVER_CORNER_RADIUS = 24;
 const COVER_ROTATION_DEG = -18;
 const COVER_CENTER_X = 380;
 const COVER_CENTER_Y = 380;
@@ -276,6 +277,30 @@ function pathToTextCanvas(
 }
 
 /**
+ * Multiply the alpha of `img` with a rounded-rectangle mask so the thumb
+ * gets slightly-rounded corners. Antialiased at the edge via sub-pixel
+ * distance to the corner centre.
+ */
+function applyRoundedCorners(img: JimpInstance, radius: number): void {
+  const w = img.bitmap.width;
+  const h = img.bitmap.height;
+  const r = Math.min(radius, Math.floor(Math.min(w, h) / 2));
+  if (r <= 0) return;
+
+  img.scan(0, 0, w, h, (x, y, idx) => {
+    const cx = x < r ? r : x > w - r - 1 ? w - r - 1 : x;
+    const cy = y < r ? r : y > h - r - 1 ? h - r - 1 : y;
+    const dx = x - cx;
+    const dy = y - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    let factor = 1;
+    if (dist > r) factor = 0;
+    else if (dist > r - 1) factor = r - dist;
+    if (factor < 1) img.bitmap.data[idx + 3] = Math.round(img.bitmap.data[idx + 3] * factor);
+  });
+}
+
+/**
  * Generate a drop-shadow image for any alpha-bearing source. Clones the
  * source, replaces every opaque pixel's RGB with the shadow colour at a
  * fraction of the original alpha, then gaussian-blurs. Same technique we
@@ -355,30 +380,24 @@ export async function generateArtwork(
 
   // 2. Cover thumbnail: rotated, tucked into the lower-right with a
   //    deliberate off-canvas crop and a subtle drop shadow. Skipped if
-  //    no cover was available for this genre.
-  //
-  //    Subtlety: `jimp.rotate()` on a JPEG (RGB, no alpha) fills the
-  //    corners of the grown bounding box with edge-colour pixels rather
-  //    than transparency. Workaround: composite the cover onto a larger
-  //    fully-transparent canvas first, then rotate — the corners come
-  //    from transparent canvas and stay transparent.
+  //    no cover was available for this genre. Rounded corners are applied
+  //    before rotation — that also gives the thumb a real alpha channel,
+  //    so `rotate()` fills the grown bounding box with transparency
+  //    instead of edge-colour pixels.
   if (coverBuffer) {
     try {
       const thumb = (await Jimp.read(coverBuffer)) as JimpInstance;
       thumb.resize({ w: COVER_SIZE, h: COVER_SIZE });
-      const canvasSize = Math.ceil(COVER_SIZE * Math.SQRT2) + 4;
-      const canvas = new Jimp({ width: canvasSize, height: canvasSize, color: 0 }) as JimpInstance;
-      const inset = Math.floor((canvasSize - COVER_SIZE) / 2);
-      canvas.composite(thumb, inset, inset);
-      canvas.rotate(COVER_ROTATION_DEG);
+      applyRoundedCorners(thumb, COVER_CORNER_RADIUS);
+      thumb.rotate(COVER_ROTATION_DEG);
 
       // Drop shadow for the cover: solid-black version at reduced alpha,
       // gaussian-blurred, composited before the real cover goes on top.
-      const coverShadow = buildShadow(canvas, [0, 0, 0], COVER_SHADOW_ALPHA, COVER_SHADOW_BLUR);
-      const px = COVER_CENTER_X - canvas.bitmap.width / 2;
-      const py = COVER_CENTER_Y - canvas.bitmap.height / 2;
+      const coverShadow = buildShadow(thumb, [0, 0, 0], COVER_SHADOW_ALPHA, COVER_SHADOW_BLUR);
+      const px = COVER_CENTER_X - thumb.bitmap.width / 2;
+      const py = COVER_CENTER_Y - thumb.bitmap.height / 2;
       img.composite(coverShadow, Math.round(px) + COVER_SHADOW_OFFSET_X, Math.round(py) + COVER_SHADOW_OFFSET_Y);
-      img.composite(canvas, Math.round(px), Math.round(py));
+      img.composite(thumb, Math.round(px), Math.round(py));
     } catch {
       // Decode failure → keep tile without the thumb; not a fatal error.
     }

@@ -111,11 +111,6 @@ const TAG_BLOCKLIST = new Set([
   "finnish",
   "norwegian",
   "irish",
-  "80s",
-  "90s",
-  "70s",
-  "60s",
-  "00s",
   "instrumental",
   "acoustic",
   "bookmark",
@@ -413,7 +408,21 @@ export interface GenreTile {
 let browseCache: { tiles: GenreTile[]; expiresAt: number } | null = null;
 let browseCacheInflight: Promise<GenreTile[]> | null = null;
 const BROWSE_TTL_MS = 24 * 60 * 60 * 1000;
-const BROWSE_GENRE_COUNT = 200;
+const BROWSE_GENRE_COUNT = 250;
+
+// Decades we always want in the browse grid. Last.fm's top-tags list
+// reliably surfaces recent ones (60s-2010s) but older decades rarely
+// make the cut, so we inject them as fallback candidates — dedupe picks
+// the real Last.fm tag whenever one exists.
+const FORCED_DECADE_TAGS: { name: string; reach?: string }[] = [
+  { name: "30s" },
+  { name: "40s" },
+  { name: "50s" },
+  { name: "60s" },
+  { name: "70s" },
+  { name: "80s" },
+  { name: "90s" },
+];
 
 /**
  * Cache-bust version for artwork URLs. The endpoint's JPEG bytes are
@@ -422,10 +431,25 @@ const BROWSE_GENRE_COUNT = 200;
  * generator algorithm, font, layout, or colour rules change — every
  * tile URL becomes a new cache key and clients refetch.
  */
-const ARTWORK_VERSION = 4;
+const ARTWORK_VERSION = 5;
 
 function capitalize(s: string): string {
   return s.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Fold "&", "n", "'n'" and surrounding whitespace variants into a single
+ * canonical "and" so different spellings of the same genre (e.g.
+ * "Rock and Roll" / "rock n roll" / "drum 'n' bass") collapse onto one
+ * key. Used both for dedupe and as the tile's stable id / cache key.
+ */
+function canonicalizeGenreKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s*&\s*/g, " and ")
+    .replace(/\s+'?n'?\s+/g, " and ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
@@ -456,14 +480,33 @@ export async function getGenreBrowseGrid(): Promise<GenreTile[]> {
     const data = await lfmFetch<{ tags?: { tag?: { name: string; reach?: string }[] } }>("chart.getTopTags", {
       limit: "400",
     });
-    const candidates = (data.tags?.tag ?? []).filter((t) => isGenreTag(t.name));
+    const rawCandidates = (data.tags?.tag ?? []).filter((t) => isGenreTag(t.name));
+
+    // Ensure decade tiles are always present even when Last.fm's top-tags
+    // call doesn't include them in this window.
+    for (const forced of FORCED_DECADE_TAGS) {
+      if (!rawCandidates.some((t) => t.name.toLowerCase() === forced.name)) {
+        rawCandidates.push(forced);
+      }
+    }
+
+    // Dedupe tags that canonicalize to the same key (e.g. "Rock and Roll"
+    // vs "rock n roll"), keeping the variant with the highest reach.
+    const bestByKey = new Map<string, { tag: { name: string; reach?: string }; reach: number }>();
+    for (const tag of rawCandidates) {
+      const key = canonicalizeGenreKey(tag.name);
+      const reach = Number(tag.reach ?? 0);
+      const existing = bestByKey.get(key);
+      if (!existing || reach > existing.reach) bestByKey.set(key, { tag, reach });
+    }
+    const candidates = [...bestByKey.values()].map((v) => v.tag);
 
     // Probe each candidate for at least one album with cover art. This
     // filters out empty genres where the artwork generator would render a
     // default-accent tile that does not reflect any actual music.
     const allTiles = await Promise.all(
       candidates.map(async (tag): Promise<{ tile: GenreTile; hasCover: boolean }> => {
-        const name = tag.name.toLowerCase();
+        const name = canonicalizeGenreKey(tag.name);
         let hasCover = false;
         try {
           const albums = await fetchTopAlbums(tag.name, 5);
@@ -481,7 +524,7 @@ export async function getGenreBrowseGrid(): Promise<GenreTile[]> {
         return {
           tile: {
             name,
-            displayName: capitalize(tag.name),
+            displayName: capitalize(name),
             // Points at the Astro frontend proxy, NOT the backend directly.
             // The browser resolves this relative URL against the page origin
             // (the Astro host), so the path must be the proxy path. The

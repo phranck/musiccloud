@@ -36,7 +36,11 @@ function Header({ children, className }: HeaderProps) {
 (Header as unknown as Record<symbol, boolean>)[HEADER_TAG] = true;
 
 function Body({ children, className }: BodyProps) {
-  return <div className={className}>{children}</div>;
+  // `flex flex-col` is baked in so that callers using `flex-1 min-h-0` on
+  // the Body's first child (grid / list wrapper) get flex-item behaviour
+  // — without it, the child is a plain block and its flex utilities are
+  // silently ignored, breaking scroll bounds.
+  return <div className={cn("flex flex-col", className)}>{children}</div>;
 }
 (Body as unknown as Record<symbol, boolean>)[BODY_TAG] = true;
 

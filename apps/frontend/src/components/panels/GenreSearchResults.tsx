@@ -117,7 +117,7 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
           ) : (
             <div
               className={cn(
-                "grid grid-cols-1 gap-4",
+                "grid grid-cols-1 gap-4 flex-1 min-h-0",
                 columnCount === 2 && "md:grid-cols-2",
                 columnCount >= 3 && "md:grid-cols-3",
               )}
