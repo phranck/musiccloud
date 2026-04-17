@@ -10,9 +10,9 @@ interface GenreBrowseGridProps {
 }
 
 /**
- * Grid of popular genre tiles with album-cover thumbnails.
- * Shown when the user submits `genre:?`. Clicking a tile triggers
- * a full `genre:<name>` search via the parent's submit handler.
+ * Grid of popular genre tiles with procedurally generated atmospheric
+ * artworks. Shown when the user submits `genre:?`. Clicking a tile
+ * triggers a full `genre:<name>` search via the parent's submit handler.
  */
 export const GenreBrowseGrid = forwardRef<HTMLDivElement, GenreBrowseGridProps>(function GenreBrowseGrid(
   { genres, onSelect },
@@ -33,46 +33,41 @@ export const GenreBrowseGrid = forwardRef<HTMLDivElement, GenreBrowseGridProps>(
         </EmbossedCard.Header>
 
         <EmbossedCard.Body className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 flex-1 min-h-0 overflow-y-auto">
-          {genres.map((genre, i) => (
-            <div key={genre.name} className="animate-slide-up" style={{ animationDelay: `${Math.min(i * 30, 600)}ms` }}>
-              <EmbossedButton
-                as="button"
-                type="button"
-                noScale
-                onClick={() => onSelect(genre.name)}
-                className="w-full rounded-xl p-0 overflow-hidden flex flex-col items-stretch"
-                aria-label={`Search ${genre.displayName}`}
-              >
-                <div className="aspect-square w-full bg-surface-elevated overflow-hidden">
-                  {genre.imageUrl ? (
-                    <img
-                      src={genre.imageUrl}
-                      alt=""
-                      width={300}
-                      height={300}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      onError={(e) => {
-                        e.currentTarget.src = "/og/default.jpg";
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-2xl text-text-muted">🎵</span>
-                    </div>
-                  )}
-                </div>
-                <div className="px-2 py-2 text-center">
-                  <p
-                    className="text-sm uppercase tracking-widest text-text-primary font-bold truncate"
-                    style={{ fontFamily: "var(--font-condensed)" }}
-                  >
-                    {genre.displayName}
-                  </p>
-                </div>
-              </EmbossedButton>
-            </div>
-          ))}
+          {genres.map((genre, i) => {
+            // When the artwork has been generated at least once, the
+            // backend inlines its dominant accent; apply it as a scoped
+            // CSS variable so every `var(--color-accent)` consumer inside
+            // the tile (border, glow, hover) picks it up automatically.
+            const tileStyle = {
+              animationDelay: `${Math.min(i * 30, 600)}ms`,
+              ...(genre.accentColor ? { ["--color-accent" as string]: genre.accentColor } : {}),
+            } as React.CSSProperties;
+
+            return (
+              <div key={genre.name} className="animate-slide-up aspect-square" style={tileStyle}>
+                <EmbossedButton
+                  as="button"
+                  type="button"
+                  noScale
+                  onClick={() => onSelect(genre.name)}
+                  className="w-full h-full rounded-xl p-0 overflow-hidden"
+                  aria-label={`Search ${genre.displayName}`}
+                >
+                  <img
+                    src={genre.artworkUrl}
+                    alt=""
+                    width={512}
+                    height={512}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.src = "/og/default.jpg";
+                    }}
+                  />
+                </EmbossedButton>
+              </div>
+            );
+          })}
         </EmbossedCard.Body>
       </EmbossedCard>
     </div>

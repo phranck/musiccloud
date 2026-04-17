@@ -147,8 +147,14 @@ export interface ApiGenreTile {
   name: string;
   /** Capitalised display name for the UI. */
   displayName: string;
-  /** Album cover thumbnail representing this genre. */
-  imageUrl?: string;
+  /** URL of the procedurally generated artwork (`/api/v1/genre-artwork/<name>`). */
+  artworkUrl: string;
+  /**
+   * Dominant accent hex derived from the genre's top album cover. Present
+   * only when the artwork has already been generated; the frontend can use
+   * it for hover/border/glow before the JPEG finishes loading.
+   */
+  accentColor?: string;
 }
 
 /**

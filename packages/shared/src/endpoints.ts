@@ -52,6 +52,8 @@ export const ENDPOINTS = {
     randomExample: "/api/v1/random-example",
     /** GET `/api/v1/link/:id`: link metadata by id. */
     link: (id: string) => `/api/v1/link/${id}`,
+    /** GET `/api/v1/genre-artwork/:genreKey`: procedurally generated genre cover. */
+    genreArtwork: (genreKey: string) => `/api/v1/genre-artwork/${encodeURIComponent(genreKey)}`,
     siteSettings: {
       /** GET: public site settings exposed to the frontend (currently: tracking flag). */
       tracking: "/api/v1/site-settings/tracking",
@@ -84,6 +86,8 @@ export const ENDPOINTS = {
     randomExample: "/api/random-example",
     /** GET: forwarded to `ENDPOINTS.v1.artistInfo`. */
     artistInfo: "/api/artist-info",
+    /** GET: forwarded to `ENDPOINTS.v1.genreArtwork`. */
+    genreArtwork: (genreKey: string) => `/api/genre-artwork/${encodeURIComponent(genreKey)}`,
     /** GET: handled entirely by Astro (`pages/api/redirect.ts`): takes `?url=`,
      * calls `ENDPOINTS.v1.resolve`, then 302s to the resolved share page. */
     redirect: "/api/redirect",
@@ -205,6 +209,7 @@ export const ROUTE_TEMPLATES = {
   v1: {
     share: "/api/v1/share/:shortId",
     link: "/api/v1/link/:id",
+    genreArtwork: "/api/v1/genre-artwork/:genreKey",
   },
   admin: {
     users: {

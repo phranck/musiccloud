@@ -36,6 +36,7 @@
 import { fetchWithTimeout } from "../../lib/infra/fetch.js";
 import { log } from "../../lib/infra/logger.js";
 import { extractPrimaryArtist } from "../artist-utils.js";
+import { getAccentColors } from "../genre-artwork/index.js";
 import { cacheAlbumImage, cacheTrackImage, getArtistImages, getTrackImages, trackImageKey } from "../image-cache.js";
 import type { GenreSearchResult, NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "../types.js";
 import { evenSpacedSample, stratifiedSample } from "./sampler.js";
@@ -150,6 +151,26 @@ async function fetchTopTracks(tag: string, limit: number): Promise<LfmTrack[]> {
     limit: String(limit),
   });
   return data.tracks?.track ?? [];
+}
+
+/**
+ * Best-effort cover lookup for a genre: ask Last.fm for its top 5 albums
+ * and return the first image we can extract. Used by the genre-artwork
+ * route as the color-sampling seed — never surfaced to the user directly
+ * anymore, so returning `null` is fine (the artwork generator falls back
+ * to a default accent in that case).
+ */
+export async function getGenreCoverUrl(genre: string): Promise<string | null> {
+  try {
+    const albums = await fetchTopAlbums(genre, 5);
+    for (const album of albums) {
+      const url = pickImage(album.image);
+      if (url) return url;
+    }
+  } catch {
+    // fall through
+  }
+  return null;
 }
 
 async function fetchTopAlbums(tag: string, limit: number): Promise<LfmAlbum[]> {
@@ -382,26 +403,49 @@ export async function lastfmSearchByGenre(input: LastfmGenreSearchInput): Promis
 export interface GenreTile {
   name: string;
   displayName: string;
-  imageUrl?: string;
+  /** Points at `/api/v1/genre-artwork/:genreKey`; the server generates and caches the image on first hit. */
+  artworkUrl: string;
+  /** Dominant accent derived from the genre's top album cover. Present only when the artwork has already been generated. */
+  accentColor?: string;
 }
 
 // In-memory cache for the genre browse grid (refreshed every 24h).
 let browseCache: { tiles: GenreTile[]; expiresAt: number } | null = null;
 let browseCacheInflight: Promise<GenreTile[]> | null = null;
 const BROWSE_TTL_MS = 24 * 60 * 60 * 1000;
-const BROWSE_GENRE_COUNT = 120;
+const BROWSE_GENRE_COUNT = 200;
+
+/**
+ * Cache-bust version for artwork URLs. The endpoint's JPEG bytes are
+ * served with `Cache-Control: immutable`, so browsers keep old images
+ * forever once they've been fetched. Bump this integer whenever the
+ * generator algorithm, font, layout, or colour rules change — every
+ * tile URL becomes a new cache key and clients refetch.
+ */
+const ARTWORK_VERSION = 4;
 
 function capitalize(s: string): string {
   return s.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**
- * Fetch the genre browse grid: popular tags with album-cover thumbnails.
+ * Fetch the genre browse grid: popular tags with procedurally generated
+ * atmospheric artworks.
  *
  * The tag list is fetched from `chart.getTopTags`, filtered through the
- * blocklist, and enriched with a thumbnail from `tag.getTopAlbums&limit=1`.
- * The result is cached in memory for 24h and the thumbnails are also
- * written to the `album_images` DB table for permanent persistence.
+ * blocklist, and checked against `tag.getTopAlbums` to weed out empty
+ * genres (those without at least one cover). The tile image is NOT the
+ * album cover anymore — each tile points at
+ * `/api/v1/genre-artwork/<name>`, which lazily renders a unique image
+ * derived from the genre's top album color.
+ *
+ * Already-generated accents are pulled from the `genre_artworks` table in
+ * one batch query and inlined on the tile, so the frontend can colourise
+ * the card before the artwork JPEG has finished loading.
+ *
+ * The result is cached in memory for 24h. Cover URLs keep flowing into
+ * the `album_images` table as a side-effect, preserving the permanent
+ * cache populated by the old implementation.
  */
 export async function getGenreBrowseGrid(): Promise<GenreTile[]> {
   if (browseCache && browseCache.expiresAt > Date.now()) return browseCache.tiles;
@@ -410,48 +454,71 @@ export async function getGenreBrowseGrid(): Promise<GenreTile[]> {
   browseCacheInflight = (async () => {
     // Fetch a large pool, filter out non-genre tags
     const data = await lfmFetch<{ tags?: { tag?: { name: string; reach?: string }[] } }>("chart.getTopTags", {
-      limit: "200",
+      limit: "400",
     });
     const candidates = (data.tags?.tag ?? []).filter((t) => isGenreTag(t.name));
 
-    // Enrich all candidates with album covers (parallel).
-    // Try up to 5 albums per tag to find one with a real image.
+    // Probe each candidate for at least one album with cover art. This
+    // filters out empty genres where the artwork generator would render a
+    // default-accent tile that does not reflect any actual music.
     const allTiles = await Promise.all(
-      candidates.map(async (tag): Promise<GenreTile> => {
-        let imageUrl: string | undefined;
+      candidates.map(async (tag): Promise<{ tile: GenreTile; hasCover: boolean }> => {
+        const name = tag.name.toLowerCase();
+        let hasCover = false;
         try {
           const albums = await fetchTopAlbums(tag.name, 5);
           for (const album of albums) {
             const url = pickImage(album.image);
             if (url) {
-              imageUrl = url;
+              hasCover = true;
               cacheAlbumImage(album.artist.name, album.name, url, "lastfm").catch(() => {});
               break;
             }
           }
         } catch {
-          // Best-effort; tile renders without image
+          // Best-effort; tile will be dropped below
         }
         return {
-          name: tag.name.toLowerCase(),
-          displayName: capitalize(tag.name),
-          imageUrl,
+          tile: {
+            name,
+            displayName: capitalize(tag.name),
+            // Points at the Astro frontend proxy, NOT the backend directly.
+            // The browser resolves this relative URL against the page origin
+            // (the Astro host), so the path must be the proxy path. The
+            // proxy handler then forwards to `ENDPOINTS.v1.genreArtwork`.
+            // `?v=` is a cache-bust — see ARTWORK_VERSION above.
+            artworkUrl: `/api/genre-artwork/${encodeURIComponent(name)}?v=${ARTWORK_VERSION}`,
+          },
+          hasCover,
         };
       }),
     );
 
-    // Keep only tiles with images, trim to target count, sort alphabetically
-    const result = allTiles
-      .filter((t) => t.imageUrl)
+    // Keep only tiles backed by real music, trim to target count, sort alphabetically
+    const kept = allTiles
+      .filter((t) => t.hasCover)
       .slice(0, BROWSE_GENRE_COUNT)
+      .map((t) => t.tile)
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "en", { sensitivity: "base" }));
+
+    // Inline already-known accent colors from previously generated artworks
+    // so the frontend can colourise the card border before the JPEG loads.
+    try {
+      const accents = await getAccentColors(kept.map((t) => t.name));
+      for (const tile of kept) {
+        const accent = accents.get(tile.name);
+        if (accent) tile.accentColor = accent;
+      }
+    } catch (err) {
+      log.debug("LastfmGenreSearch", `Accent lookup failed: ${(err as Error).message}`);
+    }
 
     log.debug(
       "LastfmGenreSearch",
-      `Browse grid: ${result.length} genres with images (${allTiles.length - result.length} dropped)`,
+      `Browse grid: ${kept.length} genres with covers (${allTiles.length - kept.length} dropped)`,
     );
-    browseCache = { tiles: result, expiresAt: Date.now() + BROWSE_TTL_MS };
-    return result;
+    browseCache = { tiles: kept, expiresAt: Date.now() + BROWSE_TTL_MS };
+    return kept;
   })().finally(() => {
     browseCacheInflight = null;
   });

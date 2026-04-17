@@ -67,6 +67,17 @@ export function isTrackingEnabled(): boolean {
   return val === "true";
 }
 
+/**
+ * Fetch a procedurally generated genre artwork from the backend. Returns
+ * the raw `Response` so the Astro proxy can stream the JPEG body straight
+ * through to the browser with the upstream headers intact (Content-Type,
+ * Cache-Control). Cold-path generation can take a few seconds, so the
+ * timeout is generous.
+ */
+export async function fetchGenreArtwork(genreKey: string): Promise<Response> {
+  return fetchWithTimeout(backendUrl(ENDPOINTS.v1.genreArtwork(genreKey)), { headers: internalHeaders() }, 15000);
+}
+
 /** Fetch a random short ID from the backend for the landing page example teaser. */
 export async function fetchRandomExample(): Promise<{ shortId: string } | null> {
   try {

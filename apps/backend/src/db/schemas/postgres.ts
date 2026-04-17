@@ -1,4 +1,15 @@
-import { boolean, index, integer, pgTable, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, customType, index, integer, pgTable, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+
+/**
+ * Postgres `bytea` column helper. Drizzle does not ship a first-party
+ * bytea column type, so we declare one via `customType`. Values are read
+ * and written as Node `Buffer` instances (the shape `pg` uses natively).
+ */
+const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 export const tracks = pgTable(
   "tracks",
@@ -258,4 +269,16 @@ export const servicePlugins = pgTable("service_plugins", {
   id: text("id").primaryKey(),
   enabled: boolean("enabled").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
+// Procedurally generated genre artworks. The grid endpoint serves one
+// unique JPEG per genre, with a dominant accent color derived from the
+// average color of the genre's top Last.fm album cover. First request
+// generates and stores; subsequent requests hit this cache.
+export const genreArtworks = pgTable("genre_artworks", {
+  genreKey: text("genre_key").primaryKey(),
+  jpeg: bytea("jpeg").notNull(),
+  accentColor: text("accent_color").notNull(),
+  sourceCoverUrl: text("source_cover_url"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });

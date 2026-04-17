@@ -15,7 +15,7 @@ export default defineConfig({
   // `dist/static/*`. Copy the package's `static/` folder next to the bundle
   // on build success, and in `server.ts` pass `baseDir` pointing there so
   // the static-file route also resolves correctly.
-  onSuccess: "node scripts/copy-swagger-ui-assets.mjs",
+  onSuccess: "node scripts/copy-swagger-ui-assets.mjs && node scripts/copy-jimp-fonts.mjs",
   outDir: "dist",
   clean: true,
 });

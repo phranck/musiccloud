@@ -16,6 +16,7 @@ import adminSseRoutes from "./routes/admin-sse.js";
 import adminUserRoutes from "./routes/admin-users.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import authRoutes from "./routes/auth.js";
+import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
 import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
@@ -172,6 +173,9 @@ async function buildApp() {
   // Artist info endpoint (public, no auth - fetched by React island)
   await app.register(artistInfoRoutes);
   await app.register(randomExampleRoutes);
+
+  // Genre artwork endpoint (public, no auth - referenced from browse grid tiles)
+  await app.register(genreArtworkRoutes);
 
   // Site settings (public read for SSR)
   await app.register(siteSettingsPublicRoutes);
