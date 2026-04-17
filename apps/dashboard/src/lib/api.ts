@@ -56,7 +56,10 @@ export const api = {
   post: <T>(path: string, body?: unknown): Promise<T> =>
     fetchWithTimeout(resolvePath(path), {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: {
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...getAuthHeaders(),
+      },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     }).then((r) => handleResponse<T>(r)),
 
