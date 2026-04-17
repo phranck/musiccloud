@@ -1,343 +1,63 @@
-![musiccloud.io](https://img.shields.io/badge/musiccloud.io-MVP-blue?style=flat)
-[![GitHub License](https://img.shields.io/github/license/phranck/musiccloud.io?style=flat)](LICENSE)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-green?style=flat)](https://nodejs.org)
-[![Test Coverage](https://img.shields.io/badge/tests-112%2F112-brightgreen?style=flat)](#testing)
-[![Code Style](https://img.shields.io/badge/code%20style-TypeScript-blue?style=flat)](#code-quality)
-[![Astro](https://img.shields.io/badge/astro-5.3.0-purple?style=flat)](https://astro.build)
-[![React](https://img.shields.io/badge/react-19.0.0-61dafb?style=flat)](https://react.dev)
+[![License: MIT](https://img.shields.io/github/license/phranck/musiccloud.io?style=flat)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/phranck/musiccloud.io/ci.yml?branch=main&label=CI&style=flat)](https://github.com/phranck/musiccloud.io/actions/workflows/ci.yml)
+[![Astro](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/astro?filename=apps%2Ffrontend%2Fpackage.json&label=astro&color=ff5d01&style=flat)](https://astro.build)
+[![Fastify](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/fastify?filename=apps%2Fbackend%2Fpackage.json&label=fastify&color=000000&style=flat)](https://fastify.dev)
+[![React](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/react?filename=apps%2Ffrontend%2Fpackage.json&label=react&color=61dafb&style=flat)](https://react.dev)
+[![TypeScript](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/dev/typescript?label=typescript&color=3178c6&style=flat)](https://www.typescriptlang.org)
+[![Biome](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/dev/@biomejs/biome?label=biome&color=60a5fa&style=flat)](https://biomejs.dev)
 
-# 🎵 musiccloud.io
+# musiccloud.io
 
-**Share music across every platform with one universal link.**
+Paste a music link from one streaming service, get a universal share URL that opens the same track or album on every other service the listener has.
 
-Paste a Spotify, Apple Music, or YouTube link and get a short shareable URL that resolves to the correct platform for each recipient.
+Live at [https://musiccloud.io](https://musiccloud.io).
 
----
+## What it does
 
-## ✨ Features
+- **URL resolution.** Paste a Spotify, Apple Music, YouTube, Tidal, Deezer, SoundCloud, Qobuz, Bandcamp, Beatport, Audius, Pandora, JioSaavn, Boomplay, Audiomack, Netease, QQ Music, Melon, Bugs, KKBOX, or Napster link and the backend resolves the track or album across all supported services, preferring ISRC/UPC matches and falling back to scored text search with confidence filtering.
+- **Text search.** Type a song title or artist and get cross-service candidates with disambiguation when the top match is not confident enough.
+- **Genre discovery.** Browse by Last.fm tags, resolve any tag to a representative cross-service set of tracks.
+- **Share pages.** Every resolved result gets a short URL with server-side-rendered OpenGraph/Twitter meta for rich link previews.
+- **Admin dashboard.** Analytics (via Umami), track/album management, user administration, content pages, media library.
+- **Public API with Swagger UI** for third-party integration.
 
-### 🔗 Universal Music Linking
-- **Cross-Platform Resolution**: ISRC-based music matching across Spotify, Apple Music, YouTube, and SoundCloud
-- **URL Input**: Paste any service link and get a universal share URL
-- **Text Search**: Search by song title and artist with disambiguation for accurate matching
-- **Apple Music**: Native integration via Apple Music API
+## Supported streaming services
 
-### 🎨 User Experience
-- **Responsive Design**: Optimized for desktop, tablet, and mobile
-- **Instant Feedback**: Real-time search results with visual disambiguation
-- **Social Sharing**: OpenGraph meta tags with album art for link previews
-- **Minimal UI**: Fast, distraction-free interface
+Deezer, Audius, SoundCloud, Pandora, Qobuz, Boomplay, Bandcamp, Audiomack, Netease, QQ Music, Melon, Bugs, JioSaavn, Beatport, Spotify, Apple Music, YouTube, Tidal, KKBOX, Napster.
 
-### 🔒 Performance & Reliability
-- **Rate Limiting**: Per-IP request throttling to prevent abuse
-- **Error Handling**: 13+ specific error codes with user-friendly messages
-- **Full-Text Search**: FTS5 database queries for instant track discovery
-- **SSR Optimized**: Server-side rendering for fast initial loads
+Each service is implemented as a plugin under `apps/backend/src/services/plugins/*`. Adding a new one means implementing a `ServiceAdapter` and registering it in the plugin manifest.
 
-### ♿ Accessibility
-- **WCAG AA Compliant**: Full keyboard navigation support
-- **Screen Reader Ready**: Semantic HTML with ARIA labels
-- **Reduced Motion**: `prefers-reduced-motion` media query support
-- **Escape Key**: Clear UX with keyboard shortcuts
+## Tech stack
 
----
+- **Monorepo** via npm workspaces.
+- **Backend:** Fastify 5 + TypeScript + Drizzle ORM + PostgreSQL 16. Compiled with tsup. Swagger/OpenAPI via `@fastify/swagger`.
+- **Frontend:** Astro 5 (SSR, Node adapter) + React 19 islands + Tailwind 4.
+- **Dashboard:** React 19 + Vite + UnoCSS + TanStack Query.
+- **Shared package** (`packages/shared`): API types, endpoint paths, error codes.
+- **Tooling:** Biome 2.4 (lint + format), Vitest (675 tests across 33 files), drizzle-kit migrations.
 
-## 🚀 Quick Start
+## Repository layout
+
+```
+apps/
+  Apple/            Swift native app (macOS/iOS/iPadOS) + Share Extension
+  backend/          Fastify API (resolve, share, admin, analytics, swagger)
+  dashboard/        Admin React SPA (analytics, users, media, content)
+  frontend/         Astro SSR site (landing, search, share pages)
+packages/
+  shared/           TypeScript types + API contracts shared across apps
+drizzle.config.postgres.ts
+zerops.yml          Hosting config
+```
+
+## Getting started
 
 ### Prerequisites
-- **Node.js** ≥ 18.0.0
-- **npm** ≥ 9.0.0
 
-### Installation
+- Node.js >= 20
+- npm >= 10
+- PostgreSQL 16 (the project uses Drizzle migrations; local dev typically runs PG in Docker on port `5433`)
 
-```bash
-# Clone the repository
-git clone git@github.com:phranck/musiccloud.io.git
-cd musiccloud.io
+## License
 
-# Install dependencies
-npm install
-
-# Configure environment variables
-cp .env.example .env.local
-
-# Add API credentials (from step below)
-# Then run database migrations
-npm run db:generate
-npm run db:migrate
-
-# Start development server
-npm run dev
-```
-
-Open [http://localhost:4321](http://localhost:4321) in your browser.
-
-### API Credentials Required
-
-Before running locally, obtain credentials from:
-
-1. **Spotify** → [developer.spotify.com](https://developer.spotify.com)
-   - `SPOTIFY_CLIENT_ID`
-   - `SPOTIFY_CLIENT_SECRET`
-
-2. **Apple Music** → [Apple Developer](https://developer.apple.com)
-   - `APPLE_MUSIC_KEY_ID`
-   - `APPLE_MUSIC_TEAM_ID`
-   - `APPLE_MUSIC_PRIVATE_KEY`
-
-3. **YouTube** → [Google Cloud Console](https://console.cloud.google.com)
-   - `YOUTUBE_API_KEY`
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────┐
-│         Frontend (React + Astro)        │
-│  - Landing Page                         │
-│  - Results Display                      │
-│  - Share Page (SSR)                     │
-└─────────────────────────────────────────┘
-           ↓
-┌─────────────────────────────────────────┐
-│      API Layer (Astro Endpoints)        │
-│  - POST /api/resolve → Music resolver   │
-│  - GET /[shortId] → SSR share page      │
-│  - Rate limiting, error handling        │
-└─────────────────────────────────────────┘
-           ↓
-┌─────────────────────────────────────────┐
-│    Service Adapters & Fallback          │
-│  - Spotify API client                   │
-│  - Apple Music API client               │
-│  - YouTube API client                   │
-│  - SoundCloud, Tidal, Deezer clients    │
-└─────────────────────────────────────────┘
-           ↓
-┌─────────────────────────────────────────┐
-│      Database (SQLite + Drizzle)        │
-│  - Track cache with ISRC                │
-│  - Service links (7 platforms)          │
-│  - Short URL mapping                    │
-│  - FTS5 full-text search index          │
-└─────────────────────────────────────────┘
-```
-
-### Key Technologies
-
-- **Frontend**: React 19 + Astro 5 + Tailwind CSS 4
-- **Backend**: Node.js (Astro SSR)
-- **Database**: SQLite 3 + Drizzle ORM
-- **Search**: FTS5 full-text search
-- **Testing**: Vitest + Testing Library
-- **Deployment**: Node.js adapter (Vercel, Railway, Fly.io compatible)
-
----
-
-## 📦 Project Structure
-
-```
-src/
-├── components/          # React UI components (12+)
-│   ├── LandingPage.tsx
-│   ├── ResultsPanel.tsx
-│   ├── PlatformButton.tsx
-│   └── ...
-├── pages/              # Astro routes
-│   ├── index.astro     # Landing page
-│   ├── [shortId].astro # Share URL handler
-│   └── api/            # API endpoints
-├── services/           # Business logic
-│   ├── resolver.ts     # Music resolution engine
-│   ├── adapters/       # Platform API clients
-│   └── types.ts
-├── db/                 # Database
-│   ├── schema.ts       # Drizzle schema
-│   └── migrations/     # SQL migrations
-├── lib/                # Utilities
-│   ├── errors.ts       # Error handling
-│   ├── og-helpers.ts   # OpenGraph meta tags
-│   └── short-id.ts     # URL generation
-└── styles/             # CSS
-    ├── global.css      # Tailwind + custom
-    └── animations.css  # Motion preferences
-```
-
----
-
-## 🧪 Testing
-
-### Run All Tests
-```bash
-npm run test:run
-```
-
-### Watch Mode (Development)
-```bash
-npm run test
-```
-
-### Test Categories
-
-| Category | Tests | Status |
-|----------|-------|--------|
-| Input Validation | 20 | ✅ Passing |
-| Matching & Resolution | 16 | ✅ Passing |
-| Error Handling | 9 | ✅ Passing |
-| Error Messages | 13 | ✅ Passing |
-| Accessibility | 14 | ✅ Passing |
-| Mobile Responsive | 42 | ✅ Passing |
-| **Total** | **112** | **✅ 100%** |
-
----
-
-## 🚀 Deployment
-
-### Environment Preparation
-
-```bash
-# Build for production
-npm run build
-
-# Preview production build locally
-npm run preview
-```
-
-### Hosting Options
-
-#### Vercel (Recommended)
-```bash
-npm i -g vercel
-vercel deploy
-```
-
-#### Railway
-```bash
-# Connect via GitHub
-# Add environment variables in Railway dashboard
-# Auto-deploy on push
-```
-
-#### Fly.io
-```bash
-flyctl launch
-flyctl deploy
-```
-
-### Required Environment Variables
-
-```env
-# Service Credentials
-SPOTIFY_CLIENT_ID=your_id
-SPOTIFY_CLIENT_SECRET=your_secret
-APPLE_MUSIC_KEY_ID=your_key_id
-APPLE_MUSIC_TEAM_ID=your_team_id
-APPLE_MUSIC_PRIVATE_KEY=your_private_key
-YOUTUBE_API_KEY=your_api_key
-
-# Database (optional, uses local SQLite by default)
-DATABASE_PATH=./data/music.db
-```
-
----
-
-## ♿ Accessibility
-
-This project maintains **WCAG AA compliance**:
-
-- ✅ Keyboard navigation (Tab, Enter, Escape)
-- ✅ Screen reader support (semantic HTML)
-- ✅ Color contrast (4.5:1 ratio minimum)
-- ✅ Reduced motion support (`prefers-reduced-motion`)
-- ✅ Focus management
-- ✅ ARIA labels on interactive elements
-
-### Running Accessibility Tests
-```bash
-npm run test:run -- --grep "accessibility|a11y"
-```
-
----
-
-## 📊 Performance
-
-### Page Load Metrics (Target)
-- **First Contentful Paint (FCP)**: < 1s
-- **Time to Interactive (TTI)**: < 2s
-- **Largest Contentful Paint (LCP)**: < 2.5s
-- **Cumulative Layout Shift (CLS)**: < 0.1
-
-### Database Performance
-- **Track Search**: FTS5 index (< 100ms for ~1M tracks)
-- **Short URL Resolution**: Direct lookup (< 10ms)
-- **Service Link Retrieval**: Indexed query (< 20ms)
-
----
-
-## 🔄 Roadmap
-
-### Phase 2 (Post-MVP)
-- [ ] Custom OG image generation (album art + branding)
-- [ ] Analytics dashboard (popular tracks, sharing patterns)
-- [ ] User accounts (personalized share history)
-- [ ] Advanced search filters (genre, year, artist)
-- [ ] Direct artist/album linking (not just tracks)
-
-### Phase 3 (Long-term)
-- [ ] Mobile app (React Native)
-- [ ] Playlist support
-- [ ] Social features (user profiles, share comments)
-- [ ] Integration with music forums/communities
-- [ ] API for third-party developers
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- **Code Style**: TypeScript, strict mode
-- **Testing**: All features require tests (100% pass rate target)
-- **Accessibility**: WCAG AA compliance required
-- **Documentation**: Update README for user-facing changes
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 📧 Support
-
-- **Issues**: [GitHub Issues](https://github.com/phranck/musiccloud.io/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/phranck/musiccloud.io/discussions)
-
----
-
-## 🙏 Acknowledgments
-
-- **Spotify** for music data and API
-- **Apple Music** for cross-platform support
-- **YouTube** for video track resolution
-- **Astro** and **React** communities for excellent frameworks
-
----
-
-<div align="center">
-
-**Made with ❤️ by [phranck](https://github.com/phranck)**
-
-[⭐ Star on GitHub](https://github.com/phranck/musiccloud.io) • [🐛 Report Bug](https://github.com/phranck/musiccloud.io/issues) • [💡 Request Feature](https://github.com/phranck/musiccloud.io/issues)
-
-</div>
+[MIT](LICENSE).
