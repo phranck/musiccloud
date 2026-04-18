@@ -64,6 +64,7 @@ import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
+import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import type { AlbumResolutionResult } from "../services/album-resolver.js";
 import { resolveAlbumUrl } from "../services/album-resolver.js";
 import type { ArtistResolutionResult } from "../services/artist-resolver.js";
@@ -103,6 +104,12 @@ export default async function resolveRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Resolve"],
         summary: "Resolve a music URL, free-text query, or genre-discovery query",
+        "x-codeSamples": buildCodeSamples({
+          method: "POST",
+          path: "/api/v1/resolve",
+          auth: "bearer",
+          body: { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" },
+        }),
         description:
           "Accepts one of three query shapes:\n" +
           "1. A streaming-service URL (e.g. `https://open.spotify.com/track/...`) — returns unified cross-service metadata.\n" +

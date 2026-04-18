@@ -14,6 +14,7 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
+import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 
 export default async function randomExampleRoutes(app: FastifyInstance) {
   app.get(
@@ -22,6 +23,10 @@ export default async function randomExampleRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Services"],
         summary: "Random example share ID",
+        "x-codeSamples": buildCodeSamples({
+          method: "GET",
+          path: "/api/v1/random-example",
+        }),
         description:
           "Returns one randomly-picked short ID drawn uniformly across the existing track and album namespaces. Used by the frontend to power a discovery shortcut.",
         response: {

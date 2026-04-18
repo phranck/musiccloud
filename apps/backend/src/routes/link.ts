@@ -29,6 +29,7 @@ import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
+import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 
 export default async function linkRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>(
@@ -37,6 +38,11 @@ export default async function linkRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Links"],
         summary: "Fetch link metadata for a previously-resolved track",
+        "x-codeSamples": buildCodeSamples({
+          method: "GET",
+          path: "/api/v1/link/tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I",
+          auth: "bearer",
+        }),
         description:
           "Slim, cache-friendly read against an already-persisted track. No external adapter calls. Use this when you already hold the track id (e.g. from a prior resolve) and just want the service links for rendering.",
         security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],

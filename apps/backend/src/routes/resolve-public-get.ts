@@ -32,6 +32,7 @@ import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
+import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
 import type { ResolutionResult } from "../services/resolver.js";
 import { resolveQuery, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
@@ -59,6 +60,11 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Resolve"],
         summary: "Resolve a music URL or query (unauthenticated, GET)",
+        "x-codeSamples": buildCodeSamples({
+          method: "GET",
+          path: "/api/v1/resolve",
+          query: { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" },
+        }),
         description:
           "Unauthenticated companion to POST `/api/v1/resolve`, designed for scripting consumers (Apple Shortcuts, curl, bookmarklets). Rate-limited per client IP. Returns a resolved track or errors on ambiguous text searches (no interactive disambiguation over GET).",
         querystring: {

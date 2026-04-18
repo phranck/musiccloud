@@ -60,6 +60,7 @@ import { type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@mu
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
+import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { fetchArtistEvents, fetchArtistProfile, fetchArtistTopTracks } from "../services/artist-info.js";
 
 const TTL_TRACKS_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -73,6 +74,11 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Artist"],
         summary: "Aggregated artist info (top tracks, profile, events)",
+        "x-codeSamples": buildCodeSamples({
+          method: "GET",
+          path: "/api/v1/artist-info",
+          query: { name: "a-ha", region: "NO" },
+        }),
         description:
           "Combines Deezer top tracks, Spotify/Last.fm profile, and Bandsintown/Ticketmaster tour dates into a single card payload. Sections refresh on independent TTLs. When `region` is set, matching events bubble to the top of the events list.",
         querystring: {

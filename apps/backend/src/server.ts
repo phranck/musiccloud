@@ -197,12 +197,31 @@ async function buildApp() {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>musiccloud API Reference</title>
     <link rel="icon" href="data:," />
-    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Roboto+Condensed:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <style>body { margin: 0; padding: 0; }</style>
   </head>
   <body>
-    <redoc spec-url="/docs/json"></redoc>
+    <div id="redoc"></div>
     <script src="https://cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js"></script>
+    <script>
+      Redoc.init(
+        "/docs/json",
+        {
+          theme: {
+            typography: {
+              fontFamily: "Barlow, system-ui, sans-serif",
+              headings: {
+                fontFamily: "'Roboto Condensed', system-ui, sans-serif",
+              },
+            },
+          },
+        },
+        document.getElementById("redoc"),
+      );
+    </script>
   </body>
 </html>`);
     },

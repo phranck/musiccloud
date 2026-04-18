@@ -19,6 +19,7 @@
  */
 import { type ActiveService, ENDPOINTS, PLATFORM_CONFIG } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { getActiveAdapters } from "../services/plugins/registry.js";
 
 export default async function servicesPublicRoutes(app: FastifyInstance) {
@@ -28,6 +29,10 @@ export default async function servicesPublicRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Services"],
         summary: "List currently-enabled resolver services",
+        "x-codeSamples": buildCodeSamples({
+          method: "GET",
+          path: "/api/v1/services/active",
+        }),
         description:
           "Returns the list of services that are both registered and have passing availability checks. Used by the frontend marquee and resolve pages. Cache TTL: 30s.",
         response: {

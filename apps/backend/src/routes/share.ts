@@ -37,6 +37,7 @@
 import { ROUTE_TEMPLATES, type SharePageResponse } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
+import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 
 export default async function shareRoutes(app: FastifyInstance) {
   app.get<{ Params: { shortId: string } }>(
@@ -45,6 +46,10 @@ export default async function shareRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Share"],
         summary: "Fetch a previously-resolved share",
+        "x-codeSamples": buildCodeSamples({
+          method: "GET",
+          path: "/api/v1/share/aBc123x",
+        }),
         description:
           "Returns the unified share-page payload for the given short ID. Looks up tracks, albums, and artists in a single namespace and returns the first match. Feeds SSR and OG meta tags on the frontend share page.",
         params: {

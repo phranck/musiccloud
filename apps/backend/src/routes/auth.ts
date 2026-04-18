@@ -31,6 +31,7 @@
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 
 interface TokenRequestBody {
   client_id: string;
@@ -45,6 +46,15 @@ export default async function authRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Auth"],
         summary: "Issue an API access token (OAuth client credentials)",
+        "x-codeSamples": buildCodeSamples({
+          method: "POST",
+          path: "/api/auth/token",
+          body: {
+            client_id: "api-client-demo",
+            client_secret: "<your-client-secret>",
+            grant_type: "client_credentials",
+          },
+        }),
         description:
           "Exchanges a registered `client_id` + `client_secret` for a short-lived JWT (1 hour). The token is accepted as `Authorization: Bearer <token>` on protected endpoints (`/api/v1/resolve`, `/api/v1/link/:id`).",
         body: {
