@@ -1,15 +1,21 @@
+import type { NavItem } from "@musiccloud/shared";
+
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LocaleProvider } from "@/i18n/context";
+
+interface PageHeaderIslandProps {
+  navItems?: NavItem[];
+}
 
 /**
  * Standalone React island for SSR Astro pages (e.g. share page).
  * Wraps PageHeader in its own LocaleProvider since no global provider exists.
  * Always renders without the Info Button (share page has no InfoPanel).
  */
-export function PageHeaderIsland() {
+export function PageHeaderIsland({ navItems = [] }: PageHeaderIslandProps) {
   return (
     <LocaleProvider>
-      <PageHeader />
+      <PageHeader navItems={navItems} />
     </LocaleProvider>
   );
 }

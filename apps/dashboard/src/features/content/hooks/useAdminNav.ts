@@ -1,30 +1,22 @@
+import { ENDPOINTS, type NavId, type NavItem, type NavItemInput } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
-export interface NavItem {
-  label: string;
-  href: string;
-  type: "page" | "url" | "form";
-}
-
-export interface NavConfig {
-  id: string;
-  items: NavItem[];
-}
-
-export function useAdminNav(navId: string) {
+export function useAdminNav(navId: NavId) {
   return useQuery({
-    queryKey: ["nav", navId],
-    queryFn: () => api.get<NavConfig>(`/admin/nav/${navId}`),
+    queryKey: ["admin-nav", navId],
+    queryFn: () => api.get<NavItem[]>(ENDPOINTS.admin.navigations.detail(navId)),
   });
 }
 
-export function useSaveNav() {
+export function useSaveNav(navId: NavId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ navId, items }: { navId: string; items: NavItem[] }) =>
-      api.put<NavConfig>(`/admin/nav/${navId}`, { items }),
-    onSuccess: (_data, variables) => qc.invalidateQueries({ queryKey: ["nav", variables.navId] }),
+    mutationFn: (items: NavItemInput[]) => api.put<NavItem[]>(ENDPOINTS.admin.navigations.detail(navId), { items }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-nav", navId] });
+      qc.invalidateQueries({ queryKey: ["nav", navId] });
+    },
   });
 }

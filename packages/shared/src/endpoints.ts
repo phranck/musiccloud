@@ -63,6 +63,14 @@ export const ENDPOINTS = {
        * Feeds the Marquee and resolve/embed pages at SSR time. */
       active: "/api/v1/services/active",
     },
+    /** GET `/api/v1/nav/:navId`: public navigation items for header / footer. */
+    nav: (navId: "header" | "footer") => `/api/v1/nav/${navId}`,
+    content: {
+      /** GET: list all published content pages (slugs + titles only). */
+      list: "/api/v1/content",
+      /** GET `/api/v1/content/:slug`: a published content page with rendered HTML. */
+      detail: (slug: string) => `/api/v1/content/${slug}`,
+    },
   },
 
   /** `/api/auth/...`: public auth endpoints (machine-to-machine token issuance). */
@@ -196,6 +204,18 @@ export const ENDPOINTS = {
       test: (id: number) => `/api/admin/email-templates/${id}/test`,
     },
 
+    navigations: {
+      /** GET / PUT: managed navigation items for "header" or "footer". */
+      detail: (navId: "header" | "footer") => `/api/admin/nav/${navId}`,
+    },
+
+    pages: {
+      /** GET: list all content pages (admin) / POST: create. */
+      list: "/api/admin/pages",
+      /** GET / PATCH / DELETE: single content page by slug. */
+      detail: (slug: string) => `/api/admin/pages/${slug}`,
+    },
+
     analytics: {
       /** GET: overall stats summary (visitors, pageviews, bounce, duration). */
       stats: "/api/admin/analytics/stats",
@@ -234,6 +254,8 @@ export const ROUTE_TEMPLATES = {
     share: "/api/v1/share/:shortId",
     link: "/api/v1/link/:id",
     genreArtwork: "/api/v1/genre-artwork/:genreKey",
+    nav: "/api/v1/nav/:navId",
+    contentDetail: "/api/v1/content/:slug",
   },
   admin: {
     users: {
@@ -259,6 +281,12 @@ export const ROUTE_TEMPLATES = {
     },
     invite: {
       state: "/api/admin/invite/:token",
+    },
+    navigations: {
+      detail: "/api/admin/nav/:navId",
+    },
+    pages: {
+      detail: "/api/admin/pages/:slug",
     },
   },
 } as const;

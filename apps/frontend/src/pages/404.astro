@@ -1,6 +1,9 @@
 ---
 import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { loadNav } from "@/lib/loadNav";
+
+const { footer: footerNav } = await loadNav();
 ---
 
 <BaseLayout title="Page not found - musiccloud" noindex>
@@ -22,5 +25,5 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       </a>
     </div>
   </div>
-  <AppFooterIsland client:idle />
+  <AppFooterIsland client:idle navItems={footerNav} />
 </BaseLayout>

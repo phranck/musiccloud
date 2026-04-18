@@ -79,6 +79,12 @@ const PagesListPage = lazy(() =>
   })),
 );
 
+const NavManagerPage = lazy(() =>
+  import("@/features/content/navigation/NavManagerPage").then((m) => ({
+    default: m.NavManagerPage,
+  })),
+);
+
 const FormBuilderListPage = lazy(() =>
   import("@/features/templates/form-builder/FormBuilderListPage").then((m) => ({
     default: m.FormBuilderListPage,
@@ -299,6 +305,14 @@ function AppRoutes() {
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
                     <EditorStubPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="navigation"
+                element={
+                  <Suspense fallback={<ContentEditorLoadingFallback />}>
+                    <NavManagerPage />
                   </Suspense>
                 }
               />

@@ -10,7 +10,7 @@ export const prerender = false;
 
 import type { ServiceId } from "@musiccloud/shared";
 import { buildMetaLine, isValidServiceId } from "@musiccloud/shared";
-import { fetchShareData } from "@/api/client";
+import { fetchPublicContentPage, fetchShareData } from "@/api/client";
 import GradientBackground from "@/components/background/GradientBackground.astro";
 import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
@@ -19,6 +19,7 @@ import { BrandName } from "@/components/ui/BrandName";
 import { getLocaleFromCookie } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { loadNav } from "@/lib/loadNav";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 const { shortId } = Astro.params;
@@ -32,19 +33,24 @@ const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
 const translations = await loadTranslations(locale);
 const t = makeT(translations);
 
-// Fetch share data from backend
-const data = await fetchShareData(shortId);
+// Try content page first (admin-managed slugs), then fall back to share lookup.
+// Both routes share the same `/:slug` URL space — content pages take precedence.
+const [contentPage, navigation] = await Promise.all([fetchPublicContentPage(shortId), loadNav()]);
+const { header: headerNav, footer: footerNav } = navigation;
 
-if (!data) {
-  return Astro.redirect("/", 302);
+const data = contentPage ? null : await fetchShareData(shortId);
+
+if (!contentPage && !data) {
+  return Astro.redirect("/404", 302);
 }
 
-const isAlbum = data.type === "album";
-const isArtist = data.type === "artist";
-const og = data.og;
-const track = data.track ?? null;
-const album = data.album ?? null;
-const artist = data.artist ?? null;
+// Share-page derivations (only when share data is present, not a content page)
+const isAlbum = data?.type === "album";
+const isArtist = data?.type === "artist";
+const og = data?.og ?? null;
+const track = data?.track ?? null;
+const album = data?.album ?? null;
+const artist = data?.artist ?? null;
 
 const artistDisplay = isArtist
   ? ""
@@ -65,92 +71,103 @@ const albumMetaLine = isAlbum
   : null;
 const artistMetaLine = isArtist ? artist?.genres?.join(", ") : null;
 
-// Build platform links (filter invalid services)
-const platformLinks = data.links
+// Build platform links (filter invalid services) — empty when content page
+const platformLinks = (data?.links ?? [])
   .filter((link) => isValidServiceId(link.service))
   .map((link) => ({
     platform: link.service as ServiceId,
     url: link.url,
   }));
 
-// Determine platforms label key
 const platformsLabelKey = isArtist
   ? "results.viewArtistOn"
   : isAlbum
     ? "results.openAlbumOn"
     : "results.listenOn";
 
-// Build the ShareContentConfiguration (fully JSON-serializable, passed to React island)
-const shareConfig: ShareContentConfiguration = {
-  type: "share",
-  title: displayTitle,
-  artist: artistDisplay,
-  artworkUrl: artworkUrl ?? "",
-  album: isAlbum ? undefined : (track?.albumName ?? undefined),
-  isExplicit: !isAlbum && !isArtist && track?.isExplicit ? true : undefined,
-  previewUrl: isArtist ? undefined : isAlbum ? (album?.previewUrl ?? undefined) : (track?.previewUrl ?? undefined),
-  metaLine: isArtist ? artistMetaLine || undefined : isAlbum ? albumMetaLine || undefined : trackMetaLine || undefined,
-  platforms: platformLinks,
-  platformsLabel: t(platformsLabelKey),
-  platformsLabelKey,
-  shortUrl: data.shortUrl,
-};
+const shareConfig: ShareContentConfiguration | null = data
+  ? {
+      type: "share",
+      title: displayTitle,
+      artist: artistDisplay,
+      artworkUrl: artworkUrl ?? "",
+      album: isAlbum ? undefined : (track?.albumName ?? undefined),
+      isExplicit: !isAlbum && !isArtist && track?.isExplicit ? true : undefined,
+      previewUrl: isArtist ? undefined : isAlbum ? (album?.previewUrl ?? undefined) : (track?.previewUrl ?? undefined),
+      metaLine: isArtist ? artistMetaLine || undefined : isAlbum ? albumMetaLine || undefined : trackMetaLine || undefined,
+      platforms: platformLinks,
+      platformsLabel: t(platformsLabelKey),
+      platformsLabelKey,
+      shortUrl: data.shortUrl,
+    }
+  : null;
 
-const pageTitle = isArtist
-  ? `${displayTitle} - musiccloud`
-  : `${displayTitle} by ${artistDisplay} - musiccloud`;
+const pageTitle = contentPage
+  ? `${contentPage.title} - musiccloud`
+  : isArtist
+    ? `${displayTitle} - musiccloud`
+    : `${displayTitle} by ${artistDisplay} - musiccloud`;
 ---
 
 <BaseLayout
   title={pageTitle}
-  canonicalUrl={og.url}
+  canonicalUrl={contentPage ? `https://musiccloud.io/${contentPage.slug}` : og?.url}
   preloadImage={artworkUrl ?? undefined}
   lang={locale}
 >
-  <Fragment slot="head">
-    <!-- OpenGraph Tags (critical for link previews) -->
-    <meta property="og:type" content={isArtist ? "profile" : isAlbum ? "music.album" : "music.song"} />
-    <meta property="og:title" content={og.title} />
-    <meta property="og:description" content={og.description} />
-    {og.image && <meta property="og:image" content={og.image} />}
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content={isArtist ? displayTitle : `${displayTitle} by ${artistDisplay}`} />
-    <meta property="og:url" content={og.url} />
-    <meta property="og:site_name" content="musiccloud" />
+  {og && (
+    <Fragment slot="head">
+      <meta property="og:type" content={isArtist ? "profile" : isAlbum ? "music.album" : "music.song"} />
+      <meta property="og:title" content={og.title} />
+      <meta property="og:description" content={og.description} />
+      {og.image && <meta property="og:image" content={og.image} />}
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:image:alt" content={isArtist ? displayTitle : `${displayTitle} by ${artistDisplay}`} />
+      <meta property="og:url" content={og.url} />
+      <meta property="og:site_name" content="musiccloud" />
 
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={og.title} />
-    <meta name="twitter:description" content={og.description} />
-    {og.image && <meta name="twitter:image" content={og.image} />}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={og.title} />
+      <meta name="twitter:description" content={og.description} />
+      {og.image && <meta name="twitter:image" content={og.image} />}
 
-    <!-- DNS prefetch for artwork CDNs -->
-    <link rel="dns-prefetch" href="//i.scdn.co" />
-    <link rel="dns-prefetch" href="//is1-ssl.mzstatic.com" />
-  </Fragment>
+      <link rel="dns-prefetch" href="//i.scdn.co" />
+      <link rel="dns-prefetch" href="//is1-ssl.mzstatic.com" />
+    </Fragment>
+  )}
 
   <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">
     {t("a11y.skipToContent")}
   </a>
 
-  <!-- Page header island (top-right, no InfoButton on share page) -->
-  <PageHeaderIsland client:idle />
+  <PageHeaderIsland client:idle navItems={headerNav} />
 
   <GradientBackground />
 
   <div class="min-h-dvh flex flex-col">
-    <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
-      <div class="mb-6 text-center">
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-[-0.04em]">
-          <a href="/" aria-label="Go to musiccloud home">
-            <BrandName client:idle />
-          </a>
-        </h1>
-      </div>
-      <ShareLayout client:load config={shareConfig} artistName={isArtist ? displayTitle : artistDisplay} initialLocale={locale} />
-    </main>
+    {contentPage ? (
+      <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-12">
+        {contentPage.showTitle && (
+          <h1 class="text-3xl sm:text-4xl font-bold tracking-[-0.04em] mb-8">{contentPage.title}</h1>
+        )}
+        <article class="prose prose-invert max-w-none" set:html={contentPage.contentHtml} />
+      </main>
+    ) : (
+      <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
+        <div class="mb-6 text-center">
+          <h1 class="text-3xl sm:text-4xl font-bold tracking-[-0.04em]">
+            <a href="/" aria-label="Go to musiccloud home">
+              <BrandName client:idle />
+            </a>
+          </h1>
+        </div>
+        {shareConfig && (
+          <ShareLayout client:load config={shareConfig} artistName={isArtist ? displayTitle : artistDisplay} initialLocale={locale} />
+        )}
+      </main>
+    )}
 
-    <AppFooterIsland client:idle />
+    <AppFooterIsland client:idle navItems={footerNav} />
   </div>
 </BaseLayout>

@@ -6,6 +6,9 @@ import { LandingPage } from "@/components/LandingPage";
 import GradientBackground from "@/components/background/GradientBackground.astro";
 import SparklingStars from "@/components/background/SparklingStars.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { loadNav } from "@/lib/loadNav";
+
+const { header: headerNav, footer: footerNav } = await loadNav();
 ---
 
 <BaseLayout
@@ -62,7 +65,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
   <GradientBackground />
 
   <div class="min-h-dvh flex flex-col">
-    <LandingPage client:idle />
+    <LandingPage client:idle headerNav={headerNav} footerNav={footerNav} />
   </div>
 
   <!-- Non-essential ambient UI: static (CSS-only animation) -->

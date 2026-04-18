@@ -312,3 +312,43 @@ export const emailTemplates = pgTable("email_templates", {
 
 export type EmailTemplateRow = typeof emailTemplates.$inferSelect;
 export type EmailTemplateInsert = typeof emailTemplates.$inferInsert;
+
+// Managed content pages. Created and edited via the dashboard pages
+// editor; rendered server-side by the Astro frontend at `/:slug`.
+// `slug` is the natural primary key — it doubles as the public URL.
+export const contentPages = pgTable("content_pages", {
+  slug: text("slug").primaryKey(),
+  title: text("title").notNull(),
+  content: text("content").notNull().default(""),
+  status: text("status").notNull().default("draft"),
+  showTitle: boolean("show_title").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  createdBy: text("created_by").references(() => adminUsers.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
+  updatedBy: text("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
+});
+
+export type ContentPageRow = typeof contentPages.$inferSelect;
+export type ContentPageInsert = typeof contentPages.$inferInsert;
+
+// Header / footer navigation items. Replaced atomically per `nav_id` by
+// the admin nav editor. Items can either point at an internal content
+// page (FK to `content_pages.slug`, cascades on delete) or carry an
+// arbitrary URL (relative path or external https://). `position` is
+// recomputed sequentially on every save.
+export const navItems = pgTable(
+  "nav_items",
+  {
+    id: serial("id").primaryKey(),
+    navId: text("nav_id").notNull(),
+    pageSlug: text("page_slug").references(() => contentPages.slug, { onDelete: "cascade" }),
+    url: text("url"),
+    target: text("target").notNull().default("_self"),
+    position: integer("position").notNull().default(0),
+    label: text("label"),
+  },
+  (table) => [index("idx_nav_items_nav").on(table.navId)],
+);
+
+export type NavItemRow = typeof navItems.$inferSelect;
+export type NavItemInsert = typeof navItems.$inferInsert;

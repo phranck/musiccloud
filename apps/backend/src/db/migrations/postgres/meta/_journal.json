@@ -85,6 +85,13 @@
       "when": 1776469155174,
       "tag": "0011_nervous_pretty_boy",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1776533124064,
+      "tag": "0012_closed_black_queen",
+      "breakpoints": true
     }
   ]
 }

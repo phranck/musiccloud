@@ -9,9 +9,18 @@ import type {
   AdminUser,
   AlbumListItem,
   ArtistListItem,
+  ContentPageCreateData,
+  ContentPageMetaUpdate,
+  ContentPageRow,
+  ContentPageSummaryRow,
+  ContentStatus,
   EmailTemplateRow,
   EmailTemplateWriteData,
   ListResult,
+  NavId,
+  NavItemReplaceInput,
+  NavItemRow,
+  NavTarget,
   TrackListItem,
 } from "../admin-repository.js";
 import type {
@@ -2273,6 +2282,172 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(`DELETE FROM email_templates WHERE id = $1 RETURNING id`, [id]);
     return (result.rowCount ?? 0) > 0;
   }
+
+  // ============================================================================
+  // CONTENT PAGES (AdminRepository)
+  // ============================================================================
+
+  async listContentPageSummaries(): Promise<ContentPageSummaryRow[]> {
+    const result = await this.pool.query(
+      `SELECT slug, title, status, show_title, created_by, updated_by, created_at, updated_at
+       FROM content_pages
+       ORDER BY created_at DESC`,
+    );
+    return result.rows.map(rowToContentPageSummary);
+  }
+
+  async getContentPageBySlug(slug: string): Promise<ContentPageRow | null> {
+    const result = await this.pool.query(
+      `SELECT slug, title, content, status, show_title, created_by, updated_by, created_at, updated_at
+       FROM content_pages
+       WHERE slug = $1`,
+      [slug],
+    );
+    return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+  }
+
+  async contentPageSlugExists(slug: string): Promise<boolean> {
+    const result = await this.pool.query(`SELECT 1 FROM content_pages WHERE slug = $1 LIMIT 1`, [slug]);
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async createContentPage(data: ContentPageCreateData): Promise<ContentPageRow> {
+    const result = await this.pool.query(
+      `INSERT INTO content_pages (slug, title, status, created_by)
+       VALUES ($1, $2, $3, $4)
+       RETURNING slug, title, content, status, show_title, created_by, updated_by, created_at, updated_at`,
+      [data.slug, data.title, data.status ?? "draft", data.createdBy],
+    );
+    return rowToContentPage(result.rows[0]);
+  }
+
+  async updateContentPageMeta(slug: string, data: ContentPageMetaUpdate): Promise<ContentPageRow | null> {
+    const setClauses: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    if (data.title !== undefined) {
+      setClauses.push(`title = $${paramIndex++}`);
+      values.push(data.title);
+    }
+    if (data.slug !== undefined) {
+      setClauses.push(`slug = $${paramIndex++}`);
+      values.push(data.slug);
+    }
+    if (data.status !== undefined) {
+      setClauses.push(`status = $${paramIndex++}`);
+      values.push(data.status);
+    }
+    if (data.showTitle !== undefined) {
+      setClauses.push(`show_title = $${paramIndex++}`);
+      values.push(data.showTitle);
+    }
+
+    if (setClauses.length === 0) {
+      return this.getContentPageBySlug(slug);
+    }
+
+    setClauses.push(`updated_at = $${paramIndex++}`);
+    values.push(new Date());
+    setClauses.push(`updated_by = $${paramIndex++}`);
+    values.push(data.updatedBy);
+
+    values.push(slug);
+    const result = await this.pool.query(
+      `UPDATE content_pages SET ${setClauses.join(", ")}
+       WHERE slug = $${paramIndex}
+       RETURNING slug, title, content, status, show_title, created_by, updated_by, created_at, updated_at`,
+      values,
+    );
+    return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+  }
+
+  async updateContentPageBody(slug: string, content: string, updatedBy: string | null): Promise<ContentPageRow | null> {
+    const result = await this.pool.query(
+      `UPDATE content_pages
+       SET content = $1, updated_at = $2, updated_by = $3
+       WHERE slug = $4
+       RETURNING slug, title, content, status, show_title, created_by, updated_by, created_at, updated_at`,
+      [content, new Date(), updatedBy, slug],
+    );
+    return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+  }
+
+  async deleteContentPage(slug: string): Promise<boolean> {
+    const result = await this.pool.query(`DELETE FROM content_pages WHERE slug = $1 RETURNING slug`, [slug]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getAdminUsernamesByIds(ids: string[]): Promise<Map<string, string>> {
+    const map = new Map<string, string>();
+    if (ids.length === 0) return map;
+    const unique = Array.from(new Set(ids));
+    const result = await this.pool.query<{ id: string; username: string }>(
+      `SELECT id, username FROM admin_users WHERE id = ANY($1)`,
+      [unique],
+    );
+    for (const row of result.rows) map.set(row.id, row.username);
+    return map;
+  }
+
+  // -- Public reads -----------------------------------------------------------
+
+  async listPublishedContentPages(): Promise<Array<{ slug: string; title: string }>> {
+    const result = await this.pool.query<{ slug: string; title: string }>(
+      `SELECT slug, title FROM content_pages WHERE status = 'published' ORDER BY title ASC`,
+    );
+    return result.rows;
+  }
+
+  async getPublishedContentPageBySlug(slug: string): Promise<ContentPageRow | null> {
+    const result = await this.pool.query(
+      `SELECT slug, title, content, status, show_title, created_by, updated_by, created_at, updated_at
+       FROM content_pages
+       WHERE slug = $1 AND status = 'published'`,
+      [slug],
+    );
+    return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+  }
+
+  // ============================================================================
+  // NAVIGATION ITEMS (AdminRepository)
+  // ============================================================================
+
+  async listAdminNavItems(navId: NavId): Promise<NavItemRow[]> {
+    const result = await this.pool.query(
+      `SELECT n.id, n.nav_id, n.page_slug, n.url, n.target, n.position, n.label,
+              p.title AS page_title
+       FROM nav_items n
+       LEFT JOIN content_pages p ON p.slug = n.page_slug
+       WHERE n.nav_id = $1
+       ORDER BY n.position ASC, n.id ASC`,
+      [navId],
+    );
+    return result.rows.map(rowToNavItem);
+  }
+
+  async replaceAdminNavItems(navId: NavId, items: NavItemReplaceInput[]): Promise<NavItemRow[]> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`DELETE FROM nav_items WHERE nav_id = $1`, [navId]);
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        await client.query(
+          `INSERT INTO nav_items (nav_id, page_slug, url, target, position, label)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [navId, item.pageSlug ?? null, item.url ?? null, item.target ?? "_self", i, item.label ?? null],
+        );
+      }
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+    return this.listAdminNavItems(navId);
+  }
 }
 
 interface EmailTemplateSqlRow {
@@ -2302,5 +2477,61 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
     isSystemTemplate: row.is_system_template,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+interface ContentPageSummarySqlRow {
+  slug: string;
+  title: string;
+  status: string;
+  show_title: boolean;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: Date;
+  updated_at: Date | null;
+}
+
+interface ContentPageSqlRow extends ContentPageSummarySqlRow {
+  content: string;
+}
+
+function rowToContentPageSummary(row: ContentPageSummarySqlRow): ContentPageSummaryRow {
+  return {
+    slug: row.slug,
+    title: row.title,
+    status: row.status as ContentStatus,
+    showTitle: row.show_title,
+    createdBy: row.created_by,
+    updatedBy: row.updated_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function rowToContentPage(row: ContentPageSqlRow): ContentPageRow {
+  return { ...rowToContentPageSummary(row), content: row.content };
+}
+
+interface NavItemSqlRow {
+  id: number;
+  nav_id: string;
+  page_slug: string | null;
+  url: string | null;
+  target: string;
+  position: number;
+  label: string | null;
+  page_title: string | null;
+}
+
+function rowToNavItem(row: NavItemSqlRow): NavItemRow {
+  return {
+    id: row.id,
+    navId: row.nav_id as NavId,
+    pageSlug: row.page_slug,
+    pageTitle: row.page_title,
+    url: row.url,
+    target: row.target as NavTarget,
+    label: row.label,
+    position: row.position,
   };
 }

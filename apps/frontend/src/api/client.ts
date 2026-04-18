@@ -1,4 +1,11 @@
-import { type ActiveService, ENDPOINTS, type SharePageResponse } from "@musiccloud/shared";
+import {
+  type ActiveService,
+  ENDPOINTS,
+  type NavId,
+  type NavItem,
+  type PublicContentPage,
+  type SharePageResponse,
+} from "@musiccloud/shared";
 
 const BACKEND_URL =
   (import.meta.env.BACKEND_URL as string | undefined) ?? process.env.BACKEND_URL ?? "http://localhost:4000";
@@ -100,5 +107,31 @@ export async function fetchActiveServices(): Promise<ActiveService[]> {
     return (await res.json()) as ActiveService[];
   } catch {
     return [];
+  }
+}
+
+/** Fetch the public navigation items for header or footer. SSR-safe; returns [] on failure. */
+export async function fetchNavigation(navId: NavId): Promise<NavItem[]> {
+  try {
+    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.nav(navId)), { headers: internalHeaders() }, 5000);
+    if (!res.ok) return [];
+    return (await res.json()) as NavItem[];
+  } catch {
+    return [];
+  }
+}
+
+/** Fetch a single published content page by slug, with server-rendered HTML. */
+export async function fetchPublicContentPage(slug: string): Promise<PublicContentPage | null> {
+  try {
+    const res = await fetchWithTimeout(
+      backendUrl(ENDPOINTS.v1.content.detail(slug)),
+      { headers: internalHeaders() },
+      5000,
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as PublicContentPage;
+  } catch {
+    return null;
   }
 }

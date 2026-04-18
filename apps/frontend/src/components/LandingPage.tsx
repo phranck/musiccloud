@@ -1,3 +1,4 @@
+import type { NavItem } from "@musiccloud/shared";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { Component, lazy, type ReactNode, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { HeroInput } from "@/components/input/HeroInput";
@@ -140,7 +141,7 @@ function hexToRgb(hex: string): string {
   return `${r} ${g} ${b}`;
 }
 
-function LandingPageInner() {
+function LandingPageInner({ headerNav = [], footerNav = [] }: { headerNav?: NavItem[]; footerNav?: NavItem[] }) {
   const t = useT();
 
   const resultsPanelRef = useRef<HTMLDivElement>(null);
@@ -255,7 +256,7 @@ function LandingPageInner() {
             : undefined
         }
       >
-        <PageHeader showInfoButton onInfoClick={() => setIsInfoOpen(true)} />
+        <PageHeader showInfoButton onInfoClick={() => setIsInfoOpen(true)} navItems={headerNav} />
         <Suspense fallback={null}>
           <InfoPanel isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
         </Suspense>
@@ -392,16 +393,16 @@ function LandingPageInner() {
         </Suspense>
       </div>
 
-      <AppFooter />
+      <AppFooter navItems={footerNav} />
     </>
   );
 }
 
-export function LandingPage() {
+export function LandingPage({ headerNav = [], footerNav = [] }: { headerNav?: NavItem[]; footerNav?: NavItem[] } = {}) {
   return (
     <LandingErrorBoundary>
       <LocaleProvider>
-        <LandingPageInner />
+        <LandingPageInner headerNav={headerNav} footerNav={footerNav} />
       </LocaleProvider>
     </LandingErrorBoundary>
   );

@@ -10,8 +10,10 @@ import { runMigrations } from "./db/run-migrations.js";
 import authPlugin from "./plugins/auth.js";
 import adminAnalyticsRoutes from "./routes/admin-analytics.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
+import adminContentRoutes from "./routes/admin-content.js";
 import adminDataRoutes from "./routes/admin-data.js";
 import adminEmailTemplateRoutes from "./routes/admin-email-templates.js";
+import adminNavRoutes from "./routes/admin-nav.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
 import adminSseRoutes from "./routes/admin-sse.js";
 import adminUserRoutes from "./routes/admin-users.js";
@@ -19,6 +21,7 @@ import artistInfoRoutes from "./routes/artist-info.js";
 import authRoutes from "./routes/auth.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
+import publicContentNavRoutes from "./routes/public-content-nav.js";
 import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
 import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
@@ -184,6 +187,9 @@ async function buildApp() {
   // Active-services list (public read for SSR — marquee, resolve pages)
   await app.register(servicesPublicRoutes);
 
+  // Public navigation + content pages (no auth - SSR'd by Astro frontend)
+  await app.register(publicContentNavRoutes);
+
   // Public GET resolve endpoint (no auth - used for Shortcuts, etc.)
   await app.register(resolvePublicGetRoutes);
 
@@ -199,8 +205,10 @@ async function buildApp() {
   await app.register(async function adminRoutes(adminApp) {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
     await adminApp.register(adminAnalyticsRoutes);
+    await adminApp.register(adminContentRoutes);
     await adminApp.register(adminDataRoutes);
     await adminApp.register(adminEmailTemplateRoutes);
+    await adminApp.register(adminNavRoutes);
     await adminApp.register(adminSseRoutes);
     await adminApp.register(adminUserRoutes);
     await adminApp.register(siteSettingsAdminRoutes);

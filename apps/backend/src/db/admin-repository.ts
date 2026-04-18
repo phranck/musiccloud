@@ -109,6 +109,67 @@ export interface EmailTemplateWriteData {
   isSystemTemplate?: boolean;
 }
 
+// ----------------------------------------------------------------------------
+// Content pages (managed in dashboard, rendered by Astro frontend at /:slug)
+// ----------------------------------------------------------------------------
+
+export type ContentStatus = "draft" | "published" | "hidden";
+
+export interface ContentPageSummaryRow {
+  slug: string;
+  title: string;
+  status: ContentStatus;
+  showTitle: boolean;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date | null;
+}
+
+export interface ContentPageRow extends ContentPageSummaryRow {
+  content: string;
+}
+
+export interface ContentPageCreateData {
+  slug: string;
+  title: string;
+  status?: ContentStatus;
+  createdBy: string | null;
+}
+
+export interface ContentPageMetaUpdate {
+  title?: string;
+  slug?: string;
+  status?: ContentStatus;
+  showTitle?: boolean;
+  updatedBy: string | null;
+}
+
+// ----------------------------------------------------------------------------
+// Navigation items (header / footer link sets, replaced atomically per nav)
+// ----------------------------------------------------------------------------
+
+export type NavId = "header" | "footer";
+export type NavTarget = "_self" | "_blank";
+
+export interface NavItemRow {
+  id: number;
+  navId: NavId;
+  pageSlug: string | null;
+  pageTitle: string | null;
+  url: string | null;
+  target: NavTarget;
+  label: string | null;
+  position: number;
+}
+
+export interface NavItemReplaceInput {
+  pageSlug?: string | null;
+  url?: string | null;
+  label?: string | null;
+  target?: NavTarget;
+}
+
 export interface AdminRepository {
   countAdmins(): Promise<number>;
   findAdminById(id: string): Promise<AdminUser | null>;
@@ -217,4 +278,24 @@ export interface AdminRepository {
   insertEmailTemplate(data: EmailTemplateWriteData): Promise<EmailTemplateRow>;
   updateEmailTemplate(id: number, data: Partial<EmailTemplateWriteData>): Promise<EmailTemplateRow | null>;
   deleteEmailTemplate(id: number): Promise<boolean>;
+
+  // Content pages
+  listContentPageSummaries(): Promise<ContentPageSummaryRow[]>;
+  getContentPageBySlug(slug: string): Promise<ContentPageRow | null>;
+  contentPageSlugExists(slug: string): Promise<boolean>;
+  createContentPage(data: ContentPageCreateData): Promise<ContentPageRow>;
+  updateContentPageMeta(slug: string, data: ContentPageMetaUpdate): Promise<ContentPageRow | null>;
+  updateContentPageBody(slug: string, content: string, updatedBy: string | null): Promise<ContentPageRow | null>;
+  deleteContentPage(slug: string): Promise<boolean>;
+  /** Resolve admin user IDs to usernames for displaying createdBy / updatedBy. */
+  getAdminUsernamesByIds(ids: string[]): Promise<Map<string, string>>;
+
+  // Public reads (no auth) — published pages only
+  listPublishedContentPages(): Promise<Array<{ slug: string; title: string }>>;
+  getPublishedContentPageBySlug(slug: string): Promise<ContentPageRow | null>;
+
+  // Navigation items
+  listAdminNavItems(navId: NavId): Promise<NavItemRow[]>;
+  /** Atomically replaces every item for `navId`. Positions are renumbered 0…n. */
+  replaceAdminNavItems(navId: NavId, items: NavItemReplaceInput[]): Promise<NavItemRow[]>;
 }

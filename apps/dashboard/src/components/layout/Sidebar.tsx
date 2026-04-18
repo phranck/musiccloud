@@ -6,6 +6,7 @@ import {
   EnvelopeOpenIcon,
   GearIcon,
   HouseSimpleIcon,
+  ListIcon,
   MarkdownLogoIcon,
   MicrophoneStageIcon,
   MusicNotesIcon,
@@ -347,6 +348,15 @@ export function Sidebar({
                   globalOpenVersion={groupOpenVersion}
                   onOpenChange={(open) => handleGroupOpenChange("sidebar-pages-open", open)}
                 />
+                <NavLink to="/navigation" onClick={onItemClick} className="contents">
+                  {({ isActive }) => (
+                    <DashboardSection.Item
+                      icon={<ListIcon weight="duotone" className="w-4 h-4" />}
+                      label={s.navigations}
+                      active={isActive}
+                    />
+                  )}
+                </NavLink>
               </DashboardSection.Body>
             </DashboardSection>
           </div>
