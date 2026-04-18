@@ -46,54 +46,56 @@ export function SlideArtwork({ active, artworkUrl, kind = "square", sizeClass, i
       borderWidth="1px"
       style={{ "--neu-light": "hsl(0 0% 100% / 0.5)", "--neu-shadow": "hsl(0 0% 0% / 0.1)" } as React.CSSProperties}
     >
-      {/* CD spinner -- only mounted for the selected row */}
-      {active && (
-        <div
-          className={cn(
-            "absolute inset-0 z-0 transition-transform duration-300 ease-in-out",
-            entered ? "translate-y-0" : "-translate-y-full",
-          )}
-        >
-          <CDSpinArtwork className="w-full h-full" />
-        </div>
-      )}
-
-      {/* Cover artwork -- pushed down when CD slides in */}
-      <div
-        className={cn(
-          "relative z-0 transition-transform duration-300 ease-in-out w-full h-full bg-surface",
-          active && entered ? "translate-y-full" : "translate-y-0",
-        )}
-      >
-        {artworkUrl ? (
-          <img
-            src={artworkUrl}
-            alt=""
-            className="w-full h-full object-cover"
-            width={imgDim}
-            height={imgDim}
-            loading="lazy"
-            style={{ borderRadius: "var(--neu-radius-inner)" }}
-            onError={(e) => {
-              e.currentTarget.src = "/og/default.jpg";
-            }}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
-            <FallbackIcon size={20} weight="duotone" className="text-text-muted" />
+      <RecessedCard.Body className="contents">
+        {/* CD spinner -- only mounted for the selected row */}
+        {active && (
+          <div
+            className={cn(
+              "absolute inset-0 z-0 transition-transform duration-300 ease-in-out",
+              entered ? "translate-y-0" : "-translate-y-full",
+            )}
+          >
+            <CDSpinArtwork className="w-full h-full" />
           </div>
         )}
-      </div>
 
-      {/* Inner shadow overlay -- stays on top of both CD and cover */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 pointer-events-none z-10"
-        style={{
-          borderRadius: "var(--neu-radius-inner)",
-          boxShadow: innerShadow,
-        }}
-      />
+        {/* Cover artwork -- pushed down when CD slides in */}
+        <div
+          className={cn(
+            "relative z-0 transition-transform duration-300 ease-in-out w-full h-full bg-surface",
+            active && entered ? "translate-y-full" : "translate-y-0",
+          )}
+        >
+          {artworkUrl ? (
+            <img
+              src={artworkUrl}
+              alt=""
+              className="w-full h-full object-cover"
+              width={imgDim}
+              height={imgDim}
+              loading="lazy"
+              style={{ borderRadius: "var(--neu-radius-inner)" }}
+              onError={(e) => {
+                e.currentTarget.src = "/og/default.jpg";
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
+              <FallbackIcon size={20} weight="duotone" className="text-text-muted" />
+            </div>
+          )}
+        </div>
+
+        {/* Inner shadow overlay -- stays on top of both CD and cover */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none z-10"
+          style={{
+            borderRadius: "var(--neu-radius-inner)",
+            boxShadow: innerShadow,
+          }}
+        />
+      </RecessedCard.Body>
     </RecessedCard>
   );
 }

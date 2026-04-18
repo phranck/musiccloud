@@ -7,7 +7,6 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { EmbedModal } from "@/components/share/EmbedModal";
-import { SectionHeading } from "@/components/share/SectionHeading";
 import { ShareButton } from "@/components/share/ShareButton";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
@@ -66,7 +65,9 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       {content.previewUrl && (
         <div className="p-3">
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-            <AudioPreviewPlayer previewUrl={content.previewUrl} trackTitle={content.title} />
+            <RecessedCard.Body>
+              <AudioPreviewPlayer previewUrl={content.previewUrl} trackTitle={content.title} />
+            </RecessedCard.Body>
           </RecessedCard>
         </div>
       )}
@@ -74,7 +75,9 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       {shareUrl && (
         <div className="p-3">
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-            <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
+            <RecessedCard.Body>
+              <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
+            </RecessedCard.Body>
           </RecessedCard>
         </div>
       )}
@@ -82,7 +85,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       {sharePageContent && (
         <div className="p-3">
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-            <div className="flex flex-col gap-1.5">
+            <RecessedCard.Body className="flex flex-col gap-1.5">
               <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
               <EmbossedButton
                 as="button"
@@ -97,7 +100,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
                 <CodeIcon size={20} weight="duotone" />
                 {isAlbum ? t("embed.buttonAlbum") : t("embed.button")}
               </EmbossedButton>
-            </div>
+            </RecessedCard.Body>
           </RecessedCard>
           <EmbedModal
             open={embedOpen}
@@ -117,8 +120,10 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
       {content.platforms.length > 0 && (
         <div className="p-3">
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-            <SectionHeading>{content.platformsLabel}</SectionHeading>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            <RecessedCard.Header>
+              <RecessedCard.Header.Title>{content.platformsLabel}</RecessedCard.Header.Title>
+            </RecessedCard.Header>
+            <RecessedCard.Body className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {[...content.platforms]
                 .sort((a, b) => PLATFORM_CONFIG[a.platform].label.localeCompare(PLATFORM_CONFIG[b.platform].label))
                 .map((p) => (
@@ -131,7 +136,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
                     matchMethod={p.matchMethod}
                   />
                 ))}
-            </div>
+            </RecessedCard.Body>
           </RecessedCard>
           {content.platformsInfo && (
             <p className="text-sm text-text-secondary text-center mt-4">{content.platformsInfo}</p>

@@ -156,7 +156,7 @@ function EmbedRegular({
           {metaLine && <p className="text-xs text-text-muted font-mono">{metaLine}</p>}
         </div>
         <RecessedCard className="p-1.5" radius="0.5rem">
-          <div className="flex justify-between flex-wrap">
+          <RecessedCard.Body className="flex justify-between flex-wrap">
             {platforms.map((p) => (
               <a
                 key={p.platform}
@@ -168,7 +168,7 @@ function EmbedRegular({
                 <PlatformIcon platform={p.platform} className="w-8 h-8" colored />
               </a>
             ))}
-          </div>
+          </RecessedCard.Body>
         </RecessedCard>
         <div className="flex justify-center mt-1">
           <a
@@ -224,11 +224,11 @@ function EmbedLarge({
           {metaLine && <p className="text-xs text-text-muted font-mono">{metaLine}</p>}
         </div>
         <RecessedCard className="p-1.5" radius="0.5rem">
-          <div className="grid grid-cols-2 gap-1.5">
+          <RecessedCard.Body className="grid grid-cols-2 gap-1.5">
             {platforms.map((p) => (
               <PlatformButton key={p.platform} platform={p.platform} url={p.url} songTitle={title} size="sm" />
             ))}
-          </div>
+          </RecessedCard.Body>
         </RecessedCard>
         <div className="flex justify-center mt-1">
           <a

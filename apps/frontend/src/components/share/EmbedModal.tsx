@@ -136,14 +136,16 @@ export function EmbedModal({
             {isAlbum ? t("embed.titleAlbum") : t("embed.title")}
           </h2>
           <RecessedCard padding="2px" radius="50%" className="inline-flex">
-            <EmbossedButton
-              as="button"
-              type="button"
-              onClick={onClose}
-              className="w-8 h-8 p-0 rounded-full flex items-center justify-center text-text-secondary hover:text-text-primary"
-            >
-              <XIcon size={16} weight="bold" />
-            </EmbossedButton>
+            <RecessedCard.Body>
+              <EmbossedButton
+                as="button"
+                type="button"
+                onClick={onClose}
+                className="w-8 h-8 p-0 rounded-full flex items-center justify-center text-text-secondary hover:text-text-primary"
+              >
+                <XIcon size={16} weight="bold" />
+              </EmbossedButton>
+            </RecessedCard.Body>
           </RecessedCard>
         </EmbossedCard.Header>
 
@@ -172,23 +174,25 @@ export function EmbedModal({
               {t("embed.code")}
             </p>
             <RecessedCard padding="2px" radius="0.5rem" className="inline-flex">
-              <EmbossedButton
-                as="button"
-                type="button"
-                onClick={handleCopy}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-md text-text-secondary text-xs font-medium"
-              >
-                {copyState === "idle" ? (
-                  <CopySimpleIcon size={16} weight="duotone" />
-                ) : (
-                  <CheckIcon size={16} weight="duotone" />
-                )}
-                {copyState === "idle" ? t("embed.copy") : t("embed.copied")}
-              </EmbossedButton>
+              <RecessedCard.Body>
+                <EmbossedButton
+                  as="button"
+                  type="button"
+                  onClick={handleCopy}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-md text-text-secondary text-xs font-medium"
+                >
+                  {copyState === "idle" ? (
+                    <CopySimpleIcon size={16} weight="duotone" />
+                  ) : (
+                    <CheckIcon size={16} weight="duotone" />
+                  )}
+                  {copyState === "idle" ? t("embed.copy") : t("embed.copied")}
+                </EmbossedButton>
+              </RecessedCard.Body>
             </RecessedCard>
           </div>
           <RecessedCard className="font-mono text-xs leading-relaxed text-text-secondary whitespace-pre-wrap break-all">
-            {buildEmbedCode(shortUrl, size)}
+            <RecessedCard.Body>{buildEmbedCode(shortUrl, size)}</RecessedCard.Body>
           </RecessedCard>
         </EmbossedCard.Body>
       </EmbossedCard>
@@ -255,29 +259,31 @@ function EmbedPreviewArea({
       className="flex justify-center items-start transition-[height] duration-300 ease-out overflow-hidden"
       style={{ height: height !== undefined ? height + paddingY : undefined }}
     >
-      <div ref={contentRef} className="relative w-full flex justify-center">
-        {sizes.map((s) => (
-          <div
-            key={s}
-            data-active={size === s}
-            className={cn(
-              "transition-all duration-250",
-              size === s ? "opacity-100 scale-100 relative" : "opacity-0 scale-95 absolute top-0 pointer-events-none",
-            )}
-          >
-            <EmbedCardIsland
-              size={s}
-              title={title}
-              artist={artist}
-              artworkUrl={artworkUrl}
-              shortUrl={shortUrl}
-              metaLine={metaLine}
-              album={album}
-              platforms={platforms}
-            />
-          </div>
-        ))}
-      </div>
+      <RecessedCard.Body className="contents">
+        <div ref={contentRef} className="relative w-full flex justify-center">
+          {sizes.map((s) => (
+            <div
+              key={s}
+              data-active={size === s}
+              className={cn(
+                "transition-all duration-250",
+                size === s ? "opacity-100 scale-100 relative" : "opacity-0 scale-95 absolute top-0 pointer-events-none",
+              )}
+            >
+              <EmbedCardIsland
+                size={s}
+                title={title}
+                artist={artist}
+                artworkUrl={artworkUrl}
+                shortUrl={shortUrl}
+                metaLine={metaLine}
+                album={album}
+                platforms={platforms}
+              />
+            </div>
+          ))}
+        </div>
+      </RecessedCard.Body>
     </RecessedCard>
   );
 }

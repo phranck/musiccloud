@@ -1,23 +1,18 @@
 import { type ArtistTopTrack, ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useState } from "react";
-import { SectionHeading } from "@/components/share/SectionHeading";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 
 interface PopularTracksSectionProps {
   tracks: ArtistTopTrack[];
-  t: (key: string, vars?: Record<string, string>) => string;
 }
 
-export function PopularTracksSection({ tracks, t }: PopularTracksSectionProps) {
+export function PopularTracksSection({ tracks }: PopularTracksSectionProps) {
   return (
-    <div>
-      <SectionHeading info={t("artist.popularTracksInfo")}>{t("artist.popularTracks")}</SectionHeading>
-      <div className="flex flex-col gap-1.5">
-        {tracks.map((track) => (
-          <PopularTrack key={track.deezerUrl} track={track} />
-        ))}
-      </div>
+    <div className="flex flex-col gap-1.5">
+      {tracks.map((track) => (
+        <PopularTrack key={track.deezerUrl} track={track} />
+      ))}
     </div>
   );
 }

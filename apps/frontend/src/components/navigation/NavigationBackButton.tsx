@@ -17,15 +17,17 @@ interface NavigationBackButtonProps {
 export function NavigationBackButton({ onClick, label, className }: NavigationBackButtonProps) {
   return (
     <RecessedCard radius="0.625rem" className={cn("inline-flex items-center p-0.5", className)}>
-      <EmbossedButton
-        as="button"
-        onClick={onClick}
-        aria-label={label}
-        className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-text-muted hover:text-text-secondary"
-      >
-        <ArrowFatLeft size={16} weight="duotone" />
-        {label}
-      </EmbossedButton>
+      <RecessedCard.Body>
+        <EmbossedButton
+          as="button"
+          onClick={onClick}
+          aria-label={label}
+          className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-text-muted hover:text-text-secondary"
+        >
+          <ArrowFatLeft size={16} weight="duotone" />
+          {label}
+        </EmbossedButton>
+      </RecessedCard.Body>
     </RecessedCard>
   );
 }

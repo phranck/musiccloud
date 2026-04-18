@@ -25,30 +25,32 @@ export function SegmentedControl<T extends string>({ segments, value, onChange, 
 
   return (
     <RecessedCard className={cn("relative flex p-1", className)} radius="0.75rem">
-      {/* Sliding embossed indicator */}
-      <div
-        className="absolute top-1 bottom-1 transition-[left] duration-250 ease-out"
-        style={{
-          left: `calc(${activeIndex} * ${100 / count}% + 4px)`,
-          width: `calc(${100 / count}% - 8px)`,
-        }}
-      >
-        <EmbossedCard className="w-full h-full rounded-lg p-0" />
-      </div>
-      {segments.map(({ key, label }) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => onChange(key)}
-          className={cn(
-            "relative z-10 flex-1 py-2 px-3 rounded-lg text-[13px] font-semibold text-center transition-colors duration-150",
-            "border-none",
-            key === value ? "text-text-primary" : "text-text-secondary hover:text-text-primary",
-          )}
+      <RecessedCard.Body className="contents">
+        {/* Sliding embossed indicator */}
+        <div
+          className="absolute top-1 bottom-1 transition-[left] duration-250 ease-out"
+          style={{
+            left: `calc(${activeIndex} * ${100 / count}% + 4px)`,
+            width: `calc(${100 / count}% - 8px)`,
+          }}
         >
-          {label}
-        </button>
-      ))}
+          <EmbossedCard className="w-full h-full rounded-lg p-0" />
+        </div>
+        {segments.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onChange(key)}
+            className={cn(
+              "relative z-10 flex-1 py-2 px-3 rounded-lg text-[13px] font-semibold text-center transition-colors duration-150",
+              "border-none",
+              key === value ? "text-text-primary" : "text-text-secondary hover:text-text-primary",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </RecessedCard.Body>
     </RecessedCard>
   );
 }

@@ -1,53 +1,45 @@
 import type { ArtistEvent } from "@musiccloud/shared";
 import { TicketIcon } from "@phosphor-icons/react";
-import { SectionHeading } from "@/components/share/SectionHeading";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 
 interface UpcomingEventsSectionProps {
   events: ArtistEvent[];
   userRegion: string;
-  hasLocalEvents: boolean;
-  t: (key: string, vars?: Record<string, string>) => string;
   locale: string;
 }
 
-export function UpcomingEventsSection({ events, userRegion, hasLocalEvents, t, locale }: UpcomingEventsSectionProps) {
+export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEventsSectionProps) {
   return (
-    <div>
-      <SectionHeading info={hasLocalEvents ? t("artist.upcomingEventsInfo") : undefined}>
-        {t("artist.upcomingEvents")}
-      </SectionHeading>
-      <div className="flex flex-col gap-1.5">
-        {events.map((event) => {
-          const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
-          const linkProps = event.ticketUrl
-            ? ({ href: event.ticketUrl, target: "_blank", rel: "noopener noreferrer" } as const)
-            : {};
-          return (
-            <EmbossedButton
-              key={`${event.date}-${event.venueName || event.city}`}
-              noScale
-              className="flex items-center gap-3 w-full rounded-[4px] sm:rounded-lg px-3 py-2 no-underline"
-              {...linkProps}
-            >
-              <div className="min-w-0 flex-1">
-                <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
-                  {formatEventDate(event.date, locale)}
-                  {isLocal && " \u2605"}
-                </p>
-                <p className="text-sm text-text-primary break-words">
-                  {event.venueName}
-                  <span className="text-text-secondary">
-                    {" \u00B7 "}
-                    {event.city}, {event.country}
-                  </span>
-                </p>
-              </div>
-              {event.ticketUrl && <TicketIcon size={24} weight="duotone" className="text-text-secondary flex-none" />}
-            </EmbossedButton>
-          );
-        })}
-      </div>
+    <div className="flex flex-col gap-1.5">
+      {events.map((event) => {
+        const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
+        const linkProps = event.ticketUrl
+          ? ({ href: event.ticketUrl, target: "_blank", rel: "noopener noreferrer" } as const)
+          : {};
+        return (
+          <EmbossedButton
+            key={`${event.date}-${event.venueName || event.city}`}
+            noScale
+            className="flex items-center gap-3 w-full rounded-[4px] sm:rounded-lg px-3 py-2 no-underline"
+            {...linkProps}
+          >
+            <div className="min-w-0 flex-1">
+              <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
+                {formatEventDate(event.date, locale)}
+                {isLocal && " \u2605"}
+              </p>
+              <p className="text-sm text-text-primary break-words">
+                {event.venueName}
+                <span className="text-text-secondary">
+                  {" \u00B7 "}
+                  {event.city}, {event.country}
+                </span>
+              </p>
+            </div>
+            {event.ticketUrl && <TicketIcon size={24} weight="duotone" className="text-text-secondary flex-none" />}
+          </EmbossedButton>
+        );
+      })}
     </div>
   );
 }

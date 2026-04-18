@@ -1,9 +1,111 @@
-import { forwardRef } from "react";
+import { Children, createContext, forwardRef, isValidElement, type ReactNode, useContext, useState } from "react";
 import { cn } from "@/lib/utils";
 import { recessedStyle } from "@/styles/neumorphic";
 
+// ─── Sub-component type tags ───────────────────────────────────────────────
+
+const HEADER_TAG = Symbol("RecessedCard.Header");
+const BODY_TAG = Symbol("RecessedCard.Body");
+const TITLE_TAG = Symbol("RecessedCard.Header.Title");
+const ADDON_TAG = Symbol("RecessedCard.Header.AddOn");
+
+// ─── Scroll-shadow context ─────────────────────────────────────────────────
+
+interface RecessedContextValue {
+  scrolled: boolean;
+  setScrolled: (v: boolean) => void;
+}
+
+const RecessedContext = createContext<RecessedContextValue | null>(null);
+
+// ─── Sub-components ────────────────────────────────────────────────────────
+
+interface TitleProps {
+  children: ReactNode;
+  className?: string;
+}
+
+function Title({ children, className }: TitleProps) {
+  return (
+    <p
+      className={cn("text-sm uppercase tracking-widest text-text-secondary font-bold", className)}
+      style={{ fontFamily: "var(--font-condensed)" }}
+    >
+      {children}
+    </p>
+  );
+}
+(Title as unknown as Record<symbol, boolean>)[TITLE_TAG] = true;
+
+interface AddOnProps {
+  children: ReactNode;
+  className?: string;
+}
+
+function AddOn({ children, className }: AddOnProps) {
+  return <div className={cn("flex items-center gap-2", className)}>{children}</div>;
+}
+(AddOn as unknown as Record<symbol, boolean>)[ADDON_TAG] = true;
+
+interface HeaderProps {
+  children: ReactNode;
+  className?: string;
+}
+
+function Header({ children, className }: HeaderProps) {
+  const ctx = useContext(RecessedContext);
+  const scrolled = ctx?.scrolled ?? false;
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between mt-0.5 mb-2 px-2 flex-shrink-0 relative z-10 transition-shadow duration-150",
+        scrolled && "shadow-[0_4px_8px_-2px_rgba(0,0,0,0.45)]",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+(Header as unknown as Record<symbol, boolean>)[HEADER_TAG] = true;
+
+// Attach nested compound parts to Header so callers can write
+// `<RecessedCard.Header.Title>`.
+(Header as typeof Header & { Title: typeof Title; AddOn: typeof AddOn }).Title = Title;
+(Header as typeof Header & { Title: typeof Title; AddOn: typeof AddOn }).AddOn = AddOn;
+
+interface BodyProps {
+  children: ReactNode;
+  className?: string;
+  /** When true, body becomes an internal scroll container and drives the Header's drop-shadow. */
+  scrollable?: boolean;
+}
+
+function Body({ children, className, scrollable = false }: BodyProps) {
+  const ctx = useContext(RecessedContext);
+  const handleScroll = scrollable
+    ? (e: React.UIEvent<HTMLDivElement>) => ctx?.setScrolled(e.currentTarget.scrollTop > 0)
+    : undefined;
+  return (
+    <div className={cn(scrollable && "flex-1 min-h-0 overflow-y-auto", className)} onScroll={handleScroll}>
+      {children}
+    </div>
+  );
+}
+(Body as unknown as Record<symbol, boolean>)[BODY_TAG] = true;
+
+// ─── Type guards ───────────────────────────────────────────────────────────
+
+function hasTag(child: unknown, tag: symbol): boolean {
+  if (!isValidElement(child)) return false;
+  const type = child.type;
+  return typeof type === "function" && (type as unknown as Record<symbol, boolean>)[tag] === true;
+}
+
+// ─── Main component ────────────────────────────────────────────────────────
+
 interface RecessedCardProps {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
   style?: React.CSSProperties;
   /** Width of the gradient border. Defaults to 1px. */
@@ -34,8 +136,7 @@ interface RecessedCardProps {
 
 // Fallback chain defaults: used when RecessedCard is rendered without an
 // EmbossedCard ancestor. Preserve the pre-cascade behaviour so existing
-// standalone call-sites (NavigationBackButton, SlideArtwork, MediaCard,
-// EmbedModal, ArtistProfileSection, EmbedCardIsland) render unchanged.
+// standalone call-sites render unchanged.
 const STANDALONE_RADIUS_FALLBACK = "1rem";
 
 // When the caller omits `radius`/`padding`, we want `calc()` to resolve to
@@ -55,24 +156,37 @@ const PADDING_CLASS_RE = /(^|\s)p[xytrbls]?-/;
  * A card with a recessed/inset appearance. Light source from top-left:
  * dark shadow on top/left edges, subtle highlight on bottom/right.
  *
+ * ## Compound API
+ *
+ * ```tsx
+ * <RecessedCard>
+ *   <RecessedCard.Header>
+ *     <RecessedCard.Header.Title>POPULAR TRACKS</RecessedCard.Header.Title>
+ *     <RecessedCard.Header.AddOn>{infoButton}</RecessedCard.Header.AddOn>
+ *   </RecessedCard.Header>
+ *   <RecessedCard.Body scrollable>{list}</RecessedCard.Body>
+ * </RecessedCard>
+ * ```
+ *
+ * Header is optional. When `Body` receives `scrollable`, its internal scroll
+ * position drives a drop-shadow on the Header (fades in/out with scrollTop).
+ *
+ * ## Cascade
+ *
  * When nested inside an `EmbossedCard`, both `radius` and `padding`
  * default to values derived from the parent's published geometry
- * (`--emb-radius` / `--emb-padding`) so the inner card is always
- * inscribed correctly in the outer frame — callers shouldn't need to
- * restate the formula. Pass explicit props to override.
- *
- * Standalone (no EmbossedCard ancestor), defaults to 1 rem radius and
- * 1 rem padding (the previous `rounded-2xl` / `p-4` baseline).
- *
- * Set the corner radius via the `radius` prop, not via `rounded-*`
- * classes — the component needs to know the radius to align the
- * gradient-border transition with the corner arc (see `--neu-radius`
- * in neumorphic.css).
+ * (`--emb-radius` / `--emb-padding`). Standalone defaults to 1 rem
+ * radius + 1 rem padding. Set `radius` via prop, not via `rounded-*`
+ * classes — the component needs to align the gradient-border arc
+ * with the corner.
  */
-export const RecessedCard = forwardRef<HTMLDivElement, RecessedCardProps>(function RecessedCard(
+const RecessedCardRoot = forwardRef<HTMLDivElement, RecessedCardProps>(function RecessedCard(
   { children, className, style, borderWidth, radius, padding },
   ref,
 ) {
+  const childArray = Children.toArray(children);
+  const hasCompoundChild = childArray.some((c) => hasTag(c, HEADER_TAG) || hasTag(c, BODY_TAG));
+
   const radiusBase =
     radius === undefined
       ? INHERITED_RADIUS_BASE
@@ -94,30 +208,21 @@ export const RecessedCard = forwardRef<HTMLDivElement, RecessedCardProps>(functi
 
   const mergedStyle: React.CSSProperties = {
     ...recessedStyle,
-    // `--neu-radius-base` / `--neu-radius-sm` are read by neumorphic.css,
-    // which assigns the active value into `--neu-radius` via a media query.
-    // We cannot set `--neu-radius` inline directly — inline custom props
-    // outrank @media rules, so the sm override would never apply.
-    //
-    // Both variables MUST be set on every RecessedCard, even when the
-    // caller didn't provide an sm override. Custom properties inherit by
-    // default, so an ancestor RecessedCard with `{ base, sm }` would leak
-    // its `--neu-radius-sm` into a child that only has a string `radius`,
-    // and the child would render with the ancestor's sm value at ≥ 640 px.
-    // Defaulting sm to base here makes every card self-contained.
     "--neu-radius-base": radiusBase,
     "--neu-radius-sm": radiusSm,
     ...(borderWidth ? { "--neu-border-width": borderWidth } : {}),
-    // border-radius is set INLINE (not via the `.recessed-gradient-border`
-    // class) because that class is also used by EmbossedButton in its
-    // pressed state — adding the rule there would mutate other components'
-    // shape on toggle. The inline `var(--neu-radius)` re-evaluates whenever
-    // the @media query swaps the active value, so responsive radii still
-    // work end-to-end.
     borderRadius: "var(--neu-radius)",
     ...(paddingValue !== undefined ? { padding: paddingValue } : {}),
     ...style,
   } as React.CSSProperties;
+
+  const [scrolled, setScrolled] = useState(false);
+
+  const content = hasCompoundChild ? (
+    <RecessedContext.Provider value={{ scrolled, setScrolled }}>{children}</RecessedContext.Provider>
+  ) : (
+    children
+  );
 
   return (
     <div
@@ -125,7 +230,12 @@ export const RecessedCard = forwardRef<HTMLDivElement, RecessedCardProps>(functi
       className={cn("recessed-gradient-border bg-black/25 backdrop-blur-md overflow-hidden", className)}
       style={mergedStyle}
     >
-      {children}
+      {content}
     </div>
   );
+});
+
+export const RecessedCard = Object.assign(RecessedCardRoot, {
+  Header: Header as typeof Header & { Title: typeof Title; AddOn: typeof AddOn },
+  Body,
 });

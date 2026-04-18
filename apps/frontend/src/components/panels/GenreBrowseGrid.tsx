@@ -36,7 +36,10 @@ export const GenreBrowseGrid = forwardRef<HTMLDivElement, GenreBrowseGridProps>(
 
         <EmbossedCard.Body className="flex-1 min-h-0 flex flex-col">
           <RecessedCard className="max-h-full min-h-0 flex flex-col">
-            <div className="flex-1 min-h-0 overflow-y-auto rounded-xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5">
+            <RecessedCard.Body
+              scrollable
+              className="rounded-xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5"
+            >
               {genres.map((genre, i) => {
                 // When the artwork has been generated at least once, the
                 // backend inlines its dominant accent; apply it as a scoped
@@ -62,7 +65,7 @@ export const GenreBrowseGrid = forwardRef<HTMLDivElement, GenreBrowseGridProps>(
                   </div>
                 );
               })}
-            </div>
+            </RecessedCard.Body>
           </RecessedCard>
         </EmbossedCard.Body>
       </EmbossedCard>
