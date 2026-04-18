@@ -131,6 +131,8 @@ class LandingErrorBoundary extends Component<{ children: ReactNode }, { hasError
   }
 }
 
+const EMPTY_NAV_ITEMS: NavItem[] = [];
+
 // Convert hex color to RGB string (e.g. "#FF5733" -> "255 87 51")
 function hexToRgb(hex: string): string {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -141,7 +143,13 @@ function hexToRgb(hex: string): string {
   return `${r} ${g} ${b}`;
 }
 
-function LandingPageInner({ headerNav = [], footerNav = [] }: { headerNav?: NavItem[]; footerNav?: NavItem[] }) {
+function LandingPageInner({
+  headerNav = EMPTY_NAV_ITEMS,
+  footerNav = EMPTY_NAV_ITEMS,
+}: {
+  headerNav?: NavItem[];
+  footerNav?: NavItem[];
+}) {
   const t = useT();
 
   const resultsPanelRef = useRef<HTMLDivElement>(null);
@@ -398,7 +406,13 @@ function LandingPageInner({ headerNav = [], footerNav = [] }: { headerNav?: NavI
   );
 }
 
-export function LandingPage({ headerNav = [], footerNav = [] }: { headerNav?: NavItem[]; footerNav?: NavItem[] } = {}) {
+export function LandingPage({
+  headerNav = EMPTY_NAV_ITEMS,
+  footerNav = EMPTY_NAV_ITEMS,
+}: {
+  headerNav?: NavItem[];
+  footerNav?: NavItem[];
+} = {}) {
   return (
     <LandingErrorBoundary>
       <LocaleProvider>

@@ -11,6 +11,8 @@ interface PageHeaderProps {
   navItems?: NavItem[];
 }
 
+const EMPTY_NAV_ITEMS: NavItem[] = [];
+
 function navHref(item: NavItem): string {
   return item.url ?? (item.pageSlug ? `/${item.pageSlug}` : "#");
 }
@@ -23,7 +25,7 @@ function navLabel(item: NavItem): string {
  * Fixed top-right header bar: optional admin-managed nav links, Language Switcher,
  * optional Info Button. Must be rendered inside a LocaleProvider.
  */
-export function PageHeader({ showInfoButton = false, onInfoClick, navItems = [] }: PageHeaderProps) {
+export function PageHeader({ showInfoButton = false, onInfoClick, navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
   return (
     <div className="fixed top-4 right-4 z-40 hidden sm:flex items-center gap-3">
       {navItems.length > 0 && (

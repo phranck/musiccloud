@@ -9,6 +9,8 @@ interface AppFooterProps {
   navItems?: NavItem[];
 }
 
+const EMPTY_NAV_ITEMS: NavItem[] = [];
+
 function navHref(item: NavItem): string {
   return item.url ?? (item.pageSlug ? `/${item.pageSlug}` : "#");
 }
@@ -22,7 +24,7 @@ function navLabel(item: NavItem): string {
  * Used on all pages (landing page via LandingPage.tsx, share page via Astro SSR).
  * Must be rendered inside a LocaleProvider (or via AppFooterIsland for standalone use).
  */
-export function AppFooter({ navItems = [] }: AppFooterProps) {
+export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
   const t = useT();
   const currentYear = new Date().getFullYear();
   const yearDisplay = currentYear > START_YEAR ? `${START_YEAR} – ${currentYear}` : `${START_YEAR}`;
