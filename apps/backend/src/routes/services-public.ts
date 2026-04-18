@@ -32,18 +32,17 @@ export default async function servicesPublicRoutes(app: FastifyInstance) {
           "Returns the list of services that are both registered and have passing availability checks. Used by the frontend marquee and resolve pages. Cache TTL: 30s.",
         response: {
           200: {
-            description: "Array of active service descriptors.",
+            description:
+              "Array of enabled service descriptors (id + display name + brand colour). Empty array when no adapter passes availability checks.",
             type: "array",
-            items: {
-              type: "object",
-              required: ["id", "displayName", "color"],
-              properties: {
-                id: { type: "string", description: "Internal service id (e.g. `spotify`, `deezer`)." },
-                displayName: { type: "string", description: "Human-readable service name." },
-                color: { type: "string", description: "Hex brand color, e.g. `#1db954`." },
-              },
-              additionalProperties: false,
-            },
+            items: { $ref: "ActiveService#" },
+            example: [
+              { id: "spotify", displayName: "Spotify", color: "#1db954" },
+              { id: "appleMusic", displayName: "Apple Music", color: "#fc3c44" },
+              { id: "deezer", displayName: "Deezer", color: "#ef5466" },
+              { id: "youtube", displayName: "YouTube", color: "#ff0000" },
+              { id: "tidal", displayName: "Tidal", color: "#000000" },
+            ],
           },
         },
       },

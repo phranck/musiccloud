@@ -64,12 +64,17 @@ export default async function shareRoutes(app: FastifyInstance) {
         response: {
           200: {
             description:
-              "`SharePageResponse`: type-discriminated payload (track/album/artist) with OG meta, details, links, and short URL.",
-            type: "object",
-            additionalProperties: true,
+              "Type-discriminated share payload (track / album / artist) with OG meta, details, per-service links, and short URL.",
+            $ref: "SharePage#",
           },
-          400: { $ref: "ErrorResponse#" },
-          404: { $ref: "ErrorResponse#" },
+          400: {
+            description: "`shortId` failed validation (empty, too long, or contains disallowed characters).",
+            $ref: "ErrorResponse#",
+          },
+          404: {
+            description: "No track, album, or artist exists for this short ID.",
+            $ref: "ErrorResponse#",
+          },
         },
       },
     },

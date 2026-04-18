@@ -133,17 +133,27 @@ export default async function resolveRoutes(app: FastifyInstance) {
         response: {
           200: {
             description:
-              'Success. One of three discriminated variants: a resolved track/album/artist (`UnifiedResolveSuccessResponse`), a disambiguation list (`ResolveDisambiguationResponse` with `status: "disambiguation"`), or a genre-discovery result (`ResolveGenreSearchResponse` with `status: "genre-search"` and a `results` object carrying nullable `tracks`/`albums`/`artists` arrays).',
-            type: "object",
-            additionalProperties: true,
+              'Success. Either a resolved track/album/artist (`UnifiedResolveSuccess`, discriminated by `type`), a disambiguation list (`ResolveDisambiguation`, `status: "disambiguation"`), or a genre-discovery result (`status: "genre-search"` / `status: "genre-browse"` — see description).',
+            oneOf: [
+              { $ref: "UnifiedResolveSuccess#" },
+              { $ref: "ResolveDisambiguation#" },
+              {
+                type: "object",
+                additionalProperties: true,
+                description: "Genre-search or genre-browse response (see endpoint description).",
+              },
+            ],
           },
-          400: { $ref: "ErrorResponse#" },
-          401: { $ref: "ErrorResponse#" },
-          404: { $ref: "ErrorResponse#" },
-          408: { $ref: "ErrorResponse#" },
-          429: { $ref: "ErrorResponse#" },
-          500: { $ref: "ErrorResponse#" },
-          503: { $ref: "ErrorResponse#" },
+          400: { description: "Invalid URL, invalid genre query, or malformed body.", $ref: "ErrorResponse#" },
+          401: { description: "Missing or invalid API key / bearer token.", $ref: "ErrorResponse#" },
+          404: { description: "URL is valid but the track/album/artist could not be found.", $ref: "ErrorResponse#" },
+          408: { description: "Upstream service timed out before a match could be confirmed.", $ref: "ErrorResponse#" },
+          429: { description: "Rate limit exceeded for this client.", $ref: "ErrorResponse#" },
+          500: { description: "Unexpected server error.", $ref: "ErrorResponse#" },
+          503: {
+            description: "Required upstream service (e.g. the Deezer genre adapter) is unavailable.",
+            $ref: "ErrorResponse#",
+          },
         },
       },
     },

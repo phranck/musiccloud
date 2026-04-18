@@ -60,6 +60,11 @@ export default async function authRoutes(app: FastifyInstance) {
             },
           },
           additionalProperties: false,
+          example: {
+            client_id: "api-client-demo",
+            client_secret: "••••••••••••••••••••••••••••••••",
+            grant_type: "client_credentials",
+          },
         },
         response: {
           200: {
@@ -72,10 +77,19 @@ export default async function authRoutes(app: FastifyInstance) {
               expires_in: { type: "integer", description: "Token lifetime in seconds." },
             },
             additionalProperties: false,
+            example: {
+              access_token:
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcGktY2xpZW50LTEyMzQiLCJzY29wZSI6ImFwaSIsImlhdCI6MTc2MjU5MDQwMCwiZXhwIjoxNzYyNTk0MDAwfQ.sig",
+              token_type: "Bearer",
+              expires_in: 3600,
+            },
           },
-          400: { $ref: "ErrorResponse#" },
-          401: { $ref: "ErrorResponse#" },
-          500: { $ref: "ErrorResponse#" },
+          400: { description: "Missing or malformed body field.", $ref: "ErrorResponse#" },
+          401: { description: "Invalid `client_id` or `client_secret`.", $ref: "ErrorResponse#" },
+          500: {
+            description: "Server-side misconfiguration (API_CLIENT_ID / API_CLIENT_SECRET env vars not set).",
+            $ref: "ErrorResponse#",
+          },
         },
       },
     },

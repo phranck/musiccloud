@@ -33,8 +33,12 @@ export default async function randomExampleRoutes(app: FastifyInstance) {
               shortId: { type: "string", description: "Short ID (track or album)." },
             },
             additionalProperties: false,
+            example: { shortId: "aBc123x" },
           },
-          404: { $ref: "ErrorResponse#" },
+          404: {
+            description: "No resolved tracks or albums exist (empty database).",
+            $ref: "ErrorResponse#",
+          },
         },
       },
     },

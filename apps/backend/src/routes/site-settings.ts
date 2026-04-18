@@ -42,6 +42,7 @@ export async function siteSettingsPublicRoutes(app: FastifyInstance) {
               enabled: { type: "boolean", description: "`true` if analytics tracking is currently enabled." },
             },
             additionalProperties: false,
+            example: { enabled: true },
           },
         },
       },

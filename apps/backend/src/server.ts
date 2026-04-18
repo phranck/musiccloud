@@ -28,6 +28,7 @@ import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
 import servicesPublicRoutes from "./routes/services-public.js";
 import shareRoutes from "./routes/share.js";
 import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site-settings.js";
+import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
 import { validateAdapters } from "./services/index.js";
 import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
 
@@ -38,6 +39,15 @@ async function buildApp() {
   const app = Fastify({
     // Silence log noise under vitest — integration tests stay quiet.
     logger: process.env.VITEST === "true" ? false : { level: process.env.NODE_ENV === "production" ? "info" : "debug" },
+    ajv: {
+      // AJV strict mode rejects the OpenAPI-native `example` annotation we
+      // embed in request-body schemas for Swagger UI. Whitelist it so AJV
+      // silently ignores it during validation. `examples` is already a
+      // built-in AJV vocabulary keyword and must NOT be re-registered.
+      customOptions: {
+        keywords: ["example"],
+      },
+    },
   });
 
   // Security & utility plugins
@@ -76,6 +86,7 @@ async function buildApp() {
   app.addSchema({
     $id: "ErrorResponse",
     type: "object",
+    description: "Standard error envelope returned by every v1 endpoint on a non-2xx response.",
     required: ["error"],
     properties: {
       error: {
@@ -84,7 +95,19 @@ async function buildApp() {
       },
       message: { type: "string", description: "Human-readable error detail." },
     },
+    example: {
+      error: "NOT_FOUND",
+      message: "Short ID not found. (MC-RES-0001)",
+    },
   });
+
+  // Reusable response schemas for the public v1 API (Track, PlatformLink,
+  // ResolveSuccess, SharePage, ArtistInfo, etc.). Registering them here
+  // means routes can `$ref` them and the generated OpenAPI document lists
+  // them under `components.schemas` instead of inlining large duplicates.
+  for (const schema of OPENAPI_SCHEMAS) {
+    app.addSchema(schema);
+  }
 
   // OpenAPI spec collector. MUST be registered before routes so it sees
   // their `schema` blocks as they are declared. The `transform` filters
@@ -98,10 +121,7 @@ async function buildApp() {
           "Public REST API for musiccloud.io. Resolve music URLs or text queries across 20+ streaming services and retrieve unified metadata.",
         version: "0.1.0",
       },
-      servers: [
-        { url: "https://api.musiccloud.io", description: "Production" },
-        { url: "http://localhost:4000", description: "Local development" },
-      ],
+      servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
       tags: [
         { name: "Resolve", description: "Resolve music URLs or text queries" },
         { name: "Share", description: "Fetch previously-resolved shares" },
@@ -153,9 +173,11 @@ async function buildApp() {
         description: "Returns 200 if the Fastify process is alive and serving requests.",
         response: {
           200: {
+            description: "Liveness probe response.",
             type: "object",
             properties: { status: { type: "string", enum: ["ok"] } },
             required: ["status"],
+            example: { status: "ok" },
           },
         },
       },

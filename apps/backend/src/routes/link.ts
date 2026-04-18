@@ -55,40 +55,19 @@ export default async function linkRoutes(app: FastifyInstance) {
         },
         response: {
           200: {
-            description: "Track core metadata and resolved service links.",
+            description: "Track core metadata and resolved service links (same shape as a successful resolve).",
             type: "object",
             required: ["id", "track", "links"],
+            additionalProperties: false,
             properties: {
-              id: { type: "string" },
-              track: {
-                type: "object",
-                required: ["title", "artists"],
-                properties: {
-                  title: { type: "string" },
-                  artists: { type: "array", items: { type: "string" } },
-                  albumName: { type: "string", nullable: true },
-                  artworkUrl: { type: "string", nullable: true },
-                },
-                additionalProperties: true,
-              },
-              links: {
-                type: "array",
-                items: {
-                  type: "object",
-                  required: ["service", "url"],
-                  properties: {
-                    service: { type: "string" },
-                    url: { type: "string" },
-                  },
-                  additionalProperties: true,
-                },
-              },
+              id: { type: "string", description: "The internal track id echoed back." },
+              track: { $ref: "Track#" },
+              links: { type: "array", items: { $ref: "PlatformLink#" } },
             },
-            additionalProperties: true,
           },
-          401: { $ref: "ErrorResponse#" },
-          404: { $ref: "ErrorResponse#" },
-          429: { $ref: "ErrorResponse#" },
+          401: { description: "Missing or invalid API key / bearer token.", $ref: "ErrorResponse#" },
+          404: { description: "No track exists for this id.", $ref: "ErrorResponse#" },
+          429: { description: "Rate limit exceeded for this client IP.", $ref: "ErrorResponse#" },
         },
       },
     },

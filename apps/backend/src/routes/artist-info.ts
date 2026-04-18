@@ -96,11 +96,11 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         },
         response: {
           200: {
-            description: "`ArtistInfoResponse` with top tracks, profile, events, and similar-artist top tracks.",
-            type: "object",
-            additionalProperties: true,
+            description:
+              "Aggregated artist details: Deezer top tracks, Spotify/Last.fm profile (nullable when Spotify isn't configured), upcoming events, and optional similar-artist top tracks.",
+            $ref: "ArtistInfo#",
           },
-          400: { $ref: "ErrorResponse#" },
+          400: { description: "Missing or empty `name` query parameter.", $ref: "ErrorResponse#" },
         },
       },
     },
