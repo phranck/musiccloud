@@ -1,12 +1,8 @@
 // Copies runtime font assets (TTF for Roboto Condensed) next to the built
 // backend bundle, so `opentype.loadSync(path.join(__dirname, ...))`
 // resolves correctly once tsup inlines the source into `dist/server.js`.
-//
-// Same pattern as `copy-swagger-ui-assets.mjs`: `cpSync` from the
-// checked-in assets folder into the build output. Called from
-// `tsup.config.ts` `onSuccess` (build) and from the dev script in
-// `package.json` (watch mode). The name is kept for backward
-// compatibility with existing build scripts — see tsup.config.ts.
+// Called from `tsup.config.ts` `onSuccess` (build) and from the dev script
+// in `package.json` (watch mode).
 
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";

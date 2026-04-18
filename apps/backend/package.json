@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "tsup --watch --onSuccess \"node scripts/copy-swagger-ui-assets.mjs && node scripts/copy-jimp-fonts.mjs && node start-dev.mjs\"",
-    "build": "tsup && node scripts/copy-swagger-ui-assets.mjs && node scripts/copy-jimp-fonts.mjs",
+    "dev": "tsup --watch --onSuccess \"node scripts/copy-jimp-fonts.mjs && node start-dev.mjs\"",
+    "build": "tsup && node scripts/copy-jimp-fonts.mjs",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
@@ -18,7 +18,6 @@
     "@fastify/multipart": "^9.4.0",
     "@fastify/sensible": "^6.0.4",
     "@fastify/swagger": "^9.7.0",
-    "@fastify/swagger-ui": "^5.2.5",
     "@musiccloud/shared": "*",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.1",

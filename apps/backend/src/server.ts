@@ -1,10 +1,8 @@
-import path from "node:path";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
 import sensible from "@fastify/sensible";
 import swagger from "@fastify/swagger";
-import swaggerUi from "@fastify/swagger-ui";
 import Fastify from "fastify";
 import { runMigrations } from "./db/run-migrations.js";
 import authPlugin from "./plugins/auth.js";
@@ -55,14 +53,17 @@ async function buildApp() {
     origin: process.env.CORS_ORIGIN?.split(",") ?? ["http://localhost:3000", "http://localhost:4321"],
   });
   await app.register(helmet, {
-    // Relaxed CSP so swagger-ui at /docs can render its inline bundle.
+    // Relaxed CSP so the Scalar API reference at /docs can load its
+    // bundle from jsDelivr and render its own inline styles/fonts.
     // Normal API responses are JSON and unaffected.
     contentSecurityPolicy: {
       directives: {
         "default-src": ["'self'"],
-        "script-src": ["'self'", "'unsafe-inline'"],
+        "script-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
         "style-src": ["'self'", "'unsafe-inline'", "https:"],
-        "img-src": ["'self'", "data:", "validator.swagger.io"],
+        "img-src": ["'self'", "data:", "https:"],
+        "font-src": ["'self'", "data:", "https:"],
+        "connect-src": ["'self'", "https:"],
       },
     },
   });
@@ -152,16 +153,49 @@ async function buildApp() {
     },
   });
 
-  await app.register(swaggerUi, {
-    routePrefix: "/docs",
-    uiConfig: { docExpansion: "list", deepLinking: true },
-    staticCSP: false,
-    // After tsup bundles the plugin, its internal
-    // `path.join(__dirname, '..', 'static')` resolves to the parent of the
-    // bundle (apps/backend/) instead of the package folder. Point it at the
-    // copy we place next to `server.js` during build (see tsup.config.ts).
-    baseDir: path.join(__dirname, "static"),
-  });
+  // Expose the raw OpenAPI document so Scalar (and external consumers)
+  // can load it. Uses `app.swagger()` per-request so the spec always
+  // reflects the full route table after every plugin has registered.
+  app.get(
+    "/docs/json",
+    {
+      schema: { hide: true },
+    },
+    async () => app.swagger(),
+  );
+
+  // Scalar API reference UI at /docs. We ship a tiny HTML shell that
+  // pulls the Scalar bundle from jsDelivr and points it at /docs/json.
+  // Doing it this way — instead of `@scalar/fastify-api-reference` —
+  // avoids two otherwise-expensive problems: (1) tsup inlining the plugin
+  // breaks Scalar's `fileURLToPath(import.meta.url)` client-asset
+  // resolution; (2) externalising `@scalar/*` would require node_modules
+  // in the Zerops deploy (currently only `apps/backend/dist` ships).
+  app.get(
+    "/docs",
+    {
+      schema: { hide: true },
+    },
+    async (_request, reply) => {
+      reply.type("text/html").send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>musiccloud API Reference</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <script
+      id="api-reference"
+      data-url="/docs/json"
+      data-configuration='{"theme":"default","pageTitle":"musiccloud API Reference"}'
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  </body>
+</html>`);
+    },
+  );
 
   // Health check (no auth)
   app.get(
