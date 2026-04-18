@@ -66,6 +66,11 @@ async function buildApp() {
         "connect-src": ["'self'", "https:"],
       },
     },
+    // Only emit the HSTS header in production. In dev the backend speaks
+    // HTTP on localhost:4000; Safari caches the HSTS response and then
+    // upgrades every future request to https://, which fails with a TLS
+    // error. Leaving it off in dev keeps /docs and /redoc reachable.
+    strictTransportSecurity: process.env.NODE_ENV === "production",
   });
   await app.register(sensible);
 
@@ -129,7 +134,6 @@ async function buildApp() {
         { name: "Links", description: "Link metadata" },
         { name: "Artist", description: "Artist info (Last.fm + Ticketmaster)" },
         { name: "Services", description: "Active resolver plugins and examples" },
-        { name: "Site", description: "Public site settings" },
         { name: "Auth", description: "OAuth client-credentials token endpoint" },
         { name: "Health", description: "Server health" },
       ],
@@ -146,14 +150,22 @@ async function buildApp() {
       buildLocalReference: (json, _baseUri, _fragment, i) => (typeof json.$id === "string" ? json.$id : `def-${i}`),
     },
     transform: ({ schema, url }) => {
-      if (url.startsWith("/api/admin")) {
+      // Hide admin + internal SSR helper endpoints (content, nav,
+      // site-settings) from the public API reference. They are reachable
+      // but not advertised to external consumers.
+      const isInternal =
+        url.startsWith("/api/admin") ||
+        url.startsWith("/api/v1/content") ||
+        url.startsWith("/api/v1/nav") ||
+        url.startsWith("/api/v1/site-settings");
+      if (isInternal) {
         return { schema: { ...schema, hide: true }, url };
       }
       return { schema, url };
     },
   });
 
-  // Expose the raw OpenAPI document so Scalar (and external consumers)
+  // Expose the raw OpenAPI document so Redoc (and external consumers)
   // can load it. Uses `app.swagger()` per-request so the spec always
   // reflects the full route table after every plugin has registered.
   app.get(
@@ -164,13 +176,14 @@ async function buildApp() {
     async () => app.swagger(),
   );
 
-  // Scalar API reference UI at /docs. We ship a tiny HTML shell that
-  // pulls the Scalar bundle from jsDelivr and points it at /docs/json.
-  // Doing it this way — instead of `@scalar/fastify-api-reference` —
-  // avoids two otherwise-expensive problems: (1) tsup inlining the plugin
-  // breaks Scalar's `fileURLToPath(import.meta.url)` client-asset
-  // resolution; (2) externalising `@scalar/*` would require node_modules
-  // in the Zerops deploy (currently only `apps/backend/dist` ships).
+  // Redoc API reference UI at /docs. A tiny HTML shell that pulls the
+  // Redoc standalone bundle from jsDelivr and points it at /docs/json.
+  // We avoid the Fastify plugins @fastify/swagger-ui and
+  // @scalar/fastify-api-reference because both resolve their client
+  // assets via `path.join(__dirname, ...)` / `fileURLToPath` at runtime,
+  // which breaks when tsup inlines them into dist/server.js — and
+  // externalising them would require node_modules in the Zerops deploy
+  // (currently only apps/backend/dist ships).
   app.get(
     "/docs",
     {
@@ -184,14 +197,12 @@ async function buildApp() {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>musiccloud API Reference</title>
     <link rel="icon" href="data:," />
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet" />
+    <style>body { margin: 0; padding: 0; }</style>
   </head>
   <body>
-    <script
-      id="api-reference"
-      data-url="/docs/json"
-      data-configuration='{"theme":"default","pageTitle":"musiccloud API Reference"}'
-    ></script>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    <redoc spec-url="/docs/json"></redoc>
+    <script src="https://cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js"></script>
   </body>
 </html>`);
     },

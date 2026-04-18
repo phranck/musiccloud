@@ -70,7 +70,7 @@ function InlineToken({ token, keyPrefix }: { token: MarkdownToken; keyPrefix: st
           {children}
         </a>
       ) : (
-        <>{children}</>
+        children
       );
     }
     case "strong":
@@ -83,7 +83,7 @@ function InlineToken({ token, keyPrefix }: { token: MarkdownToken; keyPrefix: st
       return token.tokens && token.tokens.length > 0 ? (
         <InlineTokens tokens={token.tokens} keyPrefix={keyPrefix} />
       ) : (
-        <>{token.text ?? ""}</>
+        (token.text ?? "")
       );
     default:
       return <>{token.text ?? token.raw ?? ""}</>;

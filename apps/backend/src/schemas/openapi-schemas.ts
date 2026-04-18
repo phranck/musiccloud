@@ -215,7 +215,7 @@ export const ResolveDisambiguationSchema = {
   required: ["status", "candidates"],
   additionalProperties: false,
   properties: {
-    status: { type: "string", const: "disambiguation" },
+    status: { type: "string", enum: ["disambiguation"] },
     candidates: { type: "array", items: { $ref: "DisambiguationCandidate#" } },
   },
   example: {
@@ -246,7 +246,7 @@ export const AlbumResolveSuccessSchema = {
   required: ["type", "id", "shortUrl", "album", "links"],
   additionalProperties: false,
   properties: {
-    type: { type: "string", const: "album", description: "Discriminator: always `album` for this variant." },
+    type: { type: "string", enum: ["album"], description: "Discriminator: always `album` for this variant." },
     id: { type: "string" },
     shortUrl: { type: "string", format: "uri" },
     album: { $ref: "Album#" },
@@ -291,7 +291,7 @@ export const ArtistResolveSuccessSchema = {
   required: ["type", "id", "shortUrl", "artist", "links"],
   additionalProperties: false,
   properties: {
-    type: { type: "string", const: "artist", description: "Discriminator: always `artist` for this variant." },
+    type: { type: "string", enum: ["artist"], description: "Discriminator: always `artist` for this variant." },
     id: { type: "string" },
     shortUrl: { type: "string", format: "uri" },
     artist: { $ref: "Artist#" },
@@ -332,7 +332,7 @@ export const TrackResolveSuccessSchema = {
   required: ["type", "id", "shortUrl", "track", "links"],
   additionalProperties: false,
   properties: {
-    type: { type: "string", const: "track", description: "Discriminator: always `track` for this variant." },
+    type: { type: "string", enum: ["track"], description: "Discriminator: always `track` for this variant." },
     id: { type: "string" },
     shortUrl: { type: "string", format: "uri" },
     track: { $ref: "Track#" },
@@ -430,12 +430,13 @@ export const ArtistTopTrackSchema = {
   properties: {
     title: { type: "string" },
     artists: { type: "array", items: { type: "string" } },
-    albumName: { type: ["string", "null"] },
-    artworkUrl: { type: ["string", "null"], format: "uri" },
-    durationMs: { type: ["integer", "null"], minimum: 0 },
+    albumName: { type: "string", nullable: true },
+    artworkUrl: { type: "string", nullable: true, format: "uri" },
+    durationMs: { type: "integer", nullable: true, minimum: 0 },
     deezerUrl: { type: "string", format: "uri", description: "Track URL on Deezer (click to re-resolve)." },
     shortId: {
-      type: ["string", "null"],
+      type: "string",
+      nullable: true,
       description: "musiccloud short-id when the track has already been resolved; null when it hasn't.",
     },
   },
@@ -458,12 +459,21 @@ export const ArtistProfileSchema = {
   additionalProperties: false,
   properties: {
     spotifyId: { type: "string" },
-    imageUrl: { type: ["string", "null"], format: "uri" },
+    imageUrl: { type: "string", nullable: true, format: "uri" },
     genres: { type: "array", items: { type: "string" }, maxItems: 3, description: "Up to 3 Spotify genres." },
     popularity: { type: "integer", minimum: 0, maximum: 100, description: "Spotify popularity score [0..100]." },
     followers: { type: "integer", minimum: 0, description: "Spotify follower count." },
-    bioSummary: { type: ["string", "null"], description: "Short biography from Last.fm (null when unavailable)." },
-    scrobbles: { type: ["integer", "null"], minimum: 0, description: "Last.fm playcount (null when unavailable)." },
+    bioSummary: {
+      type: "string",
+      nullable: true,
+      description: "Short biography from Last.fm (null when unavailable).",
+    },
+    scrobbles: {
+      type: "integer",
+      nullable: true,
+      minimum: 0,
+      description: "Last.fm playcount (null when unavailable).",
+    },
     similarArtists: {
       type: "array",
       items: { type: "string" },
@@ -495,7 +505,7 @@ export const ArtistEventSchema = {
     venueName: { type: "string" },
     city: { type: "string" },
     country: { type: "string", description: "ISO-3166-1 alpha-2 country code." },
-    ticketUrl: { type: ["string", "null"], format: "uri" },
+    ticketUrl: { type: "string", nullable: true, format: "uri" },
     source: { type: "string", enum: ["bandsintown", "ticketmaster"] },
   },
   example: {
@@ -517,7 +527,8 @@ export const SimilarArtistTrackSchema = {
   properties: {
     artistName: { type: "string" },
     track: {
-      oneOf: [{ $ref: "ArtistTopTrack#" }, { type: "null" }],
+      allOf: [{ $ref: "ArtistTopTrack#" }],
+      nullable: true,
     },
   },
   example: {
@@ -548,7 +559,8 @@ export const ArtistInfoSchema = {
       description: "Empty array when Deezer is unavailable.",
     },
     profile: {
-      oneOf: [{ $ref: "ArtistProfile#" }, { type: "null" }],
+      allOf: [{ $ref: "ArtistProfile#" }],
+      nullable: true,
       description: "Null when Spotify credentials are not configured.",
     },
     events: {
@@ -647,10 +659,10 @@ export const ContentPageSummarySchema = {
     title: { type: "string" },
     status: { type: "string", enum: ["draft", "published", "hidden"] },
     showTitle: { type: "boolean" },
-    createdByUsername: { type: ["string", "null"] },
-    updatedByUsername: { type: ["string", "null"] },
+    createdByUsername: { type: "string", nullable: true },
+    updatedByUsername: { type: "string", nullable: true },
     createdAt: { type: "string", format: "date-time" },
-    updatedAt: { type: ["string", "null"], format: "date-time" },
+    updatedAt: { type: "string", nullable: true, format: "date-time" },
   },
   example: {
     slug: "about",
@@ -673,11 +685,11 @@ export const NavItemSchema = {
   properties: {
     id: { type: "integer" },
     navId: { type: "string", enum: ["header", "footer"] },
-    pageSlug: { type: ["string", "null"], description: "Set when the item links to a managed content page." },
-    pageTitle: { type: ["string", "null"] },
-    url: { type: ["string", "null"], format: "uri", description: "Set when the item is an external link." },
+    pageSlug: { type: "string", nullable: true, description: "Set when the item links to a managed content page." },
+    pageTitle: { type: "string", nullable: true },
+    url: { type: "string", nullable: true, format: "uri", description: "Set when the item is an external link." },
     target: { type: "string", enum: ["_self", "_blank"] },
-    label: { type: ["string", "null"], description: "Override label; falls back to pageTitle when null." },
+    label: { type: "string", nullable: true, description: "Override label; falls back to pageTitle when null." },
     position: { type: "integer", minimum: 0, description: "Sort order (ascending)." },
   },
   example: {
@@ -710,7 +722,15 @@ export const ActiveServiceSchema = {
   },
 } as const;
 
-/** All schemas registered at app boot — the order matters: dependents last. */
+/**
+ * All schemas registered at app boot — the order matters: dependents last.
+ *
+ * `NavItemSchema`, `PublicContentPageSchema`, and `ContentPageSummarySchema`
+ * are included because the internal SSR helper routes (`/api/v1/nav`,
+ * `/api/v1/content`, `/api/v1/content/:slug`) still need them for runtime
+ * response serialization. Those routes themselves are hidden from the
+ * public API reference by the `transform` filter in `server.ts`.
+ */
 export const OPENAPI_SCHEMAS = [
   TrackSchema,
   AlbumSchema,
