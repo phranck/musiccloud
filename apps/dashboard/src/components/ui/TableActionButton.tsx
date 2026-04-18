@@ -32,7 +32,7 @@ export function TableActionButton({
   return (
     <button
       type="button"
-      className={`h-9 px-3 flex items-center gap-2 border rounded-control text-sm disabled:opacity-50 ${variantClasses[variant]}${className ? ` ${className}` : ""}`}
+      className={`h-7 px-3 flex items-center gap-1.5 border rounded-control text-xs disabled:opacity-50 transition-colors ${variantClasses[variant]}${className ? ` ${className}` : ""}`}
       {...rest}
     >
       {icon}

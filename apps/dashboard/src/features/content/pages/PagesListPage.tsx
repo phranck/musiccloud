@@ -1,58 +1,40 @@
-import { CheckCircleIcon, CircleIcon, EyeSlashIcon, FileIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
-import { useReducer } from "react";
+import {
+  CheckCircleIcon,
+  CircleIcon,
+  EyeSlashIcon,
+  FileIcon,
+  PencilLineIcon,
+  PlusCircleIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
+import { useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
+import type { ColumnDef } from "@/components/ui/Table";
+import { DataTable } from "@/components/ui/Table";
+import { TableActionButton } from "@/components/ui/TableActionButton";
 import { useI18n } from "@/context/I18nContext";
-import { useContentPages, useCreateContentPage, useDeleteContentPage } from "@/features/content/hooks/useAdminContent";
+import {
+  type ContentPage as ContentPageHookRow,
+  useContentPages,
+  useCreateContentPage,
+  useDeleteContentPage,
+} from "@/features/content/hooks/useAdminContent";
+
+type ContentPage = ContentPageHookRow;
 
 function slugify(str: string): string {
   return str
     .toLowerCase()
-    .replace(/ae/g, "ae")
-    .replace(/oe/g, "oe")
-    .replace(/ue/g, "ue")
-    .replace(/ss/g, "ss")
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-type CreateState =
-  | { phase: "closed" }
-  | { phase: "open"; title: string; slug: string; slugManual: boolean; error: string | null };
-
-type CreateAction =
-  | { type: "open" }
-  | { type: "close" }
-  | { type: "setTitle"; title: string }
-  | { type: "setSlug"; slug: string }
-  | { type: "setError"; error: string };
-
-const closedState: CreateState = { phase: "closed" };
-const openState: CreateState = { phase: "open", title: "", slug: "", slugManual: false, error: null };
-
-function createReducer(state: CreateState, action: CreateAction): CreateState {
-  switch (action.type) {
-    case "open":
-      return openState;
-    case "close":
-      return closedState;
-    case "setTitle":
-      if (state.phase !== "open") return state;
-      return {
-        ...state,
-        title: action.title,
-        slug: state.slugManual ? state.slug : slugify(action.title),
-      };
-    case "setSlug":
-      if (state.phase !== "open") return state;
-      return { ...state, slug: action.slug, slugManual: true };
-    case "setError":
-      if (state.phase !== "open") return state;
-      return { ...state, error: action.error };
-  }
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -82,45 +64,150 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function formatDate(isoDate: string | null, locale: string): string {
+  if (!isoDate) return "—";
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(locale === "de" ? "de-DE" : "en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+interface PagesListState {
+  showCreate: boolean;
+  title: string;
+  slug: string;
+  slugManual: boolean;
+  createError: string | null;
+}
+
+const initialState: PagesListState = {
+  showCreate: false,
+  title: "",
+  slug: "",
+  slugManual: false,
+  createError: null,
+};
+
 export function PagesListPage() {
-  const { messages } = useI18n();
+  const { locale, messages } = useI18n();
   const text = messages.content.pages;
-  const cancel = messages.common.cancel;
+  const common = messages.common;
   const { data: pages = [], isLoading } = useContentPages();
   const createPage = useCreateContentPage();
   const deletePage = useDeleteContentPage();
   const navigate = useNavigate();
 
-  const [create, createDispatch] = useReducer(createReducer, closedState);
+  const [state, dispatch] = useReducer(
+    (prev: PagesListState, action: Partial<PagesListState>): PagesListState => ({ ...prev, ...action }),
+    initialState,
+  );
+  const { showCreate, title, slug, slugManual, createError } = state;
+
+  function handleTitleChange(val: string) {
+    dispatch(slugManual ? { title: val } : { title: val, slug: slugify(val) });
+  }
+
+  function handleSlugChange(val: string) {
+    dispatch({ slug: val, slugManual: true });
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (create.phase !== "open") return;
+    dispatch({ createError: null });
     try {
-      const page = await createPage.mutateAsync({ slug: create.slug, title: create.title });
-      createDispatch({ type: "close" });
+      const page = await createPage.mutateAsync({ slug, title });
+      dispatch({ showCreate: false, title: "", slug: "", slugManual: false });
       navigate(`/pages/${page.slug}`);
     } catch (err) {
-      createDispatch({
-        type: "setError",
-        error: err instanceof Error ? err.message : (text.createError ?? ""),
-      });
+      dispatch({ createError: err instanceof Error ? err.message : (text.createError ?? "") });
     }
   }
 
-  async function handleDelete(slug: string, title: string) {
-    if (!confirm(`${text.confirmDeletePrefix}${title}${text.confirmDeleteSuffix}`)) return;
-    await deletePage.mutateAsync(slug);
+  function handleCancelCreate() {
+    dispatch({ showCreate: false, title: "", slug: "", slugManual: false, createError: null });
   }
+
+  async function handleDelete(pageSlug: string, pageTitle: string) {
+    if (!confirm(`${text.deletePageTitle}: ${pageTitle}?`)) return;
+    await deletePage.mutateAsync(pageSlug);
+  }
+
+  const columns = useMemo<ColumnDef<ContentPage>[]>(
+    () => [
+      {
+        id: "title",
+        header: text.table.title,
+        sortKey: (page) => page.title.toLowerCase(),
+        cell: (page) => (
+          <button
+            type="button"
+            onClick={() => navigate(`/pages/${page.slug}`)}
+            className="font-medium text-[var(--ds-text)] hover:underline text-left truncate"
+          >
+            {page.title}
+          </button>
+        ),
+      },
+      {
+        id: "slug",
+        header: text.table.slug,
+        cell: (page) => <span className="font-mono text-xs text-[var(--ds-text-muted)]">/{page.slug}</span>,
+      },
+      {
+        id: "status",
+        header: text.table.status,
+        cell: (page) => <StatusBadge status={page.status} />,
+      },
+      {
+        id: "createdBy",
+        header: text.table.createdBy,
+        cell: (page) => (
+          <span className="text-xs text-[var(--ds-text-muted)]">{page.createdByUsername ?? "—"}</span>
+        ),
+      },
+      {
+        id: "updatedAt",
+        header: text.table.updatedAt,
+        sortKey: (page) => page.updatedAt ?? "",
+        cell: (page) => (
+          <span className="text-xs text-[var(--ds-text-muted)]">{formatDate(page.updatedAt, locale)}</span>
+        ),
+      },
+      {
+        id: "actions",
+        className: "w-48",
+        cell: (page) => (
+          <div className="flex gap-2 justify-end">
+            <TableActionButton
+              onClick={() => navigate(`/pages/${page.slug}`)}
+              icon={<PencilLineIcon weight="duotone" className="w-3.5 h-3.5" />}
+              label={common.edit}
+            />
+            <TableActionButton
+              variant="danger"
+              onClick={() => handleDelete(page.slug, page.title)}
+              disabled={deletePage.isPending}
+              icon={<TrashIcon weight="duotone" className="w-3.5 h-3.5" />}
+              label={common.delete}
+            />
+          </div>
+        ),
+      },
+    ],
+    [text, common, locale, navigate, deletePage.isPending],
+  );
 
   return (
     <PageLayout>
       <PageHeader title={text.title}>
-        {create.phase === "closed" && (
+        {!showCreate && (
           <button
             type="button"
-            onClick={() => createDispatch({ type: "open" })}
-            className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors"
+            onClick={() => dispatch({ showCreate: true })}
+            className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)]"
           >
             <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
             {text.newPage}
@@ -128,8 +215,8 @@ export function PagesListPage() {
         )}
       </PageHeader>
 
-      <PageBody className="space-y-6">
-        {create.phase === "open" && (
+      <PageBody>
+        {showCreate && (
           <form
             onSubmit={handleCreate}
             className="bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-control p-5 space-y-4"
@@ -137,27 +224,21 @@ export function PagesListPage() {
             <h3 className="text-sm font-semibold text-[var(--ds-text)]">{text.createTitle}</h3>
             <div className="space-y-3">
               <div>
-                <label
-                  htmlFor="content-page-title"
-                  className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1"
-                >
+                <label htmlFor="content-page-title" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
                   {text.fieldTitle}
                 </label>
                 <input
                   id="content-page-title"
                   type="text"
-                  value={create.title}
-                  onChange={(e) => createDispatch({ type: "setTitle", title: e.target.value })}
+                  value={title}
+                  onChange={(e) => handleTitleChange(e.target.value)}
                   required
                   placeholder={text.titlePlaceholder}
                   className="w-full px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
                 />
               </div>
               <div>
-                <label
-                  htmlFor="content-page-slug"
-                  className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1"
-                >
+                <label htmlFor="content-page-slug" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
                   {text.fieldSlug}
                 </label>
                 <div className="flex items-center gap-2">
@@ -165,8 +246,8 @@ export function PagesListPage() {
                   <input
                     id="content-page-slug"
                     type="text"
-                    value={create.slug}
-                    onChange={(e) => createDispatch({ type: "setSlug", slug: e.target.value })}
+                    value={slug}
+                    onChange={(e) => handleSlugChange(e.target.value)}
                     required
                     pattern="[a-z0-9-]+"
                     placeholder={text.slugPlaceholder}
@@ -175,22 +256,22 @@ export function PagesListPage() {
                 </div>
               </div>
             </div>
-            {create.error && <p className="text-xs text-red-500">{create.error}</p>}
+            {createError && <p className="text-xs text-red-500">{createError}</p>}
             <div className="flex items-center gap-3">
               <button
                 type="submit"
-                disabled={createPage.isPending || !create.slug || !create.title}
-                className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] disabled:opacity-60 transition-colors"
+                disabled={createPage.isPending || !slug || !title}
+                className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] disabled:opacity-60"
               >
                 <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
                 {createPage.isPending ? text.creating : text.create}
               </button>
               <button
                 type="button"
-                onClick={() => createDispatch({ type: "close" })}
-                className="px-4 py-1.5 text-sm text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] transition-colors"
+                onClick={handleCancelCreate}
+                className="px-4 py-1.5 text-sm text-[var(--ds-text-muted)] hover:text-[var(--ds-text)]"
               >
-                {cancel}
+                {common.cancel}
               </button>
             </div>
           </form>
@@ -212,58 +293,8 @@ export function PagesListPage() {
         )}
 
         {!isLoading && pages.length > 0 && (
-          <div className="bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-control overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--ds-border)] text-xs font-medium text-[var(--ds-text-muted)] uppercase tracking-wide">
-                  <th className="text-left px-4 py-3">{text.table.title}</th>
-                  <th className="text-left px-4 py-3">{text.table.slug}</th>
-                  <th className="text-left px-4 py-3">{text.table.status}</th>
-                  <th className="text-left px-4 py-3">{text.table.createdBy}</th>
-                  <th className="text-left px-4 py-3">{text.table.updatedBy}</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {pages.map((page) => (
-                  <tr
-                    key={page.slug}
-                    className="border-b border-[var(--ds-border)] last:border-0 hover:bg-[var(--ds-surface-hover)] transition-colors"
-                  >
-                    <td className="px-4 py-3 font-medium text-[var(--ds-text)]">
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/pages/${page.slug}`)}
-                        className="hover:underline text-left"
-                      >
-                        {page.title}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-[var(--ds-text-muted)]">/{page.slug}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={page.status} />
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[var(--ds-text-muted)]">
-                      {page.createdByUsername ?? "\u2014"}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[var(--ds-text-muted)]">
-                      {page.updatedByUsername ?? "\u2014"}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(page.slug, page.title)}
-                        disabled={deletePage.isPending}
-                        className="flex items-center gap-1.5 px-2 py-1.5 text-sm text-[var(--ds-text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition-colors disabled:opacity-40"
-                      >
-                        <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
-                        {text.deletePageTitle}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="-mx-3 -mt-3">
+            <DataTable columns={columns} data={pages} getRowKey={(page) => page.slug} stickyHeader />
           </div>
         )}
       </PageBody>

@@ -305,7 +305,7 @@ function EditorMetadataBar({
   onShowTitleChange,
 }: EditorMetadataBarProps) {
   return (
-    <div className="border-b border-[var(--ds-border)] px-6 py-3 flex flex-wrap items-center gap-6 text-xs text-[var(--ds-text-muted)] bg-[var(--ds-surface)]">
+    <div className="px-6 py-3 flex flex-wrap items-center gap-6 text-xs text-[var(--ds-text-muted)] bg-[var(--ds-surface)]">
       <div className="flex items-center gap-2">
         <span className="font-medium">{editorMessages.titleLabel}:</span>
         {editingTitle ? (
