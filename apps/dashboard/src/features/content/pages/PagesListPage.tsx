@@ -11,6 +11,7 @@ import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
+import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import type { ColumnDef } from "@/components/ui/Table";
@@ -81,6 +82,7 @@ interface PagesListState {
   slug: string;
   slugManual: boolean;
   createError: string | null;
+  deleteTarget: { slug: string; title: string } | null;
 }
 
 const initialState: PagesListState = {
@@ -89,6 +91,7 @@ const initialState: PagesListState = {
   slug: "",
   slugManual: false,
   createError: null,
+  deleteTarget: null,
 };
 
 export function PagesListPage() {
@@ -104,7 +107,7 @@ export function PagesListPage() {
     (prev: PagesListState, action: Partial<PagesListState>): PagesListState => ({ ...prev, ...action }),
     initialState,
   );
-  const { showCreate, title, slug, slugManual, createError } = state;
+  const { showCreate, title, slug, slugManual, createError, deleteTarget } = state;
 
   function handleTitleChange(val: string) {
     dispatch(slugManual ? { title: val } : { title: val, slug: slugify(val) });
@@ -130,13 +133,16 @@ export function PagesListPage() {
     dispatch({ showCreate: false, title: "", slug: "", slugManual: false, createError: null });
   }
 
-  const handleDelete = useCallback(
-    async (pageSlug: string, pageTitle: string) => {
-      if (!confirm(`${text.deletePageTitle}: ${pageTitle}?`)) return;
-      await deletePage.mutateAsync(pageSlug);
-    },
-    [text.deletePageTitle, deletePage],
-  );
+  const handleDeleteRequest = useCallback((pageSlug: string, pageTitle: string) => {
+    dispatch({ deleteTarget: { slug: pageSlug, title: pageTitle } });
+  }, []);
+
+  function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    deletePage.mutate(deleteTarget.slug, {
+      onSuccess: () => dispatch({ deleteTarget: null }),
+    });
+  }
 
   const columns = useMemo<ColumnDef<ContentPage>[]>(
     () => [
@@ -189,7 +195,7 @@ export function PagesListPage() {
             />
             <TableActionButton
               variant="danger"
-              onClick={() => handleDelete(page.slug, page.title)}
+              onClick={() => handleDeleteRequest(page.slug, page.title)}
               disabled={deletePage.isPending}
               icon={<TrashIcon weight="duotone" className="w-3.5 h-3.5" />}
               label={common.delete}
@@ -198,7 +204,7 @@ export function PagesListPage() {
         ),
       },
     ],
-    [text, common, locale, navigate, deletePage.isPending, handleDelete],
+    [text, common, locale, navigate, deletePage.isPending, handleDeleteRequest],
   );
 
   return (
@@ -305,6 +311,36 @@ export function PagesListPage() {
           </div>
         )}
       </PageBody>
+
+      <Dialog
+        open={deleteTarget !== null}
+        title={text.deletePageTitle}
+        titleIcon={<TrashIcon weight="duotone" className={dialogHeaderIconClass} />}
+        onClose={() => dispatch({ deleteTarget: null })}
+      >
+        <div className="px-6 py-4 text-sm text-[var(--ds-text)]">
+          {text.confirmDeletePrefix} <span className="font-medium">{deleteTarget?.title}</span>{" "}
+          {text.confirmDeleteSuffix}
+        </div>
+        <Dialog.Footer>
+          <button
+            type="button"
+            className={dialogBtnSecondary}
+            onClick={() => dispatch({ deleteTarget: null })}
+            disabled={deletePage.isPending}
+          >
+            {common.cancel}
+          </button>
+          <button
+            type="button"
+            className={dialogBtnDestructive}
+            onClick={handleDeleteConfirm}
+            disabled={deletePage.isPending}
+          >
+            {deletePage.isPending ? "…" : common.delete}
+          </button>
+        </Dialog.Footer>
+      </Dialog>
     </PageLayout>
   );
 }

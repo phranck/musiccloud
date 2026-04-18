@@ -2,8 +2,12 @@ import {
   CaretCircleDoubleDownIcon,
   CaretCircleDoubleUpIcon,
   ChartBarIcon,
+  CheckCircleIcon,
+  CircleIcon,
   CopyIcon,
   EnvelopeOpenIcon,
+  EyeSlashIcon,
+  FileIcon,
   GearIcon,
   HouseSimpleIcon,
   ListIcon,
@@ -24,6 +28,7 @@ import { SidebarFooter } from "@/components/layout/SidebarFooter";
 import { SidebarHeader } from "@/components/layout/SidebarHeader";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { useI18n } from "@/context/I18nContext";
+import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import type { AdminRole } from "@/shared/types/admin";
@@ -47,6 +52,16 @@ interface SidebarProps {
   bare?: boolean;
 }
 
+function PageStatusIcon({ status }: { status: string }) {
+  if (status === "published") {
+    return <CheckCircleIcon weight="duotone" className="w-3 h-3 text-green-500 shrink-0" />;
+  }
+  if (status === "hidden") {
+    return <EyeSlashIcon weight="duotone" className="w-3 h-3 text-gray-400 shrink-0" />;
+  }
+  return <CircleIcon weight="duotone" className="w-3 h-3 text-amber-500 shrink-0" />;
+}
+
 function PagesGroup({
   onItemClick,
   globalOpenState,
@@ -60,6 +75,7 @@ function PagesGroup({
 }) {
   const { messages } = useI18n();
   const s = messages.layout.sidebar;
+  const { data: pages } = useContentPages();
 
   return (
     <CollapsibleSidebarGroup
@@ -67,6 +83,7 @@ function PagesGroup({
       storageKey="sidebar-pages-open"
       icon={<CopyIcon weight="duotone" className="w-4 h-4" />}
       label={s.pages}
+      badge={pages?.length ?? 0}
       globalOpenState={globalOpenState}
       globalOpenVersion={globalOpenVersion}
       onOpenChange={onOpenChange}
@@ -74,6 +91,16 @@ function PagesGroup({
       <NavLink to="/pages" end onClick={onItemClick} className={sidebarGroupItemClass}>
         {s.pagesOverview}
       </NavLink>
+      {(pages ?? []).map((page) => (
+        <NavLink key={page.slug} to={`/pages/${page.slug}`} onClick={onItemClick} className={sidebarGroupItemClass}>
+          <FileIcon weight="duotone" className="w-3.5 h-3.5 shrink-0 opacity-60" />
+          <PageStatusIcon status={page.status} />
+          <span className="flex flex-col min-w-0">
+            <span className="truncate">{page.title}</span>
+            <span className="truncate text-xs opacity-50">/{page.slug}</span>
+          </span>
+        </NavLink>
+      ))}
     </CollapsibleSidebarGroup>
   );
 }
