@@ -12,7 +12,7 @@ export function GenreColumn({ label, children }: { label: string; children: Reac
   const [scrolled, setScrolled] = useState(false);
 
   return (
-    <RecessedCard className="p-1.5 flex flex-col min-h-0" radius="1.125rem">
+    <RecessedCard className="flex flex-col min-h-0">
       <h3
         className={cn(
           "text-xs uppercase tracking-wider text-text-muted font-semibold px-2 pt-1 pb-2",

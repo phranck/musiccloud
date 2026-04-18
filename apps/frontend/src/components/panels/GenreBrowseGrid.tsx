@@ -28,14 +28,14 @@ export const GenreBrowseGrid = forwardRef<HTMLDivElement, GenreBrowseGridProps>(
       tabIndex={-1}
       className="w-full max-w-full md:max-w-5xl mx-auto mt-8 mb-8 animate-fade-in focus:outline-none"
     >
-      <EmbossedCard className="rounded-[1.875rem] p-3 flex flex-col max-h-[calc(100vh-16rem)]">
+      <EmbossedCard className="flex flex-col max-h-[calc(100vh-16rem)]">
         <EmbossedCard.Header className="text-center mb-4 flex-shrink-0">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">{t("genreBrowse.title")}</h2>
           <p className="text-sm text-text-secondary mt-1">{t("genreBrowse.subtitle")}</p>
         </EmbossedCard.Header>
 
         <EmbossedCard.Body className="flex-1 min-h-0 flex flex-col">
-          <RecessedCard radius="1.125rem" className="p-1.5 max-h-full min-h-0 flex flex-col">
+          <RecessedCard className="max-h-full min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-y-auto rounded-xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5">
               {genres.map((genre, i) => {
                 // When the artwork has been generated at least once, the

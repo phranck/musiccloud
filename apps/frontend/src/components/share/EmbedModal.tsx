@@ -5,11 +5,19 @@ import { createPortal } from "react-dom";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbedCardIsland } from "@/components/embed/EmbedCardIsland";
+import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useT } from "@/i18n/context";
 import type { PlatformLink } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
+
+// Horizontal inset for sibling elements sitting above a cascading
+// RecessedCard (here: the "Embed Code" label + Copy button row above the
+// <iframe> code card). Half the inner card's corner radius — derived live
+// from the cascade vars so it tracks if the outer EmbossedCard's geometry
+// ever changes.
+const SIBLING_INSET_X = "calc((var(--emb-radius) - var(--emb-padding)) / 2)";
 
 type EmbedSize = "small" | "regular" | "large";
 
@@ -117,31 +125,31 @@ export function EmbedModal({
       {/* Modal */}
       <EmbossedCard
         className={cn(
-          "relative rounded-3xl p-0 bg-surface-elevated/95",
+          "relative bg-surface-elevated/95",
           "max-w-[520px] w-full max-h-[90dvh] overflow-y-auto",
           "transition-all duration-300",
           open ? "scale-100 opacity-100" : "scale-95 opacity-0",
         )}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">
+        <EmbossedCard.Header className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-semibold tracking-[-0.02em]" style={{ paddingLeft: SIBLING_INSET_X }}>
             {isAlbum ? t("embed.titleAlbum") : t("embed.title")}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-all duration-150"
-          >
-            <XIcon size={16} weight="duotone" />
-          </button>
-        </div>
+          <RecessedCard padding="2px" radius="50%" className="inline-flex">
+            <EmbossedButton
+              as="button"
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 p-0 rounded-full flex items-center justify-center text-text-secondary hover:text-text-primary"
+            >
+              <XIcon size={16} weight="bold" />
+            </EmbossedButton>
+          </RecessedCard>
+        </EmbossedCard.Header>
 
-        {/* Size Tabs */}
-        <SegmentedControl className="mx-6 mb-4" segments={sizes} value={size} onChange={setSize} />
+        <EmbossedCard.Body>
+          <SegmentedControl className="mb-3" segments={sizes} value={size} onChange={setSize} />
 
-        {/* Preview Area */}
-        <div className="px-6 pb-4">
           <EmbedPreviewArea
             size={size}
             title={title}
@@ -152,37 +160,37 @@ export function EmbedModal({
             album={album}
             platforms={sortedPlatforms}
           />
-        </div>
 
-        {/* Code Section */}
-        <div className="px-6 pb-6">
-          <div className="flex items-center justify-between mb-2 px-(--spacing-card-inset)">
+          <div
+            className="flex items-center justify-between mt-3 mb-2"
+            style={{ paddingLeft: SIBLING_INSET_X, paddingRight: SIBLING_INSET_X }}
+          >
             <p
               className="text-xs uppercase tracking-widest text-text-secondary font-bold"
               style={{ fontFamily: "var(--font-condensed)" }}
             >
               {t("embed.code")}
             </p>
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.08] text-text-secondary text-xs font-medium hover:bg-white/[0.12] hover:text-text-primary transition-all duration-150"
-            >
-              {copyState === "idle" ? (
-                <CopySimpleIcon size={16} weight="duotone" />
-              ) : (
-                <CheckIcon size={16} weight="duotone" />
-              )}
-              {copyState === "idle" ? t("embed.copy") : t("embed.copied")}
-            </button>
+            <RecessedCard padding="2px" radius="0.5rem" className="inline-flex">
+              <EmbossedButton
+                as="button"
+                type="button"
+                onClick={handleCopy}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-md text-text-secondary text-xs font-medium"
+              >
+                {copyState === "idle" ? (
+                  <CopySimpleIcon size={16} weight="duotone" />
+                ) : (
+                  <CheckIcon size={16} weight="duotone" />
+                )}
+                {copyState === "idle" ? t("embed.copy") : t("embed.copied")}
+              </EmbossedButton>
+            </RecessedCard>
           </div>
-          <RecessedCard
-            className="font-mono text-xs leading-relaxed text-text-secondary whitespace-pre-wrap break-all"
-            radius="0.75rem"
-          >
+          <RecessedCard className="font-mono text-xs leading-relaxed text-text-secondary whitespace-pre-wrap break-all">
             {buildEmbedCode(shortUrl, size)}
           </RecessedCard>
-        </div>
+        </EmbossedCard.Body>
       </EmbossedCard>
     </div>,
     document.body,
@@ -225,13 +233,26 @@ function EmbedPreviewArea({
     return () => cancelAnimationFrame(frame);
   }, [size]);
 
-  // padding-top + padding-bottom of the RecessedCard (p-6 = 24px each)
-  const paddingY = 48;
+  // Preview RecessedCard: extra vertical breathing room (1.5 rem top+bottom)
+  // because the card swaps three different preview sizes and the cascade's
+  // default 0.375 rem looks cramped. Horizontal padding stays on the cascade
+  // (`--emb-padding / 2`) to keep the inner card inscribed in the outer.
+  // Read the actual paddingTop/Bottom off the DOM so the height animation
+  // stays aligned if the outer card's geometry ever changes.
+  const previewCardRef = useRef<HTMLDivElement>(null);
+  const [paddingY, setPaddingY] = useState(48);
+  useLayoutEffect(() => {
+    if (!previewCardRef.current) return;
+    const cs = getComputedStyle(previewCardRef.current);
+    setPaddingY(parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom));
+  }, []);
   const sizes: EmbedSize[] = ["small", "regular", "large"];
 
   return (
     <RecessedCard
-      className="rounded-xl p-6 flex justify-center items-start transition-[height] duration-300 ease-out overflow-hidden"
+      ref={previewCardRef}
+      padding="1.5rem calc(var(--emb-padding, 2rem) / 2)"
+      className="flex justify-center items-start transition-[height] duration-300 ease-out overflow-hidden"
       style={{ height: height !== undefined ? height + paddingY : undefined }}
     >
       <div ref={contentRef} className="relative w-full flex justify-center">

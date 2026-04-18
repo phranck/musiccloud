@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 import { recessedStyle } from "@/styles/neumorphic";
 
@@ -17,28 +18,79 @@ interface RecessedCardProps {
    *   radius="0.75rem"                       // 12 px everywhere
    *   radius={{ base: "0.75rem", sm: "1rem" }}  // 12 px mobile → 16 px from sm up
    *
-   * When omitted, defaults to 1 rem (16 px — matches the original
-   * `rounded-2xl` baseline). Consumers should prefer this prop over
-   * `rounded-*` Tailwind classes so the accent stays in sync.
+   * When omitted, derives the radius from the ancestor `EmbossedCard` via
+   * `outerRadius − outerPadding` (the inscribed-square rule). Falls back
+   * to `1rem` when rendered standalone (no EmbossedCard ancestor).
    */
   radius?: string | { base: string; sm?: string };
+  /**
+   * Inner padding as a CSS length. When omitted, derives from the ancestor
+   * `EmbossedCard`'s padding (`--emb-padding / 2` — the design convention
+   * that inner insets feel "half as tight"). Falls back to `1rem` (the
+   * previous `p-4` default) when rendered standalone.
+   */
+  padding?: string;
 }
 
-const DEFAULT_RADIUS = "1rem"; // matches original --neu-radius default (16 px)
+// Fallback chain defaults: used when RecessedCard is rendered without an
+// EmbossedCard ancestor. Preserve the pre-cascade behaviour so existing
+// standalone call-sites (NavigationBackButton, SlideArtwork, MediaCard,
+// EmbedModal, ArtistProfileSection, EmbedCardIsland) render unchanged.
+const STANDALONE_RADIUS_FALLBACK = "1rem";
+
+// When the caller omits `radius`/`padding`, we want `calc()` to resolve to
+// the standalone fallback if `--emb-*` isn't set. CSS `var(x, fb)` returns
+// `fb` literally when `x` is unset, so we embed the fallback inside the var
+// — `calc(var(--emb-radius, 2rem) - var(--emb-padding, 1rem))` yields 1rem
+// standalone, and the correct inscribed radius when nested.
+const INHERITED_RADIUS_BASE = "calc(var(--emb-radius-base, 2rem) - var(--emb-padding, 1rem))";
+const INHERITED_RADIUS_SM = "calc(var(--emb-radius-sm, var(--emb-radius-base, 2rem)) - var(--emb-padding, 1rem))";
+const INHERITED_PADDING = "calc(var(--emb-padding, 2rem) / 2)";
+
+// Backward-compat: callers that still set padding via Tailwind (`p-*`,
+// `px-*`, etc.) opt out of inline padding so their class wins.
+const PADDING_CLASS_RE = /(^|\s)p[xytrbls]?-/;
 
 /**
  * A card with a recessed/inset appearance. Light source from top-left:
  * dark shadow on top/left edges, subtle highlight on bottom/right.
  *
- * Includes padding (p-4) and overflow hidden by default.
+ * When nested inside an `EmbossedCard`, both `radius` and `padding`
+ * default to values derived from the parent's published geometry
+ * (`--emb-radius` / `--emb-padding`) so the inner card is always
+ * inscribed correctly in the outer frame — callers shouldn't need to
+ * restate the formula. Pass explicit props to override.
  *
- * Set the corner radius via the `radius` prop, not via `rounded-*` classes
- * — the component needs to know the radius to align the gradient-border
- * transition with the corner arc (see `--neu-radius` in neumorphic.css).
+ * Standalone (no EmbossedCard ancestor), defaults to 1 rem radius and
+ * 1 rem padding (the previous `rounded-2xl` / `p-4` baseline).
+ *
+ * Set the corner radius via the `radius` prop, not via `rounded-*`
+ * classes — the component needs to know the radius to align the
+ * gradient-border transition with the corner arc (see `--neu-radius`
+ * in neumorphic.css).
  */
-export function RecessedCard({ children, className, style, borderWidth, radius }: RecessedCardProps) {
-  const radiusBase = typeof radius === "string" ? radius : (radius?.base ?? DEFAULT_RADIUS);
-  const radiusSm = typeof radius === "object" ? radius.sm : undefined;
+export const RecessedCard = forwardRef<HTMLDivElement, RecessedCardProps>(function RecessedCard(
+  { children, className, style, borderWidth, radius, padding },
+  ref,
+) {
+  const radiusBase =
+    radius === undefined
+      ? INHERITED_RADIUS_BASE
+      : typeof radius === "string"
+        ? radius
+        : (radius.base ?? STANDALONE_RADIUS_FALLBACK);
+  const radiusSm =
+    radius === undefined
+      ? INHERITED_RADIUS_SM
+      : typeof radius === "object"
+        ? (radius.sm ?? radius.base ?? STANDALONE_RADIUS_FALLBACK)
+        : radius;
+
+  // Hybrid padding: if the caller set `p-*` via className, let Tailwind
+  // win (backward compat for pre-cascade consumers). Otherwise use the
+  // explicit prop, or fall back to the inherited `--emb-padding / 2`.
+  const paddingClassOverride = typeof className === "string" && PADDING_CLASS_RE.test(className);
+  const paddingValue = padding ?? (paddingClassOverride ? undefined : INHERITED_PADDING);
 
   const mergedStyle: React.CSSProperties = {
     ...recessedStyle,
@@ -54,7 +106,7 @@ export function RecessedCard({ children, className, style, borderWidth, radius }
     // and the child would render with the ancestor's sm value at ≥ 640 px.
     // Defaulting sm to base here makes every card self-contained.
     "--neu-radius-base": radiusBase,
-    "--neu-radius-sm": radiusSm ?? radiusBase,
+    "--neu-radius-sm": radiusSm,
     ...(borderWidth ? { "--neu-border-width": borderWidth } : {}),
     // border-radius is set INLINE (not via the `.recessed-gradient-border`
     // class) because that class is also used by EmbossedButton in its
@@ -63,15 +115,17 @@ export function RecessedCard({ children, className, style, borderWidth, radius }
     // the @media query swaps the active value, so responsive radii still
     // work end-to-end.
     borderRadius: "var(--neu-radius)",
+    ...(paddingValue !== undefined ? { padding: paddingValue } : {}),
     ...style,
   } as React.CSSProperties;
 
   return (
     <div
-      className={cn("recessed-gradient-border bg-black/25 backdrop-blur-md p-4 overflow-hidden", className)}
+      ref={ref}
+      className={cn("recessed-gradient-border bg-black/25 backdrop-blur-md overflow-hidden", className)}
       style={mergedStyle}
     >
       {children}
     </div>
   );
-}
+});

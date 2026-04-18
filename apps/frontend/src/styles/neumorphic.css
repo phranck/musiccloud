@@ -23,10 +23,23 @@
 
 .embossed-gradient-border,
 .recessed-gradient-border {
-  /* `--neu-radius-base` / `--neu-radius-sm` are set inline by RecessedCard.
-     We do NOT let callers set `--neu-radius` directly because an inline
-     custom property would outrank the @media override below. Default is
-     16 px — matches `rounded-2xl`. */
+  /* RESET INHERITED GRADIENT VARS.
+     Custom properties inherit by default. Without this reset, an ancestor
+     card that set `--neu-radius-base` inline (e.g. an outer EmbossedCard
+     with radius=1.875rem, or a wrapping RecessedCard with radius=9999px)
+     would leak its value into every nested gradient surface — including
+     EmbossedButton. The child's `::before` would then compute its gradient
+     stops from the ancestor's radius, which spreads the light→shadow
+     transition way beyond the 1 px border strip and the neumorphic effect
+     visually disappears.
+     Each gradient-border element declares its own radius inline (via
+     RecessedCard / EmbossedCard props) or falls back to the 16 px default. */
+  --neu-radius-base: initial;
+  --neu-radius-sm: initial;
+  /* `--neu-radius-base` / `--neu-radius-sm` are set inline by RecessedCard
+     and EmbossedCard. We do NOT let callers set `--neu-radius` directly
+     because an inline custom property would outrank the @media override
+     below. Default is 16 px — matches `rounded-2xl`. */
   --neu-radius: var(--neu-radius-base, 16px);
   /* The effective radius one border-width inside the gradient stroke.
      Use this on child elements that sit flush against the inner edge of
@@ -35,6 +48,16 @@
      inherit the OUTER radius and sit slightly too round. */
   --neu-radius-inner: calc(var(--neu-radius) - var(--neu-border-width, 1px));
   position: relative;
+}
+
+/* `--emb-radius` is EmbossedCard's published outer radius, inherited by
+   descendant `RecessedCard`s so they can derive their own geometry via
+   `innerRadius = outerRadius − outerPadding` without the call-site having
+   to recompute the formula. Published on `.embossed-gradient-border` so
+   the @media swap below matches the card's own responsive radius 1:1.
+   Non-RecessedCard descendants simply ignore the variable. */
+.embossed-gradient-border {
+  --emb-radius: var(--emb-radius-base, 1.5rem);
 }
 
 /* `border-radius` is NOT set on `.recessed-gradient-border` itself,
@@ -54,6 +77,9 @@
   .embossed-gradient-border,
   .recessed-gradient-border {
     --neu-radius: var(--neu-radius-sm, var(--neu-radius-base, 16px));
+  }
+  .embossed-gradient-border {
+    --emb-radius: var(--emb-radius-sm, var(--emb-radius-base, 1.5rem));
   }
 }
 

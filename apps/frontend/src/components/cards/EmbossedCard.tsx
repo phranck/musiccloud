@@ -68,15 +68,41 @@ interface EmbossedCardProps {
   children?: ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  /**
+   * Outer padding as a CSS length (e.g. "0.75rem", "12px"). Applied as
+   * `padding` on the root and published as `--emb-padding` so a nested
+   * `RecessedCard` can derive its own padding (`--emb-padding / 2`).
+   * Defaults to `0.75rem` (matches the 3-column reference layout).
+   */
+  padding?: string;
+  /**
+   * Outer corner radius. Single value or `{ base, sm }` for responsive
+   * radii (swaps at the `sm` breakpoint, 640 px). Published as
+   * `--emb-radius-base` / `--emb-radius-sm` so a nested `RecessedCard`
+   * can derive its own radius (`outerRadius − outerPadding`).
+   * Defaults to `1.875rem` (matches the 3-column reference layout).
+   */
+  radius?: string | { base: string; sm?: string };
 }
+
+const DEFAULT_PADDING = "0.75rem";
+const DEFAULT_RADIUS = "1.875rem";
+
+// Backward-compat detection: a caller that still sets `p-*` or `rounded-*`
+// via the className is opting out of the cascaded geometry. Skip inline
+// style + `--emb-padding`/`--emb-radius` publishing in that case so
+// Tailwind's class wins and existing consumers render unchanged.
+const PADDING_CLASS_RE = /(^|\s)p[xytrbls]?-/;
+const ROUNDED_CLASS_RE = /(^|\s)rounded(\s|-|$)/;
 
 /**
  * A card with a raised/embossed appearance. Light source from top-left:
  * bright highlight on top/left edges, dark shadow on bottom/right.
  *
- * Includes padding (p-4) and overflow hidden by default.
- * No default border-radius -- the caller must set it to match
- * the rule: outer radius - padding = inner radius.
+ * Publishes its outer padding + radius as CSS custom properties
+ * (`--emb-padding`, `--emb-radius`) so any descendant `RecessedCard`
+ * automatically picks up the geometry and the inner card is inscribed
+ * correctly inside the rounded outer frame.
  *
  * ## Compound API
  *
@@ -96,7 +122,7 @@ interface EmbossedCardProps {
  * centered regardless of asymmetric AddOn widths. The AddOn row is
  * only rendered when AddOns are present.
  */
-export function EmbossedCard({ children, className, style }: EmbossedCardProps) {
+export function EmbossedCard({ children, className, style, padding, radius }: EmbossedCardProps) {
   const childArray = Children.toArray(children);
 
   const headerChild = childArray.find((c) => hasTag(c, HEADER_TAG));
@@ -112,11 +138,46 @@ export function EmbossedCard({ children, className, style }: EmbossedCardProps) 
   const hasAddOns = leadingAddOns.length > 0 || trailingAddOns.length > 0;
   const isCompound = !!(headerChild || bodyChild || footerChild || hasAddOns);
 
+  // Only inline padding/radius when the caller didn't supply a `p-*` /
+  // `rounded-*` className override. Falling back to defaults in the
+  // "no prop + no class" case is what wires up the cascade for the new
+  // reference layout.
+  const paddingClassOverride = typeof className === "string" && PADDING_CLASS_RE.test(className);
+  const radiusClassOverride = typeof className === "string" && ROUNDED_CLASS_RE.test(className);
+
+  const effectivePadding = padding ?? (paddingClassOverride ? undefined : DEFAULT_PADDING);
+  const effectiveRadius = radius ?? (radiusClassOverride ? undefined : DEFAULT_RADIUS);
+
+  const radiusBase =
+    effectiveRadius === undefined
+      ? undefined
+      : typeof effectiveRadius === "string"
+        ? effectiveRadius
+        : (effectiveRadius.base ?? DEFAULT_RADIUS);
+  const radiusSm = typeof effectiveRadius === "object" ? effectiveRadius.sm : undefined;
+
+  // Publish `--emb-radius-base/sm` + `--emb-padding` for descendant
+  // RecessedCards to inherit (the @media swap in neumorphic.css picks the
+  // active value into `--emb-radius`). Keep `--neu-radius-base/sm` in
+  // lockstep so this card's own gradient-border transition arc aligns
+  // with its actual rounded corner.
+  const mergedStyle: React.CSSProperties = {
+    ...embossedCardStyle,
+    ...(effectivePadding !== undefined ? { "--emb-padding": effectivePadding, padding: "var(--emb-padding)" } : {}),
+    ...(radiusBase !== undefined
+      ? {
+          "--emb-radius-base": radiusBase,
+          "--emb-radius-sm": radiusSm ?? radiusBase,
+          "--neu-radius-base": radiusBase,
+          "--neu-radius-sm": radiusSm ?? radiusBase,
+          borderRadius: "var(--emb-radius)",
+        }
+      : {}),
+    ...style,
+  } as React.CSSProperties;
+
   return (
-    <div
-      className={cn("embossed-gradient-border bg-white/[0.07] p-4 overflow-hidden", className)}
-      style={{ ...embossedCardStyle, ...style }}
-    >
+    <div className={cn("embossed-gradient-border bg-white/[0.07] overflow-hidden", className)} style={mergedStyle}>
       {isCompound ? (
         <>
           {hasAddOns ? (

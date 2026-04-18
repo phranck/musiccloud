@@ -1,4 +1,5 @@
 import { compareByDisplayOrder } from "@musiccloud/shared";
+import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
@@ -79,7 +80,11 @@ function EmbedSmall({
   platforms: PlatformLink[];
 }) {
   return (
-    <div className="w-[400px] h-[88px] flex items-center gap-3 p-[10px] bg-surface-elevated border border-white/[0.08] rounded-[14px] shadow-lg">
+    <EmbossedCard
+      padding="10px"
+      radius="14px"
+      className="w-[400px] h-[88px] flex items-center gap-3 bg-surface-elevated shadow-lg"
+    >
       <a href={shortUrl} target="_blank" rel="noopener noreferrer">
         <img className="w-[68px] h-[68px] rounded-lg object-cover flex-shrink-0" src={artworkUrl} alt={title} />
       </a>
@@ -111,7 +116,7 @@ function EmbedSmall({
           </a>
         </div>
       </div>
-    </div>
+    </EmbossedCard>
   );
 }
 
@@ -131,7 +136,7 @@ function EmbedRegular({
   platforms: PlatformLink[];
 }) {
   return (
-    <div className="w-[320px] bg-surface-elevated border border-white/[0.08] rounded-xl shadow-lg overflow-hidden">
+    <EmbossedCard padding="0" radius="0.75rem" className="w-[320px] bg-surface-elevated shadow-lg">
       <div className="w-full aspect-square overflow-hidden">
         <a href={shortUrl} target="_blank" rel="noopener noreferrer">
           <img className="w-full h-full object-cover" src={artworkUrl} alt={title} />
@@ -176,7 +181,7 @@ function EmbedRegular({
           </a>
         </div>
       </div>
-    </div>
+    </EmbossedCard>
   );
 }
 
@@ -198,7 +203,7 @@ function EmbedLarge({
   platforms: PlatformLink[];
 }) {
   return (
-    <div className="w-[400px] bg-surface-elevated border border-white/[0.08] rounded-xl shadow-lg overflow-hidden">
+    <EmbossedCard padding="0" radius="0.75rem" className="w-[400px] bg-surface-elevated shadow-lg">
       <div className="w-full aspect-square overflow-hidden">
         <a href={shortUrl} target="_blank" rel="noopener noreferrer">
           <img className="w-full h-full object-cover" src={artworkUrl} alt={title} />
@@ -236,6 +241,6 @@ function EmbedLarge({
           </a>
         </div>
       </div>
-    </div>
+    </EmbossedCard>
   );
 }

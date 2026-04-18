@@ -133,7 +133,7 @@ export function DisambiguationPanel({
 
   return (
     <div className="w-full max-w-full sm:max-w-[480px] mx-auto mt-8 animate-fade-in">
-      <EmbossedCard className="rounded-2xl p-5">
+      <EmbossedCard>
         <EmbossedCard.Header className="text-center mb-4">
           {isAnimating || isLoadingSelected ? (
             <div className="animate-fade-in">
@@ -153,7 +153,7 @@ export function DisambiguationPanel({
         </EmbossedCard.Header>
 
         <EmbossedCard.Body>
-          <RecessedCard className="p-2" radius="0.75rem">
+          <RecessedCard>
             <div ref={listRef} className="flex flex-col gap-2">
               {candidates.map((candidate, index) => {
                 const isThisSelected =
