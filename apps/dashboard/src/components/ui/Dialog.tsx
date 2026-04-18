@@ -19,7 +19,7 @@ interface DialogFooterProps {
 function DialogFooter({ children, className }: DialogFooterProps) {
   return (
     <div
-      className={`bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border)] px-6 py-3 ${className ?? "flex justify-end gap-3"}`}
+      className={`bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border)] p-6 ${className ?? "flex justify-end gap-2"}`}
     >
       {children}
     </div>
@@ -45,10 +45,10 @@ export function Dialog({ open, title, titleIcon, onClose, children, maxWidth = "
 Dialog.Footer = DialogFooter;
 
 export const dialogBtnPrimary =
-  "h-9 px-4 border border-[var(--ds-accent)] text-[var(--ds-accent)] rounded-control text-sm font-medium hover:bg-[var(--ds-accent-subtle)] transition-colors disabled:opacity-60";
+  "h-7 px-3 border border-[var(--ds-accent)] text-[var(--ds-accent)] rounded-control text-xs font-medium hover:bg-[var(--ds-accent-subtle)] transition-colors disabled:opacity-60";
 
 export const dialogBtnSecondary =
-  "h-9 px-4 border border-[var(--ds-border)] rounded-control text-sm text-[var(--ds-text-muted)] hover:border-[var(--ds-border-strong)] transition-colors";
+  "h-7 px-3 border border-[var(--ds-border)] rounded-control text-xs text-[var(--ds-text-muted)] hover:border-[var(--ds-border-strong)] transition-colors";
 
 export const dialogBtnDestructive =
-  "h-9 px-4 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-danger-hover-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors disabled:opacity-60";
+  "h-7 px-3 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded-control text-xs font-medium hover:border-[var(--ds-btn-danger-hover-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors disabled:opacity-60";

@@ -318,8 +318,8 @@ export function PagesListPage() {
         titleIcon={<TrashIcon weight="duotone" className={dialogHeaderIconClass} />}
         onClose={() => dispatch({ deleteTarget: null })}
       >
-        <div className="px-6 py-4 text-sm text-[var(--ds-text)]">
-          {text.confirmDeletePrefix} <span className="font-medium">{deleteTarget?.title}</span>{" "}
+        <div className="p-6 text-sm text-[var(--ds-text)]">
+          {text.confirmDeletePrefix} „<span className="font-bold">{deleteTarget?.title}</span>“{" "}
           {text.confirmDeleteSuffix}
         </div>
         <Dialog.Footer>
