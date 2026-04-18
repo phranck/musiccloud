@@ -1361,6 +1361,45 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     await this.pool.query(`DELETE FROM admin_users WHERE id = $1`, [id]);
   }
 
+  async listPendingInvites(): Promise<
+    Array<{
+      id: string;
+      username: string;
+      email: string | null;
+      inviteTokenHash: string;
+      inviteExpiresAt: Date;
+    }>
+  > {
+    const result = await this.pool.query(
+      `SELECT id, username, email, invite_token_hash, invite_expires_at
+       FROM admin_users
+       WHERE invite_token_hash IS NOT NULL AND invite_expires_at > NOW()`,
+    );
+    return result.rows.map((r) => ({
+      id: r.id,
+      username: r.username,
+      email: r.email ?? null,
+      inviteTokenHash: r.invite_token_hash,
+      inviteExpiresAt: r.invite_expires_at,
+    }));
+  }
+
+  async acceptInvite(id: string, passwordHash: string): Promise<AdminUser | null> {
+    const result = await this.pool.query(
+      `UPDATE admin_users
+       SET password_hash = $1,
+           invite_token_hash = NULL,
+           invite_expires_at = NULL
+       WHERE id = $2 AND invite_token_hash IS NOT NULL AND invite_expires_at > NOW()
+       RETURNING id, username, password_hash, email, role, first_name, last_name,
+                 avatar_url, locale, invite_token_hash, invite_expires_at,
+                 session_timeout_minutes, created_at, last_login_at`,
+      [passwordHash, id],
+    );
+    if (result.rows.length === 0) return null;
+    return this.rowToAdminUser(result.rows[0] as AdminUserRow);
+  }
+
   // ============================================================================
   // SINGLE TRACK (AdminRepository)
   // ============================================================================

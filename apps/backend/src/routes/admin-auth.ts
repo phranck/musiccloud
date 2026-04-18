@@ -48,7 +48,7 @@
  * must not block or fail the login response, so the promise's rejection
  * is swallowed.
  */
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
@@ -213,6 +213,75 @@ async function adminAuthRoutes(app: FastifyInstance) {
     }
 
     return reply.send(buildUserResponse(user));
+  });
+
+  /**
+   * GET /api/admin/invite/:token
+   * Validates the invite token (bcrypt-compared against every unexpired
+   * invite hash) and returns the invitee's username + email so the
+   * dashboard can show the accept-invite form.
+   */
+  app.get<{ Params: { token: string } }>(ROUTE_TEMPLATES.admin.invite.state, async (request, reply) => {
+    const { token } = request.params;
+    if (!token) return reply.status(400).send({ error: "INVALID_REQUEST", message: "Token required." });
+
+    const repo = await getAdminRepository();
+    const pending = await repo.listPendingInvites();
+
+    for (const row of pending) {
+      if (await bcrypt.compare(token, row.inviteTokenHash)) {
+        return reply.send({ username: row.username, email: row.email ?? "" });
+      }
+    }
+
+    return reply.status(404).send({ error: "INVALID_TOKEN", message: "Invite token is invalid or expired." });
+  });
+
+  /**
+   * POST /api/admin/invite/accept
+   * Consumes the invite token: sets the user's real password and clears
+   * the invite columns so the token cannot be replayed.
+   */
+  app.post(ENDPOINTS.admin.invite.accept, async (request, reply) => {
+    const body = request.body as { token?: string; password?: string } | null;
+    if (!body?.token || !body?.password) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "token and password are required." });
+    }
+    if (body.password.length < 8 || body.password.length > 128) {
+      return reply
+        .status(400)
+        .send({ error: "INVALID_REQUEST", message: "password must be between 8 and 128 characters." });
+    }
+
+    const repo = await getAdminRepository();
+    const pending = await repo.listPendingInvites();
+
+    let matchedId: string | null = null;
+    for (const row of pending) {
+      if (await bcrypt.compare(body.token, row.inviteTokenHash)) {
+        matchedId = row.id;
+        break;
+      }
+    }
+
+    if (!matchedId) {
+      return reply.status(404).send({ error: "INVALID_TOKEN", message: "Invite token is invalid or expired." });
+    }
+
+    const passwordHash = await bcrypt.hash(body.password, 12);
+    const user = await repo.acceptInvite(matchedId, passwordHash);
+    if (!user) {
+      return reply.status(404).send({ error: "INVALID_TOKEN", message: "Invite token is invalid or expired." });
+    }
+
+    const token = app.jwt.sign(
+      { sub: user.id, username: user.username, role: "admin", dbRole: user.role },
+      { expiresIn: "24h" },
+    );
+
+    repo.updateLastLogin(user.id).catch(() => undefined);
+
+    return reply.send({ token, user: buildUserResponse(user) });
   });
 
   /**

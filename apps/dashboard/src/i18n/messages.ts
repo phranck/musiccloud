@@ -642,6 +642,10 @@ export interface DashboardMessages {
     importOverwrite: string;
     importRename: string;
     importSkip: string;
+    sendTest: string;
+    sendingTest: string;
+    testSent: string;
+    testFailed: string;
   };
   analytics: {
     title: string;
@@ -1324,6 +1328,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       importOverwrite: "\u00dcberschreiben",
       importRename: "Umbenennen",
       importSkip: "\u00dcberspringen",
+      sendTest: "Test-Mail senden",
+      sendingTest: "Wird gesendet\u2026",
+      testSent: "Test-Mail gesendet an {email}",
+      testFailed: "Test-Mail fehlgeschlagen",
     },
     analytics: {
       title: "Analytics",
@@ -2004,6 +2012,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       importOverwrite: "Overwrite",
       importRename: "Rename",
       importSkip: "Skip",
+      sendTest: "Send test email",
+      sendingTest: "Sending\u2026",
+      testSent: "Test email sent to {email}",
+      testFailed: "Test email failed",
     },
     analytics: {
       title: "Analytics",

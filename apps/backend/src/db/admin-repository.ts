@@ -190,6 +190,27 @@ export interface AdminRepository {
    */
   invalidateAllCaches(): Promise<{ tracks: number; albums: number; artists: number }>;
 
+  /**
+   * Returns every admin user that currently has an unexpired invite token.
+   * The caller matches the raw token against each `inviteTokenHash` via
+   * `bcrypt.compare`, which is why the hash is exposed in this one spot:
+   * bcrypt is slow and there is no way to query by hash.
+   */
+  listPendingInvites(): Promise<
+    Array<{
+      id: string;
+      username: string;
+      email: string | null;
+      inviteTokenHash: string;
+      inviteExpiresAt: Date;
+    }>
+  >;
+  /**
+   * Sets the final password and atomically clears the invite columns so
+   * the token cannot be replayed. Returns the updated user row.
+   */
+  acceptInvite(id: string, passwordHash: string): Promise<AdminUser | null>;
+
   listEmailTemplates(): Promise<EmailTemplateRow[]>;
   getEmailTemplateById(id: number): Promise<EmailTemplateRow | null>;
   getEmailTemplateByName(name: string): Promise<EmailTemplateRow | null>;

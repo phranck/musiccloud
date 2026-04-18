@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import { useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useI18n } from "@/context/I18nContext";
@@ -62,7 +63,7 @@ export function InvitePage() {
       }
 
       try {
-        const state = await api.get<AdminInviteState>(`/admin/invite/${token}`);
+        const state = await api.get<AdminInviteState>(ENDPOINTS.admin.invite.state(token));
         if (!cancelled) dispatch({ type: "loadSuccess", data: state });
       } catch (err) {
         if (!cancelled) {
@@ -89,7 +90,7 @@ export function InvitePage() {
 
     dispatch({ type: "submitStart" });
     try {
-      await api.post<AdminUser>("/admin/invite/accept", { token, password });
+      await api.post<AdminUser>(ENDPOINTS.admin.invite.accept, { token, password });
       await refresh();
       navigate("/");
     } catch (err) {

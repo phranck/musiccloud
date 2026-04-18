@@ -2,7 +2,10 @@ import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { strToU8, zipSync } from "fflate";
 
+import { getAdminRepository } from "../db/index.js";
+import { requireEnv } from "../lib/env.js";
 import { renderEmailPreview } from "../services/email-renderer.js";
+import { sendTemplatedEmail } from "../services/email-sender.js";
 import {
   createManagedEmailTemplate,
   deleteManagedEmailTemplate,
@@ -223,6 +226,7 @@ export default async function adminEmailTemplateRoutes(app: FastifyInstance) {
         footerBannerUrl: fields.footerBannerUrl,
       },
       colorScheme,
+      requireEnv("PUBLIC_URL"),
     );
     return { html };
   });
@@ -239,6 +243,43 @@ export default async function adminEmailTemplateRoutes(app: FastifyInstance) {
       return reply.status(409).send({ error: "Template name already exists" });
     }
     return reply.status(201).send(result.data);
+  });
+
+  // POST /api/admin/email-templates/:id/test
+  app.post<{ Params: { id: string } }>(ROUTE_TEMPLATES.admin.emailTemplates.test, async (request, reply) => {
+    const id = parseId(request.params.id);
+    if (!id) return reply.status(400).send({ error: "Invalid ID" });
+
+    const payload = request.user as { sub?: string } | undefined;
+    if (!payload?.sub) return reply.status(401).send({ error: "UNAUTHORIZED" });
+
+    const repo = await getAdminRepository();
+    const caller = await repo.findAdminById(payload.sub);
+    if (!caller?.email) {
+      return reply.status(400).send({ error: "Caller has no email address on file" });
+    }
+
+    const dashboardUrl = requireEnv("DASHBOARD_URL");
+
+    try {
+      await sendTemplatedEmail({
+        templateId: id,
+        to: { email: caller.email, name: caller.username },
+        variables: {
+          username: caller.username,
+          email: caller.email,
+          role: caller.role,
+          inviteUrl: `${dashboardUrl}/invite/test-token`,
+          loginUrl: `${dashboardUrl}/login`,
+        },
+      });
+    } catch (error) {
+      request.log.error({ err: error, templateId: id }, "test email send failed");
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return reply.status(502).send({ error: "EMAIL_SEND_FAILED", message });
+    }
+
+    return { sent: true, to: caller.email };
   });
 
   // DELETE /api/admin/email-templates/:id

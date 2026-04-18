@@ -43,6 +43,25 @@ function parseMarkdown(text: string): string {
   return applyInlineStyles(html);
 }
 
+/**
+ * Resolves a user-entered banner URL against the public site base URL so the
+ * rendered email (and preview iframe) always emits fully qualified URLs —
+ * absolute inputs pass through, relative inputs are anchored at `baseUrl`.
+ *
+ * - `http://`, `https://`, `data:` → kept verbatim
+ * - `//host/path` (protocol-relative) → `https:` prepended
+ * - `/path` or `path` → prefixed with `baseUrl`
+ */
+function resolveAssetUrl(url: string, baseUrl: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  if (/^(https?:|data:)/i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  const base = baseUrl.replace(/\/+$/, "");
+  const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return `${base}${path}`;
+}
+
 export interface EmailTemplateFields {
   headerBannerUrl?: string | null;
   headerText?: string | null;
@@ -51,7 +70,7 @@ export interface EmailTemplateFields {
   footerBannerUrl?: string | null;
 }
 
-function buildRows(fields: EmailTemplateFields, variables: Record<string, string>): string[] {
+function buildRows(fields: EmailTemplateFields, variables: Record<string, string>, baseUrl: string): string[] {
   const headerHtml = fields.headerText ? parseMarkdown(interpolate(fields.headerText, variables)) : null;
   const bodyHtml = parseMarkdown(interpolate(fields.bodyText, variables));
   const footerHtml = fields.footerText ? parseMarkdown(interpolate(fields.footerText, variables)) : null;
@@ -59,8 +78,9 @@ function buildRows(fields: EmailTemplateFields, variables: Record<string, string
   const rows: string[] = [];
 
   if (fields.headerBannerUrl) {
+    const src = resolveAssetUrl(fields.headerBannerUrl, baseUrl);
     rows.push(
-      `<tr><td><img src="${fields.headerBannerUrl}" width="560" alt="" style="display:block;width:100%;border-radius:8px 8px 0 0;"></td></tr>`,
+      `<tr><td><img src="${src}" width="560" alt="" style="display:block;width:100%;border-radius:8px 8px 0 0;"></td></tr>`,
     );
   }
   if (headerHtml) {
@@ -73,8 +93,9 @@ function buildRows(fields: EmailTemplateFields, variables: Record<string, string
     );
   }
   if (fields.footerBannerUrl) {
+    const src = resolveAssetUrl(fields.footerBannerUrl, baseUrl);
     rows.push(
-      `<tr><td><img src="${fields.footerBannerUrl}" width="560" alt="" style="display:block;width:100%;border-radius:0 0 8px 8px;"></td></tr>`,
+      `<tr><td><img src="${src}" width="560" alt="" style="display:block;width:100%;border-radius:0 0 8px 8px;"></td></tr>`,
     );
   }
 
@@ -87,7 +108,12 @@ function buildEmailHtml(rows: string[], css: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>${css}</style>
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <style>
+    :root { color-scheme: light dark; supported-color-schemes: light dark; }
+    ${css}
+  </style>
 </head>
 <body style="margin:0;padding:0;background:#F5F5F7;font-family:'Barlow',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -104,13 +130,18 @@ function buildEmailHtml(rows: string[], css: string): string {
 export async function renderEmailTemplate(
   template: EmailTemplateFields & { subject: string },
   variables: Record<string, string>,
+  baseUrl: string,
 ): Promise<{ html: string; subject: string }> {
   const subject = interpolate(template.subject, variables);
-  const rows = buildRows(template, variables);
+  const rows = buildRows(template, variables, baseUrl);
   return { html: buildEmailHtml(rows, DARK_MODE_CSS), subject };
 }
 
-export function renderEmailPreview(fields: EmailTemplateFields, colorScheme: "light" | "dark"): string {
-  const rows = buildRows(fields, {});
+export function renderEmailPreview(
+  fields: EmailTemplateFields,
+  colorScheme: "light" | "dark",
+  baseUrl: string,
+): string {
+  const rows = buildRows(fields, {}, baseUrl);
   return buildEmailHtml(rows, colorScheme === "dark" ? DARK_RULES : "");
 }

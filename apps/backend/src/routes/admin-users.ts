@@ -62,6 +62,8 @@ import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
 import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
+import { requireEnv } from "../lib/env.js";
+import { sendTemplatedEmail } from "../services/email-sender.js";
 
 export default async function adminUserRoutes(app: FastifyInstance) {
   // GET /api/admin/users
@@ -78,7 +80,12 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: "FORBIDDEN" });
     }
 
-    const body = request.body as { username?: string; email?: string; role?: string } | null;
+    const body = request.body as {
+      username?: string;
+      email?: string;
+      role?: string;
+      welcomeTemplateId?: number;
+    } | null;
     if (!body?.username || !body?.email) {
       return reply.status(400).send({ error: "username and email required" });
     }
@@ -91,6 +98,8 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     // a week; bcrypt 12 (used on real passwords) is overkill here.
     const inviteTokenHash = await bcrypt.hash(inviteToken, 10);
 
+    const role = body.role || "admin";
+
     await repo.createAdminUser({
       id,
       username: body.username,
@@ -100,14 +109,35 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       // finishing.
       passwordHash: await bcrypt.hash(nanoid(32), 12),
       email: body.email,
-      role: body.role || "admin",
+      role,
       inviteTokenHash,
       inviteExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
 
     const user = await repo.findAdminById(id);
-    const baseUrl = process.env.PUBLIC_URL;
-    const inviteUrl = `${baseUrl}/dashboard/invite/${inviteToken}`;
+    const dashboardUrl = requireEnv("DASHBOARD_URL");
+    const inviteUrl = `${dashboardUrl}/invite/${inviteToken}`;
+
+    if (body.welcomeTemplateId) {
+      try {
+        await sendTemplatedEmail({
+          templateId: body.welcomeTemplateId,
+          to: { email: body.email, name: body.username },
+          variables: {
+            username: body.username,
+            email: body.email,
+            role,
+            inviteUrl,
+            loginUrl: `${dashboardUrl}/login`,
+          },
+        });
+      } catch (error) {
+        // Mail send must not roll back user creation: the invite URL is
+        // returned in the response and remains copy-pasteable from the
+        // UI even if delivery to Brevo fails.
+        request.log.error({ err: error, userId: id }, "failed to send welcome email");
+      }
+    }
 
     return reply.status(201).send({
       user: toResponse(user!),

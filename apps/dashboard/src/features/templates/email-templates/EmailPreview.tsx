@@ -12,6 +12,13 @@ interface EmailPreviewProps {
   footerText: string;
 }
 
+const COLOR_SCHEME_STORAGE_KEY = "email-template:preview-color-scheme";
+
+function loadColorScheme(): "light" | "dark" {
+  const saved = localStorage.getItem(COLOR_SCHEME_STORAGE_KEY);
+  return saved === "dark" ? "dark" : "light";
+}
+
 /**
  * Live email preview rendered in an isolated iframe.
  * Fetches rendered HTML from the backend preview endpoint so the output is
@@ -26,7 +33,7 @@ export function EmailPreview({
 }: EmailPreviewProps) {
   const { messages } = useI18n();
   const m = messages.emailTemplates;
-  const [colorScheme, setColorScheme] = useState<"light" | "dark">("light");
+  const [colorScheme, setColorScheme] = useState<"light" | "dark">(loadColorScheme);
   const [srcDoc, setSrcDoc] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -57,7 +64,9 @@ export function EmailPreview({
         <ThemeSegmentedControl
           value={colorScheme}
           onChange={(v) => {
-            if (v !== "system") setColorScheme(v);
+            if (v === "system") return;
+            setColorScheme(v);
+            localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, v);
           }}
           options={["light", "dark"]}
         />

@@ -112,6 +112,13 @@ export const ENDPOINTS = {
       refresh: "/api/admin/auth/refresh",
     },
 
+    invite: {
+      /** GET: validate invite token and return invitee's username + email. */
+      state: (token: string) => `/api/admin/invite/${token}`,
+      /** POST: finalise the invite by setting the password. Body: { token, password }. */
+      accept: "/api/admin/invite/accept",
+    },
+
     users: {
       /** GET: list / POST: create. */
       list: "/api/admin/users",
@@ -185,6 +192,8 @@ export const ENDPOINTS = {
       import: "/api/admin/email-templates/import",
       /** GET: download all templates as a ZIP archive. */
       export: "/api/admin/email-templates/export",
+      /** POST: send a test email rendered from this template to the caller. */
+      test: (id: number) => `/api/admin/email-templates/${id}/test`,
     },
 
     analytics: {
@@ -246,6 +255,10 @@ export const ROUTE_TEMPLATES = {
     },
     emailTemplates: {
       detail: "/api/admin/email-templates/:id",
+      test: "/api/admin/email-templates/:id/test",
+    },
+    invite: {
+      state: "/api/admin/invite/:token",
     },
   },
 } as const;

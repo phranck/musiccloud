@@ -1,4 +1,4 @@
-import { CheckCircleIcon, DownloadIcon, SealWarningIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, DownloadIcon, PaperPlaneTiltIcon, SealWarningIcon } from "@phosphor-icons/react";
 import { lazy, Suspense, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
@@ -11,6 +11,7 @@ import {
   type EmailTemplateInput,
   useCreateEmailTemplate,
   useEmailTemplate,
+  useSendTestEmail,
   useUpdateEmailTemplate,
 } from "@/features/templates/hooks/useEmailTemplates";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
@@ -80,6 +81,8 @@ export function EmailTemplateEditPage() {
   const { data: existing, isLoading } = useEmailTemplate(numId);
   const createMutation = useCreateEmailTemplate();
   const updateMutation = useUpdateEmailTemplate(numId);
+  const sendTestMutation = useSendTestEmail();
+  const [testFeedback, setTestFeedback] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   interface TemplateFormFields {
     name: string;
@@ -164,6 +167,22 @@ export function EmailTemplateEditPage() {
   }
 
   const isPending = createMutation.isPending || updateMutation.isPending;
+  const canSendTest = !isNew && !isPending && !sendTestMutation.isPending;
+
+  function handleSendTest() {
+    if (!canSendTest) return;
+    setTestFeedback(null);
+    sendTestMutation.mutate(numId, {
+      onSuccess: (result) => {
+        setTestFeedback({ type: "ok", text: m.testSent.replace("{email}", result.to) });
+        setTimeout(() => setTestFeedback(null), 3000);
+      },
+      onError: () => {
+        setTestFeedback({ type: "err", text: m.testFailed });
+        setTimeout(() => setTestFeedback(null), 3000);
+      },
+    });
+  }
 
   useKeyboardSave(handleSave, !isPending);
 
@@ -190,7 +209,27 @@ export function EmailTemplateEditPage() {
               {m.saved}
             </span>
           )}
+          {testFeedback && (
+            <span
+              className={`text-xs ${
+                testFeedback.type === "ok" ? "text-green-600 dark:text-green-400" : "text-red-500"
+              }`}
+            >
+              {testFeedback.text}
+            </span>
+          )}
           {error && <p className="text-xs text-red-500">{error}</p>}
+          {!isNew && (
+            <button
+              type="button"
+              onClick={handleSendTest}
+              disabled={!canSendTest}
+              className="flex items-center gap-2 h-9 px-4 border border-[var(--ds-border)] text-[var(--ds-text)] rounded-control text-sm font-medium hover:bg-[var(--ds-surface-hover)] disabled:opacity-60"
+            >
+              <PaperPlaneTiltIcon weight="duotone" className="w-3.5 h-3.5" />
+              {sendTestMutation.isPending ? m.sendingTest : m.sendTest}
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSave}

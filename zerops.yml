@@ -31,6 +31,11 @@ zerops:
         # LASTFM_API_KEY: <from Last.fm API account>
         # TICKETMASTER_CONSUMER_KEY: <from Ticketmaster Developer Portal>
         # BANDSINTOWN_APP_ID: <from Bandsintown Developer Portal>
+        # PUBLIC_URL: <public site origin, e.g. https://musiccloud.io; used for email banner asset URLs>
+        # DASHBOARD_URL: <dashboard origin, e.g. https://dashboard.musiccloud.io; used for invite + login links>
+        # BREVO_API_KEY: <from Brevo -> SMTP & API -> API keys>
+        # EMAIL_FROM_ADDRESS: <verified Brevo sender address, e.g. noreply@musiccloud.io>
+        # EMAIL_FROM_NAME: <display name for outgoing emails, e.g. musiccloud>
       initCommands:
         - "true"
       start: node apps/backend/dist/server.js
