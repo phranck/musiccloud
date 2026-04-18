@@ -177,17 +177,6 @@ function LandingPageInner() {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [exampleShortId, setExampleShortId] = useState<string | null>(null);
 
-  // Auto-submit when ?url= query param is present (e.g. from ArtistInfoCard Listen buttons)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlParam = params.get("url");
-    if (urlParam) {
-      window.history.replaceState({}, "", window.location.pathname);
-      handleSubmit(urlParam);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleSubmit]);
-
   useEffect(() => {
     fetch(ENDPOINTS.frontend.randomExample)
       .then((r) => (r.ok ? r.json() : null))

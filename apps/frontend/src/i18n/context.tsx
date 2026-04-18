@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { detectLocale, LOCALE_STORAGE_KEY, type Locale } from "./locales";
 import csTranslations from "./translations/cs.json";
 import deTranslations from "./translations/de.json";
@@ -42,12 +42,6 @@ function interpolate(template: string, vars?: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
 }
 
-// useSyncExternalStore: detect locale synchronously on first render, no flash.
-// Server snapshot falls back to "en"; client detects from localStorage + navigator.
-const detectedLocale = () => detectLocale();
-const serverLocale = () => "en" as Locale;
-const noopSubscribe = () => () => {};
-
 export function LocaleProvider({
   children,
   initialLocale: initialLocaleProp,
@@ -55,16 +49,22 @@ export function LocaleProvider({
   children: React.ReactNode;
   initialLocale?: Locale;
 }) {
-  const detected = useSyncExternalStore(noopSubscribe, detectedLocale, serverLocale);
-  const [locale, setLocaleState] = useState<Locale>(initialLocaleProp ?? detected);
+  // SSR-safe initial state: "en" everywhere. After hydration, detect from
+  // localStorage/cookie/navigator and flip to the real locale. An older
+  // useSyncExternalStore + noopSubscribe pattern silently stuck at "en" on
+  // reload because the noop never retriggered the snapshot post-hydration,
+  // and the mount effect then wrote "en" over the user's saved choice.
+  const [locale, setLocaleState] = useState<Locale>(initialLocaleProp ?? "en");
   const translations = TRANSLATIONS_BY_LOCALE[locale] ?? TRANSLATIONS_BY_LOCALE.en;
 
-  // Persist detected locale to cookie + localStorage on first mount
-  // so SSR pages can read it even without explicit language switch
   useEffect(() => {
-    localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-    document.cookie = `${LOCALE_STORAGE_KEY}=${locale}; max-age=31536000; path=/; SameSite=Lax`;
-  }, [locale]);
+    if (initialLocaleProp) return;
+    const detected = detectLocale();
+    setLocaleState(detected);
+    // Persist so SSR pages can read it without an explicit switch
+    localStorage.setItem(LOCALE_STORAGE_KEY, detected);
+    document.cookie = `${LOCALE_STORAGE_KEY}=${detected}; max-age=31536000; path=/; SameSite=Lax`;
+  }, [initialLocaleProp]);
 
   // Sync with other islands on the same page via custom window event
   useEffect(() => {
