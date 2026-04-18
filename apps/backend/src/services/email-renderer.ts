@@ -6,16 +6,20 @@ marked.use({ breaks: true, gfm: true });
 
 const VAR_REGEX = /\{\{(\w+)\}\}/g;
 
+// musiccloud brand CI — dark palette mirrors the app's design tokens
+// (see apps/frontend/src/styles/global.css: --color-background, --color-surface,
+// --color-border, --color-text-primary, --color-text-secondary, --color-text-muted,
+// --color-accent-hover).
 const DARK_RULES = `
-  body                        { background: #1c1917 !important; }
-  table.em-container          { background: #292524 !important; border-color: #44403c !important; }
-  h1, h2, h3                  { color: #fafaf9 !important; }
-  p                           { color: #d6d3d1 !important; }
-  a                           { color: #fcd34d !important; }
-  strong                      { color: #fafaf9 !important; }
-  .em-footer-border           { border-top-color: #44403c !important; }
+  body                        { background: #0A0A0C !important; }
+  table.em-container          { background: #161618 !important; border-color: #38383A !important; }
+  h1, h2, h3                  { color: #F5F5F7 !important; }
+  p                           { color: #C7C7CC !important; }
+  a                           { color: #45BFE8 !important; }
+  strong                      { color: #F5F5F7 !important; }
+  .em-footer-border           { border-top-color: #38383A !important; }
   .em-footer-text,
-  .em-footer-text p           { color: #78716c !important; }
+  .em-footer-text p           { color: #9A9AA0 !important; }
 `;
 
 const DARK_MODE_CSS = `@media (prefers-color-scheme: dark) {${DARK_RULES}}`;
@@ -26,11 +30,11 @@ function interpolate(text: string, variables: Record<string, string>): string {
 
 function applyInlineStyles(html: string): string {
   return html
-    .replace(/<h1>/g, '<h1 style="font-size:22px;font-weight:600;color:#292524;margin:0 0 16px 0;line-height:1.3;">')
-    .replace(/<h2>/g, '<h2 style="font-size:18px;font-weight:600;color:#292524;margin:0 0 12px 0;line-height:1.3;">')
-    .replace(/<p>/g, '<p style="font-size:15px;line-height:1.6;color:#44403c;margin:0 0 16px 0;">')
-    .replace(/<a /g, '<a style="color:#b45309;font-weight:600;" ')
-    .replace(/<strong>/g, '<strong style="color:#292524;">');
+    .replace(/<h1>/g, '<h1 style="font-size:22px;font-weight:600;color:#1C1C1E;margin:0 0 16px 0;line-height:1.3;">')
+    .replace(/<h2>/g, '<h2 style="font-size:18px;font-weight:600;color:#1C1C1E;margin:0 0 12px 0;line-height:1.3;">')
+    .replace(/<p>/g, '<p style="font-size:15px;line-height:1.6;color:#3A3A3C;margin:0 0 16px 0;">')
+    .replace(/<a /g, '<a style="color:#28A8D8;font-weight:600;" ')
+    .replace(/<strong>/g, '<strong style="color:#1C1C1E;">');
 }
 
 function parseMarkdown(text: string): string {
@@ -65,7 +69,7 @@ function buildRows(fields: EmailTemplateFields, variables: Record<string, string
   rows.push(`<tr><td style="padding:32px 40px;">${bodyHtml}</td></tr>`);
   if (footerHtml) {
     rows.push(
-      `<tr><td class="em-footer-border" style="padding:24px 40px;border-top:1px solid #e7e5e4;text-align:center;"><div class="em-footer-text" style="font-size:13px;color:#a8a29e;line-height:1.5;">${footerHtml}</div></td></tr>`,
+      `<tr><td class="em-footer-border" style="padding:24px 40px;border-top:1px solid #E5E5EA;text-align:center;"><div class="em-footer-text" style="font-size:13px;color:#8E8E93;line-height:1.5;">${footerHtml}</div></td></tr>`,
     );
   }
   if (fields.footerBannerUrl) {
@@ -85,10 +89,10 @@ function buildEmailHtml(rows: string[], css: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>${css}</style>
 </head>
-<body style="margin:0;padding:0;background:#f5f5f4;font-family:'Inter',system-ui,-apple-system,sans-serif;">
+<body style="margin:0;padding:0;background:#F5F5F7;font-family:'Barlow',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
     <tr><td align="center" style="padding:40px 16px;">
-      <table class="em-container" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#fff;border:1px solid #e7e5e4;border-radius:8px;overflow:hidden;">
+      <table class="em-container" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#FFFFFF;border:1px solid #E5E5EA;border-radius:8px;overflow:hidden;">
         ${rows.join("\n        ")}
       </table>
     </td></tr>
