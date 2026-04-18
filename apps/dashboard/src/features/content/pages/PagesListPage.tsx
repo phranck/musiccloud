@@ -7,7 +7,7 @@ import {
   PlusCircleIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { useMemo, useReducer } from "react";
+import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
@@ -130,10 +130,13 @@ export function PagesListPage() {
     dispatch({ showCreate: false, title: "", slug: "", slugManual: false, createError: null });
   }
 
-  async function handleDelete(pageSlug: string, pageTitle: string) {
-    if (!confirm(`${text.deletePageTitle}: ${pageTitle}?`)) return;
-    await deletePage.mutateAsync(pageSlug);
-  }
+  const handleDelete = useCallback(
+    async (pageSlug: string, pageTitle: string) => {
+      if (!confirm(`${text.deletePageTitle}: ${pageTitle}?`)) return;
+      await deletePage.mutateAsync(pageSlug);
+    },
+    [text.deletePageTitle, deletePage],
+  );
 
   const columns = useMemo<ColumnDef<ContentPage>[]>(
     () => [
@@ -164,9 +167,7 @@ export function PagesListPage() {
       {
         id: "createdBy",
         header: text.table.createdBy,
-        cell: (page) => (
-          <span className="text-xs text-[var(--ds-text-muted)]">{page.createdByUsername ?? "—"}</span>
-        ),
+        cell: (page) => <span className="text-xs text-[var(--ds-text-muted)]">{page.createdByUsername ?? "—"}</span>,
       },
       {
         id: "updatedAt",
@@ -197,7 +198,7 @@ export function PagesListPage() {
         ),
       },
     ],
-    [text, common, locale, navigate, deletePage.isPending],
+    [text, common, locale, navigate, deletePage.isPending, handleDelete],
   );
 
   return (
@@ -224,7 +225,10 @@ export function PagesListPage() {
             <h3 className="text-sm font-semibold text-[var(--ds-text)]">{text.createTitle}</h3>
             <div className="space-y-3">
               <div>
-                <label htmlFor="content-page-title" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
+                <label
+                  htmlFor="content-page-title"
+                  className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1"
+                >
                   {text.fieldTitle}
                 </label>
                 <input
@@ -238,7 +242,10 @@ export function PagesListPage() {
                 />
               </div>
               <div>
-                <label htmlFor="content-page-slug" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
+                <label
+                  htmlFor="content-page-slug"
+                  className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1"
+                >
                   {text.fieldSlug}
                 </label>
                 <div className="flex items-center gap-2">
