@@ -630,6 +630,18 @@ export interface DashboardMessages {
     sectionHeader: string;
     sectionBody: string;
     sectionFooter: string;
+    exportTemplate: string;
+    exportAll: string;
+    importTemplate: string;
+    importSuccess: string;
+    importError: string;
+    importInvalidFile: string;
+    importConflictTitle: string;
+    importConflictHint: string;
+    importNewNameLabel: string;
+    importOverwrite: string;
+    importRename: string;
+    importSkip: string;
   };
   analytics: {
     title: string;
@@ -1300,6 +1312,18 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       sectionHeader: "Header",
       sectionBody: "Inhalt",
       sectionFooter: "Footer",
+      exportTemplate: "Exportieren",
+      exportAll: "Alle exportieren",
+      importTemplate: "Importieren",
+      importSuccess: "{n} Vorlagen importiert",
+      importError: "Fehler beim Import",
+      importInvalidFile: "Ung\u00fcltige Datei",
+      importConflictTitle: "Vorlage \u201e{name}\u201c existiert bereits",
+      importConflictHint: "W\u00e4hle, wie mit der bestehenden Vorlage verfahren werden soll.",
+      importNewNameLabel: "Neuer Name",
+      importOverwrite: "\u00dcberschreiben",
+      importRename: "Umbenennen",
+      importSkip: "\u00dcberspringen",
     },
     analytics: {
       title: "Analytics",
@@ -1968,6 +1992,18 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       sectionHeader: "Header",
       sectionBody: "Body",
       sectionFooter: "Footer",
+      exportTemplate: "Export",
+      exportAll: "Export all",
+      importTemplate: "Import",
+      importSuccess: "{n} templates imported",
+      importError: "Import failed",
+      importInvalidFile: "Invalid file",
+      importConflictTitle: "Template \u201c{name}\u201d already exists",
+      importConflictHint: "Choose how to handle the existing template.",
+      importNewNameLabel: "New name",
+      importOverwrite: "Overwrite",
+      importRename: "Rename",
+      importSkip: "Skip",
     },
     analytics: {
       title: "Analytics",

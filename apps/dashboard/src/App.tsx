@@ -91,6 +91,12 @@ const EmailTemplateListPage = lazy(() =>
   })),
 );
 
+const EmailTemplateEditPage = lazy(() =>
+  import("@/features/templates/email-templates/EmailTemplateEditPage").then((m) => ({
+    default: m.EmailTemplateEditPage,
+  })),
+);
+
 const MarkdownWidgetsPage = lazy(() =>
   import("@/features/system/MarkdownWidgetsPage").then((m) => ({
     default: m.MarkdownWidgetsPage,
@@ -268,7 +274,7 @@ function AppRoutes() {
                 path="email-templates/new"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <EditorStubPage />
+                    <EmailTemplateEditPage />
                   </Suspense>
                 }
               />
@@ -276,7 +282,7 @@ function AppRoutes() {
                 path="email-templates/:id"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <EditorStubPage />
+                    <EmailTemplateEditPage />
                   </Suspense>
                 }
               />

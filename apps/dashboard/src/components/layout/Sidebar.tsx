@@ -16,7 +16,7 @@ import {
   VinylRecordIcon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 
 import { CollapsibleSidebarGroup, sidebarGroupItemClass } from "@/components/layout/CollapsibleSidebarGroup";
 import { SidebarFooter } from "@/components/layout/SidebarFooter";
@@ -24,6 +24,7 @@ import { SidebarHeader } from "@/components/layout/SidebarHeader";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { useI18n } from "@/context/I18nContext";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
+import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import type { AdminRole } from "@/shared/types/admin";
 
 const ROLE_RANK: Record<AdminRole, number> = { owner: 2, admin: 1, moderator: 0 };
@@ -119,7 +120,11 @@ function EmailTemplatesGroup({
   onOpenChange?: (open: boolean) => void;
 }) {
   const { messages } = useI18n();
+  const common = messages.common;
   const s = messages.layout.sidebar;
+  const { data: templates } = useEmailTemplates();
+  const createTemplate = useCreateEmailTemplate();
+  const navigate = useNavigate();
 
   return (
     <CollapsibleSidebarGroup
@@ -127,6 +132,7 @@ function EmailTemplatesGroup({
       storageKey="sidebar-email-templates-open"
       icon={<EnvelopeOpenIcon weight="duotone" className="w-4 h-4" />}
       label={s.emailTemplates}
+      badge={templates?.length ?? 0}
       globalOpenState={globalOpenState}
       globalOpenVersion={globalOpenVersion}
       onOpenChange={onOpenChange}
@@ -134,6 +140,48 @@ function EmailTemplatesGroup({
       <NavLink to="/email-templates" end onClick={onItemClick} className={sidebarGroupItemClass}>
         {s.emailTemplatesOverview}
       </NavLink>
+      {(templates ?? []).map((tpl) => (
+        <div key={tpl.id} className="group/item flex items-center">
+          <NavLink
+            to={`/email-templates/${tpl.id}`}
+            onClick={onItemClick}
+            className={({ isActive }) =>
+              `flex-1 flex items-center gap-2 px-3 py-1.5 rounded-control text-sm font-medium min-w-0 ${
+                isActive
+                  ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]"
+                  : "text-[var(--ds-nav-text)] hover:bg-[var(--ds-nav-hover-bg)] hover:text-[var(--ds-nav-hover-text)]"
+              }`
+            }
+          >
+            <EnvelopeOpenIcon weight="duotone" className="w-3.5 h-3.5 shrink-0 opacity-60" />
+            <span className="truncate">{tpl.name}</span>
+          </NavLink>
+          <button
+            type="button"
+            title={common.duplicate}
+            onClick={async (e) => {
+              e.preventDefault();
+              try {
+                const created = await createTemplate.mutateAsync({
+                  name: `${tpl.name} (Copy)`,
+                  subject: tpl.subject,
+                  bodyText: tpl.bodyText,
+                  headerBannerUrl: tpl.headerBannerUrl ?? undefined,
+                  headerText: tpl.headerText ?? undefined,
+                  footerBannerUrl: tpl.footerBannerUrl ?? undefined,
+                  footerText: tpl.footerText ?? undefined,
+                });
+                void navigate(`/email-templates/${created.id}`);
+              } catch (err) {
+                console.error("[duplicate template]", err);
+              }
+            }}
+            className="opacity-0 pointer-events-none group-hover/item:opacity-100 group-hover/item:pointer-events-auto shrink-0 p-1 mr-1 rounded text-[var(--ds-nav-text)] hover:text-[var(--ds-nav-hover-text)] hover:bg-[var(--ds-nav-hover-bg)]"
+          >
+            <CopyIcon weight="duotone" className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ))}
     </CollapsibleSidebarGroup>
   );
 }

@@ -84,6 +84,31 @@ export interface ListResult<T> {
   limit: number;
 }
 
+export interface EmailTemplateRow {
+  id: number;
+  name: string;
+  subject: string;
+  headerBannerUrl: string | null;
+  headerText: string | null;
+  bodyText: string;
+  footerBannerUrl: string | null;
+  footerText: string | null;
+  isSystemTemplate: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EmailTemplateWriteData {
+  name: string;
+  subject: string;
+  headerBannerUrl?: string | null;
+  headerText?: string | null;
+  bodyText: string;
+  footerBannerUrl?: string | null;
+  footerText?: string | null;
+  isSystemTemplate?: boolean;
+}
+
 export interface AdminRepository {
   countAdmins(): Promise<number>;
   findAdminById(id: string): Promise<AdminUser | null>;
@@ -164,4 +189,11 @@ export interface AdminRepository {
    * Returns the number of rows touched per kind.
    */
   invalidateAllCaches(): Promise<{ tracks: number; albums: number; artists: number }>;
+
+  listEmailTemplates(): Promise<EmailTemplateRow[]>;
+  getEmailTemplateById(id: number): Promise<EmailTemplateRow | null>;
+  getEmailTemplateByName(name: string): Promise<EmailTemplateRow | null>;
+  insertEmailTemplate(data: EmailTemplateWriteData): Promise<EmailTemplateRow>;
+  updateEmailTemplate(id: number, data: Partial<EmailTemplateWriteData>): Promise<EmailTemplateRow | null>;
+  deleteEmailTemplate(id: number): Promise<boolean>;
 }

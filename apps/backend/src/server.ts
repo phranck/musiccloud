@@ -11,6 +11,7 @@ import authPlugin from "./plugins/auth.js";
 import adminAnalyticsRoutes from "./routes/admin-analytics.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminDataRoutes from "./routes/admin-data.js";
+import adminEmailTemplateRoutes from "./routes/admin-email-templates.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
 import adminSseRoutes from "./routes/admin-sse.js";
 import adminUserRoutes from "./routes/admin-users.js";
@@ -199,6 +200,7 @@ async function buildApp() {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
     await adminApp.register(adminAnalyticsRoutes);
     await adminApp.register(adminDataRoutes);
+    await adminApp.register(adminEmailTemplateRoutes);
     await adminApp.register(adminSseRoutes);
     await adminApp.register(adminUserRoutes);
     await adminApp.register(siteSettingsAdminRoutes);

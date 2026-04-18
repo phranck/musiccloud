@@ -1,57 +1,68 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
 import { api } from "@/lib/api";
+import type { EmailTemplate } from "@/shared/contracts/admin-email-templates";
 
-export interface EmailTemplate {
-  id: number;
-  name: string;
-  subject: string;
-  headerBanner: string;
-  headerText: string;
-  bodyText: string;
-  footerBanner: string;
-  footerText: string;
-  isSystem: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+export type { EmailTemplate };
+
+export type EmailTemplateInput = Omit<EmailTemplate, "id" | "createdAt" | "updatedAt" | "isSystemTemplate">;
+
+export type ImportEmailTemplateInput = EmailTemplateInput & { overwrite: boolean };
 
 export function useEmailTemplates() {
   return useQuery({
     queryKey: ["email-templates"],
-    queryFn: () => api.get<EmailTemplate[]>("/admin/email-templates"),
+    queryFn: () => api.get<EmailTemplate[]>(ENDPOINTS.admin.emailTemplates.list),
   });
 }
 
-export function useEmailTemplate(id: number | null) {
+export function useEmailTemplate(id: number) {
   return useQuery({
-    queryKey: ["email-templates", id],
-    queryFn: () => api.get<EmailTemplate>(`/admin/email-templates/${id}`),
-    enabled: id !== null,
+    queryKey: ["email-template", id],
+    queryFn: () => api.get<EmailTemplate>(ENDPOINTS.admin.emailTemplates.detail(id)),
+    enabled: id > 0,
   });
 }
 
 export function useCreateEmailTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<EmailTemplate>) => api.post<EmailTemplate>("/admin/email-templates", data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-templates"] }),
+    mutationFn: (input: EmailTemplateInput) => api.post<EmailTemplate>(ENDPOINTS.admin.emailTemplates.list, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["email-templates"] });
+    },
   });
 }
 
-export function useSaveEmailTemplate() {
+export function useUpdateEmailTemplate(id: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<EmailTemplate> }) =>
-      api.patch<EmailTemplate>(`/admin/email-templates/${id}`, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-templates"] }),
+    mutationFn: (input: Partial<EmailTemplateInput>) =>
+      api.put<EmailTemplate>(ENDPOINTS.admin.emailTemplates.detail(id), input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["email-templates"] });
+      void qc.invalidateQueries({ queryKey: ["email-template", id] });
+    },
   });
 }
 
 export function useDeleteEmailTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => api.delete(`/admin/email-templates/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-templates"] }),
+    mutationFn: (id: number) => api.delete(ENDPOINTS.admin.emailTemplates.detail(id)),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["email-templates"] });
+    },
+  });
+}
+
+export function useImportEmailTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ImportEmailTemplateInput) =>
+      api.post<EmailTemplate>(ENDPOINTS.admin.emailTemplates.import, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["email-templates"] });
+    },
   });
 }

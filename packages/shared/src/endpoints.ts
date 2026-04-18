@@ -174,6 +174,19 @@ export const ENDPOINTS = {
       detail: (id: string) => `/api/admin/plugins/${id}`,
     },
 
+    emailTemplates: {
+      /** GET: list all / POST: create. */
+      list: "/api/admin/email-templates",
+      /** GET / PUT / DELETE: single template by numeric id. */
+      detail: (id: number) => `/api/admin/email-templates/${id}`,
+      /** POST: render preview HTML for editor iframe. */
+      preview: "/api/admin/email-templates/preview",
+      /** POST: import one template (create or overwrite). */
+      import: "/api/admin/email-templates/import",
+      /** GET: download all templates as a ZIP archive. */
+      export: "/api/admin/email-templates/export",
+    },
+
     analytics: {
       /** GET: overall stats summary (visitors, pageviews, bounce, duration). */
       stats: "/api/admin/analytics/stats",
@@ -230,6 +243,9 @@ export const ROUTE_TEMPLATES = {
     },
     plugins: {
       detail: "/api/admin/plugins/:id",
+    },
+    emailTemplates: {
+      detail: "/api/admin/email-templates/:id",
     },
   },
 } as const;

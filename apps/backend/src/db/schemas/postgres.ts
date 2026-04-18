@@ -1,4 +1,15 @@
-import { boolean, customType, index, integer, pgTable, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  customType,
+  index,
+  integer,
+  pgTable,
+  real,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 /**
  * Postgres `bytea` column helper. Drizzle does not ship a first-party
@@ -282,3 +293,22 @@ export const genreArtworks = pgTable("genre_artworks", {
   sourceCoverUrl: text("source_cover_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });
+
+// Managed email templates. Created and edited via the dashboard email
+// template editor; rendered to HTML by services/email-renderer.ts.
+export const emailTemplates = pgTable("email_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  subject: text("subject").notNull().default(""),
+  headerBannerUrl: text("header_banner_url"),
+  headerText: text("header_text"),
+  bodyText: text("body_text").notNull().default(""),
+  footerBannerUrl: text("footer_banner_url"),
+  footerText: text("footer_text"),
+  isSystemTemplate: boolean("is_system_template").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type EmailTemplateRow = typeof emailTemplates.$inferSelect;
+export type EmailTemplateInsert = typeof emailTemplates.$inferInsert;
