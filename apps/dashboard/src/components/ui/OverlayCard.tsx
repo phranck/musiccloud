@@ -20,10 +20,10 @@ const STYLE_ID = "mc-overlay-keyframes";
 const KEYFRAMES_CSS = `
 @keyframes mc-overlay-in {
   from { opacity: 0; backdrop-filter: blur(0px); }
-  to { opacity: 1; backdrop-filter: blur(24px); }
+  to { opacity: 1; backdrop-filter: blur(8px); }
 }
 @keyframes mc-overlay-out {
-  from { opacity: 1; backdrop-filter: blur(24px); }
+  from { opacity: 1; backdrop-filter: blur(8px); }
   to { opacity: 0; backdrop-filter: blur(0px); }
 }
 @keyframes mc-card-in {
@@ -221,7 +221,7 @@ export function OverlayCard({
       <div
         className={[
           "absolute inset-0",
-          isBaseLayer ? "backdrop-blur-xl bg-black/10" : "bg-black/20",
+          isBaseLayer ? "backdrop-blur-md bg-black/50" : "bg-black/40",
           isTopMost ? "pointer-events-auto" : "pointer-events-none",
         ]
           .filter(Boolean)

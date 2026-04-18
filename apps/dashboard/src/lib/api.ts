@@ -33,6 +33,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     throw await createApiRequestError(res);
   }
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
+  }
   return (await res.json()) as T;
 }
 

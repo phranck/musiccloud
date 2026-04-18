@@ -11,7 +11,13 @@ import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/components/ui/Dialog";
+import {
+  Dialog,
+  dialogBtnDestructive,
+  dialogBtnPrimary,
+  dialogBtnSecondary,
+  dialogHeaderIconClass,
+} from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import type { ColumnDef } from "@/components/ui/Table";
@@ -223,73 +229,6 @@ export function PagesListPage() {
       </PageHeader>
 
       <PageBody>
-        {showCreate && (
-          <form
-            onSubmit={handleCreate}
-            className="bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-control p-5 space-y-4"
-          >
-            <h3 className="text-sm font-semibold text-[var(--ds-text)]">{text.createTitle}</h3>
-            <div className="space-y-3">
-              <div>
-                <label
-                  htmlFor="content-page-title"
-                  className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1"
-                >
-                  {text.fieldTitle}
-                </label>
-                <input
-                  id="content-page-title"
-                  type="text"
-                  value={title}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  required
-                  placeholder={text.titlePlaceholder}
-                  className="w-full px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="content-page-slug"
-                  className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1"
-                >
-                  {text.fieldSlug}
-                </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-[var(--ds-text-muted)] shrink-0">/</span>
-                  <input
-                    id="content-page-slug"
-                    type="text"
-                    value={slug}
-                    onChange={(e) => handleSlugChange(e.target.value)}
-                    required
-                    pattern="[a-z0-9-]+"
-                    placeholder={text.slugPlaceholder}
-                    className="flex-1 px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent font-mono"
-                  />
-                </div>
-              </div>
-            </div>
-            {createError && <p className="text-xs text-red-500">{createError}</p>}
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                disabled={createPage.isPending || !slug || !title}
-                className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] disabled:opacity-60"
-              >
-                <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-                {createPage.isPending ? text.creating : text.create}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelCreate}
-                className="px-4 py-1.5 text-sm text-[var(--ds-text-muted)] hover:text-[var(--ds-text)]"
-              >
-                {common.cancel}
-              </button>
-            </div>
-          </form>
-        )}
-
         {isLoading && (
           <div className="flex items-center justify-center h-32 text-[var(--ds-text-muted)] text-sm">
             {text.loadPages}
@@ -311,6 +250,68 @@ export function PagesListPage() {
           </div>
         )}
       </PageBody>
+
+      <Dialog
+        open={showCreate}
+        title={text.createTitle}
+        titleIcon={<PlusCircleIcon weight="duotone" className={dialogHeaderIconClass} />}
+        onClose={handleCancelCreate}
+      >
+        <form onSubmit={handleCreate}>
+          <div className="p-6 space-y-3">
+            <div>
+              <label
+                htmlFor="content-page-title"
+                className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1"
+              >
+                {text.fieldTitle}
+              </label>
+              <input
+                id="content-page-title"
+                type="text"
+                value={title}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                required
+                autoFocus
+                placeholder={text.titlePlaceholder}
+                className="w-full px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label htmlFor="content-page-slug" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
+                {text.fieldSlug}
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[var(--ds-text-muted)] shrink-0">/</span>
+                <input
+                  id="content-page-slug"
+                  type="text"
+                  value={slug}
+                  onChange={(e) => handleSlugChange(e.target.value)}
+                  required
+                  pattern="[a-z0-9-]+"
+                  placeholder={text.slugPlaceholder}
+                  className="flex-1 px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent font-mono"
+                />
+              </div>
+            </div>
+            {createError && <p className="text-xs text-red-500">{createError}</p>}
+          </div>
+          <Dialog.Footer>
+            <button
+              type="button"
+              onClick={handleCancelCreate}
+              disabled={createPage.isPending}
+              className={dialogBtnSecondary}
+            >
+              {common.cancel}
+            </button>
+            <button type="submit" disabled={createPage.isPending || !slug || !title} className={dialogBtnPrimary}>
+              {createPage.isPending ? text.creating : text.create}
+            </button>
+          </Dialog.Footer>
+        </form>
+      </Dialog>
 
       <Dialog
         open={deleteTarget !== null}
