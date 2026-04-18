@@ -125,7 +125,7 @@ async function buildApp() {
         title: "musiccloud API",
         description:
           "Public REST API for musiccloud.io. Resolve music URLs or text queries across 20+ streaming services and retrieve unified metadata.",
-        version: "0.1.0",
+        version: "1.0.0",
       },
       servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
       tags: [
@@ -201,7 +201,68 @@ async function buildApp() {
       href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Roboto+Condensed:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
-    <style>body { margin: 0; padding: 0; }</style>
+    <style>
+      body { margin: 0; padding: 0; }
+      /* Tighten the vertical rhythm of sidebar menu items. Redoc's
+         theme has no direct knob for this, so we target the rendered
+         <label> elements inside the left-nav tree. */
+      .menu-content li > label,
+      .menu-content li > a {
+        padding-top: 4px !important;
+        padding-bottom: 4px !important;
+        line-height: 1.25em !important;
+      }
+      /* Shrink the operation-summary text that sits beside the HTTP
+         method badge in the sidebar. Same caveat as the .lbpUdJ rule
+         above: styled-components class, build-volatile but stable
+         within a bundle. If a Redoc upgrade breaks this, inspect
+         the wrapper around "Resolve a music URL ..." entries and
+         update the selector. */
+      .sc-kYxDKI .sc-kYxDKI {
+        font-size: 0.8em !important;
+      }
+      /* theme.typography.code.lineHeight does not always propagate to
+         the right-panel code samples and JSON response blocks. Request
+         samples render as <pre>; response examples render as Redoc's
+         interactive JSON tree (.redoc-json). Target both. */
+      pre, pre code, pre code *,
+      .redoc-json, .redoc-json *, code {
+        line-height: 1.15em !important;
+      }
+      /* Language picker + response-status tabs in the right panel.
+         Redoc renders them as react-tabs elements; shrink font + pad
+         so they sit closer together and don't wrap as aggressively. */
+      [role="tab"], .react-tabs__tab, .tab-list__tab {
+        font-family: 'Roboto Condensed', system-ui, sans-serif !important;
+        font-size: 13px !important;
+        padding: 0 8px !important;
+        margin: 0 3px 4px 0 !important;
+      }
+      /* Shrink horizontal padding of the dark right-column code
+         samples panel (Request/Response samples). Redoc renders this
+         with styled-components, so the class name is build-volatile
+         but stable within a given Redoc bundle. If a Redoc upgrade
+         breaks this, inspect the div that wraps "Request samples" /
+         "Response samples" and update the selector. */
+      .lbpUdJ {
+        padding: 0 15px !important;
+      }
+      /* Flush-left the tab rows (language picker, response codes) so
+         they align with the code-box below them. */
+      .lbpUdJ [role="tablist"],
+      .lbpUdJ .react-tabs__tab-list,
+      .lbpUdJ .tab-list {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+      }
+      /* Sample-block headings: use the Roboto Condensed heading font
+         and add a small left indent so they line up with the content
+         inside the code boxes below. */
+      .lbpUdJ h3, .lbpUdJ h5 {
+        font-family: 'Roboto Condensed', system-ui, sans-serif !important;
+        padding-left: 6px !important;
+      }
+    </style>
   </head>
   <body>
     <div id="redoc"></div>
@@ -212,10 +273,23 @@ async function buildApp() {
         {
           theme: {
             typography: {
+              fontSize: "18px",
+              lineHeight: "1.6em",
               fontFamily: "Barlow, system-ui, sans-serif",
+              smallFontSize: "15px",
               headings: {
                 fontFamily: "'Roboto Condensed', system-ui, sans-serif",
+                fontWeight: "600",
+                lineHeight: "1.35em",
               },
+              code: {
+                fontSize: "14px",
+                lineHeight: "1.15em",
+                fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              },
+            },
+            sidebar: {
+              width: "320px",
             },
           },
         },
