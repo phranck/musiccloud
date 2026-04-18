@@ -8,11 +8,11 @@ export interface ContentPage {
   slug: string;
   status: "published" | "hidden" | "draft";
   showTitle: boolean;
-  body: string;
-  createdBy: string | null;
-  updatedBy: string | null;
+  content: string;
+  createdByUsername: string | null;
+  updatedByUsername: string | null;
   createdAt: string;
-  updatedAt: string;
+  updatedAt: string | null;
 }
 
 export function useContentPages() {

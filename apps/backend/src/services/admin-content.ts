@@ -19,8 +19,8 @@ function rowToSummary(row: ContentPageSummaryRow, usernames: Map<string, string>
     title: row.title,
     status: row.status,
     showTitle: row.showTitle,
-    createdBy: row.createdBy ? (usernames.get(row.createdBy) ?? null) : null,
-    updatedBy: row.updatedBy ? (usernames.get(row.updatedBy) ?? null) : null,
+    createdByUsername: row.createdBy ? (usernames.get(row.createdBy) ?? null) : null,
+    updatedByUsername: row.updatedBy ? (usernames.get(row.updatedBy) ?? null) : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
   };

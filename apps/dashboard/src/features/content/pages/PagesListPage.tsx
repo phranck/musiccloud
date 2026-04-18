@@ -243,8 +243,12 @@ export function PagesListPage() {
                     <td className="px-4 py-3">
                       <StatusBadge status={page.status} />
                     </td>
-                    <td className="px-4 py-3 text-xs text-[var(--ds-text-muted)]">{page.createdBy ?? "\u2014"}</td>
-                    <td className="px-4 py-3 text-xs text-[var(--ds-text-muted)]">{page.updatedBy ?? "\u2014"}</td>
+                    <td className="px-4 py-3 text-xs text-[var(--ds-text-muted)]">
+                      {page.createdByUsername ?? "\u2014"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--ds-text-muted)]">
+                      {page.updatedByUsername ?? "\u2014"}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <button
                         type="button"

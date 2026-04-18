@@ -79,6 +79,12 @@ const PagesListPage = lazy(() =>
   })),
 );
 
+const ContentEditorPage = lazy(() =>
+  import("@/features/content/pages/ContentEditorPage").then((m) => ({
+    default: m.ContentEditorPage,
+  })),
+);
+
 const NavManagerPage = lazy(() =>
   import("@/features/content/navigation/NavManagerPage").then((m) => ({
     default: m.NavManagerPage,
@@ -304,7 +310,7 @@ function AppRoutes() {
                 path="pages/:slug"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <EditorStubPage />
+                    <ContentEditorPage />
                   </Suspense>
                 }
               />

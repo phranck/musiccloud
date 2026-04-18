@@ -31,8 +31,8 @@ export interface ContentPageSummary {
   title: string;
   status: ContentStatus;
   showTitle: boolean;
-  createdBy: string | null;
-  updatedBy: string | null;
+  createdByUsername: string | null;
+  updatedByUsername: string | null;
   createdAt: string;
   updatedAt: string | null;
 }
