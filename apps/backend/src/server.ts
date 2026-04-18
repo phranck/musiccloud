@@ -203,6 +203,12 @@ async function buildApp() {
     />
     <style>
       body { margin: 0; padding: 0; }
+      /* Keep the sidebar at its former size after we shrank the body
+         font for the middle column. Redoc inherits the body size into
+         menu items; override to preserve left-nav readability. */
+      .menu-content {
+        font-size: 18px !important;
+      }
       /* Tighten the vertical rhythm of sidebar menu items. Redoc's
          theme has no direct knob for this, so we target the rendered
          <label> elements inside the left-nav tree. */
@@ -273,10 +279,10 @@ async function buildApp() {
         {
           theme: {
             typography: {
-              fontSize: "18px",
-              lineHeight: "1.6em",
+              fontSize: "16px",
+              lineHeight: "1.55em",
               fontFamily: "Barlow, system-ui, sans-serif",
-              smallFontSize: "15px",
+              smallFontSize: "14px",
               headings: {
                 fontFamily: "'Roboto Condensed', system-ui, sans-serif",
                 fontWeight: "600",
