@@ -1,0 +1,145 @@
+/**
+ * Neumorphic gradient border classes.
+ *
+ * Uses a ::before pseudo-element with mask-composite: exclude to paint
+ * a 1px gradient border. The mask subtracts the content-box from the
+ * border-box, leaving only the 1px border strip visible.
+ *
+ * Gradient direction: `to bottom right`. CSS computes this as an angle
+ * *perpendicular* to the top-right/bottom-left diagonal, so that
+ * top-right and bottom-left corners always sit at the 50% stop --
+ * independent of element aspect ratio.
+ *
+ * The gradient blend span is controlled by --neu-radius (defaults to
+ * 16px, matching rounded-2xl). It should match the actual border-radius
+ * of the consuming component so the light→shadow fade aligns with the
+ * rounded corner arc. Override via inline style when needed, e.g.:
+ *   <EmbossedCard style={{ "--neu-radius": "0.5rem" }} className="rounded-lg" />
+ *
+ * Light source: top-left.
+ *   Embossed: top-left=bright, bottom-right=dark
+ *   Recessed: top-left=dark,   bottom-right=bright
+ */
+
+.embossed-gradient-border,
+.recessed-gradient-border {
+  /* RESET INHERITED GRADIENT VARS.
+     Custom properties inherit by default. Without this reset, an ancestor
+     card that set `--neu-radius-base` inline (e.g. an outer EmbossedCard
+     with radius=1.875rem, or a wrapping RecessedCard with radius=9999px)
+     would leak its value into every nested gradient surface — including
+     EmbossedButton. The child's `::before` would then compute its gradient
+     stops from the ancestor's radius, which spreads the light→shadow
+     transition way beyond the 1 px border strip and the neumorphic effect
+     visually disappears.
+     Each gradient-border element declares its own radius inline (via
+     RecessedCard / EmbossedCard props) or falls back to the 16 px default. */
+  --neu-radius-base: initial;
+  --neu-radius-sm: initial;
+  /* `--neu-radius-base` / `--neu-radius-sm` are set inline by RecessedCard
+     and EmbossedCard. We do NOT let callers set `--neu-radius` directly
+     because an inline custom property would outrank the @media override
+     below. Default is 16 px — matches `rounded-2xl`. */
+  --neu-radius: var(--neu-radius-base, 16px);
+  /* The effective radius one border-width inside the gradient stroke.
+     Use this on child elements that sit flush against the inner edge of
+     the border (images, inset-shadow overlays) so their curvature aligns
+     with where the content actually starts — `rounded-[inherit]` would
+     inherit the OUTER radius and sit slightly too round. */
+  --neu-radius-inner: calc(var(--neu-radius) - var(--neu-border-width, 1px));
+  position: relative;
+}
+
+/* `--emb-radius` is EmbossedCard's published outer radius, inherited by
+   descendant `RecessedCard`s so they can derive their own geometry via
+   `innerRadius = outerRadius − outerPadding` without the call-site having
+   to recompute the formula. Published on `.embossed-gradient-border` so
+   the @media swap below matches the card's own responsive radius 1:1.
+   Non-RecessedCard descendants simply ignore the variable. */
+.embossed-gradient-border {
+  --emb-radius: var(--emb-radius-base, 1.5rem);
+}
+
+/* `border-radius` is NOT set on `.recessed-gradient-border` itself,
+   because the same class is reused by EmbossedButton in its pressed
+   state — overriding the radius there would unexpectedly change the
+   button shape on toggle. RecessedCard sets `border-radius` inline
+   (referencing the same `var(--neu-radius)`) so the corner and the
+   gradient transition stay in lockstep without leaking into other
+   consumers of the class. */
+
+/* Responsive corner radius: switch to `--neu-radius-sm` from the `sm`
+   breakpoint (Tailwind default 640px) if the consumer supplied one.
+   Because `--neu-radius` is consumed by both the border-radius rule above
+   and the ::before gradient stops below, updating it here updates both
+   the rounded corner AND the gradient transition in lockstep. */
+@media (min-width: 640px) {
+  .embossed-gradient-border,
+  .recessed-gradient-border {
+    --neu-radius: var(--neu-radius-sm, var(--neu-radius-base, 16px));
+  }
+  .embossed-gradient-border {
+    --emb-radius: var(--emb-radius-sm, var(--emb-radius-base, 1.5rem));
+  }
+}
+
+/* Per-surface highlight/shadow colors (HSL with alpha). Overridable via
+   inline style for custom-contrast cases like the accent "Copy Share Link"
+   button. Defaults match the original rgba(255,255,255,…) / rgba(0,0,0,…)
+   stops below. */
+.embossed-gradient-border {
+  --neu-light: hsl(0 0% 100% / 0.18);
+  --neu-shadow: hsl(0 0% 0% / 0.35);
+}
+.recessed-gradient-border {
+  --neu-light: hsl(0 0% 100% / 0.22);
+  --neu-shadow: hsl(0 0% 0% / 0.3);
+}
+
+.embossed-gradient-border::before,
+.recessed-gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: var(--neu-border-width, 1px);
+  border-radius: inherit;
+  /* Subtract the content-box from the border-box → only the 1px strip remains.
+     Note: LightningCSS (used by Tailwind v4) collapses `mask-composite` and
+     `-webkit-mask-composite` into a single property, dropping one. The
+     @supports block below isolates the modern syntax so it survives the build. */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  pointer-events: none;
+}
+
+@supports (mask-composite: exclude) {
+  .embossed-gradient-border::before,
+  .recessed-gradient-border::before {
+    mask-composite: exclude;
+  }
+}
+
+.embossed-gradient-border::before {
+  background: linear-gradient(
+    to bottom right,
+    var(--neu-light),
+    var(--neu-light) calc(50% - var(--neu-radius) / 2.5),
+    var(--neu-shadow) calc(50% + var(--neu-radius) / 2.5),
+    var(--neu-shadow)
+  );
+}
+
+.recessed-gradient-border::before {
+  background: linear-gradient(
+    to bottom right,
+    var(--neu-shadow),
+    var(--neu-shadow) calc(50% - var(--neu-radius) / 2.5),
+    var(--neu-light) calc(50% + var(--neu-radius) / 2.5),
+    var(--neu-light)
+  );
+}

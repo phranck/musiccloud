@@ -6,7 +6,7 @@ import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbedCardIsland } from "@/components/embed/EmbedCardIsland";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useT } from "@/i18n/context";
 import type { PlatformLink } from "@/lib/types/media-card";
@@ -150,7 +150,7 @@ export function EmbedModal({
         </EmbossedCard.Header>
 
         <EmbossedCard.Body>
-          <SegmentedControl className="mb-3" segments={sizes} value={size} onChange={setSize} />
+          <EmbossedSegmentedControl className="mb-3" segments={sizes} value={size} onChange={setSize} />
 
           <EmbedPreviewArea
             size={size}

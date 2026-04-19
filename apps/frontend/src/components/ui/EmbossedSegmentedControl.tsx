@@ -7,7 +7,7 @@ interface Segment<T extends string> {
   label: string;
 }
 
-interface SegmentedControlProps<T extends string> {
+interface EmbossedSegmentedControlProps<T extends string> {
   segments: Segment<T>[];
   value: T;
   onChange: (value: T) => void;
@@ -19,7 +19,12 @@ interface SegmentedControlProps<T extends string> {
  *
  * Generic over the segment key type for type-safe selection.
  */
-export function SegmentedControl<T extends string>({ segments, value, onChange, className }: SegmentedControlProps<T>) {
+export function EmbossedSegmentedControl<T extends string>({
+  segments,
+  value,
+  onChange,
+  className,
+}: EmbossedSegmentedControlProps<T>) {
   const activeIndex = segments.findIndex((s) => s.key === value);
   const count = segments.length;
 
