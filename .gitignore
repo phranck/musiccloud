@@ -23,6 +23,7 @@ data/*.db-shm
 # Claude / agent / Serena / OpenSpec / notes (local only)
 .agents/
 .claude/
+.remember/
 .serena/
 openspec/
 papers/
