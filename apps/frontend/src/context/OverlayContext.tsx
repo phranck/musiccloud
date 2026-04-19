@@ -1,13 +1,5 @@
 import type { PublicContentPage } from "@musiccloud/shared";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useReducer,
-  type ReactNode,
-} from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useReducer } from "react";
 
 interface OverlayState {
   page: PublicContentPage | null;

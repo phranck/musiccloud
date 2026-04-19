@@ -3,10 +3,7 @@ import { ArrowDownIcon, ArrowUpIcon, PlusCircleIcon, TrashIcon } from "@phosphor
 import { useMemo, useState } from "react";
 
 import { useI18n } from "@/context/I18nContext";
-import {
-  useContentPages,
-  useSaveContentPageSegments,
-} from "@/features/content/hooks/useAdminContent";
+import { useContentPages, useSaveContentPageSegments } from "@/features/content/hooks/useAdminContent";
 
 interface Props {
   page: ContentPage;
@@ -85,9 +82,7 @@ export function SegmentManager({ page }: Props) {
   }
 
   if (defaultPages.length === 0 && draft.length === 0) {
-    return (
-      <div className="px-6 py-6 text-sm text-[var(--ds-text-muted)]">{text.noDefaultPages}</div>
-    );
+    return <div className="px-6 py-6 text-sm text-[var(--ds-text-muted)]">{text.noDefaultPages}</div>;
   }
 
   return (
@@ -124,9 +119,7 @@ export function SegmentManager({ page }: Props) {
               key={segment.localId}
               className="flex flex-wrap items-center gap-2 border border-[var(--ds-border)] rounded-control bg-[var(--ds-surface)] px-3 py-2"
             >
-              <span className="text-[10px] font-mono text-[var(--ds-text-subtle)] w-6 text-right">
-                {index + 1}.
-              </span>
+              <span className="text-[10px] font-mono text-[var(--ds-text-subtle)] w-6 text-right">{index + 1}.</span>
               <input
                 type="text"
                 value={segment.label}
@@ -189,10 +182,7 @@ export function SegmentManager({ page }: Props) {
           </span>
           <div className="inline-flex items-center gap-1 p-1 bg-[var(--ds-surface-sunken)] rounded-control">
             {draft.map((s) => (
-              <span
-                key={s.localId}
-                className="px-3 py-1 text-xs font-medium text-[var(--ds-text-muted)] rounded"
-              >
+              <span key={s.localId} className="px-3 py-1 text-xs font-medium text-[var(--ds-text-muted)] rounded">
                 {s.label.trim() || text.labelPlaceholder}
               </span>
             ))}

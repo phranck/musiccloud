@@ -1,9 +1,4 @@
-import type {
-  OverlayHeight,
-  OverlayWidth,
-  PageDisplayMode,
-  PageType,
-} from "@musiccloud/shared";
+import type { OverlayHeight, OverlayWidth, PageDisplayMode, PageType } from "@musiccloud/shared";
 
 export interface AdminUser {
   id: string;

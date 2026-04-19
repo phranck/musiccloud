@@ -1,3 +1,4 @@
+import type { OverlayHeight, OverlayWidth, PageDisplayMode, PageType } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { CACHE_TTL_MS } from "../../lib/config.js";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
@@ -25,12 +26,6 @@ import type {
   PageSegmentRow,
   TrackListItem,
 } from "../admin-repository.js";
-import type {
-  OverlayHeight,
-  OverlayWidth,
-  PageDisplayMode,
-  PageType,
-} from "@musiccloud/shared";
 import type {
   ArtistCacheData,
   ArtistCacheRow,

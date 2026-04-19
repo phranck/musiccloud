@@ -103,10 +103,7 @@ TranslucentCard.SegmentedControl = tagged(function Segments({
   className,
 }: SegmentedControlProps): ReactElement {
   return (
-    <div
-      role="tablist"
-      className={cn("flex gap-6 border-b border-white/[0.08] px-6 flex-shrink-0", className)}
-    >
+    <div role="tablist" className={cn("flex gap-6 border-b border-white/[0.08] px-6 flex-shrink-0", className)}>
       {segments.map(({ key, label }) => (
         <button
           key={key}
@@ -116,9 +113,7 @@ TranslucentCard.SegmentedControl = tagged(function Segments({
           onClick={() => onChange(key)}
           className={cn(
             "pb-3 text-base font-medium tracking-[-0.01em] transition-colors duration-150 border-b-2 -mb-px focus:outline-none",
-            value === key
-              ? "text-white border-white/50"
-              : "text-white/30 border-transparent hover:text-white/55",
+            value === key ? "text-white border-white/50" : "text-white/30 border-transparent hover:text-white/55",
           )}
         >
           {label}

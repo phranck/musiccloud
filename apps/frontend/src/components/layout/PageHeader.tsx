@@ -3,7 +3,7 @@ import type { MouseEvent } from "react";
 
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
 import { InfoButton } from "@/components/ui/InfoButton";
-import { OVERLAY_OPEN_EVENT, isOverlayActive } from "@/context/OverlayContext";
+import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/OverlayContext";
 
 interface PageHeaderProps {
   /** Show the circular info button (landing page and result pages only) */
@@ -24,11 +24,7 @@ function navLabel(item: NavItem): string {
 }
 
 function isOverlayModeItem(item: NavItem): boolean {
-  return (
-    item.pageSlug !== null &&
-    item.pageDisplayMode !== null &&
-    item.pageDisplayMode !== "fullscreen"
-  );
+  return item.pageSlug !== null && item.pageDisplayMode !== null && item.pageDisplayMode !== "fullscreen";
 }
 
 function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): void {

@@ -10,10 +10,7 @@ export type SegmentsResult =
       message: string;
     };
 
-export async function replaceSegments(
-  ownerSlug: string,
-  inputs: PageSegmentInput[],
-): Promise<SegmentsResult> {
+export async function replaceSegments(ownerSlug: string, inputs: PageSegmentInput[]): Promise<SegmentsResult> {
   const repo = await getAdminRepository();
   const owner = await repo.getContentPageBySlug(ownerSlug);
   if (!owner) return { ok: false, code: "NOT_FOUND", message: `no page '${ownerSlug}'` };

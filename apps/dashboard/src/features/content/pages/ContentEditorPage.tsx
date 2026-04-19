@@ -1,9 +1,4 @@
-import type {
-  ContentPage,
-  OverlayHeight,
-  OverlayWidth,
-  PageDisplayMode,
-} from "@musiccloud/shared";
+import type { ContentPage, OverlayHeight, OverlayWidth, PageDisplayMode } from "@musiccloud/shared";
 import {
   DownloadIcon,
   EyeIcon,
@@ -20,14 +15,14 @@ import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { useI18n } from "@/context/I18nContext";
-import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
-import { SegmentManager } from "@/features/content/pages/SegmentManager";
 import {
   useAdminContentPage,
   useDeleteContentPage,
   usePatchContentPage,
   useSaveContentPage,
 } from "@/features/content/hooks/useAdminContent";
+import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
+import { SegmentManager } from "@/features/content/pages/SegmentManager";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 
 const MarkdownEditor = lazy(() =>

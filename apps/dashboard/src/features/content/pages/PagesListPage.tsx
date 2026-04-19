@@ -1,3 +1,4 @@
+import type { PageType } from "@musiccloud/shared";
 import {
   CheckCircleIcon,
   CircleIcon,
@@ -9,7 +10,6 @@ import {
 } from "@phosphor-icons/react";
 import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
-
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import {
   Dialog,
@@ -30,7 +30,6 @@ import {
   useCreateContentPage,
   useDeleteContentPage,
 } from "@/features/content/hooks/useAdminContent";
-import type { PageType } from "@musiccloud/shared";
 
 type ContentPage = ContentPageSummary;
 
@@ -315,9 +314,7 @@ export function PagesListPage() {
               </div>
             </div>
             <div>
-              <span className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
-                {text.fieldPageType}
-              </span>
+              <span className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">{text.fieldPageType}</span>
               <div className="flex gap-2">
                 {(["default", "segmented"] as const).map((pt) => {
                   const active = pageType === pt;

@@ -2,10 +2,7 @@ import type { PublicContentPage } from "@musiccloud/shared";
 import { useEffect } from "react";
 
 import { overlayClasses } from "@/components/layout/PageOverlay";
-import {
-  EmbossedOverlayContent,
-  TranslucentOverlayContent,
-} from "@/components/layout/PageOverlayContent";
+import { EmbossedOverlayContent, TranslucentOverlayContent } from "@/components/layout/PageOverlayContent";
 import { OverlayProvider, useOverlay } from "@/context/OverlayContext";
 import { LocaleProvider } from "@/i18n/context";
 import { cn } from "@/lib/utils";
@@ -29,11 +26,11 @@ function OverlayShell({ initialPage }: Props) {
 
   // On mount: if the Astro server rendered a content page with overlay mode,
   // open the overlay immediately so the user lands on the deep-linked state.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only effect; inputs (initialPage + open) are stable for the lifetime of this island.
   useEffect(() => {
     if (initialPage && initialPage.displayMode !== "fullscreen") {
       open(initialPage);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ESC closes the overlay.
@@ -60,11 +57,7 @@ function OverlayShell({ initialPage }: Props) {
         <div
           className={cn(
             "pointer-events-auto relative",
-            overlayClasses(
-              page.displayMode as "embossed" | "translucent",
-              page.overlayWidth,
-              page.overlayHeight,
-            ),
+            overlayClasses(page.displayMode as "embossed" | "translucent", page.overlayWidth, page.overlayHeight),
           )}
         >
           {page.displayMode === "translucent" ? (

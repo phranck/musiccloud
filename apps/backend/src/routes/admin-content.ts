@@ -2,14 +2,14 @@ import {
   ENDPOINTS,
   OVERLAY_HEIGHTS,
   OVERLAY_WIDTHS,
-  PAGE_DISPLAY_MODES,
-  PAGE_TYPES,
-  ROUTE_TEMPLATES,
   type OverlayHeight,
   type OverlayWidth,
+  PAGE_DISPLAY_MODES,
+  PAGE_TYPES,
   type PageDisplayMode,
   type PageSegmentInput,
   type PageType,
+  ROUTE_TEMPLATES,
 } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 

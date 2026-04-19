@@ -1,6 +1,6 @@
 import { Children, isValidElement, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { cn } from "@/lib/utils";
 import { embossedCardStyle } from "@/styles/neumorphic";
 
 // ─── Sub-component type tags ───────────────────────────────────────────────
@@ -225,12 +225,7 @@ function SegmentedControlSlot<T extends string>({
 }: EmbossedSegmentedControlProps<T>) {
   return (
     <div className={cn("w-full mt-3", className)}>
-      <SegmentedControl
-        segments={segments}
-        value={value}
-        onChange={onChange}
-        className="w-full"
-      />
+      <SegmentedControl segments={segments} value={value} onChange={onChange} className="w-full" />
     </div>
   );
 }

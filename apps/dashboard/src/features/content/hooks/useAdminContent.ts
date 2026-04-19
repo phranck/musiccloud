@@ -1,10 +1,4 @@
-import type {
-  ContentPage,
-  ContentPageSummary,
-  PageSegment,
-  PageSegmentInput,
-  PageType,
-} from "@musiccloud/shared";
+import type { ContentPage, ContentPageSummary, PageSegment, PageSegmentInput, PageType } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";

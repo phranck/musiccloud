@@ -2,20 +2,12 @@ import type {
   ContentPage,
   ContentPageSummary,
   ContentStatus,
-  OverlayHeight,
-  OverlayWidth,
-  PageDisplayMode,
   PageSegment,
   PageType,
   PublicContentPage,
   PublicPageSegment,
 } from "@musiccloud/shared";
-import {
-  OVERLAY_HEIGHTS,
-  OVERLAY_WIDTHS,
-  PAGE_DISPLAY_MODES,
-  PAGE_TYPES,
-} from "@musiccloud/shared";
+import { OVERLAY_HEIGHTS, OVERLAY_WIDTHS, PAGE_DISPLAY_MODES, PAGE_TYPES } from "@musiccloud/shared";
 import { marked } from "marked";
 
 import type {
@@ -64,11 +56,7 @@ function rowToSummary(row: ContentPageSummaryRow, usernames: Map<string, string>
   };
 }
 
-function rowToPage(
-  row: ContentPageRow,
-  usernames: Map<string, string>,
-  segments: PageSegment[],
-): ContentPage {
+function rowToPage(row: ContentPageRow, usernames: Map<string, string>, segments: PageSegment[]): ContentPage {
   return { ...rowToSummary(row, usernames), content: row.content, segments };
 }
 
@@ -86,10 +74,7 @@ export async function getManagedContentPage(slug: string): Promise<ContentResult
   if (!row) return { ok: false, code: "NOT_FOUND", message: "Content page not found" };
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
   const usernames = await repo.getAdminUsernamesByIds(userIds);
-  const segments =
-    row.pageType === "segmented"
-      ? (await repo.listSegmentsForOwner(row.slug)).map(segmentRowToDto)
-      : [];
+  const segments = row.pageType === "segmented" ? (await repo.listSegmentsForOwner(row.slug)).map(segmentRowToDto) : [];
   return { ok: true, data: rowToPage(row, usernames, segments) };
 }
 
@@ -167,10 +152,7 @@ export async function updateManagedContentPageMeta(
   }
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
   const usernames = await repo.getAdminUsernamesByIds(userIds);
-  const segments =
-    row.pageType === "segmented"
-      ? (await repo.listSegmentsForOwner(row.slug)).map(segmentRowToDto)
-      : [];
+  const segments = row.pageType === "segmented" ? (await repo.listSegmentsForOwner(row.slug)).map(segmentRowToDto) : [];
   return { ok: true, data: rowToPage(row, usernames, segments) };
 }
 
@@ -187,10 +169,7 @@ export async function updateManagedContentPageBody(
   if (!row) return { ok: false, code: "NOT_FOUND", message: "Content page not found" };
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
   const usernames = await repo.getAdminUsernamesByIds(userIds);
-  const segments =
-    row.pageType === "segmented"
-      ? (await repo.listSegmentsForOwner(row.slug)).map(segmentRowToDto)
-      : [];
+  const segments = row.pageType === "segmented" ? (await repo.listSegmentsForOwner(row.slug)).map(segmentRowToDto) : [];
   return { ok: true, data: rowToPage(row, usernames, segments) };
 }
 

@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  AdminRepository,
-  ContentPageRow,
-  PageSegmentInputRow,
-  PageSegmentRow,
-} from "../db/admin-repository.js";
+import type { AdminRepository, ContentPageRow, PageSegmentInputRow, PageSegmentRow } from "../db/admin-repository.js";
 import { replaceSegments } from "../services/admin-segments.js";
 
 const pages = new Map<string, ContentPageRow>();
@@ -80,42 +75,32 @@ describe("replaceSegments", () => {
   });
 
   it("rejects self-reference", async () => {
-    const result = await replaceSegments("owner-slug", [
-      { position: 0, label: "Self", targetSlug: "owner-slug" },
-    ]);
+    const result = await replaceSegments("owner-slug", [{ position: 0, label: "Self", targetSlug: "owner-slug" }]);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("INVALID_INPUT");
   });
 
   it("rejects missing target", async () => {
-    const result = await replaceSegments("owner-slug", [
-      { position: 0, label: "Ghost", targetSlug: "does-not-exist" },
-    ]);
+    const result = await replaceSegments("owner-slug", [{ position: 0, label: "Ghost", targetSlug: "does-not-exist" }]);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("TARGET_NOT_FOUND");
   });
 
   it("rejects empty labels", async () => {
-    const result = await replaceSegments("owner-slug", [
-      { position: 0, label: "   ", targetSlug: "default-a" },
-    ]);
+    const result = await replaceSegments("owner-slug", [{ position: 0, label: "   ", targetSlug: "default-a" }]);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("INVALID_INPUT");
   });
 
   it("rejects when owner is not segmented", async () => {
     pages.set("owner-slug", makePage({ slug: "owner-slug", pageType: "default" }));
-    const result = await replaceSegments("owner-slug", [
-      { position: 0, label: "A", targetSlug: "default-a" },
-    ]);
+    const result = await replaceSegments("owner-slug", [{ position: 0, label: "A", targetSlug: "default-a" }]);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("INVALID_INPUT");
   });
 
   it("returns NOT_FOUND for unknown owner", async () => {
-    const result = await replaceSegments("nobody", [
-      { position: 0, label: "X", targetSlug: "default-a" },
-    ]);
+    const result = await replaceSegments("nobody", [{ position: 0, label: "X", targetSlug: "default-a" }]);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("NOT_FOUND");
   });

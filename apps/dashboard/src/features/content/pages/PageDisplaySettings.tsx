@@ -1,9 +1,9 @@
 import {
   OVERLAY_HEIGHTS,
   OVERLAY_WIDTHS,
-  PAGE_DISPLAY_MODES,
   type OverlayHeight,
   type OverlayWidth,
+  PAGE_DISPLAY_MODES,
   type PageDisplayMode,
 } from "@musiccloud/shared";
 

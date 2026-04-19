@@ -53,10 +53,7 @@ function useSegmented(page: PublicContentPage): {
   currentTitle: string;
   currentShowTitle: boolean;
 } {
-  const segments = useMemo(
-    () => page.segments.map((s) => ({ key: s.targetSlug, label: s.label })),
-    [page.segments],
-  );
+  const segments = useMemo(() => page.segments.map((s) => ({ key: s.targetSlug, label: s.label })), [page.segments]);
   const [state, setState] = useState<SegmentedState>(() => ({
     activeTargetSlug: page.segments[0]?.targetSlug ?? "",
   }));
@@ -87,9 +84,7 @@ export function TranslucentOverlayContent({ page, onClose }: OverlayContentProps
     <TranslucentCard className="h-full">
       <TranslucentCard.Header className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          {showTitle && (
-            <h2 className="text-xl font-semibold tracking-[-0.01em] text-white truncate">{title}</h2>
-          )}
+          {showTitle && <h2 className="text-xl font-semibold tracking-[-0.01em] text-white truncate">{title}</h2>}
         </div>
         <button
           type="button"
@@ -134,9 +129,7 @@ export function EmbossedOverlayContent({ page, onClose }: OverlayContentProps) {
         </button>
       </EmbossedCard.AddOn>
       <EmbossedCard.Header className="px-4 pt-4">
-        {showTitle && (
-          <h2 className="text-xl font-semibold tracking-[-0.01em] text-text-primary truncate">{title}</h2>
-        )}
+        {showTitle && <h2 className="text-xl font-semibold tracking-[-0.01em] text-text-primary truncate">{title}</h2>}
       </EmbossedCard.Header>
       {isSegmented && (
         <EmbossedCard.SegmentedControl
@@ -162,9 +155,7 @@ export function SegmentedPageFullscreen({ page }: { page: PublicContentPage }) {
   return (
     <EmbossedCard className="flex flex-col w-full">
       <EmbossedCard.Header className="px-6 pt-6">
-        {showTitle && (
-          <h2 className="text-2xl font-semibold tracking-[-0.01em] text-text-primary">{title}</h2>
-        )}
+        {showTitle && <h2 className="text-2xl font-semibold tracking-[-0.01em] text-text-primary">{title}</h2>}
       </EmbossedCard.Header>
       {hasSegments && (
         <EmbossedCard.SegmentedControl

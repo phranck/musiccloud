@@ -13,18 +13,9 @@ export type OverlayWidth = "small" | "regular" | "big";
 export type OverlayHeight = "small" | "regular" | "dynamic" | "expanded";
 
 export const PAGE_TYPES: readonly PageType[] = ["default", "segmented"] as const;
-export const PAGE_DISPLAY_MODES: readonly PageDisplayMode[] = [
-  "fullscreen",
-  "embossed",
-  "translucent",
-] as const;
+export const PAGE_DISPLAY_MODES: readonly PageDisplayMode[] = ["fullscreen", "embossed", "translucent"] as const;
 export const OVERLAY_WIDTHS: readonly OverlayWidth[] = ["small", "regular", "big"] as const;
-export const OVERLAY_HEIGHTS: readonly OverlayHeight[] = [
-  "small",
-  "regular",
-  "dynamic",
-  "expanded",
-] as const;
+export const OVERLAY_HEIGHTS: readonly OverlayHeight[] = ["small", "regular", "dynamic", "expanded"] as const;
 
 export interface NavItem {
   id: number;
