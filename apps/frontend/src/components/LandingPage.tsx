@@ -300,7 +300,7 @@ function LandingPageInner({
             />
           </div>
 
-          {state.type === "idle" && exampleShortId && (
+          {!active && !candidates && !genreBrowseGenres && !genreSearchPayload && exampleShortId && (
             <p className="mt-4 text-sm text-text-secondary text-center">
               {t("landing.exampleTeaser")}{" "}
               <a
