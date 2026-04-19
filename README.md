@@ -60,6 +60,17 @@ zerops.yml          Hosting config
 - npm >= 10
 - PostgreSQL 16 (the project uses Drizzle migrations; local dev typically runs PG in Docker on port `5433`)
 
+### Secret scanning (pre-commit hook)
+
+The repo ships a `gitleaks` pre-commit hook under `.githooks/` that blocks commits containing secrets. After cloning, enable it once per clone:
+
+```bash
+brew install gitleaks            # or: https://github.com/gitleaks/gitleaks
+git config core.hooksPath .githooks
+```
+
+If `gitleaks` is not installed, the hook skips the scan with a warning instead of blocking the commit.
+
 ## License
 
 [MIT](LICENSE).
