@@ -14,7 +14,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import { UserEditCard } from "@/features/system/UserEditCard";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
-import { BrandName } from "@/shared/ui/BrandName";
+import { LogoView } from "@/shared/ui/LogoView";
 
 const SIDEBAR_DEFAULT = 224;
 const SIDEBAR_MIN = 160;
@@ -112,10 +112,10 @@ function AdminLayoutInner() {
         className={`col-span-2 md:col-span-2 flex items-center gap-3 py-4 shadow-sm ${import.meta.env.DEV ? "border-2 border-yellow-400 bg-yellow-400/5" : ""}`}
       >
         <div
-          className="hidden md:flex items-center justify-center shrink-0 h-full px-3 text-2xl"
+          className="hidden md:flex items-center justify-center shrink-0 h-full px-3"
           style={{ width: sidebarWidth }}
         >
-          <BrandName />
+          <LogoView className="h-7 w-auto" />
         </div>
         <div className="flex-1 flex items-center justify-between px-3">
           <div className="flex min-w-0 items-center gap-4">

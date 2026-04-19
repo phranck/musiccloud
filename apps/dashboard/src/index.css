@@ -1,13 +1,6 @@
 @import "./shared/styles/tokens.css";
 @import "./shared/styles/neumorphic.css";
 
-@font-face {
-  font-family: "Nasalization";
-  src: url("/fonts/nasalization-rg.otf") format("opentype");
-  font-weight: 400;
-  font-display: swap;
-}
-
 /* Barlow Condensed - used for headings and titles */
 @font-face {
   font-family: "Barlow Condensed";
