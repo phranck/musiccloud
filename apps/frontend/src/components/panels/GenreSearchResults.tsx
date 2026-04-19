@@ -84,7 +84,7 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
       // sits above and below this card when it is visible:
       //
       //   PageHeader       ~ 2.5rem
-      //   BrandName h1     ~ 3.5rem  (text-3xl + mb-6)
+      //   LogoView compact ~ 3.5rem  (w-56 + mb-6)
       //   HeroInput compact~ 3.75rem
       //   mt-8 gap above   ~ 2rem
       //   mb-8 gap below   ~ 2rem

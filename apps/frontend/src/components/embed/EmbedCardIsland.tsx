@@ -3,7 +3,7 @@ import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
-import { BrandName } from "@/components/ui/BrandName";
+import { LogoView } from "@/components/ui/LogoView";
 import type { PlatformLink } from "@/lib/types/media-card";
 
 interface EmbedCardIslandProps {
@@ -110,9 +110,9 @@ function EmbedSmall({
             href={shortUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto text-[10px] text-text-muted hover:text-text-secondary no-underline"
+            className="ml-auto inline-flex items-center text-text-muted hover:text-text-secondary no-underline"
           >
-            <BrandName />
+            <LogoView className="h-3 w-auto" />
           </a>
         </div>
       </div>
@@ -175,9 +175,9 @@ function EmbedRegular({
             href={shortUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] text-text-muted hover:text-text-secondary no-underline inline-flex items-baseline gap-1"
+            className="text-[11px] text-text-muted hover:text-text-secondary no-underline inline-flex items-center gap-1.5"
           >
-            powered by <BrandName />
+            powered by <LogoView className="h-3.5 w-auto" />
           </a>
         </div>
       </div>
@@ -235,9 +235,9 @@ function EmbedLarge({
             href={shortUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] text-text-muted hover:text-text-secondary no-underline inline-flex items-baseline gap-1"
+            className="text-[11px] text-text-muted hover:text-text-secondary no-underline inline-flex items-center gap-1.5"
           >
-            powered by <BrandName />
+            powered by <LogoView className="h-3.5 w-auto" />
           </a>
         </div>
       </div>

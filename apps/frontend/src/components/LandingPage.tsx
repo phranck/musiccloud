@@ -3,9 +3,8 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import { Component, lazy, type ReactNode, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { HeroInput } from "@/components/input/HeroInput";
 import { AppFooter } from "@/components/layout/AppFooter";
-import { HeroSection } from "@/components/layout/HeroSection";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { BrandName } from "@/components/ui/BrandName";
+import { LogoView } from "@/components/ui/LogoView";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { useAppState } from "@/hooks/useAppState";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
@@ -271,13 +270,15 @@ function LandingPageInner({
 
         <div className="flex-1 flex flex-col items-center justify-center w-full">
           {!active && !candidates && !genreBrowseGenres && !genreSearchPayload && (
-            <HeroSection className={isReturning ? "animate-fade-in" : ""} />
+            <div className={`flex justify-center mb-10 ${isReturning ? "animate-fade-in" : ""}`}>
+              <LogoView className="w-80 sm:w-96 md:w-[28rem] h-auto" />
+            </div>
           )}
 
           {showCompact && (
-            <h1 className="text-3xl font-bold tracking-[-0.04em] text-text-primary mb-6">
-              <BrandName />
-            </h1>
+            <div className="mb-6">
+              <LogoView className="w-56 h-auto" />
+            </div>
           )}
 
           <div ref={searchFieldRef} className="w-full flex flex-col items-center">
