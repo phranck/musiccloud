@@ -3,9 +3,9 @@ import type { OverlayHeight, OverlayWidth, PageDisplayMode } from "@musiccloud/s
 import { cn } from "@/lib/utils";
 
 const widthClass: Record<OverlayWidth, string> = {
-  small: "max-w-[420px]",
-  regular: "max-w-[560px]",
-  big: "max-w-[820px]",
+  small: "max-w-[480px]",
+  regular: "max-w-[680px]",
+  big: "max-w-[1000px]",
 };
 
 const heightClass: Record<OverlayHeight, string> = {

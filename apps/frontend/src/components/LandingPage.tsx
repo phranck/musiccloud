@@ -26,7 +26,6 @@ const GenreBrowseGrid = lazy(() =>
 const GenreSearchResults = lazy(() =>
   import("@/components/panels/GenreSearchResults").then((m) => ({ default: m.GenreSearchResults })),
 );
-const InfoPanel = lazy(() => import("@/components/panels/InfoPanel").then((m) => ({ default: m.InfoPanel })));
 const ShareLayout = lazy(() => import("@/components/share/ShareLayout").then((m) => ({ default: m.ShareLayout })));
 const Toast = lazy(() => import("@/components/ui/Toast").then((m) => ({ default: m.Toast })));
 const PlatformIconRow = lazy(() =>
@@ -75,7 +74,6 @@ function LandingPageInner({
 
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [exampleShortId, setExampleShortId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -163,10 +161,7 @@ function LandingPageInner({
             : undefined
         }
       >
-        <PageHeader showInfoButton onInfoClick={() => setIsInfoOpen(true)} navItems={headerNav} />
-        <Suspense fallback={null}>
-          <InfoPanel isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
-        </Suspense>
+        <PageHeader navItems={headerNav} />
 
         <div className="flex-1 flex flex-col items-center justify-center w-full">
           {!active && !candidates && !genreBrowseGenres && !genreSearchPayload && (

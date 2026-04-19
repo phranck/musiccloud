@@ -2,14 +2,10 @@ import type { NavItem } from "@musiccloud/shared";
 import type { MouseEvent } from "react";
 
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
-import { InfoButton } from "@/components/ui/InfoButton";
 import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/OverlayContext";
 import { navHref, navLabel } from "@/lib/nav";
 
 interface PageHeaderProps {
-  /** Show the circular info button (landing page and result pages only) */
-  showInfoButton?: boolean;
-  onInfoClick?: () => void;
   /** Items from the admin nav editor (header). Empty array hides the inline list. */
   navItems?: NavItem[];
 }
@@ -37,10 +33,10 @@ function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): vo
 }
 
 /**
- * Fixed top-right header bar: optional admin-managed nav links, Language Switcher,
- * optional Info Button. Must be rendered inside a LocaleProvider.
+ * Fixed top-right header bar: optional admin-managed nav links + Language Switcher.
+ * Must be rendered inside a LocaleProvider.
  */
-export function PageHeader({ showInfoButton = false, onInfoClick, navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
+export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
   return (
     <div className="fixed top-4 right-4 z-40 hidden sm:flex items-center gap-3">
       {navItems.length > 0 && (
@@ -59,10 +55,7 @@ export function PageHeader({ showInfoButton = false, onInfoClick, navItems = EMP
           ))}
         </nav>
       )}
-      <div className="flex items-center gap-1">
-        <LanguageSwitcher />
-        {showInfoButton && onInfoClick && <InfoButton onClick={onInfoClick} />}
-      </div>
+      <LanguageSwitcher />
     </div>
   );
 }
