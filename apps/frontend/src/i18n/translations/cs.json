@@ -55,5 +55,6 @@
   "embed.large": "Velký",
   "embed.code": "Kód pro vložení",
   "embed.copy": "Kopírovat",
-  "embed.copied": "Zkopírováno!"
+  "embed.copied": "Zkopírováno!",
+  "embed.copyError": "Kopírování selhalo"
 }

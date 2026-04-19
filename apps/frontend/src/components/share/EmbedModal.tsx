@@ -1,5 +1,5 @@
 import { compareByDisplayOrder } from "@musiccloud/shared";
-import { CheckIcon, CopySimpleIcon, XIcon } from "@phosphor-icons/react";
+import { CheckIcon, CopySimpleIcon, WarningIcon, XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -67,7 +67,7 @@ export function EmbedModal({
 }: EmbedModalProps) {
   const t = useT();
   const [size, setSize] = useState<EmbedSize>("small");
-  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const mounted = useIsClient();
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -84,10 +84,10 @@ export function EmbedModal({
     const code = buildEmbedCode(shortUrl, size);
     try {
       await navigator.clipboard.writeText(code);
+      setCopyState("copied");
     } catch {
-      // Clipboard unavailable (non-secure context or permissions denied)
+      setCopyState("error");
     }
-    setCopyState("copied");
     setTimeout(() => setCopyState("idle"), 2000);
   }, [shortUrl, size]);
 
@@ -181,12 +181,12 @@ export function EmbedModal({
                   onClick={handleCopy}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-md text-text-secondary text-xs font-medium"
                 >
-                  {copyState === "idle" ? (
-                    <CopySimpleIcon size={16} weight="duotone" />
-                  ) : (
-                    <CheckIcon size={16} weight="duotone" />
-                  )}
-                  {copyState === "idle" ? t("embed.copy") : t("embed.copied")}
+                  {copyState === "idle" && <CopySimpleIcon size={16} weight="duotone" />}
+                  {copyState === "copied" && <CheckIcon size={16} weight="duotone" />}
+                  {copyState === "error" && <WarningIcon size={16} weight="duotone" />}
+                  {copyState === "idle" && t("embed.copy")}
+                  {copyState === "copied" && t("embed.copied")}
+                  {copyState === "error" && t("embed.copyError")}
                 </EmbossedButton>
               </RecessedCard.Body>
             </RecessedCard>

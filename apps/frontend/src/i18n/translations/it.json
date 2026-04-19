@@ -55,5 +55,6 @@
   "embed.large": "Grande",
   "embed.code": "Codice di incorporamento",
   "embed.copy": "Copia",
-  "embed.copied": "Copiato!"
+  "embed.copied": "Copiato!",
+  "embed.copyError": "Copia non riuscita"
 }
