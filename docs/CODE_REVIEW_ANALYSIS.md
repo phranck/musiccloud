@@ -219,8 +219,8 @@ Findings re-examined and **invalidated**:
 
 - **#1 Zero test coverage** — frontend Vitest + Playwright setup. Larger task, needs separate plan.
 - **Follow-up**: Fastify `trustProxy` so `request.ip` reflects the real client behind Zerops, making the artist-info limiter per-client instead of global.
-- **#4 `set:html` trust boundary** — `PageOverlayContent.tsx:41` has an explicit trust-boundary comment; `pages/[shortId].astro:170` does not. Add the same doc-comment at that call-site.
-- **#7.1 callsite wiring** — `ArtistInfoCard` / `SimilarArtistsSection` do not yet pass `onError` to `PopularTracksSection` / `PopularTrack`. Needs a shared toast context (current `useToast` is local state, not a provider).
+- ~~**#4 `set:html` trust boundary**~~ — `abbdde2` added the trust-boundary comment on `pages/[shortId].astro:170` matching the companion note at `PageOverlayContent.tsx:41`.
+- ~~**#7.1 callsite wiring**~~ — `24a795d` added `ToastProvider` (`src/context/ToastContext.tsx`), wrapped `ShareLayoutInner`, and rewired `PopularTrack` to surface failures via the shared toast using the existing `error.generic` i18n key. `onError` prop dropped.
 - **Low**: `GenreSearchResults` ASCII-only title-case regex, `api/v1/content/[slug].ts` generic 503.
 
 ---
