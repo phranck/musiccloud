@@ -17,7 +17,7 @@ const MD_TRANSLUCENT = [
   "[&_ol]:text-white/60 [&_ol]:text-base [&_ol]:pl-5 [&_ol]:mb-3 [&_ol]:space-y-1 [&_ol]:list-decimal",
   "[&_li]:leading-relaxed",
   "[&_strong]:text-white/80 [&_strong]:font-medium",
-  "[&_a]:text-[var(--color-accent,#a78bfa)] [&_a]:underline",
+  "[&_a]:text-[var(--color-accent)] [&_a]:underline",
   "[&_hr]:border-white/10 [&_hr]:my-4",
   "[&>*:last-child]:mb-0",
 ].join(" ");
@@ -31,7 +31,7 @@ const MD_EMBOSSED = [
   "[&_ol]:text-text-secondary [&_ol]:text-base [&_ol]:pl-5 [&_ol]:mb-3 [&_ol]:space-y-1 [&_ol]:list-decimal",
   "[&_li]:leading-relaxed",
   "[&_strong]:text-text-primary [&_strong]:font-medium",
-  "[&_a]:text-[var(--color-primary)] [&_a]:underline",
+  "[&_a]:text-[var(--color-accent)] [&_a]:underline",
   "[&_hr]:border-black/10 [&_hr]:my-4",
   "[&>*:last-child]:mb-0",
 ].join(" ");

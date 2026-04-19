@@ -26,7 +26,7 @@ interface TranslucentCardProps {
 
 /**
  * Glassy overlay card — backdrop-blur + semi-transparent white surface.
- * Used by `InfoPanel` and by the translucent-mode content-page overlay.
+ * Used by the translucent-mode content-page overlay.
  */
 export function TranslucentCard({ children, className, style }: TranslucentCardProps) {
   const arr = Children.toArray(children);
@@ -94,8 +94,8 @@ interface SegmentedControlProps {
 }
 
 // Tab-row style segmented control (bottom-border active indicator), used by
-// InfoPanel + the translucent content-page overlay. Shares the glassy look
-// with the card surface.
+// the translucent content-page overlay. Shares the glassy look with the
+// card surface.
 TranslucentCard.SegmentedControl = tagged(function Segments({
   segments,
   value,
