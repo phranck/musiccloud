@@ -101,9 +101,12 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     async function onOpenEvent(event: Event) {
       const detail = (event as CustomEvent<OverlayOpenDetail>).detail;
       if (!detail?.slug) return;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
       try {
         const res = await fetch(`/api/v1/content/${detail.slug}`, {
           headers: { Accept: "application/json" },
+          signal: controller.signal,
         });
         if (!res.ok) {
           window.location.href = `/${detail.slug}`;
@@ -113,6 +116,8 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
         open(page);
       } catch {
         window.location.href = `/${detail.slug}`;
+      } finally {
+        clearTimeout(timeout);
       }
     }
     window.addEventListener(OVERLAY_OPEN_EVENT, onOpenEvent);
