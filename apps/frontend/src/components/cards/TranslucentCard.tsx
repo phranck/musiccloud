@@ -86,9 +86,44 @@ TranslucentCard.Footer = tagged(function Footer({ children, className }: FooterP
   return <div className={cn("flex-shrink-0 px-6 pb-5", className)}>{children}</div>;
 }, FOOTER_TAG);
 
-// Real implementation attached in Task 14 once the shared control is wired up.
-// Stays as a tag-only placeholder so Task 12's InfoPanel refactor can reference
-// the compound without circular Task ordering.
-TranslucentCard.SegmentedControl = tagged(function Placeholder(): ReactElement {
-  return <></>;
+interface SegmentedControlProps {
+  segments: { key: string; label: string }[];
+  value: string;
+  onChange: (next: string) => void;
+  className?: string;
+}
+
+// Tab-row style segmented control (bottom-border active indicator), used by
+// InfoPanel + the translucent content-page overlay. Shares the glassy look
+// with the card surface.
+TranslucentCard.SegmentedControl = tagged(function Segments({
+  segments,
+  value,
+  onChange,
+  className,
+}: SegmentedControlProps): ReactElement {
+  return (
+    <div
+      role="tablist"
+      className={cn("flex gap-6 border-b border-white/[0.08] px-6 flex-shrink-0", className)}
+    >
+      {segments.map(({ key, label }) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          aria-selected={value === key}
+          onClick={() => onChange(key)}
+          className={cn(
+            "pb-3 text-base font-medium tracking-[-0.01em] transition-colors duration-150 border-b-2 -mb-px focus:outline-none",
+            value === key
+              ? "text-white border-white/50"
+              : "text-white/30 border-transparent hover:text-white/55",
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
 }, SEGMENTS_TAG);
