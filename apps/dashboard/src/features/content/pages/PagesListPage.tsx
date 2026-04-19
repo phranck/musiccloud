@@ -1,4 +1,3 @@
-import type { PageType } from "@musiccloud/shared";
 import {
   CheckCircleIcon,
   CircleIcon,
@@ -11,14 +10,7 @@ import {
 import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import {
-  Dialog,
-  dialogBtnDestructive,
-  dialogBtnPrimary,
-  dialogBtnSecondary,
-  dialogHeaderIconClass,
-} from "@/components/ui/Dialog";
-import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
+import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import type { ColumnDef } from "@/components/ui/Table";
@@ -28,23 +20,11 @@ import { useI18n } from "@/context/I18nContext";
 import {
   type ContentPageSummary,
   useContentPages,
-  useCreateContentPage,
   useDeleteContentPage,
 } from "@/features/content/hooks/useAdminContent";
-import { FormLabel, FormLabelText } from "@/shared/ui/FormPrimitives";
+import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
 
 type ContentPage = ContentPageSummary;
-
-function slugify(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function StatusBadge({ status }: { status: string }) {
   const { messages } = useI18n();
@@ -86,21 +66,11 @@ function formatDate(isoDate: string | null, locale: string): string {
 
 interface PagesListState {
   showCreate: boolean;
-  title: string;
-  slug: string;
-  slugManual: boolean;
-  pageType: PageType;
-  createError: string | null;
   deleteTarget: { slug: string; title: string } | null;
 }
 
 const initialState: PagesListState = {
   showCreate: false,
-  title: "",
-  slug: "",
-  slugManual: false,
-  pageType: "default",
-  createError: null,
   deleteTarget: null,
 };
 
@@ -109,7 +79,6 @@ export function PagesListPage() {
   const text = messages.content.pages;
   const common = messages.common;
   const { data: pages = [], isLoading } = useContentPages();
-  const createPage = useCreateContentPage();
   const deletePage = useDeleteContentPage();
   const navigate = useNavigate();
 
@@ -117,38 +86,7 @@ export function PagesListPage() {
     (prev: PagesListState, action: Partial<PagesListState>): PagesListState => ({ ...prev, ...action }),
     initialState,
   );
-  const { showCreate, title, slug, slugManual, pageType, createError, deleteTarget } = state;
-
-  function handleTitleChange(val: string) {
-    dispatch(slugManual ? { title: val } : { title: val, slug: slugify(val) });
-  }
-
-  function handleSlugChange(val: string) {
-    dispatch({ slug: val, slugManual: true });
-  }
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    dispatch({ createError: null });
-    try {
-      const page = await createPage.mutateAsync({ slug, title, pageType });
-      dispatch({ showCreate: false, title: "", slug: "", slugManual: false, pageType: "default" });
-      navigate(`/pages/${page.slug}`);
-    } catch (err) {
-      dispatch({ createError: err instanceof Error ? err.message : (text.createError ?? "") });
-    }
-  }
-
-  function handleCancelCreate() {
-    dispatch({
-      showCreate: false,
-      title: "",
-      slug: "",
-      slugManual: false,
-      pageType: "default",
-      createError: null,
-    });
-  }
+  const { showCreate, deleteTarget } = state;
 
   const handleDeleteRequest = useCallback((pageSlug: string, pageTitle: string) => {
     dispatch({ deleteTarget: { slug: pageSlug, title: pageTitle } });
@@ -271,73 +209,11 @@ export function PagesListPage() {
         )}
       </PageBody>
 
-      <Dialog
+      <CreatePageDialog
         open={showCreate}
-        title={text.createTitle}
-        titleIcon={<PlusCircleIcon weight="duotone" className={dialogHeaderIconClass} />}
-        onClose={handleCancelCreate}
-      >
-        <form onSubmit={handleCreate}>
-          <div className="p-6 space-y-3">
-            <div>
-              <FormLabel htmlFor="content-page-title">{text.fieldTitle}</FormLabel>
-              <input
-                id="content-page-title"
-                type="text"
-                value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                required
-                autoFocus
-                placeholder={text.titlePlaceholder}
-                className="w-full px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-              />
-            </div>
-            <div>
-              <FormLabel htmlFor="content-page-slug">{text.fieldSlug}</FormLabel>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--ds-text-muted)] shrink-0">/</span>
-                <input
-                  id="content-page-slug"
-                  type="text"
-                  value={slug}
-                  onChange={(e) => handleSlugChange(e.target.value)}
-                  required
-                  pattern="[a-z0-9-]+"
-                  placeholder={text.slugPlaceholder}
-                  className="flex-1 px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent font-mono"
-                />
-              </div>
-            </div>
-            <div>
-              <FormLabelText>{text.fieldPageType}</FormLabelText>
-              <Dropdown<PageType>
-                value={pageType}
-                onChange={(v) => dispatch({ pageType: v })}
-                options={
-                  [
-                    { value: "default", label: text.pageTypeDefault },
-                    { value: "segmented", label: text.pageTypeSegmented },
-                  ] satisfies DropdownOption<PageType>[]
-                }
-              />
-            </div>
-            {createError && <p className="text-xs text-red-500">{createError}</p>}
-          </div>
-          <Dialog.Footer>
-            <button
-              type="button"
-              onClick={handleCancelCreate}
-              disabled={createPage.isPending}
-              className={dialogBtnSecondary}
-            >
-              {common.cancel}
-            </button>
-            <button type="submit" disabled={createPage.isPending || !slug || !title} className={dialogBtnPrimary}>
-              {createPage.isPending ? text.creating : text.create}
-            </button>
-          </Dialog.Footer>
-        </form>
-      </Dialog>
+        onClose={() => dispatch({ showCreate: false })}
+        onCreated={(page) => navigate(`/pages/${page.slug}`)}
+      />
 
       <Dialog
         open={deleteTarget !== null}

@@ -3,9 +3,10 @@ import { ArrowDownIcon, ArrowUpIcon, EyeIcon, PlusCircleIcon, RowsIcon, TrashIco
 import { type MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { DashboardSegmentedControl } from "@/components/ui/DashboardSegmentedControl";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
-import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
 import { MarkdownEditor } from "@/components/ui/MarkdownEditor";
+import { NumberCircleIcon } from "@/components/ui/NumberCircleIcon";
 import { useI18n } from "@/context/I18nContext";
 import {
   useAdminContentPage,
@@ -13,6 +14,7 @@ import {
   useSaveContentPage,
   useSaveContentPageSegments,
 } from "@/features/content/hooks/useAdminContent";
+import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
 import { FormLabelText } from "@/shared/ui/FormPrimitives";
 
 export type SegmentSaveFn = () => Promise<void>;
@@ -68,6 +70,7 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [targetDraftContent, setTargetDraftContent] = useState<string | null>(null);
+  const [newPageForIndex, setNewPageForIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (draft.length === 0) return;
@@ -256,12 +259,12 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
                       type="button"
                       onClick={() => setActiveIndex(index)}
                       aria-pressed={index === activeIndex}
-                      className={`text-[10px] font-mono w-6 text-right ${
+                      aria-label={`${index + 1}`}
+                      className={`shrink-0 flex items-center justify-center w-6 h-6 ${
                         index === activeIndex ? "text-[var(--color-primary)]" : "text-[var(--ds-text-subtle)]"
                       }`}
-                      title={text.moveUp}
                     >
-                      {index + 1}.
+                      <NumberCircleIcon number={index + 1} className="w-5 h-5" />
                     </button>
                     <input
                       type="text"
@@ -282,6 +285,15 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
                         }}
                       />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setNewPageForIndex(index)}
+                      title={messages.content.pages.newPage}
+                      className="flex items-center gap-1.5 h-7 px-2 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-xs font-medium hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)]"
+                    >
+                      <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
+                      {messages.content.pages.newPage}
+                    </button>
                     <div className="flex items-center gap-0.5">
                       <button
                         type="button"
@@ -323,7 +335,7 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
         <DashboardSection>
           <DashboardSection.Header icon={<EyeIcon weight="duotone" className="w-4 h-4" />} title={text.preview} />
           <DashboardSection.Body>
-            <EmbossedSegmentedControl
+            <DashboardSegmentedControl
               segments={previewSegments}
               value={String(activeIndex)}
               onChange={(next) => {
@@ -354,6 +366,19 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
           </DashboardSection.Body>
         </DashboardSection>
       )}
+
+      <CreatePageDialog
+        open={newPageForIndex !== null}
+        lockDefaultType
+        onClose={() => setNewPageForIndex(null)}
+        onCreated={(newPage) => {
+          if (newPageForIndex === null) return;
+          const idx = newPageForIndex;
+          update(idx, { targetSlug: newPage.slug });
+          setActiveIndex(idx);
+          setNewPageForIndex(null);
+        }}
+      />
     </>
   );
 }
