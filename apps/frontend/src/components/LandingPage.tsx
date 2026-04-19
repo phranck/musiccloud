@@ -79,12 +79,19 @@ function LandingPageInner({
   const [exampleShortId, setExampleShortId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(ENDPOINTS.frontend.randomExample)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    fetch(ENDPOINTS.frontend.randomExample, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { shortId: string } | null) => {
         if (data?.shortId) setExampleShortId(data.shortId);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => clearTimeout(timeout));
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
   }, []);
   const toast = useToast();
 
