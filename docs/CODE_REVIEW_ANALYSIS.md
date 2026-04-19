@@ -207,17 +207,17 @@ Findings addressed in follow-up commits:
 | 7.1 | PopularTracksSection silent fail | `5210f82` | Added optional `onError` prop + dev `console.warn` |
 | 7.2 | PlatformIconRow silent fail | `5210f82` | Dev `console.warn` added (silent in prod remains intentional for decorative marquee) |
 | 10 | LandingPage fetch timeout | `8454061` | 3 s `AbortController` |
-| 3a | Rate-limit `artist-info` proxy | `27809a4` | Backend route `apiRateLimiter` (30 req / 60 s). Umami header leakage (3b) still open. |
+| 3a | Rate-limit `artist-info` proxy | `27809a4` | Backend route `apiRateLimiter` (30 req / 60 s). |
 
 Findings re-examined and **invalidated**:
 
 - **#8** (loadNav race): `fetchNavigation()` in `src/api/client.ts:114` catches internally and returns `[]`, so `loadNav()` cannot throw. No race.
 - **#9** (`SongInfo` unmemoized image fetch): `SongInfo` is already wrapped in `React.memo`; the `new Image()` sits inside a `useEffect` keyed on `[albumArtUrl, onAlbumArtLoad]` with proper cleanup. Callers pass `onAlbumArtLoad` via `useCallback` (in `useAlbumColors.ts`) and `useMemo` (in `ShareLayout`), so identity is stable. No extra memoization needed.
+- **#3b** (Umami proxy header leakage): re-reading `api/mc/api/send.ts` and `api/mc/script.js.ts` shows both already explicitly allow-list headers: `send.ts` forwards only a hardcoded `Content-Type` + client `User-Agent`; `script.js.ts` forwards no request headers at all. Cookies / Referer are NOT forwarded. Original review claim of "all request headers forwarded" was based on an incomplete read.
 
 ### Still open
 
 - **#1 Zero test coverage** — frontend Vitest + Playwright setup. Larger task, needs separate plan.
-- **#3b Umami proxy header leakage** (`api/mc/send.ts`, `api/mc/script.js.ts`) — frontend Astro proxy still forwards all request headers (including cookies) to Umami. Needs explicit header allowlist.
 - **Follow-up**: Fastify `trustProxy` so `request.ip` reflects the real client behind Zerops, making the artist-info limiter per-client instead of global.
 - **#4 `set:html` trust boundary** — add comment/lint rule, or move sanitization to backend.
 - **#7.1 callsite wiring** — `ArtistInfoCard` / `SimilarArtistsSection` do not yet pass `onError` to `PopularTracksSection` / `PopularTrack`. Needs a shared toast context (current `useToast` is local state, not a provider).
