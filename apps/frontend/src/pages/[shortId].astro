@@ -14,6 +14,8 @@ import { fetchPublicContentPage, fetchShareData } from "@/api/client";
 import GradientBackground from "@/components/background/GradientBackground.astro";
 import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
+import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
+import { SegmentedPageFullscreen } from "@/components/layout/PageOverlayContent";
 import { ShareLayout } from "@/components/share/ShareLayout";
 import { BrandName } from "@/components/ui/BrandName";
 import { getLocaleFromCookie } from "@/i18n/locales";
@@ -146,14 +148,33 @@ const pageTitle = contentPage
   <GradientBackground />
 
   <div class="min-h-dvh flex flex-col">
-    {contentPage ? (
+    {contentPage && contentPage.displayMode === "fullscreen" && (
       <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-12">
-        {contentPage.showTitle && (
+        {contentPage.showTitle && contentPage.pageType !== "segmented" && (
           <h1 class="text-3xl sm:text-4xl font-bold tracking-[-0.04em] mb-8">{contentPage.title}</h1>
         )}
-        <article class="prose prose-invert max-w-none" set:html={contentPage.contentHtml} />
+        {contentPage.pageType === "segmented" ? (
+          <SegmentedPageFullscreen client:load page={contentPage} />
+        ) : (
+          <article class="prose prose-invert max-w-none" set:html={contentPage.contentHtml} />
+        )}
       </main>
-    ) : (
+    )}
+
+    {contentPage && contentPage.displayMode !== "fullscreen" && (
+      <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
+        <div class="text-center">
+          <h1 class="text-3xl sm:text-4xl font-bold tracking-[-0.04em]">
+            <a href="/" aria-label="Go to musiccloud home">
+              <BrandName client:idle />
+            </a>
+          </h1>
+        </div>
+        <PageOverlayIsland client:load initialPage={contentPage} />
+      </main>
+    )}
+
+    {!contentPage && (
       <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
         <div class="mb-6 text-center">
           <h1 class="text-3xl sm:text-4xl font-bold tracking-[-0.04em]">
