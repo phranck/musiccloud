@@ -92,6 +92,13 @@
       "when": 1776533124064,
       "tag": "0012_closed_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1777500000000,
+      "tag": "0013_page_display_modes",
+      "breakpoints": true
     }
   ]
 }
