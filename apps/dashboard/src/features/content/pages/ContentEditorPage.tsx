@@ -1,4 +1,9 @@
-import type { ContentPage } from "@musiccloud/shared";
+import type {
+  ContentPage,
+  OverlayHeight,
+  OverlayWidth,
+  PageDisplayMode,
+} from "@musiccloud/shared";
 import {
   DownloadIcon,
   EyeIcon,
@@ -15,6 +20,8 @@ import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { useI18n } from "@/context/I18nContext";
+import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
+import { SegmentManager } from "@/features/content/pages/SegmentManager";
 import {
   useAdminContentPage,
   useDeleteContentPage,
@@ -462,6 +469,9 @@ export function ContentEditorPage() {
     slug?: string;
     status?: "draft" | "published" | "hidden";
     showTitle?: boolean;
+    displayMode?: PageDisplayMode;
+    overlayWidth?: OverlayWidth;
+    overlayHeight?: OverlayHeight;
   }) {
     dispatch({ type: "setPatchError", value: null });
     try {
@@ -554,6 +564,15 @@ export function ContentEditorPage() {
         />
       )}
 
+      {page && (
+        <PageDisplaySettings
+          displayMode={page.displayMode}
+          overlayWidth={page.overlayWidth}
+          overlayHeight={page.overlayHeight}
+          onChange={(patch) => void handlePatch(patch)}
+        />
+      )}
+
       <DashboardSection>
         <DashboardSection.Header icon={<MarkdownLogoIcon weight="duotone" className="w-4 h-4" />} title={title} />
         <PageBody
@@ -566,16 +585,20 @@ export function ContentEditorPage() {
             </div>
           )}
 
-          {page && (
-            <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>
-              <MarkdownEditor
-                key={slug}
-                value={currentContent}
-                onChange={handleChange}
-                height="100%"
-                className="rounded-none border-none"
-              />
-            </Suspense>
+          {page && page.pageType === "segmented" ? (
+            <SegmentManager page={page} />
+          ) : (
+            page && (
+              <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>
+                <MarkdownEditor
+                  key={slug}
+                  value={currentContent}
+                  onChange={handleChange}
+                  height="100%"
+                  className="rounded-none border-none"
+                />
+              </Suspense>
+            )
           )}
 
           {save.isError && <p className="text-red-500 text-sm text-center mt-4">{editorMessages.saveError}</p>}
