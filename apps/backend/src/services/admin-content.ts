@@ -1,7 +1,27 @@
-import type { ContentPage, ContentPageSummary, ContentStatus, PublicContentPage } from "@musiccloud/shared";
+import type {
+  ContentPage,
+  ContentPageSummary,
+  ContentStatus,
+  PageSegment,
+  PageType,
+  PublicContentPage,
+  PublicPageSegment,
+} from "@musiccloud/shared";
+import {
+  OVERLAY_HEIGHTS,
+  OVERLAY_WIDTHS,
+  PAGE_DISPLAY_MODES,
+  PAGE_TITLE_ALIGNMENTS,
+  PAGE_TYPES,
+} from "@musiccloud/shared";
 import { marked } from "marked";
 
-import type { ContentPageMetaUpdate, ContentPageRow, ContentPageSummaryRow } from "../db/admin-repository.js";
+import type {
+  ContentPageMetaUpdate,
+  ContentPageRow,
+  ContentPageSummaryRow,
+  PageSegmentRow,
+} from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
@@ -13,12 +33,29 @@ export type ContentResult<T> =
   | { ok: true; data: T }
   | { ok: false; code: "NOT_FOUND" | "SLUG_TAKEN" | "INVALID_INPUT"; message: string };
 
+function isOneOf<T extends readonly string[]>(list: T, v: unknown): v is T[number] {
+  return typeof v === "string" && (list as readonly string[]).includes(v);
+}
+
+function renderBody(content: string): string {
+  return marked.parse(content, { async: false }) as string;
+}
+
+function segmentRowToDto(row: PageSegmentRow): PageSegment {
+  return { id: row.id, position: row.position, label: row.label, targetSlug: row.targetSlug };
+}
+
 function rowToSummary(row: ContentPageSummaryRow, usernames: Map<string, string>): ContentPageSummary {
   return {
     slug: row.slug,
     title: row.title,
     status: row.status,
     showTitle: row.showTitle,
+    titleAlignment: row.titleAlignment,
+    pageType: row.pageType,
+    displayMode: row.displayMode,
+    overlayWidth: row.overlayWidth,
+    overlayHeight: row.overlayHeight,
     createdByUsername: row.createdBy ? (usernames.get(row.createdBy) ?? null) : null,
     updatedByUsername: row.updatedBy ? (usernames.get(row.updatedBy) ?? null) : null,
     createdAt: row.createdAt.toISOString(),
@@ -26,8 +63,8 @@ function rowToSummary(row: ContentPageSummaryRow, usernames: Map<string, string>
   };
 }
 
-function rowToPage(row: ContentPageRow, usernames: Map<string, string>): ContentPage {
-  return { ...rowToSummary(row, usernames), content: row.content };
+function rowToPage(row: ContentPageRow, usernames: Map<string, string>, segments: PageSegment[]): ContentPage {
+  return { ...rowToSummary(row, usernames), content: row.content, segments };
 }
 
 export async function getManagedContentPages(): Promise<ContentPageSummary[]> {
@@ -44,13 +81,15 @@ export async function getManagedContentPage(slug: string): Promise<ContentResult
   if (!row) return { ok: false, code: "NOT_FOUND", message: "Content page not found" };
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
   const usernames = await repo.getAdminUsernamesByIds(userIds);
-  return { ok: true, data: rowToPage(row, usernames) };
+  const segments = row.pageType === "segmented" ? (await repo.listSegmentsForOwner(row.slug)).map(segmentRowToDto) : [];
+  return { ok: true, data: rowToPage(row, usernames, segments) };
 }
 
 export async function createManagedContentPage(data: {
   slug: string;
   title: string;
   status?: ContentStatus;
+  pageType?: PageType;
   createdBy: string | null;
 }): Promise<ContentResult<ContentPage>> {
   if (!data.slug || data.slug.length > SLUG_MAX_LEN || !SLUG_PATTERN.test(data.slug)) {
@@ -62,13 +101,16 @@ export async function createManagedContentPage(data: {
   if (data.status && !["draft", "published", "hidden"].includes(data.status)) {
     return { ok: false, code: "INVALID_INPUT", message: "status must be draft, published, or hidden" };
   }
+  if (data.pageType !== undefined && !isOneOf(PAGE_TYPES, data.pageType)) {
+    return { ok: false, code: "INVALID_INPUT", message: "pageType must be 'default' or 'segmented'" };
+  }
   const repo = await getAdminRepository();
   if (await repo.contentPageSlugExists(data.slug)) {
     return { ok: false, code: "SLUG_TAKEN", message: "A page with this slug already exists" };
   }
   const row = await repo.createContentPage(data);
   const usernames = data.createdBy ? await repo.getAdminUsernamesByIds([data.createdBy]) : new Map();
-  return { ok: true, data: rowToPage(row, usernames) };
+  return { ok: true, data: rowToPage(row, usernames, []) };
 }
 
 export async function updateManagedContentPageMeta(
@@ -87,17 +129,41 @@ export async function updateManagedContentPageMeta(
   if (data.status !== undefined && !["draft", "published", "hidden"].includes(data.status)) {
     return { ok: false, code: "INVALID_INPUT", message: "status invalid" };
   }
+  if (data.pageType !== undefined && !isOneOf(PAGE_TYPES, data.pageType)) {
+    return { ok: false, code: "INVALID_INPUT", message: "pageType invalid" };
+  }
+  if (data.displayMode !== undefined && !isOneOf(PAGE_DISPLAY_MODES, data.displayMode)) {
+    return { ok: false, code: "INVALID_INPUT", message: "displayMode invalid" };
+  }
+  if (data.overlayWidth !== undefined && !isOneOf(OVERLAY_WIDTHS, data.overlayWidth)) {
+    return { ok: false, code: "INVALID_INPUT", message: "overlayWidth invalid" };
+  }
+  if (data.overlayHeight !== undefined && !isOneOf(OVERLAY_HEIGHTS, data.overlayHeight)) {
+    return { ok: false, code: "INVALID_INPUT", message: "overlayHeight invalid" };
+  }
+  if (data.titleAlignment !== undefined && !isOneOf(PAGE_TITLE_ALIGNMENTS, data.titleAlignment)) {
+    return { ok: false, code: "INVALID_INPUT", message: "titleAlignment invalid" };
+  }
   const repo = await getAdminRepository();
   if (data.slug !== undefined && data.slug !== slug) {
     if (await repo.contentPageSlugExists(data.slug)) {
       return { ok: false, code: "SLUG_TAKEN", message: "A page with this slug already exists" };
     }
   }
+  // Detect segmented → default transition so we can clean up orphaned segments.
+  let existing: ContentPageRow | null = null;
+  if (data.pageType === "default") {
+    existing = await repo.getContentPageBySlug(slug);
+  }
   const row = await repo.updateContentPageMeta(slug, data);
   if (!row) return { ok: false, code: "NOT_FOUND", message: "Content page not found" };
+  if (existing?.pageType === "segmented" && row.pageType === "default") {
+    await repo.deleteSegmentsForOwner(row.slug);
+  }
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
   const usernames = await repo.getAdminUsernamesByIds(userIds);
-  return { ok: true, data: rowToPage(row, usernames) };
+  const segments = row.pageType === "segmented" ? (await repo.listSegmentsForOwner(row.slug)).map(segmentRowToDto) : [];
+  return { ok: true, data: rowToPage(row, usernames, segments) };
 }
 
 export async function updateManagedContentPageBody(
@@ -113,7 +179,8 @@ export async function updateManagedContentPageBody(
   if (!row) return { ok: false, code: "NOT_FOUND", message: "Content page not found" };
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
   const usernames = await repo.getAdminUsernamesByIds(userIds);
-  return { ok: true, data: rowToPage(row, usernames) };
+  const segments = row.pageType === "segmented" ? (await repo.listSegmentsForOwner(row.slug)).map(segmentRowToDto) : [];
+  return { ok: true, data: rowToPage(row, usernames, segments) };
 }
 
 export async function deleteManagedContentPage(slug: string): Promise<ContentResult<{ slug: string }>> {
@@ -134,11 +201,44 @@ export async function getPublicContentPage(slug: string): Promise<PublicContentP
   const repo = await getAdminRepository();
   const row = await repo.getPublishedContentPageBySlug(slug);
   if (!row) return null;
-  return {
+
+  const base = {
     slug: row.slug,
     title: row.title,
     showTitle: row.showTitle,
+    titleAlignment: row.titleAlignment,
+    pageType: row.pageType,
+    displayMode: row.displayMode,
+    overlayWidth: row.overlayWidth,
+    overlayHeight: row.overlayHeight,
     content: row.content,
-    contentHtml: marked.parse(row.content, { async: false }) as string,
+    contentHtml: renderBody(row.content),
   };
+
+  if (row.pageType !== "segmented") {
+    return { ...base, segments: [] };
+  }
+
+  const segmentRows = await repo.listSegmentsForOwner(row.slug);
+  if (segmentRows.length === 0) return { ...base, segments: [] };
+
+  const targetSlugs = Array.from(new Set(segmentRows.map((s) => s.targetSlug)));
+  const targets = await repo.getPublishedContentPagesBySlugs(targetSlugs);
+  const bySlug = new Map(targets.map((t) => [t.slug, t]));
+
+  const segments: PublicPageSegment[] = segmentRows
+    .filter((s) => bySlug.has(s.targetSlug))
+    .map((s) => {
+      const t = bySlug.get(s.targetSlug)!;
+      return {
+        label: s.label,
+        targetSlug: s.targetSlug,
+        title: t.title,
+        showTitle: t.showTitle,
+        content: t.content,
+        contentHtml: renderBody(t.content),
+      };
+    });
+
+  return { ...base, segments };
 }

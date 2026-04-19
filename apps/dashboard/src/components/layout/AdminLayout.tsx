@@ -169,8 +169,10 @@ function AdminLayoutInner() {
           <Outlet />
         </div>
       ) : (
-        <Card className="overflow-auto p-3 flex flex-col min-h-0 shadow-sm">
-          <Outlet />
+        <Card className="overflow-auto flex flex-col min-h-0 shadow-sm">
+          <div className="p-3 min-h-full shrink-0 flex flex-col">
+            <Outlet />
+          </div>
         </Card>
       )}
 

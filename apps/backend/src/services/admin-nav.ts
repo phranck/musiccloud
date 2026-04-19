@@ -17,6 +17,10 @@ function rowToNavItem(row: NavItemRow): NavItem {
     target: row.target,
     label: row.label,
     position: row.position,
+    pageType: row.pageType,
+    pageDisplayMode: row.pageDisplayMode,
+    pageOverlayWidth: row.pageOverlayWidth,
+    pageOverlayHeight: row.pageOverlayHeight,
   };
 }
 

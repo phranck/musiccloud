@@ -322,6 +322,11 @@ export const contentPages = pgTable("content_pages", {
   content: text("content").notNull().default(""),
   status: text("status").notNull().default("draft"),
   showTitle: boolean("show_title").notNull().default(true),
+  titleAlignment: text("title_alignment").notNull().default("left"),
+  pageType: text("page_type").notNull().default("default"),
+  displayMode: text("display_mode").notNull().default("fullscreen"),
+  overlayWidth: text("overlay_width").notNull().default("regular"),
+  overlayHeight: text("overlay_height").notNull().default("regular"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   createdBy: text("created_by").references(() => adminUsers.id, { onDelete: "set null" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }),
@@ -330,6 +335,28 @@ export const contentPages = pgTable("content_pages", {
 
 export type ContentPageRow = typeof contentPages.$inferSelect;
 export type ContentPageInsert = typeof contentPages.$inferInsert;
+
+// Ordered segment list for pages with `page_type = 'segmented'`.
+// Each segment references another content page (must be `page_type = 'default'`).
+// Validation of that invariant lives in the service layer.
+export const pageSegments = pgTable(
+  "page_segments",
+  {
+    id: serial("id").primaryKey(),
+    ownerSlug: text("owner_slug")
+      .notNull()
+      .references(() => contentPages.slug, { onDelete: "cascade", onUpdate: "cascade" }),
+    targetSlug: text("target_slug")
+      .notNull()
+      .references(() => contentPages.slug, { onDelete: "cascade", onUpdate: "cascade" }),
+    position: integer("position").notNull().default(0),
+    label: text("label").notNull(),
+  },
+  (table) => [index("idx_page_segments_owner").on(table.ownerSlug)],
+);
+
+export type PageSegmentRow = typeof pageSegments.$inferSelect;
+export type PageSegmentInsert = typeof pageSegments.$inferInsert;
 
 // Header / footer navigation items. Replaced atomically per `nav_id` by
 // the admin nav editor. Items can either point at an internal content
@@ -341,7 +368,10 @@ export const navItems = pgTable(
   {
     id: serial("id").primaryKey(),
     navId: text("nav_id").notNull(),
-    pageSlug: text("page_slug").references(() => contentPages.slug, { onDelete: "cascade" }),
+    pageSlug: text("page_slug").references(() => contentPages.slug, {
+      onDelete: "cascade",
+      onUpdate: "cascade",
+    }),
     url: text("url"),
     target: text("target").notNull().default("_self"),
     position: integer("position").notNull().default(0),

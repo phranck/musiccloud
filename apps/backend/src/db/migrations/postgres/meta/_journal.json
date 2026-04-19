@@ -92,6 +92,27 @@
       "when": 1776533124064,
       "tag": "0012_closed_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1777500000000,
+      "tag": "0013_page_display_modes",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1777501000000,
+      "tag": "0014_slug_cascade_update",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1777502000000,
+      "tag": "0015_title_alignment",
+      "breakpoints": true
     }
   ]
 }

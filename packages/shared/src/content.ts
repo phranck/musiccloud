@@ -6,6 +6,19 @@
 export type NavId = "header" | "footer";
 export type NavTarget = "_self" | "_blank";
 
+export type ContentStatus = "draft" | "published" | "hidden";
+export type PageType = "default" | "segmented";
+export type PageDisplayMode = "fullscreen" | "embossed" | "translucent";
+export type OverlayWidth = "small" | "regular" | "big";
+export type OverlayHeight = "small" | "regular" | "dynamic" | "expanded";
+export type PageTitleAlignment = "left" | "center" | "right";
+
+export const PAGE_TITLE_ALIGNMENTS: readonly PageTitleAlignment[] = ["left", "center", "right"] as const;
+export const PAGE_TYPES: readonly PageType[] = ["default", "segmented"] as const;
+export const PAGE_DISPLAY_MODES: readonly PageDisplayMode[] = ["fullscreen", "embossed", "translucent"] as const;
+export const OVERLAY_WIDTHS: readonly OverlayWidth[] = ["small", "regular", "big"] as const;
+export const OVERLAY_HEIGHTS: readonly OverlayHeight[] = ["small", "regular", "dynamic", "expanded"] as const;
+
 export interface NavItem {
   id: number;
   navId: NavId;
@@ -15,6 +28,11 @@ export interface NavItem {
   target: NavTarget;
   label: string | null;
   position: number;
+  /** Display hints for frontend nav-click interception; null when item points at an external URL. */
+  pageType: PageType | null;
+  pageDisplayMode: PageDisplayMode | null;
+  pageOverlayWidth: OverlayWidth | null;
+  pageOverlayHeight: OverlayHeight | null;
 }
 
 export interface NavItemInput {
@@ -24,13 +42,29 @@ export interface NavItemInput {
   target?: NavTarget;
 }
 
-export type ContentStatus = "draft" | "published" | "hidden";
+export interface PageSegment {
+  id: number;
+  position: number;
+  label: string;
+  targetSlug: string;
+}
+
+export interface PageSegmentInput {
+  position: number;
+  label: string;
+  targetSlug: string;
+}
 
 export interface ContentPageSummary {
   slug: string;
   title: string;
   status: ContentStatus;
   showTitle: boolean;
+  titleAlignment: PageTitleAlignment;
+  pageType: PageType;
+  displayMode: PageDisplayMode;
+  overlayWidth: OverlayWidth;
+  overlayHeight: OverlayHeight;
   createdByUsername: string | null;
   updatedByUsername: string | null;
   createdAt: string;
@@ -39,12 +73,28 @@ export interface ContentPageSummary {
 
 export interface ContentPage extends ContentPageSummary {
   content: string;
+  segments: PageSegment[];
+}
+
+export interface PublicPageSegment {
+  label: string;
+  targetSlug: string;
+  title: string;
+  showTitle: boolean;
+  content: string;
+  contentHtml: string;
 }
 
 export interface PublicContentPage {
   slug: string;
   title: string;
   showTitle: boolean;
+  titleAlignment: PageTitleAlignment;
+  pageType: PageType;
+  displayMode: PageDisplayMode;
+  overlayWidth: OverlayWidth;
+  overlayHeight: OverlayHeight;
   content: string;
   contentHtml: string;
+  segments: PublicPageSegment[];
 }

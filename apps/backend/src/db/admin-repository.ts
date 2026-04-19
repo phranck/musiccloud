@@ -1,3 +1,5 @@
+import type { OverlayHeight, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
+
 export interface AdminUser {
   id: string;
   username: string;
@@ -120,6 +122,11 @@ export interface ContentPageSummaryRow {
   title: string;
   status: ContentStatus;
   showTitle: boolean;
+  titleAlignment: PageTitleAlignment;
+  pageType: PageType;
+  displayMode: PageDisplayMode;
+  overlayWidth: OverlayWidth;
+  overlayHeight: OverlayHeight;
   createdBy: string | null;
   updatedBy: string | null;
   createdAt: Date;
@@ -134,6 +141,7 @@ export interface ContentPageCreateData {
   slug: string;
   title: string;
   status?: ContentStatus;
+  pageType?: PageType;
   createdBy: string | null;
 }
 
@@ -142,7 +150,26 @@ export interface ContentPageMetaUpdate {
   slug?: string;
   status?: ContentStatus;
   showTitle?: boolean;
+  titleAlignment?: PageTitleAlignment;
+  pageType?: PageType;
+  displayMode?: PageDisplayMode;
+  overlayWidth?: OverlayWidth;
+  overlayHeight?: OverlayHeight;
   updatedBy: string | null;
+}
+
+export interface PageSegmentRow {
+  id: number;
+  ownerSlug: string;
+  targetSlug: string;
+  position: number;
+  label: string;
+}
+
+export interface PageSegmentInputRow {
+  position: number;
+  label: string;
+  targetSlug: string;
 }
 
 // ----------------------------------------------------------------------------
@@ -161,6 +188,10 @@ export interface NavItemRow {
   target: NavTarget;
   label: string | null;
   position: number;
+  pageType: PageType | null;
+  pageDisplayMode: PageDisplayMode | null;
+  pageOverlayWidth: OverlayWidth | null;
+  pageOverlayHeight: OverlayHeight | null;
 }
 
 export interface NavItemReplaceInput {
@@ -298,4 +329,13 @@ export interface AdminRepository {
   listAdminNavItems(navId: NavId): Promise<NavItemRow[]>;
   /** Atomically replaces every item for `navId`. Positions are renumbered 0…n. */
   replaceAdminNavItems(navId: NavId, items: NavItemReplaceInput[]): Promise<NavItemRow[]>;
+
+  // Page segments (for content_pages with page_type = 'segmented')
+  listSegmentsForOwner(ownerSlug: string): Promise<PageSegmentRow[]>;
+  replaceSegmentsForOwner(ownerSlug: string, segments: PageSegmentInputRow[]): Promise<PageSegmentRow[]>;
+  deleteSegmentsForOwner(ownerSlug: string): Promise<void>;
+  /** Fetch multiple content pages by slug (published + unpublished). Returns rows in input slugs' order is NOT guaranteed. */
+  getContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]>;
+  /** Public variant — published rows only. Used by public API to render segmented pages. */
+  getPublishedContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]>;
 }

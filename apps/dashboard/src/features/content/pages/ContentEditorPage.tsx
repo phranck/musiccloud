@@ -1,4 +1,10 @@
-import type { ContentPage } from "@musiccloud/shared";
+import type {
+  ContentPage,
+  OverlayHeight,
+  OverlayWidth,
+  PageDisplayMode,
+  PageTitleAlignment as PageTitleAlignmentValue,
+} from "@musiccloud/shared";
 import {
   DownloadIcon,
   EyeIcon,
@@ -7,13 +13,14 @@ import {
   PlusCircleIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { lazy, Suspense, useCallback, useEffect, useReducer } from "react";
+import { lazy, Suspense, useCallback, useEffect, useReducer, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
+import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
 import { useI18n } from "@/context/I18nContext";
 import {
   useAdminContentPage,
@@ -21,6 +28,9 @@ import {
   usePatchContentPage,
   useSaveContentPage,
 } from "@/features/content/hooks/useAdminContent";
+import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
+import { PageTitleAlignment } from "@/features/content/pages/PageTitleAlignment";
+import { SegmentManager, type SegmentSaveFn } from "@/features/content/pages/SegmentManager";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 
 const MarkdownEditor = lazy(() =>
@@ -266,7 +276,9 @@ interface EditorMetadataBarProps {
     statusHidden: string;
     createdBy: string;
     updatedBy: string;
+    updatedAt: string;
   };
+  locale: string;
   common: {
     cancel: string;
   };
@@ -281,6 +293,20 @@ interface EditorMetadataBarProps {
   onCancelSlug: () => void;
   onStatusChange: (value: string) => void;
   onShowTitleChange: (value: boolean) => void;
+  onTitleAlignmentChange: (value: PageTitleAlignmentValue) => void;
+}
+
+function formatDateTime(iso: string | null, locale: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString(locale === "de" ? "de-DE" : "en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function EditorMetadataBar({
@@ -291,6 +317,7 @@ function EditorMetadataBar({
   editingSlug,
   editSlugValue,
   editorMessages,
+  locale,
   common,
   onStartEditTitle,
   onTitleValueChange,
@@ -303,9 +330,10 @@ function EditorMetadataBar({
   onCancelSlug,
   onStatusChange,
   onShowTitleChange,
+  onTitleAlignmentChange,
 }: EditorMetadataBarProps) {
   return (
-    <div className="px-6 py-3 flex flex-wrap items-center gap-6 text-xs text-[var(--ds-text-muted)] bg-[var(--ds-surface)]">
+    <div className="px-3 pt-3 pb-1 flex flex-wrap items-center gap-6 text-xs text-[var(--ds-text-muted)] bg-[var(--ds-surface)]">
       <div className="flex items-center gap-2">
         <span className="font-medium">{editorMessages.titleLabel}:</span>
         {editingTitle ? (
@@ -386,14 +414,24 @@ function EditorMetadataBar({
         <span className="font-medium">{editorMessages.showTitleLabel}</span>
       </label>
 
+      {page.showTitle && <PageTitleAlignment value={page.titleAlignment} onChange={onTitleAlignmentChange} />}
+
       {page.createdByUsername && (
-        <div className="ml-auto">
-          {editorMessages.createdBy} <span className="text-[var(--ds-text)]">{page.createdByUsername}</span>
-          {page.updatedByUsername && (
-            <>
-              {" "}
-              · {editorMessages.updatedBy} <span className="text-[var(--ds-text)]">{page.updatedByUsername}</span>
-            </>
+        <div className="ml-auto flex flex-col items-end gap-0.5 leading-tight">
+          <div>
+            {editorMessages.createdBy} <span className="text-[var(--ds-text)]">{page.createdByUsername}</span>
+            {page.updatedByUsername && (
+              <>
+                {" "}
+                · {editorMessages.updatedBy} <span className="text-[var(--ds-text)]">{page.updatedByUsername}</span>
+              </>
+            )}
+          </div>
+          {page.updatedAt && (
+            <div>
+              {editorMessages.updatedAt}{" "}
+              <span className="text-[var(--ds-text)]">{formatDateTime(page.updatedAt, locale)}</span>
+            </div>
           )}
         </div>
       )}
@@ -409,7 +447,7 @@ function EditorMetadataBar({
  * @returns Full editor route component.
  */
 export function ContentEditorPage() {
-  const { messages } = useI18n();
+  const { messages, locale } = useI18n();
   const common = messages.common;
   const editorMessages = messages.content.editor;
   const { slug = "" } = useParams<{ slug: string }>();
@@ -418,6 +456,8 @@ export function ContentEditorPage() {
   const save = useSaveContentPage();
   const patch = usePatchContentPage();
   const deletePage = useDeleteContentPage();
+  const { phase: savedPhase, show: showSaved } = useSaveNotification();
+  const segmentSaveRef = useRef<SegmentSaveFn | null>(null);
 
   const [state, dispatch] = useReducer(editorReducer, undefined, createInitialEditorState);
 
@@ -434,11 +474,22 @@ export function ContentEditorPage() {
   const currentContent = state.draftContent ?? page?.content ?? "";
 
   const handleSave = () => {
-    if (!page || currentContent === page.content) return;
+    if (!page) return;
+    // Segmented pages delegate to the SegmentManager's registered save
+    // routine (segments + active target body). Default pages save the
+    // body via the page-level mutation below.
+    if (page.pageType === "segmented") {
+      void segmentSaveRef.current?.();
+      return;
+    }
+    if (currentContent === page.content) return;
     save.mutate(
       { slug, data: { content: currentContent } },
       {
-        onSuccess: () => dispatch({ type: "setSaved", value: true }),
+        onSuccess: () => {
+          dispatch({ type: "setSaved", value: true });
+          showSaved();
+        },
       },
     );
   };
@@ -462,10 +513,15 @@ export function ContentEditorPage() {
     slug?: string;
     status?: "draft" | "published" | "hidden";
     showTitle?: boolean;
+    titleAlignment?: PageTitleAlignmentValue;
+    displayMode?: PageDisplayMode;
+    overlayWidth?: OverlayWidth;
+    overlayHeight?: OverlayHeight;
   }) {
     dispatch({ type: "setPatchError", value: null });
     try {
       const updated = await patch.mutateAsync({ slug, data });
+      showSaved();
       if (data.slug && data.slug !== slug) {
         navigate(`/pages/${updated.slug}`, { replace: true });
       }
@@ -495,6 +551,7 @@ export function ContentEditorPage() {
         title={title}
         leading={<HeaderBackButton label={messages.content.pages.title} onClick={() => navigate("/pages")} />}
       >
+        <SaveNotification phase={savedPhase} label={common.saved} />
         <EditorHeaderActions
           sourceFontSize={state.sourceFontSize}
           canIncreaseFont={state.sourceFontSize < FONT_SIZE_MAX}
@@ -533,6 +590,7 @@ export function ContentEditorPage() {
           editingSlug={state.editingSlug}
           editSlugValue={state.editSlugValue}
           editorMessages={editorMessages}
+          locale={locale}
           common={common}
           onStartEditTitle={() => {
             dispatch({ type: "setEditTitleValue", value: page.title });
@@ -551,36 +609,50 @@ export function ContentEditorPage() {
           onCancelSlug={() => dispatch({ type: "setEditingSlug", value: false })}
           onStatusChange={(value) => void handlePatch({ status: value as "draft" | "published" | "hidden" })}
           onShowTitleChange={(value) => void handlePatch({ showTitle: value })}
+          onTitleAlignmentChange={(value) => void handlePatch({ titleAlignment: value })}
         />
       )}
 
-      <DashboardSection>
-        <DashboardSection.Header icon={<MarkdownLogoIcon weight="duotone" className="w-4 h-4" />} title={title} />
-        <PageBody
-          className="overflow-hidden"
-          style={{ "--source-font-size": `${state.sourceFontSize}px` } as React.CSSProperties}
-        >
+      {page && (
+        <PageDisplaySettings
+          displayMode={page.displayMode}
+          overlayWidth={page.overlayWidth}
+          overlayHeight={page.overlayHeight}
+          onChange={(patch) => void handlePatch(patch)}
+        />
+      )}
+
+      {page && page.pageType === "segmented" ? (
+        <PageBody className="overflow-visible flex flex-col gap-3">
           {isLoading && (
             <div className="flex items-center justify-center h-64 text-[var(--ds-text-subtle)] text-sm">
               {editorMessages.loadingContent}
             </div>
           )}
-
-          {page && (
-            <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>
-              <MarkdownEditor
-                key={slug}
-                value={currentContent}
-                onChange={handleChange}
-                height="100%"
-                className="rounded-none border-none"
-              />
-            </Suspense>
-          )}
-
+          <SegmentManager page={page} onSaved={showSaved} saveRef={segmentSaveRef} />
           {save.isError && <p className="text-red-500 text-sm text-center mt-4">{editorMessages.saveError}</p>}
         </PageBody>
-      </DashboardSection>
+      ) : (
+        <DashboardSection>
+          <DashboardSection.Header icon={<MarkdownLogoIcon weight="duotone" className="w-4 h-4" />} title={title} />
+          <PageBody
+            className="overflow-hidden"
+            style={{ "--source-font-size": `${state.sourceFontSize}px` } as React.CSSProperties}
+          >
+            {isLoading && (
+              <div className="flex items-center justify-center h-64 text-[var(--ds-text-subtle)] text-sm">
+                {editorMessages.loadingContent}
+              </div>
+            )}
+            {page && (
+              <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>
+                <MarkdownEditor key={slug} value={currentContent} onChange={handleChange} height="100%" showHints />
+              </Suspense>
+            )}
+            {save.isError && <p className="text-red-500 text-sm text-center mt-4">{editorMessages.saveError}</p>}
+          </PageBody>
+        </DashboardSection>
+      )}
     </PageLayout>
   );
 }

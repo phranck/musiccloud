@@ -1,4 +1,6 @@
 import { XIcon } from "@phosphor-icons/react";
+
+import { TranslucentCard } from "@/components/cards/TranslucentCard";
 import { type InfoPanelTab, useInfoPanel } from "@/hooks/useInfoPanel";
 import { useLocale, useT } from "@/i18n/context";
 
@@ -55,41 +57,18 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
       />
 
       <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="info-panel-title"
-          className={`pointer-events-auto
-                     w-[560px] max-w-[calc(100vw-2rem)]
-                     max-h-[60vh] flex flex-col
-                     bg-white/[0.05] backdrop-blur-2xl border border-white/[0.08] rounded-2xl
-                     shadow-2xl overflow-hidden
-                     ${transitionClasses} ${visibilityClasses}`}
+        <TranslucentCard
+          className={`pointer-events-auto w-[560px] max-w-[calc(100vw-2rem)] max-h-[60vh] ${transitionClasses} ${visibilityClasses}`}
         >
-          <div className="flex items-end justify-between px-6 pt-5 flex-shrink-0">
-            <div id="info-panel-title" role="tablist" className="flex gap-6 border-b border-white/[0.08] -mb-px">
-              {tabs.map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  id={`tab-${id}`}
-                  aria-selected={activeTab === id}
-                  aria-controls={`panel-${id}`}
-                  onClick={() => setActiveTab(id)}
-                  className={`pb-3 text-base font-medium tracking-[-0.01em] transition-colors duration-150
-                    border-b-2 -mb-px focus:outline-none
-                    ${
-                      activeTab === id
-                        ? "text-white border-white/50"
-                        : "text-white/30 border-transparent hover:text-white/55"
-                    }`}
-                >
-                  {label}
-                </button>
-              ))}
+          <TranslucentCard.Header className="flex items-end justify-between pb-0">
+            <div id="info-panel-title" className="flex-1">
+              <TranslucentCard.SegmentedControl
+                className="px-0 border-b-0"
+                segments={tabs.map((tab) => ({ key: tab.id, label: tab.label }))}
+                value={activeTab}
+                onChange={(next) => setActiveTab(next as InfoPanelTab)}
+              />
             </div>
-
             <button
               type="button"
               onClick={handleClose}
@@ -98,7 +77,7 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
             >
               <XIcon size={16} weight="duotone" />
             </button>
-          </div>
+          </TranslucentCard.Header>
 
           <div
             className={`overflow-hidden relative flex-shrink-0 ${contentHeight !== null ? "transition-[height] duration-300 ease-in-out" : ""}`}
@@ -126,7 +105,7 @@ export function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
               </div>
             ))}
           </div>
-        </div>
+        </TranslucentCard>
       </div>
     </>
   );

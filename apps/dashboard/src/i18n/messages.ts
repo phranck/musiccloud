@@ -334,8 +334,13 @@ export interface DashboardMessages {
       statusPublished: string;
       statusHidden: string;
       showTitleLabel: string;
+      titleAlignmentLabel: string;
+      titleAlignmentLeft: string;
+      titleAlignmentCenter: string;
+      titleAlignmentRight: string;
       createdBy: string;
       updatedBy: string;
+      updatedAt: string;
       loadingContent: string;
       saveError: string;
       preview: string;
@@ -468,6 +473,9 @@ export interface DashboardMessages {
       createTitle: string;
       fieldTitle: string;
       fieldSlug: string;
+      fieldPageType: string;
+      pageTypeDefault: string;
+      pageTypeSegmented: string;
       titlePlaceholder: string;
       slugPlaceholder: string;
       create: string;
@@ -479,10 +487,41 @@ export interface DashboardMessages {
       emptyPages: string;
       emptyPagesHint: string;
       deletePageTitle: string;
+      display: {
+        displayMode: string;
+        fullscreen: string;
+        embossed: string;
+        translucent: string;
+        overlayWidth: string;
+        overlayHeight: string;
+        widthSmall: string;
+        widthRegular: string;
+        widthBig: string;
+        heightSmall: string;
+        heightRegular: string;
+        heightDynamic: string;
+        heightExpanded: string;
+      };
+      segments: {
+        title: string;
+        empty: string;
+        addSegment: string;
+        labelPlaceholder: string;
+        targetPlaceholder: string;
+        noDefaultPages: string;
+        save: string;
+        saving: string;
+        saveError: string;
+        moveUp: string;
+        moveDown: string;
+        remove: string;
+        preview: string;
+      };
       table: {
         title: string;
         slug: string;
         status: string;
+        type: string;
         createdBy: string;
         updatedAt: string;
       };
@@ -1047,8 +1086,13 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         statusPublished: "Ver\u00f6ffentlicht",
         statusHidden: "Versteckt",
         showTitleLabel: "Titel anzeigen",
+        titleAlignmentLabel: "Ausrichtung",
+        titleAlignmentLeft: "Links",
+        titleAlignmentCenter: "Zentriert",
+        titleAlignmentRight: "Rechts",
         createdBy: "Erstellt von",
         updatedBy: "Aktualisiert von",
+        updatedAt: "Aktualisiert am",
         loadingContent: "Inhalt wird geladen\u2026",
         saveError: "Fehler beim Speichern",
         preview: "Vorschau",
@@ -1161,6 +1205,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         createTitle: "Seite erstellen",
         fieldTitle: "Titel",
         fieldSlug: "Slug",
+        fieldPageType: "Seitentyp",
+        pageTypeDefault: "Standard",
+        pageTypeSegmented: "Segmentiert",
         titlePlaceholder: "Seitentitel",
         slugPlaceholder: "seiten-slug",
         create: "Erstellen",
@@ -1172,10 +1219,41 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emptyPages: "Keine Seiten vorhanden",
         emptyPagesHint: "Erstelle eine neue Seite.",
         deletePageTitle: "Seite l\u00f6schen",
+        display: {
+          displayMode: "Darstellung",
+          fullscreen: "Vollbild",
+          embossed: "Embossed-Overlay",
+          translucent: "Translucent-Overlay",
+          overlayWidth: "Breite",
+          overlayHeight: "H\u00f6he",
+          widthSmall: "Schmal",
+          widthRegular: "Normal",
+          widthBig: "Gro\u00df",
+          heightSmall: "Niedrig",
+          heightRegular: "Normal",
+          heightDynamic: "Dynamisch",
+          heightExpanded: "Hoch",
+        },
+        segments: {
+          title: "Segmente",
+          empty: "Noch keine Segmente definiert.",
+          addSegment: "Segment hinzuf\u00fcgen",
+          labelPlaceholder: "Beschriftung",
+          targetPlaceholder: "Zielseite w\u00e4hlen",
+          noDefaultPages: "Keine Standardseiten vorhanden. Erstelle zuerst eine Standardseite.",
+          save: "Segmente speichern",
+          saving: "Wird gespeichert\u2026",
+          saveError: "Fehler beim Speichern",
+          moveUp: "Nach oben",
+          moveDown: "Nach unten",
+          remove: "Entfernen",
+          preview: "Vorschau",
+        },
         table: {
           title: "Titel",
           slug: "Slug",
           status: "Status",
+          type: "Typ",
           createdBy: "Erstellt von",
           updatedAt: "Aktualisiert am",
         },
@@ -1731,8 +1809,13 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         statusPublished: "Published",
         statusHidden: "Hidden",
         showTitleLabel: "Show title",
+        titleAlignmentLabel: "Alignment",
+        titleAlignmentLeft: "Left",
+        titleAlignmentCenter: "Center",
+        titleAlignmentRight: "Right",
         createdBy: "Created by",
         updatedBy: "Updated by",
+        updatedAt: "Updated at",
         loadingContent: "Loading content\u2026",
         saveError: "Error saving",
         preview: "Preview",
@@ -1845,6 +1928,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         createTitle: "Create Page",
         fieldTitle: "Title",
         fieldSlug: "Slug",
+        fieldPageType: "Page type",
+        pageTypeDefault: "Default",
+        pageTypeSegmented: "Segmented",
         titlePlaceholder: "Page title",
         slugPlaceholder: "page-slug",
         create: "Create",
@@ -1856,10 +1942,41 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emptyPages: "No pages yet",
         emptyPagesHint: "Create a new page.",
         deletePageTitle: "Delete Page",
+        display: {
+          displayMode: "Display",
+          fullscreen: "Fullscreen",
+          embossed: "Embossed overlay",
+          translucent: "Translucent overlay",
+          overlayWidth: "Width",
+          overlayHeight: "Height",
+          widthSmall: "Small",
+          widthRegular: "Regular",
+          widthBig: "Big",
+          heightSmall: "Small",
+          heightRegular: "Regular",
+          heightDynamic: "Dynamic",
+          heightExpanded: "Expanded",
+        },
+        segments: {
+          title: "Segments",
+          empty: "No segments yet.",
+          addSegment: "Add segment",
+          labelPlaceholder: "Label",
+          targetPlaceholder: "Pick a target page",
+          noDefaultPages: "No default pages available. Create a default page first.",
+          save: "Save segments",
+          saving: "Saving\u2026",
+          saveError: "Failed to save",
+          moveUp: "Move up",
+          moveDown: "Move down",
+          remove: "Remove",
+          preview: "Preview",
+        },
         table: {
           title: "Title",
           slug: "Slug",
           status: "Status",
+          type: "Type",
           createdBy: "Created by",
           updatedAt: "Updated at",
         },

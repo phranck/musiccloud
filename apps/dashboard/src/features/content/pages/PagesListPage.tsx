@@ -9,15 +9,8 @@ import {
 } from "@phosphor-icons/react";
 import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
-
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import {
-  Dialog,
-  dialogBtnDestructive,
-  dialogBtnPrimary,
-  dialogBtnSecondary,
-  dialogHeaderIconClass,
-} from "@/components/ui/Dialog";
+import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import type { ColumnDef } from "@/components/ui/Table";
@@ -25,24 +18,13 @@ import { DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { useI18n } from "@/context/I18nContext";
 import {
-  type ContentPage as ContentPageHookRow,
+  type ContentPageSummary,
   useContentPages,
-  useCreateContentPage,
   useDeleteContentPage,
 } from "@/features/content/hooks/useAdminContent";
+import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
 
-type ContentPage = ContentPageHookRow;
-
-function slugify(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+type ContentPage = ContentPageSummary;
 
 function StatusBadge({ status }: { status: string }) {
   const { messages } = useI18n();
@@ -84,19 +66,11 @@ function formatDate(isoDate: string | null, locale: string): string {
 
 interface PagesListState {
   showCreate: boolean;
-  title: string;
-  slug: string;
-  slugManual: boolean;
-  createError: string | null;
   deleteTarget: { slug: string; title: string } | null;
 }
 
 const initialState: PagesListState = {
   showCreate: false,
-  title: "",
-  slug: "",
-  slugManual: false,
-  createError: null,
   deleteTarget: null,
 };
 
@@ -105,7 +79,6 @@ export function PagesListPage() {
   const text = messages.content.pages;
   const common = messages.common;
   const { data: pages = [], isLoading } = useContentPages();
-  const createPage = useCreateContentPage();
   const deletePage = useDeleteContentPage();
   const navigate = useNavigate();
 
@@ -113,31 +86,7 @@ export function PagesListPage() {
     (prev: PagesListState, action: Partial<PagesListState>): PagesListState => ({ ...prev, ...action }),
     initialState,
   );
-  const { showCreate, title, slug, slugManual, createError, deleteTarget } = state;
-
-  function handleTitleChange(val: string) {
-    dispatch(slugManual ? { title: val } : { title: val, slug: slugify(val) });
-  }
-
-  function handleSlugChange(val: string) {
-    dispatch({ slug: val, slugManual: true });
-  }
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    dispatch({ createError: null });
-    try {
-      const page = await createPage.mutateAsync({ slug, title });
-      dispatch({ showCreate: false, title: "", slug: "", slugManual: false });
-      navigate(`/pages/${page.slug}`);
-    } catch (err) {
-      dispatch({ createError: err instanceof Error ? err.message : (text.createError ?? "") });
-    }
-  }
-
-  function handleCancelCreate() {
-    dispatch({ showCreate: false, title: "", slug: "", slugManual: false, createError: null });
-  }
+  const { showCreate, deleteTarget } = state;
 
   const handleDeleteRequest = useCallback((pageSlug: string, pageTitle: string) => {
     dispatch({ deleteTarget: { slug: pageSlug, title: pageTitle } });
@@ -170,6 +119,15 @@ export function PagesListPage() {
         id: "slug",
         header: text.table.slug,
         cell: (page) => <span className="font-mono text-xs text-[var(--ds-text-muted)]">/{page.slug}</span>,
+      },
+      {
+        id: "type",
+        header: text.table.type,
+        cell: (page) => (
+          <span className="text-xs text-[var(--ds-text-muted)]">
+            {page.pageType === "segmented" ? text.pageTypeSegmented : text.pageTypeDefault}
+          </span>
+        ),
       },
       {
         id: "status",
@@ -251,67 +209,11 @@ export function PagesListPage() {
         )}
       </PageBody>
 
-      <Dialog
+      <CreatePageDialog
         open={showCreate}
-        title={text.createTitle}
-        titleIcon={<PlusCircleIcon weight="duotone" className={dialogHeaderIconClass} />}
-        onClose={handleCancelCreate}
-      >
-        <form onSubmit={handleCreate}>
-          <div className="p-6 space-y-3">
-            <div>
-              <label
-                htmlFor="content-page-title"
-                className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1"
-              >
-                {text.fieldTitle}
-              </label>
-              <input
-                id="content-page-title"
-                type="text"
-                value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                required
-                autoFocus
-                placeholder={text.titlePlaceholder}
-                className="w-full px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label htmlFor="content-page-slug" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
-                {text.fieldSlug}
-              </label>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--ds-text-muted)] shrink-0">/</span>
-                <input
-                  id="content-page-slug"
-                  type="text"
-                  value={slug}
-                  onChange={(e) => handleSlugChange(e.target.value)}
-                  required
-                  pattern="[a-z0-9-]+"
-                  placeholder={text.slugPlaceholder}
-                  className="flex-1 px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent font-mono"
-                />
-              </div>
-            </div>
-            {createError && <p className="text-xs text-red-500">{createError}</p>}
-          </div>
-          <Dialog.Footer>
-            <button
-              type="button"
-              onClick={handleCancelCreate}
-              disabled={createPage.isPending}
-              className={dialogBtnSecondary}
-            >
-              {common.cancel}
-            </button>
-            <button type="submit" disabled={createPage.isPending || !slug || !title} className={dialogBtnPrimary}>
-              {createPage.isPending ? text.creating : text.create}
-            </button>
-          </Dialog.Footer>
-        </form>
-      </Dialog>
+        onClose={() => dispatch({ showCreate: false })}
+        onCreated={(page) => navigate(`/pages/${page.slug}`)}
+      />
 
       <Dialog
         open={deleteTarget !== null}

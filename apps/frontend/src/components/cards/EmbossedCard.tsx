@@ -1,4 +1,5 @@
 import { Children, isValidElement, type ReactNode } from "react";
+import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
 import { cn } from "@/lib/utils";
 import { embossedCardStyle } from "@/styles/neumorphic";
 
@@ -8,6 +9,9 @@ const HEADER_TAG = Symbol("EmbossedCard.Header");
 const BODY_TAG = Symbol("EmbossedCard.Body");
 const FOOTER_TAG = Symbol("EmbossedCard.Footer");
 const ADDON_TAG = Symbol("EmbossedCard.AddOn");
+const HEADER_ADDON_TAG = Symbol("EmbossedCard.Header.AddOn");
+const HEADER_TITLE_TAG = Symbol("EmbossedCard.Header.Title");
+const SEGMENTS_TAG = Symbol("EmbossedCard.SegmentedControl");
 
 interface HeaderProps {
   children: ReactNode;
@@ -30,10 +34,69 @@ interface AddOnProps {
   className?: string;
 }
 
-function Header({ children, className }: HeaderProps) {
+interface HeaderAddOnProps {
+  children: ReactNode;
+  align: "leading" | "trailing";
+  className?: string;
+}
+
+function HeaderAddOn({ children, className }: HeaderAddOnProps) {
   return <div className={className}>{children}</div>;
 }
+(HeaderAddOn as unknown as Record<symbol, boolean>)[HEADER_ADDON_TAG] = true;
+
+interface HeaderTitleProps {
+  children: ReactNode;
+  className?: string;
+  align?: "left" | "center" | "right";
+}
+
+function HeaderTitle({ children, className, align }: HeaderTitleProps) {
+  return (
+    <h2
+      className={cn("text-xl font-semibold tracking-[-0.01em] text-text-primary truncate flex-1 min-w-0", className)}
+      style={align ? { textAlign: align } : undefined}
+    >
+      {children}
+    </h2>
+  );
+}
+
+function Header({ children, className }: HeaderProps) {
+  const childArray = Children.toArray(children);
+  const leading = childArray.filter(
+    (c) => hasTag(c, HEADER_ADDON_TAG) && isValidElement<HeaderAddOnProps>(c) && c.props.align === "leading",
+  );
+  const trailing = childArray.filter(
+    (c) => hasTag(c, HEADER_ADDON_TAG) && isValidElement<HeaderAddOnProps>(c) && c.props.align === "trailing",
+  );
+  const main = childArray.filter((c) => !hasTag(c, HEADER_ADDON_TAG));
+  const hasHeaderAddons = leading.length > 0 || trailing.length > 0;
+
+  if (!hasHeaderAddons) return <div className={className}>{children}</div>;
+
+  // AddOns are positioned absolutely inside the header's padding box.
+  // The inner relative wrapper inherits the Header's padding via classes
+  // applied on the outer `className` — meaning left-0/right-0 on the
+  // inner wrapper sits just inside the padding, not at the card edge.
+  return (
+    <div className={className}>
+      <div className="relative flex items-center w-full min-h-8 gap-2">
+        {leading.length > 0 && <div className="flex items-center shrink-0 mr-auto">{leading}</div>}
+        <div className="flex-1 min-w-0 text-center">{main}</div>
+        {trailing.length > 0 && <div className="flex items-center shrink-0 ml-auto">{trailing}</div>}
+      </div>
+    </div>
+  );
+}
 (Header as unknown as Record<symbol, boolean>)[HEADER_TAG] = true;
+
+(HeaderTitle as unknown as Record<symbol, boolean>)[HEADER_TITLE_TAG] = true;
+
+type HeaderWithSubcomponents = typeof Header & { AddOn: typeof HeaderAddOn; Title: typeof HeaderTitle };
+const TypedHeader = Header as HeaderWithSubcomponents;
+TypedHeader.AddOn = HeaderAddOn;
+TypedHeader.Title = HeaderTitle;
 
 function Body({ children, className }: BodyProps) {
   // `flex flex-col` is baked in so that callers using `flex-1 min-h-0` on
@@ -126,6 +189,7 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   const childArray = Children.toArray(children);
 
   const headerChild = childArray.find((c) => hasTag(c, HEADER_TAG));
+  const segmentsChild = childArray.find((c) => hasTag(c, SEGMENTS_TAG));
   const bodyChild = childArray.find((c) => hasTag(c, BODY_TAG));
   const footerChild = childArray.find((c) => hasTag(c, FOOTER_TAG));
   const leadingAddOns = childArray.filter(
@@ -136,7 +200,7 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   );
 
   const hasAddOns = leadingAddOns.length > 0 || trailingAddOns.length > 0;
-  const isCompound = !!(headerChild || bodyChild || footerChild || hasAddOns);
+  const isCompound = !!(headerChild || bodyChild || footerChild || hasAddOns || segmentsChild);
 
   // Only inline padding/radius when the caller didn't supply a `p-*` /
   // `rounded-*` className override. Falling back to defaults in the
@@ -193,6 +257,7 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
           ) : (
             headerChild
           )}
+          {segmentsChild}
           {bodyChild}
           {footerChild}
         </>
@@ -203,7 +268,32 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   );
 }
 
-EmbossedCard.Header = Header;
+// Full-width segmented control slot — used by segmented content-page overlays
+// and by the fullscreen segmented-page island. Reuses the project-wide
+// SegmentedControl (recessed track + sliding embossed indicator) verbatim.
+interface EmbossedSegmentedControlProps<T extends string> {
+  segments: { key: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  className?: string;
+}
+
+function SegmentedControlSlot<T extends string>({
+  segments,
+  value,
+  onChange,
+  className,
+}: EmbossedSegmentedControlProps<T>) {
+  return (
+    <div className={cn("w-full mt-3", className)}>
+      <EmbossedSegmentedControl segments={segments} value={value} onChange={onChange} className="w-full" />
+    </div>
+  );
+}
+(SegmentedControlSlot as unknown as Record<symbol, boolean>)[SEGMENTS_TAG] = true;
+
+EmbossedCard.Header = TypedHeader;
 EmbossedCard.Body = Body;
 EmbossedCard.Footer = Footer;
 EmbossedCard.AddOn = AddOn;
+EmbossedCard.SegmentedControl = SegmentedControlSlot;
