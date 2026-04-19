@@ -5,19 +5,28 @@ import { SlideArtwork } from "@/components/ui/SlideArtwork";
 
 interface PopularTracksSectionProps {
   tracks: ArtistTopTrack[];
+  onError?: (err: unknown) => void;
 }
 
-export function PopularTracksSection({ tracks }: PopularTracksSectionProps) {
+export function PopularTracksSection({ tracks, onError }: PopularTracksSectionProps) {
   return (
     <div className="flex flex-col gap-1.5">
       {tracks.map((track) => (
-        <PopularTrack key={track.deezerUrl} track={track} />
+        <PopularTrack key={track.deezerUrl} track={track} onError={onError} />
       ))}
     </div>
   );
 }
 
-export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; artistLabel?: string }) {
+export function PopularTrack({
+  track,
+  artistLabel,
+  onError,
+}: {
+  track: ArtistTopTrack;
+  artistLabel?: string;
+  onError?: (err: unknown) => void;
+}) {
   const showAlbum = !artistLabel && track.albumName && track.albumName !== track.title;
   const [resolving, setResolving] = useState(false);
 
@@ -37,7 +46,7 @@ export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; ar
     })
       .then((res) => {
         clearTimeout(timeout);
-        if (!res.ok) throw new Error("resolve failed");
+        if (!res.ok) throw new Error(`resolve failed: ${res.status}`);
         return res.json() as Promise<{ shortUrl?: string }>;
       })
       .then((data) => {
@@ -46,13 +55,16 @@ export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; ar
           window.location.href = path;
         } else {
           setResolving(false);
+          onError?.(new Error("resolve returned no shortUrl"));
         }
       })
-      .catch(() => {
+      .catch((err) => {
         clearTimeout(timeout);
         setResolving(false);
+        if (import.meta.env.DEV) console.warn("[PopularTrack] resolve failed:", err);
+        onError?.(err);
       });
-  }, [track.shortId, track.deezerUrl]);
+  }, [track.shortId, track.deezerUrl, onError]);
 
   return (
     <EmbossedButton

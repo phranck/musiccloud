@@ -38,8 +38,11 @@ export function PlatformIconRow() {
       try {
         const res = await fetch(ENDPOINTS.frontend.activeServices, { signal: controller.signal });
         if (res.ok) result = (await res.json()) as ActiveService[];
-      } catch {
-        // fall through with empty list
+        else if (import.meta.env.DEV) console.warn("[PlatformIconRow] active-services fetch failed:", res.status);
+      } catch (err) {
+        if (import.meta.env.DEV && !(err instanceof DOMException && err.name === "AbortError")) {
+          console.warn("[PlatformIconRow] active-services fetch error:", err);
+        }
       } finally {
         clearTimeout(timeout);
       }
