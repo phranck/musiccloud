@@ -1,4 +1,4 @@
-import { CheckIcon, LinkSimpleIcon, ShareNetworkIcon } from "@phosphor-icons/react";
+import { CheckIcon, LinkSimpleIcon, ShareNetworkIcon, WarningIcon } from "@phosphor-icons/react";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { EmbossedButton, iconInnerShadow } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
@@ -12,7 +12,7 @@ interface ShareButtonProps {
   artistName?: string;
 }
 
-type ShareState = "idle" | "copied";
+type ShareState = "idle" | "copied" | "error";
 
 export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProps) {
   const t = useT();
@@ -21,10 +21,10 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
+      setState("copied");
     } catch {
-      // Clipboard unavailable (non-secure context or permissions denied)
+      setState("error");
     }
-    setState("copied");
     setTimeout(() => setState("idle"), 2000);
   }, [shareUrl]);
 
@@ -69,7 +69,9 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
                 "bg-[var(--color-accent-resolved,rgba(255,255,255,0.09))]",
                 "hover:bg-[var(--color-accent-hover-resolved,rgba(255,255,255,0.12))]",
               ]
-            : "bg-success/20 text-success",
+            : state === "copied"
+              ? "bg-success/20 text-success"
+              : "bg-error/20 text-error",
         )}
         style={
           state === "idle"
@@ -83,20 +85,31 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
                 "--neu-shadow": "color-mix(in hsl, var(--color-accent-resolved, rgba(0,0,0,0.6)), black 65%)",
                 transition: "background-color 220ms ease-out, color 220ms ease-out, box-shadow 220ms ease-out",
               } as React.CSSProperties)
-            : {
-                boxShadow: "3px 3px 10px rgba(0,0,0,0.6), -2px -2px 6px rgba(48,209,88,0.10)",
-              }
+            : state === "copied"
+              ? {
+                  boxShadow: "3px 3px 10px rgba(0,0,0,0.6), -2px -2px 6px rgba(48,209,88,0.10)",
+                }
+              : {
+                  boxShadow: "3px 3px 10px rgba(0,0,0,0.6), -2px -2px 6px rgba(255,69,58,0.15)",
+                }
         }
       >
-        {state === "idle" ? (
+        {state === "idle" && (
           <>
             <LinkSimpleIcon size={20} weight="duotone" />
             {t("share.shareLink")}
           </>
-        ) : (
+        )}
+        {state === "copied" && (
           <>
             <CheckIcon size={16} weight="duotone" />
             {t("share.copied")}
+          </>
+        )}
+        {state === "error" && (
+          <>
+            <WarningIcon size={16} weight="duotone" />
+            {t("share.copyError")}
           </>
         )}
       </EmbossedButton>

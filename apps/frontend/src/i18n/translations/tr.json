@@ -20,6 +20,7 @@
   "share.copyLink": "Paylaşım bağlantısını kopyala",
   "share.shareLink": "Bağlantıyı kopyala",
   "share.copied": "Kopyalandı!",
+  "share.copyError": "Kopyalama başarısız",
   "share.nativeShare": "\"{title}\" paylaş",
   "error.offline": "Çevrimdışı görünüyorsunuz. Bağlantınızı kontrol edin ve tekrar deneyin.",
   "error.timeout": "Bu normalden uzun sürüyor. Lütfen tekrar deneyin.",

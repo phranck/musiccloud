@@ -20,6 +20,7 @@
   "share.copyLink": "Zkopírovat sdílený odkaz",
   "share.shareLink": "Kopírovat odkaz",
   "share.copied": "Zkopírováno!",
+  "share.copyError": "Kopírování selhalo",
   "share.nativeShare": "Sdílet \"{title}\"",
   "error.offline": "Zdá se, že jste offline. Zkontrolujte připojení a zkuste to znovu.",
   "error.timeout": "To trvá déle než obvykle. Zkuste to prosím znovu.",

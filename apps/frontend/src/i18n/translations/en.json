@@ -41,6 +41,7 @@
   "share.copyLink": "Copy share link to clipboard",
   "share.shareLink": "Copy Share Link",
   "share.copied": "Copied!",
+  "share.copyError": "Copy failed",
   "share.nativeShare": "Share \"{title}\"",
   "error.offline": "Looks like you're offline. Check your connection and try again.",
   "error.timeout": "This is taking longer than usual. Please try again.",

@@ -41,6 +41,7 @@
   "share.copyLink": "Link in Zwischenablage kopieren",
   "share.shareLink": "Link kopieren",
   "share.copied": "Kopiert!",
+  "share.copyError": "Kopieren fehlgeschlagen",
   "share.nativeShare": "\"{title}\" teilen",
   "error.offline": "Du scheinst offline zu sein. Überprüfe deine Verbindung und versuche es erneut.",
   "error.timeout": "Das dauert länger als üblich. Bitte versuche es erneut.",
