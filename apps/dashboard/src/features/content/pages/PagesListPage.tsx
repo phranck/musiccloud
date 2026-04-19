@@ -18,6 +18,7 @@ import {
   dialogBtnSecondary,
   dialogHeaderIconClass,
 } from "@/components/ui/Dialog";
+import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import type { ColumnDef } from "@/components/ui/Table";
@@ -315,31 +316,16 @@ export function PagesListPage() {
             </div>
             <div>
               <span className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">{text.fieldPageType}</span>
-              <div className="flex gap-2">
-                {(["default", "segmented"] as const).map((pt) => {
-                  const active = pageType === pt;
-                  return (
-                    <label
-                      key={pt}
-                      className={`flex-1 px-3 py-2 text-xs border rounded-control cursor-pointer text-center ${
-                        active
-                          ? "border-[var(--color-primary)] text-[var(--ds-text)]"
-                          : "border-[var(--ds-border)] text-[var(--ds-text-muted)]"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="pageType"
-                        value={pt}
-                        checked={active}
-                        onChange={() => dispatch({ pageType: pt })}
-                        className="sr-only"
-                      />
-                      {pt === "default" ? text.pageTypeDefault : text.pageTypeSegmented}
-                    </label>
-                  );
-                })}
-              </div>
+              <Dropdown<PageType>
+                value={pageType}
+                onChange={(v) => dispatch({ pageType: v })}
+                options={
+                  [
+                    { value: "default", label: text.pageTypeDefault },
+                    { value: "segmented", label: text.pageTypeSegmented },
+                  ] satisfies DropdownOption<PageType>[]
+                }
+              />
             </div>
             {createError && <p className="text-xs text-red-500">{createError}</p>}
           </div>
