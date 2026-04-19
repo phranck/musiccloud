@@ -1,5 +1,6 @@
 import { Children, isValidElement, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { embossedCardStyle } from "@/styles/neumorphic";
 
 // ─── Sub-component type tags ───────────────────────────────────────────────
@@ -8,6 +9,7 @@ const HEADER_TAG = Symbol("EmbossedCard.Header");
 const BODY_TAG = Symbol("EmbossedCard.Body");
 const FOOTER_TAG = Symbol("EmbossedCard.Footer");
 const ADDON_TAG = Symbol("EmbossedCard.AddOn");
+const SEGMENTS_TAG = Symbol("EmbossedCard.SegmentedControl");
 
 interface HeaderProps {
   children: ReactNode;
@@ -126,6 +128,7 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   const childArray = Children.toArray(children);
 
   const headerChild = childArray.find((c) => hasTag(c, HEADER_TAG));
+  const segmentsChild = childArray.find((c) => hasTag(c, SEGMENTS_TAG));
   const bodyChild = childArray.find((c) => hasTag(c, BODY_TAG));
   const footerChild = childArray.find((c) => hasTag(c, FOOTER_TAG));
   const leadingAddOns = childArray.filter(
@@ -136,7 +139,7 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   );
 
   const hasAddOns = leadingAddOns.length > 0 || trailingAddOns.length > 0;
-  const isCompound = !!(headerChild || bodyChild || footerChild || hasAddOns);
+  const isCompound = !!(headerChild || bodyChild || footerChild || hasAddOns || segmentsChild);
 
   // Only inline padding/radius when the caller didn't supply a `p-*` /
   // `rounded-*` className override. Falling back to defaults in the
@@ -193,6 +196,7 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
           ) : (
             headerChild
           )}
+          {segmentsChild}
           {bodyChild}
           {footerChild}
         </>
@@ -203,7 +207,37 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   );
 }
 
+// Full-width segmented control slot — used by segmented content-page overlays
+// and by the fullscreen segmented-page island. Reuses the project-wide
+// SegmentedControl (recessed track + sliding embossed indicator) verbatim.
+interface EmbossedSegmentedControlProps<T extends string> {
+  segments: { key: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  className?: string;
+}
+
+function SegmentedControlSlot<T extends string>({
+  segments,
+  value,
+  onChange,
+  className,
+}: EmbossedSegmentedControlProps<T>) {
+  return (
+    <div className={cn("w-full mt-3", className)}>
+      <SegmentedControl
+        segments={segments}
+        value={value}
+        onChange={onChange}
+        className="w-full"
+      />
+    </div>
+  );
+}
+(SegmentedControlSlot as unknown as Record<symbol, boolean>)[SEGMENTS_TAG] = true;
+
 EmbossedCard.Header = Header;
 EmbossedCard.Body = Body;
 EmbossedCard.Footer = Footer;
 EmbossedCard.AddOn = AddOn;
+EmbossedCard.SegmentedControl = SegmentedControlSlot;
