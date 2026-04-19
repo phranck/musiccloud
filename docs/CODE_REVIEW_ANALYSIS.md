@@ -219,6 +219,27 @@ Findings re-examined and **invalidated**:
 
 - **#1 Zero test coverage** — frontend Vitest + Playwright setup. Larger task, needs separate plan.
 - **Follow-up**: Fastify `trustProxy` so `request.ip` reflects the real client behind Zerops, making the artist-info limiter per-client instead of global.
-- **#4 `set:html` trust boundary** — add comment/lint rule, or move sanitization to backend.
+- **#4 `set:html` trust boundary** — `PageOverlayContent.tsx:41` has an explicit trust-boundary comment; `pages/[shortId].astro:170` does not. Add the same doc-comment at that call-site.
 - **#7.1 callsite wiring** — `ArtistInfoCard` / `SimilarArtistsSection` do not yet pass `onError` to `PopularTracksSection` / `PopularTrack`. Needs a shared toast context (current `useToast` is local state, not a provider).
 - **Low**: `GenreSearchResults` ASCII-only title-case regex, `api/v1/content/[slug].ts` generic 503.
+
+---
+
+## Re-review pass — 2026-04-19 late
+
+A second read-every-file pass was performed after the original review was found to contain partial-read errors. Methodology: every flagged file and every file in the frontend `src/` tree read end-to-end, including call paths.
+
+### Re-review findings (addressed)
+
+| # | File:Line | Severity | Commit |
+|---|---|---|---|
+| NEW-1 | `ShareButton.tsx:21-29` | HIGH | `bd1c77d` — same clipboard false-positive as old EmbedModal; 3-state + i18n key added |
+| NEW-2 | `OverlayContext.tsx:105` | MEDIUM | `f673f58` — overlay-open fetch now has 5 s AbortController |
+| NEW-3 | `PageHeader.tsx` + `AppFooter.tsx` | MEDIUM | `0a9aa41` — nav `item.url` whitelist (only `/`, `http(s)://`, `mailto:`, `tel:`); extracted to `src/lib/nav.ts` |
+| NEW-4 | `GenreBrowseGrid.tsx:50` | LOW | `9e5034c` — backend `accentColor` matched against color-notation whitelist before inline-style assignment |
+| NEW-5 | `ShareLayout.tsx:38-93` | LOW | `abf2ebf` — `TIMEZONE_TO_COUNTRY` expanded with SE/S Asia, Middle East, Africa, Latin America, HK/TW |
+
+### Prior findings re-validated
+
+- **#2, #3a, #5, #6, #7.2, #7.3, #10** — re-inspected; fixes stand.
+- **#3b, #8, #9** — re-inspected; stayed invalid.
