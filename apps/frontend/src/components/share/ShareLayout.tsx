@@ -24,6 +24,7 @@ import { ArtistInfoCard } from "@/components/share/ArtistInfoCard";
 import { SharePageCard } from "@/components/share/SharePageCard";
 import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { ToastProvider } from "@/context/ToastContext";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { LocaleProvider, useT } from "@/i18n/context";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
@@ -147,7 +148,9 @@ interface ShareLayoutProps {
 export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
   return (
     <LocaleProvider initialLocale={initialLocale as import("@/i18n/locales").Locale | undefined}>
-      <ShareLayoutInner {...props} />
+      <ToastProvider>
+        <ShareLayoutInner {...props} />
+      </ToastProvider>
     </LocaleProvider>
   );
 }
