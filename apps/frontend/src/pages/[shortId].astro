@@ -167,6 +167,11 @@ const pageTitle = contentPage
         {contentPage.pageType === "segmented" ? (
           <SegmentedPageFullscreen client:load page={contentPage} />
         ) : (
+          // set:html trust boundary: `contentPage.contentHtml` is rendered by the
+          // backend markdown renderer from admin-authored source and arrives
+          // sanitized. Do not feed this with any data that has not been through
+          // the backend's renderer. See `PageOverlayContent.tsx:41` for the
+          // companion boundary note.
           <article class="prose prose-invert max-w-none" set:html={contentPage.contentHtml} />
         )}
       </main>
