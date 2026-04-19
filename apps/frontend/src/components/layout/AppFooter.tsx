@@ -1,6 +1,7 @@
 import type { NavItem } from "@musiccloud/shared";
 
 import { useT } from "@/i18n/context";
+import { navHref, navLabel } from "@/lib/nav";
 
 const START_YEAR = 2026;
 
@@ -10,14 +11,6 @@ interface AppFooterProps {
 }
 
 const EMPTY_NAV_ITEMS: NavItem[] = [];
-
-function navHref(item: NavItem): string {
-  return item.url ?? (item.pageSlug ? `/${item.pageSlug}` : "#");
-}
-
-function navLabel(item: NavItem): string {
-  return item.label || item.pageTitle || item.url || "—";
-}
 
 /**
  * Application footer: copyright + admin-managed centre nav + "made by LAYERED" link.

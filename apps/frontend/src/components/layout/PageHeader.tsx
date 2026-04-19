@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
 import { InfoButton } from "@/components/ui/InfoButton";
 import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/OverlayContext";
+import { navHref, navLabel } from "@/lib/nav";
 
 interface PageHeaderProps {
   /** Show the circular info button (landing page and result pages only) */
@@ -14,14 +15,6 @@ interface PageHeaderProps {
 }
 
 const EMPTY_NAV_ITEMS: NavItem[] = [];
-
-function navHref(item: NavItem): string {
-  return item.url ?? (item.pageSlug ? `/${item.pageSlug}` : "#");
-}
-
-function navLabel(item: NavItem): string {
-  return item.label || item.pageTitle || item.url || "—";
-}
 
 function isOverlayModeItem(item: NavItem): boolean {
   return item.pageSlug !== null && item.pageDisplayMode !== null && item.pageDisplayMode !== "fullscreen";
