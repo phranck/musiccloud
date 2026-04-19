@@ -191,6 +191,10 @@ export interface NavItemRow {
   target: NavTarget;
   label: string | null;
   position: number;
+  pageType: PageType | null;
+  pageDisplayMode: PageDisplayMode | null;
+  pageOverlayWidth: OverlayWidth | null;
+  pageOverlayHeight: OverlayHeight | null;
 }
 
 export interface NavItemReplaceInput {

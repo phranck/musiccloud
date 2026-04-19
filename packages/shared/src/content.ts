@@ -35,6 +35,11 @@ export interface NavItem {
   target: NavTarget;
   label: string | null;
   position: number;
+  /** Display hints for frontend nav-click interception; null when item points at an external URL. */
+  pageType: PageType | null;
+  pageDisplayMode: PageDisplayMode | null;
+  pageOverlayWidth: OverlayWidth | null;
+  pageOverlayHeight: OverlayHeight | null;
 }
 
 export interface NavItemInput {

@@ -2524,7 +2524,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async listAdminNavItems(navId: NavId): Promise<NavItemRow[]> {
     const result = await this.pool.query(
       `SELECT n.id, n.nav_id, n.page_slug, n.url, n.target, n.position, n.label,
-              p.title AS page_title
+              p.title AS page_title,
+              p.page_type, p.display_mode, p.overlay_width, p.overlay_height
        FROM nav_items n
        LEFT JOIN content_pages p ON p.slug = n.page_slug
        WHERE n.nav_id = $1
@@ -2642,6 +2643,10 @@ interface NavItemSqlRow {
   position: number;
   label: string | null;
   page_title: string | null;
+  page_type: string | null;
+  display_mode: string | null;
+  overlay_width: string | null;
+  overlay_height: string | null;
 }
 
 function rowToNavItem(row: NavItemSqlRow): NavItemRow {
@@ -2654,5 +2659,9 @@ function rowToNavItem(row: NavItemSqlRow): NavItemRow {
     target: row.target as NavTarget,
     label: row.label,
     position: row.position,
+    pageType: row.page_type === null ? null : (row.page_type as PageType),
+    pageDisplayMode: row.display_mode === null ? null : (row.display_mode as PageDisplayMode),
+    pageOverlayWidth: row.overlay_width === null ? null : (row.overlay_width as OverlayWidth),
+    pageOverlayHeight: row.overlay_height === null ? null : (row.overlay_height as OverlayHeight),
   };
 }

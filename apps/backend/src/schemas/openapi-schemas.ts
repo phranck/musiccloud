@@ -758,6 +758,27 @@ export const NavItemSchema = {
     target: { type: "string", enum: ["_self", "_blank"] },
     label: { type: "string", nullable: true, description: "Override label; falls back to pageTitle when null." },
     position: { type: "integer", minimum: 0, description: "Sort order (ascending)." },
+    pageType: {
+      type: "string",
+      nullable: true,
+      enum: ["default", "segmented", null],
+      description: "Display hint for nav-click interception; null for external-URL items.",
+    },
+    pageDisplayMode: {
+      type: "string",
+      nullable: true,
+      enum: ["fullscreen", "embossed", "translucent", null],
+    },
+    pageOverlayWidth: {
+      type: "string",
+      nullable: true,
+      enum: ["small", "regular", "big", null],
+    },
+    pageOverlayHeight: {
+      type: "string",
+      nullable: true,
+      enum: ["small", "regular", "dynamic", "expanded", null],
+    },
   },
   example: {
     id: 7,
@@ -768,6 +789,10 @@ export const NavItemSchema = {
     target: "_self",
     label: null,
     position: 0,
+    pageType: "default",
+    pageDisplayMode: "fullscreen",
+    pageOverlayWidth: "regular",
+    pageOverlayHeight: "regular",
   },
 } as const;
 
