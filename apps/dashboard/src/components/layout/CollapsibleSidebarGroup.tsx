@@ -21,6 +21,7 @@ interface CollapsibleSidebarGroupProps {
   globalOpenState?: boolean | null;
   globalOpenVersion?: number;
   onOpenChange?: (open: boolean) => void;
+  noRail?: boolean;
 }
 
 export function CollapsibleSidebarGroup({
@@ -33,6 +34,7 @@ export function CollapsibleSidebarGroup({
   globalOpenState = null,
   globalOpenVersion = 0,
   onOpenChange,
+  noRail = false,
 }: CollapsibleSidebarGroupProps) {
   const isGroupActive = !!useMatch(routeMatch);
   const [localOpen, setLocalOpen] = useState(() => {
@@ -86,7 +88,9 @@ export function CollapsibleSidebarGroup({
         }`}
       >
         <div className="overflow-hidden">
-          <div className="mt-0.5 ml-3 pl-3 border-l border-[var(--ds-border)] space-y-0.5">{children}</div>
+          <div className={`mt-0.5 space-y-0.5 ${noRail ? "" : "ml-3 pl-3 border-l border-[var(--ds-border)]"}`}>
+            {children}
+          </div>
         </div>
       </div>
     </div>

@@ -131,6 +131,7 @@ export interface ContentPageSummaryRow {
   updatedBy: string | null;
   createdAt: Date;
   updatedAt: Date | null;
+  segments?: { position: number; label: string; targetSlug: string }[];
 }
 
 export interface ContentPageRow extends ContentPageSummaryRow {

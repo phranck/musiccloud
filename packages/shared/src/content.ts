@@ -55,6 +55,12 @@ export interface PageSegmentInput {
   targetSlug: string;
 }
 
+export interface PageSegmentSummary {
+  position: number;
+  label: string;
+  targetSlug: string;
+}
+
 export interface ContentPageSummary {
   slug: string;
   title: string;
@@ -69,6 +75,7 @@ export interface ContentPageSummary {
   updatedByUsername: string | null;
   createdAt: string;
   updatedAt: string | null;
+  segments?: PageSegmentSummary[];
 }
 
 export interface ContentPage extends ContentPageSummary {
