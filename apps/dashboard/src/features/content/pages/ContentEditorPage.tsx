@@ -585,13 +585,7 @@ export function ContentEditorPage() {
           ) : (
             page && (
               <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>
-                <MarkdownEditor
-                  key={slug}
-                  value={currentContent}
-                  onChange={handleChange}
-                  height="100%"
-                  className="rounded-none border-none"
-                />
+                <MarkdownEditor key={slug} value={currentContent} onChange={handleChange} height="100%" showHints />
               </Suspense>
             )
           )}

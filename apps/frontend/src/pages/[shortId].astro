@@ -191,4 +191,16 @@ const pageTitle = contentPage
 
     <AppFooterIsland client:idle navItems={footerNav} />
   </div>
+
+  <!-- Always-on overlay host so nav clicks on overlay-mode pages open
+       client-side without a full reload. When we already rendered an
+       overlay above (inside the contentPage displayMode !== "fullscreen"
+       branch), that island carries `initialPage`; this sibling with
+       initialPage=null is a no-op because both share the same event +
+       window-flag channel. When the current page is fullscreen or a
+       share page, this island is the only OverlayProvider on the page
+       and is responsible for opening future overlays on nav clicks. -->
+  {(!contentPage || contentPage.displayMode === "fullscreen") && (
+    <PageOverlayIsland client:load initialPage={null} />
+  )}
 </BaseLayout>

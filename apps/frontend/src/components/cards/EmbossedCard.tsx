@@ -9,6 +9,7 @@ const HEADER_TAG = Symbol("EmbossedCard.Header");
 const BODY_TAG = Symbol("EmbossedCard.Body");
 const FOOTER_TAG = Symbol("EmbossedCard.Footer");
 const ADDON_TAG = Symbol("EmbossedCard.AddOn");
+const HEADER_ADDON_TAG = Symbol("EmbossedCard.Header.AddOn");
 const SEGMENTS_TAG = Symbol("EmbossedCard.SegmentedControl");
 
 interface HeaderProps {
@@ -32,10 +33,49 @@ interface AddOnProps {
   className?: string;
 }
 
-function Header({ children, className }: HeaderProps) {
+interface HeaderAddOnProps {
+  children: ReactNode;
+  align: "leading" | "trailing";
+  className?: string;
+}
+
+function HeaderAddOn({ children, className }: HeaderAddOnProps) {
   return <div className={className}>{children}</div>;
 }
+(HeaderAddOn as unknown as Record<symbol, boolean>)[HEADER_ADDON_TAG] = true;
+
+function Header({ children, className }: HeaderProps) {
+  const childArray = Children.toArray(children);
+  const leading = childArray.filter(
+    (c) => hasTag(c, HEADER_ADDON_TAG) && isValidElement<HeaderAddOnProps>(c) && c.props.align === "leading",
+  );
+  const trailing = childArray.filter(
+    (c) => hasTag(c, HEADER_ADDON_TAG) && isValidElement<HeaderAddOnProps>(c) && c.props.align === "trailing",
+  );
+  const main = childArray.filter((c) => !hasTag(c, HEADER_ADDON_TAG));
+  const hasHeaderAddons = leading.length > 0 || trailing.length > 0;
+
+  if (!hasHeaderAddons) return <div className={className}>{children}</div>;
+
+  // AddOns are positioned absolutely inside the header's padding box.
+  // The inner relative wrapper inherits the Header's padding via classes
+  // applied on the outer `className` — meaning left-0/right-0 on the
+  // inner wrapper sits just inside the padding, not at the card edge.
+  return (
+    <div className={className}>
+      <div className="relative flex items-center w-full min-h-8 gap-2">
+        {leading.length > 0 && <div className="flex items-center shrink-0 mr-auto">{leading}</div>}
+        <div className="flex-1 min-w-0 text-center">{main}</div>
+        {trailing.length > 0 && <div className="flex items-center shrink-0 ml-auto">{trailing}</div>}
+      </div>
+    </div>
+  );
+}
 (Header as unknown as Record<symbol, boolean>)[HEADER_TAG] = true;
+
+type HeaderWithAddOn = typeof Header & { AddOn: typeof HeaderAddOn };
+const TypedHeader = Header as HeaderWithAddOn;
+TypedHeader.AddOn = HeaderAddOn;
 
 function Body({ children, className }: BodyProps) {
   // `flex flex-col` is baked in so that callers using `flex-1 min-h-0` on
@@ -231,7 +271,7 @@ function SegmentedControlSlot<T extends string>({
 }
 (SegmentedControlSlot as unknown as Record<symbol, boolean>)[SEGMENTS_TAG] = true;
 
-EmbossedCard.Header = Header;
+EmbossedCard.Header = TypedHeader;
 EmbossedCard.Body = Body;
 EmbossedCard.Footer = Footer;
 EmbossedCard.AddOn = AddOn;

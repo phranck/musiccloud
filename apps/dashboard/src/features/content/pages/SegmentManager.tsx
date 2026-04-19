@@ -1,9 +1,10 @@
 import type { ContentPage, ContentPageSummary, PageSegmentInput } from "@musiccloud/shared";
 import { ArrowDownIcon, ArrowUpIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
+import { MarkdownEditor } from "@/components/ui/MarkdownEditor";
 import { useI18n } from "@/context/I18nContext";
 import {
   useAdminContentPage,
@@ -13,26 +14,26 @@ import {
 } from "@/features/content/hooks/useAdminContent";
 import { FormLabelText } from "@/shared/ui/FormPrimitives";
 
-const MarkdownEditor = lazy(() =>
-  import("@/components/ui/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
-);
-
 interface Props {
   page: ContentPage;
 }
 
 interface DraftSegment extends PageSegmentInput {
-  /** Client-side only — unique per draft entry (server ids do not apply before save). */
+  /** Client-side only — unique per draft entry across re-orders + renames. */
   localId: string;
 }
 
 function toDraft(page: ContentPage): DraftSegment[] {
   return page.segments.map((s, i) => ({
-    localId: `${s.id}`,
+    localId: `server-${s.id}`,
     position: i,
     label: s.label,
     targetSlug: s.targetSlug,
   }));
+}
+
+function nextLocalId(): string {
+  return `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function SegmentManager({ page }: Props) {
@@ -51,30 +52,26 @@ export function SegmentManager({ page }: Props) {
 
   const [draft, setDraft] = useState<DraftSegment[]>(() => toDraft(page));
   const [error, setError] = useState<string | null>(null);
-  const [activeTargetSlug, setActiveTargetSlug] = useState<string | null>(() => draft[0]?.targetSlug ?? null);
+  // Track the active tab as an INDEX into draft[] so two segments pointing at
+  // the same target page don't collapse onto the same React key.
+  const [activeIndex, setActiveIndex] = useState<number>(0);
   const [targetDraftContent, setTargetDraftContent] = useState<string | null>(null);
   const [targetSaved, setTargetSaved] = useState(false);
 
-  // Keep active selection valid when segments change.
+  // Clamp active index if draft shrinks below it.
   useEffect(() => {
-    if (draft.length === 0) {
-      if (activeTargetSlug !== null) setActiveTargetSlug(null);
-      return;
-    }
-    if (!draft.some((s) => s.targetSlug === activeTargetSlug)) {
-      setActiveTargetSlug(draft[0].targetSlug);
+    if (draft.length === 0) return;
+    if (activeIndex >= draft.length) {
+      setActiveIndex(Math.max(0, draft.length - 1));
       setTargetDraftContent(null);
       setTargetSaved(false);
     }
-  }, [draft, activeTargetSlug]);
+  }, [draft, activeIndex]);
+
+  const activeSegment = draft[activeIndex] ?? null;
+  const activeTargetSlug = activeSegment?.targetSlug ?? null;
 
   const { data: targetPage } = useAdminContentPage(activeTargetSlug ?? undefined);
-
-  // Reset draft content on target change.
-  useEffect(() => {
-    setTargetDraftContent(null);
-    setTargetSaved(false);
-  }, []);
 
   useEffect(() => {
     if (!targetSaved) return;
@@ -88,28 +85,40 @@ export function SegmentManager({ page }: Props) {
     const next = draft.slice();
     [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
     setDraft(next.map((s, i) => ({ ...s, position: i })));
+    // Keep focus on the moved segment.
+    if (activeIndex === index) setActiveIndex(nextIndex);
+    else if (activeIndex === nextIndex) setActiveIndex(index);
   }
 
   function remove(index: number) {
-    setDraft(draft.filter((_, i) => i !== index).map((s, i) => ({ ...s, position: i })));
+    const next = draft.filter((_, i) => i !== index).map((s, i) => ({ ...s, position: i }));
+    setDraft(next);
+    if (next.length === 0) {
+      setActiveIndex(0);
+    } else if (index <= activeIndex) {
+      setActiveIndex(Math.max(0, activeIndex - 1));
+    }
+    setTargetDraftContent(null);
+    setTargetSaved(false);
   }
 
   function update(index: number, patch: Partial<PageSegmentInput>) {
     setDraft(draft.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+    if (index === activeIndex && patch.targetSlug !== undefined) {
+      setTargetDraftContent(null);
+      setTargetSaved(false);
+    }
   }
 
   function addSegment() {
     const targetSlug = defaultPages[0]?.slug;
     if (!targetSlug) return;
-    setDraft([
+    const nextDraft: DraftSegment[] = [
       ...draft,
-      {
-        localId: `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        position: draft.length,
-        label: "",
-        targetSlug,
-      },
-    ]);
+      { localId: nextLocalId(), position: draft.length, label: "", targetSlug },
+    ];
+    setDraft(nextDraft);
+    setActiveIndex(nextDraft.length - 1);
   }
 
   const canSave = draft.every((s) => s.label.trim().length > 0 && s.targetSlug);
@@ -151,8 +160,10 @@ export function SegmentManager({ page }: Props) {
     return <div className="px-6 py-6 text-sm text-[var(--ds-text-muted)]">{text.noDefaultPages}</div>;
   }
 
-  const previewSegments = draft.map((s) => ({
-    key: s.targetSlug,
+  // Segments for EmbossedSegmentedControl — keyed by stringified index so
+  // duplicate target slugs keep distinct keys.
+  const previewSegments = draft.map((s, i) => ({
+    key: String(i),
     label: s.label.trim() || text.labelPlaceholder,
   }));
 
@@ -160,6 +171,8 @@ export function SegmentManager({ page }: Props) {
     value: p.slug,
     label: `${p.title} (/${p.slug})`,
   }));
+
+  const targetDirty = targetPage ? currentContent !== targetPage.content : false;
 
   return (
     <div className="flex flex-col gap-4 px-6 py-6">
@@ -205,10 +218,21 @@ export function SegmentManager({ page }: Props) {
                 key={segment.localId}
                 className="flex flex-wrap items-center gap-2 border border-[var(--ds-border)] rounded-control bg-[var(--ds-surface)] px-3 py-2"
               >
-                <span className="text-[10px] font-mono text-[var(--ds-text-subtle)] w-6 text-right">{index + 1}.</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  aria-pressed={index === activeIndex}
+                  className={`text-[10px] font-mono w-6 text-right ${
+                    index === activeIndex ? "text-[var(--color-primary)]" : "text-[var(--ds-text-subtle)]"
+                  }`}
+                  title={text.moveUp}
+                >
+                  {index + 1}.
+                </button>
                 <input
                   type="text"
                   value={segment.label}
+                  onFocus={() => setActiveIndex(index)}
                   onChange={(e) => update(index, { label: e.target.value })}
                   placeholder={text.labelPlaceholder}
                   className="flex-1 min-w-[140px] h-7 px-2 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
@@ -218,7 +242,10 @@ export function SegmentManager({ page }: Props) {
                     size="sm"
                     value={dropdownValue}
                     options={options}
-                    onChange={(v) => update(index, { targetSlug: v })}
+                    onChange={(v) => {
+                      setActiveIndex(index);
+                      update(index, { targetSlug: v });
+                    }}
                   />
                 </div>
                 <div className="flex items-center gap-0.5">
@@ -257,18 +284,16 @@ export function SegmentManager({ page }: Props) {
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 
-      {draft.length > 0 && activeTargetSlug && (
+      {draft.length > 0 && activeSegment && (
         <div className="flex flex-col gap-4 pt-4 border-t border-[var(--ds-border)]">
           <FormLabelText className="mb-0">{text.preview}</FormLabelText>
           <EmbossedSegmentedControl
             segments={previewSegments}
-            value={activeTargetSlug}
+            value={String(activeIndex)}
             onChange={(next) => {
-              // Unsaved target changes are silently dropped on switch —
-              // user explicitly clicks a different tab. A native confirm
-              // dialog here would conflict with the dashboard's policy
-              // against window.confirm.
-              setActiveTargetSlug(next);
+              const idx = Number.parseInt(next, 10);
+              if (Number.isNaN(idx)) return;
+              setActiveIndex(idx);
               setTargetDraftContent(null);
               setTargetSaved(false);
             }}
@@ -281,24 +306,24 @@ export function SegmentManager({ page }: Props) {
             <button
               type="button"
               onClick={handleSaveTarget}
-              disabled={saveTarget.isPending || !targetPage || currentContent === targetPage.content}
+              disabled={saveTarget.isPending || !targetDirty}
               className="flex items-center gap-1.5 px-3 h-8 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-xs font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] disabled:opacity-60"
             >
               {saveTarget.isPending ? common.saving : targetSaved ? editorMessages.saved : common.save}
             </button>
           </div>
 
-          <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse rounded-control" />}>
-            {targetPage && (
-              <MarkdownEditor
-                key={activeTargetSlug}
-                value={currentContent}
-                onChange={handleTargetContentChange}
-                height="420px"
-                className="rounded-control border border-[var(--ds-border)]"
-              />
-            )}
-          </Suspense>
+          {targetPage ? (
+            <MarkdownEditor
+              key={activeTargetSlug ?? "none"}
+              value={currentContent}
+              onChange={handleTargetContentChange}
+              height="100%"
+              showHints
+            />
+          ) : (
+            <div className="h-[420px] bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control animate-pulse" />
+          )}
 
           {saveTarget.isError && <p className="text-xs text-red-500">{editorMessages.saveError}</p>}
         </div>

@@ -5,6 +5,7 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import { LandingPage } from "@/components/LandingPage";
 import GradientBackground from "@/components/background/GradientBackground.astro";
 import SparklingStars from "@/components/background/SparklingStars.astro";
+import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { loadNav } from "@/lib/loadNav";
 
@@ -67,6 +68,11 @@ const { header: headerNav, footer: footerNav } = await loadNav();
   <div class="min-h-dvh flex flex-col">
     <LandingPage client:idle headerNav={headerNav} footerNav={footerNav} />
   </div>
+
+  <!-- Mounted with null initialPage so nav clicks on overlay-mode pages
+       open client-side (no full reload). OverlayProvider advertises its
+       presence via window.__mcOverlayActive for PageHeader.handleNavClick. -->
+  <PageOverlayIsland client:load initialPage={null} />
 
   <!-- Non-essential ambient UI: static (CSS-only animation) -->
   <SparklingStars />
