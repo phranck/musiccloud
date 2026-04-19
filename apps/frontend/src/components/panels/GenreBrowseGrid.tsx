@@ -6,6 +6,16 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { LazyGenreArtwork } from "@/components/ui/LazyGenreArtwork";
 import { useT } from "@/i18n/context";
 
+// Whitelist for backend-provided accent colors that end up as a scoped
+// `--color-accent` CSS variable on the tile. CSS custom properties are
+// late-resolved; feeding arbitrary backend strings in would let a
+// compromised accent leak into any downstream `var()` consumer.
+const SAFE_COLOR_RE = /^(#[0-9a-f]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\)|oklch\([^)]*\)|oklab\([^)]*\))$/i;
+function safeAccent(color: string | undefined): string | undefined {
+  if (!color) return undefined;
+  return SAFE_COLOR_RE.test(color.trim()) ? color.trim() : undefined;
+}
+
 interface GenreBrowseGridProps {
   genres: ApiGenreTile[];
   onSelect: (genreName: string) => void;
@@ -45,9 +55,10 @@ export const GenreBrowseGrid = forwardRef<HTMLDivElement, GenreBrowseGridProps>(
                 // backend inlines its dominant accent; apply it as a scoped
                 // CSS variable so every `var(--color-accent)` consumer inside
                 // the tile (border, glow, hover) picks it up automatically.
+                const accent = safeAccent(genre.accentColor);
                 const tileStyle = {
                   animationDelay: `${Math.min(i * 30, 600)}ms`,
-                  ...(genre.accentColor ? { ["--color-accent" as string]: genre.accentColor } : {}),
+                  ...(accent ? { ["--color-accent" as string]: accent } : {}),
                 } as React.CSSProperties;
 
                 return (
