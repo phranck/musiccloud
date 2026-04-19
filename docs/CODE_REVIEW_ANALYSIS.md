@@ -191,3 +191,30 @@ Multiple places catch and drop errors without user feedback:
 ---
 
 *Review based on code state at commit `b277290` (main).*
+
+---
+
+## Status Update — 2026-04-19 evening
+
+Findings addressed in follow-up commits:
+
+| # | Finding | Commit | Notes |
+|---|---|---|---|
+| 2 | `titleAlignment` CSS injection | `f84b968` | Whitelisted via `class:list` map |
+| 5 | Duplicated `ErrorBoundary` | `cf1dfa8` | 93 LOC inline copy removed, shared one imported |
+| 6 | Duplicated `hexToRgb` | `cf1dfa8` | Extracted to `lib/ui/colors.ts` |
+| 7.3 | EmbedModal clipboard false-positive | `9596a6f` | Added `error` state + 9 locale strings |
+| 7.1 | PopularTracksSection silent fail | `5210f82` | Added optional `onError` prop + dev `console.warn` |
+| 7.2 | PlatformIconRow silent fail | `5210f82` | Dev `console.warn` added (silent in prod remains intentional for decorative marquee) |
+| 10 | LandingPage fetch timeout | `8454061` | 3 s `AbortController` |
+
+Finding **8** (loadNav race) was re-examined and **invalidated**: `fetchNavigation()` in `src/api/client.ts:114` catches internally and returns `[]`, so `loadNav()` cannot throw. No change needed.
+
+### Still open
+
+- **#1 Zero test coverage** — frontend Vitest + Playwright setup. Larger task, needs separate plan.
+- **#3 Unauthenticated proxy endpoints** (`api/artist-info.ts`, `api/mc/*`) — backend rate-limiting + auth change. Plan needed.
+- **#4 `set:html` trust boundary** — add comment/lint rule, or move sanitization to backend.
+- **#7.1 callsite wiring** — `ArtistInfoCard` / `SimilarArtistsSection` do not yet pass `onError` to `PopularTracksSection` / `PopularTrack`. Needs a shared toast context (current `useToast` is local state, not a provider).
+- **#9 `SongInfo` unmemoized image fetch** — small React memoization fix.
+- **Low**: `GenreSearchResults` ASCII-only title-case regex, `api/v1/content/[slug].ts` generic 503.
