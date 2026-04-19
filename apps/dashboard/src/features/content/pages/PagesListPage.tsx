@@ -31,6 +31,7 @@ import {
   useCreateContentPage,
   useDeleteContentPage,
 } from "@/features/content/hooks/useAdminContent";
+import { FormLabel, FormLabelText } from "@/shared/ui/FormPrimitives";
 
 type ContentPage = ContentPageSummary;
 
@@ -279,12 +280,7 @@ export function PagesListPage() {
         <form onSubmit={handleCreate}>
           <div className="p-6 space-y-3">
             <div>
-              <label
-                htmlFor="content-page-title"
-                className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1"
-              >
-                {text.fieldTitle}
-              </label>
+              <FormLabel htmlFor="content-page-title">{text.fieldTitle}</FormLabel>
               <input
                 id="content-page-title"
                 type="text"
@@ -297,9 +293,7 @@ export function PagesListPage() {
               />
             </div>
             <div>
-              <label htmlFor="content-page-slug" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
-                {text.fieldSlug}
-              </label>
+              <FormLabel htmlFor="content-page-slug">{text.fieldSlug}</FormLabel>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[var(--ds-text-muted)] shrink-0">/</span>
                 <input
@@ -315,7 +309,7 @@ export function PagesListPage() {
               </div>
             </div>
             <div>
-              <span className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">{text.fieldPageType}</span>
+              <FormLabelText>{text.fieldPageType}</FormLabelText>
               <Dropdown<PageType>
                 value={pageType}
                 onChange={(v) => dispatch({ pageType: v })}
