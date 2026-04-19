@@ -60,6 +60,7 @@ import { type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@mu
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
+import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { fetchArtistEvents, fetchArtistProfile, fetchArtistTopTracks } from "../services/artist-info.js";
 
@@ -107,10 +108,18 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
             $ref: "ArtistInfo#",
           },
           400: { description: "Missing or empty `name` query parameter.", $ref: "ErrorResponse#" },
+          429: { description: "Rate limit exceeded for this client IP.", $ref: "ErrorResponse#" },
         },
       },
     },
     async (request, reply) => {
+      if (apiRateLimiter.isLimited(request.ip)) {
+        return reply.status(429).send({
+          error: "RATE_LIMITED",
+          message: "Too many requests. Please try again later.",
+        });
+      }
+
       const query = request.query as { name: string; region?: string };
 
       const rawName = query.name.trim();
