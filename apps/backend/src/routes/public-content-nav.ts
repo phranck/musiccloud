@@ -66,7 +66,7 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
                 navId: "footer",
                 pageSlug: null,
                 pageTitle: null,
-                url: "https://github.com/phranck/musiccloud.io",
+                url: "https://github.com/phranck/musiccloud",
                 target: "_blank",
                 label: "Source on GitHub",
                 position: 2,

@@ -1,10 +1,10 @@
-[![Astro](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/astro?filename=apps%2Ffrontend%2Fpackage.json&label=astro&color=e40303&style=flat)](https://astro.build)
-[![Biome](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/dev/@biomejs/biome?label=biome&color=ff8c00&style=flat)](https://biomejs.dev)
-[![CI](https://img.shields.io/github/actions/workflow/status/phranck/musiccloud.io/ci.yml?branch=main&label=CI&color=ffd700&style=flat)](https://github.com/phranck/musiccloud.io/actions/workflows/ci.yml)
-[![Fastify](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/fastify?filename=apps%2Fbackend%2Fpackage.json&label=fastify&color=008026&style=flat)](https://fastify.dev)
-[![React](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/react?filename=apps%2Ffrontend%2Fpackage.json&label=react&color=0057b7&style=flat)](https://react.dev)
-[![TypeScript](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/dev/typescript?label=typescript&color=4b0082&style=flat)](https://www.typescriptlang.org)
-[![License: MIT](https://img.shields.io/github/license/phranck/musiccloud.io?label=license&color=9400d3&style=flat)](LICENSE)
+[![Astro](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/astro?filename=apps%2Ffrontend%2Fpackage.json&label=astro&color=e40303&style=flat)](https://astro.build)
+[![Biome](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/dev/@biomejs/biome?label=biome&color=ff8c00&style=flat)](https://biomejs.dev)
+[![CI](https://img.shields.io/github/actions/workflow/status/phranck/musiccloud/ci.yml?branch=main&label=CI&color=ffd700&style=flat)](https://github.com/phranck/musiccloud/actions/workflows/ci.yml)
+[![Fastify](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/fastify?filename=apps%2Fbackend%2Fpackage.json&label=fastify&color=008026&style=flat)](https://fastify.dev)
+[![React](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/react?filename=apps%2Ffrontend%2Fpackage.json&label=react&color=0057b7&style=flat)](https://react.dev)
+[![TypeScript](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/dev/typescript?label=typescript&color=4b0082&style=flat)](https://www.typescriptlang.org)
+[![License: MIT](https://img.shields.io/github/license/phranck/musiccloud?label=license&color=9400d3&style=flat)](LICENSE)
 
 <img width="1024" height="256" alt="email-header" src="https://github.com/user-attachments/assets/22a93ca4-dd18-4e83-8c7f-5cbcd0c20ce8" />
 
