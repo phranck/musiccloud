@@ -20,6 +20,7 @@
   "share.copyLink": "Copiar enlace para compartir",
   "share.shareLink": "Copiar enlace",
   "share.copied": "¡Copiado!",
+  "share.copyError": "Error al copiar",
   "share.nativeShare": "Compartir \"{title}\"",
   "error.offline": "Parece que estás sin conexión. Verifica tu conexión e inténtalo de nuevo.",
   "error.timeout": "Esto está tardando más de lo usual. Por favor, inténtalo de nuevo.",
