@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud.io/dev/typescript?label=typescript&color=4b0082&style=flat)](https://www.typescriptlang.org)
 [![License: MIT](https://img.shields.io/github/license/phranck/musiccloud.io?label=license&color=9400d3&style=flat)](LICENSE)
 
-<img width="1200" height="276" alt="email-header" src="https://github.com/user-attachments/assets/67bb9640-f627-4ab7-b377-fd97620487ee" />
+<img width="1024" height="256" alt="email-header" src="https://github.com/user-attachments/assets/22a93ca4-dd18-4e83-8c7f-5cbcd0c20ce8" />
 
 # musiccloud.io
 
