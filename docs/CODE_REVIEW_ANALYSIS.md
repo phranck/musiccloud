@@ -207,6 +207,7 @@ Findings addressed in follow-up commits:
 | 7.1 | PopularTracksSection silent fail | `5210f82` | Added optional `onError` prop + dev `console.warn` |
 | 7.2 | PlatformIconRow silent fail | `5210f82` | Dev `console.warn` added (silent in prod remains intentional for decorative marquee) |
 | 10 | LandingPage fetch timeout | `8454061` | 3 s `AbortController` |
+| 3a | Rate-limit `artist-info` proxy | `27809a4` | Backend route `apiRateLimiter` (30 req / 60 s). Umami header leakage (3b) still open. |
 
 Findings re-examined and **invalidated**:
 
@@ -216,7 +217,8 @@ Findings re-examined and **invalidated**:
 ### Still open
 
 - **#1 Zero test coverage** — frontend Vitest + Playwright setup. Larger task, needs separate plan.
-- **#3 Unauthenticated proxy endpoints** (`api/artist-info.ts`, `api/mc/*`) — backend rate-limiting + auth change. Plan needed.
+- **#3b Umami proxy header leakage** (`api/mc/send.ts`, `api/mc/script.js.ts`) — frontend Astro proxy still forwards all request headers (including cookies) to Umami. Needs explicit header allowlist.
+- **Follow-up**: Fastify `trustProxy` so `request.ip` reflects the real client behind Zerops, making the artist-info limiter per-client instead of global.
 - **#4 `set:html` trust boundary** — add comment/lint rule, or move sanitization to backend.
 - **#7.1 callsite wiring** — `ArtistInfoCard` / `SimilarArtistsSection` do not yet pass `onError` to `PopularTracksSection` / `PopularTrack`. Needs a shared toast context (current `useToast` is local state, not a provider).
 - **Low**: `GenreSearchResults` ASCII-only title-case regex, `api/v1/content/[slug].ts` generic 503.
