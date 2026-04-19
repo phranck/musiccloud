@@ -25,13 +25,13 @@ import { DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { useI18n } from "@/context/I18nContext";
 import {
-  type ContentPage as ContentPageHookRow,
+  type ContentPageSummary,
   useContentPages,
   useCreateContentPage,
   useDeleteContentPage,
 } from "@/features/content/hooks/useAdminContent";
 
-type ContentPage = ContentPageHookRow;
+type ContentPage = ContentPageSummary;
 
 function slugify(str: string): string {
   return str

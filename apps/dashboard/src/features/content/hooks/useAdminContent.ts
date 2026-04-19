@@ -1,24 +1,20 @@
+import type {
+  ContentPage,
+  ContentPageSummary,
+  PageSegment,
+  PageSegmentInput,
+  PageType,
+} from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
-export interface ContentPage {
-  id: number;
-  title: string;
-  slug: string;
-  status: "published" | "hidden" | "draft";
-  showTitle: boolean;
-  content: string;
-  createdByUsername: string | null;
-  updatedByUsername: string | null;
-  createdAt: string;
-  updatedAt: string | null;
-}
+export type { ContentPage, ContentPageSummary } from "@musiccloud/shared";
 
 export function useContentPages() {
   return useQuery({
     queryKey: ["content-pages"],
-    queryFn: () => api.get<ContentPage[]>("/admin/pages"),
+    queryFn: () => api.get<ContentPageSummary[]>("/admin/pages"),
   });
 }
 
@@ -42,7 +38,8 @@ export function useSaveContentPage() {
 export function useCreateContentPage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { title: string; slug: string }) => api.post<ContentPage>("/admin/pages", data),
+    mutationFn: (data: { title: string; slug: string; pageType?: PageType }) =>
+      api.post<ContentPage>("/admin/pages", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["content-pages"] }),
   });
 }
@@ -60,6 +57,21 @@ export function usePatchContentPage() {
   return useMutation({
     mutationFn: ({ slug, data }: { slug: string; data: Partial<ContentPage> }) =>
       api.patch<ContentPage>(`/admin/pages/${slug}`, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["content-pages"] }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["content-pages"] });
+      qc.invalidateQueries({ queryKey: ["content-pages", vars.slug] });
+    },
+  });
+}
+
+export function useSaveContentPageSegments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ slug, segments }: { slug: string; segments: PageSegmentInput[] }) =>
+      api.put<PageSegment[]>(`/admin/pages/${slug}/segments`, segments),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["content-pages", vars.slug] });
+      qc.invalidateQueries({ queryKey: ["content-pages"] });
+    },
   });
 }
