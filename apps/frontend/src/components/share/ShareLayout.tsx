@@ -27,17 +27,8 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { LocaleProvider, useT } from "@/i18n/context";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
+import { hexToRgb } from "@/lib/ui/colors";
 import { cn } from "@/lib/utils";
-
-// Convert hex color to RGB string (e.g. "#FF5733" -> "255 87 51")
-function hexToRgb(hex: string): string {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return "40 168 216"; // fallback to default blue
-  const r = parseInt(result[1], 16);
-  const g = parseInt(result[2], 16);
-  const b = parseInt(result[3], 16);
-  return `${r} ${g} ${b}`;
-}
 
 const MEDIA_W = 512;
 const ARTIST_W = 512;

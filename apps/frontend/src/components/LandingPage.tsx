@@ -1,9 +1,10 @@
 import type { NavItem } from "@musiccloud/shared";
 import { ENDPOINTS } from "@musiccloud/shared";
-import { Component, lazy, type ReactNode, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { HeroInput } from "@/components/input/HeroInput";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { LogoView } from "@/components/ui/LogoView";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { useAppState } from "@/hooks/useAppState";
@@ -12,6 +13,7 @@ import { useToast } from "@/hooks/useToast";
 import { LocaleProvider, useT } from "@/i18n/context";
 import { buildActiveConfig } from "@/lib/resolve/parsers";
 import type { InputState } from "@/lib/types/app";
+import { hexToRgb } from "@/lib/ui/colors";
 
 // Lazy-loaded panels — only pulled into the bundle when the user needs them.
 // Fallback is `null` because each is only rendered behind a visibility flag anyway.
@@ -31,116 +33,7 @@ const PlatformIconRow = lazy(() =>
   import("@/components/platform/PlatformIconRow").then((m) => ({ default: m.PlatformIconRow })),
 );
 
-// Inline ErrorBoundary — avoids a second client:load island just to wrap the page.
-interface EbStrings {
-  title: string;
-  message: string;
-  reload: string;
-}
-
-const EB_STRINGS: Record<string, EbStrings> = {
-  de: {
-    title: "Etwas ist schiefgelaufen",
-    message: "Ein unerwarteter Fehler ist aufgetreten. Bitte lade die Seite neu.",
-    reload: "Seite neu laden",
-  },
-  fr: {
-    title: "Une erreur s'est produite",
-    message: "Une erreur inattendue s'est produite. Veuillez recharger la page.",
-    reload: "Recharger la page",
-  },
-  it: {
-    title: "Qualcosa è andato storto",
-    message: "Si è verificato un errore imprevisto. Ricarica la pagina.",
-    reload: "Ricarica la pagina",
-  },
-  es: {
-    title: "Algo salió mal",
-    message: "Ocurrió un error inesperado. Por favor, recarga la página.",
-    reload: "Recargar la página",
-  },
-  pt: {
-    title: "Algo correu mal",
-    message: "Ocorreu um erro inesperado. Por favor, recarregue a página.",
-    reload: "Recarregar página",
-  },
-  nl: {
-    title: "Er is iets misgegaan",
-    message: "Er is een onverwachte fout opgetreden. Probeer de pagina opnieuw te laden.",
-    reload: "Pagina herladen",
-  },
-  tr: {
-    title: "Bir şeyler ters gitti",
-    message: "Beklenmedik bir hata oluştu. Lütfen sayfayı yeniden yükleyin.",
-    reload: "Sayfayı yenile",
-  },
-  cs: {
-    title: "Něco se pokazilo",
-    message: "Došlo k neočekávané chybě. Zkuste prosím znovu načíst stránku.",
-    reload: "Znovu načíst stránku",
-  },
-};
-
-const EB_DEFAULT: EbStrings = {
-  title: "Something went wrong",
-  message: "An unexpected error occurred. Please try reloading the page.",
-  reload: "Reload page",
-};
-
-function getEbStrings(): EbStrings {
-  try {
-    const locale = localStorage.getItem("mc:locale") ?? "en";
-    return EB_STRINGS[locale] ?? EB_DEFAULT;
-  } catch {
-    return EB_DEFAULT;
-  }
-}
-
-class LandingErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error) {
-    if (import.meta.env.DEV) {
-      console.error("[LandingErrorBoundary]", error.message, error.stack);
-    }
-  }
-
-  render() {
-    if (this.state.hasError) {
-      const s = getEbStrings();
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
-          <h1 className="text-2xl font-bold text-text-primary mb-4">{s.title}</h1>
-          <p className="text-text-secondary mb-6">{s.message}</p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent-hover transition-colors"
-          >
-            {s.reload}
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 const EMPTY_NAV_ITEMS: NavItem[] = [];
-
-// Convert hex color to RGB string (e.g. "#FF5733" -> "255 87 51")
-function hexToRgb(hex: string): string {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return "40 168 216"; // fallback to default blue
-  const r = parseInt(result[1], 16);
-  const g = parseInt(result[2], 16);
-  const b = parseInt(result[3], 16);
-  return `${r} ${g} ${b}`;
-}
 
 function LandingPageInner({
   headerNav = EMPTY_NAV_ITEMS,
@@ -415,10 +308,10 @@ export function LandingPage({
   footerNav?: NavItem[];
 } = {}) {
   return (
-    <LandingErrorBoundary>
+    <ErrorBoundary>
       <LocaleProvider>
         <LandingPageInner headerNav={headerNav} footerNav={footerNav} />
       </LocaleProvider>
-    </LandingErrorBoundary>
+    </ErrorBoundary>
   );
 }

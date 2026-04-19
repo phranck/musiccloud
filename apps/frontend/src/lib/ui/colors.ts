@@ -43,3 +43,15 @@ export function extractAlbumColors(img: HTMLImageElement): ReturnType<typeof sam
   const data = ctx.getImageData(0, 0, size, size).data;
   return sampleAccentFromRgba(data, size * size);
 }
+
+const HEX_RGB_FALLBACK = "40 168 216";
+
+/** Convert `#RRGGBB` / `RRGGBB` to space-separated RGB string (e.g. `"255 87 51"`). */
+export function hexToRgb(hex: string): string {
+  const result = hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (!result) return HEX_RGB_FALLBACK;
+  const r = parseInt(result[1], 16);
+  const g = parseInt(result[2], 16);
+  const b = parseInt(result[3], 16);
+  return `${r} ${g} ${b}`;
+}
