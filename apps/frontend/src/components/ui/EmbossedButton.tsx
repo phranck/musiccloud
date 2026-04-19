@@ -1,9 +1,12 @@
 import { cn } from "@/lib/utils";
 import { recessedStyle } from "@/styles/neumorphic";
 
-const baseClasses = ["bg-white/[0.09] px-5 py-2.5 overflow-hidden cursor-pointer", "transition-all duration-150"];
+const baseClasses = [
+  "bg-gray-700/[0.50] px-5 py-2.5 overflow-hidden cursor-pointer transform-gpu",
+  "transition-[background-color,transform] duration-100",
+];
 
-const raisedHoverClasses = ["hover:bg-white/[0.12]", "focus-visible:bg-white/[0.12]"];
+const raisedHoverClasses = ["hover:bg-gray-600/[0.50]", "focus-visible:bg-gray-600/[0.50]"];
 
 const raisedScaleClasses = ["hover:scale-[1.015]", "focus-visible:scale-[1.015]", "active:scale-[0.985]"];
 

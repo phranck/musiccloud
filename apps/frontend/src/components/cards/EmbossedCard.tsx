@@ -75,17 +75,18 @@ function Header({ children, className }: HeaderProps) {
 
   if (!hasHeaderAddons) return <div className={className}>{children}</div>;
 
-  // AddOns are positioned absolutely inside the header's padding box.
-  // The inner relative wrapper inherits the Header's padding via classes
-  // applied on the outer `className` — meaning left-0/right-0 on the
-  // inner wrapper sits just inside the padding, not at the card edge.
+  // AddOns are positioned absolutely inside the header's padding box so
+  // the title span stays centered across the full header width regardless
+  // of asymmetric AddOn presence.
   return (
-    <div className={className}>
-      <div className="relative flex items-center w-full min-h-8 gap-2">
-        {leading.length > 0 && <div className="flex items-center shrink-0 mr-auto">{leading}</div>}
-        <div className="flex-1 min-w-0 text-center">{main}</div>
-        {trailing.length > 0 && <div className="flex items-center shrink-0 ml-auto">{trailing}</div>}
-      </div>
+    <div className={cn("relative", className)}>
+      <div className="text-center">{main}</div>
+      {leading.length > 0 && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10 flex items-center shrink-0">{leading}</div>
+      )}
+      {trailing.length > 0 && (
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center shrink-0">{trailing}</div>
+      )}
     </div>
   );
 }
@@ -241,7 +242,7 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   } as React.CSSProperties;
 
   return (
-    <div className={cn("embossed-gradient-border bg-white/[0.07] overflow-hidden", className)} style={mergedStyle}>
+    <div className={cn("embossed-gradient-border bg-gray-800/[0.65] overflow-hidden", className)} style={mergedStyle}>
       {isCompound ? (
         <>
           {hasAddOns ? (
