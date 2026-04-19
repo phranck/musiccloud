@@ -6,13 +6,7 @@
  * and global CSS. Page-specific meta (OG, Twitter, JSON-LD)
  * goes into the "head" slot.
  */
-import "@fontsource/barlow/400.css";
-import "@fontsource/barlow/500.css";
-import "@fontsource/barlow/600.css";
-import "@fontsource/barlow/700.css";
-import "@fontsource/roboto-condensed/400.css";
-import "@fontsource/roboto-condensed/500.css";
-import "@fontsource/roboto-condensed/700.css";
+import "../styles/fonts.css";
 import "../styles/global.css";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { isTrackingEnabled } from "@/api/client";
@@ -45,7 +39,6 @@ const { title, description, canonicalUrl, preloadImage, noindex, lang = "en" } =
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
 
-    <link rel="preload" href="/fonts/nasalization-rg.woff2" as="font" type="font/woff2" crossorigin />
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     {noindex && <meta name="robots" content="noindex" />}

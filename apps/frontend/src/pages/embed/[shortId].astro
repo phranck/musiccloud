@@ -17,12 +17,7 @@ import { EmbedCardIsland } from "@/components/embed/EmbedCardIsland";
 import { getLocaleFromCookie } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
 
-import "@fontsource/barlow/400.css";
-import "@fontsource/barlow/500.css";
-import "@fontsource/barlow/600.css";
-import "@fontsource/barlow/700.css";
-import "@fontsource/roboto-condensed/400.css";
-import "@fontsource/roboto-condensed/500.css";
+import "../../styles/fonts.css";
 import "../../styles/global.css";
 
 const { shortId } = Astro.params;
@@ -74,7 +69,6 @@ const albumName = isAlbum ? undefined : (track?.albumName ?? undefined);
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <link rel="preload" href="/fonts/nasalization-rg.woff2" as="font" type="font/woff2" crossorigin />
     <title>{displayTitle} - musiccloud</title>
     <style>
       html, body {
