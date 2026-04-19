@@ -21,8 +21,16 @@ import type {
   NavItemReplaceInput,
   NavItemRow,
   NavTarget,
+  PageSegmentInputRow,
+  PageSegmentRow,
   TrackListItem,
 } from "../admin-repository.js";
+import type {
+  OverlayHeight,
+  OverlayWidth,
+  PageDisplayMode,
+  PageType,
+} from "@musiccloud/shared";
 import type {
   ArtistCacheData,
   ArtistCacheRow,
@@ -2289,7 +2297,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async listContentPageSummaries(): Promise<ContentPageSummaryRow[]> {
     const result = await this.pool.query(
-      `SELECT slug, title, status, show_title, created_by, updated_by, created_at, updated_at
+      `SELECT ${CONTENT_SUMMARY_COLUMNS}
        FROM content_pages
        ORDER BY created_at DESC`,
     );
@@ -2298,7 +2306,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async getContentPageBySlug(slug: string): Promise<ContentPageRow | null> {
     const result = await this.pool.query(
-      `SELECT slug, title, content, status, show_title, created_by, updated_by, created_at, updated_at
+      `SELECT ${CONTENT_COLUMNS}
        FROM content_pages
        WHERE slug = $1`,
       [slug],
@@ -2313,10 +2321,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async createContentPage(data: ContentPageCreateData): Promise<ContentPageRow> {
     const result = await this.pool.query(
-      `INSERT INTO content_pages (slug, title, status, created_by)
-       VALUES ($1, $2, $3, $4)
-       RETURNING slug, title, content, status, show_title, created_by, updated_by, created_at, updated_at`,
-      [data.slug, data.title, data.status ?? "draft", data.createdBy],
+      `INSERT INTO content_pages (slug, title, status, page_type, created_by)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING ${CONTENT_COLUMNS}`,
+      [data.slug, data.title, data.status ?? "draft", data.pageType ?? "default", data.createdBy],
     );
     return rowToContentPage(result.rows[0]);
   }
@@ -2342,6 +2350,22 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       setClauses.push(`show_title = $${paramIndex++}`);
       values.push(data.showTitle);
     }
+    if (data.pageType !== undefined) {
+      setClauses.push(`page_type = $${paramIndex++}`);
+      values.push(data.pageType);
+    }
+    if (data.displayMode !== undefined) {
+      setClauses.push(`display_mode = $${paramIndex++}`);
+      values.push(data.displayMode);
+    }
+    if (data.overlayWidth !== undefined) {
+      setClauses.push(`overlay_width = $${paramIndex++}`);
+      values.push(data.overlayWidth);
+    }
+    if (data.overlayHeight !== undefined) {
+      setClauses.push(`overlay_height = $${paramIndex++}`);
+      values.push(data.overlayHeight);
+    }
 
     if (setClauses.length === 0) {
       return this.getContentPageBySlug(slug);
@@ -2356,7 +2380,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `UPDATE content_pages SET ${setClauses.join(", ")}
        WHERE slug = $${paramIndex}
-       RETURNING slug, title, content, status, show_title, created_by, updated_by, created_at, updated_at`,
+       RETURNING ${CONTENT_COLUMNS}`,
       values,
     );
     return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
@@ -2367,7 +2391,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       `UPDATE content_pages
        SET content = $1, updated_at = $2, updated_by = $3
        WHERE slug = $4
-       RETURNING slug, title, content, status, show_title, created_by, updated_by, created_at, updated_at`,
+       RETURNING ${CONTENT_COLUMNS}`,
       [content, new Date(), updatedBy, slug],
     );
     return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
@@ -2401,12 +2425,96 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async getPublishedContentPageBySlug(slug: string): Promise<ContentPageRow | null> {
     const result = await this.pool.query(
-      `SELECT slug, title, content, status, show_title, created_by, updated_by, created_at, updated_at
+      `SELECT ${CONTENT_COLUMNS}
        FROM content_pages
        WHERE slug = $1 AND status = 'published'`,
       [slug],
     );
     return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+  }
+
+  async getContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]> {
+    if (slugs.length === 0) return [];
+    const result = await this.pool.query(
+      `SELECT ${CONTENT_COLUMNS}
+       FROM content_pages
+       WHERE slug = ANY($1)`,
+      [slugs],
+    );
+    return result.rows.map(rowToContentPage);
+  }
+
+  async getPublishedContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]> {
+    if (slugs.length === 0) return [];
+    const result = await this.pool.query(
+      `SELECT ${CONTENT_COLUMNS}
+       FROM content_pages
+       WHERE slug = ANY($1) AND status = 'published'`,
+      [slugs],
+    );
+    return result.rows.map(rowToContentPage);
+  }
+
+  // ============================================================================
+  // PAGE SEGMENTS (AdminRepository)
+  // ============================================================================
+
+  async listSegmentsForOwner(ownerSlug: string): Promise<PageSegmentRow[]> {
+    const result = await this.pool.query<{
+      id: number;
+      owner_slug: string;
+      target_slug: string;
+      position: number;
+      label: string;
+    }>(
+      `SELECT id, owner_slug, target_slug, position, label
+       FROM page_segments
+       WHERE owner_slug = $1
+       ORDER BY position ASC`,
+      [ownerSlug],
+    );
+    return result.rows.map((r) => ({
+      id: r.id,
+      ownerSlug: r.owner_slug,
+      targetSlug: r.target_slug,
+      position: r.position,
+      label: r.label,
+    }));
+  }
+
+  async deleteSegmentsForOwner(ownerSlug: string): Promise<void> {
+    await this.pool.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [ownerSlug]);
+  }
+
+  async replaceSegmentsForOwner(ownerSlug: string, segments: PageSegmentInputRow[]): Promise<PageSegmentRow[]> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [ownerSlug]);
+      const rows: PageSegmentRow[] = [];
+      for (const s of segments) {
+        const r = await client.query<{ id: number }>(
+          `INSERT INTO page_segments (owner_slug, target_slug, position, label)
+           VALUES ($1, $2, $3, $4)
+           RETURNING id`,
+          [ownerSlug, s.targetSlug, s.position, s.label],
+        );
+        rows.push({
+          id: r.rows[0].id,
+          ownerSlug,
+          targetSlug: s.targetSlug,
+          position: s.position,
+          label: s.label,
+        });
+      }
+      await client.query("COMMIT");
+      return rows.sort((a, b) => a.position - b.position);
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // ============================================================================
@@ -2480,11 +2588,20 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
   };
 }
 
+// Shared column lists so every SELECT / RETURNING stays in lockstep.
+const CONTENT_SUMMARY_COLUMNS =
+  "slug, title, status, show_title, page_type, display_mode, overlay_width, overlay_height, created_by, updated_by, created_at, updated_at";
+const CONTENT_COLUMNS = `slug, title, content, status, show_title, page_type, display_mode, overlay_width, overlay_height, created_by, updated_by, created_at, updated_at`;
+
 interface ContentPageSummarySqlRow {
   slug: string;
   title: string;
   status: string;
   show_title: boolean;
+  page_type: string;
+  display_mode: string;
+  overlay_width: string;
+  overlay_height: string;
   created_by: string | null;
   updated_by: string | null;
   created_at: Date;
@@ -2501,6 +2618,10 @@ function rowToContentPageSummary(row: ContentPageSummarySqlRow): ContentPageSumm
     title: row.title,
     status: row.status as ContentStatus,
     showTitle: row.show_title,
+    pageType: row.page_type as PageType,
+    displayMode: row.display_mode as PageDisplayMode,
+    overlayWidth: row.overlay_width as OverlayWidth,
+    overlayHeight: row.overlay_height as OverlayHeight,
     createdBy: row.created_by,
     updatedBy: row.updated_by,
     createdAt: row.created_at,
