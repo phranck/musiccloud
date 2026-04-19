@@ -30,6 +30,7 @@ import {
   useCreateContentPage,
   useDeleteContentPage,
 } from "@/features/content/hooks/useAdminContent";
+import type { PageType } from "@musiccloud/shared";
 
 type ContentPage = ContentPageSummary;
 
@@ -87,6 +88,7 @@ interface PagesListState {
   title: string;
   slug: string;
   slugManual: boolean;
+  pageType: PageType;
   createError: string | null;
   deleteTarget: { slug: string; title: string } | null;
 }
@@ -96,6 +98,7 @@ const initialState: PagesListState = {
   title: "",
   slug: "",
   slugManual: false,
+  pageType: "default",
   createError: null,
   deleteTarget: null,
 };
@@ -113,7 +116,7 @@ export function PagesListPage() {
     (prev: PagesListState, action: Partial<PagesListState>): PagesListState => ({ ...prev, ...action }),
     initialState,
   );
-  const { showCreate, title, slug, slugManual, createError, deleteTarget } = state;
+  const { showCreate, title, slug, slugManual, pageType, createError, deleteTarget } = state;
 
   function handleTitleChange(val: string) {
     dispatch(slugManual ? { title: val } : { title: val, slug: slugify(val) });
@@ -127,8 +130,8 @@ export function PagesListPage() {
     e.preventDefault();
     dispatch({ createError: null });
     try {
-      const page = await createPage.mutateAsync({ slug, title });
-      dispatch({ showCreate: false, title: "", slug: "", slugManual: false });
+      const page = await createPage.mutateAsync({ slug, title, pageType });
+      dispatch({ showCreate: false, title: "", slug: "", slugManual: false, pageType: "default" });
       navigate(`/pages/${page.slug}`);
     } catch (err) {
       dispatch({ createError: err instanceof Error ? err.message : (text.createError ?? "") });
@@ -136,7 +139,14 @@ export function PagesListPage() {
   }
 
   function handleCancelCreate() {
-    dispatch({ showCreate: false, title: "", slug: "", slugManual: false, createError: null });
+    dispatch({
+      showCreate: false,
+      title: "",
+      slug: "",
+      slugManual: false,
+      pageType: "default",
+      createError: null,
+    });
   }
 
   const handleDeleteRequest = useCallback((pageSlug: string, pageTitle: string) => {
@@ -170,6 +180,15 @@ export function PagesListPage() {
         id: "slug",
         header: text.table.slug,
         cell: (page) => <span className="font-mono text-xs text-[var(--ds-text-muted)]">/{page.slug}</span>,
+      },
+      {
+        id: "type",
+        header: text.table.type,
+        cell: (page) => (
+          <span className="text-xs text-[var(--ds-text-muted)]">
+            {page.pageType === "segmented" ? text.pageTypeSegmented : text.pageTypeDefault}
+          </span>
+        ),
       },
       {
         id: "status",
@@ -293,6 +312,36 @@ export function PagesListPage() {
                   placeholder={text.slugPlaceholder}
                   className="flex-1 px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent font-mono"
                 />
+              </div>
+            </div>
+            <div>
+              <span className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
+                {text.fieldPageType}
+              </span>
+              <div className="flex gap-2">
+                {(["default", "segmented"] as const).map((pt) => {
+                  const active = pageType === pt;
+                  return (
+                    <label
+                      key={pt}
+                      className={`flex-1 px-3 py-2 text-xs border rounded-control cursor-pointer text-center ${
+                        active
+                          ? "border-[var(--color-primary)] text-[var(--ds-text)]"
+                          : "border-[var(--ds-border)] text-[var(--ds-text-muted)]"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="pageType"
+                        value={pt}
+                        checked={active}
+                        onChange={() => dispatch({ pageType: pt })}
+                        className="sr-only"
+                      />
+                      {pt === "default" ? text.pageTypeDefault : text.pageTypeSegmented}
+                    </label>
+                  );
+                })}
               </div>
             </div>
             {createError && <p className="text-xs text-red-500">{createError}</p>}
