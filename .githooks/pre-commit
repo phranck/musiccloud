@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Block commits that contain secrets. Requires gitleaks on PATH.
+set -euo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "⚠  gitleaks not installed. Skipping secret scan."
+  echo "   Install: brew install gitleaks"
+  exit 0
+fi
+
+gitleaks protect --staged --redact --verbose
