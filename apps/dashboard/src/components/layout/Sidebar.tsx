@@ -1,13 +1,16 @@
 import {
   CaretCircleDoubleDownIcon,
   CaretCircleDoubleUpIcon,
+  CaretDownIcon,
   ChartBarIcon,
   CheckCircleIcon,
   CircleIcon,
   CopyIcon,
   EnvelopeOpenIcon,
   EyeSlashIcon,
-  FileIcon,
+  FileDashedIcon,
+  FileMdIcon,
+  FilesIcon,
   GearIcon,
   HouseSimpleIcon,
   ListIcon,
@@ -20,7 +23,7 @@ import {
   UsersThreeIcon,
   VinylRecordIcon,
 } from "@phosphor-icons/react";
-import { useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router";
 
 import { CollapsibleSidebarGroup, sidebarGroupItemClass } from "@/components/layout/CollapsibleSidebarGroup";
@@ -62,6 +65,110 @@ function PageStatusIcon({ status }: { status: string }) {
   return <CircleIcon weight="duotone" className="w-3 h-3 text-amber-500 shrink-0" />;
 }
 
+type TreeDepth = 1 | 2;
+const TREE_VERT_X: Record<TreeDepth, number> = { 1: 20, 2: 48 };
+const TREE_ROW_PADDING: Record<TreeDepth, number> = { 1: 28, 2: 56 };
+const TREE_STUB_W = 18;
+const TREE_TOP_EXTRA = 28;
+
+interface PageTreeRowProps {
+  depth: TreeDepth;
+  ancestorContinues: TreeDepth[];
+  isFirstChild?: boolean;
+  isFirstAtTopLevel?: boolean;
+  to: string;
+  end?: boolean;
+  onItemClick?: () => void;
+  collapsible?: boolean;
+  expanded?: boolean;
+  onToggleExpanded?: () => void;
+  toggleAriaLabel?: string;
+  children: ReactNode;
+}
+
+function PageTreeRow({
+  depth,
+  ancestorContinues,
+  isFirstChild,
+  isFirstAtTopLevel,
+  to,
+  end,
+  onItemClick,
+  collapsible,
+  expanded,
+  onToggleExpanded,
+  toggleAriaLabel,
+  children,
+}: PageTreeRowProps) {
+  const vertX = TREE_VERT_X[depth];
+  let incomingTop: number | string = "-50%";
+  let incomingHeight: number | string = "100%";
+  if (isFirstAtTopLevel) {
+    incomingTop = -TREE_TOP_EXTRA;
+    incomingHeight = `calc(50% + ${TREE_TOP_EXTRA}px)`;
+  } else if (isFirstChild) {
+    incomingTop = -12;
+    incomingHeight = "calc(50% + 12px)";
+  }
+  return (
+    <div className="relative" style={{ paddingLeft: TREE_ROW_PADDING[depth] }}>
+      {ancestorContinues.map((d) => (
+        <span
+          key={d}
+          aria-hidden
+          className="pointer-events-none absolute top-0 h-full w-0.5 bg-[var(--ds-border)]"
+          style={{ left: TREE_VERT_X[d] - 1 }}
+        />
+      ))}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute w-0.5 bg-[var(--ds-border)]"
+        style={{ left: vertX - 1, top: incomingTop, height: incomingHeight }}
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute h-0.5 bg-[var(--ds-border)]"
+        style={{ left: vertX - 1, top: "50%", width: TREE_STUB_W, marginTop: -1 }}
+      />
+      <NavLink
+        to={to}
+        end={end}
+        onClick={onItemClick}
+        className={(state) => `${sidebarGroupItemClass(state)} ${collapsible ? "pr-8" : ""}`}
+      >
+        {children}
+      </NavLink>
+      {collapsible && (
+        <button
+          type="button"
+          onClick={onToggleExpanded}
+          aria-label={toggleAriaLabel}
+          aria-expanded={expanded}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] hover:bg-[var(--ds-nav-hover-bg)]"
+        >
+          <CaretDownIcon
+            weight="duotone"
+            className={`w-3.5 h-3.5 transition-transform duration-200 ease-out ${expanded ? "rotate-180" : ""}`}
+          />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PageTreeContent({ page, icon }: { page: { slug: string; title: string; status: string }; icon: ReactNode }) {
+  return (
+    <>
+      {icon}
+      <PageStatusIcon status={page.status} />
+      <span className="flex flex-col min-w-0">
+        <span className="truncate">{page.title}</span>
+        <span className="truncate text-xs opacity-50">/{page.slug}</span>
+      </span>
+    </>
+  );
+}
+
 function PagesGroup({
   onItemClick,
   globalOpenState,
@@ -77,30 +184,142 @@ function PagesGroup({
   const s = messages.layout.sidebar;
   const { data: pages } = useContentPages();
 
+  const list = pages ?? [];
+  const bySlug = new Map(list.map((p) => [p.slug, p]));
+  const segmentedParents = list.filter((p) => p.pageType === "segmented");
+  const renderedChildren = new Set<string>();
+  const segmentedBlocks = segmentedParents.map((parent) => {
+    const children = (parent.segments ?? [])
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((seg) => bySlug.get(seg.targetSlug))
+      .filter((p): p is NonNullable<typeof p> => p !== undefined && !renderedChildren.has(p.slug));
+    children.forEach((c) => renderedChildren.add(c.slug));
+    return { parent, children };
+  });
+  const orphanDefaults = list.filter((p) => p.pageType === "default" && !renderedChildren.has(p.slug));
+
+  const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
+  const segmentedSlugsKey = segmentedBlocks.map(({ parent }) => parent.slug).join(",");
+  useEffect(() => {
+    setExpandedMap((prev) => {
+      const next: Record<string, boolean> = {};
+      for (const slug of segmentedSlugsKey ? segmentedSlugsKey.split(",") : []) {
+        if (slug in prev) {
+          next[slug] = prev[slug];
+        } else {
+          const stored = localStorage.getItem(`sidebar-page-children-${slug}-open`);
+          next[slug] = stored === null ? true : stored === "true";
+        }
+      }
+      return next;
+    });
+  }, [segmentedSlugsKey]);
+  function toggleExpanded(slug: string) {
+    setExpandedMap((prev) => {
+      const next = { ...prev, [slug]: !(prev[slug] ?? true) };
+      localStorage.setItem(`sidebar-page-children-${slug}-open`, String(next[slug]));
+      return next;
+    });
+  }
+
+  type RowSpec =
+    | { kind: "overview" }
+    | {
+        kind: "parent";
+        page: (typeof list)[number];
+        ancestorContinues: TreeDepth[];
+        collapsible: boolean;
+        expanded: boolean;
+      }
+    | { kind: "child"; page: (typeof list)[number]; ancestorContinues: TreeDepth[]; isFirstChild: boolean }
+    | { kind: "orphan"; page: (typeof list)[number] };
+
+  const rowSpecs: RowSpec[] = [{ kind: "overview" }];
+  segmentedBlocks.forEach(({ parent, children }, blockIdx) => {
+    const moreD1Below = blockIdx < segmentedBlocks.length - 1 || orphanDefaults.length > 0;
+    const expanded = expandedMap[parent.slug] ?? true;
+    rowSpecs.push({
+      kind: "parent",
+      page: parent,
+      ancestorContinues: [],
+      collapsible: children.length > 0,
+      expanded,
+    });
+    if (!expanded) return;
+    children.forEach((child, childIdx) => {
+      rowSpecs.push({
+        kind: "child",
+        page: child,
+        ancestorContinues: moreD1Below ? [1] : [],
+        isFirstChild: childIdx === 0,
+      });
+    });
+  });
+  orphanDefaults.forEach((page) => {
+    rowSpecs.push({ kind: "orphan", page });
+  });
+
   return (
     <CollapsibleSidebarGroup
       routeMatch="/pages/*"
       storageKey="sidebar-pages-open"
-      icon={<CopyIcon weight="duotone" className="w-4 h-4" />}
+      icon={<FilesIcon weight="duotone" className="w-4 h-4" />}
       label={s.pages}
-      badge={pages?.length ?? 0}
+      badge={list.length}
       globalOpenState={globalOpenState}
       globalOpenVersion={globalOpenVersion}
       onOpenChange={onOpenChange}
+      noRail
     >
-      <NavLink to="/pages" end onClick={onItemClick} className={sidebarGroupItemClass}>
-        {s.pagesOverview}
-      </NavLink>
-      {(pages ?? []).map((page) => (
-        <NavLink key={page.slug} to={`/pages/${page.slug}`} onClick={onItemClick} className={sidebarGroupItemClass}>
-          <FileIcon weight="duotone" className="w-3.5 h-3.5 shrink-0 opacity-60" />
-          <PageStatusIcon status={page.status} />
-          <span className="flex flex-col min-w-0">
-            <span className="truncate">{page.title}</span>
-            <span className="truncate text-xs opacity-50">/{page.slug}</span>
-          </span>
-        </NavLink>
-      ))}
+      {rowSpecs.map((spec, idx) => {
+        if (spec.kind === "overview") {
+          return (
+            <PageTreeRow
+              key="__overview"
+              depth={1}
+              ancestorContinues={[]}
+              isFirstAtTopLevel
+              to="/pages"
+              end
+              onItemClick={onItemClick}
+            >
+              <span className="truncate">{s.pagesOverview}</span>
+            </PageTreeRow>
+          );
+        }
+        const depth: TreeDepth = spec.kind === "child" ? 2 : 1;
+        const isFirstAtTopLevel = idx === 0;
+        const icon =
+          spec.kind === "parent" ? (
+            <FileDashedIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />
+          ) : (
+            <FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />
+          );
+        const collapsibleProps =
+          spec.kind === "parent" && spec.collapsible
+            ? {
+                collapsible: true as const,
+                expanded: spec.expanded,
+                onToggleExpanded: () => toggleExpanded(spec.page.slug),
+                toggleAriaLabel: spec.expanded ? s.collapseAllAria : s.expandAllAria,
+              }
+            : {};
+        return (
+          <PageTreeRow
+            key={spec.page.slug}
+            depth={depth}
+            ancestorContinues={spec.kind === "child" ? spec.ancestorContinues : []}
+            isFirstChild={spec.kind === "child" && spec.isFirstChild}
+            isFirstAtTopLevel={isFirstAtTopLevel}
+            to={`/pages/${spec.page.slug}`}
+            onItemClick={onItemClick}
+            {...collapsibleProps}
+          >
+            <PageTreeContent page={spec.page} icon={icon} />
+          </PageTreeRow>
+        );
+      })}
     </CollapsibleSidebarGroup>
   );
 }

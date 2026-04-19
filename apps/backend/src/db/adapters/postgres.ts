@@ -2292,9 +2292,18 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async listContentPageSummaries(): Promise<ContentPageSummaryRow[]> {
     const result = await this.pool.query(
-      `SELECT ${CONTENT_SUMMARY_COLUMNS}
+      `SELECT ${CONTENT_SUMMARY_COLUMNS},
+              COALESCE(
+                json_agg(
+                  json_build_object('position', ps.position, 'label', ps.label, 'targetSlug', ps.target_slug)
+                  ORDER BY ps.position
+                ) FILTER (WHERE ps.id IS NOT NULL),
+                '[]'::json
+              ) AS segments
        FROM content_pages
-       ORDER BY created_at DESC`,
+       LEFT JOIN page_segments ps ON ps.owner_slug = content_pages.slug
+       GROUP BY content_pages.slug
+       ORDER BY content_pages.created_at DESC`,
     );
     return result.rows.map(rowToContentPageSummary);
   }
@@ -2607,6 +2616,7 @@ interface ContentPageSummarySqlRow {
   updated_by: string | null;
   created_at: Date;
   updated_at: Date | null;
+  segments?: { position: number; label: string; targetSlug: string }[];
 }
 
 interface ContentPageSqlRow extends ContentPageSummarySqlRow {
@@ -2628,6 +2638,7 @@ function rowToContentPageSummary(row: ContentPageSummarySqlRow): ContentPageSumm
     updatedBy: row.updated_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    ...(row.segments !== undefined && { segments: row.segments }),
   };
 }
 

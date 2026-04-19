@@ -24,7 +24,7 @@ function TableBody({ className = "", ...props }: HTMLAttributes<HTMLTableSection
 }
 
 function TableRow({ className = "", ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={`table-row-hover transition-colors ${className}`} {...props} />;
+  return <tr className={`table-row-hover ${className}`} {...props} />;
 }
 
 function Th({ className = "", ...props }: ThHTMLAttributes<HTMLTableCellElement>) {

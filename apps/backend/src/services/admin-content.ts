@@ -60,6 +60,7 @@ function rowToSummary(row: ContentPageSummaryRow, usernames: Map<string, string>
     updatedByUsername: row.updatedBy ? (usernames.get(row.updatedBy) ?? null) : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
+    ...(row.segments !== undefined && { segments: row.segments }),
   };
 }
 

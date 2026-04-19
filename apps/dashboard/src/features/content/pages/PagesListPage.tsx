@@ -2,7 +2,9 @@ import {
   CheckCircleIcon,
   CircleIcon,
   EyeSlashIcon,
+  FileDashedIcon,
   FileIcon,
+  FileMdIcon,
   PencilLineIcon,
   PlusCircleIcon,
   TrashIcon,
@@ -25,6 +27,35 @@ import {
 import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
 
 type ContentPage = ContentPageSummary;
+
+interface HierarchicalPage extends ContentPage {
+  depth: 0 | 1;
+}
+
+function buildHierarchy(pages: ContentPage[]): HierarchicalPage[] {
+  const bySlug = new Map(pages.map((p) => [p.slug, p]));
+  const segmentedParents = pages.filter((p) => p.pageType === "segmented");
+  const claimed = new Set<string>();
+  const out: HierarchicalPage[] = [];
+  for (const parent of segmentedParents) {
+    out.push({ ...parent, depth: 0 });
+    const children = (parent.segments ?? [])
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((seg) => bySlug.get(seg.targetSlug))
+      .filter((p): p is ContentPage => p !== undefined && !claimed.has(p.slug));
+    for (const child of children) {
+      claimed.add(child.slug);
+      out.push({ ...child, depth: 1 });
+    }
+  }
+  for (const page of pages) {
+    if (page.pageType === "default" && !claimed.has(page.slug)) {
+      out.push({ ...page, depth: 0 });
+    }
+  }
+  return out;
+}
 
 function StatusBadge({ status }: { status: string }) {
   const { messages } = useI18n();
@@ -99,21 +130,28 @@ export function PagesListPage() {
     });
   }
 
-  const columns = useMemo<ColumnDef<ContentPage>[]>(
+  const hierarchicalPages = useMemo(() => buildHierarchy(pages), [pages]);
+
+  const columns = useMemo<ColumnDef<HierarchicalPage>[]>(
     () => [
       {
         id: "title",
         header: text.table.title,
-        sortKey: (page) => page.title.toLowerCase(),
-        cell: (page) => (
-          <button
-            type="button"
-            onClick={() => navigate(`/pages/${page.slug}`)}
-            className="font-medium text-[var(--ds-text)] hover:underline text-left truncate"
-          >
-            {page.title}
-          </button>
-        ),
+        cell: (page) => {
+          const Icon = page.pageType === "segmented" ? FileDashedIcon : FileMdIcon;
+          return (
+            <div className="flex items-center gap-2" style={{ paddingLeft: page.depth * 24 }}>
+              <Icon weight="duotone" className="w-4 h-4 shrink-0 text-[var(--ds-text-muted)]" />
+              <button
+                type="button"
+                onClick={() => navigate(`/pages/${page.slug}`)}
+                className="font-medium text-[var(--ds-text)] hover:underline text-left truncate"
+              >
+                {page.title}
+              </button>
+            </div>
+          );
+        },
       },
       {
         id: "slug",
@@ -204,7 +242,7 @@ export function PagesListPage() {
 
         {!isLoading && pages.length > 0 && (
           <div className="-mx-3 -mt-3">
-            <DataTable columns={columns} data={pages} getRowKey={(page) => page.slug} stickyHeader />
+            <DataTable columns={columns} data={hierarchicalPages} getRowKey={(page) => page.slug} stickyHeader />
           </div>
         )}
       </PageBody>
