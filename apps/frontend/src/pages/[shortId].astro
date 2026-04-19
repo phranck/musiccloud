@@ -152,8 +152,14 @@ const pageTitle = contentPage
       <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-12">
         {contentPage.showTitle && contentPage.pageType !== "segmented" && (
           <h1
-            class="text-3xl sm:text-4xl font-bold tracking-[-0.04em] mb-8"
-            style={`text-align: ${contentPage.titleAlignment};`}
+            class:list={[
+              "text-3xl sm:text-4xl font-bold tracking-[-0.04em] mb-8",
+              {
+                "text-left": contentPage.titleAlignment === "left",
+                "text-center": contentPage.titleAlignment === "center",
+                "text-right": contentPage.titleAlignment === "right",
+              },
+            ]}
           >
             {contentPage.title}
           </h1>
