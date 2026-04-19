@@ -81,14 +81,24 @@ export function TranslucentOverlayContent({ page, onClose }: OverlayContentProps
   const segmented = useSegmented(page);
   const isSegmented = page.pageType === "segmented" && page.segments.length > 0;
   const html = isSegmented ? segmented.currentHtml : page.contentHtml;
-  const title = isSegmented ? segmented.currentTitle : page.title;
-  const showTitle = isSegmented ? segmented.currentShowTitle : page.showTitle;
+  // Title cascade for segmented pages: owner's showTitle overrides the
+  // target's — when set, the segmented page's own title is shown on every
+  // tab. Otherwise the active target's title takes over (if it opts in).
+  const title = isSegmented && !page.showTitle ? segmented.currentTitle : page.title;
+  const showTitle = isSegmented ? page.showTitle || segmented.currentShowTitle : page.showTitle;
 
   return (
     <TranslucentCard className="max-h-full">
       <TranslucentCard.Header className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          {showTitle && <h2 className="text-xl font-semibold tracking-[-0.01em] text-white truncate">{title}</h2>}
+          {showTitle && (
+            <h2
+              className="text-xl font-semibold tracking-[-0.01em] text-white truncate"
+              style={{ textAlign: page.titleAlignment }}
+            >
+              {title}
+            </h2>
+          )}
         </div>
         <button
           type="button"
@@ -117,13 +127,14 @@ export function EmbossedOverlayContent({ page, onClose }: OverlayContentProps) {
   const segmented = useSegmented(page);
   const isSegmented = page.pageType === "segmented" && page.segments.length > 0;
   const html = isSegmented ? segmented.currentHtml : page.contentHtml;
-  const title = isSegmented ? segmented.currentTitle : page.title;
-  const showTitle = isSegmented ? segmented.currentShowTitle : page.showTitle;
+  // See title-cascade note in TranslucentOverlayContent above.
+  const title = isSegmented && !page.showTitle ? segmented.currentTitle : page.title;
+  const showTitle = isSegmented ? page.showTitle || segmented.currentShowTitle : page.showTitle;
 
   return (
     <EmbossedCard className={cn("flex flex-col max-h-full")}>
       <EmbossedCard.Header className="px-2 py-2">
-        {showTitle && <h2 className="text-xl font-semibold tracking-[-0.01em] text-text-primary truncate">{title}</h2>}
+        {showTitle && <EmbossedCard.Header.Title align={page.titleAlignment}>{title}</EmbossedCard.Header.Title>}
         <EmbossedCard.Header.AddOn align="trailing">
           <EmbossedCloseButton onClick={onClose} />
         </EmbossedCard.Header.AddOn>
@@ -154,13 +165,18 @@ export function SegmentedPageFullscreen({ page }: { page: PublicContentPage }) {
   const segmented = useSegmented(page);
   const hasSegments = page.segments.length > 0;
   const html = hasSegments ? segmented.currentHtml : page.contentHtml;
-  const title = hasSegments ? segmented.currentTitle : page.title;
-  const showTitle = hasSegments ? segmented.currentShowTitle : page.showTitle;
+  // See title-cascade note in TranslucentOverlayContent above.
+  const title = hasSegments && !page.showTitle ? segmented.currentTitle : page.title;
+  const showTitle = hasSegments ? page.showTitle || segmented.currentShowTitle : page.showTitle;
 
   return (
     <EmbossedCard className="flex flex-col w-full">
       <EmbossedCard.Header className="flex items-center justify-center px-6 py-2">
-        {showTitle && <h2 className="text-2xl font-semibold tracking-[-0.01em] text-text-primary">{title}</h2>}
+        {showTitle && (
+          <EmbossedCard.Header.Title align={page.titleAlignment} className="text-2xl">
+            {title}
+          </EmbossedCard.Header.Title>
+        )}
       </EmbossedCard.Header>
       {hasSegments && (
         <EmbossedCard.SegmentedControl

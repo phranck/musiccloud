@@ -10,6 +10,7 @@ const BODY_TAG = Symbol("EmbossedCard.Body");
 const FOOTER_TAG = Symbol("EmbossedCard.Footer");
 const ADDON_TAG = Symbol("EmbossedCard.AddOn");
 const HEADER_ADDON_TAG = Symbol("EmbossedCard.Header.AddOn");
+const HEADER_TITLE_TAG = Symbol("EmbossedCard.Header.Title");
 const SEGMENTS_TAG = Symbol("EmbossedCard.SegmentedControl");
 
 interface HeaderProps {
@@ -44,6 +45,23 @@ function HeaderAddOn({ children, className }: HeaderAddOnProps) {
 }
 (HeaderAddOn as unknown as Record<symbol, boolean>)[HEADER_ADDON_TAG] = true;
 
+interface HeaderTitleProps {
+  children: ReactNode;
+  className?: string;
+  align?: "left" | "center" | "right";
+}
+
+function HeaderTitle({ children, className, align }: HeaderTitleProps) {
+  return (
+    <h2
+      className={cn("text-xl font-semibold tracking-[-0.01em] text-text-primary truncate flex-1 min-w-0", className)}
+      style={align ? { textAlign: align } : undefined}
+    >
+      {children}
+    </h2>
+  );
+}
+
 function Header({ children, className }: HeaderProps) {
   const childArray = Children.toArray(children);
   const leading = childArray.filter(
@@ -73,9 +91,12 @@ function Header({ children, className }: HeaderProps) {
 }
 (Header as unknown as Record<symbol, boolean>)[HEADER_TAG] = true;
 
-type HeaderWithAddOn = typeof Header & { AddOn: typeof HeaderAddOn };
-const TypedHeader = Header as HeaderWithAddOn;
+(HeaderTitle as unknown as Record<symbol, boolean>)[HEADER_TITLE_TAG] = true;
+
+type HeaderWithSubcomponents = typeof Header & { AddOn: typeof HeaderAddOn; Title: typeof HeaderTitle };
+const TypedHeader = Header as HeaderWithSubcomponents;
 TypedHeader.AddOn = HeaderAddOn;
+TypedHeader.Title = HeaderTitle;
 
 function Body({ children, className }: BodyProps) {
   // `flex flex-col` is baked in so that callers using `flex-1 min-h-0` on

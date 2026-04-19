@@ -46,7 +46,7 @@ export function PageDisplaySettings({ displayMode, overlayWidth, overlayHeight, 
   const isOverlay = displayMode !== "fullscreen";
 
   return (
-    <div className="px-6 py-3 flex flex-wrap items-end gap-4 bg-[var(--ds-surface)] border-t border-[var(--ds-border)]">
+    <div className="px-3 pt-1 pb-3 flex flex-wrap items-end gap-4 bg-[var(--ds-surface)]">
       <Picker<PageDisplayMode>
         label={labels.displayMode}
         value={displayMode}

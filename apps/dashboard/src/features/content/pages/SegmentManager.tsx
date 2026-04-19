@@ -1,7 +1,8 @@
 import type { ContentPage, ContentPageSummary, PageSegmentInput } from "@musiccloud/shared";
-import { ArrowDownIcon, ArrowUpIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowDownIcon, ArrowUpIcon, EyeIcon, PlusCircleIcon, RowsIcon, TrashIcon } from "@phosphor-icons/react";
+import { type MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 
+import { DashboardSection } from "@/components/ui/DashboardSection";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
 import { MarkdownEditor } from "@/components/ui/MarkdownEditor";
@@ -14,8 +15,14 @@ import {
 } from "@/features/content/hooks/useAdminContent";
 import { FormLabelText } from "@/shared/ui/FormPrimitives";
 
+export type SegmentSaveFn = () => Promise<void>;
+
 interface Props {
   page: ContentPage;
+  onSaved?: () => void;
+  /** Register the manager's save routine so the page-editor header's Save
+   * button and Cmd+S can persist draft segments + target-page content. */
+  saveRef?: MutableRefObject<SegmentSaveFn | null>;
 }
 
 interface DraftSegment extends PageSegmentInput {
@@ -36,11 +43,18 @@ function nextLocalId(): string {
   return `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function SegmentManager({ page }: Props) {
+function segmentsEqual(a: DraftSegment[], b: ContentPage["segments"]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].label !== b[i].label || a[i].targetSlug !== b[i].targetSlug) return false;
+  }
+  return true;
+}
+
+export function SegmentManager({ page, onSaved, saveRef }: Props) {
   const { messages } = useI18n();
   const text = messages.content.pages.segments;
   const editorMessages = messages.content.editor;
-  const common = messages.common;
   const { data: allPages = [] } = useContentPages();
   const saveSegments = useSaveContentPageSegments();
   const saveTarget = useSaveContentPage();
@@ -52,19 +66,14 @@ export function SegmentManager({ page }: Props) {
 
   const [draft, setDraft] = useState<DraftSegment[]>(() => toDraft(page));
   const [error, setError] = useState<string | null>(null);
-  // Track the active tab as an INDEX into draft[] so two segments pointing at
-  // the same target page don't collapse onto the same React key.
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [targetDraftContent, setTargetDraftContent] = useState<string | null>(null);
-  const [targetSaved, setTargetSaved] = useState(false);
 
-  // Clamp active index if draft shrinks below it.
   useEffect(() => {
     if (draft.length === 0) return;
     if (activeIndex >= draft.length) {
       setActiveIndex(Math.max(0, draft.length - 1));
       setTargetDraftContent(null);
-      setTargetSaved(false);
     }
   }, [draft, activeIndex]);
 
@@ -73,11 +82,76 @@ export function SegmentManager({ page }: Props) {
 
   const { data: targetPage } = useAdminContentPage(activeTargetSlug ?? undefined);
 
+  // Expose latest values to the registered save closure without retriggering it.
+  const stateRef = useRef({
+    draft,
+    targetPage,
+    activeTargetSlug,
+    targetDraftContent,
+  });
+  stateRef.current = { draft, targetPage, activeTargetSlug, targetDraftContent };
+
+  const canSave = draft.every((s) => s.label.trim().length > 0 && s.targetSlug);
+
+  // Register the save function with the parent. Runs once; reads fresh state
+  // via the ref above so we never capture stale closures.
   useEffect(() => {
-    if (!targetSaved) return;
-    const t = setTimeout(() => setTargetSaved(false), 2000);
-    return () => clearTimeout(t);
-  }, [targetSaved]);
+    if (!saveRef) return;
+    saveRef.current = async () => {
+      const {
+        draft: currentDraft,
+        targetPage: currentTargetPage,
+        activeTargetSlug: currentTargetSlug,
+        targetDraftContent: currentDraftContent,
+      } = stateRef.current;
+
+      setError(null);
+      let didAnything = false;
+
+      // 1. Persist segment list if it differs from the server state.
+      if (!segmentsEqual(currentDraft, page.segments)) {
+        try {
+          await saveSegments.mutateAsync({
+            slug: page.slug,
+            segments: currentDraft.map((s, i) => ({
+              position: i,
+              label: s.label,
+              targetSlug: s.targetSlug,
+            })),
+          });
+          didAnything = true;
+        } catch (err) {
+          setError(err instanceof Error ? err.message : text.saveError);
+          return;
+        }
+      }
+
+      // 2. Persist target-page body if the user edited it inline.
+      if (
+        currentTargetPage &&
+        currentTargetSlug &&
+        currentDraftContent !== null &&
+        currentDraftContent !== currentTargetPage.content
+      ) {
+        try {
+          await saveTarget.mutateAsync({
+            slug: currentTargetSlug,
+            data: { content: currentDraftContent },
+          });
+          setTargetDraftContent(null);
+          didAnything = true;
+        } catch (err) {
+          setError(err instanceof Error ? err.message : text.saveError);
+          return;
+        }
+      }
+
+      if (didAnything) onSaved?.();
+    };
+    return () => {
+      saveRef.current = null;
+    };
+  }, [saveRef, page.slug, page.segments, saveSegments, saveTarget, onSaved, text.saveError]);
 
   function move(index: number, delta: number) {
     const nextIndex = index + delta;
@@ -85,7 +159,6 @@ export function SegmentManager({ page }: Props) {
     const next = draft.slice();
     [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
     setDraft(next.map((s, i) => ({ ...s, position: i })));
-    // Keep focus on the moved segment.
     if (activeIndex === index) setActiveIndex(nextIndex);
     else if (activeIndex === nextIndex) setActiveIndex(index);
   }
@@ -99,14 +172,12 @@ export function SegmentManager({ page }: Props) {
       setActiveIndex(Math.max(0, activeIndex - 1));
     }
     setTargetDraftContent(null);
-    setTargetSaved(false);
   }
 
   function update(index: number, patch: Partial<PageSegmentInput>) {
     setDraft(draft.map((s, i) => (i === index ? { ...s, ...patch } : s)));
     if (index === activeIndex && patch.targetSlug !== undefined) {
       setTargetDraftContent(null);
-      setTargetSaved(false);
     }
   }
 
@@ -121,47 +192,16 @@ export function SegmentManager({ page }: Props) {
     setActiveIndex(nextDraft.length - 1);
   }
 
-  const canSave = draft.every((s) => s.label.trim().length > 0 && s.targetSlug);
-
-  async function handleSave() {
-    setError(null);
-    try {
-      await saveSegments.mutateAsync({
-        slug: page.slug,
-        segments: draft.map((s, i) => ({ position: i, label: s.label, targetSlug: s.targetSlug })),
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : text.saveError);
-    }
-  }
-
   const currentContent = targetDraftContent ?? targetPage?.content ?? "";
 
   function handleTargetContentChange(next: string) {
     setTargetDraftContent(next);
-    setTargetSaved(false);
-  }
-
-  function handleSaveTarget() {
-    if (!targetPage || !activeTargetSlug) return;
-    if (currentContent === targetPage.content) return;
-    saveTarget.mutate(
-      { slug: activeTargetSlug, data: { content: currentContent } },
-      {
-        onSuccess: () => {
-          setTargetSaved(true);
-          setTargetDraftContent(null);
-        },
-      },
-    );
   }
 
   if (defaultPages.length === 0 && draft.length === 0) {
     return <div className="px-6 py-6 text-sm text-[var(--ds-text-muted)]">{text.noDefaultPages}</div>;
   }
 
-  // Segments for EmbossedSegmentedControl — keyed by stringified index so
-  // duplicate target slugs keep distinct keys.
   const previewSegments = draft.map((s, i) => ({
     key: String(i),
     label: s.label.trim() || text.labelPlaceholder,
@@ -172,162 +212,148 @@ export function SegmentManager({ page }: Props) {
     label: `${p.title} (/${p.slug})`,
   }));
 
-  const targetDirty = targetPage ? currentContent !== targetPage.content : false;
+  void canSave; // kept for potential future UI (e.g. block parent save); no in-card button
 
   return (
-    <div className="flex flex-col gap-4 px-6 py-6">
-      <header className="flex items-center justify-between gap-3">
-        <FormLabelText className="mb-0">{text.title}</FormLabelText>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={addSegment}
-            disabled={defaultPages.length === 0}
-            className="flex items-center gap-1.5 px-3 h-8 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-xs font-medium hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-            {text.addSegment}
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!canSave || saveSegments.isPending}
-            className="flex items-center gap-1.5 px-3 h-8 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-xs font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] disabled:opacity-60"
-          >
-            {saveSegments.isPending ? text.saving : text.save}
-          </button>
-        </div>
-      </header>
-
-      {draft.length === 0 ? (
-        <p className="text-xs text-[var(--ds-text-muted)]">{text.empty}</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {draft.map((segment, index) => {
-            const dropdownValue = targetDropdownOptions.some((o) => o.value === segment.targetSlug)
-              ? segment.targetSlug
-              : segment.targetSlug || (targetDropdownOptions[0]?.value ?? "");
-            const options = targetDropdownOptions.some((o) => o.value === segment.targetSlug)
-              ? targetDropdownOptions
-              : [
-                  ...(segment.targetSlug ? [{ value: segment.targetSlug, label: `/${segment.targetSlug}` }] : []),
-                  ...targetDropdownOptions,
-                ];
-            return (
-              <li
-                key={segment.localId}
-                className="flex flex-wrap items-center gap-2 border border-[var(--ds-border)] rounded-control bg-[var(--ds-surface)] px-3 py-2"
-              >
-                <button
-                  type="button"
-                  onClick={() => setActiveIndex(index)}
-                  aria-pressed={index === activeIndex}
-                  className={`text-[10px] font-mono w-6 text-right ${
-                    index === activeIndex ? "text-[var(--color-primary)]" : "text-[var(--ds-text-subtle)]"
-                  }`}
-                  title={text.moveUp}
-                >
-                  {index + 1}.
-                </button>
-                <input
-                  type="text"
-                  value={segment.label}
-                  onFocus={() => setActiveIndex(index)}
-                  onChange={(e) => update(index, { label: e.target.value })}
-                  placeholder={text.labelPlaceholder}
-                  className="flex-1 min-w-[140px] h-7 px-2 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
-                />
-                <div className="w-64">
-                  <Dropdown
-                    size="sm"
-                    value={dropdownValue}
-                    options={options}
-                    onChange={(v) => {
-                      setActiveIndex(index);
-                      update(index, { targetSlug: v });
-                    }}
-                  />
-                </div>
-                <div className="flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => move(index, -1)}
-                    disabled={index === 0}
-                    title={text.moveUp}
-                    className="w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--ds-surface-hover)] disabled:opacity-30"
+    <>
+      <DashboardSection>
+        <DashboardSection.Header
+          icon={<RowsIcon weight="duotone" className="w-4 h-4" />}
+          title={text.title}
+          addOn={
+            <button
+              type="button"
+              onClick={addSegment}
+              disabled={defaultPages.length === 0}
+              className="flex items-center gap-1.5 px-3 h-8 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-xs font-medium hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
+              {text.addSegment}
+            </button>
+          }
+        />
+        <DashboardSection.Body>
+          {draft.length === 0 ? (
+            <p className="text-xs text-[var(--ds-text-muted)]">{text.empty}</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {draft.map((segment, index) => {
+                const dropdownValue = targetDropdownOptions.some((o) => o.value === segment.targetSlug)
+                  ? segment.targetSlug
+                  : segment.targetSlug || (targetDropdownOptions[0]?.value ?? "");
+                const options = targetDropdownOptions.some((o) => o.value === segment.targetSlug)
+                  ? targetDropdownOptions
+                  : [
+                      ...(segment.targetSlug ? [{ value: segment.targetSlug, label: `/${segment.targetSlug}` }] : []),
+                      ...targetDropdownOptions,
+                    ];
+                return (
+                  <li
+                    key={segment.localId}
+                    className="flex flex-wrap items-center gap-2 border border-[var(--ds-border)] rounded-control bg-[var(--ds-surface)] px-3 py-2"
                   >
-                    <ArrowUpIcon weight="duotone" className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => move(index, +1)}
-                    disabled={index === draft.length - 1}
-                    title={text.moveDown}
-                    className="w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--ds-surface-hover)] disabled:opacity-30"
-                  >
-                    <ArrowDownIcon weight="duotone" className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    title={text.remove}
-                    className="w-7 h-7 flex items-center justify-center rounded text-[var(--ds-btn-danger-text)] hover:bg-[var(--ds-btn-danger-hover-bg)]"
-                  >
-                    <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {error && <p className="text-xs text-red-500">{error}</p>}
+                    <button
+                      type="button"
+                      onClick={() => setActiveIndex(index)}
+                      aria-pressed={index === activeIndex}
+                      className={`text-[10px] font-mono w-6 text-right ${
+                        index === activeIndex ? "text-[var(--color-primary)]" : "text-[var(--ds-text-subtle)]"
+                      }`}
+                      title={text.moveUp}
+                    >
+                      {index + 1}.
+                    </button>
+                    <input
+                      type="text"
+                      value={segment.label}
+                      onFocus={() => setActiveIndex(index)}
+                      onChange={(e) => update(index, { label: e.target.value })}
+                      placeholder={text.labelPlaceholder}
+                      className="flex-1 min-w-[140px] h-7 px-2 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                    />
+                    <div className="w-64">
+                      <Dropdown
+                        size="sm"
+                        value={dropdownValue}
+                        options={options}
+                        onChange={(v) => {
+                          setActiveIndex(index);
+                          update(index, { targetSlug: v });
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => move(index, -1)}
+                        disabled={index === 0}
+                        title={text.moveUp}
+                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--ds-surface-hover)] disabled:opacity-30"
+                      >
+                        <ArrowUpIcon weight="duotone" className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => move(index, +1)}
+                        disabled={index === draft.length - 1}
+                        title={text.moveDown}
+                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--ds-surface-hover)] disabled:opacity-30"
+                      >
+                        <ArrowDownIcon weight="duotone" className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(index)}
+                        title={text.remove}
+                        className="w-7 h-7 flex items-center justify-center rounded text-[var(--ds-btn-danger-text)] hover:bg-[var(--ds-btn-danger-hover-bg)]"
+                      >
+                        <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {error && <p className="text-xs text-red-500">{error}</p>}
+        </DashboardSection.Body>
+      </DashboardSection>
 
       {draft.length > 0 && activeSegment && (
-        <div className="flex flex-col gap-4 pt-4 border-t border-[var(--ds-border)]">
-          <FormLabelText className="mb-0">{text.preview}</FormLabelText>
-          <EmbossedSegmentedControl
-            segments={previewSegments}
-            value={String(activeIndex)}
-            onChange={(next) => {
-              const idx = Number.parseInt(next, 10);
-              if (Number.isNaN(idx)) return;
-              setActiveIndex(idx);
-              setTargetDraftContent(null);
-              setTargetSaved(false);
-            }}
-          />
+        <DashboardSection>
+          <DashboardSection.Header icon={<EyeIcon weight="duotone" className="w-4 h-4" />} title={text.preview} />
+          <DashboardSection.Body>
+            <EmbossedSegmentedControl
+              segments={previewSegments}
+              value={String(activeIndex)}
+              onChange={(next) => {
+                const idx = Number.parseInt(next, 10);
+                if (Number.isNaN(idx)) return;
+                setActiveIndex(idx);
+                setTargetDraftContent(null);
+              }}
+            />
 
-          <div className="flex items-center justify-between">
             <FormLabelText className="mb-0">
               {targetPage?.title ?? activeTargetSlug} (/{activeTargetSlug})
             </FormLabelText>
-            <button
-              type="button"
-              onClick={handleSaveTarget}
-              disabled={saveTarget.isPending || !targetDirty}
-              className="flex items-center gap-1.5 px-3 h-8 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-xs font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] disabled:opacity-60"
-            >
-              {saveTarget.isPending ? common.saving : targetSaved ? editorMessages.saved : common.save}
-            </button>
-          </div>
 
-          {targetPage ? (
-            <MarkdownEditor
-              key={activeTargetSlug ?? "none"}
-              value={currentContent}
-              onChange={handleTargetContentChange}
-              height="100%"
-              showHints
-            />
-          ) : (
-            <div className="h-[420px] bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control animate-pulse" />
-          )}
+            {targetPage ? (
+              <MarkdownEditor
+                key={activeTargetSlug ?? "none"}
+                value={currentContent}
+                onChange={handleTargetContentChange}
+                height="100%"
+                showHints
+              />
+            ) : (
+              <div className="h-[420px] bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control animate-pulse" />
+            )}
 
-          {saveTarget.isError && <p className="text-xs text-red-500">{editorMessages.saveError}</p>}
-        </div>
+            {saveTarget.isError && <p className="text-xs text-red-500">{editorMessages.saveError}</p>}
+          </DashboardSection.Body>
+        </DashboardSection>
       )}
-    </div>
+    </>
   );
 }

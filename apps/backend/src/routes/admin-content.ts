@@ -5,9 +5,11 @@ import {
   type OverlayHeight,
   type OverlayWidth,
   PAGE_DISPLAY_MODES,
+  PAGE_TITLE_ALIGNMENTS,
   PAGE_TYPES,
   type PageDisplayMode,
   type PageSegmentInput,
+  type PageTitleAlignment,
   type PageType,
   ROUTE_TEMPLATES,
 } from "@musiccloud/shared";
@@ -55,6 +57,7 @@ interface ContentMetaBody {
   slug?: string;
   status?: "draft" | "published" | "hidden";
   showTitle?: boolean;
+  titleAlignment?: PageTitleAlignment;
   pageType?: PageType;
   displayMode?: PageDisplayMode;
   overlayWidth?: OverlayWidth;
@@ -107,6 +110,10 @@ function validateMetaBody(body: unknown): ContentMetaBody | string {
   if (body.showTitle !== undefined) {
     if (typeof body.showTitle !== "boolean") return "showTitle must be boolean";
     out.showTitle = body.showTitle;
+  }
+  if (body.titleAlignment !== undefined) {
+    if (!isOneOf(PAGE_TITLE_ALIGNMENTS, body.titleAlignment)) return "titleAlignment invalid";
+    out.titleAlignment = body.titleAlignment;
   }
   if (body.pageType !== undefined) {
     if (!isOneOf(PAGE_TYPES, body.pageType)) return "pageType must be 'default' or 'segmented'";

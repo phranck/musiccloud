@@ -7,7 +7,13 @@ import type {
   PublicContentPage,
   PublicPageSegment,
 } from "@musiccloud/shared";
-import { OVERLAY_HEIGHTS, OVERLAY_WIDTHS, PAGE_DISPLAY_MODES, PAGE_TYPES } from "@musiccloud/shared";
+import {
+  OVERLAY_HEIGHTS,
+  OVERLAY_WIDTHS,
+  PAGE_DISPLAY_MODES,
+  PAGE_TITLE_ALIGNMENTS,
+  PAGE_TYPES,
+} from "@musiccloud/shared";
 import { marked } from "marked";
 
 import type {
@@ -45,6 +51,7 @@ function rowToSummary(row: ContentPageSummaryRow, usernames: Map<string, string>
     title: row.title,
     status: row.status,
     showTitle: row.showTitle,
+    titleAlignment: row.titleAlignment,
     pageType: row.pageType,
     displayMode: row.displayMode,
     overlayWidth: row.overlayWidth,
@@ -134,6 +141,9 @@ export async function updateManagedContentPageMeta(
   if (data.overlayHeight !== undefined && !isOneOf(OVERLAY_HEIGHTS, data.overlayHeight)) {
     return { ok: false, code: "INVALID_INPUT", message: "overlayHeight invalid" };
   }
+  if (data.titleAlignment !== undefined && !isOneOf(PAGE_TITLE_ALIGNMENTS, data.titleAlignment)) {
+    return { ok: false, code: "INVALID_INPUT", message: "titleAlignment invalid" };
+  }
   const repo = await getAdminRepository();
   if (data.slug !== undefined && data.slug !== slug) {
     if (await repo.contentPageSlugExists(data.slug)) {
@@ -196,6 +206,7 @@ export async function getPublicContentPage(slug: string): Promise<PublicContentP
     slug: row.slug,
     title: row.title,
     showTitle: row.showTitle,
+    titleAlignment: row.titleAlignment,
     pageType: row.pageType,
     displayMode: row.displayMode,
     overlayWidth: row.overlayWidth,

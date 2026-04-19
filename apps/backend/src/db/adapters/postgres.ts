@@ -1,4 +1,4 @@
-import type { OverlayHeight, OverlayWidth, PageDisplayMode, PageType } from "@musiccloud/shared";
+import type { OverlayHeight, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { CACHE_TTL_MS } from "../../lib/config.js";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
@@ -2345,6 +2345,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       setClauses.push(`show_title = $${paramIndex++}`);
       values.push(data.showTitle);
     }
+    if (data.titleAlignment !== undefined) {
+      setClauses.push(`title_alignment = $${paramIndex++}`);
+      values.push(data.titleAlignment);
+    }
     if (data.pageType !== undefined) {
       setClauses.push(`page_type = $${paramIndex++}`);
       values.push(data.pageType);
@@ -2586,14 +2590,15 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
 
 // Shared column lists so every SELECT / RETURNING stays in lockstep.
 const CONTENT_SUMMARY_COLUMNS =
-  "slug, title, status, show_title, page_type, display_mode, overlay_width, overlay_height, created_by, updated_by, created_at, updated_at";
-const CONTENT_COLUMNS = `slug, title, content, status, show_title, page_type, display_mode, overlay_width, overlay_height, created_by, updated_by, created_at, updated_at`;
+  "slug, title, status, show_title, title_alignment, page_type, display_mode, overlay_width, overlay_height, created_by, updated_by, created_at, updated_at";
+const CONTENT_COLUMNS = `slug, title, content, status, show_title, title_alignment, page_type, display_mode, overlay_width, overlay_height, created_by, updated_by, created_at, updated_at`;
 
 interface ContentPageSummarySqlRow {
   slug: string;
   title: string;
   status: string;
   show_title: boolean;
+  title_alignment: string;
   page_type: string;
   display_mode: string;
   overlay_width: string;
@@ -2614,6 +2619,7 @@ function rowToContentPageSummary(row: ContentPageSummarySqlRow): ContentPageSumm
     title: row.title,
     status: row.status as ContentStatus,
     showTitle: row.show_title,
+    titleAlignment: row.title_alignment as PageTitleAlignment,
     pageType: row.page_type as PageType,
     displayMode: row.display_mode as PageDisplayMode,
     overlayWidth: row.overlay_width as OverlayWidth,

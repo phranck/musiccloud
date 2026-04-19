@@ -334,8 +334,13 @@ export interface DashboardMessages {
       statusPublished: string;
       statusHidden: string;
       showTitleLabel: string;
+      titleAlignmentLabel: string;
+      titleAlignmentLeft: string;
+      titleAlignmentCenter: string;
+      titleAlignmentRight: string;
       createdBy: string;
       updatedBy: string;
+      updatedAt: string;
       loadingContent: string;
       saveError: string;
       preview: string;
@@ -1081,8 +1086,13 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         statusPublished: "Ver\u00f6ffentlicht",
         statusHidden: "Versteckt",
         showTitleLabel: "Titel anzeigen",
+        titleAlignmentLabel: "Ausrichtung",
+        titleAlignmentLeft: "Links",
+        titleAlignmentCenter: "Zentriert",
+        titleAlignmentRight: "Rechts",
         createdBy: "Erstellt von",
         updatedBy: "Aktualisiert von",
+        updatedAt: "Aktualisiert am",
         loadingContent: "Inhalt wird geladen\u2026",
         saveError: "Fehler beim Speichern",
         preview: "Vorschau",
@@ -1799,8 +1809,13 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         statusPublished: "Published",
         statusHidden: "Hidden",
         showTitleLabel: "Show title",
+        titleAlignmentLabel: "Alignment",
+        titleAlignmentLeft: "Left",
+        titleAlignmentCenter: "Center",
+        titleAlignmentRight: "Right",
         createdBy: "Created by",
         updatedBy: "Updated by",
+        updatedAt: "Updated at",
         loadingContent: "Loading content\u2026",
         saveError: "Error saving",
         preview: "Preview",

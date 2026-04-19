@@ -11,7 +11,9 @@ export type PageType = "default" | "segmented";
 export type PageDisplayMode = "fullscreen" | "embossed" | "translucent";
 export type OverlayWidth = "small" | "regular" | "big";
 export type OverlayHeight = "small" | "regular" | "dynamic" | "expanded";
+export type PageTitleAlignment = "left" | "center" | "right";
 
+export const PAGE_TITLE_ALIGNMENTS: readonly PageTitleAlignment[] = ["left", "center", "right"] as const;
 export const PAGE_TYPES: readonly PageType[] = ["default", "segmented"] as const;
 export const PAGE_DISPLAY_MODES: readonly PageDisplayMode[] = ["fullscreen", "embossed", "translucent"] as const;
 export const OVERLAY_WIDTHS: readonly OverlayWidth[] = ["small", "regular", "big"] as const;
@@ -58,6 +60,7 @@ export interface ContentPageSummary {
   title: string;
   status: ContentStatus;
   showTitle: boolean;
+  titleAlignment: PageTitleAlignment;
   pageType: PageType;
   displayMode: PageDisplayMode;
   overlayWidth: OverlayWidth;
@@ -86,6 +89,7 @@ export interface PublicContentPage {
   slug: string;
   title: string;
   showTitle: boolean;
+  titleAlignment: PageTitleAlignment;
   pageType: PageType;
   displayMode: PageDisplayMode;
   overlayWidth: OverlayWidth;
