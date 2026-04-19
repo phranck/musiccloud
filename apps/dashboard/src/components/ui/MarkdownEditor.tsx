@@ -1,7 +1,7 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { EditorSelection, type Extension, Prec } from "@codemirror/state";
-import { placeholder as cmPlaceholder, EditorView, keymap } from "@codemirror/view";
+import { placeholder as cmPlaceholder, drawSelection, EditorView, keymap } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import CodeMirror from "@uiw/react-codemirror";
 import * as React from "react";
@@ -49,8 +49,16 @@ const editorTheme = EditorView.theme({
   "&.cm-focused .cm-cursor": {
     borderLeftColor: "var(--color-primary)",
   },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
-    backgroundColor: "color-mix(in srgb, var(--color-primary) 12%, transparent)",
+  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+    backgroundColor: "color-mix(in srgb, var(--color-primary) 18%, transparent) !important",
+  },
+  "& ::selection": {
+    backgroundColor: "color-mix(in srgb, var(--color-primary) 18%, transparent)",
+    color: "inherit",
+  },
+  "& ::-moz-selection": {
+    backgroundColor: "color-mix(in srgb, var(--color-primary) 18%, transparent)",
+    color: "inherit",
   },
   ".cm-placeholder": {
     color: "var(--ds-text-subtle)",
@@ -190,6 +198,7 @@ export function MarkdownEditor({
     () => [
       markdown(),
       EditorView.lineWrapping,
+      drawSelection(),
       mdKeymap,
       ...(onPaste
         ? [
