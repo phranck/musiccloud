@@ -2,7 +2,7 @@ import { CheckCircleIcon, type Icon, InfoIcon, XCircleIcon } from "@phosphor-ico
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-type ToastVariant = "success" | "error" | "info";
+export type ToastVariant = "success" | "error" | "info";
 
 interface ToastProps {
   message: string;

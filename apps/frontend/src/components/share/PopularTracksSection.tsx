@@ -2,31 +2,26 @@ import { type ArtistTopTrack, ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useState } from "react";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
+import { useToastSafe } from "@/context/ToastContext";
+import { useT } from "@/i18n/context";
 
 interface PopularTracksSectionProps {
   tracks: ArtistTopTrack[];
-  onError?: (err: unknown) => void;
 }
 
-export function PopularTracksSection({ tracks, onError }: PopularTracksSectionProps) {
+export function PopularTracksSection({ tracks }: PopularTracksSectionProps) {
   return (
     <div className="flex flex-col gap-1.5">
       {tracks.map((track) => (
-        <PopularTrack key={track.deezerUrl} track={track} onError={onError} />
+        <PopularTrack key={track.deezerUrl} track={track} />
       ))}
     </div>
   );
 }
 
-export function PopularTrack({
-  track,
-  artistLabel,
-  onError,
-}: {
-  track: ArtistTopTrack;
-  artistLabel?: string;
-  onError?: (err: unknown) => void;
-}) {
+export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; artistLabel?: string }) {
+  const t = useT();
+  const toast = useToastSafe();
   const showAlbum = !artistLabel && track.albumName && track.albumName !== track.title;
   const [resolving, setResolving] = useState(false);
 
@@ -55,16 +50,16 @@ export function PopularTrack({
           window.location.href = path;
         } else {
           setResolving(false);
-          onError?.(new Error("resolve returned no shortUrl"));
+          toast?.show(t("error.generic"), "error");
         }
       })
       .catch((err) => {
         clearTimeout(timeout);
         setResolving(false);
         if (import.meta.env.DEV) console.warn("[PopularTrack] resolve failed:", err);
-        onError?.(err);
+        toast?.show(t("error.generic"), "error");
       });
-  }, [track.shortId, track.deezerUrl, onError]);
+  }, [track.shortId, track.deezerUrl, toast, t]);
 
   return (
     <EmbossedButton
