@@ -77,6 +77,7 @@
   "embed.code": "Einbettungscode",
   "embed.copy": "Kopieren",
   "embed.copied": "Kopiert!",
+  "embed.copyError": "Kopieren fehlgeschlagen",
   "genreBrowse.title": "Genres entdecken",
   "genreBrowse.subtitle": "Wähle ein Genre, um Tracks, Alben und Künstler zu entdecken"
 }

@@ -55,5 +55,6 @@
   "embed.large": "Büyük",
   "embed.code": "Gömme kodu",
   "embed.copy": "Kopyala",
-  "embed.copied": "Kopyalandı!"
+  "embed.copied": "Kopyalandı!",
+  "embed.copyError": "Kopyalama başarısız"
 }

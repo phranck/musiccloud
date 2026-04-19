@@ -55,5 +55,6 @@
   "embed.large": "Groot",
   "embed.code": "Insluitcode",
   "embed.copy": "Kopiëren",
-  "embed.copied": "Gekopieerd!"
+  "embed.copied": "Gekopieerd!",
+  "embed.copyError": "Kopiëren mislukt"
 }
