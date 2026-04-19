@@ -1,5 +1,5 @@
 import type { PublicContentPage } from "@musiccloud/shared";
-import { XIcon } from "@phosphor-icons/react";
+import { XCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -89,24 +89,17 @@ export function TranslucentOverlayContent({ page, onClose }: OverlayContentProps
 
   return (
     <TranslucentCard className="max-h-full">
-      <TranslucentCard.Header className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          {showTitle && (
-            <h2
-              className="text-xl font-semibold tracking-[-0.01em] text-white truncate"
-              style={{ textAlign: page.titleAlignment }}
-            >
-              {title}
-            </h2>
-          )}
-        </div>
+      <TranslucentCard.Header className="relative px-3 pb-3">
+        {showTitle && (
+          <h2 className="text-xl font-semibold tracking-[-0.01em] text-white text-center truncate px-10">{title}</h2>
+        )}
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="p-1.5 text-white/30 hover:text-white/70 transition-colors duration-150 rounded-lg focus:outline-none"
+          className="absolute top-1 right-1 p-1.5 text-white/30 hover:text-white/70 transition-colors duration-150 rounded-lg focus:outline-none"
         >
-          <XIcon size={16} weight="duotone" />
+          <XCircleIcon size={24} weight="duotone" />
         </button>
       </TranslucentCard.Header>
       {isSegmented && (

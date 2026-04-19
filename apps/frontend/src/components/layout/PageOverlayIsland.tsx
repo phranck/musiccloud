@@ -79,18 +79,20 @@ function OverlayShell({ initialPage }: Props) {
 
   const transitionStyle: React.CSSProperties = { transitionDuration: `${TRANSITION_MS}ms` };
 
+  const backdropStyle: React.CSSProperties = {
+    transition: `opacity ${TRANSITION_MS}ms ease-out, backdrop-filter ${TRANSITION_MS}ms ease-out, -webkit-backdrop-filter ${TRANSITION_MS}ms ease-out`,
+    backdropFilter: visible ? "blur(4px)" : "blur(0px)",
+    WebkitBackdropFilter: visible ? "blur(4px)" : "blur(0px)",
+  };
+
   return (
     <>
       <button
         type="button"
         aria-label="Close overlay"
         onClick={close}
-        className={cn(
-          "fixed inset-0 z-40 bg-black/40 backdrop-blur-sm cursor-default",
-          "transition-opacity ease-out",
-          visible ? "opacity-100" : "opacity-0",
-        )}
-        style={transitionStyle}
+        className={cn("fixed inset-0 z-40 bg-black/40 cursor-default", visible ? "opacity-100" : "opacity-0")}
+        style={backdropStyle}
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4">
         <AnimatedHeightWrapper

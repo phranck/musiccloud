@@ -1,11 +1,12 @@
 import { compareByDisplayOrder } from "@musiccloud/shared";
-import { CheckIcon, CopySimpleIcon, WarningIcon, XIcon } from "@phosphor-icons/react";
+import { CheckIcon, CopySimpleIcon, WarningIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbedCardIsland } from "@/components/embed/EmbedCardIsland";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { EmbossedCloseButton } from "@/components/ui/EmbossedCloseButton";
 import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useT } from "@/i18n/context";
@@ -115,7 +116,7 @@ export function EmbedModal({
         aria-label="Close"
         className={cn(
           "absolute inset-0 transition-all duration-300 cursor-default",
-          open ? "bg-black/60 backdrop-blur-lg" : "bg-black/0 backdrop-blur-none",
+          open ? "bg-black/40 backdrop-blur-sm" : "bg-black/0 backdrop-blur-none",
         )}
         onClick={onClose}
       >
@@ -125,7 +126,7 @@ export function EmbedModal({
       {/* Modal */}
       <EmbossedCard
         className={cn(
-          "relative bg-surface-elevated/95",
+          "relative",
           "max-w-[520px] w-full max-h-[90dvh] overflow-y-auto",
           "transition-all duration-300",
           open ? "scale-100 opacity-100" : "scale-95 opacity-0",
@@ -135,18 +136,7 @@ export function EmbedModal({
           <h2 className="text-xl font-semibold tracking-[-0.02em]" style={{ paddingLeft: SIBLING_INSET_X }}>
             {isAlbum ? t("embed.titleAlbum") : t("embed.title")}
           </h2>
-          <RecessedCard padding="2px" radius="50%" className="inline-flex">
-            <RecessedCard.Body>
-              <EmbossedButton
-                as="button"
-                type="button"
-                onClick={onClose}
-                className="w-8 h-8 p-0 rounded-full flex items-center justify-center text-text-secondary hover:text-text-primary"
-              >
-                <XIcon size={16} weight="bold" />
-              </EmbossedButton>
-            </RecessedCard.Body>
-          </RecessedCard>
+          <EmbossedCloseButton onClick={onClose} />
         </EmbossedCard.Header>
 
         <EmbossedCard.Body>
@@ -173,7 +163,7 @@ export function EmbedModal({
             >
               {t("embed.code")}
             </p>
-            <RecessedCard padding="2px" radius="0.5rem" className="inline-flex">
+            <RecessedCard padding="3px" radius="0.5rem" className="inline-flex">
               <RecessedCard.Body>
                 <EmbossedButton
                   as="button"

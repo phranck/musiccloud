@@ -39,7 +39,7 @@ export function EmbossedSegmentedControl<T extends string>({
             width: `calc(${100 / count}% - 8px)`,
           }}
         >
-          <EmbossedCard className="w-full h-full rounded-lg p-0" />
+          <EmbossedCard className="w-full h-full rounded-lg p-0 bg-gray-700/[0.65]" />
         </div>
         {segments.map(({ key, label }) => (
           <button

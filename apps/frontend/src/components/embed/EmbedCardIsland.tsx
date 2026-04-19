@@ -110,9 +110,9 @@ function EmbedSmall({
             href={shortUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto inline-flex items-center text-text-muted hover:text-text-secondary no-underline"
+            className="ml-auto pr-2 inline-flex items-center text-text-muted hover:text-text-secondary no-underline"
           >
-            <LogoView className="h-3 w-auto" />
+            <LogoView className="h-4 w-auto" />
           </a>
         </div>
       </div>
@@ -171,13 +171,8 @@ function EmbedRegular({
           </RecessedCard.Body>
         </RecessedCard>
         <div className="flex justify-center mt-1">
-          <a
-            href={shortUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-text-muted hover:text-text-secondary no-underline inline-flex items-center gap-1.5"
-          >
-            powered by <LogoView className="h-3.5 w-auto" />
+          <a href={shortUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center">
+            <LogoView className="h-5 w-auto" />
           </a>
         </div>
       </div>
@@ -231,13 +226,8 @@ function EmbedLarge({
           </RecessedCard.Body>
         </RecessedCard>
         <div className="flex justify-center mt-1">
-          <a
-            href={shortUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-text-muted hover:text-text-secondary no-underline inline-flex items-center gap-1.5"
-          >
-            powered by <LogoView className="h-3.5 w-auto" />
+          <a href={shortUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center">
+            <LogoView className="h-5 w-auto" />
           </a>
         </div>
       </div>
