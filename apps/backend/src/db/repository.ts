@@ -263,6 +263,28 @@ export interface TrackRepository {
   // Example: random short ID for landing page teaser
   getRandomShortId(): Promise<string | null>;
 
+  // Apple client telemetry (Testflight diagnostics)
+  insertAppTelemetryEvent(row: AppTelemetryEventInput): Promise<void>;
+
   // Lifecycle
   close(): Promise<void>;
+}
+
+/** Payload accepted by `insertAppTelemetryEvent`. Shape matches the
+ * /api/v1/telemetry/app-error request body one-to-one. */
+export interface AppTelemetryEventInput {
+  eventType: string;
+  eventTime: Date;
+  installId: string;
+  appVersion: string;
+  buildNumber: string;
+  platform: string;
+  osVersion: string;
+  deviceModel: string;
+  locale: string;
+  sourceUrl: string | null;
+  service: string | null;
+  errorKind: string;
+  httpStatus: number | null;
+  message: string;
 }
