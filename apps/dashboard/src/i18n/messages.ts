@@ -508,7 +508,6 @@ export interface DashboardMessages {
         addSegment: string;
         labelPlaceholder: string;
         targetPlaceholder: string;
-        noDefaultPages: string;
         save: string;
         saving: string;
         saveError: string;
@@ -1240,7 +1239,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           addSegment: "Segment hinzuf\u00fcgen",
           labelPlaceholder: "Beschriftung",
           targetPlaceholder: "Zielseite w\u00e4hlen",
-          noDefaultPages: "Keine Standardseiten vorhanden. Erstelle zuerst eine Standardseite.",
           save: "Segmente speichern",
           saving: "Wird gespeichert\u2026",
           saveError: "Fehler beim Speichern",
@@ -1963,7 +1961,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           addSegment: "Add segment",
           labelPlaceholder: "Label",
           targetPlaceholder: "Pick a target page",
-          noDefaultPages: "No default pages available. Create a default page first.",
           save: "Save segments",
           saving: "Saving\u2026",
           saveError: "Failed to save",

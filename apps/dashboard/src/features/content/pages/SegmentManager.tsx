@@ -185,24 +185,21 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
   }
 
   function addSegment() {
-    const targetSlug = defaultPages[0]?.slug;
-    if (!targetSlug) return;
+    const targetSlug = defaultPages[0]?.slug ?? "";
+    const nextIndex = draft.length;
     const nextDraft: DraftSegment[] = [
       ...draft,
-      { localId: nextLocalId(), position: draft.length, label: "", targetSlug },
+      { localId: nextLocalId(), position: nextIndex, label: "", targetSlug },
     ];
     setDraft(nextDraft);
-    setActiveIndex(nextDraft.length - 1);
+    setActiveIndex(nextIndex);
+    if (!targetSlug) setNewPageForIndex(nextIndex);
   }
 
   const currentContent = targetDraftContent ?? targetPage?.content ?? "";
 
   function handleTargetContentChange(next: string) {
     setTargetDraftContent(next);
-  }
-
-  if (defaultPages.length === 0 && draft.length === 0) {
-    return <div className="px-6 py-6 text-sm text-[var(--ds-text-muted)]">{text.noDefaultPages}</div>;
   }
 
   const previewSegments = draft.map((s, i) => ({
@@ -227,8 +224,7 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
             <button
               type="button"
               onClick={addSegment}
-              disabled={defaultPages.length === 0}
-              className="flex items-center gap-1.5 px-3 h-8 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-xs font-medium hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 h-8 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-xs font-medium hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)]"
             >
               <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
               {text.addSegment}
@@ -370,7 +366,12 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
       <CreatePageDialog
         open={newPageForIndex !== null}
         lockDefaultType
-        onClose={() => setNewPageForIndex(null)}
+        onClose={() => {
+          if (newPageForIndex !== null && !draft[newPageForIndex]?.targetSlug) {
+            remove(newPageForIndex);
+          }
+          setNewPageForIndex(null);
+        }}
         onCreated={(newPage) => {
           if (newPageForIndex === null) return;
           const idx = newPageForIndex;
