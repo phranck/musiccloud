@@ -1,0 +1,19 @@
+---
+/**
+ * Server Island wrapper for the page header.
+ *
+ * Rendered with `server:defer` so the surrounding page HTML (background,
+ * logo, main content) flushes to the browser immediately. The header
+ * itself is fetched in a separate server request and streamed in. The
+ * Tailwind `animate-slide-down-in` on the wrapper plays as soon as the
+ * replacement DOM mounts, giving the header a slide-down entrance.
+ */
+import { fetchNavigation } from "@/api/client";
+import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
+
+const headerNav = await fetchNavigation("header");
+---
+
+<div class="animate-slide-down-in will-change-transform">
+  <PageHeaderIsland client:idle navItems={headerNav} />
+</div>

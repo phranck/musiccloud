@@ -60,6 +60,7 @@
   "artist.similarArtists": "Similar Artists",
   "artist.eventsProvidedBy": "Event data provided by Bandsintown & Ticketmaster",
   "audio.previewUnavailable": "Preview unavailable",
+  "audio.previewLoading": "Loading...",
   "artist.profileProvidedBy": "Artist data provided by Spotify & Last.fm",
   "embed.button": "Embed Track",
   "embed.buttonAlbum": "Embed Album",

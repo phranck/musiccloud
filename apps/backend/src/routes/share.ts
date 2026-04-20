@@ -88,7 +88,17 @@ export default async function shareRoutes(app: FastifyInstance) {
 
       const origin = request.headers["x-forwarded-host"] ? `https://${request.headers["x-forwarded-host"]}` : undefined;
 
-      const trackData = await loadByShortId(shortId, origin);
+      // Short IDs are unique across all three entity tables, so we fire
+      // every loader in parallel and pick whichever hits. This replaces a
+      // serial waterfall (track → album → artist) that cost up to three
+      // round-trips for artist-type IDs. Cost: up to two extra queries
+      // that return null fast — cheap on indexed shortId lookups.
+      const [trackData, albumData, artistData] = await Promise.all([
+        loadByShortId(shortId, origin),
+        loadAlbumByShortId(shortId, origin),
+        loadArtistByShortId(shortId, origin),
+      ]);
+
       if (trackData) {
         const response: SharePageResponse = {
           type: "track",
@@ -108,6 +118,7 @@ export default async function shareRoutes(app: FastifyInstance) {
             releaseDate: trackData.track.releaseDate ?? undefined,
             isExplicit: trackData.track.isExplicit ?? undefined,
             previewUrl: trackData.track.previewUrl ?? undefined,
+            previewRefreshable: trackData.previewRefreshable || undefined,
           },
           links: trackData.links.map((l) => ({
             service: l.service,
@@ -123,7 +134,6 @@ export default async function shareRoutes(app: FastifyInstance) {
         return reply.send(response);
       }
 
-      const albumData = await loadAlbumByShortId(shortId, origin);
       if (albumData) {
         const response: SharePageResponse = {
           type: "album",
@@ -157,7 +167,6 @@ export default async function shareRoutes(app: FastifyInstance) {
         return reply.send(response);
       }
 
-      const artistData = await loadArtistByShortId(shortId, origin);
       if (artistData) {
         const response: SharePageResponse = {
           type: "artist",

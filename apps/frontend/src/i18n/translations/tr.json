@@ -39,6 +39,7 @@
   "artist.similarArtists": "Benzer Sanatçılar",
   "artist.eventsProvidedBy": "Etkinlik verileri Bandsintown & Ticketmaster tarafından sağlanmaktadır",
   "audio.previewUnavailable": "Önizleme mevcut değil",
+  "audio.previewLoading": "Yükleniyor...",
   "artist.profileProvidedBy": "Sanatçı verileri Spotify & Last.fm tarafından sağlanmaktadır",
   "embed.button": "Parçayı göm",
   "embed.buttonAlbum": "Albümü göm",

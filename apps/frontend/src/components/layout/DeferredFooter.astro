@@ -1,0 +1,19 @@
+---
+/**
+ * Server Island wrapper for the app footer.
+ *
+ * Rendered with `server:defer` so the surrounding page HTML flushes to
+ * the browser immediately. The footer is fetched in a separate server
+ * request and streamed in. The Tailwind `animate-slide-up-in` on the
+ * wrapper plays when the replacement DOM mounts, giving the footer a
+ * subtle rise-from-below entrance.
+ */
+import { fetchNavigation } from "@/api/client";
+import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
+
+const footerNav = await fetchNavigation("footer");
+---
+
+<div class="animate-slide-up-in will-change-transform">
+  <AppFooterIsland client:idle navItems={footerNav} />
+</div>

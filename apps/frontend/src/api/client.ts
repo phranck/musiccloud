@@ -33,6 +33,23 @@ function internalHeaders(extra?: Record<string, string>): Record<string, string>
   };
 }
 
+/** Refresh an expired Deezer preview URL for a share. Returns `{ previewUrl: null }`
+ *  if no preview can be produced; returns `null` on transport failure so the
+ *  client can distinguish "no preview" from "refresh failed, try again later". */
+export async function fetchSharePreview(shortId: string): Promise<{ previewUrl: string | null } | null> {
+  try {
+    const res = await fetchWithTimeout(
+      backendUrl(ENDPOINTS.v1.sharePreview(shortId)),
+      { headers: internalHeaders() },
+      15000,
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as { previewUrl: string | null };
+  } catch {
+    return null;
+  }
+}
+
 /** Fetch share page data (track or album) by shortId from the backend. */
 export async function fetchShareData(shortId: string): Promise<SharePageResponse | null> {
   try {

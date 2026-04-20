@@ -1,10 +1,16 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { ENDPOINTS } from "@musiccloud/shared";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { PlaybackButton } from "@/components/playback/PlaybackButton";
 import { ProgressTrack } from "@/components/playback/ProgressTrack";
 import { useT } from "@/i18n/context";
 
 interface AudioPreviewPlayerProps {
-  previewUrl: string;
+  /** Immediately-playable preview URL. Optional when `refreshShortId` is set. */
+  previewUrl?: string;
+  /** Short ID used to refresh an expired/missing Deezer preview URL via the
+   *  `/api/share-preview/:shortId` proxy. When set without `previewUrl`, the
+   *  player mounts in a loading state and fetches on mount. */
+  refreshShortId?: string;
   trackTitle: string;
 }
 
@@ -15,18 +21,24 @@ interface AudioPreviewPlayerProps {
  * for audio preview functionality. Handles audio element lifecycle and state management.
  *
  * State machine phases:
+ *   loading  — Waiting for a lazy fetch to deliver a preview URL.
  *   idle     — Ready to play. Duration defaults to 30s, updated once metadata loads.
  *   playing  — Playback active.
  *   paused   — Playback paused.
  *   error    — Audio URL unplayable. Component renders unavailable state.
+ *   unavailable — Backend confirmed no preview can be produced for this track.
  */
 type PlayerState =
+  | { phase: "loading" }
   | { phase: "idle"; duration: number }
   | { phase: "playing"; currentTime: number; duration: number }
   | { phase: "paused"; currentTime: number; duration: number }
-  | { phase: "error" };
+  | { phase: "error" }
+  | { phase: "unavailable" };
 
 type PlayerAction =
+  | { type: "URL_READY" }
+  | { type: "URL_UNAVAILABLE" }
   | { type: "METADATA_LOADED"; duration: number }
   | { type: "PLAY" }
   | { type: "PAUSE" }
@@ -37,6 +49,12 @@ type PlayerAction =
 
 function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
   switch (action.type) {
+    case "URL_READY":
+      if (state.phase === "loading") return { phase: "idle", duration: 30 };
+      return state;
+    case "URL_UNAVAILABLE":
+      if (state.phase === "loading") return { phase: "unavailable" };
+      return state;
     case "METADATA_LOADED":
       if (state.phase === "idle") return { ...state, duration: action.duration };
       if (state.phase === "playing" || state.phase === "paused") return { ...state, duration: action.duration };
@@ -71,19 +89,50 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlayerProps) {
+export function AudioPreviewPlayer({ previewUrl, refreshShortId, trackTitle }: AudioPreviewPlayerProps) {
   const t = useT();
-  const [state, dispatch] = useReducer(playerReducer, { phase: "idle", duration: 30 });
+  const initialPhase: PlayerState = previewUrl ? { phase: "idle", duration: 30 } : { phase: "loading" };
+  const [state, dispatch] = useReducer(playerReducer, initialPhase);
+  const [effectiveUrl, setEffectiveUrl] = useState<string | null>(previewUrl ?? null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Lazy fetch the preview URL when the component mounted without one.
+  // Aborts on unmount so a slow Deezer call doesn't update a stale tree.
   useEffect(() => {
+    if (previewUrl || !refreshShortId) return;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(ENDPOINTS.frontend.sharePreview(refreshShortId), { signal: controller.signal });
+        if (!res.ok) {
+          dispatch({ type: "URL_UNAVAILABLE" });
+          return;
+        }
+        const body = (await res.json()) as { previewUrl: string | null };
+        if (body.previewUrl) {
+          setEffectiveUrl(body.previewUrl);
+          dispatch({ type: "URL_READY" });
+        } else {
+          dispatch({ type: "URL_UNAVAILABLE" });
+        }
+      } catch (err) {
+        if ((err as { name?: string })?.name === "AbortError") return;
+        dispatch({ type: "URL_UNAVAILABLE" });
+      }
+    })();
+    return () => controller.abort();
+  }, [previewUrl, refreshShortId]);
+
+  // Bind the <audio> element when a URL becomes available. The only
+  // dependency is the URL itself — playback state transitions (play/pause)
+  // must NOT retear the audio element down, or the play() promise starting
+  // the transition gets aborted and surfaces as a spurious "unavailable".
+  useEffect(() => {
+    if (!effectiveUrl) return;
+
     const audio = new Audio();
-    // `metadata` lets the browser fetch just the audio headers on mount, so a
-    // dead URL (404 / CORS / unplayable codec) surfaces an `error` event
-    // immediately instead of only after the user clicks Play. That keeps the
-    // Play button from appearing active for an unavailable preview.
     audio.preload = "metadata";
-    audio.src = previewUrl;
+    audio.src = effectiveUrl;
 
     audio.addEventListener("loadedmetadata", () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
@@ -103,7 +152,7 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
       audio.src = "";
       audioRef.current = null;
     };
-  }, [previewUrl]);
+  }, [effectiveUrl]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
@@ -150,35 +199,52 @@ export function AudioPreviewPlayer({ previewUrl, trackTitle }: AudioPreviewPlaye
     [togglePlay],
   );
 
+  const isLoading = state.phase === "loading";
+  const isUnavailable = state.phase === "error" || state.phase === "unavailable";
+  const isDisabled = isLoading || isUnavailable;
   const isPlaying = state.phase === "playing";
   const currentTime = state.phase === "playing" || state.phase === "paused" ? state.currentTime : 0;
-  const duration = state.phase !== "error" ? state.duration : 30;
-  const isUnavailable = state.phase === "error";
+  const duration =
+    state.phase === "idle" || state.phase === "playing" || state.phase === "paused" ? state.duration : 30;
+
+  const timeText = isLoading
+    ? t("audio.previewLoading")
+    : isUnavailable
+      ? t("audio.previewUnavailable")
+      : formatTime(state.phase === "idle" ? duration : currentTime);
+
+  const ariaLabel = isLoading
+    ? t("audio.previewLoading")
+    : isUnavailable
+      ? t("audio.previewUnavailable")
+      : isPlaying
+        ? "Pause preview"
+        : "Play preview";
 
   return (
     <section aria-label={`Preview: ${trackTitle}`} className="flex items-center gap-3" onKeyDown={handleKeyDown}>
       <PlaybackButton
         isPlaying={isPlaying}
         onClick={togglePlay}
-        disabled={isUnavailable}
-        ariaLabel={isUnavailable ? t("audio.previewUnavailable") : isPlaying ? "Pause preview" : "Play preview"}
-        title={isUnavailable ? t("audio.previewUnavailable") : undefined}
+        disabled={isDisabled}
+        ariaLabel={ariaLabel}
+        title={isLoading ? t("audio.previewLoading") : isUnavailable ? t("audio.previewUnavailable") : undefined}
         size="medium"
       />
 
       <ProgressTrack
         currentTime={currentTime}
         duration={duration}
-        isDisabled={state.phase === "idle" || isUnavailable}
+        isDisabled={state.phase === "idle" || isDisabled}
         onSeek={handleSeek}
         ariaLabel="Preview position"
         ariaValueText={`${formatTime(currentTime)} of ${formatTime(duration)}`}
       />
 
       <span
-        className={`flex-shrink-0 text-xs min-w-[2.5rem] text-right ${isUnavailable ? "text-white/30" : "tabular-nums text-white/50"}`}
+        className={`flex-shrink-0 text-xs min-w-[2.5rem] text-right ${isDisabled ? "text-white/30" : "tabular-nums text-white/50"}`}
       >
-        {isUnavailable ? t("audio.previewUnavailable") : formatTime(state.phase === "idle" ? duration : currentTime)}
+        {timeText}
       </span>
     </section>
   );

@@ -1,7 +1,6 @@
 import { isValidServiceId, type ServiceId } from "@musiccloud/shared";
 import { getRepository } from "../../db/index.js";
 import { deezerAdapter } from "../../services/plugins/deezer/adapter.js";
-import { log } from "../infra/logger.js";
 import { isExpiredDeezerPreviewUrl } from "../preview-url.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
 
@@ -19,34 +18,32 @@ export interface SharePageData {
   artists: string[];
   artistDisplay: string;
   shortId: string;
+  trackId: string;
   links: { service: string; url: string }[];
   availablePlatforms: ServiceId[];
+  /** True when the hot-path returned an expired/missing Deezer preview URL
+   *  that the client can refresh on-demand via the dedicated endpoint. */
+  previewRefreshable: boolean;
   og: OGMeta;
 }
 
-/** Load share page data by short URL ID. Returns null if not found. */
+/** Load share page data by short URL ID. Returns null if not found.
+ *
+ *  The hot path does NOT contact Deezer. If the stored preview URL is an
+ *  expired Deezer CDN token, it is nulled out and `previewRefreshable` is
+ *  set so the client can request a fresh URL via the preview endpoint.
+ *  This keeps the share-page response latency bounded by database alone.
+ */
 export async function loadByShortId(shortId: string, origin?: string): Promise<SharePageData | null> {
   const repo = await getRepository();
   const data = await repo.loadByShortId(shortId);
   if (!data) return null;
 
-  const needsPreviewRefresh = !data.track.previewUrl || isExpiredDeezerPreviewUrl(data.track.previewUrl);
+  const expired = !!data.track.previewUrl && isExpiredDeezerPreviewUrl(data.track.previewUrl);
+  if (expired) data.track.previewUrl = null;
 
-  // Refresh missing or expired Deezer preview URLs via ISRC lookup and persist
-  // the refreshed URL so subsequent requests can use it directly.
-  if (needsPreviewRefresh && data.track.isrc && deezerAdapter.isAvailable()) {
-    try {
-      const deezerTrack = await deezerAdapter.findByIsrc(data.track.isrc);
-      if (deezerTrack?.previewUrl) {
-        await repo.updatePreviewUrl(data.trackId, deezerTrack.previewUrl);
-        data.track.previewUrl = deezerTrack.previewUrl;
-      }
-    } catch (err) {
-      log.debug("SharePage", "Deezer preview enrichment failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  return enrichWithOGMeta(data, data.shortId, origin);
+  const previewRefreshable = !data.track.previewUrl && !!data.track.isrc && deezerAdapter.isAvailable();
+  return enrichWithOGMeta(data, data.shortId, origin, previewRefreshable);
 }
 
 /** Load share page data by track ID. Returns null if not found. */
@@ -55,21 +52,11 @@ export async function loadByTrackId(trackId: string, origin?: string): Promise<S
   const data = await repo.loadByTrackId(trackId);
   if (!data) return null;
 
-  const needsPreviewRefresh = !data.track.previewUrl || isExpiredDeezerPreviewUrl(data.track.previewUrl);
+  const expired = !!data.track.previewUrl && isExpiredDeezerPreviewUrl(data.track.previewUrl);
+  if (expired) data.track.previewUrl = null;
 
-  if (needsPreviewRefresh && data.track.isrc && deezerAdapter.isAvailable()) {
-    try {
-      const deezerTrack = await deezerAdapter.findByIsrc(data.track.isrc);
-      if (deezerTrack?.previewUrl) {
-        await repo.updatePreviewUrl(data.trackId, deezerTrack.previewUrl);
-        data.track.previewUrl = deezerTrack.previewUrl;
-      }
-    } catch (err) {
-      log.debug("SharePage", "Deezer preview enrichment failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  return enrichWithOGMeta(data, data.shortId, origin);
+  const previewRefreshable = !data.track.previewUrl && !!data.track.isrc && deezerAdapter.isAvailable();
+  return enrichWithOGMeta(data, data.shortId, origin, previewRefreshable);
 }
 
 // ─── Album Share Page ─────────────────────────────────────────────────────────
@@ -169,13 +156,15 @@ function enrichWithOGMeta(
       isExplicit: boolean | null;
       previewUrl: string | null;
     };
+    trackId: string;
     artists: string[];
     artistDisplay: string;
     shortId: string;
     links: { service: string; url: string }[];
   },
   shortId: string,
-  origin?: string,
+  origin: string | undefined,
+  previewRefreshable: boolean,
 ): SharePageData {
   const availablePlatforms: ServiceId[] = data.links.map((l) => l.service).filter(isValidServiceId);
 
@@ -192,6 +181,7 @@ function enrichWithOGMeta(
   return {
     ...data,
     availablePlatforms,
+    previewRefreshable,
     og,
   };
 }
