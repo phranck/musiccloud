@@ -33,6 +33,17 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
   //   Frame 2: setContentReady(true) -> skeleton fades to 0, content fades to 1 (simultaneously)
   const [contentReady, setContentReady] = useState(false);
 
+  // Skeleton render gate. Suppresses the loading skeleton for the first
+  // 300 ms of mount, so a fast/null fetch (cache hit, 5xx) never produces
+  // the "empty card flashes in then disappears" effect. If the fetch is
+  // still pending after the threshold, the skeleton appears as before.
+  const SKELETON_DELAY_MS = 300;
+  const [skeletonAllowed, setSkeletonAllowed] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSkeletonAllowed(true), SKELETON_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (!isLoading) {
       let id1: number, id2: number;
@@ -49,6 +60,9 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
   // Never render when the API returned nothing useful
   if (!isLoading && !data) return null;
+  // Suppress the loading skeleton while we are still inside the grace
+  // window — avoids a brief flash for fast/null fetches.
+  if (isLoading && !skeletonAllowed) return null;
 
   const showProfile = isLoading || !!data?.profile;
   const showTracks = isLoading || (data?.topTracks.length ?? 0) > 0;
