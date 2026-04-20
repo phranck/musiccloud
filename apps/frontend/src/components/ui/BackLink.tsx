@@ -1,4 +1,4 @@
-import { ArrowFatLinesLeft } from "@phosphor-icons/react";
+import { ArrowFatLinesLeftIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface BackLinkProps {
@@ -30,7 +30,7 @@ export function BackLink({ onClick, label, className }: BackLinkProps) {
         className,
       )}
     >
-      <ArrowFatLinesLeft size={16} weight="duotone" />
+      <ArrowFatLinesLeftIcon size={16} weight="duotone" />
       {label}
     </button>
   );
