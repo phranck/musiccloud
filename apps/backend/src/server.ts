@@ -1,6 +1,7 @@
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
+import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import swagger from "@fastify/swagger";
 import Fastify from "fastify";
@@ -26,6 +27,7 @@ import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
 import servicesPublicRoutes from "./routes/services-public.js";
 import shareRoutes from "./routes/share.js";
 import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site-settings.js";
+import telemetryAppErrorRoutes from "./routes/telemetry-app-error.js";
 import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
 import { validateAdapters } from "./services/index.js";
 import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
@@ -73,6 +75,21 @@ async function buildApp() {
     strictTransportSecurity: process.env.NODE_ENV === "production",
   });
   await app.register(sensible);
+
+  // Global rate limit. Generous enough not to trip normal admin traffic,
+  // strict enough to close the CodeQL `js/missing-rate-limiting` alerts
+  // on public POST routes. Individual routes can override via
+  // `config.rateLimit` (e.g. telemetry-app-error at 60/min).
+  await app.register(rateLimit, {
+    max: 300,
+    timeWindow: "1 minute",
+    allowList: (request) => {
+      // Admin SSE stream is long-lived and polled heavily by the dashboard;
+      // the event bus itself fans out to every connected client so a pure
+      // request counter would throttle legitimate multi-tab admins.
+      return request.url.startsWith("/api/admin/events");
+    },
+  });
 
   // JWT plugin (used by auth routes and public API auth)
   const jwtSecret = process.env.JWT_SECRET;
@@ -358,6 +375,9 @@ async function buildApp() {
 
   // Public GET resolve endpoint (no auth - used for Shortcuts, etc.)
   await app.register(resolvePublicGetRoutes);
+
+  // Apple-client telemetry ingest (public, no auth, Testflight-only caller)
+  await app.register(telemetryAppErrorRoutes);
 
   // Protected API routes (X-API-Key or Bearer JWT)
   await app.register(async function protectedRoutes(protectedApp) {

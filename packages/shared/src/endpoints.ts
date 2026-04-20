@@ -71,6 +71,10 @@ export const ENDPOINTS = {
       /** GET `/api/v1/content/:slug`: a published content page with rendered HTML. */
       detail: (slug: string) => `/api/v1/content/${slug}`,
     },
+    telemetry: {
+      /** POST: ingest an app-side error event from the Apple client (Testflight). */
+      appError: "/api/v1/telemetry/app-error",
+    },
   },
 
   /** `/api/auth/...`: public auth endpoints (machine-to-machine token issuance). */

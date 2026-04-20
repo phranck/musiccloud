@@ -382,3 +382,36 @@ export const navItems = pgTable(
 
 export type NavItemRow = typeof navItems.$inferSelect;
 export type NavItemInsert = typeof navItems.$inferInsert;
+
+// Error/telemetry events posted by the Apple client (Testflight only).
+// No foreign keys — entries must survive user/install churn so we can still
+// correlate historical issues. `install_id` is an opaque random UUID the
+// client keeps in its Keychain; it is not linked to any admin user.
+export const appTelemetryEvents = pgTable(
+  "app_telemetry_events",
+  {
+    id: serial("id").primaryKey(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+    eventType: text("event_type").notNull(),
+    eventTime: timestamp("event_time", { withTimezone: true }).notNull(),
+    installId: text("install_id").notNull(),
+    appVersion: text("app_version").notNull(),
+    buildNumber: text("build_number").notNull(),
+    platform: text("platform").notNull(),
+    osVersion: text("os_version").notNull(),
+    deviceModel: text("device_model").notNull(),
+    locale: text("locale").notNull(),
+    sourceUrl: text("source_url"),
+    service: text("service"),
+    errorKind: text("error_kind").notNull(),
+    httpStatus: integer("http_status"),
+    message: text("message").notNull(),
+  },
+  (table) => [
+    index("idx_app_telemetry_received_at").on(table.receivedAt),
+    index("idx_app_telemetry_install_received").on(table.installId, table.receivedAt),
+  ],
+);
+
+export type AppTelemetryEventRow = typeof appTelemetryEvents.$inferSelect;
+export type AppTelemetryEventInsert = typeof appTelemetryEvents.$inferInsert;

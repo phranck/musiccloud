@@ -27,6 +27,7 @@ import type {
   TrackListItem,
 } from "../admin-repository.js";
 import type {
+  AppTelemetryEventInput,
   ArtistCacheData,
   ArtistCacheRow,
   CachedAlbumResult,
@@ -276,6 +277,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       this.cleanupInterval = null;
     }
     await this.pool.end();
+  }
+
+  async insertAppTelemetryEvent(row: AppTelemetryEventInput): Promise<void> {
+    await insertAppTelemetryEvent(this.pool, row);
   }
 
   // ============================================================================
@@ -2659,6 +2664,35 @@ interface NavItemSqlRow {
   display_mode: string | null;
   overlay_width: string | null;
   overlay_height: string | null;
+}
+
+async function insertAppTelemetryEvent(
+  pool: InstanceType<typeof pgModule.default.Pool>,
+  row: AppTelemetryEventInput,
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO app_telemetry_events
+       (event_type, event_time, install_id, app_version, build_number,
+        platform, os_version, device_model, locale,
+        source_url, service, error_kind, http_status, message)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+    [
+      row.eventType,
+      row.eventTime,
+      row.installId,
+      row.appVersion,
+      row.buildNumber,
+      row.platform,
+      row.osVersion,
+      row.deviceModel,
+      row.locale,
+      row.sourceUrl,
+      row.service,
+      row.errorKind,
+      row.httpStatus,
+      row.message,
+    ],
+  );
 }
 
 function rowToNavItem(row: NavItemSqlRow): NavItemRow {
