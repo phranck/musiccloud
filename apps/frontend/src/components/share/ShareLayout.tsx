@@ -11,6 +11,7 @@
 import { type ArtistInfoResponse, ENDPOINTS } from "@musiccloud/shared";
 import { UserIcon, XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { createPortal } from "react-dom";
 
 type ArtistState = { isLoading: boolean; artistData: ArtistInfoResponse | null };
 type ArtistAction = { type: "loading" } | { type: "done"; data: ArtistInfoResponse | null };
@@ -164,6 +165,12 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
     artistData: null,
   });
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Portal gate: wait for mount so SSR output and first client render
+  // match (no sheet in SSR; portal content appears after hydration).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Dynamic accent color extraction from album artwork. The accent kicks in
   // as soon as the image has loaded and the colors are computed.
@@ -285,47 +292,56 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
         </div>
       </div>
 
-      {/* Bottom Sheet (mobile) */}
-      <div
-        className={cn(
-          "fixed inset-0 z-50 flex flex-col justify-end",
-          sheetOpen ? "pointer-events-auto" : "pointer-events-none",
-        )}
-      >
-        <div
-          className={cn(
-            "absolute inset-0 transition-all duration-300",
-            sheetOpen ? "bg-black/70 backdrop-blur-lg" : "bg-black/0 backdrop-blur-none",
-          )}
-          onClick={closeSheet}
-          aria-hidden="true"
-        />
-        <div
-          className={cn(
-            "relative z-10 rounded-t-[36px] bg-surface-elevated shadow-2xl max-h-[85dvh] flex flex-col",
-            "transition-transform duration-300 ease-out",
-            sheetOpen ? "translate-y-0" : "translate-y-full",
-          )}
-        >
-          {/* Fixed header with handle and close button */}
-          <div className="flex items-center justify-between px-5 pt-3 pb-2 flex-shrink-0">
-            <div className="w-8" />
-            <div className="w-10 h-1 rounded-full bg-[var(--border)]" />
-            <button
-              type="button"
-              onClick={closeSheet}
-              className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-colors"
-              aria-label={t("artist.closeInfo")}
+      {/* Bottom Sheet (mobile) — portalled to document.body to escape any
+          ancestor containing-block breaker (transform / filter /
+          will-change / contain). DeferredShareContent wraps this component
+          in `animate-slide-up will-change-transform`, which would otherwise
+          turn the sheet's `fixed inset-0` into a box relative to that
+          wrapper and leave part of the sheet visible below the viewport. */}
+      {mounted &&
+        createPortal(
+          <div style={accentStyle}>
+            <div
+              className={cn(
+                "fixed inset-0 z-50 flex flex-col justify-end",
+                sheetOpen ? "pointer-events-auto" : "pointer-events-none",
+              )}
             >
-              <XIcon size={16} weight="duotone" />
-            </button>
-          </div>
-          {/* Scrollable content */}
-          <div className="overflow-y-auto px-3 pb-8">
-            <ArtistInfoCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
-          </div>
-        </div>
-      </div>
+              <div
+                className={cn(
+                  "absolute inset-0 transition-all duration-300",
+                  sheetOpen ? "bg-black/70 backdrop-blur-lg" : "bg-black/0 backdrop-blur-none",
+                )}
+                onClick={closeSheet}
+                aria-hidden="true"
+              />
+              <div
+                className={cn(
+                  "relative z-10 rounded-t-[36px] bg-surface-elevated shadow-2xl max-h-[85dvh] flex flex-col",
+                  "transition-transform duration-300 ease-out",
+                  sheetOpen ? "translate-y-0" : "translate-y-full",
+                )}
+              >
+                <div className="flex items-center justify-between px-5 pt-3 pb-2 flex-shrink-0">
+                  <div className="w-8" />
+                  <div className="w-10 h-1 rounded-full bg-[var(--border)]" />
+                  <button
+                    type="button"
+                    onClick={closeSheet}
+                    className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-colors"
+                    aria-label={t("artist.closeInfo")}
+                  >
+                    <XIcon size={16} weight="duotone" />
+                  </button>
+                </div>
+                <div className="overflow-y-auto px-3 pb-8">
+                  <ArtistInfoCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
