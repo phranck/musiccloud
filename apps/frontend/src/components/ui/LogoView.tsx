@@ -9,6 +9,7 @@ export function LogoView({ className, width }: LogoViewProps) {
       src="/img/musiccloud-banner-very-small.svg"
       alt="musiccloud — share it everywhere"
       className={className}
+      decoding="async"
       style={width !== undefined ? { width } : undefined}
     />
   );

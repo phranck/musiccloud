@@ -62,11 +62,15 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
         onAlbumArtLoad={onAlbumArtLoad}
       />
 
-      {content.previewUrl && (
+      {(content.previewUrl || (content.previewRefreshable && content.shortId)) && (
         <div className="p-3">
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <RecessedCard.Body>
-              <AudioPreviewPlayer previewUrl={content.previewUrl} trackTitle={content.title} />
+              <AudioPreviewPlayer
+                previewUrl={content.previewUrl}
+                refreshShortId={content.previewRefreshable ? content.shortId : undefined}
+                trackTitle={content.title}
+              />
             </RecessedCard.Body>
           </RecessedCard>
         </div>

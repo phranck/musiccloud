@@ -39,6 +39,7 @@
   "artist.similarArtists": "Artistas similares",
   "artist.eventsProvidedBy": "Datos de eventos proporcionados por Bandsintown & Ticketmaster",
   "audio.previewUnavailable": "Vista previa no disponible",
+  "audio.previewLoading": "Cargando...",
   "artist.profileProvidedBy": "Datos del artista proporcionados por Spotify & Last.fm",
   "embed.button": "Insertar pista",
   "embed.buttonAlbum": "Insertar álbum",

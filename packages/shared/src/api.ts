@@ -26,6 +26,10 @@ export interface ApiTrack {
   releaseDate?: string;
   isExplicit?: boolean;
   previewUrl?: string;
+  /** True when `previewUrl` is absent but the backend can fetch a fresh
+   *  Deezer URL on demand via the preview-refresh endpoint. Clients use
+   *  this to decide whether to render the audio player in a loading state. */
+  previewRefreshable?: boolean;
 }
 
 export interface ApiLink {

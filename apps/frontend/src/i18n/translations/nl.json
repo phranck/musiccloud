@@ -39,6 +39,7 @@
   "artist.similarArtists": "Soortgelijke artiesten",
   "artist.eventsProvidedBy": "Eventgegevens aangeboden door Bandsintown & Ticketmaster",
   "audio.previewUnavailable": "Voorbeeld niet beschikbaar",
+  "audio.previewLoading": "Laden...",
   "artist.profileProvidedBy": "Artiestgegevens aangeboden door Spotify & Last.fm",
   "embed.button": "Nummer insluiten",
   "embed.buttonAlbum": "Album insluiten",

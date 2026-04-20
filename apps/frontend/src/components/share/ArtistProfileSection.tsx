@@ -22,6 +22,7 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
                 alt=""
                 width={96}
                 height={96}
+                decoding="async"
                 className="w-full h-full object-cover"
                 style={{ borderRadius: "var(--neu-radius-inner)" }}
                 onError={(e) => {

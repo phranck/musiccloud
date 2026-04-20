@@ -34,6 +34,10 @@ export const TrackSchema = {
     releaseDate: { type: "string", format: "date", description: "Original release date in ISO-8601 (YYYY-MM-DD)." },
     isExplicit: { type: "boolean", description: "True when the track carries an explicit-content advisory." },
     previewUrl: { type: "string", format: "uri", description: "Preview clip URL (typically ~30s MP3)." },
+    previewRefreshable: {
+      type: "boolean",
+      description: "Present and true when `previewUrl` is absent but the backend can fetch a fresh Deezer URL on demand via /api/v1/share/:shortId/preview.",
+    },
   },
   example: {
     title: "Take on Me",

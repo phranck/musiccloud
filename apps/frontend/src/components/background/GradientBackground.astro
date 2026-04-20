@@ -23,7 +23,7 @@ const canisMajorShadow = generateConstellationShadow(CANIS_MAJOR_STARS, 12, 55, 
 <div class="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden="true">
   <div
     class="absolute inset-0 animate-starfield-rotate hidden sm:block"
-    style="transform-origin: 50vw 50dvh"
+    style="transform-origin: 50vw 50dvh; will-change: transform"
   >
     <div class="absolute w-px h-px top-0 left-0" style={`box-shadow: ${starfieldShadow}`}></div>
     <div class="absolute w-px h-px top-0 left-0" style={`box-shadow: ${orionShadow}`}></div>
@@ -32,14 +32,14 @@ const canisMajorShadow = generateConstellationShadow(CANIS_MAJOR_STARS, 12, 55, 
 
   <div
     class="absolute rounded-full blur-[150px] w-[50vw] h-[50vw] top-[-5%] left-[-5%] transition-[background-color] duration-800 ease-in-out"
-    style="background-color: var(--bg-blob-primary, rgba(40, 168, 216, 0.18)); animation: blob-drift-1 120s ease-in-out infinite"
+    style="background-color: var(--bg-blob-primary, rgba(40, 168, 216, 0.18)); animation: blob-drift-1 120s ease-in-out infinite; will-change: transform"
   ></div>
   <div
     class="absolute rounded-full blur-[160px] w-[45vw] h-[45vw] top-[30%] right-[-10%] transition-[background-color] duration-800 ease-in-out"
-    style="background-color: var(--bg-blob-secondary, rgba(212, 168, 67, 0.12)); animation: blob-drift-2 150s ease-in-out infinite"
+    style="background-color: var(--bg-blob-secondary, rgba(212, 168, 67, 0.12)); animation: blob-drift-2 150s ease-in-out infinite; will-change: transform"
   ></div>
   <div
     class="absolute rounded-full blur-[170px] w-[55vw] h-[55vw] bottom-[-10%] left-[30%] transition-[background-color] duration-800 ease-in-out"
-    style="background-color: var(--bg-blob-tertiary, rgba(22, 140, 180, 0.08)); animation: blob-drift-3 180s ease-in-out infinite"
+    style="background-color: var(--bg-blob-tertiary, rgba(22, 140, 180, 0.08)); animation: blob-drift-3 180s ease-in-out infinite; will-change: transform"
   ></div>
 </div>

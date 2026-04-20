@@ -132,10 +132,14 @@ function OverlayShell({ initialPage }: Props) {
 
   if (!mounted || !page || page.displayMode === "fullscreen") return null;
 
+  // Backdrop-filter stays static; we fade the whole backdrop layer via
+  // opacity instead of animating the blur itself. Opacity is composite-only
+  // so the browser skips the per-frame filter rasterization cost.
   const backdropStyle: React.CSSProperties = {
-    transition: `opacity ${TRANSITION_MS}ms ease-out, backdrop-filter ${TRANSITION_MS}ms ease-out, -webkit-backdrop-filter ${TRANSITION_MS}ms ease-out`,
-    backdropFilter: visible ? "blur(4px)" : "blur(0px)",
-    WebkitBackdropFilter: visible ? "blur(4px)" : "blur(0px)",
+    transition: `opacity ${TRANSITION_MS}ms ease-out`,
+    backdropFilter: "blur(4px)",
+    WebkitBackdropFilter: "blur(4px)",
+    willChange: "opacity",
   };
 
   return (

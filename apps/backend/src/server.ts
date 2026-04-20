@@ -26,6 +26,7 @@ import resolveRoutes from "./routes/resolve.js";
 import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
 import servicesPublicRoutes from "./routes/services-public.js";
 import shareRoutes from "./routes/share.js";
+import sharePreviewRoutes from "./routes/share-preview.js";
 import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site-settings.js";
 import telemetryAppErrorRoutes from "./routes/telemetry-app-error.js";
 import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
@@ -356,6 +357,7 @@ async function buildApp() {
 
   // Share endpoint (public, no auth - used for SSR)
   await app.register(shareRoutes);
+  await app.register(sharePreviewRoutes);
 
   // Artist info endpoint (public, no auth - fetched by React island)
   await app.register(artistInfoRoutes);

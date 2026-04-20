@@ -31,12 +31,16 @@ export function EmbossedSegmentedControl<T extends string>({
   return (
     <RecessedCard className={cn("relative flex p-1", className)} radius="0.75rem">
       <RecessedCard.Body className="contents">
-        {/* Sliding embossed indicator */}
+        {/* Sliding embossed indicator.
+         * Animated via `transform` (composite-only) rather than `left` so the
+         * slide lives on the GPU. `translateX(N × (100% + 8px))` yields the
+         * same step delta as the original `left` arithmetic, because each
+         * indicator is 8px narrower than its segment cell. */}
         <div
-          className="absolute top-1 bottom-1 transition-[left] duration-250 ease-out"
+          className="absolute top-1 bottom-1 left-1 transition-transform duration-250 ease-out will-change-transform"
           style={{
-            left: `calc(${activeIndex} * ${100 / count}% + 4px)`,
             width: `calc(${100 / count}% - 8px)`,
+            transform: `translateX(calc(${activeIndex} * (100% + 8px)))`,
           }}
         >
           <EmbossedCard className="w-full h-full rounded-lg p-0 bg-gray-700/[0.65]" />

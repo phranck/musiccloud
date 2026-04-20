@@ -25,6 +25,13 @@ export interface MediaCardContentConfiguration {
   metaLine?: string;
   /** 30-second audio preview URL (Deezer or Spotify). Optional: mini-player shown only when set. */
   previewUrl?: string;
+  /** True when `previewUrl` is absent but the backend can fetch a fresh URL
+   *  on demand. The audio player renders a loading state and calls
+   *  `/api/share-preview/:shortId` to retrieve it. */
+  previewRefreshable?: boolean;
+  /** Short ID of the share — used by the audio player to call the
+   *  preview-refresh endpoint when `previewRefreshable` is set. */
+  shortId?: string;
   platforms: PlatformLink[];
   /** Pre-translated label above the platform grid */
   platformsLabel: string;

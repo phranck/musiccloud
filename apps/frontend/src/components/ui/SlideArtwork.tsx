@@ -74,6 +74,7 @@ export function SlideArtwork({ active, artworkUrl, kind = "square", sizeClass, i
               width={imgDim}
               height={imgDim}
               loading="lazy"
+              decoding="async"
               style={{ borderRadius: "var(--neu-radius-inner)" }}
               onError={(e) => {
                 e.currentTarget.src = "/og/default.jpg";

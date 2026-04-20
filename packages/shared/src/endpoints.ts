@@ -46,6 +46,10 @@ export const ENDPOINTS = {
     resolve: "/api/v1/resolve",
     /** GET `/api/v1/share/:shortId`: fetch a previously-resolved share. */
     share: (shortId: string) => `/api/v1/share/${shortId}`,
+    /** GET `/api/v1/share/:shortId/preview`: refresh + return fresh preview URL.
+     *  Separated from the main share endpoint so the hot path stays DB-only
+     *  and the (slow) Deezer call is client-driven and async. */
+    sharePreview: (shortId: string) => `/api/v1/share/${shortId}/preview`,
     /** GET `/api/v1/artist-info?…`: Last.fm + Ticketmaster aggregated artist info. */
     artistInfo: "/api/v1/artist-info",
     /** GET `/api/v1/random-example`: pick a random short URL (track or album). */
@@ -98,6 +102,9 @@ export const ENDPOINTS = {
     randomExample: "/api/random-example",
     /** GET: forwarded to `ENDPOINTS.v1.artistInfo`. */
     artistInfo: "/api/artist-info",
+    /** GET: forwarded to `ENDPOINTS.v1.sharePreview`. Client-side audio
+     *  player calls this lazily to refresh expired Deezer preview URLs. */
+    sharePreview: (shortId: string) => `/api/share-preview/${encodeURIComponent(shortId)}`,
     /** GET: forwarded to `ENDPOINTS.v1.genreArtwork`. */
     genreArtwork: (genreKey: string) => `/api/genre-artwork/${encodeURIComponent(genreKey)}`,
     /** GET: handled entirely by Astro (`pages/api/redirect.ts`): takes `?url=`,
@@ -256,6 +263,7 @@ export const ENDPOINTS = {
 export const ROUTE_TEMPLATES = {
   v1: {
     share: "/api/v1/share/:shortId",
+    sharePreview: "/api/v1/share/:shortId/preview",
     link: "/api/v1/link/:id",
     genreArtwork: "/api/v1/genre-artwork/:genreKey",
     nav: "/api/v1/nav/:navId",

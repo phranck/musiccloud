@@ -12,8 +12,8 @@ import type { ServiceId } from "@musiccloud/shared";
 import { buildMetaLine, isValidServiceId } from "@musiccloud/shared";
 import { fetchPublicContentPage, fetchShareData } from "@/api/client";
 import GradientBackground from "@/components/background/GradientBackground.astro";
-import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
-import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
+import DeferredFooter from "@/components/layout/DeferredFooter.astro";
+import DeferredHeader from "@/components/layout/DeferredHeader.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import { SegmentedPageFullscreen } from "@/components/layout/PageOverlayContent";
 import { ShareLayout } from "@/components/share/ShareLayout";
@@ -21,7 +21,6 @@ import { LogoView } from "@/components/ui/LogoView";
 import { getLocaleFromCookie } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import { loadNav } from "@/lib/loadNav";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 const { shortId } = Astro.params;
@@ -35,12 +34,18 @@ const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
 const translations = await loadTranslations(locale);
 const t = makeT(translations);
 
-// Try content page first (admin-managed slugs), then fall back to share lookup.
-// Both routes share the same `/:slug` URL space — content pages take precedence.
-const [contentPage, navigation] = await Promise.all([fetchPublicContentPage(shortId), loadNav()]);
-const { header: headerNav, footer: footerNav } = navigation;
-
-const data = contentPage ? null : await fetchShareData(shortId);
+// Both routes share the same `/:slug` URL space — content pages take
+// precedence over share lookups. We fire both fetches in parallel (instead
+// of awaiting the content-page decision first) so the total wait time is
+// the max of the two, not the sum. The extra share fetch when a content
+// page exists is cheap and avoids a visible cold start on regular share
+// pages, which are the common case. Nav loads in separate Server Islands
+// and therefore does not block this frontmatter at all.
+const [contentPage, shareData] = await Promise.all([
+  fetchPublicContentPage(shortId),
+  fetchShareData(shortId),
+]);
+const data = contentPage ? null : shareData;
 
 if (!contentPage && !data) {
   return Astro.redirect("/404", 302);
@@ -96,6 +101,8 @@ const shareConfig: ShareContentConfiguration | null = data
       album: isAlbum ? undefined : (track?.albumName ?? undefined),
       isExplicit: !isAlbum && !isArtist && track?.isExplicit ? true : undefined,
       previewUrl: isArtist ? undefined : isAlbum ? (album?.previewUrl ?? undefined) : (track?.previewUrl ?? undefined),
+      previewRefreshable: !isArtist && !isAlbum ? track?.previewRefreshable : undefined,
+      shortId,
       metaLine: isArtist ? artistMetaLine || undefined : isAlbum ? albumMetaLine || undefined : trackMetaLine || undefined,
       platforms: platformLinks,
       platformsLabel: t(platformsLabelKey),
@@ -143,7 +150,7 @@ const pageTitle = contentPage
     {t("a11y.skipToContent")}
   </a>
 
-  <PageHeaderIsland client:idle navItems={headerNav} />
+  <DeferredHeader server:defer />
 
   <GradientBackground />
 
@@ -201,7 +208,7 @@ const pageTitle = contentPage
       </main>
     )}
 
-    <AppFooterIsland client:idle navItems={footerNav} />
+    <DeferredFooter server:defer />
   </div>
 
   <!-- Always-on overlay host so nav clicks on overlay-mode pages open

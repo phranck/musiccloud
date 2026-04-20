@@ -39,6 +39,7 @@
   "artist.similarArtists": "Similar Artists",
   "artist.eventsProvidedBy": "Data o událostech poskytuje Bandsintown & Ticketmaster",
   "audio.previewUnavailable": "Náhled není k dispozici",
+  "audio.previewLoading": "Načítání...",
   "artist.profileProvidedBy": "Data umělce poskytují Spotify & Last.fm",
   "embed.button": "Vložit skladbu",
   "embed.buttonAlbum": "Vložit album",
