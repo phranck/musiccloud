@@ -88,8 +88,8 @@ export function TranslucentOverlayContent({ page, onClose }: OverlayContentProps
   const showTitle = isSegmented ? page.showTitle || segmented.currentShowTitle : page.showTitle;
 
   return (
-    <TranslucentCard className="max-h-full">
-      <TranslucentCard.Header className="relative px-3 pb-3">
+    <TranslucentCard className="h-full">
+      <TranslucentCard.Header className="relative px-3 pb-3 overlay-drag-handle cursor-grab active:cursor-grabbing">
         {showTitle && (
           <h2 className="text-xl font-semibold tracking-[-0.01em] text-white text-center truncate px-10">{title}</h2>
         )}
@@ -125,8 +125,8 @@ export function EmbossedOverlayContent({ page, onClose }: OverlayContentProps) {
   const showTitle = isSegmented ? page.showTitle || segmented.currentShowTitle : page.showTitle;
 
   return (
-    <EmbossedCard className={cn("flex flex-col max-h-full")}>
-      <EmbossedCard.Header className="px-2 py-2">
+    <EmbossedCard className={cn("flex flex-col h-full")}>
+      <EmbossedCard.Header className="px-2 py-2 overlay-drag-handle cursor-grab active:cursor-grabbing">
         {showTitle && <EmbossedCard.Header.Title align={page.titleAlignment}>{title}</EmbossedCard.Header.Title>}
         <EmbossedCard.Header.AddOn align="trailing">
           <EmbossedCloseButton onClick={onClose} />
@@ -141,11 +141,13 @@ export function EmbossedOverlayContent({ page, onClose }: OverlayContentProps) {
       )}
       <EmbossedCard.Body className="flex-1 min-h-0 overflow-hidden pt-3">
         {isSegmented ? (
-          <RecessedCard className="h-full overflow-y-auto px-4 py-4">
-            <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={html} className={MD_EMBOSSED} />
+          <RecessedCard className="h-full" padding="0">
+            <div className="h-full overflow-y-auto px-4 py-4">
+              <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={html} className={MD_EMBOSSED} />
+            </div>
           </RecessedCard>
         ) : (
-          <div className="overflow-y-auto px-4 py-4">
+          <div className="h-full overflow-y-auto px-4 py-4">
             <MarkdownHtml html={html} className={MD_EMBOSSED} />
           </div>
         )}
