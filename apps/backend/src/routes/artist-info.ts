@@ -181,17 +181,23 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         log.debug("ArtistInfo", `Cache hit for "${rawName}"`);
       }
 
+      // Defensive filter: cached entries written before the upstream-mapper
+      // fixes (Bandsintown could emit events without venueName/city/country)
+      // may still contain incomplete records. Drop them so the response
+      // schema validation never trips on stale cache.
+      const completeEvents = events.filter((e) => e?.date && e.venueName && e.city && e.country);
+
       // Two-key sort. `aLocal - bLocal` is the primary comparator: local
       // events get `-1`, remote stay `0`, so locals bubble to the top. The
       // `|| a.date.localeCompare(b.date)` tie-breaker then orders each
       // group by date ascending (ISO date strings sort correctly as text).
       const sortedEvents = region
-        ? [...events].sort((a, b) => {
+        ? [...completeEvents].sort((a, b) => {
             const aLocal = a.country.toUpperCase() === region ? -1 : 0;
             const bLocal = b.country.toUpperCase() === region ? -1 : 0;
             return aLocal - bLocal || a.date.localeCompare(b.date);
           })
-        : events;
+        : completeEvents;
 
       const enrichedTracks = await Promise.all(
         topTracks.map(async (track) => {
