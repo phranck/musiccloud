@@ -15,6 +15,9 @@ import {
   PAGE_TYPES,
 } from "@musiccloud/shared";
 import { marked } from "marked";
+import markedFootnote from "marked-footnote";
+
+marked.use(markedFootnote(), { gfm: true });
 
 import type {
   ContentPageMetaUpdate,
