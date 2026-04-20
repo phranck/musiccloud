@@ -340,16 +340,20 @@ async function fetchBandsintownEvents(artistName: string): Promise<ArtistEvent[]
     const events = (await res.json()) as BandsintownEvent[];
     if (!Array.isArray(events)) return [];
 
-    return events.map(
-      (e): ArtistEvent => ({
-        date: e.datetime.slice(0, 10),
-        venueName: e.venue.name,
-        city: e.venue.city,
-        country: e.venue.country,
-        ticketUrl: e.offers?.find((o) => o.type === "Tickets")?.url ?? null,
-        source: "bandsintown",
-      }),
-    );
+    return events
+      .map((e): ArtistEvent | null => {
+        const venue = e.venue;
+        if (!venue || !venue.name || !venue.city || !venue.country) return null;
+        return {
+          date: e.datetime.slice(0, 10),
+          venueName: venue.name,
+          city: venue.city,
+          country: venue.country,
+          ticketUrl: e.offers?.find((o) => o.type === "Tickets")?.url ?? null,
+          source: "bandsintown",
+        };
+      })
+      .filter((e): e is ArtistEvent => e !== null);
   } catch (err) {
     log.debug("ArtistInfo", "Bandsintown events error:", err instanceof Error ? err.message : String(err));
     return [];
