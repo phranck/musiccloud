@@ -1,11 +1,4 @@
-import {
-  OVERLAY_HEIGHTS,
-  OVERLAY_WIDTHS,
-  type OverlayHeight,
-  type OverlayWidth,
-  PAGE_DISPLAY_MODES,
-  type PageDisplayMode,
-} from "@musiccloud/shared";
+import { OVERLAY_WIDTHS, type OverlayWidth, PAGE_DISPLAY_MODES, type PageDisplayMode } from "@musiccloud/shared";
 
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { useI18n } from "@/context/I18nContext";
@@ -14,17 +7,15 @@ import { FormLabelText } from "@/shared/ui/FormPrimitives";
 interface Props {
   displayMode: PageDisplayMode;
   overlayWidth: OverlayWidth;
-  overlayHeight: OverlayHeight;
   onChange: (
     patch: Partial<{
       displayMode: PageDisplayMode;
       overlayWidth: OverlayWidth;
-      overlayHeight: OverlayHeight;
     }>,
   ) => void;
 }
 
-export function PageDisplaySettings({ displayMode, overlayWidth, overlayHeight, onChange }: Props) {
+export function PageDisplaySettings({ displayMode, overlayWidth, onChange }: Props) {
   const { messages } = useI18n();
   const labels = messages.content.pages.display;
   const modeLabels: Record<PageDisplayMode, string> = {
@@ -37,12 +28,6 @@ export function PageDisplaySettings({ displayMode, overlayWidth, overlayHeight, 
     regular: labels.widthRegular,
     big: labels.widthBig,
   };
-  const heightLabels: Record<OverlayHeight, string> = {
-    small: labels.heightSmall,
-    regular: labels.heightRegular,
-    dynamic: labels.heightDynamic,
-    expanded: labels.heightExpanded,
-  };
   const isOverlay = displayMode !== "fullscreen";
 
   return (
@@ -54,20 +39,12 @@ export function PageDisplaySettings({ displayMode, overlayWidth, overlayHeight, 
         onChange={(v) => onChange({ displayMode: v })}
       />
       {isOverlay && (
-        <>
-          <Picker<OverlayWidth>
-            label={labels.overlayWidth}
-            value={overlayWidth}
-            options={OVERLAY_WIDTHS.map((w) => ({ value: w, label: widthLabels[w] }))}
-            onChange={(v) => onChange({ overlayWidth: v })}
-          />
-          <Picker<OverlayHeight>
-            label={labels.overlayHeight}
-            value={overlayHeight}
-            options={OVERLAY_HEIGHTS.map((h) => ({ value: h, label: heightLabels[h] }))}
-            onChange={(v) => onChange({ overlayHeight: v })}
-          />
-        </>
+        <Picker<OverlayWidth>
+          label={labels.overlayWidth}
+          value={overlayWidth}
+          options={OVERLAY_WIDTHS.map((w) => ({ value: w, label: widthLabels[w] }))}
+          onChange={(v) => onChange({ overlayWidth: v })}
+        />
       )}
     </div>
   );

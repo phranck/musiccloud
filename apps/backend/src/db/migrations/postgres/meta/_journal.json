@@ -120,6 +120,13 @@
       "when": 1777503000000,
       "tag": "0016_app_telemetry_events",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1777504000000,
+      "tag": "0017_drop_overlay_height",
+      "breakpoints": true
     }
   ]
 }

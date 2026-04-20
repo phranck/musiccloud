@@ -493,14 +493,9 @@ export interface DashboardMessages {
         embossed: string;
         translucent: string;
         overlayWidth: string;
-        overlayHeight: string;
         widthSmall: string;
         widthRegular: string;
         widthBig: string;
-        heightSmall: string;
-        heightRegular: string;
-        heightDynamic: string;
-        heightExpanded: string;
       };
       segments: {
         title: string;
@@ -1224,14 +1219,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           embossed: "Embossed-Overlay",
           translucent: "Translucent-Overlay",
           overlayWidth: "Breite",
-          overlayHeight: "H\u00f6he",
           widthSmall: "Schmal",
           widthRegular: "Normal",
           widthBig: "Gro\u00df",
-          heightSmall: "Niedrig",
-          heightRegular: "Normal",
-          heightDynamic: "Dynamisch",
-          heightExpanded: "Hoch",
         },
         segments: {
           title: "Segmente",
@@ -1946,14 +1936,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           embossed: "Embossed overlay",
           translucent: "Translucent overlay",
           overlayWidth: "Width",
-          overlayHeight: "Height",
           widthSmall: "Small",
           widthRegular: "Regular",
           widthBig: "Big",
-          heightSmall: "Small",
-          heightRegular: "Regular",
-          heightDynamic: "Dynamic",
-          heightExpanded: "Expanded",
         },
         segments: {
           title: "Segments",

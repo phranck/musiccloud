@@ -20,7 +20,6 @@ function rowToNavItem(row: NavItemRow): NavItem {
     pageType: row.pageType,
     pageDisplayMode: row.pageDisplayMode,
     pageOverlayWidth: row.pageOverlayWidth,
-    pageOverlayHeight: row.pageOverlayHeight,
   };
 }
 

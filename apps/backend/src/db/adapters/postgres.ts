@@ -1,4 +1,4 @@
-import type { OverlayHeight, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
+import type { OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { CACHE_TTL_MS } from "../../lib/config.js";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
@@ -2375,10 +2375,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       setClauses.push(`overlay_width = $${paramIndex++}`);
       values.push(data.overlayWidth);
     }
-    if (data.overlayHeight !== undefined) {
-      setClauses.push(`overlay_height = $${paramIndex++}`);
-      values.push(data.overlayHeight);
-    }
 
     if (setClauses.length === 0) {
       return this.getContentPageBySlug(slug);
@@ -2538,7 +2534,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT n.id, n.nav_id, n.page_slug, n.url, n.target, n.position, n.label,
               p.title AS page_title,
-              p.page_type, p.display_mode, p.overlay_width, p.overlay_height
+              p.page_type, p.display_mode, p.overlay_width
        FROM nav_items n
        LEFT JOIN content_pages p ON p.slug = n.page_slug
        WHERE n.nav_id = $1
@@ -2604,8 +2600,8 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
 
 // Shared column lists so every SELECT / RETURNING stays in lockstep.
 const CONTENT_SUMMARY_COLUMNS =
-  "slug, title, status, show_title, title_alignment, page_type, display_mode, overlay_width, overlay_height, created_by, updated_by, created_at, updated_at";
-const CONTENT_COLUMNS = `slug, title, content, status, show_title, title_alignment, page_type, display_mode, overlay_width, overlay_height, created_by, updated_by, created_at, updated_at`;
+  "slug, title, status, show_title, title_alignment, page_type, display_mode, overlay_width, created_by, updated_by, created_at, updated_at";
+const CONTENT_COLUMNS = `slug, title, content, status, show_title, title_alignment, page_type, display_mode, overlay_width, created_by, updated_by, created_at, updated_at`;
 
 interface ContentPageSummarySqlRow {
   slug: string;
@@ -2616,7 +2612,6 @@ interface ContentPageSummarySqlRow {
   page_type: string;
   display_mode: string;
   overlay_width: string;
-  overlay_height: string;
   created_by: string | null;
   updated_by: string | null;
   created_at: Date;
@@ -2638,7 +2633,6 @@ function rowToContentPageSummary(row: ContentPageSummarySqlRow): ContentPageSumm
     pageType: row.page_type as PageType,
     displayMode: row.display_mode as PageDisplayMode,
     overlayWidth: row.overlay_width as OverlayWidth,
-    overlayHeight: row.overlay_height as OverlayHeight,
     createdBy: row.created_by,
     updatedBy: row.updated_by,
     createdAt: row.created_at,
@@ -2663,7 +2657,6 @@ interface NavItemSqlRow {
   page_type: string | null;
   display_mode: string | null;
   overlay_width: string | null;
-  overlay_height: string | null;
 }
 
 async function insertAppTelemetryEvent(
@@ -2708,6 +2701,5 @@ function rowToNavItem(row: NavItemSqlRow): NavItemRow {
     pageType: row.page_type === null ? null : (row.page_type as PageType),
     pageDisplayMode: row.display_mode === null ? null : (row.display_mode as PageDisplayMode),
     pageOverlayWidth: row.overlay_width === null ? null : (row.overlay_width as OverlayWidth),
-    pageOverlayHeight: row.overlay_height === null ? null : (row.overlay_height as OverlayHeight),
   };
 }

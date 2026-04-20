@@ -1,4 +1,4 @@
-import type { OverlayHeight, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
+import type { OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
 
 export interface AdminUser {
   id: string;
@@ -126,7 +126,6 @@ export interface ContentPageSummaryRow {
   pageType: PageType;
   displayMode: PageDisplayMode;
   overlayWidth: OverlayWidth;
-  overlayHeight: OverlayHeight;
   createdBy: string | null;
   updatedBy: string | null;
   createdAt: Date;
@@ -155,7 +154,6 @@ export interface ContentPageMetaUpdate {
   pageType?: PageType;
   displayMode?: PageDisplayMode;
   overlayWidth?: OverlayWidth;
-  overlayHeight?: OverlayHeight;
   updatedBy: string | null;
 }
 
@@ -192,7 +190,6 @@ export interface NavItemRow {
   pageType: PageType | null;
   pageDisplayMode: PageDisplayMode | null;
   pageOverlayWidth: OverlayWidth | null;
-  pageOverlayHeight: OverlayHeight | null;
 }
 
 export interface NavItemReplaceInput {
