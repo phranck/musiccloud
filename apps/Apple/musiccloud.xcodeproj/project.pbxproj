@@ -107,6 +107,16 @@
 		FF0000000000010B /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10D2F83900100000002 /* APIError.swift */; };
 		FF0000000000010C /* ResolveError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10F2F83900100000003 /* ResolveError.swift */; };
 		FF0000000000010D /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */; };
+		EF00000000000101 /* BuildChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001A /* BuildChannel.swift */; };
+		EF00000000000102 /* BuildChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001A /* BuildChannel.swift */; };
+		EF00000000000201 /* TelemetryEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001B /* TelemetryEvent.swift */; };
+		EF00000000000202 /* TelemetryEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001B /* TelemetryEvent.swift */; };
+		EF00000000000301 /* TelemetryClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001C /* TelemetryClient.swift */; };
+		EF00000000000302 /* TelemetryClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001C /* TelemetryClient.swift */; };
+		EF00000000000401 /* InstallID.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001D /* InstallID.swift */; };
+		EF00000000000402 /* InstallID.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001D /* InstallID.swift */; };
+		EF00000000000501 /* DiagnosticsExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001E /* DiagnosticsExporter.swift */; };
+		EF00000000000502 /* DiagnosticsExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001E /* DiagnosticsExporter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -232,6 +242,11 @@
 		FF00000000000014 /* SharedStoreConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreConfiguration.swift; sourceTree = "<group>"; };
 		AA00000000000071 /* HapticFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticFeedback.swift; sourceTree = "<group>"; };
 		FF00000000000020 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
+		EF0000000000001A /* BuildChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildChannel.swift; sourceTree = "<group>"; };
+		EF0000000000001B /* TelemetryEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryEvent.swift; sourceTree = "<group>"; };
+		EF0000000000001C /* TelemetryClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryClient.swift; sourceTree = "<group>"; };
+		EF0000000000001D /* InstallID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallID.swift; sourceTree = "<group>"; };
+		EF0000000000001E /* DiagnosticsExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsExporter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -283,6 +298,7 @@
 			isa = PBXGroup;
 			children = (
 				AA00000000000011 /* API */,
+				EF0000000000002F /* Diagnostics */,
 				EE00000000000020 /* Intents */,
 				AA00000000000015 /* Types */,
 				AA00000000000016 /* Managers */,
@@ -405,11 +421,23 @@
 		AA0000000000001F /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				EF0000000000001A /* BuildChannel.swift */,
 				AA00000000000071 /* HapticFeedback.swift */,
 				AA00000000000002 /* PanelMetrics.swift */,
 				FF00000000000014 /* SharedStoreConfiguration.swift */,
 			);
 			path = Utils;
+			sourceTree = "<group>";
+		};
+		EF0000000000002F /* Diagnostics */ = {
+			isa = PBXGroup;
+			children = (
+				EF0000000000001E /* DiagnosticsExporter.swift */,
+				EF0000000000001D /* InstallID.swift */,
+				EF0000000000001C /* TelemetryClient.swift */,
+				EF0000000000001B /* TelemetryEvent.swift */,
+			);
+			path = Diagnostics;
 			sourceTree = "<group>";
 		};
 		AA00000000000020 /* macOS */ = {
@@ -846,6 +874,11 @@
 				FF00000000000006 /* EntryActionsModifier.swift in Sources */,
 				AA00000000000070 /* HapticFeedback.swift in Sources */,
 				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
+				EF00000000000101 /* BuildChannel.swift in Sources */,
+				EF00000000000201 /* TelemetryEvent.swift in Sources */,
+				EF00000000000301 /* TelemetryClient.swift in Sources */,
+				EF00000000000401 /* InstallID.swift in Sources */,
+				EF00000000000501 /* DiagnosticsExporter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -881,6 +914,11 @@
 				FF0000000000010B /* APIError.swift in Sources */,
 				FF0000000000010C /* ResolveError.swift in Sources */,
 				FF0000000000010D /* AppLogger.swift in Sources */,
+				EF00000000000102 /* BuildChannel.swift in Sources */,
+				EF00000000000202 /* TelemetryEvent.swift in Sources */,
+				EF00000000000302 /* TelemetryClient.swift in Sources */,
+				EF00000000000402 /* InstallID.swift in Sources */,
+				EF00000000000502 /* DiagnosticsExporter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

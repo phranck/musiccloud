@@ -117,18 +117,39 @@ extension MusicCloudAPI {
         AppLogger.api.debug("→ POST \(endpoint.absoluteString)")
         AppLogger.api.debug("  body: {\"query\": \"\(url)\"}")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            AppLogger.api.error("  transport failed: \(error.localizedDescription)")
+            Task.detached {
+                await TelemetryClient.shared.report(
+                    .networkError(
+                        sourceUrl: url,
+                        errorKind: "NETWORK_FAILURE",
+                        message: error.localizedDescription
+                    )
+                )
+            }
+            throw error
+        }
+
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
         let bodyString = String(data: data, encoding: .utf8) ?? "<non-utf8>"
 
         AppLogger.api.debug("← HTTP \(statusCode)")
         AppLogger.api.debug("  body: \(bodyString)")
 
-        if statusCode == 429 { throw ResolveError.rateLimited }
+        if statusCode == 429 {
+            reportResolveError(url: url, kind: "RATE_LIMITED", status: statusCode, body: bodyString)
+            throw ResolveError.rateLimited
+        }
 
         guard (200..<300).contains(statusCode) else {
             let error = resolveError(from: data, statusCode: statusCode)
             AppLogger.api.error("  mapped error: \(String(describing: error))")
+            reportResolveError(url: url, kind: Self.errorKind(for: error), status: statusCode, body: bodyString)
             throw error
         }
 
@@ -138,7 +159,44 @@ extension MusicCloudAPI {
             return result
         } catch {
             AppLogger.api.error("  decode failed: \(error)")
+            Task.detached {
+                await TelemetryClient.shared.report(
+                    .resolveError(
+                        sourceUrl: url,
+                        errorKind: "DECODE_FAILED",
+                        httpStatus: statusCode,
+                        message: error.localizedDescription
+                    )
+                )
+            }
             throw error
+        }
+    }
+
+    /// Short machine-readable code for the telemetry payload's
+    /// `errorKind`. Keep the set small so server-side filters stay simple.
+    private static func errorKind(for error: ResolveError) -> String {
+        switch error {
+        case .rateLimited:   return "RATE_LIMITED"
+        case .invalidURL:    return "INVALID_URL"
+        case .networkError:  return "NETWORK_ERROR"
+        case .serviceDown:   return "SERVICE_DOWN"
+        case .httpError:     return "HTTP_ERROR"
+        case .unknown:       return "UNKNOWN"
+        }
+    }
+
+    private static func reportResolveError(url: String, kind: String, status: Int, body: String) {
+        let trimmed = body.count > 500 ? String(body.prefix(500)) : body
+        Task.detached {
+            await TelemetryClient.shared.report(
+                .resolveError(
+                    sourceUrl: url,
+                    errorKind: kind,
+                    httpStatus: status,
+                    message: trimmed
+                )
+            )
         }
     }
 

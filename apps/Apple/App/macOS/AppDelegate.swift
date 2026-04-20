@@ -52,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.registerForRemoteNotifications()
         NotificationManager.requestPermission()
         NotificationManager.cleanupAttachmentCache()
+        Task.detached { await TelemetryClient.shared.flushPending() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
