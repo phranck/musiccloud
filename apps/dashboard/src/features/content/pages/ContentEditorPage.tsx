@@ -1,6 +1,5 @@
 import type {
   ContentPage,
-  OverlayHeight,
   OverlayWidth,
   PageDisplayMode,
   PageTitleAlignment as PageTitleAlignmentValue,
@@ -516,7 +515,6 @@ export function ContentEditorPage() {
     titleAlignment?: PageTitleAlignmentValue;
     displayMode?: PageDisplayMode;
     overlayWidth?: OverlayWidth;
-    overlayHeight?: OverlayHeight;
   }) {
     dispatch({ type: "setPatchError", value: null });
     try {
@@ -617,7 +615,6 @@ export function ContentEditorPage() {
         <PageDisplaySettings
           displayMode={page.displayMode}
           overlayWidth={page.overlayWidth}
-          overlayHeight={page.overlayHeight}
           onChange={(patch) => void handlePatch(patch)}
         />
       )}

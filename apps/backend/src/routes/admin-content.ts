@@ -1,8 +1,6 @@
 import {
   ENDPOINTS,
-  OVERLAY_HEIGHTS,
   OVERLAY_WIDTHS,
-  type OverlayHeight,
   type OverlayWidth,
   PAGE_DISPLAY_MODES,
   PAGE_TITLE_ALIGNMENTS,
@@ -61,7 +59,6 @@ interface ContentMetaBody {
   pageType?: PageType;
   displayMode?: PageDisplayMode;
   overlayWidth?: OverlayWidth;
-  overlayHeight?: OverlayHeight;
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -126,10 +123,6 @@ function validateMetaBody(body: unknown): ContentMetaBody | string {
   if (body.overlayWidth !== undefined) {
     if (!isOneOf(OVERLAY_WIDTHS, body.overlayWidth)) return "overlayWidth invalid";
     out.overlayWidth = body.overlayWidth;
-  }
-  if (body.overlayHeight !== undefined) {
-    if (!isOneOf(OVERLAY_HEIGHTS, body.overlayHeight)) return "overlayHeight invalid";
-    out.overlayHeight = body.overlayHeight;
   }
   return out;
 }

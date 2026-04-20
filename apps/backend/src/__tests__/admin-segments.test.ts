@@ -17,7 +17,6 @@ function makePage(overrides: Partial<ContentPageRow> = {}): ContentPageRow {
     pageType: "default",
     displayMode: "fullscreen",
     overlayWidth: "regular",
-    overlayHeight: "regular",
     createdBy: null,
     updatedBy: null,
     createdAt: new Date(),

@@ -7,13 +7,7 @@ import type {
   PublicContentPage,
   PublicPageSegment,
 } from "@musiccloud/shared";
-import {
-  OVERLAY_HEIGHTS,
-  OVERLAY_WIDTHS,
-  PAGE_DISPLAY_MODES,
-  PAGE_TITLE_ALIGNMENTS,
-  PAGE_TYPES,
-} from "@musiccloud/shared";
+import { OVERLAY_WIDTHS, PAGE_DISPLAY_MODES, PAGE_TITLE_ALIGNMENTS, PAGE_TYPES } from "@musiccloud/shared";
 import { marked } from "marked";
 import markedFootnote from "marked-footnote";
 
@@ -58,7 +52,6 @@ function rowToSummary(row: ContentPageSummaryRow, usernames: Map<string, string>
     pageType: row.pageType,
     displayMode: row.displayMode,
     overlayWidth: row.overlayWidth,
-    overlayHeight: row.overlayHeight,
     createdByUsername: row.createdBy ? (usernames.get(row.createdBy) ?? null) : null,
     updatedByUsername: row.updatedBy ? (usernames.get(row.updatedBy) ?? null) : null,
     createdAt: row.createdAt.toISOString(),
@@ -142,9 +135,6 @@ export async function updateManagedContentPageMeta(
   if (data.overlayWidth !== undefined && !isOneOf(OVERLAY_WIDTHS, data.overlayWidth)) {
     return { ok: false, code: "INVALID_INPUT", message: "overlayWidth invalid" };
   }
-  if (data.overlayHeight !== undefined && !isOneOf(OVERLAY_HEIGHTS, data.overlayHeight)) {
-    return { ok: false, code: "INVALID_INPUT", message: "overlayHeight invalid" };
-  }
   if (data.titleAlignment !== undefined && !isOneOf(PAGE_TITLE_ALIGNMENTS, data.titleAlignment)) {
     return { ok: false, code: "INVALID_INPUT", message: "titleAlignment invalid" };
   }
@@ -214,7 +204,6 @@ export async function getPublicContentPage(slug: string): Promise<PublicContentP
     pageType: row.pageType,
     displayMode: row.displayMode,
     overlayWidth: row.overlayWidth,
-    overlayHeight: row.overlayHeight,
     content: row.content,
     contentHtml: renderBody(row.content),
   };

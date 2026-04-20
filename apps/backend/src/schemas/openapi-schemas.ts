@@ -660,7 +660,6 @@ export const PublicContentPageSchema = {
     "pageType",
     "displayMode",
     "overlayWidth",
-    "overlayHeight",
     "content",
     "contentHtml",
     "segments",
@@ -674,7 +673,6 @@ export const PublicContentPageSchema = {
     pageType: { type: "string", enum: ["default", "segmented"] },
     displayMode: { type: "string", enum: ["fullscreen", "embossed", "translucent"] },
     overlayWidth: { type: "string", enum: ["small", "regular", "big"] },
-    overlayHeight: { type: "string", enum: ["small", "regular", "dynamic", "expanded"] },
     content: { type: "string", description: "Original Markdown source." },
     contentHtml: { type: "string", description: "Server-rendered HTML (safe subset)." },
     segments: {
@@ -691,7 +689,6 @@ export const PublicContentPageSchema = {
     pageType: "default",
     displayMode: "fullscreen",
     overlayWidth: "regular",
-    overlayHeight: "regular",
     content:
       "## Our mission\n\nOne URL, every streaming service. musiccloud.io is a free tool that helps you share music across platforms without friction.",
     contentHtml:
@@ -713,7 +710,6 @@ export const ContentPageSummarySchema = {
     "pageType",
     "displayMode",
     "overlayWidth",
-    "overlayHeight",
     "createdAt",
   ],
   additionalProperties: false,
@@ -726,7 +722,6 @@ export const ContentPageSummarySchema = {
     pageType: { type: "string", enum: ["default", "segmented"] },
     displayMode: { type: "string", enum: ["fullscreen", "embossed", "translucent"] },
     overlayWidth: { type: "string", enum: ["small", "regular", "big"] },
-    overlayHeight: { type: "string", enum: ["small", "regular", "dynamic", "expanded"] },
     createdByUsername: { type: "string", nullable: true },
     updatedByUsername: { type: "string", nullable: true },
     createdAt: { type: "string", format: "date-time" },
@@ -741,7 +736,6 @@ export const ContentPageSummarySchema = {
     pageType: "default",
     displayMode: "fullscreen",
     overlayWidth: "regular",
-    overlayHeight: "regular",
     createdByUsername: "admin",
     updatedByUsername: "admin",
     createdAt: "2026-02-14T08:17:03.000Z",
@@ -780,11 +774,6 @@ export const NavItemSchema = {
       nullable: true,
       enum: ["small", "regular", "big", null],
     },
-    pageOverlayHeight: {
-      type: "string",
-      nullable: true,
-      enum: ["small", "regular", "dynamic", "expanded", null],
-    },
   },
   example: {
     id: 7,
@@ -798,7 +787,6 @@ export const NavItemSchema = {
     pageType: "default",
     pageDisplayMode: "fullscreen",
     pageOverlayWidth: "regular",
-    pageOverlayHeight: "regular",
   },
 } as const;
 
