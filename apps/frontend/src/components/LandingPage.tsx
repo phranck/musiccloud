@@ -201,8 +201,6 @@ function LandingPageInner({
               {t("landing.exampleTeaser")}{" "}
               <a
                 href={`/${exampleShortId}`}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
               >
                 {t("landing.exampleLink")}
