@@ -68,6 +68,7 @@ struct MusicCloudApp: App {
                     }
                     .task {
                         UIApplication.shared.registerForRemoteNotifications()
+                        await TelemetryClient.shared.flushPending()
                     }
             } else {
                 ContentUnavailableView(
