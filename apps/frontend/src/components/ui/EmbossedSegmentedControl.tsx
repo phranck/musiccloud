@@ -32,6 +32,7 @@ export function EmbossedSegmentedControl<T extends string>({
   const buttonRefs = useRef<Map<T, HTMLButtonElement>>(new Map());
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-run when segments change so newly mounted buttons are observed
   useLayoutEffect(() => {
     const container = containerRef.current;
     const active = buttonRefs.current.get(value);
