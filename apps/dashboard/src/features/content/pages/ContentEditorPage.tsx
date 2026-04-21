@@ -576,9 +576,9 @@ export function ContentEditorPage() {
 
   const handleChange = useCallback(
     (markdown: string) => {
-      dispatch({ type: "setDraftContent", value: markdown });
       dispatch({ type: "setSaved", value: false });
       if (activeLocale === DEFAULT_LOCALE) {
+        dispatch({ type: "setDraftContent", value: markdown });
         setLocaleForms((prev) => ({
           ...prev,
           [DEFAULT_LOCALE]: prev[DEFAULT_LOCALE]
@@ -624,6 +624,7 @@ export function ContentEditorPage() {
         {
           onSuccess: () => {
             dispatch({ type: "setSaved", value: true });
+            dispatch({ type: "setDraftContent", value: null });
             setLocaleForms((prev) => ({
               ...prev,
               [DEFAULT_LOCALE]: prev[DEFAULT_LOCALE]
