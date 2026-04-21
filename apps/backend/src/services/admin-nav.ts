@@ -1,4 +1,13 @@
-import { isSafeConfiguredUrl, type NavId, type NavItem, type NavItemInput, type NavTarget } from "@musiccloud/shared";
+import {
+  DEFAULT_LOCALE,
+  isLocale,
+  isSafeConfiguredUrl,
+  type Locale,
+  type NavId,
+  type NavItem,
+  type NavItemInput,
+  type NavTarget,
+} from "@musiccloud/shared";
 
 import type { NavItemReplaceInput, NavItemRow } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
@@ -7,8 +16,8 @@ export type NavResult<T> = { ok: true; data: T } | { ok: false; code: "INVALID_I
 
 const VALID_NAV_IDS: NavId[] = ["header", "footer"];
 
-function rowToNavItem(row: NavItemRow): NavItem {
-  return {
+function rowToNavItem(row: NavItemRow, translations?: Partial<Record<Locale, string>>): NavItem {
+  const item: NavItem = {
     id: row.id,
     navId: row.navId,
     pageSlug: row.pageSlug,
@@ -21,6 +30,10 @@ function rowToNavItem(row: NavItemRow): NavItem {
     pageDisplayMode: row.pageDisplayMode,
     pageOverlayWidth: row.pageOverlayWidth,
   };
+  if (translations && Object.keys(translations).length > 0) {
+    item.translations = translations;
+  }
+  return item;
 }
 
 export function isValidNavId(value: string): value is NavId {
@@ -30,7 +43,7 @@ export function isValidNavId(value: string): value is NavId {
 export async function getManagedNavItems(navId: NavId): Promise<NavItem[]> {
   const repo = await getAdminRepository();
   const rows = await repo.listAdminNavItems(navId);
-  return rows.map(rowToNavItem);
+  return rows.map((r) => rowToNavItem(r));
 }
 
 export async function replaceManagedNavItems(navId: NavId, items: unknown): Promise<NavResult<NavItem[]>> {
@@ -38,7 +51,8 @@ export async function replaceManagedNavItems(navId: NavId, items: unknown): Prom
     return { ok: false, code: "INVALID_INPUT", message: "items must be an array" };
   }
 
-  const validated: NavItemReplaceInput[] = [];
+  type ValidatedNavItem = NavItemReplaceInput & { translations?: Partial<Record<Locale, string>> };
+  const validated: ValidatedNavItem[] = [];
   for (let i = 0; i < items.length; i++) {
     const raw = items[i];
     if (!raw || typeof raw !== "object") {
@@ -78,12 +92,44 @@ export async function replaceManagedNavItems(navId: NavId, items: unknown): Prom
       label = r.label.length > 0 ? r.label : null;
     }
 
-    validated.push({ pageSlug, url, target, label });
+    validated.push({ pageSlug, url, target, label, translations: r.translations });
   }
 
   const repo = await getAdminRepository();
   const rows = await repo.replaceAdminNavItems(navId, validated);
-  return { ok: true, data: rows.map(rowToNavItem) };
+
+  for (let i = 0; i < rows.length; i++) {
+    const persisted = rows[i]!;
+    const input = validated[i]!;
+    const translations = Object.entries(input.translations ?? {})
+      .filter(
+        ([locale, label]) =>
+          isLocale(locale) && locale !== DEFAULT_LOCALE && typeof label === "string" && label.length > 0,
+      )
+      .map(([locale, label]) => ({
+        locale,
+        label: label as string,
+        sourceUpdatedAt: persisted.labelUpdatedAt,
+      }));
+    await repo.replaceNavItemTranslations(persisted.id, translations);
+  }
+
+  const translationRows = await repo.listNavTranslations(navId);
+  const translationsByItemId = new Map<number, Partial<Record<Locale, string>>>();
+  for (const t of translationRows) {
+    if (!isLocale(t.locale)) continue;
+    let map = translationsByItemId.get(t.navItemId);
+    if (!map) {
+      map = {};
+      translationsByItemId.set(t.navItemId, map);
+    }
+    map[t.locale] = t.label;
+  }
+
+  return {
+    ok: true,
+    data: rows.map((r) => rowToNavItem(r, translationsByItemId.get(r.id))),
+  };
 }
 
 // -- Public read --------------------------------------------------------------
@@ -91,5 +137,5 @@ export async function replaceManagedNavItems(navId: NavId, items: unknown): Prom
 export async function getPublicNavItems(navId: NavId): Promise<NavItem[]> {
   const repo = await getAdminRepository();
   const rows = await repo.listAdminNavItems(navId);
-  return rows.map(rowToNavItem);
+  return rows.map((r) => rowToNavItem(r));
 }
