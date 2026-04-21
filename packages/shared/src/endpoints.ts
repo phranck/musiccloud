@@ -35,6 +35,8 @@
  * registry matching the URL exactly so a code reader can grep both ways.
  */
 
+import type { Locale } from "./locales.js";
+
 // -----------------------------------------------------------------------------
 // Concrete paths used by call sites (frontend / dashboard / backend handlers)
 // -----------------------------------------------------------------------------
@@ -226,8 +228,10 @@ export const ENDPOINTS = {
       /** GET / PATCH / DELETE: single content page by slug. */
       detail: (slug: string) => `/api/admin/pages/${slug}`,
       translations: {
+        /** GET: list all translations (including default-locale) for a page + per-locale status. */
         list: (slug: string) => `/api/admin/pages/${slug}/translations`,
-        detail: (slug: string, locale: string) =>
+        /** GET: one translation / PUT: upsert {title, content, translationReady} / DELETE: remove. */
+        detail: (slug: string, locale: Locale) =>
           `/api/admin/pages/${slug}/translations/${locale}`,
       },
     },
@@ -304,7 +308,9 @@ export const ROUTE_TEMPLATES = {
     },
     pages: {
       detail: "/api/admin/pages/:slug",
+      /** Route template for ENDPOINTS.admin.pages.translations.list. */
       translationsList: "/api/admin/pages/:slug/translations",
+      /** Route template for ENDPOINTS.admin.pages.translations.detail. */
       translationsDetail: "/api/admin/pages/:slug/translations/:locale",
     },
   },
