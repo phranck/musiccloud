@@ -1,4 +1,5 @@
-import type { PageSegment, PageSegmentInput } from "@musiccloud/shared";
+import type { Locale, PageSegment, PageSegmentInput } from "@musiccloud/shared";
+import { DEFAULT_LOCALE, isLocale } from "@musiccloud/shared";
 
 import { getAdminRepository } from "../db/index.js";
 
@@ -49,12 +50,36 @@ export async function replaceSegments(ownerSlug: string, inputs: PageSegmentInpu
     }
   }
 
-  const normalised = inputs
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .map((s, i) => ({ position: i, label: s.label.trim(), targetSlug: s.targetSlug }));
+  const sorted = inputs.slice().sort((a, b) => a.position - b.position);
+  const normalised = sorted.map((s, i) => ({ position: i, label: s.label.trim(), targetSlug: s.targetSlug }));
 
   const rows = await repo.replaceSegmentsForOwner(ownerSlug, normalised);
+
+  for (let i = 0; i < rows.length; i++) {
+    const persisted = rows[i]!;
+    const input = sorted[i]!;
+    const translations = Object.entries(input.translations ?? {})
+      .filter(([locale, label]) => isLocale(locale) && locale !== DEFAULT_LOCALE && typeof label === "string" && label.length > 0)
+      .map(([locale, label]) => ({
+        locale,
+        label: label as string,
+        sourceUpdatedAt: persisted.labelUpdatedAt,
+      }));
+    await repo.replaceSegmentTranslations(persisted.id, translations);
+  }
+
+  const translationRows = await repo.listSegmentTranslationsForOwner(ownerSlug);
+  const translationsBySegmentId = new Map<number, Partial<Record<Locale, string>>>();
+  for (const t of translationRows) {
+    if (!isLocale(t.locale)) continue;
+    let map = translationsBySegmentId.get(t.segmentId);
+    if (!map) {
+      map = {};
+      translationsBySegmentId.set(t.segmentId, map);
+    }
+    map[t.locale] = t.label;
+  }
+
   return {
     ok: true,
     data: rows.map((r) => ({
@@ -62,6 +87,7 @@ export async function replaceSegments(ownerSlug: string, inputs: PageSegmentInpu
       position: r.position,
       label: r.label,
       targetSlug: r.targetSlug,
+      ...(translationsBySegmentId.has(r.id) ? { translations: translationsBySegmentId.get(r.id) } : {}),
     })),
   };
 }

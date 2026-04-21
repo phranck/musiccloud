@@ -1,5 +1,6 @@
 import {
   ENDPOINTS,
+  isLocale,
   OVERLAY_WIDTHS,
   type OverlayWidth,
   PAGE_DISPLAY_MODES,
@@ -131,12 +132,24 @@ function validateMetaBody(body: unknown): ContentMetaBody | string {
 function validateSegmentsBody(body: unknown): PageSegmentInput[] | string {
   if (!Array.isArray(body)) return "body must be an array";
   const out: PageSegmentInput[] = [];
-  for (const raw of body) {
+  for (let i = 0; i < body.length; i++) {
+    const raw = body[i];
     if (!isPlainObject(raw)) return "segment must be an object";
     if (typeof raw.label !== "string") return "label must be string";
     if (typeof raw.targetSlug !== "string") return "targetSlug must be string";
     if (typeof raw.position !== "number") return "position must be number";
-    out.push({ label: raw.label, targetSlug: raw.targetSlug, position: raw.position });
+    const segment: PageSegmentInput = { label: raw.label, targetSlug: raw.targetSlug, position: raw.position };
+    if (raw.translations !== undefined) {
+      if (!isPlainObject(raw.translations)) return `segment ${i}.translations must be an object`;
+      const translations: Partial<Record<string, string>> = {};
+      for (const [key, val] of Object.entries(raw.translations)) {
+        if (!isLocale(key)) return `segment ${i}.translations: unknown locale '${key}'`;
+        if (typeof val !== "string" || val.length === 0) return `segment ${i}.translations: values must be non-empty strings`;
+        translations[key] = val;
+      }
+      segment.translations = translations as PageSegmentInput["translations"];
+    }
+    out.push(segment);
   }
   return out;
 }

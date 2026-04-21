@@ -43,9 +43,16 @@ const repo: Partial<AdminRepository> = {
       targetSlug: s.targetSlug,
       position: s.position,
       label: s.label,
+      labelUpdatedAt: new Date("2024-01-01T00:00:00Z"),
     }));
     segmentsByOwner.set(ownerSlug, rows);
     return rows;
+  },
+  async replaceSegmentTranslations(_segmentId, _translations) {
+    // no-op for base mock; individual tests override via scopedRepo
+  },
+  async listSegmentTranslationsForOwner(_ownerSlug) {
+    return [];
   },
 };
 
@@ -123,5 +130,31 @@ describe("replaceSegments", () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.data[0].label).toBe("Trimmed");
     expect(lastReplace?.inputs[0].label).toBe("Trimmed");
+  });
+
+  it("persists per-segment translations via repo.replaceSegmentTranslations", async () => {
+    pages.set("owner", makePage({ slug: "owner", pageType: "segmented" }));
+    pages.set("child", makePage({ slug: "child", pageType: "default" }));
+    const calls: { segmentId: number; translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[] }[] = [];
+    const scopedRepo: Partial<AdminRepository> = {
+      ...repo,
+      async replaceSegmentTranslations(segmentId, translations) {
+        calls.push({ segmentId, translations: [...translations] });
+      },
+      async listSegmentTranslationsForOwner() {
+        return [];
+      },
+    };
+    vi.doMock("../db/index.js", () => ({ getAdminRepository: async () => scopedRepo }));
+    vi.resetModules();
+    const { replaceSegments: replaceSegmentsFresh } = await import("../services/admin-segments.js");
+
+    await replaceSegmentsFresh("owner", [
+      { position: 0, label: "Child", targetSlug: "child", translations: { de: "Kind" } },
+    ]);
+    expect(calls.length).toBe(1);
+    expect(calls[0]!.translations).toEqual([
+      { locale: "de", label: "Kind", sourceUpdatedAt: expect.any(Date) },
+    ]);
   });
 });
