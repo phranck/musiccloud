@@ -14,6 +14,8 @@ import type {
   ContentPageMetaUpdate,
   ContentPageRow,
   ContentPageSummaryRow,
+  ContentPageTranslationRow,
+  ContentPageTranslationUpsert,
   ContentStatus,
   EmailTemplateRow,
   EmailTemplateWriteData,
@@ -2480,6 +2482,76 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   }
 
   // ============================================================================
+  // PAGE TRANSLATIONS (AdminRepository)
+  // ============================================================================
+
+  async listPageTranslations(slug: string): Promise<ContentPageTranslationRow[]> {
+    const result = await this.pool.query<ContentPageTranslationSqlRow>(
+      `SELECT slug, locale, title, content, translation_ready, source_updated_at, updated_at, updated_by
+       FROM content_page_translations
+       WHERE slug = $1
+       ORDER BY locale ASC`,
+      [slug],
+    );
+    return result.rows.map(rowToContentPageTranslation);
+  }
+
+  async getPageTranslation(slug: string, locale: string): Promise<ContentPageTranslationRow | null> {
+    const result = await this.pool.query<ContentPageTranslationSqlRow>(
+      `SELECT slug, locale, title, content, translation_ready, source_updated_at, updated_at, updated_by
+       FROM content_page_translations
+       WHERE slug = $1 AND locale = $2
+       LIMIT 1`,
+      [slug, locale],
+    );
+    return result.rows.length > 0 ? rowToContentPageTranslation(result.rows[0]) : null;
+  }
+
+  async upsertPageTranslation(input: ContentPageTranslationUpsert): Promise<ContentPageTranslationRow> {
+    const now = new Date();
+    const result = await this.pool.query<ContentPageTranslationSqlRow>(
+      `INSERT INTO content_page_translations
+         (slug, locale, title, content, translation_ready, source_updated_at, updated_at, updated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT ON CONSTRAINT pk_content_page_translations
+       DO UPDATE SET
+         title = EXCLUDED.title,
+         content = EXCLUDED.content,
+         translation_ready = EXCLUDED.translation_ready,
+         source_updated_at = EXCLUDED.source_updated_at,
+         updated_at = EXCLUDED.updated_at,
+         updated_by = EXCLUDED.updated_by
+       RETURNING slug, locale, title, content, translation_ready, source_updated_at, updated_at, updated_by`,
+      [
+        input.slug,
+        input.locale,
+        input.title,
+        input.content,
+        input.translationReady,
+        input.sourceUpdatedAt,
+        now,
+        input.updatedBy,
+      ],
+    );
+    return rowToContentPageTranslation(result.rows[0]);
+  }
+
+  async deletePageTranslation(slug: string, locale: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `DELETE FROM content_page_translations WHERE slug = $1 AND locale = $2 RETURNING slug`,
+      [slug, locale],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async setContentPageContentUpdatedAt(slug: string, when: Date): Promise<void> {
+    await this.pool.query(
+      `UPDATE content_pages SET content_updated_at = $1, updated_at = $1 WHERE slug = $2`,
+      [when, slug],
+    );
+  }
+
+  // ============================================================================
   // PAGE SEGMENTS (AdminRepository)
   // ============================================================================
 
@@ -2615,8 +2687,8 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
 
 // Shared column lists so every SELECT / RETURNING stays in lockstep.
 const CONTENT_SUMMARY_COLUMNS =
-  "slug, title, status, show_title, title_alignment, page_type, display_mode, overlay_width, created_by, updated_by, created_at, updated_at";
-const CONTENT_COLUMNS = `slug, title, content, status, show_title, title_alignment, page_type, display_mode, overlay_width, created_by, updated_by, created_at, updated_at`;
+  "slug, title, status, show_title, title_alignment, page_type, display_mode, overlay_width, created_by, updated_by, created_at, updated_at, content_updated_at";
+const CONTENT_COLUMNS = `slug, title, content, status, show_title, title_alignment, page_type, display_mode, overlay_width, created_by, updated_by, created_at, updated_at, content_updated_at`;
 
 interface ContentPageSummarySqlRow {
   slug: string;
@@ -2631,6 +2703,7 @@ interface ContentPageSummarySqlRow {
   updated_by: string | null;
   created_at: Date;
   updated_at: Date | null;
+  content_updated_at: Date;
   segments?: { position: number; label: string; targetSlug: string }[];
 }
 
@@ -2656,8 +2729,32 @@ function rowToContentPageSummary(row: ContentPageSummarySqlRow): ContentPageSumm
   };
 }
 
+interface ContentPageTranslationSqlRow {
+  slug: string;
+  locale: string;
+  title: string;
+  content: string;
+  translation_ready: boolean;
+  source_updated_at: Date | null;
+  updated_at: Date;
+  updated_by: string | null;
+}
+
+function rowToContentPageTranslation(row: ContentPageTranslationSqlRow): ContentPageTranslationRow {
+  return {
+    slug: row.slug,
+    locale: row.locale,
+    title: row.title,
+    content: row.content,
+    translationReady: row.translation_ready,
+    sourceUpdatedAt: row.source_updated_at,
+    updatedAt: row.updated_at,
+    updatedBy: row.updated_by,
+  };
+}
+
 function rowToContentPage(row: ContentPageSqlRow): ContentPageRow {
-  return { ...rowToContentPageSummary(row), content: row.content };
+  return { ...rowToContentPageSummary(row), content: row.content, contentUpdatedAt: row.content_updated_at };
 }
 
 interface NavItemSqlRow {

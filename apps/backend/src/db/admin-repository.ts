@@ -135,6 +135,28 @@ export interface ContentPageSummaryRow {
 
 export interface ContentPageRow extends ContentPageSummaryRow {
   content: string;
+  contentUpdatedAt: Date;
+}
+
+export interface ContentPageTranslationRow {
+  slug: string;
+  locale: string;
+  title: string;
+  content: string;
+  translationReady: boolean;
+  sourceUpdatedAt: Date | null;
+  updatedAt: Date;
+  updatedBy: string | null;
+}
+
+export interface ContentPageTranslationUpsert {
+  slug: string;
+  locale: string;
+  title: string;
+  content: string;
+  translationReady: boolean;
+  sourceUpdatedAt: Date | null;
+  updatedBy: string | null;
 }
 
 export interface ContentPageCreateData {
@@ -336,4 +358,12 @@ export interface AdminRepository {
   getContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]>;
   /** Public variant — published rows only. Used by public API to render segmented pages. */
   getPublishedContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]>;
+
+  // Page translations (content_page_translations)
+  listPageTranslations(slug: string): Promise<ContentPageTranslationRow[]>;
+  getPageTranslation(slug: string, locale: string): Promise<ContentPageTranslationRow | null>;
+  upsertPageTranslation(input: ContentPageTranslationUpsert): Promise<ContentPageTranslationRow>;
+  deletePageTranslation(slug: string, locale: string): Promise<boolean>;
+  /** Bump content_pages.content_updated_at (and updated_at) for a given slug. */
+  setContentPageContentUpdatedAt(slug: string, when: Date): Promise<void>;
 }
