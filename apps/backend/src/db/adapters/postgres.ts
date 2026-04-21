@@ -2715,7 +2715,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // NAV ITEM TRANSLATIONS (AdminRepository)
   // ============================================================================
 
-  async listNavTranslations(navId: string): Promise<NavItemTranslationRow[]> {
+  async listNavTranslations(navId: NavId): Promise<NavItemTranslationRow[]> {
     const result = await this.pool.query<{
       nav_item_id: number;
       locale: string;
