@@ -23,9 +23,11 @@ import type {
   NavId,
   NavItemReplaceInput,
   NavItemRow,
+  NavItemTranslationRow,
   NavTarget,
   PageSegmentInputRow,
   PageSegmentRow,
+  PageSegmentTranslationRow,
   TrackListItem,
 } from "../admin-repository.js";
 import type {
@@ -2562,8 +2564,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       target_slug: string;
       position: number;
       label: string;
+      label_updated_at: Date;
     }>(
-      `SELECT id, owner_slug, target_slug, position, label
+      `SELECT id, owner_slug, target_slug, position, label, label_updated_at
        FROM page_segments
        WHERE owner_slug = $1
        ORDER BY position ASC`,
@@ -2575,6 +2578,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       targetSlug: r.target_slug,
       position: r.position,
       label: r.label,
+      labelUpdatedAt: r.label_updated_at,
     }));
   }
 
@@ -2589,10 +2593,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [ownerSlug]);
       const rows: PageSegmentRow[] = [];
       for (const s of segments) {
-        const r = await client.query<{ id: number }>(
+        const r = await client.query<{ id: number; label_updated_at: Date }>(
           `INSERT INTO page_segments (owner_slug, target_slug, position, label)
            VALUES ($1, $2, $3, $4)
-           RETURNING id`,
+           RETURNING id, label_updated_at`,
           [ownerSlug, s.targetSlug, s.position, s.label],
         );
         rows.push({
@@ -2601,6 +2605,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
           targetSlug: s.targetSlug,
           position: s.position,
           label: s.label,
+          labelUpdatedAt: r.rows[0].label_updated_at,
         });
       }
       await client.query("COMMIT");
@@ -2619,7 +2624,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async listAdminNavItems(navId: NavId): Promise<NavItemRow[]> {
     const result = await this.pool.query(
-      `SELECT n.id, n.nav_id, n.page_slug, n.url, n.target, n.position, n.label,
+      `SELECT n.id, n.nav_id, n.page_slug, n.url, n.target, n.position, n.label, n.label_updated_at,
               p.title AS page_title,
               p.page_type, p.display_mode, p.overlay_width
        FROM nav_items n
@@ -2652,6 +2657,110 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       client.release();
     }
     return this.listAdminNavItems(navId);
+  }
+
+  // ============================================================================
+  // SEGMENT TRANSLATIONS (AdminRepository)
+  // ============================================================================
+
+  async listSegmentTranslationsForOwner(ownerSlug: string): Promise<PageSegmentTranslationRow[]> {
+    const result = await this.pool.query<{
+      segment_id: number;
+      locale: string;
+      label: string;
+      source_updated_at: Date | null;
+      updated_at: Date;
+    }>(
+      `SELECT pst.segment_id, pst.locale, pst.label, pst.source_updated_at, pst.updated_at
+       FROM page_segment_translations pst
+       JOIN page_segments ps ON ps.id = pst.segment_id
+       WHERE ps.owner_slug = $1
+       ORDER BY pst.segment_id, pst.locale`,
+      [ownerSlug],
+    );
+    return result.rows.map((r) => ({
+      segmentId: r.segment_id,
+      locale: r.locale,
+      label: r.label,
+      sourceUpdatedAt: r.source_updated_at,
+      updatedAt: r.updated_at,
+    }));
+  }
+
+  async replaceSegmentTranslations(
+    segmentId: number,
+    translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
+  ): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`DELETE FROM page_segment_translations WHERE segment_id = $1`, [segmentId]);
+      for (const t of translations) {
+        await client.query(
+          `INSERT INTO page_segment_translations (segment_id, locale, label, source_updated_at)
+           VALUES ($1, $2, $3, $4)`,
+          [segmentId, t.locale, t.label, t.sourceUpdatedAt],
+        );
+      }
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  // ============================================================================
+  // NAV ITEM TRANSLATIONS (AdminRepository)
+  // ============================================================================
+
+  async listNavTranslations(navId: string): Promise<NavItemTranslationRow[]> {
+    const result = await this.pool.query<{
+      nav_item_id: number;
+      locale: string;
+      label: string;
+      source_updated_at: Date | null;
+      updated_at: Date;
+    }>(
+      `SELECT nit.nav_item_id, nit.locale, nit.label, nit.source_updated_at, nit.updated_at
+       FROM nav_item_translations nit
+       JOIN nav_items ni ON ni.id = nit.nav_item_id
+       WHERE ni.nav_id = $1
+       ORDER BY nit.nav_item_id, nit.locale`,
+      [navId],
+    );
+    return result.rows.map((r) => ({
+      navItemId: r.nav_item_id,
+      locale: r.locale,
+      label: r.label,
+      sourceUpdatedAt: r.source_updated_at,
+      updatedAt: r.updated_at,
+    }));
+  }
+
+  async replaceNavItemTranslations(
+    navItemId: number,
+    translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
+  ): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`DELETE FROM nav_item_translations WHERE nav_item_id = $1`, [navItemId]);
+      for (const t of translations) {
+        await client.query(
+          `INSERT INTO nav_item_translations (nav_item_id, locale, label, source_updated_at)
+           VALUES ($1, $2, $3, $4)`,
+          [navItemId, t.locale, t.label, t.sourceUpdatedAt],
+        );
+      }
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 }
 
@@ -2765,6 +2874,7 @@ interface NavItemSqlRow {
   target: string;
   position: number;
   label: string | null;
+  label_updated_at: Date;
   page_title: string | null;
   page_type: string | null;
   display_mode: string | null;
@@ -2810,6 +2920,7 @@ function rowToNavItem(row: NavItemSqlRow): NavItemRow {
     target: row.target as NavTarget,
     label: row.label,
     position: row.position,
+    labelUpdatedAt: row.label_updated_at,
     pageType: row.page_type === null ? null : (row.page_type as PageType),
     pageDisplayMode: row.display_mode === null ? null : (row.display_mode as PageDisplayMode),
     pageOverlayWidth: row.overlay_width === null ? null : (row.overlay_width as OverlayWidth),
