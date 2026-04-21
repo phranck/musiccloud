@@ -9,3 +9,4 @@ export * from "./plugins.js";
 export * from "./safe-url.js";
 export * from "./services.js";
 export * from "./utils.js";
+export * from "./locales.js";
