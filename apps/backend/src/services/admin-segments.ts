@@ -59,7 +59,10 @@ export async function replaceSegments(ownerSlug: string, inputs: PageSegmentInpu
     const persisted = rows[i]!;
     const input = sorted[i]!;
     const translations = Object.entries(input.translations ?? {})
-      .filter(([locale, label]) => isLocale(locale) && locale !== DEFAULT_LOCALE && typeof label === "string" && label.length > 0)
+      .filter(
+        ([locale, label]) =>
+          isLocale(locale) && locale !== DEFAULT_LOCALE && typeof label === "string" && label.length > 0,
+      )
       .map(([locale, label]) => ({
         locale,
         label: label as string,

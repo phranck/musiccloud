@@ -1,10 +1,12 @@
-[![Astro](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/astro?filename=apps%2Ffrontend%2Fpackage.json&label=astro&color=e40303&style=flat)](https://astro.build)
-[![License: MIT](https://img.shields.io/github/license/phranck/musiccloud?label=license&color=9400d3&style=flat)](LICENSE)
-[![TypeScript](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/dev/typescript?label=typescript&color=4b0082&style=flat)](https://www.typescriptlang.org)
-[![React](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/react?filename=apps%2Ffrontend%2Fpackage.json&label=react&color=0057b7&style=flat)](https://react.dev)
-[![Fastify](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/fastify?filename=apps%2Fbackend%2Fpackage.json&label=fastify&color=008026&style=flat)](https://fastify.dev)
-[![CI](https://img.shields.io/github/actions/workflow/status/phranck/musiccloud/ci.yml?branch=main&label=CI&color=ffd700&style=flat)](https://github.com/phranck/musiccloud/actions/workflows/ci.yml)
-[![Biome](https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/dev/@biomejs/biome?label=biome&color=ff8c00&style=flat)](https://biomejs.dev)
+<p align="center">
+  <a href="https://astro.build"><img alt="Astro" src="https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/astro?filename=apps%2Ffrontend%2Fpackage.json&label=astro&color=ff4a8d&style=flat"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/phranck/musiccloud?label=license&color=a855f7&style=flat"></a>
+  <a href="https://www.typescriptlang.org"><img alt="TypeScript" src="https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/dev/typescript?label=typescript&color=3b82f6&style=flat"></a>
+  <a href="https://react.dev"><img alt="React" src="https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/react?filename=apps%2Ffrontend%2Fpackage.json&label=react&color=06b6d4&style=flat"></a>
+  <a href="https://fastify.dev"><img alt="Fastify" src="https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/fastify?filename=apps%2Fbackend%2Fpackage.json&label=fastify&color=10b981&style=flat"></a>
+  <a href="https://github.com/phranck/musiccloud/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/phranck/musiccloud/ci.yml?branch=main&label=CI&color=eab308&style=flat"></a>
+  <a href="https://biomejs.dev"><img alt="Biome" src="https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/dev/@biomejs/biome?label=biome&color=f97316&style=flat"></a>
+</p>
 
 <img width="1024" height="256" alt="email-header" src="https://github.com/user-attachments/assets/557486dc-5934-431f-bf22-6db8d1d369a5" />
 

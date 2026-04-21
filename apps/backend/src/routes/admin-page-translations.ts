@@ -18,9 +18,9 @@ function getCallerId(request: FastifyRequest): string | null {
   return payload?.sub ?? null;
 }
 
-function validateBody(body: unknown):
-  | { ok: true; data: { title: string; content: string; translationReady: boolean } }
-  | { ok: false; message: string } {
+function validateBody(
+  body: unknown,
+): { ok: true; data: { title: string; content: string; translationReady: boolean } } | { ok: false; message: string } {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return { ok: false, message: "body must be an object" };
   }
@@ -45,24 +45,21 @@ function validateBody(body: unknown):
 
 export function registerAdminPageTranslationRoutes(app: FastifyInstance): void {
   // GET /api/admin/pages/:slug/translations
-  app.get<{ Params: { slug: string } }>(
-    ROUTE_TEMPLATES.admin.pages.translationsList,
-    async (request, reply) => {
-      const data = await getPageTranslationsWithStatus(request.params.slug);
-      if (!data) return reply.code(404).send({ error: "NOT_FOUND" });
-      return reply.send({
-        statuses: data.statuses,
-        translations: data.translations.map((t) => ({
-          locale: t.locale,
-          title: t.title,
-          content: t.content,
-          translationReady: t.translationReady,
-          sourceUpdatedAt: t.sourceUpdatedAt?.toISOString() ?? null,
-          updatedAt: t.updatedAt.toISOString(),
-        })),
-      });
-    },
-  );
+  app.get<{ Params: { slug: string } }>(ROUTE_TEMPLATES.admin.pages.translationsList, async (request, reply) => {
+    const data = await getPageTranslationsWithStatus(request.params.slug);
+    if (!data) return reply.code(404).send({ error: "NOT_FOUND" });
+    return reply.send({
+      statuses: data.statuses,
+      translations: data.translations.map((t) => ({
+        locale: t.locale,
+        title: t.title,
+        content: t.content,
+        translationReady: t.translationReady,
+        sourceUpdatedAt: t.sourceUpdatedAt?.toISOString() ?? null,
+        updatedAt: t.updatedAt.toISOString(),
+      })),
+    });
+  });
 
   // PUT /api/admin/pages/:slug/translations/:locale
   app.put<{ Params: { slug: string; locale: string } }>(

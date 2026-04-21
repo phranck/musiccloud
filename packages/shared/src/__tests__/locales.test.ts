@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_LOCALE, LOCALES, isLocale } from "../locales.js";
+import { DEFAULT_LOCALE, isLocale, LOCALES } from "../locales.js";
 
 describe("locales", () => {
   it("exposes exactly en and de", () => {

@@ -135,7 +135,10 @@ describe("replaceSegments", () => {
   it("persists per-segment translations via repo.replaceSegmentTranslations", async () => {
     pages.set("owner", makePage({ slug: "owner", pageType: "segmented" }));
     pages.set("child", makePage({ slug: "child", pageType: "default" }));
-    const calls: { segmentId: number; translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[] }[] = [];
+    const calls: {
+      segmentId: number;
+      translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[];
+    }[] = [];
     const scopedRepo: Partial<AdminRepository> = {
       ...repo,
       async replaceSegmentTranslations(segmentId, translations) {
@@ -153,8 +156,6 @@ describe("replaceSegments", () => {
       { position: 0, label: "Child", targetSlug: "child", translations: { de: "Kind" } },
     ]);
     expect(calls.length).toBe(1);
-    expect(calls[0]!.translations).toEqual([
-      { locale: "de", label: "Kind", sourceUpdatedAt: expect.any(Date) },
-    ]);
+    expect(calls[0]!.translations).toEqual([{ locale: "de", label: "Kind", sourceUpdatedAt: expect.any(Date) }]);
   });
 });

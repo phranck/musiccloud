@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type {
-  ContentPage,
-  NavItem,
-  PageSegment,
-  PageTranslation,
-  TranslationStatus,
-} from "../content.js";
+import type { ContentPage, NavItem, PageSegment, PageTranslation, TranslationStatus } from "../content.js";
 
 describe("content translation types", () => {
   it("PageTranslation shape compiles with required fields", () => {

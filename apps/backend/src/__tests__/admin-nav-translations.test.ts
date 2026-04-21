@@ -109,9 +109,7 @@ describe("nav bulk replace with translations", () => {
     expect(result.ok).toBe(true);
     expect(calls).toHaveLength(1);
     // Only "de" should be forwarded; "en" (default locale) is skipped
-    expect(calls[0]!.translations).toEqual([
-      { locale: "de", label: "Über uns", sourceUpdatedAt: labelUpdatedAt },
-    ]);
+    expect(calls[0]!.translations).toEqual([{ locale: "de", label: "Über uns", sourceUpdatedAt: labelUpdatedAt }]);
   });
 
   it("calls replaceNavItemTranslations with empty array when no translations provided", async () => {

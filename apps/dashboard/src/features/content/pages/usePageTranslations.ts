@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ENDPOINTS, type Locale, type TranslationStatus } from "@musiccloud/shared";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
@@ -44,8 +44,7 @@ export function useSaveTranslation(slug: string) {
 export function useDeleteTranslation(slug: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (locale: Locale) =>
-      api.delete<void>(ENDPOINTS.admin.pages.translations.detail(slug, locale)),
+    mutationFn: (locale: Locale) => api.delete<void>(ENDPOINTS.admin.pages.translations.detail(slug, locale)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["content-pages", slug, "translations"] });
       qc.invalidateQueries({ queryKey: ["content-pages", slug] });

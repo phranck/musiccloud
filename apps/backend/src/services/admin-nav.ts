@@ -175,9 +175,7 @@ export async function getPublicNavItems(navId: NavId, locale: Locale): Promise<N
     const item = rowToNavItem(r);
 
     // Resolve the translated page title.
-    const resolvedPageTitle = r.pageSlug
-      ? (pageTxBySlug.get(r.pageSlug) ?? r.pageTitle)
-      : r.pageTitle;
+    const resolvedPageTitle = r.pageSlug ? (pageTxBySlug.get(r.pageSlug) ?? r.pageTitle) : r.pageTitle;
 
     // Resolve label via 4-step priority chain:
     // 1. nav_item_translations label for the requested locale
@@ -185,11 +183,7 @@ export async function getPublicNavItems(navId: NavId, locale: Locale): Promise<N
     // 3. Linked page's translated title
     // 4. Linked page's default-locale title
     const navTxLabel = navTxByItemId.get(r.id);
-    const resolvedLabel =
-      navTxLabel ??
-      r.label ??
-      resolvedPageTitle ??
-      null;
+    const resolvedLabel = navTxLabel ?? r.label ?? resolvedPageTitle ?? null;
 
     item.label = resolvedLabel;
     item.pageTitle = resolvedPageTitle;

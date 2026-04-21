@@ -1,4 +1,4 @@
-export { DEFAULT_LOCALE, LOCALES, isLocale, type Locale } from "@musiccloud/shared";
+export { DEFAULT_LOCALE, isLocale, LOCALES, type Locale } from "@musiccloud/shared";
 
 import { LOCALES, type Locale } from "@musiccloud/shared";
 

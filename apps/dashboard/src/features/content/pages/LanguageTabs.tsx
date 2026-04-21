@@ -1,12 +1,6 @@
-import {
-  CheckCircleIcon,
-  PencilSimpleIcon,
-  QuestionIcon,
-  WarningCircleIcon,
-  WarningIcon,
-} from "@phosphor-icons/react";
 import type { Locale, TranslationStatus } from "@musiccloud/shared";
 import { DEFAULT_LOCALE, LOCALES } from "@musiccloud/shared";
+import { CheckCircleIcon, PencilSimpleIcon, QuestionIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react";
 
 export interface LanguageTabState {
   status: TranslationStatus;
@@ -29,18 +23,14 @@ function StatusIcons({ locale, state }: { locale: Locale; state: LanguageTabStat
       {!isDefault && state.status === "ready" && (
         <CheckCircleIcon size={14} weight="duotone" className="text-emerald-500" />
       )}
-      {!isDefault && state.status === "stale" && (
-        <WarningIcon size={14} weight="duotone" className="text-amber-500" />
-      )}
+      {!isDefault && state.status === "stale" && <WarningIcon size={14} weight="duotone" className="text-amber-500" />}
       {!isDefault && state.status === "draft" && (
         <PencilSimpleIcon size={14} weight="duotone" className="text-[var(--ds-text-muted)]" />
       )}
       {!isDefault && state.status === "missing" && (
         <QuestionIcon size={14} weight="duotone" className="text-[var(--ds-text-muted)] opacity-60" />
       )}
-      {state.dirty && (
-        <WarningCircleIcon size={14} weight="duotone" className="text-[var(--color-primary)]" />
-      )}
+      {state.dirty && <WarningCircleIcon size={14} weight="duotone" className="text-[var(--color-primary)]" />}
     </span>
   );
 }

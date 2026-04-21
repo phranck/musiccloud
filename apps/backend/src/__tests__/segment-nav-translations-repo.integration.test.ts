@@ -2,14 +2,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getAdminRepository } from "../db/index.js";
 
 describe("segment + nav translations repositories (integration)", () => {
-  const owner = "it-owner-" + Math.random().toString(36).slice(2, 8);
-  const child = "it-child-" + Math.random().toString(36).slice(2, 8);
+  const owner = `it-owner-${Math.random().toString(36).slice(2, 8)}`;
+  const child = `it-child-${Math.random().toString(36).slice(2, 8)}`;
   let segmentId = 0;
 
   // Save and restore footer nav so tests do not mutate real data.
   // (Footer is currently empty in the local DB; this guard is kept for safety.)
   let savedFooterItems: Awaited<ReturnType<Awaited<ReturnType<typeof getAdminRepository>>["listAdminNavItems"]>> = [];
-  let savedFooterTranslations: Map<
+  const savedFooterTranslations: Map<
     number,
     Awaited<ReturnType<Awaited<ReturnType<typeof getAdminRepository>>["listNavTranslations"]>>
   > = new Map();
@@ -44,9 +44,7 @@ describe("segment + nav translations repositories (integration)", () => {
     });
 
     // Create the initial segment for this suite.
-    const rows = await repo.replaceSegmentsForOwner(owner, [
-      { position: 0, label: "Child", targetSlug: child },
-    ]);
+    const rows = await repo.replaceSegmentsForOwner(owner, [{ position: 0, label: "Child", targetSlug: child }]);
     segmentId = rows[0]!.id;
   });
 
@@ -68,9 +66,7 @@ describe("segment + nav translations repositories (integration)", () => {
       })),
     );
     for (const restoredItem of restoredItems) {
-      const originalItem = savedFooterItems.find(
-        (s) => s.position === restoredItem.position,
-      );
+      const originalItem = savedFooterItems.find((s) => s.position === restoredItem.position);
       if (originalItem) {
         const translations = savedFooterTranslations.get(originalItem.id) ?? [];
         if (translations.length > 0) {
@@ -95,9 +91,7 @@ describe("segment + nav translations repositories (integration)", () => {
   it("replaceSegmentTranslations persists rows and overwrites entire set", async () => {
     const repo = await getAdminRepository();
 
-    await repo.replaceSegmentTranslations(segmentId, [
-      { locale: "de", label: "Kind", sourceUpdatedAt: new Date() },
-    ]);
+    await repo.replaceSegmentTranslations(segmentId, [{ locale: "de", label: "Kind", sourceUpdatedAt: new Date() }]);
     const after = await repo.listSegmentTranslationsForOwner(owner);
     expect(after.map((r) => r.locale)).toEqual(["de"]);
     expect(after[0]!.label).toBe("Kind");
@@ -110,18 +104,14 @@ describe("segment + nav translations repositories (integration)", () => {
   it("cascade: deleting the segment removes its translations", async () => {
     const repo = await getAdminRepository();
 
-    await repo.replaceSegmentTranslations(segmentId, [
-      { locale: "de", label: "Kind", sourceUpdatedAt: null },
-    ]);
+    await repo.replaceSegmentTranslations(segmentId, [{ locale: "de", label: "Kind", sourceUpdatedAt: null }]);
 
     // Wipe all segments for the owner (cascades to translations).
     await repo.replaceSegmentsForOwner(owner, []);
     expect(await repo.listSegmentTranslationsForOwner(owner)).toEqual([]);
 
     // Recreate the segment so subsequent tests and afterAll work correctly.
-    const rows = await repo.replaceSegmentsForOwner(owner, [
-      { position: 0, label: "Child", targetSlug: child },
-    ]);
+    const rows = await repo.replaceSegmentsForOwner(owner, [{ position: 0, label: "Child", targetSlug: child }]);
     segmentId = rows[0]!.id;
   });
 
@@ -134,9 +124,7 @@ describe("segment + nav translations repositories (integration)", () => {
     ]);
     const navItemId = navRows[0]!.id;
 
-    await repo.replaceNavItemTranslations(navItemId, [
-      { locale: "de", label: "Start", sourceUpdatedAt: new Date() },
-    ]);
+    await repo.replaceNavItemTranslations(navItemId, [{ locale: "de", label: "Start", sourceUpdatedAt: new Date() }]);
 
     const rows = await repo.listNavTranslations("footer");
     expect(rows.find((r) => r.navItemId === navItemId)?.label).toBe("Start");

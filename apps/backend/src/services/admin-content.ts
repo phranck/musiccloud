@@ -10,7 +10,14 @@ import type {
   PublicPageSegment,
   TranslationStatus,
 } from "@musiccloud/shared";
-import { DEFAULT_LOCALE, LOCALES, OVERLAY_WIDTHS, PAGE_DISPLAY_MODES, PAGE_TITLE_ALIGNMENTS, PAGE_TYPES } from "@musiccloud/shared";
+import {
+  DEFAULT_LOCALE,
+  LOCALES,
+  OVERLAY_WIDTHS,
+  PAGE_DISPLAY_MODES,
+  PAGE_TITLE_ALIGNMENTS,
+  PAGE_TYPES,
+} from "@musiccloud/shared";
 import { marked } from "marked";
 import markedFootnote from "marked-footnote";
 
@@ -92,7 +99,10 @@ function rowToPage(
 }
 
 function emptyStatuses(): Record<Locale, TranslationStatus> {
-  return Object.fromEntries(LOCALES.map((l) => [l, l === DEFAULT_LOCALE ? "ready" : "missing"])) as Record<Locale, TranslationStatus>;
+  return Object.fromEntries(LOCALES.map((l) => [l, l === DEFAULT_LOCALE ? "ready" : "missing"])) as Record<
+    Locale,
+    TranslationStatus
+  >;
 }
 
 export async function getManagedContentPages(): Promise<ContentPageSummary[]> {
@@ -114,7 +124,9 @@ export async function getManagedContentPage(slug: string): Promise<ContentResult
   const [usernames, translationData, segments] = await Promise.all([
     repo.getAdminUsernamesByIds(userIds),
     getPageTranslationsWithStatus(slug),
-    row.pageType === "segmented" ? repo.listSegmentsForOwner(row.slug).then((s) => s.map(segmentRowToDto)) : Promise.resolve([]),
+    row.pageType === "segmented"
+      ? repo.listSegmentsForOwner(row.slug).then((s) => s.map(segmentRowToDto))
+      : Promise.resolve([]),
   ]);
   if (!translationData) throw new Error(`invariant violated: translations missing for confirmed page: ${slug}`);
   const { statuses, translations: translationRows } = translationData;
@@ -204,9 +216,12 @@ export async function updateManagedContentPageMeta(
   const [usernames, translationData, segments] = await Promise.all([
     repo.getAdminUsernamesByIds(userIds),
     getPageTranslationsWithStatus(effectiveSlug),
-    row.pageType === "segmented" ? repo.listSegmentsForOwner(effectiveSlug).then((s) => s.map(segmentRowToDto)) : Promise.resolve([]),
+    row.pageType === "segmented"
+      ? repo.listSegmentsForOwner(effectiveSlug).then((s) => s.map(segmentRowToDto))
+      : Promise.resolve([]),
   ]);
-  if (!translationData) throw new Error(`invariant violated: translations missing for confirmed page: ${effectiveSlug}`);
+  if (!translationData)
+    throw new Error(`invariant violated: translations missing for confirmed page: ${effectiveSlug}`);
   const { statuses, translations: translationRows } = translationData;
   return { ok: true, data: rowToPage(row, usernames, segments, statuses, translationRows) };
 }
@@ -233,7 +248,9 @@ export async function updateManagedContentPageBody(
   const [usernames, translationData, segments] = await Promise.all([
     repo.getAdminUsernamesByIds(userIds),
     getPageTranslationsWithStatus(slug),
-    row.pageType === "segmented" ? repo.listSegmentsForOwner(row.slug).then((s) => s.map(segmentRowToDto)) : Promise.resolve([]),
+    row.pageType === "segmented"
+      ? repo.listSegmentsForOwner(row.slug).then((s) => s.map(segmentRowToDto))
+      : Promise.resolve([]),
   ]);
   if (!translationData) throw new Error(`invariant violated: translations missing for confirmed page: ${slug}`);
   const { statuses, translations: translationRows } = translationData;
@@ -292,7 +309,7 @@ export async function getPublicContentPage(slug: string, locale: Locale): Promis
   if (segmentRows.length === 0) return { ...base, segments: [] };
 
   // Resolve per-segment labels from translations when locale is non-default.
-  let segmentTranslationsBySegmentId = new Map<number, string>();
+  const segmentTranslationsBySegmentId = new Map<number, string>();
   if (locale !== DEFAULT_LOCALE) {
     const segTxRows = await repo.listSegmentTranslationsForOwner(row.slug);
     for (const t of segTxRows) {
