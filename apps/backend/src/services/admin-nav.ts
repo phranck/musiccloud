@@ -43,7 +43,18 @@ export function isValidNavId(value: string): value is NavId {
 export async function getManagedNavItems(navId: NavId): Promise<NavItem[]> {
   const repo = await getAdminRepository();
   const rows = await repo.listAdminNavItems(navId);
-  return rows.map((r) => rowToNavItem(r));
+  const translationRows = await repo.listNavTranslations(navId);
+  const translationsByItemId = new Map<number, Partial<Record<Locale, string>>>();
+  for (const t of translationRows) {
+    if (!isLocale(t.locale)) continue;
+    let map = translationsByItemId.get(t.navItemId);
+    if (!map) {
+      map = {};
+      translationsByItemId.set(t.navItemId, map);
+    }
+    map[t.locale] = t.label;
+  }
+  return rows.map((r) => rowToNavItem(r, translationsByItemId.get(r.id)));
 }
 
 export async function replaceManagedNavItems(navId: NavId, items: unknown): Promise<NavResult<NavItem[]>> {

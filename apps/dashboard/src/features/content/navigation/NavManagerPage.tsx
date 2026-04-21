@@ -16,8 +16,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { NavId } from "@musiccloud/shared";
-import { DownloadIcon, ListIcon, PlusCircleIcon, XCircleIcon } from "@phosphor-icons/react";
-import { useEffect, useReducer } from "react";
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "@musiccloud/shared";
+import { CaretDownIcon, CaretUpIcon, DownloadIcon, ListIcon, PlusCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { useEffect, useReducer, useState } from "react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/context/I18nContext";
@@ -97,17 +98,28 @@ interface NavItemState {
   url: string | null;
   target: "_self" | "_blank";
   label: string;
+  translations: Partial<Record<Locale, string>>;
 }
+
+
+const NON_DEFAULT_LOCALES = LOCALES.filter((l): l is Locale => l !== DEFAULT_LOCALE);
+const LOCALE_FLAG: Record<string, string> = { de: "🇩🇪" };
 
 function SortableNavItem({
   item,
+  expanded,
   onRemove,
   onLabelChange,
+  onTranslationChange,
+  onToggleExpanded,
   text,
 }: {
   item: NavItemState;
+  expanded: boolean;
   onRemove: (id: number) => void;
   onLabelChange: (id: number, label: string) => void;
+  onTranslationChange: (id: number, locale: Locale, value: string) => void;
+  onToggleExpanded: (id: number) => void;
   text: NavText;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -122,11 +134,15 @@ function SortableNavItem({
 
   const displayUrl = item.url ?? (item.pageSlug ? `/${item.pageSlug}` : "");
 
+  const translationPlaceholder = item.pageSlug
+    ? `Uses linked page title: ${item.pageTitle ?? item.pageSlug}`
+    : item.label || "";
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 p-3 bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-control"
+      className="flex flex-wrap items-center gap-3 p-3 bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-control"
     >
       <button
         type="button"
@@ -160,6 +176,40 @@ function SortableNavItem({
       >
         <XCircleIcon weight="duotone" className="w-3.5 h-3.5" />
       </button>
+
+      {/* Translations expandable */}
+      <div className="w-full">
+        <button
+          type="button"
+          onClick={() => onToggleExpanded(item.id)}
+          className="flex items-center gap-1 text-xs text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] select-none"
+        >
+          {expanded ? (
+            <CaretUpIcon className="w-3 h-3" />
+          ) : (
+            <CaretDownIcon className="w-3 h-3" />
+          )}
+          <span className="uppercase tracking-wide font-medium">Translations</span>
+        </button>
+        {expanded && (
+          <div className="mt-2 flex flex-col gap-1.5">
+            {NON_DEFAULT_LOCALES.map((locale) => (
+              <div key={locale} className="flex items-center gap-2">
+                <span className="w-10 shrink-0 text-[10px] font-semibold uppercase text-[var(--ds-text-subtle)] tracking-widest">
+                  {LOCALE_FLAG[locale] ?? ""} {locale.toUpperCase()}
+                </span>
+                <input
+                  type="text"
+                  value={item.translations[locale] ?? ""}
+                  placeholder={translationPlaceholder}
+                  onChange={(e) => onTranslationChange(item.id, locale, e.target.value)}
+                  className="flex-1 h-7 px-2 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] placeholder:text-[var(--ds-text-subtle)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -199,6 +249,8 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
   );
   const { items, dirty, saveError, addType, addPageSlug, addUrl, addLabel, addTarget } = state;
 
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+
   const setItems = (updater: NavItemState[] | ((prev: NavItemState[]) => NavItemState[])) => {
     dispatch({ items: typeof updater === "function" ? updater(items) : updater });
   };
@@ -212,6 +264,7 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
         url: si.url ?? null,
         target: (si.target as "_self" | "_blank") ?? "_self",
         label: si.label ?? "",
+        translations: si.translations ?? {},
       })),
       dirty: false,
     });
@@ -243,6 +296,26 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
     dispatch({ dirty: true });
   }
 
+  function handleTranslationChange(id: number, locale: Locale, value: string) {
+    setItems((prev) =>
+      prev.map((i) => {
+        if (i.id !== id) return i;
+        const next = { ...i.translations };
+        if (value.trim().length === 0) {
+          delete next[locale];
+        } else {
+          next[locale] = value;
+        }
+        return { ...i, translations: next };
+      }),
+    );
+    dispatch({ dirty: true });
+  }
+
+  function handleToggleExpanded(id: number) {
+    setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
+
   function handleAddPage() {
     if (!addPageSlug) return;
     // Check if it's a form slug (prefixed with "form:")
@@ -261,6 +334,7 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
           url,
           target: "_self",
           label: "",
+          translations: {},
         },
       ]);
       dispatch({ addPageSlug: "" });
@@ -279,6 +353,7 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
         url: null,
         target: "_self",
         label: "",
+        translations: {},
       },
     ]);
     dispatch({ addPageSlug: "" });
@@ -302,6 +377,7 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
         url: trimmed,
         target: addTarget,
         label: derivedLabel,
+        translations: {},
       },
     ]);
     dispatch({ addUrl: "", addLabel: "", addTarget: "_self", dirty: true });
@@ -318,6 +394,7 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
         url: route.url,
         target: "_self",
         label: "",
+        translations: {},
       },
     ]);
     dispatch({ dirty: true });
@@ -327,12 +404,18 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
     dispatch({ saveError: null });
     try {
       await saveNav.mutateAsync(
-        items.map((i) => ({
-          pageSlug: i.pageSlug ?? undefined,
-          url: i.url ?? undefined,
-          label: i.label || null,
-          target: i.target,
-        })),
+        items.map((i) => {
+          const base = {
+            pageSlug: i.pageSlug ?? undefined,
+            url: i.url ?? undefined,
+            label: i.label || null,
+            target: i.target,
+          };
+          const tx = Object.entries(i.translations).filter(
+            ([, v]) => typeof v === "string" && v.trim().length > 0,
+          );
+          return tx.length > 0 ? { ...base, translations: Object.fromEntries(tx) } : base;
+        }),
       );
       dispatch({ dirty: false });
     } catch (err) {
@@ -378,8 +461,11 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
                 <SortableNavItem
                   key={item.id}
                   item={item}
+                  expanded={!!expandedRows[item.id]}
                   onRemove={handleRemove}
                   onLabelChange={handleLabelChange}
+                  onTranslationChange={handleTranslationChange}
+                  onToggleExpanded={handleToggleExpanded}
                   text={text}
                 />
               ))}
