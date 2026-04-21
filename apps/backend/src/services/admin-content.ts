@@ -103,7 +103,7 @@ export async function getManagedContentPages(): Promise<ContentPageSummary[]> {
     repo.getAdminUsernamesByIds(userIds),
     Promise.all(rows.map((r) => getPageTranslationsWithStatus(r.slug))),
   ]);
-  return rows.map((row, i) => rowToSummary(row, usernames, translationResults[i].statuses));
+  return rows.map((row, i) => rowToSummary(row, usernames, translationResults[i]?.statuses ?? emptyStatuses()));
 }
 
 export async function getManagedContentPage(slug: string): Promise<ContentResult<ContentPage>> {
@@ -111,11 +111,13 @@ export async function getManagedContentPage(slug: string): Promise<ContentResult
   const row = await repo.getContentPageBySlug(slug);
   if (!row) return { ok: false, code: "NOT_FOUND", message: "Content page not found" };
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
-  const [usernames, { statuses, translations: translationRows }, segments] = await Promise.all([
+  const [usernames, translationData, segments] = await Promise.all([
     repo.getAdminUsernamesByIds(userIds),
     getPageTranslationsWithStatus(slug),
     row.pageType === "segmented" ? repo.listSegmentsForOwner(row.slug).then((s) => s.map(segmentRowToDto)) : Promise.resolve([]),
   ]);
+  if (!translationData) throw new Error(`invariant violated: translations missing for confirmed page: ${slug}`);
+  const { statuses, translations: translationRows } = translationData;
   return { ok: true, data: rowToPage(row, usernames, segments, statuses, translationRows) };
 }
 
@@ -199,11 +201,13 @@ export async function updateManagedContentPageMeta(
   }
   const effectiveSlug = row.slug;
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
-  const [usernames, { statuses, translations: translationRows }, segments] = await Promise.all([
+  const [usernames, translationData, segments] = await Promise.all([
     repo.getAdminUsernamesByIds(userIds),
     getPageTranslationsWithStatus(effectiveSlug),
     row.pageType === "segmented" ? repo.listSegmentsForOwner(effectiveSlug).then((s) => s.map(segmentRowToDto)) : Promise.resolve([]),
   ]);
+  if (!translationData) throw new Error(`invariant violated: translations missing for confirmed page: ${effectiveSlug}`);
+  const { statuses, translations: translationRows } = translationData;
   return { ok: true, data: rowToPage(row, usernames, segments, statuses, translationRows) };
 }
 
@@ -226,11 +230,13 @@ export async function updateManagedContentPageBody(
     await repo.setContentPageContentUpdatedAt(slug, new Date());
   }
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
-  const [usernames, { statuses, translations: translationRows }, segments] = await Promise.all([
+  const [usernames, translationData, segments] = await Promise.all([
     repo.getAdminUsernamesByIds(userIds),
     getPageTranslationsWithStatus(slug),
     row.pageType === "segmented" ? repo.listSegmentsForOwner(row.slug).then((s) => s.map(segmentRowToDto)) : Promise.resolve([]),
   ]);
+  if (!translationData) throw new Error(`invariant violated: translations missing for confirmed page: ${slug}`);
+  const { statuses, translations: translationRows } = translationData;
   return { ok: true, data: rowToPage(row, usernames, segments, statuses, translationRows) };
 }
 

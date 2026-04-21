@@ -34,10 +34,10 @@ function computeStatus(
 
 export async function getPageTranslationsWithStatus(
   slug: string,
-): Promise<PageTranslationsWithStatus> {
+): Promise<PageTranslationsWithStatus | null> {
   const repo = await getAdminRepository();
   const page = await repo.getContentPageBySlug(slug);
-  if (!page) throw new Error(`Content page not found: ${slug}`);
+  if (!page) return null;
   const translations = await repo.listPageTranslations(slug);
   const byLocale = new Map(translations.map((t) => [t.locale, t]));
   const statuses = Object.fromEntries(
