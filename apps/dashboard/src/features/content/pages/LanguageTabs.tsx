@@ -1,5 +1,12 @@
+import {
+  CheckCircleIcon,
+  PencilSimpleIcon,
+  QuestionIcon,
+  WarningCircleIcon,
+  WarningIcon,
+} from "@phosphor-icons/react";
 import type { Locale, TranslationStatus } from "@musiccloud/shared";
-import { LOCALES } from "@musiccloud/shared";
+import { DEFAULT_LOCALE, LOCALES } from "@musiccloud/shared";
 
 export interface LanguageTabState {
   status: TranslationStatus;
@@ -14,13 +21,28 @@ interface Props {
 
 const FLAG: Record<Locale, string> = { en: "🇬🇧", de: "🇩🇪" };
 
-function badges(state: LanguageTabState): string {
-  const parts: string[] = [];
-  if (state.dirty) parts.push("•");
-  if (state.status === "stale") parts.push("⚠︎");
-  else if (state.status === "ready") parts.push("●");
-  else if (state.status === "draft" || state.status === "missing") parts.push("○");
-  return parts.join(" ");
+function StatusIcons({ locale, state }: { locale: Locale; state: LanguageTabState }) {
+  const isDefault = locale === DEFAULT_LOCALE;
+
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {!isDefault && state.status === "ready" && (
+        <CheckCircleIcon size={14} weight="duotone" className="text-emerald-500" />
+      )}
+      {!isDefault && state.status === "stale" && (
+        <WarningIcon size={14} weight="duotone" className="text-amber-500" />
+      )}
+      {!isDefault && state.status === "draft" && (
+        <PencilSimpleIcon size={14} weight="duotone" className="text-[var(--ds-text-muted)]" />
+      )}
+      {!isDefault && state.status === "missing" && (
+        <QuestionIcon size={14} weight="duotone" className="text-[var(--ds-text-muted)] opacity-60" />
+      )}
+      {state.dirty && (
+        <WarningCircleIcon size={14} weight="duotone" className="text-[var(--color-primary)]" />
+      )}
+    </span>
+  );
 }
 
 /**
@@ -34,9 +56,8 @@ export function LanguageTabs({ active, states, onSelect }: Props) {
       {LOCALES.map((locale) => {
         const state = states[locale];
         const isActive = active === locale;
-        const marker = badges(state);
-        const label = `${FLAG[locale]} ${locale.toUpperCase()}`;
-        const ariaLabel = `${label} tab, status: ${state.status}${state.dirty ? ", unsaved" : ""}`;
+        const ariaLabel = `${FLAG[locale]} ${locale.toUpperCase()} tab, status: ${state.status}${state.dirty ? ", unsaved" : ""}`;
+        const hasIcons = locale !== DEFAULT_LOCALE || state.dirty;
 
         return (
           <button
@@ -53,7 +74,11 @@ export function LanguageTabs({ active, states, onSelect }: Props) {
           >
             <span className="mr-1">{FLAG[locale]}</span>
             <span className="uppercase tracking-wide">{locale}</span>
-            {marker && <span className="ml-2 text-xs">{marker}</span>}
+            {hasIcons && (
+              <span className="ml-2">
+                <StatusIcons locale={locale} state={state} />
+              </span>
+            )}
           </button>
         );
       })}

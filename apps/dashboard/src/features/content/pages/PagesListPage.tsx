@@ -6,9 +6,13 @@ import {
   FileIcon,
   FileMdIcon,
   PencilLineIcon,
+  PencilSimpleIcon,
   PlusCircleIcon,
+  QuestionIcon,
   TrashIcon,
+  WarningIcon,
 } from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
 import { DEFAULT_LOCALE, LOCALES, type Locale, type TranslationStatus } from "@musiccloud/shared";
@@ -27,18 +31,18 @@ import {
 } from "@/features/content/hooks/useAdminContent";
 import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
 
-const TRANSLATION_GLYPH: Record<TranslationStatus, string> = {
-  ready: "●",
-  draft: "○",
-  stale: "⚠︎",
-  missing: "○",
+const TRANSLATION_ICON: Record<TranslationStatus, Icon> = {
+  ready: CheckCircleIcon,
+  stale: WarningIcon,
+  draft: PencilSimpleIcon,
+  missing: QuestionIcon,
 };
 
 const TRANSLATION_COLOR: Record<TranslationStatus, string> = {
-  ready: "text-green-600 dark:text-green-400",
+  ready: "text-emerald-500",
+  stale: "text-amber-500",
   draft: "text-[var(--ds-text-muted)]",
-  stale: "text-amber-600 dark:text-amber-400",
-  missing: "text-[var(--ds-text-muted)] opacity-40",
+  missing: "text-[var(--ds-text-muted)] opacity-60",
 };
 
 type ContentPage = ContentPageSummary;
@@ -207,13 +211,15 @@ export function PagesListPage() {
           <div className="flex gap-1.5 flex-wrap">
             {LOCALES.filter((l): l is Locale => l !== DEFAULT_LOCALE).map((locale) => {
               const s: TranslationStatus = page.translationStatus?.[locale] ?? "missing";
+              const StatusIcon = TRANSLATION_ICON[s];
               return (
                 <span
                   key={locale}
                   title={`${locale.toUpperCase()}: ${s}`}
-                  className={`text-xs font-mono ${TRANSLATION_COLOR[s]}`}
+                  className="inline-flex items-center gap-1 text-xs font-mono"
                 >
-                  {locale.toUpperCase()} {TRANSLATION_GLYPH[s]}
+                  <span>{locale.toUpperCase()}</span>
+                  <StatusIcon size={14} weight="duotone" className={TRANSLATION_COLOR[s]} />
                 </span>
               );
             })}
