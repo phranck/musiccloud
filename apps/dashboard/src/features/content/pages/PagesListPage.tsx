@@ -11,6 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
+import { DEFAULT_LOCALE, LOCALES, type Locale, type TranslationStatus } from "@musiccloud/shared";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -25,6 +26,20 @@ import {
   useDeleteContentPage,
 } from "@/features/content/hooks/useAdminContent";
 import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
+
+const TRANSLATION_GLYPH: Record<TranslationStatus, string> = {
+  ready: "●",
+  draft: "○",
+  stale: "⚠︎",
+  missing: "○",
+};
+
+const TRANSLATION_COLOR: Record<TranslationStatus, string> = {
+  ready: "text-green-600 dark:text-green-400",
+  draft: "text-[var(--ds-text-muted)]",
+  stale: "text-amber-600 dark:text-amber-400",
+  missing: "text-[var(--ds-text-muted)] opacity-40",
+};
 
 type ContentPage = ContentPageSummary;
 
@@ -183,6 +198,26 @@ export function PagesListPage() {
         sortKey: (page) => page.updatedAt ?? "",
         cell: (page) => (
           <span className="text-xs text-[var(--ds-text-muted)]">{formatDate(page.updatedAt, locale)}</span>
+        ),
+      },
+      {
+        id: "translations",
+        header: text.table.translations,
+        cell: (page) => (
+          <div className="flex gap-1.5 flex-wrap">
+            {LOCALES.filter((l): l is Locale => l !== DEFAULT_LOCALE).map((locale) => {
+              const s: TranslationStatus = page.translationStatus?.[locale] ?? "missing";
+              return (
+                <span
+                  key={locale}
+                  title={`${locale.toUpperCase()}: ${s}`}
+                  className={`text-xs font-mono ${TRANSLATION_COLOR[s]}`}
+                >
+                  {locale.toUpperCase()} {TRANSLATION_GLYPH[s]}
+                </span>
+              );
+            })}
+          </div>
         ),
       },
       {
