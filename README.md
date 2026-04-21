@@ -16,6 +16,10 @@ Paste a music link from one streaming service, get a universal share URL that op
 
 Live at [https://musiccloud.io](https://musiccloud.io).
 
+> **Why this repository is public**
+>
+> This code is published for **transparency**, not as a turnkey project. You are welcome to read, learn from, and audit it, but it is **not** intended to be cloned and run by others. Several pieces needed to operate musiccloud — secrets, hosting config, third-party API credentials, Apple signing assets, migration data, and deployment wiring — live only in the maintainer's local environment and are deliberately out of this repo. Pull requests and issues that assume a self-hostable setup will not find matching documentation here.
+
 ## What it does
 
 - **URL resolution.** Paste a Spotify, Apple Music, YouTube, Tidal, Deezer, SoundCloud, Qobuz, Bandcamp, Beatport, Audius, Pandora, JioSaavn, Boomplay, Audiomack, Netease, QQ Music, Melon, Bugs, KKBOX, or Napster link and the backend resolves the track or album across all supported services, preferring ISRC/UPC matches and falling back to scored text search with confidence filtering.
@@ -53,25 +57,6 @@ packages/
 drizzle.config.postgres.ts
 zerops.yml          Hosting config
 ```
-
-## Getting started
-
-### Prerequisites
-
-- Node.js >= 20
-- npm >= 10
-- PostgreSQL 16 (the project uses Drizzle migrations; local dev typically runs PG in Docker on port `5433`)
-
-### Secret scanning (pre-commit hook)
-
-The repo ships a `gitleaks` pre-commit hook under `.githooks/` that blocks commits containing secrets. After cloning, enable it once per clone:
-
-```bash
-brew install gitleaks            # or: https://github.com/gitleaks/gitleaks
-git config core.hooksPath .githooks
-```
-
-If `gitleaks` is not installed, the hook skips the scan with a warning instead of blocking the commit.
 
 ## License
 
