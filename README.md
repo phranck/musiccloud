@@ -56,4 +56,4 @@ zerops.yml          Hosting config
 
 ## License
 
-[MIT](LICENSE).
+This repository has been published under the [MIT](https://mit-license.org) license.
