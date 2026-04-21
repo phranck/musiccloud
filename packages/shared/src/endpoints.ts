@@ -225,6 +225,11 @@ export const ENDPOINTS = {
       list: "/api/admin/pages",
       /** GET / PATCH / DELETE: single content page by slug. */
       detail: (slug: string) => `/api/admin/pages/${slug}`,
+      translations: {
+        list: (slug: string) => `/api/admin/pages/${slug}/translations`,
+        detail: (slug: string, locale: string) =>
+          `/api/admin/pages/${slug}/translations/${locale}`,
+      },
     },
 
     analytics: {
@@ -299,6 +304,8 @@ export const ROUTE_TEMPLATES = {
     },
     pages: {
       detail: "/api/admin/pages/:slug",
+      translationsList: "/api/admin/pages/:slug/translations",
+      translationsDetail: "/api/admin/pages/:slug/translations/:locale",
     },
   },
 } as const;

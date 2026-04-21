@@ -3,6 +3,8 @@
  * backend service layer, dashboard editor, and Astro frontend renderer.
  */
 
+import type { Locale } from "./locales.js";
+
 export type NavId = "header" | "footer";
 export type NavTarget = "_self" | "_blank";
 
@@ -11,6 +13,18 @@ export type PageType = "default" | "segmented";
 export type PageDisplayMode = "fullscreen" | "embossed" | "translucent";
 export type OverlayWidth = "small" | "regular" | "big";
 export type PageTitleAlignment = "left" | "center" | "right";
+
+export type TranslationStatus = "missing" | "draft" | "stale" | "ready";
+
+export interface PageTranslation {
+  locale: Locale;
+  title: string;
+  content: string;
+  translationReady: boolean;
+  isStale: boolean;
+  sourceUpdatedAt: string | null;
+  updatedAt: string;
+}
 
 export const PAGE_TITLE_ALIGNMENTS: readonly PageTitleAlignment[] = ["left", "center", "right"] as const;
 export const PAGE_TYPES: readonly PageType[] = ["default", "segmented"] as const;
@@ -30,6 +44,7 @@ export interface NavItem {
   pageType: PageType | null;
   pageDisplayMode: PageDisplayMode | null;
   pageOverlayWidth: OverlayWidth | null;
+  translations?: Partial<Record<Locale, string>>;
 }
 
 export interface NavItemInput {
@@ -37,6 +52,7 @@ export interface NavItemInput {
   url?: string | null;
   label?: string | null;
   target?: NavTarget;
+  translations?: Partial<Record<Locale, string>>;
 }
 
 export interface PageSegment {
@@ -44,12 +60,14 @@ export interface PageSegment {
   position: number;
   label: string;
   targetSlug: string;
+  translations?: Partial<Record<Locale, string>>;
 }
 
 export interface PageSegmentInput {
   position: number;
   label: string;
   targetSlug: string;
+  translations?: Partial<Record<Locale, string>>;
 }
 
 export interface PageSegmentSummary {
@@ -72,11 +90,13 @@ export interface ContentPageSummary {
   createdAt: string;
   updatedAt: string | null;
   segments?: PageSegmentSummary[];
+  translationStatus: Record<Locale, TranslationStatus>;
 }
 
 export interface ContentPage extends ContentPageSummary {
   content: string;
   segments: PageSegment[];
+  translations: PageTranslation[];
 }
 
 export interface PublicPageSegment {
