@@ -67,7 +67,7 @@ let shareConfig: ShareContentConfiguration | null = null;
 let pageTitle = "musiccloud";
 
 if (treatAsBot) {
-  const [cp, sd] = await Promise.all([fetchPublicContentPage(shortId), fetchShareData(shortId)]);
+  const [cp, sd] = await Promise.all([fetchPublicContentPage(shortId, locale), fetchShareData(shortId)]);
   contentPage = cp;
   data = cp ? null : sd;
 

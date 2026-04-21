@@ -5,9 +5,11 @@ import GradientBackground from "@/components/background/GradientBackground.astro
 import SparklingStars from "@/components/background/SparklingStars.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { getLocaleFromCookie } from "@/i18n/locales";
 import { loadNav } from "@/lib/loadNav";
 
-const { header: headerNav, footer: footerNav } = await loadNav();
+const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
+const { header: headerNav, footer: footerNav } = await loadNav(locale);
 ---
 
 <BaseLayout

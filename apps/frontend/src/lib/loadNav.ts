@@ -1,4 +1,4 @@
-import type { NavItem } from "@musiccloud/shared";
+import type { Locale, NavItem } from "@musiccloud/shared";
 
 import { fetchNavigation } from "@/api/client";
 
@@ -6,7 +6,7 @@ import { fetchNavigation } from "@/api/client";
  * SSR helper: load both header and footer navigation in one round-trip.
  * Returns empty arrays on failure so consumers never need to null-check.
  */
-export async function loadNav(): Promise<{ header: NavItem[]; footer: NavItem[] }> {
-  const [header, footer] = await Promise.all([fetchNavigation("header"), fetchNavigation("footer")]);
+export async function loadNav(locale: Locale = "en"): Promise<{ header: NavItem[]; footer: NavItem[] }> {
+  const [header, footer] = await Promise.all([fetchNavigation("header", locale), fetchNavigation("footer", locale)]);
   return { header, footer };
 }

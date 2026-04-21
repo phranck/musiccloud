@@ -1,6 +1,7 @@
 import {
   type ActiveService,
   ENDPOINTS,
+  type Locale,
   type NavId,
   type NavItem,
   type PublicContentPage,
@@ -128,9 +129,10 @@ export async function fetchActiveServices(): Promise<ActiveService[]> {
 }
 
 /** Fetch the public navigation items for header or footer. SSR-safe; returns [] on failure. */
-export async function fetchNavigation(navId: NavId): Promise<NavItem[]> {
+export async function fetchNavigation(navId: NavId, locale: Locale = "en"): Promise<NavItem[]> {
   try {
-    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.nav(navId)), { headers: internalHeaders() }, 5000);
+    const url = `${backendUrl(ENDPOINTS.v1.nav(navId))}?locale=${locale}`;
+    const res = await fetchWithTimeout(url, { headers: internalHeaders() }, 5000);
     if (!res.ok) return [];
     return (await res.json()) as NavItem[];
   } catch {
@@ -139,13 +141,10 @@ export async function fetchNavigation(navId: NavId): Promise<NavItem[]> {
 }
 
 /** Fetch a single published content page by slug, with server-rendered HTML. */
-export async function fetchPublicContentPage(slug: string): Promise<PublicContentPage | null> {
+export async function fetchPublicContentPage(slug: string, locale: Locale = "en"): Promise<PublicContentPage | null> {
   try {
-    const res = await fetchWithTimeout(
-      backendUrl(ENDPOINTS.v1.content.detail(slug)),
-      { headers: internalHeaders() },
-      5000,
-    );
+    const url = `${backendUrl(ENDPOINTS.v1.content.detail(slug))}?locale=${locale}`;
+    const res = await fetchWithTimeout(url, { headers: internalHeaders() }, 5000);
     if (!res.ok) return null;
     return (await res.json()) as PublicContentPage;
   } catch {
