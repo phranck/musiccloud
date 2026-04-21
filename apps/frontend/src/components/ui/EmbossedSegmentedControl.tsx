@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef, useState } from "react";
+
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
@@ -17,7 +19,8 @@ interface EmbossedSegmentedControlProps<T extends string> {
 /**
  * A segmented control with a recessed track and a sliding embossed indicator.
  *
- * Generic over the segment key type for type-safe selection.
+ * Segments size to their content so longer labels stay readable; the indicator
+ * tracks the active button's measured geometry.
  */
 export function EmbossedSegmentedControl<T extends string>({
   segments,
@@ -25,33 +28,56 @@ export function EmbossedSegmentedControl<T extends string>({
   onChange,
   className,
 }: EmbossedSegmentedControlProps<T>) {
-  const activeIndex = segments.findIndex((s) => s.key === value);
-  const count = segments.length;
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const buttonRefs = useRef<Map<T, HTMLButtonElement>>(new Map());
+  const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const active = buttonRefs.current.get(value);
+    if (!container || !active) return;
+
+    const update = () => {
+      const containerRect = container.getBoundingClientRect();
+      const rect = active.getBoundingClientRect();
+      setIndicator({ left: rect.left - containerRect.left, width: rect.width });
+    };
+
+    update();
+
+    const resizeObserver = new ResizeObserver(update);
+    resizeObserver.observe(container);
+    for (const btn of buttonRefs.current.values()) resizeObserver.observe(btn);
+
+    return () => resizeObserver.disconnect();
+  }, [value, segments]);
 
   return (
-    <RecessedCard className={cn("relative flex p-1", className)} radius="0.75rem">
+    <RecessedCard ref={containerRef} className={cn("relative flex p-1", className)} radius="0.75rem">
       <RecessedCard.Body className="contents">
-        {/* Sliding embossed indicator.
-         * Animated via `transform` (composite-only) rather than `left` so the
-         * slide lives on the GPU. `translateX(N × (100% + 8px))` yields the
-         * same step delta as the original `left` arithmetic, because each
-         * indicator is 8px narrower than its segment cell. */}
-        <div
-          className="absolute top-1 bottom-1 left-1 transition-transform duration-250 ease-out will-change-transform"
-          style={{
-            width: `calc(${100 / count}% - 8px)`,
-            transform: `translateX(calc(${activeIndex} * (100% + 8px)))`,
-          }}
-        >
-          <EmbossedCard className="w-full h-full rounded-lg p-0 bg-gray-700/[0.65]" />
-        </div>
+        {indicator && (
+          <div
+            className="absolute top-1 bottom-1 transition-[transform,width] duration-250 ease-out will-change-transform"
+            style={{
+              width: indicator.width,
+              transform: `translateX(${indicator.left - 4}px)`,
+              left: "0.25rem",
+            }}
+          >
+            <EmbossedCard className="w-full h-full rounded-lg p-0 bg-gray-700/[0.65]" />
+          </div>
+        )}
         {segments.map(({ key, label }) => (
           <button
             key={key}
+            ref={(el) => {
+              if (el) buttonRefs.current.set(key, el);
+              else buttonRefs.current.delete(key);
+            }}
             type="button"
             onClick={() => onChange(key)}
             className={cn(
-              "relative z-10 flex-1 py-2 px-3 rounded-lg text-[13px] font-semibold text-center transition-colors duration-150",
+              "relative z-10 flex-auto py-2 px-3 rounded-lg text-[13px] font-semibold text-center whitespace-nowrap transition-colors duration-150",
               "border-none",
               key === value ? "text-text-primary" : "text-text-secondary hover:text-text-primary",
             )}
