@@ -22,6 +22,7 @@ import {
   updateManagedContentPageMeta,
 } from "../services/admin-content.js";
 import { replaceSegments } from "../services/admin-segments.js";
+import { registerAdminPageTranslationRoutes } from "./admin-page-translations.js";
 
 function getCallerId(request: FastifyRequest): string | null {
   const payload = request.user as { sub?: string } | undefined;
@@ -214,4 +215,6 @@ export default async function adminContentRoutes(app: FastifyInstance) {
       return result.data;
     },
   );
+
+  registerAdminPageTranslationRoutes(app);
 }
