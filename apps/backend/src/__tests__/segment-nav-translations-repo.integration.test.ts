@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getAdminRepository } from "../db/index.js";
 
-describe("segment + nav translations repositories (integration)", () => {
+describe.skipIf(!process.env.DATABASE_URL)("segment + nav translations repositories (integration)", () => {
   const owner = `it-owner-${Math.random().toString(36).slice(2, 8)}`;
   const child = `it-child-${Math.random().toString(36).slice(2, 8)}`;
   let segmentId = 0;
