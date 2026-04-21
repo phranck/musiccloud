@@ -2687,7 +2687,7 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
 
 // Shared column lists so every SELECT / RETURNING stays in lockstep.
 const CONTENT_SUMMARY_COLUMNS =
-  "slug, title, status, show_title, title_alignment, page_type, display_mode, overlay_width, created_by, updated_by, created_at, updated_at, content_updated_at";
+  "slug, title, status, show_title, title_alignment, page_type, display_mode, overlay_width, created_by, updated_by, created_at, updated_at";
 const CONTENT_COLUMNS = `slug, title, content, status, show_title, title_alignment, page_type, display_mode, overlay_width, created_by, updated_by, created_at, updated_at, content_updated_at`;
 
 interface ContentPageSummarySqlRow {
@@ -2703,12 +2703,12 @@ interface ContentPageSummarySqlRow {
   updated_by: string | null;
   created_at: Date;
   updated_at: Date | null;
-  content_updated_at: Date;
   segments?: { position: number; label: string; targetSlug: string }[];
 }
 
 interface ContentPageSqlRow extends ContentPageSummarySqlRow {
   content: string;
+  content_updated_at: Date;
 }
 
 function rowToContentPageSummary(row: ContentPageSummarySqlRow): ContentPageSummaryRow {
