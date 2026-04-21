@@ -1,14 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { detectLocale, LOCALE_STORAGE_KEY, type Locale } from "./locales";
-import csTranslations from "./translations/cs.json";
 import deTranslations from "./translations/de.json";
 import enTranslations from "./translations/en.json";
-import esTranslations from "./translations/es.json";
-import frTranslations from "./translations/fr.json";
-import itTranslations from "./translations/it.json";
-import nlTranslations from "./translations/nl.json";
-import ptTranslations from "./translations/pt.json";
-import trTranslations from "./translations/tr.json";
 
 type Translations = Record<string, string>;
 
@@ -16,15 +9,8 @@ type Translations = Record<string, string>;
 // a lazy `import('./translations/${locale}.json')` would briefly show raw
 // keys (e.g. "hero.placeholder") until the module resolves.
 const TRANSLATIONS_BY_LOCALE: Record<Locale, Translations> = {
-  cs: csTranslations,
   de: deTranslations,
   en: enTranslations,
-  es: esTranslations,
-  fr: frTranslations,
-  it: itTranslations,
-  nl: nlTranslations,
-  pt: ptTranslations,
-  tr: trTranslations,
 };
 
 interface LocaleContextValue {

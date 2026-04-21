@@ -1,16 +1,10 @@
-export const LOCALES = ["cs", "de", "en", "es", "fr", "it", "nl", "pt", "tr"] as const;
-export type Locale = (typeof LOCALES)[number];
+export { DEFAULT_LOCALE, LOCALES, isLocale, type Locale } from "@musiccloud/shared";
+
+import { LOCALES, type Locale } from "@musiccloud/shared";
 
 export const LOCALE_META: Record<Locale, { flag: string; label: string }> = {
   en: { flag: "🇬🇧", label: "English" },
   de: { flag: "🇩🇪", label: "Deutsch" },
-  fr: { flag: "🇫🇷", label: "Français" },
-  it: { flag: "🇮🇹", label: "Italiano" },
-  es: { flag: "🇪🇸", label: "Español" },
-  pt: { flag: "🇵🇹", label: "Português" },
-  nl: { flag: "🇳🇱", label: "Nederlands" },
-  tr: { flag: "🇹🇷", label: "Türkçe" },
-  cs: { flag: "🇨🇿", label: "Čeština" },
 };
 
 export const LOCALE_STORAGE_KEY = "mc:locale";
@@ -18,13 +12,13 @@ export const LOCALE_STORAGE_KEY = "mc:locale";
 export function detectLocale(): Locale {
   if (typeof window === "undefined") return "en";
   const saved = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
-  if (saved && LOCALES.includes(saved)) return saved;
+  if (saved && (LOCALES as readonly string[]).includes(saved)) return saved;
   const browser = navigator.language.split("-")[0] as Locale;
-  if (LOCALES.includes(browser)) return browser;
+  if ((LOCALES as readonly string[]).includes(browser)) return browser;
   return "en";
 }
 
 export function getLocaleFromCookie(value: string | undefined): Locale {
-  if (value && LOCALES.includes(value as Locale)) return value as Locale;
+  if (value && (LOCALES as readonly string[]).includes(value as Locale)) return value as Locale;
   return "en";
 }
