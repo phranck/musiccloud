@@ -115,7 +115,7 @@ function AdminLayoutInner() {
           className="hidden md:flex items-center justify-center shrink-0 h-full px-3"
           style={{ width: sidebarWidth }}
         >
-          <LogoView className="h-7 w-auto" />
+          <LogoView className="h-10 w-auto" />
         </div>
         <div className="flex-1 flex items-center justify-between px-3">
           <div className="flex min-w-0 items-center gap-4">
