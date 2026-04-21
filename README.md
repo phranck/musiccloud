@@ -14,7 +14,7 @@
 
 Paste a music link from one streaming service, get a universal share URL that opens the same track or album on every other service the listener has.
 
-Live at [https://musiccloud.io](https://musiccloud.io).
+Live at [musiccloud.io](https://musiccloud.io).
 
 ## What it does
 
