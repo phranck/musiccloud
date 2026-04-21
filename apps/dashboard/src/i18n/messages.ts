@@ -518,6 +518,7 @@ export interface DashboardMessages {
         type: string;
         createdBy: string;
         updatedAt: string;
+        translations: string;
       };
       status: {
         published: string;
@@ -1244,6 +1245,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           type: "Typ",
           createdBy: "Erstellt von",
           updatedAt: "Aktualisiert am",
+          translations: "Übersetzungen",
         },
         status: { published: "Ver\u00f6ffentlicht", hidden: "Versteckt", draft: "Entwurf" },
       },
@@ -1961,6 +1963,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           type: "Type",
           createdBy: "Created by",
           updatedAt: "Updated at",
+          translations: "Translations",
         },
         status: { published: "Published", hidden: "Hidden", draft: "Draft" },
       },
