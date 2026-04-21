@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getAdminRepository } from "../db/index.js";
 
-describe("page translations repository (integration)", () => {
+describe.skipIf(!process.env.DATABASE_URL)("page translations repository (integration)", () => {
   const slug = `it-about-${Math.random().toString(36).slice(2, 8)}`;
 
   beforeAll(async () => {
