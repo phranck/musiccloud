@@ -185,6 +185,15 @@ export interface PageSegmentRow {
   targetSlug: string;
   position: number;
   label: string;
+  labelUpdatedAt: Date;
+}
+
+export interface PageSegmentTranslationRow {
+  segmentId: number;
+  locale: string;
+  label: string;
+  sourceUpdatedAt: Date | null;
+  updatedAt: Date;
 }
 
 export interface PageSegmentInputRow {
@@ -212,6 +221,15 @@ export interface NavItemRow {
   pageType: PageType | null;
   pageDisplayMode: PageDisplayMode | null;
   pageOverlayWidth: OverlayWidth | null;
+  labelUpdatedAt: Date;
+}
+
+export interface NavItemTranslationRow {
+  navItemId: number;
+  locale: string;
+  label: string;
+  sourceUpdatedAt: Date | null;
+  updatedAt: Date;
 }
 
 export interface NavItemReplaceInput {
@@ -366,4 +384,18 @@ export interface AdminRepository {
   deletePageTranslation(slug: string, locale: string): Promise<boolean>;
   /** Bump content_pages.content_updated_at (and updated_at) for a given slug. */
   setContentPageContentUpdatedAt(slug: string, when: Date): Promise<void>;
+
+  // Segment translations (page_segment_translations)
+  listSegmentTranslationsForOwner(ownerSlug: string): Promise<PageSegmentTranslationRow[]>;
+  replaceSegmentTranslations(
+    segmentId: number,
+    translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
+  ): Promise<void>;
+
+  // Nav item translations (nav_item_translations)
+  listNavTranslations(navId: string): Promise<NavItemTranslationRow[]>;
+  replaceNavItemTranslations(
+    navItemId: number,
+    translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
+  ): Promise<void>;
 }
