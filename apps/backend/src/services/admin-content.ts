@@ -254,21 +254,34 @@ export async function getPublicContentPages(): Promise<Array<{ slug: string; tit
   return repo.listPublishedContentPages();
 }
 
-export async function getPublicContentPage(slug: string): Promise<PublicContentPage | null> {
+export async function getPublicContentPage(slug: string, locale: Locale): Promise<PublicContentPage | null> {
   const repo = await getAdminRepository();
   const row = await repo.getPublishedContentPageBySlug(slug);
   if (!row) return null;
 
+  // Resolve title + content from translation when locale is non-default and translation is ready.
+  let resolvedTitle = row.title;
+  let resolvedContent = row.content;
+
+  if (locale !== DEFAULT_LOCALE) {
+    const translations = await repo.listPageTranslations(slug);
+    const tx = translations.find((t) => t.locale === locale && t.translationReady);
+    if (tx) {
+      resolvedTitle = tx.title;
+      resolvedContent = tx.content;
+    }
+  }
+
   const base = {
     slug: row.slug,
-    title: row.title,
+    title: resolvedTitle,
     showTitle: row.showTitle,
     titleAlignment: row.titleAlignment,
     pageType: row.pageType,
     displayMode: row.displayMode,
     overlayWidth: row.overlayWidth,
-    content: row.content,
-    contentHtml: renderBody(row.content),
+    content: resolvedContent,
+    contentHtml: renderBody(resolvedContent),
   };
 
   if (row.pageType !== "segmented") {
@@ -278,21 +291,46 @@ export async function getPublicContentPage(slug: string): Promise<PublicContentP
   const segmentRows = await repo.listSegmentsForOwner(row.slug);
   if (segmentRows.length === 0) return { ...base, segments: [] };
 
+  // Resolve per-segment labels from translations when locale is non-default.
+  let segmentTranslationsBySegmentId = new Map<number, string>();
+  if (locale !== DEFAULT_LOCALE) {
+    const segTxRows = await repo.listSegmentTranslationsForOwner(row.slug);
+    for (const t of segTxRows) {
+      if (t.locale === locale) {
+        segmentTranslationsBySegmentId.set(t.segmentId, t.label);
+      }
+    }
+  }
+
   const targetSlugs = Array.from(new Set(segmentRows.map((s) => s.targetSlug)));
   const targets = await repo.getPublishedContentPagesBySlugs(targetSlugs);
   const bySlug = new Map(targets.map((t) => [t.slug, t]));
+
+  // Load target-page translations for non-default locale.
+  const targetTranslations = new Map<string, ContentPageTranslationRow>();
+  if (locale !== DEFAULT_LOCALE) {
+    for (const targetSlug of targetSlugs) {
+      const txRows = await repo.listPageTranslations(targetSlug);
+      const tx = txRows.find((t) => t.locale === locale && t.translationReady);
+      if (tx) targetTranslations.set(targetSlug, tx);
+    }
+  }
 
   const segments: PublicPageSegment[] = segmentRows
     .filter((s) => bySlug.has(s.targetSlug))
     .map((s) => {
       const t = bySlug.get(s.targetSlug)!;
+      const tx = targetTranslations.get(s.targetSlug);
+      const resolvedSegLabel = segmentTranslationsBySegmentId.get(s.id) ?? s.label;
+      const resolvedSegTitle = tx ? tx.title : t.title;
+      const resolvedSegContent = tx ? tx.content : t.content;
       return {
-        label: s.label,
+        label: resolvedSegLabel,
         targetSlug: s.targetSlug,
-        title: t.title,
+        title: resolvedSegTitle,
         showTitle: t.showTitle,
-        content: t.content,
-        contentHtml: renderBody(t.content),
+        content: resolvedSegContent,
+        contentHtml: renderBody(resolvedSegContent),
       };
     });
 

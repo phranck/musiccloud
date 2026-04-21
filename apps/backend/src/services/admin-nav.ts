@@ -134,8 +134,54 @@ export async function replaceManagedNavItems(navId: NavId, items: unknown): Prom
 
 // -- Public read --------------------------------------------------------------
 
-export async function getPublicNavItems(navId: NavId): Promise<NavItem[]> {
+export async function getPublicNavItems(navId: NavId, locale: Locale): Promise<NavItem[]> {
   const repo = await getAdminRepository();
   const rows = await repo.listAdminNavItems(navId);
-  return rows.map((r) => rowToNavItem(r));
+
+  if (locale === DEFAULT_LOCALE) {
+    return rows.map((r) => rowToNavItem(r));
+  }
+
+  // Load nav-item translations once for the whole nav.
+  const navTxRows = await repo.listNavTranslations(navId);
+  const navTxByItemId = new Map<number, string>();
+  for (const t of navTxRows) {
+    if (t.locale === locale) {
+      navTxByItemId.set(t.navItemId, t.label);
+    }
+  }
+
+  // Load page translations for all linked pages (one query per page slug; nav is small).
+  const pageSlugs = Array.from(new Set(rows.map((r) => r.pageSlug).filter((s): s is string => s !== null)));
+  const pageTxBySlug = new Map<string, string>();
+  for (const pageSlug of pageSlugs) {
+    const txRows = await repo.listPageTranslations(pageSlug);
+    const tx = txRows.find((t) => t.locale === locale && t.translationReady);
+    if (tx) pageTxBySlug.set(pageSlug, tx.title);
+  }
+
+  return rows.map((r) => {
+    const item = rowToNavItem(r);
+
+    // Resolve the translated page title.
+    const resolvedPageTitle = r.pageSlug
+      ? (pageTxBySlug.get(r.pageSlug) ?? r.pageTitle)
+      : r.pageTitle;
+
+    // Resolve label via 4-step priority chain:
+    // 1. nav_item_translations label for the requested locale
+    // 2. Nav row's default-locale label (when non-null)
+    // 3. Linked page's translated title
+    // 4. Linked page's default-locale title
+    const navTxLabel = navTxByItemId.get(r.id);
+    const resolvedLabel =
+      navTxLabel ??
+      r.label ??
+      resolvedPageTitle ??
+      null;
+
+    item.label = resolvedLabel;
+    item.pageTitle = resolvedPageTitle;
+    return item;
+  });
 }
