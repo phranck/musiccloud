@@ -56,10 +56,24 @@ function nextLocalId(): string {
   return `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function translationsEqual(
+  a: Partial<Record<Locale, string>> | undefined,
+  b: Partial<Record<Locale, string>> | undefined,
+): boolean {
+  const aKeys = Object.keys(a ?? {});
+  const bKeys = Object.keys(b ?? {});
+  if (aKeys.length !== bKeys.length) return false;
+  for (const k of aKeys) {
+    if ((a as Record<string, string>)[k] !== (b as Record<string, string> | undefined)?.[k]) return false;
+  }
+  return true;
+}
+
 function segmentsEqual(a: DraftSegment[], b: ContentPage["segments"]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i].label !== b[i].label || a[i].targetSlug !== b[i].targetSlug) return false;
+    if (!translationsEqual(a[i].translations, b[i].translations)) return false;
   }
   return true;
 }
