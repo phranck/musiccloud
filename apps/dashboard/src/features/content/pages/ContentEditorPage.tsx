@@ -535,15 +535,11 @@ export function ContentEditorPage() {
     return empty;
   });
 
-  // Seed locale forms when page data first loads (or slug changes).
+  // Ref used by both effects below — must be declared before them.
   const formsSeededRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (page && formsSeededRef.current !== slug) {
-      formsSeededRef.current = slug;
-      setLocaleForms(buildInitialForms(page));
-    }
-  }, [page, slug]);
 
+  // Reset fires FIRST so that when slug changes and page data is already cached,
+  // the seed effect (below) can immediately re-seed in the same render cycle.
   useEffect(() => {
     void slug;
     dispatch({ type: "resetForSlug" });
@@ -556,6 +552,14 @@ export function ContentEditorPage() {
       return empty;
     });
   }, [slug]);
+
+  // Seed locale forms when page data first loads (or slug changes).
+  useEffect(() => {
+    if (page && formsSeededRef.current !== slug) {
+      formsSeededRef.current = slug;
+      setLocaleForms(buildInitialForms(page));
+    }
+  }, [page, slug]);
 
   // beforeunload guard while any locale has unsaved changes
   useEffect(() => {
