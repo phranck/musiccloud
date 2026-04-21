@@ -330,6 +330,9 @@ export const contentPages = pgTable("content_pages", {
   createdBy: text("created_by").references(() => adminUsers.id, { onDelete: "set null" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }),
   updatedBy: text("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
+  contentUpdatedAt: timestamp("content_updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export type ContentPageRow = typeof contentPages.$inferSelect;
@@ -350,6 +353,9 @@ export const pageSegments = pgTable(
       .references(() => contentPages.slug, { onDelete: "cascade", onUpdate: "cascade" }),
     position: integer("position").notNull().default(0),
     label: text("label").notNull(),
+    labelUpdatedAt: timestamp("label_updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [index("idx_page_segments_owner").on(table.ownerSlug)],
 );
@@ -375,6 +381,9 @@ export const navItems = pgTable(
     target: text("target").notNull().default("_self"),
     position: integer("position").notNull().default(0),
     label: text("label"),
+    labelUpdatedAt: timestamp("label_updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [index("idx_nav_items_nav").on(table.navId)],
 );
@@ -414,3 +423,68 @@ export const appTelemetryEvents = pgTable(
 
 export type AppTelemetryEventRow = typeof appTelemetryEvents.$inferSelect;
 export type AppTelemetryEventInsert = typeof appTelemetryEvents.$inferInsert;
+
+// Per-locale translations of a content page. Parent row in `content_pages`
+// holds the default-locale (en) source of truth + fallback. Missing or
+// `translation_ready=false` rows trigger fallback at render time.
+export const contentPageTranslations = pgTable(
+  "content_page_translations",
+  {
+    slug: text("slug")
+      .notNull()
+      .references(() => contentPages.slug, { onDelete: "cascade", onUpdate: "cascade" }),
+    locale: text("locale").notNull(),
+    title: text("title").notNull(),
+    content: text("content").notNull().default(""),
+    translationReady: boolean("translation_ready").notNull().default(false),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
+  },
+  (table) => [
+    uniqueIndex("pk_content_page_translations").on(table.slug, table.locale),
+  ],
+);
+
+export type ContentPageTranslationRow = typeof contentPageTranslations.$inferSelect;
+export type ContentPageTranslationInsert = typeof contentPageTranslations.$inferInsert;
+
+// Per-locale translation of a page segment's tab label.
+export const pageSegmentTranslations = pgTable(
+  "page_segment_translations",
+  {
+    segmentId: integer("segment_id")
+      .notNull()
+      .references(() => pageSegments.id, { onDelete: "cascade" }),
+    locale: text("locale").notNull(),
+    label: text("label").notNull(),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("pk_page_segment_translations").on(table.segmentId, table.locale),
+  ],
+);
+
+export type PageSegmentTranslationRow = typeof pageSegmentTranslations.$inferSelect;
+export type PageSegmentTranslationInsert = typeof pageSegmentTranslations.$inferInsert;
+
+// Per-locale translation of a navigation item's custom label.
+export const navItemTranslations = pgTable(
+  "nav_item_translations",
+  {
+    navItemId: integer("nav_item_id")
+      .notNull()
+      .references(() => navItems.id, { onDelete: "cascade" }),
+    locale: text("locale").notNull(),
+    label: text("label").notNull(),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("pk_nav_item_translations").on(table.navItemId, table.locale),
+  ],
+);
+
+export type NavItemTranslationRow = typeof navItemTranslations.$inferSelect;
+export type NavItemTranslationInsert = typeof navItemTranslations.$inferInsert;
