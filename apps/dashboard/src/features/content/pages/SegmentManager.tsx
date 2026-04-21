@@ -1,5 +1,15 @@
 import type { ContentPage, ContentPageSummary, PageSegmentInput } from "@musiccloud/shared";
-import { ArrowDownIcon, ArrowUpIcon, EyeIcon, PlusCircleIcon, RowsIcon, TrashIcon } from "@phosphor-icons/react";
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "@musiccloud/shared";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CaretDownIcon,
+  CaretUpIcon,
+  EyeIcon,
+  PlusCircleIcon,
+  RowsIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { type MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -38,6 +48,7 @@ function toDraft(page: ContentPage): DraftSegment[] {
     position: i,
     label: s.label,
     targetSlug: s.targetSlug,
+    ...(s.translations ? { translations: s.translations } : {}),
   }));
 }
 
@@ -71,6 +82,10 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [targetDraftContent, setTargetDraftContent] = useState<string | null>(null);
   const [newPageForIndex, setNewPageForIndex] = useState<number | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+
+  const nonDefaultLocales = LOCALES.filter((l): l is Locale => l !== DEFAULT_LOCALE);
+  const localeFlag: Record<string, string> = { de: "🇩🇪" };
 
   useEffect(() => {
     if (draft.length === 0) return;
@@ -116,11 +131,13 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
         try {
           await saveSegments.mutateAsync({
             slug: page.slug,
-            segments: currentDraft.map((s, i) => ({
-              position: i,
-              label: s.label,
-              targetSlug: s.targetSlug,
-            })),
+            segments: currentDraft.map((s, i) => {
+              const base = { position: i, label: s.label, targetSlug: s.targetSlug };
+              const tx = Object.entries(s.translations ?? {}).filter(
+                ([, v]) => typeof v === "string" && v.trim().length > 0,
+              );
+              return tx.length > 0 ? { ...base, translations: Object.fromEntries(tx) } : base;
+            }),
           });
           didAnything = true;
         } catch (err) {
@@ -182,6 +199,25 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
     if (index === activeIndex && patch.targetSlug !== undefined) {
       setTargetDraftContent(null);
     }
+  }
+
+  function toggleExpanded(localId: string) {
+    setExpandedRows((prev) => ({ ...prev, [localId]: !prev[localId] }));
+  }
+
+  function updateTranslation(index: number, locale: Locale, value: string) {
+    setDraft(
+      draft.map((s, i) => {
+        if (i !== index) return s;
+        const next = { ...(s.translations ?? {}) };
+        if (value.trim().length === 0) {
+          delete next[locale];
+        } else {
+          next[locale] = value;
+        }
+        return { ...s, translations: next };
+      }),
+    );
   }
 
   function addSegment() {
@@ -317,6 +353,39 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
                       >
                         <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
                       </button>
+                    </div>
+                    {/* Translations expandable */}
+                    <div className="w-full">
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(segment.localId)}
+                        className="flex items-center gap-1 text-xs text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] select-none"
+                      >
+                        {expandedRows[segment.localId] ? (
+                          <CaretUpIcon className="w-3 h-3" />
+                        ) : (
+                          <CaretDownIcon className="w-3 h-3" />
+                        )}
+                        <span className="uppercase tracking-wide font-medium">Translations</span>
+                      </button>
+                      {expandedRows[segment.localId] && (
+                        <div className="mt-2 flex flex-col gap-1.5">
+                          {nonDefaultLocales.map((locale) => (
+                            <div key={locale} className="flex items-center gap-2">
+                              <span className="w-10 shrink-0 text-[10px] font-semibold uppercase text-[var(--ds-text-subtle)] tracking-widest">
+                                {localeFlag[locale] ?? ""} {locale.toUpperCase()}
+                              </span>
+                              <input
+                                type="text"
+                                value={segment.translations?.[locale] ?? ""}
+                                placeholder={segment.label || text.labelPlaceholder}
+                                onChange={(e) => updateTranslation(index, locale, e.target.value)}
+                                className="flex-1 h-7 px-2 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] placeholder:text-[var(--ds-text-subtle)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </li>
                 );
