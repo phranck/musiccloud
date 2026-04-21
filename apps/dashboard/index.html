@@ -7,7 +7,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
     <title>musiccloud - Admin</title>
-    <script src="/theme-init.js"></script>
+    <script>
+      (() => {
+        var meta = document.querySelector('meta[name="color-scheme"]');
+        var storedTheme = localStorage.getItem("dashboard-theme");
+        var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var dark = storedTheme === "dark" || (storedTheme !== "light" && prefersDark);
+        if (!dark) return;
+        document.documentElement.classList.add("dark");
+        if (meta) meta.setAttribute("content", "dark");
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
