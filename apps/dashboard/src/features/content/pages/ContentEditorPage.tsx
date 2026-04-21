@@ -1,8 +1,13 @@
 import type {
   ContentPage,
+  Locale,
   OverlayWidth,
   PageDisplayMode,
   PageTitleAlignment as PageTitleAlignmentValue,
+} from "@musiccloud/shared";
+import {
+  DEFAULT_LOCALE,
+  LOCALES,
 } from "@musiccloud/shared";
 import {
   DownloadIcon,
@@ -12,7 +17,7 @@ import {
   PlusCircleIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { lazy, Suspense, useCallback, useEffect, useReducer, useRef } from "react";
+import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -27,9 +32,11 @@ import {
   usePatchContentPage,
   useSaveContentPage,
 } from "@/features/content/hooks/useAdminContent";
+import { LanguageTabs } from "@/features/content/pages/LanguageTabs";
 import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
 import { PageTitleAlignment } from "@/features/content/pages/PageTitleAlignment";
 import { SegmentManager, type SegmentSaveFn } from "@/features/content/pages/SegmentManager";
+import { useSaveTranslation, useDeleteTranslation } from "@/features/content/pages/usePageTranslations";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 
 const MarkdownEditor = lazy(() =>
@@ -57,6 +64,53 @@ function slugify(str: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+// ---------------------------------------------------------------------------
+// Per-locale form state
+// ---------------------------------------------------------------------------
+
+interface LocaleFormState {
+  title: string;
+  content: string;
+  translationReady: boolean;
+  dirty: boolean;
+}
+
+type LocaleForms = Record<Locale, LocaleFormState | undefined>;
+
+function buildInitialForms(page: ContentPage): LocaleForms {
+  const forms = {} as LocaleForms;
+
+  // Default locale seeded from page root fields
+  forms[DEFAULT_LOCALE] = {
+    title: page.title,
+    content: page.content,
+    translationReady: true,
+    dirty: false,
+  };
+
+  // Non-default locales seeded from page.translations array
+  for (const locale of LOCALES) {
+    if (locale === DEFAULT_LOCALE) continue;
+    const existing = page.translations.find((t) => t.locale === locale);
+    if (existing) {
+      forms[locale] = {
+        title: existing.title,
+        content: existing.content,
+        translationReady: existing.translationReady,
+        dirty: false,
+      };
+    } else {
+      forms[locale] = undefined;
+    }
+  }
+
+  return forms;
+}
+
+// ---------------------------------------------------------------------------
+// Editor reducer
+// ---------------------------------------------------------------------------
 
 interface EditorState {
   saved: boolean;
@@ -130,6 +184,10 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return state;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
 
 interface EditorHeaderActionsProps {
   sourceFontSize: number;
@@ -440,6 +498,10 @@ function EditorMetadataBar({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 /**
  * Markdown content editor page for one content slug.
  *
@@ -455,42 +517,150 @@ export function ContentEditorPage() {
   const save = useSaveContentPage();
   const patch = usePatchContentPage();
   const deletePage = useDeleteContentPage();
+  const saveTranslation = useSaveTranslation(slug);
+  const deleteTranslation = useDeleteTranslation(slug);
   const { phase: savedPhase, show: showSaved } = useSaveNotification();
   const segmentSaveRef = useRef<SegmentSaveFn | null>(null);
 
   const [state, dispatch] = useReducer(editorReducer, undefined, createInitialEditorState);
 
+  // Active locale tab
+  const [activeLocale, setActiveLocale] = useState<Locale>(DEFAULT_LOCALE);
+
+  // Per-locale form state — initialised once the page data arrives.
+  // We keep it in a ref-backed useState so tab switches never lose data.
+  const [localeForms, setLocaleForms] = useState<LocaleForms>(() => {
+    const empty = {} as LocaleForms;
+    for (const loc of LOCALES) empty[loc] = undefined;
+    return empty;
+  });
+
+  // Seed locale forms when page data first loads (or slug changes).
+  const formsSeededRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (page && formsSeededRef.current !== slug) {
+      formsSeededRef.current = slug;
+      setLocaleForms(buildInitialForms(page));
+    }
+  }, [page, slug]);
+
   useEffect(() => {
     void slug;
     dispatch({ type: "resetForSlug" });
+    // Reset locale tab and forms when navigating to a different slug
+    setActiveLocale(DEFAULT_LOCALE);
+    formsSeededRef.current = null;
+    setLocaleForms(() => {
+      const empty = {} as LocaleForms;
+      for (const loc of LOCALES) empty[loc] = undefined;
+      return empty;
+    });
   }, [slug]);
 
-  const handleChange = useCallback((markdown: string) => {
-    dispatch({ type: "setDraftContent", value: markdown });
-    dispatch({ type: "setSaved", value: false });
-  }, []);
+  // beforeunload guard while any locale has unsaved changes
+  useEffect(() => {
+    const isDirty = Object.values(localeForms).some((f) => f?.dirty);
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [localeForms]);
 
-  const currentContent = state.draftContent ?? page?.content ?? "";
+  // ---------------------------------------------------------------------------
+  // Default-locale: content is tracked via draftContent (legacy path) AND
+  // synced into localeForms so the two stay consistent.
+  // ---------------------------------------------------------------------------
+
+  const handleChange = useCallback(
+    (markdown: string) => {
+      dispatch({ type: "setDraftContent", value: markdown });
+      dispatch({ type: "setSaved", value: false });
+      if (activeLocale === DEFAULT_LOCALE) {
+        setLocaleForms((prev) => ({
+          ...prev,
+          [DEFAULT_LOCALE]: prev[DEFAULT_LOCALE]
+            ? { ...prev[DEFAULT_LOCALE]!, content: markdown, dirty: true }
+            : { title: page?.title ?? "", content: markdown, translationReady: true, dirty: true },
+        }));
+      } else {
+        setLocaleForms((prev) => ({
+          ...prev,
+          [activeLocale]: prev[activeLocale]
+            ? { ...prev[activeLocale]!, content: markdown, dirty: true }
+            : undefined,
+        }));
+      }
+    },
+    [activeLocale, page?.title],
+  );
+
+  // The markdown editor value: for default locale use draftContent fallback
+  // (legacy behaviour preserved); for non-default use the form state.
+  const currentContent =
+    activeLocale === DEFAULT_LOCALE
+      ? (state.draftContent ?? localeForms[DEFAULT_LOCALE]?.content ?? page?.content ?? "")
+      : (localeForms[activeLocale]?.content ?? "");
+
+  // ---------------------------------------------------------------------------
+  // Save
+  // ---------------------------------------------------------------------------
 
   const handleSave = () => {
     if (!page) return;
-    // Segmented pages delegate to the SegmentManager's registered save
-    // routine (segments + active target body). Default pages save the
-    // body via the page-level mutation below.
+
     if (page.pageType === "segmented") {
       void segmentSaveRef.current?.();
       return;
     }
-    if (currentContent === page.content) return;
-    save.mutate(
-      { slug, data: { content: currentContent } },
-      {
-        onSuccess: () => {
-          dispatch({ type: "setSaved", value: true });
-          showSaved();
+
+    if (activeLocale === DEFAULT_LOCALE) {
+      // Default locale: use existing main-page mutation (content body only)
+      if (currentContent === page.content) return;
+      save.mutate(
+        { slug, data: { content: currentContent } },
+        {
+          onSuccess: () => {
+            dispatch({ type: "setSaved", value: true });
+            setLocaleForms((prev) => ({
+              ...prev,
+              [DEFAULT_LOCALE]: prev[DEFAULT_LOCALE]
+                ? { ...prev[DEFAULT_LOCALE]!, dirty: false }
+                : undefined,
+            }));
+            showSaved();
+          },
         },
-      },
-    );
+      );
+    } else {
+      // Non-default locale: use translation endpoint
+      const form = localeForms[activeLocale];
+      if (!form) return;
+      saveTranslation.mutate(
+        {
+          locale: activeLocale,
+          body: {
+            title: form.title,
+            content: form.content,
+            translationReady: form.translationReady,
+          },
+        },
+        {
+          onSuccess: () => {
+            dispatch({ type: "setSaved", value: true });
+            setLocaleForms((prev) => ({
+              ...prev,
+              [activeLocale]: prev[activeLocale]
+                ? { ...prev[activeLocale]!, dirty: false }
+                : undefined,
+            }));
+            showSaved();
+          },
+        },
+      );
+    }
   };
 
   useKeyboardSave(handleSave);
@@ -541,7 +711,64 @@ export function ContentEditorPage() {
     dispatch({ type: "setEditingSlug", value: false });
   }
 
+  // ---------------------------------------------------------------------------
+  // Locale tab helpers
+  // ---------------------------------------------------------------------------
+
+  const statuses = page?.translationStatus ?? ({} as ContentPage["translationStatus"]);
+
+  const tabStates = Object.fromEntries(
+    LOCALES.map((loc) => [
+      loc,
+      {
+        status: statuses[loc] ?? "missing",
+        dirty: localeForms[loc]?.dirty ?? false,
+      },
+    ]),
+  ) as Record<Locale, { status: ContentPage["translationStatus"][Locale]; dirty: boolean }>;
+
+  function handleCreateTranslation() {
+    const defaultForm = localeForms[DEFAULT_LOCALE];
+    setLocaleForms((prev) => ({
+      ...prev,
+      [activeLocale]: {
+        title: defaultForm?.title ?? page?.title ?? "",
+        content: defaultForm?.content ?? page?.content ?? "",
+        translationReady: false,
+        dirty: true,
+      },
+    }));
+    // Sync draftContent to empty so MarkdownEditor re-renders with new value
+    dispatch({ type: "setDraftContent", value: null });
+  }
+
+  function handleDeleteTranslation() {
+    if (!window.confirm(`Delete ${activeLocale.toUpperCase()} translation?`)) return;
+    deleteTranslation.mutate(activeLocale, {
+      onSuccess: () => {
+        setLocaleForms((prev) => ({ ...prev, [activeLocale]: undefined }));
+        setActiveLocale(DEFAULT_LOCALE);
+      },
+    });
+  }
+
+  // When user switches tabs, sync the MarkdownEditor key/value correctly.
+  // For the default locale the legacy draftContent path is used; for
+  // non-default we reset draftContent so the editor renders the form value.
+  function handleTabSelect(loc: Locale) {
+    if (loc !== DEFAULT_LOCALE) {
+      // Don't reset draftContent here — we let the editor receive the form
+      // value via `currentContent` derived above.
+      dispatch({ type: "setDraftContent", value: null });
+    }
+    setActiveLocale(loc);
+  }
+
+  const isSaving = save.isPending || saveTranslation.isPending;
+
   const title = page?.title ?? slug;
+
+  const activeForm = localeForms[activeLocale];
 
   return (
     <PageLayout>
@@ -556,7 +783,7 @@ export function ContentEditorPage() {
           canDecreaseFont={state.sourceFontSize > FONT_SIZE_MIN}
           confirmDelete={state.confirmDelete}
           isDeleting={deletePage.isPending}
-          isSaving={save.isPending}
+          isSaving={isSaving}
           saved={state.saved}
           common={common}
           editorMessages={editorMessages}
@@ -632,6 +859,63 @@ export function ContentEditorPage() {
       ) : (
         <DashboardSection>
           <DashboardSection.Header icon={<MarkdownLogoIcon weight="duotone" className="w-4 h-4" />} title={title} />
+
+          {/* Language tabs */}
+          {page && (
+            <div className="px-3 pt-3">
+              <LanguageTabs active={activeLocale} states={tabStates} onSelect={handleTabSelect} />
+            </div>
+          )}
+
+          {/* Translation title field (non-default locales only) */}
+          {page && activeLocale !== DEFAULT_LOCALE && activeForm && (
+            <div className="px-3 pt-3 flex items-center gap-3">
+              <label className="text-xs font-medium text-[var(--ds-text-muted)] shrink-0">
+                Title ({activeLocale.toUpperCase()}):
+              </label>
+              <input
+                type="text"
+                value={activeForm.title}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setLocaleForms((prev) => ({
+                    ...prev,
+                    [activeLocale]: prev[activeLocale]
+                      ? { ...prev[activeLocale]!, title: value, dirty: true }
+                      : undefined,
+                  }));
+                }}
+                className="flex-1 px-2 py-1 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] focus:outline-none focus:border-[var(--color-primary)]"
+              />
+              <label className="flex items-center gap-1.5 text-xs text-[var(--ds-text-muted)] cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={activeForm.translationReady}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setLocaleForms((prev) => ({
+                      ...prev,
+                      [activeLocale]: prev[activeLocale]
+                        ? { ...prev[activeLocale]!, translationReady: checked, dirty: true }
+                        : undefined,
+                    }));
+                  }}
+                  className="accent-[var(--color-primary)] cursor-pointer"
+                />
+                Translation ready
+              </label>
+              <button
+                type="button"
+                onClick={handleDeleteTranslation}
+                disabled={deleteTranslation.isPending}
+                className="flex items-center gap-1 px-2 py-1 text-xs border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded hover:bg-[var(--ds-btn-danger-hover-bg)] disabled:opacity-60"
+              >
+                <TrashIcon weight="duotone" className="w-3 h-3" />
+                Delete translation
+              </button>
+            </div>
+          )}
+
           <PageBody
             className="overflow-hidden"
             style={{ "--source-font-size": `${state.sourceFontSize}px` } as React.CSSProperties}
@@ -641,12 +925,36 @@ export function ContentEditorPage() {
                 {editorMessages.loadingContent}
               </div>
             )}
-            {page && (
-              <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>
-                <MarkdownEditor key={slug} value={currentContent} onChange={handleChange} height="100%" showHints />
-              </Suspense>
+            {page && activeLocale !== DEFAULT_LOCALE && !activeForm ? (
+              /* No translation yet: offer to create one */
+              <div className="flex flex-col items-center justify-center h-48 gap-3">
+                <p className="text-sm text-[var(--ds-text-muted)]">
+                  No {activeLocale.toUpperCase()} translation yet.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCreateTranslation}
+                  className="flex items-center gap-2 px-4 py-2 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)]"
+                >
+                  Create translation from {DEFAULT_LOCALE.toUpperCase()}
+                </button>
+              </div>
+            ) : (
+              page && (
+                <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>
+                  <MarkdownEditor
+                    key={`${slug}-${activeLocale}`}
+                    value={currentContent}
+                    onChange={handleChange}
+                    height="100%"
+                    showHints
+                  />
+                </Suspense>
+              )
             )}
-            {save.isError && <p className="text-red-500 text-sm text-center mt-4">{editorMessages.saveError}</p>}
+            {(save.isError || saveTranslation.isError) && (
+              <p className="text-red-500 text-sm text-center mt-4">{editorMessages.saveError}</p>
+            )}
           </PageBody>
         </DashboardSection>
       )}
