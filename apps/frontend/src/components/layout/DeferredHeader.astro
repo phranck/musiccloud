@@ -10,8 +10,10 @@
  */
 import { fetchNavigation } from "@/api/client";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
+import { getLocaleFromCookie } from "@/i18n/locales";
 
-const headerNav = await fetchNavigation("header");
+const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
+const headerNav = await fetchNavigation("header", locale);
 ---
 
 <div class="animate-slide-down-in will-change-transform">

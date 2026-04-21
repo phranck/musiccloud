@@ -34,7 +34,7 @@ const translations = await loadTranslations(locale);
 const t = makeT(translations);
 
 const [contentPage, shareData] = await Promise.all([
-  fetchPublicContentPage(shortId),
+  fetchPublicContentPage(shortId, locale),
   fetchShareData(shortId),
 ]);
 const data = contentPage ? null : shareData;

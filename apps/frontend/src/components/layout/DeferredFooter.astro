@@ -10,8 +10,10 @@
  */
 import { fetchNavigation } from "@/api/client";
 import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
+import { getLocaleFromCookie } from "@/i18n/locales";
 
-const footerNav = await fetchNavigation("footer");
+const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
+const footerNav = await fetchNavigation("footer", locale);
 ---
 
 <div class="animate-slide-up-in will-change-transform">
