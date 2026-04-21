@@ -35,4 +35,4 @@ Apple Music, Audiomack, Audius, Bandcamp, Beatport, Boomplay, Bugs, Deezer, JioS
 
 ## License
 
-Published under the [MIT](https://mit-license.org) license.
+Published under the [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html).
