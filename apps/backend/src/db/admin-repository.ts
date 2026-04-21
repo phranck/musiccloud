@@ -393,7 +393,7 @@ export interface AdminRepository {
   ): Promise<void>;
 
   // Nav item translations (nav_item_translations)
-  listNavTranslations(navId: string): Promise<NavItemTranslationRow[]>;
+  listNavTranslations(navId: NavId): Promise<NavItemTranslationRow[]>;
   replaceNavItemTranslations(
     navItemId: number,
     translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
