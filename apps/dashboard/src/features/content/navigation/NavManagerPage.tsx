@@ -101,7 +101,6 @@ interface NavItemState {
   translations: Partial<Record<Locale, string>>;
 }
 
-
 const NON_DEFAULT_LOCALES = LOCALES.filter((l): l is Locale => l !== DEFAULT_LOCALE);
 const LOCALE_FLAG: Record<string, string> = { de: "🇩🇪" };
 
@@ -184,11 +183,7 @@ function SortableNavItem({
           onClick={() => onToggleExpanded(item.id)}
           className="flex items-center gap-1 text-xs text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] select-none"
         >
-          {expanded ? (
-            <CaretUpIcon className="w-3 h-3" />
-          ) : (
-            <CaretDownIcon className="w-3 h-3" />
-          )}
+          {expanded ? <CaretUpIcon className="w-3 h-3" /> : <CaretDownIcon className="w-3 h-3" />}
           <span className="uppercase tracking-wide font-medium">Translations</span>
         </button>
         {expanded && (
@@ -411,9 +406,7 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
             label: i.label || null,
             target: i.target,
           };
-          const tx = Object.entries(i.translations).filter(
-            ([, v]) => typeof v === "string" && v.trim().length > 0,
-          );
+          const tx = Object.entries(i.translations).filter(([, v]) => typeof v === "string" && v.trim().length > 0);
           return tx.length > 0 ? { ...base, translations: Object.fromEntries(tx) } : base;
         }),
       );

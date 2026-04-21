@@ -2547,10 +2547,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   }
 
   async setContentPageContentUpdatedAt(slug: string, when: Date): Promise<void> {
-    await this.pool.query(
-      `UPDATE content_pages SET content_updated_at = $1, updated_at = $1 WHERE slug = $2`,
-      [when, slug],
-    );
+    await this.pool.query(`UPDATE content_pages SET content_updated_at = $1, updated_at = $1 WHERE slug = $2`, [
+      when,
+      slug,
+    ]);
   }
 
   // ============================================================================

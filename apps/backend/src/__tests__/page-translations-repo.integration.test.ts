@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getAdminRepository } from "../db/index.js";
 
 describe("page translations repository (integration)", () => {
-  const slug = "it-about-" + Math.random().toString(36).slice(2, 8);
+  const slug = `it-about-${Math.random().toString(36).slice(2, 8)}`;
 
   beforeAll(async () => {
     const repo = await getAdminRepository();
@@ -126,7 +126,7 @@ describe("page translations repository (integration)", () => {
 
   it("cascade: deleting the page removes its translations", async () => {
     const repo = await getAdminRepository();
-    const scratch = "it-cascade-" + Math.random().toString(36).slice(2, 8);
+    const scratch = `it-cascade-${Math.random().toString(36).slice(2, 8)}`;
     await repo.createContentPage({
       slug: scratch,
       title: "Cascade",

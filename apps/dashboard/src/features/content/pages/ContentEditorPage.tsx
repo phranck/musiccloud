@@ -5,10 +5,7 @@ import type {
   PageDisplayMode,
   PageTitleAlignment as PageTitleAlignmentValue,
 } from "@musiccloud/shared";
-import {
-  DEFAULT_LOCALE,
-  LOCALES,
-} from "@musiccloud/shared";
+import { DEFAULT_LOCALE, LOCALES } from "@musiccloud/shared";
 import {
   DownloadIcon,
   EyeIcon,
@@ -36,7 +33,7 @@ import { LanguageTabs } from "@/features/content/pages/LanguageTabs";
 import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
 import { PageTitleAlignment } from "@/features/content/pages/PageTitleAlignment";
 import { SegmentManager, type SegmentSaveFn } from "@/features/content/pages/SegmentManager";
-import { useSaveTranslation, useDeleteTranslation } from "@/features/content/pages/usePageTranslations";
+import { useDeleteTranslation, useSaveTranslation } from "@/features/content/pages/usePageTranslations";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 
 const MarkdownEditor = lazy(() =>
@@ -592,9 +589,7 @@ export function ContentEditorPage() {
       } else {
         setLocaleForms((prev) => ({
           ...prev,
-          [activeLocale]: prev[activeLocale]
-            ? { ...prev[activeLocale]!, content: markdown, dirty: true }
-            : undefined,
+          [activeLocale]: prev[activeLocale] ? { ...prev[activeLocale]!, content: markdown, dirty: true } : undefined,
         }));
       }
     },
@@ -631,9 +626,7 @@ export function ContentEditorPage() {
             dispatch({ type: "setDraftContent", value: null });
             setLocaleForms((prev) => ({
               ...prev,
-              [DEFAULT_LOCALE]: prev[DEFAULT_LOCALE]
-                ? { ...prev[DEFAULT_LOCALE]!, dirty: false }
-                : undefined,
+              [DEFAULT_LOCALE]: prev[DEFAULT_LOCALE] ? { ...prev[DEFAULT_LOCALE]!, dirty: false } : undefined,
             }));
             showSaved();
           },
@@ -657,9 +650,7 @@ export function ContentEditorPage() {
             dispatch({ type: "setSaved", value: true });
             setLocaleForms((prev) => ({
               ...prev,
-              [activeLocale]: prev[activeLocale]
-                ? { ...prev[activeLocale]!, dirty: false }
-                : undefined,
+              [activeLocale]: prev[activeLocale] ? { ...prev[activeLocale]!, dirty: false } : undefined,
             }));
             showSaved();
           },
@@ -875,10 +866,14 @@ export function ContentEditorPage() {
           {/* Translation title field (non-default locales only) */}
           {page && activeLocale !== DEFAULT_LOCALE && activeForm && (
             <div className="px-3 pt-3 flex items-center gap-3">
-              <label className="text-xs font-medium text-[var(--ds-text-muted)] shrink-0">
+              <label
+                htmlFor="translation-title-input"
+                className="text-xs font-medium text-[var(--ds-text-muted)] shrink-0"
+              >
                 Title ({activeLocale.toUpperCase()}):
               </label>
               <input
+                id="translation-title-input"
                 type="text"
                 value={activeForm.title}
                 onChange={(e) => {
@@ -933,9 +928,7 @@ export function ContentEditorPage() {
             {page && activeLocale !== DEFAULT_LOCALE && !activeForm ? (
               /* No translation yet: offer to create one */
               <div className="flex flex-col items-center justify-center h-48 gap-3">
-                <p className="text-sm text-[var(--ds-text-muted)]">
-                  No {activeLocale.toUpperCase()} translation yet.
-                </p>
+                <p className="text-sm text-[var(--ds-text-muted)]">No {activeLocale.toUpperCase()} translation yet.</p>
                 <button
                   type="button"
                   onClick={handleCreateTranslation}

@@ -1,7 +1,7 @@
 export const prerender = false;
 
-import type { APIRoute } from "astro";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@musiccloud/shared";
+import type { APIRoute } from "astro";
 
 import { fetchPublicContentPage } from "@/api/client";
 

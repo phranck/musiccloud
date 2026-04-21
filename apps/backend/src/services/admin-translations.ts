@@ -1,9 +1,6 @@
 import type { Locale, TranslationStatus } from "@musiccloud/shared";
-import { DEFAULT_LOCALE, LOCALES, isLocale } from "@musiccloud/shared";
-import type {
-  ContentPageRow,
-  ContentPageTranslationRow,
-} from "../db/admin-repository.js";
+import { DEFAULT_LOCALE, isLocale, LOCALES } from "@musiccloud/shared";
+import type { ContentPageRow, ContentPageTranslationRow } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 
 export type TranslationResult<T> =
@@ -32,17 +29,16 @@ function computeStatus(
   return "ready";
 }
 
-export async function getPageTranslationsWithStatus(
-  slug: string,
-): Promise<PageTranslationsWithStatus | null> {
+export async function getPageTranslationsWithStatus(slug: string): Promise<PageTranslationsWithStatus | null> {
   const repo = await getAdminRepository();
   const page = await repo.getContentPageBySlug(slug);
   if (!page) return null;
   const translations = await repo.listPageTranslations(slug);
   const byLocale = new Map(translations.map((t) => [t.locale, t]));
-  const statuses = Object.fromEntries(
-    LOCALES.map((l) => [l, computeStatus(page, byLocale.get(l), l)]),
-  ) as Record<Locale, TranslationStatus>;
+  const statuses = Object.fromEntries(LOCALES.map((l) => [l, computeStatus(page, byLocale.get(l), l)])) as Record<
+    Locale,
+    TranslationStatus
+  >;
   return { translations, statuses, page };
 }
 
@@ -84,10 +80,7 @@ export async function upsertPageTranslation(
   return { ok: true, data: row };
 }
 
-export async function deletePageTranslation(
-  slug: string,
-  locale: string,
-): Promise<TranslationResult<true>> {
+export async function deletePageTranslation(slug: string, locale: string): Promise<TranslationResult<true>> {
   if (!isLocale(locale)) {
     return { ok: false, code: "INVALID_INPUT", message: `unknown locale: ${locale}` };
   }

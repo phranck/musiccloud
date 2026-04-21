@@ -331,9 +331,7 @@ export const contentPages = pgTable("content_pages", {
   createdBy: text("created_by").references(() => adminUsers.id, { onDelete: "set null" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }),
   updatedBy: text("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
-  contentUpdatedAt: timestamp("content_updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  contentUpdatedAt: timestamp("content_updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type ContentPageRow = typeof contentPages.$inferSelect;
@@ -354,9 +352,7 @@ export const pageSegments = pgTable(
       .references(() => contentPages.slug, { onDelete: "cascade", onUpdate: "cascade" }),
     position: integer("position").notNull().default(0),
     label: text("label").notNull(),
-    labelUpdatedAt: timestamp("label_updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    labelUpdatedAt: timestamp("label_updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("idx_page_segments_owner").on(table.ownerSlug)],
 );
@@ -382,9 +378,7 @@ export const navItems = pgTable(
     target: text("target").notNull().default("_self"),
     position: integer("position").notNull().default(0),
     label: text("label"),
-    labelUpdatedAt: timestamp("label_updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    labelUpdatedAt: timestamp("label_updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("idx_nav_items_nav").on(table.navId)],
 );
@@ -442,9 +436,7 @@ export const contentPageTranslations = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     updatedBy: text("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
   },
-  (table) => [
-    primaryKey({ name: "pk_content_page_translations", columns: [table.slug, table.locale] }),
-  ],
+  (table) => [primaryKey({ name: "pk_content_page_translations", columns: [table.slug, table.locale] })],
 );
 
 export type ContentPageTranslationRow = typeof contentPageTranslations.$inferSelect;
@@ -462,9 +454,7 @@ export const pageSegmentTranslations = pgTable(
     sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [
-    primaryKey({ name: "pk_page_segment_translations", columns: [table.segmentId, table.locale] }),
-  ],
+  (table) => [primaryKey({ name: "pk_page_segment_translations", columns: [table.segmentId, table.locale] })],
 );
 
 export type PageSegmentTranslationRow = typeof pageSegmentTranslations.$inferSelect;
@@ -482,9 +472,7 @@ export const navItemTranslations = pgTable(
     sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [
-    primaryKey({ name: "pk_nav_item_translations", columns: [table.navItemId, table.locale] }),
-  ],
+  (table) => [primaryKey({ name: "pk_nav_item_translations", columns: [table.navItemId, table.locale] })],
 );
 
 export type NavItemTranslationRow = typeof navItemTranslations.$inferSelect;

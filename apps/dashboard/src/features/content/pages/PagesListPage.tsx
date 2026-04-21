@@ -1,3 +1,5 @@
+import { DEFAULT_LOCALE, LOCALES, type Locale, type TranslationStatus } from "@musiccloud/shared";
+import type { Icon } from "@phosphor-icons/react";
 import {
   CheckCircleIcon,
   CircleIcon,
@@ -12,10 +14,8 @@ import {
   TrashIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
 import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
-import { DEFAULT_LOCALE, LOCALES, type Locale, type TranslationStatus } from "@musiccloud/shared";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";

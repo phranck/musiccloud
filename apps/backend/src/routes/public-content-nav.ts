@@ -1,7 +1,6 @@
-import { DEFAULT_LOCALE, isLocale, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { Locale } from "@musiccloud/shared";
-import type { FastifyRequest } from "fastify";
-import type { FastifyInstance } from "fastify";
+import { DEFAULT_LOCALE, ENDPOINTS, isLocale, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 
 import { getPublicContentPage, getPublicContentPages } from "../services/admin-content.js";
 import { getPublicNavItems, isValidNavId } from "../services/admin-nav.js";
@@ -19,7 +18,7 @@ function resolveRequestLocale(request: FastifyRequest<{ Querystring: { locale?: 
   if (q && isLocale(q)) return q;
 
   // 2. Cookie — parse from raw Cookie header (no @fastify/cookie plugin required)
-  const rawCookie = request.headers["cookie"];
+  const rawCookie = request.headers.cookie;
   if (rawCookie) {
     for (const part of rawCookie.split(";")) {
       const eqIdx = part.indexOf("=");
@@ -78,7 +77,10 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
         querystring: {
           type: "object",
           properties: {
-            locale: { type: "string", description: "Preferred locale (e.g. `de`). Falls back through cookie → Accept-Language → default." },
+            locale: {
+              type: "string",
+              description: "Preferred locale (e.g. `de`). Falls back through cookie → Accept-Language → default.",
+            },
           },
         },
         response: {
@@ -192,7 +194,10 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
         querystring: {
           type: "object",
           properties: {
-            locale: { type: "string", description: "Preferred locale (e.g. `de`). Falls back through cookie → Accept-Language → default." },
+            locale: {
+              type: "string",
+              description: "Preferred locale (e.g. `de`). Falls back through cookie → Accept-Language → default.",
+            },
           },
         },
         response: {

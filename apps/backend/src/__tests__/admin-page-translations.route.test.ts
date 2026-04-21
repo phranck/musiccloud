@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import Fastify from "fastify";
+import { describe, expect, it, vi } from "vitest";
 import { registerAdminPageTranslationRoutes } from "../routes/admin-page-translations.js";
 import * as adminTranslations from "../services/admin-translations.js";
 
@@ -12,9 +12,14 @@ vi.mock("../services/admin-translations.js", () => ({
   upsertPageTranslation: vi.fn(async () => ({
     ok: true,
     data: {
-      slug: "s", locale: "de", title: "T", content: "",
+      slug: "s",
+      locale: "de",
+      title: "T",
+      content: "",
       translationReady: true,
-      sourceUpdatedAt: new Date(), updatedAt: new Date(), updatedBy: null,
+      sourceUpdatedAt: new Date(),
+      updatedAt: new Date(),
+      updatedBy: null,
     },
   })),
   deletePageTranslation: vi.fn(async () => ({ ok: true, data: true as const })),
