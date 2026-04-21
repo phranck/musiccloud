@@ -133,6 +133,7 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
       }
       const locale = resolveRequestLocale(request);
       reply.header("Cache-Control", NAV_CACHE);
+      reply.header("Vary", "Accept-Language, Cookie");
       return getPublicNavItems(navId, locale);
     },
   );
@@ -211,6 +212,7 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
       const page = await getPublicContentPage(request.params.slug, locale);
       if (!page) return reply.status(404).send({ error: "NOT_FOUND", message: "Content page not found" });
       reply.header("Cache-Control", CONTENT_CACHE);
+      reply.header("Vary", "Accept-Language, Cookie");
       return page;
     },
   );
