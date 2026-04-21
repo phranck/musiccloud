@@ -4,6 +4,7 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   real,
   serial,
   text,
@@ -442,7 +443,7 @@ export const contentPageTranslations = pgTable(
     updatedBy: text("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
   },
   (table) => [
-    uniqueIndex("pk_content_page_translations").on(table.slug, table.locale),
+    primaryKey({ name: "pk_content_page_translations", columns: [table.slug, table.locale] }),
   ],
 );
 
@@ -462,7 +463,7 @@ export const pageSegmentTranslations = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("pk_page_segment_translations").on(table.segmentId, table.locale),
+    primaryKey({ name: "pk_page_segment_translations", columns: [table.segmentId, table.locale] }),
   ],
 );
 
@@ -482,7 +483,7 @@ export const navItemTranslations = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("pk_nav_item_translations").on(table.navItemId, table.locale),
+    primaryKey({ name: "pk_nav_item_translations", columns: [table.navItemId, table.locale] }),
   ],
 );
 
