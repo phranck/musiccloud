@@ -48,11 +48,18 @@ function mkPage(contentUpdatedAt: Date): ContentPageRow {
 describe("admin translations service", () => {
   beforeEach(() => { translations = []; });
 
+  it("returns null when page is not found", async () => {
+    page = null;
+    const result = await getPageTranslationsWithStatus("missing");
+    expect(result).toBeNull();
+  });
+
   it("status is 'missing' when no translation row", async () => {
     page = mkPage(new Date());
     const s = await getPageTranslationsWithStatus("s");
-    expect(s.statuses.de).toBe("missing");
-    expect(s.statuses.en).toBe("ready");
+    expect(s).not.toBeNull();
+    expect(s!.statuses.de).toBe("missing");
+    expect(s!.statuses.en).toBe("ready");
   });
 
   it("status is 'draft' when translation_ready=false", async () => {
@@ -64,7 +71,8 @@ describe("admin translations service", () => {
       updatedAt: new Date("2025-01-02"), updatedBy: null,
     }];
     const s = await getPageTranslationsWithStatus("s");
-    expect(s.statuses.de).toBe("draft");
+    expect(s).not.toBeNull();
+    expect(s!.statuses.de).toBe("draft");
   });
 
   it("status is 'stale' when source newer than snapshot", async () => {
@@ -76,7 +84,8 @@ describe("admin translations service", () => {
       updatedAt: new Date("2025-01-02"), updatedBy: null,
     }];
     const s = await getPageTranslationsWithStatus("s");
-    expect(s.statuses.de).toBe("stale");
+    expect(s).not.toBeNull();
+    expect(s!.statuses.de).toBe("stale");
   });
 
   it("status is 'ready' when up-to-date and ready", async () => {
@@ -88,7 +97,8 @@ describe("admin translations service", () => {
       updatedAt: new Date("2025-01-02"), updatedBy: null,
     }];
     const s = await getPageTranslationsWithStatus("s");
-    expect(s.statuses.de).toBe("ready");
+    expect(s).not.toBeNull();
+    expect(s!.statuses.de).toBe("ready");
   });
 
   it("upsert rejects when locale === default-locale", async () => {

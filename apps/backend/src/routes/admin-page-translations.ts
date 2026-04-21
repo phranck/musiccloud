@@ -26,6 +26,7 @@ function validateBody(body: unknown):
   }
   const b = body as TranslationBody;
   if (typeof b.title !== "string") return { ok: false, message: "title must be string" };
+  if (b.title.trim().length === 0) return { ok: false, message: "title required" };
   if (b.content !== undefined && typeof b.content !== "string") {
     return { ok: false, message: "content must be string" };
   }
@@ -47,22 +48,19 @@ export function registerAdminPageTranslationRoutes(app: FastifyInstance): void {
   app.get<{ Params: { slug: string } }>(
     ROUTE_TEMPLATES.admin.pages.translationsList,
     async (request, reply) => {
-      try {
-        const data = await getPageTranslationsWithStatus(request.params.slug);
-        return reply.send({
-          statuses: data.statuses,
-          translations: data.translations.map((t) => ({
-            locale: t.locale,
-            title: t.title,
-            content: t.content,
-            translationReady: t.translationReady,
-            sourceUpdatedAt: t.sourceUpdatedAt?.toISOString() ?? null,
-            updatedAt: t.updatedAt.toISOString(),
-          })),
-        });
-      } catch {
-        return reply.code(404).send({ error: "NOT_FOUND" });
-      }
+      const data = await getPageTranslationsWithStatus(request.params.slug);
+      if (!data) return reply.code(404).send({ error: "NOT_FOUND" });
+      return reply.send({
+        statuses: data.statuses,
+        translations: data.translations.map((t) => ({
+          locale: t.locale,
+          title: t.title,
+          content: t.content,
+          translationReady: t.translationReady,
+          sourceUpdatedAt: t.sourceUpdatedAt?.toISOString() ?? null,
+          updatedAt: t.updatedAt.toISOString(),
+        })),
+      });
     },
   );
 
