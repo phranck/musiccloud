@@ -10,6 +10,12 @@
  * which share one namespace by design (see `getRandomShortId` in the
  * Postgres adapter). A 404 here means the database genuinely has zero
  * resolved tracks or albums, which only happens on a fresh install.
+ *
+ * Frontend consumption: the Astro BFF at `apps/frontend/src/pages/api/
+ * random-example.ts` maps this 404 to a `200 { shortId: null }` response so
+ * the browser devtools console does not show a red "Failed to load resource"
+ * line on empty-DB sites. External v1 API consumers still see the 404
+ * semantics unchanged.
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";

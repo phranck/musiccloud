@@ -36,10 +36,28 @@ import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);
 
+// Parse TRUST_PROXY env var. Without this, `request.ip` behind a reverse
+// proxy (Cloudflare / zerops ingress) resolves to the proxy's address, so
+// every client shares the same rate-limit bucket and a handful of global
+// requests trip the per-IP limits for everyone.
+//   unset / ""           → false (direct exposure, dev default)
+//   "true" / "false"     → boolean
+//   integer ("1", "2")   → hop count (recommended for prod)
+//   anything else        → forwarded as-is to Fastify (IP / CIDR list)
+function parseTrustProxy(raw: string | undefined): boolean | number | string {
+  if (raw === undefined || raw === "") return false;
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  const n = Number(raw);
+  if (Number.isInteger(n) && n >= 0) return n;
+  return raw;
+}
+
 async function buildApp() {
   const app = Fastify({
     // Silence log noise under vitest — integration tests stay quiet.
     logger: process.env.VITEST === "true" ? false : { level: process.env.NODE_ENV === "production" ? "info" : "debug" },
+    trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
     ajv: {
       // AJV strict mode rejects the OpenAPI-native `example` annotation we
       // embed in request-body schemas for Swagger UI. Whitelist it so AJV
@@ -81,6 +99,11 @@ async function buildApp() {
   // strict enough to close the CodeQL `js/missing-rate-limiting` alerts
   // on public POST routes. Individual routes can override via
   // `config.rateLimit` (e.g. telemetry-app-error at 60/min).
+  //
+  // Buckets by `request.ip`, which requires `trustProxy` to be set in
+  // production (see `parseTrustProxy` above). Prior incident: without
+  // trust-proxy every client behind the Zerops ingress shared one bucket
+  // and the limit tripped for everyone after a few total requests.
   await app.register(rateLimit, {
     max: 300,
     timeWindow: "1 minute",

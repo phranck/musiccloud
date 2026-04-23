@@ -103,10 +103,13 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
     },
     async (request, reply) => {
       // Without a JWT preHandler in front of this route, the IP-based rate
-      // limiter is the primary abuse defense. Note: the effective key is
-      // whatever Fastify resolves as `request.ip`, which depends on proxy
-      // configuration: behind a reverse proxy without `trustProxy`, all
-      // clients will share one key.
+      // limiter is the primary abuse defense. The effective bucket key is
+      // whatever Fastify resolves as `request.ip`, which depends on the
+      // Fastify `trustProxy` option (see server.ts). Production sets
+      // TRUST_PROXY=1 so `request.ip` reads the X-Forwarded-For client IP
+      // from the single Zerops ingress hop; with TRUST_PROXY unset all
+      // clients behind the proxy share one bucket and 2-3 legitimate
+      // requests trip the per-IP 30/60s limit for everyone.
       const clientIp = request.ip;
       if (apiRateLimiter.isLimited(clientIp)) {
         return reply.status(429).send(jsonError("RATE_LIMITED"));
