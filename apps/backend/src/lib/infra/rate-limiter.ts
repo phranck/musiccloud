@@ -60,6 +60,14 @@ export class RateLimiter {
 // backend from runaway client loops (landing page retry storms, accidental
 // useEffect polling) without throttling a human user.
 //
+// The limiter is keyed by `request.ip`, which is only meaningful when Fastify
+// is configured with `trustProxy` behind a reverse proxy. Production sets the
+// TRUST_PROXY env var in zerops.yml; see server.ts / resolve-public-get.ts
+// for the corresponding rationale. Without it, all clients behind the ingress
+// share a single bucket and a handful of requests trip the limit for
+// everyone (the symptom user-visible as "Rate limit exceeded, retry in N
+// seconds" after only 2-3 searches).
+//
 // Cleanup cadence is 5 minutes: aggressive enough that a burst of unique IPs
 // does not bloat the Map for long, slack enough that cleanup itself is
 // background noise on the event loop.

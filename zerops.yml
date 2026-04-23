@@ -18,6 +18,10 @@ zerops:
         HOST: 0.0.0.0
         PORT: "4000"
         NODE_ENV: production
+        # Number of reverse-proxy hops to trust when resolving the client
+        # IP from X-Forwarded-For. "1" covers the Zerops ingress. If a
+        # CDN (e.g. Cloudflare) is placed in front, bump to "2".
+        TRUST_PROXY: "1"
         # Set these in Zerops Secrets:
         # DATABASE_URL: postgresql://db:password@postgresql:5432/musiccloud
         # JWT_SECRET: <random 64-char string>

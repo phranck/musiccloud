@@ -76,12 +76,19 @@ function LandingPageInner({
   const [isFocused, setIsFocused] = useState(false);
   const [exampleShortId, setExampleShortId] = useState<string | null>(null);
 
+  // Optional discovery teaser: fetch a random existing share on mount and,
+  // if one exists, render a "try this example" link. The BFF at
+  // `pages/api/random-example.ts` returns `200 { shortId: null }` when the
+  // backend has no data yet (fresh DB) — a null shortId means "no teaser
+  // today", not an error, so we silently skip rendering. Anything else that
+  // goes wrong (network, 5xx, abort) is also swallowed: the teaser is
+  // non-essential and must never surface as a user-visible failure.
   useEffect(() => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
     fetch(ENDPOINTS.frontend.randomExample, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { shortId: string } | null) => {
+      .then((data: { shortId: string | null } | null) => {
         if (data?.shortId) setExampleShortId(data.shortId);
       })
       .catch(() => {})
