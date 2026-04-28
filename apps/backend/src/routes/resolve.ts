@@ -387,7 +387,11 @@ async function persistTrackAndRespond(
   }
   // Source-track preview from the originating adapter is also written
   // (the adapter that produced the share-page URL).
-  if (result.sourceTrack.previewUrl && result.sourceTrack.sourceService && result.sourceTrack.sourceService !== "cached") {
+  if (
+    result.sourceTrack.previewUrl &&
+    result.sourceTrack.sourceService &&
+    result.sourceTrack.sourceService !== "cached"
+  ) {
     const expiresAtMs = getPreviewExpiry(result.sourceTrack.previewUrl, result.sourceTrack.sourceService);
     try {
       await repo.upsertTrackPreview(trackId, {

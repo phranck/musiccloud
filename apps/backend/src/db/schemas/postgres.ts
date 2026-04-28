@@ -88,12 +88,7 @@ export const trackExternalIds = pgTable(
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("idx_track_external_ids_unique").on(
-      table.trackId,
-      table.idType,
-      table.idValue,
-      table.sourceService,
-    ),
+    uniqueIndex("idx_track_external_ids_unique").on(table.trackId, table.idType, table.idValue, table.sourceService),
     index("idx_track_external_ids_lookup").on(table.idType, table.idValue),
     index("idx_track_external_ids_track").on(table.trackId),
   ],
@@ -203,12 +198,7 @@ export const albumExternalIds = pgTable(
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("idx_album_external_ids_unique").on(
-      table.albumId,
-      table.idType,
-      table.idValue,
-      table.sourceService,
-    ),
+    uniqueIndex("idx_album_external_ids_unique").on(table.albumId, table.idType, table.idValue, table.sourceService),
     index("idx_album_external_ids_lookup").on(table.idType, table.idValue),
     index("idx_album_external_ids_album").on(table.albumId),
   ],
@@ -303,12 +293,7 @@ export const artistExternalIds = pgTable(
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("idx_artist_external_ids_unique").on(
-      table.artistId,
-      table.idType,
-      table.idValue,
-      table.sourceService,
-    ),
+    uniqueIndex("idx_artist_external_ids_unique").on(table.artistId, table.idType, table.idValue, table.sourceService),
     index("idx_artist_external_ids_lookup").on(table.idType, table.idValue),
     index("idx_artist_external_ids_artist").on(table.artistId),
   ],

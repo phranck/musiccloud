@@ -19,15 +19,9 @@ interface DeezerArtistResponse {
   error?: { type: string; message: string; code: number };
 }
 
-export async function fetchDeezerFanCount(
-  artistId: string,
-): Promise<number | null> {
+export async function fetchDeezerFanCount(artistId: string): Promise<number | null> {
   try {
-    const response = await fetchWithTimeout(
-      `${API_BASE}/artist/${encodeURIComponent(artistId)}`,
-      {},
-      TIMEOUT_MS,
-    );
+    const response = await fetchWithTimeout(`${API_BASE}/artist/${encodeURIComponent(artistId)}`, {}, TIMEOUT_MS);
 
     if (!response.ok) {
       log.debug("Deezer", "fan-count fetch HTTP error", response.status, artistId);

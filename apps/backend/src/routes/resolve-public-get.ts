@@ -264,11 +264,7 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
     try {
       await repo.addTrackExternalIds(trackId, result.externalIds);
     } catch (err) {
-      log.debug(
-        "ResolvePublicGet",
-        "External-id persist failed:",
-        err instanceof Error ? err.message : String(err),
-      );
+      log.debug("ResolvePublicGet", "External-id persist failed:", err instanceof Error ? err.message : String(err));
     }
   }
 

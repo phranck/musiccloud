@@ -334,11 +334,7 @@ async function fetchDeezerArtistFanCount(artistName: string): Promise<number | n
 
     return await fetchDeezerFanCount(String(artistId));
   } catch (err) {
-    log.debug(
-      "ArtistInfo",
-      "Deezer fan-count error:",
-      err instanceof Error ? err.message : String(err),
-    );
+    log.debug("ArtistInfo", "Deezer fan-count error:", err instanceof Error ? err.message : String(err));
     return null;
   }
 }

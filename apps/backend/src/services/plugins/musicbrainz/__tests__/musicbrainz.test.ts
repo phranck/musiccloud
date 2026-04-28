@@ -30,15 +30,13 @@ const ARTIST_MBID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 
 describe("MusicBrainz: detectUrl", () => {
   it("detects recording URL with MBID", () => {
-    expect(
-      musicbrainzAdapter.detectUrl(`https://musicbrainz.org/recording/${RECORDING_MBID}`),
-    ).toBe(RECORDING_MBID);
+    expect(musicbrainzAdapter.detectUrl(`https://musicbrainz.org/recording/${RECORDING_MBID}`)).toBe(RECORDING_MBID);
   });
 
   it("detects www. variant", () => {
-    expect(
-      musicbrainzAdapter.detectUrl(`https://www.musicbrainz.org/recording/${RECORDING_MBID}`),
-    ).toBe(RECORDING_MBID);
+    expect(musicbrainzAdapter.detectUrl(`https://www.musicbrainz.org/recording/${RECORDING_MBID}`)).toBe(
+      RECORDING_MBID,
+    );
   });
 
   it("returns null for non-MB URL", () => {
@@ -46,21 +44,17 @@ describe("MusicBrainz: detectUrl", () => {
   });
 
   it("detects release URL via detectAlbumUrl", () => {
-    expect(
-      musicbrainzAdapter.detectAlbumUrl(`https://musicbrainz.org/release/${RELEASE_MBID}`),
-    ).toBe(RELEASE_MBID);
+    expect(musicbrainzAdapter.detectAlbumUrl(`https://musicbrainz.org/release/${RELEASE_MBID}`)).toBe(RELEASE_MBID);
   });
 
   it("detects release-group URL via detectAlbumUrl", () => {
-    expect(
-      musicbrainzAdapter.detectAlbumUrl(`https://musicbrainz.org/release-group/${RELEASE_MBID}`),
-    ).toBe(RELEASE_MBID);
+    expect(musicbrainzAdapter.detectAlbumUrl(`https://musicbrainz.org/release-group/${RELEASE_MBID}`)).toBe(
+      RELEASE_MBID,
+    );
   });
 
   it("detects artist URL via detectArtistUrl", () => {
-    expect(
-      musicbrainzAdapter.detectArtistUrl(`https://musicbrainz.org/artist/${ARTIST_MBID}`),
-    ).toBe(ARTIST_MBID);
+    expect(musicbrainzAdapter.detectArtistUrl(`https://musicbrainz.org/artist/${ARTIST_MBID}`)).toBe(ARTIST_MBID);
   });
 });
 

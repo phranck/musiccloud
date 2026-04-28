@@ -35,9 +35,7 @@ describe("fetchDeezerFanCount", () => {
   });
 
   it("returns null on Deezer API error envelope", async () => {
-    fetchMock.mockResolvedValueOnce(
-      mockResponse({ error: { type: "DataException", message: "no data", code: 800 } }),
-    );
+    fetchMock.mockResolvedValueOnce(mockResponse({ error: { type: "DataException", message: "no data", code: 800 } }));
     await expect(fetchDeezerFanCount("999999")).resolves.toBeNull();
   });
 
@@ -49,9 +47,6 @@ describe("fetchDeezerFanCount", () => {
   it("URL-encodes the artist ID", async () => {
     fetchMock.mockResolvedValueOnce(mockResponse({ id: 27, nb_fan: 1 }));
     await fetchDeezerFanCount("27 weird id");
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/artist/27%20weird%20id"),
-      expect.anything(),
-    );
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/artist/27%20weird%20id"), expect.anything());
   });
 });

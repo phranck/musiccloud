@@ -369,7 +369,10 @@ async function isPreviewRefreshNeeded(cached: ResolutionResult): Promise<boolean
     const fresh = previews.find((p) => p.expiresAt === null || p.expiresAt.getTime() > now);
     return !fresh;
   } catch (error) {
-    log.debug("Resolver", `Preview-refresh check failed, defaulting to refresh: ${error instanceof Error ? error.message : error}`);
+    log.debug(
+      "Resolver",
+      `Preview-refresh check failed, defaulting to refresh: ${error instanceof Error ? error.message : error}`,
+    );
     return true;
   }
 }
@@ -385,7 +388,6 @@ async function isPreviewRefreshNeeded(cached: ResolutionResult): Promise<boolean
  * SEARCH_FALLBACK_CONFIDENCE: Confidence for generic "search on X" fallback links.
  */
 export { LINK_QUALITY_THRESHOLD, MATCH_MIN_CONFIDENCE };
-
 
 /** Hosts that serve redirect short links pointing to canonical music platform URLs. */
 const SHORT_LINK_HOSTS = new Set(["link.deezer.com", "on.soundcloud.com"]);
