@@ -72,7 +72,6 @@
  */
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
-import { CACHE_TTL_MS } from "../lib/config.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
@@ -156,20 +155,17 @@ function mapCachedAlbumLinks(
 }
 
 async function tryAlbumCache(lookup: { url?: string; upc?: string }): Promise<AlbumResolutionResult | null> {
+  // Static-vs-dynamic split (migration 0021): canonical album row is
+  // permanently fresh; preview URL lives in `album_previews` and is
+  // refreshed lazily on read. No `updated_at` TTL gate here anymore.
   try {
     const repo = await getRepository();
     let cached = lookup.url ? await repo.findAlbumByUrl(lookup.url) : null;
     if (!cached && lookup.upc) cached = await repo.findAlbumByUpc(lookup.upc);
     if (!cached) return null;
 
-    const age = Date.now() - cached.updatedAt;
-    if (age > CACHE_TTL_MS) {
-      log.debug("AlbumResolver", `Cache expired: age=${Math.round(age / 3600000)}h`);
-      return null;
-    }
-
     const links = mapCachedAlbumLinks(cached.links);
-    log.debug("AlbumResolver", `Cache hit: ${links.length} links, age=${Math.round(age / 60000)}min`);
+    log.debug("AlbumResolver", `Cache hit: ${links.length} links`);
 
     return { sourceAlbum: cached.album, links, albumId: cached.albumId, externalIds: [] };
   } catch (error) {
@@ -323,7 +319,8 @@ async function inferAlbumViaIsrc(
   //
   // Caching: the resolved link (incl. preview URL) is persisted by
   // persistAlbumWithLinks. Future resolves of the same source URL hit the DB
-  // cache (CACHE_TTL_MS = 48h) and skip every external API call here.
+  // cache (canonical album row never expires post-migration 0021) and
+  // skip every external API call here.
   try {
     const link = await resolveAlbumViaSearch(adapter, { ...sourceAlbum, title: best.albumName });
     if (link) {

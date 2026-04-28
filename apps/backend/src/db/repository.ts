@@ -58,6 +58,23 @@ export interface PersistTrackData {
   }>;
 }
 
+/** Single preview-URL row from `track_previews` / `album_previews`. */
+export interface PreviewRow {
+  service: string;
+  url: string;
+  /** `null` when the URL has no parseable expiry (most CDN-served
+   *  previews). Set to a real Date for Deezer's signed URLs. */
+  expiresAt: Date | null;
+  observedAt: Date;
+}
+
+/** Payload for upsertTrack/AlbumPreview. */
+export interface PreviewObservation {
+  service: string;
+  url: string;
+  expiresAt?: Date | null;
+}
+
 // ─── Album Types ─────────────────────────────────────────────────────────────
 
 /** Cached album with its cross-service links */
@@ -269,6 +286,15 @@ export interface TrackRepository {
   // table because another service reported it.
   findTrackByExternalId(idType: string, idValue: string): Promise<CachedTrackResult | null>;
   findAlbumByExternalId(idType: string, idValue: string): Promise<CachedAlbumResult | null>;
+
+  // Per-(entity, service) preview URLs with explicit expiry. Lives in
+  // `track_previews` / `album_previews` (migration 0021). Lets the
+  // canonical entity row stay forever-fresh while preview URLs
+  // (especially Deezer's signed ones) are refreshed lazily on read.
+  findTrackPreviews(trackId: string): Promise<PreviewRow[]>;
+  upsertTrackPreview(trackId: string, observation: PreviewObservation): Promise<void>;
+  findAlbumPreviews(albumId: string): Promise<PreviewRow[]>;
+  upsertAlbumPreview(albumId: string, observation: PreviewObservation): Promise<void>;
 
   // Maintenance
   updateTrackTimestamp(trackId: string): Promise<void>;

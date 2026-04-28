@@ -62,7 +62,7 @@ import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
-import { isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
+import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import type { AlbumResolutionResult } from "../services/album-resolver.js";
@@ -365,6 +365,38 @@ async function persistTrackAndRespond(
       await repo.addTrackExternalIds(trackId, result.externalIds);
     } catch (err) {
       log.debug("Resolve", "External-id persist failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  // Persist per-(track, service) preview URLs into `track_previews`
+  // alongside the legacy `tracks.preview_url` write inside
+  // `persistTrackWithLinks`. Two-step rollout: PR 2 drops the legacy
+  // column once this dual-write release is stable in prod.
+  for (const link of result.links) {
+    if (!link.previewUrl) continue;
+    const expiresAtMs = getPreviewExpiry(link.previewUrl, link.service);
+    try {
+      await repo.upsertTrackPreview(trackId, {
+        service: link.service,
+        url: link.previewUrl,
+        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
+      });
+    } catch (err) {
+      log.debug("Resolve", "Preview persist failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+  // Source-track preview from the originating adapter is also written
+  // (the adapter that produced the share-page URL).
+  if (result.sourceTrack.previewUrl && result.sourceTrack.sourceService && result.sourceTrack.sourceService !== "cached") {
+    const expiresAtMs = getPreviewExpiry(result.sourceTrack.previewUrl, result.sourceTrack.sourceService);
+    try {
+      await repo.upsertTrackPreview(trackId, {
+        service: result.sourceTrack.sourceService,
+        url: result.sourceTrack.previewUrl,
+        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
+      });
+    } catch (err) {
+      log.debug("Resolve", "Source preview persist failed:", err instanceof Error ? err.message : String(err));
     }
   }
 

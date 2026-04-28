@@ -9,6 +9,10 @@ const mockRepo = {
   persistAlbumWithLinks: vi.fn().mockResolvedValue({ albumId: "test-album-id", shortId: "ab1234" }),
   addLinksToAlbum: vi.fn().mockResolvedValue(undefined),
   loadAlbumByShortId: vi.fn().mockResolvedValue(null),
+  findTrackPreviews: vi.fn().mockResolvedValue([]),
+  upsertTrackPreview: vi.fn().mockResolvedValue(undefined),
+  findAlbumPreviews: vi.fn().mockResolvedValue([]),
+  upsertAlbumPreview: vi.fn().mockResolvedValue(undefined),
   // track methods (required by interface)
   findTrackByUrl: vi.fn(),
   findTrackByIsrc: vi.fn(),

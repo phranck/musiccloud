@@ -33,7 +33,9 @@
  * 3. Cache by ISRC after we fetched the source metadata. Catches the
  *    same track pasted from a different service the second time around.
  *
- * All three layers respect `CACHE_TTL_MS`. A cache hit still goes
+ * After migration 0021 the canonical track row never expires; only
+ * preview URLs (in `track_previews`) carry an `expires_at` and are
+ * refreshed lazily by `fillMissingServices`. The cache hit path
  * through `fillMissingServices` so that enabling a new plugin over
  * time organically enriches the cached row.
  *
@@ -114,10 +116,10 @@
  */
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
-import { CACHE_TTL_MS } from "../lib/config.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
+import { getPreviewExpiry } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import {
   AUTO_SELECT_THRESHOLD,
@@ -215,8 +217,14 @@ function mapCachedLinks(
 }
 
 /**
- * Try to serve a result from DB cache. Returns null on miss, expired TTL, or errors.
- * Non-fatal: cache errors are logged but never propagate.
+ * Try to serve a result from DB cache.
+ *
+ * Static-vs-dynamic split (migration 0021): the canonical track row is
+ * permanently fresh — a cache hit always wins regardless of `updated_at`.
+ * The only time-sensitive field, the preview URL, lives in
+ * `track_previews` and is refreshed lazily by `fillMissingServices`
+ * when its `expires_at` is in the past. Returns null only on miss or
+ * read errors.
  */
 async function tryCache(lookup: { url?: string; isrc?: string }): Promise<ResolutionResult | null> {
   try {
@@ -225,14 +233,8 @@ async function tryCache(lookup: { url?: string; isrc?: string }): Promise<Resolu
     if (!cached && lookup.isrc) cached = await repo.findTrackByIsrc(lookup.isrc);
     if (!cached) return null;
 
-    const age = Date.now() - cached.updatedAt;
-    if (age > CACHE_TTL_MS) {
-      log.debug("Resolver", `Cache expired: age=${Math.round(age / 3600000)}h`);
-      return null;
-    }
-
     const links = mapCachedLinks(cached.links);
-    log.debug("Resolver", `Cache hit: ${links.length} links, age=${Math.round(age / 60000)}min`);
+    log.debug("Resolver", `Cache hit: ${links.length} links`);
 
     return { sourceTrack: cached.track, links, trackId: cached.trackId, externalIds: [] };
   } catch (error) {
@@ -247,10 +249,13 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
 
   const missingAdapters = active.filter((a) => !coveredServices.has(a.id) && a.id !== cached.sourceTrack.sourceService);
 
-  // When the cached track has no preview URL, also re-fetch Deezer (even if already covered)
-  // to get a fresh permanent CDN preview URL. Skip if Deezer is the source service
-  // (it already had a chance to return one) or is already in missingAdapters.
-  const needsPreview = !cached.sourceTrack.previewUrl;
+  // Static-vs-dynamic split: a missing or expired preview-URL row is the
+  // ONLY reason to re-fetch Deezer for a row whose service-link list is
+  // already complete. Previously this fired on every cache hit when
+  // `sourceTrack.previewUrl` was empty; now it fires only when the
+  // `track_previews` row for the chosen preview source is genuinely
+  // expired (or absent).
+  const needsPreview = await isPreviewRefreshNeeded(cached);
   const deezerAdapter = needsPreview
     ? active.find(
         (a) =>
@@ -313,12 +318,60 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
     sourceTrack = { ...sourceTrack, previewUrl: anyGapPreview.previewUrl };
   }
 
+  // Persist any fresh preview URLs we just picked up, including their
+  // parsed expiry. Skips Spotify-style permanent CDN URLs that have
+  // `null` expiry (overwriting a row with `null` is fine — the gate
+  // logic treats null as "never expires").
+  if (cached.trackId) {
+    try {
+      const repo = await getRepository();
+      for (const link of newLinks) {
+        if (!link.previewUrl) continue;
+        const expiresAtMs = getPreviewExpiry(link.previewUrl, link.service);
+        await repo.upsertTrackPreview(cached.trackId, {
+          service: link.service,
+          url: link.previewUrl,
+          expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
+        });
+      }
+    } catch (error) {
+      log.error("Resolver", `Failed to persist preview rows: ${error instanceof Error ? error.message : error}`);
+    }
+  }
+
   return {
     sourceTrack,
     links: await filterDisabledLinks(allLinks),
     trackId: cached.trackId,
     externalIds: collectTrackExternalIds(sourceTrack, newLinks),
   };
+}
+
+/**
+ * Returns true when the cached track has no usable preview URL or the
+ * persisted `track_previews` row for the source service has expired.
+ *
+ * Pre-migration logic: any cached track without `previewUrl` set on the
+ * row triggered a Deezer fetch on every cache hit.
+ *
+ * Post-migration logic: the canonical row no longer carries the URL;
+ * this function asks the `track_previews` table directly. A row whose
+ * `expires_at` is in the past, or which is missing entirely, is what
+ * the Deezer refresh now exists to fix.
+ */
+async function isPreviewRefreshNeeded(cached: ResolutionResult): Promise<boolean> {
+  if (!cached.trackId) return !cached.sourceTrack.previewUrl;
+  try {
+    const repo = await getRepository();
+    const previews = await repo.findTrackPreviews(cached.trackId);
+    if (previews.length === 0) return true;
+    const now = Date.now();
+    const fresh = previews.find((p) => p.expiresAt === null || p.expiresAt.getTime() > now);
+    return !fresh;
+  } catch (error) {
+    log.debug("Resolver", `Preview-refresh check failed, defaulting to refresh: ${error instanceof Error ? error.message : error}`);
+    return true;
+  }
 }
 
 /**
@@ -333,7 +386,6 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
  */
 export { LINK_QUALITY_THRESHOLD, MATCH_MIN_CONFIDENCE };
 
-// CACHE_TTL_MS imported from ../lib/constants.js
 
 /** Hosts that serve redirect short links pointing to canonical music platform URLs. */
 const SHORT_LINK_HOSTS = new Set(["link.deezer.com", "on.soundcloud.com"]);
