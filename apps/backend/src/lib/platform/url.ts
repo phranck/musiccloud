@@ -2,8 +2,17 @@ import type { ErrorCode, ServiceId } from "@musiccloud/shared";
 
 export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorCode; message: string };
 
-/** Services with URL detection support (YouTube Music is derived from YouTube) */
-type DetectableService = Exclude<ServiceId, "youtube-music">;
+/**
+ * Services with URL detection support.
+ * - `youtube-music` is derived from YouTube and uses the same patterns.
+ * - `musicbrainz` matches its own MBID URLs in the adapter
+ *   (`services/plugins/musicbrainz/adapter.ts`); it is excluded from this
+ *   shared track/album-pattern map because MB is metadata-only and uses
+ *   release/recording/release-group paths that do not fit the
+ *   "music URL" / "album URL" classification used by `isMusicUrl` /
+ *   `isAlbumUrl`.
+ */
+type DetectableService = Exclude<ServiceId, "youtube-music" | "musicbrainz">;
 
 export const MUSIC_URL_PATTERNS: Record<DetectableService, RegExp> = {
   spotify: /^https?:\/\/(open\.)?spotify\.com\/(track|album|intl-\w+\/track)\//,

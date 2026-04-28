@@ -99,6 +99,17 @@ export interface ResolvedArtistLink {
   matchMethod: "search" | "cache";
   externalId?: string;
   imageUrl?: string;
+  /**
+   * MusicBrainz Artist MBID reported by this service. Today only the
+   * MusicBrainz adapter populates this. Drives `artist_external_ids`
+   * aggregation as `idType='mbid'`.
+   */
+  mbid?: string;
+  /**
+   * ISNI reported by this service. Drives `artist_external_ids`
+   * aggregation as `idType='isni'`.
+   */
+  isni?: string;
 }
 
 export interface ArtistResolutionResult {
@@ -230,7 +241,7 @@ async function fillMissingArtistServices(cached: ArtistResolutionResult): Promis
     sourceArtist,
     links: await filterDisabledLinks(allLinks),
     artistId: cached.artistId,
-    externalIds: collectArtistExternalIds(sourceArtist),
+    externalIds: collectArtistExternalIds(sourceArtist, newLinks),
   };
 }
 
@@ -281,6 +292,8 @@ async function resolveArtistOnService(
       matchMethod: "search",
       externalId: result.artist.sourceId,
       imageUrl: result.artist.imageUrl,
+      mbid: result.artist.mbid,
+      isni: result.artist.isni,
     };
   } catch (error) {
     log.debug("ArtistResolver", `[${adapter.id}] search failed: ${error instanceof Error ? error.message : error}`);
@@ -443,7 +456,7 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
   return {
     sourceArtist,
     links,
-    externalIds: collectArtistExternalIds(sourceArtist),
+    externalIds: collectArtistExternalIds(sourceArtist, links),
   };
 }
 
@@ -500,7 +513,7 @@ export async function resolveArtistTextSearch(query: string): Promise<ArtistReso
         return {
           sourceArtist,
           links,
-          externalIds: collectArtistExternalIds(sourceArtist),
+          externalIds: collectArtistExternalIds(sourceArtist, links),
         };
       }
     } catch {

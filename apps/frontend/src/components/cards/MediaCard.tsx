@@ -129,6 +129,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
             </RecessedCard.Header>
             <RecessedCard.Body className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {[...content.platforms]
+                .filter((p) => !PLATFORM_CONFIG[p.platform]?.hidden)
                 .sort((a, b) => PLATFORM_CONFIG[a.platform].label.localeCompare(PLATFORM_CONFIG[b.platform].label))
                 .map((p) => (
                   <PlatformButton

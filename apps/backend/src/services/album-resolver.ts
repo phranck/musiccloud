@@ -113,6 +113,12 @@ export interface ResolvedAlbumLink {
    * `album_external_ids` aggregation.
    */
   upc?: string;
+  /**
+   * MusicBrainz Release MBID reported by this service for the album.
+   * Today only the MusicBrainz adapter populates this. Drives
+   * `album_external_ids` aggregation as `idType='mbid'`.
+   */
+  mbid?: string;
 }
 
 export interface AlbumResolutionResult {
@@ -372,6 +378,7 @@ async function resolveAlbumOnService(
           artworkUrl: album.artworkUrl,
           label: album.label,
           upc: album.upc,
+          mbid: album.mbid,
         };
       }
     } catch (error) {
@@ -439,6 +446,7 @@ async function resolveAlbumViaSearch(
     artworkUrl: album.artworkUrl,
     label: album.label,
     upc: album.upc,
+    mbid: album.mbid,
   };
 }
 

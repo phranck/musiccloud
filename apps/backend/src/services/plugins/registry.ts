@@ -72,6 +72,7 @@ import { napsterPlugin } from "./napster/index.js";
 import { neteasePlugin } from "./netease/index.js";
 import { pandoraPlugin } from "./pandora/index.js";
 import { qobuzPlugin } from "./qobuz/index.js";
+import { musicbrainzPlugin } from "./musicbrainz/index.js";
 import { qqmusicPlugin } from "./qqmusic/index.js";
 import { soundcloudPlugin } from "./soundcloud/index.js";
 import { spotifyPlugin } from "./spotify/index.js";
@@ -104,6 +105,7 @@ const PLUGINS: readonly ServicePlugin[] = [
   tidalPlugin,
   youtubePlugin,
   spotifyPlugin,
+  musicbrainzPlugin,
   audiusPlugin,
   napsterPlugin,
   soundcloudPlugin,

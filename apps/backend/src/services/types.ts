@@ -68,6 +68,13 @@ export interface ExternalIdRecord {
 
 export interface NormalizedTrack {
   isrc?: string;
+  /** MusicBrainz Recording MBID (UUIDv4). Filled by MB adapter; Last.fm
+   *  also exposes one and propagates it. Other adapters leave it
+   *  undefined. Aggregated into `track_external_ids` as idType `mbid`. */
+  mbid?: string;
+  /** ISWC of the underlying composition (work). Filled when MB returns
+   *  work-rels; aggregated into `track_external_ids` as idType `iswc`. */
+  iswc?: string;
   sourceService: TrackSource;
   sourceId: string;
   title: string;
@@ -270,6 +277,9 @@ export interface DisambiguationResponse {
 /** Album-level normalized data (parallel to NormalizedTrack) */
 export interface NormalizedAlbum {
   upc?: string;
+  /** MusicBrainz Release MBID (UUIDv4). Aggregated into
+   *  `album_external_ids` as idType `mbid`. */
+  mbid?: string;
   sourceService: TrackSource;
   sourceId: string;
   title: string;
@@ -326,6 +336,11 @@ export interface NormalizedArtist {
   imageUrl?: string;
   genres?: string[];
   webUrl: string;
+  /** MusicBrainz Artist MBID (UUIDv4). Aggregated into
+   *  `artist_external_ids` as idType `mbid`. */
+  mbid?: string;
+  /** ISNI when MusicBrainz exposes it. Aggregated as idType `isni`. */
+  isni?: string;
 }
 
 /** Artist text/name search query */

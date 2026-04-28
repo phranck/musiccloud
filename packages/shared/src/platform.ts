@@ -24,6 +24,13 @@ import { formatDuration, formatYear } from "./utils.js";
 export interface PlatformConfig {
   label: string;
   color: string;
+  /**
+   * Hidden from the public share/embed UI when `true`. Metadata-only
+   * sources (e.g. MusicBrainz) belong here: their cross-service link is
+   * useful internally and for external aggregator consumers, but it has
+   * no playable content for end users.
+   */
+  hidden?: boolean;
 }
 
 export const PLATFORM_CONFIG: Record<ServiceId, PlatformConfig> = {
@@ -48,6 +55,7 @@ export const PLATFORM_CONFIG: Record<ServiceId, PlatformConfig> = {
   bugs: { label: "Bugs!", color: "#FF3D00" },
   jiosaavn: { label: "JioSaavn", color: "#2BC5B4" },
   beatport: { label: "Beatport", color: "#94D500" },
+  musicbrainz: { label: "MusicBrainz", color: "#BA478F", hidden: true },
 };
 
 /**
