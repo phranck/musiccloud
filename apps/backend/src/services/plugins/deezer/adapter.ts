@@ -51,7 +51,7 @@ import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
+import { CANDIDATE_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE, MAX_CANDIDATES } from "../../constants.js";
 import type {
   AlbumCapabilities,
   AlbumMatchResult,
@@ -66,6 +66,7 @@ import type {
   NormalizedArtist,
   NormalizedTrack,
   SearchQuery,
+  SearchResultWithCandidates,
   ServiceAdapter,
 } from "../../types.js";
 import { scoreSearchCandidate } from "../_shared/confidence.js";
@@ -285,6 +286,68 @@ export const deezerAdapter = {
       matchMethod: "search",
     };
   },
+
+  /**
+   * Multi-result search returning ranked candidates for the
+   * disambiguation flow. Mirrors the Spotify implementation: ranks via
+   * the shared `scoreSearchCandidate`, returns up to `MAX_CANDIDATES`
+   * filtered by `CANDIDATE_MIN_CONFIDENCE` so the UI never receives a
+   * candidate it would render as confidently-wrong.
+   *
+   * Implemented here (in addition to Spotify) because Phase B pushed
+   * Spotify to the back of the resolver chain. Without a candidates
+   * method on the new top-of-chain (Deezer), free-text queries skipped
+   * disambiguation entirely.
+   */
+  async searchTrackWithCandidates(query: SearchQuery): Promise<SearchResultWithCandidates> {
+    const q = query.title === query.artist ? query.title : `artist:"${query.artist}" track:"${query.title}"`;
+
+    const response = await deezerFetch(`/search/track?q=${encodeURIComponent(q)}&limit=10`);
+
+    if (!response.ok) {
+      return {
+        bestMatch: { found: false, confidence: 0, matchMethod: "search" },
+        candidates: [],
+      };
+    }
+
+    const data = await response.json();
+
+    if (isDeezerError(data)) {
+      return {
+        bestMatch: { found: false, confidence: 0, matchMethod: "search" },
+        candidates: [],
+      };
+    }
+
+    const items = (data as DeezerSearchResponse).data ?? [];
+
+    if (items.length === 0) {
+      return {
+        bestMatch: { found: false, confidence: 0, matchMethod: "search" },
+        candidates: [],
+      };
+    }
+
+    const scored: Array<{ track: NormalizedTrack; confidence: number }> = items.map((raw, i) => {
+      const track = mapTrack(raw);
+      return { track, confidence: scoreSearchCandidate(query, track, i) };
+    });
+
+    scored.sort((a, b) => b.confidence - a.confidence);
+
+    const best = scored[0];
+    const bestMatch: MatchResult =
+      best.confidence >= MATCH_MIN_CONFIDENCE
+        ? { found: true, track: best.track, confidence: best.confidence, matchMethod: "search" }
+        : { found: false, confidence: best.confidence, matchMethod: "search" };
+
+    return {
+      bestMatch,
+      candidates: scored.filter((c) => c.confidence >= CANDIDATE_MIN_CONFIDENCE).slice(0, MAX_CANDIDATES),
+    };
+  },
+
   // --- Album support ---
 
   albumCapabilities: {
