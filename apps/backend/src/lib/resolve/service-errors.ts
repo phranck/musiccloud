@@ -55,6 +55,7 @@ const ADAPTER_PREFIX: Record<ServiceId, string> = {
   netease: "93",
   qqmusic: "94",
   jiosaavn: "95",
+  musicbrainz: "96",
 };
 
 /** Human-readable label used in error messages (capitalisation matches what users see in the UI). */
@@ -80,6 +81,7 @@ const ADAPTER_LABEL: Record<ServiceId, string> = {
   netease: "Netease",
   qqmusic: "QQ Music",
   jiosaavn: "JioSaavn",
+  musicbrainz: "MusicBrainz",
 };
 
 /**

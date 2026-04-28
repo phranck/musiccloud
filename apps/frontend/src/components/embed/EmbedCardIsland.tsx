@@ -1,10 +1,14 @@
-import { compareByDisplayOrder } from "@musiccloud/shared";
+import { compareByDisplayOrder, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { LogoView } from "@/components/ui/LogoView";
 import type { PlatformLink } from "@/lib/types/media-card";
+
+function visiblePlatforms(platforms: PlatformLink[]): PlatformLink[] {
+  return platforms.filter((p) => !PLATFORM_CONFIG[p.platform]?.hidden);
+}
 
 interface EmbedCardIslandProps {
   size: string;
@@ -100,7 +104,7 @@ function EmbedSmall({
         <span className="text-xs text-text-secondary truncate">{artist}</span>
         <div className="flex items-center gap-1.5 mt-0.5">
           <div className="flex gap-1">
-            {platforms.map((p) => (
+            {visiblePlatforms(platforms).map((p) => (
               <a key={p.platform} href={p.url} target="_blank" rel="noopener noreferrer">
                 <PlatformIcon platform={p.platform} className="w-[22px] h-[22px]" colored />
               </a>
@@ -157,7 +161,7 @@ function EmbedRegular({
         </div>
         <RecessedCard className="p-1.5" radius="0.5rem">
           <RecessedCard.Body className="flex justify-between flex-wrap">
-            {platforms.map((p) => (
+            {visiblePlatforms(platforms).map((p) => (
               <a
                 key={p.platform}
                 href={p.url}
@@ -220,7 +224,7 @@ function EmbedLarge({
         </div>
         <RecessedCard className="p-1.5" radius="0.5rem">
           <RecessedCard.Body className="grid grid-cols-2 gap-1.5">
-            {platforms.map((p) => (
+            {visiblePlatforms(platforms).map((p) => (
               <PlatformButton key={p.platform} platform={p.platform} url={p.url} songTitle={title} size="sm" />
             ))}
           </RecessedCard.Body>

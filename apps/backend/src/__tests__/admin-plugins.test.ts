@@ -58,7 +58,7 @@ describe("GET /api/admin/plugins", () => {
     expect(res.statusCode).toBe(403);
   });
 
-  it("returns one entry per installed plugin (20 total)", async () => {
+  it("returns one entry per installed plugin (21 total)", async () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/admin/plugins",
@@ -67,7 +67,7 @@ describe("GET /api/admin/plugins", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(Array.isArray(body)).toBe(true);
-    expect(body).toHaveLength(20);
+    expect(body).toHaveLength(21);
   });
 
   it("each entry exposes the documented shape", async () => {

@@ -164,6 +164,18 @@ export interface ResolvedLink {
    * every adapter exposes an ISRC for every match.
    */
   isrc?: string;
+  /**
+   * MusicBrainz Recording MBID reported by this service for the track.
+   * Today only the MusicBrainz adapter populates this; other adapters
+   * leave it undefined. Drives `track_external_ids` aggregation.
+   */
+  mbid?: string;
+  /**
+   * ISWC of the underlying composition (work). Populated by the
+   * MusicBrainz adapter when work-rels are returned. Drives
+   * `track_external_ids` aggregation as `idType='iswc'`.
+   */
+  iswc?: string;
 }
 
 export interface ResolutionResult {
@@ -827,6 +839,8 @@ async function resolveOnService(adapter: ServiceAdapter, sourceTrack: Normalized
         externalId: track.sourceId,
         previewUrl: track.previewUrl,
         isrc: track.isrc,
+        mbid: track.mbid,
+        iswc: track.iswc,
       };
     }
   }
@@ -853,6 +867,8 @@ async function resolveViaSearch(adapter: ServiceAdapter, sourceTrack: Normalized
     externalId: result.track.sourceId,
     previewUrl: result.track.previewUrl,
     isrc: result.track.isrc,
+    mbid: result.track.mbid,
+    iswc: result.track.iswc,
   };
 }
 

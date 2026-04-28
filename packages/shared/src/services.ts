@@ -49,6 +49,7 @@ export const SERVICE = {
   BUGS: "bugs",
   JIOSAAVN: "jiosaavn",
   BEATPORT: "beatport",
+  MUSICBRAINZ: "musicbrainz",
 } as const;
 
 export type ServiceId = (typeof SERVICE)[keyof typeof SERVICE];

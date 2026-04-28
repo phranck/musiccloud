@@ -206,6 +206,7 @@ function mapTrack(raw: LfmTrack): NormalizedTrack {
     artists: [raw.artist.name],
     artworkUrl: undefined, // filled post-mapping via image cache
     durationMs: raw.duration ? Number(raw.duration) * 1000 : undefined,
+    mbid: raw.mbid || undefined,
     webUrl:
       raw.url ?? `https://www.last.fm/music/${encodeURIComponent(raw.artist.name)}/_/${encodeURIComponent(raw.name)}`,
   };
@@ -218,6 +219,7 @@ function mapAlbum(raw: LfmAlbum): NormalizedAlbum {
     title: raw.name,
     artists: [raw.artist.name],
     artworkUrl: pickImage(raw.image),
+    mbid: raw.mbid || undefined,
     webUrl:
       raw.url ?? `https://www.last.fm/music/${encodeURIComponent(raw.artist.name)}/${encodeURIComponent(raw.name)}`,
   };
@@ -229,6 +231,7 @@ function mapArtist(raw: LfmArtist): NormalizedArtist {
     sourceId: raw.mbid || `lfm-${raw.name}`,
     name: raw.name,
     imageUrl: undefined, // filled post-mapping via Spotify image cache
+    mbid: raw.mbid || undefined,
     webUrl: raw.url ?? `https://www.last.fm/music/${encodeURIComponent(raw.name)}`,
   };
 }
