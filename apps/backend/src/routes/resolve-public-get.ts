@@ -30,7 +30,7 @@ import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
-import { isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
+import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
@@ -296,7 +296,12 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
     try {
       const deezerTrack = await deezerAdapter.findByIsrc(result.sourceTrack.isrc);
       if (deezerTrack?.previewUrl) {
-        await repo.updatePreviewUrl(trackId, deezerTrack.previewUrl);
+        const expiresAtMs = getPreviewExpiry(deezerTrack.previewUrl, "deezer");
+        await repo.upsertTrackPreview(trackId, {
+          service: "deezer",
+          url: deezerTrack.previewUrl,
+          expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
+        });
         previewUrl = deezerTrack.previewUrl;
       }
     } catch (err) {

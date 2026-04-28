@@ -298,7 +298,6 @@ export interface TrackRepository {
 
   // Maintenance
   updateTrackTimestamp(trackId: string): Promise<void>;
-  updatePreviewUrl(trackId: string, previewUrl: string): Promise<void>;
   cleanupStaleCache(ttlMs?: number): Promise<number>;
 
   // Artist cache (popular tracks, profile, tour dates)

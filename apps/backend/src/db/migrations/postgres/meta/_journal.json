@@ -155,6 +155,13 @@
       "when": 1777405997793,
       "tag": "0021_track_album_previews",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1777409061802,
+      "tag": "0022_drop_legacy_preview_url",
+      "breakpoints": true
     }
   ]
 }
