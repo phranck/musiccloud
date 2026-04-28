@@ -15,6 +15,7 @@ import { log } from "../lib/infra/logger.js";
 import { TokenManager } from "../lib/infra/token-manager.js";
 import { cacheArtistImage } from "./artist-images.js";
 import { extractPrimaryArtist } from "./artist-utils.js";
+import { fetchDeezerFanCount } from "./plugins/deezer/artist-fans.js";
 
 const DEEZER_BASE = "https://api.deezer.com";
 const SPOTIFY_BASE = "https://api.spotify.com/v1";
@@ -60,8 +61,9 @@ interface SpotifyImage {
 interface SpotifyArtist {
   id: string;
   genres: string[];
-  popularity: number;
-  followers: { total: number };
+  // popularity + followers permanently removed by Spotify in Feb 2026; we
+  // no longer read them. Kept off the type so a future accidental access
+  // would be a compile error.
   images: SpotifyImage[];
 }
 interface SpotifyArtistSearch {
@@ -83,7 +85,7 @@ interface SpotifyTopTracksResponse {
 interface LastFmArtistInfo {
   artist?: {
     bio?: { summary?: string };
-    stats?: { playcount?: string };
+    stats?: { playcount?: string; listeners?: string };
     similar?: { artist?: { name: string }[] };
   };
 }
@@ -242,45 +244,103 @@ export async function fetchArtistProfile(artistName: string): Promise<ArtistProf
     spotifyId: spotifyArtist.id,
     imageUrl,
     genres: spotifyArtist.genres.slice(0, 3),
-    popularity: spotifyArtist.popularity,
-    followers: spotifyArtist.followers.total,
+    popularity: null,
+    followers: null,
     bioSummary: null,
     scrobbles: null,
     similarArtists: [],
   };
 
-  // Last.fm enrichment: try full name first, fall back to primary artist for collabs
+  // Last.fm + Deezer enrichment, run in parallel.
+  //
+  // After Spotify removed `popularity` and `followers` in Feb 2026 we map:
+  //   popularity ← Last.fm `stats.listeners` (non-negative integer)
+  //   followers  ← Deezer  `nb_fan`
+  // Last.fm `listeners` doubles as a fallback for `followers` if Deezer
+  // has no entry for the artist. Different scale, but a non-zero
+  // reach number is better than a blank field for the UI.
+  const [lastFmStats, deezerFanCount] = await Promise.all([
+    fetchLastFmArtistStats(artistName),
+    fetchDeezerArtistFanCount(artistName),
+  ]);
+
+  if (lastFmStats) {
+    profile.bioSummary = lastFmStats.bioSummary;
+    profile.scrobbles = lastFmStats.scrobbles;
+    profile.similarArtists = lastFmStats.similarArtists;
+    profile.popularity = lastFmStats.listeners;
+  }
+
+  profile.followers = deezerFanCount ?? lastFmStats?.listeners ?? null;
+
+  return profile;
+}
+
+interface LastFmStats {
+  bioSummary: string | null;
+  scrobbles: number | null;
+  listeners: number | null;
+  similarArtists: string[];
+}
+
+async function fetchLastFmArtistStats(artistName: string): Promise<LastFmStats | null> {
   const lastFmKey = process.env.LASTFM_API_KEY;
-  if (lastFmKey) {
-    const namesToTry = [artistName];
-    const primary = extractPrimaryArtist(artistName);
-    if (primary !== artistName) namesToTry.push(primary);
+  if (!lastFmKey) return null;
 
-    for (const name of namesToTry) {
-      try {
-        const lfRes = await fetchWithTimeout(
-          `${LASTFM_BASE}/?method=artist.getInfo&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(lastFmKey)}&format=json`,
-          {},
-          5000,
-        );
-        if (!lfRes.ok) continue;
+  const namesToTry = [artistName];
+  const primary = extractPrimaryArtist(artistName);
+  if (primary !== artistName) namesToTry.push(primary);
 
-        const lfData = (await lfRes.json()) as LastFmArtistInfo;
-        const artist = lfData.artist;
+  for (const name of namesToTry) {
+    try {
+      const lfRes = await fetchWithTimeout(
+        `${LASTFM_BASE}/?method=artist.getInfo&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(lastFmKey)}&format=json`,
+        {},
+        5000,
+      );
+      if (!lfRes.ok) continue;
 
-        if (artist) {
-          profile.bioSummary = extractBioSummary(artist.bio?.summary ?? null);
-          profile.scrobbles = artist.stats?.playcount ? parseInt(artist.stats.playcount, 10) : null;
-          profile.similarArtists = (artist.similar?.artist ?? []).slice(0, 3).map((a) => a.name);
-          break; // got data, stop trying
-        }
-      } catch (err) {
-        log.debug("ArtistInfo", "Last.fm artist info error:", err instanceof Error ? err.message : String(err));
+      const lfData = (await lfRes.json()) as LastFmArtistInfo;
+      const artist = lfData.artist;
+
+      if (artist) {
+        return {
+          bioSummary: extractBioSummary(artist.bio?.summary ?? null),
+          scrobbles: artist.stats?.playcount ? parseInt(artist.stats.playcount, 10) : null,
+          listeners: artist.stats?.listeners ? parseInt(artist.stats.listeners, 10) : null,
+          similarArtists: (artist.similar?.artist ?? []).slice(0, 3).map((a) => a.name),
+        };
       }
+    } catch (err) {
+      log.debug("ArtistInfo", "Last.fm artist info error:", err instanceof Error ? err.message : String(err));
     }
   }
 
-  return profile;
+  return null;
+}
+
+async function fetchDeezerArtistFanCount(artistName: string): Promise<number | null> {
+  try {
+    const res = await fetchWithTimeout(
+      `${DEEZER_BASE}/search/artist?q=${encodeURIComponent(artistName)}&limit=1`,
+      {},
+      5000,
+    );
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as DeezerArtistSearch;
+    const artistId = data.data?.[0]?.id;
+    if (!artistId) return null;
+
+    return await fetchDeezerFanCount(String(artistId));
+  } catch (err) {
+    log.debug(
+      "ArtistInfo",
+      "Deezer fan-count error:",
+      err instanceof Error ? err.message : String(err),
+    );
+    return null;
+  }
 }
 
 function pickSpotifyImage(images: SpotifyImage[]): string | null {

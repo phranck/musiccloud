@@ -62,7 +62,11 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
             </div>
           )}
           <p className="text-sm text-text-secondary">
-            {formatCount(profile.followers)} {t("artist.spotifyFollowers")}
+            {profile.followers != null && (
+              <>
+                {formatCount(profile.followers)} {t("artist.spotifyFollowers")}
+              </>
+            )}
             {profile.scrobbles != null && ` \u00B7 ${formatCount(profile.scrobbles)} ${t("artist.lastfmPlays")}`}
           </p>
           {profile.similarArtists.length > 0 && (

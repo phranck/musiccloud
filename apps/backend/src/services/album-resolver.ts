@@ -102,6 +102,12 @@ export interface ResolvedAlbumLink {
   /** Artwork URL from the resolved album (used for artwork fallback) */
   artworkUrl?: string;
   /**
+   * Record label from the resolved album. Drives the `label` backfill
+   * when the source adapter does not return one (e.g. Spotify after the
+   * Feb-2026 removal of `album.label`).
+   */
+  label?: string;
+  /**
    * UPC reported by this service for the album. May differ from the
    * source album's UPC for regional re-issues. Drives the
    * `album_external_ids` aggregation.
@@ -219,6 +225,11 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
     if (artworkLink?.artworkUrl) {
       sourceAlbum = { ...sourceAlbum, artworkUrl: artworkLink.artworkUrl };
     }
+  }
+
+  if (!sourceAlbum.label) {
+    const label = pickLabelFromLinks(allLinks);
+    if (label) sourceAlbum = { ...sourceAlbum, label };
   }
 
   return {
@@ -359,6 +370,7 @@ async function resolveAlbumOnService(
           externalId: album.sourceId,
           topTrackPreviewUrl: album.topTrackPreviewUrl,
           artworkUrl: album.artworkUrl,
+          label: album.label,
           upc: album.upc,
         };
       }
@@ -425,8 +437,24 @@ async function resolveAlbumViaSearch(
     externalId: album.sourceId,
     topTrackPreviewUrl: album.topTrackPreviewUrl,
     artworkUrl: album.artworkUrl,
+    label: album.label,
     upc: album.upc,
   };
+}
+
+/**
+ * Pick a record label from cross-service links. Deezer first (free,
+ * keyless, broad coverage), Apple Music second (recordLabel from
+ * /v1/catalog/.../albums), then any other adapter that surfaced one.
+ *
+ * Returns undefined when no adapter provided a label.
+ */
+function pickLabelFromLinks(links: ResolvedAlbumLink[]): string | undefined {
+  return (
+    links.find((l) => l.service === "deezer" && l.label)?.label ??
+    links.find((l) => l.service === "apple-music" && l.label)?.label ??
+    links.find((l) => l.label)?.label
+  );
 }
 
 // ─── Cross-service resolution ─────────────────────────────────────────────────
@@ -568,6 +596,14 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
     }
   }
 
+  // 6b. Same idea for label: Spotify removed `album.label` in Feb 2026,
+  // and not every adapter returns one. Borrow from Deezer first
+  // (keyless, broad), Apple Music second.
+  if (!sourceAlbum.label) {
+    const label = pickLabelFromLinks(links);
+    if (label) sourceAlbum = { ...sourceAlbum, label };
+  }
+
   // 7. Add source service link
   links.unshift({
     service: sourceAdapter.id,
@@ -632,6 +668,11 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
           if (artworkLink?.artworkUrl) {
             sourceAlbum = { ...sourceAlbum, artworkUrl: artworkLink.artworkUrl };
           }
+        }
+
+        if (!sourceAlbum.label) {
+          const label = pickLabelFromLinks(links);
+          if (label) sourceAlbum = { ...sourceAlbum, label };
         }
 
         links.unshift({

@@ -82,13 +82,28 @@ import { youtubePlugin } from "./youtube/index.js";
  * The static, build-time list of all resolve plugins. New adapters are
  * added by appending to this array (after creating the plugin directory
  * and its `<svc>Plugin` barrel).
+ *
+ * Order is the resolver chain order: `getActiveAdapters` preserves it,
+ * and the resolver walks the chain top-to-bottom, so the first three
+ * positions matter for cross-service-resolve quality.
+ *
+ * Top-three rationale (post-Spotify-Feb-2026):
+ *  - **Deezer**: keyless, ISRC-fähig, exposes `label` and `nb_fan`,
+ *    broad preview-URL coverage. Already the preview-refresh source.
+ *  - **Apple Music**: ISRC + UPC reliably, `recordLabel`, broad catalog.
+ *  - **Tidal**: ISRC, hi-res coverage, decoupled from Spotify risk.
+ *
+ * Spotify drops to the end of the major-adapter block. It stays active
+ * for: Spotify URL detection (URL-based identifyService is order-
+ * independent), cross-service Spotify links from any other resolver
+ * hit, and as a last-fallback ISRC lookup when earlier adapters miss.
  */
 const PLUGINS: readonly ServicePlugin[] = [
-  spotifyPlugin,
-  appleMusicPlugin,
-  youtubePlugin,
   deezerPlugin,
+  appleMusicPlugin,
   tidalPlugin,
+  youtubePlugin,
+  spotifyPlugin,
   audiusPlugin,
   napsterPlugin,
   soundcloudPlugin,

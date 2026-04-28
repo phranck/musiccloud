@@ -459,15 +459,27 @@ export const ArtistTopTrackSchema = {
 export const ArtistProfileSchema = {
   $id: "ArtistProfile",
   type: "object",
-  description: "Spotify + Last.fm enriched artist profile. Null when Spotify is not configured.",
+  description: "Spotify (id/image/genres) + Last.fm + Deezer enriched artist profile. Null when Spotify is not configured.",
   required: ["spotifyId", "imageUrl", "genres", "popularity", "followers", "bioSummary", "scrobbles", "similarArtists"],
   additionalProperties: false,
   properties: {
     spotifyId: { type: "string" },
     imageUrl: { type: "string", nullable: true, format: "uri" },
     genres: { type: "array", items: { type: "string" }, maxItems: 3, description: "Up to 3 Spotify genres." },
-    popularity: { type: "integer", minimum: 0, maximum: 100, description: "Spotify popularity score [0..100]." },
-    followers: { type: "integer", minimum: 0, description: "Spotify follower count." },
+    popularity: {
+      type: "integer",
+      nullable: true,
+      minimum: 0,
+      description:
+        "Reach surrogate. Last.fm `stats.listeners` (Spotify removed `popularity` in Feb 2026). Null when no source returned a value.",
+    },
+    followers: {
+      type: "integer",
+      nullable: true,
+      minimum: 0,
+      description:
+        "Fan count. Deezer `nb_fan`, with Last.fm `listeners` as fallback (Spotify removed `followers` in Feb 2026). Null when no source returned a value.",
+    },
     bioSummary: {
       type: "string",
       nullable: true,
@@ -490,7 +502,7 @@ export const ArtistProfileSchema = {
     spotifyId: "26dSoYclwsYLMAKD3tpOr4",
     imageUrl: "https://i.scdn.co/image/ab6761610000e5eb6b3f4e4e2f8e4f6a3c8b2d0a",
     genres: ["synth-pop", "new wave", "pop rock"],
-    popularity: 70,
+    popularity: 1840321,
     followers: 2840192,
     bioSummary:
       "a-ha are a Norwegian synth-pop band formed in Oslo in 1982. The band was founded by Morten Harket, Magne Furuholmen and Paul Waaktaar-Savoy.",

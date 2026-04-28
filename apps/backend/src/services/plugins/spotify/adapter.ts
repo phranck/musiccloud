@@ -58,7 +58,10 @@ import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError } from "../../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
+import {
+  MATCH_MIN_CONFIDENCE,
+  SPOTIFY_SEARCH_LIMIT_MAX,
+} from "../../constants.js";
 import type {
   AdapterCapabilities,
   AlbumCapabilities,
@@ -305,7 +308,9 @@ export const spotifyAdapter = {
 
     log.debug("Spotify", "Search query string:", q);
 
-    const response = await spotifyFetch(`/search?type=track&q=${q}&limit=10`);
+    const response = await spotifyFetch(
+      `/search?type=track&q=${q}&limit=${SPOTIFY_SEARCH_LIMIT_MAX}`,
+    );
 
     log.debug("Spotify", "API response status:", response.status, response.ok);
 

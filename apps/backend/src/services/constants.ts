@@ -52,6 +52,19 @@ export const CANDIDATE_MIN_CONFIDENCE = 0.4;
 export const MAX_CANDIDATES = 8;
 
 /**
+ * Hard cap from Spotify Web API /search (effective 2026-02-11).
+ * MAX_CANDIDATES must stay <= this value or candidate lists will be
+ * silently truncated upstream.
+ */
+export const SPOTIFY_SEARCH_LIMIT_MAX = 10;
+
+if (MAX_CANDIDATES > SPOTIFY_SEARCH_LIMIT_MAX) {
+  throw new Error(
+    `MAX_CANDIDATES (${MAX_CANDIDATES}) exceeds SPOTIFY_SEARCH_LIMIT_MAX (${SPOTIFY_SEARCH_LIMIT_MAX})`,
+  );
+}
+
+/**
  * Confidence for synthesised "search on X" fallback links (currently
  * only the YouTube search fallback). Kept below `LINK_QUALITY_THRESHOLD`
  * on purpose: without the `isSearchFallback` bypass they would be
