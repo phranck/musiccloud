@@ -459,7 +459,8 @@ export const ArtistTopTrackSchema = {
 export const ArtistProfileSchema = {
   $id: "ArtistProfile",
   type: "object",
-  description: "Spotify (id/image/genres) + Last.fm + Deezer enriched artist profile. Null when Spotify is not configured.",
+  description:
+    "Spotify (id/image/genres) + Last.fm + Deezer enriched artist profile. Null when Spotify is not configured.",
   required: ["spotifyId", "imageUrl", "genres", "popularity", "followers", "bioSummary", "scrobbles", "similarArtists"],
   additionalProperties: false,
   properties: {

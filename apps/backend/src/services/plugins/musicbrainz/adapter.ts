@@ -59,10 +59,7 @@ const RELEASE_URL_REGEX = new RegExp(
   `(?:https?://)?(?:www\\.)?musicbrainz\\.org/(?:release|release-group)/(${MBID_REGEX_PART})`,
   "i",
 );
-const ARTIST_URL_REGEX = new RegExp(
-  `(?:https?://)?(?:www\\.)?musicbrainz\\.org/artist/(${MBID_REGEX_PART})`,
-  "i",
-);
+const ARTIST_URL_REGEX = new RegExp(`(?:https?://)?(?:www\\.)?musicbrainz\\.org/artist/(${MBID_REGEX_PART})`, "i");
 
 function userAgent(): string {
   const contact = process.env.MUSICBRAINZ_CONTACT ?? "musiccloud@layered.work";
@@ -79,7 +76,7 @@ async function mbFetch(endpoint: string): Promise<Response> {
 }
 
 function escapeLucene(value: string): string {
-  return value.replace(/["\\]/g, "").replace(/[+\-!(){}\[\]^~*?:/]/g, "\\$&");
+  return value.replace(/["\\]/g, "").replace(/[+\-!(){}[\]^~*?:/]/g, "\\$&");
 }
 
 function buildSearchClause(field: string, value: string): string {
@@ -297,7 +294,9 @@ export const musicbrainzAdapter = {
           .filter(Boolean)
           .join(" AND ");
 
-    const response = await mbFetch(`/recording?query=${encodeURIComponent(queryString)}&limit=${SEARCH_LIMIT}&fmt=json`);
+    const response = await mbFetch(
+      `/recording?query=${encodeURIComponent(queryString)}&limit=${SEARCH_LIMIT}&fmt=json`,
+    );
 
     if (!response.ok) {
       log.debug("MusicBrainz", "searchTrack failed:", response.status);
@@ -347,9 +346,7 @@ export const musicbrainzAdapter = {
   },
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
-    const response = await mbFetch(
-      `/release/${encodeURIComponent(albumId)}?inc=artists+labels+recordings&fmt=json`,
-    );
+    const response = await mbFetch(`/release/${encodeURIComponent(albumId)}?inc=artists+labels+recordings&fmt=json`);
 
     if (response.status === 404) {
       throw serviceNotFoundError(SERVICE.MUSICBRAINZ, RESOURCE_KIND.ALBUM, albumId);

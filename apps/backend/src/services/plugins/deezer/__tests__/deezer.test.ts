@@ -365,7 +365,9 @@ describe("Deezer: searchTrackWithCandidates", () => {
       title: `Track ${i}`,
       artist: { id: i, name: `Artist ${i}` },
     }));
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: items, total: 5 }), { status: 200 }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: items, total: 5 }), { status: 200 }),
+    );
 
     const freeText = "anything goes";
     const result = await deezerAdapter.searchTrackWithCandidates({
@@ -425,7 +427,9 @@ describe("Deezer: searchTrackWithCandidates", () => {
       title: `Track ${i}`,
       artist: { id: i, name: `Artist ${i}` },
     }));
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: items, total: 10 }), { status: 200 }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: items, total: 10 }), { status: 200 }),
+    );
 
     const result = await deezerAdapter.searchTrackWithCandidates({
       title: "free text",

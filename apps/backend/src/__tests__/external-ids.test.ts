@@ -88,7 +88,9 @@ describe("collectAlbumExternalIds", () => {
   });
 
   it("drops 'cached' source and missing values", () => {
-    const records = collectAlbumExternalIds({ ...baseAlbum, sourceService: "cached", upc: "X" }, [{ service: "deezer" }]);
+    const records = collectAlbumExternalIds({ ...baseAlbum, sourceService: "cached", upc: "X" }, [
+      { service: "deezer" },
+    ]);
 
     expect(records).toEqual([]);
   });

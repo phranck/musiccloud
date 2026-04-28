@@ -794,7 +794,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
          url = EXCLUDED.url,
          expires_at = EXCLUDED.expires_at,
          observed_at = EXCLUDED.observed_at`,
-      [`${trackId}-${observation.service}`, trackId, observation.service, observation.url, observation.expiresAt ?? null, now],
+      [
+        `${trackId}-${observation.service}`,
+        trackId,
+        observation.service,
+        observation.url,
+        observation.expiresAt ?? null,
+        now,
+      ],
     );
   }
 
@@ -824,7 +831,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
          url = EXCLUDED.url,
          expires_at = EXCLUDED.expires_at,
          observed_at = EXCLUDED.observed_at`,
-      [`${albumId}-${observation.service}`, albumId, observation.service, observation.url, observation.expiresAt ?? null, now],
+      [
+        `${albumId}-${observation.service}`,
+        albumId,
+        observation.service,
+        observation.url,
+        observation.expiresAt ?? null,
+        now,
+      ],
     );
   }
 
