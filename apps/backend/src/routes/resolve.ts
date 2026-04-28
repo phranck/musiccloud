@@ -368,10 +368,10 @@ async function persistTrackAndRespond(
     }
   }
 
-  // Persist per-(track, service) preview URLs into `track_previews`
-  // alongside the legacy `tracks.preview_url` write inside
-  // `persistTrackWithLinks`. Two-step rollout: PR 2 drops the legacy
-  // column once this dual-write release is stable in prod.
+  // Persist per-(track, service) preview URLs into `track_previews`.
+  // The canonical `tracks` row no longer carries a preview column; reads
+  // pull the best preview from `track_previews` via subquery in the
+  // adapter SELECTs.
   for (const link of result.links) {
     if (!link.previewUrl) continue;
     const expiresAtMs = getPreviewExpiry(link.previewUrl, link.service);
@@ -424,7 +424,12 @@ async function persistTrackAndRespond(
     try {
       const deezerTrack = await deezerAdapter.findByIsrc(result.sourceTrack.isrc);
       if (deezerTrack?.previewUrl) {
-        await repo.updatePreviewUrl(trackId, deezerTrack.previewUrl);
+        const expiresAtMs = getPreviewExpiry(deezerTrack.previewUrl, "deezer");
+        await repo.upsertTrackPreview(trackId, {
+          service: "deezer",
+          url: deezerTrack.previewUrl,
+          expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
+        });
         previewUrl = deezerTrack.previewUrl;
       }
     } catch (err) {
@@ -486,9 +491,13 @@ async function persistAlbumAndRespond(
   const repo = await getRepository();
 
   let previewUrl = result.sourceAlbum.topTrackPreviewUrl;
+  let previewService: string | null = previewUrl ? (result.sourceAlbum.sourceService ?? null) : null;
   if (!previewUrl) {
     const deezerLink = result.links.find((l) => l.service === "deezer" && l.topTrackPreviewUrl);
-    if (deezerLink?.topTrackPreviewUrl) previewUrl = deezerLink.topTrackPreviewUrl;
+    if (deezerLink?.topTrackPreviewUrl) {
+      previewUrl = deezerLink.topTrackPreviewUrl;
+      previewService = "deezer";
+    }
   }
 
   const { albumId, shortId } = await repo.persistAlbumWithLinks({
@@ -505,6 +514,22 @@ async function persistAlbumAndRespond(
       externalId: l.externalId,
     })),
   });
+
+  // Persist the resolved album preview into `album_previews`. The
+  // canonical `albums` row no longer carries a preview column; reads
+  // pull the best preview from `album_previews` via subquery.
+  if (previewUrl && previewService) {
+    const expiresAtMs = getPreviewExpiry(previewUrl, previewService);
+    try {
+      await repo.upsertAlbumPreview(albumId, {
+        service: previewService,
+        url: previewUrl,
+        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
+      });
+    } catch (err) {
+      log.debug("Resolve", "Album preview persist failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
 
   if (result.externalIds.length > 0) {
     try {

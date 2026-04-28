@@ -313,7 +313,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT
         t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
+        t.duration_ms, t.release_date, t.is_explicit,
+        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
         sl.url, sl.service, sl.confidence, sl.match_method,
         su.id as short_id, t.created_at, t.updated_at
@@ -336,7 +337,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT
         t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
+        t.duration_ms, t.release_date, t.is_explicit,
+        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
         sl.url, sl.service, sl.confidence, sl.match_method,
         su.id as short_id, t.created_at, t.updated_at
@@ -380,7 +382,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       const searchResult = await this.pool.query(
         `SELECT
           t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
-          t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
+          t.duration_ms, t.release_date, t.is_explicit,
+        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
           t.source_service, t.source_url,
           t.created_at, t.updated_at
         FROM tracks t
@@ -438,7 +441,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT
         t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
+        t.duration_ms, t.release_date, t.is_explicit,
+        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
         sl.url, sl.service, sl.confidence, sl.match_method,
         su.id as short_id, t.created_at, t.updated_at
@@ -458,7 +462,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT
         t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
+        t.duration_ms, t.release_date, t.is_explicit,
+        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
         sl.url, sl.service, sl.confidence, sl.match_method,
         su.id as short_id, t.created_at, t.updated_at
@@ -523,7 +528,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
           `UPDATE tracks SET
             title = $2, artists = $3, album_name = $4, artwork_url = $5,
             duration_ms = $6, release_date = $7, is_explicit = $8,
-            preview_url = $9, updated_at = $10
+            updated_at = $9
           WHERE id = $1`,
           [
             trackId,
@@ -534,7 +539,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             data.sourceTrack.durationMs ?? null,
             data.sourceTrack.releaseDate ?? null,
             data.sourceTrack.isExplicit ? 1 : 0,
-            data.sourceTrack.previewUrl ?? null,
             now,
           ],
         );
@@ -543,9 +547,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         await client.query(
           `INSERT INTO tracks (
             id, title, artists, album_name, isrc, artwork_url, duration_ms,
-            release_date, is_explicit, preview_url, source_service, source_url,
+            release_date, is_explicit, source_service, source_url,
             created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
           [
             trackId,
             data.sourceTrack.title,
@@ -556,7 +560,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             data.sourceTrack.durationMs ?? null,
             data.sourceTrack.releaseDate ?? null,
             data.sourceTrack.isExplicit ? 1 : 0,
-            data.sourceTrack.previewUrl ?? null,
             data.sourceTrack.sourceService ?? null,
             data.sourceTrack.sourceUrl ?? null,
             now,
@@ -727,7 +730,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT
         t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
+        t.duration_ms, t.release_date, t.is_explicit,
+        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
         sl.url, sl.service, sl.confidence, sl.match_method,
         su.id as short_id, t.created_at, t.updated_at
@@ -748,7 +752,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT
         a.id, a.title, a.artists, a.release_date, a.total_tracks,
-        a.artwork_url, a.label, a.upc, a.source_service, a.source_url, a.preview_url,
+        a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
+        (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
         asl.url as link_url, asl.service, asl.confidence, asl.match_method,
         asu.id as short_id, a.created_at, a.updated_at
       FROM albums a
@@ -946,7 +951,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT
         a.id, a.title, a.artists, a.release_date, a.total_tracks,
-        a.artwork_url, a.label, a.upc, a.source_service, a.source_url, a.preview_url,
+        a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
+        (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
         asl.url as link_url, asl.service, asl.confidence, asl.match_method,
         asu.id as short_id, a.created_at, a.updated_at
       FROM albums a
@@ -966,7 +972,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT
         a.id, a.title, a.artists, a.release_date, a.total_tracks,
-        a.artwork_url, a.label, a.upc, a.source_service, a.source_url, a.preview_url,
+        a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
+        (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
         asl.url as link_url, asl.service, asl.confidence, asl.match_method,
         asu.id as short_id, a.created_at, a.updated_at
       FROM albums a
@@ -1054,7 +1061,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         await client.query(
           `UPDATE albums SET
             title = $2, artists = $3, release_date = $4, total_tracks = $5,
-            artwork_url = $6, label = $7, preview_url = $8, updated_at = $9
+            artwork_url = $6, label = $7, updated_at = $8
           WHERE id = $1`,
           [
             albumId,
@@ -1064,7 +1071,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             data.sourceAlbum.totalTracks ?? null,
             data.sourceAlbum.artworkUrl ?? null,
             data.sourceAlbum.label ?? null,
-            data.sourceAlbum.previewUrl ?? null,
             now,
           ],
         );
@@ -1073,9 +1079,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         await client.query(
           `INSERT INTO albums (
             id, title, artists, release_date, total_tracks, artwork_url,
-            label, upc, source_service, source_url, preview_url,
+            label, upc, source_service, source_url,
             created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             albumId,
             data.sourceAlbum.title,
@@ -1087,7 +1093,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
             data.sourceAlbum.upc ?? null,
             data.sourceAlbum.sourceService ?? null,
             data.sourceAlbum.sourceUrl ?? null,
-            data.sourceAlbum.previewUrl ?? null,
             now,
             now,
           ],
@@ -1645,7 +1650,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async getTrackById(id: string) {
     const trackResult = await this.pool.query(
       `SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
+        t.duration_ms, t.release_date, t.is_explicit,
+        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url, t.created_at,
         su.id as short_id
       FROM tracks t
@@ -2185,7 +2191,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const result = await this.pool.query(
       `SELECT
         t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
+        t.duration_ms, t.release_date, t.is_explicit,
+        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
         sl.url, sl.service,
         su.id as short_id
@@ -2215,10 +2222,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       shortId,
       artistDisplay,
     };
-  }
-
-  async updatePreviewUrl(trackId: string, url: string): Promise<void> {
-    await this.pool.query(`UPDATE tracks SET preview_url = $1 WHERE id = $2`, [url, trackId]);
   }
 
   // ============================================================================

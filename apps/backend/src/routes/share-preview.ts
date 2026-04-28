@@ -16,7 +16,7 @@ import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
-import { isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
+import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
 
 export default async function sharePreviewRoutes(app: FastifyInstance) {
@@ -75,7 +75,12 @@ export default async function sharePreviewRoutes(app: FastifyInstance) {
       try {
         const deezerTrack = await deezerAdapter.findByIsrc(data.track.isrc);
         if (deezerTrack?.previewUrl) {
-          await repo.updatePreviewUrl(data.trackId, deezerTrack.previewUrl);
+          const expiresAtMs = getPreviewExpiry(deezerTrack.previewUrl, "deezer");
+          await repo.upsertTrackPreview(data.trackId, {
+            service: "deezer",
+            url: deezerTrack.previewUrl,
+            expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
+          });
           return reply.send({ previewUrl: deezerTrack.previewUrl });
         }
       } catch (err) {
