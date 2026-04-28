@@ -99,6 +99,37 @@ export const trackExternalIds = pgTable(
   ],
 );
 
+// Per-(track, service) preview URL with explicit expiry. Hosts the only
+// genuinely time-sensitive field that used to live on `tracks.preview_url`,
+// the field that forced the legacy 48 h CACHE_TTL gate on the entire row.
+// Pulling it out of `tracks` lets the canonical track row stay
+// permanently fresh and have the preview refreshed lazily on demand.
+//
+// `expires_at` is `null` when the URL has no parseable expiry (most
+// services serve permanent CDN URLs). Deezer signs preview URLs with
+// `hdnea=exp=<unix>` and gets a real expiry stamped at write time.
+//
+// UNIQUE(track_id, service) + ON CONFLICT REPLACE keeps one row per
+// emitter; refreshing a Deezer preview overwrites the URL in place
+// rather than appending a new row.
+export const trackPreviews = pgTable(
+  "track_previews",
+  {
+    id: text("id").primaryKey(),
+    trackId: text("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    service: text("service").notNull(),
+    url: text("url").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_track_previews_track_service").on(table.trackId, table.service),
+    index("idx_track_previews_track").on(table.trackId),
+  ],
+);
+
 export const shortUrls = pgTable(
   "short_urls",
   {
@@ -180,6 +211,26 @@ export const albumExternalIds = pgTable(
     ),
     index("idx_album_external_ids_lookup").on(table.idType, table.idValue),
     index("idx_album_external_ids_album").on(table.albumId),
+  ],
+);
+
+// Album-level mirror of `track_previews`. See header on track_previews
+// for design rationale.
+export const albumPreviews = pgTable(
+  "album_previews",
+  {
+    id: text("id").primaryKey(),
+    albumId: text("album_id")
+      .notNull()
+      .references(() => albums.id, { onDelete: "cascade" }),
+    service: text("service").notNull(),
+    url: text("url").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_album_previews_album_service").on(table.albumId, table.service),
+    index("idx_album_previews_album").on(table.albumId),
   ],
 );
 

@@ -41,6 +41,8 @@ import type {
   PersistAlbumData,
   PersistArtistData,
   PersistTrackData,
+  PreviewObservation,
+  PreviewRow,
   SharePageAlbumResult,
   SharePageArtistResult,
   SharePageDbResult,
@@ -760,6 +762,70 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     if (result.rows.length === 0) return null;
     return this.buildCachedAlbumResult(result.rows as AlbumWithLinkRow[]);
+  }
+
+  // ============================================================================
+  // PREVIEW URLS (TrackRepository) — migration 0021
+  // ============================================================================
+
+  async findTrackPreviews(trackId: string): Promise<PreviewRow[]> {
+    const result = await this.pool.query(
+      `SELECT service, url, expires_at, observed_at
+       FROM track_previews
+       WHERE track_id = $1`,
+      [trackId],
+    );
+    return (result.rows as Array<{ service: string; url: string; expires_at: Date | null; observed_at: Date }>).map(
+      (r) => ({
+        service: r.service,
+        url: r.url,
+        expiresAt: r.expires_at,
+        observedAt: r.observed_at,
+      }),
+    );
+  }
+
+  async upsertTrackPreview(trackId: string, observation: PreviewObservation): Promise<void> {
+    const now = new Date();
+    await this.pool.query(
+      `INSERT INTO track_previews (id, track_id, service, url, expires_at, observed_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (track_id, service) DO UPDATE SET
+         url = EXCLUDED.url,
+         expires_at = EXCLUDED.expires_at,
+         observed_at = EXCLUDED.observed_at`,
+      [`${trackId}-${observation.service}`, trackId, observation.service, observation.url, observation.expiresAt ?? null, now],
+    );
+  }
+
+  async findAlbumPreviews(albumId: string): Promise<PreviewRow[]> {
+    const result = await this.pool.query(
+      `SELECT service, url, expires_at, observed_at
+       FROM album_previews
+       WHERE album_id = $1`,
+      [albumId],
+    );
+    return (result.rows as Array<{ service: string; url: string; expires_at: Date | null; observed_at: Date }>).map(
+      (r) => ({
+        service: r.service,
+        url: r.url,
+        expiresAt: r.expires_at,
+        observedAt: r.observed_at,
+      }),
+    );
+  }
+
+  async upsertAlbumPreview(albumId: string, observation: PreviewObservation): Promise<void> {
+    const now = new Date();
+    await this.pool.query(
+      `INSERT INTO album_previews (id, album_id, service, url, expires_at, observed_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (album_id, service) DO UPDATE SET
+         url = EXCLUDED.url,
+         expires_at = EXCLUDED.expires_at,
+         observed_at = EXCLUDED.observed_at`,
+      [`${albumId}-${observation.service}`, albumId, observation.service, observation.url, observation.expiresAt ?? null, now],
+    );
   }
 
   // ============================================================================

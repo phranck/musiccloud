@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CACHE_TTL_MS } from "@/lib/config";
 import { ResolveError } from "@/lib/resolve/errors";
 import type { CachedTrackResult, TrackRepository } from "../db/repository";
 import type { MatchResult, NormalizedTrack, SearchResultWithCandidates, ServiceAdapter } from "../services/types";
@@ -106,6 +105,10 @@ function createMockRepository(): TrackRepository {
     loadAlbumByShortId: vi.fn().mockResolvedValue(null),
     persistAlbumWithLinks: vi.fn().mockResolvedValue({ albumId: "aid1", shortId: "alb" }),
     addLinksToAlbum: vi.fn().mockResolvedValue(undefined),
+    findTrackPreviews: vi.fn().mockResolvedValue([]),
+    upsertTrackPreview: vi.fn().mockResolvedValue(undefined),
+    findAlbumPreviews: vi.fn().mockResolvedValue([]),
+    upsertAlbumPreview: vi.fn().mockResolvedValue(undefined),
     updateTrackTimestamp: vi.fn().mockResolvedValue(undefined),
     cleanupStaleCache: vi.fn().mockResolvedValue(0),
     close: vi.fn().mockResolvedValue(undefined),
@@ -398,29 +401,28 @@ describe("resolveQuery: cache behavior", () => {
     expect(result.links.length).toBe(2);
   });
 
-  it("should re-query adapters when cache TTL has expired", async () => {
+  it("returns the cached row regardless of updated_at age (post-migration 0021)", async () => {
+    // Pre-migration logic invalidated the row at 48 h. Post-migration the
+    // canonical track row never expires; only `track_previews.expires_at`
+    // drives lazy refreshes. A row with a year-old `updated_at` must
+    // still hit cache cleanly.
     const cachedTrack = createMockTrack();
-    const expiredTimestamp = Date.now() - CACHE_TTL_MS - 1000; // past TTL
+    const veryOldTimestamp = Date.now() - 365 * 24 * 60 * 60 * 1000; // 1 year ago
 
-    // Cache lookup returns expired entry
     vi.mocked(mockRepo.findTrackByUrl).mockResolvedValue({
       trackId: "tid1",
-      updatedAt: expiredTimestamp,
+      updatedAt: veryOldTimestamp,
       track: cachedTrack,
       links: [
         { service: "spotify", url: "https://open.spotify.com/track/track123", confidence: 1.0, matchMethod: "isrc" },
       ],
     } satisfies CachedTrackResult);
 
-    // Also make findTrackByIsrc return null so it doesn't short-circuit
-    vi.mocked(mockRepo.findTrackByIsrc).mockResolvedValue(null);
-
-    const sourceTrack = createMockTrack();
     const spotifyAdapter = createMockAdapter({
       id: "spotify",
       displayName: "Spotify",
       detectUrl: vi.fn(() => "track123"),
-      getTrack: vi.fn().mockResolvedValue(sourceTrack),
+      getTrack: vi.fn(),
     });
 
     vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
@@ -428,9 +430,8 @@ describe("resolveQuery: cache behavior", () => {
 
     const result = await resolveQuery("https://open.spotify.com/track/track123");
 
-    // Should call getTrack since cache was expired
-    expect(spotifyAdapter.getTrack).toHaveBeenCalledWith("track123");
-    expect(result.sourceTrack.title).toBe("Bohemian Rhapsody");
+    expect(spotifyAdapter.getTrack).not.toHaveBeenCalled();
+    expect(result.trackId).toBe("tid1");
   });
 });
 
