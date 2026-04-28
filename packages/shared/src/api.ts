@@ -249,8 +249,13 @@ export interface ArtistProfile {
   spotifyId: string;
   imageUrl: string | null;
   genres: string[]; // max 3 (Spotify)
-  popularity: number; // 0–100 (Spotify)
-  followers: number; // Spotify follower count
+  // Spotify removed `artist.popularity` and `artist.followers` in Feb 2026.
+  // popularity now reflects Last.fm `stats.listeners` (non-negative integer,
+  // not the old 0–100 scale). followers reflects Deezer `nb_fan` (with
+  // Last.fm listeners as a fallback surrogate). Both null when no source
+  // returned a value.
+  popularity: number | null;
+  followers: number | null;
   // Last.fm enrichment (null if LASTFM_API_KEY not set)
   bioSummary: string | null;
   scrobbles: number | null;
