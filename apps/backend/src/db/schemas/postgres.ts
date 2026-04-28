@@ -69,6 +69,36 @@ export const serviceLinks = pgTable(
   ],
 );
 
+// Multi-source external identifier aggregation for tracks. The canonical
+// `tracks.isrc` column stores the primary value used for fast lookups; this
+// table additionally records every (id_type, id_value, source_service)
+// triple observed during cross-service resolves. Allows a single track to
+// carry many ISRCs (regional variants, re-releases) plus future ID classes
+// (MBID, ISWC, AcoustID) without further migrations.
+export const trackExternalIds = pgTable(
+  "track_external_ids",
+  {
+    id: text("id").primaryKey(),
+    trackId: text("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    idType: text("id_type").notNull(),
+    idValue: text("id_value").notNull(),
+    sourceService: text("source_service").notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_track_external_ids_unique").on(
+      table.trackId,
+      table.idType,
+      table.idValue,
+      table.sourceService,
+    ),
+    index("idx_track_external_ids_lookup").on(table.idType, table.idValue),
+    index("idx_track_external_ids_track").on(table.trackId),
+  ],
+);
+
 export const shortUrls = pgTable(
   "short_urls",
   {
@@ -127,6 +157,32 @@ export const albumServiceLinks = pgTable(
   ],
 );
 
+// Album-level counterpart to `track_external_ids`. Aggregates UPC/EAN/MBID
+// values observed across services for a given album.
+export const albumExternalIds = pgTable(
+  "album_external_ids",
+  {
+    id: text("id").primaryKey(),
+    albumId: text("album_id")
+      .notNull()
+      .references(() => albums.id, { onDelete: "cascade" }),
+    idType: text("id_type").notNull(),
+    idValue: text("id_value").notNull(),
+    sourceService: text("source_service").notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_album_external_ids_unique").on(
+      table.albumId,
+      table.idType,
+      table.idValue,
+      table.sourceService,
+    ),
+    index("idx_album_external_ids_lookup").on(table.idType, table.idValue),
+    index("idx_album_external_ids_album").on(table.albumId),
+  ],
+);
+
 export const albumShortUrls = pgTable(
   "album_short_urls",
   {
@@ -178,6 +234,32 @@ export const artistServiceLinks = pgTable(
   (table) => [
     uniqueIndex("idx_artist_service_links_artist_service").on(table.artistId, table.service),
     index("idx_artist_service_links_service_external").on(table.service, table.externalId),
+  ],
+);
+
+// Artist-level counterpart to `track_external_ids` / `album_external_ids`.
+// Aggregates MBID/Discogs/ISNI values observed across services.
+export const artistExternalIds = pgTable(
+  "artist_external_ids",
+  {
+    id: text("id").primaryKey(),
+    artistId: text("artist_id")
+      .notNull()
+      .references(() => artists.id, { onDelete: "cascade" }),
+    idType: text("id_type").notNull(),
+    idValue: text("id_value").notNull(),
+    sourceService: text("source_service").notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_artist_external_ids_unique").on(
+      table.artistId,
+      table.idType,
+      table.idValue,
+      table.sourceService,
+    ),
+    index("idx_artist_external_ids_lookup").on(table.idType, table.idValue),
+    index("idx_artist_external_ids_artist").on(table.artistId),
   ],
 );
 

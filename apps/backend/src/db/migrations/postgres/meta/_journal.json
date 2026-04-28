@@ -134,6 +134,20 @@
       "when": 1777505000000,
       "tag": "0018_i18n_content",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1777506000000,
+      "tag": "0019_external_ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1777507000000,
+      "tag": "0020_external_ids_backfill",
+      "breakpoints": true
     }
   ]
 }

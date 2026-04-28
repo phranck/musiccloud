@@ -127,6 +127,7 @@ import {
   MAX_CANDIDATES,
   SEARCH_FALLBACK_CONFIDENCE,
 } from "./constants.js";
+import { collectTrackExternalIds } from "./external-ids.js";
 import {
   filterDisabledLinks,
   getActiveAdapters,
@@ -134,7 +135,14 @@ import {
   identifyServiceIncludingDisabled,
   isPluginEnabled,
 } from "./index.js";
-import type { MatchResult, NormalizedTrack, SearchCandidate, ServiceAdapter, ServiceId } from "./types.js";
+import type {
+  ExternalIdRecord,
+  MatchResult,
+  NormalizedTrack,
+  SearchCandidate,
+  ServiceAdapter,
+  ServiceId,
+} from "./types.js";
 import { isValidServiceId } from "./types.js";
 
 export interface ResolvedLink {
@@ -149,6 +157,13 @@ export interface ResolvedLink {
   externalId?: string;
   /** 30-second audio preview URL from this service (if available) */
   previewUrl?: string;
+  /**
+   * ISRC reported by this service for the track. May differ from the
+   * source track's ISRC for regional variants / re-releases — that is
+   * precisely the surface we want to aggregate. Optional because not
+   * every adapter exposes an ISRC for every match.
+   */
+  isrc?: string;
 }
 
 export interface ResolutionResult {
@@ -157,6 +172,14 @@ export interface ResolutionResult {
   trackId?: string; // present when loaded from cache
   /** Set when the original input was a short/redirect link (e.g. link.deezer.com/s/…) that was expanded. */
   inputUrl?: string;
+  /**
+   * External-id observations harvested across every adapter contacted
+   * during the resolve. Persisted into `track_external_ids` so the
+   * aggregation grows beyond the single canonical `tracks.isrc`.
+   * Always present; empty array when the resolve produced no IDs
+   * (e.g. cache hit where re-collection is skipped).
+   */
+  externalIds: ExternalIdRecord[];
 }
 
 export interface TextSearchResult {
@@ -199,7 +222,7 @@ async function tryCache(lookup: { url?: string; isrc?: string }): Promise<Resolu
     const links = mapCachedLinks(cached.links);
     log.debug("Resolver", `Cache hit: ${links.length} links, age=${Math.round(age / 60000)}min`);
 
-    return { sourceTrack: cached.track, links, trackId: cached.trackId };
+    return { sourceTrack: cached.track, links, trackId: cached.trackId, externalIds: [] };
   } catch (error) {
     log.error("Resolver", `Cache read failed: ${error instanceof Error ? error.message : error}`);
     return null;
@@ -278,7 +301,12 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
     sourceTrack = { ...sourceTrack, previewUrl: anyGapPreview.previewUrl };
   }
 
-  return { sourceTrack, links: await filterDisabledLinks(allLinks), trackId: cached.trackId };
+  return {
+    sourceTrack,
+    links: await filterDisabledLinks(allLinks),
+    trackId: cached.trackId,
+    externalIds: collectTrackExternalIds(sourceTrack, newLinks),
+  };
 }
 
 /**
@@ -476,7 +504,11 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     }
   }
 
-  return withAlias({ sourceTrack, links });
+  return withAlias({
+    sourceTrack,
+    links,
+    externalIds: collectTrackExternalIds(sourceTrack, links),
+  });
 }
 
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
@@ -506,7 +538,11 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
           externalId: result.track.sourceId,
         });
 
-        return { sourceTrack: result.track, links };
+        return {
+          sourceTrack: result.track,
+          links,
+          externalIds: collectTrackExternalIds(result.track, links),
+        };
       }
     } catch {}
   }
@@ -574,7 +610,14 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
             externalId: topCandidate.track.sourceId,
           });
 
-          return { kind: "resolved", result: { sourceTrack: topCandidate.track, links } };
+          return {
+            kind: "resolved",
+            result: {
+              sourceTrack: topCandidate.track,
+              links,
+              externalIds: collectTrackExternalIds(topCandidate.track, links),
+            },
+          };
         }
 
         // Return candidates for disambiguation
@@ -622,7 +665,14 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
           externalId: result.track.sourceId,
         });
 
-        return { kind: "resolved", result: { sourceTrack: result.track, links } };
+        return {
+          kind: "resolved",
+          result: {
+            sourceTrack: result.track,
+            links,
+            externalIds: collectTrackExternalIds(result.track, links),
+          },
+        };
       }
     } catch {}
   }
@@ -674,7 +724,11 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
     externalId: sourceTrack.sourceId,
   });
 
-  return { sourceTrack, links };
+  return {
+    sourceTrack,
+    links,
+    externalIds: collectTrackExternalIds(sourceTrack, links),
+  };
 }
 
 async function resolveAcrossServices(
@@ -772,6 +826,7 @@ async function resolveOnService(adapter: ServiceAdapter, sourceTrack: Normalized
         matchMethod: "isrc",
         externalId: track.sourceId,
         previewUrl: track.previewUrl,
+        isrc: track.isrc,
       };
     }
   }
@@ -797,6 +852,7 @@ async function resolveViaSearch(adapter: ServiceAdapter, sourceTrack: Normalized
     matchMethod: result.matchMethod,
     externalId: result.track.sourceId,
     previewUrl: result.track.previewUrl,
+    isrc: result.track.isrc,
   };
 }
 
@@ -960,7 +1016,11 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
     bestSourceTrack = { ...bestSourceTrack, artworkUrl: scraped.artworkUrl };
   }
 
-  return { sourceTrack: bestSourceTrack, links };
+  return {
+    sourceTrack: bestSourceTrack,
+    links,
+    externalIds: collectTrackExternalIds(bestSourceTrack, links),
+  };
 }
 
 // ─── Last.fm URL → text query ──────────────────────────────────────────────

@@ -49,6 +49,23 @@ export { isValidServiceId } from "@musiccloud/shared";
 /** ServiceId plus "cached" for tracks loaded from the database cache */
 export type TrackSource = ServiceId | "cached";
 
+/**
+ * Single observation of an external identifier — an ISRC/UPC/MBID/AcoustID
+ * value reported by one specific adapter for a given entity. Resolvers
+ * collect these across every contacted adapter so the persistence layer
+ * can write them into the `*_external_ids` aggregation tables. The same
+ * identifier value reported by multiple services produces multiple
+ * records (each carries its own `sourceService`); deduplication happens
+ * via the unique index on `(entity_id, idType, idValue, sourceService)`.
+ */
+export interface ExternalIdRecord {
+  /** Identifier class. Track: 'isrc' | 'iswc' | 'mbid' | 'acoustid'. Album: 'upc' | 'ean' | 'mbid'. Artist: 'mbid' | 'discogs' | 'isni'. */
+  idType: string;
+  idValue: string;
+  /** ServiceId or `crawler:<name>` when introduced by a background crawler. */
+  sourceService: string;
+}
+
 export interface NormalizedTrack {
   isrc?: string;
   sourceService: TrackSource;

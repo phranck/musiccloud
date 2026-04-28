@@ -37,6 +37,7 @@ import type {
   CachedAlbumResult,
   CachedArtistResult,
   CachedTrackResult,
+  ExternalIdRecord,
   PersistAlbumData,
   PersistArtistData,
   PersistTrackData,
@@ -327,6 +328,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   }
 
   async findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
+    // Fast path: canonical column. Single-column index `idx_tracks_isrc`
+    // takes the hit first because most tracks have their primary ISRC
+    // there from persistence-time.
     const result = await this.pool.query(
       `SELECT
         t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
@@ -342,8 +346,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       [isrc],
     );
 
-    if (result.rows.length === 0) return null;
-    return this.buildCachedResult(result.rows as TrackWithLinkRow[]);
+    if (result.rows.length > 0) {
+      return this.buildCachedResult(result.rows as TrackWithLinkRow[]);
+    }
+
+    // Fallback: aggregation table. Catches regional-variant ISRCs that
+    // a different service reported during a prior cross-service resolve
+    // but are not the canonical value persisted on `tracks.isrc`.
+    return this.findTrackByExternalId("isrc", isrc);
   }
 
   async findTracksByTextSearch(query: string, maxResults: number = 10): Promise<NormalizedTrack[]> {
@@ -647,6 +657,112 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   }
 
   // ============================================================================
+  // EXTERNAL-ID AGGREGATION (TrackRepository) — migration 0019
+  // ============================================================================
+
+  async addTrackExternalIds(trackId: string, records: ExternalIdRecord[]): Promise<void> {
+    if (records.length === 0) return;
+    await this.insertExternalIds("track_external_ids", "track_id", trackId, records);
+  }
+
+  async addAlbumExternalIds(albumId: string, records: ExternalIdRecord[]): Promise<void> {
+    if (records.length === 0) return;
+    await this.insertExternalIds("album_external_ids", "album_id", albumId, records);
+  }
+
+  async addArtistExternalIds(artistId: string, records: ExternalIdRecord[]): Promise<void> {
+    if (records.length === 0) return;
+    await this.insertExternalIds("artist_external_ids", "artist_id", artistId, records);
+  }
+
+  /**
+   * Idempotent multi-row insert helper. The unique index on the four
+   * (entity_id, id_type, id_value, source_service) columns makes
+   * `ON CONFLICT DO NOTHING` swallow duplicate observations cleanly,
+   * which is exactly what we want for re-resolves of the same track.
+   */
+  private async insertExternalIds(
+    table: "track_external_ids" | "album_external_ids" | "artist_external_ids",
+    fkColumn: "track_id" | "album_id" | "artist_id",
+    entityId: string,
+    records: ExternalIdRecord[],
+  ): Promise<void> {
+    const constraintName = {
+      track_external_ids: "idx_track_external_ids_unique",
+      album_external_ids: "idx_album_external_ids_unique",
+      artist_external_ids: "idx_artist_external_ids_unique",
+    }[table];
+
+    const now = new Date();
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      for (const r of records) {
+        await client.query(
+          `INSERT INTO ${table} (id, ${fkColumn}, id_type, id_value, source_service, observed_at)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT ON CONSTRAINT ${constraintName} DO NOTHING`,
+          [
+            `${entityId}-${r.idType}-${r.sourceService}-${r.idValue.slice(-20)}`,
+            entityId,
+            r.idType,
+            r.idValue,
+            r.sourceService,
+            now,
+          ],
+        );
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async findTrackByExternalId(idType: string, idValue: string): Promise<CachedTrackResult | null> {
+    const result = await this.pool.query(
+      `SELECT
+        t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
+        t.duration_ms, t.release_date, t.is_explicit, t.preview_url,
+        t.source_service, t.source_url,
+        sl.url, sl.service, sl.confidence, sl.match_method,
+        su.id as short_id, t.created_at, t.updated_at
+      FROM tracks t
+      JOIN track_external_ids x ON x.track_id = t.id
+      LEFT JOIN service_links sl ON t.id = sl.track_id
+      LEFT JOIN short_urls su ON t.id = su.track_id
+      WHERE x.id_type = $1 AND x.id_value = $2
+      ORDER BY sl.created_at ASC`,
+      [idType, idValue],
+    );
+
+    if (result.rows.length === 0) return null;
+    return this.buildCachedResult(result.rows as TrackWithLinkRow[]);
+  }
+
+  async findAlbumByExternalId(idType: string, idValue: string): Promise<CachedAlbumResult | null> {
+    const result = await this.pool.query(
+      `SELECT
+        a.id, a.title, a.artists, a.release_date, a.total_tracks,
+        a.artwork_url, a.label, a.upc, a.source_service, a.source_url, a.preview_url,
+        asl.url as link_url, asl.service, asl.confidence, asl.match_method,
+        asu.id as short_id, a.created_at, a.updated_at
+      FROM albums a
+      JOIN album_external_ids x ON x.album_id = a.id
+      LEFT JOIN album_service_links asl ON a.id = asl.album_id
+      LEFT JOIN album_short_urls asu ON a.id = asu.album_id
+      WHERE x.id_type = $1 AND x.id_value = $2
+      ORDER BY asl.created_at ASC`,
+      [idType, idValue],
+    );
+
+    if (result.rows.length === 0) return null;
+    return this.buildCachedAlbumResult(result.rows as AlbumWithLinkRow[]);
+  }
+
+  // ============================================================================
   // ARTIST CACHE QUERIES (TrackRepository)
   // ============================================================================
 
@@ -766,6 +882,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   }
 
   async findAlbumByUpc(upc: string): Promise<CachedAlbumResult | null> {
+    // Fast path: canonical column.
     const result = await this.pool.query(
       `SELECT
         a.id, a.title, a.artists, a.release_date, a.total_tracks,
@@ -780,8 +897,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       [upc],
     );
 
-    if (result.rows.length === 0) return null;
-    return this.buildCachedAlbumResult(result.rows as AlbumWithLinkRow[]);
+    if (result.rows.length > 0) {
+      return this.buildCachedAlbumResult(result.rows as AlbumWithLinkRow[]);
+    }
+
+    // Fallback: aggregation table. Catches alternate UPCs (regional
+    // re-issues) recorded by other services.
+    return this.findAlbumByExternalId("upc", upc);
   }
 
   async findExistingAlbumByUpc(upc: string): Promise<{ albumId: string; shortId: string } | null> {
