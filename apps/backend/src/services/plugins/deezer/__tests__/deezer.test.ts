@@ -326,6 +326,127 @@ describe("Deezer: searchTrack", () => {
 });
 
 // =============================================================================
+// searchTrackWithCandidates
+// =============================================================================
+
+describe("Deezer: searchTrackWithCandidates", () => {
+  it("returns ranked candidates sorted by confidence descending", async () => {
+    const multiResults = {
+      data: [
+        // Position 0: weak title match — relies on free-text decay (0.85)
+        {
+          ...MOCK_DEEZER_TRACK,
+          id: 100,
+          title: "Get Lucky",
+          artist: { id: 27, name: "Daft Punk" },
+        },
+        // Position 1: exact title match — structured query path scores higher
+        MOCK_DEEZER_TRACK,
+      ],
+      total: 2,
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(multiResults), { status: 200 }));
+
+    const result = await deezerAdapter.searchTrackWithCandidates({
+      title: "Harder, Better, Faster, Stronger",
+      artist: "Daft Punk",
+    });
+
+    expect(result.candidates.length).toBeGreaterThan(0);
+    for (let i = 1; i < result.candidates.length; i++) {
+      expect(result.candidates[i - 1].confidence).toBeGreaterThanOrEqual(result.candidates[i].confidence);
+    }
+  });
+
+  it("free-text path scores by position decay (0.85, 0.80, 0.75, ...)", async () => {
+    const items = Array.from({ length: 5 }, (_, i) => ({
+      ...MOCK_DEEZER_TRACK,
+      id: 1000 + i,
+      title: `Track ${i}`,
+      artist: { id: i, name: `Artist ${i}` },
+    }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: items, total: 5 }), { status: 200 }));
+
+    const freeText = "anything goes";
+    const result = await deezerAdapter.searchTrackWithCandidates({
+      title: freeText,
+      artist: freeText,
+    });
+
+    // Free-text decay: top candidate is 0.85, last is at least 0.4 floor.
+    expect(result.candidates[0].confidence).toBeCloseTo(0.85, 5);
+    expect(result.candidates.at(-1)!.confidence).toBeGreaterThanOrEqual(0.4);
+  });
+
+  it("returns empty candidates on HTTP error", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("nope", { status: 500 }));
+
+    const result = await deezerAdapter.searchTrackWithCandidates({
+      title: "x",
+      artist: "y",
+    });
+
+    expect(result.candidates).toEqual([]);
+    expect(result.bestMatch.found).toBe(false);
+  });
+
+  it("returns empty candidates when Deezer returns API error envelope", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { type: "DataException", message: "no", code: 800 } }), { status: 200 }),
+    );
+
+    const result = await deezerAdapter.searchTrackWithCandidates({
+      title: "x",
+      artist: "y",
+    });
+
+    expect(result.candidates).toEqual([]);
+    expect(result.bestMatch.found).toBe(false);
+  });
+
+  it("returns empty candidates when Deezer returns no items", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: [], total: 0 }), { status: 200 }),
+    );
+
+    const result = await deezerAdapter.searchTrackWithCandidates({
+      title: "Nonexistent",
+      artist: "Nobody",
+    });
+
+    expect(result.candidates).toEqual([]);
+    expect(result.bestMatch.found).toBe(false);
+  });
+
+  it("caps the candidate list at MAX_CANDIDATES (8)", async () => {
+    const items = Array.from({ length: 10 }, (_, i) => ({
+      ...MOCK_DEEZER_TRACK,
+      id: 2000 + i,
+      title: `Track ${i}`,
+      artist: { id: i, name: `Artist ${i}` },
+    }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: items, total: 10 }), { status: 200 }));
+
+    const result = await deezerAdapter.searchTrackWithCandidates({
+      title: "free text",
+      artist: "free text",
+    });
+
+    expect(result.candidates.length).toBeLessThanOrEqual(8);
+  });
+
+  it("emits limit=10 in the search URL", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [], total: 0 }), { status: 200 }));
+
+    await deezerAdapter.searchTrackWithCandidates({ title: "x", artist: "y" });
+
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("limit=10");
+  });
+});
+
+// =============================================================================
 // metadata
 // =============================================================================
 
