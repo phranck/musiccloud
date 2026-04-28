@@ -1,4 +1,6 @@
-import type { NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "../services/types.js";
+import type { ExternalIdRecord, NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "../services/types.js";
+
+export type { ExternalIdRecord } from "../services/types.js";
 
 /** Cached track with its cross-service links (returned by URL/ISRC lookups) */
 export interface CachedTrackResult {
@@ -250,6 +252,23 @@ export interface TrackRepository {
 
   // URL aliases (short links that redirect to a canonical service URL)
   addTrackUrlAlias(url: string, trackId: string): Promise<void>;
+
+  // External-ID aggregation (track/album/artist) — see migration 0019.
+  // The unique index on (entity_id, id_type, id_value, source_service)
+  // makes the inserts idempotent: re-running a resolve doesn't create
+  // duplicate rows. Implementations are expected to use ON CONFLICT
+  // DO NOTHING and never throw on duplicate (entity_id, id_type, id_value,
+  // source_service) tuples.
+  addTrackExternalIds(trackId: string, records: ExternalIdRecord[]): Promise<void>;
+  addAlbumExternalIds(albumId: string, records: ExternalIdRecord[]): Promise<void>;
+  addArtistExternalIds(artistId: string, records: ExternalIdRecord[]): Promise<void>;
+
+  // Aggregation-table lookups. Used as fallback when the canonical
+  // column on the parent entity (`tracks.isrc` / `albums.upc`) doesn't
+  // hold the value being searched, but it lives in the aggregation
+  // table because another service reported it.
+  findTrackByExternalId(idType: string, idValue: string): Promise<CachedTrackResult | null>;
+  findAlbumByExternalId(idType: string, idValue: string): Promise<CachedAlbumResult | null>;
 
   // Maintenance
   updateTrackTimestamp(trackId: string): Promise<void>;

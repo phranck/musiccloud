@@ -76,8 +76,16 @@ import { CACHE_TTL_MS } from "../lib/config.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
+import { collectAlbumExternalIds } from "./external-ids.js";
 import { filterDisabledLinks, getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
-import type { AlbumMatchResult, AlbumSearchQuery, NormalizedAlbum, ServiceAdapter, ServiceId } from "./types.js";
+import type {
+  AlbumMatchResult,
+  AlbumSearchQuery,
+  ExternalIdRecord,
+  NormalizedAlbum,
+  ServiceAdapter,
+  ServiceId,
+} from "./types.js";
 import { isValidServiceId } from "./types.js";
 
 // ─── Public Types ───────────────────────────────────────────────────────────
@@ -93,12 +101,24 @@ export interface ResolvedAlbumLink {
   topTrackPreviewUrl?: string;
   /** Artwork URL from the resolved album (used for artwork fallback) */
   artworkUrl?: string;
+  /**
+   * UPC reported by this service for the album. May differ from the
+   * source album's UPC for regional re-issues. Drives the
+   * `album_external_ids` aggregation.
+   */
+  upc?: string;
 }
 
 export interface AlbumResolutionResult {
   sourceAlbum: NormalizedAlbum;
   links: ResolvedAlbumLink[];
   albumId?: string; // present when loaded from cache
+  /**
+   * External-id observations harvested across every adapter contacted
+   * during the album resolve. Persisted into `album_external_ids`.
+   * Always present; empty array when no IDs were collected.
+   */
+  externalIds: ExternalIdRecord[];
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -139,7 +159,7 @@ async function tryAlbumCache(lookup: { url?: string; upc?: string }): Promise<Al
     const links = mapCachedAlbumLinks(cached.links);
     log.debug("AlbumResolver", `Cache hit: ${links.length} links, age=${Math.round(age / 60000)}min`);
 
-    return { sourceAlbum: cached.album, links, albumId: cached.albumId };
+    return { sourceAlbum: cached.album, links, albumId: cached.albumId, externalIds: [] };
   } catch (error) {
     log.error("AlbumResolver", `Cache read failed: ${error instanceof Error ? error.message : error}`);
     return null;
@@ -201,7 +221,12 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
     }
   }
 
-  return { sourceAlbum, links: await filterDisabledLinks(allLinks), albumId: cached.albumId };
+  return {
+    sourceAlbum,
+    links: await filterDisabledLinks(allLinks),
+    albumId: cached.albumId,
+    externalIds: collectAlbumExternalIds(sourceAlbum, newLinks),
+  };
 }
 
 // ─── ISRC-based album inference ───────────────────────────────────────────────
@@ -334,6 +359,7 @@ async function resolveAlbumOnService(
           externalId: album.sourceId,
           topTrackPreviewUrl: album.topTrackPreviewUrl,
           artworkUrl: album.artworkUrl,
+          upc: album.upc,
         };
       }
     } catch (error) {
@@ -399,6 +425,7 @@ async function resolveAlbumViaSearch(
     externalId: album.sourceId,
     topTrackPreviewUrl: album.topTrackPreviewUrl,
     artworkUrl: album.artworkUrl,
+    upc: album.upc,
   };
 }
 
@@ -551,7 +578,11 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
     externalId: sourceAlbum.sourceId,
   });
 
-  return { sourceAlbum, links };
+  return {
+    sourceAlbum,
+    links,
+    externalIds: collectAlbumExternalIds(sourceAlbum, links),
+  };
 }
 
 /**
@@ -612,7 +643,11 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
           externalId: sourceAlbum.sourceId,
         });
 
-        return { sourceAlbum, links };
+        return {
+          sourceAlbum,
+          links,
+          externalIds: collectAlbumExternalIds(sourceAlbum, links),
+        };
       }
     } catch {}
   }

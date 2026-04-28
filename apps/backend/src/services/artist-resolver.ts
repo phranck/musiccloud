@@ -77,8 +77,16 @@ import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { stringSimilarity } from "../lib/resolve/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "./constants.js";
+import { collectArtistExternalIds } from "./external-ids.js";
 import { filterDisabledLinks, getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
-import type { ArtistMatchResult, ArtistSearchQuery, NormalizedArtist, ServiceAdapter, ServiceId } from "./types.js";
+import type {
+  ArtistMatchResult,
+  ArtistSearchQuery,
+  ExternalIdRecord,
+  NormalizedArtist,
+  ServiceAdapter,
+  ServiceId,
+} from "./types.js";
 import { isValidServiceId } from "./types.js";
 
 // --- Public Types ---
@@ -97,6 +105,14 @@ export interface ArtistResolutionResult {
   sourceArtist: NormalizedArtist;
   links: ResolvedArtistLink[];
   artistId?: string;
+  /**
+   * External-id observations harvested across every adapter contacted
+   * during the artist resolve. Persisted into `artist_external_ids`.
+   * Always present; empty array when no IDs were collected (no current
+   * adapter exposes artist-level MBIDs, but the channel is in place
+   * for the upcoming MusicBrainz adapter).
+   */
+  externalIds: ExternalIdRecord[];
 }
 
 // --- Constants ---
@@ -135,7 +151,7 @@ async function tryArtistCache(lookup: { url?: string; name?: string }): Promise<
     const links = mapCachedArtistLinks(cached.links);
     log.debug("ArtistResolver", `Cache hit: ${links.length} links, age=${Math.round(age / 60000)}min`);
 
-    return { sourceArtist: cached.artist, links, artistId: cached.artistId };
+    return { sourceArtist: cached.artist, links, artistId: cached.artistId, externalIds: [] };
   } catch (error) {
     log.error("ArtistResolver", `Cache read failed: ${error instanceof Error ? error.message : error}`);
     return null;
@@ -210,7 +226,12 @@ async function fillMissingArtistServices(cached: ArtistResolutionResult): Promis
     }
   }
 
-  return { sourceArtist, links: await filterDisabledLinks(allLinks), artistId: cached.artistId };
+  return {
+    sourceArtist,
+    links: await filterDisabledLinks(allLinks),
+    artistId: cached.artistId,
+    externalIds: collectArtistExternalIds(sourceArtist),
+  };
 }
 
 // --- Per-service resolution ---
@@ -419,7 +440,11 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
     externalId: sourceArtist.sourceId,
   });
 
-  return { sourceArtist, links };
+  return {
+    sourceArtist,
+    links,
+    externalIds: collectArtistExternalIds(sourceArtist),
+  };
 }
 
 /**
@@ -472,7 +497,11 @@ export async function resolveArtistTextSearch(query: string): Promise<ArtistReso
           externalId: sourceArtist.sourceId,
         });
 
-        return { sourceArtist, links };
+        return {
+          sourceArtist,
+          links,
+          externalIds: collectArtistExternalIds(sourceArtist),
+        };
       }
     } catch {
       // try next adapter

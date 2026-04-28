@@ -357,6 +357,17 @@ async function persistTrackAndRespond(
     })),
   });
 
+  // Aggregate every ISRC observed during the resolve into the
+  // `track_external_ids` table. Non-fatal: a write failure here must
+  // not break the user-facing resolve response.
+  if (result.externalIds.length > 0) {
+    try {
+      await repo.addTrackExternalIds(trackId, result.externalIds);
+    } catch (err) {
+      log.debug("Resolve", "External-id persist failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   // If the original input was a short link, save it as an alias for fast future lookups
   if (result.inputUrl) {
     try {
@@ -459,6 +470,14 @@ async function persistAlbumAndRespond(
     })),
   });
 
+  if (result.externalIds.length > 0) {
+    try {
+      await repo.addAlbumExternalIds(albumId, result.externalIds);
+    } catch (err) {
+      log.debug("Resolve", "Album external-id persist failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   const shortUrl = `${origin}/${shortId}`;
 
   return {
@@ -515,6 +534,14 @@ async function persistArtistAndRespond(
       externalId: l.externalId,
     })),
   });
+
+  if (result.externalIds.length > 0) {
+    try {
+      await repo.addArtistExternalIds(artistId, result.externalIds);
+    } catch (err) {
+      log.debug("Resolve", "Artist external-id persist failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
 
   const shortUrl = `${origin}/${shortId}`;
 

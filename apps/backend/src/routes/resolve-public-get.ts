@@ -257,6 +257,21 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
     })),
   });
 
+  // Aggregate ISRCs observed across services (see migration 0019).
+  // Non-fatal: write failure here must not turn a successful resolve
+  // into an error response.
+  if (result.externalIds.length > 0) {
+    try {
+      await repo.addTrackExternalIds(trackId, result.externalIds);
+    } catch (err) {
+      log.debug(
+        "ResolvePublicGet",
+        "External-id persist failed:",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   // `inputUrl` is set when the resolver expanded a short/redirect link (e.g.
   // link.deezer.com/s/…) to its canonical form. Remembering the original
   // lets a later request on that same short URL hit the cache. The alias is
