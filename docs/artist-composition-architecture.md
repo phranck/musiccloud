@@ -92,36 +92,7 @@ Last.fm) and returns `merged.topTracks`.
 separate domain (event listings, not artist identity), and the merge
 rules there are date+venue dedup, not source priority.
 
-## Adding a new source
-
-1. Add the name to `ArtistSource` in `types.ts`.
-2. Create `services/plugins/<source>/...` adapter helpers if not
-   already present.
-3. Create `services/artist-composition/sources/<source>-source.ts`:
-   compose helpers into a `Partial<CanonicalArtist>` tagged
-   `__source: "<source>"`.
-4. Include the source name in `ARTIST_MERGE_STRATEGY` for whichever
-   fields it produces. Position determines priority.
-5. Add the new partial fetch to `gatherArtistPartials` in
-   `services/artist-info.ts`.
-
-No `merge.ts` change needed.
-
-## Test layout
-
-- `__tests__/artist-composition/merge.test.ts` — pure-function tests
-  for the priority/fallback/missing-detection rules.
-- `__tests__/artist-composition/<source>-source.test.ts` — per-source
-  HTTP-mock tests; assert returned `Partial` shape.
-- `__tests__/artist-info.test.ts` — integration: profile + top-tracks
-  with all three sources mocked, plus outage paths.
-
-URL-routed mock dispatchers are used instead of
-`mockResolvedValueOnce` chains because `Promise.all` parallelism makes
-fetch ordering non-deterministic when `fetchWithTimeout` involves an
-async DNS check.
-
-## Relation to other plans
+## Relation to other subsystems
 
 - **Crawler layer.** Live since 2026-04-28. The crawler can emit
   `ArtistPartial`s tagged `__source: "musicbrainz"` (or another name)

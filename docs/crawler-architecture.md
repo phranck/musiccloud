@@ -97,12 +97,9 @@ Two candidate shapes:
 ## Registry pattern
 
 `SOURCES` in `crawler/registry.ts` is a build-time array literal,
-mirroring `services/plugins/registry.ts`. Adding a new source is two
-lines (import + push); removing one means deleting the import line, and
-the compiler flags any stale references.
-
-A row in `crawl_state` whose source id is no longer in the registry is
-ignored by the heartbeat (left in place for audit).
+mirroring `services/plugins/registry.ts`. A row in `crawl_state` whose
+source id is no longer in the registry is ignored by the heartbeat
+(left in place for audit).
 
 ## Schema
 
@@ -190,116 +187,7 @@ above — are excluded from the public OpenAPI document at
 in `server.ts` via the `@fastify/swagger` `transform` callback, which
 sets `hide: true` on any route whose URL starts with `/api/admin`.
 This is deliberate: the admin surface is reachable but not advertised
-to external API consumers. No per-route Fastify `schema` block is
-needed for crawler admin routes because the transform hides them
-regardless.
-
-## Operations playbook
-
-### Disable a misbehaving source
-
-```bash
-curl -X PATCH \
-  -H "Authorization: Bearer $ADMIN_JWT" \
-  -H "Content-Type: application/json" \
-  -d '{"enabled":false}' \
-  https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts
-```
-
-The heartbeat skips disabled rows on its next probe. The source
-auto-disables itself after 5 consecutive `consecutive_errors`; this is
-the manual override.
-
-### Re-enable after auto-disable
-
-```bash
-curl -X PATCH \
-  -H "Authorization: Bearer $ADMIN_JWT" \
-  -d '{"enabled":true}' \
-  https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts
-```
-
-`completeCrawlTick` resets `consecutive_errors` to 0 on the next
-successful tick, so a single recovery tick lifts the auto-disable
-threshold automatically next time.
-
-### Force a tick now (instead of waiting up to `intervalMinutes`)
-
-```bash
-curl -X POST \
-  -H "Authorization: Bearer $ADMIN_JWT" \
-  https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts/run-now
-```
-
-Sets `next_run_at = NOW()`. The next minute's heartbeat sees the row
-as due and ticks it.
-
-### Release a stuck lock
-
-```bash
-curl -X POST \
-  -H "Authorization: Bearer $ADMIN_JWT" \
-  https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts/release-lock
-```
-
-Stale-detection (`running_since < NOW() - 30min`) covers this
-automatically inside `acquireCrawlLock`. The manual endpoint is for the
-case where the operator does not want to wait the full 30-minute
-window.
-
-### Edit per-source config (e.g. extend Deezer genre list)
-
-```bash
-curl -X PATCH \
-  -H "Authorization: Bearer $ADMIN_JWT" \
-  -H "Content-Type: application/json" \
-  -d '{"config":{"genres":[0,132,116,152,113,165,153,144,75,84,464,129],"limit":100}}' \
-  https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts
-```
-
-The next tick reads the new config from `crawl_state.config`.
-
-### Inspect run history
-
-```bash
-curl -H "Authorization: Bearer $ADMIN_JWT" \
-  "https://admin.musiccloud.io/api/admin/crawler/runs?source=deezer-charts&page=1&limit=50"
-```
-
-Returns `CrawlerRunsPage` with paginated `CrawlerRunInfo[]`. `notes`
-carries the upstream error message for `status: 'error'` runs.
-
-## Manual smoke testing
-
-```bash
-# Local: run one tick against a dev DB.
-DATABASE_URL=postgres://... npm --workspace=@musiccloud/backend run crawler:tick
-```
-
-Expected: `crawl_state` and `crawl_runs` get rows for every registered
-source. Tracks land in `tracks` / `track_external_ids` /
-`track_previews` / `service_links` etc. as the resolver pipeline
-processes each candidate.
-
-```bash
-# Inspect: check what one tick produced.
-psql $DATABASE_URL -c "SELECT source, status, discovered, ingested, skipped, errors, started_at, finished_at FROM crawl_runs ORDER BY started_at DESC LIMIT 10;"
-```
-
-## Adding a new source
-
-1. Create `services/crawler/sources/<id>.ts` exporting one
-   `CrawlerSource` object.
-2. Append the import + push it onto `SOURCES` in `services/crawler/registry.ts`.
-3. Write a unit test under `services/crawler/sources/__tests__/<id>.test.ts`
-   that mocks `fetch` and asserts the candidate-parser output.
-4. (Optional) Document upstream rate-limit assumptions in the source
-   file's `@file` JSDoc.
-
-No migration is needed. The first heartbeat tick after deploy seeds a
-default `crawl_state` row via `seedCrawlState` (`ON CONFLICT DO NOTHING`).
-The admin UI can then toggle the source on / edit its `config` /
-trigger a `run-now`.
+to external API consumers.
 
 ## Failure handling
 
@@ -308,32 +196,19 @@ trigger a `run-now`.
   the tick continues with the next candidate.
 - **Per-source fetch failure** (HTTP 5xx, network exception): logged,
   `crawl_runs.status = 'error'`, `crawl_state.consecutive_errors` ++.
-  Auto-disable kicks in at 5; manual `enabled=true` re-arms the source.
-- **Stale lock** (`running_since` older than 30 minutes): treated as a
-  prior crash. Next heartbeat re-acquires the lock and ticks normally.
+  Auto-disable kicks in at 5; a successful tick resets the counter
+  back to zero.
+- **Stale lock** (`running_since` older than 30 minutes): treated as
+  a prior crash. The next heartbeat re-acquires the lock and ticks
+  normally.
 - **Cron container crash**: Zerops re-invokes the cron next minute.
-  Lock-stale-detection handles any half-finished tick.
+  Lock-stale-detection covers any half-finished tick.
 
 ## Observability
 
-- `crawl_runs` is the primary audit log. One row per tick that took the
-  lock; idle-but-not-due minutes write nothing.
-- Log lines use the `[Crawler:<source>]` prefix for grep-friendly tracing.
+- `crawl_runs` is the primary audit log. One row per tick that took
+  the lock; idle-but-not-due minutes write nothing.
+- Log lines use the `[Crawler:<source>]` prefix for grep-friendly
+  tracing.
 - The heartbeat itself logs nothing on idle ticks (avoids per-minute
   log noise).
-
-## Tests
-
-Unit tests live next to the code:
-
-- `services/crawler/__tests__/dedupe.test.ts` — repo-mocked URL/ISRC paths.
-- `services/crawler/__tests__/heartbeat.test.ts` — orchestration with
-  registry / repo / dedupe / ingest fully mocked.
-- `services/crawler/sources/__tests__/<id>.test.ts` — per-source
-  fetch-mock + candidate-parser assertions.
-
-Integration tests (skipped without `DATABASE_URL`):
-
-- `__tests__/crawl-state-repo.integration.test.ts` — `acquireCrawlLock`
-  null/held/stale paths, `completeCrawlTick` state transitions,
-  auto-disable threshold, `listDueCrawlState` filter.

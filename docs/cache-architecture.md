@@ -1,9 +1,7 @@
 # Cache architecture: static vs dynamic
 
 This document explains how the resolver cache splits canonical entity
-data from time-sensitive preview URLs. Read this before changing
-`resolver.ts`, `album-resolver.ts`, or any persistence path that
-touches `tracks` / `albums` / `artists`.
+data from time-sensitive preview URLs.
 
 ## The split
 
@@ -113,15 +111,3 @@ Future hooks (out of scope of the static-vs-dynamic plan):
 
 Both are tracked as out-of-scope items in the static-vs-dynamic plan.
 
-## Testing the split
-
-- Unit: `tryCache` returns the cached row regardless of `updated_at`
-  age (test in `__tests__/resolver.test.ts`).
-- Integration (requires `DATABASE_URL`): mirror
-  `external-ids-repo.integration.test.ts` for `track_previews` —
-  upsert by `(track_id, service)`, verify `ON CONFLICT REPLACE`,
-  verify `expires_at` round-trips.
-- Manual smoke: resolve a Spotify track, fake-tick `updated_at`
-  backwards in DB, resolve again — cache hit, no upstream calls,
-  preview refresh fires only when the `track_previews` row is
-  expired.
