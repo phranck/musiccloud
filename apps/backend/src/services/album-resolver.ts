@@ -627,9 +627,9 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
 }
 
 /**
- * Text-search entry point. Iterates adapters in Spotify-first order
- * (Spotify's album search is the most reliable), returns on the first
- * match. Caches by UPC before running cross-service resolve.
+ * Text-search entry point. Iterates adapters in registry order
+ * (`registry.ts` PLUGINS array), returns on the first match.
+ * Caches by UPC before running cross-service resolve.
  *
  * @param query - free-text album title (also used as artist in the
  *                search, since adapters accept both in one query field)
@@ -642,13 +642,7 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
     (a) => Boolean(a.albumCapabilities?.supportsAlbumSearch) && Boolean(a.searchAlbum),
   );
 
-  // Prioritize Spotify (most reliable album search)
-  const spotifyFirst = [
-    ...searchAdapters.filter((a) => a.id === "spotify"),
-    ...searchAdapters.filter((a) => a.id !== "spotify"),
-  ];
-
-  for (const adapter of spotifyFirst) {
+  for (const adapter of searchAdapters) {
     try {
       const result = await adapter.searchAlbum?.({
         title: query,
