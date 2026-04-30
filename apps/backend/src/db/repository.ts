@@ -300,6 +300,10 @@ export interface TrackRepository {
   updateTrackTimestamp(trackId: string): Promise<void>;
   cleanupStaleCache(ttlMs?: number): Promise<number>;
 
+  // Readiness probe: returns the subset of `expected` table names that are
+  // missing from the public schema (empty list = all present).
+  findMissingTables(expected: string[]): Promise<string[]>;
+
   // Artist cache (popular tracks, profile, tour dates)
   findArtistCache(artistName: string): Promise<ArtistCacheRow | null>;
   saveArtistCache(data: ArtistCacheData): Promise<void>;
