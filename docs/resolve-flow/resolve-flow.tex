@@ -1,12 +1,5 @@
 % =============================================================================
-% musiccloud Resolver-Flow
-%
-% Quelldokument der offiziellen Resolver-Layer-Dokumentation. Aus dieser
-% Datei erzeugt der Build-Prozess die PDF; eine Markdown-Fassung gibt es
-% nicht. Die Datei docs/resolve-flow/README.md ist nur ein kurzer Hinweis
-% mit Verweis auf die PDF.
-%
-% Bauen: make docs   →   docs/resolve-flow/resolve-flow.pdf
+% musiccloud Resolver-Flow — Quelldokument der Resolver-Doku.
 % =============================================================================
 
 \documentclass[11pt,a4paper]{article}
@@ -122,7 +115,7 @@ Diese Arbeit beschreibt den Aufbau des Resolvers und den Datenfluss
 durch seine Schichten: Eingangs-Endpunkte, Dispatcher, Cache-Stufen,
 Adapter-Aufrufe, die dienstübergreifende Suche und die Persistenz, an
 deren Ende ein stabiler Share-Kurzlink steht. Ziel ist eine Referenz
-für Wartung und Erweiterung des Systems.
+für die Architektur und das interne Verhalten des Resolvers.
 \end{abstract}
 
 \vspace{0.6em}
@@ -429,13 +422,13 @@ verwendet den vorhandenen Eintrag erneut.
 
 Bringt keine der drei Cache-Stufen einen Treffer, muss der
 Resolver herausfinden, zu welchem Dienst die URL gehört. Er
-befragt jedes installierte Plugin, auch jene, die der Betreiber
-gerade abgeschaltet hat. Das wirkt zunächst widersinnig, ist aber
+befragt jedes installierte Plugin, auch jene, die gerade
+abgeschaltet sind. Das wirkt zunächst widersinnig, ist aber
 beabsichtigt: Wer einen Tidal-Link einfügt, erfährt so im
 Fehlerfall, dass Tidal abgeschaltet ist, statt eine allgemeine
 Meldung wie \enquote{kein Musik-Link} zu erhalten. Welche Plugins
-aktiv sind, entscheidet der Betreiber; welcher Link eingefügt
-wird, der Nutzer. Die Fehlermeldung soll diesen Umstand
+aktiv sind, ist Konfigurationssache; welcher Link eingefügt
+wird, bestimmt der Nutzer. Die Fehlermeldung soll diesen Umstand
 widerspiegeln.
 
 Erkennt kein Plugin die URL, antwortet der Resolver mit der
@@ -522,10 +515,10 @@ nur dann, wenn das Ergebnis eindeutig ist, und gibt sonst
 % -----------------------------------------------------------------------------
 
 Der Resolver durchläuft die aktiven Adapter in einer festgelegten
-Reihenfolge. Ist Spotify konfiguriert, kommt es zuerst zum Zug,
-denn die Relevanzwertung der Spotify-Suche liefert die
-zuverlässigste Grundlage. Die übrigen Adapter dienen als
-Auffangnetz.
+Reihenfolge. Den Anfang machen ISRC-starke Quellen mit breiter
+Katalogabdeckung (Deezer, Apple Music, Tidal). Spotify rückt ans
+Ende der Hauptkette und dient nur noch als Fallback bei
+ISRC-Misses. Die übrigen Adapter bilden das Auffangnetz.
 
 Auch hier teilen sich die Adapter in zwei Gruppen, diesmal nach
 dem Verhalten ihrer Such-API. Manche liefern nur das beste
@@ -759,9 +752,8 @@ der Resolver eine eigene Konfidenzformel, die exakte Treffer,
 und reine Fuzzy-Treffer voneinander unterscheidet.
 
 Sämtliche Schwellwerte stehen in einem zentralen Konstantenmodul.
-Eine Verhaltensänderung ist somit eine Zahlenänderung in einer
-Datei und keine Suche nach Konstanten, die im Quellcode verstreut
-liegen.
+Diese zentrale Ablage hält das Konfidenz-Verhalten an einer
+einzigen Stelle nachvollziehbar.
 
 \begin{figure}[H]
   \centering
@@ -857,9 +849,8 @@ Route-Layer baut daraus die nutzersichtbare Antwort; der
 Crawler verbucht das Ergebnis lediglich als
 \enquote{ingestiert}.
 
-Album- und Artist-Persistenz haben eigene Hilfsfunktionen im
-Route-Layer. Sie sind noch nicht in den geteilten Kern überführt
-worden, weil es zurzeit keinen zweiten Verbraucher dafür gibt.
+Album- und Artist-Persistenz nutzen eigenständige Hilfsfunktionen
+im Route-Layer.
 
 % =============================================================================
 \section{Cache-Strategie an einer Stelle}
@@ -920,10 +911,11 @@ Textsuche ist; für Treffer per UPC oder per ISRC-Ableitung sind
 die Werte fest gesetzt.
 
 % =============================================================================
-\section{Hinweise für den Betrieb}
+\section{Designentscheidungen im Überblick}
 % =============================================================================
 
-Einige Punkte, die bei der Arbeit an dieser Schicht hilfreich sind:
+Mehrere Entwurfsentscheidungen prägen das Verhalten dieser Schicht
+maßgeblich:
 
 \paragraph{Adapter-Zeitschranke.} Die dienstübergreifende Suche
 lässt jeden Adapter-Aufruf gegen eine eigene Zeitschranke laufen.
@@ -945,11 +937,12 @@ oft nur für bekannte Crawler bereit. Der Open-Graph-Pfad gibt
 sich genau aus diesem Grund als ein solcher Crawler aus, um die
 servergerenderte Variante zu erhalten.
 
-\paragraph{Spotify zuerst bei der Textsuche.} Die Adapter werden
-in einer festen Reihenfolge durchgegangen. Spotify steht ganz
-vorn, sobald sein API-Schlüssel gesetzt ist, weil seine
-Relevanzwertung die zuverlässigste Grundlage bietet. Alle
-weiteren Adapter dienen als Auffangnetz.
+\paragraph{Reihenfolge der Adapter bei der Textsuche.} Die Adapter
+werden in einer festen Reihenfolge durchgegangen. Den Anfang
+machen ISRC-starke Quellen mit breiter Katalogabdeckung (Deezer,
+Apple Music, Tidal). Spotify rückt ans Ende der Hauptkette und
+dient nur noch als Fallback bei ISRC-Misses. Alle weiteren
+Adapter bilden das Auffangnetz.
 
 \paragraph{Statisch-dynamische Trennung.} Kanonische Einträge
 sind seit der Cache-Migration zeitlich unbegrenzt gültig. Was
@@ -958,9 +951,9 @@ Aktualitätsregeln. Diese Trennung hält den schnellen Pfad bei
 einem Cache-Treffer einfach.
 
 \paragraph{Schwellwerte an einer Stelle.} Alle Konfidenz-Werte
-liegen in einem einzigen Modul. Eine Verhaltensänderung ist
-deshalb eine Zahlenänderung in einer Datei statt einer Suche nach
-verstreuten Konstanten.
+liegen in einem einzigen Modul. Das Konfidenz-Verhalten ist
+dadurch an einer Stelle nachvollziehbar, statt über den Quellcode
+verteilt.
 
 \clearpage
 \theendnotes
