@@ -36,7 +36,7 @@ architecture write-ups are PDF documents typeset from LaTeX
 sources alongside their D2 diagram sources.
 
 - [Resolver Flow](docs/resolve-flow/) — architecture and data flow
-  through the resolve layer. PDF: [`resolve-flow.pdf`](docs/resolve-flow/resolve-flow.pdf).
+  through the resolve layer. PDF: [Deutsch](docs/resolve-flow/de/resolve-flow.pdf) / [English](docs/resolve-flow/en/resolve-flow.pdf).
 - [Cache architecture](docs/cache-architecture.md)
 - [Crawler architecture](docs/crawler-architecture.md)
 - [Artist composition](docs/artist-composition-architecture.md)
