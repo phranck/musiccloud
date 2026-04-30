@@ -1,0 +1,63 @@
+# URL flow, part 1: cache lookups and source identification.
+
+direction: down
+
+input: "URL input" {
+  shape: rectangle
+  style.fill: "#cce5ff"
+}
+
+strip1: "Strip tracking parameters" {
+  shape: step
+}
+
+expand: "Expand short links\nfollowing HTTP redirects" {
+  shape: step
+}
+
+strip2: "Strip tracking parameters again\n(short-link targets often\nre-inject query parameters)" {
+  shape: step
+}
+
+input -> strip1 -> expand -> strip2
+
+cache_url: "Cache lookup by canonical URL" {
+  shape: cylinder
+  style.fill: "#fff8e1"
+}
+
+cache_alias: "Cache lookup by original short-link\n(only when URL was expanded)" {
+  shape: cylinder
+  style.fill: "#fff8e1"
+}
+
+strip2 -> cache_url
+cache_url -> cache_alias: "miss"
+
+identify: "Identify source service\n(disabled-aware)" {
+  shape: diamond
+  style.fill: "#f5f5f5"
+}
+
+err_disabled: "Service-disabled error" {
+  shape: rectangle
+  style.fill: "#f8d7da"
+}
+
+err_unknown: "Unrecognised-URL error" {
+  shape: rectangle
+  style.fill: "#f8d7da"
+}
+
+cache_alias -> identify: "miss"
+identify -> err_disabled: "matched but disabled"
+identify -> err_unknown: "no adapter recognises"
+
+next: "Continue to fetch and expansion" {
+  shape: parallelogram
+  style.fill: "#d4edda"
+}
+
+identify -> next: "active adapter found"
+cache_url -> next: "hit, then gap-fill"
+cache_alias -> next: "hit"

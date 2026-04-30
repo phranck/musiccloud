@@ -1,0 +1,54 @@
+# Persistence, part 1: canonical write of track row, cross-service links, and short-url.
+
+direction: down
+
+input: "Resolved track payload" {
+  shape: rectangle
+  style.fill: "#cce5ff"
+}
+
+persist: "Persist canonical track row\nwith cross-service links" {
+  shape: step
+  style.fill: "#cce5ff"
+}
+
+input -> persist
+
+dedup: "Existing track found?\n(by ISRC or source URL)" {
+  shape: diamond
+  style.fill: "#f5f5f5"
+}
+
+persist -> dedup
+
+update: "Update metadata\non existing row" {
+  shape: rectangle
+}
+
+insert: "Insert new track row\nwith fresh identifiers" {
+  shape: rectangle
+}
+
+dedup -> update: "yes"
+dedup -> insert: "no"
+
+upsert_links: "Upsert cross-service links\n(idempotent on the\nentity-and-service pair)" {
+  shape: rectangle
+  style.fill: "#fff3cd"
+}
+
+update -> upsert_links
+insert -> upsert_links
+
+short_url: "Insert share short-url\n(only when track is new)" {
+  shape: rectangle
+}
+
+upsert_links -> short_url
+
+next: "Continue to auxiliary writes" {
+  shape: parallelogram
+  style.fill: "#d4edda"
+}
+
+short_url -> next: "transaction commit"

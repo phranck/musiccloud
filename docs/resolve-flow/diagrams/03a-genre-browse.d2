@@ -1,0 +1,50 @@
+# Genre browse mode: curated grid of popular tags with cover-art probes.
+
+direction: down
+
+input: "Genre browse request" {
+  shape: rectangle
+  style.fill: "#d4edda"
+}
+
+cache: "Browse-grid cache\n(24-hour in-memory lifetime)" {
+  shape: cylinder
+  style.fill: "#fff8e1"
+}
+
+input -> cache
+
+top_tags: "Fetch popular genre tags" {
+  shape: step
+}
+
+filter: "Filter non-genre tags\n(countries, decades,\ninstruments, collections)" {
+  shape: step
+}
+
+dedupe: "Canonicalise spelling variants\nso genres collapse onto\na single key" {
+  shape: step
+}
+
+cache -> top_tags: "miss"
+top_tags -> filter -> dedupe
+
+probe: "Probe each candidate\nfor available cover art\nand drop empty genres" {
+  shape: step
+}
+
+dedupe -> probe
+
+artwork_url: "Tile artwork served lazily\nby a separate route" {
+  shape: step
+}
+
+probe -> artwork_url: "tile has cover"
+
+response: "Browse-grid payload" {
+  shape: parallelogram
+  style.fill: "#d4edda"
+}
+
+artwork_url -> response
+cache -> response: "hit"

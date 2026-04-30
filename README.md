@@ -29,6 +29,19 @@ This repository is published for **transparency**. It is not intended as a self-
 - **Native Apple app.** macOS, iOS and iPadOS app with a share extension, so you can create share links right from your streaming app of choice.
 - **Public API.** Third parties can integrate musiccloud through a [documented API](https://api.musiccloud.io/docs).
 
+## Documentation
+
+All public documentation lives in [`docs/`](docs/). The detailed
+architecture write-ups are PDF documents typeset from LaTeX
+sources alongside their D2 diagram sources.
+
+- [Resolver Flow](docs/resolve-flow/) — architecture and data flow
+  through the resolve layer. PDF: [`resolve-flow.pdf`](docs/resolve-flow/resolve-flow.pdf).
+- [Cache architecture](docs/cache-architecture.md)
+- [Crawler architecture](docs/crawler-architecture.md)
+- [Artist composition](docs/artist-composition-architecture.md)
+- Runbooks: [Spotify](docs/spotify-runbook.md), [MusicBrainz](docs/musicbrainz-runbook.md)
+
 ## Supported streaming services
 
 Apple Music, Audiomack, Audius, Bandcamp, Beatport, Boomplay, Bugs, Deezer, JioSaavn, KKBOX, Melon, Napster, Netease, Pandora, QQ Music, Qobuz, SoundCloud, Spotify, Tidal, YouTube.

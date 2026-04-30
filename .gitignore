@@ -42,6 +42,14 @@ DerivedData/
 *.dSYM
 *.dSYM.zip
 
+# LaTeX / Pandoc temp (docs PDF build)
+*.aux
+*.log
+*.toc
+*.out
+*.fls
+*.fdb_latexmk
+
 # Hosting
 .vercel/
 

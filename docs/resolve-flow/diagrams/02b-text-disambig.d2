@@ -1,0 +1,50 @@
+# Free-text search, part 2: disambiguation list and follow-up round-trip.
+
+direction: down
+
+input: "From initial pass\n(top candidate below auto-select)" {
+  shape: parallelogram
+  style.fill: "#fff3cd"
+}
+
+disambiguation: "Disambiguation candidate list\n(filtered by minimum confidence,\ncapped at maximum count)" {
+  shape: parallelogram
+  style.fill: "#fff3cd"
+}
+
+input -> disambiguation
+
+follow_up: "Authenticated follow-up\nwith chosen candidate" {
+  shape: hexagon
+  style.fill: "#cce5ff"
+}
+
+disambiguation -> follow_up: "client picks one,\nposts back next round-trip" {
+  style.stroke-dash: 4
+}
+
+selected: "Resolve the selected candidate" {
+  shape: step
+}
+
+follow_up -> selected
+
+cache_isrc: "Cache lookup by ISRC" {
+  shape: cylinder
+  style.fill: "#fff8e1"
+}
+
+cross: "Cross-service expansion" {
+  shape: cloud
+  style.fill: "#cce5ff"
+}
+
+resolved: "Resolved track payload" {
+  shape: parallelogram
+  style.fill: "#cce5ff"
+}
+
+selected -> cache_isrc: "post-fetch ISRC dedup"
+cache_isrc -> cross: "miss"
+cross -> resolved
+cache_isrc -> resolved: "hit"

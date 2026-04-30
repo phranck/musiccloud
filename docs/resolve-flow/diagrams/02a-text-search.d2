@@ -1,0 +1,74 @@
+# Free-text search, part 1: initial pass across active adapters.
+
+direction: down
+
+input: "Free-text query" {
+  shape: rectangle
+  style.fill: "#fff3cd"
+}
+
+iterate: "Iterate active adapters" {
+  shape: step
+}
+
+input -> iterate
+
+has_candidates: "Adapter exposes\ncandidate-list search?" {
+  shape: diamond
+  style.fill: "#f5f5f5"
+}
+
+candidates_path: "Candidate-list search" {
+  shape: rectangle
+}
+
+simple_path: "Simple single-result search\n(adapter fallback)" {
+  shape: rectangle
+}
+
+iterate -> has_candidates
+has_candidates -> candidates_path: "yes"
+has_candidates -> simple_path: "no"
+
+confidence_check: "Top candidate confidence\nabove auto-select threshold?" {
+  shape: diamond
+  style.fill: "#f5f5f5"
+}
+
+candidates_path -> confidence_check
+
+cache_isrc: "Cache lookup by ISRC" {
+  shape: cylinder
+  style.fill: "#fff8e1"
+}
+
+cross: "Cross-service expansion" {
+  shape: cloud
+  style.fill: "#cce5ff"
+}
+
+resolved: "Resolved track payload" {
+  shape: parallelogram
+  style.fill: "#cce5ff"
+}
+
+simple_path -> cache_isrc: "match found,\nconfidence ok"
+confidence_check -> cache_isrc: "yes (auto-select)"
+
+cache_isrc -> cross: "miss"
+cross -> resolved
+cache_isrc -> resolved: "hit"
+
+err_not_found: "Track-not-found error" {
+  shape: rectangle
+  style.fill: "#f8d7da"
+}
+
+iterate -> err_not_found: "all adapters exhausted"
+
+disambig_out: "Continue to disambiguation flow" {
+  shape: parallelogram
+  style.fill: "#fff3cd"
+}
+
+confidence_check -> disambig_out: "no"
