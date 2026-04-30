@@ -36,7 +36,9 @@ export default async function genreArtworkRoutes(app: FastifyInstance) {
         tags: ["Services"],
         summary: "Procedurally generated genre artwork",
         description:
-          "Returns a 512×512 JPEG rendered on the fly from the genre's top Last.fm album cover color. Deterministic per genre, cached permanently after first generation.",
+          "Returns a 512×512 JPEG rendered on the fly from the genre's top Last.fm album cover color. Deterministic per genre, cached permanently after first generation. " +
+          "**Exempt from the 10 requests/minute per-IP quota** that applies to other public endpoints — the frontend loads tiles in parallel from a Browse grid. " +
+          "The global 300 requests/minute ceiling still applies.",
         params: {
           type: "object",
           required: ["genreKey"],
