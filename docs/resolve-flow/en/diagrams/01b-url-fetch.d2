@@ -1,0 +1,68 @@
+# URL flow, part 2: metadata fetch, cross-service expansion, finalisation.
+
+direction: down
+
+start: "From cache lookup and identification" {
+  shape: parallelogram
+  style.fill: "#d4edda"
+}
+
+extract: "Extract track identifier from URL" {
+  shape: step
+}
+
+err_invalid: "Invalid-URL error" {
+  shape: rectangle
+  style.fill: "#f8d7da"
+}
+
+start -> extract
+extract -> err_invalid: "no identifier extractable"
+
+fetch: "Fetch track metadata\nfrom source service" {
+  shape: step
+  style.fill: "#cce5ff"
+}
+
+scrape: "Fallback: scrape page\nfor Open Graph meta tags" {
+  shape: step
+  style.fill: "#fff3cd"
+}
+
+extract -> fetch: "identifier extracted"
+fetch -> scrape: "credentialed adapter\nthrew, fall back"
+
+cache_isrc: "Cache lookup by ISRC\n(post-fetch dedup for the same\nrecording reached via a different URL)" {
+  shape: cylinder
+  style.fill: "#fff8e1"
+}
+
+cross: "Cross-service expansion" {
+  shape: cloud
+  style.fill: "#cce5ff"
+}
+
+fetch -> cache_isrc
+cache_isrc -> cross: "miss"
+
+enrich_artwork: "Artwork fallback chain\n(if source service\nreturned no artwork)" {
+  shape: step
+  style.fill: "#fff3cd"
+}
+
+prefer_stable: "Prefer the most stable preview source\n(permanent CDN URLs over signed URLs)" {
+  shape: step
+  style.fill: "#fff3cd"
+}
+
+cross -> enrich_artwork
+enrich_artwork -> prefer_stable
+
+result: "Resolved track payload" {
+  shape: parallelogram
+  style.fill: "#cce5ff"
+}
+
+cache_isrc -> result: "hit"
+prefer_stable -> result
+scrape -> result: "scrape ok"

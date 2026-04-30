@@ -1,0 +1,101 @@
+# Cross-service expansion: try every other adapter for the same recording.
+
+direction: down
+
+input: "Source track\n+ source adapter" {
+  shape: rectangle
+  style.fill: "#cce5ff"
+}
+
+active: "Active adapter set\n(enabled and credentialed)" {
+  shape: step
+}
+
+input -> active
+
+filter_self: "Exclude the source adapter\nfrom the target list" {
+  shape: step
+}
+
+active -> filter_self
+
+per_adapter: "Per remaining adapter:\nrun in parallel with timeout" {
+  shape: step
+}
+
+filter_self -> per_adapter
+
+isrc_strategy: "Strategy 1: lookup by ISRC\n(when adapter supports it\nand track has an ISRC)" {
+  shape: rectangle
+  style.fill: "#cce5ff"
+}
+
+search_strategy: "Strategy 2: text search\nby title and artist" {
+  shape: rectangle
+  style.fill: "#fff3cd"
+}
+
+per_adapter -> isrc_strategy: "first preference"
+isrc_strategy -> search_strategy: "no ISRC match"
+
+confidence_filter: "Filter low-confidence matches\n(except synthetic search fallbacks)" {
+  shape: diamond
+  style.fill: "#f5f5f5"
+}
+
+per_adapter -> confidence_filter: "all settled"
+
+derive_yt_music: "Derive YouTube Music link\n(same channel / video id\non a sister hostname)" {
+  shape: step
+}
+
+confidence_filter -> derive_yt_music
+
+yt_search_fallback: "Synthetic search-fallback link\nwhen no direct video match" {
+  shape: step
+  style.fill: "#fff3cd"
+}
+
+derive_yt_music -> yt_search_fallback
+
+sort: "Sort by confidence" {
+  shape: step
+}
+
+yt_search_fallback -> sort
+
+result: "Resolved cross-service links" {
+  shape: parallelogram
+  style.fill: "#cce5ff"
+}
+
+sort -> result
+
+# Variants for albums and artists
+
+album_variant: "Album variant" {
+  shape: cloud
+  style.fill: "#e2d4f0"
+}
+
+album_strategies: "Strategies in order:\nUPC lookup,\nISRC inference (sample\nthe tracklist and vote\non the album name),\ntext search" {
+  shape: rectangle
+}
+
+album_variant -> album_strategies
+
+artist_variant: "Artist variant" {
+  shape: cloud
+  style.fill: "#e2d4f0"
+}
+
+artist_scoring: "Name-similarity confidence\nformula with bonuses for\nexact match and prefix-stripped\nequivalence" {
+  shape: rectangle
+}
+
+artist_variant -> artist_scoring
+
+constants: "Confidence thresholds\nlive in one shared\nconstants module" {
+  shape: rectangle
+  style.fill: "#fff8e1"
+}

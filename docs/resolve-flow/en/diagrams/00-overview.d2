@@ -1,0 +1,101 @@
+# Top-level dispatcher: which sub-flow handles the incoming query?
+
+direction: down
+
+client: "HTTP client" {
+  shape: person
+}
+
+post: "Authenticated resolve endpoint" {
+  shape: hexagon
+  style.fill: "#cce5ff"
+}
+
+get: "Unauthenticated resolve endpoint" {
+  shape: hexagon
+  style.fill: "#fff3cd"
+}
+
+client -> post: "with bearer token or API key"
+client -> get: "no auth, rate-limited"
+
+dispatcher: "Detect query shape" {
+  shape: diamond
+  style.fill: "#f5f5f5"
+}
+
+post -> dispatcher
+get -> dispatcher
+
+genre_browse: "Genre browse query" {
+  shape: rectangle
+  style.fill: "#d4edda"
+}
+genre_search: "Genre search query" {
+  shape: rectangle
+  style.fill: "#d4edda"
+}
+selected: "Disambiguation follow-up\n(authenticated only)" {
+  shape: rectangle
+  style.fill: "#f8d7da"
+}
+url_input: "Streaming-service URL" {
+  shape: rectangle
+  style.fill: "#cce5ff"
+}
+text_input: "Free-text query" {
+  shape: rectangle
+  style.fill: "#fff3cd"
+}
+
+dispatcher -> genre_browse: "browse syntax"
+dispatcher -> genre_search: "search syntax"
+dispatcher -> selected: "candidate id"
+dispatcher -> url_input: "URL detected"
+dispatcher -> text_input: "otherwise"
+
+flow_genre: "Genre discovery layer" {
+  shape: cloud
+  style.fill: "#d4edda"
+}
+
+flow_url: "URL resolution layer" {
+  shape: cloud
+  style.fill: "#cce5ff"
+}
+
+flow_text: "Text-search resolution layer" {
+  shape: cloud
+  style.fill: "#fff3cd"
+}
+
+genre_browse -> flow_genre
+genre_search -> flow_genre
+selected -> flow_text
+url_input -> flow_url
+text_input -> flow_text
+
+persist: "Persistence layer" {
+  shape: cylinder
+  style.fill: "#e2d4f0"
+}
+
+response_track: "Resolved entity payload\n(track, album, or artist)" {
+  shape: parallelogram
+}
+
+response_genre: "Discovery payload\n(no DB write)" {
+  shape: parallelogram
+  style.fill: "#d4edda"
+}
+
+response_disambig: "Disambiguation payload\n(no DB write)" {
+  shape: parallelogram
+  style.fill: "#fff3cd"
+}
+
+flow_url -> persist
+flow_text -> persist: "high confidence"
+flow_text -> response_disambig: "ambiguous"
+flow_genre -> response_genre
+persist -> response_track

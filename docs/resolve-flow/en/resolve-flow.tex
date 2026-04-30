@@ -1,0 +1,916 @@
+% =============================================================================
+% musiccloud Resolver-Flow — source document, English edition.
+% =============================================================================
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\setmainfont{Lato}[
+  Extension=.ttf,
+  UprightFont=*-Regular,
+  ItalicFont=*-Italic,
+  BoldFont=*-Bold,
+  BoldItalicFont=*-BoldItalic
+]
+\setmonofont{Menlo}
+
+\usepackage[shorthands=off,english]{babel}
+\usepackage{csquotes}
+
+\usepackage{geometry}
+\geometry{margin=2cm}
+\usepackage{setspace}
+\setstretch{1.15}
+
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage[skins]{tcolorbox}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{longtable}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+\usepackage{etoolbox}
+\usepackage{endnotes}
+
+% --- More slack against "Overfull \hbox" near long inline-code boxes --------
+\setlength{\emergencystretch}{4em}
+\setlength{\tabcolsep}{4pt}
+
+% --- Figures placed exactly where they appear in the source. ----------------
+\floatplacement{figure}{H}
+\setkeys{Gin}{width=\linewidth,height=\textheight,keepaspectratio}
+
+% --- Section headings in body serif (Lato), Bold-Italic ---------------------
+\makeatletter
+\renewcommand{\section}{\@startsection{section}{1}{0pt}%
+  {2.5ex plus 1ex minus .2ex}{1.3ex plus .2ex}%
+  {\Large\bfseries\itshape}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{0pt}%
+  {2ex plus 1ex minus .2ex}{1ex plus .2ex}%
+  {\large\bfseries\itshape}}
+\renewcommand{\subsubsection}{\@startsection{subsubsection}{3}{0pt}%
+  {1.5ex plus .8ex minus .2ex}{.8ex plus .2ex}%
+  {\normalsize\bfseries\itshape}}
+\makeatother
+
+% --- Inline code: rounded box, smaller font ---------------------------------
+\definecolor{codeBg}{HTML}{F2F4F8}
+\definecolor{codeBorder}{HTML}{C8CFD9}
+\newtcbox{\codebox}{%
+  on line,
+  colback=codeBg, colframe=codeBorder,
+  boxrule=0.4pt, arc=2pt,
+  left=2pt, right=2pt, top=1pt, bottom=1pt,
+  boxsep=0pt
+}
+\newcommand{\code}[1]{\codebox{\footnotesize\ttfamily #1}}
+
+% --- Code blocks: same look as inline code, full width ----------------------
+\newtcolorbox{codeFrame}{%
+  colback=codeBg, colframe=codeBorder,
+  boxrule=0.4pt, arc=4pt,
+  top=6pt, bottom=6pt, left=8pt, right=8pt,
+  before skip=12pt, after skip=12pt,
+  fontupper=\footnotesize
+}
+
+% --- Tables: smaller font, captioned ----------------------------------------
+\captionsetup[table]{font={small,it},labelfont=bf,position=top,skip=4pt}
+\captionsetup[figure]{font={small,it},labelfont=bf,skip=4pt}
+\AtBeginEnvironment{longtable}{\footnotesize}
+\AtBeginEnvironment{tabular}{\footnotesize}
+\newcolumntype{P}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+
+% --- Endnotes as a glossary at the end of the document ----------------------
+\let\footnote=\endnote
+\renewcommand{\enotesize}{\footnotesize}
+\renewcommand{\notesname}{Glossary}
+\renewcommand{\theendnote}{\arabic{endnote}}
+\renewcommand{\makeenmark}{\textsuperscript{\theenmark}}
+
+% --- Title block in paper style ---------------------------------------------
+\title{%
+  {\bfseries musiccloud Resolver-Flow}\\[0.55em]
+  {\Large\mdseries\itshape Architecture and Data Flow Through the Resolver}%
+}
+\author{%
+  musiccloud Backend\\[0.2em]
+  \small\itshape Resolver Subsystem
+}
+\date{\small Version \code{DOC\_VERSION}\quad\textperiodcentered\quad DOC\_DATE}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+The resolver is the translation layer between music inputs (URLs,
+free-text queries, and genre queries) and a unified, cross-service
+response that exposes the same recording on Spotify, Apple Music,
+Tidal, Deezer, YouTube, and additional services. This document
+describes the architecture of the resolver and the data flow through
+its layers: ingress endpoints, dispatcher, cache tiers, adapter
+calls, the cross-service expansion, and the persistence stage,
+which terminates in a stable share short-link. The aim is a
+reference for the architecture and internal behaviour of the
+resolver.
+\end{abstract}
+
+\vspace{0.6em}
+\noindent{\small\textbf{Keywords:}\enspace resolver, cache,
+adapter, cross-service expansion, disambiguation, persistence,
+share short-link, ISRC.}
+
+\vspace{1em}
+\tableofcontents
+\clearpage
+
+% =============================================================================
+\section{What this document covers}
+% =============================================================================
+
+A user who pastes a Spotify URL into musiccloud expects a share
+page that opens the same recording on Apple Music, Tidal, Deezer,
+YouTube, and a number of further services. Producing that
+translation is the resolver's responsibility. The present document
+describes its structure and the data flow through its individual
+layers.
+
+The resolver handles five kinds of input. Each follows a slightly
+different path through the system, but once a result is produced,
+every path converges at the same point: the database, the share
+link, and the response returned to the user. What happens between
+input and result is the interesting part. Caches intercept
+recurring queries, and adapters mediate between the streaming
+services. A series of fallbacks keeps the system operational even
+when an individual service is temporarily unavailable.
+
+% =============================================================================
+\section{How a request enters the system}
+% =============================================================================
+
+The resolver is reachable through two HTTP endpoints. Both feed
+into the same dispatcher and the same downstream pipeline; they
+differ in who is allowed to call them, how often that may happen,
+and the form in which they communicate with the caller.
+
+% -----------------------------------------------------------------------------
+\subsection{The authenticated endpoint}
+% -----------------------------------------------------------------------------
+
+\code{POST /api/v1/resolve} is the full-featured entry point. Every
+request must authenticate, either with an \code{X-API-Key} header
+for internal callers or with an \code{Authorization} header of the
+form \code{Bearer <jwt>} for external clients holding an OAuth
+token. A per-IP rate limit applies in addition, because a stolen
+key remains a key.
+
+The request body carries exactly one of two fields: either
+\code{query} with the URL or search term entered by the user, or
+\code{selectedCandidate} when the client is completing a
+previously initiated disambiguation.
+
+\begin{table}[H]
+\centering
+\caption{Request body for \code{POST /api/v1/resolve}.}
+\label{tbl:post-resolve-body}
+\begin{tabular}{P{3.4cm} P{1.4cm} P{2.6cm} P{8.0cm}}
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Use} & \textbf{Meaning} \\
+\hline
+\code{query} & string & first request & User input, at most 500 characters. \\
+\code{selectedCandidate} & string & follow-up & Identifier of a previously offered candidate, at most 200 characters. \\
+\hline
+\end{tabular}
+\end{table}
+
+The response shape depends on the outcome. On a single unambiguous
+match the resolver returns a success payload that carries the
+metadata, the cross-service links, and the share short-link. When
+the best candidate of a free-text search is not sufficiently
+confident, it returns a list of suggestions instead. The client
+renders that list, takes the user's pick, and submits it as a
+follow-up request. A genre query receives a result list intended
+for display only; nothing is written to the database until the
+user clicks one of the entries.
+
+On error the response carries an error code mapped to an HTTP
+status: \code{400} for malformed input, \code{401} for invalid
+credentials, \code{404} for a URL whose source could not be
+identified, \code{408} for a backend timeout, \code{429} on rate
+limit, \code{500} on an unexpected failure, and \code{503} when a
+service required by the resolver is not configured.
+
+% -----------------------------------------------------------------------------
+\subsection{The unauthenticated endpoint}
+% -----------------------------------------------------------------------------
+
+\code{GET /api/v1/resolve} addresses tools that cannot easily
+carry a bearer token: Apple Shortcuts, single-line curl
+invocations, bookmarklets, and similar script integrations. With
+no authentication in place, the per-IP rate limit alone protects
+against abuse. It is therefore set tighter than at the
+authenticated endpoint.
+
+\begin{table}[H]
+\centering
+\caption{Parameters for \code{GET /api/v1/resolve}.}
+\label{tbl:get-resolve-params}
+\begin{tabular}{P{2.0cm} P{1.4cm} P{1.6cm} P{10.4cm}}
+\hline
+\textbf{Parameter} & \textbf{Type} & \textbf{Required} & \textbf{Meaning} \\
+\hline
+\code{query} & string & yes & URL or search term, at most 500 characters. \\
+\code{format} & string & no & \code{json} (default) returns the full response. \code{text} returns only the share short-link as plain text, suitable for use in a pipe. \\
+\hline
+\end{tabular}
+\end{table}
+
+A free-text search that resolves to multiple suggestions cannot
+be served by this endpoint, because a stateless single request
+permits no second step. In that case the response is \code{400}.
+The remaining error codes match those of the authenticated
+endpoint; only \code{401} drops out, as no authentication exists
+to fail.
+
+A typical curl invocation reads as follows:
+
+\begin{codeFrame}\footnotesize
+\begin{verbatim}
+curl -G 'https://api.musiccloud.example/api/v1/resolve' \
+  --data-urlencode 'query=https://open.spotify.com/track/...' \
+  --data-urlencode 'format=text'
+\end{verbatim}
+\end{codeFrame}
+
+The result is the share short-link, ready to be pasted into a
+message or piped into another command.
+
+% -----------------------------------------------------------------------------
+\subsection{How a token is issued}
+% -----------------------------------------------------------------------------
+
+Before an external client may call the authenticated endpoint, it
+exchanges its credentials for a JWT. This happens at
+\code{POST /api/auth/token} via the OAuth\,2.0 client-credentials
+flow.
+
+\begin{table}[H]
+\centering
+\caption{Fields of the token request.}
+\label{tbl:auth-token-body}
+\begin{tabular}{P{2.6cm} P{1.4cm} P{10.8cm}}
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Meaning} \\
+\hline
+\code{client\_id} & string & Client identifier registered with musiccloud. \\
+\code{client\_secret} & string & The associated secret. \\
+\code{grant\_type} & string & Must be exactly \code{client\_credentials}. \\
+\hline
+\end{tabular}
+\end{table}
+
+The response carries three fields: \code{access\_token}, the JWT
+to be sent in subsequent requests as an \code{Authorization}
+header of the form \code{Bearer <token>}; \code{token\_type} with
+the fixed value \code{Bearer}; and \code{expires\_in} with the
+validity in seconds, currently one hour. When the token expires,
+the client simply requests a new one with the same credentials.
+A refresh-token mechanism is intentionally absent.
+
+% -----------------------------------------------------------------------------
+\subsection{Adjacent endpoints}
+% -----------------------------------------------------------------------------
+
+Two further endpoints belong to the resolve experience but lie
+outside the scope of this document:
+
+\begin{itemize}
+  \item \code{GET} \code{/api/v1/share/\{shortId\}} returns the
+    share page for a previously resolved entry, looked up by
+    short identifier.
+  \item \code{GET} \code{/api/v1/share/\{shortId\}/preview}
+    refreshes an expired or missing preview URL on demand. The
+    audio player in the frontend calls this endpoint as soon as
+    it detects that a cached preview is no longer playable.
+\end{itemize}
+
+% =============================================================================
+\section{What the dispatcher decides}
+% =============================================================================
+
+Both endpoints feed into the same first step: determining which
+shape the input has. Five outcomes are possible, and the
+dispatcher checks them in order.
+
+If the request body carries the \code{selectedCandidate} field
+instead of \code{query}, this is the second step of an ongoing
+disambiguation. The candidate identifier carries enough
+information to resume where the first request ended. The
+dispatcher passes the request directly to the matching handler;
+this path exists only at the authenticated endpoint.
+
+If the input is literally \code{genre: ?}, the dispatcher returns
+the prepared genre browse grid without resolving anything. This
+grid is what appears on the discovery page; clicking a tile
+subsequently triggers a regular resolve call.
+
+If the input begins with the keyword \code{genre:}, the request
+is a structured genre search, e.g.\ \code{genre: jazz, count: 20}.
+The dispatcher hands it to the genre layer, which parses the
+syntax and forwards requests to the discovery backend.
+
+If the input parses as a URL, the dispatcher classifies it
+further: album URLs go to the album resolver, artist URLs to the
+artist resolver, everything else to the track resolver. The three
+resolvers share most of their machinery and differ chiefly in the
+identifiers they operate on.
+
+If none of these rules applies, the resolver treats the input as
+a free-text search. The authenticated endpoint can answer with
+either a single match or a suggestion list; the unauthenticated
+endpoint accepts only the unambiguous case.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics{diagrams/00-overview.pdf}
+  \caption{The five possible exits of the dispatcher.}
+  \label{fig:dispatcher}
+\end{figure}
+
+% =============================================================================
+\section{The path of a URL}
+% =============================================================================
+
+URLs are the most common input form and follow the most elaborate
+path. Album and artist URLs branch off early into their own
+resolvers. The principal mechanics, however, live in the track
+path, which is what this section follows.
+
+% -----------------------------------------------------------------------------
+\subsection{Cleaning up the URL}
+% -----------------------------------------------------------------------------
+
+The first step is to clean up the URL. URLs from the open web are
+rarely tidy. They carry traces of marketing campaigns,
+social-media buttons, and analytics tools in the form of
+additional parameters. Two requests pointing to the same Spotify
+track but differing in the value of \code{utm\_source} would,
+without this cleanup, produce two distinct cache entries.
+Stripping the parameters is what makes the cache useful in the
+first place.
+
+Some providers conceal the actual URL behind a redirect, e.g.\
+through \code{link.deezer.com} or \code{on.soundcloud.com}. The
+resolver follows such redirects with an HTTP HEAD request to
+obtain the canonical URL, then strips parameters again. The
+redirect target frequently re-injects its own parameters, so a
+single pass of parameter stripping is not enough.
+
+% -----------------------------------------------------------------------------
+\subsection{The three cache tiers}
+% -----------------------------------------------------------------------------
+
+Before the resolver contacts an external service, it consults
+three caches in fixed order.
+
+The first lookup uses the cleaned URL. If the same track has been
+resolved before via exactly this URL, the database row is still
+valid. Since the cache architecture migration, canonical entries
+no longer expire; they are merely augmented as new adapters
+become available.
+
+The second lookup uses the original short link as an alias. When
+a URL was resolved from a short link, the resolver stores the
+original link as an additional key. The next request for the same
+short link hits the cache without paying for the redirect again.
+
+The third lookup is keyed by the
+ISRC\footnote{ISRC, the International Standard Recording Code,
+is a twelve-character alphanumeric identifier assigned to a
+single recording. Because every streaming service uses the same
+ISRC for the same recording, it is the most reliable
+cross-service track identifier the resolver has at its
+disposal.}, the industry identifier of the recording. This check
+runs only after the metadata fetch from the source service, since
+the ISRC is not known earlier. The same recording can be reached
+through URLs of different services; the ISRC lets the resolver
+detect that condition and reuse the existing entry.
+
+% -----------------------------------------------------------------------------
+\subsection{Identifying the source}
+% -----------------------------------------------------------------------------
+
+If none of the three cache tiers hits, the resolver must
+determine which service the URL belongs to. It queries every
+installed plugin, including those that are currently disabled.
+This appears counterintuitive at first, but it is intentional: a
+user pasting a Tidal link learns, on failure, that Tidal is
+disabled, instead of receiving the generic \enquote{not a music
+link} message. Which plugins are active is a configuration
+matter; which link the user pastes is not. The error message is
+meant to reflect that distinction.
+
+If no plugin recognises the URL, the resolver responds with the
+generic message \enquote{not a music link}. If a disabled plugin
+recognises it, the response is the more specific
+\enquote{service unavailable}.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics{diagrams/01a-url-cache.pdf}
+  \caption{URL path: cache tiers and source identification.}
+  \label{fig:url-cache}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\subsection{Fetching metadata}
+% -----------------------------------------------------------------------------
+
+Once the source service is known, the responsible adapter
+extracts the track identifier from the URL and queries the
+service for metadata: title, artist, album, ISRC, duration,
+artwork, and the URL of the audio preview.
+
+Adapters fall into two groups. The first has API access: Spotify,
+Apple Music, Deezer, Tidal, and most further providers. They
+return structured responses. The second works without access and
+reads the public web page of the service. When such an adapter
+runs without configured credentials, the resolver fetches the
+page using a User-Agent identifying as a social-network crawler
+and parses the Open Graph meta tags from the returned HTML. This
+detour is necessary because many modern web pages render
+server-side only when they recognise a known crawler; for a
+plain browser they ship an empty JavaScript shell that loads
+content asynchronously.
+
+Once the source metadata is in hand, the cross-service expansion
+runs in parallel against every other registered adapter; the
+section below describes it in detail. Two cleanup steps follow
+before the response is assembled.
+
+The first concerns the artwork. Some services do not return
+artwork in their track API. If the source carries none but an
+ISRC is known, the resolver fetches artwork from another
+service's match for that ISRC. Spotify and Apple Music sit at the
+front of this fallback chain because both consistently return
+high-quality artwork.
+
+The second concerns the audio preview. Previews come in two
+flavours: permanently valid CDN URLs on the one hand, and signed
+URLs with a short lifetime on the other. A signed URL that works
+today can return \code{403} tomorrow. The resolver therefore
+always selects the most stable preview available. In practice
+this means a Deezer preview displaces a Spotify preview in every
+case, even when Spotify was the original source.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics{diagrams/01b-url-fetch.pdf}
+  \caption{URL path: metadata fetch and cross-service expansion.}
+  \label{fig:url-fetch}
+\end{figure}
+
+% =============================================================================
+\section{The path of a free-text search}
+% =============================================================================
+
+The free-text search captures everything that is neither a URL
+nor a genre query. A user typing \code{daft punk around the
+world} expects a track as the result.
+
+At this point the two endpoints diverge. The authenticated
+endpoint can hold a dialogue with the client: when the search
+yields no clear match, the endpoint returns a list of
+suggestions, from which the client picks one. The unauthenticated
+endpoint knows no dialogue. It responds only when the result is
+unambiguous and otherwise returns \code{400}.
+
+% -----------------------------------------------------------------------------
+\subsection{The first pass}
+% -----------------------------------------------------------------------------
+
+The resolver walks the active adapters in a fixed order.
+ISRC-rich sources with broad catalogue coverage (Deezer, Apple
+Music, Tidal) lead. Spotify drops to the end of the main chain
+and serves only as a fallback after ISRC misses. The remaining
+adapters form the safety net.
+
+Adapters split here into two groups as well, this time by the
+behaviour of their search API. Some return only the single best
+result with a confidence score; others return a sorted list with
+scores per match. Only the second variant makes disambiguation
+possible at all.
+
+When the adapter returns a single result, the resolver can either
+accept it directly, provided it is convincing enough, or move on
+to the next adapter. When the adapter returns a list, the
+resolver inspects the top hit. If its confidence exceeds the
+threshold for direct selection, the resolver accepts it without
+querying the user. Otherwise the resolver passes the list back to
+the client.
+
+Three thresholds govern this behaviour. The first decides whether
+the top candidate may skip disambiguation. The second filters
+candidates whose confidence is too low to be worth showing the
+user at all. The third caps the list size so an ambiguous query
+cannot generate an arbitrarily long response.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics{diagrams/02a-text-search.pdf}
+  \caption{Free-text search, first pass.}
+  \label{fig:text-search}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\subsection{Returning with a chosen candidate}
+% -----------------------------------------------------------------------------
+
+Disambiguation is a two-step dialogue. On the first request the
+resolver returns the suggestion list, the client renders it, and
+once the user has made a selection, the client sends a second
+request carrying the \code{selectedCandidate} field. This second
+request follows a different path: the resolver fetches the full
+metadata of the chosen candidate from the source service, checks
+the cache by ISRC, and then runs the cross-service expansion,
+exactly as for a URL resolution.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics{diagrams/02b-text-disambig.pdf}
+  \caption{Free-text search, disambiguation follow-up.}
+  \label{fig:text-disambig}
+\end{figure}
+
+If no adapter produces a usable result, the resolver responds
+with \enquote{track not found}. In practice this happens most
+often on typos, very obscure recordings, and inputs the user did
+not intend as a search for a music title in the first place.
+
+% =============================================================================
+\section{Genre discovery}
+% =============================================================================
+
+The genre path is the only part of the resolver that writes
+nothing to the canonical database. It returns a selection of
+suggestions only. When the user clicks one, the click target
+flows back through the URL or text path into the resolver, where
+it is persisted regularly.
+
+The discovery backend rests on community-assigned tags and
+therefore knows thousands of subgenres, far beyond what the major
+streaming catalogues directly offer. Trance, Krautrock, Shoegaze,
+Bebop, Vaporwave, Dungeon Synth, and the like are found only
+there. Without the matching API key, the entire genre path is
+unusable; this is one of the few places where a feature genuinely
+depends on a single external service.
+
+% -----------------------------------------------------------------------------
+\subsection{Browse mode}
+% -----------------------------------------------------------------------------
+
+When the user submits the literal request \code{genre: ?}, the
+resolver returns the prepared genre browse grid: a few hundred
+tags, filtered against a deny list (countries, decades,
+instruments, and personal collection labels are not genres) and
+canonicalised for spelling, so that the same genre name does not
+appear multiple times. The full grid is held in memory for 24
+hours; the expensive preparation runs only once per backend
+restart.
+
+Each tile in the grid points to a relative URL that targets a
+separate endpoint. That endpoint renders the cover image on
+first access and stores it in the cache; all subsequent accesses
+receive the prepared image.
+
+\begin{codeFrame}\footnotesize
+\begin{verbatim}
+GET /api/v1/resolve?query=genre%3A+%3F
+\end{verbatim}
+\end{codeFrame}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics{diagrams/03a-genre-browse.pdf}
+  \caption{Genre discovery, browse mode.}
+  \label{fig:genre-browse}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\subsection{Search mode}
+% -----------------------------------------------------------------------------
+
+When the input begins with the keyword \code{genre:}, the
+resolver parses it as a structured form. The grammar is
+deliberately simple and accepts queries such as the following:
+
+\begin{codeFrame}\footnotesize
+\begin{verbatim}
+genre: jazz
+genre: rock | metal
+genre: hip hop, count: 20
+genre: ambient, tracks: 30, vibe: mixed
+genre: classical | baroque, albums: 12, artists: 8
+\end{verbatim}
+\end{codeFrame}
+
+The available fields are:
+
+\begin{table}[H]
+\centering
+\caption{Fields of a genre search.}
+\label{tbl:genre-search-fields}
+\begin{tabular}{P{2.0cm} P{13.0cm}}
+\hline
+\textbf{Field} & \textbf{Meaning} \\
+\hline
+\code{genre} & One or more genres separated by \code{|}. Required. \\
+\code{tracks} & Number of tracks requested. Default: 10. \\
+\code{albums} & Number of albums requested. \\
+\code{artists} & Number of artists requested. \\
+\code{count} & Shorthand to set the same count for all three categories. \\
+\code{vibe} & \code{hot} prefers popular hits (default); \code{mixed} interleaves popular, mid-tier, and lesser-known matches. \\
+\hline
+\end{tabular}
+\end{table}
+
+Multiple genres in a single query are interpreted as an OR
+condition: \code{genre: jazz | bebop} returns matches tagged
+under either name. Unknown fields or invalid numbers raise an
+error; the parser does not silently drop anything.
+
+The two values for \code{vibe} differ in how items are drawn
+from the per-genre data. \code{hot} takes the top of the chart,
+optionally evenly spaced across the top ranks so that not every
+match comes from the same calendar week. \code{mixed} draws a
+stratified sample from the upper, middle, and lower thirds; the
+result leans noticeably toward discovery rather than
+recognition.
+
+Once the data is in hand, the resolver fills missing artwork
+from the persistent image cache. Images that surface here for
+the first time are also written to the cache, so subsequent
+requests load nothing more from upstream.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics{diagrams/03b-genre-search.pdf}
+  \caption{Genre discovery, search mode.}
+  \label{fig:genre-search}
+\end{figure}
+
+% =============================================================================
+\section{Cross-service expansion}
+% =============================================================================
+
+This step is what makes the resolver actually useful. The user
+pasted a Spotify link, but the share page should also open Apple
+Music, Tidal, Deezer, YouTube, and the remaining services. The
+cross-service expansion is the mechanism by which the resolver
+locates the same recording on each further registered service.
+
+Once the source is known, every other adapter runs in parallel
+against it. A per-adapter timeout prevents a single blocking
+adapter from holding up the whole response; without that timeout
+only the general HTTP timeout would kick in, which is set
+considerably longer.
+
+Two strategies are tried per adapter, in decreasing order of
+evidence.
+
+The stronger strategy is identifier lookup. If the adapter
+supports ISRC and one is available for the source, the adapter
+asks, in essence: \enquote{Do you have exactly this recording?}
+The result is unambiguous, hit or miss. A hit is scored at full
+confidence, since the ISRC is the strongest cross-service track
+identifier.
+
+The weaker strategy is search by title and artist. The adapter
+runs the fuzzy search exposed by its API. The confidence score
+comes from that API; quality varies markedly between providers.
+Spotify's relevance ranking is reliable; the rest tend to look
+more like rough estimates.
+
+Matches below a minimum quality are filtered out before the user
+sees them. An exception is made for synthetic search-fallback
+links, i.e.\ links pointing not directly at the match but at the
+service's search page. These are retained so that the response
+contains at least one option per service.
+
+Two derivations follow. From every successful YouTube match the
+resolver derives the corresponding YouTube Music link by
+swapping the hostname and reusing the video or channel
+identifier. A separate search is unnecessary. If no direct
+YouTube match is found, the resolver inserts a synthetic link
+to the YouTube search, ensuring the YouTube entry is never
+absent from the response.
+
+Album and artist searches follow analogous logic with their own
+match strategies. For albums, the first attempt is by
+UPC\footnote{UPC, the Universal Product Code, is a twelve-digit
+identifier in barcode form that names an album release at the
+industry level. Within the resolver, UPC plays the same role
+for albums as ISRC does for individual recordings.}, followed
+by album inference from track ISRCs (a sample of tracks is
+looked up at the target service, and the most frequently
+reported album wins), and finally text search. For artists, the
+resolver uses its own confidence formula that distinguishes
+exact matches, \enquote{The}-prefix variants, high similarity,
+substring hits, and pure fuzzy matches.
+
+All thresholds live in a central constants module. This central
+location keeps the confidence behaviour traceable in one place.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics{diagrams/04-cross-service.pdf}
+  \caption{Cross-service expansion.}
+  \label{fig:cross-service}
+\end{figure}
+
+% =============================================================================
+\section{Persistence}
+% =============================================================================
+
+Once a resolution result is available, the persistence layer
+writes it to the database in a fixed order. The route layer and
+the crawler path share this layer, which is what gives both
+callers an identical understanding of what \enquote{persisted}
+means.
+
+% -----------------------------------------------------------------------------
+\subsection{The canonical write}
+% -----------------------------------------------------------------------------
+
+The canonical track row, with its cross-service links, comes
+first. The resolver deduplicates either by ISRC or by source URL.
+If a matching row exists, its metadata is updated; otherwise a
+new row is inserted with fresh identifiers. Cross-service links
+are upserted on the (entry, service) pair, so that a repeated
+resolve of the same track is idempotent. The share short-link
+identifier is created only when the track itself is new, so the
+share link remains stable across re-resolves.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics{diagrams/05a-persistence-write.pdf}
+  \caption{Persistence: canonical write.}
+  \label{fig:persistence-write}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\subsection{Auxiliary writes and preview refresh}
+% -----------------------------------------------------------------------------
+
+Every observed external identifier (ISRC,
+MBID\footnote{MBID, the MusicBrainz Identifier, is a UUID
+assigned by the MusicBrainz database. It identifies a recording,
+work, artist, or release at a finer granularity than ISRC and is
+unique per database entity.},
+ISWC\footnote{ISWC, the International Standard Musical Work
+Code, is an eleven-character identifier that names a musical
+work, not a particular recording of it. Multiple recordings of
+the same work share an ISWC even when they have different
+ISRCs.}, and UPC) is stored in a dedicated aggregation table,
+inserted idempotently on the (entry, identifier type, value,
+source service) tuple. Failures at this step are not critical
+and are logged at debug level only; a stumbled aggregation write
+must not demote an otherwise successful resolve to a failure.
+
+Each cross-service link that returned a preview URL is upserted
+with its respective expiry. The preview URL of the source
+service is stored the same way.
+
+If the original input was a short link that had to be expanded,
+the resolver stores the original as an alias. Subsequent
+requests for the same short link hit the cache directly. A
+failure to write the alias has no consequences for the response;
+the alias is a pure optimisation.
+
+If the preview URL is missing or expired and an ISRC is
+available, the resolver fetches a new URL from the most stable
+available source. As a result, the resolver still returns a
+playable preview after a cache hit, even when the previously
+stored one has expired in the meantime.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics{diagrams/05b-persistence-aux.pdf}
+  \caption{Persistence: auxiliary writes and preview refresh.}
+  \label{fig:persistence-aux}
+\end{figure}
+
+At the end the persistence layer returns three values to the
+caller: the canonical track identifier, the share short-link
+identifier, and the preview URL the caller passes on to the
+client. The route layer assembles the user-visible response
+from these; the crawler simply records the result as
+\enquote{ingested}.
+
+Album and artist persistence use their own helper functions in
+the route layer.
+
+% =============================================================================
+\section{The cache strategy in one place}
+% =============================================================================
+
+Every read-side cache access uses the canonical row that the
+persistence stage writes. Since the split into static and
+dynamic parts, canonical rows no longer expire. Once written, a
+track, album, or artist entry counts as current indefinitely.
+Only preview URLs carry an expiry timestamp and are refreshed
+lazily on read.
+
+This split is what allows the resolver to add new services
+incrementally. When a new adapter is enabled today, the resolver
+fills in the missing link on the next request for an existing
+track; no cache reset is required. Freshness checks are scoped
+to the preview-URL table: they trigger a refresh only when no
+valid preview remains for the source in question. The same is
+true for the Deezer preview top-up, which runs only in this
+case. The fast cache-hit path therefore consists of a single
+indexed lookup.
+
+% =============================================================================
+\section{Confidence thresholds}
+% =============================================================================
+
+All thresholds live in a single central constants module and are
+re-exported from the resolver entry point as a convenience. The
+authoritative values reside in the module; the table below
+summarises what role each threshold plays.
+
+\begin{table}[H]
+\centering
+\caption{Confidence thresholds and their roles.}
+\label{tbl:confidence-thresholds}
+\begin{tabular}{P{5.5cm} P{5.6cm} P{4.0cm}}
+\hline
+\textbf{Constant} & \textbf{What it governs} & \textbf{Purpose} \\
+\hline
+\code{MATCH\_MIN\_CONFIDENCE} & An adapter match must reach this score to count as a hit at all. & Filters obvious noise at the adapter boundary. \\
+\code{LINK\_QUALITY\_THRESHOLD} & A cross-service link must reach this score to enter the response. & Keeps noisy fuzzy hits off the display. \\
+\code{AUTO\_SELECT\_THRESHOLD} & A free-text search auto-resolves when the top candidate reaches this score. & Saves a follow-up request on clear cases. \\
+\code{CANDIDATE\_MIN\_CONFIDENCE} & A candidate must reach this score to appear in the suggestion list. & Keeps hopeless options out of disambiguation. \\
+\code{MAX\_CANDIDATES} & Maximum suggestion-list length. & Caps response size. \\
+\code{SEARCH\_FALLBACK\_CONFIDENCE} & Confidence assigned to synthetic search-fallback links. & Sorts such links to the end of the list. \\
+\hline
+\end{tabular}
+\end{table}
+
+The artist resolver uses its own confidence formula because it
+matches on name similarity rather than, like the track resolver,
+on identity of ISRC or text. The album resolver adopts the
+adapter-reported confidence when the strategy is text search;
+for matches by UPC or by ISRC inference, the values are fixed.
+
+% =============================================================================
+\section{Design decisions at a glance}
+% =============================================================================
+
+Several design decisions shape the behaviour of this layer in
+material ways:
+
+\paragraph{Adapter timeout.} The cross-service expansion runs
+each adapter call against an individual timeout. Without it, a
+single blocking adapter would hold up the whole response until
+the general HTTP timeout took effect, which lasts considerably
+longer.
+
+\paragraph{Artwork fallback chain.} Some services do not return
+artwork in their track API. When the source lacks artwork but an
+ISRC is known, the resolver fetches artwork from another
+service's match. Spotify and Apple Music are consistently
+high-quality in this regard and therefore sit at the front of
+the chain.
+
+\paragraph{User-Agent for Open Graph extraction.} Single-page
+applications return different content depending on User-Agent
+and expose Open Graph meta tags only to known crawlers. The Open
+Graph path therefore identifies itself as such a crawler in
+order to obtain the server-rendered variant.
+
+\paragraph{Adapter order in free-text search.} Adapters are
+walked in a fixed order. ISRC-rich sources with broad catalogue
+coverage (Deezer, Apple Music, Tidal) lead. Spotify drops to the
+end of the main chain and serves only as a fallback after ISRC
+misses. All further adapters form the safety net.
+
+\paragraph{Static vs.\ dynamic split.} Canonical rows have been
+permanently valid since the cache migration. Anything that can
+go stale lives in dedicated auxiliary tables with their own
+freshness rules. This split keeps the fast cache-hit path
+straightforward.
+
+\paragraph{Thresholds in one place.} All confidence values
+reside in a single module. The confidence behaviour is therefore
+traceable in one place, rather than scattered across the source.
+
+\clearpage
+\theendnotes
+
+\end{document}
