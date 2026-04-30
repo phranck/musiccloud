@@ -49,15 +49,23 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 ## Fallback matrix
 
 What the adapter no longer guarantees, and where the value comes from
-instead.
+instead. Strategy is declarative in `services/artist-composition/strategy.ts`
+for fields aggregated through the composition layer.
 
-| Field | Spotify pre-Feb-2026 | Primary replacement | Secondary replacement |
-| --- | --- | --- | --- |
-| `track.isrc` | `external_ids.isrc` (reverted) | Spotify (reverted) | Deezer `track.isrc`, Apple Music ISRC |
-| `album.upc` | `external_ids.upc` (reverted) | Spotify (reverted) | Deezer `album.upc`, Apple Music UPC |
-| `album.label` | `raw.label` | Deezer `album.label` (`deezer/adapter.ts`) | Apple Music `attrs.recordLabel` (`apple-music/adapter.ts`) |
-| `artist.popularity` | `raw.popularity` (0–100) | Last.fm `stats.listeners` | — (UI shows null) |
-| `artist.followers` | `raw.followers.total` | Deezer `nb_fan` (`deezer/artist-fans.ts`) | Last.fm `stats.listeners` (different scale; UI must label source) |
+| Field | Spotify pre-Feb-2026 | Primary | Secondary | Strategy source |
+| --- | --- | --- | --- | --- |
+| `track.isrc` | `external_ids.isrc` (reverted) | Spotify (reverted) | Deezer `track.isrc`, Apple Music ISRC | resolver-pipeline |
+| `album.upc` | `external_ids.upc` (reverted) | Spotify (reverted) | Deezer `album.upc`, Apple Music UPC | resolver-pipeline |
+| `album.label` | `raw.label` | Deezer `album.label` (`deezer/adapter.ts`) | Apple Music `attrs.recordLabel` (`apple-music/adapter.ts`) | resolver-pipeline |
+| `artist.imageUrl` | `images[0].url` | Deezer `picture_xl` (`plugins/deezer/artist-image.ts`) | Spotify (`artist-composition/sources/spotify-source.ts`) | composition-layer |
+| `artist.genres` | `raw.genres` | Spotify `artist.genres` | Last.fm `artist.getTopTags` (filtered) | composition-layer |
+| `artist.popularity` | `raw.popularity` (0–100) | Last.fm `stats.listeners` | — (UI shows null) | composition-layer |
+| `artist.followers` | `raw.followers.total` | Deezer `nb_fan` (`plugins/deezer/artist-fans.ts`) | Last.fm `stats.listeners` (scale-different surrogate) | composition-layer |
+| `artist.bioSummary` | — | Last.fm `artist.bio.summary` | — | composition-layer |
+| `artist.scrobbles` | — | Last.fm `stats.playcount` | — | composition-layer |
+| `artist.similarArtists` | — | Last.fm `similar.artist[]` | — | composition-layer |
+| `artist.topTracks` | `/artists/{id}/top-tracks` (REMOVED) | Deezer `/artist/{id}/top` (`plugins/deezer/artist-top-tracks.ts`) | Last.fm `artist.getTopTracks` | composition-layer |
+| `track` (regional 404) | `linked_from` (REMOVED) | Spotify oEmbed (`plugins/spotify/oembed.ts`) — Title+Artist only | Cross-service search via Title+Artist | adapter-fallback |
 
 ## Resolver chain order
 
@@ -90,3 +98,38 @@ The Feb-2026 dev-mode tightening (1 client ID per dev, max 5
 authorised users, Spotify Premium required) is out of scope for the
 backend code, but coordinate with QA/test accounts before each
 Spotify-touching release.
+
+The musiccloud Spotify client ID currently runs in **Dev Mode** (no
+Extended Quota). All Feb-2026 restrictions therefore apply with full
+weight. The owner account is Premium (verified 2026-04-29). Migration
+to Extended Quota Mode is operational, not code, and tracked
+separately.
+
+## Permanently-removed endpoints / fields
+
+The composition layer routes around these; do not add new code that
+depends on them.
+
+- `GET /artists/{id}/top-tracks` — removed Feb-2026. Code path is
+  gone; `services/artist-info.ts::fetchArtistTopTracks` uses Deezer
+  primary, Last.fm fallback.
+- `Track.linked_from` — removed Feb-2026. Spotify track-by-ID returns
+  404 for regionally-unavailable tracks. Adapter falls through to
+  oEmbed (`plugins/spotify/oembed.ts`) and emits a minimal
+  `NormalizedTrack` so the resolver can cross-service-search by
+  Title+Artist.
+- `artist.popularity`, `artist.followers` on `/artists/{id}` — see
+  fallback matrix above.
+
+## Pre-deploy environment checks
+
+- `SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET` — required for all
+  Spotify-touching pipelines. Without these, composition layer drops
+  the Spotify source silently and leaves the field gap to be filled
+  by other sources.
+- `LASTFM_API_KEY` — required for `popularity`, `bioSummary`,
+  `scrobbles`, `similarArtists`, and as `topTracks` fallback when
+  Deezer misses. Without it the profile still renders, but those
+  fields are null.
+- Bandsintown / Ticketmaster keys — independent path
+  (`fetchArtistEvents`); not a composition source.

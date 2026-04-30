@@ -21,6 +21,7 @@ import { loadDatabaseConfig } from "../db/config.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { TokenManager } from "../lib/infra/token-manager.js";
+import { fetchDeezerArtistImage } from "./plugins/deezer/artist-image.js";
 
 const Pool = (pgModule as unknown as { default: typeof pgModule }).default?.Pool ?? pgModule.Pool;
 
@@ -206,13 +207,16 @@ export async function getArtistImages(names: string[]): Promise<Map<string, stri
 
   if (missingKeys.length === 0) return result;
 
+  // Source priority: Deezer first (more permissive, no token), Spotify fallback.
+  // Reverses the pre-Feb-2026 order where Spotify was primary; Spotify now
+  // suffers from Dev-Mode quota caps and removed-endpoint risk.
   for (const key of missingKeys) {
     const displayName = nameByKey.get(key)!;
-    const url = await spotifyArtistLookup(displayName);
-    if (url) {
-      result.set(displayName, url);
+    const resolved = await resolveArtistImage(displayName);
+    if (resolved) {
+      result.set(displayName, resolved.url);
       try {
-        await cacheArtistImage(displayName, url, "spotify");
+        await cacheArtistImage(displayName, resolved.url, resolved.source);
       } catch (err) {
         log.debug(
           "ImageCache",
@@ -224,6 +228,16 @@ export async function getArtistImages(names: string[]): Promise<Map<string, stri
   }
 
   return result;
+}
+
+async function resolveArtistImage(displayName: string): Promise<{ url: string; source: "deezer" | "spotify" } | null> {
+  const deezerUrl = await fetchDeezerArtistImage(displayName);
+  if (deezerUrl) return { url: deezerUrl, source: "deezer" };
+
+  const spotifyUrl = await spotifyArtistLookup(displayName);
+  if (spotifyUrl) return { url: spotifyUrl, source: "spotify" };
+
+  return null;
 }
 
 // ─── Track images ──────────────────────────────────────────────────────────
