@@ -122,7 +122,7 @@ const mockTidalAdapter = {
 
 // Mock adapter list
 vi.mock("../services/index.js", () => ({
-  getActiveAdapters: vi.fn().mockResolvedValue([mockSpotifyAdapter, mockDeezerAdapter, mockTidalAdapter]),
+  getActiveAdapters: vi.fn().mockResolvedValue([mockDeezerAdapter, mockSpotifyAdapter, mockTidalAdapter]),
   identifyService: vi.fn(),
   identifyServiceIncludingDisabled: vi.fn().mockResolvedValue(undefined),
   isPluginEnabled: vi.fn().mockResolvedValue(true),
@@ -256,10 +256,10 @@ describe("AlbumResolver: resolveAlbumTextSearch", () => {
     expect(result.links.length).toBeGreaterThan(0);
   });
 
-  it("should try Spotify first (best album search)", async () => {
+  it("should iterate adapters in registry order (Deezer first, post-Spotify-Feb-2026)", async () => {
     await resolveAlbumTextSearch("Random Access Memories");
 
-    expect(mockSpotifyAdapter.searchAlbum).toHaveBeenCalled();
+    expect(mockDeezerAdapter.searchAlbum).toHaveBeenCalled();
   });
 
   it("should throw TRACK_NOT_FOUND when no adapter finds an album", async () => {

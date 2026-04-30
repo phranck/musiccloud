@@ -62,12 +62,11 @@
  *   `getArtist(spotifyId)` call fetches them. Enrichment failure is
  *   swallowed (genres are optional).
  *
- * ## Text search prioritizes Spotify
+ * ## Text search adapter order
  *
- * `resolveArtistTextSearch` iterates adapters with Spotify first because
- * Spotify's artist search endpoint gives the best name-based matches.
- * Other adapters serve as fallbacks if Spotify is down or not
- * configured.
+ * `resolveArtistTextSearch` walks adapters in the registry order
+ * (`registry.ts` PLUGINS array). The first adapter with a `found`
+ * match wins; later adapters are not consulted for that query.
  */
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
@@ -461,10 +460,10 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
 }
 
 /**
- * Text-search entry point. Iterates adapters in Spotify-first order (see
- * file header for why). First adapter with a `found` match wins; the
- * result then goes through the same cache-by-name and cross-service
- * enrichment as the URL path.
+ * Text-search entry point. Iterates adapters in registry order
+ * (`registry.ts` PLUGINS array). First adapter with a `found` match
+ * wins; the result then goes through the same cache-by-name and
+ * cross-service enrichment as the URL path.
  *
  * @param query - free-text artist name
  * @returns resolved artist result
@@ -476,13 +475,7 @@ export async function resolveArtistTextSearch(query: string): Promise<ArtistReso
     (a) => Boolean(a.artistCapabilities?.supportsArtistSearch) && Boolean(a.searchArtist),
   );
 
-  // Prioritize Spotify
-  const spotifyFirst = [
-    ...searchAdapters.filter((a) => a.id === "spotify"),
-    ...searchAdapters.filter((a) => a.id !== "spotify"),
-  ];
-
-  for (const adapter of spotifyFirst) {
+  for (const adapter of searchAdapters) {
     try {
       const result = await adapter.searchArtist?.({ name: query });
 
