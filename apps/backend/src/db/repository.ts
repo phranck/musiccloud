@@ -198,6 +198,96 @@ export interface ArtistCacheData {
   eventsUpdatedAt?: number;
 }
 
+// ─── Crawler Types ───────────────────────────────────────────────────────────
+
+/** Idempotent default-row payload written by the heartbeat for every source
+ *  registered in the in-memory registry. ON CONFLICT (source) DO NOTHING — once
+ *  the row exists, mutable fields are owned by the admin API and the heartbeat. */
+export interface CrawlStateSeed {
+  source: string;
+  displayName: string;
+  defaultEnabled: boolean;
+  defaultIntervalMinutes: number;
+  defaultConfig: Record<string, unknown>;
+}
+
+/** Normalized `crawl_state` row. Timestamps come back as Date; jsonb columns
+ *  come back as parsed JS values courtesy of the pg driver. */
+export interface CrawlStateRecord {
+  source: string;
+  displayName: string;
+  enabled: boolean;
+  intervalMinutes: number;
+  nextRunAt: Date;
+  lastRunAt: Date | null;
+  cursor: unknown;
+  config: Record<string, unknown>;
+  runningSince: Date | null;
+  errorCount: number;
+  lastError: string | null;
+  consecutiveErrors: number;
+}
+
+/** Admin-API mutation payload. `runningSince: null` is the only allowed shape
+ *  for that field — used by the release-lock endpoint. Setting `nextRunAt` to
+ *  NOW() is how the run-now endpoint nudges the heartbeat. */
+export interface CrawlStatePatch {
+  enabled?: boolean;
+  intervalMinutes?: number;
+  config?: Record<string, unknown>;
+  cursor?: unknown;
+  nextRunAt?: Date;
+  runningSince?: null;
+}
+
+/** Outcome of one heartbeat tick. Drives release + schedule advance + error
+ *  bookkeeping in a single statement, so the row update is atomic. */
+export interface CrawlTickOutcome {
+  cursor: unknown;
+  nextRunAt: Date;
+  success: boolean;
+  errorMessage?: string;
+  /** Auto-disable threshold for `consecutive_errors`. Default 5. */
+  autoDisableThreshold?: number;
+}
+
+export interface CrawlRunInsert {
+  id: string;
+  source: string;
+  startedAt: Date;
+  status: "running" | "skipped";
+}
+
+export interface CrawlRunFinalize {
+  status: "success" | "error" | "aborted" | "skipped";
+  finishedAt: Date;
+  discovered: number;
+  ingested: number;
+  skipped: number;
+  errors: number;
+  notes?: string | null;
+}
+
+export interface CrawlRunRecord {
+  id: string;
+  source: string;
+  startedAt: Date;
+  finishedAt: Date | null;
+  status: string;
+  discovered: number;
+  ingested: number;
+  skipped: number;
+  errors: number;
+  notes: string | null;
+}
+
+export interface CrawlRunsPage {
+  items: CrawlRunRecord[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 // ─── Repository Interface ─────────────────────────────────────────────────────
 
 /** Database adapter interface. All methods are async for a consistent API surface. */
@@ -313,6 +403,20 @@ export interface TrackRepository {
 
   // Apple client telemetry (Testflight diagnostics)
   insertAppTelemetryEvent(row: AppTelemetryEventInput): Promise<void>;
+
+  // Crawler: state + runs (migration 0023). The heartbeat lives in
+  // services/crawler/heartbeat.ts and orchestrates these calls; the admin
+  // API uses the same surface for list/patch/run-now/release-lock.
+  seedCrawlState(seed: CrawlStateSeed): Promise<void>;
+  findCrawlState(source: string): Promise<CrawlStateRecord | null>;
+  listCrawlState(): Promise<CrawlStateRecord[]>;
+  listDueCrawlState(): Promise<CrawlStateRecord[]>;
+  updateCrawlState(source: string, patch: CrawlStatePatch): Promise<CrawlStateRecord | null>;
+  acquireCrawlLock(source: string, maxRunMs: number): Promise<boolean>;
+  completeCrawlTick(source: string, outcome: CrawlTickOutcome): Promise<void>;
+  insertCrawlRun(run: CrawlRunInsert): Promise<void>;
+  finalizeCrawlRun(id: string, finalize: CrawlRunFinalize): Promise<void>;
+  listCrawlRuns(params: { source?: string; page: number; limit: number }): Promise<CrawlRunsPage>;
 
   // Lifecycle
   close(): Promise<void>;
