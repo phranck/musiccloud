@@ -62,7 +62,7 @@ import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
-import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
+import { getPreviewExpiry } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import type { AlbumResolutionResult } from "../services/album-resolver.js";
@@ -77,7 +77,7 @@ import {
   runGenreBrowse,
   runGenreSearch,
 } from "../services/genre-search/index.js";
-import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
+import { persistResolution } from "../services/persist-resolution.js";
 import type { ResolutionResult } from "../services/resolver.js";
 import {
   expandShortLink,
@@ -341,102 +341,7 @@ async function persistTrackAndRespond(
   result: ResolutionResult,
   origin: string,
 ): Promise<UnifiedResolveSuccessResponse> {
-  const repo = await getRepository();
-
-  const { trackId, shortId } = await repo.persistTrackWithLinks({
-    sourceTrack: {
-      ...result.sourceTrack,
-      sourceUrl: result.sourceTrack.webUrl,
-    },
-    links: result.links.map((l) => ({
-      service: l.service,
-      url: stripTrackingParams(l.url),
-      confidence: l.confidence,
-      matchMethod: l.matchMethod,
-      externalId: l.externalId,
-    })),
-  });
-
-  // Aggregate every ISRC observed during the resolve into the
-  // `track_external_ids` table. Non-fatal: a write failure here must
-  // not break the user-facing resolve response.
-  if (result.externalIds.length > 0) {
-    try {
-      await repo.addTrackExternalIds(trackId, result.externalIds);
-    } catch (err) {
-      log.debug("Resolve", "External-id persist failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  // Persist per-(track, service) preview URLs into `track_previews`.
-  // The canonical `tracks` row no longer carries a preview column; reads
-  // pull the best preview from `track_previews` via subquery in the
-  // adapter SELECTs.
-  for (const link of result.links) {
-    if (!link.previewUrl) continue;
-    const expiresAtMs = getPreviewExpiry(link.previewUrl, link.service);
-    try {
-      await repo.upsertTrackPreview(trackId, {
-        service: link.service,
-        url: link.previewUrl,
-        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-      });
-    } catch (err) {
-      log.debug("Resolve", "Preview persist failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-  // Source-track preview from the originating adapter is also written
-  // (the adapter that produced the share-page URL).
-  if (
-    result.sourceTrack.previewUrl &&
-    result.sourceTrack.sourceService &&
-    result.sourceTrack.sourceService !== "cached"
-  ) {
-    const expiresAtMs = getPreviewExpiry(result.sourceTrack.previewUrl, result.sourceTrack.sourceService);
-    try {
-      await repo.upsertTrackPreview(trackId, {
-        service: result.sourceTrack.sourceService,
-        url: result.sourceTrack.previewUrl,
-        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-      });
-    } catch (err) {
-      log.debug("Resolve", "Source preview persist failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  // If the original input was a short link, save it as an alias for fast future lookups
-  if (result.inputUrl) {
-    try {
-      await repo.addTrackUrlAlias(result.inputUrl, trackId);
-    } catch {
-      // Non-fatal – alias saving failure must not break the response
-    }
-  }
-
-  // Refresh missing or expired Deezer preview URLs before returning the share
-  // payload so clients do not receive dead signed preview links.
-  let previewUrl = result.sourceTrack.previewUrl ?? undefined;
-  if (
-    (!previewUrl || isExpiredDeezerPreviewUrl(previewUrl)) &&
-    result.sourceTrack.isrc &&
-    deezerAdapter.isAvailable()
-  ) {
-    try {
-      const deezerTrack = await deezerAdapter.findByIsrc(result.sourceTrack.isrc);
-      if (deezerTrack?.previewUrl) {
-        const expiresAtMs = getPreviewExpiry(deezerTrack.previewUrl, "deezer");
-        await repo.upsertTrackPreview(trackId, {
-          service: "deezer",
-          url: deezerTrack.previewUrl,
-          expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-        });
-        previewUrl = deezerTrack.previewUrl;
-      }
-    } catch (err) {
-      log.debug("Resolve", "Deezer preview enrichment failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-
+  const { trackId, shortId, refreshedPreviewUrl } = await persistResolution(result);
   const shortUrl = `${origin}/${shortId}`;
 
   return {
@@ -452,7 +357,7 @@ async function persistTrackAndRespond(
       isrc: result.sourceTrack.isrc,
       releaseDate: result.sourceTrack.releaseDate,
       isExplicit: result.sourceTrack.isExplicit,
-      previewUrl,
+      previewUrl: refreshedPreviewUrl,
     },
     links: result.links.map((l) => ({
       service: l.service,
