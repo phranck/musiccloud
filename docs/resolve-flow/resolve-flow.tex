@@ -962,29 +962,6 @@ liegen in einem einzigen Modul. Eine Verhaltensänderung ist
 deshalb eine Zahlenänderung in einer Datei statt einer Suche nach
 verstreuten Konstanten.
 
-% =============================================================================
-\section{Eine neue Verzweigung oder Strategie hinzufügen}
-% =============================================================================
-
-Wer dem Resolver eine neue Eingabeform oder eine neue Strategie
-hinzufügen möchte, geht dabei in vier Schritten vor:
-
-\begin{enumerate}
-  \item Die zugehörige Diagrammquelle in
-    \code{docs/resolve-flow/diagrams/} aktualisieren.
-  \item Den Prosatext in der Datei \code{resolve-flow.tex}
-    entsprechend anpassen.
-  \item \code{make docs} im Wurzelverzeichnis des Repositorys
-    ausführen.
-  \item Die geänderte Diagrammquelle, die neuen Diagramm-PDFs
-    sowie \code{resolve-flow.pdf} gemeinsam mit der zugehörigen
-    Code-Änderung committen.
-\end{enumerate}
-
-Die LaTeX-Datei ist die einzige Quelle für den Prosatext, die
-Diagramm-Dateien sind die einzige Quelle für die Diagramme. Beide
-zusammen ergeben über XeLaTeX die fertige PDF.
-
 \clearpage
 \theendnotes
 
