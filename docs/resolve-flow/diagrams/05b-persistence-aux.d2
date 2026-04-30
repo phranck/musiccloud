@@ -1,25 +1,25 @@
-# Persistence, part 2: external IDs, previews, alias, preview enrichment.
+# Persistenz, Teil 2: externe Kennungen, Vorschauen, Alias, Vorschau-Erneuerung.
 
 direction: down
 
-input: "From canonical write" {
+input: "Aus kanonischem Schreibvorgang" {
   shape: parallelogram
   style.fill: "#d4edda"
 }
 
-ext_ids: "Aggregate external identifiers\nacross every contacted service\n(idempotent insert)" {
+ext_ids: "Externe Kennungen aggregieren\nüber alle kontaktierten Dienste\n(idempotenter Insert)" {
   shape: step
   style.fill: "#fff3cd"
 }
 
 input -> ext_ids
 
-per_link_preview: "Upsert preview URLs\nper cross-service link\nwith parsed expiry" {
+per_link_preview: "Vorschau-URLs per Upsert\npro dienstübergreifendem Link\nmit Ablaufzeit" {
   shape: step
   style.fill: "#fff3cd"
 }
 
-source_preview: "Upsert preview URL\nfrom the source service" {
+source_preview: "Vorschau-URL vom\nQuell-Dienst per Upsert" {
   shape: step
   style.fill: "#fff3cd"
 }
@@ -27,40 +27,40 @@ source_preview: "Upsert preview URL\nfrom the source service" {
 ext_ids -> per_link_preview
 per_link_preview -> source_preview
 
-alias: "Save short-link alias\n(when input was a short link\nthat got expanded)" {
+alias: "Kurzlink-Alias speichern\n(falls Eingabe Kurzlink war,\nder aufgelöst wurde)" {
   shape: step
   style.fill: "#fff3cd"
 }
 
 source_preview -> alias
 
-deezer_check: "Preview enrichment needed?\n(missing or expired,\ntrack has ISRC)" {
+deezer_check: "Vorschau-Erneuerung nötig?\n(fehlt oder abgelaufen,\nTrack hat ISRC)" {
   shape: diamond
   style.fill: "#f5f5f5"
 }
 
 alias -> deezer_check
 
-deezer_refresh: "Refresh preview\nfrom the most stable source" {
+deezer_refresh: "Vorschau aus stabilster Quelle\nneu holen" {
   shape: step
   style.fill: "#fff3cd"
 }
 
-deezer_check -> deezer_refresh: "yes"
+deezer_check -> deezer_refresh: "ja"
 
-result: "Persistence result\n(canonical id, share short-id,\nrefreshed preview URL)" {
+result: "Persistenz-Ergebnis\n(kanonische Kennung, Share-Kurz-ID,\nerneuerte Vorschau-URL)" {
   shape: parallelogram
   style.fill: "#cce5ff"
 }
 
-deezer_check -> result: "no"
+deezer_check -> result: "nein"
 deezer_refresh -> result
 
-response_route: "Route layer:\nbuild user-facing\nresponse payload" {
+response_route: "Route-Layer:\nnutzersichtbare Antwort\nzusammenstellen" {
   shape: parallelogram
 }
 
-response_crawler: "Crawler layer:\ncount as ingested" {
+response_crawler: "Crawler-Layer:\nals ingestiert verbuchen" {
   shape: parallelogram
   style.fill: "#e2d4f0"
 }

@@ -1,67 +1,67 @@
-# Genre search mode: structured query against the discovery backend.
+# Genre-Suche: strukturierte Anfrage gegen das Discovery-Backend.
 
 direction: down
 
-input: "Genre search request" {
+input: "Genre-Such-Anfrage" {
   shape: rectangle
   style.fill: "#d4edda"
 }
 
-parse: "Parse query syntax\n(genre list, type counts,\nvibe selector)" {
+parse: "Eingabe-Syntax parsen\n(Genre-Liste, Typ-Anzahlen,\nVibe-Auswahl)" {
   shape: step
 }
 
-err_parse: "Query syntax error" {
+err_parse: "Fehler: ungültige Syntax" {
   shape: rectangle
   style.fill: "#f8d7da"
 }
 
-err_no_key: "Backend not configured error" {
+err_no_key: "Fehler: Backend nicht konfiguriert" {
   shape: rectangle
   style.fill: "#f8d7da"
 }
 
 input -> parse
-parse -> err_parse: "invalid syntax"
-parse -> err_no_key: "backend unavailable"
+parse -> err_parse: "ungültige Syntax"
+parse -> err_no_key: "Backend nicht verfügbar"
 
-batch: "Per-genre batch fetch\nin parallel" {
+batch: "Pro Genre Batch-Abruf\nparallel" {
   shape: step
   style.fill: "#fff3cd"
 }
 
-parse -> batch: "valid"
+parse -> batch: "gültig"
 
-interleave: "Interleave across genres\nand deduplicate" {
+interleave: "Genres mischen\nund deduplizieren" {
   shape: step
 }
 
-sample: "Sampling strategy" {
+sample: "Auswahlstrategie" {
   shape: diamond
   style.fill: "#f5f5f5"
 }
 
 batch -> interleave -> sample
 
-hot: "Vibe: hot\n(top-N or even-spaced)" {
+hot: "Vibe: hot\n(Top-N oder gleichverteilt)" {
   shape: rectangle
 }
 
-mixed: "Vibe: mixed\n(stratified across\ntop, middle, tail)" {
+mixed: "Vibe: mixed\n(geschichtet aus\nSpitze, Mitte, Schweif)" {
   shape: rectangle
 }
 
-sample -> hot: "popularity-leaning"
-sample -> mixed: "discovery-leaning"
+sample -> hot: "Richtung Popularität"
+sample -> mixed: "Richtung Entdeckung"
 
-enrich: "Artwork enrichment\nfrom permanent cache" {
+enrich: "Cover-Anreicherung\naus dauerhaftem Cache" {
   shape: step
 }
 
 hot -> enrich
 mixed -> enrich
 
-response: "Genre-search payload\n(tracks, albums, artists\nplus parser warnings)" {
+response: "Genre-Such-Antwort\n(Tracks, Alben, Interpreten\nplus Parser-Warnungen)" {
   shape: parallelogram
   style.fill: "#d4edda"
 }

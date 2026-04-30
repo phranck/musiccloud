@@ -1,56 +1,56 @@
-# URL flow, part 2: metadata fetch, cross-service expansion, finalisation.
+# URL-Pfad, Teil 2: Metadaten-Abruf, dienstübergreifende Suche, Abschluss.
 
 direction: down
 
-start: "From cache lookup and identification" {
+start: "Aus Cache-Suche und Quell-Bestimmung" {
   shape: parallelogram
   style.fill: "#d4edda"
 }
 
-extract: "Extract track identifier from URL" {
+extract: "Track-Kennung aus URL extrahieren" {
   shape: step
 }
 
-err_invalid: "Invalid-URL error" {
+err_invalid: "Fehler: ungültige URL" {
   shape: rectangle
   style.fill: "#f8d7da"
 }
 
 start -> extract
-extract -> err_invalid: "no identifier extractable"
+extract -> err_invalid: "keine Kennung extrahierbar"
 
-fetch: "Fetch track metadata\nfrom source service" {
+fetch: "Track-Metadaten\nbeim Quell-Dienst abrufen" {
   shape: step
   style.fill: "#cce5ff"
 }
 
-scrape: "Fallback: scrape page\nfor Open Graph meta tags" {
+scrape: "Notlösung: Seite auslesen\n(Open-Graph-Metatags)" {
   shape: step
   style.fill: "#fff3cd"
 }
 
-extract -> fetch: "identifier extracted"
-fetch -> scrape: "credentialed adapter\nthrew, fall back"
+extract -> fetch: "Kennung extrahiert"
+fetch -> scrape: "Adapter mit Schlüssel\nfehlgeschlagen, Notlösung"
 
-cache_isrc: "Cache lookup by ISRC\n(post-fetch dedup for the same\ntrack reached via a different URL)" {
+cache_isrc: "Cache-Suche per ISRC\n(nachträgliche Deduplikation für\ndieselbe Aufnahme über andere URL)" {
   shape: cylinder
   style.fill: "#fff8e1"
 }
 
-cross: "Cross-service expansion" {
+cross: "Dienstübergreifende Suche" {
   shape: cloud
   style.fill: "#cce5ff"
 }
 
 fetch -> cache_isrc
-cache_isrc -> cross: "miss"
+cache_isrc -> cross: "Miss"
 
-enrich_artwork: "Artwork fallback chain\n(if source service\nreturned no artwork)" {
+enrich_artwork: "Cover-Notlösungskette\n(falls Quell-Dienst\nkein Cover liefert)" {
   shape: step
   style.fill: "#fff3cd"
 }
 
-prefer_stable: "Prefer the most stable preview source\n(permanent CDN URLs over signed URLs)" {
+prefer_stable: "Stabilste Vorschauquelle bevorzugen\n(dauerhafte CDN-URLs vor signierten)" {
   shape: step
   style.fill: "#fff3cd"
 }
@@ -58,11 +58,11 @@ prefer_stable: "Prefer the most stable preview source\n(permanent CDN URLs over 
 cross -> enrich_artwork
 enrich_artwork -> prefer_stable
 
-result: "Resolved track payload" {
+result: "Aufgelöster Track" {
   shape: parallelogram
   style.fill: "#cce5ff"
 }
 
-cache_isrc -> result: "hit"
+cache_isrc -> result: "Treffer"
 prefer_stable -> result
-scrape -> result: "scrape ok"
+scrape -> result: "Auslesung erfolgreich"

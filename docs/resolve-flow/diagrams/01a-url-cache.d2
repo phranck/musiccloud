@@ -1,63 +1,63 @@
-# URL flow, part 1: cache lookups and source identification.
+# URL-Pfad, Teil 1: Cache-Stufen und Bestimmung des Quell-Dienstes.
 
 direction: down
 
-input: "URL input" {
+input: "URL-Eingabe" {
   shape: rectangle
   style.fill: "#cce5ff"
 }
 
-strip1: "Strip tracking parameters" {
+strip1: "Tracking-Parameter entfernen" {
   shape: step
 }
 
-expand: "Expand short links\nfollowing HTTP redirects" {
+expand: "Kurzlinks auflösen\nüber HTTP-Weiterleitungen" {
   shape: step
 }
 
-strip2: "Strip tracking parameters again\n(short-link targets often\nre-inject query parameters)" {
+strip2: "Tracking-Parameter erneut entfernen\n(Kurzlink-Ziele fügen oft\nneue Parameter ein)" {
   shape: step
 }
 
 input -> strip1 -> expand -> strip2
 
-cache_url: "Cache lookup by canonical URL" {
+cache_url: "Cache-Suche per kanonischer URL" {
   shape: cylinder
   style.fill: "#fff8e1"
 }
 
-cache_alias: "Cache lookup by original short-link\n(only when URL was expanded)" {
+cache_alias: "Cache-Suche per Kurzlink\n(nur bei aufgelöster URL)" {
   shape: cylinder
   style.fill: "#fff8e1"
 }
 
 strip2 -> cache_url
-cache_url -> cache_alias: "miss"
+cache_url -> cache_alias: "Miss"
 
-identify: "Identify source service\n(disabled-aware)" {
+identify: "Quell-Dienst bestimmen\n(berücksichtigt Abschaltung)" {
   shape: diamond
   style.fill: "#f5f5f5"
 }
 
-err_disabled: "Service-disabled error" {
+err_disabled: "Fehler: Dienst abgeschaltet" {
   shape: rectangle
   style.fill: "#f8d7da"
 }
 
-err_unknown: "Unrecognised-URL error" {
+err_unknown: "Fehler: kein Musik-Link" {
   shape: rectangle
   style.fill: "#f8d7da"
 }
 
-cache_alias -> identify: "miss"
-identify -> err_disabled: "matched but disabled"
-identify -> err_unknown: "no adapter recognises"
+cache_alias -> identify: "Miss"
+identify -> err_disabled: "erkannt, aber abgeschaltet"
+identify -> err_unknown: "kein Adapter erkennt"
 
-next: "Continue to fetch and expansion" {
+next: "Weiter zum Metadaten-Abruf" {
   shape: parallelogram
   style.fill: "#d4edda"
 }
 
-identify -> next: "active adapter found"
-cache_url -> next: "hit, then gap-fill"
-cache_alias -> next: "hit"
+identify -> next: "aktiver Adapter gefunden"
+cache_url -> next: "Treffer, dann Lücken füllen"
+cache_alias -> next: "Treffer"

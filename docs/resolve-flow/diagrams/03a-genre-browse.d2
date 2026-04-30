@@ -1,50 +1,50 @@
-# Genre browse mode: curated grid of popular tags with cover-art probes.
+# Genre-Raster: kuratiertes Tag-Raster mit Cover-Prüfung.
 
 direction: down
 
-input: "Genre browse request" {
+input: "Genre-Raster-Anfrage" {
   shape: rectangle
   style.fill: "#d4edda"
 }
 
-cache: "Browse-grid cache\n(24-hour in-memory lifetime)" {
+cache: "Raster-Cache\n(24 Stunden im Speicher)" {
   shape: cylinder
   style.fill: "#fff8e1"
 }
 
 input -> cache
 
-top_tags: "Fetch popular genre tags" {
+top_tags: "Beliebte Genre-Tags abrufen" {
   shape: step
 }
 
-filter: "Filter non-genre tags\n(countries, decades,\ninstruments, collections)" {
+filter: "Nicht-Genre-Tags filtern\n(Länder, Jahrzehnte,\nInstrumente, Sammlungen)" {
   shape: step
 }
 
-dedupe: "Canonicalise spelling variants\nso genres collapse onto\na single key" {
+dedupe: "Schreibvarianten vereinheitlichen,\nsodass dasselbe Genre\nnicht mehrfach erscheint" {
   shape: step
 }
 
-cache -> top_tags: "miss"
+cache -> top_tags: "Miss"
 top_tags -> filter -> dedupe
 
-probe: "Probe each candidate\nfor available cover art\nand drop empty genres" {
+probe: "Pro Kandidat Cover prüfen\nund leere Genres entfernen" {
   shape: step
 }
 
 dedupe -> probe
 
-artwork_url: "Tile artwork served lazily\nby a separate route" {
+artwork_url: "Kachel-Cover wird bei Bedarf\nvon separatem Endpunkt geliefert" {
   shape: step
 }
 
-probe -> artwork_url: "tile has cover"
+probe -> artwork_url: "Kachel hat Cover"
 
-response: "Browse-grid payload" {
+response: "Raster-Antwort" {
   shape: parallelogram
   style.fill: "#d4edda"
 }
 
 artwork_url -> response
-cache -> response: "hit"
+cache -> response: "Treffer"
