@@ -460,13 +460,17 @@ export const ArtistProfileSchema = {
   $id: "ArtistProfile",
   type: "object",
   description:
-    "Spotify (id/image/genres) + Last.fm + Deezer enriched artist profile. Null when Spotify is not configured.",
-  required: ["spotifyId", "imageUrl", "genres", "popularity", "followers", "bioSummary", "scrobbles", "similarArtists"],
+    "Multi-source artist profile (Spotify + Deezer + Last.fm) merged via per-field strategy. Null when no source returned data.",
+  required: ["imageUrl", "genres", "popularity", "followers", "bioSummary", "scrobbles", "similarArtists"],
   additionalProperties: false,
   properties: {
-    spotifyId: { type: "string" },
     imageUrl: { type: "string", nullable: true, format: "uri" },
-    genres: { type: "array", items: { type: "string" }, maxItems: 3, description: "Up to 3 Spotify genres." },
+    genres: {
+      type: "array",
+      items: { type: "string" },
+      maxItems: 3,
+      description: "Up to 3 genres (Spotify primary, Last.fm fallback).",
+    },
     popularity: {
       type: "integer",
       nullable: true,
@@ -500,7 +504,6 @@ export const ArtistProfileSchema = {
     },
   },
   example: {
-    spotifyId: "26dSoYclwsYLMAKD3tpOr4",
     imageUrl: "https://i.scdn.co/image/ab6761610000e5eb6b3f4e4e2f8e4f6a3c8b2d0a",
     genres: ["synth-pop", "new wave", "pop rock"],
     popularity: 1840321,
@@ -606,10 +609,9 @@ export const ArtistInfoSchema = {
       },
     ],
     profile: {
-      spotifyId: "26dSoYclwsYLMAKD3tpOr4",
       imageUrl: "https://i.scdn.co/image/ab6761610000e5eb6b3f4e4e2f8e4f6a3c8b2d0a",
       genres: ["synth-pop", "new wave", "pop rock"],
-      popularity: 70,
+      popularity: 1840321,
       followers: 2840192,
       bioSummary: "a-ha are a Norwegian synth-pop band formed in Oslo in 1982.",
       scrobbles: 128340921,

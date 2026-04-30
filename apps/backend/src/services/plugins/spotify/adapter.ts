@@ -75,6 +75,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { fetchSpotifyOEmbed } from "./oembed.js";
 
 const SPOTIFY_TRACK_REGEX = /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?track\/([a-zA-Z0-9]+)/;
 const SPOTIFY_URI_REGEX = /spotify:track:([a-zA-Z0-9]+)/;
@@ -203,6 +204,24 @@ export const spotifyAdapter = {
 
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const response = await spotifyFetch(`/tracks/${encodeURIComponent(trackId)}`);
+
+    // Track-by-ID can return 404 when the track is not available in the API
+    // region (Feb-2026 change: `linked_from` was permanently removed). Fall
+    // through to the keyless oEmbed endpoint so the resolver can still cross-
+    // service-search via Title+Artist. Any other non-OK status is a real
+    // error and propagates as before.
+    if (response.status === 404) {
+      const embed = await fetchSpotifyOEmbed(`https://open.spotify.com/track/${trackId}`);
+      if (embed) {
+        return {
+          sourceService: SERVICE.SPOTIFY,
+          sourceId: trackId,
+          title: embed.title,
+          artists: embed.artists,
+          webUrl: `https://open.spotify.com/track/${trackId}`,
+        };
+      }
+    }
 
     if (!response.ok) {
       throw serviceHttpError(SERVICE.SPOTIFY, response.status, RESOURCE_KIND.TRACK, trackId);

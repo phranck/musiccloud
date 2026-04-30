@@ -246,11 +246,10 @@ export interface ArtistTopTrack {
 }
 
 export interface ArtistProfile {
-  spotifyId: string;
   imageUrl: string | null;
-  genres: string[]; // max 3 (Spotify)
+  genres: string[]; // max 3
   // Spotify removed `artist.popularity` and `artist.followers` in Feb 2026.
-  // popularity now reflects Last.fm `stats.listeners` (non-negative integer,
+  // popularity reflects Last.fm `stats.listeners` (non-negative integer,
   // not the old 0–100 scale). followers reflects Deezer `nb_fan` (with
   // Last.fm listeners as a fallback surrogate). Both null when no source
   // returned a value.
@@ -279,7 +278,7 @@ export interface SimilarArtistTrack {
 export interface ArtistInfoResponse {
   artistName: string;
   topTracks: ArtistTopTrack[]; // empty if Deezer unavailable
-  profile: ArtistProfile | null; // null if Spotify not configured
+  profile: ArtistProfile | null; // null if no source returned data
   events: ArtistEvent[]; // empty if no keys or no upcoming events
   similarArtistTracks?: SimilarArtistTrack[]; // top track per similar artist
 }
