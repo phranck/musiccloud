@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://astro.build"><img alt="Astro" src="https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/astro?filename=apps%2Ffrontend%2Fpackage.json&label=astro&color=b266e6&style=flat"></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/phranck/musiccloud?label=license&color=6986ff&style=flat"></a>
+  <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-6986ff?style=flat"></a>
   <a href="https://www.typescriptlang.org"><img alt="TypeScript" src="https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/dev/typescript?label=typescript&color=15c0ea&style=flat"></a>
   <a href="https://react.dev"><img alt="React" src="https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/react?filename=apps%2Ffrontend%2Fpackage.json&label=react&color=00dfc0&style=flat"></a>
   <a href="https://fastify.dev"><img alt="Fastify" src="https://img.shields.io/github/package-json/dependency-version/phranck/musiccloud/fastify?filename=apps%2Fbackend%2Fpackage.json&label=fastify&color=70e55a&style=flat"></a>
@@ -40,7 +40,6 @@ sources alongside their D2 diagram sources.
 - [Cache architecture](docs/cache-architecture.md)
 - [Crawler architecture](docs/crawler-architecture.md)
 - [Artist composition](docs/artist-composition-architecture.md)
-- Runbooks: [Spotify](docs/spotify-runbook.md), [MusicBrainz](docs/musicbrainz-runbook.md)
 
 ## Supported streaming services
 
@@ -48,4 +47,4 @@ Apple Music, Audiomack, Audius, Bandcamp, Beatport, Boomplay, Bugs, Deezer, JioS
 
 ## License
 
-Published under the [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html).
+Published under the [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html). The repository is published for transparency only; the AGPL terms still apply to anyone who runs a modified copy as a network service.
