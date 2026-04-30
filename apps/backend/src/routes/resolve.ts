@@ -155,7 +155,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
           401: { description: "Missing or invalid API key / bearer token.", $ref: "ErrorResponse#" },
           404: { description: "URL is valid but the track/album/artist could not be found.", $ref: "ErrorResponse#" },
           408: { description: "Upstream service timed out before a match could be confirmed.", $ref: "ErrorResponse#" },
-          429: { description: "Rate limit exceeded for this client.", $ref: "ErrorResponse#" },
+          429: { description: "Rate limit exceeded for this client IP (10/min).", $ref: "ErrorResponse#" },
           500: { description: "Unexpected server error.", $ref: "ErrorResponse#" },
           503: {
             description: "Required upstream service (e.g. the Deezer genre adapter) is unavailable.",

@@ -56,9 +56,12 @@ export class RateLimiter {
   }
 }
 
-// Shared instance used by public API routes. 30 requests per 60s protects the
-// backend from runaway client loops (landing page retry storms, accidental
-// useEffect polling) without throttling a human user.
+// Shared bucket for the public API surface (Resolve, Share, Share-Preview,
+// Auth, Link, Artist). 10 requests per 60s per client IP — strict enough
+// to bound abuse and runaway client loops without blocking human use.
+// Asset routes (Genre-Artwork) deliberately do NOT call into this limiter
+// because they serve immutable cached JPEGs in parallel from a Browse grid;
+// the global @fastify/rate-limit at 300/min still covers them.
 //
 // The limiter is keyed by `request.ip`, which is only meaningful when Fastify
 // is configured with `trustProxy` behind a reverse proxy. Production sets the
@@ -71,5 +74,5 @@ export class RateLimiter {
 // Cleanup cadence is 5 minutes: aggressive enough that a burst of unique IPs
 // does not bloat the Map for long, slack enough that cleanup itself is
 // background noise on the event loop.
-export const apiRateLimiter = new RateLimiter(30, 60_000);
+export const apiRateLimiter = new RateLimiter(10, 60_000);
 setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);

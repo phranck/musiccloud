@@ -167,7 +167,23 @@ async function buildApp() {
       info: {
         title: "musiccloud API",
         description:
-          "Public REST API for musiccloud.io. Resolve music URLs or text queries across 20+ streaming services and retrieve unified metadata.",
+          "Public REST API for musiccloud.io. Resolve music URLs or text queries across 20+ streaming services and retrieve unified metadata.\n\n" +
+          "## Authentication\n\n" +
+          "Most endpoints require credentials. Endpoints declaring a `security` block (e.g. `POST /api/v1/resolve`, `GET /api/v1/link/:id`) " +
+          "accept either an `X-API-Key` header (issued to first-party clients) or a `Bearer` JWT. " +
+          "Public read-only endpoints — `GET /api/v1/share/:shortId`, `GET /api/v1/share/:shortId/preview`, " +
+          "`GET /api/v1/artist/...`, `GET /api/v1/genre-artwork/:genreKey`, `GET /health/ready` — are reachable without credentials.\n\n" +
+          "**Getting a token (first-time integration):**\n\n" +
+          '1. `POST /api/auth/token` with `{ client_id, client_secret, grant_type: "client_credentials" }`.\n' +
+          "2. The response contains `access_token`, valid for 1 hour.\n" +
+          "3. Send subsequent requests with `Authorization: Bearer <access_token>`.\n" +
+          "4. Refresh by re-issuing the token call when it expires; there is no refresh-token flow.\n\n" +
+          "Without valid credentials, protected endpoints return `401 Unauthorized` and the client never reaches the resolver.\n\n" +
+          "## Rate limiting\n\n" +
+          "All public endpoints (Resolve, Share, Auth, Link, Artist) are limited to **10 requests per minute per client IP**. " +
+          "Exceeding the quota returns `429 Too Many Requests` with `error: RATE_LIMITED`. " +
+          "The asset endpoint `GET /api/v1/genre-artwork/:genreKey` is exempt from this per-IP quota because the frontend loads artwork tiles in parallel; " +
+          "it is still bounded by a global 300 requests/minute ceiling shared with all routes.",
         version: "1.0.0",
       },
       servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
@@ -193,14 +209,19 @@ async function buildApp() {
       buildLocalReference: (json, _baseUri, _fragment, i) => (typeof json.$id === "string" ? json.$id : `def-${i}`),
     },
     transform: ({ schema, url }) => {
-      // Hide admin + internal SSR helper endpoints (content, nav,
-      // site-settings) from the public API reference. They are reachable
-      // but not advertised to external consumers.
+      // Hide admin endpoints + internal helpers (SSR-only routes, frontend-
+      // marquee data, Apple Testflight ingest, landing-page teaser). The
+      // public API reference covers Health, Resolve, Share, Auth, Link,
+      // Artist, and Genre-Artwork — everything else is reachable but not
+      // advertised to external consumers.
       const isInternal =
         url.startsWith("/api/admin") ||
         url.startsWith("/api/v1/content") ||
         url.startsWith("/api/v1/nav") ||
-        url.startsWith("/api/v1/site-settings");
+        url.startsWith("/api/v1/site-settings") ||
+        url.startsWith("/api/v1/services") ||
+        url.startsWith("/api/v1/random") ||
+        url.startsWith("/api/v1/telemetry");
       if (isInternal) {
         return { schema: { ...schema, hide: true }, url };
       }

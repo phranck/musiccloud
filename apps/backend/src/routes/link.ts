@@ -73,7 +73,7 @@ export default async function linkRoutes(app: FastifyInstance) {
           },
           401: { description: "Missing or invalid API key / bearer token.", $ref: "ErrorResponse#" },
           404: { description: "No track exists for this id.", $ref: "ErrorResponse#" },
-          429: { description: "Rate limit exceeded for this client IP.", $ref: "ErrorResponse#" },
+          429: { description: "Rate limit exceeded for this client IP (10/min).", $ref: "ErrorResponse#" },
         },
       },
     },

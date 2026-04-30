@@ -36,6 +36,7 @@
  */
 import { ROUTE_TEMPLATES, type SharePageResponse } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 
@@ -80,10 +81,18 @@ export default async function shareRoutes(app: FastifyInstance) {
             description: "No track, album, or artist exists for this short ID.",
             $ref: "ErrorResponse#",
           },
+          429: { description: "Rate limit exceeded for this client IP (10/min).", $ref: "ErrorResponse#" },
         },
       },
     },
     async (request, reply) => {
+      if (apiRateLimiter.isLimited(request.ip)) {
+        return reply.status(429).send({
+          error: "RATE_LIMITED",
+          message: "Rate limit exceeded. Please try again in a minute.",
+        });
+      }
+
       const { shortId } = request.params;
 
       const origin = request.headers["x-forwarded-host"] ? `https://${request.headers["x-forwarded-host"]}` : undefined;

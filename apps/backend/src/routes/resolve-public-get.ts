@@ -95,7 +95,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           400: { description: "Missing, malformed, or ambiguous query.", $ref: "ErrorResponse#" },
           404: { description: "Query is valid but no track could be found.", $ref: "ErrorResponse#" },
           408: { description: "Upstream service timed out.", $ref: "ErrorResponse#" },
-          429: { description: "Rate limit exceeded for this client IP.", $ref: "ErrorResponse#" },
+          429: { description: "Rate limit exceeded for this client IP (10/min).", $ref: "ErrorResponse#" },
           500: { description: "Unexpected server error.", $ref: "ErrorResponse#" },
           503: { description: "Required upstream service is unavailable.", $ref: "ErrorResponse#" },
         },

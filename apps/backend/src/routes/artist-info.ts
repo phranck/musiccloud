@@ -108,7 +108,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
             $ref: "ArtistInfo#",
           },
           400: { description: "Missing or empty `name` query parameter.", $ref: "ErrorResponse#" },
-          429: { description: "Rate limit exceeded for this client IP.", $ref: "ErrorResponse#" },
+          429: { description: "Rate limit exceeded for this client IP (10/min).", $ref: "ErrorResponse#" },
         },
       },
     },
