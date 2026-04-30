@@ -259,6 +259,19 @@ export const ENDPOINTS = {
         interactionsTotal: "/api/admin/analytics/events/interactions/total",
       },
     },
+
+    crawler: {
+      /** GET: list all crawler sources joined with registered metadata. */
+      sources: "/api/admin/crawler/sources",
+      /** PATCH: mutate one source's `enabled`, `intervalMinutes`, `config`, `cursor`, or `nextRunAt`. */
+      sourceDetail: (id: string) => `/api/admin/crawler/sources/${id}`,
+      /** POST: nudge a source's `next_run_at` to NOW(); heartbeat picks it up next minute. */
+      sourceRunNow: (id: string) => `/api/admin/crawler/sources/${id}/run-now`,
+      /** POST: clear a stale `running_since` lock so the next heartbeat can re-acquire. */
+      sourceReleaseLock: (id: string) => `/api/admin/crawler/sources/${id}/release-lock`,
+      /** GET: paginated `crawl_runs` history. Query: `?source=<id>&page=<n>&limit=<m>`. */
+      runs: "/api/admin/crawler/runs",
+    },
   },
 } as const;
 
@@ -294,6 +307,11 @@ export const ROUTE_TEMPLATES = {
     },
     plugins: {
       detail: "/api/admin/plugins/:id",
+    },
+    crawler: {
+      sourceDetail: "/api/admin/crawler/sources/:id",
+      sourceRunNow: "/api/admin/crawler/sources/:id/run-now",
+      sourceReleaseLock: "/api/admin/crawler/sources/:id/release-lock",
     },
     emailTemplates: {
       detail: "/api/admin/email-templates/:id",

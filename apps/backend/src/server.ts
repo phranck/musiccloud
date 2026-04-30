@@ -11,6 +11,7 @@ import authPlugin from "./plugins/auth.js";
 import adminAnalyticsRoutes from "./routes/admin-analytics.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminContentRoutes from "./routes/admin-content.js";
+import adminCrawlerRoutes from "./routes/admin-crawler.js";
 import adminDataRoutes from "./routes/admin-data.js";
 import adminEmailTemplateRoutes from "./routes/admin-email-templates.js";
 import adminNavRoutes from "./routes/admin-nav.js";
@@ -471,6 +472,7 @@ async function buildApp() {
     await adminApp.register(adminUserRoutes);
     await adminApp.register(siteSettingsAdminRoutes);
     await adminApp.register(adminPluginsRoutes);
+    await adminApp.register(adminCrawlerRoutes);
   });
 
   return app;

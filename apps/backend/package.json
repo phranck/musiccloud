@@ -8,7 +8,8 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "crawler:tick": "node dist/scripts/crawler-heartbeat.js"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",

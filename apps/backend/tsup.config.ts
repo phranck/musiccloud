@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/server.ts"],
+  entry: ["src/server.ts", "src/scripts/crawler-heartbeat.ts"],
   format: ["cjs"],
   target: "node22",
   platform: "node",

@@ -51,6 +51,16 @@ zerops:
         httpGet:
           port: 4000
           path: /health/ready
+      # Per-minute crawler heartbeat. Each tick is idempotent (lock-protected
+      # via crawl_state.running_since with 30min stale-detection); concurrent
+      # ticks across replicas exit cleanly when the lock is held. Single
+      # container is enough for the work this MVP does — flip allContainers
+      # to true if scaling out warrants spreading per-source ticks.
+      crontab:
+        - command: "node apps/backend/dist/scripts/crawler-heartbeat.js"
+          timing: "* * * * *"
+          allContainers: false
+          workingDir: /var/www
 
   - setup: frontend
     build:
