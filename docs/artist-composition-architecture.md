@@ -123,10 +123,9 @@ async DNS check.
 
 ## Relation to other plans
 
-- **Crawler-layer (parked)** —
-  `.claude/plans/open/2026-04-29-crawler-layer-mvp.md`. A crawler can
-  emit `ArtistPartial`s tagged `__source: "musicbrainz"` (or another
-  name) and plug into the same merge path with a strategy edit.
-- **Static vs Dynamic Cache** — independent. Static-cache tables hold
+- **Crawler layer.** Live since 2026-04-28. The crawler can emit
+  `ArtistPartial`s tagged `__source: "musicbrainz"` (or another name)
+  and plug into the same merge path with a strategy edit.
+- **Static vs Dynamic Cache.** Independent. Static-cache tables hold
   fixed artist/album/track records; the composition layer feeds the
   dynamic `ArtistProfile` response. They do not interact.
