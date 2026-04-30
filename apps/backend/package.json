@@ -8,8 +8,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:run": "vitest run",
-    "backfill:preview-urls": "tsx scripts/backfill-preview-urls.ts"
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
