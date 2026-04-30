@@ -184,7 +184,7 @@ async function buildApp() {
           "Exceeding the quota returns `429 Too Many Requests` with `error: RATE_LIMITED`. " +
           "The asset endpoint `GET /api/v1/genre-artwork/:genreKey` is exempt from this per-IP quota because the frontend loads artwork tiles in parallel; " +
           "it is still bounded by a global 300 requests/minute ceiling shared with all routes.",
-        version: "1.0.0",
+        version: "2.0.0",
       },
       servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
       tags: [
