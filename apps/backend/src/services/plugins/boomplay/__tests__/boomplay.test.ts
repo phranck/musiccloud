@@ -1,9 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { boomplayAdapter } from "../adapter";
 
-// Mock global fetch
+// Mock fetchWithTimeout instead of global fetch to bypass the SSRF DNS
+// pre-check (assertPublicUrl). When parallel calls go through fetchWithTimeout
+// the DNS resolution introduces an async gap, making the mockReturnValueOnce
+// queue order non-deterministic on Promise.all/allSettled paths. Mocking
+// fetchWithTimeout directly removes the gap and keeps queue order stable.
 const mockFetch = vi.fn();
-vi.stubGlobal("fetch", mockFetch);
+vi.mock("../../../../lib/infra/fetch", () => ({
+  fetchWithTimeout: (url: string, init?: RequestInit, timeoutMs?: number) => mockFetch(url, init, timeoutMs),
+}));
+
+import { boomplayAdapter } from "../adapter";
 
 beforeEach(() => {
   vi.clearAllMocks();
