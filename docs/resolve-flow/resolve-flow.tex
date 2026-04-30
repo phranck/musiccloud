@@ -12,19 +12,26 @@
 \documentclass[11pt,a4paper]{article}
 
 \usepackage{fontspec}
-\setmainfont{Barlow}
+\setmainfont{Lato}[
+  Extension=.ttf,
+  UprightFont=*-Regular,
+  ItalicFont=*-Italic,
+  BoldFont=*-Bold,
+  BoldItalicFont=*-BoldItalic
+]
 \setmonofont{Menlo}
 
-\usepackage[shorthands=off,ngerman,english]{babel}
+\usepackage[shorthands=off,english,ngerman]{babel}
 \usepackage{csquotes}
 
 \usepackage{geometry}
 \geometry{margin=2cm}
 \usepackage{setspace}
-\setstretch{1.35}
+\setstretch{1.15}
 
 \usepackage{xcolor}
 \usepackage{graphicx}
+\usepackage[skins]{tcolorbox}
 \usepackage{array}
 \usepackage{ragged2e}
 \usepackage{float}
@@ -32,50 +39,54 @@
 \usepackage{longtable}
 \usepackage{hyperref}
 \hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
-\usepackage[framemethod=default]{mdframed}
 \usepackage{etoolbox}
 \usepackage{endnotes}
+
+% --- Mehr Spielraum gegen "Overfull \hbox" bei langen Inline-Code-Boxen ------
+\setlength{\emergencystretch}{4em}
+\setlength{\tabcolsep}{4pt}
 
 % --- Abbildungen werden dort gesetzt, wo sie im Text stehen. ----------------
 \floatplacement{figure}{H}
 \setkeys{Gin}{width=\linewidth,height=\textheight,keepaspectratio}
 
-% --- Überschriften in Barlow Condensed --------------------------------------
-\newfontfamily\headlinefont{Barlow Condensed}[UprightFont={* SemiBold},BoldFont={* Bold}]
+% --- Überschriften in der Body-Serif (STIX Two Text), Bold-Italic -----------
 \makeatletter
 \renewcommand{\section}{\@startsection{section}{1}{0pt}%
   {2.5ex plus 1ex minus .2ex}{1.3ex plus .2ex}%
-  {\headlinefont\Large\bfseries}}
+  {\Large\bfseries\itshape}}
 \renewcommand{\subsection}{\@startsection{subsection}{2}{0pt}%
   {2ex plus 1ex minus .2ex}{1ex plus .2ex}%
-  {\headlinefont\large\bfseries}}
+  {\large\bfseries\itshape}}
 \renewcommand{\subsubsection}{\@startsection{subsubsection}{3}{0pt}%
   {1.5ex plus .8ex minus .2ex}{.8ex plus .2ex}%
-  {\headlinefont\normalsize\bfseries}}
+  {\normalsize\bfseries\itshape}}
 \makeatother
 
-% --- Inline-Code mit hellem Hintergrund und dünnem Rahmen --------------------
+% --- Inline-Code: gerundete Box, kleinerer Schriftgrad -----------------------
 \definecolor{codeBg}{HTML}{F2F4F8}
 \definecolor{codeBorder}{HTML}{C8CFD9}
-\newcommand{\code}[1]{%
-  {\setlength{\fboxsep}{1.5pt}\setlength{\fboxrule}{0.4pt}%
-   \fcolorbox{codeBorder}{codeBg}{\footnotesize\texttt{#1}}}}
+\newtcbox{\codebox}{%
+  on line,
+  colback=codeBg, colframe=codeBorder,
+  boxrule=0.4pt, arc=2pt,
+  left=2pt, right=2pt, top=1pt, bottom=1pt,
+  boxsep=0pt
+}
+\newcommand{\code}[1]{\codebox{\footnotesize\ttfamily #1}}
 
-% --- Codeblöcke: voller Rahmen, gleiche Hintergrundfarbe wie Inline-Code -----
-\newmdenv[
-  backgroundcolor=codeBg,
-  linecolor=codeBorder,
-  linewidth=0.4pt,
-  innertopmargin=6pt,
-  innerbottommargin=6pt,
-  innerleftmargin=8pt,
-  innerrightmargin=8pt,
-  skipabove=4pt,
-  skipbelow=4pt
-]{codeFrame}
+% --- Codeblöcke: dieselbe Optik wie Inline-Code, volle Breite ----------------
+\newtcolorbox{codeFrame}{%
+  colback=codeBg, colframe=codeBorder,
+  boxrule=0.4pt, arc=4pt,
+  top=6pt, bottom=6pt, left=8pt, right=8pt,
+  before skip=12pt, after skip=12pt,
+  fontupper=\footnotesize
+}
 
 % --- Tabellen: kleinerer Schriftgrad, mit Beschriftung ----------------------
-\captionsetup[table]{font={small,sf},labelfont=bf,position=top,skip=4pt}
+\captionsetup[table]{font={small,it},labelfont=bf,position=top,skip=4pt}
+\captionsetup[figure]{font={small,it},labelfont=bf,skip=4pt}
 \AtBeginEnvironment{longtable}{\footnotesize}
 \AtBeginEnvironment{tabular}{\footnotesize}
 \newcolumntype{P}[1]{>{\RaggedRight\arraybackslash}p{#1}}
@@ -87,18 +98,39 @@
 \renewcommand{\theendnote}{\arabic{endnote}}
 \renewcommand{\makeenmark}{\textsuperscript{\theenmark}}
 
-% --- Titelangaben ----------------------------------------------------------
-\title{musiccloud Resolver-Flow}
-\author{musiccloud backend}
-\date{\footnotesize Version DOC\_VERSION\ \ \textperiodcentered\ \ DOC\_DATE}
+% --- Titelangaben im Paper-Stil ---------------------------------------------
+\title{%
+  {\bfseries musiccloud Resolver-Flow}\\[0.55em]
+  {\Large\mdseries\itshape Architektur und Datenfluss durch den Resolver}%
+}
+\author{%
+  musiccloud Backend\\[0.2em]
+  \small\itshape Resolver Subsystem
+}
+\date{\small Version \code{DOC\_VERSION}\quad\textperiodcentered\quad DOC\_DATE}
 
 \begin{document}
 \maketitle
-\begin{center}
-  \small Architektur und Datenfluss durch den Resolver
-\end{center}
-\vspace{1em}
 
+\begin{abstract}
+\noindent
+Der Resolver bildet die Übersetzungsschicht zwischen Musik-Eingaben
+(URLs, Suchbegriffen und Genre-Anfragen) und einer einheitlichen,
+dienstübergreifenden Antwort, die dieselbe Aufnahme auf Spotify, Apple
+Music, Tidal, Deezer, YouTube und weiteren Diensten zugänglich macht.
+Diese Arbeit beschreibt den Aufbau des Resolvers und den Datenfluss
+durch seine Schichten: Eingangs-Endpunkte, Dispatcher, Cache-Stufen,
+Adapter-Aufrufe, die dienstübergreifende Suche und die Persistenz, an
+deren Ende ein stabiler Share-Kurzlink steht. Ziel ist eine Referenz
+für Wartung und Erweiterung des Systems.
+\end{abstract}
+
+\vspace{0.6em}
+\noindent{\small\textbf{Schlüsselwörter:}\enspace Resolver, Cache,
+Adapter, dienstübergreifende Suche, Disambiguierung, Persistenz,
+Share-Kurzlink, ISRC.}
+
+\vspace{1em}
 \tableofcontents
 \clearpage
 
@@ -113,16 +145,16 @@ Genau diese Übersetzung leistet der Resolver. Das vorliegende
 Dokument beschreibt seinen Aufbau und den Datenfluss durch seine
 einzelnen Schichten.
 
-Der Resolver verarbeitet fünf verschiedene Arten von Eingaben.
+Der Resolver verarbeitet fünf Arten von Eingaben.
 Jede dieser Eingaben durchläuft einen leicht abweichenden Pfad
 durch das System. Sobald ein Ergebnis vorliegt, enden jedoch alle
 Pfade am selben Punkt: in der Datenbank, beim Share-Link und in
 der Antwort, die der Nutzer zu sehen bekommt. Was zwischen Eingabe
 und Ergebnis geschieht, ist der eigentlich interessante Teil. Hier
-fangen Caches wiederkehrende Anfragen ab, vermitteln Adapter
-zwischen den Streaming-Diensten, und sorgt eine Reihe von
-Notlösungen dafür, dass das System auch dann noch funktioniert,
-wenn einer der Dienste vorübergehend ausfällt.
+fangen Caches wiederkehrende Anfragen ab, und Adapter vermitteln
+zwischen den Streaming-Diensten. Eine Reihe von Notlösungen sorgt
+zudem dafür, dass das System auch dann noch funktioniert, wenn
+einer der Dienste vorübergehend ausfällt.
 
 % =============================================================================
 \section{Wie eine Anfrage hereinkommt}
@@ -141,8 +173,8 @@ kommunizieren.
 \code{POST /api/v1/resolve} ist der vollwertige Einstiegspunkt.
 Jede Anfrage muss sich ausweisen, entweder mit einem
 \code{X-API-Key}-Header für interne Aufrufer oder mit einem
-\code{Authorization: Bearer <jwt>}-Header für externe Clients, die
-ein OAuth-Token besitzen. Zusätzlich greift eine
+\code{Authorization}-Header der Form \code{Bearer <jwt>} für
+externe Clients, die ein OAuth-Token besitzen. Zusätzlich greift eine
 Anfrage-Begrenzung pro Client-IP, denn ein gestohlener Schlüssel
 ist nach wie vor ein Schlüssel.
 
@@ -159,8 +191,8 @@ eine zuvor begonnene Disambiguierung abschließt.
 \hline
 \textbf{Feld} & \textbf{Typ} & \textbf{Verwendung} & \textbf{Bedeutung} \\
 \hline
-\texttt{query} & string & erste Anfrage & Eingabe des Nutzers, höchstens 500 Zeichen. \\
-\texttt{selectedCandidate} & string & Folgeanfrage & Kennung eines zuvor angebotenen Treffers, höchstens 200 Zeichen. \\
+\code{query} & string & erste Anfrage & Eingabe des Nutzers, höchstens 500 Zeichen. \\
+\code{selectedCandidate} & string & Folgeanfrage & Kennung eines zuvor angebotenen Treffers, höchstens 200 Zeichen. \\
 \hline
 \end{tabular}
 \end{table}
@@ -205,8 +237,8 @@ authentifizierten Endpunkt.
 \hline
 \textbf{Parameter} & \textbf{Typ} & \textbf{Pflicht} & \textbf{Bedeutung} \\
 \hline
-\texttt{query} & string & ja & URL oder Suchbegriff, höchstens 500 Zeichen. \\
-\texttt{format} & string & nein & \texttt{json} (Standard) liefert die vollständige Antwort. \texttt{text} liefert ausschließlich den Share-Kurzlink als reinen Text, etwa zur Weiterverarbeitung in einer Pipe. \\
+\code{query} & string & ja & URL oder Suchbegriff, höchstens 500 Zeichen. \\
+\code{format} & string & nein & \code{json} (Standard) liefert die vollständige Antwort. \code{text} liefert ausschließlich den Share-Kurzlink als reinen Text, etwa zur Weiterverarbeitung in einer Pipe. \\
 \hline
 \end{tabular}
 \end{table}
@@ -244,20 +276,20 @@ Client-Credentials-Verfahren von OAuth\,2.0.
 \centering
 \caption{Felder der Token-Anfrage.}
 \label{tbl:auth-token-body}
-\begin{tabular}{P{2.6cm} P{1.4cm} P{11.2cm}}
+\begin{tabular}{P{2.6cm} P{1.4cm} P{10.8cm}}
 \hline
 \textbf{Feld} & \textbf{Typ} & \textbf{Bedeutung} \\
 \hline
-\texttt{client\_id} & string & Bei musiccloud registrierte Client-Kennung. \\
-\texttt{client\_secret} & string & Das zugehörige Geheimnis. \\
-\texttt{grant\_type} & string & Muss exakt \texttt{client\_credentials} lauten. \\
+\code{client\_id} & string & Bei musiccloud registrierte Client-Kennung. \\
+\code{client\_secret} & string & Das zugehörige Geheimnis. \\
+\code{grant\_type} & string & Muss exakt \code{client\_credentials} lauten. \\
 \hline
 \end{tabular}
 \end{table}
 
 Die Antwort enthält drei Felder: \code{access\_token}, das JWT,
-das in nachfolgenden Anfragen als
-\code{Authorization: Bearer <token>} mitgeschickt wird,
+das in nachfolgenden Anfragen als \code{Authorization}-Header
+der Form \code{Bearer <token>} mitgeschickt wird,
 \code{token\_type} mit dem festen Wert \code{Bearer} und
 \code{expires\_in} mit der Gültigkeitsdauer in Sekunden, derzeit
 eine Stunde. Läuft das Token ab, fordert der Client mit denselben
@@ -272,10 +304,10 @@ Zwei weitere Endpunkte gehören zur Resolver-Erfahrung, liegen aber
 außerhalb des Themas dieses Dokuments:
 
 \begin{itemize}
-  \item \code{GET /api/v1/share/\{shortId\}} liefert die
+  \item \code{GET} \code{/api/v1/share/\{shortId\}} liefert die
     Share-Seite zu einem zuvor aufgelösten Eintrag, gefunden über
     seine Kurz-ID.
-  \item \code{GET /api/v1/share/\{shortId\}/preview} fordert eine
+  \item \code{GET} \code{/api/v1/share/\{shortId\}/preview} fordert eine
     abgelaufene oder fehlende Vorschau-URL bei Bedarf neu an. Der
     Audio-Player im Frontend ruft diesen Endpunkt auf, sobald er
     feststellt, dass eine zwischengespeicherte Vorschau nicht
@@ -337,7 +369,7 @@ Fall.
 URLs sind die häufigste Eingabeform und nehmen den aufwendigsten
 Pfad. Album- und Artist-URLs zweigen früh in eigene Resolver ab.
 Die wesentliche Mechanik liegt jedoch im Track-Pfad, weshalb
-dieser Abschnitt diesem folgt.
+dieser Abschnitt dem Track-Pfad folgt.
 
 % -----------------------------------------------------------------------------
 \subsection{Aufräumen der URL}
@@ -353,8 +385,8 @@ unterschiedliche Cache-Einträge geführt. Erst das Entfernen der
 Parameter macht den Cache nützlich.
 
 Manche Anbieter verbergen die eigentliche URL hinter einer
-Weiterleitung, etwa \code{link.deezer.com/s/...} oder
-\code{on.soundcloud.com/...}. Der Resolver folgt solchen
+Weiterleitung, etwa über \code{link.deezer.com} oder
+\code{on.soundcloud.com}. Der Resolver folgt solchen
 Weiterleitungen mit einer HTTP-HEAD-Anfrage, um die kanonische URL
 zu erhalten, und bereinigt anschließend erneut. Häufig fügt das
 Ziel der Weiterleitung wieder eigene Parameter ein, sodass eine
@@ -433,9 +465,9 @@ meisten weiteren Anbieter. Sie liefern strukturierte Antworten.
 Die zweite Gruppe arbeitet ohne Zugang und liest die öffentliche
 Webseite des Dienstes aus. Wird ein solcher Adapter ohne
 konfigurierten Schlüssel aufgerufen, fordert der Resolver die
-Seite mit einer User-Agent-Kennung an, wie sie ein Bot eines
-sozialen Netzwerks verwenden würde, und liest die
-Open-Graph-Metaangaben aus dem zurückgelieferten HTML aus. Dieser
+Seite mit einer User-Agent-Kennung an, wie sie Bots sozialer
+Netzwerke verwenden, und liest die Open-Graph-Metaangaben aus
+dem zurückgelieferten HTML aus. Dieser
 Umweg ist nötig, weil viele moderne Webseiten nur dann
 servergerendert antworten, wenn sie einen bekannten Crawler
 erkennen; einem normalen Browser liefern sie ein leeres
@@ -454,9 +486,8 @@ Anfang dieser Reihenfolge, weil beide gleichbleibend hochwertige
 Cover ausliefern.
 
 Der zweite Schritt betrifft die Hörprobe. Vorschauen gibt es in
-zwei Geschmacksrichtungen: dauerhaft gültige CDN-URLs auf der
-einen Seite und signierte URLs mit kurzer Lebenszeit auf der
-anderen. Eine signierte URL, die heute funktioniert, kann morgen
+zwei Varianten: dauerhaft gültige CDN-URLs auf der einen Seite
+und signierte URLs mit kurzer Lebenszeit auf der anderen. Eine signierte URL, die heute funktioniert, kann morgen
 mit \code{403} antworten. Der Resolver wählt deshalb stets die
 stabilste verfügbare Vorschau aus. In der Praxis bedeutet das,
 dass eine Deezer-Vorschau eine Spotify-Vorschau in jedem Fall
@@ -479,8 +510,9 @@ eingibt, erwartet einen Track als Ergebnis.
 
 An dieser Stelle unterscheiden sich die beiden Endpunkte. Der
 authentifizierte Endpunkt kann mit dem Client einen Dialog
-führen: Liefert die Suche keinen klaren Treffer, schickt er eine
-Liste von Vorschlägen zurück, aus der der Client einen auswählt.
+führen: Liefert die Suche keinen klaren Treffer, schickt der
+Endpunkt eine Liste von Vorschlägen zurück, aus der der Client
+einen auswählt.
 Der unauthentifizierte Endpunkt kennt keinen Dialog. Er antwortet
 nur dann, wenn das Ergebnis eindeutig ist, und gibt sonst
 \code{400} zurück.
@@ -527,7 +559,7 @@ unscharfe Anfrage keine endlos lange Antwort erzeugt.
 \subsection{Mit ausgewähltem Vorschlag zurückkommen}
 % -----------------------------------------------------------------------------
 
-Disambiguierung ist eine zweistufige Konversation. Auf die erste
+Disambiguierung ist ein zweistufiger Dialog. Auf die erste
 Anfrage hin liefert der Resolver die Vorschlagsliste, der Client
 zeigt sie dem Nutzer, und sobald dieser einen Vorschlag
 ausgewählt hat, sendet der Client eine zweite Anfrage mit dem
@@ -561,7 +593,7 @@ Klickziel über den URL- oder Textpfad in den Resolver und wird
 dort regulär gespeichert.
 
 Das Discovery-Backend stützt sich auf von der Community vergebene
-Tags und kennt dadurch tausende Subgenres, weit über das hinaus,
+Tags und kennt dadurch Tausende von Subgenres, weit über das hinaus,
 was die großen Streaming-Kataloge direkt anbieten. Trance,
 Krautrock, Shoegaze, Bebop, Vaporwave, Dungeon Synth und
 ähnliches finden sich nur dort. Ohne den passenden API-Schlüssel
@@ -628,12 +660,12 @@ Folgende Felder stehen zur Verfügung:
 \hline
 \textbf{Feld} & \textbf{Bedeutung} \\
 \hline
-\texttt{genre} & Eines oder mehrere Genres, getrennt durch \texttt{|}. Pflicht. \\
-\texttt{tracks} & Anzahl gewünschter Tracks. Standard: 10. \\
-\texttt{albums} & Anzahl gewünschter Alben. \\
-\texttt{artists} & Anzahl gewünschter Interpreten. \\
-\texttt{count} & Kurzform, um dieselbe Anzahl für alle drei Kategorien zu setzen. \\
-\texttt{vibe} & \texttt{hot} bevorzugt populäre Treffer (Standard), \texttt{mixed} mischt populäre, mittlere und weniger bekannte Treffer. \\
+\code{genre} & Eines oder mehrere Genres, getrennt durch \code{|}. Pflicht. \\
+\code{tracks} & Anzahl gewünschter Tracks. Standard: 10. \\
+\code{albums} & Anzahl gewünschter Alben. \\
+\code{artists} & Anzahl gewünschter Interpreten. \\
+\code{count} & Kurzform, um dieselbe Anzahl für alle drei Kategorien zu setzen. \\
+\code{vibe} & \code{hot} bevorzugt populäre Treffer (Standard), \code{mixed} mischt populäre, mittlere und weniger bekannte Treffer. \\
 \hline
 \end{tabular}
 \end{table}
@@ -645,12 +677,12 @@ Felder oder ungültige Zahlen führen zu einem Fehler; der Parser
 ignoriert nichts stillschweigend.
 
 Die beiden Werte für \code{vibe} unterscheiden sich darin, wie
-aus den Per-Genre-Daten ausgewählt wird. \code{hot} nimmt die
+aus den genrespezifischen Daten ausgewählt wird. \code{hot} nimmt die
 Spitze der Charts, optional gleichmäßig über die obersten Plätze
 verteilt, damit nicht alle Treffer aus derselben Kalenderwoche
 stammen. \code{mixed} zieht eine geschichtete Stichprobe aus
-oberem, mittlerem und unterem Drittel; das Ergebnis lehnt
-spürbar in Richtung Entdeckung statt in Richtung Wiedererkennung.
+oberem, mittlerem und unterem Drittel; das Ergebnis neigt sich
+spürbar zur Entdeckung statt zur Wiedererkennung.
 
 Sobald die Daten vorliegen, ergänzt der Resolver fehlende Cover
 aus dem dauerhaften Bild-Cache. Bilder, die hier zum ersten Mal
@@ -668,7 +700,7 @@ spätere Anfragen nichts mehr nachladen müssen.
 \section{Dienstübergreifende Suche}
 % =============================================================================
 
-Dieser Schritt macht den Resolver eigentlich erst nützlich. Der
+Erst dieser Schritt macht den Resolver wirklich nützlich. Der
 Nutzer hat einen Spotify-Link eingefügt, doch die Share-Seite
 soll Apple Music, Tidal, Deezer, YouTube und alle übrigen Dienste
 ebenfalls öffnen. Die dienstübergreifende Suche ist der
@@ -695,14 +727,14 @@ Die schwächere Strategie ist die Suche nach Titel und Interpret.
 Der Adapter führt die unscharfe Suche durch, die seine API
 anbietet. Der Konfidenzwert kommt aus dieser API; die Qualität
 schwankt deutlich von Anbieter zu Anbieter. Spotifys
-Relevanzwertung ist verlässlich, andere wirken eher wie geschätzte
-Zahlen.
+Relevanzwertung ist verlässlich, die übrigen wirken eher wie grobe
+Schätzwerte.
 
 Treffer unterhalb einer Mindestgüte filtert der Resolver heraus,
 bevor sie den Nutzer erreichen. Eine Ausnahme bilden synthetische
 Such-Notlösungen, also Links, die statt direkt auf den Treffer auf
 eine Suchseite des Dienstes verweisen. Sie bleiben erhalten, damit
-in der Antwort wenigstens eine Option pro Dienst auftaucht.
+in der Antwort wenigstens eine Option pro Dienst enthalten ist.
 
 Zwei Ableitungen schließen sich an. Aus jedem erfolgreichen
 YouTube-Treffer leitet der Resolver einen entsprechenden
@@ -728,8 +760,8 @@ und reine Fuzzy-Treffer voneinander unterscheidet.
 
 Sämtliche Schwellwerte stehen in einem zentralen Konstantenmodul.
 Eine Verhaltensänderung ist somit eine Zahlenänderung in einer
-Datei und keine Suche nach magischen Konstanten quer durch den
-Quellcode.
+Datei und keine Suche nach Konstanten, die im Quellcode verstreut
+liegen.
 
 \begin{figure}[H]
   \centering
@@ -745,8 +777,8 @@ Quellcode.
 Sobald ein Auflösungsergebnis vorliegt, schreibt die
 Persistenz-Schicht es in einer festen Reihenfolge in die
 Datenbank. Diese Schicht teilen sich der Route-Layer und der
-Crawler-Pfad. Beide Aufrufer behandeln den Begriff
-\enquote{persistiert} dadurch identisch.
+Crawler-Pfad. Beide Aufrufer verstehen den Begriff
+\enquote{persistiert} deshalb identisch.
 
 % -----------------------------------------------------------------------------
 \subsection{Der kanonische Schreibvorgang}
@@ -788,8 +820,9 @@ unterschiedliche ISRCs haben.} und UPC – wird in einer eigenen
 Aggregationstabelle abgelegt, idempotent über das Paar (Eintrag,
 Kennungstyp, Wert, Quelldienst) eingefügt. Fehler bei diesem
 Schritt sind nicht kritisch und werden nur auf Debug-Ebene
-geloggt; ein gestolperter Aggregations-Schreibvorgang darf eine
-ansonsten erfolgreiche Auflösung nicht zum Fehler degradieren.
+geloggt; ein fehlgeschlagener Aggregations-Schreibvorgang darf
+eine ansonsten erfolgreiche Auflösung nicht zum Fehler werden
+lassen.
 
 Jeder dienstübergreifende Link, der eine Vorschau-URL geliefert
 hat, wird per Upsert mit der jeweiligen Ablaufzeit gespeichert.
@@ -819,7 +852,7 @@ ist.
 
 Am Ende gibt die Persistenz-Schicht drei Werte an den Aufrufer
 zurück: die kanonische Track-Kennung, die Share-Kurzlink-ID und
-die Vorschau-URL, die er an den Client weitergeben soll. Der
+die Vorschau-URL, die der Aufrufer an den Client weitergibt. Der
 Route-Layer baut daraus die nutzersichtbare Antwort; der
 Crawler verbucht das Ergebnis lediglich als
 \enquote{ingestiert}.
@@ -865,16 +898,16 @@ Schwellwert spielt.
 \centering
 \caption{Konfidenz-Schwellwerte und ihre Aufgaben.}
 \label{tbl:confidence-thresholds}
-\begin{tabular}{P{4.2cm} P{6.0cm} P{5.4cm}}
+\begin{tabular}{P{5.5cm} P{5.6cm} P{4.0cm}}
 \hline
 \textbf{Konstante} & \textbf{Was sie regelt} & \textbf{Aufgabe} \\
 \hline
-\texttt{MATCH\_MIN\_CONFIDENCE} & Ein Adapter-Treffer muss mindestens diesen Wert erreichen, um überhaupt als Treffer zu zählen. & Filtert offensichtlichen Müll am Adapter-Rand. \\
-\texttt{LINK\_QUALITY\_THRESHOLD} & Ein dienstübergreifender Link muss mindestens diesen Wert erreichen, um in die Antwort aufgenommen zu werden. & Hält verrauschte Fuzzy-Treffer von der Anzeige fern. \\
-\texttt{AUTO\_SELECT\_THRESHOLD} & Eine Textsuche löst direkt auf, wenn der vorderste Vorschlag mindestens diesen Wert erreicht. & Spart Folgeanfragen bei klaren Fällen. \\
-\texttt{CANDIDATE\_MIN\_CONFIDENCE} & Ein Vorschlag muss mindestens diesen Wert erreichen, um in der Vorschlagsliste zu erscheinen. & Hält hoffnungslose Optionen aus der Disambiguierung. \\
-\texttt{MAX\_CANDIDATES} & Maximale Länge der Vorschlagsliste. & Begrenzt die Antwortgröße. \\
-\texttt{SEARCH\_FALLBACK\_CONFIDENCE} & Konfidenz, die synthetischen Such-Notlösungen zugewiesen wird. & Sortiert solche Links ans Ende der Liste. \\
+\code{MATCH\_MIN\_CONFIDENCE} & Ein Adapter-Treffer muss mindestens diesen Wert erreichen, um überhaupt als Treffer zu zählen. & Filtert offensichtlichen Müll am Adapter-Rand. \\
+\code{LINK\_QUALITY\_THRESHOLD} & Ein dienstübergreifender Link muss mindestens diesen Wert erreichen, um in die Antwort aufgenommen zu werden. & Hält verrauschte Fuzzy-Treffer von der Anzeige fern. \\
+\code{AUTO\_SELECT\_THRESHOLD} & Eine Textsuche löst direkt auf, wenn der vorderste Vorschlag mindestens diesen Wert erreicht. & Spart Folgeanfragen bei klaren Fällen. \\
+\code{CANDIDATE\_MIN\_CONFIDENCE} & Ein Vorschlag muss mindestens diesen Wert erreichen, um in der Vorschlagsliste zu erscheinen. & Hält hoffnungslose Optionen aus der Disambiguierung. \\
+\code{MAX\_CANDIDATES} & Maximale Länge der Vorschlagsliste. & Begrenzt die Antwortgröße. \\
+\code{SEARCH\_FALLBACK\_CONFIDENCE} & Konfidenz, die synthetischen Such-Notlösungen zugewiesen wird. & Sortiert solche Links ans Ende der Liste. \\
 \hline
 \end{tabular}
 \end{table}
@@ -890,7 +923,7 @@ die Werte fest gesetzt.
 \section{Hinweise für den Betrieb}
 % =============================================================================
 
-Einige Punkte, die bei Arbeiten an dieser Schicht hilfreich sind:
+Einige Punkte, die bei der Arbeit an dieser Schicht hilfreich sind:
 
 \paragraph{Adapter-Zeitschranke.} Die dienstübergreifende Suche
 lässt jeden Adapter-Aufruf gegen eine eigene Zeitschranke laufen.
@@ -943,9 +976,9 @@ hinzufügen möchte, geht dabei in vier Schritten vor:
     entsprechend anpassen.
   \item \code{make docs} im Wurzelverzeichnis des Repositorys
     ausführen.
-  \item Die geänderte Diagrammquelle, die regenerierten
-    Diagramm-PDFs und die neue \code{resolve-flow.pdf} zusammen
-    mit der zugehörigen Code-Änderung committen.
+  \item Die geänderte Diagrammquelle, die neuen Diagramm-PDFs
+    sowie \code{resolve-flow.pdf} gemeinsam mit der zugehörigen
+    Code-Änderung committen.
 \end{enumerate}
 
 Die LaTeX-Datei ist die einzige Quelle für den Prosatext, die
