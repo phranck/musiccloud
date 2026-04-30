@@ -5,6 +5,7 @@ import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import swagger from "@fastify/swagger";
 import Fastify from "fastify";
+import { getRepository } from "./db/index.js";
 import { runMigrations } from "./db/run-migrations.js";
 import authPlugin from "./plugins/auth.js";
 import adminAnalyticsRoutes from "./routes/admin-analytics.js";
@@ -369,6 +370,52 @@ async function buildApp() {
     },
     async () => {
       return { status: "ok" };
+    },
+  );
+
+  // Readiness probe — verifies the DB is reachable AND that every table
+  // touched by the hot-path SELECTs exists. Catches the partially-migrated
+  // state where a deploy ships code that queries tables a failed migration
+  // never created (Apr 2026 outage: track_previews missing → all share
+  // URLs returned 500). Returns 503 with the missing-table list so Zerops
+  // and external monitoring can mark the container un-ready.
+  app.get(
+    "/health/ready",
+    {
+      schema: {
+        tags: ["Health"],
+        summary: "Readiness probe (schema + DB reachability)",
+      },
+    },
+    async (_request, reply) => {
+      // Tables added by recent migrations whose absence would crash a
+      // request handler. Extend this list whenever a new migration adds a
+      // table referenced by request-time SELECTs.
+      const expected = [
+        "tracks",
+        "albums",
+        "artists",
+        "short_urls",
+        "album_short_urls",
+        "artist_short_urls",
+        "service_links",
+        "track_previews",
+        "album_previews",
+        "track_external_ids",
+        "album_external_ids",
+        "artist_external_ids",
+        "artist_images",
+      ];
+      try {
+        const repo = await getRepository();
+        const missing = await repo.findMissingTables(expected);
+        if (missing.length > 0) {
+          return reply.status(503).send({ status: "not_ready", missingTables: missing });
+        }
+        return { status: "ready" };
+      } catch (err) {
+        return reply.status(503).send({ status: "not_ready", error: (err as Error).message });
+      }
     },
   );
 

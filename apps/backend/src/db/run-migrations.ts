@@ -53,7 +53,12 @@ export async function runMigrations(): Promise<void> {
 
     console.log("[DB] All migrations applied successfully");
   } catch (err) {
+    // Crash hard: a partially-migrated DB schema with new application code
+    // produces silent data-shape corruption (e.g. SELECTs on a table that
+    // never got created). Container restart-loop in Zerops is loud and
+    // visible; a zombie backend serving 500s is not.
     console.error("[DB] Migration failed:", (err as Error).message);
+    throw err;
   } finally {
     await pool.end();
   }

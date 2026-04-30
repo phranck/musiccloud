@@ -43,6 +43,14 @@ zerops:
       initCommands:
         - "true"
       start: node apps/backend/dist/server.js
+      # Readiness probe: /health/ready returns 503 with the missing-table
+      # list if a migration silently failed and a hot-path table is gone.
+      # Zerops marks the container un-ready and keeps it out of rotation
+      # until the schema is consistent again.
+      healthCheck:
+        httpGet:
+          port: 4000
+          path: /health/ready
 
   - setup: frontend
     build:

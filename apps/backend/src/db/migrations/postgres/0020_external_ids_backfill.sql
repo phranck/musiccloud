@@ -4,12 +4,14 @@
 -- observations. Manual migration (no Drizzle-kit equivalent
 -- because the work is data-only).
 --
--- Idempotent: ON CONFLICT DO NOTHING relies on the unique index
--- (entity_id, id_type, id_value, source_service) created in 0019.
+-- Idempotent: ON CONFLICT DO NOTHING targets the unique index columns
+-- created in 0019. Note: ON CONFLICT ON CONSTRAINT requires a UNIQUE
+-- CONSTRAINT, NOT a UNIQUE INDEX — Postgres rejects the latter with
+-- "constraint does not exist". Column inference works for both.
 
 INSERT INTO "track_external_ids" ("id", "track_id", "id_type", "id_value", "source_service", "observed_at")
 SELECT
-  encode(gen_random_bytes(12), 'hex'),
+  gen_random_uuid()::text,
   "id",
   'isrc',
   "isrc",
@@ -17,11 +19,11 @@ SELECT
   "created_at"
 FROM "tracks"
 WHERE "isrc" IS NOT NULL
-ON CONFLICT ON CONSTRAINT "idx_track_external_ids_unique" DO NOTHING;
+ON CONFLICT ("track_id", "id_type", "id_value", "source_service") DO NOTHING;
 --> statement-breakpoint
 INSERT INTO "album_external_ids" ("id", "album_id", "id_type", "id_value", "source_service", "observed_at")
 SELECT
-  encode(gen_random_bytes(12), 'hex'),
+  gen_random_uuid()::text,
   "id",
   'upc',
   "upc",
@@ -29,4 +31,4 @@ SELECT
   "created_at"
 FROM "albums"
 WHERE "upc" IS NOT NULL
-ON CONFLICT ON CONSTRAINT "idx_album_external_ids_unique" DO NOTHING;
+ON CONFLICT ("album_id", "id_type", "id_value", "source_service") DO NOTHING;

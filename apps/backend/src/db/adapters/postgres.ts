@@ -692,21 +692,18 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     entityId: string,
     records: ExternalIdRecord[],
   ): Promise<void> {
-    const constraintName = {
-      track_external_ids: "idx_track_external_ids_unique",
-      album_external_ids: "idx_album_external_ids_unique",
-      artist_external_ids: "idx_artist_external_ids_unique",
-    }[table];
-
     const now = new Date();
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
       for (const r of records) {
+        // ON CONFLICT (cols) targets the unique index from migration 0019.
+        // ON CONFLICT ON CONSTRAINT requires a UNIQUE CONSTRAINT, which
+        // a UNIQUE INDEX is not — Postgres rejects the latter at runtime.
         await client.query(
           `INSERT INTO ${table} (id, ${fkColumn}, id_type, id_value, source_service, observed_at)
            VALUES ($1, $2, $3, $4, $5, $6)
-           ON CONFLICT ON CONSTRAINT ${constraintName} DO NOTHING`,
+           ON CONFLICT (${fkColumn}, id_type, id_value, source_service) DO NOTHING`,
           [
             `${entityId}-${r.idType}-${r.sourceService}-${r.idValue.slice(-20)}`,
             entityId,
@@ -941,6 +938,17 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async updateTrackTimestamp(trackId: string): Promise<void> {
     const now = new Date();
     await this.pool.query(`UPDATE tracks SET updated_at = $1 WHERE id = $2`, [now, trackId]);
+  }
+
+  async findMissingTables(expected: string[]): Promise<string[]> {
+    if (expected.length === 0) return [];
+    const result = await this.pool.query<{ table_name: string }>(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = ANY($1::text[])`,
+      [expected],
+    );
+    const present = new Set(result.rows.map((r) => r.table_name));
+    return expected.filter((t) => !present.has(t));
   }
 
   // ============================================================================
