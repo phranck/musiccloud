@@ -104,9 +104,12 @@
   padding: var(--neu-border-width, 1px);
   border-radius: inherit;
   /* Subtract the content-box from the border-box → only the 1px strip remains.
-     Note: LightningCSS (used by Tailwind v4) collapses `mask-composite` and
-     `-webkit-mask-composite` into a single property, dropping one. The
-     @supports block below isolates the modern syntax so it survives the build. */
+     Both -webkit- and standard composite values are set unconditionally so
+     no @supports race can leave the ::before with a fully-opaque mask
+     (which would paint the gradient over the entire element instead of just
+     the 1px border strip). Browsers ignore the value they don't understand.
+     Note: LightningCSS (Tailwind v4) sometimes collapses prefixed/standard
+     pairs; the live CSS for this rule has been verified to retain both. */
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -114,14 +117,16 @@
   mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
+  mask-composite: exclude;
   pointer-events: none;
-}
-
-@supports (mask-composite: exclude) {
-  .embossed-gradient-border::before,
-  .recessed-gradient-border::before {
-    mask-composite: exclude;
-  }
+  /* Force a GPU compositing layer at element-creation time. WebKit (Safari
+     26.5 macOS+iOS) was observed to paint the ::before with mask-composite
+     in its initial state on freshly-injected DOM (Astro server-defer +
+     React island hydration), so the gradient covered the whole element
+     instead of just the 1px border strip. Pre-allocating the layer via
+     translateZ(0) forces the mask to be rasterized with composite applied
+     from the first paint. The transform value is a no-op visually. */
+  transform: translateZ(0);
 }
 
 .embossed-gradient-border::before {
