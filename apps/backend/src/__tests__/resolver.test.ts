@@ -392,10 +392,11 @@ describe("resolveTextSearchWithDisambiguation", () => {
     });
     vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
 
-    await resolveTextSearchWithDisambiguation(
-      "title: Karma Police, artist: Radiohead, album: OK Computer",
-      { title: "Karma Police", artist: "Radiohead", album: "OK Computer" },
-    );
+    await resolveTextSearchWithDisambiguation("title: Karma Police, artist: Radiohead, album: OK Computer", {
+      title: "Karma Police",
+      artist: "Radiohead",
+      album: "OK Computer",
+    });
 
     expect(searchSpy).toHaveBeenCalledWith({
       title: "Karma Police",
@@ -440,11 +441,7 @@ describe("resolveTextSearchWithDisambiguation", () => {
     });
     vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
 
-    const result = await resolveTextSearchWithDisambiguation(
-      "title: foo",
-      { title: "foo", artist: "" },
-      3,
-    );
+    const result = await resolveTextSearchWithDisambiguation("title: foo", { title: "foo", artist: "" }, 3);
 
     expect(result.kind).toBe("disambiguation");
     expect(result.candidates?.length).toBe(3);

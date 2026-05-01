@@ -26,12 +26,6 @@
 import type { ResolveErrorResponse, ResolveSuccessResponse } from "@musiccloud/shared";
 import { ENDPOINTS, formatUserMessage, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
-import {
-  isStructuredSearchQuery,
-  parseStructuredSearchQuery,
-  StructuredSearchQueryParseError,
-  type ParsedStructuredQuery,
-} from "../services/structured-search/index.js";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
@@ -42,6 +36,12 @@ import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
 import type { ResolutionResult } from "../services/resolver.js";
 import { resolveQuery, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
+import {
+  isStructuredSearchQuery,
+  type ParsedStructuredQuery,
+  parseStructuredSearchQuery,
+  StructuredSearchQueryParseError,
+} from "../services/structured-search/index.js";
 
 /**
  * Whitelist for the `Origin` header used when building the user-facing short
@@ -86,7 +86,8 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
               type: "string",
               minLength: 1,
               maxLength: 500,
-              description: "Streaming-service URL, free-text query, or structured search query (e.g. `title: Bohemian Rhapsody, artist: Queen`).",
+              description:
+                "Streaming-service URL, free-text query, or structured search query (e.g. `title: Bohemian Rhapsody, artist: Queen`).",
             },
             format: {
               type: "string",
@@ -157,11 +158,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
             }
             throw err;
           }
-          const textResult = await resolveTextSearchWithDisambiguation(
-            query,
-            parsed.search,
-            parsed.candidateLimit,
-          );
+          const textResult = await resolveTextSearchWithDisambiguation(query, parsed.search, parsed.candidateLimit);
           if (textResult.kind === "resolved" && textResult.result) {
             result = textResult.result;
           } else {

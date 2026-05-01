@@ -351,9 +351,9 @@ describe("Deezer: searchTrack", () => {
     });
 
     const calledUrl = fetchSpy.mock.calls[0][0] as string;
-    expect(calledUrl).toContain('artist%3A%22Radiohead%22');
-    expect(calledUrl).toContain('track%3A%22Karma%20Police%22');
-    expect(calledUrl).toContain('album%3A%22OK%20Computer%22');
+    expect(calledUrl).toContain("artist%3A%22Radiohead%22");
+    expect(calledUrl).toContain("track%3A%22Karma%20Police%22");
+    expect(calledUrl).toContain("album%3A%22OK%20Computer%22");
   });
 });
 
@@ -512,7 +512,7 @@ describe("Deezer: searchTrackWithCandidates", () => {
     });
 
     const calledUrl = fetchSpy.mock.calls[0][0] as string;
-    expect(calledUrl).toContain('album%3A%22OK%20Computer%22');
+    expect(calledUrl).toContain("album%3A%22OK%20Computer%22");
   });
 });
 

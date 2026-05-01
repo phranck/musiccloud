@@ -107,9 +107,7 @@ export function parseStructuredSearchQuery(input: string): ParsedStructuredQuery
     }
 
     if (!isValidKey(key)) {
-      throw new StructuredSearchQueryParseError(
-        `Unknown field '${rawKey}'. Allowed: title, artist, album, count`,
-      );
+      throw new StructuredSearchQueryParseError(`Unknown field '${rawKey}'. Allowed: title, artist, album, count`);
     }
 
     if (seenKeys.has(key)) {
@@ -138,9 +136,7 @@ export function parseStructuredSearchQuery(input: string): ParsedStructuredQuery
   }
 
   if (title === null && artist === null) {
-    throw new StructuredSearchQueryParseError(
-      "Structured query needs at least one of: title, artist",
-    );
+    throw new StructuredSearchQueryParseError("Structured query needs at least one of: title, artist");
   }
 
   const search: SearchQuery = {
@@ -158,9 +154,7 @@ export function parseStructuredSearchQuery(input: string): ParsedStructuredQuery
 
 function parseCount(raw: string): number {
   if (!/^\d+$/.test(raw)) {
-    throw new StructuredSearchQueryParseError(
-      `'count' must be a positive integer (got '${raw}')`,
-    );
+    throw new StructuredSearchQueryParseError(`'count' must be a positive integer (got '${raw}')`);
   }
   const n = Number.parseInt(raw, 10);
   if (n < COUNT_MIN) {

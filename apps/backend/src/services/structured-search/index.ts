@@ -9,7 +9,7 @@
 
 export type { ParsedStructuredQuery } from "./parser.js";
 export {
-  StructuredSearchQueryParseError,
   isStructuredSearchQuery,
   parseStructuredSearchQuery,
+  StructuredSearchQueryParseError,
 } from "./parser.js";

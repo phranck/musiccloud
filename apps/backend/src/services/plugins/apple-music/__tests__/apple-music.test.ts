@@ -26,9 +26,7 @@ beforeEach(() => {
 
 describe("Apple Music adapter — searchTrack", () => {
   it("includes album in the term when query.album is provided", async () => {
-    vi.mocked(fetchWithTimeout).mockResolvedValue(
-      jsonResponse({ results: { songs: { data: [] } } }),
-    );
+    vi.mocked(fetchWithTimeout).mockResolvedValue(jsonResponse({ results: { songs: { data: [] } } }));
 
     await appleMusicAdapter.searchTrack({
       title: "Karma Police",
@@ -43,9 +41,7 @@ describe("Apple Music adapter — searchTrack", () => {
   });
 
   it("omits album from term when query.album is not set", async () => {
-    vi.mocked(fetchWithTimeout).mockResolvedValue(
-      jsonResponse({ results: { songs: { data: [] } } }),
-    );
+    vi.mocked(fetchWithTimeout).mockResolvedValue(jsonResponse({ results: { songs: { data: [] } } }));
 
     await appleMusicAdapter.searchTrack({ title: "Karma Police", artist: "Radiohead" });
 
