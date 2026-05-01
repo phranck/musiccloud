@@ -67,10 +67,7 @@ export async function fetchSharePreview(
 }
 
 /** Fetch share page data (track or album) by shortId from the backend. */
-export async function fetchShareData(
-  shortId: string,
-  clientIp?: string,
-): Promise<SharePageResponse | null> {
+export async function fetchShareData(shortId: string, clientIp?: string): Promise<SharePageResponse | null> {
   try {
     const res = await fetchWithTimeout(
       backendUrl(ENDPOINTS.v1.share(shortId)),
