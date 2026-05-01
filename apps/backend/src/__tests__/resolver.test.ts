@@ -356,6 +356,124 @@ describe("resolveTextSearchWithDisambiguation", () => {
       expect((err as ResolveError).code).toBe("TRACK_NOT_FOUND");
     }
   });
+
+  it("passes structured SearchQuery to adapter instead of duplicating the free-text string", async () => {
+    const track = createMockTrack();
+    const searchSpy = vi.fn().mockResolvedValue({
+      bestMatch: { found: true, track, confidence: 0.95, matchMethod: "search" },
+      candidates: [{ track, confidence: 0.95 }],
+    } satisfies SearchResultWithCandidates);
+
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      displayName: "Spotify",
+      searchTrackWithCandidates: searchSpy,
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+
+    await resolveTextSearchWithDisambiguation("title: Karma Police, artist: Radiohead", {
+      title: "Karma Police",
+      artist: "Radiohead",
+    });
+
+    expect(searchSpy).toHaveBeenCalledWith({ title: "Karma Police", artist: "Radiohead" });
+  });
+
+  it("passes structured SearchQuery including album when provided", async () => {
+    const track = createMockTrack();
+    const searchSpy = vi.fn().mockResolvedValue({
+      bestMatch: { found: true, track, confidence: 0.95, matchMethod: "search" },
+      candidates: [{ track, confidence: 0.95 }],
+    } satisfies SearchResultWithCandidates);
+
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      searchTrackWithCandidates: searchSpy,
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+
+    await resolveTextSearchWithDisambiguation(
+      "title: Karma Police, artist: Radiohead, album: OK Computer",
+      { title: "Karma Police", artist: "Radiohead", album: "OK Computer" },
+    );
+
+    expect(searchSpy).toHaveBeenCalledWith({
+      title: "Karma Police",
+      artist: "Radiohead",
+      album: "OK Computer",
+    });
+  });
+
+  it("falls back to {title: query, artist: query} when no structured arg is provided", async () => {
+    const track = createMockTrack();
+    const searchSpy = vi.fn().mockResolvedValue({
+      bestMatch: { found: true, track, confidence: 0.95, matchMethod: "search" },
+      candidates: [{ track, confidence: 0.95 }],
+    } satisfies SearchResultWithCandidates);
+
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      searchTrackWithCandidates: searchSpy,
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+
+    await resolveTextSearchWithDisambiguation("Bohemian Rhapsody Queen");
+
+    expect(searchSpy).toHaveBeenCalledWith({
+      title: "Bohemian Rhapsody Queen",
+      artist: "Bohemian Rhapsody Queen",
+    });
+  });
+
+  it("caps the disambiguation list at candidateLimit when set below MAX_CANDIDATES", async () => {
+    const tracks = Array.from({ length: 8 }, (_, i) =>
+      createMockTrack({ sourceId: `t${i}`, title: `Track ${i}`, webUrl: `https://x/${i}` }),
+    );
+    const candidates = tracks.map((track) => ({ track, confidence: 0.6 }));
+
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      searchTrackWithCandidates: vi.fn().mockResolvedValue({
+        bestMatch: { found: true, track: tracks[0], confidence: 0.6, matchMethod: "search" },
+        candidates,
+      } satisfies SearchResultWithCandidates),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+
+    const result = await resolveTextSearchWithDisambiguation(
+      "title: foo",
+      { title: "foo", artist: "" },
+      3,
+    );
+
+    expect(result.kind).toBe("disambiguation");
+    expect(result.candidates?.length).toBe(3);
+  });
+
+  it("clamps candidateLimit to MAX_CANDIDATES (8) when caller asks for more", async () => {
+    const tracks = Array.from({ length: 12 }, (_, i) =>
+      createMockTrack({ sourceId: `t${i}`, title: `Track ${i}`, webUrl: `https://x/${i}` }),
+    );
+    const candidates = tracks.map((track) => ({ track, confidence: 0.6 }));
+
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      searchTrackWithCandidates: vi.fn().mockResolvedValue({
+        bestMatch: { found: true, track: tracks[0], confidence: 0.6, matchMethod: "search" },
+        candidates,
+      } satisfies SearchResultWithCandidates),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+
+    const result = await resolveTextSearchWithDisambiguation(
+      "title: foo",
+      { title: "foo", artist: "" },
+      99, // ridiculous, must clamp to 8
+    );
+
+    expect(result.kind).toBe("disambiguation");
+    expect(result.candidates?.length).toBe(8);
+  });
 });
 
 // =============================================================================
