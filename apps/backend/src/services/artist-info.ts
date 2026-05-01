@@ -22,6 +22,7 @@ import { fetchSpotifyArtistPartial } from "./artist-composition/sources/spotify-
 import { ARTIST_MERGE_STRATEGY } from "./artist-composition/strategy.js";
 import type { ArtistPartial, CanonicalArtist } from "./artist-composition/types.js";
 import { cacheArtistImage } from "./artist-images.js";
+import { searchDeezerTrackForArtist } from "./plugins/deezer/track-search.js";
 
 const BANDSINTOWN_BASE = "https://rest.bandsintown.com";
 const TICKETMASTER_BASE = "https://app.ticketmaster.com/discovery/v2";
@@ -94,7 +95,19 @@ export async function fetchArtistTopTracks(artistName: string): Promise<ArtistTo
       fetchLastFmArtistPartial(artistName).catch(() => null),
     ]);
     const merged = mergeArtistPartials(partials, ARTIST_MERGE_STRATEGY, artistName);
-    return merged.topTracks;
+
+    // Last.fm-fallback tracks have artworkUrl=null (Last.fm API does not
+    // expose cover URLs). Try a per-track Deezer search to recover cover,
+    // album, duration, and Deezer URL. Tracks that already have artwork
+    // (Deezer source) and tracks with no Deezer match pass through unchanged.
+    const enriched = await Promise.all(
+      merged.topTracks.map(async (track) => {
+        if (track.artworkUrl !== null) return track;
+        const enrichment = await searchDeezerTrackForArtist(track.title, track.artists[0] ?? artistName);
+        return enrichment ? { ...track, ...enrichment } : track;
+      }),
+    );
+    return enriched;
   } catch (err) {
     log.debug("ArtistInfo", "fetchArtistTopTracks error:", err instanceof Error ? err.message : String(err));
     return [];
