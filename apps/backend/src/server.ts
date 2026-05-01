@@ -79,6 +79,16 @@ async function buildApp() {
     // Relaxed CSP so the Scalar API reference at /docs can load its
     // bundle from jsDelivr and render its own inline styles/fonts.
     // Normal API responses are JSON and unaffected.
+    //
+    // worker-src is set explicitly because ReDoc instantiates a Web
+    // Worker via `new Worker(URL.createObjectURL(blob))` from inlined
+    // bundle code. CSP3 has Workers fall back through child-src ->
+    // script-src -> default-src when worker-src is absent. iOS Safari
+    // falls back to default-src (only `'self'`), which blocks blob:
+    // Worker URLs and renders ReDoc as "The operation is insecure" with
+    // a `Worker@[native code]` stack trace; macOS Safari is more lenient
+    // and falls back to script-src instead, masking the issue. Listing
+    // worker-src explicitly fixes iOS without weakening other directives.
     contentSecurityPolicy: {
       directives: {
         "default-src": ["'self'"],
@@ -87,6 +97,7 @@ async function buildApp() {
         "img-src": ["'self'", "data:", "https:"],
         "font-src": ["'self'", "data:", "https:"],
         "connect-src": ["'self'", "https:"],
+        "worker-src": ["'self'", "blob:"],
       },
     },
     // Only emit the HSTS header in production. In dev the backend speaks
