@@ -17,6 +17,8 @@
  * `apiRateLimiter` export at the bottom of this file sets up that interval
  * for the shared instance.
  */
+import type { FastifyRequest } from "fastify";
+
 export class RateLimiter {
   private windows: Map<string, number[]> = new Map();
 
@@ -64,7 +66,7 @@ export class RateLimiter {
 // the global @fastify/rate-limit at 300/min still covers them.
 //
 // The limiter is keyed by `request.ip`. For that to resolve to the real
-// end-user IP behind the Zerops ingress, two things must hold:
+// end-user IP behind the Zerops ingress, two pre-conditions must hold:
 //   1. Fastify trusts the upstream proxy chain. Production sets
 //      TRUST_PROXY=1 in zerops.yml; see server.ts / resolve-public-get.ts
 //      for the rationale.
@@ -73,14 +75,42 @@ export class RateLimiter {
 //      `apps/frontend/src/api/client.ts` (`forwardedForExtra` helper)
 //      sets this for share / share-preview / artist-info; resolveTrack
 //      forwards it directly.
-// Either failure produces the same symptom: every user shares a single
-// bucket and a handful of cumulative requests trip the limit for
-// everyone (user-visible as "Rate limit exceeded, retry in N seconds"
-// after only 2-3 searches, or as silent 302 -> /404 redirects on the
-// share-page SSR path).
+// Either pre-condition failure produces the same symptom: every user
+// shares a single bucket and a handful of cumulative requests trip the
+// limit for everyone (user-visible as "Rate limit exceeded, retry in N
+// seconds" after only 2-3 searches, or as silent 302 -> /404 redirects
+// on the share-page SSR path).
+//
+// BFF bypass: even after both pre-conditions hold, 10/min proved too
+// tight for normal browsing because each share-page render consumes
+// 3-4 sub-requests (share + share-preview x2 + artist-info). Internal
+// SSR calls therefore SKIP the limiter when their X-API-Key matches
+// INTERNAL_API_KEY (see `isInternalRequest` below). The global
+// @fastify/rate-limit at 300/min still applies as a safety net against
+// runaway BFF loops. External callers without the key go through the
+// per-IP limiter unchanged.
 //
 // Cleanup cadence is 5 minutes: aggressive enough that a burst of unique IPs
 // does not bloat the Map for long, slack enough that cleanup itself is
 // background noise on the event loop.
 export const apiRateLimiter = new RateLimiter(10, 60_000);
 setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);
+
+/**
+ * Check whether a request comes from the internal Astro SSR proxy.
+ *
+ * The proxy attaches `X-API-Key: <INTERNAL_API_KEY>` (Zerops Secret) to
+ * every backend call from `apps/frontend/src/api/client.ts`. Route
+ * handlers that hit `apiRateLimiter` should call this and skip the
+ * per-IP check on a true return — see comment block above for the
+ * BFF-bypass rationale.
+ *
+ * If `INTERNAL_API_KEY` is unset (dev fallback in `plugins/auth.ts`
+ * lets unauthenticated requests through with a warn log), this returns
+ * false; the limiter still applies. Production must set the secret.
+ */
+export function isInternalRequest(request: FastifyRequest): boolean {
+  const internalApiKey = process.env.INTERNAL_API_KEY;
+  if (!internalApiKey) return false;
+  return request.headers["x-api-key"] === internalApiKey;
+}

@@ -16,7 +16,7 @@ import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
-import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
+import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
 
@@ -57,7 +57,7 @@ export default async function sharePreviewRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      if (apiRateLimiter.isLimited(request.ip)) {
+      if (!isInternalRequest(request) && apiRateLimiter.isLimited(request.ip)) {
         return reply.status(429).send({
           error: "RATE_LIMITED",
           message: "Rate limit exceeded. Please try again in a minute.",
