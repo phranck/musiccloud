@@ -26,6 +26,12 @@
 import type { ResolveErrorResponse, ResolveSuccessResponse } from "@musiccloud/shared";
 import { ENDPOINTS, formatUserMessage, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import {
+  isStructuredSearchQuery,
+  parseStructuredSearchQuery,
+  StructuredSearchQueryParseError,
+  type ParsedStructuredQuery,
+} from "../services/structured-search/index.js";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
@@ -66,7 +72,12 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           query: { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" },
         }),
         description:
-          "Unauthenticated companion to POST `/api/v1/resolve`, designed for scripting consumers (Apple Shortcuts, curl, bookmarklets). Rate-limited per client IP. Returns a resolved track or errors on ambiguous text searches (no interactive disambiguation over GET).",
+          "Unauthenticated companion to POST `/api/v1/resolve`, designed for scripting consumers (Apple Shortcuts, curl, bookmarklets). Accepts:\n\n" +
+          "- **Streaming-service URL** (e.g. `https://open.spotify.com/track/...`)\n" +
+          "- **Free-text query** (e.g. `bohemian rhapsody queen`)\n" +
+          "- **Structured search query** (e.g. `title: Bohemian Rhapsody, artist: Queen`) — supported fields: `title`, `artist`, `album`, `count` (1–10).\n\n" +
+          "Returns the resolved track (200) or 400 if the query is ambiguous, malformed, or cannot be resolved. Rate-limited per client IP.\n\n" +
+          "Note: `genre:` discovery queries are not supported on this endpoint — they require the authenticated POST endpoint because their response is a list, not a single resolved track.",
         querystring: {
           type: "object",
           required: ["query"],
@@ -75,7 +86,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
               type: "string",
               minLength: 1,
               maxLength: 500,
-              description: "Streaming-service URL or free-text query.",
+              description: "Streaming-service URL, free-text query, or structured search query (e.g. `title: Bohemian Rhapsody, artist: Queen`).",
             },
             format: {
               type: "string",
@@ -134,6 +145,30 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           // Flow 1: input is a streaming-service URL. The resolver handles
           // cache lookup and cross-service expansion via adapters.
           result = await resolveQuery(query);
+        } else if (isStructuredSearchQuery(query)) {
+          // Flow 1.5: structured search. Stateless GET cannot disambiguate, so
+          // ambiguous results return 400 (same trade-off as the free-text path).
+          let parsed: ParsedStructuredQuery;
+          try {
+            parsed = parseStructuredSearchQuery(query);
+          } catch (err) {
+            if (err instanceof StructuredSearchQueryParseError) {
+              return reply.status(400).send(jsonError("INVALID_URL", err.message));
+            }
+            throw err;
+          }
+          const textResult = await resolveTextSearchWithDisambiguation(
+            query,
+            parsed.search,
+            parsed.candidateLimit,
+          );
+          if (textResult.kind === "resolved" && textResult.result) {
+            result = textResult.result;
+          } else {
+            return reply
+              .status(400)
+              .send(jsonError("INVALID_URL", "Structured query was ambiguous; use POST endpoint for disambiguation."));
+          }
         } else {
           // Flow 2: free-text search. The POST endpoint (resolve.ts) can
           // return a `disambiguation` kind with multiple candidates for an
