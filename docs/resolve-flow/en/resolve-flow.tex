@@ -198,11 +198,26 @@ for display only; nothing is written to the database until the
 user clicks one of the entries.
 
 On error the response carries an error code mapped to an HTTP
-status: \code{400} for malformed input, \code{401} for invalid
-credentials, \code{404} for a URL whose source could not be
-identified, \code{408} for a backend timeout, \code{429} on rate
-limit, \code{500} on an unexpected failure, and \code{503} when a
-service required by the resolver is not configured.
+status:
+
+\begin{table}[H]
+\centering
+\caption{HTTP error codes for \code{POST /api/v1/resolve}.}
+\label{tbl:post-error-codes}
+\begin{tabular}{P{1.4cm} P{13.6cm}}
+\hline
+\textbf{Code} & \textbf{Meaning} \\
+\hline
+\code{400} & Malformed input. \\
+\code{401} & Invalid credentials. \\
+\code{404} & URL whose source could not be identified. \\
+\code{408} & Backend timeout. \\
+\code{429} & Rate limit reached. \\
+\code{500} & Unexpected failure. \\
+\code{503} & A service required by the resolver is not configured. \\
+\hline
+\end{tabular}
+\end{table}
 
 % -----------------------------------------------------------------------------
 \subsection{The unauthenticated endpoint}
@@ -385,9 +400,8 @@ three caches in fixed order.
 
 The first lookup uses the cleaned URL. If the same track has been
 resolved before via exactly this URL, the database row is still
-valid. Since the cache architecture migration, canonical entries
-no longer expire; they are merely augmented as new adapters
-become available.
+valid. Canonical entries do not expire; they are augmented as
+additional adapters provide data.
 
 The second lookup uses the original short link as an alias. When
 a URL was resolved from a short link, the resolver stores the
@@ -411,19 +425,10 @@ detect that condition and reuse the existing entry.
 % -----------------------------------------------------------------------------
 
 If none of the three cache tiers hits, the resolver must
-determine which service the URL belongs to. It queries every
-installed plugin, including those that are currently disabled.
-This appears counterintuitive at first, but it is intentional: a
-user pasting a Tidal link learns, on failure, that Tidal is
-disabled, instead of receiving the generic \enquote{not a music
-link} message. Which plugins are active is a configuration
-matter; which link the user pastes is not. The error message is
-meant to reflect that distinction.
-
-If no plugin recognises the URL, the resolver responds with the
-generic message \enquote{not a music link}. If a disabled plugin
-recognises it, the response is the more specific
-\enquote{service unavailable}.
+determine which service the URL belongs to. It checks each
+plugin detector in turn. If no plugin recognises the URL, the
+resolver responds with the generic message \enquote{not a music
+link}.
 
 \begin{figure}[H]
   \centering
@@ -502,8 +507,11 @@ unambiguous and otherwise returns \code{400}.
 The resolver walks the active adapters in a fixed order.
 ISRC-rich sources with broad catalogue coverage (Deezer, Apple
 Music, Tidal) lead. Spotify drops to the end of the main chain
-and serves only as a fallback after ISRC misses. The remaining
-adapters form the safety net.
+and serves only as a fallback after ISRC misses, because
+Spotify's API quota is tighter than those of the other streaming
+services; the ISRC-strong sources at the front handle most
+lookups without hitting Spotify. The remaining adapters form the
+safety net.
 
 Adapters split here into two groups as well, this time by the
 behaviour of their search API. Some return only the single best
@@ -859,11 +867,10 @@ the route layer.
 % =============================================================================
 
 Every read-side cache access uses the canonical row that the
-persistence stage writes. Since the split into static and
-dynamic parts, canonical rows no longer expire. Once written, a
-track, album, or artist entry counts as current indefinitely.
-Only preview URLs carry an expiry timestamp and are refreshed
-lazily on read.
+persistence stage writes. Canonical rows do not expire — once
+written, a track, album, or artist entry counts as current
+indefinitely. Only preview URLs carry an expiry timestamp and are
+refreshed lazily on read.
 
 This split is what allows the resolver to add new services
 incrementally. When a new adapter is enabled today, the resolver
@@ -937,14 +944,15 @@ order to obtain the server-rendered variant.
 \paragraph{Adapter order in free-text search.} Adapters are
 walked in a fixed order. ISRC-rich sources with broad catalogue
 coverage (Deezer, Apple Music, Tidal) lead. Spotify drops to the
-end of the main chain and serves only as a fallback after ISRC
-misses. All further adapters form the safety net.
+end of the main chain because of its tighter API quota and
+serves only as a fallback after ISRC misses (see \enquote{The
+path of a free-text search}). All further adapters form the
+safety net.
 
-\paragraph{Static vs.\ dynamic split.} Canonical rows have been
-permanently valid since the cache migration. Anything that can
-go stale lives in dedicated auxiliary tables with their own
-freshness rules. This split keeps the fast cache-hit path
-straightforward.
+\paragraph{Static vs.\ dynamic split.} Canonical rows are
+permanently valid. Anything that can go stale lives in dedicated
+auxiliary tables with their own freshness rules. This split keeps
+the fast cache-hit path straightforward.
 
 \paragraph{Thresholds in one place.} All confidence values
 reside in a single module. The confidence behaviour is therefore

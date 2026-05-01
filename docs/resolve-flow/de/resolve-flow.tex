@@ -202,13 +202,26 @@ Trefferliste zur Anzeige aus, ohne in die Datenbank zu schreiben;
 das geschieht erst, wenn der Nutzer einen der Treffer anklickt.
 
 Im Fehlerfall trägt die Antwort einen Fehlercode, der einem
-HTTP-Status zugeordnet ist: \code{400} bei fehlerhafter Eingabe,
-\code{401} bei ungültigen Zugangsdaten, \code{404} bei einer URL,
-zu der keine Quelle gefunden werden konnte, \code{408} bei einer
-Zeitüberschreitung im Backend, \code{429} bei Erreichen der
-Anfragegrenze, \code{500} bei einem unerwarteten Fehler und
-\code{503}, wenn ein vom Resolver benötigter Dienst nicht
-konfiguriert ist.
+HTTP-Status zugeordnet ist:
+
+\begin{table}[H]
+\centering
+\caption{HTTP-Fehlercodes für \code{POST /api/v1/resolve}.}
+\label{tbl:post-error-codes}
+\begin{tabular}{P{1.4cm} P{13.6cm}}
+\hline
+\textbf{Code} & \textbf{Bedeutung} \\
+\hline
+\code{400} & Fehlerhafte Eingabe. \\
+\code{401} & Ungültige Zugangsdaten. \\
+\code{404} & URL, zu der keine Quelle gefunden werden konnte. \\
+\code{408} & Zeitüberschreitung im Backend. \\
+\code{429} & Anfragegrenze erreicht. \\
+\code{500} & Unerwarteter Fehler. \\
+\code{503} & Ein vom Resolver benötigter Dienst ist nicht konfiguriert. \\
+\hline
+\end{tabular}
+\end{table}
 
 % -----------------------------------------------------------------------------
 \subsection{Der unauthentifizierte Endpunkt}
@@ -400,9 +413,8 @@ drei Caches in fester Reihenfolge.
 
 Die erste Suche erfolgt anhand der bereinigten URL. Wurde derselbe
 Track schon einmal über genau diese URL aufgelöst, ist der
-Datenbankeintrag noch gültig. Seit der Umstellung der
-Cache-Architektur laufen kanonische Einträge nicht mehr ab; sie
-werden nur ergänzt, sobald neue Adapter zur Verfügung stehen.
+Datenbankeintrag noch gültig. Kanonische Einträge laufen nicht ab;
+sie werden ergänzt, sobald ein zusätzlicher Adapter Daten liefert.
 
 Die zweite Suche nutzt den ursprünglichen Kurzlink als Alias.
 Wurde eine URL aus einem Kurzlink aufgelöst, speichert der
@@ -428,19 +440,9 @@ verwendet den vorhandenen Eintrag erneut.
 
 Bringt keine der drei Cache-Stufen einen Treffer, muss der
 Resolver herausfinden, zu welchem Dienst die URL gehört. Er
-befragt jedes installierte Plugin, auch jene, die gerade
-abgeschaltet sind. Das wirkt zunächst widersinnig, ist aber
-beabsichtigt: Wer einen Tidal-Link einfügt, erfährt so im
-Fehlerfall, dass Tidal abgeschaltet ist, statt eine allgemeine
-Meldung wie \enquote{kein Musik-Link} zu erhalten. Welche Plugins
-aktiv sind, ist Konfigurationssache; welcher Link eingefügt
-wird, bestimmt der Nutzer. Die Fehlermeldung soll diesen Umstand
-widerspiegeln.
-
-Erkennt kein Plugin die URL, antwortet der Resolver mit der
-allgemeinen Meldung \enquote{kein Musik-Link}. Erkennt sie ein
-Plugin, das aber abgeschaltet ist, gibt er die genauere Meldung
-\enquote{Dienst nicht aktiv} zurück.
+prüft jeden Plugin-Detector der Reihe nach. Erkennt kein Plugin
+die URL, antwortet der Resolver mit der allgemeinen Meldung
+\enquote{kein Musik-Link}.
 
 \begin{figure}[H]
   \centering
@@ -524,7 +526,10 @@ Der Resolver durchläuft die aktiven Adapter in einer festgelegten
 Reihenfolge. Den Anfang machen ISRC-starke Quellen mit breiter
 Katalogabdeckung (Deezer, Apple Music, Tidal). Spotify rückt ans
 Ende der Hauptkette und dient nur noch als Fallback bei
-ISRC-Misses. Die übrigen Adapter bilden das Auffangnetz.
+ISRC-Misses, weil seine API-Quote strikter ist als die der
+anderen Streaming-Dienste; die ISRC-starken Quellen am Anfang
+lösen die meisten Treffer auf, ohne Spotify zu belasten. Die
+übrigen Adapter bilden das Auffangnetz.
 
 Auch hier teilen sich die Adapter in zwei Gruppen, diesmal nach
 dem Verhalten ihrer Such-API. Manche liefern nur das beste
@@ -740,9 +745,9 @@ ist der Mechanismus, mit dem der Resolver denselben Track auf
 jedem weiteren registrierten Dienst aufspürt.
 
 Sobald die Quelle bekannt ist, läuft jeder andere Adapter parallel
-gegen sie an. Eine Zeitschranke pro Adapter sorgt dafür, dass ein
+gegen sie an. Ein Timeout pro Adapter sorgt dafür, dass ein
 einzelner blockierender Adapter die gesamte Antwort nicht aufhält;
-ohne diese Schranke käme erst der allgemeine HTTP-Timeout zum
+ohne diesen Timeout käme erst der allgemeine HTTP-Timeout zum
 Tragen, der deutlich länger gesetzt ist.
 
 Pro Adapter werden zwei Strategien in absteigender Beweiskraft
@@ -896,9 +901,8 @@ im Route-Layer.
 % =============================================================================
 
 Jeder lesende Cache-Zugriff verwendet denselben kanonischen
-Eintrag, den die Persistenz schreibt. Seit der Trennung in
-statische und dynamische Anteile laufen kanonische Einträge nicht
-mehr ab. Einmal geschrieben, gilt ein Track-, Album- oder
+Eintrag, den die Persistenz schreibt. Kanonische Einträge laufen
+nicht ab — einmal geschrieben, gilt ein Track-, Album- oder
 Artist-Eintrag dauerhaft als aktuell. Nur Vorschau-URLs tragen
 einen Ablaufzeitpunkt und werden bei Bedarf beim Lesen
 nachgezogen.
@@ -956,9 +960,9 @@ die Werte fest gesetzt.
 Mehrere Entwurfsentscheidungen prägen das Verhalten dieser Schicht
 maßgeblich:
 
-\paragraph{Adapter-Zeitschranke.} Die dienstübergreifende Suche
-lässt jeden Adapter-Aufruf gegen eine eigene Zeitschranke laufen.
-Ohne sie würde ein einzelner blockierender Adapter die ganze
+\paragraph{Adapter-Timeout.} Die dienstübergreifende Suche
+lässt jeden Adapter-Aufruf gegen einen eigenen Timeout laufen.
+Ohne ihn würde ein einzelner blockierender Adapter die ganze
 Antwort aufhalten, bis der allgemeine HTTP-Timeout greift, was
 deutlich länger dauert.
 
@@ -979,15 +983,15 @@ servergerenderte Variante zu erhalten.
 \paragraph{Reihenfolge der Adapter bei der Textsuche.} Die Adapter
 werden in einer festen Reihenfolge durchgegangen. Den Anfang
 machen ISRC-starke Quellen mit breiter Katalogabdeckung (Deezer,
-Apple Music, Tidal). Spotify rückt ans Ende der Hauptkette und
-dient nur noch als Fallback bei ISRC-Misses. Alle weiteren
-Adapter bilden das Auffangnetz.
+Apple Music, Tidal). Spotify rückt wegen seiner strikteren
+API-Quote ans Ende der Hauptkette und dient nur noch als Fallback
+bei ISRC-Misses (siehe \enquote{Der Weg einer Textsuche}). Alle
+weiteren Adapter bilden das Auffangnetz.
 
 \paragraph{Statisch-dynamische Trennung.} Kanonische Einträge
-sind seit der Cache-Migration zeitlich unbegrenzt gültig. Was
-veralten kann, lebt in eigenen Hilfstabellen mit eigenen
-Aktualitätsregeln. Diese Trennung hält den schnellen Pfad bei
-einem Cache-Treffer einfach.
+sind zeitlich unbegrenzt gültig. Was veralten kann, lebt in
+eigenen Hilfstabellen mit eigenen Aktualitätsregeln. Diese
+Trennung hält den schnellen Pfad bei einem Cache-Treffer einfach.
 
 \paragraph{Schwellwerte an einer Stelle.} Alle Confidence-Werte
 liegen in einem einzigen Modul. Das Confidence-Verhalten ist
