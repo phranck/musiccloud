@@ -142,6 +142,7 @@ import type {
   MatchResult,
   NormalizedTrack,
   SearchCandidate,
+  SearchQuery,
   ServiceAdapter,
   ServiceId,
 } from "./types.js";
@@ -631,10 +632,18 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
  * `searchTrack`, which can only trigger the auto-resolve branch.
  *
  * @param query - free-text search query
+ * @param structured - optional pre-parsed query; when supplied, adapters receive this
+ *   instead of `{ title: query, artist: query }`. Pass `undefined` for free-text callers.
+ * @param candidateLimit - optional cap on the disambiguation list, clamped to
+ *   `[1, MAX_CANDIDATES]`. Defaults to `MAX_CANDIDATES` when omitted.
  * @returns either a resolved track or a candidate list
  * @throws `ResolveError("TRACK_NOT_FOUND")` if no adapter returns anything usable
  */
-export async function resolveTextSearchWithDisambiguation(query: string): Promise<TextSearchResult> {
+export async function resolveTextSearchWithDisambiguation(
+  query: string,
+  structured?: SearchQuery,
+  candidateLimit?: number,
+): Promise<TextSearchResult> {
   log.debug("Resolver", "resolveTextSearchWithDisambiguation called with:", query);
 
   // Service search: try adapters that support searchTrackWithCandidates, then fall back
@@ -644,10 +653,9 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
     try {
       // Use searchTrackWithCandidates if available (e.g. Spotify)
       if (adapter.searchTrackWithCandidates) {
-        const searchResult = await adapter.searchTrackWithCandidates({
-          title: query,
-          artist: query,
-        });
+        const searchResult = await adapter.searchTrackWithCandidates(
+          structured ?? { title: query, artist: query },
+        );
 
         if (searchResult.candidates.length === 0) continue;
 
@@ -687,9 +695,12 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
         }
 
         // Return candidates for disambiguation
+        const cap = candidateLimit !== undefined
+          ? Math.min(MAX_CANDIDATES, Math.max(1, candidateLimit))
+          : MAX_CANDIDATES;
         const candidates: SearchCandidate[] = searchResult.candidates
           .filter((c) => c.confidence >= CANDIDATE_MIN_CONFIDENCE)
-          .slice(0, MAX_CANDIDATES)
+          .slice(0, cap)
           .map((c) => ({
             id: `${c.track.sourceService}:${c.track.sourceId}`,
             title: c.track.title,
@@ -704,10 +715,7 @@ export async function resolveTextSearchWithDisambiguation(query: string): Promis
       }
 
       // Fallback: use regular searchTrack
-      const result = await adapter.searchTrack({
-        title: query,
-        artist: query,
-      });
+      const result = await adapter.searchTrack(structured ?? { title: query, artist: query });
 
       if (result.found && result.track) {
         // Cache lookup by ISRC before full resolve
