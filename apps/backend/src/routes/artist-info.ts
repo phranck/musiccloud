@@ -61,6 +61,7 @@ import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
+import { stripYouTubeTopicSuffix } from "../lib/youtube-topic.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { fetchArtistEvents, fetchArtistProfile, fetchArtistTopTracks } from "../services/artist-info.js";
 
@@ -122,7 +123,11 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
 
       const query = request.query as { name: string; region?: string };
 
-      const rawName = query.name.trim();
+      // Strip the YouTube auto-channel "- Topic" suffix before any lookup
+      // so cached rows written before the YouTube-adapter fix (which now
+      // strips at resolve time) still produce clean cache keys and clean
+      // upstream search queries. See `lib/youtube-topic.ts` for context.
+      const rawName = stripYouTubeTopicSuffix(query.name.trim());
       if (!rawName) {
         return reply.status(400).send({ error: "INVALID_REQUEST", message: "Query param 'name' is required." });
       }
