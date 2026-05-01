@@ -97,6 +97,7 @@ interface RouteOptions {
   deezerSearch?: unknown;
   deezerFans?: unknown;
   deezerTopTracks?: unknown;
+  deezerTrackSearch?: unknown | ((url: string) => unknown);
   lastfmInfo?: unknown;
   lastfmTags?: unknown;
   lastfmTopTracks?: unknown;
@@ -110,6 +111,11 @@ function route(opts: RouteOptions): void {
       if (opts.spotify === "throw") throw new Error("spotify down");
       if (opts.spotify === "404") return jsonResponse({}, 404);
       return jsonResponse(opts.spotify ?? { artists: { items: [] } });
+    }
+    if (url.includes("api.deezer.com/search/track")) {
+      const v = opts.deezerTrackSearch;
+      if (typeof v === "function") return jsonResponse((v as (u: string) => unknown)(url));
+      return jsonResponse(v ?? { data: [] });
     }
     if (url.includes("api.deezer.com/search/artist")) {
       return jsonResponse(opts.deezerSearch ?? { data: [] });
@@ -245,5 +251,70 @@ describe("fetchArtistTopTracks", () => {
     route({});
     const tracks = await fetchArtistTopTracks("Nobody");
     expect(tracks).toEqual([]);
+  });
+
+  it("enriches Last.fm-fallback tracks with Deezer track-search results", async () => {
+    route({
+      deezerSearch: { data: [{ id: 27, name: "Daft Punk", picture_xl: "https://cdn/x.jpg" }] },
+      deezerTopTracks: { data: [] }, // Deezer artist-top empty -> Last.fm fallback
+      lastfmTopTracks: {
+        toptracks: {
+          track: [{ name: "Around the World", url: "https://last.fm/track/atw", artist: { name: "Daft Punk" } }],
+        },
+      },
+      deezerTrackSearch: {
+        data: [
+          {
+            id: 100,
+            title: "Around the World",
+            duration: 426,
+            link: "https://www.deezer.com/track/100",
+            album: { title: "Discovery", cover_medium: "https://cdn/discovery.jpg" },
+            artist: { name: "Daft Punk" },
+          },
+        ],
+      },
+    });
+
+    const tracks = await fetchArtistTopTracks("Daft Punk");
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].title).toBe("Around the World");
+    expect(tracks[0].artworkUrl).toBe("https://cdn/discovery.jpg");
+    expect(tracks[0].albumName).toBe("Discovery");
+    expect(tracks[0].durationMs).toBe(426000);
+    expect(tracks[0].deezerUrl).toBe("https://www.deezer.com/track/100");
+  });
+
+  it("leaves Last.fm-fallback tracks unenriched when Deezer track-search misses", async () => {
+    route({
+      lastfmTopTracks: {
+        toptracks: {
+          track: [{ name: "Obscure Song", url: "https://last.fm/track/obs", artist: { name: "Indie" } }],
+        },
+      },
+      deezerTrackSearch: { data: [] },
+    });
+
+    const tracks = await fetchArtistTopTracks("Indie");
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].title).toBe("Obscure Song");
+    expect(tracks[0].artworkUrl).toBeNull();
+    expect(tracks[0].deezerUrl).toBe("https://last.fm/track/obs"); // unchanged
+  });
+
+  it("does not call Deezer track-search for tracks that already have artwork (Deezer source)", async () => {
+    route({
+      deezerSearch: DEEZER_SEARCH_HIT,
+      deezerFans: DEEZER_FANS,
+      deezerTopTracks: DEEZER_TOP_TRACKS, // has artwork
+      deezerTrackSearch: () => {
+        throw new Error("track-search should NOT be called when topTracks come from Deezer");
+      },
+    });
+
+    const tracks = await fetchArtistTopTracks("Daft Punk");
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].title).toBe("One More Time");
+    expect(tracks[0].artworkUrl).toBe("https://cdn/cover.jpg");
   });
 });
