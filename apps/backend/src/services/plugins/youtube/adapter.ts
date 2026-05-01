@@ -45,6 +45,7 @@ import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { ResolveError } from "../../../lib/resolve/errors";
 import { calculateConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { stripYouTubeTopicSuffix } from "../../../lib/youtube-topic.js";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AdapterCapabilities,
@@ -146,7 +147,7 @@ function mapVideoToTrack(video: YouTubeVideoResource): NormalizedTrack {
     sourceService: "youtube",
     sourceId: video.id,
     title: trackTitle,
-    artists: artist ? [artist] : [video.snippet.channelTitle],
+    artists: artist ? [artist] : [stripYouTubeTopicSuffix(video.snippet.channelTitle)],
     artworkUrl: getBestThumbnail(video.snippet.thumbnails),
     durationMs: video.contentDetails ? parseIsoDuration(video.contentDetails.duration) : undefined,
     releaseDate: video.snippet.publishedAt,
@@ -181,7 +182,7 @@ function mapChannelToArtist(channel: YouTubeChannelResource): NormalizedArtist {
   return {
     sourceService: "youtube",
     sourceId: channel.id,
-    name: channel.snippet.title,
+    name: stripYouTubeTopicSuffix(channel.snippet.title),
     imageUrl: getBestThumbnail(channel.snippet.thumbnails),
     webUrl,
   };
