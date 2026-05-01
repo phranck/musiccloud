@@ -74,6 +74,7 @@ import type {
   NormalizedAlbum,
   NormalizedArtist,
   NormalizedTrack,
+  SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
 import { appleSearchByGenre } from "./genre-search.js";
@@ -584,8 +585,10 @@ export const appleMusicAdapter: ServiceAdapter = {
    * stores; early-exits once a match reaches
    * {@link SEARCH_EARLY_EXIT_CONFIDENCE} so the common case stays fast.
    */
-  async searchTrack(query: { title: string; artist: string; album?: string }): Promise<MatchResult> {
-    const term = encodeURIComponent(`${query.artist} ${query.title}`);
+  async searchTrack(query: SearchQuery): Promise<MatchResult> {
+    const term = encodeURIComponent(
+      query.album ? `${query.artist} ${query.title} ${query.album}` : `${query.artist} ${query.title}`,
+    );
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
 
