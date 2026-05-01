@@ -367,13 +367,6 @@ mit einem einzelnen Treffer oder mit einer Vorschlagsliste
 antworten; der unauthentifizierte erlaubt nur den eindeutigen
 Fall.
 
-\begin{figure}[H]
-  \centering
-  \includegraphics{diagrams/00-overview.pdf}
-  \caption{Die sechs möglichen Ausgänge des Dispatchers.}
-  \label{fig:dispatcher}
-\end{figure}
-
 % =============================================================================
 \section{Der Weg einer URL}
 % =============================================================================
@@ -403,6 +396,15 @@ Weiterleitungen mit einer HTTP-HEAD-Anfrage, um die kanonische URL
 zu erhalten, und bereinigt anschließend erneut. Häufig fügt das
 Ziel der Weiterleitung wieder eigene Parameter ein, sodass eine
 einmalige Bereinigung nicht ausreicht.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth,height=0.65\textheight,keepaspectratio]{diagrams/00-overview.pdf}
+  \caption{Die sechs möglichen Ausgänge des Dispatchers.}
+  \label{fig:dispatcher}
+\end{figure}
+
+\clearpage
 
 % -----------------------------------------------------------------------------
 \subsection{Die drei Cache-Stufen}
@@ -907,10 +909,10 @@ Artist-Eintrag dauerhaft als aktuell. Nur Vorschau-URLs tragen
 einen Ablaufzeitpunkt und werden bei Bedarf beim Lesen
 nachgezogen.
 
-Diese Trennung ist es, die dem Resolver erlaubt, neue Dienste
-nach und nach nachzutragen. Wird heute ein neuer Adapter
-aktiviert, ergänzt der Resolver schon bei der nächsten Anfrage
-an einen vorhandenen Track den fehlenden Link; ein Cache-Reset ist
+Der Resolver kann neue Dienste schrittweise nachtragen. Wenn
+ein neuer Adapter aktiviert wird, fügt er bei der nächsten
+Anfrage an einen vorhandenen Track den fehlenden Link an;
+ein Cache-Reset ist
 dafür nicht nötig. Die Aktualitätsprüfung beschränkt sich auf
 die Tabelle der Vorschau-URLs: Sie löst eine Erneuerung nur dann
 aus, wenn keine gültige Vorschau mehr für die jeweilige Quelle

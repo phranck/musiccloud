@@ -872,10 +872,9 @@ written, a track, album, or artist entry counts as current
 indefinitely. Only preview URLs carry an expiry timestamp and are
 refreshed lazily on read.
 
-This split is what allows the resolver to add new services
-incrementally. When a new adapter is enabled today, the resolver
-fills in the missing link on the next request for an existing
-track; no cache reset is required. Freshness checks are scoped
+The resolver can add new services incrementally. When a new
+adapter is enabled, it fills in the missing link on the next
+request for an existing track; no cache reset is required. Freshness checks are scoped
 to the preview-URL table: they trigger a refresh only when no
 valid preview remains for the source in question. The same is
 true for the Deezer preview top-up, which runs only in this
