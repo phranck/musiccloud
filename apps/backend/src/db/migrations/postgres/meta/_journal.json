@@ -169,6 +169,13 @@
       "when": 1777562401835,
       "tag": "0023_crawl_state",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1777641847403,
+      "tag": "0024_invalidate_lastfm_toptracks_cache",
+      "breakpoints": true
     }
   ]
 }
