@@ -77,6 +77,12 @@ import {
   runGenreBrowse,
   runGenreSearch,
 } from "../services/genre-search/index.js";
+import {
+  isStructuredSearchQuery,
+  parseStructuredSearchQuery,
+  StructuredSearchQueryParseError,
+  type ParsedStructuredQuery,
+} from "../services/structured-search/index.js";
 import { persistResolution } from "../services/persist-resolution.js";
 import type { ResolutionResult } from "../services/resolver.js";
 import {
@@ -111,10 +117,19 @@ export default async function resolveRoutes(app: FastifyInstance) {
           body: { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" },
         }),
         description:
-          "Accepts one of three query shapes:\n" +
-          "1. A streaming-service URL (e.g. `https://open.spotify.com/track/...`) — returns unified cross-service metadata.\n" +
-          "2. A free-text query — returns either a resolved match or a disambiguation list (follow up with `selectedCandidate` to complete).\n" +
-          "3. A genre-discovery query starting with `genre:` (e.g. `genre: jazz|r&b, tracks: 20, vibe: mixed`) — returns up to three parallel candidate lists (tracks, albums, artists) sourced from Deezer's chart API. Supported fields: `genre` (required, `|` = OR), `tracks`/`albums`/`artists` (1–50), `count` (1–50, shorthand for the same count across all three types; mutually exclusive with the per-type fields), `vibe` (`hot` or `mixed`).",
+          "Accepts four query shapes. Pick the one that matches what the user knows:\n\n" +
+          "**1. Streaming-service URL** — e.g. `https://open.spotify.com/track/...`, `https://music.apple.com/...`. Returns unified cross-service metadata. Use when the user already has a link.\n\n" +
+          "**2. Free-text query** — any string that is not a URL and does not start with a structured prefix. Returns a resolved match or a disambiguation list (follow up with `selectedCandidate` to pick one). Use when the user only knows roughly what they want.\n\n" +
+          "**3. Genre-discovery query** — starts with `genre:`. Two sub-modes:\n" +
+          "  - `genre: ?` → browse grid of popular genres (no other fields allowed).\n" +
+          "  - `genre: <name>[|<name>...]<, modifier>*` → discovery results. Modifiers: `tracks`/`albums`/`artists` (1–50 each, default 10 of each when none specified), `count` (1–50, sets all three to the same value, mutually exclusive with per-type modifiers), `vibe` (`hot` for top-N, `mixed` for stratified random sample). `|` inside a value is OR.\n" +
+          "  - Example: `genre: jazz|r&b, tracks: 20, vibe: mixed`.\n\n" +
+          "**4. Structured search query** — starts with `title:`, `artist:`, or `album:`. Returns either a resolved track or a disambiguation list, same outcome as free-text but with adapter-side field operators (Spotify, Deezer, MusicBrainz) for higher precision. Supported fields:\n" +
+          "  - `title:` and `artist:` — at least one is required.\n" +
+          "  - `album:` — optional, refines the match. Cannot be used alone.\n" +
+          "  - `count:` — optional, 1–10, caps the disambiguation list.\n" +
+          "  - Examples: `title: The Killing Moon, artist: Echo & The Bunnymen` · `artist: Radiohead` · `title: Karma Police, artist: Radiohead, album: OK Computer, count: 5`.\n\n" +
+          "After a disambiguation response, send the picked candidate's id back as `selectedCandidate` to complete the resolve.",
         security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
         body: {
           type: "object",
@@ -220,6 +235,36 @@ export default async function resolveRoutes(app: FastifyInstance) {
             }
             return reply.status(503).send(jsonError("SERVICE_DOWN"));
           }
+        }
+
+        // Flow 0.5: structured search (`title:`/`artist:`/`album:`). Routes
+        // through the existing `resolveTextSearchWithDisambiguation` flow with
+        // a parsed `SearchQuery` so adapters can use field operators where
+        // supported (Spotify, Deezer, MusicBrainz). Disambiguation is returned
+        // as the standard discriminated-union response.
+        if (query && isStructuredSearchQuery(query)) {
+          let parsed: ParsedStructuredQuery;
+          try {
+            parsed = parseStructuredSearchQuery(query);
+          } catch (err) {
+            if (err instanceof StructuredSearchQueryParseError) {
+              return reply.status(400).send(jsonError("INVALID_URL", err.message));
+            }
+            throw err;
+          }
+          const textResult = await resolveTextSearchWithDisambiguation(
+            query,
+            parsed.search,
+            parsed.candidateLimit,
+          );
+          if (textResult.kind === "resolved" && textResult.result) {
+            return reply.send(await persistTrackAndRespond(textResult.result, origin));
+          }
+          const disambiguationBody: ResolveDisambiguationResponse = {
+            status: "disambiguation",
+            candidates: textResult.candidates ?? [],
+          };
+          return reply.send(disambiguationBody);
         }
 
         if (selectedCandidate) {
