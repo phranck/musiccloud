@@ -131,8 +131,8 @@ Share-Kurzlink, ISRC.}
 \section{Was dieses Dokument beschreibt}
 % =============================================================================
 
-Wer einen Spotify-Link in musiccloud einfügt, möchte am Ende eine
-Share-Seite erhalten, die denselben Titel auch auf Apple Music,
+Wer einen Streaming-Link in musiccloud einfügt, möchte am Ende eine
+Share-Seite erhalten, die denselben Titel auf Spotify, Apple Music,
 Tidal, Deezer, YouTube und einer Reihe weiterer Dienste öffnet.
 Genau diese Übersetzung leistet der Resolver. Das vorliegende
 Dokument beschreibt seinen Aufbau und den Datenfluss durch seine
@@ -694,11 +694,11 @@ spätere Anfragen nichts mehr nachladen müssen.
 % =============================================================================
 
 Erst dieser Schritt macht den Resolver wirklich nützlich. Der
-Nutzer hat einen Spotify-Link eingefügt, doch die Share-Seite
-soll Apple Music, Tidal, Deezer, YouTube und alle übrigen Dienste
-ebenfalls öffnen. Die dienstübergreifende Suche ist der
-Mechanismus, mit dem der Resolver denselben Track auf jedem
-weiteren registrierten Dienst aufspürt.
+Nutzer hat einen Link von einem einzelnen Dienst eingefügt, doch
+die Share-Seite soll Spotify, Apple Music, Tidal, Deezer, YouTube
+und alle übrigen Dienste öffnen. Die dienstübergreifende Suche
+ist der Mechanismus, mit dem der Resolver denselben Track auf
+jedem weiteren registrierten Dienst aufspürt.
 
 Sobald die Quelle bekannt ist, läuft jeder andere Adapter parallel
 gegen sie an. Eine Zeitschranke pro Adapter sorgt dafür, dass ein

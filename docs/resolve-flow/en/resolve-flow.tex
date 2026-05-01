@@ -132,9 +132,9 @@ share short-link, ISRC.}
 \section{What this document covers}
 % =============================================================================
 
-A user who pastes a Spotify URL into musiccloud expects a share
-page that opens the same recording on Apple Music, Tidal, Deezer,
-YouTube, and a number of further services. Producing that
+A user who pastes a streaming link into musiccloud expects a share
+page that opens the same recording on Spotify, Apple Music, Tidal,
+Deezer, YouTube, and a number of further services. Producing that
 translation is the resolver's responsibility. The present document
 describes its structure and the data flow through its individual
 layers.
@@ -668,10 +668,11 @@ requests load nothing more from upstream.
 % =============================================================================
 
 This step is what makes the resolver actually useful. The user
-pasted a Spotify link, but the share page should also open Apple
-Music, Tidal, Deezer, YouTube, and the remaining services. The
-cross-service expansion is the mechanism by which the resolver
-locates the same recording on each further registered service.
+pasted a link from a single service, but the share page should
+open Spotify, Apple Music, Tidal, Deezer, YouTube, and the
+remaining services. The cross-service expansion is the mechanism
+by which the resolver locates the same recording on each further
+registered service.
 
 Once the source is known, every other adapter runs in parallel
 against it. A per-adapter timeout prevents a single blocking
