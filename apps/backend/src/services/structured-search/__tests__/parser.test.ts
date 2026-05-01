@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  isStructuredSearchQuery,
-  parseStructuredSearchQuery,
-  StructuredSearchQueryParseError,
-} from "../parser.js";
+import { isStructuredSearchQuery, parseStructuredSearchQuery, StructuredSearchQueryParseError } from "../parser.js";
 
 describe("isStructuredSearchQuery", () => {
   it("matches title: prefix", () => {
@@ -42,9 +38,7 @@ describe("parseStructuredSearchQuery — happy path", () => {
     expect(r.warnings).toEqual([]);
   });
   it("parses title + artist + album + count", () => {
-    const r = parseStructuredSearchQuery(
-      "title: Karma Police, artist: Radiohead, album: OK Computer, count: 5",
-    );
+    const r = parseStructuredSearchQuery("title: Karma Police, artist: Radiohead, album: OK Computer, count: 5");
     expect(r.search).toEqual({
       title: "Karma Police",
       artist: "Radiohead",
@@ -84,9 +78,7 @@ describe("parseStructuredSearchQuery — error path", () => {
     expect(() => parseStructuredSearchQuery("")).toThrow(StructuredSearchQueryParseError);
   });
   it("rejects album: alone", () => {
-    expect(() => parseStructuredSearchQuery("album: OK Computer")).toThrow(
-      /at least one of: title, artist/,
-    );
+    expect(() => parseStructuredSearchQuery("album: OK Computer")).toThrow(/at least one of: title, artist/);
   });
   it("rejects count: alone", () => {
     expect(() => parseStructuredSearchQuery("count: 5")).toThrow(/at least one of: title, artist/);
@@ -102,9 +94,7 @@ describe("parseStructuredSearchQuery — error path", () => {
     );
   });
   it("rejects 'vibe' with directive message", () => {
-    expect(() => parseStructuredSearchQuery("title: foo, vibe: hot")).toThrow(
-      /'vibe' is only valid in genre: queries/,
-    );
+    expect(() => parseStructuredSearchQuery("title: foo, vibe: hot")).toThrow(/'vibe' is only valid in genre: queries/);
   });
   it("rejects 'genre' as a key inside structured search", () => {
     expect(() => parseStructuredSearchQuery("title: foo, genre: rock")).toThrow(
@@ -112,33 +102,21 @@ describe("parseStructuredSearchQuery — error path", () => {
     );
   });
   it("rejects duplicate keys", () => {
-    expect(() => parseStructuredSearchQuery("title: foo, title: bar")).toThrow(
-      /Duplicate field 'title'/,
-    );
+    expect(() => parseStructuredSearchQuery("title: foo, title: bar")).toThrow(/Duplicate field 'title'/);
   });
   it("rejects empty value", () => {
-    expect(() => parseStructuredSearchQuery("title: , artist: foo")).toThrow(
-      /Missing value for 'title'/,
-    );
+    expect(() => parseStructuredSearchQuery("title: , artist: foo")).toThrow(/Missing value for 'title'/);
   });
   it("rejects count below 1", () => {
-    expect(() => parseStructuredSearchQuery("title: foo, count: 0")).toThrow(
-      /'count' must be at least 1/,
-    );
+    expect(() => parseStructuredSearchQuery("title: foo, count: 0")).toThrow(/'count' must be at least 1/);
   });
   it("rejects count above 10", () => {
-    expect(() => parseStructuredSearchQuery("title: foo, count: 11")).toThrow(
-      /'count' must be at most 10/,
-    );
+    expect(() => parseStructuredSearchQuery("title: foo, count: 11")).toThrow(/'count' must be at most 10/);
   });
   it("rejects non-numeric count", () => {
-    expect(() => parseStructuredSearchQuery("title: foo, count: abc")).toThrow(
-      /'count' must be a positive integer/,
-    );
+    expect(() => parseStructuredSearchQuery("title: foo, count: abc")).toThrow(/'count' must be a positive integer/);
   });
   it("rejects segment without colon", () => {
-    expect(() => parseStructuredSearchQuery("title: foo, garbage")).toThrow(
-      /Expected 'key: value'/,
-    );
+    expect(() => parseStructuredSearchQuery("title: foo, garbage")).toThrow(/Expected 'key: value'/);
   });
 });

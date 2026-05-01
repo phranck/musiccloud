@@ -653,9 +653,7 @@ export async function resolveTextSearchWithDisambiguation(
     try {
       // Use searchTrackWithCandidates if available (e.g. Spotify)
       if (adapter.searchTrackWithCandidates) {
-        const searchResult = await adapter.searchTrackWithCandidates(
-          structured ?? { title: query, artist: query },
-        );
+        const searchResult = await adapter.searchTrackWithCandidates(structured ?? { title: query, artist: query });
 
         if (searchResult.candidates.length === 0) continue;
 
@@ -695,9 +693,8 @@ export async function resolveTextSearchWithDisambiguation(
         }
 
         // Return candidates for disambiguation
-        const cap = candidateLimit !== undefined
-          ? Math.min(MAX_CANDIDATES, Math.max(1, candidateLimit))
-          : MAX_CANDIDATES;
+        const cap =
+          candidateLimit !== undefined ? Math.min(MAX_CANDIDATES, Math.max(1, candidateLimit)) : MAX_CANDIDATES;
         const candidates: SearchCandidate[] = searchResult.candidates
           .filter((c) => c.confidence >= CANDIDATE_MIN_CONFIDENCE)
           .slice(0, cap)

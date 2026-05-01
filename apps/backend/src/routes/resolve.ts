@@ -77,12 +77,6 @@ import {
   runGenreBrowse,
   runGenreSearch,
 } from "../services/genre-search/index.js";
-import {
-  isStructuredSearchQuery,
-  parseStructuredSearchQuery,
-  StructuredSearchQueryParseError,
-  type ParsedStructuredQuery,
-} from "../services/structured-search/index.js";
 import { persistResolution } from "../services/persist-resolution.js";
 import type { ResolutionResult } from "../services/resolver.js";
 import {
@@ -91,6 +85,12 @@ import {
   resolveSelectedCandidate,
   resolveTextSearchWithDisambiguation,
 } from "../services/resolver.js";
+import {
+  isStructuredSearchQuery,
+  type ParsedStructuredQuery,
+  parseStructuredSearchQuery,
+  StructuredSearchQueryParseError,
+} from "../services/structured-search/index.js";
 
 /**
  * Same whitelist as in `routes/resolve-public-get.ts`; the full rationale
@@ -252,11 +252,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
             }
             throw err;
           }
-          const textResult = await resolveTextSearchWithDisambiguation(
-            query,
-            parsed.search,
-            parsed.candidateLimit,
-          );
+          const textResult = await resolveTextSearchWithDisambiguation(query, parsed.search, parsed.candidateLimit);
           if (textResult.kind === "resolved" && textResult.result) {
             return reply.send(await persistTrackAndRespond(textResult.result, origin));
           }
