@@ -172,6 +172,19 @@ function isDeezerError(data: unknown): data is DeezerErrorResponse {
   return typeof data === "object" && data !== null && "error" in data;
 }
 
+/**
+ * Builds the Deezer `/search/track` query string. Deezer accepts both a
+ * free-text q (when `title === artist` we treat the input as a single
+ * blob) and a structured form using `artist:"…" track:"…" album:"…"`
+ * field operators. `album:` is appended only when the resolver provided
+ * one, mirroring the optional shape of `SearchQuery`.
+ */
+function buildDeezerQ(query: SearchQuery): string {
+  if (query.title === query.artist) return query.title;
+  const base = `artist:"${query.artist}" track:"${query.title}"`;
+  return query.album ? `${base} album:"${query.album}"` : base;
+}
+
 function mapTrack(raw: DeezerTrackResponse): NormalizedTrack {
   return {
     sourceService: "deezer",
@@ -243,7 +256,7 @@ export const deezerAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist ? query.title : `artist:"${query.artist}" track:"${query.title}"`;
+    const q = buildDeezerQ(query);
 
     const response = await deezerFetch(`/search/track?q=${encodeURIComponent(q)}&limit=5`);
 
@@ -300,7 +313,7 @@ export const deezerAdapter = {
    * disambiguation entirely.
    */
   async searchTrackWithCandidates(query: SearchQuery): Promise<SearchResultWithCandidates> {
-    const q = query.title === query.artist ? query.title : `artist:"${query.artist}" track:"${query.title}"`;
+    const q = buildDeezerQ(query);
 
     const response = await deezerFetch(`/search/track?q=${encodeURIComponent(q)}&limit=10`);
 

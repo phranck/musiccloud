@@ -323,6 +323,38 @@ describe("Deezer: searchTrack", () => {
     expect(result.found).toBe(true);
     expect(result.track?.title).toBe("Harder, Better, Faster, Stronger");
   });
+
+  it("includes album: operator in q-string when query.album is provided", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 100,
+              title: "Karma Police",
+              duration: 261,
+              link: "https://www.deezer.com/track/100",
+              artist: { id: 1, name: "Radiohead" },
+              album: { id: 10, title: "OK Computer", cover_medium: "https://cdn/cover.jpg" },
+              isrc: "GBAYE9700001",
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await deezerAdapter.searchTrack({
+      title: "Karma Police",
+      artist: "Radiohead",
+      album: "OK Computer",
+    });
+
+    const calledUrl = fetchSpy.mock.calls[0][0] as string;
+    expect(calledUrl).toContain('artist%3A%22Radiohead%22');
+    expect(calledUrl).toContain('track%3A%22Karma%20Police%22');
+    expect(calledUrl).toContain('album%3A%22OK%20Computer%22');
+  });
 });
 
 // =============================================================================
@@ -330,6 +362,10 @@ describe("Deezer: searchTrack", () => {
 // =============================================================================
 
 describe("Deezer: searchTrackWithCandidates", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("returns ranked candidates sorted by confidence descending", async () => {
     const multiResults = {
       data: [
@@ -447,6 +483,36 @@ describe("Deezer: searchTrackWithCandidates", () => {
     await deezerAdapter.searchTrackWithCandidates({ title: "x", artist: "y" });
 
     expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("limit=10");
+  });
+
+  it("includes album: operator in q-string when query.album is provided", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 100,
+              title: "Karma Police",
+              duration: 261,
+              link: "https://www.deezer.com/track/100",
+              artist: { id: 1, name: "Radiohead" },
+              album: { id: 10, title: "OK Computer", cover_medium: "https://cdn/cover.jpg" },
+              isrc: "GBAYE9700001",
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await deezerAdapter.searchTrackWithCandidates!({
+      title: "Karma Police",
+      artist: "Radiohead",
+      album: "OK Computer",
+    });
+
+    const calledUrl = fetchSpy.mock.calls[0][0] as string;
+    expect(calledUrl).toContain('album%3A%22OK%20Computer%22');
   });
 });
 
