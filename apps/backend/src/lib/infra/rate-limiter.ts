@@ -63,13 +63,21 @@ export class RateLimiter {
 // because they serve immutable cached JPEGs in parallel from a Browse grid;
 // the global @fastify/rate-limit at 300/min still covers them.
 //
-// The limiter is keyed by `request.ip`, which is only meaningful when Fastify
-// is configured with `trustProxy` behind a reverse proxy. Production sets the
-// TRUST_PROXY env var in zerops.yml; see server.ts / resolve-public-get.ts
-// for the corresponding rationale. Without it, all clients behind the ingress
-// share a single bucket and a handful of requests trip the limit for
-// everyone (the symptom user-visible as "Rate limit exceeded, retry in N
-// seconds" after only 2-3 searches).
+// The limiter is keyed by `request.ip`. For that to resolve to the real
+// end-user IP behind the Zerops ingress, two things must hold:
+//   1. Fastify trusts the upstream proxy chain. Production sets
+//      TRUST_PROXY=1 in zerops.yml; see server.ts / resolve-public-get.ts
+//      for the rationale.
+//   2. Internal SSR proxies (the Astro frontend in apps/frontend) forward
+//      X-Forwarded-For when calling rate-limited backend routes.
+//      `apps/frontend/src/api/client.ts` (`forwardedForExtra` helper)
+//      sets this for share / share-preview / artist-info; resolveTrack
+//      forwards it directly.
+// Either failure produces the same symptom: every user shares a single
+// bucket and a handful of cumulative requests trip the limit for
+// everyone (user-visible as "Rate limit exceeded, retry in N seconds"
+// after only 2-3 searches, or as silent 302 -> /404 redirects on the
+// share-page SSR path).
 //
 // Cleanup cadence is 5 minutes: aggressive enough that a burst of unique IPs
 // does not bloat the Map for long, slack enough that cleanup itself is

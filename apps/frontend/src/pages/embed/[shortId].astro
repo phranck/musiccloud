@@ -28,7 +28,7 @@ if (!shortId) {
   return new Response("Not Found", { status: 404 });
 }
 
-const data = await fetchShareData(shortId);
+const data = await fetchShareData(shortId, Astro.clientAddress);
 if (!data) {
   return new Response("Not Found", { status: 404 });
 }

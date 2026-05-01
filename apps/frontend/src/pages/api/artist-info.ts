@@ -1,13 +1,18 @@
-import { ENDPOINTS } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
+
+import { fetchArtistInfo } from "@/api/client";
 
 export const prerender = false;
 
-const BACKEND_URL =
-  (import.meta.env.BACKEND_URL as string | undefined) ?? process.env.BACKEND_URL ?? "http://localhost:4000";
-
-/** Proxy GET /api/artist-info?name=&region= → backend /api/v1/artist-info */
-export const GET: APIRoute = async ({ url }) => {
+/**
+ * Proxy GET /api/artist-info?name=&region= → backend /api/v1/artist-info.
+ *
+ * Forwards the user's IP via `X-Forwarded-For` so the backend's per-IP
+ * rate limiter (`apiRateLimiter`, shared 10/min bucket) buckets per real
+ * user instead of the frontend pod. See
+ * `apps/backend/src/lib/infra/rate-limiter.ts:67-72` for the rationale.
+ */
+export const GET: APIRoute = async ({ url, clientAddress }) => {
   const name = url.searchParams.get("name") ?? "";
   const region = url.searchParams.get("region") ?? "";
 
@@ -18,10 +23,7 @@ export const GET: APIRoute = async ({ url }) => {
     });
   }
 
-  const params = new URLSearchParams({ name });
-  if (region) params.set("region", region);
-
-  const res = await fetch(`${BACKEND_URL}${ENDPOINTS.v1.artistInfo}?${params.toString()}`);
+  const res = await fetchArtistInfo(name, region || undefined, clientAddress);
 
   return new Response(res.body, {
     status: res.status,
