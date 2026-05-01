@@ -129,7 +129,8 @@ export default async function resolveRoutes(app: FastifyInstance) {
           "  - `album:` — optional, refines the match. Cannot be used alone.\n" +
           "  - `count:` — optional, 1–10, caps the disambiguation list.\n" +
           "  - Examples: `title: The Killing Moon, artist: Echo & The Bunnymen` · `artist: Radiohead` · `title: Karma Police, artist: Radiohead, album: OK Computer, count: 5`.\n\n" +
-          "After a disambiguation response, send the picked candidate's id back as `selectedCandidate` to complete the resolve.",
+          "After a disambiguation response, send the picked candidate's id back as `selectedCandidate` to complete the resolve.\n\n" +
+          "For a deep architectural walkthrough of the resolver pipeline, see the resolver-flow PDF in the repo: [Deutsch](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/de/resolve-flow.pdf) · [English](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/en/resolve-flow.pdf).",
         security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
         body: {
           type: "object",
