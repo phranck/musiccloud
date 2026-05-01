@@ -34,14 +34,29 @@ function internalHeaders(extra?: Record<string, string>): Record<string, string>
   };
 }
 
+/**
+ * Build X-Forwarded-For extras for backend calls that hit per-IP rate
+ * limits. Without this header the backend `apiRateLimiter` buckets by the
+ * frontend pod IP, so all SSR-driven calls share one 10/min bucket
+ * globally — see `apps/backend/src/lib/infra/rate-limiter.ts:67-72`. Pass
+ * `Astro.clientAddress` (or the equivalent in API endpoints) so the
+ * backend buckets per real user.
+ */
+function forwardedForExtra(clientIp: string | undefined): Record<string, string> | undefined {
+  return clientIp ? { "X-Forwarded-For": clientIp } : undefined;
+}
+
 /** Refresh an expired Deezer preview URL for a share. Returns `{ previewUrl: null }`
  *  if no preview can be produced; returns `null` on transport failure so the
  *  client can distinguish "no preview" from "refresh failed, try again later". */
-export async function fetchSharePreview(shortId: string): Promise<{ previewUrl: string | null } | null> {
+export async function fetchSharePreview(
+  shortId: string,
+  clientIp?: string,
+): Promise<{ previewUrl: string | null } | null> {
   try {
     const res = await fetchWithTimeout(
       backendUrl(ENDPOINTS.v1.sharePreview(shortId)),
-      { headers: internalHeaders() },
+      { headers: internalHeaders(forwardedForExtra(clientIp)) },
       15000,
     );
     if (!res.ok) return null;
@@ -52,11 +67,14 @@ export async function fetchSharePreview(shortId: string): Promise<{ previewUrl: 
 }
 
 /** Fetch share page data (track or album) by shortId from the backend. */
-export async function fetchShareData(shortId: string): Promise<SharePageResponse | null> {
+export async function fetchShareData(
+  shortId: string,
+  clientIp?: string,
+): Promise<SharePageResponse | null> {
   try {
     const res = await fetchWithTimeout(
       backendUrl(ENDPOINTS.v1.share(shortId)),
-      { headers: internalHeaders(), cache: "no-store" },
+      { headers: internalHeaders(forwardedForExtra(clientIp)), cache: "no-store" },
       5000,
     );
     if (!res.ok) return null;
@@ -141,13 +159,35 @@ export async function fetchNavigation(navId: NavId, locale: Locale = "en"): Prom
 }
 
 /** Fetch a single published content page by slug, with server-rendered HTML. */
-export async function fetchPublicContentPage(slug: string, locale: Locale = "en"): Promise<PublicContentPage | null> {
+export async function fetchPublicContentPage(
+  slug: string,
+  locale: Locale = "en",
+  clientIp?: string,
+): Promise<PublicContentPage | null> {
   try {
     const url = `${backendUrl(ENDPOINTS.v1.content.detail(slug))}?locale=${locale}`;
-    const res = await fetchWithTimeout(url, { headers: internalHeaders() }, 5000);
+    const res = await fetchWithTimeout(url, { headers: internalHeaders(forwardedForExtra(clientIp)) }, 5000);
     if (!res.ok) return null;
     return (await res.json()) as PublicContentPage;
   } catch {
     return null;
   }
+}
+
+/**
+ * Fetch artist-info aggregate (Spotify followers / Last.fm plays / similar
+ * artists). Returns the raw `Response` so the Astro proxy at
+ * `pages/api/artist-info.ts` can stream the JSON body straight through
+ * with the upstream status. The backend route is rate-limited by the
+ * shared `apiRateLimiter` bucket; passing `clientIp` keeps the bucket
+ * per-user.
+ */
+export async function fetchArtistInfo(name: string, region: string | undefined, clientIp?: string): Promise<Response> {
+  const params = new URLSearchParams({ name });
+  if (region) params.set("region", region);
+  return fetchWithTimeout(
+    `${backendUrl(ENDPOINTS.v1.artistInfo)}?${params.toString()}`,
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    10000,
+  );
 }

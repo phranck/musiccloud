@@ -33,9 +33,10 @@ const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
 const translations = await loadTranslations(locale);
 const t = makeT(translations);
 
+const clientIp = Astro.clientAddress;
 const [contentPage, shareData] = await Promise.all([
-  fetchPublicContentPage(shortId, locale),
-  fetchShareData(shortId),
+  fetchPublicContentPage(shortId, locale, clientIp),
+  fetchShareData(shortId, clientIp),
 ]);
 const data = contentPage ? null : shareData;
 const notFound = !contentPage && !data;

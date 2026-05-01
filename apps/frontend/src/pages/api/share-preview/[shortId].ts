@@ -8,11 +8,11 @@ import { fetchSharePreview } from "@/api/client";
  * Called client-side from AudioPreviewPlayer when the initial share page
  * arrives with `previewRefreshable: true`.
  */
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, clientAddress }) => {
   const shortId = params.shortId;
   if (!shortId) return new Response(null, { status: 400 });
 
-  const result = await fetchSharePreview(shortId);
+  const result = await fetchSharePreview(shortId, clientAddress);
   if (result === null) return new Response(null, { status: 503 });
   return new Response(JSON.stringify(result), {
     headers: { "Content-Type": "application/json" },
