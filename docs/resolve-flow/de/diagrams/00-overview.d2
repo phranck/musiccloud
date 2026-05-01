@@ -35,6 +35,10 @@ genre_search: "Genre-Such-Anfrage" {
   shape: rectangle
   style.fill: "#d4edda"
 }
+structured_search: "Strukturierte Suche" {
+  shape: rectangle
+  style.fill: "#fff3cd"
+}
 selected: "Disambiguierungs-Folgeanfrage\n(nur authentifiziert)" {
   shape: rectangle
   style.fill: "#f8d7da"
@@ -50,6 +54,7 @@ text_input: "Textsuche" {
 
 dispatcher -> genre_browse: "Raster-Syntax"
 dispatcher -> genre_search: "Such-Syntax"
+dispatcher -> structured_search: "title:/artist:/album:"
 dispatcher -> selected: "Kandidatenkennung"
 dispatcher -> url_input: "als URL erkennbar"
 dispatcher -> text_input: "sonst"
@@ -71,6 +76,7 @@ flow_text: "Textsuch-Schicht" {
 
 genre_browse -> flow_genre
 genre_search -> flow_genre
+structured_search -> flow_text
 selected -> flow_text
 url_input -> flow_url
 text_input -> flow_text

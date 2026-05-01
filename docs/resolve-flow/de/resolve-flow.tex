@@ -120,7 +120,7 @@ für die Architektur und das interne Verhalten des Resolvers.
 
 \vspace{0.6em}
 \noindent{\small\textbf{Schlüsselwörter:}\enspace Resolver, Cache,
-Adapter, dienstübergreifende Suche, Disambiguierung, Persistenz,
+Adapter, dienstübergreifende Suche, Auswahlliste, Persistenz,
 Share-Kurzlink, ISRC.}
 
 \vspace{1em}
@@ -145,7 +145,7 @@ Pfade am selben Punkt: in der Datenbank, beim Share-Link und in
 der Antwort, die der Nutzer zu sehen bekommt. Was zwischen Eingabe
 und Ergebnis geschieht, ist der eigentlich interessante Teil. Hier
 fangen Caches wiederkehrende Anfragen ab, und Adapter vermitteln
-zwischen den Streaming-Diensten. Eine Reihe von Notlösungen sorgt
+zwischen den Streaming-Diensten. Eine Reihe von Fallbacks sorgt
 zudem dafür, dass das System auch dann noch funktioniert, wenn
 einer der Dienste vorübergehend ausfällt.
 
@@ -171,14 +171,14 @@ externe Clients, die ein OAuth-Token besitzen. Zusätzlich greift eine
 Anfrage-Begrenzung pro Client-IP, denn ein gestohlener Schlüssel
 ist nach wie vor ein Schlüssel.
 
-Der Anfragekörper enthält genau eines von zwei Feldern: entweder
+Der Request-Body enthält genau eines von zwei Feldern: entweder
 \code{query} mit der URL oder dem Suchbegriff, den der Nutzer
 eingegeben hat, oder \code{selectedCandidate}, wenn der Client
-eine zuvor begonnene Disambiguierung abschließt.
+eine zuvor begonnene Auswahl abschließt.
 
 \begin{table}[H]
 \centering
-\caption{Anfragekörper für \code{POST /api/v1/resolve}.}
+\caption{Request-Body für \code{POST /api/v1/resolve}.}
 \label{tbl:post-resolve-body}
 \begin{tabular}{P{3.4cm} P{1.4cm} P{2.6cm} P{8.0cm}}
 \hline
@@ -312,12 +312,12 @@ außerhalb des Themas dieses Dokuments:
 % =============================================================================
 
 Beide Endpunkte münden in denselben ersten Schritt: festzustellen,
-welche Form die Eingabe hat. Fünf Ergebnisse sind möglich, und
+welche Form die Eingabe hat. Sechs Ergebnisse sind möglich, und
 der Dispatcher prüft sie der Reihe nach.
 
-Enthält der Anfragekörper das Feld \code{selectedCandidate} statt
+Enthält der Request-Body das Feld \code{selectedCandidate} statt
 \code{query}, ist dies der zweite Schritt einer laufenden
-Disambiguierung. Die Kandidatenkennung enthält genug Information,
+Auswahl. Die Kandidatenkennung enthält genug Information,
 um den Faden dort wieder aufzunehmen, wo die erste Anfrage
 geendet hat. Der Dispatcher reicht direkt an den entsprechenden
 Handler weiter; dieser Pfad existiert nur am authentifizierten
@@ -335,6 +335,12 @@ handelt es sich um eine strukturierte Genre-Suche, etwa
 Genre-Schicht weiter, die die Syntax auswertet und Anfragen an das
 Discovery-Backend stellt.
 
+Beginnt die Anfrage mit \code{title:}, \code{artist:} oder
+\code{album:}, wird sie als strukturierte Suche behandelt und
+durch denselben Auswahllisten-Pfad geschickt wie die Textsuche,
+nur mit vorgefertigtem \code{SearchQuery} statt freiem Text.
+Siehe \enquote{Strukturierte Suche}.
+
 Lässt sich die Eingabe als URL lesen, klassifiziert der Dispatcher
 sie weiter: Album-URLs gehen an den Album-Resolver, Artist-URLs
 an den Artist-Resolver, alles übrige an den Track-Resolver. Die
@@ -351,7 +357,7 @@ Fall.
 \begin{figure}[H]
   \centering
   \includegraphics{diagrams/00-overview.pdf}
-  \caption{Die fünf möglichen Ausgänge des Dispatchers.}
+  \caption{Die sechs möglichen Ausgänge des Dispatchers.}
   \label{fig:dispatcher}
 \end{figure}
 
@@ -522,22 +528,22 @@ ISRC-Misses. Die übrigen Adapter bilden das Auffangnetz.
 
 Auch hier teilen sich die Adapter in zwei Gruppen, diesmal nach
 dem Verhalten ihrer Such-API. Manche liefern nur das beste
-Einzelergebnis mit einem Konfidenzwert; andere geben eine
+Einzelergebnis mit einem Confidence-Wert; andere geben eine
 sortierte Liste mit Werten je Treffer zurück. Erst die zweite
-Variante macht Disambiguierung überhaupt möglich.
+Variante macht eine Auswahlliste überhaupt möglich.
 
 Liefert der Adapter nur ein Einzelergebnis, kann der Resolver es
 entweder direkt übernehmen, sofern es überzeugend genug aussieht,
 oder zum nächsten Adapter weitergehen. Liefert er eine Liste,
 prüft der Resolver den vordersten Treffer. Liegt sein
-Konfidenzwert über der Schwelle für eine direkte Auswahl, nimmt
+Confidence-Wert über der Schwelle für eine direkte Auswahl, nimmt
 der Resolver ihn ohne Rückfrage an. Andernfalls schickt er die
 Liste an den Client.
 
 Drei Schwellwerte regeln dieses Verhalten. Der erste entscheidet,
-ob der vorderste Treffer die Disambiguierung überspringen darf.
+ob der vorderste Treffer die Auswahlliste überspringen darf.
 Der zweite filtert Treffer aus der Vorschlagsliste, deren
-Konfidenz zu gering ist, um den Nutzer überhaupt mit ihnen zu
+Confidence zu gering ist, um den Nutzer überhaupt mit ihnen zu
 behelligen. Der dritte begrenzt die Größe der Liste, damit eine
 unscharfe Anfrage keine endlos lange Antwort erzeugt.
 
@@ -552,7 +558,7 @@ unscharfe Anfrage keine endlos lange Antwort erzeugt.
 \subsection{Mit ausgewähltem Vorschlag zurückkommen}
 % -----------------------------------------------------------------------------
 
-Disambiguierung ist ein zweistufiger Dialog. Auf die erste
+Die Auswahlliste ist ein zweistufiger Dialog. Auf die erste
 Anfrage hin liefert der Resolver die Vorschlagsliste, der Client
 zeigt sie dem Nutzer, und sobald dieser einen Vorschlag
 ausgewählt hat, sendet der Client eine zweite Anfrage mit dem
@@ -565,7 +571,7 @@ genau wie bei einer URL-Auflösung.
 \begin{figure}[H]
   \centering
   \includegraphics{diagrams/02b-text-disambig.pdf}
-  \caption{Textsuche, Folgeanfrage zur Disambiguierung.}
+  \caption{Textsuche, Folgeanfrage zur Auswahlliste.}
   \label{fig:text-disambig}
 \end{figure}
 
@@ -578,6 +584,8 @@ als Suche nach einem Musiktitel gemeint hat.
 % =============================================================================
 \section{Genre-Discovery}
 % =============================================================================
+
+\noindent\textit{Wenn Sie nach einem konkreten Track suchen, schauen Sie in \enquote{Strukturierte Suche}. Hier geht es um Stöbern nach Genre.}\par\medskip
 
 Der Genre-Pfad ist der einzige Teil des Resolvers, der nichts in
 die kanonische Datenbank schreibt. Er liefert nur eine Auswahl an
@@ -690,6 +698,37 @@ spätere Anfragen nichts mehr nachladen müssen.
 \end{figure}
 
 % =============================================================================
+\section{Strukturierte Suche}
+% =============================================================================
+
+\subsection{Wozu}
+
+Wenn Sie einen Track im Kopf haben und genau wissen, wer ihn gemacht hat, ist die strukturierte Suche oft präziser als die Textsuche. Statt einen langen Text zu raten, sagen Sie der Resolver-Pipeline direkt, was der Titel ist, wer der Künstler ist, und (optional) auf welchem Album der Track erschienen ist. Die Adapter, die das unterstützen (Spotify, Deezer, MusicBrainz), nutzen dann ihre eigenen Feld-Operatoren und liefern ein deutlich genaueres Ergebnis.
+
+\subsection{Form}
+
+Die strukturierte Suche beginnt mit einem von drei Schlüsseln: \code{title:}, \code{artist:} oder \code{album:}. Felder werden mit Komma getrennt, Schlüssel sind klein- oder grossgeschrieben (egal), Leerzeichen um \code{:} und \code{,} werden ignoriert. Mindestens \code{title:} oder \code{artist:} muss gesetzt sein --- \code{album:} alleine ist zu schwach für die Track-Suche und wird abgelehnt.
+
+Optional kann \code{count:} (1--10) gesetzt werden, um die Auswahlliste zu begrenzen.
+
+\subsection{Beispiele}
+
+\begin{itemize}
+  \item \code{title: The Killing Moon, artist: Echo \& The Bunnymen} --- der klassische Fall: Titel und Künstler bekannt.
+  \item \code{artist: Radiohead} --- nur der Künstler bekannt; das System liefert eine Auswahlliste der bekanntesten Radiohead-Tracks.
+  \item \code{title: Karma Police, artist: Radiohead, album: OK Computer, count: 5} --- alle drei Felder gesetzt, maximal 5 Vorschläge.
+  \item \code{title: Bohemian Rhapsody} --- nur Titel; bei genug Eindeutigkeit direkt ein Track, sonst eine Vorschlagsliste.
+\end{itemize}
+
+\subsection{Was kommt zurück}
+
+Genau wie bei der Textsuche: entweder ein einzelner aufgelöster Track (wenn die Confidence hoch genug ist, siehe \enquote{Confidence-Schwellwerte}), oder eine Auswahlliste mit bis zu \code{count} Vorschlägen (sonst maximal \code{MAX\_CANDIDATES}, also acht). Über \code{selectedCandidate} schliessen Sie den zweiten Schritt ab und landen auf der Share-Seite.
+
+\subsection{Was nicht erlaubt ist}
+
+Schlüssel aus der Genre-Discovery (\code{genre:}, \code{tracks:}, \code{albums:}, \code{artists:}, \code{vibe:}) sind hier ausdrücklich verboten und führen zu einer 400-Antwort mit einer Fehlermeldung, die auf die richtige Anfrageform hinweist. Das hält die beiden Modi sauber getrennt: strukturierte Suche ist Resolver-Modus (ein Track), Genre-Discovery ist Browse-Modus (eine Liste zum Stöbern).
+
+% =============================================================================
 \section{Dienstübergreifende Suche}
 % =============================================================================
 
@@ -713,19 +752,19 @@ Die stärkere Strategie ist die Suche über die Kennung. Unterstützt
 der Adapter den ISRC und liegt einer für die Quelle vor, fragt der
 Adapter im Prinzip: \enquote{Habt ihr genau diese Aufnahme?} Das
 Ergebnis ist eindeutig, mit oder ohne Treffer. Ein Treffer wird
-mit voller Konfidenz gewertet, denn der ISRC ist die stärkste
+mit voller Confidence gewertet, denn der ISRC ist die stärkste
 dienstübergreifende Track-Kennung.
 
 Die schwächere Strategie ist die Suche nach Titel und Interpret.
 Der Adapter führt die unscharfe Suche durch, die seine API
-anbietet. Der Konfidenzwert kommt aus dieser API; die Qualität
+anbietet. Der Confidence-Wert kommt aus dieser API; die Qualität
 schwankt deutlich von Anbieter zu Anbieter. Spotifys
 Relevanzwertung ist verlässlich, die übrigen wirken eher wie grobe
 Schätzwerte.
 
 Treffer unterhalb einer Mindestgüte filtert der Resolver heraus,
 bevor sie den Nutzer erreichen. Eine Ausnahme bilden synthetische
-Such-Notlösungen, also Links, die statt direkt auf den Treffer auf
+Such-Fallback-Links, also Links, die statt direkt auf den Treffer auf
 eine Suchseite des Dienstes verweisen. Sie bleiben erhalten, damit
 in der Antwort wenigstens eine Option pro Dienst enthalten ist.
 
@@ -747,12 +786,12 @@ einzelne Aufnahmen.} zum Einsatz, anschließend die Ableitung des
 Albums anhand seiner Track-ISRCs (eine Stichprobe der Tracks wird
 beim Zieldienst nachgeschlagen, und das am häufigsten gemeldete
 Album gewinnt), und zuletzt die Textsuche. Bei Interpreten nutzt
-der Resolver eine eigene Konfidenzformel, die exakte Treffer,
+der Resolver eine eigene Confidence-Formel, die exakte Treffer,
 \enquote{The}-Präfix-Varianten, hohe Ähnlichkeit, Teilstring-Treffer
 und reine Fuzzy-Treffer voneinander unterscheidet.
 
 Sämtliche Schwellwerte stehen in einem zentralen Konstantenmodul.
-Diese zentrale Ablage hält das Konfidenz-Verhalten an einer
+Diese zentrale Ablage hält das Confidence-Verhalten an einer
 einzigen Stelle nachvollziehbar.
 
 \begin{figure}[H]
@@ -876,7 +915,7 @@ diesem Fall an. Der schnelle Pfad bei einem Cache-Treffer besteht
 deshalb aus einer einzigen indizierten Suche.
 
 % =============================================================================
-\section{Konfidenz-Schwellwerte}
+\section{Confidence-Schwellwerte}
 % =============================================================================
 
 Sämtliche Schwellwerte liegen in einem zentralen Konstantenmodul
@@ -887,7 +926,7 @@ Schwellwert spielt.
 
 \begin{table}[H]
 \centering
-\caption{Konfidenz-Schwellwerte und ihre Aufgaben.}
+\caption{Confidence-Schwellwerte und ihre Aufgaben.}
 \label{tbl:confidence-thresholds}
 \begin{tabular}{P{5.5cm} P{5.6cm} P{4.0cm}}
 \hline
@@ -896,17 +935,17 @@ Schwellwert spielt.
 \code{MATCH\_MIN\_CONFIDENCE} & Ein Adapter-Treffer muss mindestens diesen Wert erreichen, um überhaupt als Treffer zu zählen. & Filtert offensichtlichen Müll am Adapter-Rand. \\
 \code{LINK\_QUALITY\_THRESHOLD} & Ein dienstübergreifender Link muss mindestens diesen Wert erreichen, um in die Antwort aufgenommen zu werden. & Hält verrauschte Fuzzy-Treffer von der Anzeige fern. \\
 \code{AUTO\_SELECT\_THRESHOLD} & Eine Textsuche löst direkt auf, wenn der vorderste Vorschlag mindestens diesen Wert erreicht. & Spart Folgeanfragen bei klaren Fällen. \\
-\code{CANDIDATE\_MIN\_CONFIDENCE} & Ein Vorschlag muss mindestens diesen Wert erreichen, um in der Vorschlagsliste zu erscheinen. & Hält hoffnungslose Optionen aus der Disambiguierung. \\
+\code{CANDIDATE\_MIN\_CONFIDENCE} & Ein Vorschlag muss mindestens diesen Wert erreichen, um in der Vorschlagsliste zu erscheinen. & Hält hoffnungslose Optionen aus der Auswahlliste. \\
 \code{MAX\_CANDIDATES} & Maximale Länge der Vorschlagsliste. & Begrenzt die Antwortgröße. \\
-\code{SEARCH\_FALLBACK\_CONFIDENCE} & Konfidenz, die synthetischen Such-Notlösungen zugewiesen wird. & Sortiert solche Links ans Ende der Liste. \\
+\code{SEARCH\_FALLBACK\_CONFIDENCE} & Confidence, die synthetischen Such-Fallback-Links zugewiesen wird. & Sortiert solche Links ans Ende der Liste. \\
 \hline
 \end{tabular}
 \end{table}
 
-Der Artist-Resolver verwendet eine eigene Konfidenzformel, weil
+Der Artist-Resolver verwendet eine eigene Confidence-Formel, weil
 er auf Namensähnlichkeit prüft und nicht, wie der Track-Resolver,
 auf Identität von ISRC oder Text. Der Album-Resolver übernimmt
-die vom Adapter gemeldete Konfidenz, wenn die Strategie eine
+die vom Adapter gemeldete Confidence, wenn die Strategie eine
 Textsuche ist; für Treffer per UPC oder per ISRC-Ableitung sind
 die Werte fest gesetzt.
 
@@ -923,7 +962,7 @@ Ohne sie würde ein einzelner blockierender Adapter die ganze
 Antwort aufhalten, bis der allgemeine HTTP-Timeout greift, was
 deutlich länger dauert.
 
-\paragraph{Cover-Notlösungen.} Manche Dienste liefern in ihrer
+\paragraph{Cover über Drittquellen.} Manche Dienste liefern in ihrer
 Track-API kein Cover. Fehlt es bei der Quelle, ist aber ein ISRC
 bekannt, holt der Resolver ein Cover aus den Treffern der
 übrigen Dienste. Spotify und Apple Music liefern in dieser Hinsicht
@@ -950,8 +989,8 @@ veralten kann, lebt in eigenen Hilfstabellen mit eigenen
 Aktualitätsregeln. Diese Trennung hält den schnellen Pfad bei
 einem Cache-Treffer einfach.
 
-\paragraph{Schwellwerte an einer Stelle.} Alle Konfidenz-Werte
-liegen in einem einzigen Modul. Das Konfidenz-Verhalten ist
+\paragraph{Schwellwerte an einer Stelle.} Alle Confidence-Werte
+liegen in einem einzigen Modul. Das Confidence-Verhalten ist
 dadurch an einer Stelle nachvollziehbar, statt über den Quellcode
 verteilt.
 

@@ -35,6 +35,10 @@ genre_search: "Genre search query" {
   shape: rectangle
   style.fill: "#d4edda"
 }
+structured_search: "Structured search" {
+  shape: rectangle
+  style.fill: "#fff3cd"
+}
 selected: "Disambiguation follow-up\n(authenticated only)" {
   shape: rectangle
   style.fill: "#f8d7da"
@@ -50,6 +54,7 @@ text_input: "Free-text query" {
 
 dispatcher -> genre_browse: "browse syntax"
 dispatcher -> genre_search: "search syntax"
+dispatcher -> structured_search: "title:/artist:/album:"
 dispatcher -> selected: "candidate id"
 dispatcher -> url_input: "URL detected"
 dispatcher -> text_input: "otherwise"
@@ -71,6 +76,7 @@ flow_text: "Text-search resolution layer" {
 
 genre_browse -> flow_genre
 genre_search -> flow_genre
+structured_search -> flow_text
 selected -> flow_text
 url_input -> flow_url
 text_input -> flow_text

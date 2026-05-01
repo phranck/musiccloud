@@ -303,7 +303,7 @@ outside the scope of this document:
 % =============================================================================
 
 Both endpoints feed into the same first step: determining which
-shape the input has. Five outcomes are possible, and the
+shape the input has. Six outcomes are possible, and the
 dispatcher checks them in order.
 
 If the request body carries the \code{selectedCandidate} field
@@ -323,6 +323,12 @@ is a structured genre search, e.g.\ \code{genre: jazz, count: 20}.
 The dispatcher hands it to the genre layer, which parses the
 syntax and forwards requests to the discovery backend.
 
+If the query starts with \code{title:}, \code{artist:}, or
+\code{album:}, it is handled as a structured search and routed
+through the same disambiguation path as free-text, but with a
+pre-parsed \code{SearchQuery} instead of a raw string. See
+\enquote{Structured search}.
+
 If the input parses as a URL, the dispatcher classifies it
 further: album URLs go to the album resolver, artist URLs to the
 artist resolver, everything else to the track resolver. The three
@@ -337,7 +343,7 @@ endpoint accepts only the unambiguous case.
 \begin{figure}[H]
   \centering
   \includegraphics{diagrams/00-overview.pdf}
-  \caption{The five possible exits of the dispatcher.}
+  \caption{The six possible exits of the dispatcher.}
   \label{fig:dispatcher}
 \end{figure}
 
@@ -555,6 +561,8 @@ not intend as a search for a music title in the first place.
 \section{Genre discovery}
 % =============================================================================
 
+\noindent\textit{If you are searching for a specific track, see \enquote{Structured search}. This section is about browsing by genre.}\par\medskip
+
 The genre path is the only part of the resolver that writes
 nothing to the canonical database. It returns a selection of
 suggestions only. When the user clicks one, the click target
@@ -662,6 +670,37 @@ requests load nothing more from upstream.
   \caption{Genre discovery, search mode.}
   \label{fig:genre-search}
 \end{figure}
+
+% =============================================================================
+\section{Structured search}
+% =============================================================================
+
+\subsection{What it's for}
+
+When the user has a specific track in mind and knows the artist, structured search is more precise than free text. Instead of asking the resolver to guess from a single string, the resolver receives the title, the artist, and optionally the album as separate fields. The adapters that support field operators (Spotify, Deezer, MusicBrainz) use them; the others fall back to a richer concatenated term.
+
+\subsection{Form}
+
+A structured query starts with one of three keys: \code{title:}, \code{artist:}, or \code{album:}. Fields are comma-separated, keys are case-insensitive, and whitespace around \code{:} and \code{,} is collapsed. At least one of \code{title:} or \code{artist:} must be present --- \code{album:} alone is too weak to drive a track search reliably and is rejected.
+
+The optional \code{count:} modifier (1--10) caps the disambiguation candidate list.
+
+\subsection{Examples}
+
+\begin{itemize}
+  \item \code{title: The Killing Moon, artist: Echo \& The Bunnymen} --- the classic case: title and artist both known.
+  \item \code{artist: Radiohead} --- artist only; the system returns a disambiguation list of well-known Radiohead tracks.
+  \item \code{title: Karma Police, artist: Radiohead, album: OK Computer, count: 5} --- all three fields set, list capped at 5.
+  \item \code{title: Bohemian Rhapsody} --- title only; resolves directly when confident, otherwise returns candidates.
+\end{itemize}
+
+\subsection{What comes back}
+
+The same response shapes as free text: either a single resolved track (when confidence clears the threshold described in \enquote{Confidence thresholds}) or a disambiguation list with up to \code{count} candidates (otherwise capped at \code{MAX\_CANDIDATES}, currently eight). Send the picked candidate back as \code{selectedCandidate} to land on the share page.
+
+\subsection{What's not allowed}
+
+Keys that belong to genre-discovery (\code{genre:}, \code{tracks:}, \code{albums:}, \code{artists:}, \code{vibe:}) are explicitly rejected here with a 400 response and a directive error message pointing to the right query shape. This keeps the two modes cleanly separated: structured search is resolver mode (one track), genre-discovery is browse mode (a list to look through).
 
 % =============================================================================
 \section{Cross-service expansion}
