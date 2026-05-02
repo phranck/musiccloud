@@ -6,10 +6,9 @@ import "../admin-content.js";
 import { marked } from "marked";
 
 describe("marked custom code renderer", () => {
-  it("emits language class for plain ```js block", async () => {
+  it("default-recessed wraps plain ```js block", async () => {
     const out = (await marked.parse("```js\nconst x = 1;\n```", { async: true })) as string;
-    expect(out).toMatch(/<pre>(?:<code class="language-js">)/);
-    expect(out).not.toContain("data-card-style");
+    expect(out).toMatch(/<pre data-card-style="recessed"><code class="language-js">/);
   });
 
   it("emits data-card-style='recessed' for ```js recessed block", async () => {
@@ -36,10 +35,10 @@ describe("marked custom code renderer", () => {
     expect(out).not.toContain('class="language-');
   });
 
-  it("ignores unknown modifier (```js foobar treated as ```js)", async () => {
+  it("ignores unknown modifier (```js foobar treated as ```js) and defaults to recessed wrap", async () => {
     const out = (await marked.parse("```js foobar\nconst x = 1;\n```", { async: true })) as string;
     expect(out).toContain('class="language-js"');
-    expect(out).not.toContain("data-card-style");
+    expect(out).toMatch(/<pre data-card-style="recessed"><code class="language-js">/);
   });
 
   it("inline code stays unchanged", async () => {
@@ -77,11 +76,15 @@ describe("marked custom code renderer", () => {
     expect(out).toMatch(/<pre data-card-style="embossed" data-card-padding="0\.5rem" data-card-radius="12px">/);
   });
 
-  it("ignores padding/radius without a modifier", async () => {
+  it("default-recessed wraps an empty (no-lang, no-modifier) fenced block", async () => {
+    const out = (await marked.parse("```\nplain text\n```", { async: true })) as string;
+    expect(out).toMatch(/<pre data-card-style="recessed">/);
+    expect(out).not.toContain('class="language-');
+  });
+
+  it("applies padding/radius with default-recessed modifier when no explicit modifier", async () => {
     const out = (await marked.parse("```js padding=1rem radius=12px\nconst x = 1;\n```", { async: true })) as string;
-    expect(out).not.toContain("data-card-style");
-    expect(out).not.toContain("data-card-padding");
-    expect(out).not.toContain("data-card-radius");
+    expect(out).toMatch(/<pre data-card-style="recessed" data-card-padding="1rem" data-card-radius="12px">/);
     expect(out).toContain('class="language-js"');
   });
 });

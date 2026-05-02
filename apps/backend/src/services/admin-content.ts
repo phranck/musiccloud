@@ -76,11 +76,15 @@ marked.use(
 marked.use({
   renderer: {
     code({ text, lang: rawLang }: Tokens.Code): string {
-      const { lang, modifier, padding, radius } = parseInfostring(rawLang ?? "");
-      const styleAttr = modifier ? ` data-card-style="${modifier}"` : "";
-      const paddingAttr = modifier && padding ? ` data-card-padding="${escapeHtml(padding)}"` : "";
-      const radiusAttr = modifier && radius ? ` data-card-radius="${escapeHtml(radius)}"` : "";
-      const langClass = lang ? ` class="language-${escapeHtml(lang)}"` : "";
+      const parsed = parseInfostring(rawLang ?? "");
+      // Default: every fenced code block is recessed-wrapped. Authors opt
+      // into a different look with `embossed`, or override padding/radius via
+      // padding=/radius= modifiers. There is no "no-card" code fence.
+      const modifier = parsed.modifier ?? "recessed";
+      const styleAttr = ` data-card-style="${modifier}"`;
+      const paddingAttr = parsed.padding ? ` data-card-padding="${escapeHtml(parsed.padding)}"` : "";
+      const radiusAttr = parsed.radius ? ` data-card-radius="${escapeHtml(parsed.radius)}"` : "";
+      const langClass = parsed.lang ? ` class="language-${escapeHtml(parsed.lang)}"` : "";
       // `text` is already shiki-highlighted HTML or escaped fallback.
       return `<pre${styleAttr}${paddingAttr}${radiusAttr}><code${langClass}>${text}</code></pre>\n`;
     },
