@@ -163,4 +163,36 @@ describe("marked custom code renderer", () => {
     const out = (await marked.parse("```ruby\nputs :hi\n```", { async: true })) as string;
     expect(out).toContain("puts");
   });
+
+  it("renders [[REQUIRED]] as a req badge", async () => {
+    const out = (await marked.parse("foo [[REQUIRED]] bar", { async: true })) as string;
+    expect(out).toContain('<span class="mc-badge mc-badge-req">REQUIRED</span>');
+  });
+
+  it("renders [[OPT]] as an opt badge", async () => {
+    const out = (await marked.parse("foo [[OPT]] bar", { async: true })) as string;
+    expect(out).toContain('<span class="mc-badge mc-badge-opt">OPT</span>');
+  });
+
+  it("treats [[REQ]] as alias for REQUIRED variant", async () => {
+    const out = (await marked.parse("foo [[REQ]] bar", { async: true })) as string;
+    expect(out).toContain('<span class="mc-badge mc-badge-req">REQ</span>');
+  });
+
+  it("leaves [[UNKNOWN]] markers untouched", async () => {
+    const out = (await marked.parse("foo [[UNKNOWN]] bar", { async: true })) as string;
+    expect(out).not.toContain("mc-badge");
+    expect(out).toContain("[[UNKNOWN]]");
+  });
+
+  it("renders {{Esc}} as a mc-kbd element", async () => {
+    const out = (await marked.parse("press {{Esc}} now", { async: true })) as string;
+    expect(out).toContain('<kbd class="mc-kbd">Esc</kbd>');
+  });
+
+  it("escapes HTML inside {{...}} kbd content", async () => {
+    const out = (await marked.parse("test {{<script>}} end", { async: true })) as string;
+    expect(out).toContain('<kbd class="mc-kbd">&lt;script&gt;</kbd>');
+    expect(out).not.toContain("<script>");
+  });
 });
