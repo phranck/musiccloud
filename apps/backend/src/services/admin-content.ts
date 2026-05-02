@@ -29,15 +29,24 @@ import { codeToHtml } from "shiki";
 const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
 type CardModifier = "recessed" | "embossed";
 
-function parseLangAndModifier(raw: string): { lang: string | null; modifier: CardModifier | null } {
+function parseInfostring(raw: string): {
+  lang: string | null;
+  modifier: CardModifier | null;
+  padding: string | null;
+  radius: string | null;
+} {
   const tokens = raw.trim().split(/\s+/).filter(Boolean);
   let modifier: CardModifier | null = null;
   let lang: string | null = null;
+  let padding: string | null = null;
+  let radius: string | null = null;
   for (const t of tokens) {
     if (KNOWN_CARD_MODIFIERS.has(t as CardModifier)) modifier = t as CardModifier;
+    else if (t.startsWith("padding=")) padding = t.slice("padding=".length);
+    else if (t.startsWith("radius=")) radius = t.slice("radius=".length);
     else if (lang === null) lang = t;
   }
-  return { lang, modifier };
+  return { lang, modifier, padding, radius };
 }
 
 function escapeHtml(s: string): string {
@@ -67,11 +76,13 @@ marked.use(
 marked.use({
   renderer: {
     code({ text, lang: rawLang }: Tokens.Code): string {
-      const { lang, modifier } = parseLangAndModifier(rawLang ?? "");
-      const attr = modifier ? ` data-card-style="${modifier}"` : "";
+      const { lang, modifier, padding, radius } = parseInfostring(rawLang ?? "");
+      const styleAttr = modifier ? ` data-card-style="${modifier}"` : "";
+      const paddingAttr = modifier && padding ? ` data-card-padding="${escapeHtml(padding)}"` : "";
+      const radiusAttr = modifier && radius ? ` data-card-radius="${escapeHtml(radius)}"` : "";
       const langClass = lang ? ` class="language-${escapeHtml(lang)}"` : "";
       // `text` is already shiki-highlighted HTML or escaped fallback.
-      return `<pre${attr}><code${langClass}>${text}</code></pre>\n`;
+      return `<pre${styleAttr}${paddingAttr}${radiusAttr}><code${langClass}>${text}</code></pre>\n`;
     },
   },
 });
