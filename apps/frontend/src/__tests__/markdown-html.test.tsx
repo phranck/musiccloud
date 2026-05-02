@@ -19,6 +19,10 @@ describe("MarkdownHtml", () => {
     render(<MarkdownHtml html={html} />);
     const embossed = document.querySelector(".embossed-gradient-border");
     expect(embossed).not.toBeNull();
+    const pre = embossed?.querySelector("pre");
+    expect(pre).not.toBeNull();
+    expect(pre?.hasAttribute("data-card-style")).toBe(false);
+    expect(pre?.getAttribute("data-card-wrapped")).toBe("true");
   });
 
   it("renders <pre> without marker unchanged", () => {
