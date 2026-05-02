@@ -21,7 +21,14 @@ const MIN_W = 320;
 const MIN_H = 240;
 const VIEWPORT_MARGIN = 8;
 
-const GEOM_KEY = "mc:overlay-geom";
+// Geometry is persisted per-page slug so the user's preferred size and
+// position for one page (e.g. "help") does not bleed over into another
+// page (e.g. "info"). One localStorage entry per slug.
+const GEOM_KEY_PREFIX = "mc:overlay-geom:";
+
+function geomKey(slug: string): string {
+  return `${GEOM_KEY_PREFIX}${slug}`;
+}
 
 interface Geom {
   x: number;
@@ -53,9 +60,9 @@ function defaultGeom(): Geom {
   });
 }
 
-function loadGeom(): Geom | null {
+function loadGeom(slug: string): Geom | null {
   try {
-    const raw = localStorage.getItem(GEOM_KEY);
+    const raw = localStorage.getItem(geomKey(slug));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object") return null;
@@ -69,9 +76,9 @@ function loadGeom(): Geom | null {
   }
 }
 
-function saveGeom(g: Geom): void {
+function saveGeom(slug: string, g: Geom): void {
   try {
-    localStorage.setItem(GEOM_KEY, JSON.stringify(g));
+    localStorage.setItem(geomKey(slug), JSON.stringify(g));
   } catch {
     // Quota / disabled storage — ignore; geometry will simply reset on reload.
   }
@@ -151,7 +158,7 @@ function OverlayShell({ initialPage }: Props) {
         className={cn("fixed inset-0 z-40 bg-black/40 cursor-default", visible ? "opacity-100" : "opacity-0")}
         style={backdropStyle}
       />
-      <OverlayFrame visible={visible}>
+      <OverlayFrame visible={visible} slug={page.slug}>
         {page.displayMode === "translucent" ? (
           <TranslucentOverlayContent page={page} onClose={close} />
         ) : (
@@ -169,10 +176,11 @@ function OverlayShell({ initialPage }: Props) {
  * grab the header region (`.overlay-drag-handle`) to move the frame and
  * the bottom-right grip to resize it. Both gestures use pointer capture so
  * tracking is reliable even when the pointer briefly leaves the element.
- * Geometry is persisted in `localStorage` once per gesture (on
- * `pointerup`) to avoid hammering the API during drag.
+ * Geometry is persisted in `localStorage` per page-slug (one entry per
+ * page) once per gesture (on `pointerup`) to avoid hammering the API
+ * during drag.
  */
-function OverlayFrame({ visible, children }: { visible: boolean; children: React.ReactNode }) {
+function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: string; children: React.ReactNode }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const [geom, setGeom] = useState<Geom | null>(null);
   const gestureRef = useRef<{
@@ -184,11 +192,12 @@ function OverlayFrame({ visible, children }: { visible: boolean; children: React
   } | null>(null);
 
   // Init geometry from localStorage (or defaults) once we can read the
-  // viewport. useLayoutEffect runs before first paint so the frame renders
-  // at its resolved position — no visible flash.
+  // viewport, and re-init when the slug changes (page-switch within the
+  // same overlay session). useLayoutEffect runs before first paint so the
+  // frame renders at its resolved position — no visible flash.
   useLayoutEffect(() => {
-    setGeom(loadGeom() ?? defaultGeom());
-  }, []);
+    setGeom(loadGeom(slug) ?? defaultGeom());
+  }, [slug]);
 
   // Re-clamp geometry whenever the viewport resizes so the frame never
   // ends up partially off-screen. Stored value stays untouched unless the
@@ -250,7 +259,7 @@ function OverlayFrame({ visible, children }: { visible: boolean; children: React
     if (el?.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
     gestureRef.current = null;
     setGeom((cur) => {
-      if (cur) saveGeom(cur);
+      if (cur) saveGeom(slug, cur);
       return cur;
     });
   }
