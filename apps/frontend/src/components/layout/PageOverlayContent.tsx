@@ -54,18 +54,25 @@ const parserOptions: HTMLReactParserOptions = {
     const cardStyle = el.attribs["data-card-style"];
     if (cardStyle !== "recessed" && cardStyle !== "embossed") return undefined;
 
-    // Strip the marker, add a sentinel so CSS in MD_EMBOSSED can suppress
-    // the wrapped <pre>'s own padding/background (the Card owns geometry now).
+    const padding = el.attribs["data-card-padding"] ?? "0";
+    const radius = el.attribs["data-card-radius"];
+
+    // Strip the marker and data-card-* attrs, add a sentinel so CSS in
+    // MD_EMBOSSED can suppress the wrapped <pre>'s own padding/background
+    // (the Card owns geometry now).
     const cleanAttribs = { ...el.attribs };
     delete cleanAttribs["data-card-style"];
+    delete cleanAttribs["data-card-padding"];
+    delete cleanAttribs["data-card-radius"];
     cleanAttribs["data-card-wrapped"] = "true";
 
     const inner = <pre {...cleanAttribs}>{domToReact(el.children as never, parserOptions)}</pre>;
 
+    const cardProps = radius ? { padding, radius } : { padding };
     return cardStyle === "recessed" ? (
-      <RecessedCard padding="0">{inner}</RecessedCard>
+      <RecessedCard {...cardProps}>{inner}</RecessedCard>
     ) : (
-      <EmbossedCard padding="0">{inner}</EmbossedCard>
+      <EmbossedCard {...cardProps}>{inner}</EmbossedCard>
     );
   },
 };

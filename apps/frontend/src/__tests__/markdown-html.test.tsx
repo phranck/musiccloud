@@ -40,4 +40,22 @@ describe("MarkdownHtml", () => {
     expect(pre).not.toBeNull();
     expect(document.querySelectorAll(".recessed-gradient-border, .embossed-gradient-border").length).toBe(0);
   });
+
+  it("forwards data-card-padding to RecessedCard padding prop", () => {
+    const html = '<pre data-card-style="recessed" data-card-padding="0.75rem"><code>foo</code></pre>';
+    render(<MarkdownHtml html={html} />);
+    const recessed = document.querySelector(".recessed-gradient-border");
+    expect(recessed).not.toBeNull();
+    // RecessedCard sets the resolved padding directly as style.padding.
+    expect((recessed as HTMLElement).style.padding).toBe("0.75rem");
+  });
+
+  it("forwards data-card-radius to RecessedCard radius prop", () => {
+    const html = '<pre data-card-style="recessed" data-card-radius="1rem"><code>foo</code></pre>';
+    render(<MarkdownHtml html={html} />);
+    const recessed = document.querySelector(".recessed-gradient-border");
+    expect(recessed).not.toBeNull();
+    // RecessedCard publishes the radius as --neu-radius-base on the card element.
+    expect((recessed as HTMLElement).style.getPropertyValue("--neu-radius-base")).toBe("1rem");
+  });
 });

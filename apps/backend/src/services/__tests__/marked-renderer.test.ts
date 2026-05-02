@@ -59,4 +59,29 @@ describe("marked custom code renderer", () => {
     expect(out).toContain("<pre");
     expect(out).toContain("plain");
   });
+
+  it("emits data-card-padding when modifier+padding given", async () => {
+    const out = (await marked.parse("```js recessed padding=0.75rem\nconst x = 1;\n```", { async: true })) as string;
+    expect(out).toMatch(/<pre data-card-style="recessed" data-card-padding="0\.75rem">/);
+  });
+
+  it("emits data-card-radius when modifier+radius given", async () => {
+    const out = (await marked.parse("```js recessed radius=1rem\nconst x = 1;\n```", { async: true })) as string;
+    expect(out).toMatch(/<pre data-card-style="recessed" data-card-radius="1rem">/);
+  });
+
+  it("emits both data-card-padding and data-card-radius for embossed modifier", async () => {
+    const out = (await marked.parse("```js embossed padding=0.5rem radius=12px\nconst x = 1;\n```", {
+      async: true,
+    })) as string;
+    expect(out).toMatch(/<pre data-card-style="embossed" data-card-padding="0\.5rem" data-card-radius="12px">/);
+  });
+
+  it("ignores padding/radius without a modifier", async () => {
+    const out = (await marked.parse("```js padding=1rem radius=12px\nconst x = 1;\n```", { async: true })) as string;
+    expect(out).not.toContain("data-card-style");
+    expect(out).not.toContain("data-card-padding");
+    expect(out).not.toContain("data-card-radius");
+    expect(out).toContain('class="language-js"');
+  });
 });
