@@ -77,9 +77,14 @@ function Header({ children, className }: HeaderProps) {
 
   // AddOns are positioned absolutely inside the header's padding box so
   // the title span stays centered across the full header width regardless
-  // of asymmetric AddOn presence.
+  // of asymmetric AddOn presence. `min-h-10` (2.5rem ≈ 40px) guarantees the
+  // header has enough vertical room for the absolutely-positioned AddOns
+  // (e.g. the EmbossedCloseButton at ~38px) even when no title is shown
+  // (`showTitle = false`); otherwise the AddOn sits on the row of zero-
+  // height title content and clips against the card's `overflow: hidden`
+  // edge. Caller can override via className.
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative min-h-10", className)}>
       <div className="text-center">{main}</div>
       {leading.length > 0 && (
         <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10 flex items-center shrink-0">{leading}</div>
