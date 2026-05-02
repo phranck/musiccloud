@@ -10,6 +10,7 @@ import {
   type PageSegmentInput,
   type PageTitleAlignment,
   type PageType,
+  type PagesBulkRequest,
   ROUTE_TEMPLATES,
 } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -22,6 +23,7 @@ import {
   updateManagedContentPageBody,
   updateManagedContentPageMeta,
 } from "../services/admin-content.js";
+import { bulkUpdatePages } from "../services/admin-pages-bulk.js";
 import { replaceSegments } from "../services/admin-segments.js";
 import { registerAdminPageTranslationRoutes } from "./admin-page-translations.js";
 
@@ -213,6 +215,16 @@ export default async function adminContentRoutes(app: FastifyInstance) {
     if (!result.ok)
       return reply.status(statusCodeForError(result.code)).send({ error: result.code, message: result.message });
     return reply.status(204).send();
+  });
+
+  // PUT /api/admin/pages/bulk — atomic multi-section page update
+  app.put(ROUTE_TEMPLATES.admin.pages.bulk, async (request, reply) => {
+    const updatedBy = getCallerId(request);
+    const result = await bulkUpdatePages(request.body as PagesBulkRequest, { updatedBy });
+    if (!result.ok) {
+      return reply.status(400).send({ error: result.code, details: result.details });
+    }
+    return reply.send({ pages: result.data });
   });
 
   // PUT /api/admin/pages/:slug/segments — replace the segment list atomically
