@@ -1,5 +1,6 @@
 import type { ContentCardStyle, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
 import * as pgModule from "pg";
+import type { PoolClient } from "pg";
 import { CACHE_TTL_MS } from "../../lib/config.js";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
@@ -2709,8 +2710,112 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return result.rows.map(rowToContentPage);
   }
 
-  async bulkUpdatePages(_payload: BulkUpdatePagesPayload): Promise<ContentPageSummaryRow[]> {
-    throw new Error("not implemented");
+  async bulkUpdatePages(payload: BulkUpdatePagesPayload): Promise<ContentPageSummaryRow[]> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // 1) pages.meta + pages.content
+      for (const p of payload.pages) {
+        if (p.meta) {
+          await this.applyMetaInTx(client, p.slug, p.meta);
+        }
+        if (p.content !== undefined) {
+          await client.query(
+            `UPDATE content_pages
+                SET content = $2,
+                    content_updated_at = NOW(),
+                    updated_at = NOW()
+              WHERE slug = $1`,
+            [resolveSlugAfterRename(p), p.content],
+          );
+        }
+      }
+
+      // 2) topLevelOrder → position
+      for (let i = 0; i < payload.topLevelOrder.length; i++) {
+        await client.query(
+          `UPDATE content_pages SET position = $2 WHERE slug = $1`,
+          [payload.topLevelOrder[i], i],
+        );
+      }
+
+      // 3) segments per owner — DELETE + INSERT
+      for (const entry of payload.segments) {
+        await client.query(
+          `DELETE FROM page_segments WHERE owner_slug = $1`,
+          [entry.ownerSlug],
+        );
+        for (const s of entry.segments) {
+          await client.query(
+            `INSERT INTO page_segments (owner_slug, target_slug, position, label, label_updated_at)
+             VALUES ($1, $2, $3, $4, NOW())`,
+            [entry.ownerSlug, s.targetSlug, s.position, s.label],
+          );
+        }
+        // Segment translations are NOT carried in BulkUpdatePagesPayload
+        // (PageSegmentInputRow has no `translations` field — see T6 service
+        // wiring). When that path is needed, it will be added together with
+        // the type extension; for now translations stay on the existing
+        // replaceSegmentTranslations route.
+      }
+
+      // 4) page translations (UPSERT)
+      for (const t of payload.pageTranslations) {
+        await client.query(
+          `INSERT INTO content_page_translations (slug, locale, title, content, translation_ready, updated_at)
+           VALUES ($1, $2, $3, $4, $5, NOW())
+           ON CONFLICT (slug, locale)
+           DO UPDATE SET title = EXCLUDED.title,
+                         content = EXCLUDED.content,
+                         translation_ready = EXCLUDED.translation_ready,
+                         updated_at = EXCLUDED.updated_at`,
+          [t.slug, t.locale, t.title ?? null, t.content ?? null, t.translationReady ?? null],
+        );
+      }
+
+      await client.query("COMMIT");
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    // Service layer maps DB rows to ContentPageSummary DTOs via
+    // getManagedContentPages(); adapter return is unused. Return [] to honor
+    // the interface signature without a redundant SELECT.
+    return [];
+  }
+
+  private async applyMetaInTx(
+    client: PoolClient,
+    slug: string,
+    meta: ContentPageMetaUpdate,
+  ): Promise<void> {
+    const setClauses: string[] = [];
+    const values: unknown[] = [];
+    let p = 1;
+    if (meta.title !== undefined) { setClauses.push(`title = $${p++}`); values.push(meta.title); }
+    if (meta.slug !== undefined && meta.slug !== slug) { setClauses.push(`slug = $${p++}`); values.push(meta.slug); }
+    if (meta.status !== undefined) { setClauses.push(`status = $${p++}`); values.push(meta.status); }
+    if (meta.showTitle !== undefined) { setClauses.push(`show_title = $${p++}`); values.push(meta.showTitle); }
+    if (meta.titleAlignment !== undefined) { setClauses.push(`title_alignment = $${p++}`); values.push(meta.titleAlignment); }
+    if (meta.pageType !== undefined) { setClauses.push(`page_type = $${p++}`); values.push(meta.pageType); }
+    if (meta.displayMode !== undefined) { setClauses.push(`display_mode = $${p++}`); values.push(meta.displayMode); }
+    if (meta.overlayWidth !== undefined) { setClauses.push(`overlay_width = $${p++}`); values.push(meta.overlayWidth); }
+    if (meta.contentCardStyle !== undefined) { setClauses.push(`content_card_style = $${p++}`); values.push(meta.contentCardStyle); }
+    if (setClauses.length === 0) return;
+    setClauses.push(`updated_at = NOW()`);
+    values.push(slug);
+    await client.query(
+      `UPDATE content_pages SET ${setClauses.join(", ")} WHERE slug = $${p}`,
+      values,
+    );
+    // segmented → default transition: clear orphan segments (existing behaviour)
+    if (meta.pageType === "default") {
+      await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [meta.slug ?? slug]);
+    }
   }
 
   // ============================================================================
@@ -3243,6 +3348,13 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// Resolve the slug that subsequent UPDATEs in the same TX should target after
+// a slug rename: the meta UPDATE runs first, so `meta.slug` (when present)
+// is already the new key for the content/translation/segment rows.
+function resolveSlugAfterRename(p: { slug: string; meta?: ContentPageMetaUpdate }): string {
+  return p.meta?.slug ?? p.slug;
 }
 
 // Shared column lists so every SELECT / RETURNING stays in lockstep.
