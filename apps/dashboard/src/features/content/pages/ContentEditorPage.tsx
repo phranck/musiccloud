@@ -1,4 +1,5 @@
 import type {
+  ContentCardStyle,
   ContentPage,
   Locale,
   OverlayWidth,
@@ -681,6 +682,7 @@ export function ContentEditorPage() {
     titleAlignment?: PageTitleAlignmentValue;
     displayMode?: PageDisplayMode;
     overlayWidth?: OverlayWidth;
+    contentCardStyle?: ContentCardStyle;
   }) {
     dispatch({ type: "setPatchError", value: null });
     try {
@@ -838,6 +840,7 @@ export function ContentEditorPage() {
         <PageDisplaySettings
           displayMode={page.displayMode}
           overlayWidth={page.overlayWidth}
+          contentCardStyle={page.contentCardStyle}
           onChange={(patch) => void handlePatch(patch)}
         />
       )}
