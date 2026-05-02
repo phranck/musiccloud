@@ -331,9 +331,6 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
                           update(index, { targetSlug: v });
                         }}
                       />
-                      {!segment.targetSlug && (
-                        <p className="mt-1 text-[10px] text-[var(--ds-btn-danger-text)]">{text.targetRequired}</p>
-                      )}
                     </div>
                     <button
                       type="button"
