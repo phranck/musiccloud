@@ -21,6 +21,9 @@ const MD_TRANSLUCENT = [
   "[&_strong]:text-white/80 [&_strong]:font-medium",
   "[&_a]:text-[var(--color-accent)] [&_a]:underline",
   "[&_hr]:border-white/10 [&_hr]:my-4",
+  "[&_pre]:my-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:p-3 [&_pre]:bg-black/30 [&_pre]:font-mono [&_pre]:text-sm",
+  "[&_pre[data-card-wrapped]]:p-0 [&_pre[data-card-wrapped]]:bg-transparent [&_pre[data-card-wrapped]]:rounded-none [&_pre[data-card-wrapped]]:my-0",
+  "[&_:not(pre)>code]:rounded [&_:not(pre)>code]:bg-white/15 [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-sm",
   "[&>*:last-child]:mb-0",
 ].join(" ");
 
@@ -35,6 +38,9 @@ const MD_EMBOSSED = [
   "[&_strong]:text-text-primary [&_strong]:font-medium",
   "[&_a]:text-[var(--color-accent)] [&_a]:underline",
   "[&_hr]:border-black/10 [&_hr]:my-4",
+  "[&_pre]:my-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:p-3 [&_pre]:bg-black/20 [&_pre]:font-mono [&_pre]:text-sm",
+  "[&_pre[data-card-wrapped]]:p-0 [&_pre[data-card-wrapped]]:bg-transparent [&_pre[data-card-wrapped]]:rounded-none [&_pre[data-card-wrapped]]:my-0",
+  "[&_:not(pre)>code]:rounded [&_:not(pre)>code]:bg-white/8 [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-sm",
   "[&>*:last-child]:mb-0",
 ].join(" ");
 
