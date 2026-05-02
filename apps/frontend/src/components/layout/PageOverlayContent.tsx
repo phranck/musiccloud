@@ -24,6 +24,10 @@ const MD_TRANSLUCENT = [
   "[&_pre]:my-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:p-3 [&_pre]:bg-black/30 [&_pre]:font-mono [&_pre]:text-sm",
   "[&_pre[data-card-wrapped]]:p-0 [&_pre[data-card-wrapped]]:bg-transparent [&_pre[data-card-wrapped]]:rounded-none [&_pre[data-card-wrapped]]:my-0",
   "[&_:not(pre)>code]:rounded [&_:not(pre)>code]:bg-white/15 [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-sm",
+  "[&_.mc-badge]:inline-block [&_.mc-badge]:px-1.5 [&_.mc-badge]:py-0.5 [&_.mc-badge]:rounded [&_.mc-badge]:text-xs [&_.mc-badge]:font-semibold [&_.mc-badge]:uppercase [&_.mc-badge]:tracking-wider [&_.mc-badge]:font-mono [&_.mc-badge]:ml-1 [&_.mc-badge]:align-middle",
+  "[&_.mc-badge-req]:bg-error/20 [&_.mc-badge-req]:text-error",
+  "[&_.mc-badge-opt]:bg-white/15 [&_.mc-badge-opt]:text-white/70",
+  "[&_.mc-kbd]:inline-block [&_.mc-kbd]:px-1.5 [&_.mc-kbd]:py-0.5 [&_.mc-kbd]:rounded [&_.mc-kbd]:text-xs [&_.mc-kbd]:font-mono [&_.mc-kbd]:bg-white/15 [&_.mc-kbd]:border [&_.mc-kbd]:border-white/20 [&_.mc-kbd]:text-white/80 [&_.mc-kbd]:align-middle",
   "[&>*:last-child]:mb-0",
 ].join(" ");
 
@@ -41,6 +45,10 @@ const MD_EMBOSSED = [
   "[&_pre]:my-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:p-3 [&_pre]:bg-black/20 [&_pre]:font-mono [&_pre]:text-sm",
   "[&_pre[data-card-wrapped]]:p-0 [&_pre[data-card-wrapped]]:bg-transparent [&_pre[data-card-wrapped]]:rounded-none [&_pre[data-card-wrapped]]:my-0",
   "[&_:not(pre)>code]:rounded [&_:not(pre)>code]:bg-white/8 [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-sm",
+  "[&_.mc-badge]:inline-block [&_.mc-badge]:px-1.5 [&_.mc-badge]:py-0.5 [&_.mc-badge]:rounded [&_.mc-badge]:text-xs [&_.mc-badge]:font-semibold [&_.mc-badge]:uppercase [&_.mc-badge]:tracking-wider [&_.mc-badge]:font-mono [&_.mc-badge]:ml-1 [&_.mc-badge]:align-middle",
+  "[&_.mc-badge-req]:bg-error/15 [&_.mc-badge-req]:text-error",
+  "[&_.mc-badge-opt]:bg-text-muted/20 [&_.mc-badge-opt]:text-text-muted",
+  "[&_.mc-kbd]:inline-block [&_.mc-kbd]:px-1.5 [&_.mc-kbd]:py-0.5 [&_.mc-kbd]:rounded [&_.mc-kbd]:text-xs [&_.mc-kbd]:font-mono [&_.mc-kbd]:bg-white/8 [&_.mc-kbd]:border [&_.mc-kbd]:border-white/12 [&_.mc-kbd]:text-text-secondary [&_.mc-kbd]:align-middle",
   "[&>*:last-child]:mb-0",
 ].join(" ");
 
