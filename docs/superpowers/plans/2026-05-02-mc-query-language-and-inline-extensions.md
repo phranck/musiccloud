@@ -58,15 +58,15 @@ Modifiziert:
   });
 
   it("recognizes # comments inside ```mc-query", async () => {
+    // vitesse-dark renders comments grey-green via color, NOT italic.
+    // Assertion checks the grammar isolated the comment into its own span.
     const out = (await marked.parse("```mc-query\ngenre: jazz # filter\n```", { async: true })) as string;
-    expect(out).toContain("filter");
-    expect(out).toMatch(/<span[^>]+font-style:italic/);
+    expect(out).toMatch(/<span style="color:#[0-9A-F]+"># filter<\/span>/i);
   });
 
   it("recognizes // comments inside ```mc-query", async () => {
     const out = (await marked.parse("```mc-query\nartist: foo // note\n```", { async: true })) as string;
-    expect(out).toContain("note");
-    expect(out).toMatch(/<span[^>]+font-style:italic/);
+    expect(out).toMatch(/<span style="color:#[0-9A-F]+">\/\/ note<\/span>/i);
   });
 
   it("falls back gracefully for unknown language not in highlighter list", async () => {

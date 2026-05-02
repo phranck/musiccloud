@@ -190,8 +190,8 @@ Bei translucent ggf. leicht andere Opacities (analog zum bestehenden Code-Block-
 `apps/backend/src/services/__tests__/marked-renderer.test.ts` bekommt:
 
 - `\`\`\`mc-query\ngenre: jazz\n\`\`\`` → enthält `<span style="color:` (Shiki-Highlight aktiv).
-- `\`\`\`mc-query\ngenre: jazz # comment\n\`\`\`` → comment-Pattern matched (vitesse-dark rendert Comments italic).
-- `\`\`\`mc-query\nartist: foo // bar\n\`\`\`` → `//` Comment auch erkannt.
+- `\`\`\`mc-query\ngenre: jazz # comment\n\`\`\`` → comment-Pattern matched, Comment-Text bekommt eigene Span mit Comment-Theme-Farbe (vitesse-dark: grau-grün, NICHT italic — entgegen ursprünglicher Annahme).
+- `\`\`\`mc-query\nartist: foo // bar\n\`\`\`` → `//` Comment auch erkannt, eigene Span mit Comment-Farbe.
 - `[[REQUIRED]]` → `<span class="mc-badge mc-badge-req">REQUIRED</span>`.
 - `[[OPT]]` → `<span class="mc-badge mc-badge-opt">OPT</span>`.
 - `[[REQ]]` → `<span class="mc-badge mc-badge-req">REQ</span>` (Alias).

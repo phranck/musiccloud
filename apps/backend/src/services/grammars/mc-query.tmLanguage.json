@@ -1,0 +1,41 @@
+{
+  "name": "mc-query",
+  "scopeName": "source.mc-query",
+  "patterns": [
+    { "include": "#comment-hash" },
+    { "include": "#comment-slash" },
+    { "include": "#key-pair" },
+    { "include": "#operator" },
+    { "include": "#number" },
+    { "include": "#special" }
+  ],
+  "repository": {
+    "comment-hash": {
+      "match": "(#).*$",
+      "name": "comment.line.number-sign.mc-query"
+    },
+    "comment-slash": {
+      "match": "(//).*$",
+      "name": "comment.line.double-slash.mc-query"
+    },
+    "key-pair": {
+      "match": "\\b(genre|tracks|albums|artists|count|vibe|title|artist|album)(:)",
+      "captures": {
+        "1": { "name": "entity.name.tag.mc-query" },
+        "2": { "name": "punctuation.separator.key-value.mc-query" }
+      }
+    },
+    "operator": {
+      "match": "\\|",
+      "name": "keyword.operator.or.mc-query"
+    },
+    "number": {
+      "match": "\\b\\d+\\b",
+      "name": "constant.numeric.mc-query"
+    },
+    "special": {
+      "match": "(?<=:\\s*)\\?",
+      "name": "keyword.operator.special.mc-query"
+    }
+  }
+}
