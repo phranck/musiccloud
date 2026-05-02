@@ -1,4 +1,4 @@
-import type { OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
+import type { ContentCardStyle, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
 
 export interface AdminUser {
   id: string;
@@ -126,6 +126,7 @@ export interface ContentPageSummaryRow {
   pageType: PageType;
   displayMode: PageDisplayMode;
   overlayWidth: OverlayWidth;
+  contentCardStyle: ContentCardStyle;
   createdBy: string | null;
   updatedBy: string | null;
   createdAt: Date;
@@ -176,6 +177,7 @@ export interface ContentPageMetaUpdate {
   pageType?: PageType;
   displayMode?: PageDisplayMode;
   overlayWidth?: OverlayWidth;
+  contentCardStyle?: ContentCardStyle;
   updatedBy: string | null;
 }
 

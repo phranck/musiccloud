@@ -1,4 +1,4 @@
-import type { OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
+import type { ContentCardStyle, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { CACHE_TTL_MS } from "../../lib/config.js";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
@@ -2615,6 +2615,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       setClauses.push(`overlay_width = $${paramIndex++}`);
       values.push(data.overlayWidth);
     }
+    if (data.contentCardStyle !== undefined) {
+      setClauses.push(`content_card_style = $${paramIndex++}`);
+      values.push(data.contentCardStyle);
+    }
 
     if (setClauses.length === 0) {
       return this.getContentPageBySlug(slug);
@@ -3238,8 +3242,8 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
 
 // Shared column lists so every SELECT / RETURNING stays in lockstep.
 const CONTENT_SUMMARY_COLUMNS =
-  "slug, title, status, show_title, title_alignment, page_type, display_mode, overlay_width, created_by, updated_by, created_at, updated_at";
-const CONTENT_COLUMNS = `slug, title, content, status, show_title, title_alignment, page_type, display_mode, overlay_width, created_by, updated_by, created_at, updated_at, content_updated_at`;
+  "slug, title, status, show_title, title_alignment, page_type, display_mode, overlay_width, content_card_style, created_by, updated_by, created_at, updated_at";
+const CONTENT_COLUMNS = `slug, title, content, status, show_title, title_alignment, page_type, display_mode, overlay_width, content_card_style, created_by, updated_by, created_at, updated_at, content_updated_at`;
 
 interface ContentPageSummarySqlRow {
   slug: string;
@@ -3250,6 +3254,7 @@ interface ContentPageSummarySqlRow {
   page_type: string;
   display_mode: string;
   overlay_width: string;
+  content_card_style: string;
   created_by: string | null;
   updated_by: string | null;
   created_at: Date;
@@ -3272,6 +3277,7 @@ function rowToContentPageSummary(row: ContentPageSummarySqlRow): ContentPageSumm
     pageType: row.page_type as PageType,
     displayMode: row.display_mode as PageDisplayMode,
     overlayWidth: row.overlay_width as OverlayWidth,
+    contentCardStyle: row.content_card_style as ContentCardStyle,
     createdBy: row.created_by,
     updatedBy: row.updated_by,
     createdAt: row.created_at,

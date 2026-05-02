@@ -11,6 +11,7 @@ import type {
   TranslationStatus,
 } from "@musiccloud/shared";
 import {
+  CONTENT_CARD_STYLES,
   DEFAULT_LOCALE,
   isLocale,
   LOCALES,
@@ -92,6 +93,7 @@ function rowToSummary(
     pageType: row.pageType,
     displayMode: row.displayMode,
     overlayWidth: row.overlayWidth,
+    contentCardStyle: row.contentCardStyle,
     createdByUsername: row.createdBy ? (usernames.get(row.createdBy) ?? null) : null,
     updatedByUsername: row.updatedBy ? (usernames.get(row.updatedBy) ?? null) : null,
     createdAt: row.createdAt.toISOString(),
@@ -211,6 +213,9 @@ export async function updateManagedContentPageMeta(
   if (data.titleAlignment !== undefined && !isOneOf(PAGE_TITLE_ALIGNMENTS, data.titleAlignment)) {
     return { ok: false, code: "INVALID_INPUT", message: "titleAlignment invalid" };
   }
+  if (data.contentCardStyle !== undefined && !isOneOf(CONTENT_CARD_STYLES, data.contentCardStyle)) {
+    return { ok: false, code: "INVALID_INPUT", message: "contentCardStyle invalid" };
+  }
   const repo = await getAdminRepository();
   if (data.slug !== undefined && data.slug !== slug) {
     if (await repo.contentPageSlugExists(data.slug)) {
@@ -315,6 +320,7 @@ export async function getPublicContentPage(slug: string, locale: Locale): Promis
     pageType: row.pageType,
     displayMode: row.displayMode,
     overlayWidth: row.overlayWidth,
+    contentCardStyle: row.contentCardStyle,
     content: resolvedContent,
     contentHtml: renderBody(resolvedContent),
   };
