@@ -202,6 +202,7 @@ export interface PageSegmentInputRow {
   position: number;
   label: string;
   targetSlug: string;
+  translations?: Partial<Record<string, string>>;
 }
 
 export interface BulkUpdatePagesPayload {
@@ -213,6 +214,7 @@ export interface BulkUpdatePagesPayload {
     title?: string;
     content?: string;
     translationReady?: boolean;
+    updatedBy?: string | null;
   }>;
   topLevelOrder: string[];
 }

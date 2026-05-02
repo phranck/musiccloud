@@ -2740,37 +2740,54 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         );
       }
 
-      // 3) segments per owner — DELETE + INSERT
+      // 3) segments per owner — DELETE + INSERT (+ translations UPSERT)
       for (const entry of payload.segments) {
         await client.query(
           `DELETE FROM page_segments WHERE owner_slug = $1`,
           [entry.ownerSlug],
         );
+        const idRows: { rows: { id: number }[] } = { rows: [] };
         for (const s of entry.segments) {
-          await client.query(
+          const inserted = await client.query<{ id: number }>(
             `INSERT INTO page_segments (owner_slug, target_slug, position, label, label_updated_at)
-             VALUES ($1, $2, $3, $4, NOW())`,
+             VALUES ($1, $2, $3, $4, NOW())
+             RETURNING id`,
             [entry.ownerSlug, s.targetSlug, s.position, s.label],
           );
+          idRows.rows.push(inserted.rows[0]);
         }
-        // Segment translations are NOT carried in BulkUpdatePagesPayload
-        // (PageSegmentInputRow has no `translations` field — see T6 service
-        // wiring). When that path is needed, it will be added together with
-        // the type extension; for now translations stay on the existing
-        // replaceSegmentTranslations route.
+        for (let i = 0; i < entry.segments.length; i++) {
+          const persisted = idRows.rows[i];
+          const input = entry.segments[i];
+          if (!input.translations) continue;
+          for (const [locale, label] of Object.entries(input.translations)) {
+            if (typeof label !== "string" || label.length === 0) continue;
+            await client.query(
+              `INSERT INTO page_segment_translations (segment_id, locale, label, source_updated_at)
+               VALUES ($1, $2, $3, NOW())
+               ON CONFLICT (segment_id, locale)
+               DO UPDATE SET label = EXCLUDED.label, source_updated_at = EXCLUDED.source_updated_at`,
+              [persisted.id, locale, label],
+            );
+          }
+        }
       }
 
-      // 4) page translations (UPSERT)
+      // 4) page translations (UPSERT) — stamp updated_by + source_updated_at to
+      // match the per-resource upsertPageTranslation audit semantics.
       for (const t of payload.pageTranslations) {
         await client.query(
-          `INSERT INTO content_page_translations (slug, locale, title, content, translation_ready, updated_at)
-           VALUES ($1, $2, $3, $4, $5, NOW())
+          `INSERT INTO content_page_translations
+             (slug, locale, title, content, translation_ready, updated_at, updated_by, source_updated_at)
+           VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW())
            ON CONFLICT (slug, locale)
            DO UPDATE SET title = EXCLUDED.title,
                          content = EXCLUDED.content,
                          translation_ready = EXCLUDED.translation_ready,
-                         updated_at = EXCLUDED.updated_at`,
-          [t.slug, t.locale, t.title ?? null, t.content ?? null, t.translationReady ?? null],
+                         updated_at = EXCLUDED.updated_at,
+                         updated_by = EXCLUDED.updated_by,
+                         source_updated_at = EXCLUDED.source_updated_at`,
+          [t.slug, t.locale, t.title ?? null, t.content ?? null, t.translationReady ?? null, t.updatedBy ?? null],
         );
       }
 
@@ -2805,6 +2822,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     if (meta.displayMode !== undefined) { setClauses.push(`display_mode = $${p++}`); values.push(meta.displayMode); }
     if (meta.overlayWidth !== undefined) { setClauses.push(`overlay_width = $${p++}`); values.push(meta.overlayWidth); }
     if (meta.contentCardStyle !== undefined) { setClauses.push(`content_card_style = $${p++}`); values.push(meta.contentCardStyle); }
+    if (meta.updatedBy !== undefined) {
+      setClauses.push(`updated_by = $${p++}`);
+      values.push(meta.updatedBy);
+    }
     if (setClauses.length === 0) return;
     setClauses.push(`updated_at = NOW()`);
     values.push(slug);
