@@ -58,4 +58,13 @@ describe("MarkdownHtml", () => {
     // RecessedCard publishes the radius as --neu-radius-base on the card element.
     expect((recessed as HTMLElement).style.getPropertyValue("--neu-radius-base")).toBe("1rem");
   });
+
+  it("uses 0.75rem defaults for padding and radius when data-attrs absent", () => {
+    const html = '<pre data-card-style="recessed"><code>foo</code></pre>';
+    render(<MarkdownHtml html={html} />);
+    const recessed = document.querySelector(".recessed-gradient-border");
+    expect(recessed).not.toBeNull();
+    expect((recessed as HTMLElement).style.padding).toBe("0.75rem");
+    expect((recessed as HTMLElement).style.getPropertyValue("--neu-radius-base")).toBe("0.75rem");
+  });
 });
