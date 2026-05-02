@@ -16,6 +16,13 @@ interface DropdownProps<T extends string = string> {
   className?: string;
   /** Trigger size. "sm" matches the dense text-xs form inputs (h-7); "md" (default) is the standard h-9. */
   size?: "sm" | "md";
+  /**
+   * Menu alignment. "start" anchors the menu to the trigger's left edge so it
+   * grows rightward (default — safe when options are wider than the trigger).
+   * "end" anchors to the right edge and grows leftward (use when the trigger
+   * sits near the viewport's right edge).
+   */
+  align?: "start" | "end";
 }
 
 export function Dropdown<T extends string = string>({
@@ -25,6 +32,7 @@ export function Dropdown<T extends string = string>({
   label,
   className,
   size = "md",
+  align = "start",
 }: DropdownProps<T>) {
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
@@ -135,7 +143,7 @@ export function Dropdown<T extends string = string>({
           <div
             role="listbox"
             tabIndex={-1}
-            className="absolute z-20 right-0 mt-1 py-1 min-w-full w-max bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-xl shadow-lg overflow-hidden"
+            className={`absolute z-20 ${align === "end" ? "right-0" : "left-0"} mt-1 py-1 min-w-full w-max bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-xl shadow-lg overflow-hidden`}
           >
             {options.map(({ value: v, label: l, icon, count }, index) => (
               <button
