@@ -506,6 +506,8 @@ export interface DashboardMessages {
         addSegment: string;
         labelPlaceholder: string;
         targetPlaceholder: string;
+        targetRequired: string;
+        invalidSegments: string;
         save: string;
         saving: string;
         saveError: string;
@@ -1236,6 +1238,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           addSegment: "Segment hinzuf\u00fcgen",
           labelPlaceholder: "Beschriftung",
           targetPlaceholder: "Zielseite w\u00e4hlen",
+          targetRequired: "Zielseite erforderlich",
+          invalidSegments: "Mindestens ein Segment hat keine Zielseite.",
           save: "Segmente speichern",
           saving: "Wird gespeichert\u2026",
           saveError: "Fehler beim Speichern",
@@ -1957,6 +1961,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           addSegment: "Add segment",
           labelPlaceholder: "Label",
           targetPlaceholder: "Pick a target page",
+          targetRequired: "Target page required",
+          invalidSegments: "At least one segment is missing a target page.",
           save: "Save segments",
           saving: "Saving\u2026",
           saveError: "Failed to save",

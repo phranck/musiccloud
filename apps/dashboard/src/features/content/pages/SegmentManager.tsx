@@ -123,8 +123,6 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
   });
   stateRef.current = { draft, targetPage, activeTargetSlug, targetDraftContent };
 
-  const canSave = draft.every((s) => s.label.trim().length > 0 && s.targetSlug);
-
   // Register the save function with the parent. Runs once; reads fresh state
   // via the ref above so we never capture stale closures.
   useEffect(() => {
@@ -138,6 +136,16 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
       } = stateRef.current;
 
       setError(null);
+
+      // Pre-check: every draft segment needs a non-empty label and target.
+      // Backend would reject this anyway (empty label = INVALID_INPUT,
+      // empty target = TARGET_NOT_FOUND), but blocking client-side avoids
+      // the round-trip and shows a clear inline error immediately.
+      if (!currentDraft.every((s) => s.label.trim().length > 0 && s.targetSlug)) {
+        setError(text.invalidSegments);
+        return;
+      }
+
       let didAnything = false;
 
       // 1. Persist segment list if it differs from the server state.
@@ -185,7 +193,7 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
     return () => {
       saveRef.current = null;
     };
-  }, [saveRef, page.slug, page.segments, saveSegments, saveTarget, onSaved, text.saveError]);
+  }, [saveRef, page.slug, page.segments, saveSegments, saveTarget, onSaved, text.saveError, text.invalidSegments]);
 
   function move(index: number, delta: number) {
     const nextIndex = index + delta;
@@ -235,15 +243,13 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
   }
 
   function addSegment() {
-    const targetSlug = defaultPages[0]?.slug ?? "";
     const nextIndex = draft.length;
     const nextDraft: DraftSegment[] = [
       ...draft,
-      { localId: nextLocalId(), position: nextIndex, label: "", targetSlug },
+      { localId: nextLocalId(), position: nextIndex, label: "", targetSlug: "" },
     ];
     setDraft(nextDraft);
     setActiveIndex(nextIndex);
-    if (!targetSlug) setNewPageForIndex(nextIndex);
   }
 
   const currentContent = targetDraftContent ?? targetPage?.content ?? "";
@@ -261,8 +267,6 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
     value: p.slug,
     label: `${p.title} (/${p.slug})`,
   }));
-
-  void canSave; // kept for potential future UI (e.g. block parent save); no in-card button
 
   return (
     <>
@@ -287,15 +291,11 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
           ) : (
             <ul className="flex flex-col gap-2">
               {draft.map((segment, index) => {
-                const dropdownValue = targetDropdownOptions.some((o) => o.value === segment.targetSlug)
-                  ? segment.targetSlug
-                  : segment.targetSlug || (targetDropdownOptions[0]?.value ?? "");
-                const options = targetDropdownOptions.some((o) => o.value === segment.targetSlug)
-                  ? targetDropdownOptions
-                  : [
-                      ...(segment.targetSlug ? [{ value: segment.targetSlug, label: `/${segment.targetSlug}` }] : []),
-                      ...targetDropdownOptions,
-                    ];
+                const dropdownValue = segment.targetSlug;
+                const options =
+                  segment.targetSlug && !targetDropdownOptions.some((o) => o.value === segment.targetSlug)
+                    ? [{ value: segment.targetSlug, label: `/${segment.targetSlug}` }, ...targetDropdownOptions]
+                    : targetDropdownOptions;
                 return (
                   <li
                     key={segment.localId}
@@ -325,11 +325,15 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
                         size="sm"
                         value={dropdownValue}
                         options={options}
+                        placeholder={text.targetPlaceholder}
                         onChange={(v) => {
                           setActiveIndex(index);
                           update(index, { targetSlug: v });
                         }}
                       />
+                      {!segment.targetSlug && (
+                        <p className="mt-1 text-[10px] text-[var(--ds-btn-danger-text)]">{text.targetRequired}</p>
+                      )}
                     </div>
                     <button
                       type="button"

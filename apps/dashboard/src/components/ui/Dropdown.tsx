@@ -23,6 +23,8 @@ interface DropdownProps<T extends string = string> {
    * sits near the viewport's right edge).
    */
   align?: "start" | "end";
+  /** Shown in the trigger when no option matches `value` (e.g. value=""). */
+  placeholder?: string;
 }
 
 export function Dropdown<T extends string = string>({
@@ -33,6 +35,7 @@ export function Dropdown<T extends string = string>({
   className,
   size = "md",
   align = "start",
+  placeholder,
 }: DropdownProps<T>) {
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
@@ -123,7 +126,13 @@ export function Dropdown<T extends string = string>({
           }`}
         >
           {current?.icon && <span className="shrink-0">{current.icon}</span>}
-          <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">{current?.label}</span>
+          <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">
+            {current ? (
+              current.label
+            ) : placeholder ? (
+              <span className="text-[var(--ds-text-subtle)]">{placeholder}</span>
+            ) : null}
+          </span>
           {typeof current?.count === "number" && current.count > 0 && (
             <span className="shrink-0 rounded-full bg-[var(--ds-surface-hover)] px-2 py-0.5 text-xs font-semibold text-[var(--ds-text-muted)]">
               {current.count}
