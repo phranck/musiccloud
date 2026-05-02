@@ -3,9 +3,11 @@ zerops:
     build:
       base: nodejs@22
       buildCommands:
-        - npm ci --legacy-peer-deps
-        - npm run build -w packages/shared
-        - npm run build -w apps/backend
+        - corepack enable
+        - corepack prepare pnpm@10.33.1 --activate
+        - pnpm install --frozen-lockfile
+        - pnpm --filter @musiccloud/shared build
+        - pnpm --filter @musiccloud/backend build
       deployFiles:
         - apps/backend/dist
         - apps/backend/src/db/migrations
@@ -66,9 +68,11 @@ zerops:
     build:
       base: nodejs@22
       buildCommands:
-        - npm ci --legacy-peer-deps
-        - npm run build -w packages/shared
-        - npm run build -w apps/frontend
+        - corepack enable
+        - corepack prepare pnpm@10.33.1 --activate
+        - pnpm install --frozen-lockfile
+        - pnpm --filter @musiccloud/shared build
+        - pnpm --filter @musiccloud/frontend build
       deployFiles:
         - apps/frontend/dist
         - apps/frontend/package.json
@@ -92,9 +96,11 @@ zerops:
     build:
       base: nodejs@22
       buildCommands:
-        - npm ci --legacy-peer-deps
-        - npm run build -w packages/shared
-        - npm run build -w apps/dashboard
+        - corepack enable
+        - corepack prepare pnpm@10.33.1 --activate
+        - pnpm install --frozen-lockfile
+        - pnpm --filter @musiccloud/shared build
+        - pnpm --filter @musiccloud/dashboard build
         - cp -r apps/dashboard/dist/. .
         - cp apps/dashboard/site_config.tmpl .
       deployFiles:
