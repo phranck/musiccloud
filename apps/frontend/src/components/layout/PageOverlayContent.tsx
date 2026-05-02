@@ -1,5 +1,7 @@
 import type { PublicContentPage } from "@musiccloud/shared";
 import { XCircleIcon } from "@phosphor-icons/react";
+import type { Element } from "domhandler";
+import parse, { domToReact, type HTMLReactParserOptions } from "html-react-parser";
 import { useMemo, useState } from "react";
 
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -36,11 +38,38 @@ const MD_EMBOSSED = [
   "[&>*:last-child]:mb-0",
 ].join(" ");
 
+const parserOptions: HTMLReactParserOptions = {
+  replace(domNode) {
+    // Use duck-typing instead of instanceof — ESM/CJS dual-module issue causes
+    // instanceof Element checks to fail depending on the import path.
+    if (domNode.type !== "tag") return undefined;
+    const el = domNode as Element;
+    if (el.name !== "pre") return undefined;
+    const cardStyle = el.attribs["data-card-style"];
+    if (cardStyle !== "recessed" && cardStyle !== "embossed") return undefined;
+
+    // Strip the marker, add a sentinel so CSS in MD_EMBOSSED can suppress
+    // the wrapped <pre>'s own padding/background (the Card owns geometry now).
+    const cleanAttribs = { ...el.attribs };
+    delete cleanAttribs["data-card-style"];
+    cleanAttribs["data-card-wrapped"] = "true";
+
+    const inner = <pre {...cleanAttribs}>{domToReact(el.children as never, parserOptions)}</pre>;
+
+    return cardStyle === "recessed" ? (
+      <RecessedCard padding="0">{inner}</RecessedCard>
+    ) : (
+      <EmbossedCard padding="0">{inner}</EmbossedCard>
+    );
+  },
+};
+
 // Single markdown injection site — every renderer below funnels through here.
 // Input is server-sanitised by the backend markdown renderer before it ever
-// leaves `PublicContentPage.contentHtml`.
+// leaves PublicContentPage.contentHtml. Block-level <pre data-card-style='...'>
+// markers from the backend are converted to RecessedCard / EmbossedCard wraps.
 export function MarkdownHtml({ html, className }: { html: string; className?: string }) {
-  return <div className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div className={className}>{parse(html, parserOptions)}</div>;
 }
 
 function useSegmented(page: PublicContentPage): {
