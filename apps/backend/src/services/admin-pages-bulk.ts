@@ -11,9 +11,16 @@ export type BulkResult =
   | { ok: true; data: ContentPageSummary[] }
   | { ok: false; code: "INVALID_INPUT"; details: PagesBulkErrorDetail[] };
 
+export interface BulkUpdateOpts {
+  updatedBy: string | null;
+}
+
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
-export async function bulkUpdatePages(payload: PagesBulkRequest): Promise<BulkResult> {
+export async function bulkUpdatePages(
+  payload: PagesBulkRequest,
+  opts: BulkUpdateOpts,
+): Promise<BulkResult> {
   const repo = await getAdminRepository();
 
   // Snapshot existing slugs+pageTypes for cross-checks
@@ -81,6 +88,9 @@ export async function bulkUpdatePages(payload: PagesBulkRequest): Promise<BulkRe
     if (!isLocale(entry.locale)) {
       errors.push({ section: "pageTranslations", index: idx, message: "invalid locale" });
     }
+    if (entry.title === undefined || entry.title === null || entry.title === "") {
+      errors.push({ section: "pageTranslations", index: idx, message: "title is required" });
+    }
   });
 
   // 4) topLevelOrder
@@ -98,20 +108,15 @@ export async function bulkUpdatePages(payload: PagesBulkRequest): Promise<BulkRe
   if (errors.length > 0) return { ok: false, code: "INVALID_INPUT", details: errors };
 
   await repo.bulkUpdatePages({
-    // PagesBulkPagesEntry.meta is a structural subset of ContentPageMetaUpdate
-    // (the latter additionally requires `updatedBy`). The adapter (T7) is
-    // responsible for stamping `updatedBy` from the request context — for now
-    // the cast keeps the shape mapping explicit.
     pages: (payload.pages ?? []).map((p) => ({
       slug: p.slug,
-      meta: p.meta as ContentPageMetaUpdate | undefined,
+      meta: p.meta
+        ? ({ ...(p.meta as ContentPageMetaUpdate), updatedBy: opts.updatedBy } as ContentPageMetaUpdate)
+        : undefined,
       content: p.content,
     })),
     segments: (payload.segments ?? []).map((s) => ({
       ownerSlug: s.ownerSlug,
-      // PageSegmentInputRow has no `translations` field — segment translations
-      // are handled inside the adapter via the existing `replaceSegmentTranslations`
-      // path after a post-INSERT id lookup (see T7 adapter sketch).
       segments: s.segments
         .slice()
         .sort((a, b) => a.position - b.position)
@@ -119,9 +124,13 @@ export async function bulkUpdatePages(payload: PagesBulkRequest): Promise<BulkRe
           position: i,
           label: seg.label.trim(),
           targetSlug: seg.targetSlug,
+          ...(seg.translations ? { translations: seg.translations } : {}),
         })),
     })),
-    pageTranslations: payload.pageTranslations ?? [],
+    pageTranslations: (payload.pageTranslations ?? []).map((t) => ({
+      ...t,
+      updatedBy: opts.updatedBy,
+    })),
     topLevelOrder: payload.topLevelOrder ?? [],
   });
 
