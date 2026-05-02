@@ -1,0 +1,1 @@
+ALTER TABLE "content_pages" ADD COLUMN "content_card_style" text DEFAULT 'recessed' NOT NULL;
