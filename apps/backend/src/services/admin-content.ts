@@ -20,10 +20,40 @@ import {
   PAGE_TITLE_ALIGNMENTS,
   PAGE_TYPES,
 } from "@musiccloud/shared";
+import type { Tokens } from "marked";
 import { marked } from "marked";
 import markedFootnote from "marked-footnote";
 
+const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
+type CardModifier = "recessed" | "embossed";
+
+function parseLangAndModifier(raw: string): { lang: string | null; modifier: CardModifier | null } {
+  const tokens = raw.trim().split(/\s+/).filter(Boolean);
+  let modifier: CardModifier | null = null;
+  let lang: string | null = null;
+  for (const t of tokens) {
+    if (KNOWN_CARD_MODIFIERS.has(t as CardModifier)) modifier = t as CardModifier;
+    else if (lang === null) lang = t;
+  }
+  return { lang, modifier };
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 marked.use(markedFootnote(), { gfm: true });
+
+marked.use({
+  renderer: {
+    code({ text, lang: rawLang }: Tokens.Code): string {
+      const { lang, modifier } = parseLangAndModifier(rawLang ?? "");
+      const attr = modifier ? ` data-card-style="${modifier}"` : "";
+      const langClass = lang ? ` class="language-${escapeHtml(lang)}"` : "";
+      return `<pre${attr}><code${langClass}>${escapeHtml(text)}</code></pre>\n`;
+    },
+  },
+});
 
 import type {
   AdminRepository,
