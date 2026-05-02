@@ -103,11 +103,13 @@ describe("updateManagedContentPageMeta", () => {
       updatedBy: null,
     });
     expect(a.ok).toBe(true);
+    if (a.ok) expect(a.data.contentCardStyle).toBe("default");
 
     const b = await updateManagedContentPageMeta("card-style-test", {
       contentCardStyle: "recessed",
       updatedBy: null,
     });
     expect(b.ok).toBe(true);
+    if (b.ok) expect(b.data.contentCardStyle).toBe("recessed");
   });
 });
