@@ -136,6 +136,12 @@ function isOneOf<T extends readonly string[]>(list: T, v: unknown): v is T[numbe
 }
 
 async function renderBody(content: string): Promise<string> {
+  // marked v17 + marked-highlight (async mode) crashes with
+  // "Cannot read properties of undefined (reading 'filter')" when invoked
+  // on an empty string. Short-circuit empty content to an empty HTML body
+  // so a freshly-published-but-still-empty page renders cleanly instead
+  // of producing a 500 that the frontend converts to a 404.
+  if (content === "") return "";
   return (await marked.parse(content, { async: true })) as string;
 }
 
