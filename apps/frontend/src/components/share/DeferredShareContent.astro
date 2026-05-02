@@ -142,7 +142,7 @@ const pageTitle = notFound
       <SegmentedPageFullscreen client:load page={contentPage} />
     ) : contentPage.contentCardStyle === "recessed" ? (
       <RecessedCard client:load className="px-6 py-6">
-        <MarkdownHtml client:load html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
+        <MarkdownHtml html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
       </RecessedCard>
     ) : (
       <MarkdownHtml client:load html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
