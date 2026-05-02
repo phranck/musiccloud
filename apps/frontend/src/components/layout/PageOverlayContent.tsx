@@ -39,7 +39,7 @@ const MD_EMBOSSED = [
 // Single markdown injection site — every renderer below funnels through here.
 // Input is server-sanitised by the backend markdown renderer before it ever
 // leaves `PublicContentPage.contentHtml`.
-function MarkdownHtml({ html, className }: { html: string; className?: string }) {
+export function MarkdownHtml({ html, className }: { html: string; className?: string }) {
   return <div className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 

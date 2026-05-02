@@ -20,7 +20,8 @@ import GradientBackground from "@/components/background/GradientBackground.astro
 import DeferredFooter from "@/components/layout/DeferredFooter.astro";
 import DeferredHeader from "@/components/layout/DeferredHeader.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
-import { SegmentedPageFullscreen } from "@/components/layout/PageOverlayContent";
+import { MarkdownHtml, SegmentedPageFullscreen } from "@/components/layout/PageOverlayContent";
+import { RecessedCard } from "@/components/cards/RecessedCard";
 import DeferredShareContent from "@/components/share/DeferredShareContent.astro";
 import { ShareLayout } from "@/components/share/ShareLayout";
 import { LogoView } from "@/components/ui/LogoView";
@@ -201,13 +202,12 @@ if (treatAsBot) {
             )}
             {contentPage.pageType === "segmented" ? (
               <SegmentedPageFullscreen client:load page={contentPage} />
+            ) : contentPage.contentCardStyle === "recessed" ? (
+              <RecessedCard client:load className="px-6 py-6">
+                <MarkdownHtml client:load html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
+              </RecessedCard>
             ) : (
-              // set:html trust boundary: `contentPage.contentHtml` is rendered by the
-              // backend markdown renderer from admin-authored source and arrives
-              // sanitized. Do not feed this with any data that has not been through
-              // the backend's renderer. See `PageOverlayContent.tsx:41` for the
-              // companion boundary note.
-              <article class="prose prose-invert max-w-none" set:html={contentPage.contentHtml} />
+              <MarkdownHtml client:load html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
             )}
           </main>
         )}

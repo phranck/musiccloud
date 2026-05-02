@@ -16,7 +16,8 @@ import type { ServiceId } from "@musiccloud/shared";
 import { buildMetaLine, isValidServiceId } from "@musiccloud/shared";
 import { fetchPublicContentPage, fetchShareData } from "@/api/client";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
-import { SegmentedPageFullscreen } from "@/components/layout/PageOverlayContent";
+import { MarkdownHtml, SegmentedPageFullscreen } from "@/components/layout/PageOverlayContent";
+import { RecessedCard } from "@/components/cards/RecessedCard";
 import { ShareLayout } from "@/components/share/ShareLayout";
 import { LogoView } from "@/components/ui/LogoView";
 import { getLocaleFromCookie } from "@/i18n/locales";
@@ -139,8 +140,12 @@ const pageTitle = notFound
     )}
     {contentPage.pageType === "segmented" ? (
       <SegmentedPageFullscreen client:load page={contentPage} />
+    ) : contentPage.contentCardStyle === "recessed" ? (
+      <RecessedCard client:load className="px-6 py-6">
+        <MarkdownHtml client:load html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
+      </RecessedCard>
     ) : (
-      <article class="prose prose-invert max-w-none" set:html={contentPage.contentHtml} />
+      <MarkdownHtml client:load html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
     )}
   </main>
 )}
