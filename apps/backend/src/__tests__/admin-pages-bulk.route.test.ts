@@ -1,6 +1,6 @@
+import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import Fastify from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 
 import adminContentRoutes from "../routes/admin-content.js";
 import * as bulk from "../services/admin-pages-bulk.js";
