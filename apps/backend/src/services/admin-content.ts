@@ -146,6 +146,61 @@ marked.use({
   },
 });
 
+// Inline marked extensions for [[BADGE]] pills and {{kbd}} hints.
+//
+// Authors add new badge values by extending BADGE_LABELS with a single line
+// (KEYWORD: "css-variant-suffix"). The pattern regex is rebuilt from the map
+// so adding a label automatically extends the tokenizer's match set; the
+// matching CSS class .mc-badge-<variant> must be added to the frontend
+// stylesheet (PageOverlayContent.tsx MD_EMBOSSED/MD_TRANSLUCENT) to get a
+// visual variant.
+const BADGE_LABELS: Record<string, string> = {
+  REQUIRED: "req",
+  REQ: "req",
+  OPT: "opt",
+};
+const BADGE_PATTERN = new RegExp(`^\\[\\[(${Object.keys(BADGE_LABELS).join("|")})\\]\\]`);
+
+marked.use({
+  extensions: [
+    {
+      name: "mcBadge",
+      level: "inline",
+      start(src: string) {
+        return src.match(/\[\[/)?.index;
+      },
+      tokenizer(src: string) {
+        const m = src.match(BADGE_PATTERN);
+        if (m) return { type: "mcBadge", raw: m[0], text: m[1] };
+      },
+      renderer(token) {
+        // Tokens.Generic has [index: string]: any so .text is reachable
+        // (we set it ourselves in the tokenizer above).
+        const text: string = token.text;
+        const variant = BADGE_LABELS[text] ?? "default";
+        return `<span class="mc-badge mc-badge-${variant}">${text}</span>`;
+      },
+    },
+    {
+      name: "mcKbd",
+      level: "inline",
+      start(src: string) {
+        return src.match(/\{\{/)?.index;
+      },
+      tokenizer(src: string) {
+        const m = src.match(/^\{\{([^}]+)\}\}/);
+        if (m) return { type: "mcKbd", raw: m[0], text: m[1] };
+      },
+      renderer(token) {
+        // Author-supplied content (unlike whitelisted badges) — escape to
+        // prevent <script> or other HTML injection via {{...}}.
+        const text: string = token.text;
+        return `<kbd class="mc-kbd">${escapeHtml(text)}</kbd>`;
+      },
+    },
+  ],
+});
+
 import type {
   AdminRepository,
   ContentPageMetaUpdate,
