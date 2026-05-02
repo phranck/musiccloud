@@ -135,14 +135,28 @@ function isOneOf<T extends readonly string[]>(list: T, v: unknown): v is T[numbe
   return typeof v === "string" && (list as readonly string[]).includes(v);
 }
 
-async function renderBody(content: string): Promise<string> {
-  // marked v17 + marked-highlight (async mode) crashes with
-  // "Cannot read properties of undefined (reading 'filter')" when invoked
-  // on an empty string. Short-circuit empty content to an empty HTML body
-  // so a freshly-published-but-still-empty page renders cleanly instead
-  // of producing a 500 that the frontend converts to a 404.
-  if (content === "") return "";
-  return (await marked.parse(content, { async: true })) as string;
+async function renderBody(content: string | null | undefined): Promise<string> {
+  // Two layers of defence against the marked tokenizer crash
+  // ("Cannot read properties of undefined (reading 'filter')") that the
+  // markedHighlight async pipeline triggers on certain inputs (empty
+  // string, whitespace-only, or other edge cases — regression introduced
+  // when Shiki was wired in via markedHighlight). The crash propagates
+  // out of renderBody as HTTP 500 which the frontend converts to a 404
+  // for the entire page, even when only one segment's content is the
+  // offender.
+  //
+  // 1. Skip parsing entirely for falsy / whitespace-only content — the
+  //    fast path also matches the user's intent (no content → no HTML).
+  // 2. If a non-trivial payload still trips the tokenizer, escape it
+  //    raw and surface a server log so the bug is visible without
+  //    nuking the page.
+  if (!content || !content.trim()) return "";
+  try {
+    return (await marked.parse(content, { async: true })) as string;
+  } catch (err) {
+    console.error("[renderBody] marked.parse threw, falling back to escaped text:", err);
+    return `<pre>${content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`;
+  }
 }
 
 function segmentRowToDto(row: PageSegmentRow): PageSegment {
