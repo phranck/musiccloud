@@ -463,25 +463,29 @@ export async function getPublicContentPage(slug: string, locale: Locale): Promis
     }
   }
 
-  const segments: PublicPageSegment[] = await Promise.all(
-    segmentRows
-      .filter((s) => bySlug.has(s.targetSlug))
-      .map(async (s) => {
-        const t = bySlug.get(s.targetSlug)!;
-        const tx = targetTranslations.get(s.targetSlug);
-        const resolvedSegLabel = segmentTranslationsBySegmentId.get(s.id) ?? s.label;
-        const resolvedSegTitle = tx ? tx.title : t.title;
-        const resolvedSegContent = tx ? tx.content : t.content;
-        return {
-          label: resolvedSegLabel,
-          targetSlug: s.targetSlug,
-          title: resolvedSegTitle,
-          showTitle: t.showTitle,
-          content: resolvedSegContent,
-          contentHtml: await renderBody(resolvedSegContent),
-        };
-      }),
-  );
+  // Render segments SEQUENTIALLY, not in parallel. The marked singleton
+  // (mutated by markedFootnote + markedHighlight + custom renderer) is
+  // not concurrency-safe: parallel `marked.parse` calls on the same
+  // instance corrupt the tokenizer's shared state and throw
+  // "Cannot read properties of undefined (reading 'filter')". Reproducer
+  // and root-cause analysis lived in marked-isolate.test.ts.
+  const segments: PublicPageSegment[] = [];
+  for (const s of segmentRows) {
+    if (!bySlug.has(s.targetSlug)) continue;
+    const t = bySlug.get(s.targetSlug)!;
+    const tx = targetTranslations.get(s.targetSlug);
+    const resolvedSegLabel = segmentTranslationsBySegmentId.get(s.id) ?? s.label;
+    const resolvedSegTitle = tx ? tx.title : t.title;
+    const resolvedSegContent = tx ? tx.content : t.content;
+    segments.push({
+      label: resolvedSegLabel,
+      targetSlug: s.targetSlug,
+      title: resolvedSegTitle,
+      showTitle: t.showTitle,
+      content: resolvedSegContent,
+      contentHtml: await renderBody(resolvedSegContent),
+    });
+  }
 
   return { ...base, segments };
 }
