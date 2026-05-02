@@ -55,6 +55,7 @@ describe("content translation types", () => {
       pageType: "default",
       displayMode: "fullscreen",
       overlayWidth: "regular",
+      contentCardStyle: "default",
       createdByUsername: null,
       updatedByUsername: null,
       createdAt: new Date().toISOString(),

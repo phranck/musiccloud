@@ -31,6 +31,9 @@ export const PAGE_TYPES: readonly PageType[] = ["default", "segmented"] as const
 export const PAGE_DISPLAY_MODES: readonly PageDisplayMode[] = ["fullscreen", "embossed", "translucent"] as const;
 export const OVERLAY_WIDTHS: readonly OverlayWidth[] = ["small", "regular", "big"] as const;
 
+export type ContentCardStyle = "default" | "recessed";
+export const CONTENT_CARD_STYLES: readonly ContentCardStyle[] = ["default", "recessed"] as const;
+
 export interface NavItem {
   id: number;
   navId: NavId;
@@ -85,6 +88,7 @@ export interface ContentPageSummary {
   pageType: PageType;
   displayMode: PageDisplayMode;
   overlayWidth: OverlayWidth;
+  contentCardStyle: ContentCardStyle;
   createdByUsername: string | null;
   updatedByUsername: string | null;
   createdAt: string;
@@ -116,6 +120,7 @@ export interface PublicContentPage {
   pageType: PageType;
   displayMode: PageDisplayMode;
   overlayWidth: OverlayWidth;
+  contentCardStyle: ContentCardStyle;
   content: string;
   contentHtml: string;
   segments: PublicPageSegment[];
