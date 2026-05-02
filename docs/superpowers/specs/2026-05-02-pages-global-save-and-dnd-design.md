@@ -119,24 +119,24 @@ Zähler im Save-Button = Anzahl distinct `"resource"`-Gruppen (`pages`, `segment
 |---|---|
 | `apps/backend/src/routes/admin-content.ts` | neue Route `PUT /admin/pages/bulk`. Alte per-Resource-Routes (PATCH /admin/pages/:slug, PUT /admin/pages/:slug/segments etc.) bleiben zunächst — sie sind getestet (`admin-segments.test.ts`) und vom Frontend nach Cut-Over schlicht ungenutzt. Cleanup in eigenem Folge-Plan, sobald sicher ist dass nichts mehr aufruft |
 | `apps/backend/src/db/admin-repository.ts` | neue Methode `bulkUpdatePages(payload)` |
-| `apps/backend/src/db/adapters/postgres.ts` | Implementation in einer `db.transaction(tx => …)`-Block; `ORDER BY` in `listContentPages` umgestellt auf `display_order ASC, created_at DESC` |
-| `apps/backend/src/db/schemas/postgres.ts` | `displayOrder` field zu `contentPages` |
+| `apps/backend/src/db/adapters/postgres.ts` | Implementation in einer `db.transaction(tx => …)`-Block; `ORDER BY` in `listContentPages` umgestellt auf `position ASC, created_at DESC` |
+| `apps/backend/src/db/schemas/postgres.ts` | `position` field zu `contentPages` |
 
 ### DB-Migration
 
-Neues Feld `display_order` in `content_pages`. Sortierung in der Sidebar wechselt von `created_at DESC` auf `display_order ASC, created_at DESC` (tiebreaker).
+Neues Feld `position` in `content_pages`. Sortierung in der Sidebar wechselt von `created_at DESC` auf `position ASC, created_at DESC` (tiebreaker).
 
 ```sql
--- migrations/postgres/00XX_pages_display_order.sql
+-- migrations/postgres/00XX_pages_position.sql
 ALTER TABLE content_pages
-  ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0;
+  ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
 
 WITH ordered AS (
   SELECT slug, ROW_NUMBER() OVER (ORDER BY created_at DESC) - 1 AS new_order
   FROM content_pages
 )
 UPDATE content_pages
-   SET display_order = ordered.new_order
+   SET position = ordered.new_order
   FROM ordered
  WHERE content_pages.slug = ordered.slug;
 ```
@@ -289,7 +289,7 @@ Bei Fehler:
 ```ts
 await db.transaction(async (tx) => {
   // 1) pages.meta + pages.content   (UPDATE content_pages)
-  // 2) topLevelOrder                (UPDATE content_pages SET display_order)
+  // 2) topLevelOrder                (UPDATE content_pages SET position)
   // 3) segments per owner           (DELETE then INSERT)
   // 4) pageTranslations             (INSERT…ON CONFLICT)
 });
@@ -350,7 +350,7 @@ Reihenfolge: pages-Meta zuerst (Slug-Rename muss VOR segments laufen wegen FK).
 |---|---|---|
 | `bulk: pages-only meta update` | `pages: [{slug, meta: {title}}]` | Title persistiert, Segments unverändert |
 | `bulk: cross-owner segment move` | `segments: [{owner:A, []}, {owner:B, [...privacy...]}]` | Privacy nur bei B, A leer |
-| `bulk: top-level reorder` | `topLevelOrder: ['info','help']` | display_order aktualisiert |
+| `bulk: top-level reorder` | `topLevelOrder: ['info','help']` | position aktualisiert |
 | `bulk: full mixed payload` | alle Resources gleichzeitig | alles in einem Commit |
 | `bulk: partial-fail rollback` | invalides 2. Segment-Set | TX rollback, DB unverändert |
 | `bulk: validation 400 + details[]` | invalides Schema | strukturierter Error, kein DB-Zugriff |
@@ -377,7 +377,7 @@ Single-Admin-CMS — keine Lock-Strategy. Multi-Session-Race ist last-write-wins
 
 ## Migrationsplan / Rollout
 
-1. Migration ausspielen (lokal + prod), `display_order`-Backfill
+1. Migration ausspielen (lokal + prod), `position`-Backfill
 2. Backend-Bulk-Endpoint deployen (alte Routes bleiben)
 3. Frontend-State-Refactor + DnD + globaler Save deployen
 4. Feature-Flag entfällt — Cut-over ist atomar (Frontend wechselt komplett zum Bulk-Save, alte Routes werden nicht mehr aufgerufen)
@@ -386,7 +386,7 @@ Single-Admin-CMS — keine Lock-Strategy. Multi-Session-Race ist last-write-wins
 
 Beim Schreiben des Implementation-Plans (writing-plans skill) müssen folgende Refs grep-verifiziert werden:
 
-- `apps/backend/src/db/schemas/postgres.ts` — `contentPages`-Definition für `displayOrder`
+- `apps/backend/src/db/schemas/postgres.ts` — `contentPages`-Definition für `position`
 - `apps/backend/src/db/adapters/postgres.ts` Z. 2551 (`ORDER BY content_pages.created_at DESC`)
 - `apps/dashboard/src/features/content/navigation/NavManagerPage.tsx` — dnd-kit Pattern als Referenz
 - `apps/dashboard/src/features/content/pages/SegmentManager.tsx` Move-Up/Down-Buttons-Position
