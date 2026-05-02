@@ -148,7 +148,7 @@ export function EmbossedOverlayContent({ page, onClose }: OverlayContentProps) {
           </RecessedCard>
         ) : (
           <div className="h-full overflow-y-auto px-4 py-4">
-            <MarkdownHtml html={html} className={MD_EMBOSSED} />
+            <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={html} className={MD_EMBOSSED} />
           </div>
         )}
       </EmbossedCard.Body>
@@ -187,7 +187,7 @@ export function SegmentedPageFullscreen({ page }: { page: PublicContentPage }) {
           </RecessedCard>
         ) : (
           <div className="px-6 py-6">
-            <MarkdownHtml html={html} className={MD_EMBOSSED} />
+            <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={html} className={MD_EMBOSSED} />
           </div>
         )}
       </EmbossedCard.Body>
