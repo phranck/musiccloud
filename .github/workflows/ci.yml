@@ -11,12 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.1
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
 
   typecheck:
     name: Typecheck
@@ -24,22 +27,25 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.1
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build --workspace=packages/shared
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @musiccloud/shared build
       - name: Shared
-        run: npx tsc --noEmit --project packages/shared/tsconfig.json
+        run: pnpm exec tsc --noEmit --project packages/shared/tsconfig.json
       - name: Backend
-        run: npx tsc --noEmit --project apps/backend/tsconfig.json
+        run: pnpm exec tsc --noEmit --project apps/backend/tsconfig.json
       - name: Frontend
-        run: npx astro check --root apps/frontend
+        run: pnpm exec astro check --root apps/frontend
       - name: Dashboard
-        run: npx tsc --noEmit --project apps/dashboard/tsconfig.json
+        run: pnpm exec tsc --noEmit --project apps/dashboard/tsconfig.json
       - name: Tests
-        run: npm run test:run --workspaces --if-present
+        run: pnpm -r --if-present test:run
 
   detect-changes:
     name: Detect Changes
@@ -75,15 +81,15 @@ jobs:
 
           for file in "${changed_files[@]}"; do
             case "$file" in
-              apps/backend/*|packages/shared/*|package.json|package-lock.json|zerops.yml)
+              apps/backend/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml)
                 backend=true ;;
             esac
             case "$file" in
-              apps/frontend/*|packages/shared/*|package.json|package-lock.json|zerops.yml)
+              apps/frontend/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml)
                 frontend=true ;;
             esac
             case "$file" in
-              apps/backend/*|apps/dashboard/*|packages/shared/*|package.json|package-lock.json|zerops.yml|.github/workflows/ci.yml)
+              apps/backend/*|apps/dashboard/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml|.github/workflows/ci.yml)
                 dashboard=true ;;
             esac
           done
