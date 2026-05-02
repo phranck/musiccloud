@@ -1,0 +1,1 @@
+ALTER TABLE "content_pages" RENAME COLUMN "display_order" TO "position";

@@ -190,6 +190,13 @@
       "when": 1777751216012,
       "tag": "0026_strong_hardball",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1777752457939,
+      "tag": "0027_red_mastermind",
+      "breakpoints": true
     }
   ]
 }
