@@ -227,6 +227,8 @@ export const ENDPOINTS = {
       list: "/api/admin/pages",
       /** GET / PATCH / DELETE: single content page by slug. */
       detail: (slug: string) => `/api/admin/pages/${slug}`,
+      /** PUT: atomic save of pages, segments, page translations, and top-level order. */
+      bulk: "/api/admin/pages/bulk",
       translations: {
         /** GET: list all translations (including default-locale) for a page + per-locale status. */
         list: (slug: string) => `/api/admin/pages/${slug}/translations`,
@@ -325,6 +327,8 @@ export const ROUTE_TEMPLATES = {
     },
     pages: {
       detail: "/api/admin/pages/:slug",
+      /** Route template for ENDPOINTS.admin.pages.bulk. */
+      bulk: "/api/admin/pages/bulk",
       /** Route template for ENDPOINTS.admin.pages.translations.list. */
       translationsList: "/api/admin/pages/:slug/translations",
       /** Route template for ENDPOINTS.admin.pages.translations.detail. */
