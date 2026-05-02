@@ -24,7 +24,8 @@ import type { Tokens } from "marked";
 import { marked } from "marked";
 import markedFootnote from "marked-footnote";
 import { markedHighlight } from "marked-highlight";
-import { codeToHtml } from "shiki";
+import { type BundledLanguage, type BundledTheme, createHighlighter, type HighlighterGeneric } from "shiki";
+import mcQueryGrammar from "./grammars/mc-query.tmLanguage.json" with { type: "json" };
 
 const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
 type CardModifier = "recessed" | "embossed";
@@ -67,6 +68,38 @@ function highlightPlainText(code: string): string {
     .join("\n");
 }
 
+// Module-level singleton: createHighlighter is expensive (loads WASM, parses
+// grammars), so we create one instance lazily on first highlight call and
+// reuse it for the lifetime of the process. The explicit langs list registers
+// every language we want highlightable — anything outside the list throws in
+// codeToHtml and falls into the catch-block below (graceful plain-text
+// fallback). The custom mcQueryGrammar is registered alongside bundled langs;
+// at runtime `lang` is derived from the fence info-string (a plain string),
+// so the singleton's generic type stays at BundledLanguage and we accept that
+// the custom "mc-query" identifier is only known at runtime.
+let highlighterPromise: Promise<HighlighterGeneric<BundledLanguage, BundledTheme>> | undefined;
+function getHighlighter(): Promise<HighlighterGeneric<BundledLanguage, BundledTheme>> {
+  highlighterPromise ??= createHighlighter({
+    themes: ["vitesse-dark"],
+    langs: [
+      "javascript",
+      "typescript",
+      "ts",
+      "js",
+      "tsx",
+      "jsx",
+      "python",
+      "swift",
+      "bash",
+      "json",
+      "css",
+      "html",
+      mcQueryGrammar,
+    ],
+  });
+  return highlighterPromise;
+}
+
 marked.use(markedFootnote(), { gfm: true });
 
 marked.use(
@@ -81,12 +114,14 @@ marked.use(
       if (!lang) return escapeHtml(code);
       if (lang.toLowerCase() === "text") return highlightPlainText(code);
       try {
-        const html = await codeToHtml(code, { lang, theme: "vitesse-dark" });
+        const hl = await getHighlighter();
+        const html = hl.codeToHtml(code, { lang, theme: "vitesse-dark" });
         // Shiki returns full <pre><code>...wrapper. Extract inner of <code>...</code>.
         const m = html.match(/<code[^>]*>([\s\S]*?)<\/code>/);
         return m ? m[1] : escapeHtml(code);
       } catch {
-        // Unknown language: shiki throws; fall back to escaped plain text.
+        // Unknown language (not in singleton's lang-list): shiki throws; fall
+        // back to escaped plain text.
         return escapeHtml(code);
       }
     },
@@ -109,6 +144,61 @@ marked.use({
       return `<pre${styleAttr}${paddingAttr}${radiusAttr}><code${langClass}>${text}</code></pre>\n`;
     },
   },
+});
+
+// Inline marked extensions for [[BADGE]] pills and {{kbd}} hints.
+//
+// Authors add new badge values by extending BADGE_LABELS with a single line
+// (KEYWORD: "css-variant-suffix"). The pattern regex is rebuilt from the map
+// so adding a label automatically extends the tokenizer's match set; the
+// matching CSS class .mc-badge-<variant> must be added to the frontend
+// stylesheet (PageOverlayContent.tsx MD_EMBOSSED/MD_TRANSLUCENT) to get a
+// visual variant.
+const BADGE_LABELS: Record<string, string> = {
+  REQUIRED: "req",
+  REQ: "req",
+  OPT: "opt",
+};
+const BADGE_PATTERN = new RegExp(`^\\[\\[(${Object.keys(BADGE_LABELS).join("|")})\\]\\]`);
+
+marked.use({
+  extensions: [
+    {
+      name: "mcBadge",
+      level: "inline",
+      start(src: string) {
+        return src.match(/\[\[/)?.index;
+      },
+      tokenizer(src: string) {
+        const m = src.match(BADGE_PATTERN);
+        if (m) return { type: "mcBadge", raw: m[0], text: m[1] };
+      },
+      renderer(token) {
+        // Tokens.Generic has [index: string]: any so .text is reachable
+        // (we set it ourselves in the tokenizer above).
+        const text: string = token.text;
+        const variant = BADGE_LABELS[text] ?? "default";
+        return `<span class="mc-badge mc-badge-${variant}">${text}</span>`;
+      },
+    },
+    {
+      name: "mcKbd",
+      level: "inline",
+      start(src: string) {
+        return src.match(/\{\{/)?.index;
+      },
+      tokenizer(src: string) {
+        const m = src.match(/^\{\{([^}]+)\}\}/);
+        if (m) return { type: "mcKbd", raw: m[0], text: m[1] };
+      },
+      renderer(token) {
+        // Author-supplied content (unlike whitelisted badges) — escape to
+        // prevent <script> or other HTML injection via {{...}}.
+        const text: string = token.text;
+        return `<kbd class="mc-kbd">${escapeHtml(text)}</kbd>`;
+      },
+    },
+  ],
 });
 
 import type {
