@@ -1,6 +1,6 @@
 import type { ContentCardStyle, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
-import * as pgModule from "pg";
 import type { PoolClient } from "pg";
+import * as pgModule from "pg";
 import { CACHE_TTL_MS } from "../../lib/config.js";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
@@ -2734,18 +2734,12 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
       // 2) topLevelOrder → position
       for (let i = 0; i < payload.topLevelOrder.length; i++) {
-        await client.query(
-          `UPDATE content_pages SET position = $2 WHERE slug = $1`,
-          [payload.topLevelOrder[i], i],
-        );
+        await client.query(`UPDATE content_pages SET position = $2 WHERE slug = $1`, [payload.topLevelOrder[i], i]);
       }
 
       // 3) segments per owner — DELETE + INSERT (+ translations UPSERT)
       for (const entry of payload.segments) {
-        await client.query(
-          `DELETE FROM page_segments WHERE owner_slug = $1`,
-          [entry.ownerSlug],
-        );
+        await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [entry.ownerSlug]);
         const idRows: { rows: { id: number }[] } = { rows: [] };
         for (const s of entry.segments) {
           const inserted = await client.query<{ id: number }>(
@@ -2805,23 +2799,46 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return [];
   }
 
-  private async applyMetaInTx(
-    client: PoolClient,
-    slug: string,
-    meta: ContentPageMetaUpdate,
-  ): Promise<void> {
+  private async applyMetaInTx(client: PoolClient, slug: string, meta: ContentPageMetaUpdate): Promise<void> {
     const setClauses: string[] = [];
     const values: unknown[] = [];
     let p = 1;
-    if (meta.title !== undefined) { setClauses.push(`title = $${p++}`); values.push(meta.title); }
-    if (meta.slug !== undefined && meta.slug !== slug) { setClauses.push(`slug = $${p++}`); values.push(meta.slug); }
-    if (meta.status !== undefined) { setClauses.push(`status = $${p++}`); values.push(meta.status); }
-    if (meta.showTitle !== undefined) { setClauses.push(`show_title = $${p++}`); values.push(meta.showTitle); }
-    if (meta.titleAlignment !== undefined) { setClauses.push(`title_alignment = $${p++}`); values.push(meta.titleAlignment); }
-    if (meta.pageType !== undefined) { setClauses.push(`page_type = $${p++}`); values.push(meta.pageType); }
-    if (meta.displayMode !== undefined) { setClauses.push(`display_mode = $${p++}`); values.push(meta.displayMode); }
-    if (meta.overlayWidth !== undefined) { setClauses.push(`overlay_width = $${p++}`); values.push(meta.overlayWidth); }
-    if (meta.contentCardStyle !== undefined) { setClauses.push(`content_card_style = $${p++}`); values.push(meta.contentCardStyle); }
+    if (meta.title !== undefined) {
+      setClauses.push(`title = $${p++}`);
+      values.push(meta.title);
+    }
+    if (meta.slug !== undefined && meta.slug !== slug) {
+      setClauses.push(`slug = $${p++}`);
+      values.push(meta.slug);
+    }
+    if (meta.status !== undefined) {
+      setClauses.push(`status = $${p++}`);
+      values.push(meta.status);
+    }
+    if (meta.showTitle !== undefined) {
+      setClauses.push(`show_title = $${p++}`);
+      values.push(meta.showTitle);
+    }
+    if (meta.titleAlignment !== undefined) {
+      setClauses.push(`title_alignment = $${p++}`);
+      values.push(meta.titleAlignment);
+    }
+    if (meta.pageType !== undefined) {
+      setClauses.push(`page_type = $${p++}`);
+      values.push(meta.pageType);
+    }
+    if (meta.displayMode !== undefined) {
+      setClauses.push(`display_mode = $${p++}`);
+      values.push(meta.displayMode);
+    }
+    if (meta.overlayWidth !== undefined) {
+      setClauses.push(`overlay_width = $${p++}`);
+      values.push(meta.overlayWidth);
+    }
+    if (meta.contentCardStyle !== undefined) {
+      setClauses.push(`content_card_style = $${p++}`);
+      values.push(meta.contentCardStyle);
+    }
     if (meta.updatedBy !== undefined) {
       setClauses.push(`updated_by = $${p++}`);
       values.push(meta.updatedBy);
@@ -2829,10 +2846,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     if (setClauses.length === 0) return;
     setClauses.push(`updated_at = NOW()`);
     values.push(slug);
-    await client.query(
-      `UPDATE content_pages SET ${setClauses.join(", ")} WHERE slug = $${p}`,
-      values,
-    );
+    await client.query(`UPDATE content_pages SET ${setClauses.join(", ")} WHERE slug = $${p}`, values);
     // segmented → default transition: clear orphan segments (existing behaviour)
     if (meta.pageType === "default") {
       await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [meta.slug ?? slug]);

@@ -17,10 +17,7 @@ export interface BulkUpdateOpts {
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
-export async function bulkUpdatePages(
-  payload: PagesBulkRequest,
-  opts: BulkUpdateOpts,
-): Promise<BulkResult> {
+export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdateOpts): Promise<BulkResult> {
   const repo = await getAdminRepository();
 
   // Snapshot existing slugs+pageTypes for cross-checks

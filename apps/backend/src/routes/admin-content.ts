@@ -8,9 +8,9 @@ import {
   PAGE_TYPES,
   type PageDisplayMode,
   type PageSegmentInput,
+  type PagesBulkRequest,
   type PageTitleAlignment,
   type PageType,
-  type PagesBulkRequest,
   ROUTE_TEMPLATES,
 } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
