@@ -137,4 +137,62 @@ describe("marked custom code renderer", () => {
     expect(out).toMatch(/<span style="color:/);
     expect(out).toMatch(/<pre data-card-style="recessed" data-card-padding="0\.75rem">/);
   });
+
+  it("highlights ```mc-query genre:jazz with custom grammar tokens", async () => {
+    const out = (await marked.parse("```mc-query\ngenre: jazz\n```", { async: true })) as string;
+    expect(out).toMatch(/<span style="color:/);
+  });
+
+  it("recognizes # comments inside ```mc-query", async () => {
+    // Grammar's comment-hash pattern isolates the comment into its own span.
+    // vitesse-dark renders comment scopes in its grey-green tint
+    // (no italic — that was an incorrect spec assumption).
+    const out = (await marked.parse("```mc-query\ngenre: jazz # filter\n```", { async: true })) as string;
+    expect(out).toMatch(/<span style="color:#[0-9A-F]+"># filter<\/span>/i);
+  });
+
+  it("recognizes // comments inside ```mc-query", async () => {
+    const out = (await marked.parse("```mc-query\nartist: foo // note\n```", { async: true })) as string;
+    expect(out).toMatch(/<span style="color:#[0-9A-F]+">\/\/ note<\/span>/i);
+  });
+
+  it("falls back gracefully for unknown language not in highlighter list", async () => {
+    // ruby is a real Shiki bundled lang but not in our explicit highlighter
+    // langs-list. The singleton must throw in codeToHtml and our catch-block
+    // must render escaped plain text instead of crashing the whole pipeline.
+    const out = (await marked.parse("```ruby\nputs :hi\n```", { async: true })) as string;
+    expect(out).toContain("puts");
+  });
+
+  it("renders [[REQUIRED]] as a req badge", async () => {
+    const out = (await marked.parse("foo [[REQUIRED]] bar", { async: true })) as string;
+    expect(out).toContain('<span class="mc-badge mc-badge-req">REQUIRED</span>');
+  });
+
+  it("renders [[OPT]] as an opt badge", async () => {
+    const out = (await marked.parse("foo [[OPT]] bar", { async: true })) as string;
+    expect(out).toContain('<span class="mc-badge mc-badge-opt">OPT</span>');
+  });
+
+  it("treats [[REQ]] as alias for REQUIRED variant", async () => {
+    const out = (await marked.parse("foo [[REQ]] bar", { async: true })) as string;
+    expect(out).toContain('<span class="mc-badge mc-badge-req">REQ</span>');
+  });
+
+  it("leaves [[UNKNOWN]] markers untouched", async () => {
+    const out = (await marked.parse("foo [[UNKNOWN]] bar", { async: true })) as string;
+    expect(out).not.toContain("mc-badge");
+    expect(out).toContain("[[UNKNOWN]]");
+  });
+
+  it("renders {{Esc}} as a mc-kbd element", async () => {
+    const out = (await marked.parse("press {{Esc}} now", { async: true })) as string;
+    expect(out).toContain('<kbd class="mc-kbd">Esc</kbd>');
+  });
+
+  it("escapes HTML inside {{...}} kbd content", async () => {
+    const out = (await marked.parse("test {{<script>}} end", { async: true })) as string;
+    expect(out).toContain('<kbd class="mc-kbd">&lt;script&gt;</kbd>');
+    expect(out).not.toContain("<script>");
+  });
 });
