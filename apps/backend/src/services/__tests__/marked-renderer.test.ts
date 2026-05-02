@@ -87,4 +87,32 @@ describe("marked custom code renderer", () => {
     expect(out).toMatch(/<pre data-card-style="recessed" data-card-padding="1rem" data-card-radius="12px">/);
     expect(out).toContain('class="language-js"');
   });
+
+  it("styles # comments grey+italic in ```text fences", async () => {
+    const out = (await marked.parse("```text\n# a comment\nplain text\n```", { async: true })) as string;
+    expect(out).toContain('<span style="color:#9A9AA0;font-style:italic"># a comment</span>');
+    expect(out).toContain("plain text");
+    expect(out).not.toContain('<span style="color:#9A9AA0;font-style:italic">plain text</span>');
+  });
+
+  it("styles // comments grey+italic in ```text fences", async () => {
+    const out = (await marked.parse("```text\n// note\nbody\n```", { async: true })) as string;
+    expect(out).toContain('<span style="color:#9A9AA0;font-style:italic">// note</span>');
+  });
+
+  it("preserves leading whitespace before commenting span in ```text fences", async () => {
+    const out = (await marked.parse("```text\n    # indented\n```", { async: true })) as string;
+    expect(out).toContain('    <span style="color:#9A9AA0;font-style:italic"># indented</span>');
+  });
+
+  it("does not style # or // when they appear mid-line in ```text fences", async () => {
+    const out = (await marked.parse("```text\nfoo # not a comment\n```", { async: true })) as string;
+    expect(out).not.toContain('<span style="color:#9A9AA0;font-style:italic">');
+    expect(out).toContain("foo # not a comment");
+  });
+
+  it("text intercept is case-insensitive on the lang", async () => {
+    const out = (await marked.parse("```TEXT\n# upper\n```", { async: true })) as string;
+    expect(out).toContain('<span style="color:#9A9AA0;font-style:italic"># upper</span>');
+  });
 });
