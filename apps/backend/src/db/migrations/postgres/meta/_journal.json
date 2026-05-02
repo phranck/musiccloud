@@ -176,6 +176,13 @@
       "when": 1777641847403,
       "tag": "0024_invalidate_lastfm_toptracks_cache",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1777712645893,
+      "tag": "0025_content_card_style",
+      "breakpoints": true
     }
   ]
 }
