@@ -134,6 +134,48 @@ function Key({ children }: { children: string }) {
   );
 }
 
+function NotationCode({ children }: { children: string }) {
+  return (
+    <code className="inline-flex items-center justify-center h-[1.25rem] px-1 rounded border border-[var(--ds-border-strong)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)] text-[0.625rem] font-medium font-mono shadow-[0_1px_0_var(--ds-border)] leading-none select-none">
+      {children}
+    </code>
+  );
+}
+
+function PillPreview({ variant, children }: { variant: "req" | "opt"; children: string }) {
+  const variantClasses =
+    variant === "req"
+      ? "bg-[var(--ds-danger-bg)] text-[var(--ds-danger-text)]"
+      : "bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)] border border-[var(--ds-border)]";
+  return (
+    <span
+      className={`inline-flex items-center justify-center h-[1.25rem] px-1.5 rounded text-[0.625rem] font-semibold font-mono uppercase tracking-wider leading-none select-none ${variantClasses}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function NotationHint({
+  notation,
+  variant,
+  pillLabel,
+}: {
+  notation: string;
+  variant: "req" | "opt";
+  pillLabel: string;
+}) {
+  return (
+    <span className="flex items-center gap-1">
+      <NotationCode>{notation}</NotationCode>
+      <span className="text-[var(--ds-text-subtle)]" aria-hidden>
+        →
+      </span>
+      <PillPreview variant={variant}>{pillLabel}</PillPreview>
+    </span>
+  );
+}
+
 function Hint({ keys, label }: { keys: string[]; label: string }) {
   return (
     <span className="flex items-center gap-0.5">
@@ -173,6 +215,10 @@ function HintsBar() {
         <Hint keys={["⌘", "I"]} label="Italic" />
         <Hint keys={["⌘", "K"]} label="Link" />
         <Hint keys={["⌘", "⇧", "D"]} label="Strike" />
+      </div>
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <NotationHint notation="[[REQ]]" variant="req" pillLabel="REQ" />
+        <NotationHint notation="[[OPT]]" variant="opt" pillLabel="OPT" />
       </div>
     </div>
   );
