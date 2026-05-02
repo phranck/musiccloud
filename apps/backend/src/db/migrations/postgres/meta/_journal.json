@@ -183,6 +183,13 @@
       "when": 1777712645893,
       "tag": "0025_content_card_style",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1777751216012,
+      "tag": "0026_strong_hardball",
+      "breakpoints": true
     }
   ]
 }

@@ -446,6 +446,7 @@ export const contentPages = pgTable("content_pages", {
   displayMode: text("display_mode").notNull().default("fullscreen"),
   overlayWidth: text("overlay_width").notNull().default("regular"),
   contentCardStyle: text("content_card_style").notNull().default("recessed"),
+  displayOrder: integer("display_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   createdBy: text("created_by").references(() => adminUsers.id, { onDelete: "set null" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }),
