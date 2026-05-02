@@ -10,6 +10,7 @@ import type {
   AdminUser,
   AlbumListItem,
   ArtistListItem,
+  BulkUpdatePagesPayload,
   ContentPageCreateData,
   ContentPageMetaUpdate,
   ContentPageRow,
@@ -2706,6 +2707,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       [slugs],
     );
     return result.rows.map(rowToContentPage);
+  }
+
+  async bulkUpdatePages(_payload: BulkUpdatePagesPayload): Promise<ContentPageSummaryRow[]> {
+    throw new Error("not implemented");
   }
 
   // ============================================================================

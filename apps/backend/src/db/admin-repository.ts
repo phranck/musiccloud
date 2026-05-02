@@ -204,6 +204,19 @@ export interface PageSegmentInputRow {
   targetSlug: string;
 }
 
+export interface BulkUpdatePagesPayload {
+  pages: Array<{ slug: string; meta?: ContentPageMetaUpdate; content?: string }>;
+  segments: Array<{ ownerSlug: string; segments: PageSegmentInputRow[] }>;
+  pageTranslations: Array<{
+    slug: string;
+    locale: string;
+    title?: string;
+    content?: string;
+    translationReady?: boolean;
+  }>;
+  topLevelOrder: string[];
+}
+
 // ----------------------------------------------------------------------------
 // Navigation items (header / footer link sets, replaced atomically per nav)
 // ----------------------------------------------------------------------------
@@ -373,6 +386,7 @@ export interface AdminRepository {
   // Page segments (for content_pages with page_type = 'segmented')
   listSegmentsForOwner(ownerSlug: string): Promise<PageSegmentRow[]>;
   replaceSegmentsForOwner(ownerSlug: string, segments: PageSegmentInputRow[]): Promise<PageSegmentRow[]>;
+  bulkUpdatePages(payload: BulkUpdatePagesPayload): Promise<ContentPageSummaryRow[]>;
   deleteSegmentsForOwner(ownerSlug: string): Promise<void>;
   /** Fetch multiple content pages by slug (published + unpublished). Returns rows in input slugs' order is NOT guaranteed. */
   getContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]>;
