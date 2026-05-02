@@ -7,7 +7,9 @@
     "dev": "astro dev --port 3000",
     "build": "astro build",
     "preview": "astro preview",
-    "start": "node ./dist/server/entry.mjs"
+    "start": "node ./dist/server/entry.mjs",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@astrojs/node": "9.5.5",
@@ -19,6 +21,7 @@
     "@phosphor-icons/react": "^2.1.10",
     "astro": "5.17.3",
     "clsx": "^2.1.1",
+    "html-react-parser": "^6.0.1",
     "marked": "^17.0.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -28,9 +31,14 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.7",
     "@tailwindcss/vite": "^4.2.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "jsdom": "^29.1.1",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5"
   }
 }
