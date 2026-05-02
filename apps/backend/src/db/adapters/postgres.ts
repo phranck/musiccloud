@@ -2548,7 +2548,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
        FROM content_pages
        LEFT JOIN page_segments ps ON ps.owner_slug = content_pages.slug
        GROUP BY content_pages.slug
-       ORDER BY content_pages.created_at DESC`,
+       ORDER BY content_pages.position ASC, content_pages.created_at DESC`,
     );
     return result.rows.map(rowToContentPageSummary);
   }
