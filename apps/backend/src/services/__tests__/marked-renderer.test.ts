@@ -30,6 +30,12 @@ describe("marked custom code renderer", () => {
     expect(out).not.toContain('class="language-');
   });
 
+  it("emits data-card-style without language for ```embossed block", () => {
+    const out = marked.parse("```embossed\nplain text\n```", { async: false }) as string;
+    expect(out).toMatch(/<pre data-card-style="embossed">/);
+    expect(out).not.toContain('class="language-');
+  });
+
   it("ignores unknown modifier (```js foobar treated as ```js)", () => {
     const out = marked.parse("```js foobar\nconst x = 1;\n```", { async: false }) as string;
     expect(out).toContain('class="language-js"');
