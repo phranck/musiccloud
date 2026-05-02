@@ -23,6 +23,8 @@ import {
 import type { Tokens } from "marked";
 import { marked } from "marked";
 import markedFootnote from "marked-footnote";
+import { markedHighlight } from "marked-highlight";
+import { codeToHtml } from "shiki";
 
 const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
 type CardModifier = "recessed" | "embossed";
@@ -44,13 +46,32 @@ function escapeHtml(s: string): string {
 
 marked.use(markedFootnote(), { gfm: true });
 
+marked.use(
+  markedHighlight({
+    async: true,
+    async highlight(code, lang) {
+      if (!lang) return escapeHtml(code); // no language → plain escaped text
+      try {
+        const html = await codeToHtml(code, { lang, theme: "vitesse-dark" });
+        // Shiki returns full <pre><code>...wrapper. Extract inner of <code>...</code>.
+        const m = html.match(/<code[^>]*>([\s\S]*?)<\/code>/);
+        return m ? m[1] : escapeHtml(code);
+      } catch {
+        // Unknown language: shiki throws; fall back to escaped plain text.
+        return escapeHtml(code);
+      }
+    },
+  }),
+);
+
 marked.use({
   renderer: {
     code({ text, lang: rawLang }: Tokens.Code): string {
       const { lang, modifier } = parseLangAndModifier(rawLang ?? "");
       const attr = modifier ? ` data-card-style="${modifier}"` : "";
       const langClass = lang ? ` class="language-${escapeHtml(lang)}"` : "";
-      return `<pre${attr}><code${langClass}>${escapeHtml(text)}</code></pre>\n`;
+      // `text` is already shiki-highlighted HTML or escaped fallback.
+      return `<pre${attr}><code${langClass}>${text}</code></pre>\n`;
     },
   },
 });
@@ -79,8 +100,8 @@ function isOneOf<T extends readonly string[]>(list: T, v: unknown): v is T[numbe
   return typeof v === "string" && (list as readonly string[]).includes(v);
 }
 
-function renderBody(content: string): string {
-  return marked.parse(content, { async: false }) as string;
+async function renderBody(content: string): Promise<string> {
+  return (await marked.parse(content, { async: true })) as string;
 }
 
 function segmentRowToDto(row: PageSegmentRow): PageSegment {
@@ -352,7 +373,7 @@ export async function getPublicContentPage(slug: string, locale: Locale): Promis
     overlayWidth: row.overlayWidth,
     contentCardStyle: row.contentCardStyle,
     content: resolvedContent,
-    contentHtml: renderBody(resolvedContent),
+    contentHtml: await renderBody(resolvedContent),
   };
 
   if (row.pageType !== "segmented") {
@@ -387,23 +408,25 @@ export async function getPublicContentPage(slug: string, locale: Locale): Promis
     }
   }
 
-  const segments: PublicPageSegment[] = segmentRows
-    .filter((s) => bySlug.has(s.targetSlug))
-    .map((s) => {
-      const t = bySlug.get(s.targetSlug)!;
-      const tx = targetTranslations.get(s.targetSlug);
-      const resolvedSegLabel = segmentTranslationsBySegmentId.get(s.id) ?? s.label;
-      const resolvedSegTitle = tx ? tx.title : t.title;
-      const resolvedSegContent = tx ? tx.content : t.content;
-      return {
-        label: resolvedSegLabel,
-        targetSlug: s.targetSlug,
-        title: resolvedSegTitle,
-        showTitle: t.showTitle,
-        content: resolvedSegContent,
-        contentHtml: renderBody(resolvedSegContent),
-      };
-    });
+  const segments: PublicPageSegment[] = await Promise.all(
+    segmentRows
+      .filter((s) => bySlug.has(s.targetSlug))
+      .map(async (s) => {
+        const t = bySlug.get(s.targetSlug)!;
+        const tx = targetTranslations.get(s.targetSlug);
+        const resolvedSegLabel = segmentTranslationsBySegmentId.get(s.id) ?? s.label;
+        const resolvedSegTitle = tx ? tx.title : t.title;
+        const resolvedSegContent = tx ? tx.content : t.content;
+        return {
+          label: resolvedSegLabel,
+          targetSlug: s.targetSlug,
+          title: resolvedSegTitle,
+          showTitle: t.showTitle,
+          content: resolvedSegContent,
+          contentHtml: await renderBody(resolvedSegContent),
+        };
+      }),
+  );
 
   return { ...base, segments };
 }
