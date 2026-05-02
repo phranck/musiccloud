@@ -125,3 +125,49 @@ export interface PublicContentPage {
   contentHtml: string;
   segments: PublicPageSegment[];
 }
+
+export interface PagesBulkPagesEntry {
+  slug: string;
+  meta?: Partial<{
+    title: string;
+    slug: string;
+    status: ContentStatus;
+    displayMode: PageDisplayMode;
+    overlayWidth: OverlayWidth;
+    titleAlignment: PageTitleAlignment;
+    contentCardStyle: ContentCardStyle;
+    showTitle: boolean;
+    pageType: PageType;
+  }>;
+  content?: string;
+}
+
+export interface PagesBulkSegmentsEntry {
+  ownerSlug: string;
+  segments: PageSegmentInput[];
+}
+
+export interface PagesBulkPageTranslationEntry {
+  slug: string;
+  locale: Locale;
+  title?: string;
+  content?: string;
+  translationReady?: boolean;
+}
+
+export interface PagesBulkRequest {
+  pages?: PagesBulkPagesEntry[];
+  segments?: PagesBulkSegmentsEntry[];
+  pageTranslations?: PagesBulkPageTranslationEntry[];
+  topLevelOrder?: string[];
+}
+
+export interface PagesBulkResponse {
+  pages: ContentPageSummary[];
+}
+
+export type PagesBulkErrorDetail = {
+  section: "pages" | "segments" | "pageTranslations" | "topLevelOrder";
+  index: number;
+  message: string;
+};
