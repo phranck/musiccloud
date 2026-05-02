@@ -53,6 +53,20 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function highlightPlainText(code: string): string {
+  return code
+    .split("\n")
+    .map((line) => {
+      const leading = line.match(/^\s*/)?.[0] ?? "";
+      const rest = line.slice(leading.length);
+      if (rest.startsWith("#") || rest.startsWith("//")) {
+        return `${leading}<span style="color:#9A9AA0;font-style:italic">${escapeHtml(rest)}</span>`;
+      }
+      return escapeHtml(line);
+    })
+    .join("\n");
+}
+
 marked.use(markedFootnote(), { gfm: true });
 
 marked.use(
@@ -60,6 +74,7 @@ marked.use(
     async: true,
     async highlight(code, lang) {
       if (!lang) return escapeHtml(code); // no language → plain escaped text
+      if (lang.toLowerCase() === "text") return highlightPlainText(code);
       try {
         const html = await codeToHtml(code, { lang, theme: "vitesse-dark" });
         // Shiki returns full <pre><code>...wrapper. Extract inner of <code>...</code>.
