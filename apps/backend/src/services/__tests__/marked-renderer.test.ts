@@ -115,4 +115,26 @@ describe("marked custom code renderer", () => {
     const out = (await marked.parse("```TEXT\n# upper\n```", { async: true })) as string;
     expect(out).toContain('<span style="color:#9A9AA0;font-style:italic"># upper</span>');
   });
+
+  it("text intercept still fires when modifiers follow the lang token", async () => {
+    // marked passes the full info-string as `lang` to the highlight callback;
+    // the renderer must parse out the actual lang before deciding on the
+    // text-comment intercept, otherwise modifier-bearing fences fall through
+    // to Shiki's plain-text grammar and miss the comment styling entirely.
+    const out = (await marked.parse(
+      "```text recessed padding=0.75rem radius=0.75rem\n// commented line\nplain line\n```",
+      { async: true },
+    )) as string;
+    expect(out).toContain('<span style="color:#9A9AA0;font-style:italic">// commented line</span>');
+    expect(out).toMatch(/<pre data-card-style="recessed" data-card-padding="0\.75rem" data-card-radius="0\.75rem">/);
+  });
+
+  it("shiki highlighting still fires when modifiers follow the lang token", async () => {
+    // Same root cause as the text intercept: ```js recessed padding=… must
+    // strip the modifiers before handing the lang to Shiki, otherwise no
+    // <span style="color:…"> tokens appear in the body.
+    const out = (await marked.parse("```js recessed padding=0.75rem\nconst x = 1;\n```", { async: true })) as string;
+    expect(out).toMatch(/<span style="color:/);
+    expect(out).toMatch(/<pre data-card-style="recessed" data-card-padding="0\.75rem">/);
+  });
 });

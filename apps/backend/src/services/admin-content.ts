@@ -72,8 +72,13 @@ marked.use(markedFootnote(), { gfm: true });
 marked.use(
   markedHighlight({
     async: true,
-    async highlight(code, lang) {
-      if (!lang) return escapeHtml(code); // no language → plain escaped text
+    async highlight(code, infostring) {
+      // marked passes the FULL fence info-string as `lang` (e.g.
+      // "text recessed padding=0.75rem"). We must parse out the real
+      // language before deciding the highlight path; otherwise both
+      // the `text` intercept and Shiki miss.
+      const { lang } = parseInfostring(infostring ?? "");
+      if (!lang) return escapeHtml(code);
       if (lang.toLowerCase() === "text") return highlightPlainText(code);
       try {
         const html = await codeToHtml(code, { lang, theme: "vitesse-dark" });
