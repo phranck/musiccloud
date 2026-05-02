@@ -496,6 +496,9 @@ export interface DashboardMessages {
         widthSmall: string;
         widthRegular: string;
         widthBig: string;
+        contentCardStyle: string;
+        cardStyleDefault: string;
+        cardStyleRecessed: string;
       };
       segments: {
         title: string;
@@ -1223,6 +1226,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           widthSmall: "Schmal",
           widthRegular: "Normal",
           widthBig: "Gro\u00df",
+          contentCardStyle: "Card-Stil",
+          cardStyleDefault: "Direkt",
+          cardStyleRecessed: "Recessed",
         },
         segments: {
           title: "Segmente",
@@ -1941,6 +1947,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           widthSmall: "Small",
           widthRegular: "Regular",
           widthBig: "Big",
+          contentCardStyle: "Card style",
+          cardStyleDefault: "Direct",
+          cardStyleRecessed: "Recessed",
         },
         segments: {
           title: "Segments",

@@ -1,4 +1,11 @@
-import { OVERLAY_WIDTHS, type OverlayWidth, PAGE_DISPLAY_MODES, type PageDisplayMode } from "@musiccloud/shared";
+import {
+  CONTENT_CARD_STYLES,
+  type ContentCardStyle,
+  OVERLAY_WIDTHS,
+  type OverlayWidth,
+  PAGE_DISPLAY_MODES,
+  type PageDisplayMode,
+} from "@musiccloud/shared";
 
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { useI18n } from "@/context/I18nContext";
@@ -7,15 +14,17 @@ import { FormLabelText } from "@/shared/ui/FormPrimitives";
 interface Props {
   displayMode: PageDisplayMode;
   overlayWidth: OverlayWidth;
+  contentCardStyle: ContentCardStyle;
   onChange: (
     patch: Partial<{
       displayMode: PageDisplayMode;
       overlayWidth: OverlayWidth;
+      contentCardStyle: ContentCardStyle;
     }>,
   ) => void;
 }
 
-export function PageDisplaySettings({ displayMode, overlayWidth, onChange }: Props) {
+export function PageDisplaySettings({ displayMode, overlayWidth, contentCardStyle, onChange }: Props) {
   const { messages } = useI18n();
   const labels = messages.content.pages.display;
   const modeLabels: Record<PageDisplayMode, string> = {
@@ -28,7 +37,12 @@ export function PageDisplaySettings({ displayMode, overlayWidth, onChange }: Pro
     regular: labels.widthRegular,
     big: labels.widthBig,
   };
+  const cardStyleLabels: Record<ContentCardStyle, string> = {
+    default: labels.cardStyleDefault,
+    recessed: labels.cardStyleRecessed,
+  };
   const isOverlay = displayMode !== "fullscreen";
+  const isCardStyleVisible = displayMode !== "translucent";
 
   return (
     <div className="px-3 pt-1 pb-3 flex flex-wrap items-end gap-4 bg-[var(--ds-surface)]">
@@ -44,6 +58,14 @@ export function PageDisplaySettings({ displayMode, overlayWidth, onChange }: Pro
           value={overlayWidth}
           options={OVERLAY_WIDTHS.map((w) => ({ value: w, label: widthLabels[w] }))}
           onChange={(v) => onChange({ overlayWidth: v })}
+        />
+      )}
+      {isCardStyleVisible && (
+        <Picker<ContentCardStyle>
+          label={labels.contentCardStyle}
+          value={contentCardStyle}
+          options={CONTENT_CARD_STYLES.map((s) => ({ value: s, label: cardStyleLabels[s] }))}
+          onChange={(v) => onChange({ contentCardStyle: v })}
         />
       )}
     </div>
