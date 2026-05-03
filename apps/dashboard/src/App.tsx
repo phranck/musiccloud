@@ -85,6 +85,12 @@ const ContentEditorPage = lazy(() =>
   })),
 );
 
+const PagesEditorRoot = lazy(() =>
+  import("@/features/content/PagesEditorRoot").then((m) => ({
+    default: m.PagesEditorRoot,
+  })),
+);
+
 const NavManagerPage = lazy(() =>
   import("@/features/content/navigation/NavManagerPage").then((m) => ({
     default: m.NavManagerPage,
@@ -302,18 +308,27 @@ function AppRoutes() {
                 path="pages"
                 element={
                   <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <PagesListPage />
+                    <PagesEditorRoot />
                   </Suspense>
                 }
-              />
-              <Route
-                path="pages/:slug"
-                element={
-                  <Suspense fallback={<ContentEditorLoadingFallback />}>
-                    <ContentEditorPage />
-                  </Suspense>
-                }
-              />
+              >
+                <Route
+                  index
+                  element={
+                    <Suspense fallback={<ContentEditorLoadingFallback />}>
+                      <PagesListPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path=":slug"
+                  element={
+                    <Suspense fallback={<ContentEditorLoadingFallback />}>
+                      <ContentEditorPage />
+                    </Suspense>
+                  }
+                />
+              </Route>
               <Route
                 path="navigation"
                 element={
