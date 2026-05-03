@@ -1,4 +1,4 @@
-import type { ContentPage, ContentPageSummary, PageSegment, PageSegmentInput, PageType } from "@musiccloud/shared";
+import type { ContentPage, ContentPageSummary, PageType } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
@@ -20,15 +20,6 @@ export function useAdminContentPage(slug: string | undefined) {
   });
 }
 
-export function useSaveContentPage() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ slug, data }: { slug: string; data: Partial<ContentPage> }) =>
-      api.patch<ContentPage>(`/admin/pages/${slug}`, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["content-pages"] }),
-  });
-}
-
 export function useCreateContentPage() {
   const qc = useQueryClient();
   return useMutation({
@@ -43,17 +34,5 @@ export function useDeleteContentPage() {
   return useMutation({
     mutationFn: (slug: string) => api.delete(`/admin/pages/${slug}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["content-pages"] }),
-  });
-}
-
-export function useSaveContentPageSegments() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ slug, segments }: { slug: string; segments: PageSegmentInput[] }) =>
-      api.put<PageSegment[]>(`/admin/pages/${slug}/segments`, segments),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ["content-pages", vars.slug] });
-      qc.invalidateQueries({ queryKey: ["content-pages"] });
-    },
   });
 }
