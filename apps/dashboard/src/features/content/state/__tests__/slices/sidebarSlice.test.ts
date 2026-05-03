@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { sidebarReducer, isDirty } from "../../slices/sidebarSlice";
+import { isDirty, sidebarReducer } from "../../slices/sidebarSlice";
 
 describe("sidebarSlice", () => {
   it("initial state is clean", () => {
-    const s = sidebarReducer(
-      { initial: ["info", "help"], current: ["info", "help"] },
-      { type: "noop" } as never,
-    );
+    const s = sidebarReducer({ initial: ["info", "help"], current: ["info", "help"] }, { type: "noop" } as never);
     expect(isDirty(s)).toBe(false);
   });
 
@@ -26,10 +23,7 @@ describe("sidebarSlice", () => {
   });
 
   it("hydrate sets initial = current = next", () => {
-    const s = sidebarReducer(
-      { initial: [], current: [] },
-      { type: "hydrate", topLevelOrder: ["a", "b"] },
-    );
+    const s = sidebarReducer({ initial: [], current: [] }, { type: "hydrate", topLevelOrder: ["a", "b"] });
     expect(s.initial).toEqual(["a", "b"]);
     expect(s.current).toEqual(["a", "b"]);
   });

@@ -2,8 +2,15 @@ import type { ContentPage } from "@musiccloud/shared";
 
 type MetaFields = Pick<
   ContentPage,
-  | "title" | "slug" | "status" | "showTitle" | "titleAlignment"
-  | "pageType" | "displayMode" | "overlayWidth" | "contentCardStyle"
+  | "title"
+  | "slug"
+  | "status"
+  | "showTitle"
+  | "titleAlignment"
+  | "pageType"
+  | "displayMode"
+  | "overlayWidth"
+  | "contentCardStyle"
 >;
 
 export interface MetaState {
@@ -29,7 +36,9 @@ export function metaReducer(state: MetaState, action: MetaAction): MetaState {
       return { ...state, pages: { ...state.pages, [action.slug]: { ...entry, current: next } } };
     }
     case "reset":
-      return { pages: Object.fromEntries(Object.entries(state.pages).map(([k, v]) => [k, { ...v, current: v.initial }])) };
+      return {
+        pages: Object.fromEntries(Object.entries(state.pages).map(([k, v]) => [k, { ...v, current: v.initial }])),
+      };
     default:
       return state;
   }

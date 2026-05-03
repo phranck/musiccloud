@@ -6,7 +6,13 @@ export interface TranslationsState {
 
 export type TranslationsAction =
   | { type: "hydrate"; entries: Array<{ slug: string; locale: string } & TranslationFields> }
-  | { type: "set-field"; slug: string; locale: string; field: keyof TranslationFields; value: TranslationFields[keyof TranslationFields] }
+  | {
+      type: "set-field";
+      slug: string;
+      locale: string;
+      field: keyof TranslationFields;
+      value: TranslationFields[keyof TranslationFields];
+    }
   | { type: "reset" };
 
 export function translationsReducer(state: TranslationsState, action: TranslationsAction): TranslationsState {

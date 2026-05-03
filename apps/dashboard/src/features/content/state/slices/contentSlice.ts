@@ -20,12 +20,16 @@ export function contentReducer(state: ContentState, action: ContentAction): Cont
       return { pages: { ...state.pages, [action.slug]: { ...entry, current: action.value } } };
     }
     case "reset":
-      return { pages: Object.fromEntries(Object.entries(state.pages).map(([k, v]) => [k, { ...v, current: v.initial }])) };
+      return {
+        pages: Object.fromEntries(Object.entries(state.pages).map(([k, v]) => [k, { ...v, current: v.initial }])),
+      };
     default:
       return state;
   }
 }
 
 export function dirtySlugs(s: ContentState): string[] {
-  return Object.entries(s.pages).filter(([, v]) => v.initial !== v.current).map(([k]) => k);
+  return Object.entries(s.pages)
+    .filter(([, v]) => v.initial !== v.current)
+    .map(([k]) => k);
 }

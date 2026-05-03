@@ -75,7 +75,10 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
       return {
         byOwner: {
           ...state.byOwner,
-          [action.owner]: { ...entry, current: reposition(entry.current.filter((s) => s.targetSlug !== action.target)) },
+          [action.owner]: {
+            ...entry,
+            current: reposition(entry.current.filter((s) => s.targetSlug !== action.target)),
+          },
         },
       };
     }
@@ -110,7 +113,9 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
       };
     }
     case "reset":
-      return { byOwner: Object.fromEntries(Object.entries(state.byOwner).map(([k, v]) => [k, { ...v, current: v.initial }])) };
+      return {
+        byOwner: Object.fromEntries(Object.entries(state.byOwner).map(([k, v]) => [k, { ...v, current: v.initial }])),
+      };
     default:
       return state;
   }

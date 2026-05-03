@@ -1,20 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { segmentsReducer, dirtyOwners } from "../../slices/segmentsSlice";
+import { dirtyOwners, segmentsReducer } from "../../slices/segmentsSlice";
 
 describe("segmentsSlice", () => {
-  const seed = { byOwner: {
-    info: { initial: [{ position: 0, label: "Help", targetSlug: "help" }], current: [{ position: 0, label: "Help", targetSlug: "help" }] },
-    help: { initial: [{ position: 0, label: "Privacy", targetSlug: "privacy" }], current: [{ position: 0, label: "Privacy", targetSlug: "privacy" }] },
-  }};
+  const seed = {
+    byOwner: {
+      info: {
+        initial: [{ position: 0, label: "Help", targetSlug: "help" }],
+        current: [{ position: 0, label: "Help", targetSlug: "help" }],
+      },
+      help: {
+        initial: [{ position: 0, label: "Privacy", targetSlug: "privacy" }],
+        current: [{ position: 0, label: "Privacy", targetSlug: "privacy" }],
+      },
+    },
+  };
 
   it("reorder within owner", () => {
-    const s0 = { byOwner: { ...seed.byOwner, info: { ...seed.byOwner.info, current: [
-      { position: 0, label: "Help", targetSlug: "help" },
-      { position: 1, label: "Privacy", targetSlug: "privacy" },
-    ], initial: [
-      { position: 0, label: "Help", targetSlug: "help" },
-      { position: 1, label: "Privacy", targetSlug: "privacy" },
-    ]}}};
+    const s0 = {
+      byOwner: {
+        ...seed.byOwner,
+        info: {
+          ...seed.byOwner.info,
+          current: [
+            { position: 0, label: "Help", targetSlug: "help" },
+            { position: 1, label: "Privacy", targetSlug: "privacy" },
+          ],
+          initial: [
+            { position: 0, label: "Help", targetSlug: "help" },
+            { position: 1, label: "Privacy", targetSlug: "privacy" },
+          ],
+        },
+      },
+    };
     const s1 = segmentsReducer(s0, { type: "reorder", owner: "info", from: 0, to: 1 });
     expect(s1.byOwner.info.current.map((s) => s.targetSlug)).toEqual(["privacy", "help"]);
     expect(dirtyOwners(s1)).toEqual(["info"]);

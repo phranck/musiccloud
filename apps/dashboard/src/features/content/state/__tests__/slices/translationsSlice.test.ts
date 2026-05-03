@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { translationsReducer, dirtyEntries } from "../../slices/translationsSlice";
+import { dirtyEntries, translationsReducer } from "../../slices/translationsSlice";
 
 describe("translationsSlice", () => {
   const seed = {
@@ -14,27 +14,42 @@ describe("translationsSlice", () => {
   };
 
   it("hydrate seeds initial=current", () => {
-    const s = translationsReducer({ byPage: {} }, {
-      type: "hydrate",
-      entries: [{ slug: "info", locale: "de", title: "Information", content: "# Info de", translationReady: true }],
-    });
+    const s = translationsReducer(
+      { byPage: {} },
+      {
+        type: "hydrate",
+        entries: [{ slug: "info", locale: "de", title: "Information", content: "# Info de", translationReady: true }],
+      },
+    );
     expect(s.byPage.info.de.initial.title).toBe("Information");
     expect(dirtyEntries(s)).toEqual([]);
   });
 
   it("set-field marks (slug, locale) dirty", () => {
     const s1 = translationsReducer(seed, {
-      type: "set-field", slug: "info", locale: "de", field: "title", value: "Information v2",
+      type: "set-field",
+      slug: "info",
+      locale: "de",
+      field: "title",
+      value: "Information v2",
     });
     expect(dirtyEntries(s1)).toEqual([{ slug: "info", locale: "de" }]);
   });
 
   it("reverting field clears dirty", () => {
     const s1 = translationsReducer(seed, {
-      type: "set-field", slug: "info", locale: "de", field: "title", value: "X",
+      type: "set-field",
+      slug: "info",
+      locale: "de",
+      field: "title",
+      value: "X",
     });
     const s2 = translationsReducer(s1, {
-      type: "set-field", slug: "info", locale: "de", field: "title", value: "Information",
+      type: "set-field",
+      slug: "info",
+      locale: "de",
+      field: "title",
+      value: "Information",
     });
     expect(dirtyEntries(s2)).toEqual([]);
   });
@@ -46,10 +61,19 @@ describe("translationsSlice", () => {
         help: { de: { initial: { title: "B" }, current: { title: "B" } } },
       },
     };
-    const s1 = translationsReducer(seed2, { type: "set-field", slug: "info", locale: "de", field: "title", value: "A2" });
+    const s1 = translationsReducer(seed2, {
+      type: "set-field",
+      slug: "info",
+      locale: "de",
+      field: "title",
+      value: "A2",
+    });
     const s2 = translationsReducer(s1, { type: "set-field", slug: "help", locale: "de", field: "title", value: "B2" });
     expect(dirtyEntries(s2)).toEqual(
-      expect.arrayContaining([{ slug: "info", locale: "de" }, { slug: "help", locale: "de" }]),
+      expect.arrayContaining([
+        { slug: "info", locale: "de" },
+        { slug: "help", locale: "de" },
+      ]),
     );
   });
 
