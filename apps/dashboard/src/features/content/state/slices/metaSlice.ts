@@ -50,6 +50,12 @@ export function dirtySlugs(s: MetaState): string[] {
     .map(([k]) => k);
 }
 
+export function isMetaDirty(s: MetaState, slug: string): boolean {
+  const e = s.pages[slug];
+  if (!e) return false;
+  return !shallowEqual(e.initial, e.current);
+}
+
 function shallowEqual<T extends object>(a: T, b: T): boolean {
   for (const k of Object.keys(a) as Array<keyof T>) if (a[k] !== b[k]) return false;
   for (const k of Object.keys(b) as Array<keyof T>) if (a[k] !== b[k]) return false;
