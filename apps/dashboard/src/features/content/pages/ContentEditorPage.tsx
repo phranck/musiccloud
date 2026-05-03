@@ -1,7 +1,7 @@
 import type { ContentPage, Locale, PageTitleAlignment as PageTitleAlignmentValue } from "@musiccloud/shared";
 import { DEFAULT_LOCALE, LOCALES } from "@musiccloud/shared";
 import { EyeIcon, MarkdownLogoIcon, MinusCircleIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
-import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -15,7 +15,7 @@ import { useAdminContentPage, useDeleteContentPage } from "@/features/content/ho
 import { LanguageTabs } from "@/features/content/pages/LanguageTabs";
 import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
 import { PageTitleAlignment } from "@/features/content/pages/PageTitleAlignment";
-import { SegmentManager, type SegmentSaveFn } from "@/features/content/pages/SegmentManager";
+import { SegmentManager } from "@/features/content/pages/SegmentManager";
 import { useDeleteTranslation } from "@/features/content/pages/usePageTranslations";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import type { MetaFields } from "@/features/content/state/slices/metaSlice";
@@ -397,7 +397,6 @@ export function ContentEditorPage() {
   const deletePage = useDeleteContentPage();
   const deleteTranslation = useDeleteTranslation(slug);
   const { phase: savedPhase } = useSaveNotification();
-  const segmentSaveRef = useRef<SegmentSaveFn | null>(null);
   const editor = usePagesEditor();
 
   const [state, dispatch] = useReducer(editorReducer, undefined, createInitialEditorState);
@@ -615,7 +614,7 @@ export function ContentEditorPage() {
               {editorMessages.loadingContent}
             </div>
           )}
-          <SegmentManager page={page} onSaved={() => undefined} saveRef={segmentSaveRef} />
+          <SegmentManager page={page} />
         </PageBody>
       ) : (
         <DashboardSection>
