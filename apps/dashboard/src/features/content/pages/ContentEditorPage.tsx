@@ -19,7 +19,7 @@ import { SegmentManager } from "@/features/content/pages/SegmentManager";
 import { useDeleteTranslation } from "@/features/content/pages/usePageTranslations";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import type { MetaFields } from "@/features/content/state/slices/metaSlice";
-import { dirtyEntries as translationsDirtyEntries } from "@/features/content/state/slices/translationsSlice";
+import { isTranslationDirty } from "@/features/content/state/slices/translationsSlice";
 
 const MarkdownEditor = lazy(() =>
   import("@/components/ui/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
@@ -491,16 +491,12 @@ export function ContentEditorPage() {
 
   const statuses = page?.translationStatus ?? ({} as ContentPage["translationStatus"]);
 
-  const dirtyTranslationKeys = page
-    ? new Set(translationsDirtyEntries(editor.translations).map((e) => `${e.slug}::${e.locale}`))
-    : new Set<string>();
-
   const tabStates = Object.fromEntries(
     LOCALES.map((loc) => [
       loc,
       {
         status: statuses[loc] ?? "missing",
-        dirty: page ? dirtyTranslationKeys.has(`${page.slug}::${loc}`) : false,
+        dirty: page ? isTranslationDirty(editor.translations, page.slug, loc) : false,
       },
     ]),
   ) as Record<Locale, { status: ContentPage["translationStatus"][Locale]; dirty: boolean }>;
