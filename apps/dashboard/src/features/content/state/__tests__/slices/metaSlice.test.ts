@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dirtySlugs, metaReducer } from "../../slices/metaSlice";
+import { dirtySlugs, isMetaDirty, metaReducer } from "../../slices/metaSlice";
 import { makeMeta } from "../factories";
 
 describe("metaSlice", () => {
@@ -30,5 +30,16 @@ describe("metaSlice", () => {
     const s1 = metaReducer(s0, { type: "set-field", slug: "info", field: "title", value: "X" });
     const s2 = metaReducer(s1, { type: "set-field", slug: "info", field: "title", value: "Info" });
     expect(dirtySlugs(s2)).toEqual([]);
+  });
+
+  it("isMetaDirty: unknown slug → false, hydrated clean → false, edited → true", () => {
+    const s0 = metaReducer(
+      { pages: {} },
+      { type: "hydrate", entries: [{ slug: "info", meta: makeMeta({ title: "Info" }) }] },
+    );
+    expect(isMetaDirty(s0, "missing")).toBe(false);
+    expect(isMetaDirty(s0, "info")).toBe(false);
+    const s1 = metaReducer(s0, { type: "set-field", slug: "info", field: "title", value: "X" });
+    expect(isMetaDirty(s1, "info")).toBe(true);
   });
 });

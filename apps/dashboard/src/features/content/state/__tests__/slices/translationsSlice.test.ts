@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dirtyEntries, translationsReducer } from "../../slices/translationsSlice";
+import { dirtyEntries, isTranslationDirty, translationsReducer } from "../../slices/translationsSlice";
 
 describe("translationsSlice", () => {
   const seed = {
@@ -123,5 +123,26 @@ describe("translationsSlice", () => {
     const s2 = translationsReducer(s1, { type: "reset" });
     expect(dirtyEntries(s2)).toEqual([]);
     expect(s2.byPage.info.es.current).toEqual({ title: "", content: "", translationReady: false });
+  });
+
+  it("isTranslationDirty: unknown slug/locale → false, hydrated clean → false, edited → true", () => {
+    const s0 = translationsReducer(
+      { byPage: {} },
+      {
+        type: "hydrate",
+        entries: [{ slug: "info", locale: "de", title: "Information", content: "# x" }],
+      },
+    );
+    expect(isTranslationDirty(s0, "missing", "de")).toBe(false);
+    expect(isTranslationDirty(s0, "info", "missing")).toBe(false);
+    expect(isTranslationDirty(s0, "info", "de")).toBe(false);
+    const s1 = translationsReducer(s0, {
+      type: "set-field",
+      slug: "info",
+      locale: "de",
+      field: "title",
+      value: "Information v2",
+    });
+    expect(isTranslationDirty(s1, "info", "de")).toBe(true);
   });
 });

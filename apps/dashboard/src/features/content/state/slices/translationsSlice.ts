@@ -81,3 +81,9 @@ export function dirtyEntries(s: TranslationsState): Array<{ slug: string; locale
   }
   return out;
 }
+
+export function isTranslationDirty(s: TranslationsState, slug: string, locale: string): boolean {
+  const entry = s.byPage[slug]?.[locale];
+  if (!entry) return false;
+  return !fieldsEqual(entry.initial, entry.current);
+}

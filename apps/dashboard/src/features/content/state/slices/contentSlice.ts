@@ -33,3 +33,9 @@ export function dirtySlugs(s: ContentState): string[] {
     .filter(([, v]) => v.initial !== v.current)
     .map(([k]) => k);
 }
+
+export function isContentDirty(s: ContentState, slug: string): boolean {
+  const e = s.pages[slug];
+  if (!e) return false;
+  return e.initial !== e.current;
+}

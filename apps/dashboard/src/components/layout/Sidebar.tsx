@@ -49,6 +49,8 @@ import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { PageStatusIcon } from "@/features/content/PageStatus";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
+import { isContentDirty } from "@/features/content/state/slices/contentSlice";
+import { isMetaDirty } from "@/features/content/state/slices/metaSlice";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import type { AdminRole } from "@/shared/types/admin";
@@ -164,6 +166,8 @@ function PageTreeRow({
 }
 
 function PageTreeContent({ page, icon }: { page: { slug: string; title: string; status: string }; icon: ReactNode }) {
+  const editor = usePagesEditor();
+  const dirty = isMetaDirty(editor.meta, page.slug) || isContentDirty(editor.content, page.slug);
   return (
     <>
       {icon}
@@ -172,6 +176,13 @@ function PageTreeContent({ page, icon }: { page: { slug: string; title: string; 
         <span className="truncate">{page.title}</span>
         <span className="truncate text-xs opacity-50">/{page.slug}</span>
       </span>
+      {dirty && (
+        <span
+          role="img"
+          aria-label="ungespeichert"
+          className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]"
+        />
+      )}
     </>
   );
 }
