@@ -1,18 +1,15 @@
 import {
+  type CollisionDetection,
   closestCorners,
   DndContext,
   type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
+  useDndContext,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DEFAULT_LOCALE, LOCALES, type Locale, type TranslationStatus } from "@musiccloud/shared";
 import type { Icon } from "@phosphor-icons/react";
@@ -76,28 +73,68 @@ function sortableIdFor(row: HierarchicalPage): string {
   return `orphan:${row.slug}`;
 }
 
+// Returns true if the active drag has been released past the bottom of the
+// table (used to demote a child to orphan when no orphan drop-target exists).
+const OUTSIDE_DROP_THRESHOLD_PX = 8;
+const collisionDetection: CollisionDetection = (args) => {
+  const { pointerCoordinates, droppableRects } = args;
+  if (pointerCoordinates && droppableRects.size > 0) {
+    let maxBottom = 0;
+    for (const rect of droppableRects.values()) {
+      const bottom = rect.top + rect.height;
+      if (bottom > maxBottom) maxBottom = bottom;
+    }
+    if (pointerCoordinates.y > maxBottom + OUTSIDE_DROP_THRESHOLD_PX) return [];
+  }
+  return closestCorners(args);
+};
+
+// Pointer-relative insert position: pointer above target's vertical center →
+// insert BEFORE target; below → insert AFTER. The "intended" index is in the
+// pre-removal coordinate space; same-list reorder must compensate when the
+// source sits above the destination.
+function intendedDropIndex(e: DragEndEvent, list: ReadonlyArray<{ targetSlug: string }>, overSlug: string): number {
+  const insertAt = list.findIndex((s) => s.targetSlug === overSlug);
+  if (insertAt < 0) return list.length;
+  const activeRect = e.active.rect.current.translated;
+  const overRect = e.over?.rect;
+  if (!activeRect || !overRect) return insertAt;
+  const activeCenter = activeRect.top + activeRect.height / 2;
+  const overCenter = overRect.top + overRect.height / 2;
+  return activeCenter > overCenter ? insertAt + 1 : insertAt;
+}
+
 function SortableHierarchicalRow({ row, className, children }: DataTableRowProps<HierarchicalPage>) {
   const id = sortableIdFor(row);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver, index, activeIndex } =
-    useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({ id });
+  const { active, over } = useDndContext();
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  // Drop-target affordance differs by row kind and drag direction:
-  //   top:  → drop INTO this segmented parent (full ring + faint bg tint)
-  //   peer + drag-down (active was above this row) → bottom line (insert AFTER this row)
-  //   peer + drag-up   (active was below this row) → top line (insert BEFORE this row)
+  // Drop-target affordance differs by row kind and pointer position. Applied
+  // to <td> children (not <tr>) because Safari does not render box-shadow on
+  // <tr> in border-collapse tables — Chrome does, leading to a cross-browser
+  // discrepancy where the indicator was invisible in Safari only.
+  //   top:  → drop INTO this segmented parent (top+bottom rule + bg tint)
+  //   peer + pointer in lower half → bottom line (insert AFTER this row)
+  //   peer + pointer in upper half → top line   (insert BEFORE this row)
+  // Direction matches `intendedDropIndex` in handleDragEnd: both compare the
+  // active item's translated center against the over row's center.
   const isTopRow = id.startsWith("top:");
-  const draggingDown = activeIndex !== -1 && activeIndex < index;
-  const peerIndicator = draggingDown
-    ? "shadow-[inset_0_-2px_0_0_var(--color-primary)]"
-    : "shadow-[inset_0_2px_0_0_var(--color-primary)]";
+  const dropAfter =
+    isOver && active?.rect.current.translated && over?.rect
+      ? active.rect.current.translated.top + active.rect.current.translated.height / 2 >
+        over.rect.top + over.rect.height / 2
+      : false;
+  const peerIndicator = dropAfter
+    ? "[&>td]:shadow-[inset_0_-2px_0_0_var(--color-primary)]"
+    : "[&>td]:shadow-[inset_0_2px_0_0_var(--color-primary)]";
   const overClass =
     isOver && !isDragging
       ? isTopRow
-        ? "ring-2 ring-inset ring-[var(--color-primary)] bg-[var(--color-primary)]/10"
+        ? "[&>td]:shadow-[inset_0_2px_0_0_var(--color-primary),inset_0_-2px_0_0_var(--color-primary)] bg-[var(--color-primary)]/10"
         : peerIndicator
       : "";
   return (
@@ -208,8 +245,18 @@ export function PagesListPage() {
 
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e;
-    if (!over || active.id === over.id) return;
     const activeId = String(active.id);
+
+    // Outside-drop (pointer past the table's last row): demote child to orphan.
+    // No visible drop target; user discovers this by dragging into empty space.
+    if (!over) {
+      if (activeId.startsWith("child:")) {
+        const [, owner, target] = activeId.split(":");
+        if (owner && target) editor.dispatch.segments({ type: "remove", owner, target });
+      }
+      return;
+    }
+    if (active.id === over.id) return;
     const overId = String(over.id);
     const rawBlocks = groupPagesByHierarchy(pages).segmentedBlocks;
 
@@ -219,8 +266,14 @@ export function PagesListPage() {
       const baseOrder = rawBlocks.map((b) => b.parent.slug);
       const order = editor.sidebar.current.length > 0 ? editor.sidebar.current : baseOrder;
       const from = order.indexOf(fromSlug);
-      const to = order.indexOf(toSlug);
-      if (from < 0 || to < 0) return;
+      if (from < 0) return;
+      const intended = intendedDropIndex(
+        e,
+        order.map((slug) => ({ targetSlug: slug })),
+        toSlug,
+      );
+      const to = from < intended ? intended - 1 : intended;
+      if (to < 0 || from === to) return;
       if (editor.sidebar.current.length === 0) {
         editor.dispatch.sidebar({ type: "hydrate", topLevelOrder: order });
       }
@@ -235,18 +288,19 @@ export function PagesListPage() {
       if (fromOwner === toOwner) {
         const items = editor.segments.byOwner[fromOwner]?.current ?? [];
         const from = items.findIndex((s) => s.targetSlug === target);
-        const to = items.findIndex((s) => s.targetSlug === overTarget);
-        if (from < 0 || to < 0) return;
+        if (from < 0) return;
+        const intended = intendedDropIndex(e, items, overTarget);
+        const to = from < intended ? intended - 1 : intended;
+        if (to < 0 || from === to) return;
         editor.dispatch.segments({ type: "reorder", owner: fromOwner, from, to });
       } else {
         const targetList = editor.segments.byOwner[toOwner]?.current ?? [];
-        const insertAt = targetList.findIndex((s) => s.targetSlug === overTarget);
         editor.dispatch.segments({
           type: "move",
           target,
           from: fromOwner,
           to: toOwner,
-          position: insertAt < 0 ? targetList.length : insertAt,
+          position: intendedDropIndex(e, targetList, overTarget),
         });
       }
       return;
@@ -264,13 +318,12 @@ export function PagesListPage() {
       const [, toOwner, overTarget] = overId.split(":");
       if (!target || !toOwner || !overTarget) return;
       const list = editor.segments.byOwner[toOwner]?.current ?? [];
-      const insertAt = list.findIndex((s) => s.targetSlug === overTarget);
       const promoted = bySlug.get(target);
       editor.dispatch.segments({
         type: "add",
         owner: toOwner,
         target,
-        position: insertAt < 0 ? list.length : insertAt,
+        position: intendedDropIndex(e, list, overTarget),
         label: promoted?.title ?? target,
       });
       return;
@@ -447,8 +500,8 @@ export function PagesListPage() {
 
         {!isLoading && pages.length > 0 && (
           <div className="-mx-3 -mt-3">
-            <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-              <SortableContext items={hierarchicalPages.map(sortableIdFor)} strategy={verticalListSortingStrategy}>
+            <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragEnd={handleDragEnd}>
+              <SortableContext items={hierarchicalPages.map(sortableIdFor)} strategy={() => null}>
                 <DataTable
                   columns={columns}
                   data={hierarchicalPages}
