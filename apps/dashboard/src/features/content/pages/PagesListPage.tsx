@@ -78,21 +78,27 @@ function sortableIdFor(row: HierarchicalPage): string {
 
 function SortableHierarchicalRow({ row, className, children }: DataTableRowProps<HierarchicalPage>) {
   const id = sortableIdFor(row);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver, index, activeIndex } =
+    useSortable({ id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  // Drop-target affordance differs by row kind:
+  // Drop-target affordance differs by row kind and drag direction:
   //   top:  → drop INTO this segmented parent (full ring + faint bg tint)
-  //   else  → drop AS PEER above this row (inset top line)
+  //   peer + drag-down (active was above this row) → bottom line (insert AFTER this row)
+  //   peer + drag-up   (active was below this row) → top line (insert BEFORE this row)
   const isTopRow = id.startsWith("top:");
+  const draggingDown = activeIndex !== -1 && activeIndex < index;
+  const peerIndicator = draggingDown
+    ? "shadow-[inset_0_-2px_0_0_var(--color-primary)]"
+    : "shadow-[inset_0_2px_0_0_var(--color-primary)]";
   const overClass =
     isOver && !isDragging
       ? isTopRow
         ? "ring-2 ring-inset ring-[var(--color-primary)] bg-[var(--color-primary)]/10"
-        : "shadow-[inset_0_2px_0_0_var(--color-primary)]"
+        : peerIndicator
       : "";
   return (
     <tr
