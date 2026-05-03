@@ -24,7 +24,6 @@ import {
   useSaveContentPage,
   useSaveContentPageSegments,
 } from "@/features/content/hooks/useAdminContent";
-import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
 import { FormLabelText } from "@/shared/ui/FormPrimitives";
 
 export type SegmentSaveFn = () => Promise<void>;
@@ -95,7 +94,6 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [targetDraftContent, setTargetDraftContent] = useState<string | null>(null);
-  const [newPageForIndex, setNewPageForIndex] = useState<number | null>(null);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
   const nonDefaultLocales = LOCALES.filter((l): l is Locale => l !== DEFAULT_LOCALE);
@@ -332,15 +330,6 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
                         }}
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setNewPageForIndex(index)}
-                      title={messages.content.pages.newPage}
-                      className="flex items-center gap-1.5 h-7 px-2 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-xs font-medium hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)]"
-                    >
-                      <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-                      {messages.content.pages.newPage}
-                    </button>
                     <div className="flex items-center gap-0.5">
                       <button
                         type="button"
@@ -446,24 +435,6 @@ export function SegmentManager({ page, onSaved, saveRef }: Props) {
           </DashboardSection.Body>
         </DashboardSection>
       )}
-
-      <CreatePageDialog
-        open={newPageForIndex !== null}
-        lockDefaultType
-        onClose={() => {
-          if (newPageForIndex !== null && !draft[newPageForIndex]?.targetSlug) {
-            remove(newPageForIndex);
-          }
-          setNewPageForIndex(null);
-        }}
-        onCreated={(newPage) => {
-          if (newPageForIndex === null) return;
-          const idx = newPageForIndex;
-          update(idx, { targetSlug: newPage.slug });
-          setActiveIndex(idx);
-          setNewPageForIndex(null);
-        }}
-      />
     </>
   );
 }
