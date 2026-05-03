@@ -62,6 +62,21 @@ export function PagesEditorProvider({ children }: { children: ReactNode }) {
     dispatchSidebar({ type: "reset" });
   }, []);
 
+  // dispatchers from useReducer are guaranteed stable across renders, so we
+  // memoize the dispatch bag once and keep its reference identical for the
+  // entire provider lifetime. Otherwise consumers that depend on
+  // `editor.dispatch` in effects would re-fire on every state update.
+  const dispatchBag = useMemo<PagesEditorContextValue["dispatch"]>(
+    () => ({
+      meta: dispatchMeta,
+      content: dispatchContent,
+      segments: dispatchSegments,
+      translations: dispatchTranslations,
+      sidebar: dispatchSidebar,
+    }),
+    [],
+  );
+
   const value = useMemo<PagesEditorContextValue>(
     () => ({
       meta,
@@ -69,17 +84,11 @@ export function PagesEditorProvider({ children }: { children: ReactNode }) {
       segments,
       translations,
       sidebar,
-      dispatch: {
-        meta: dispatchMeta,
-        content: dispatchContent,
-        segments: dispatchSegments,
-        translations: dispatchTranslations,
-        sidebar: dispatchSidebar,
-      },
+      dispatch: dispatchBag,
       dirty: dirtyRef.current,
       resetAll,
     }),
-    [meta, content, segments, translations, sidebar, resetAll],
+    [meta, content, segments, translations, sidebar, resetAll, dispatchBag],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

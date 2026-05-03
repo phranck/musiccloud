@@ -1,11 +1,4 @@
-import type {
-  ContentCardStyle,
-  ContentPage,
-  Locale,
-  OverlayWidth,
-  PageDisplayMode,
-  PageTitleAlignment as PageTitleAlignmentValue,
-} from "@musiccloud/shared";
+import type { ContentPage, Locale, PageTitleAlignment as PageTitleAlignmentValue } from "@musiccloud/shared";
 import { DEFAULT_LOCALE, LOCALES } from "@musiccloud/shared";
 import {
   DownloadIcon,
@@ -24,18 +17,15 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
 import { useI18n } from "@/context/I18nContext";
-import {
-  useAdminContentPage,
-  useDeleteContentPage,
-  usePatchContentPage,
-  useSaveContentPage,
-} from "@/features/content/hooks/useAdminContent";
+import { useAdminContentPage, useDeleteContentPage } from "@/features/content/hooks/useAdminContent";
 import { LanguageTabs } from "@/features/content/pages/LanguageTabs";
 import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
 import { PageTitleAlignment } from "@/features/content/pages/PageTitleAlignment";
 import { SegmentManager, type SegmentSaveFn } from "@/features/content/pages/SegmentManager";
-import { useDeleteTranslation, useSaveTranslation } from "@/features/content/pages/usePageTranslations";
-import { useKeyboardSave } from "@/lib/useKeyboardSave";
+import { useDeleteTranslation } from "@/features/content/pages/usePageTranslations";
+import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
+import type { MetaFields } from "@/features/content/state/slices/metaSlice";
+import { dirtyEntries as translationsDirtyEntries } from "@/features/content/state/slices/translationsSlice";
 
 const MarkdownEditor = lazy(() =>
   import("@/components/ui/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
@@ -64,50 +54,7 @@ function slugify(str: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Per-locale form state
-// ---------------------------------------------------------------------------
-
-interface LocaleFormState {
-  title: string;
-  content: string;
-  translationReady: boolean;
-  dirty: boolean;
-}
-
-type LocaleForms = Record<Locale, LocaleFormState | undefined>;
-
-function buildInitialForms(page: ContentPage): LocaleForms {
-  const forms = {} as LocaleForms;
-
-  // Default locale seeded from page root fields
-  forms[DEFAULT_LOCALE] = {
-    title: page.title,
-    content: page.content,
-    translationReady: true,
-    dirty: false,
-  };
-
-  // Non-default locales seeded from page.translations array
-  for (const locale of LOCALES) {
-    if (locale === DEFAULT_LOCALE) continue;
-    const existing = page.translations.find((t) => t.locale === locale);
-    if (existing) {
-      forms[locale] = {
-        title: existing.title,
-        content: existing.content,
-        translationReady: existing.translationReady,
-        dirty: false,
-      };
-    } else {
-      forms[locale] = undefined;
-    }
-  }
-
-  return forms;
-}
-
-// ---------------------------------------------------------------------------
-// Editor reducer
+// Editor reducer (UI-only state; persistence flows through PagesEditorContext)
 // ---------------------------------------------------------------------------
 
 interface EditorState {
@@ -119,7 +66,6 @@ interface EditorState {
   editingTitle: boolean;
   editTitleValue: string;
   patchError: string | null;
-  draftContent: string | null;
 }
 
 type EditorAction =
@@ -131,8 +77,7 @@ type EditorAction =
   | { type: "setEditSlugValue"; value: string }
   | { type: "setEditingTitle"; value: boolean }
   | { type: "setEditTitleValue"; value: string }
-  | { type: "setPatchError"; value: string | null }
-  | { type: "setDraftContent"; value: string | null };
+  | { type: "setPatchError"; value: string | null };
 
 function createInitialEditorState(): EditorState {
   return {
@@ -144,7 +89,6 @@ function createInitialEditorState(): EditorState {
     editingTitle: false,
     editTitleValue: "",
     patchError: null,
-    draftContent: null,
   };
 }
 
@@ -158,7 +102,6 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         editingSlug: false,
         editingTitle: false,
         patchError: null,
-        draftContent: null,
       };
     case "setSaved":
       return { ...state, saved: action.value };
@@ -176,8 +119,6 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return { ...state, editTitleValue: action.value };
     case "setPatchError":
       return { ...state, patchError: action.value };
-    case "setDraftContent":
-      return { ...state, draftContent: action.value };
     default:
       return state;
   }
@@ -512,161 +453,78 @@ export function ContentEditorPage() {
   const { slug = "" } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { data: page, isLoading } = useAdminContentPage(slug);
-  const save = useSaveContentPage();
-  const patch = usePatchContentPage();
   const deletePage = useDeleteContentPage();
-  const saveTranslation = useSaveTranslation(slug);
   const deleteTranslation = useDeleteTranslation(slug);
-  const { phase: savedPhase, show: showSaved } = useSaveNotification();
+  const { phase: savedPhase } = useSaveNotification();
   const segmentSaveRef = useRef<SegmentSaveFn | null>(null);
+  const editor = usePagesEditor();
 
   const [state, dispatch] = useReducer(editorReducer, undefined, createInitialEditorState);
 
   // Active locale tab
   const [activeLocale, setActiveLocale] = useState<Locale>(DEFAULT_LOCALE);
 
-  // Per-locale form state — initialised once the page data arrives.
-  // We keep it in a ref-backed useState so tab switches never lose data.
-  const [localeForms, setLocaleForms] = useState<LocaleForms>(() => {
-    const empty = {} as LocaleForms;
-    for (const loc of LOCALES) empty[loc] = undefined;
-    return empty;
-  });
-
-  // Ref used by both effects below — must be declared before them.
-  const formsSeededRef = useRef<string | null>(null);
-
-  // Reset fires FIRST so that when slug changes and page data is already cached,
-  // the seed effect (below) can immediately re-seed in the same render cycle.
+  // Reset transient UI state and locale tab when navigating to a different slug.
   useEffect(() => {
     void slug;
     dispatch({ type: "resetForSlug" });
-    // Reset locale tab and forms when navigating to a different slug
     setActiveLocale(DEFAULT_LOCALE);
-    formsSeededRef.current = null;
-    setLocaleForms(() => {
-      const empty = {} as LocaleForms;
-      for (const loc of LOCALES) empty[loc] = undefined;
-      return empty;
-    });
   }, [slug]);
 
-  // Seed locale forms when page data first loads (or slug changes).
+  // Hydrate slice context from server data on mount and on page-data refresh.
   useEffect(() => {
-    if (page && formsSeededRef.current !== slug) {
-      formsSeededRef.current = slug;
-      setLocaleForms(buildInitialForms(page));
-    }
-  }, [page, slug]);
-
-  // beforeunload guard while any locale has unsaved changes
-  useEffect(() => {
-    const isDirty = Object.values(localeForms).some((f) => f?.dirty);
-    if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [localeForms]);
+    if (!page) return;
+    editor.dispatch.meta({ type: "hydrate", entries: [{ slug: page.slug, meta: page }] });
+    editor.dispatch.content({ type: "hydrate", entries: [{ slug: page.slug, content: page.content }] });
+    editor.dispatch.translations({
+      type: "hydrate",
+      entries: (page.translations ?? []).map((t) => ({
+        slug: page.slug,
+        locale: t.locale,
+        title: t.title,
+        content: t.content,
+        translationReady: t.translationReady,
+      })),
+    });
+  }, [page, editor.dispatch]);
 
   // ---------------------------------------------------------------------------
-  // Default-locale: content is tracked via draftContent (legacy path) AND
-  // synced into localeForms so the two stay consistent.
+  // Slice readers — reflect live edits, fall back to server data on first paint.
   // ---------------------------------------------------------------------------
+
+  const metaCurrent = page ? (editor.meta.pages[page.slug]?.current ?? page) : null;
+  const contentCurrent = page ? (editor.content.pages[page.slug]?.current ?? page.content) : "";
+  const translationCurrent = (loc: Locale) =>
+    page ? editor.translations.byPage[page.slug]?.[loc]?.current : undefined;
+
+  const setMeta = useCallback(
+    <K extends keyof MetaFields>(field: K, value: MetaFields[K]) => {
+      if (!page) return;
+      editor.dispatch.meta({ type: "set-field", slug: page.slug, field, value });
+    },
+    [page, editor.dispatch],
+  );
 
   const handleChange = useCallback(
     (markdown: string) => {
-      dispatch({ type: "setSaved", value: false });
+      if (!page) return;
       if (activeLocale === DEFAULT_LOCALE) {
-        dispatch({ type: "setDraftContent", value: markdown });
-        setLocaleForms((prev) => ({
-          ...prev,
-          [DEFAULT_LOCALE]: prev[DEFAULT_LOCALE]
-            ? { ...prev[DEFAULT_LOCALE]!, content: markdown, dirty: true }
-            : { title: page?.title ?? "", content: markdown, translationReady: true, dirty: true },
-        }));
+        editor.dispatch.content({ type: "set", slug: page.slug, value: markdown });
       } else {
-        setLocaleForms((prev) => ({
-          ...prev,
-          [activeLocale]: prev[activeLocale] ? { ...prev[activeLocale]!, content: markdown, dirty: true } : undefined,
-        }));
+        editor.dispatch.translations({
+          type: "set-field",
+          slug: page.slug,
+          locale: activeLocale,
+          field: "content",
+          value: markdown,
+        });
       }
     },
-    [activeLocale, page?.title],
+    [activeLocale, page, editor.dispatch],
   );
 
-  // The markdown editor value: for default locale use draftContent fallback
-  // (legacy behaviour preserved); for non-default use the form state.
   const currentContent =
-    activeLocale === DEFAULT_LOCALE
-      ? (state.draftContent ?? localeForms[DEFAULT_LOCALE]?.content ?? page?.content ?? "")
-      : (localeForms[activeLocale]?.content ?? "");
-
-  // ---------------------------------------------------------------------------
-  // Save
-  // ---------------------------------------------------------------------------
-
-  const handleSave = () => {
-    if (!page) return;
-
-    if (page.pageType === "segmented") {
-      void segmentSaveRef.current?.();
-      return;
-    }
-
-    if (activeLocale === DEFAULT_LOCALE) {
-      // Default locale: use existing main-page mutation (content body only)
-      if (currentContent === page.content) return;
-      save.mutate(
-        { slug, data: { content: currentContent } },
-        {
-          onSuccess: () => {
-            dispatch({ type: "setSaved", value: true });
-            dispatch({ type: "setDraftContent", value: null });
-            setLocaleForms((prev) => ({
-              ...prev,
-              [DEFAULT_LOCALE]: prev[DEFAULT_LOCALE] ? { ...prev[DEFAULT_LOCALE]!, dirty: false } : undefined,
-            }));
-            showSaved();
-          },
-        },
-      );
-    } else {
-      // Non-default locale: use translation endpoint
-      const form = localeForms[activeLocale];
-      if (!form) return;
-      saveTranslation.mutate(
-        {
-          locale: activeLocale,
-          body: {
-            title: form.title,
-            content: form.content,
-            translationReady: form.translationReady,
-          },
-        },
-        {
-          onSuccess: () => {
-            dispatch({ type: "setSaved", value: true });
-            setLocaleForms((prev) => ({
-              ...prev,
-              [activeLocale]: prev[activeLocale] ? { ...prev[activeLocale]!, dirty: false } : undefined,
-            }));
-            showSaved();
-          },
-        },
-      );
-    }
-  };
-
-  useKeyboardSave(handleSave);
-
-  useEffect(() => {
-    if (!state.saved) return;
-    const timer = setTimeout(() => dispatch({ type: "setSaved", value: false }), 2000);
-    return () => clearTimeout(timer);
-  }, [state.saved]);
+    activeLocale === DEFAULT_LOCALE ? contentCurrent : (translationCurrent(activeLocale)?.content ?? "");
 
   const changeFontSize = (delta: number) => {
     const next = Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, state.sourceFontSize + delta));
@@ -674,39 +532,17 @@ export function ContentEditorPage() {
     dispatch({ type: "setSourceFontSize", value: next });
   };
 
-  async function handlePatch(data: {
-    title?: string;
-    slug?: string;
-    status?: "draft" | "published" | "hidden";
-    showTitle?: boolean;
-    titleAlignment?: PageTitleAlignmentValue;
-    displayMode?: PageDisplayMode;
-    overlayWidth?: OverlayWidth;
-    contentCardStyle?: ContentCardStyle;
-  }) {
-    dispatch({ type: "setPatchError", value: null });
-    try {
-      const updated = await patch.mutateAsync({ slug, data });
-      showSaved();
-      if (data.slug && data.slug !== slug) {
-        navigate(`/pages/${updated.slug}`, { replace: true });
-      }
-    } catch (err) {
-      dispatch({
-        type: "setPatchError",
-        value: err instanceof Error ? err.message : editorMessages.saveError,
-      });
-    }
-  }
-
   function handleTitleSave() {
-    void handlePatch({ title: state.editTitleValue });
+    setMeta("title", state.editTitleValue);
     dispatch({ type: "setEditingTitle", value: false });
   }
 
   function handleSlugSave() {
-    void handlePatch({ slug: state.editSlugValue });
+    setMeta("slug", state.editSlugValue);
     dispatch({ type: "setEditingSlug", value: false });
+    // Note: the URL still reflects the old slug until the bulk save persists
+    // the rename and triggers a refetch. URL redirect after save lives in a
+    // later task (see plan T22 drift-note about useGlobalPagesSave).
   }
 
   // ---------------------------------------------------------------------------
@@ -715,58 +551,52 @@ export function ContentEditorPage() {
 
   const statuses = page?.translationStatus ?? ({} as ContentPage["translationStatus"]);
 
+  const dirtyTranslationKeys = page
+    ? new Set(translationsDirtyEntries(editor.translations).map((e) => `${e.slug}::${e.locale}`))
+    : new Set<string>();
+
   const tabStates = Object.fromEntries(
     LOCALES.map((loc) => [
       loc,
       {
         status: statuses[loc] ?? "missing",
-        dirty: localeForms[loc]?.dirty ?? false,
+        dirty: page ? dirtyTranslationKeys.has(`${page.slug}::${loc}`) : false,
       },
     ]),
   ) as Record<Locale, { status: ContentPage["translationStatus"][Locale]; dirty: boolean }>;
 
   function handleCreateTranslation() {
-    const defaultForm = localeForms[DEFAULT_LOCALE];
-    setLocaleForms((prev) => ({
-      ...prev,
-      [activeLocale]: {
-        title: defaultForm?.title ?? page?.title ?? "",
-        content: defaultForm?.content ?? page?.content ?? "",
+    if (!page) return;
+    editor.dispatch.translations({
+      type: "add-locale",
+      slug: page.slug,
+      locale: activeLocale,
+      fields: {
+        title: metaCurrent?.title ?? page.title,
+        content: contentCurrent || page.content,
         translationReady: false,
-        dirty: true,
       },
-    }));
-    // Sync draftContent to empty so MarkdownEditor re-renders with new value
-    dispatch({ type: "setDraftContent", value: null });
+    });
   }
 
   function handleDeleteTranslation() {
     if (!window.confirm(`Delete ${activeLocale.toUpperCase()} translation?`)) return;
     deleteTranslation.mutate(activeLocale, {
       onSuccess: () => {
-        setLocaleForms((prev) => ({ ...prev, [activeLocale]: undefined }));
+        // Slice will re-hydrate from refreshed page query without the locale.
         setActiveLocale(DEFAULT_LOCALE);
       },
     });
   }
 
-  // When user switches tabs, sync the MarkdownEditor key/value correctly.
-  // For the default locale the legacy draftContent path is used; for
-  // non-default we reset draftContent so the editor renders the form value.
   function handleTabSelect(loc: Locale) {
-    if (loc !== DEFAULT_LOCALE) {
-      // Don't reset draftContent here — we let the editor receive the form
-      // value via `currentContent` derived above.
-      dispatch({ type: "setDraftContent", value: null });
-    }
     setActiveLocale(loc);
   }
 
-  const isSaving = save.isPending || saveTranslation.isPending;
+  const title = metaCurrent?.title ?? slug;
 
-  const title = page?.title ?? slug;
-
-  const activeForm = localeForms[activeLocale];
+  const activeTranslation = activeLocale === DEFAULT_LOCALE ? undefined : translationCurrent(activeLocale);
+  const hasActiveTranslation = activeLocale === DEFAULT_LOCALE || activeTranslation !== undefined;
 
   return (
     <PageLayout>
@@ -781,7 +611,7 @@ export function ContentEditorPage() {
           canDecreaseFont={state.sourceFontSize > FONT_SIZE_MIN}
           confirmDelete={state.confirmDelete}
           isDeleting={deletePage.isPending}
-          isSaving={isSaving}
+          isSaving={false}
           saved={state.saved}
           common={common}
           editorMessages={editorMessages}
@@ -794,7 +624,10 @@ export function ContentEditorPage() {
               onSuccess: () => navigate("/pages"),
             });
           }}
-          onSave={handleSave}
+          onSave={() => {
+            // Local save button is removed in T23. The global PagesSaveBar
+            // and Cmd+S (PagesEditorRoot) drive persistence for now.
+          }}
           onPreview={() => {
             const base =
               (import.meta.env.VITE_FRONTEND_URL as string | undefined) ??
@@ -804,9 +637,9 @@ export function ContentEditorPage() {
         />
       </PageHeader>
 
-      {page && (
+      {page && metaCurrent && (
         <EditorMetadataBar
-          page={page as unknown as ContentPage}
+          page={{ ...page, ...metaCurrent } as ContentPage}
           patchError={state.patchError}
           editingTitle={state.editingTitle}
           editTitleValue={state.editTitleValue}
@@ -816,32 +649,36 @@ export function ContentEditorPage() {
           locale={locale}
           common={common}
           onStartEditTitle={() => {
-            dispatch({ type: "setEditTitleValue", value: page.title });
+            dispatch({ type: "setEditTitleValue", value: metaCurrent.title });
             dispatch({ type: "setEditingTitle", value: true });
           }}
           onTitleValueChange={(value) => dispatch({ type: "setEditTitleValue", value })}
           onSaveTitle={handleTitleSave}
           onCancelTitle={() => dispatch({ type: "setEditingTitle", value: false })}
           onStartEditSlug={() => {
-            dispatch({ type: "setEditSlugValue", value: page.slug });
+            dispatch({ type: "setEditSlugValue", value: metaCurrent.slug });
             dispatch({ type: "setEditingSlug", value: true });
           }}
           onSlugValueChange={(value) => dispatch({ type: "setEditSlugValue", value })}
           onSlugBlur={(value) => dispatch({ type: "setEditSlugValue", value: slugify(value) })}
           onSaveSlug={handleSlugSave}
           onCancelSlug={() => dispatch({ type: "setEditingSlug", value: false })}
-          onStatusChange={(value) => void handlePatch({ status: value as "draft" | "published" | "hidden" })}
-          onShowTitleChange={(value) => void handlePatch({ showTitle: value })}
-          onTitleAlignmentChange={(value) => void handlePatch({ titleAlignment: value })}
+          onStatusChange={(value) => setMeta("status", value as "draft" | "published" | "hidden")}
+          onShowTitleChange={(value) => setMeta("showTitle", value)}
+          onTitleAlignmentChange={(value) => setMeta("titleAlignment", value)}
         />
       )}
 
-      {page && (
+      {page && metaCurrent && (
         <PageDisplaySettings
-          displayMode={page.displayMode}
-          overlayWidth={page.overlayWidth}
-          contentCardStyle={page.contentCardStyle}
-          onChange={(patch) => void handlePatch(patch)}
+          displayMode={metaCurrent.displayMode}
+          overlayWidth={metaCurrent.overlayWidth}
+          contentCardStyle={metaCurrent.contentCardStyle}
+          onChange={(patch) => {
+            if (patch.displayMode !== undefined) setMeta("displayMode", patch.displayMode);
+            if (patch.overlayWidth !== undefined) setMeta("overlayWidth", patch.overlayWidth);
+            if (patch.contentCardStyle !== undefined) setMeta("contentCardStyle", patch.contentCardStyle);
+          }}
         />
       )}
 
@@ -852,8 +689,7 @@ export function ContentEditorPage() {
               {editorMessages.loadingContent}
             </div>
           )}
-          <SegmentManager page={page} onSaved={showSaved} saveRef={segmentSaveRef} />
-          {save.isError && <p className="text-red-500 text-sm text-center mt-4">{editorMessages.saveError}</p>}
+          <SegmentManager page={page} onSaved={() => undefined} saveRef={segmentSaveRef} />
         </PageBody>
       ) : (
         <DashboardSection>
@@ -867,7 +703,7 @@ export function ContentEditorPage() {
           )}
 
           {/* Translation title field (non-default locales only) */}
-          {page && activeLocale !== DEFAULT_LOCALE && activeForm && (
+          {page && activeLocale !== DEFAULT_LOCALE && activeTranslation && (
             <div className="px-3 pt-3 flex items-center gap-3">
               <label
                 htmlFor="translation-title-input"
@@ -878,31 +714,31 @@ export function ContentEditorPage() {
               <input
                 id="translation-title-input"
                 type="text"
-                value={activeForm.title}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setLocaleForms((prev) => ({
-                    ...prev,
-                    [activeLocale]: prev[activeLocale]
-                      ? { ...prev[activeLocale]!, title: value, dirty: true }
-                      : undefined,
-                  }));
-                }}
+                value={activeTranslation.title ?? ""}
+                onChange={(e) =>
+                  editor.dispatch.translations({
+                    type: "set-field",
+                    slug: page.slug,
+                    locale: activeLocale,
+                    field: "title",
+                    value: e.target.value,
+                  })
+                }
                 className="flex-1 px-2 py-1 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] focus:outline-none focus:border-[var(--color-primary)]"
               />
               <label className="flex items-center gap-1.5 text-xs text-[var(--ds-text-muted)] cursor-pointer shrink-0">
                 <input
                   type="checkbox"
-                  checked={activeForm.translationReady}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setLocaleForms((prev) => ({
-                      ...prev,
-                      [activeLocale]: prev[activeLocale]
-                        ? { ...prev[activeLocale]!, translationReady: checked, dirty: true }
-                        : undefined,
-                    }));
-                  }}
+                  checked={activeTranslation.translationReady ?? false}
+                  onChange={(e) =>
+                    editor.dispatch.translations({
+                      type: "set-field",
+                      slug: page.slug,
+                      locale: activeLocale,
+                      field: "translationReady",
+                      value: e.target.checked,
+                    })
+                  }
                   className="accent-[var(--color-primary)] cursor-pointer"
                 />
                 Translation ready
@@ -928,7 +764,7 @@ export function ContentEditorPage() {
                 {editorMessages.loadingContent}
               </div>
             )}
-            {page && activeLocale !== DEFAULT_LOCALE && !activeForm ? (
+            {page && !hasActiveTranslation ? (
               /* No translation yet: offer to create one */
               <div className="flex flex-col items-center justify-center h-48 gap-3">
                 <p className="text-sm text-[var(--ds-text-muted)]">No {activeLocale.toUpperCase()} translation yet.</p>
@@ -952,9 +788,6 @@ export function ContentEditorPage() {
                   />
                 </Suspense>
               )
-            )}
-            {(save.isError || saveTranslation.isError) && (
-              <p className="text-red-500 text-sm text-center mt-4">{editorMessages.saveError}</p>
             )}
           </PageBody>
         </DashboardSection>
