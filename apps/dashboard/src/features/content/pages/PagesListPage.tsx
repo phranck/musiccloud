@@ -1,3 +1,19 @@
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { DEFAULT_LOCALE, LOCALES, type Locale, type TranslationStatus } from "@musiccloud/shared";
 import type { Icon } from "@phosphor-icons/react";
 import {
@@ -18,7 +34,7 @@ import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
-import type { ColumnDef } from "@/components/ui/Table";
+import type { ColumnDef, DataTableRowProps } from "@/components/ui/Table";
 import { DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { useI18n } from "@/context/I18nContext";
@@ -30,6 +46,7 @@ import {
 } from "@/features/content/hooks/useAdminContent";
 import { PageStatusBadge } from "@/features/content/PageStatus";
 import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
+import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 
 const TRANSLATION_ICON: Record<TranslationStatus, Icon> = {
   ready: CheckCircleIcon,
@@ -49,17 +66,37 @@ type ContentPage = ContentPageSummary;
 
 interface HierarchicalPage extends ContentPage {
   depth: 0 | 1;
+  /** Set on depth-1 children — names the segmented parent that owns this row. */
+  parentSlug?: string;
 }
 
-function buildHierarchy(pages: ContentPage[]): HierarchicalPage[] {
-  const { segmentedBlocks, orphanDefaults } = groupPagesByHierarchy(pages);
-  const out: HierarchicalPage[] = [];
-  for (const { parent, children } of segmentedBlocks) {
-    out.push({ ...parent, depth: 0 });
-    for (const child of children) out.push({ ...child, depth: 1 });
-  }
-  for (const orphan of orphanDefaults) out.push({ ...orphan, depth: 0 });
-  return out;
+function sortableIdFor(row: HierarchicalPage): string {
+  if (row.depth === 1 && row.parentSlug) return `child:${row.parentSlug}:${row.slug}`;
+  if (row.pageType === "segmented") return `top:${row.slug}`;
+  return `orphan:${row.slug}`;
+}
+
+function SortableHierarchicalRow({ row, className, children }: DataTableRowProps<HierarchicalPage>) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
+    id: sortableIdFor(row),
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  const overClass = isOver && !isDragging ? "ring-2 ring-inset ring-[var(--color-primary)]" : "";
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={`table-row-hover cursor-grab active:cursor-grabbing select-none ${className ?? ""} ${overClass}`.trim()}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </tr>
+  );
 }
 
 function formatDate(isoDate: string | null, locale: string): string {
@@ -90,6 +127,7 @@ export function PagesListPage() {
   const { data: pages = [], isLoading } = useContentPages();
   const deletePage = useDeleteContentPage();
   const navigate = useNavigate();
+  const editor = usePagesEditor();
 
   const [state, dispatch] = useReducer(
     (prev: PagesListState, action: Partial<PagesListState>): PagesListState => ({ ...prev, ...action }),
@@ -108,7 +146,122 @@ export function PagesListPage() {
     });
   }
 
-  const hierarchicalPages = useMemo(() => buildHierarchy(pages), [pages]);
+  const bySlug = useMemo(() => {
+    const m = new Map<string, ContentPageSummary>();
+    for (const p of pages) m.set(p.slug, p);
+    return m;
+  }, [pages]);
+
+  // Apply optimistic order from sidebar/segments slices so dragged rows stay
+  // in their dropped position until the user saves or discards. The Sidebar
+  // component hydrates the slices on mount; PagesListPage just consumes.
+  const hierarchicalPages = useMemo<HierarchicalPage[]>(() => {
+    const { segmentedBlocks: rawBlocks, orphanDefaults } = groupPagesByHierarchy(pages);
+    const orderedParents =
+      editor.sidebar.current.length > 0
+        ? editor.sidebar.current
+            .map((slug) => rawBlocks.find((b) => b.parent.slug === slug))
+            .filter((b): b is (typeof rawBlocks)[number] => b !== undefined)
+        : rawBlocks;
+    const out: HierarchicalPage[] = [];
+    for (const { parent, children } of orderedParents) {
+      out.push({ ...parent, depth: 0 });
+      const sliceCurrent = editor.segments.byOwner[parent.slug]?.current;
+      const orderedChildren = sliceCurrent
+        ? sliceCurrent
+            .map((entry) => bySlug.get(entry.targetSlug))
+            .filter((c): c is ContentPageSummary => c !== undefined)
+        : children;
+      for (const child of orderedChildren) {
+        out.push({ ...child, depth: 1, parentSlug: parent.slug });
+      }
+    }
+    for (const orphan of orphanDefaults) {
+      // After demote, the slice removed the row from its parent but the
+      // server-side pages list still groups it under that parent until the
+      // next refetch. Skip rows that the slice has already promoted/demoted
+      // to keep the rendered hierarchy consistent with optimistic state.
+      if (out.some((r) => r.slug === orphan.slug)) continue;
+      out.push({ ...orphan, depth: 0 });
+    }
+    return out;
+  }, [pages, editor.sidebar.current, editor.segments.byOwner, bySlug]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    const rawBlocks = groupPagesByHierarchy(pages).segmentedBlocks;
+
+    if (activeId.startsWith("top:") && overId.startsWith("top:")) {
+      const fromSlug = activeId.slice(4);
+      const toSlug = overId.slice(4);
+      const baseOrder = rawBlocks.map((b) => b.parent.slug);
+      const order = editor.sidebar.current.length > 0 ? editor.sidebar.current : baseOrder;
+      const from = order.indexOf(fromSlug);
+      const to = order.indexOf(toSlug);
+      if (from < 0 || to < 0) return;
+      if (editor.sidebar.current.length === 0) {
+        editor.dispatch.sidebar({ type: "hydrate", topLevelOrder: order });
+      }
+      editor.dispatch.sidebar({ type: "reorder-top-level", from, to });
+      return;
+    }
+
+    if (activeId.startsWith("child:") && overId.startsWith("child:")) {
+      const [, fromOwner, target] = activeId.split(":");
+      const [, toOwner, overTarget] = overId.split(":");
+      if (!fromOwner || !target || !toOwner || !overTarget) return;
+      if (fromOwner === toOwner) {
+        const items = editor.segments.byOwner[fromOwner]?.current ?? [];
+        const from = items.findIndex((s) => s.targetSlug === target);
+        const to = items.findIndex((s) => s.targetSlug === overTarget);
+        if (from < 0 || to < 0) return;
+        editor.dispatch.segments({ type: "reorder", owner: fromOwner, from, to });
+      } else {
+        const targetList = editor.segments.byOwner[toOwner]?.current ?? [];
+        const insertAt = targetList.findIndex((s) => s.targetSlug === overTarget);
+        editor.dispatch.segments({
+          type: "move",
+          target,
+          from: fromOwner,
+          to: toOwner,
+          position: insertAt < 0 ? targetList.length : insertAt,
+        });
+      }
+      return;
+    }
+
+    if (activeId.startsWith("child:") && overId.startsWith("orphan:")) {
+      const [, owner, target] = activeId.split(":");
+      if (!owner || !target) return;
+      editor.dispatch.segments({ type: "remove", owner, target });
+      return;
+    }
+
+    if (activeId.startsWith("orphan:") && overId.startsWith("child:")) {
+      const target = activeId.slice("orphan:".length);
+      const [, toOwner, overTarget] = overId.split(":");
+      if (!target || !toOwner || !overTarget) return;
+      const list = editor.segments.byOwner[toOwner]?.current ?? [];
+      const insertAt = list.findIndex((s) => s.targetSlug === overTarget);
+      const promoted = bySlug.get(target);
+      editor.dispatch.segments({
+        type: "add",
+        owner: toOwner,
+        target,
+        position: insertAt < 0 ? list.length : insertAt,
+        label: promoted?.title ?? target,
+      });
+    }
+    // orphan↔orphan: visual-only (orphan position not persisted).
+  }
 
   const columns = useMemo<ColumnDef<HierarchicalPage>[]>(
     () => [
@@ -242,7 +395,17 @@ export function PagesListPage() {
 
         {!isLoading && pages.length > 0 && (
           <div className="-mx-3 -mt-3">
-            <DataTable columns={columns} data={hierarchicalPages} getRowKey={(page) => page.slug} stickyHeader />
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={hierarchicalPages.map(sortableIdFor)} strategy={verticalListSortingStrategy}>
+                <DataTable
+                  columns={columns}
+                  data={hierarchicalPages}
+                  getRowKey={(page) => page.slug}
+                  stickyHeader
+                  RowComponent={SortableHierarchicalRow}
+                />
+              </SortableContext>
+            </DndContext>
           </div>
         )}
       </PageBody>
