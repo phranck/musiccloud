@@ -343,6 +343,21 @@ async function buildApp() {
         font-family: 'Roboto Condensed', system-ui, sans-serif !important;
         padding-left: 6px !important;
       }
+      /* Markdown links inside operation descriptions: Redoc's
+         theme.typography.links knob doesn't always reach every Markdown
+         renderer in the description tree, so force underline + visible
+         color here as a fallback. */
+      .api-content a, .api-content a:visited {
+        color: #1d6ae5 !important;
+        text-decoration: underline !important;
+        text-underline-offset: 2px;
+      }
+      .api-content a:visited {
+        color: #6b3ec1 !important;
+      }
+      .api-content a:hover {
+        color: #0a4cb8 !important;
+      }
     </style>
   </head>
   <body>
@@ -367,6 +382,13 @@ async function buildApp() {
                 fontSize: "14px",
                 lineHeight: "1.15em",
                 fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              },
+              links: {
+                color: "#1d6ae5",
+                visited: "#6b3ec1",
+                hover: "#0a4cb8",
+                textDecoration: "underline",
+                hoverTextDecoration: "underline",
               },
             },
             sidebar: {
