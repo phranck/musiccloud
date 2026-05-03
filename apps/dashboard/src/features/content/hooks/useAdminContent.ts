@@ -46,18 +46,6 @@ export function useDeleteContentPage() {
   });
 }
 
-export function usePatchContentPage() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ slug, data }: { slug: string; data: Partial<ContentPage> }) =>
-      api.patch<ContentPage>(`/admin/pages/${slug}`, data),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ["content-pages"] });
-      qc.invalidateQueries({ queryKey: ["content-pages", vars.slug] });
-    },
-  });
-}
-
 export function useSaveContentPageSegments() {
   const qc = useQueryClient();
   return useMutation({
