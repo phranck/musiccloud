@@ -1,7 +1,9 @@
 import { ListIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Outlet, useNavigate } from "react-router";
 
+import { PagesSaveBar } from "@/components/layout/PagesSaveBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { FooterUserInfo } from "@/components/layout/SidebarFooter";
 import { Card } from "@/components/ui/Card";
@@ -12,8 +14,12 @@ import { PageFooterProvider, usePageFooterContext } from "@/context/PageFooterCo
 import { PageHeaderProvider, usePageHeaderContext } from "@/context/PageHeaderContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/features/auth/AuthContext";
+import { PagesEditorProvider } from "@/features/content/state/PagesEditorContext";
+import { UnsavedGuard } from "@/features/content/state/UnsavedGuard";
+import { useGlobalPagesSave } from "@/features/content/state/useGlobalPagesSave";
 import { UserEditCard } from "@/features/system/UserEditCard";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
+import { useKeyboardSave } from "@/lib/useKeyboardSave";
 import { LogoView } from "@/shared/ui/LogoView";
 
 const SIDEBAR_DEFAULT = 224;
@@ -230,12 +236,28 @@ function AdminLayoutInner() {
   );
 }
 
+function PagesSaveBarMount() {
+  const { actionsEl } = usePageHeaderContext();
+  return actionsEl ? createPortal(<PagesSaveBar />, actionsEl) : null;
+}
+
+function PagesEditorBindings() {
+  const { save } = useGlobalPagesSave();
+  useKeyboardSave(save);
+  return null;
+}
+
 export function AdminLayout() {
   return (
     <PageHeaderProvider>
       <PageFooterProvider>
         <BodyCardProvider>
-          <AdminLayoutInner />
+          <PagesEditorProvider>
+            <PagesSaveBarMount />
+            <PagesEditorBindings />
+            <UnsavedGuard />
+            <AdminLayoutInner />
+          </PagesEditorProvider>
         </BodyCardProvider>
       </PageFooterProvider>
     </PageHeaderProvider>
