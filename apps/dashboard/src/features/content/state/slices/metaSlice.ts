@@ -1,6 +1,6 @@
 import type { ContentPage } from "@musiccloud/shared";
 
-type MetaFields = Pick<
+export type MetaFields = Pick<
   ContentPage,
   | "title"
   | "slug"
