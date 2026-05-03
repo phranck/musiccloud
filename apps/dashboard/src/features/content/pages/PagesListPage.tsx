@@ -2,8 +2,6 @@ import { DEFAULT_LOCALE, LOCALES, type Locale, type TranslationStatus } from "@m
 import type { Icon } from "@phosphor-icons/react";
 import {
   CheckCircleIcon,
-  CircleIcon,
-  EyeSlashIcon,
   FileDashedIcon,
   FileIcon,
   FileMdIcon,
@@ -30,6 +28,7 @@ import {
   useContentPages,
   useDeleteContentPage,
 } from "@/features/content/hooks/useAdminContent";
+import { PageStatusBadge } from "@/features/content/PageStatus";
 import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
 
 const TRANSLATION_ICON: Record<TranslationStatus, Icon> = {
@@ -61,33 +60,6 @@ function buildHierarchy(pages: ContentPage[]): HierarchicalPage[] {
   }
   for (const orphan of orphanDefaults) out.push({ ...orphan, depth: 0 });
   return out;
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const { messages } = useI18n();
-  const s = messages.content.pages.status;
-  if (status === "published") {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-        <CheckCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-        {s.published}
-      </span>
-    );
-  }
-  if (status === "hidden") {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs text-[var(--ds-text-muted)]">
-        <EyeSlashIcon weight="duotone" className="w-3.5 h-3.5" />
-        {s.hidden}
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-      <CircleIcon weight="duotone" className="w-3.5 h-3.5" />
-      {s.draft}
-    </span>
-  );
 }
 
 function formatDate(isoDate: string | null, locale: string): string {
@@ -176,7 +148,7 @@ export function PagesListPage() {
       {
         id: "status",
         header: text.table.status,
-        cell: (page) => <StatusBadge status={page.status} />,
+        cell: (page) => <PageStatusBadge status={page.status} />,
       },
       {
         id: "createdBy",

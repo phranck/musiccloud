@@ -3,11 +3,8 @@ import {
   CaretCircleDoubleUpIcon,
   CaretDownIcon,
   ChartBarIcon,
-  CheckCircleIcon,
-  CircleIcon,
   CopyIcon,
   EnvelopeOpenIcon,
-  EyeSlashIcon,
   FileDashedIcon,
   FileMdIcon,
   FilesIcon,
@@ -33,6 +30,7 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { useI18n } from "@/context/I18nContext";
 import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
+import { PageStatusIcon } from "@/features/content/PageStatus";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import type { AdminRole } from "@/shared/types/admin";
@@ -54,16 +52,6 @@ interface SidebarProps {
   onItemClick?: () => void;
   onEditProfile?: () => void;
   bare?: boolean;
-}
-
-function PageStatusIcon({ status }: { status: string }) {
-  if (status === "published") {
-    return <CheckCircleIcon weight="duotone" className="w-3 h-3 text-green-500 shrink-0" />;
-  }
-  if (status === "hidden") {
-    return <EyeSlashIcon weight="duotone" className="w-3 h-3 text-gray-400 shrink-0" />;
-  }
-  return <CircleIcon weight="duotone" className="w-3 h-3 text-amber-500 shrink-0" />;
 }
 
 type TreeDepth = 1 | 2;
