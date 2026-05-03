@@ -82,4 +82,46 @@ describe("translationsSlice", () => {
     const s2 = translationsReducer(s1, { type: "reset" });
     expect(dirtyEntries(s2)).toEqual([]);
   });
+
+  it("add-locale on a new page creates entry with empty initial and given current → dirty", () => {
+    const s = translationsReducer(
+      { byPage: {} },
+      {
+        type: "add-locale",
+        slug: "info",
+        locale: "es",
+        fields: { title: "Información", content: "# es", translationReady: false },
+      },
+    );
+    expect(s.byPage.info.es.initial).toEqual({ title: "", content: "", translationReady: false });
+    expect(s.byPage.info.es.current).toEqual({ title: "Información", content: "# es", translationReady: false });
+    expect(dirtyEntries(s)).toEqual([{ slug: "info", locale: "es" }]);
+  });
+
+  it("add-locale leaves other locales of the same page untouched", () => {
+    const s2 = translationsReducer(seed, {
+      type: "add-locale",
+      slug: "info",
+      locale: "es",
+      fields: { title: "Información", content: "# es", translationReady: false },
+    });
+    expect(s2.byPage.info.de.initial.title).toBe("Information");
+    expect(s2.byPage.info.de.current.title).toBe("Information");
+    expect(dirtyEntries(s2)).toEqual([{ slug: "info", locale: "es" }]);
+  });
+
+  it("reset clears the added locale's dirty state (current reverts to empty initial)", () => {
+    const s1 = translationsReducer(
+      { byPage: {} },
+      {
+        type: "add-locale",
+        slug: "info",
+        locale: "es",
+        fields: { title: "X", content: "Y", translationReady: false },
+      },
+    );
+    const s2 = translationsReducer(s1, { type: "reset" });
+    expect(dirtyEntries(s2)).toEqual([]);
+    expect(s2.byPage.info.es.current).toEqual({ title: "", content: "", translationReady: false });
+  });
 });

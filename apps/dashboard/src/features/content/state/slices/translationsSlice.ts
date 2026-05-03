@@ -13,6 +13,7 @@ export type TranslationsAction =
       field: keyof TranslationFields;
       value: TranslationFields[keyof TranslationFields];
     }
+  | { type: "add-locale"; slug: string; locale: string; fields: TranslationFields }
   | { type: "reset" };
 
 export function translationsReducer(state: TranslationsState, action: TranslationsAction): TranslationsState {
@@ -39,6 +40,16 @@ export function translationsReducer(state: TranslationsState, action: Translatio
         byPage: {
           ...state.byPage,
           [action.slug]: { ...page, [action.locale]: { ...entry, current: next } },
+        },
+      };
+    }
+    case "add-locale": {
+      const emptyInitial: TranslationFields = { title: "", content: "", translationReady: false };
+      const page = state.byPage[action.slug] ?? {};
+      return {
+        byPage: {
+          ...state.byPage,
+          [action.slug]: { ...page, [action.locale]: { initial: emptyInitial, current: action.fields } },
         },
       };
     }
