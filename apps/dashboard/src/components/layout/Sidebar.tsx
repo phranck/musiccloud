@@ -185,7 +185,7 @@ interface SortableChildRowProps {
 }
 
 function SortableChildRow({ parentSlug, child, isFirstChild, childrenContinue, onItemClick }: SortableChildRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: `child:${parentSlug}:${child.slug}`,
   });
   const style: React.CSSProperties = {
@@ -199,7 +199,9 @@ function SortableChildRow({ parentSlug, child, isFirstChild, childrenContinue, o
       style={style}
       {...attributes}
       {...listeners}
-      className="cursor-grab active:cursor-grabbing touch-none"
+      className={`cursor-grab active:cursor-grabbing touch-none ${
+        isOver && !isDragging ? "ring-2 ring-inset ring-[var(--color-primary)]" : ""
+      }`}
     >
       <PageTreeRow
         depth={2}
@@ -220,7 +222,7 @@ interface SortableOrphanRowProps {
 }
 
 function SortableOrphanRow({ page, onItemClick }: SortableOrphanRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: `orphan:${page.slug}`,
   });
   const style: React.CSSProperties = {
@@ -234,7 +236,9 @@ function SortableOrphanRow({ page, onItemClick }: SortableOrphanRowProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className="cursor-grab active:cursor-grabbing touch-none"
+      className={`cursor-grab active:cursor-grabbing touch-none ${
+        isOver && !isDragging ? "ring-2 ring-inset ring-[var(--color-primary)]" : ""
+      }`}
     >
       <PageTreeRow depth={1} ancestorContinues={[]} to={`/pages/${page.slug}`} onItemClick={onItemClick}>
         <PageTreeContent page={page} icon={<FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />} />
@@ -267,7 +271,7 @@ function SortableTopLevelRow({
   childrenContinue,
 }: SortableTopLevelRowProps) {
   const editor = usePagesEditor();
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: `top:${parent.slug}`,
   });
   const style: React.CSSProperties = {
@@ -275,6 +279,7 @@ function SortableTopLevelRow({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+  const overClass = isOver && !isDragging ? "ring-2 ring-inset ring-[var(--color-primary)]" : "";
   // Optimistic order: the segmentsSlice owns the source of truth once hydrated;
   // before hydrate (or for unknown owners) fall back to the server-side
   // childPages prop.
@@ -284,7 +289,7 @@ function SortableTopLevelRow({
     : childPages;
   return (
     <div ref={setNodeRef} style={style}>
-      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none">
+      <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing touch-none ${overClass}`}>
         <PageTreeRow
           depth={1}
           ancestorContinues={[]}
