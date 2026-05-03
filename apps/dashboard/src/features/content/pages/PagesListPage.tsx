@@ -77,15 +77,23 @@ function sortableIdFor(row: HierarchicalPage): string {
 }
 
 function SortableHierarchicalRow({ row, className, children }: DataTableRowProps<HierarchicalPage>) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
-    id: sortableIdFor(row),
-  });
+  const id = sortableIdFor(row);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({ id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  const overClass = isOver && !isDragging ? "ring-2 ring-inset ring-[var(--color-primary)]" : "";
+  // Drop-target affordance differs by row kind:
+  //   top:  → drop INTO this segmented parent (full ring + faint bg tint)
+  //   else  → drop AS PEER above this row (inset top line)
+  const isTopRow = id.startsWith("top:");
+  const overClass =
+    isOver && !isDragging
+      ? isTopRow
+        ? "ring-2 ring-inset ring-[var(--color-primary)] bg-[var(--color-primary)]/10"
+        : "shadow-[inset_0_2px_0_0_var(--color-primary)]"
+      : "";
   return (
     <tr
       ref={setNodeRef}
