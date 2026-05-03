@@ -7,7 +7,13 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   CaretCircleDoubleDownIcon,
   CaretCircleDoubleUpIcon,
@@ -41,6 +47,7 @@ import { useI18n } from "@/context/I18nContext";
 import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { PageStatusIcon } from "@/features/content/PageStatus";
+import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import type { AdminRole } from "@/shared/types/admin";
@@ -168,6 +175,74 @@ function PageTreeContent({ page, icon }: { page: { slug: string; title: string; 
   );
 }
 
+interface SortableTopLevelRowProps {
+  parent: { slug: string; title: string; status: string };
+  childPages: { slug: string; title: string; status: string }[];
+  collapsible: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  expandLabel: string;
+  onItemClick?: () => void;
+  childrenContinue: boolean;
+}
+
+function SortableTopLevelRow({
+  parent,
+  childPages,
+  collapsible,
+  expanded,
+  onToggle,
+  expandLabel,
+  onItemClick,
+  childrenContinue,
+}: SortableTopLevelRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: `top:${parent.slug}`,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none">
+        <PageTreeRow
+          depth={1}
+          ancestorContinues={[]}
+          to={`/pages/${parent.slug}`}
+          onItemClick={onItemClick}
+          collapsible={collapsible}
+          expanded={expanded}
+          onToggleExpanded={onToggle}
+          toggleAriaLabel={expandLabel}
+        >
+          <PageTreeContent
+            page={parent}
+            icon={<FileDashedIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />}
+          />
+        </PageTreeRow>
+      </div>
+      {expanded &&
+        childPages.map((child, idx) => (
+          <PageTreeRow
+            key={child.slug}
+            depth={2}
+            ancestorContinues={childrenContinue ? [1] : []}
+            isFirstChild={idx === 0}
+            to={`/pages/${child.slug}`}
+            onItemClick={onItemClick}
+          >
+            <PageTreeContent
+              page={child}
+              icon={<FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />}
+            />
+          </PageTreeRow>
+        ))}
+    </div>
+  );
+}
+
 function PagesGroup({
   onItemClick,
   globalOpenState,
@@ -182,9 +257,20 @@ function PagesGroup({
   const { messages } = useI18n();
   const s = messages.layout.sidebar;
   const { data: pages } = useContentPages();
+  const editor = usePagesEditor();
 
   const list = pages ?? [];
-  const { segmentedBlocks, orphanDefaults } = groupPagesByHierarchy(list);
+  const { segmentedBlocks: rawSegmentedBlocks, orphanDefaults } = groupPagesByHierarchy(list);
+
+  // Apply optimistic order from sidebarSlice when the user has dragged but not
+  // saved yet. After save, useGlobalPagesSave re-hydrates the slice with the
+  // new server order, so the slice and the (refetched) list stay aligned.
+  const segmentedBlocks =
+    editor.sidebar.current.length > 0
+      ? editor.sidebar.current
+          .map((slug) => rawSegmentedBlocks.find((b) => b.parent.slug === slug))
+          .filter((b): b is (typeof rawSegmentedBlocks)[number] => b !== undefined)
+      : rawSegmentedBlocks;
 
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
   const segmentedSlugsKey = segmentedBlocks.map(({ parent }) => parent.slug).join(",");
@@ -215,46 +301,27 @@ function PagesGroup({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  function handleDragEnd(_e: DragEndEvent) {
-    // Branches added incrementally in T28 (top-level), T29 (sub-page move), T30 (promote/demote)
-  }
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const activeId = String(active.id);
+    const overId = String(over.id);
 
-  type RowSpec =
-    | { kind: "overview" }
-    | {
-        kind: "parent";
-        page: (typeof list)[number];
-        ancestorContinues: TreeDepth[];
-        collapsible: boolean;
-        expanded: boolean;
+    if (activeId.startsWith("top:") && overId.startsWith("top:")) {
+      const fromSlug = activeId.slice(4);
+      const toSlug = overId.slice(4);
+      const baseOrder = rawSegmentedBlocks.map((b) => b.parent.slug);
+      const order = editor.sidebar.current.length > 0 ? editor.sidebar.current : baseOrder;
+      const from = order.indexOf(fromSlug);
+      const to = order.indexOf(toSlug);
+      if (from < 0 || to < 0) return;
+      if (editor.sidebar.current.length === 0) {
+        editor.dispatch.sidebar({ type: "hydrate", topLevelOrder: order });
       }
-    | { kind: "child"; page: (typeof list)[number]; ancestorContinues: TreeDepth[]; isFirstChild: boolean }
-    | { kind: "orphan"; page: (typeof list)[number] };
-
-  const rowSpecs: RowSpec[] = [{ kind: "overview" }];
-  segmentedBlocks.forEach(({ parent, children }, blockIdx) => {
-    const moreD1Below = blockIdx < segmentedBlocks.length - 1 || orphanDefaults.length > 0;
-    const expanded = expandedMap[parent.slug] ?? true;
-    rowSpecs.push({
-      kind: "parent",
-      page: parent,
-      ancestorContinues: [],
-      collapsible: children.length > 0,
-      expanded,
-    });
-    if (!expanded) return;
-    children.forEach((child, childIdx) => {
-      rowSpecs.push({
-        kind: "child",
-        page: child,
-        ancestorContinues: moreD1Below ? [1] : [],
-        isFirstChild: childIdx === 0,
-      });
-    });
-  });
-  orphanDefaults.forEach((page) => {
-    rowSpecs.push({ kind: "orphan", page });
-  });
+      editor.dispatch.sidebar({ type: "reorder-top-level", from, to });
+      return;
+    }
+  }
 
   return (
     <CollapsibleSidebarGroup
@@ -269,54 +336,53 @@ function PagesGroup({
       noRail
     >
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        {rowSpecs.map((spec, idx) => {
-          if (spec.kind === "overview") {
+        <PageTreeRow
+          key="__overview"
+          depth={1}
+          ancestorContinues={[]}
+          isFirstAtTopLevel
+          to="/pages"
+          end
+          onItemClick={onItemClick}
+        >
+          <span className="truncate">{s.pagesOverview}</span>
+        </PageTreeRow>
+        <SortableContext
+          items={segmentedBlocks.map(({ parent }) => `top:${parent.slug}`)}
+          strategy={verticalListSortingStrategy}
+        >
+          {segmentedBlocks.map(({ parent, children }, blockIdx) => {
+            const childrenContinue = blockIdx < segmentedBlocks.length - 1 || orphanDefaults.length > 0;
+            const expanded = expandedMap[parent.slug] ?? true;
             return (
-              <PageTreeRow
-                key="__overview"
-                depth={1}
-                ancestorContinues={[]}
-                isFirstAtTopLevel
-                to="/pages"
-                end
+              <SortableTopLevelRow
+                key={parent.slug}
+                parent={parent}
+                childPages={children}
+                collapsible={children.length > 0}
+                expanded={expanded}
+                onToggle={() => toggleExpanded(parent.slug)}
+                expandLabel={expanded ? s.collapseAllAria : s.expandAllAria}
                 onItemClick={onItemClick}
-              >
-                <span className="truncate">{s.pagesOverview}</span>
-              </PageTreeRow>
+                childrenContinue={childrenContinue}
+              />
             );
-          }
-          const depth: TreeDepth = spec.kind === "child" ? 2 : 1;
-          const isFirstAtTopLevel = idx === 0;
-          const icon =
-            spec.kind === "parent" ? (
-              <FileDashedIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />
-            ) : (
-              <FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />
-            );
-          const collapsibleProps =
-            spec.kind === "parent" && spec.collapsible
-              ? {
-                  collapsible: true as const,
-                  expanded: spec.expanded,
-                  onToggleExpanded: () => toggleExpanded(spec.page.slug),
-                  toggleAriaLabel: spec.expanded ? s.collapseAllAria : s.expandAllAria,
-                }
-              : {};
-          return (
-            <PageTreeRow
-              key={spec.page.slug}
-              depth={depth}
-              ancestorContinues={spec.kind === "child" ? spec.ancestorContinues : []}
-              isFirstChild={spec.kind === "child" && spec.isFirstChild}
-              isFirstAtTopLevel={isFirstAtTopLevel}
-              to={`/pages/${spec.page.slug}`}
-              onItemClick={onItemClick}
-              {...collapsibleProps}
-            >
-              <PageTreeContent page={spec.page} icon={icon} />
-            </PageTreeRow>
-          );
-        })}
+          })}
+        </SortableContext>
+        {orphanDefaults.map((page) => (
+          <PageTreeRow
+            key={page.slug}
+            depth={1}
+            ancestorContinues={[]}
+            to={`/pages/${page.slug}`}
+            onItemClick={onItemClick}
+          >
+            <PageTreeContent
+              page={page}
+              icon={<FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />}
+            />
+          </PageTreeRow>
+        ))}
       </DndContext>
     </CollapsibleSidebarGroup>
   );
