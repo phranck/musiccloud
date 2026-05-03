@@ -24,6 +24,7 @@ import type { ColumnDef } from "@/components/ui/Table";
 import { DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { useI18n } from "@/context/I18nContext";
+import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import {
   type ContentPageSummary,
   useContentPages,
@@ -52,27 +53,13 @@ interface HierarchicalPage extends ContentPage {
 }
 
 function buildHierarchy(pages: ContentPage[]): HierarchicalPage[] {
-  const bySlug = new Map(pages.map((p) => [p.slug, p]));
-  const segmentedParents = pages.filter((p) => p.pageType === "segmented");
-  const claimed = new Set<string>();
+  const { segmentedBlocks, orphanDefaults } = groupPagesByHierarchy(pages);
   const out: HierarchicalPage[] = [];
-  for (const parent of segmentedParents) {
+  for (const { parent, children } of segmentedBlocks) {
     out.push({ ...parent, depth: 0 });
-    const children = (parent.segments ?? [])
-      .slice()
-      .sort((a, b) => a.position - b.position)
-      .map((seg) => bySlug.get(seg.targetSlug))
-      .filter((p): p is ContentPage => p !== undefined && !claimed.has(p.slug));
-    for (const child of children) {
-      claimed.add(child.slug);
-      out.push({ ...child, depth: 1 });
-    }
+    for (const child of children) out.push({ ...child, depth: 1 });
   }
-  for (const page of pages) {
-    if (page.pageType === "default" && !claimed.has(page.slug)) {
-      out.push({ ...page, depth: 0 });
-    }
-  }
+  for (const orphan of orphanDefaults) out.push({ ...orphan, depth: 0 });
   return out;
 }
 

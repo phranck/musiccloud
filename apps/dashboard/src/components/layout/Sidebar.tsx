@@ -31,6 +31,7 @@ import { SidebarFooter } from "@/components/layout/SidebarFooter";
 import { SidebarHeader } from "@/components/layout/SidebarHeader";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { useI18n } from "@/context/I18nContext";
+import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
@@ -185,19 +186,7 @@ function PagesGroup({
   const { data: pages } = useContentPages();
 
   const list = pages ?? [];
-  const bySlug = new Map(list.map((p) => [p.slug, p]));
-  const segmentedParents = list.filter((p) => p.pageType === "segmented");
-  const renderedChildren = new Set<string>();
-  const segmentedBlocks = segmentedParents.map((parent) => {
-    const children = (parent.segments ?? [])
-      .slice()
-      .sort((a, b) => a.position - b.position)
-      .map((seg) => bySlug.get(seg.targetSlug))
-      .filter((p): p is NonNullable<typeof p> => p !== undefined && !renderedChildren.has(p.slug));
-    children.forEach((c) => renderedChildren.add(c.slug));
-    return { parent, children };
-  });
-  const orphanDefaults = list.filter((p) => p.pageType === "default" && !renderedChildren.has(p.slug));
+  const { segmentedBlocks, orphanDefaults } = groupPagesByHierarchy(list);
 
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
   const segmentedSlugsKey = segmentedBlocks.map(({ parent }) => parent.slug).join(",");
