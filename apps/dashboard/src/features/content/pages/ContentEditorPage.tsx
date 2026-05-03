@@ -1,13 +1,6 @@
 import type { ContentPage, Locale, PageTitleAlignment as PageTitleAlignmentValue } from "@musiccloud/shared";
 import { DEFAULT_LOCALE, LOCALES } from "@musiccloud/shared";
-import {
-  DownloadIcon,
-  EyeIcon,
-  MarkdownLogoIcon,
-  MinusCircleIcon,
-  PlusCircleIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+import { EyeIcon, MarkdownLogoIcon, MinusCircleIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
@@ -134,12 +127,8 @@ interface EditorHeaderActionsProps {
   canDecreaseFont: boolean;
   confirmDelete: boolean;
   isDeleting: boolean;
-  isSaving: boolean;
-  saved: boolean;
   common: {
     cancel: string;
-    save: string;
-    saving: string;
   };
   editorMessages: {
     decreaseFontSize: string;
@@ -147,7 +136,6 @@ interface EditorHeaderActionsProps {
     deletePage: string;
     confirmDelete: string;
     confirmDeleteAction: string;
-    saved: string;
     preview: string;
   };
   onDecreaseFont: () => void;
@@ -155,7 +143,6 @@ interface EditorHeaderActionsProps {
   onOpenDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
-  onSave: () => void;
   onPreview: () => void;
 }
 
@@ -165,8 +152,6 @@ function EditorHeaderActions({
   canDecreaseFont,
   confirmDelete,
   isDeleting,
-  isSaving: _isSaving,
-  saved,
   common,
   editorMessages,
   onDecreaseFont,
@@ -174,7 +159,6 @@ function EditorHeaderActions({
   onOpenDelete,
   onCancelDelete,
   onConfirmDelete,
-  onSave,
   onPreview,
 }: EditorHeaderActionsProps) {
   return (
@@ -209,16 +193,6 @@ function EditorHeaderActions({
       >
         <EyeIcon weight="duotone" className="w-3.5 h-3.5" />
         {editorMessages.preview}
-      </button>
-
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={_isSaving}
-        className="flex items-center gap-2 h-8 min-w-8 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] disabled:opacity-60"
-      >
-        <DownloadIcon weight="duotone" className="w-3.5 h-3.5" />
-        {saved ? editorMessages.saved : common.save}
       </button>
 
       {!confirmDelete ? (
@@ -611,8 +585,6 @@ export function ContentEditorPage() {
           canDecreaseFont={state.sourceFontSize > FONT_SIZE_MIN}
           confirmDelete={state.confirmDelete}
           isDeleting={deletePage.isPending}
-          isSaving={false}
-          saved={state.saved}
           common={common}
           editorMessages={editorMessages}
           onDecreaseFont={() => changeFontSize(-1)}
@@ -623,10 +595,6 @@ export function ContentEditorPage() {
             deletePage.mutate(slug, {
               onSuccess: () => navigate("/pages"),
             });
-          }}
-          onSave={() => {
-            // Local save button is removed in T23. The global PagesSaveBar
-            // and Cmd+S (PagesEditorRoot) drive persistence for now.
           }}
           onPreview={() => {
             const base =
