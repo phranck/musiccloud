@@ -196,6 +196,10 @@ function EditorHeaderActions({
 
 interface EditorMetadataBarProps {
   page: ContentPage;
+  /** Title shown in the bar — locale-aware: default-locale renders meta.title, others render the active translation's title. */
+  displayTitle: string;
+  /** Locale label appended to the title field, e.g. "Titel (DE)". Empty for the default locale. */
+  titleLocaleSuffix?: string;
   patchError: string | null;
   editingTitle: boolean;
   editTitleValue: string;
@@ -247,6 +251,8 @@ function formatDateTime(iso: string | null, locale: string): string {
 
 function EditorMetadataBar({
   page,
+  displayTitle,
+  titleLocaleSuffix,
   patchError,
   editingTitle,
   editTitleValue,
@@ -268,10 +274,13 @@ function EditorMetadataBar({
   onShowTitleChange,
   onTitleAlignmentChange,
 }: EditorMetadataBarProps) {
+  const titleLabel = titleLocaleSuffix
+    ? `${editorMessages.titleLabel} (${titleLocaleSuffix})`
+    : editorMessages.titleLabel;
   return (
     <div className="px-3 pt-3 pb-1 flex flex-wrap items-center gap-6 text-xs text-[var(--ds-text-muted)] bg-[var(--ds-surface)]">
       <div className="flex items-center gap-2">
-        <span className="font-medium">{editorMessages.titleLabel}:</span>
+        <span className="font-medium">{titleLabel}:</span>
         {editingTitle ? (
           <div className="flex items-center gap-1">
             <input
@@ -292,7 +301,7 @@ function EditorMetadataBar({
           </div>
         ) : (
           <button type="button" onClick={onStartEditTitle} className="hover:underline text-[var(--ds-text)]">
-            {page.title}
+            {displayTitle || <span className="italic opacity-60">—</span>}
           </button>
         )}
       </div>
@@ -473,7 +482,33 @@ export function ContentEditorPage() {
   };
 
   function handleTitleSave() {
-    setMeta("title", state.editTitleValue);
+    if (!page) return;
+    if (activeLocale === DEFAULT_LOCALE) {
+      setMeta("title", state.editTitleValue);
+    } else if (translationCurrent(activeLocale) !== undefined) {
+      editor.dispatch.translations({
+        type: "set-field",
+        slug: page.slug,
+        locale: activeLocale,
+        field: "title",
+        value: state.editTitleValue,
+      });
+    } else {
+      // Auto-create the translation on first title-edit so the user doesn't
+      // have to click the dedicated "Create translation" button just to
+      // localize a title (segmented parents in particular have no other
+      // translation surface).
+      editor.dispatch.translations({
+        type: "add-locale",
+        slug: page.slug,
+        locale: activeLocale,
+        fields: {
+          title: state.editTitleValue,
+          content: page.pageType === "segmented" ? "" : contentCurrent || page.content,
+          translationReady: false,
+        },
+      });
+    }
     dispatch({ type: "setEditingTitle", value: false });
   }
 
@@ -529,15 +564,20 @@ export function ContentEditorPage() {
     setActiveLocale(loc);
   }
 
-  const title = metaCurrent?.title ?? slug;
+  const baseTitle = metaCurrent?.title ?? slug;
 
   const activeTranslation = activeLocale === DEFAULT_LOCALE ? undefined : translationCurrent(activeLocale);
   const hasActiveTranslation = activeLocale === DEFAULT_LOCALE || activeTranslation !== undefined;
 
+  // Title shown in the metadata bar follows the active locale tab.
+  const displayTitle = activeLocale === DEFAULT_LOCALE ? baseTitle : (activeTranslation?.title ?? "");
+  // Page-header title falls back to the base when a translation has no title yet.
+  const headerTitle = displayTitle || baseTitle;
+
   return (
     <PageLayout>
       <PageHeader
-        title={title}
+        title={headerTitle}
         leading={<HeaderBackButton label={messages.content.pages.title} onClick={() => navigate("/pages")} />}
       >
         <SaveNotification phase={savedPhase} label={common.saved} />
@@ -561,6 +601,8 @@ export function ContentEditorPage() {
       {page && metaCurrent && (
         <EditorMetadataBar
           page={{ ...page, ...metaCurrent } as ContentPage}
+          displayTitle={displayTitle}
+          titleLocaleSuffix={activeLocale === DEFAULT_LOCALE ? undefined : activeLocale.toUpperCase()}
           patchError={state.patchError}
           editingTitle={state.editingTitle}
           editTitleValue={state.editTitleValue}
@@ -570,7 +612,7 @@ export function ContentEditorPage() {
           locale={locale}
           common={common}
           onStartEditTitle={() => {
-            dispatch({ type: "setEditTitleValue", value: metaCurrent.title });
+            dispatch({ type: "setEditTitleValue", value: displayTitle });
             dispatch({ type: "setEditingTitle", value: true });
           }}
           onTitleValueChange={(value) => dispatch({ type: "setEditTitleValue", value })}
@@ -603,6 +645,49 @@ export function ContentEditorPage() {
         />
       )}
 
+      {/* Locale tabs sit above the per-type content so the title in the metadata bar
+          (which now mirrors the active locale) and the SegmentManager / content
+          editor below stay in sync. */}
+      {page && (
+        <div className="px-3 pt-3">
+          <LanguageTabs active={activeLocale} states={tabStates} onSelect={handleTabSelect} />
+        </div>
+      )}
+
+      {/* Translation control row — shared by both page types. Title is edited
+          via the metadata bar above; this row only exposes translationReady
+          and the delete-translation action once a translation exists. */}
+      {page && activeLocale !== DEFAULT_LOCALE && activeTranslation && (
+        <div className="px-3 pt-3 flex items-center justify-end gap-3 text-xs text-[var(--ds-text-muted)]">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={activeTranslation.translationReady ?? false}
+              onChange={(e) =>
+                editor.dispatch.translations({
+                  type: "set-field",
+                  slug: page.slug,
+                  locale: activeLocale,
+                  field: "translationReady",
+                  value: e.target.checked,
+                })
+              }
+              className="accent-[var(--color-primary)] cursor-pointer"
+            />
+            Translation ready
+          </label>
+          <button
+            type="button"
+            onClick={handleDeleteTranslation}
+            disabled={deleteTranslation.isPending}
+            className="flex items-center gap-1 px-2 py-1 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded hover:bg-[var(--ds-btn-danger-hover-bg)] disabled:opacity-60"
+          >
+            <TrashIcon weight="duotone" className="w-3 h-3" />
+            Delete translation
+          </button>
+        </div>
+      )}
+
       {page && page.pageType === "segmented" ? (
         <PageBody className="overflow-visible flex flex-col gap-3">
           {isLoading && (
@@ -610,72 +695,19 @@ export function ContentEditorPage() {
               {editorMessages.loadingContent}
             </div>
           )}
+          {activeLocale !== DEFAULT_LOCALE && (
+            <p className="text-xs text-[var(--ds-text-muted)] italic">
+              Segmented parents have no body content; only the title is localizable per locale.
+            </p>
+          )}
           <SegmentManager page={page} />
         </PageBody>
       ) : (
         <DashboardSection>
-          <DashboardSection.Header icon={<MarkdownLogoIcon weight="duotone" className="w-4 h-4" />} title={title} />
-
-          {/* Language tabs */}
-          {page && (
-            <div className="px-3 pt-3">
-              <LanguageTabs active={activeLocale} states={tabStates} onSelect={handleTabSelect} />
-            </div>
-          )}
-
-          {/* Translation title field (non-default locales only) */}
-          {page && activeLocale !== DEFAULT_LOCALE && activeTranslation && (
-            <div className="px-3 pt-3 flex items-center gap-3">
-              <label
-                htmlFor="translation-title-input"
-                className="text-xs font-medium text-[var(--ds-text-muted)] shrink-0"
-              >
-                Title ({activeLocale.toUpperCase()}):
-              </label>
-              <input
-                id="translation-title-input"
-                type="text"
-                value={activeTranslation.title ?? ""}
-                onChange={(e) =>
-                  editor.dispatch.translations({
-                    type: "set-field",
-                    slug: page.slug,
-                    locale: activeLocale,
-                    field: "title",
-                    value: e.target.value,
-                  })
-                }
-                className="flex-1 px-2 py-1 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] focus:outline-none focus:border-[var(--color-primary)]"
-              />
-              <label className="flex items-center gap-1.5 text-xs text-[var(--ds-text-muted)] cursor-pointer shrink-0">
-                <input
-                  type="checkbox"
-                  checked={activeTranslation.translationReady ?? false}
-                  onChange={(e) =>
-                    editor.dispatch.translations({
-                      type: "set-field",
-                      slug: page.slug,
-                      locale: activeLocale,
-                      field: "translationReady",
-                      value: e.target.checked,
-                    })
-                  }
-                  className="accent-[var(--color-primary)] cursor-pointer"
-                />
-                Translation ready
-              </label>
-              <button
-                type="button"
-                onClick={handleDeleteTranslation}
-                disabled={deleteTranslation.isPending}
-                className="flex items-center gap-1 px-2 py-1 text-xs border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded hover:bg-[var(--ds-btn-danger-hover-bg)] disabled:opacity-60"
-              >
-                <TrashIcon weight="duotone" className="w-3 h-3" />
-                Delete translation
-              </button>
-            </div>
-          )}
-
+          <DashboardSection.Header
+            icon={<MarkdownLogoIcon weight="duotone" className="w-4 h-4" />}
+            title={headerTitle}
+          />
           <PageBody
             className="overflow-hidden"
             style={{ "--source-font-size": `${state.sourceFontSize}px` } as React.CSSProperties}
@@ -686,7 +718,7 @@ export function ContentEditorPage() {
               </div>
             )}
             {page && !hasActiveTranslation ? (
-              /* No translation yet: offer to create one */
+              /* No translation yet: offer to create one (or just edit the title to auto-create). */
               <div className="flex flex-col items-center justify-center h-48 gap-3">
                 <p className="text-sm text-[var(--ds-text-muted)]">No {activeLocale.toUpperCase()} translation yet.</p>
                 <button
@@ -720,7 +752,7 @@ export function ContentEditorPage() {
         onClose={() => dispatch({ type: "setConfirmDelete", value: false })}
       >
         <div className="p-6 text-sm text-[var(--ds-text)]">
-          {pageMessages.confirmDeletePrefix} „<span className="font-bold">{title}</span>"{" "}
+          {pageMessages.confirmDeletePrefix} „<span className="font-bold">{baseTitle}</span>"{" "}
           {pageMessages.confirmDeleteSuffix}
         </div>
         <Dialog.Footer>
