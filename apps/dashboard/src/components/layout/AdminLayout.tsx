@@ -14,7 +14,8 @@ import { PageFooterProvider, usePageFooterContext } from "@/context/PageFooterCo
 import { PageHeaderProvider, usePageHeaderContext } from "@/context/PageHeaderContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/features/auth/AuthContext";
-import { PagesEditorProvider } from "@/features/content/state/PagesEditorContext";
+import { useContentPages } from "@/features/content/hooks/useAdminContent";
+import { PagesEditorProvider, usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import { UnsavedGuard } from "@/features/content/state/UnsavedGuard";
 import { useGlobalPagesSave } from "@/features/content/state/useGlobalPagesSave";
 import { UserEditCard } from "@/features/system/UserEditCard";
@@ -247,6 +248,37 @@ function PagesEditorBindings() {
   return null;
 }
 
+/**
+ * Hydrates the segments slice once content-pages data lands. Lives at the
+ * AdminLayout level so that any consumer (PagesListPage's DnD, SegmentManager's
+ * label/translation edits, future bulk surfaces) can rely on byOwner being
+ * populated regardless of which route is active.
+ */
+function PagesSlicesHydrate() {
+  const editor = usePagesEditor();
+  const { data: pages } = useContentPages();
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    if (!pages || pages.length === 0) return;
+    const segmented = pages.filter((p) => p.pageType === "segmented");
+    if (segmented.length === 0) return;
+    hydratedRef.current = true;
+    editor.dispatch.segments({
+      type: "hydrate",
+      entries: segmented.map((parent) => ({
+        ownerSlug: parent.slug,
+        segments: (parent.segments ?? []).map((seg) => ({
+          position: seg.position,
+          label: seg.label,
+          targetSlug: seg.targetSlug,
+        })),
+      })),
+    });
+  }, [pages, editor.dispatch]);
+  return null;
+}
+
 export function AdminLayout() {
   return (
     <PageHeaderProvider>
@@ -255,6 +287,7 @@ export function AdminLayout() {
           <PagesEditorProvider>
             <PagesSaveBarMount />
             <PagesEditorBindings />
+            <PagesSlicesHydrate />
             <UnsavedGuard />
             <AdminLayoutInner />
           </PagesEditorProvider>

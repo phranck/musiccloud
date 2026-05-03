@@ -1,19 +1,3 @@
-import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import type { ContentPageSummary } from "@musiccloud/shared";
 import {
   CaretCircleDoubleDownIcon,
@@ -38,7 +22,7 @@ import {
   UsersThreeIcon,
   VinylRecordIcon,
 } from "@phosphor-icons/react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useMemo, useState } from "react";
 import { NavLink, useMatch, useNavigate } from "react-router";
 
 import { CollapsibleSidebarGroup, sidebarGroupItemClass } from "@/components/layout/CollapsibleSidebarGroup";
@@ -189,157 +173,6 @@ function PageTreeContent({ page, icon }: { page: { slug: string; title: string; 
   );
 }
 
-interface SortableChildRowProps {
-  parentSlug: string;
-  child: ContentPageSummary;
-  isFirstChild: boolean;
-  childrenContinue: boolean;
-  onItemClick?: () => void;
-}
-
-function SortableChildRow({ parentSlug, child, isFirstChild, childrenContinue, onItemClick }: SortableChildRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
-    id: `child:${parentSlug}:${child.slug}`,
-  });
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`cursor-grab active:cursor-grabbing touch-none ${
-        isOver && !isDragging ? "ring-2 ring-inset ring-[var(--color-primary)]" : ""
-      }`}
-    >
-      <PageTreeRow
-        depth={2}
-        ancestorContinues={childrenContinue ? [1] : []}
-        isFirstChild={isFirstChild}
-        to={`/pages/${child.slug}`}
-        onItemClick={onItemClick}
-      >
-        <PageTreeContent page={child} icon={<FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />} />
-      </PageTreeRow>
-    </div>
-  );
-}
-
-interface SortableOrphanRowProps {
-  page: ContentPageSummary;
-  onItemClick?: () => void;
-}
-
-function SortableOrphanRow({ page, onItemClick }: SortableOrphanRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
-    id: `orphan:${page.slug}`,
-  });
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`cursor-grab active:cursor-grabbing touch-none ${
-        isOver && !isDragging ? "ring-2 ring-inset ring-[var(--color-primary)]" : ""
-      }`}
-    >
-      <PageTreeRow depth={1} ancestorContinues={[]} to={`/pages/${page.slug}`} onItemClick={onItemClick}>
-        <PageTreeContent page={page} icon={<FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />} />
-      </PageTreeRow>
-    </div>
-  );
-}
-
-interface SortableTopLevelRowProps {
-  parent: ContentPageSummary;
-  childPages: ContentPageSummary[];
-  bySlug: Map<string, ContentPageSummary>;
-  collapsible: boolean;
-  expanded: boolean;
-  onToggle: () => void;
-  expandLabel: string;
-  onItemClick?: () => void;
-  childrenContinue: boolean;
-}
-
-function SortableTopLevelRow({
-  parent,
-  childPages,
-  bySlug,
-  collapsible,
-  expanded,
-  onToggle,
-  expandLabel,
-  onItemClick,
-  childrenContinue,
-}: SortableTopLevelRowProps) {
-  const editor = usePagesEditor();
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
-    id: `top:${parent.slug}`,
-  });
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-  const overClass = isOver && !isDragging ? "ring-2 ring-inset ring-[var(--color-primary)]" : "";
-  // Optimistic order: the segmentsSlice owns the source of truth once hydrated;
-  // before hydrate (or for unknown owners) fall back to the server-side
-  // childPages prop.
-  const sliceCurrent = editor.segments.byOwner[parent.slug]?.current;
-  const orderedChildren = sliceCurrent
-    ? sliceCurrent.map((entry) => bySlug.get(entry.targetSlug)).filter((c): c is ContentPageSummary => c !== undefined)
-    : childPages;
-  return (
-    <div ref={setNodeRef} style={style}>
-      <div {...attributes} {...listeners} className={`cursor-grab active:cursor-grabbing touch-none ${overClass}`}>
-        <PageTreeRow
-          depth={1}
-          ancestorContinues={[]}
-          to={`/pages/${parent.slug}`}
-          onItemClick={onItemClick}
-          collapsible={collapsible}
-          expanded={expanded}
-          onToggleExpanded={onToggle}
-          toggleAriaLabel={expandLabel}
-        >
-          <PageTreeContent
-            page={parent}
-            icon={<FileDashedIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />}
-          />
-        </PageTreeRow>
-      </div>
-      {expanded && orderedChildren.length > 0 && (
-        <SortableContext
-          items={orderedChildren.map((c) => `child:${parent.slug}:${c.slug}`)}
-          strategy={verticalListSortingStrategy}
-        >
-          {orderedChildren.map((child, idx) => (
-            <SortableChildRow
-              key={child.slug}
-              parentSlug={parent.slug}
-              child={child}
-              isFirstChild={idx === 0}
-              childrenContinue={childrenContinue}
-              onItemClick={onItemClick}
-            />
-          ))}
-        </SortableContext>
-      )}
-    </div>
-  );
-}
-
 function PagesGroup({
   onItemClick,
   globalOpenState,
@@ -393,27 +226,6 @@ function PagesGroup({
           .filter((b): b is (typeof rawSegmentedBlocks)[number] => b !== undefined)
       : rawSegmentedBlocks;
 
-  // Hydrate the segments slice once we have data for all segmented owners.
-  // Without this, drag-end dispatches against an empty byOwner are no-ops.
-  // Re-hydrate would clobber in-flight edits, so we only fire on first fill.
-  const segmentsHydratedRef = useRef(false);
-  useEffect(() => {
-    if (segmentsHydratedRef.current) return;
-    if (rawSegmentedBlocks.length === 0) return;
-    segmentsHydratedRef.current = true;
-    editor.dispatch.segments({
-      type: "hydrate",
-      entries: rawSegmentedBlocks.map(({ parent }) => ({
-        ownerSlug: parent.slug,
-        segments: (parent.segments ?? []).map((seg) => ({
-          position: seg.position,
-          label: seg.label,
-          targetSlug: seg.targetSlug,
-        })),
-      })),
-    });
-  }, [rawSegmentedBlocks, editor.dispatch]);
-
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
   const segmentedSlugsKey = segmentedBlocks.map(({ parent }) => parent.slug).join(",");
   useEffect(() => {
@@ -436,88 +248,6 @@ function PagesGroup({
       localStorage.setItem(`sidebar-page-children-${slug}-open`, String(next[slug]));
       return next;
     });
-  }
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  function handleDragEnd(e: DragEndEvent) {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const activeId = String(active.id);
-    const overId = String(over.id);
-
-    if (activeId.startsWith("top:") && overId.startsWith("top:")) {
-      const fromSlug = activeId.slice(4);
-      const toSlug = overId.slice(4);
-      const baseOrder = rawSegmentedBlocks.map((b) => b.parent.slug);
-      const order = editor.sidebar.current.length > 0 ? editor.sidebar.current : baseOrder;
-      const from = order.indexOf(fromSlug);
-      const to = order.indexOf(toSlug);
-      if (from < 0 || to < 0) return;
-      if (editor.sidebar.current.length === 0) {
-        editor.dispatch.sidebar({ type: "hydrate", topLevelOrder: order });
-      }
-      editor.dispatch.sidebar({ type: "reorder-top-level", from, to });
-      return;
-    }
-
-    if (activeId.startsWith("child:") && overId.startsWith("child:")) {
-      const [, fromOwner, target] = activeId.split(":");
-      const [, toOwner, overTarget] = overId.split(":");
-      if (!fromOwner || !target || !toOwner || !overTarget) return;
-      if (fromOwner === toOwner) {
-        const items = editor.segments.byOwner[fromOwner]?.current ?? [];
-        const from = items.findIndex((s) => s.targetSlug === target);
-        const to = items.findIndex((s) => s.targetSlug === overTarget);
-        if (from < 0 || to < 0) return;
-        editor.dispatch.segments({ type: "reorder", owner: fromOwner, from, to });
-      } else {
-        const targetList = editor.segments.byOwner[toOwner]?.current ?? [];
-        const insertAt = targetList.findIndex((s) => s.targetSlug === overTarget);
-        editor.dispatch.segments({
-          type: "move",
-          target,
-          from: fromOwner,
-          to: toOwner,
-          position: insertAt < 0 ? targetList.length : insertAt,
-        });
-      }
-      return;
-    }
-
-    // child → orphan = demote (server-side: child gets dropped from segments
-    // and re-emerges as an orphan default on next refetch).
-    if (activeId.startsWith("child:") && overId.startsWith("orphan:")) {
-      const [, owner, target] = activeId.split(":");
-      if (!owner || !target) return;
-      editor.dispatch.segments({ type: "remove", owner, target });
-      return;
-    }
-
-    // orphan → child = promote (the orphan becomes a sub-page of the target
-    // owner; insert position derived from the over child's slot).
-    if (activeId.startsWith("orphan:") && overId.startsWith("child:")) {
-      const target = activeId.slice("orphan:".length);
-      const [, toOwner, overTarget] = overId.split(":");
-      if (!target || !toOwner || !overTarget) return;
-      const list = editor.segments.byOwner[toOwner]?.current ?? [];
-      const insertAt = list.findIndex((s) => s.targetSlug === overTarget);
-      const promoted = bySlug.get(target);
-      editor.dispatch.segments({
-        type: "add",
-        owner: toOwner,
-        target,
-        position: insertAt < 0 ? list.length : insertAt,
-        label: promoted?.title ?? target,
-      });
-      return;
-    }
-
-    // orphan → orphan: purely visual reorder; orphan order is not persisted
-    // (only segmented parents have a position column). Skip dispatch.
   }
 
   function handleCreated(page: { slug: string; title: string }) {
@@ -559,47 +289,79 @@ function PagesGroup({
           </button>
         }
       >
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <PageTreeRow
+          key="__overview"
+          depth={1}
+          ancestorContinues={[]}
+          isFirstAtTopLevel
+          to="/pages"
+          end
+          onItemClick={onItemClick}
+        >
+          <span className="truncate">{s.pagesOverview}</span>
+        </PageTreeRow>
+        {segmentedBlocks.map(({ parent, children }, blockIdx) => {
+          const childrenContinue = blockIdx < segmentedBlocks.length - 1 || orphanDefaults.length > 0;
+          const expanded = expandedMap[parent.slug] ?? true;
+          // Optimistic order: prefer the segmentsSlice's current children when the
+          // user has dragged in the pages overview but not saved yet. Falls back
+          // to the server-side children list otherwise.
+          const sliceCurrent = editor.segments.byOwner[parent.slug]?.current;
+          const orderedChildren = sliceCurrent
+            ? sliceCurrent
+                .map((entry) => bySlug.get(entry.targetSlug))
+                .filter((c): c is ContentPageSummary => c !== undefined)
+            : children;
+          return (
+            <Fragment key={parent.slug}>
+              <PageTreeRow
+                depth={1}
+                ancestorContinues={[]}
+                to={`/pages/${parent.slug}`}
+                onItemClick={onItemClick}
+                collapsible={children.length > 0}
+                expanded={expanded}
+                onToggleExpanded={() => toggleExpanded(parent.slug)}
+                toggleAriaLabel={expanded ? s.collapseAllAria : s.expandAllAria}
+              >
+                <PageTreeContent
+                  page={parent}
+                  icon={<FileDashedIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />}
+                />
+              </PageTreeRow>
+              {expanded &&
+                orderedChildren.map((child, idx) => (
+                  <PageTreeRow
+                    key={child.slug}
+                    depth={2}
+                    ancestorContinues={childrenContinue ? [1] : []}
+                    isFirstChild={idx === 0}
+                    to={`/pages/${child.slug}`}
+                    onItemClick={onItemClick}
+                  >
+                    <PageTreeContent
+                      page={child}
+                      icon={<FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />}
+                    />
+                  </PageTreeRow>
+                ))}
+            </Fragment>
+          );
+        })}
+        {orphanDefaults.map((page) => (
           <PageTreeRow
-            key="__overview"
+            key={page.slug}
             depth={1}
             ancestorContinues={[]}
-            isFirstAtTopLevel
-            to="/pages"
-            end
+            to={`/pages/${page.slug}`}
             onItemClick={onItemClick}
           >
-            <span className="truncate">{s.pagesOverview}</span>
+            <PageTreeContent
+              page={page}
+              icon={<FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />}
+            />
           </PageTreeRow>
-          <SortableContext
-            items={segmentedBlocks.map(({ parent }) => `top:${parent.slug}`)}
-            strategy={verticalListSortingStrategy}
-          >
-            {segmentedBlocks.map(({ parent, children }, blockIdx) => {
-              const childrenContinue = blockIdx < segmentedBlocks.length - 1 || orphanDefaults.length > 0;
-              const expanded = expandedMap[parent.slug] ?? true;
-              return (
-                <SortableTopLevelRow
-                  key={parent.slug}
-                  parent={parent}
-                  childPages={children}
-                  bySlug={bySlug}
-                  collapsible={children.length > 0}
-                  expanded={expanded}
-                  onToggle={() => toggleExpanded(parent.slug)}
-                  expandLabel={expanded ? s.collapseAllAria : s.expandAllAria}
-                  onItemClick={onItemClick}
-                  childrenContinue={childrenContinue}
-                />
-              );
-            })}
-          </SortableContext>
-          <SortableContext items={orphanDefaults.map((p) => `orphan:${p.slug}`)} strategy={verticalListSortingStrategy}>
-            {orphanDefaults.map((page) => (
-              <SortableOrphanRow key={page.slug} page={page} onItemClick={onItemClick} />
-            ))}
-          </SortableContext>
-        </DndContext>
+        ))}
       </CollapsibleSidebarGroup>
       <CreatePageDialog
         open={showCreate}
