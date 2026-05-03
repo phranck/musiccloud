@@ -14,6 +14,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { ContentPageSummary } from "@musiccloud/shared";
 import {
   CaretCircleDoubleDownIcon,
   CaretCircleDoubleUpIcon,
@@ -36,7 +37,7 @@ import {
   UsersThreeIcon,
   VinylRecordIcon,
 } from "@phosphor-icons/react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router";
 
 import { CollapsibleSidebarGroup, sidebarGroupItemClass } from "@/components/layout/CollapsibleSidebarGroup";
@@ -175,9 +176,48 @@ function PageTreeContent({ page, icon }: { page: { slug: string; title: string; 
   );
 }
 
+interface SortableChildRowProps {
+  parentSlug: string;
+  child: ContentPageSummary;
+  isFirstChild: boolean;
+  childrenContinue: boolean;
+  onItemClick?: () => void;
+}
+
+function SortableChildRow({ parentSlug, child, isFirstChild, childrenContinue, onItemClick }: SortableChildRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: `child:${parentSlug}:${child.slug}`,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="cursor-grab active:cursor-grabbing touch-none"
+    >
+      <PageTreeRow
+        depth={2}
+        ancestorContinues={childrenContinue ? [1] : []}
+        isFirstChild={isFirstChild}
+        to={`/pages/${child.slug}`}
+        onItemClick={onItemClick}
+      >
+        <PageTreeContent page={child} icon={<FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />} />
+      </PageTreeRow>
+    </div>
+  );
+}
+
 interface SortableTopLevelRowProps {
-  parent: { slug: string; title: string; status: string };
-  childPages: { slug: string; title: string; status: string }[];
+  parent: ContentPageSummary;
+  childPages: ContentPageSummary[];
+  bySlug: Map<string, ContentPageSummary>;
   collapsible: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -189,6 +229,7 @@ interface SortableTopLevelRowProps {
 function SortableTopLevelRow({
   parent,
   childPages,
+  bySlug,
   collapsible,
   expanded,
   onToggle,
@@ -196,6 +237,7 @@ function SortableTopLevelRow({
   onItemClick,
   childrenContinue,
 }: SortableTopLevelRowProps) {
+  const editor = usePagesEditor();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `top:${parent.slug}`,
   });
@@ -204,6 +246,13 @@ function SortableTopLevelRow({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+  // Optimistic order: the segmentsSlice owns the source of truth once hydrated;
+  // before hydrate (or for unknown owners) fall back to the server-side
+  // childPages prop.
+  const sliceCurrent = editor.segments.byOwner[parent.slug]?.current;
+  const orderedChildren = sliceCurrent
+    ? sliceCurrent.map((entry) => bySlug.get(entry.targetSlug)).filter((c): c is ContentPageSummary => c !== undefined)
+    : childPages;
   return (
     <div ref={setNodeRef} style={style}>
       <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none">
@@ -223,22 +272,23 @@ function SortableTopLevelRow({
           />
         </PageTreeRow>
       </div>
-      {expanded &&
-        childPages.map((child, idx) => (
-          <PageTreeRow
-            key={child.slug}
-            depth={2}
-            ancestorContinues={childrenContinue ? [1] : []}
-            isFirstChild={idx === 0}
-            to={`/pages/${child.slug}`}
-            onItemClick={onItemClick}
-          >
-            <PageTreeContent
-              page={child}
-              icon={<FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />}
+      {expanded && orderedChildren.length > 0 && (
+        <SortableContext
+          items={orderedChildren.map((c) => `child:${parent.slug}:${c.slug}`)}
+          strategy={verticalListSortingStrategy}
+        >
+          {orderedChildren.map((child, idx) => (
+            <SortableChildRow
+              key={child.slug}
+              parentSlug={parent.slug}
+              child={child}
+              isFirstChild={idx === 0}
+              childrenContinue={childrenContinue}
+              onItemClick={onItemClick}
             />
-          </PageTreeRow>
-        ))}
+          ))}
+        </SortableContext>
+      )}
     </div>
   );
 }
@@ -262,6 +312,12 @@ function PagesGroup({
   const list = pages ?? [];
   const { segmentedBlocks: rawSegmentedBlocks, orphanDefaults } = groupPagesByHierarchy(list);
 
+  const bySlug = useMemo(() => {
+    const m = new Map<string, ContentPageSummary>();
+    for (const p of list) m.set(p.slug, p);
+    return m;
+  }, [list]);
+
   // Apply optimistic order from sidebarSlice when the user has dragged but not
   // saved yet. After save, useGlobalPagesSave re-hydrates the slice with the
   // new server order, so the slice and the (refetched) list stay aligned.
@@ -271,6 +327,27 @@ function PagesGroup({
           .map((slug) => rawSegmentedBlocks.find((b) => b.parent.slug === slug))
           .filter((b): b is (typeof rawSegmentedBlocks)[number] => b !== undefined)
       : rawSegmentedBlocks;
+
+  // Hydrate the segments slice once we have data for all segmented owners.
+  // Without this, drag-end dispatches against an empty byOwner are no-ops.
+  // Re-hydrate would clobber in-flight edits, so we only fire on first fill.
+  const segmentsHydratedRef = useRef(false);
+  useEffect(() => {
+    if (segmentsHydratedRef.current) return;
+    if (rawSegmentedBlocks.length === 0) return;
+    segmentsHydratedRef.current = true;
+    editor.dispatch.segments({
+      type: "hydrate",
+      entries: rawSegmentedBlocks.map(({ parent }) => ({
+        ownerSlug: parent.slug,
+        segments: (parent.segments ?? []).map((seg) => ({
+          position: seg.position,
+          label: seg.label,
+          targetSlug: seg.targetSlug,
+        })),
+      })),
+    });
+  }, [rawSegmentedBlocks, editor.dispatch]);
 
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
   const segmentedSlugsKey = segmentedBlocks.map(({ parent }) => parent.slug).join(",");
@@ -321,6 +398,30 @@ function PagesGroup({
       editor.dispatch.sidebar({ type: "reorder-top-level", from, to });
       return;
     }
+
+    if (activeId.startsWith("child:") && overId.startsWith("child:")) {
+      const [, fromOwner, target] = activeId.split(":");
+      const [, toOwner, overTarget] = overId.split(":");
+      if (!fromOwner || !target || !toOwner || !overTarget) return;
+      if (fromOwner === toOwner) {
+        const items = editor.segments.byOwner[fromOwner]?.current ?? [];
+        const from = items.findIndex((s) => s.targetSlug === target);
+        const to = items.findIndex((s) => s.targetSlug === overTarget);
+        if (from < 0 || to < 0) return;
+        editor.dispatch.segments({ type: "reorder", owner: fromOwner, from, to });
+      } else {
+        const targetList = editor.segments.byOwner[toOwner]?.current ?? [];
+        const insertAt = targetList.findIndex((s) => s.targetSlug === overTarget);
+        editor.dispatch.segments({
+          type: "move",
+          target,
+          from: fromOwner,
+          to: toOwner,
+          position: insertAt < 0 ? targetList.length : insertAt,
+        });
+      }
+      return;
+    }
   }
 
   return (
@@ -359,6 +460,7 @@ function PagesGroup({
                 key={parent.slug}
                 parent={parent}
                 childPages={children}
+                bySlug={bySlug}
                 collapsible={children.length > 0}
                 expanded={expanded}
                 onToggle={() => toggleExpanded(parent.slug)}
