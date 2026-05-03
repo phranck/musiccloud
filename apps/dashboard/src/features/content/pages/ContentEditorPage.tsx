@@ -5,6 +5,7 @@ import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } 
 import { useNavigate, useParams } from "react-router";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
@@ -125,24 +126,15 @@ interface EditorHeaderActionsProps {
   sourceFontSize: number;
   canIncreaseFont: boolean;
   canDecreaseFont: boolean;
-  confirmDelete: boolean;
-  isDeleting: boolean;
-  common: {
-    cancel: string;
-  };
   editorMessages: {
     decreaseFontSize: string;
     increaseFontSize: string;
     deletePage: string;
-    confirmDelete: string;
-    confirmDeleteAction: string;
     preview: string;
   };
   onDecreaseFont: () => void;
   onIncreaseFont: () => void;
   onOpenDelete: () => void;
-  onCancelDelete: () => void;
-  onConfirmDelete: () => void;
   onPreview: () => void;
 }
 
@@ -150,15 +142,10 @@ function EditorHeaderActions({
   sourceFontSize,
   canIncreaseFont,
   canDecreaseFont,
-  confirmDelete,
-  isDeleting,
-  common,
   editorMessages,
   onDecreaseFont,
   onIncreaseFont,
   onOpenDelete,
-  onCancelDelete,
-  onConfirmDelete,
   onPreview,
 }: EditorHeaderActionsProps) {
   return (
@@ -195,35 +182,14 @@ function EditorHeaderActions({
         {editorMessages.preview}
       </button>
 
-      {!confirmDelete ? (
-        <button
-          type="button"
-          onClick={onOpenDelete}
-          className="flex items-center justify-center w-8 h-8 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded-control text-sm font-medium hover:bg-[var(--ds-btn-danger-hover-bg)] hover:border-[var(--ds-btn-danger-hover-border)]"
-          title={editorMessages.deletePage}
-        >
-          <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
-        </button>
-      ) : (
-        <div className="flex items-center gap-2 px-3 h-8 border border-[var(--ds-btn-danger-border)] rounded-control bg-[var(--ds-btn-danger-hover-bg)]">
-          <span className="text-xs text-[var(--ds-btn-danger-text)] font-medium">{editorMessages.confirmDelete}</span>
-          <button
-            type="button"
-            onClick={onConfirmDelete}
-            disabled={isDeleting}
-            className="text-xs font-semibold text-[var(--ds-btn-danger-text)] hover:underline disabled:opacity-60"
-          >
-            {editorMessages.confirmDeleteAction}
-          </button>
-          <button
-            type="button"
-            onClick={onCancelDelete}
-            className="text-xs text-[var(--ds-text-muted)] hover:underline"
-          >
-            {common.cancel}
-          </button>
-        </div>
-      )}
+      <button
+        type="button"
+        onClick={onOpenDelete}
+        className="flex items-center justify-center w-8 h-8 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded-control text-sm font-medium hover:bg-[var(--ds-btn-danger-hover-bg)] hover:border-[var(--ds-btn-danger-hover-border)]"
+        title={editorMessages.deletePage}
+      >
+        <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
+      </button>
     </div>
   );
 }
@@ -424,6 +390,7 @@ export function ContentEditorPage() {
   const { messages, locale } = useI18n();
   const common = messages.common;
   const editorMessages = messages.content.editor;
+  const pageMessages = messages.content.pages;
   const { slug = "" } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { data: page, isLoading } = useAdminContentPage(slug);
@@ -583,19 +550,10 @@ export function ContentEditorPage() {
           sourceFontSize={state.sourceFontSize}
           canIncreaseFont={state.sourceFontSize < FONT_SIZE_MAX}
           canDecreaseFont={state.sourceFontSize > FONT_SIZE_MIN}
-          confirmDelete={state.confirmDelete}
-          isDeleting={deletePage.isPending}
-          common={common}
           editorMessages={editorMessages}
           onDecreaseFont={() => changeFontSize(-1)}
           onIncreaseFont={() => changeFontSize(+1)}
           onOpenDelete={() => dispatch({ type: "setConfirmDelete", value: true })}
-          onCancelDelete={() => dispatch({ type: "setConfirmDelete", value: false })}
-          onConfirmDelete={() => {
-            deletePage.mutate(slug, {
-              onSuccess: () => navigate("/pages"),
-            });
-          }}
           onPreview={() => {
             const base =
               (import.meta.env.VITE_FRONTEND_URL as string | undefined) ??
@@ -760,6 +718,37 @@ export function ContentEditorPage() {
           </PageBody>
         </DashboardSection>
       )}
+      <Dialog
+        open={state.confirmDelete}
+        title={pageMessages.deletePageTitle}
+        titleIcon={<TrashIcon weight="duotone" className={dialogHeaderIconClass} />}
+        onClose={() => dispatch({ type: "setConfirmDelete", value: false })}
+      >
+        <div className="p-6 text-sm text-[var(--ds-text)]">
+          {pageMessages.confirmDeletePrefix} „<span className="font-bold">{title}</span>"{" "}
+          {pageMessages.confirmDeleteSuffix}
+        </div>
+        <Dialog.Footer>
+          <button
+            type="button"
+            className={dialogBtnSecondary}
+            onClick={() => dispatch({ type: "setConfirmDelete", value: false })}
+            disabled={deletePage.isPending}
+          >
+            {common.cancel}
+          </button>
+          <button
+            type="button"
+            className={dialogBtnDestructive}
+            onClick={() => {
+              deletePage.mutate(slug, { onSuccess: () => navigate("/pages") });
+            }}
+            disabled={deletePage.isPending}
+          >
+            {deletePage.isPending ? "…" : common.delete}
+          </button>
+        </Dialog.Footer>
+      </Dialog>
     </PageLayout>
   );
 }
