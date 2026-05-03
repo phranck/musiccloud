@@ -275,7 +275,7 @@ export function MarkdownEditor({
   return (
     <div
       id={id}
-      className={`rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] overflow-hidden focus-within:ring-2 focus-within:ring-[var(--color-primary)] focus-within:outline-none ${isFlexCol ? "flex flex-col" : ""} ${className}`}
+      className={`rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] overflow-hidden focus-within:ring-2 focus-within:ring-inset focus-within:ring-[var(--color-primary)] focus-within:outline-none ${isFlexCol ? "flex flex-col" : ""} ${className}`}
       style={wrapperStyle}
     >
       <div className={isFlexCol ? "flex-1 min-h-0 overflow-hidden" : undefined}>
