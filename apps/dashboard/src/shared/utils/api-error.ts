@@ -1,6 +1,7 @@
 export interface ApiRequestError extends Error {
   status?: number;
   responseMessage?: string | null;
+  details?: unknown[] | null;
 }
 
 interface HttpResponseLike {
@@ -33,6 +34,15 @@ export function extractApiErrorMessage(payload: unknown): string | null {
   return typeof fallbackMessage === "string" ? fallbackMessage : null;
 }
 
+export function extractApiErrorDetails(payload: unknown): unknown[] | null {
+  const direct = getObjectValue(payload, "details");
+  if (Array.isArray(direct)) return direct;
+  const error = getObjectValue(payload, "error");
+  const nested = getObjectValue(error, "details");
+  if (Array.isArray(nested)) return nested;
+  return null;
+}
+
 export async function createApiRequestError(
   response: HttpResponseLike,
   fallbackMessage?: string,
@@ -43,5 +53,6 @@ export async function createApiRequestError(
   const error = new Error(message) as ApiRequestError;
   error.status = response.status;
   error.responseMessage = responseMessage;
+  error.details = extractApiErrorDetails(payload);
   return error;
 }
