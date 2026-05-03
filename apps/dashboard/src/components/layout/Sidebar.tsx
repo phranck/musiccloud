@@ -1,4 +1,14 @@
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import {
   CaretCircleDoubleDownIcon,
   CaretCircleDoubleUpIcon,
   CaretDownIcon,
@@ -200,6 +210,15 @@ function PagesGroup({
     });
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(_e: DragEndEvent) {
+    // Branches added incrementally in T28 (top-level), T29 (sub-page move), T30 (promote/demote)
+  }
+
   type RowSpec =
     | { kind: "overview" }
     | {
@@ -249,54 +268,56 @@ function PagesGroup({
       onOpenChange={onOpenChange}
       noRail
     >
-      {rowSpecs.map((spec, idx) => {
-        if (spec.kind === "overview") {
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        {rowSpecs.map((spec, idx) => {
+          if (spec.kind === "overview") {
+            return (
+              <PageTreeRow
+                key="__overview"
+                depth={1}
+                ancestorContinues={[]}
+                isFirstAtTopLevel
+                to="/pages"
+                end
+                onItemClick={onItemClick}
+              >
+                <span className="truncate">{s.pagesOverview}</span>
+              </PageTreeRow>
+            );
+          }
+          const depth: TreeDepth = spec.kind === "child" ? 2 : 1;
+          const isFirstAtTopLevel = idx === 0;
+          const icon =
+            spec.kind === "parent" ? (
+              <FileDashedIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />
+            ) : (
+              <FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />
+            );
+          const collapsibleProps =
+            spec.kind === "parent" && spec.collapsible
+              ? {
+                  collapsible: true as const,
+                  expanded: spec.expanded,
+                  onToggleExpanded: () => toggleExpanded(spec.page.slug),
+                  toggleAriaLabel: spec.expanded ? s.collapseAllAria : s.expandAllAria,
+                }
+              : {};
           return (
             <PageTreeRow
-              key="__overview"
-              depth={1}
-              ancestorContinues={[]}
-              isFirstAtTopLevel
-              to="/pages"
-              end
+              key={spec.page.slug}
+              depth={depth}
+              ancestorContinues={spec.kind === "child" ? spec.ancestorContinues : []}
+              isFirstChild={spec.kind === "child" && spec.isFirstChild}
+              isFirstAtTopLevel={isFirstAtTopLevel}
+              to={`/pages/${spec.page.slug}`}
               onItemClick={onItemClick}
+              {...collapsibleProps}
             >
-              <span className="truncate">{s.pagesOverview}</span>
+              <PageTreeContent page={spec.page} icon={icon} />
             </PageTreeRow>
           );
-        }
-        const depth: TreeDepth = spec.kind === "child" ? 2 : 1;
-        const isFirstAtTopLevel = idx === 0;
-        const icon =
-          spec.kind === "parent" ? (
-            <FileDashedIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />
-          ) : (
-            <FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />
-          );
-        const collapsibleProps =
-          spec.kind === "parent" && spec.collapsible
-            ? {
-                collapsible: true as const,
-                expanded: spec.expanded,
-                onToggleExpanded: () => toggleExpanded(spec.page.slug),
-                toggleAriaLabel: spec.expanded ? s.collapseAllAria : s.expandAllAria,
-              }
-            : {};
-        return (
-          <PageTreeRow
-            key={spec.page.slug}
-            depth={depth}
-            ancestorContinues={spec.kind === "child" ? spec.ancestorContinues : []}
-            isFirstChild={spec.kind === "child" && spec.isFirstChild}
-            isFirstAtTopLevel={isFirstAtTopLevel}
-            to={`/pages/${spec.page.slug}`}
-            onItemClick={onItemClick}
-            {...collapsibleProps}
-          >
-            <PageTreeContent page={spec.page} icon={icon} />
-          </PageTreeRow>
-        );
-      })}
+        })}
+      </DndContext>
     </CollapsibleSidebarGroup>
   );
 }
