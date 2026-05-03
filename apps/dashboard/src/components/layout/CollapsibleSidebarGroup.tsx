@@ -22,6 +22,8 @@ interface CollapsibleSidebarGroupProps {
   globalOpenVersion?: number;
   onOpenChange?: (open: boolean) => void;
   noRail?: boolean;
+  /** Optional trailing element rendered next to the header (e.g. quick-action button). Sits outside the toggle button to avoid nested-button HTML. */
+  trailingAction?: React.ReactNode;
 }
 
 export function CollapsibleSidebarGroup({
@@ -35,6 +37,7 @@ export function CollapsibleSidebarGroup({
   globalOpenVersion = 0,
   onOpenChange,
   noRail = false,
+  trailingAction,
 }: CollapsibleSidebarGroupProps) {
   const isGroupActive = !!useMatch(routeMatch);
   const [localOpen, setLocalOpen] = useState(() => {
@@ -68,20 +71,23 @@ export function CollapsibleSidebarGroup({
 
   return (
     <div className="group">
-      <button
-        type="button"
-        onClick={toggleOpen}
-        aria-expanded={localOpen}
-        className="flex w-full items-center gap-3 px-3 py-2 rounded-control text-sm font-medium text-left select-none text-[var(--ds-nav-text)] hover:bg-[var(--ds-nav-hover-bg)] hover:text-[var(--ds-nav-hover-text)] transition-colors"
-      >
-        <span className="shrink-0 opacity-70">{icon}</span>
-        <span className="flex-1">{label}</span>
-        {badge !== undefined && <SidebarBadge count={badge} />}
-        <CaretDownIcon
-          weight="duotone"
-          className={`w-3.5 h-3.5 opacity-50 transition-transform duration-200 ease-out ${localOpen ? "rotate-180" : ""}`}
-        />
-      </button>
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={toggleOpen}
+          aria-expanded={localOpen}
+          className="flex flex-1 items-center gap-3 px-3 py-2 rounded-control text-sm font-medium text-left select-none text-[var(--ds-nav-text)] hover:bg-[var(--ds-nav-hover-bg)] hover:text-[var(--ds-nav-hover-text)] transition-colors"
+        >
+          <span className="shrink-0 opacity-70">{icon}</span>
+          <span className="flex-1">{label}</span>
+          {badge !== undefined && <SidebarBadge count={badge} />}
+          <CaretDownIcon
+            weight="duotone"
+            className={`w-3.5 h-3.5 opacity-50 transition-transform duration-200 ease-out ${localOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+        {trailingAction && <div className="flex items-center pl-1">{trailingAction}</div>}
+      </div>
       <div
         className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
           localOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-70"

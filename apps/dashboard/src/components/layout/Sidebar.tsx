@@ -33,12 +33,13 @@ import {
   MusicNotesIcon,
   NotebookIcon,
   PlugsConnectedIcon,
+  PlusCircleIcon,
   SquaresFourIcon,
   UsersThreeIcon,
   VinylRecordIcon,
 } from "@phosphor-icons/react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useMatch, useNavigate } from "react-router";
 
 import { CollapsibleSidebarGroup, sidebarGroupItemClass } from "@/components/layout/CollapsibleSidebarGroup";
 import { SidebarFooter } from "@/components/layout/SidebarFooter";
@@ -48,6 +49,7 @@ import { useI18n } from "@/context/I18nContext";
 import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { PageStatusIcon } from "@/features/content/PageStatus";
+import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import { isContentDirty } from "@/features/content/state/slices/contentSlice";
 import { isMetaDirty } from "@/features/content/state/slices/metaSlice";
@@ -351,8 +353,13 @@ function PagesGroup({
 }) {
   const { messages } = useI18n();
   const s = messages.layout.sidebar;
+  const text = messages.content.pages;
   const { data: pages } = useContentPages();
   const editor = usePagesEditor();
+  const navigate = useNavigate();
+  const editorMatch = useMatch("/pages/:slug");
+  const currentSlug = editorMatch?.params.slug;
+  const [showCreate, setShowCreate] = useState(false);
 
   const list = pages ?? [];
   const { segmentedBlocks: rawSegmentedBlocks, orphanDefaults } = groupPagesByHierarchy(list);
@@ -362,6 +369,19 @@ function PagesGroup({
     for (const p of list) m.set(p.slug, p);
     return m;
   }, [list]);
+
+  // If the user is sitting on a sub-page, "neue Seite" should land at the same
+  // hierarchy level — i.e. as another sub-page of the current parent. Detect
+  // that by walking the segmented blocks and looking for the active slug as a
+  // child entry. For top-level pages (segmented parents, orphans) or the
+  // overview, parentSlug stays undefined → new page becomes a top-level orphan.
+  const parentSlug = useMemo<string | undefined>(() => {
+    if (!currentSlug) return undefined;
+    for (const block of rawSegmentedBlocks) {
+      if (block.children.some((c) => c.slug === currentSlug)) return block.parent.slug;
+    }
+    return undefined;
+  }, [currentSlug, rawSegmentedBlocks]);
 
   // Apply optimistic order from sidebarSlice when the user has dragged but not
   // saved yet. After save, useGlobalPagesSave re-hydrates the slice with the
@@ -500,60 +520,94 @@ function PagesGroup({
     // (only segmented parents have a position column). Skip dispatch.
   }
 
+  function handleCreated(page: { slug: string; title: string }) {
+    if (parentSlug) {
+      // Insert the new page as the last child of the current parent.
+      const siblings = editor.segments.byOwner[parentSlug]?.current ?? [];
+      editor.dispatch.segments({
+        type: "add",
+        owner: parentSlug,
+        target: page.slug,
+        position: siblings.length,
+        label: page.title,
+      });
+    }
+    navigate(`/pages/${page.slug}`);
+  }
+
   return (
-    <CollapsibleSidebarGroup
-      routeMatch="/pages/*"
-      storageKey="sidebar-pages-open"
-      icon={<FilesIcon weight="duotone" className="w-4 h-4" />}
-      label={s.pages}
-      badge={list.length}
-      globalOpenState={globalOpenState}
-      globalOpenVersion={globalOpenVersion}
-      onOpenChange={onOpenChange}
-      noRail
-    >
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <PageTreeRow
-          key="__overview"
-          depth={1}
-          ancestorContinues={[]}
-          isFirstAtTopLevel
-          to="/pages"
-          end
-          onItemClick={onItemClick}
-        >
-          <span className="truncate">{s.pagesOverview}</span>
-        </PageTreeRow>
-        <SortableContext
-          items={segmentedBlocks.map(({ parent }) => `top:${parent.slug}`)}
-          strategy={verticalListSortingStrategy}
-        >
-          {segmentedBlocks.map(({ parent, children }, blockIdx) => {
-            const childrenContinue = blockIdx < segmentedBlocks.length - 1 || orphanDefaults.length > 0;
-            const expanded = expandedMap[parent.slug] ?? true;
-            return (
-              <SortableTopLevelRow
-                key={parent.slug}
-                parent={parent}
-                childPages={children}
-                bySlug={bySlug}
-                collapsible={children.length > 0}
-                expanded={expanded}
-                onToggle={() => toggleExpanded(parent.slug)}
-                expandLabel={expanded ? s.collapseAllAria : s.expandAllAria}
-                onItemClick={onItemClick}
-                childrenContinue={childrenContinue}
-              />
-            );
-          })}
-        </SortableContext>
-        <SortableContext items={orphanDefaults.map((p) => `orphan:${p.slug}`)} strategy={verticalListSortingStrategy}>
-          {orphanDefaults.map((page) => (
-            <SortableOrphanRow key={page.slug} page={page} onItemClick={onItemClick} />
-          ))}
-        </SortableContext>
-      </DndContext>
-    </CollapsibleSidebarGroup>
+    <>
+      <CollapsibleSidebarGroup
+        routeMatch="/pages/*"
+        storageKey="sidebar-pages-open"
+        icon={<FilesIcon weight="duotone" className="w-4 h-4" />}
+        label={s.pages}
+        badge={list.length}
+        globalOpenState={globalOpenState}
+        globalOpenVersion={globalOpenVersion}
+        onOpenChange={onOpenChange}
+        noRail
+        trailingAction={
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            aria-label={text.newPage}
+            title={text.newPage}
+            className="p-1.5 rounded text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] hover:bg-[var(--ds-nav-hover-bg)]"
+          >
+            <PlusCircleIcon weight="duotone" className="w-4 h-4" />
+          </button>
+        }
+      >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <PageTreeRow
+            key="__overview"
+            depth={1}
+            ancestorContinues={[]}
+            isFirstAtTopLevel
+            to="/pages"
+            end
+            onItemClick={onItemClick}
+          >
+            <span className="truncate">{s.pagesOverview}</span>
+          </PageTreeRow>
+          <SortableContext
+            items={segmentedBlocks.map(({ parent }) => `top:${parent.slug}`)}
+            strategy={verticalListSortingStrategy}
+          >
+            {segmentedBlocks.map(({ parent, children }, blockIdx) => {
+              const childrenContinue = blockIdx < segmentedBlocks.length - 1 || orphanDefaults.length > 0;
+              const expanded = expandedMap[parent.slug] ?? true;
+              return (
+                <SortableTopLevelRow
+                  key={parent.slug}
+                  parent={parent}
+                  childPages={children}
+                  bySlug={bySlug}
+                  collapsible={children.length > 0}
+                  expanded={expanded}
+                  onToggle={() => toggleExpanded(parent.slug)}
+                  expandLabel={expanded ? s.collapseAllAria : s.expandAllAria}
+                  onItemClick={onItemClick}
+                  childrenContinue={childrenContinue}
+                />
+              );
+            })}
+          </SortableContext>
+          <SortableContext items={orphanDefaults.map((p) => `orphan:${p.slug}`)} strategy={verticalListSortingStrategy}>
+            {orphanDefaults.map((page) => (
+              <SortableOrphanRow key={page.slug} page={page} onItemClick={onItemClick} />
+            ))}
+          </SortableContext>
+        </DndContext>
+      </CollapsibleSidebarGroup>
+      <CreatePageDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={handleCreated}
+        lockDefaultType={parentSlug !== undefined}
+      />
+    </>
   );
 }
 
