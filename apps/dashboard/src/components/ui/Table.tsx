@@ -1,6 +1,6 @@
 import { CaretDownIcon, CaretUpDownIcon, CaretUpIcon } from "@phosphor-icons/react";
-import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ComponentType, HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
+import { forwardRef, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function Table({ className = "", ...props }: HTMLAttributes<HTMLTableElement>) {
   return (
@@ -23,9 +23,12 @@ function TableBody({ className = "", ...props }: HTMLAttributes<HTMLTableSection
   );
 }
 
-function TableRow({ className = "", ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={`table-row-hover ${className}`} {...props} />;
-}
+const TableRow = forwardRef<HTMLTableRowElement, HTMLAttributes<HTMLTableRowElement>>(function TableRow(
+  { className = "", ...props },
+  ref,
+) {
+  return <tr ref={ref} className={`table-row-hover ${className}`} {...props} />;
+});
 
 function Th({ className = "", ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
   return <th className={`section-header px-4 ${className}`} {...props} />;
@@ -74,6 +77,13 @@ function loadColumnWidths(storageKey: string | null): Record<string, number> {
   }
 }
 
+export interface DataTableRowProps<T> {
+  row: T;
+  rowKey: string | number;
+  className?: string;
+  children: ReactNode;
+}
+
 interface DataTableProps<T> {
   columns: ColumnDef<T>[];
   data: T[];
@@ -82,6 +92,12 @@ interface DataTableProps<T> {
   stickyHeader?: boolean;
   defaultSort?: SortState | null;
   allowUnsorted?: boolean;
+  /** Custom row component, e.g. a sortable wrapper that owns useSortable's hook lifecycle. Receives the cells as children and must render a <tr>-equivalent. */
+  RowComponent?: ComponentType<DataTableRowProps<T>>;
+}
+
+function DefaultDataTableRow<T>({ className, children }: DataTableRowProps<T>) {
+  return <TableRow className={className}>{children}</TableRow>;
 }
 
 export function DataTable<T>({
@@ -92,7 +108,9 @@ export function DataTable<T>({
   stickyHeader = false,
   defaultSort = null,
   allowUnsorted = true,
+  RowComponent,
 }: DataTableProps<T>) {
+  const Row = (RowComponent ?? DefaultDataTableRow) as ComponentType<DataTableRowProps<T>>;
   const columnIds = useMemo(() => columns.map((col) => col.id), [columns]);
   const columnStorageKey = getColumnWidthStorageKey(columnIds);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => loadColumnWidths(columnStorageKey));
@@ -292,21 +310,24 @@ export function DataTable<T>({
         </TableRow>
       </TableHead>
       <TableBody>
-        {sorted.map((row) => (
-          <TableRow key={getRowKey(row)} className={getRowClassName?.(row)}>
-            {columns.map((col) => (
-              <Td
-                key={col.id}
-                className={col.cellClassName ?? col.className ?? ""}
-                style={
-                  columnWidths[col.id] ? { width: columnWidths[col.id], minWidth: columnWidths[col.id] } : undefined
-                }
-              >
-                {col.cell(row)}
-              </Td>
-            ))}
-          </TableRow>
-        ))}
+        {sorted.map((row) => {
+          const rowKey = getRowKey(row);
+          return (
+            <Row key={rowKey} row={row} rowKey={rowKey} className={getRowClassName?.(row)}>
+              {columns.map((col) => (
+                <Td
+                  key={col.id}
+                  className={col.cellClassName ?? col.className ?? ""}
+                  style={
+                    columnWidths[col.id] ? { width: columnWidths[col.id], minWidth: columnWidths[col.id] } : undefined
+                  }
+                >
+                  {col.cell(row)}
+                </Td>
+              ))}
+            </Row>
+          );
+        })}
       </TableBody>
     </Table>
   );
