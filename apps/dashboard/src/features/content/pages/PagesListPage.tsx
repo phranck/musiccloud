@@ -259,6 +259,44 @@ export function PagesListPage() {
         position: insertAt < 0 ? list.length : insertAt,
         label: promoted?.title ?? target,
       });
+      return;
+    }
+
+    // Drop a default page onto a segmented parent row → make it a child of
+    // that parent (appended to the end). Lets users seed an empty segmented
+    // page without first having to drop onto an existing child.
+    if (activeId.startsWith("orphan:") && overId.startsWith("top:")) {
+      const target = activeId.slice("orphan:".length);
+      const toOwner = overId.slice("top:".length);
+      if (!target || !toOwner) return;
+      const list = editor.segments.byOwner[toOwner]?.current ?? [];
+      const promoted = bySlug.get(target);
+      editor.dispatch.segments({
+        type: "add",
+        owner: toOwner,
+        target,
+        position: list.length,
+        label: promoted?.title ?? target,
+      });
+      return;
+    }
+
+    // Drop an existing child onto another segmented parent row → cross-parent
+    // move (appended). Same-owner drops collapse to a no-op.
+    if (activeId.startsWith("child:") && overId.startsWith("top:")) {
+      const [, fromOwner, target] = activeId.split(":");
+      const toOwner = overId.slice("top:".length);
+      if (!fromOwner || !target || !toOwner) return;
+      if (fromOwner === toOwner) return;
+      const targetList = editor.segments.byOwner[toOwner]?.current ?? [];
+      editor.dispatch.segments({
+        type: "move",
+        target,
+        from: fromOwner,
+        to: toOwner,
+        position: targetList.length,
+      });
+      return;
     }
     // orphan↔orphan: visual-only (orphan position not persisted).
   }
