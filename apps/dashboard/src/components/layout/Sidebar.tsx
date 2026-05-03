@@ -226,6 +226,24 @@ function PagesGroup({
           .filter((b): b is (typeof rawSegmentedBlocks)[number] => b !== undefined)
       : rawSegmentedBlocks;
 
+  // Server still groups dragged-but-unsaved orphans under their old (orphan)
+  // bucket. Skip rows the slice has already promoted into a parent, otherwise
+  // the sidebar shows them twice — once as the new child and once as an orphan
+  // at the bottom.
+  const claimedSlugs = useMemo(() => {
+    const set = new Set<string>();
+    for (const { parent, children } of segmentedBlocks) {
+      const sliceCurrent = editor.segments.byOwner[parent.slug]?.current;
+      if (sliceCurrent) {
+        for (const entry of sliceCurrent) set.add(entry.targetSlug);
+      } else {
+        for (const child of children) set.add(child.slug);
+      }
+    }
+    return set;
+  }, [segmentedBlocks, editor.segments.byOwner]);
+  const visibleOrphans = orphanDefaults.filter((p) => !claimedSlugs.has(p.slug));
+
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
   const segmentedSlugsKey = segmentedBlocks.map(({ parent }) => parent.slug).join(",");
   useEffect(() => {
@@ -301,7 +319,7 @@ function PagesGroup({
           <span className="truncate">{s.pagesOverview}</span>
         </PageTreeRow>
         {segmentedBlocks.map(({ parent, children }, blockIdx) => {
-          const childrenContinue = blockIdx < segmentedBlocks.length - 1 || orphanDefaults.length > 0;
+          const childrenContinue = blockIdx < segmentedBlocks.length - 1 || visibleOrphans.length > 0;
           const expanded = expandedMap[parent.slug] ?? true;
           // Optimistic order: prefer the segmentsSlice's current children when the
           // user has dragged in the pages overview but not saved yet. Falls back
@@ -348,7 +366,7 @@ function PagesGroup({
             </Fragment>
           );
         })}
-        {orphanDefaults.map((page) => (
+        {visibleOrphans.map((page) => (
           <PageTreeRow
             key={page.slug}
             depth={1}
