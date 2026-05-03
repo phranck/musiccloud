@@ -28,19 +28,6 @@ export function usePageTranslations(slug: string) {
   });
 }
 
-export function useSaveTranslation(slug: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ locale, body }: { locale: Locale; body: TranslationPayload }) =>
-      api.put<TranslationRow>(ENDPOINTS.admin.pages.translations.detail(slug, locale), body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["content-pages", slug, "translations"] });
-      qc.invalidateQueries({ queryKey: ["content-pages", slug] });
-      qc.invalidateQueries({ queryKey: ["content-pages"] });
-    },
-  });
-}
-
 export function useDeleteTranslation(slug: string) {
   const qc = useQueryClient();
   return useMutation({
