@@ -1,5 +1,5 @@
 import {
-  closestCenter,
+  closestCorners,
   DndContext,
   type DragEndEvent,
   KeyboardSensor,
@@ -433,7 +433,7 @@ export function PagesListPage() {
 
         {!isLoading && pages.length > 0 && (
           <div className="-mx-3 -mt-3">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
               <SortableContext items={hierarchicalPages.map(sortableIdFor)} strategy={verticalListSortingStrategy}>
                 <DataTable
                   columns={columns}
