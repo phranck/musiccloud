@@ -214,6 +214,35 @@ function SortableChildRow({ parentSlug, child, isFirstChild, childrenContinue, o
   );
 }
 
+interface SortableOrphanRowProps {
+  page: ContentPageSummary;
+  onItemClick?: () => void;
+}
+
+function SortableOrphanRow({ page, onItemClick }: SortableOrphanRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: `orphan:${page.slug}`,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="cursor-grab active:cursor-grabbing touch-none"
+    >
+      <PageTreeRow depth={1} ancestorContinues={[]} to={`/pages/${page.slug}`} onItemClick={onItemClick}>
+        <PageTreeContent page={page} icon={<FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />} />
+      </PageTreeRow>
+    </div>
+  );
+}
+
 interface SortableTopLevelRowProps {
   parent: ContentPageSummary;
   childPages: ContentPageSummary[];
@@ -422,6 +451,37 @@ function PagesGroup({
       }
       return;
     }
+
+    // child → orphan = demote (server-side: child gets dropped from segments
+    // and re-emerges as an orphan default on next refetch).
+    if (activeId.startsWith("child:") && overId.startsWith("orphan:")) {
+      const [, owner, target] = activeId.split(":");
+      if (!owner || !target) return;
+      editor.dispatch.segments({ type: "remove", owner, target });
+      return;
+    }
+
+    // orphan → child = promote (the orphan becomes a sub-page of the target
+    // owner; insert position derived from the over child's slot).
+    if (activeId.startsWith("orphan:") && overId.startsWith("child:")) {
+      const target = activeId.slice("orphan:".length);
+      const [, toOwner, overTarget] = overId.split(":");
+      if (!target || !toOwner || !overTarget) return;
+      const list = editor.segments.byOwner[toOwner]?.current ?? [];
+      const insertAt = list.findIndex((s) => s.targetSlug === overTarget);
+      const promoted = bySlug.get(target);
+      editor.dispatch.segments({
+        type: "add",
+        owner: toOwner,
+        target,
+        position: insertAt < 0 ? list.length : insertAt,
+        label: promoted?.title ?? target,
+      });
+      return;
+    }
+
+    // orphan → orphan: purely visual reorder; orphan order is not persisted
+    // (only segmented parents have a position column). Skip dispatch.
   }
 
   return (
@@ -471,20 +531,11 @@ function PagesGroup({
             );
           })}
         </SortableContext>
-        {orphanDefaults.map((page) => (
-          <PageTreeRow
-            key={page.slug}
-            depth={1}
-            ancestorContinues={[]}
-            to={`/pages/${page.slug}`}
-            onItemClick={onItemClick}
-          >
-            <PageTreeContent
-              page={page}
-              icon={<FileMdIcon weight="duotone" className="w-4 h-4 shrink-0 opacity-70" />}
-            />
-          </PageTreeRow>
-        ))}
+        <SortableContext items={orphanDefaults.map((p) => `orphan:${p.slug}`)} strategy={verticalListSortingStrategy}>
+          {orphanDefaults.map((page) => (
+            <SortableOrphanRow key={page.slug} page={page} onItemClick={onItemClick} />
+          ))}
+        </SortableContext>
       </DndContext>
     </CollapsibleSidebarGroup>
   );
