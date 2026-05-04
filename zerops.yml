@@ -75,6 +75,7 @@ zerops:
         - pnpm --filter @musiccloud/frontend build
       deployFiles:
         - apps/frontend/dist
+        - apps/frontend/node_modules
         - apps/frontend/package.json
         - node_modules
         - packages/shared
