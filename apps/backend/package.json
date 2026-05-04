@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "tsup --watch --onSuccess \"node scripts/copy-jimp-fonts.mjs && node start-dev.mjs\"",
+    "dev": "node --env-file=.pewee.env ./node_modules/.bin/tsup --watch --onSuccess \"node scripts/copy-jimp-fonts.mjs && node start-dev.mjs\"",
     "build": "tsup && node scripts/copy-jimp-fonts.mjs",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",

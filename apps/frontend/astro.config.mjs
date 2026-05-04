@@ -8,6 +8,9 @@ export default defineConfig({
   output: "server",
   adapter: node({ mode: "standalone" }),
   integrations: [sitemap(), react()],
+  server: {
+    port: Number(process.env.PORT) || 3000,
+  },
   vite: {
     plugins: [tailwindcss()],
     server: {

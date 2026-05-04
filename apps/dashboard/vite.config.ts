@@ -26,7 +26,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 4001,
+    port: Number(process.env.PORT) || 4001,
     allowedHosts: ["localhost"],
     proxy: {
       "/api": {
