@@ -1,7 +1,6 @@
 import type { PublicContentPage } from "@musiccloud/shared";
 import { XCircleIcon } from "@phosphor-icons/react";
-import type { Element } from "domhandler";
-import parse, { domToReact, type HTMLReactParserOptions } from "html-react-parser";
+import parse, { domToReact, type Element, type HTMLReactParserOptions } from "html-react-parser";
 import { useMemo, useState } from "react";
 
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
