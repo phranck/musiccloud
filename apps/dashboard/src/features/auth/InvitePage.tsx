@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import { useI18n } from "@/context/I18nContext";
 import { AuthBackground } from "@/features/auth/AuthBackground";
 import { useAuth } from "@/features/auth/AuthContext";
+import { AuthLogo } from "@/features/auth/AuthLogo";
 import { api } from "@/lib/api";
 import type { AdminInviteState, AdminUser } from "@/shared/types/admin";
 
@@ -104,6 +105,10 @@ export function InvitePage() {
   return (
     <AuthBackground>
       <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <AuthLogo />
+        </div>
+
         <div className="bg-[var(--ds-surface)] rounded-[var(--radius-card)] shadow-2xl border border-[rgba(255,255,255,0.06)] overflow-hidden">
           <div className="bg-[var(--ds-surface-inset)] border-b border-[var(--ds-border-subtle)] px-5 py-4">
             <h2 className="font-bold text-[var(--ds-text)]">{inviteMessages.title}</h2>

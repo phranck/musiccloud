@@ -5,6 +5,7 @@ import { useNavigate } from "react-router";
 import { useI18n } from "@/context/I18nContext";
 import { AuthBackground } from "@/features/auth/AuthBackground";
 import { useAuth } from "@/features/auth/AuthContext";
+import { AuthLogo } from "@/features/auth/AuthLogo";
 import { api } from "@/lib/api";
 
 export function SetupPage() {
@@ -47,10 +48,7 @@ export function SetupPage() {
     <AuthBackground>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="relative mx-auto w-[120px] h-[120px]">
-            <div className="absolute inset-0 rounded-full animate-[auth-glow_8s_ease-in-out_infinite] bg-[var(--color-primary)]" />
-            <img src="/logo.png" alt={messages.auth.logoAlt} width={120} height={120} className="relative" />
-          </div>
+          <AuthLogo />
         </div>
 
         <div className="bg-[var(--ds-surface)] rounded-[var(--radius-card)] shadow-2xl border border-[rgba(255,255,255,0.06)] overflow-hidden">
