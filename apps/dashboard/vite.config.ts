@@ -27,7 +27,7 @@ export default defineConfig({
   },
   server: {
     port: Number(process.env.PORT) || 4001,
-    allowedHosts: ["localhost"],
+    allowedHosts: ["localhost", "dashboard.musiccloud.test"],
     proxy: {
       "/api": {
         target: process.env.BACKEND_URL ?? "http://localhost:4000",
