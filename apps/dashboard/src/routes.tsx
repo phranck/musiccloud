@@ -1,0 +1,181 @@
+import { lazy, Suspense } from "react";
+import { createRoutesFromElements, Navigate, Route } from "react-router";
+
+import { ContentEditorLoadingFallback } from "@/components/ContentEditorLoadingFallback";
+import { RedirectIfAuthed } from "@/features/auth/RedirectIfAuthed";
+import { RequireAuth } from "@/features/auth/RequireAuth";
+import { RequireNonModerator } from "@/features/auth/RequireNonModerator";
+import { RequireOwner } from "@/features/auth/RequireOwner";
+import { SetupGate } from "@/features/auth/SetupGate";
+import { RootLayout } from "@/RootLayout";
+
+const AdminLayout = lazy(() =>
+  import("@/components/layout/AdminLayout").then((m) => ({
+    default: m.AdminLayout,
+  })),
+);
+
+const InvitePage = lazy(() =>
+  import("@/features/auth/InvitePage").then((m) => ({
+    default: m.InvitePage,
+  })),
+);
+
+const LoginPage = lazy(() =>
+  import("@/features/auth/LoginPage").then((m) => ({
+    default: m.LoginPage,
+  })),
+);
+
+const SetupPage = lazy(() =>
+  import("@/features/auth/SetupPage").then((m) => ({
+    default: m.SetupPage,
+  })),
+);
+
+const DashboardPage = lazy(() =>
+  import("@/features/overview/DashboardPage").then((m) => ({
+    default: m.DashboardPage,
+  })),
+);
+
+const TracksPage = lazy(() =>
+  import("@/features/music/TracksPage").then((m) => ({
+    default: m.TracksPage,
+  })),
+);
+
+const TrackEditPage = lazy(() =>
+  import("@/features/music/TrackEditPage").then((m) => ({
+    default: m.TrackEditPage,
+  })),
+);
+
+const AlbumsPage = lazy(() =>
+  import("@/features/music/AlbumsPage").then((m) => ({
+    default: m.AlbumsPage,
+  })),
+);
+
+const ArtistsPage = lazy(() =>
+  import("@/features/music/ArtistsPage").then((m) => ({
+    default: m.ArtistsPage,
+  })),
+);
+
+const UsersPage = lazy(() =>
+  import("@/features/system/UsersPage").then((m) => ({
+    default: m.UsersPage,
+  })),
+);
+
+const AnalyticsPage = lazy(() =>
+  import("@/features/analytics/AnalyticsPage").then((m) => ({
+    default: m.AnalyticsPage,
+  })),
+);
+
+const PagesListPage = lazy(() =>
+  import("@/features/content/pages/PagesListPage").then((m) => ({
+    default: m.PagesListPage,
+  })),
+);
+
+const ContentEditorPage = lazy(() =>
+  import("@/features/content/pages/ContentEditorPage").then((m) => ({
+    default: m.ContentEditorPage,
+  })),
+);
+
+const NavManagerPage = lazy(() =>
+  import("@/features/content/navigation/NavManagerPage").then((m) => ({
+    default: m.NavManagerPage,
+  })),
+);
+
+const FormBuilderListPage = lazy(() =>
+  import("@/features/templates/form-builder/FormBuilderListPage").then((m) => ({
+    default: m.FormBuilderListPage,
+  })),
+);
+
+const EmailTemplateListPage = lazy(() =>
+  import("@/features/templates/email-templates/EmailTemplateListPage").then((m) => ({
+    default: m.EmailTemplateListPage,
+  })),
+);
+
+const EmailTemplateEditPage = lazy(() =>
+  import("@/features/templates/email-templates/EmailTemplateEditPage").then((m) => ({
+    default: m.EmailTemplateEditPage,
+  })),
+);
+
+const MarkdownWidgetsPage = lazy(() =>
+  import("@/features/system/MarkdownWidgetsPage").then((m) => ({
+    default: m.MarkdownWidgetsPage,
+  })),
+);
+
+const SystemPage = lazy(() =>
+  import("@/features/system/SystemPage").then((m) => ({
+    default: m.SystemPage,
+  })),
+);
+
+const ServicesPage = lazy(() =>
+  import("@/features/services/ServicesPage").then((m) => ({
+    default: m.ServicesPage,
+  })),
+);
+
+// Stub for editor pages not yet ported
+const EditorStubPage = () => (
+  <div className="flex-1 flex items-center justify-center">
+    <p className="text-[var(--ds-text-muted)]">Editor coming soon</p>
+  </div>
+);
+
+function lazyFallback(node: React.ReactNode) {
+  return <Suspense fallback={<ContentEditorLoadingFallback />}>{node}</Suspense>;
+}
+
+export const routes = createRoutesFromElements(
+  <Route element={<RootLayout />}>
+    <Route path="/setup" element={<SetupGate>{lazyFallback(<SetupPage />)}</SetupGate>} />
+    <Route path="/invite/:token" element={<RedirectIfAuthed>{lazyFallback(<InvitePage />)}</RedirectIfAuthed>} />
+    <Route path="/login" element={<RedirectIfAuthed>{lazyFallback(<LoginPage />)}</RedirectIfAuthed>} />
+
+    <Route element={<RequireAuth />}>
+      <Route element={lazyFallback(<AdminLayout />)}>
+        <Route index element={lazyFallback(<DashboardPage />)} />
+
+        <Route path="tracks" element={lazyFallback(<TracksPage />)} />
+        <Route path="tracks/:id" element={lazyFallback(<TrackEditPage />)} />
+        <Route path="albums" element={lazyFallback(<AlbumsPage />)} />
+        <Route path="artists" element={lazyFallback(<ArtistsPage />)} />
+
+        <Route element={<RequireOwner />}>
+          <Route path="users" element={lazyFallback(<UsersPage />)} />
+        </Route>
+
+        <Route element={<RequireNonModerator />}>
+          <Route path="analytics" element={lazyFallback(<AnalyticsPage />)} />
+          <Route path="forms" element={lazyFallback(<FormBuilderListPage />)} />
+          <Route path="forms/:name" element={lazyFallback(<EditorStubPage />)} />
+          <Route path="email-templates" element={lazyFallback(<EmailTemplateListPage />)} />
+          <Route path="email-templates/new" element={lazyFallback(<EmailTemplateEditPage />)} />
+          <Route path="email-templates/:id" element={lazyFallback(<EmailTemplateEditPage />)} />
+          <Route path="pages" element={lazyFallback(<PagesListPage />)} />
+          <Route path="pages/:slug" element={lazyFallback(<ContentEditorPage />)} />
+          <Route path="navigation" element={lazyFallback(<NavManagerPage />)} />
+          <Route path="markdown-widgets" element={lazyFallback(<MarkdownWidgetsPage />)} />
+          <Route path="system" element={lazyFallback(<SystemPage />)} />
+          <Route path="services" element={lazyFallback(<ServicesPage />)} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Route>
+  </Route>,
+);

@@ -66,7 +66,6 @@ export interface DashboardMessages {
     };
   };
   auth: {
-    logoAlt: string;
     adminArea: string;
     login: {
       title: string;
@@ -745,6 +744,14 @@ export interface DashboardMessages {
       retry: string;
     };
   };
+  unsavedGuard: {
+    title: string;
+    description: string;
+    cancel: string;
+    discard: string;
+    save: string;
+    saving: string;
+  };
 }
 
 export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
@@ -814,7 +821,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       },
     },
     auth: {
-      logoAlt: "musiccloud Logo",
       adminArea: "Admin-Bereich",
       login: {
         title: "Anmelden",
@@ -1469,6 +1475,14 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         retry: "Erneut versuchen",
       },
     },
+    unsavedGuard: {
+      title: "Ungespeicherte Änderungen",
+      description: "Du hast ungespeicherte Änderungen. Was möchtest du tun?",
+      cancel: "Abbrechen",
+      discard: "Verwerfen",
+      save: "Speichern",
+      saving: "Wird gespeichert…",
+    },
   },
   en: {
     languageName: "English",
@@ -1536,7 +1550,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       },
     },
     auth: {
-      logoAlt: "musiccloud Logo",
       adminArea: "Admin Area",
       login: {
         title: "Sign In",
@@ -2190,6 +2203,14 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         reload: "Go to Home",
         retry: "Try again",
       },
+    },
+    unsavedGuard: {
+      title: "Unsaved changes",
+      description: "You have unsaved changes. What would you like to do?",
+      cancel: "Cancel",
+      discard: "Discard",
+      save: "Save",
+      saving: "Saving…",
     },
   },
 };

@@ -192,10 +192,10 @@ button {
 @keyframes on-autofill { from { opacity: 0.99; } }
 input:-webkit-autofill { animation: on-autofill 0.01s both; }
 
-/* Auth page: pulsing logo glow */
+/* Auth page: pulsing logo glow behind the banner SVG */
 @keyframes auth-glow {
-  0%, 100% { opacity: 0; filter: blur(20px); transform: scale(0.8); }
-  50% { opacity: 0.35; filter: blur(30px); transform: scale(1.1); }
+  0%, 100% { opacity: 0.04; filter: blur(28px); transform: scale(0.92); }
+  50% { opacity: 0.12; filter: blur(34px); transform: scale(1.02); }
 }
 
 /* KPI card: responsive layout via container query */
@@ -236,10 +236,3 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-.auth-logo-mask {
-  width: 120px;
-  height: 120px;
-  background-color: var(--color-primary);
-  -webkit-mask: url(/logo.png) no-repeat center / contain;
-  mask: url(/logo.png) no-repeat center / contain;
-}
