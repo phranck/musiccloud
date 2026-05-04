@@ -1,35 +1,15 @@
 ---
 /**
- * Static ambient background — starfield, constellations, and three
- * animated color blobs. Rendered at build-time; no JavaScript, no
- * hydration cost.
+ * Static ambient background — three animated color blobs. Rendered at
+ * build-time; no JavaScript, no hydration cost.
  *
  * Dynamic album colors (when a track is resolved) are mirrored onto
  * `<html>` as `--bg-blob-*` custom properties by `useAlbumColors`.
  * The blob colors below fall back to the default palette otherwise.
  */
-import {
-  CANIS_MAJOR_STARS,
-  generateConstellationShadow,
-  generateStarfield,
-  ORION_STARS,
-} from "@/lib/ui/starfield";
-
-const starfieldShadow = generateStarfield();
-const orionShadow = generateConstellationShadow(ORION_STARS, 72, 4, 16, 28);
-const canisMajorShadow = generateConstellationShadow(CANIS_MAJOR_STARS, 12, 55, 14, 28);
 ---
 
 <div class="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden="true">
-  <div
-    class="absolute inset-0 animate-starfield-rotate hidden sm:block"
-    style="transform-origin: 50vw 50dvh; will-change: transform"
-  >
-    <div class="absolute w-px h-px top-0 left-0" style={`box-shadow: ${starfieldShadow}`}></div>
-    <div class="absolute w-px h-px top-0 left-0" style={`box-shadow: ${orionShadow}`}></div>
-    <div class="absolute w-px h-px top-0 left-0" style={`box-shadow: ${canisMajorShadow}`}></div>
-  </div>
-
   <div
     class="absolute rounded-full blur-[150px] w-[50vw] h-[50vw] top-[-5%] left-[-5%] transition-[background-color] duration-800 ease-in-out"
     style="background-color: var(--bg-blob-primary, rgba(40, 168, 216, 0.18)); animation: blob-drift-1 120s ease-in-out infinite; will-change: transform"
