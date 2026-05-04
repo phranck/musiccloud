@@ -117,17 +117,6 @@
   }
 }
 
-/* Marquee scroll - seamless infinite loop.
-   4 identical strips with trailing padding. -25% = exactly 1 strip width. */
-@keyframes marquee-seamless {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-25%);
-  }
-}
-
 /* Sparkling stars - brief flash then fade */
 @keyframes sparkle-fade {
   0% {
@@ -216,16 +205,6 @@
   100% { transform: translate(0, 0) scale(0.95) rotate(0deg); }
 }
 
-/* Starfield slow rotation - pivoting at bottom center */
-@keyframes starfield-rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* Glassmorphism fallback for browsers without backdrop-filter */
 @supports not (backdrop-filter: blur(1px)) {
   .glass-fallback {
@@ -246,9 +225,6 @@
 
 /* Disable background animations on touch/mobile devices */
 @media (pointer: coarse) {
-  .animate-starfield-rotate {
-    animation: none !important;
-  }
   .animate-pulse-glow::after {
     animation: none !important;
   }

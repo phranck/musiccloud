@@ -45,8 +45,6 @@
   --animate-cd-shimmer: cd-shimmer 4s ease-in-out infinite;
   /* pulse-glow: defined as manual utility in animations.css (GPU-accelerated ::after) */
   /* cosmic-glow: removed (unused) */
-  --animate-marquee-seamless: marquee-seamless 80s linear infinite;
-  --animate-starfield-rotate: starfield-rotate 1200s linear infinite;
 }
 
 @import "./animations.css";

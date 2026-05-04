@@ -28,9 +28,6 @@ const GenreSearchResults = lazy(() =>
 );
 const ShareLayout = lazy(() => import("@/components/share/ShareLayout").then((m) => ({ default: m.ShareLayout })));
 const Toast = lazy(() => import("@/components/ui/Toast").then((m) => ({ default: m.Toast })));
-const PlatformIconRow = lazy(() =>
-  import("@/components/platform/PlatformIconRow").then((m) => ({ default: m.PlatformIconRow })),
-);
 
 const EMPTY_NAV_ITEMS: NavItem[] = [];
 
@@ -283,14 +280,6 @@ function LandingPageInner({
             </div>
           )}
         </div>
-
-        {state.type === "idle" && (
-          <Suspense fallback={null}>
-            <div className={isReturning ? "animate-fade-in" : ""}>
-              <PlatformIconRow />
-            </div>
-          </Suspense>
-        )}
 
         <Suspense fallback={null}>
           <Toast
