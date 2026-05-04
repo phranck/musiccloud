@@ -17,11 +17,21 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { NavId } from "@musiccloud/shared";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "@musiccloud/shared";
-import { CaretDownIcon, CaretUpIcon, DownloadIcon, ListIcon, PlusCircleIcon, XCircleIcon } from "@phosphor-icons/react";
-import { useEffect, useReducer, useState } from "react";
+import {
+  CaretDownIcon,
+  CaretUpIcon,
+  DownloadIcon,
+  FileDashedIcon,
+  FileMdIcon,
+  ListIcon,
+  PlusCircleIcon,
+  XCircleIcon,
+} from "@phosphor-icons/react";
+import { Fragment, useEffect, useReducer, useRef, useState } from "react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/context/I18nContext";
+import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { useAdminNav, useSaveNav } from "@/features/content/hooks/useAdminNav";
 import { useFormConfigs } from "@/features/templates/hooks/useFormConfig";
@@ -416,11 +426,21 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
     }
   }
 
-  const usedPageSlugs = new Set(items.filter((i) => i.pageSlug).map((i) => i.pageSlug));
   const usedUrls = new Set(items.filter((i) => i.url).map((i) => i.url));
-  const availablePages = allPages.filter((p) => !usedPageSlugs.has(p.slug));
   const availableStatics = staticRoutes.filter((r) => !usedUrls.has(r.url));
   const availableForms = allForms.filter((f) => f.slug && !usedUrls.has(`/${f.slug}`));
+  // Group all pages by segmented hierarchy so the dropdown mirrors the
+  // sidebar/pages-overview structure. Every page stays selectable; the user
+  // owns the decision whether to re-add a page that's already in the nav.
+  const pagesGrouped = (() => {
+    const { segmentedBlocks, orphanDefaults } = groupPagesByHierarchy(allPages);
+    const orphans = orphanDefaults.map((p) => ({ slug: p.slug, title: p.title }));
+    const blocks = segmentedBlocks.map(({ parent, children }) => ({
+      parent: { slug: parent.slug, title: parent.title },
+      children: children.map((c) => ({ slug: c.slug, title: c.title })),
+    }));
+    return { orphans, blocks };
+  })();
 
   return (
     <div className="flex flex-col gap-4">
@@ -472,7 +492,7 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
         addPageSlug={addPageSlug}
         addUrl={addUrl}
         addLabel={addLabel}
-        availablePages={availablePages}
+        pagesGrouped={pagesGrouped}
         availableForms={availableForms}
         availableStatics={availableStatics}
         text={text}
@@ -488,12 +508,20 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
   );
 }
 
+interface PagesGrouped {
+  orphans: { slug: string; title: string }[];
+  blocks: {
+    parent: { slug: string; title: string };
+    children: { slug: string; title: string }[];
+  }[];
+}
+
 interface NavColumnAddSectionProps {
   addType: "page" | "url" | "form";
   addPageSlug: string;
   addUrl: string;
   addLabel: string;
-  availablePages: { slug: string; title: string }[];
+  pagesGrouped: PagesGrouped;
   availableForms: { name: string; slug: string | null }[];
   availableStatics: { label: string; url: string }[];
   text: NavText;
@@ -511,7 +539,7 @@ function NavColumnAddSection({
   addPageSlug,
   addUrl,
   addLabel,
-  availablePages,
+  pagesGrouped,
   availableForms,
   availableStatics,
   text,
@@ -553,31 +581,14 @@ function NavColumnAddSection({
 
       {addType === "page" ? (
         <div className="flex items-center gap-2">
-          <select
+          <HierarchicalPagePicker
             value={addPageSlug}
-            onChange={(e) => onPageSlugChange(e.target.value)}
-            className="flex-1 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control px-2 py-1.5 text-[var(--ds-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
-          >
-            <option value="">{text.choosePageOrForm}</option>
-            {availablePages.length > 0 && (
-              <optgroup label={text.typePage}>
-                {availablePages.map((p) => (
-                  <option key={p.slug} value={p.slug}>
-                    {p.title} (/{p.slug})
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {availableForms.length > 0 && (
-              <optgroup label={text.forms}>
-                {availableForms.map((f) => (
-                  <option key={f.name} value={`form:${f.slug}`}>
-                    {f.name} (/{f.slug})
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
+            onChange={onPageSlugChange}
+            pagesGrouped={pagesGrouped}
+            forms={availableForms}
+            placeholder={text.choosePageOrForm}
+            formsLabel={text.forms}
+          />
           <button
             type="button"
             onClick={onAddPage}
@@ -630,6 +641,151 @@ function NavColumnAddSection({
               <PlusCircleIcon weight="duotone" className="w-5 h-5" />
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface HierarchicalPagePickerProps {
+  value: string;
+  onChange: (value: string) => void;
+  pagesGrouped: PagesGrouped;
+  forms: { name: string; slug: string | null }[];
+  placeholder: string;
+  formsLabel: string;
+}
+
+// Custom dropdown that visually indents segmented children via real CSS
+// padding (native <select> ignores leading whitespace and has no built-in
+// way to mark hierarchy). Every item is selectable.
+function HierarchicalPagePicker({
+  value,
+  onChange,
+  pagesGrouped,
+  forms,
+  placeholder,
+  formsLabel,
+}: HierarchicalPagePickerProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function escHandler(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("keydown", escHandler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", escHandler);
+    };
+  }, [open]);
+
+  const selectedLabel = (() => {
+    if (!value) return placeholder;
+    if (value.startsWith("form:")) {
+      const slug = value.slice("form:".length);
+      const f = forms.find((ff) => ff.slug === slug);
+      return f?.slug ? `${f.name} (/${f.slug})` : placeholder;
+    }
+    for (const p of pagesGrouped.orphans) {
+      if (p.slug === value) return `${p.title} (/${p.slug})`;
+    }
+    for (const b of pagesGrouped.blocks) {
+      if (b.parent.slug === value) return `${b.parent.title} (/${b.parent.slug})`;
+      for (const c of b.children) {
+        if (c.slug === value) return `${c.title} (/${c.slug})`;
+      }
+    }
+    return placeholder;
+  })();
+
+  function pick(v: string) {
+    onChange(v);
+    setOpen(false);
+  }
+
+  function PageRow({
+    slug,
+    title,
+    depth,
+    pageType,
+  }: {
+    slug: string;
+    title: string;
+    depth: 0 | 1;
+    pageType: "segmented" | "default";
+  }) {
+    const Icon = pageType === "segmented" ? FileDashedIcon : FileMdIcon;
+    return (
+      <button
+        type="button"
+        onClick={() => pick(slug)}
+        className={`w-full text-left text-xs py-1.5 flex items-center gap-2 hover:bg-[var(--ds-nav-hover-bg)] ${
+          value === slug ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]" : "text-[var(--ds-text)]"
+        }`}
+        style={{ paddingLeft: 8 + depth * 20, paddingRight: 8 }}
+      >
+        <Icon weight="duotone" className="w-4 h-4 shrink-0 text-[var(--ds-text-muted)]" />
+        <span className="truncate">
+          {title} <span className="text-[var(--ds-text-muted)] font-mono">/{slug}</span>
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <div ref={ref} className="relative flex-1">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control px-2 py-1.5 text-left flex items-center justify-between focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+      >
+        <span className={value ? "text-[var(--ds-text)]" : "text-[var(--ds-text-muted)]"}>{selectedLabel}</span>
+        <CaretDownIcon weight="duotone" className="w-3 h-3 shrink-0 text-[var(--ds-text-muted)]" />
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-[var(--ds-bg-elevated,var(--ds-surface))] border border-[var(--ds-border)] rounded-control shadow-lg max-h-80 overflow-auto py-1">
+          {pagesGrouped.orphans.map((p) => (
+            <PageRow key={p.slug} slug={p.slug} title={p.title} depth={0} pageType="default" />
+          ))}
+          {pagesGrouped.blocks.map((b) => (
+            <Fragment key={b.parent.slug}>
+              <PageRow slug={b.parent.slug} title={b.parent.title} depth={0} pageType="segmented" />
+              {b.children.map((c) => (
+                <PageRow key={c.slug} slug={c.slug} title={c.title} depth={1} pageType="default" />
+              ))}
+            </Fragment>
+          ))}
+          {forms.length > 0 && (
+            <>
+              <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[var(--ds-text-muted)] border-t border-[var(--ds-border)] mt-1">
+                {formsLabel}
+              </div>
+              {forms.map(
+                (f) =>
+                  f.slug && (
+                    <button
+                      key={f.slug}
+                      type="button"
+                      onClick={() => pick(`form:${f.slug}`)}
+                      className={`w-full text-left text-xs py-1.5 px-2 hover:bg-[var(--ds-nav-hover-bg)] ${
+                        value === `form:${f.slug}`
+                          ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]"
+                          : "text-[var(--ds-text)]"
+                      }`}
+                    >
+                      {f.name} <span className="text-[var(--ds-text-muted)] font-mono">/{f.slug}</span>
+                    </button>
+                  ),
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
