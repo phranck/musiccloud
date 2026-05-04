@@ -41,7 +41,7 @@ jobs:
       - name: Backend
         run: pnpm exec tsc --noEmit --project apps/backend/tsconfig.json
       - name: Frontend
-        run: pnpm exec astro check --root apps/frontend
+        run: pnpm --filter @musiccloud/frontend exec astro check
       - name: Dashboard
         run: pnpm exec tsc --noEmit --project apps/dashboard/tsconfig.json
       - name: Tests
