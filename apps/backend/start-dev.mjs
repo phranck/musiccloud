@@ -5,8 +5,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const envFile = resolve(root, ".env.local");
+const appDir = dirname(fileURLToPath(import.meta.url));
+const envFile = resolve(appDir, ".env.local");
 
 if (existsSync(envFile)) {
   for (const line of readFileSync(envFile, "utf8").split("\n")) {

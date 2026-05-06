@@ -7,8 +7,17 @@ import {
   type SharePageResponse,
 } from "@musiccloud/shared";
 
-const BACKEND_URL =
-  (import.meta.env.BACKEND_URL as string | undefined) ?? process.env.BACKEND_URL ?? "http://localhost:4000";
+const BACKEND_URL: string = (() => {
+  const value =
+    (import.meta.env.BACKEND_URL as string | undefined)?.trim() ||
+    process.env.BACKEND_URL?.trim();
+  if (!value) {
+    throw new Error(
+      "Missing BACKEND_URL. Define it in .env.local — manually or via pewee.",
+    );
+  }
+  return value;
+})();
 const INTERNAL_API_KEY = (import.meta.env.INTERNAL_API_KEY as string | undefined) ?? process.env.INTERNAL_API_KEY ?? "";
 
 function backendUrl(path: string): string {

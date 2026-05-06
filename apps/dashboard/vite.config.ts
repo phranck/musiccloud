@@ -4,7 +4,19 @@ import react from "@vitejs/plugin-react";
 import UnoCSS from "unocss/vite";
 import { defineConfig } from "vite";
 
-export default defineConfig({
+function buildDevProxy() {
+  const backendUrl = process.env.BACKEND_URL?.trim();
+  if (!backendUrl) {
+    throw new Error(
+      "Missing BACKEND_URL. Define it in .env.local — manually or via pewee.",
+    );
+  }
+  return {
+    "/api": { target: backendUrl, changeOrigin: true },
+  };
+}
+
+export default defineConfig(({ command }) => ({
   plugins: [react(), UnoCSS()],
   resolve: {
     alias: {
@@ -28,11 +40,6 @@ export default defineConfig({
   server: {
     port: Number(process.env.PORT) || 4001,
     allowedHosts: ["localhost", "dashboard.musiccloud.test"],
-    proxy: {
-      "/api": {
-        target: process.env.BACKEND_URL ?? "http://localhost:4000",
-        changeOrigin: true,
-      },
-    },
+    ...(command === "serve" ? { proxy: buildDevProxy() } : {}),
   },
-});
+}));
