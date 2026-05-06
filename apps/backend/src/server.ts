@@ -7,6 +7,7 @@ import swagger from "@fastify/swagger";
 import Fastify from "fastify";
 import { getRepository } from "./db/index.js";
 import { runMigrations } from "./db/run-migrations.js";
+import { requireEnvList } from "./lib/env.js";
 import authPlugin from "./plugins/auth.js";
 import adminAnalyticsRoutes from "./routes/admin-analytics.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
@@ -73,7 +74,7 @@ async function buildApp() {
 
   // Security & utility plugins
   await app.register(cors, {
-    origin: process.env.CORS_ORIGIN?.split(",") ?? ["http://localhost:3000", "http://localhost:4321"],
+    origin: requireEnvList("CORS_ORIGIN"),
   });
   await app.register(helmet, {
     // Relaxed CSP so the Scalar API reference at /docs can load its

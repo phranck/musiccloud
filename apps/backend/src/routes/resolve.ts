@@ -92,16 +92,14 @@ import {
   StructuredSearchQueryParseError,
 } from "../services/structured-search/index.js";
 
+import { requireEnvList } from "../lib/env.js";
+
 /**
- * Same whitelist as in `routes/resolve-public-get.ts`; the full rationale
- * lives there. Kept in sync between the two files manually.
+ * Whitelist sourced from env `ALLOWED_ORIGINS` (comma-separated). The full
+ * rationale for this validation lives in `routes/resolve-public-get.ts`.
+ * Both routes import this single source of truth.
  */
-const ALLOWED_ORIGINS = [
-  "https://musiccloud.io",
-  "http://localhost:3000",
-  "http://localhost:4321",
-  "http://localhost:4322",
-];
+const ALLOWED_ORIGINS = requireEnvList("ALLOWED_ORIGINS");
 
 export default async function resolveRoutes(app: FastifyInstance) {
   app.post(

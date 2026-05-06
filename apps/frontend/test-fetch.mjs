@@ -1,4 +1,8 @@
-const BACKEND_URL = "http://localhost:4000";
+const BACKEND_URL = process.env.BACKEND_URL?.trim();
+if (!BACKEND_URL) {
+  console.error("Missing BACKEND_URL. Define it in .env.local — manually or via pewee.");
+  process.exit(1);
+}
 
 async function fetchShareData(shortId) {
   const res = await fetch(`${BACKEND_URL}/api/v1/share/${encodeURIComponent(shortId)}`, {

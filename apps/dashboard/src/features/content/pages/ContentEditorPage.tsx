@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
 import { useI18n } from "@/context/I18nContext";
+import { FRONTEND_URL } from "@/lib/env";
 import { useAdminContentPage, useDeleteContentPage } from "@/features/content/hooks/useAdminContent";
 import { LanguageTabs } from "@/features/content/pages/LanguageTabs";
 import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
@@ -590,10 +591,7 @@ export function ContentEditorPage() {
           onIncreaseFont={() => changeFontSize(+1)}
           onOpenDelete={() => dispatch({ type: "setConfirmDelete", value: true })}
           onPreview={() => {
-            const base =
-              (import.meta.env.VITE_FRONTEND_URL as string | undefined) ??
-              (import.meta.env.DEV ? "http://localhost:3000" : "https://musiccloud.io");
-            window.open(`${base}/${slug}`, "_blank");
+            window.open(`${FRONTEND_URL}/${slug}`, "_blank");
           }}
         />
       </PageHeader>

@@ -43,21 +43,18 @@ import {
   StructuredSearchQueryParseError,
 } from "../services/structured-search/index.js";
 
+import { requireEnvList } from "../lib/env.js";
+
 /**
  * Whitelist for the `Origin` header used when building the user-facing short
  * URL. The `Origin` header is client-controlled, so an attacker could supply
  * any hostname; if echoed back unchecked, the returned `shortUrl` would point
  * at an attacker-chosen host that a consumer might then share publicly.
  *
- * Note: this list is duplicated in `routes/resolve.ts`. Keep the two in sync
- * whenever an origin is added or removed.
+ * Sourced from env `ALLOWED_ORIGINS` (comma-separated). Keep this list and
+ * the one in `routes/resolve.ts` synchronized via a single env var.
  */
-const ALLOWED_ORIGINS = [
-  "https://musiccloud.io",
-  "http://localhost:3000",
-  "http://localhost:4321",
-  "http://localhost:4322",
-];
+const ALLOWED_ORIGINS = requireEnvList("ALLOWED_ORIGINS");
 
 export default async function resolvePublicGetRoutes(app: FastifyInstance) {
   app.get(
