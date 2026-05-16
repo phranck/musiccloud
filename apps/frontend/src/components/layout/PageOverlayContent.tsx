@@ -10,9 +10,9 @@ import { EmbossedCloseButton } from "@/components/ui/EmbossedCloseButton";
 import { cn } from "@/lib/utils";
 
 const MD_FIELDS = [
-  "[&_.mc-fields]:my-3 [&_.mc-fields]:items-baseline [&_.mc-fields]:gap-y-1.5",
+  "[&_.mc-fields]:my-3 [&_.mc-fields]:items-baseline [&_.mc-fields]:gap-y-0.5",
   "[&_.mc-fields_dt]:min-w-0 [&_.mc-fields_dt]:font-mono [&_.mc-fields_dt]:text-sm [&_.mc-fields_dt]:font-semibold [&_.mc-fields_dt]:[overflow-wrap:anywhere]",
-  "[&_.mc-fields_dd]:m-0 [&_.mc-fields_dd]:min-w-0 [&_.mc-fields_dd]:leading-relaxed [&_.mc-fields_dd]:[overflow-wrap:anywhere]",
+  "[&_.mc-fields_dd]:m-0 [&_.mc-fields_dd]:min-w-0 [&_.mc-fields_dd]:leading-normal [&_.mc-fields_dd]:[overflow-wrap:anywhere]",
 ].join(" ");
 
 const MD_TRANSLUCENT = [
