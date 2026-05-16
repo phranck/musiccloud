@@ -1,5 +1,5 @@
 import { ENDPOINTS } from "@musiccloud/shared";
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { PlaybackButton } from "@/components/playback/PlaybackButton";
 import { ProgressTrack } from "@/components/playback/ProgressTrack";
 import { useT } from "@/i18n/context";
@@ -89,11 +89,21 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+async function fetchPreviewUrl(refreshShortId: string, signal: AbortSignal): Promise<string | null> {
+  const res = await fetch(ENDPOINTS.frontend.sharePreview(refreshShortId), { signal });
+  if (!res.ok) return null;
+  const body = (await res.json()) as { previewUrl: string | null };
+  return body.previewUrl;
+}
+
 export function AudioPreviewPlayer({ previewUrl, refreshShortId, trackTitle }: AudioPreviewPlayerProps) {
   const t = useT();
   const initialPhase: PlayerState = previewUrl ? { phase: "idle", duration: 30 } : { phase: "loading" };
   const [state, dispatch] = useReducer(playerReducer, initialPhase);
-  const [effectiveUrl, setEffectiveUrl] = useState<string | null>(previewUrl ?? null);
+  const [effectiveUrl, setEffectiveUrl] = useReducer(
+    (_: string | null, next: string | null) => next,
+    previewUrl ?? null,
+  );
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Lazy fetch the preview URL when the component mounted without one.
@@ -103,14 +113,9 @@ export function AudioPreviewPlayer({ previewUrl, refreshShortId, trackTitle }: A
     const controller = new AbortController();
     (async () => {
       try {
-        const res = await fetch(ENDPOINTS.frontend.sharePreview(refreshShortId), { signal: controller.signal });
-        if (!res.ok) {
-          dispatch({ type: "URL_UNAVAILABLE" });
-          return;
-        }
-        const body = (await res.json()) as { previewUrl: string | null };
-        if (body.previewUrl) {
-          setEffectiveUrl(body.previewUrl);
+        const nextPreviewUrl = await fetchPreviewUrl(refreshShortId, controller.signal);
+        if (nextPreviewUrl) {
+          setEffectiveUrl(nextPreviewUrl);
           dispatch({ type: "URL_READY" });
         } else {
           dispatch({ type: "URL_UNAVAILABLE" });
@@ -134,20 +139,29 @@ export function AudioPreviewPlayer({ previewUrl, refreshShortId, trackTitle }: A
     audio.preload = "metadata";
     audio.src = effectiveUrl;
 
-    audio.addEventListener("loadedmetadata", () => {
+    const handleLoadedMetadata = () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
       dispatch({ type: "METADATA_LOADED", duration: dur });
-    });
-    audio.addEventListener("timeupdate", () => {
+    };
+    const handleTimeUpdate = () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
       dispatch({ type: "TIME_UPDATE", currentTime: audio.currentTime, duration: dur });
-    });
-    audio.addEventListener("ended", () => dispatch({ type: "ENDED" }));
-    audio.addEventListener("error", () => dispatch({ type: "ERROR" }));
+    };
+    const handleEnded = () => dispatch({ type: "ENDED" });
+    const handleError = () => dispatch({ type: "ERROR" });
+
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("error", handleError);
 
     audioRef.current = audio;
 
     return () => {
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("error", handleError);
       audio.pause();
       audio.src = "";
       audioRef.current = null;

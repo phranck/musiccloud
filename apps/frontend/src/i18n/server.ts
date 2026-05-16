@@ -3,11 +3,15 @@ import type { Locale } from "./locales";
 type Translations = Record<string, string>;
 
 const cache = new Map<Locale, Translations>();
+const loaders: Record<Locale, () => Promise<{ default: Translations }>> = {
+  de: () => import("./translations/de.json"),
+  en: () => import("./translations/en.json"),
+};
 
 export async function loadTranslations(locale: Locale): Promise<Translations> {
   if (cache.has(locale)) return cache.get(locale)!;
   try {
-    const mod = await import(`./translations/${locale}.json`);
+    const mod = await loaders[locale]();
     cache.set(locale, mod.default as Translations);
     return mod.default as Translations;
   } catch {

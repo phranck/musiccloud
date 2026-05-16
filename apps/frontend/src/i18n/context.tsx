@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, use, useCallback, useEffect, useState } from "react";
 import { detectLocale, LOCALE_STORAGE_KEY, type Locale } from "./locales";
 import deTranslations from "./translations/de.json";
 import enTranslations from "./translations/en.json";
@@ -79,7 +79,7 @@ export function LocaleProvider({
 }
 
 export function useLocale() {
-  const ctx = useContext(LocaleContext);
+  const ctx = use(LocaleContext);
   if (!ctx) throw new Error("useLocale must be used within LocaleProvider");
   return ctx;
 }

@@ -33,7 +33,7 @@ type EmbossedButtonProps = (AnchorProps | ButtonProps) & {
 export const iconInnerShadow = "url(#icon-inset)";
 
 const InnerShadowFilter = () => (
-  <svg className="absolute w-0 h-0 overflow-hidden" aria-hidden="true">
+  <svg className="absolute size-0 overflow-hidden" aria-hidden="true">
     <defs>
       <filter id="icon-inset">
         <feFlood floodColor="black" floodOpacity="0.7" />

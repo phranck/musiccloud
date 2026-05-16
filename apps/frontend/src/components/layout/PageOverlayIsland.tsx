@@ -9,7 +9,7 @@ import {
   type ViewportRect,
 } from "@musiccloud/shared";
 import type { CSSProperties, PointerEvent, ReactNode } from "react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 
 import { EmbossedOverlayContent, TranslucentOverlayContent } from "@/components/layout/PageOverlayContent";
 import { OverlayProvider, useOverlay } from "@/context/OverlayContext";
@@ -35,6 +35,22 @@ const VIEWPORT_MARGIN = 8;
 // position for one page (e.g. "help") does not bleed over into another
 // page (e.g. "info"). One localStorage entry per slug.
 const GEOM_KEY_PREFIX = "mc:overlay-geom:";
+
+type OverlayVisibility = { mounted: boolean; visible: boolean };
+type OverlayVisibilityAction = { type: "mount" } | { type: "show" } | { type: "hide" } | { type: "unmount" };
+
+function overlayVisibilityReducer(state: OverlayVisibility, action: OverlayVisibilityAction): OverlayVisibility {
+  switch (action.type) {
+    case "mount":
+      return { mounted: true, visible: false };
+    case "show":
+      return state.mounted ? { mounted: true, visible: true } : state;
+    case "hide":
+      return { ...state, visible: false };
+    case "unmount":
+      return { mounted: false, visible: false };
+  }
+}
 
 function geomKey(slug: string): string {
   return `${GEOM_KEY_PREFIX}${slug}`;
@@ -132,21 +148,27 @@ function OverlayShell({ initialPage }: Props) {
   // mount so the browser paints the "hidden" state first and the opacity
   // / scale tween animates from 0 → 1. On close we flip it to false and
   // unmount after TRANSITION_MS so the reverse tween actually runs.
-  const [mounted, setMounted] = useState(false);
-  const [visible, setVisible] = useState(false);
+  const [{ mounted, visible }, dispatchVisibility] = useReducer(overlayVisibilityReducer, {
+    mounted: false,
+    visible: false,
+  });
+  const mountedRef = useRef(false);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `mounted` is an internal flag we intentionally read-only-at-effect-time; depending on it would re-trigger the leave schedule on each tick.
+  useEffect(() => {
+    mountedRef.current = mounted;
+  }, [mounted]);
+
   useEffect(() => {
     if (page && page.displayMode !== "fullscreen") {
-      setMounted(true);
+      dispatchVisibility({ type: "mount" });
       // Paint the hidden state first, then toggle visible on the next
       // frame so the transition engages.
-      const id = requestAnimationFrame(() => setVisible(true));
+      const id = requestAnimationFrame(() => dispatchVisibility({ type: "show" }));
       return () => cancelAnimationFrame(id);
     }
-    setVisible(false);
-    if (!mounted) return;
-    const id = window.setTimeout(() => setMounted(false), TRANSITION_MS);
+    dispatchVisibility({ type: "hide" });
+    if (!mountedRef.current) return;
+    const id = window.setTimeout(() => dispatchVisibility({ type: "unmount" }), TRANSITION_MS);
     return () => window.clearTimeout(id);
   }, [page]);
 
@@ -188,7 +210,7 @@ function OverlayShell({ initialPage }: Props) {
         className={cn("fixed inset-0 z-40 bg-black/40 cursor-default", visible ? "opacity-100" : "opacity-0")}
         style={backdropStyle}
       />
-      <OverlayFrame visible={visible} slug={page.slug}>
+      <OverlayFrame key={page.slug} visible={visible} slug={page.slug}>
         {page.displayMode === "translucent" ? (
           <TranslucentOverlayContent page={page} onClose={close} />
         ) : (
@@ -212,7 +234,7 @@ function OverlayShell({ initialPage }: Props) {
  */
 function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: string; children: ReactNode }) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const [geom, setGeom] = useState<Geom | null>(null);
+  const [geom, setGeom] = useState<Geom>(() => loadGeom(slug) ?? defaultGeom());
   const gestureRef = useRef<{
     kind: "drag" | "resize";
     handle?: ResizeHandle;
@@ -221,14 +243,6 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
     startY: number;
     origin: Geom;
   } | null>(null);
-
-  // Init geometry from localStorage (or defaults) once we can read the
-  // viewport, and re-init when the slug changes (page-switch within the
-  // same overlay session). useLayoutEffect runs before first paint so the
-  // frame renders at its resolved position — no visible flash.
-  useLayoutEffect(() => {
-    setGeom(loadGeom(slug) ?? defaultGeom());
-  }, [slug]);
 
   // Re-clamp geometry whenever the viewport resizes so the frame never
   // ends up partially off-screen. Stored value stays untouched unless the
@@ -301,8 +315,6 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
       return cur;
     });
   }
-
-  if (!geom) return null;
 
   const frameStyle: CSSProperties = {
     left: `${geom.x}px`,

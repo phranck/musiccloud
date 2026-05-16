@@ -32,7 +32,7 @@ export function ProgressTrack({
 }: ProgressTrackProps) {
   const progress = duration > 0 ? currentTime / duration : 0;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const seekToInputValue = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = Number(e.target.value);
     onSeek(time);
   };
@@ -69,7 +69,7 @@ export function ProgressTrack({
         max={duration}
         step={0.1}
         value={currentTime}
-        onChange={handleChange}
+        onChange={seekToInputValue}
         disabled={isDisabled}
         aria-label={ariaLabel}
         aria-valuemin={0}

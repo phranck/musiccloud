@@ -12,7 +12,7 @@ import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
 import { useI18n } from "@/context/I18nContext";
 import { useAdminContentPage, useDeleteContentPage } from "@/features/content/hooks/useAdminContent";
-import { buildLocalizedPageTitle } from "@/features/content/pageLocalization";
+import { buildLocalizedPageTitle, createPageTitleTranslationDraft } from "@/features/content/pageLocalization";
 import { LanguageTabs } from "@/features/content/pages/LanguageTabs";
 import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
 import { PageTitleAlignment } from "@/features/content/pages/PageTitleAlignment";
@@ -61,8 +61,6 @@ interface EditorState {
   sourceFontSize: number;
   editingSlug: boolean;
   editSlugValue: string;
-  editingTitle: boolean;
-  editTitleValue: string;
   patchError: string | null;
 }
 
@@ -73,8 +71,6 @@ type EditorAction =
   | { type: "setSourceFontSize"; value: number }
   | { type: "setEditingSlug"; value: boolean }
   | { type: "setEditSlugValue"; value: string }
-  | { type: "setEditingTitle"; value: boolean }
-  | { type: "setEditTitleValue"; value: string }
   | { type: "setPatchError"; value: string | null };
 
 function createInitialEditorState(): EditorState {
@@ -84,8 +80,6 @@ function createInitialEditorState(): EditorState {
     sourceFontSize: loadFontSize(),
     editingSlug: false,
     editSlugValue: "",
-    editingTitle: false,
-    editTitleValue: "",
     patchError: null,
   };
 }
@@ -98,7 +92,6 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         saved: false,
         confirmDelete: false,
         editingSlug: false,
-        editingTitle: false,
         patchError: null,
       };
     case "setSaved":
@@ -111,15 +104,43 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return { ...state, editingSlug: action.value };
     case "setEditSlugValue":
       return { ...state, editSlugValue: action.value };
-    case "setEditingTitle":
-      return { ...state, editingTitle: action.value };
-    case "setEditTitleValue":
-      return { ...state, editTitleValue: action.value };
     case "setPatchError":
       return { ...state, patchError: action.value };
     default:
       return state;
   }
+}
+
+type PageEditorDispatch = ReturnType<typeof usePagesEditor>["dispatch"];
+
+function useHydratePageEditor(page: ContentPage | undefined, editorDispatch: PageEditorDispatch) {
+  useEffect(() => {
+    if (!page) return;
+    editorDispatch.meta({ type: "hydrate", entries: [{ slug: page.slug, meta: page }] });
+    editorDispatch.content({ type: "hydrate", entries: [{ slug: page.slug, content: page.content }] });
+    editorDispatch.translations({
+      type: "hydrate",
+      entries: (page.translations ?? []).map((translation) => ({
+        slug: page.slug,
+        locale: translation.locale,
+        title: translation.title,
+        content: translation.content,
+        translationReady: translation.translationReady,
+      })),
+    });
+    if (page.pageType === "segmented") {
+      editorDispatch.segments({
+        type: "hydrate-owner",
+        ownerSlug: page.slug,
+        segments: page.segments.map((segment) => ({
+          position: segment.position,
+          label: segment.label,
+          targetSlug: segment.targetSlug,
+          translations: segment.translations,
+        })),
+      });
+    }
+  }, [page, editorDispatch]);
 }
 
 // ---------------------------------------------------------------------------
@@ -160,20 +181,20 @@ function EditorHeaderActions({
           type="button"
           onClick={onDecreaseFont}
           disabled={!canDecreaseFont}
-          className="w-5 h-5 flex items-center justify-center rounded hover:bg-[var(--ds-surface-hover)] disabled:opacity-30"
+          className="size-5 flex items-center justify-center rounded hover:bg-[var(--ds-surface-hover)] disabled:opacity-30"
           title={editorMessages.decreaseFontSize}
         >
-          <MinusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
+          <MinusCircleIcon weight="duotone" className="size-3.5" />
         </button>
         <span className="w-8 text-center text-xs tabular-nums select-none">{sourceFontSize}px</span>
         <button
           type="button"
           onClick={onIncreaseFont}
           disabled={!canIncreaseFont}
-          className="w-5 h-5 flex items-center justify-center rounded hover:bg-[var(--ds-surface-hover)] disabled:opacity-30"
+          className="size-5 flex items-center justify-center rounded hover:bg-[var(--ds-surface-hover)] disabled:opacity-30"
           title={editorMessages.increaseFontSize}
         >
-          <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
+          <PlusCircleIcon weight="duotone" className="size-3.5" />
         </button>
       </div>
 
@@ -182,35 +203,74 @@ function EditorHeaderActions({
         onClick={onPreview}
         className="flex items-center gap-2 px-3 h-8 min-w-8 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-sm font-medium hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)]"
       >
-        <EyeIcon weight="duotone" className="w-3.5 h-3.5" />
+        <EyeIcon weight="duotone" className="size-3.5" />
         {editorMessages.preview}
       </button>
 
       <button
         type="button"
         onClick={onOpenDelete}
-        className="flex items-center justify-center w-8 h-8 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded-control text-sm font-medium hover:bg-[var(--ds-btn-danger-hover-bg)] hover:border-[var(--ds-btn-danger-hover-border)]"
+        className="flex size-8 items-center justify-center border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded-control text-sm font-medium hover:bg-[var(--ds-btn-danger-hover-bg)] hover:border-[var(--ds-btn-danger-hover-border)]"
         title={editorMessages.deletePage}
       >
-        <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
+        <TrashIcon weight="duotone" className="size-3.5" />
       </button>
     </div>
   );
 }
 
+type SavePhase = ReturnType<typeof useSaveNotification>["phase"];
+
+interface ContentEditorHeaderProps {
+  title: string;
+  backLabel: string;
+  savedPhase: SavePhase;
+  savedLabel: string;
+  sourceFontSize: number;
+  editorMessages: EditorHeaderActionsProps["editorMessages"];
+  onBack: () => void;
+  onDecreaseFont: () => void;
+  onIncreaseFont: () => void;
+  onOpenDelete: () => void;
+  onPreview: () => void;
+}
+
+function ContentEditorHeader({
+  title,
+  backLabel,
+  savedPhase,
+  savedLabel,
+  sourceFontSize,
+  editorMessages,
+  onBack,
+  onDecreaseFont,
+  onIncreaseFont,
+  onOpenDelete,
+  onPreview,
+}: ContentEditorHeaderProps) {
+  return (
+    <PageHeader title={title} leading={<HeaderBackButton label={backLabel} onClick={onBack} />}>
+      <SaveNotification phase={savedPhase} label={savedLabel} />
+      <EditorHeaderActions
+        sourceFontSize={sourceFontSize}
+        canIncreaseFont={sourceFontSize < FONT_SIZE_MAX}
+        canDecreaseFont={sourceFontSize > FONT_SIZE_MIN}
+        editorMessages={editorMessages}
+        onDecreaseFont={onDecreaseFont}
+        onIncreaseFont={onIncreaseFont}
+        onOpenDelete={onOpenDelete}
+        onPreview={onPreview}
+      />
+    </PageHeader>
+  );
+}
+
 interface EditorMetadataBarProps {
   page: ContentPage;
-  /** Title shown in the bar — locale-aware: default-locale renders meta.title, others render the active translation's title. */
-  displayTitle: string;
-  /** Locale label appended to the title field, e.g. "Titel (DE)". Empty for the default locale. */
-  titleLocaleSuffix?: string;
   patchError: string | null;
-  editingTitle: boolean;
-  editTitleValue: string;
   editingSlug: boolean;
   editSlugValue: string;
   editorMessages: {
-    titleLabel: string;
     slugLabel: string;
     statusLabel: string;
     showTitleLabel: string;
@@ -226,10 +286,6 @@ interface EditorMetadataBarProps {
   common: {
     cancel: string;
   };
-  onStartEditTitle: () => void;
-  onTitleValueChange: (value: string) => void;
-  onSaveTitle: () => void;
-  onCancelTitle: () => void;
   onStartEditSlug: () => void;
   onSlugValueChange: (value: string) => void;
   onSlugBlur: (value: string) => void;
@@ -255,20 +311,12 @@ function formatDateTime(iso: string | null, locale: string): string {
 
 function EditorMetadataBar({
   page,
-  displayTitle,
-  titleLocaleSuffix,
   patchError,
-  editingTitle,
-  editTitleValue,
   editingSlug,
   editSlugValue,
   editorMessages,
   locale,
   common,
-  onStartEditTitle,
-  onTitleValueChange,
-  onSaveTitle,
-  onCancelTitle,
   onStartEditSlug,
   onSlugValueChange,
   onSlugBlur,
@@ -278,38 +326,8 @@ function EditorMetadataBar({
   onShowTitleChange,
   onTitleAlignmentChange,
 }: EditorMetadataBarProps) {
-  const titleLabel = titleLocaleSuffix
-    ? `${editorMessages.titleLabel} (${titleLocaleSuffix})`
-    : editorMessages.titleLabel;
   return (
     <div className="px-3 pt-3 pb-1 flex flex-wrap items-center gap-6 text-xs text-[var(--ds-text-muted)] bg-[var(--ds-surface)]">
-      <div className="flex items-center gap-2">
-        <span className="font-medium">{titleLabel}:</span>
-        {editingTitle ? (
-          <div className="flex items-center gap-1">
-            <input
-              type="text"
-              value={editTitleValue}
-              onChange={(e) => onTitleValueChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onSaveTitle();
-              }}
-              className="px-2 py-0.5 text-xs bg-[var(--ds-input-bg)] border border-[var(--color-primary)] rounded text-[var(--ds-text)] focus:outline-none w-48"
-            />
-            <button type="button" onClick={onSaveTitle} className="text-[var(--color-primary)] hover:underline">
-              {editorMessages.ok}
-            </button>
-            <button type="button" onClick={onCancelTitle} className="hover:underline">
-              {common.cancel}
-            </button>
-          </div>
-        ) : (
-          <button type="button" onClick={onStartEditTitle} className="hover:underline text-[var(--ds-text)]">
-            {displayTitle || <span className="italic opacity-60">—</span>}
-          </button>
-        )}
-      </div>
-
       <div className="flex items-center gap-2">
         <span className="font-medium">{editorMessages.slugLabel}:</span>
         {editingSlug ? (
@@ -390,6 +408,203 @@ function EditorMetadataBar({
   );
 }
 
+interface PageTitleLocalizationFieldProps {
+  label: string;
+  locale: Locale;
+  value: string;
+  fallback: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}
+
+function PageTitleLocalizationField({
+  label,
+  locale,
+  value,
+  fallback,
+  placeholder,
+  onChange,
+}: PageTitleLocalizationFieldProps) {
+  const localeLabel = locale.toUpperCase();
+
+  return (
+    <div className="px-3 pt-3">
+      <label className="flex flex-col gap-1.5">
+        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ds-text-muted)]">
+          {label}
+          <span className="px-1.5 py-0.5 rounded border border-[var(--ds-border)] bg-[var(--ds-surface)] font-mono text-[10px] leading-none text-[var(--ds-text-subtle)]">
+            {localeLabel}
+          </span>
+        </span>
+        <input
+          type="text"
+          aria-label={`${label} ${localeLabel}`}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={fallback || placeholder}
+          className="h-10 w-full rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3 text-sm text-[var(--ds-text)] placeholder:text-[var(--ds-text-subtle)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+        />
+      </label>
+    </div>
+  );
+}
+
+interface TranslationControlRowProps {
+  translationReady: boolean;
+  deletePending: boolean;
+  onTranslationReadyChange: (value: boolean) => void;
+  onDeleteTranslation: () => void;
+}
+
+function TranslationControlRow({
+  translationReady,
+  deletePending,
+  onTranslationReadyChange,
+  onDeleteTranslation,
+}: TranslationControlRowProps) {
+  return (
+    <div className="px-3 pt-3 flex items-center justify-end gap-3 text-xs text-[var(--ds-text-muted)]">
+      <label className="flex items-center gap-1.5 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={translationReady}
+          onChange={(event) => onTranslationReadyChange(event.target.checked)}
+          className="accent-[var(--color-primary)] cursor-pointer"
+        />
+        Translation ready
+      </label>
+      <button
+        type="button"
+        onClick={onDeleteTranslation}
+        disabled={deletePending}
+        className="flex items-center gap-1 px-2 py-1 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded hover:bg-[var(--ds-btn-danger-hover-bg)] disabled:opacity-60"
+      >
+        <TrashIcon weight="duotone" className="size-3" />
+        Delete translation
+      </button>
+    </div>
+  );
+}
+
+interface EditorContentSurfaceProps {
+  page: ContentPage;
+  slug: string;
+  activeLocale: Locale;
+  hasActiveTranslation: boolean;
+  headerTitle: string;
+  currentContent: string;
+  sourceFontSize: number;
+  isLoading: boolean;
+  loadingLabel: string;
+  onCreateTranslation: () => void;
+  onMarkdownChange: (markdown: string) => void;
+}
+
+function EditorContentSurface({
+  page,
+  slug,
+  activeLocale,
+  hasActiveTranslation,
+  headerTitle,
+  currentContent,
+  sourceFontSize,
+  isLoading,
+  loadingLabel,
+  onCreateTranslation,
+  onMarkdownChange,
+}: EditorContentSurfaceProps) {
+  if (page.pageType === "segmented") {
+    return (
+      <PageBody className="overflow-visible flex flex-col gap-3">
+        {isLoading && (
+          <div className="flex items-center justify-center h-64 text-[var(--ds-text-subtle)] text-sm">
+            {loadingLabel}
+          </div>
+        )}
+        <SegmentManager page={page} activeLocale={activeLocale} />
+      </PageBody>
+    );
+  }
+
+  return (
+    <DashboardSection>
+      <DashboardSection.Header icon={<MarkdownLogoIcon weight="duotone" className="size-4" />} title={headerTitle} />
+      <PageBody
+        className="overflow-hidden"
+        style={{ "--source-font-size": `${sourceFontSize}px` } as React.CSSProperties}
+      >
+        {isLoading && (
+          <div className="flex items-center justify-center h-64 text-[var(--ds-text-subtle)] text-sm">
+            {loadingLabel}
+          </div>
+        )}
+        {!hasActiveTranslation ? (
+          <div className="flex flex-col items-center justify-center h-48 gap-3">
+            <p className="text-sm text-[var(--ds-text-muted)]">No {activeLocale.toUpperCase()} translation yet.</p>
+            <button
+              type="button"
+              onClick={onCreateTranslation}
+              className="flex items-center gap-2 px-4 py-2 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)]"
+            >
+              Create translation from {DEFAULT_LOCALE.toUpperCase()}
+            </button>
+          </div>
+        ) : (
+          <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>
+            <MarkdownEditor
+              key={`${slug}-${activeLocale}`}
+              value={currentContent}
+              onChange={onMarkdownChange}
+              height="100%"
+              showHints
+            />
+          </Suspense>
+        )}
+      </PageBody>
+    </DashboardSection>
+  );
+}
+
+interface DeletePageDialogProps {
+  open: boolean;
+  title: string;
+  pending: boolean;
+  messages: {
+    deletePageTitle: string;
+    confirmDeletePrefix: string;
+    confirmDeleteSuffix: string;
+  };
+  common: {
+    cancel: string;
+    delete: string;
+  };
+  onClose: () => void;
+  onDelete: () => void;
+}
+
+function DeletePageDialog({ open, title, pending, messages, common, onClose, onDelete }: DeletePageDialogProps) {
+  return (
+    <Dialog
+      open={open}
+      title={messages.deletePageTitle}
+      titleIcon={<TrashIcon weight="duotone" className={dialogHeaderIconClass} />}
+      onClose={onClose}
+    >
+      <div className="p-6 text-sm text-[var(--ds-text)]">
+        {messages.confirmDeletePrefix} „<span className="font-bold">{title}</span>" {messages.confirmDeleteSuffix}
+      </div>
+      <Dialog.Footer>
+        <button type="button" className={dialogBtnSecondary} onClick={onClose} disabled={pending}>
+          {common.cancel}
+        </button>
+        <button type="button" className={dialogBtnDestructive} onClick={onDelete} disabled={pending}>
+          {pending ? "…" : common.delete}
+        </button>
+      </Dialog.Footer>
+    </Dialog>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -424,34 +639,7 @@ export function ContentEditorPage() {
     setActiveLocale(DEFAULT_LOCALE);
   }, [slug]);
 
-  // Hydrate slice context from server data on mount and on page-data refresh.
-  useEffect(() => {
-    if (!page) return;
-    editor.dispatch.meta({ type: "hydrate", entries: [{ slug: page.slug, meta: page }] });
-    editor.dispatch.content({ type: "hydrate", entries: [{ slug: page.slug, content: page.content }] });
-    editor.dispatch.translations({
-      type: "hydrate",
-      entries: (page.translations ?? []).map((t) => ({
-        slug: page.slug,
-        locale: t.locale,
-        title: t.title,
-        content: t.content,
-        translationReady: t.translationReady,
-      })),
-    });
-    if (page.pageType === "segmented") {
-      editor.dispatch.segments({
-        type: "hydrate-owner",
-        ownerSlug: page.slug,
-        segments: page.segments.map((segment) => ({
-          position: segment.position,
-          label: segment.label,
-          targetSlug: segment.targetSlug,
-          translations: segment.translations,
-        })),
-      });
-    }
-  }, [page, editor.dispatch]);
+  useHydratePageEditor(page, editor.dispatch);
 
   // ---------------------------------------------------------------------------
   // Slice readers — reflect live edits, fall back to server data on first paint.
@@ -470,7 +658,7 @@ export function ContentEditorPage() {
     [page, editor.dispatch],
   );
 
-  const handleChange = useCallback(
+  const handleMarkdownChange = useCallback(
     (markdown: string) => {
       if (!page) return;
       if (activeLocale === DEFAULT_LOCALE) {
@@ -497,35 +685,30 @@ export function ContentEditorPage() {
     dispatch({ type: "setSourceFontSize", value: next });
   };
 
-  function handleTitleSave() {
+  function handleTitleChange(value: string) {
     if (!page) return;
     if (activeLocale === DEFAULT_LOCALE) {
-      setMeta("title", state.editTitleValue);
+      setMeta("title", value);
     } else if (translationCurrent(activeLocale) !== undefined) {
       editor.dispatch.translations({
         type: "set-field",
         slug: page.slug,
         locale: activeLocale,
         field: "title",
-        value: state.editTitleValue,
+        value,
       });
     } else {
-      // Auto-create the translation on first title-edit so the user doesn't
-      // have to click the dedicated "Create translation" button just to
-      // localize a title (segmented parents in particular have no other
-      // translation surface).
       editor.dispatch.translations({
         type: "add-locale",
         slug: page.slug,
         locale: activeLocale,
-        fields: {
-          title: state.editTitleValue,
-          content: page.pageType === "segmented" ? "" : contentCurrent || page.content,
-          translationReady: false,
-        },
+        fields: createPageTitleTranslationDraft({
+          title: value,
+          content: contentCurrent || page.content,
+          pageType: page.pageType,
+        }),
       });
     }
-    dispatch({ type: "setEditingTitle", value: false });
   }
 
   function handleSlugSave() {
@@ -562,11 +745,11 @@ export function ContentEditorPage() {
       type: "add-locale",
       slug: page.slug,
       locale: activeLocale,
-      fields: {
-        title: metaCurrent?.title ?? page.title,
+      fields: createPageTitleTranslationDraft({
+        title: activeTitle.value || activeTitle.fallback || metaCurrent?.title || page.title,
         content: contentCurrent || page.content,
-        translationReady: false,
-      },
+        pageType: page.pageType,
+      }),
     });
   }
 
@@ -593,52 +776,38 @@ export function ContentEditorPage() {
   const activeTranslation = activeLocale === DEFAULT_LOCALE ? undefined : translationCurrent(activeLocale);
   const hasActiveTranslation = activeLocale === DEFAULT_LOCALE || activeTranslation !== undefined;
 
-  // Title shown in the metadata bar follows the active locale tab.
+  // The editable page-title field follows the active locale tab.
   const displayTitle = activeTitle.value;
   // Page-header title falls back to the base when a translation has no title yet.
   const headerTitle = displayTitle || activeTitle.fallback || baseTitle;
 
   return (
     <PageLayout>
-      <PageHeader
+      <ContentEditorHeader
         title={headerTitle}
-        leading={<HeaderBackButton label={messages.content.pages.title} onClick={() => navigate("/pages")} />}
-      >
-        <SaveNotification phase={savedPhase} label={common.saved} />
-        <EditorHeaderActions
-          sourceFontSize={state.sourceFontSize}
-          canIncreaseFont={state.sourceFontSize < FONT_SIZE_MAX}
-          canDecreaseFont={state.sourceFontSize > FONT_SIZE_MIN}
-          editorMessages={editorMessages}
-          onDecreaseFont={() => changeFontSize(-1)}
-          onIncreaseFont={() => changeFontSize(+1)}
-          onOpenDelete={() => dispatch({ type: "setConfirmDelete", value: true })}
-          onPreview={() => {
-            window.open(`${FRONTEND_PREVIEW_BASE_URL}/${slug}`, "_blank");
-          }}
-        />
-      </PageHeader>
+        backLabel={messages.content.pages.title}
+        savedPhase={savedPhase}
+        savedLabel={common.saved}
+        sourceFontSize={state.sourceFontSize}
+        editorMessages={editorMessages}
+        onBack={() => navigate("/pages")}
+        onDecreaseFont={() => changeFontSize(-1)}
+        onIncreaseFont={() => changeFontSize(+1)}
+        onOpenDelete={() => dispatch({ type: "setConfirmDelete", value: true })}
+        onPreview={() => {
+          window.open(`${FRONTEND_PREVIEW_BASE_URL}/${slug}`, "_blank");
+        }}
+      />
 
       {page && metaCurrent && (
         <EditorMetadataBar
           page={{ ...page, ...metaCurrent } as ContentPage}
-          displayTitle={displayTitle}
-          titleLocaleSuffix={activeLocale === DEFAULT_LOCALE ? undefined : activeLocale.toUpperCase()}
           patchError={state.patchError}
-          editingTitle={state.editingTitle}
-          editTitleValue={state.editTitleValue}
           editingSlug={state.editingSlug}
           editSlugValue={state.editSlugValue}
           editorMessages={editorMessages}
           locale={locale}
           common={common}
-          onStartEditTitle={() => {
-            dispatch({ type: "setEditTitleValue", value: displayTitle });
-            dispatch({ type: "setEditingTitle", value: true });
-          }}
-          onTitleValueChange={(value) => dispatch({ type: "setEditTitleValue", value })}
-          onSaveTitle={handleTitleSave}
-          onCancelTitle={() => dispatch({ type: "setEditingTitle", value: false })}
           onStartEditSlug={() => {
             dispatch({ type: "setEditSlugValue", value: metaCurrent.slug });
             dispatch({ type: "setEditingSlug", value: true });
@@ -666,137 +835,70 @@ export function ContentEditorPage() {
         />
       )}
 
-      {/* Locale tabs sit above the per-type content so the title in the metadata bar
-          (which now mirrors the active locale) and the SegmentManager / content
-          editor below stay in sync. */}
+      {/* Locale tabs define the localization context for the page title,
+          SegmentManager, and markdown content below. */}
       {page && (
         <div className="px-3 pt-3">
           <LanguageTabs active={activeLocale} states={tabStates} onSelect={handleTabSelect} />
         </div>
       )}
 
-      {/* Translation control row — shared by both page types. Title is edited
-          via the metadata bar above; this row only exposes translationReady
-          and the delete-translation action once a translation exists. */}
-      {page && activeLocale !== DEFAULT_LOCALE && activeTranslation && (
-        <div className="px-3 pt-3 flex items-center justify-end gap-3 text-xs text-[var(--ds-text-muted)]">
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={activeTranslation.translationReady ?? false}
-              onChange={(e) =>
-                editor.dispatch.translations({
-                  type: "set-field",
-                  slug: page.slug,
-                  locale: activeLocale,
-                  field: "translationReady",
-                  value: e.target.checked,
-                })
-              }
-              className="accent-[var(--color-primary)] cursor-pointer"
-            />
-            Translation ready
-          </label>
-          <button
-            type="button"
-            onClick={handleDeleteTranslation}
-            disabled={deleteTranslation.isPending}
-            className="flex items-center gap-1 px-2 py-1 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded hover:bg-[var(--ds-btn-danger-hover-bg)] disabled:opacity-60"
-          >
-            <TrashIcon weight="duotone" className="w-3 h-3" />
-            Delete translation
-          </button>
-        </div>
+      {page && (
+        <PageTitleLocalizationField
+          label={editorMessages.pageTitleLabel}
+          locale={activeLocale}
+          value={displayTitle}
+          fallback={activeTitle.fallback}
+          placeholder={pageMessages.titlePlaceholder}
+          onChange={handleTitleChange}
+        />
       )}
 
-      {page && page.pageType === "segmented" ? (
-        <PageBody className="overflow-visible flex flex-col gap-3">
-          {isLoading && (
-            <div className="flex items-center justify-center h-64 text-[var(--ds-text-subtle)] text-sm">
-              {editorMessages.loadingContent}
-            </div>
-          )}
-          {activeLocale !== DEFAULT_LOCALE && (
-            <p className="text-xs text-[var(--ds-text-muted)] italic">
-              Segmented parents have no body content; only the title is localizable per locale.
-            </p>
-          )}
-          <SegmentManager page={page} activeLocale={activeLocale} />
-        </PageBody>
-      ) : (
-        <DashboardSection>
-          <DashboardSection.Header
-            icon={<MarkdownLogoIcon weight="duotone" className="w-4 h-4" />}
-            title={headerTitle}
-          />
-          <PageBody
-            className="overflow-hidden"
-            style={{ "--source-font-size": `${state.sourceFontSize}px` } as React.CSSProperties}
-          >
-            {isLoading && (
-              <div className="flex items-center justify-center h-64 text-[var(--ds-text-subtle)] text-sm">
-                {editorMessages.loadingContent}
-              </div>
-            )}
-            {page && !hasActiveTranslation ? (
-              /* No translation yet: offer to create one (or just edit the title to auto-create). */
-              <div className="flex flex-col items-center justify-center h-48 gap-3">
-                <p className="text-sm text-[var(--ds-text-muted)]">No {activeLocale.toUpperCase()} translation yet.</p>
-                <button
-                  type="button"
-                  onClick={handleCreateTranslation}
-                  className="flex items-center gap-2 px-4 py-2 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)]"
-                >
-                  Create translation from {DEFAULT_LOCALE.toUpperCase()}
-                </button>
-              </div>
-            ) : (
-              page && (
-                <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>
-                  <MarkdownEditor
-                    key={`${slug}-${activeLocale}`}
-                    value={currentContent}
-                    onChange={handleChange}
-                    height="100%"
-                    showHints
-                  />
-                </Suspense>
-              )
-            )}
-          </PageBody>
-        </DashboardSection>
+      {/* Translation control row — shared by both page types. The title field
+          above may auto-create a translation; this row appears once it exists. */}
+      {page && activeLocale !== DEFAULT_LOCALE && activeTranslation && (
+        <TranslationControlRow
+          translationReady={activeTranslation.translationReady ?? false}
+          deletePending={deleteTranslation.isPending}
+          onTranslationReadyChange={(value) =>
+            editor.dispatch.translations({
+              type: "set-field",
+              slug: page.slug,
+              locale: activeLocale,
+              field: "translationReady",
+              value,
+            })
+          }
+          onDeleteTranslation={handleDeleteTranslation}
+        />
       )}
-      <Dialog
+
+      {page && (
+        <EditorContentSurface
+          page={page}
+          slug={slug}
+          activeLocale={activeLocale}
+          hasActiveTranslation={hasActiveTranslation}
+          headerTitle={headerTitle}
+          currentContent={currentContent}
+          sourceFontSize={state.sourceFontSize}
+          isLoading={isLoading}
+          loadingLabel={editorMessages.loadingContent}
+          onCreateTranslation={handleCreateTranslation}
+          onMarkdownChange={handleMarkdownChange}
+        />
+      )}
+      <DeletePageDialog
         open={state.confirmDelete}
-        title={pageMessages.deletePageTitle}
-        titleIcon={<TrashIcon weight="duotone" className={dialogHeaderIconClass} />}
+        title={baseTitle}
+        pending={deletePage.isPending}
+        messages={pageMessages}
+        common={common}
         onClose={() => dispatch({ type: "setConfirmDelete", value: false })}
-      >
-        <div className="p-6 text-sm text-[var(--ds-text)]">
-          {pageMessages.confirmDeletePrefix} „<span className="font-bold">{baseTitle}</span>"{" "}
-          {pageMessages.confirmDeleteSuffix}
-        </div>
-        <Dialog.Footer>
-          <button
-            type="button"
-            className={dialogBtnSecondary}
-            onClick={() => dispatch({ type: "setConfirmDelete", value: false })}
-            disabled={deletePage.isPending}
-          >
-            {common.cancel}
-          </button>
-          <button
-            type="button"
-            className={dialogBtnDestructive}
-            onClick={() => {
-              deletePage.mutate(slug, { onSuccess: () => navigate("/pages") });
-            }}
-            disabled={deletePage.isPending}
-          >
-            {deletePage.isPending ? "…" : common.delete}
-          </button>
-        </Dialog.Footer>
-      </Dialog>
+        onDelete={() => {
+          deletePage.mutate(slug, { onSuccess: () => navigate("/pages") });
+        }}
+      />
     </PageLayout>
   );
 }

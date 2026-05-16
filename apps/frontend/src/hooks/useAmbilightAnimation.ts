@@ -23,23 +23,24 @@ export function useAmbilightAnimation(ref: RefObject<HTMLDivElement | null>): vo
 
     if (window.matchMedia("(pointer: coarse)").matches) return;
 
-    el.style.background = [
-      "conic-gradient(from var(--ambilight-angle),",
-      "transparent 0deg,",
-      "hsla(200, 75%, 60%, 0.8) 30deg,",
-      "hsla(200, 75%, 60%, 0.8) 60deg,",
-      "transparent 90deg,",
-      "transparent 120deg,",
-      "hsla(320, 75%, 60%, 0.8) 150deg,",
-      "hsla(320, 75%, 60%, 0.8) 180deg,",
-      "transparent 210deg,",
-      "transparent 240deg,",
-      "hsla(80, 75%, 60%, 0.4) 270deg,",
-      "hsla(80, 75%, 60%, 0.4) 330deg,",
-      "transparent 360deg)",
-    ].join(" ");
-
-    el.style.filter = "hue-rotate(var(--ambilight-hue))";
-    el.style.animation = "ambilight-spin 12s linear infinite";
+    Object.assign(el.style, {
+      background: [
+        "conic-gradient(from var(--ambilight-angle),",
+        "transparent 0deg,",
+        "hsla(200, 75%, 60%, 0.8) 30deg,",
+        "hsla(200, 75%, 60%, 0.8) 60deg,",
+        "transparent 90deg,",
+        "transparent 120deg,",
+        "hsla(320, 75%, 60%, 0.8) 150deg,",
+        "hsla(320, 75%, 60%, 0.8) 180deg,",
+        "transparent 210deg,",
+        "transparent 240deg,",
+        "hsla(80, 75%, 60%, 0.4) 270deg,",
+        "hsla(80, 75%, 60%, 0.4) 330deg,",
+        "transparent 360deg)",
+      ].join(" "),
+      filter: "hue-rotate(var(--ambilight-hue))",
+      animation: "ambilight-spin 12s linear infinite",
+    });
   }, [ref]);
 }

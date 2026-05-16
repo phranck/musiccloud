@@ -27,6 +27,7 @@ import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { ToastProvider } from "@/context/ToastContext";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
+import { useIsClient } from "@/hooks/useIsClient";
 import { LocaleProvider, useT } from "@/i18n/context";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { hexToRgb } from "@/lib/ui/colors";
@@ -130,6 +131,17 @@ function detectRegion(): string {
   }
 }
 
+async function fetchArtistInfo(
+  artistName: string,
+  userRegion: string,
+  signal: AbortSignal,
+): Promise<ArtistInfoResponse | null> {
+  const params = new URLSearchParams({ name: artistName });
+  if (userRegion) params.set("region", userRegion);
+  const res = await fetch(`${ENDPOINTS.frontend.artistInfo}?${params.toString()}`, { signal });
+  return res.ok ? ((await res.json()) as ArtistInfoResponse) : null;
+}
+
 interface ShareLayoutProps {
   config: MediaCardContentConfiguration;
   artistName: string;
@@ -165,12 +177,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
     artistData: null,
   });
   const [sheetOpen, setSheetOpen] = useState(false);
-  // Portal gate: wait for mount so SSR output and first client render
-  // match (no sheet in SSR; portal content appears after hydration).
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useIsClient();
 
   // Dynamic accent color extraction from album artwork. The accent kicks in
   // as soon as the image has loaded and the colors are computed.
@@ -229,10 +236,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
     dispatch({ type: "loading" });
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
-    const params = new URLSearchParams({ name: artistName });
-    if (userRegion) params.set("region", userRegion);
-    fetch(`${ENDPOINTS.frontend.artistInfo}?${params.toString()}`, { signal: controller.signal })
-      .then((res) => (res.ok ? (res.json() as Promise<ArtistInfoResponse>) : null))
+    fetchArtistInfo(artistName, userRegion, controller.signal)
       .then((data) => {
         if (!cancelled) dispatch({ type: "done", data });
       })
@@ -243,6 +247,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
     return () => {
       cancelled = true;
       controller.abort();
+      clearTimeout(timeout);
     };
   }, [artistName, userRegion]);
 
@@ -324,11 +329,11 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
               >
                 <div className="flex items-center justify-between px-5 pt-3 pb-2 flex-shrink-0">
                   <div className="w-8" />
-                  <div className="w-10 h-1 rounded-full bg-[var(--border)]" />
+                  <div className="h-1 w-10 rounded-full bg-[var(--border)]" />
                   <button
                     type="button"
                     onClick={closeSheet}
-                    className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-colors"
+                    className="size-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-colors"
                     aria-label={t("artist.closeInfo")}
                   >
                     <XIcon size={16} weight="duotone" />

@@ -22,7 +22,7 @@ interface PlatformIconProps {
 
 export const PlatformIcon = memo(function PlatformIcon({
   platform,
-  className = "w-6 h-6",
+  className = "size-6",
   colored = false,
 }: PlatformIconProps) {
   const color = colored ? PLATFORM_CONFIG[platform].color : "currentColor";
@@ -37,7 +37,7 @@ export const PlatformIcon = memo(function PlatformIcon({
             className={`inline-flex items-center justify-center rounded-lg ${className}`}
             style={{ backgroundColor: PLATFORM_CONFIG["apple-music"].color }}
           >
-            <SiApplemusic className="w-[60%] h-[60%]" color="#fff" />
+            <SiApplemusic className="size-[60%]" color="#fff" />
           </span>
         );
       return <SiApplemusic className={className} color={color} />;
@@ -48,7 +48,7 @@ export const PlatformIcon = memo(function PlatformIcon({
             className={`inline-flex items-center justify-center rounded-lg ${className}`}
             style={{ backgroundColor: PLATFORM_CONFIG.youtube.color }}
           >
-            <SiYoutube className="w-[60%] h-[60%]" color="#fff" />
+            <SiYoutube className="size-[60%]" color="#fff" />
           </span>
         );
       return <SiYoutube className={className} color={color} />;
@@ -59,7 +59,7 @@ export const PlatformIcon = memo(function PlatformIcon({
             className={`inline-flex items-center justify-center rounded-lg ${className}`}
             style={{ backgroundColor: PLATFORM_CONFIG["youtube-music"].color }}
           >
-            <SiYoutubemusic className="w-[60%] h-[60%]" color="#fff" />
+            <SiYoutubemusic className="size-[60%]" color="#fff" />
           </span>
         );
       return <SiYoutubemusic className={className} color={color} />;
@@ -79,7 +79,7 @@ export const PlatformIcon = memo(function PlatformIcon({
       if (colored)
         return (
           <span className={`inline-flex items-center justify-center rounded-lg bg-black ${className}`}>
-            <img src="/icons/qobuz.svg" alt="Qobuz" className="w-[80%] h-[80%] object-contain" />
+            <img src="/icons/qobuz.svg" alt="Qobuz" className="size-[80%] object-contain" />
           </span>
         );
       return <img src="/icons/qobuz.svg" alt="Qobuz" className={className} />;

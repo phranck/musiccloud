@@ -37,18 +37,32 @@ export function useFlipAnimation(searchFieldRef: RefObject<HTMLDivElement | null
       return;
     }
 
-    el.style.transform = `translateY(${delta}px)`;
-    el.style.transition = "none";
+    Object.assign(el.style, {
+      transform: `translateY(${delta}px)`,
+      transition: "none",
+    });
     el.offsetHeight; // force reflow
-    el.style.transition = "transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)";
-    el.style.transform = "";
+    Object.assign(el.style, {
+      transform: "",
+      transition: "transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
+    });
 
     const cleanup = () => {
-      el.style.transition = "";
+      Object.assign(el.style, {
+        transform: "",
+        transition: "",
+      });
       el.removeEventListener("transitionend", cleanup);
       setIsReturning(false);
     };
     el.addEventListener("transitionend", cleanup);
+    return () => {
+      el.removeEventListener("transitionend", cleanup);
+      Object.assign(el.style, {
+        transform: "",
+        transition: "",
+      });
+    };
   }, [isReturning, searchFieldRef]);
 
   return { isReturning, capturePosition, triggerReturn };

@@ -70,9 +70,11 @@ export function DisambiguationPanel({
       setAnimatingId(candidate.id);
 
       // ── SETUP: freeze list height, switch all cards to absolute flow ────────
-      listEl.style.transition = "none";
-      listEl.style.position = "relative";
-      listEl.style.height = `${listHeight}px`;
+      Object.assign(listEl.style, {
+        height: `${listHeight}px`,
+        position: "relative",
+        transition: "none",
+      });
 
       allCardEls.forEach((el) => {
         const id = el.dataset.disambiguationCard!;
@@ -80,15 +82,17 @@ export function DisambiguationPanel({
         if (!pos) return;
         // Cancel the slide-up animation fill — CSS animations outrank inline styles in the
         // cascade, so without this, transform and opacity would be locked at their "to" values.
-        el.style.animation = "none";
-        el.style.position = "absolute";
-        el.style.top = `${pos.top}px`;
-        el.style.left = "0";
-        el.style.right = "0";
-        el.style.margin = "0";
-        el.style.transition = "none";
-        el.style.opacity = "1";
-        el.style.transform = "translateY(0)";
+        Object.assign(el.style, {
+          animation: "none",
+          left: "0",
+          margin: "0",
+          opacity: "1",
+          position: "absolute",
+          right: "0",
+          top: `${pos.top}px`,
+          transform: "translateY(0)",
+          transition: "none",
+        });
       });
 
       // ── REFLOW: force browser to commit the setup before transitions ────────
@@ -98,8 +102,10 @@ export function DisambiguationPanel({
       const moveT = `transform ${ANIM_MS}ms ${ANIM_EASE}, opacity ${ANIM_MS}ms ${ANIM_EASE}`;
 
       // Container shrinks to selected card height
-      listEl.style.transition = `height ${ANIM_MS}ms ${ANIM_EASE}`;
-      listEl.style.height = `${selectedCardHeight}px`;
+      Object.assign(listEl.style, {
+        height: `${selectedCardHeight}px`,
+        transition: `height ${ANIM_MS}ms ${ANIM_EASE}`,
+      });
 
       // Heading stays visible -- content swaps via React state (isAnimating)
 
@@ -107,16 +113,20 @@ export function DisambiguationPanel({
         const id = el.dataset.disambiguationCard!;
         const pos = positions.get(id);
         if (!pos) return;
-        el.style.transition = moveT;
-
         if (id === candidate.id) {
           // Selected card floats up to y = 0 (top of the list)
-          el.style.transform = `translateY(${-pos.top}px)`;
-          el.style.opacity = "1";
+          Object.assign(el.style, {
+            opacity: "1",
+            transform: `translateY(${-pos.top}px)`,
+            transition: moveT,
+          });
         } else {
           // All others converge toward the selected card's original position, fading out
-          el.style.transform = `translateY(${selectedPos.top - pos.top}px)`;
-          el.style.opacity = "0";
+          Object.assign(el.style, {
+            opacity: "0",
+            transform: `translateY(${selectedPos.top - pos.top}px)`,
+            transition: moveT,
+          });
         }
       });
 
@@ -185,9 +195,7 @@ export function DisambiguationPanel({
                       >
                         <CandidateRowContent
                           artwork={
-                            isThisSelected ? (
-                              <CDSpinArtwork className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" />
-                            ) : undefined
+                            isThisSelected ? <CDSpinArtwork className="size-14 md:size-16 flex-shrink-0" /> : undefined
                           }
                           artworkUrl={candidate.artworkUrl}
                           primary={candidate.title}

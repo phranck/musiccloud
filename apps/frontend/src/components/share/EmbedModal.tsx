@@ -1,6 +1,6 @@
 import { compareByDisplayOrder } from "@musiccloud/shared";
 import { CheckIcon, CopySimpleIcon, WarningIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -71,15 +71,16 @@ export function EmbedModal({
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const mounted = useIsClient();
   const overlayRef = useRef<HTMLDivElement>(null);
+  const closeOnEscape = useEffectEvent(onClose);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeOnEscape();
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  }, [open]);
 
   const handleCopy = useCallback(async () => {
     const code = buildEmbedCode(shortUrl, size);
@@ -92,7 +93,7 @@ export function EmbedModal({
     setTimeout(() => setCopyState("idle"), 2000);
   }, [shortUrl, size]);
 
-  const sortedPlatforms = [...platforms].sort((a, b) => compareByDisplayOrder(a.platform, b.platform));
+  const sortedPlatforms = platforms.toSorted((a, b) => compareByDisplayOrder(a.platform, b.platform));
 
   const sizes: { key: EmbedSize; label: string }[] = [
     { key: "small", label: t("embed.small") },
