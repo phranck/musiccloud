@@ -296,7 +296,7 @@ Relevant known paths:
 
 - [x] Change segment state so `segment.label` is a localized value.
 - [x] Import legacy `segment.translations` into `segment.label`.
-- [ ] Remove the `set-translation` segment action if no longer needed.
+- [x] Remove the `set-translation` segment action if no longer needed.
 - [x] Remove dirty tracking for nested segment translations if no longer needed.
 - [x] Ensure segment reorder, move, add and remove keep localized labels intact.
 - [x] Add tests for legacy segment translation migration.
@@ -309,12 +309,19 @@ Relevant known paths:
 
 ### 5. Update Segment Manager UI
 
-- [ ] Remove per-segment `TRANSLATIONS` expand/collapse UI.
-- [ ] Render one segment label input per segment.
-- [ ] Bind the input to the active top-level locale.
-- [ ] Show fallback as placeholder or helper state only.
-- [ ] Keep segment slug/target visible as technical context if the existing UI already does that.
-- [ ] Confirm language tab switching changes segment label values without changing slug or target.
+- [x] Remove per-segment `TRANSLATIONS` expand/collapse UI.
+- [x] Render one segment label input per segment.
+- [x] Bind the input to the active top-level locale.
+- [x] Show fallback as placeholder or helper state only.
+- [x] Keep segment slug/target visible as technical context if the existing UI already does that.
+- [x] Confirm language tab switching changes segment label values without changing slug or target.
+
+#### Verification
+
+- `rg -n "set-translation|TRANSLATIONS|Translations</span>|Translations" apps/dashboard/src/features/content apps/dashboard/src/components/layout -S`
+- `pnpm --filter @musiccloud/dashboard typecheck`
+- `pnpm --filter @musiccloud/dashboard test:run -- src/features/content/state/__tests__/slices/segmentsSlice.test.ts src/features/content/state/__tests__/diff.test.ts`
+- `pnpm exec biome check apps/dashboard/src/features/content/pages/SegmentManager.tsx apps/dashboard/src/features/content/pages/ContentEditorPage.tsx apps/dashboard/src/features/content/state/slices/segmentsSlice.ts apps/dashboard/src/features/content/state/__tests__/slices/segmentsSlice.test.ts apps/dashboard/src/features/content/state/__tests__/diff.test.ts`
 
 ### 6. Backend And Persistence
 

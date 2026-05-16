@@ -33,7 +33,6 @@ export type SegmentsAction =
   | { type: "add"; owner: string; target: string; position: number; label?: string }
   | { type: "remove"; owner: string; target: string }
   | { type: "set-label"; owner: string; target: string; locale: Locale; label: string }
-  | { type: "set-translation"; owner: string; target: string; locale: string; label: string }
   | { type: "reset" };
 
 function reposition(arr: SegmentEntry[]): SegmentEntry[] {
@@ -128,23 +127,6 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
             current: entry.current.map((s) =>
               s.targetSlug === action.target
                 ? { ...s, label: setLocalizedText(s.label, action.locale, action.label) }
-                : s,
-            ),
-          },
-        },
-      };
-    }
-    case "set-translation": {
-      const entry = state.byOwner[action.owner];
-      if (!entry) return state;
-      return {
-        byOwner: {
-          ...state.byOwner,
-          [action.owner]: {
-            ...entry,
-            current: entry.current.map((s) =>
-              s.targetSlug === action.target
-                ? { ...s, label: setLocalizedText(s.label, action.locale as Locale, action.label) }
                 : s,
             ),
           },

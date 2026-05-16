@@ -721,7 +721,7 @@ export function ContentEditorPage() {
               Segmented parents have no body content; only the title is localizable per locale.
             </p>
           )}
-          <SegmentManager page={page} />
+          <SegmentManager page={page} activeLocale={activeLocale} />
         </PageBody>
       ) : (
         <DashboardSection>
