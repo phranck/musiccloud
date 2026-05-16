@@ -3,8 +3,10 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { EditorSelection, type Extension, Prec } from "@codemirror/state";
 import { placeholder as cmPlaceholder, drawSelection, EditorView, keymap } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
+import { InfoIcon, X as XIcon } from "@phosphor-icons/react";
 import CodeMirror from "@uiw/react-codemirror";
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 export interface MarkdownEditorProps {
   id?: string;
@@ -86,6 +88,53 @@ const highlightStyle = HighlightStyle.define([
 const mcTheme = [editorTheme, syntaxHighlighting(highlightStyle)];
 
 const EMPTY_EXTENSIONS: Extension[] = [];
+const SHORTCUT_HINTS = [
+  { keys: ["⌘", "B"], label: "Bold" },
+  { keys: ["⌘", "I"], label: "Italic" },
+  { keys: ["⌘", "K"], label: "Link" },
+  { keys: ["⌘", "⇧", "D"], label: "Strike" },
+] satisfies { keys: string[]; label: string }[];
+
+const BADGE_HINTS = [
+  { notation: "[[REQ]]", variant: "req", pillLabel: "REQ", description: "Short required marker." },
+  { notation: "[[REQUIRED]]", variant: "req", pillLabel: "REQUIRED", description: "Full required marker." },
+  { notation: "[[OPT]]", variant: "opt", pillLabel: "OPT", description: "Optional marker." },
+] satisfies {
+  notation: string;
+  variant: "req" | "opt";
+  pillLabel: string;
+  description: string;
+}[];
+
+const CODE_FENCE_EXAMPLES = [
+  {
+    label: "Default code block",
+    code: "```js\nconst value = 1;\n```",
+    description: "Renders as a recessed card with syntax highlighting.",
+  },
+  {
+    label: "Explicit recessed / embossed",
+    code: "```js recessed\nconst value = 1;\n```\n\n```js embossed\nconst value = 1;\n```",
+    description: "Use the modifier after the language to choose the card surface.",
+  },
+  {
+    label: "Custom spacing",
+    code: "```js recessed padding=1rem radius=12px\nconst value = 1;\n```",
+    description: "padding= and radius= override the default 0.75rem card geometry.",
+  },
+  {
+    label: "Plain text comments",
+    code: "```text\n# comment\n// note\nplain line\n```",
+    description: "# and // at the start of a text line render as muted italic comments.",
+  },
+  {
+    label: "musiccloud query",
+    code: "```mc-query\ngenre: jazz | soul\ntracks: 20\n# internal note\n```",
+    description: "Highlights query keys, numbers, |, ?, and # / // comments.",
+  },
+] satisfies { label: string; code: string; description: string }[];
+
+const HIGHLIGHT_LANGUAGES = ["js", "ts", "jsx", "tsx", "python", "swift", "bash", "json", "css", "html", "mc-query"];
 
 function wrapSelection(view: EditorView, before: string, after: string): boolean {
   view.dispatch(
@@ -187,39 +236,293 @@ function Hint({ keys, label }: { keys: string[]; label: string }) {
   );
 }
 
-const HINTS_BAR_MIN_WIDTH = 420;
+function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h4 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--ds-text)]">{title}</h4>
+      {children}
+    </section>
+  );
+}
+
+function HelpExample({ label, code, description }: { label: string; code: string; description: string }) {
+  return (
+    <article className="rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface)] p-2.5">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <h5 className="text-xs font-medium text-[var(--ds-text)]">{label}</h5>
+      </div>
+      <pre className="overflow-x-auto rounded bg-[var(--ds-input-bg)] px-2 py-1.5 text-[0.6875rem] leading-relaxed text-[var(--ds-text)]">
+        <code>{code}</code>
+      </pre>
+      <p className="mt-1.5 text-[0.6875rem] leading-snug text-[var(--ds-text-muted)]">{description}</p>
+    </article>
+  );
+}
+
+interface HelpWindowPosition {
+  top: number;
+  left: number;
+  maxHeight: number;
+}
+
+interface DragState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startLeft: number;
+  startTop: number;
+}
+
+const HELP_WINDOW_WIDTH = 512;
+const HELP_WINDOW_MARGIN = 16;
+const HELP_WINDOW_GAP = 8;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getHelpWindowMaxHeight(): number {
+  return Math.max(220, window.innerHeight - HELP_WINDOW_MARGIN * 2);
+}
+
+function clampHelpWindowPosition(position: HelpWindowPosition, panel?: HTMLDivElement | null): HelpWindowPosition {
+  const width = panel?.offsetWidth ?? Math.min(HELP_WINDOW_WIDTH, window.innerWidth - HELP_WINDOW_MARGIN * 2);
+  const height = panel?.offsetHeight ?? Math.min(520, getHelpWindowMaxHeight());
+  const maxLeft = Math.max(HELP_WINDOW_MARGIN, window.innerWidth - width - HELP_WINDOW_MARGIN);
+  const maxTop = Math.max(HELP_WINDOW_MARGIN, window.innerHeight - height - HELP_WINDOW_MARGIN);
+
+  return {
+    top: clamp(position.top, HELP_WINDOW_MARGIN, maxTop),
+    left: clamp(position.left, HELP_WINDOW_MARGIN, maxLeft),
+    maxHeight: getHelpWindowMaxHeight(),
+  };
+}
+
+function getInitialHelpWindowPosition(anchor: HTMLButtonElement): HelpWindowPosition {
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(HELP_WINDOW_WIDTH, window.innerWidth - HELP_WINDOW_MARGIN * 2);
+  const maxHeight = getHelpWindowMaxHeight();
+  const preferredTop = rect.bottom + HELP_WINDOW_GAP;
+  const top =
+    preferredTop + Math.min(520, maxHeight) <= window.innerHeight - HELP_WINDOW_MARGIN
+      ? preferredTop
+      : rect.top - Math.min(520, maxHeight) - HELP_WINDOW_GAP;
+
+  return clampHelpWindowPosition({
+    top,
+    left: rect.right - width,
+    maxHeight,
+  });
+}
+
+function MarkdownHelpWindow({
+  open,
+  anchorRef,
+  id,
+  onClose,
+}: {
+  open: boolean;
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
+  id: string;
+  onClose: () => void;
+}) {
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const dragRef = React.useRef<DragState | null>(null);
+  const [position, setPosition] = React.useState<HelpWindowPosition | null>(null);
+  const closeHelp = React.useEffectEvent(onClose);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    const anchor = anchorRef.current;
+    if (anchor) setPosition(getInitialHelpWindowPosition(anchor));
+  }, [anchorRef, open]);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    const onResize = () => {
+      setPosition((current) => (current ? clampHelpWindowPosition(current, panelRef.current) : current));
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+    };
+  }, [open]);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeHelp();
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const startDrag = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 || !position) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startLeft: position.left,
+        startTop: position.top,
+      };
+    },
+    [position],
+  );
+
+  const drag = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const state = dragRef.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    const next = {
+      top: state.startTop + event.clientY - state.startY,
+      left: state.startLeft + event.clientX - state.startX,
+      maxHeight: getHelpWindowMaxHeight(),
+    };
+    setPosition(clampHelpWindowPosition(next, panelRef.current));
+  }, []);
+
+  const stopDrag = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null;
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }, []);
+
+  if (!open || !position) return null;
+
+  return createPortal(
+    <div
+      ref={panelRef}
+      id={id}
+      role="dialog"
+      aria-labelledby={`${id}-title`}
+      className="fixed z-50 flex w-[min(32rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-control border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] shadow-2xl shadow-black/30"
+      style={{ top: position.top, left: position.left, maxHeight: position.maxHeight }}
+    >
+      <div
+        className="flex cursor-move select-none items-start justify-between gap-3 border-b border-[var(--ds-border)] bg-[var(--ds-surface-inset)] px-4 py-3"
+        onPointerDown={startDrag}
+        onPointerMove={drag}
+        onPointerUp={stopDrag}
+        onPointerCancel={stopDrag}
+      >
+        <div>
+          <h3 id={`${id}-title`} className="text-sm font-semibold text-[var(--ds-text)]">
+            Markdown help
+          </h3>
+          <p className="mt-1 text-xs leading-snug text-[var(--ds-text-muted)]">
+            Shortcuts, code fences, card modifiers, syntax highlighting, badges, and keyboard hints.
+          </p>
+        </div>
+        <button
+          type="button"
+          title="Close Markdown help"
+          onClick={onClose}
+          onPointerDown={(event) => event.stopPropagation()}
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-control border border-[var(--ds-border)] text-[var(--ds-text-muted)] transition-colors hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)]"
+        >
+          <XIcon className="size-3.5" />
+        </button>
+      </div>
+      <div className="min-h-0 space-y-4 overflow-y-auto p-4">
+        <HelpSection title="Shortcuts">
+          <div className="grid grid-cols-2 gap-2">
+            {SHORTCUT_HINTS.map((hint) => (
+              <Hint key={hint.label} keys={hint.keys} label={hint.label} />
+            ))}
+          </div>
+        </HelpSection>
+
+        <HelpSection title="Code fences">
+          <div className="space-y-2">
+            {CODE_FENCE_EXAMPLES.map((example) => (
+              <HelpExample key={example.label} {...example} />
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {HIGHLIGHT_LANGUAGES.map((lang) => (
+              <NotationCode key={lang}>{lang}</NotationCode>
+            ))}
+          </div>
+        </HelpSection>
+
+        <HelpSection title="Inline helpers">
+          <div className="space-y-2">
+            {BADGE_HINTS.map((hint) => (
+              <div key={hint.notation} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <NotationHint notation={hint.notation} variant={hint.variant} pillLabel={hint.pillLabel} />
+                <span className="text-[0.6875rem] text-[var(--ds-text-muted)]">{hint.description}</span>
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <NotationCode>{"{{Esc}}"}</NotationCode>
+              <span className="text-[var(--ds-text-subtle)]" aria-hidden>
+                →
+              </span>
+              <Key>Esc</Key>
+              <span className="text-[0.6875rem] text-[var(--ds-text-muted)]">
+                Keyboard-style hints, for example {"{{Cmd+K}}"}.
+              </span>
+            </div>
+          </div>
+        </HelpSection>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+const SHORTCUT_HINTS_MIN_WIDTH = 420;
 
 function HintsBar() {
   const ref = React.useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = React.useState(true);
+  const infoButtonRef = React.useRef<HTMLButtonElement>(null);
+  const helpId = React.useId();
+  const [showShortcuts, setShowShortcuts] = React.useState(true);
+  const [helpOpen, setHelpOpen] = React.useState(false);
 
   React.useEffect(() => {
     const el = ref.current?.parentElement;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
-      setVisible(entry.contentRect.width >= HINTS_BAR_MIN_WIDTH);
+      setShowShortcuts(entry.contentRect.width >= SHORTCUT_HINTS_MIN_WIDTH);
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-
-  if (!visible) return null;
 
   return (
     <div
       ref={ref}
       className="flex items-center justify-between gap-3 px-2.5 py-1.5 border-t border-[var(--ds-border)] bg-[var(--ds-section-header-bg,var(--ds-bg-elevated))] text-[0.625rem]"
     >
-      <div className="flex items-center gap-2.5">
-        <Hint keys={["⌘", "B"]} label="Bold" />
-        <Hint keys={["⌘", "I"]} label="Italic" />
-        <Hint keys={["⌘", "K"]} label="Link" />
-        <Hint keys={["⌘", "⇧", "D"]} label="Strike" />
+      <div className={showShortcuts ? "flex items-center gap-2.5" : "hidden"}>
+        {SHORTCUT_HINTS.map((hint) => (
+          <Hint key={hint.label} keys={hint.keys} label={hint.label} />
+        ))}
       </div>
-      <div className="flex items-center gap-2.5 flex-wrap">
-        <NotationHint notation="[[REQ]]" variant="req" pillLabel="REQ" />
-        <NotationHint notation="[[OPT]]" variant="opt" pillLabel="OPT" />
-      </div>
+      <button
+        ref={infoButtonRef}
+        type="button"
+        aria-controls={helpId}
+        aria-expanded={helpOpen}
+        aria-haspopup="dialog"
+        title="Markdown help"
+        onClick={() => setHelpOpen((open) => !open)}
+        className="ml-auto inline-flex size-6 shrink-0 items-center justify-center rounded-control border border-[var(--ds-border)] text-[var(--ds-text-muted)] transition-colors hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)]"
+      >
+        <InfoIcon weight="duotone" className="size-3.5" />
+      </button>
+      <MarkdownHelpWindow open={helpOpen} anchorRef={infoButtonRef} id={helpId} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
