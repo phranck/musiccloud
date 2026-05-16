@@ -353,12 +353,28 @@ Relevant known paths:
 
 ### 7. Persistent Migration
 
-- [ ] Add dry-run support.
-- [ ] Add write mode.
-- [ ] Produce a report with migrated pages, migrated titles, migrated segment labels, conflicts and skipped records.
-- [ ] Validate before and after counts.
-- [ ] Validate that all old text values are represented in the new structure or explicitly reported as conflicts.
-- [ ] Keep a backup/snapshot strategy appropriate for the actual persistence layer.
+- [x] Add dry-run support.
+- [x] Add write mode.
+- [x] Produce a report with migrated pages, migrated titles, migrated segment labels, conflicts and skipped records.
+- [x] Validate before and after counts.
+- [x] Validate that all old text values are represented in the new structure or explicitly reported as conflicts.
+- [x] Keep a backup/snapshot strategy appropriate for the actual persistence layer.
+
+#### Migration Decision
+
+- The schema migration already exists in `apps/backend/src/db/migrations/postgres/0018_i18n_content.sql`.
+- The persistent migration task is therefore an additive audit/backfill runner, not a second schema migration.
+- `scripts/audit-content-i18n.mjs` dry-runs by default and reports missing default-locale rows.
+- `scripts/audit-content-i18n.mjs --write` inserts only missing default-locale rows for existing pages and segments.
+- The runner never updates or deletes existing translation rows, so existing localized values are not overwritten.
+- Backup strategy: because write mode is additive only, the required safety mechanism is dry-run report review plus normal database snapshot before production write mode.
+
+#### Verification
+
+- `node scripts/audit-content-i18n.mjs --help`
+- `node --check scripts/audit-content-i18n.mjs`
+- `pnpm audit:content-i18n -- --help`
+- Live dry-run skipped locally because `DATABASE_URL` is not set in the current shell.
 
 ### 8. Tests And Gates
 

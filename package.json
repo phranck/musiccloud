@@ -17,6 +17,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
+    "audit:content-i18n": "node scripts/audit-content-i18n.mjs",
     "db:generate": "drizzle-kit generate --config=drizzle.config.postgres.ts",
     "db:migrate": "node scripts/migrate.mjs",
     "db:studio": "drizzle-kit studio --config=drizzle.config.postgres.ts"
