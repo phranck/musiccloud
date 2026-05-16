@@ -65,6 +65,12 @@ const MD_EMBOSSED = [
   "[&>*:last-child]:mb-0",
 ].join(" ");
 
+const OVERLAY_CONTENT_SCROLL = "h-full overflow-y-auto py-4";
+const OVERLAY_DEFAULT_CONTENT_X = "px-4";
+const OVERLAY_SEGMENTED_CONTENT_X = "px-3";
+const FULLSCREEN_CONTENT_X = "px-6";
+const FULLSCREEN_SEGMENTED_CONTENT_X = "px-4 sm:px-5";
+
 const parserOptions: HTMLReactParserOptions = {
   replace(domNode) {
     // Use duck-typing instead of instanceof — ESM/CJS dual-module issue causes
@@ -172,7 +178,7 @@ export function TranslucentOverlayContent({ page, onClose }: OverlayContentProps
           onChange={segmented.setActive}
         />
       )}
-      <TranslucentCard.Body>
+      <TranslucentCard.Body className={isSegmented ? "px-4 sm:px-5" : undefined}>
         <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={html} className={MD_TRANSLUCENT} />
       </TranslucentCard.Body>
     </TranslucentCard>
@@ -189,7 +195,7 @@ export function EmbossedOverlayContent({ page, onClose }: OverlayContentProps) {
 
   return (
     <EmbossedCard className={cn("flex flex-col h-full")}>
-      <EmbossedCard.Header className="px-2 py-2 overlay-drag-handle cursor-grab active:cursor-grabbing">
+      <EmbossedCard.Header className="p-2 overlay-drag-handle cursor-grab active:cursor-grabbing">
         {showTitle && <EmbossedCard.Header.Title align={page.titleAlignment}>{title}</EmbossedCard.Header.Title>}
         <EmbossedCard.Header.AddOn align="trailing">
           <EmbossedCloseButton onClick={onClose} />
@@ -205,12 +211,22 @@ export function EmbossedOverlayContent({ page, onClose }: OverlayContentProps) {
       <EmbossedCard.Body className="flex-1 min-h-0 overflow-hidden pt-3">
         {page.contentCardStyle === "recessed" ? (
           <RecessedCard className="h-full" padding="0">
-            <div className="h-full overflow-y-auto px-4 py-4">
+            <div
+              className={cn(
+                OVERLAY_CONTENT_SCROLL,
+                isSegmented ? OVERLAY_SEGMENTED_CONTENT_X : OVERLAY_DEFAULT_CONTENT_X,
+              )}
+            >
               <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={html} className={MD_EMBOSSED} />
             </div>
           </RecessedCard>
         ) : (
-          <div className="h-full overflow-y-auto px-4 py-4">
+          <div
+            className={cn(
+              OVERLAY_CONTENT_SCROLL,
+              isSegmented ? OVERLAY_SEGMENTED_CONTENT_X : OVERLAY_DEFAULT_CONTENT_X,
+            )}
+          >
             <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={html} className={MD_EMBOSSED} />
           </div>
         )}
@@ -245,11 +261,11 @@ export function SegmentedPageFullscreen({ page }: { page: PublicContentPage }) {
       )}
       <EmbossedCard.Body className="p-3">
         {page.contentCardStyle === "recessed" ? (
-          <RecessedCard className="px-6 py-6">
+          <RecessedCard className={cn("py-6", hasSegments ? FULLSCREEN_SEGMENTED_CONTENT_X : FULLSCREEN_CONTENT_X)}>
             <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={html} className={MD_EMBOSSED} />
           </RecessedCard>
         ) : (
-          <div className="px-6 py-6">
+          <div className={cn("py-6", hasSegments ? FULLSCREEN_SEGMENTED_CONTENT_X : FULLSCREEN_CONTENT_X)}>
             <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={html} className={MD_EMBOSSED} />
           </div>
         )}
