@@ -264,12 +264,17 @@ Relevant known paths:
 
 ### 2. Define Shared Localization Helpers
 
-- [ ] Add or reuse a shared `LocalizedText` type.
-- [ ] Add `normalizeLocalizedText(input, defaultLocale)`.
-- [ ] Add `getLocalizedText(value, locale, fallbackLocale)`.
-- [ ] Add `setLocalizedText(value, locale, nextValue)`.
-- [ ] Add conflict reporting for mixed old/new values.
-- [ ] Cover helpers with tests for old, new, mixed and empty values.
+- [x] Add or reuse a shared `LocalizedText` type.
+- [x] Add `normalizeLocalizedText(input, defaultLocale)`.
+- [x] Add `getLocalizedText(value, locale, fallbackLocale)`.
+- [x] Add `setLocalizedText(value, locale, nextValue)`.
+- [x] Add conflict reporting for mixed old/new values.
+- [x] Cover helpers with tests for old, new, mixed and empty values.
+
+#### Verification
+
+- `pnpm --filter @musiccloud/shared typecheck`
+- `pnpm --filter @musiccloud/shared test:run`
 
 ### 3. Normalize Page Titles
 
