@@ -78,6 +78,17 @@ interface McFieldsToken extends Tokens.Generic {
   layout: FieldsLayout;
 }
 
+function parseInlineOptions(raw: string | undefined): Array<[name: string, value: string]> {
+  const options: Array<[name: string, value: string]> = [];
+  for (const option of (raw ?? "").trim().split(/\s+/).filter(Boolean)) {
+    const parts = option.split("=");
+    if (parts.length !== 2) continue;
+    const [name, value] = parts;
+    if (name && value) options.push([name, value]);
+  }
+  return options;
+}
+
 function isSafeCssLength(value: string): boolean {
   return CSS_LENGTH_PATTERN.test(value);
 }
@@ -88,12 +99,7 @@ function parseFieldsLayout(raw: string | undefined): FieldsLayout {
     gap: FIELDS_DEFAULT_GAP,
   };
 
-  for (const option of (raw ?? "").trim().split(/\s+/).filter(Boolean)) {
-    const parts = option.split("=");
-    if (parts.length !== 2) continue;
-    const [name, value] = parts;
-    if (!value) continue;
-
+  for (const [name, value] of parseInlineOptions(raw)) {
     if (name === "labelWidth") {
       layout.labelWidth =
         value === "auto" ? FIELDS_DEFAULT_LABEL_WIDTH : isSafeCssLength(value) ? value : layout.labelWidth;
@@ -201,20 +207,39 @@ marked.use({
   },
 });
 
-// Inline marked extensions for [[BADGE]] pills and {{kbd}} hints.
-//
-// Authors add new badge values by extending BADGE_LABELS with a single line
-// (KEYWORD: "css-variant-suffix"). The pattern regex is rebuilt from the map
-// so adding a label automatically extends the tokenizer's match set; the
-// matching CSS class .mc-badge-<variant> must be added to the frontend
-// stylesheet (PageOverlayContent.tsx MD_EMBOSSED/MD_TRANSLUCENT) to get a
-// visual variant.
-const BADGE_LABELS: Record<string, string> = {
-  REQUIRED: "req",
-  REQ: "req",
-  OPT: "opt",
-};
-const BADGE_PATTERN = new RegExp(`^\\[\\[(${Object.keys(BADGE_LABELS).join("|")})\\]\\]`);
+// Inline marked extensions for [[pill:...]] pills and {{kbd}} hints.
+const PILL_TONES = new Set(["alert", "info", "neutral", "success"] as const);
+const PILL_CASES = new Set(["none", "upper", "lower"] as const);
+type PillTone = "alert" | "info" | "neutral" | "success";
+type PillCase = "none" | "upper" | "lower";
+
+interface McPillToken extends Tokens.Generic {
+  type: "mcPill";
+  text: string;
+  tone: PillTone;
+  textCase: PillCase;
+}
+
+function parsePillOptions(raw: string | undefined): { tone: PillTone; textCase: PillCase } {
+  let tone: PillTone = "neutral";
+  let textCase: PillCase = "none";
+
+  for (const [name, value] of parseInlineOptions(raw)) {
+    if (name === "tone" && PILL_TONES.has(value as PillTone)) {
+      tone = value as PillTone;
+    } else if (name === "case" && PILL_CASES.has(value as PillCase)) {
+      textCase = value as PillCase;
+    }
+  }
+
+  return { tone, textCase };
+}
+
+function applyPillCase(text: string, textCase: PillCase): string {
+  if (textCase === "upper") return text.toUpperCase();
+  if (textCase === "lower") return text.toLowerCase();
+  return text;
+}
 
 marked.use({
   extensions: [
@@ -263,21 +288,18 @@ marked.use({
       },
     },
     {
-      name: "mcBadge",
+      name: "mcPill",
       level: "inline",
       start(src: string) {
-        return src.match(/\[\[/)?.index;
+        return src.match(/\[\[pill:/)?.index;
       },
       tokenizer(src: string) {
-        const m = src.match(BADGE_PATTERN);
-        if (m) return { type: "mcBadge", raw: m[0], text: m[1] };
+        const m = src.match(/^\[\[pill:([^\]\s]+)([^\]]*)\]\]/);
+        if (m) return { type: "mcPill", raw: m[0], text: m[1], ...parsePillOptions(m[2]) } satisfies McPillToken;
       },
       renderer(token) {
-        // Tokens.Generic has [index: string]: any so .text is reachable
-        // (we set it ourselves in the tokenizer above).
-        const text: string = token.text;
-        const variant = BADGE_LABELS[text] ?? "default";
-        return `<span class="mc-badge mc-badge-${variant}">${text}</span>`;
+        const pill = token as McPillToken;
+        return `<span class="mc-pill mc-pill-${pill.tone}">${escapeHtml(applyPillCase(pill.text, pill.textCase))}</span>`;
       },
     },
     {
@@ -291,8 +313,7 @@ marked.use({
         if (m) return { type: "mcKbd", raw: m[0], text: m[1] };
       },
       renderer(token) {
-        // Author-supplied content (unlike whitelisted badges) — escape to
-        // prevent <script> or other HTML injection via {{...}}.
+        // Author-supplied content; escape to prevent HTML injection via {{...}}.
         const text: string = token.text;
         return `<kbd class="mc-kbd">${escapeHtml(text)}</kbd>`;
       },

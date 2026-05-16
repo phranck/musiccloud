@@ -10,12 +10,12 @@ Use field blocks for aligned key/value documentation such as query modifiers.
 
 ```md
 :::fields
-genre: Genre name or Genre1|Genre2 (OR) [[REQ]]
-tracks: 1-50, default 10 [[OPT]]
-albums: 1-50, default 10 [[OPT]]
-artists: 1-50, default 10 [[OPT]]
-count: 1-50, applies the same amount to tracks, albums, and artists. Excludes tracks/albums/artists. [[OPT]]
-vibe: `hot` (Top-N) or `mixed` (stratified random) [[OPT]]
+genre: Genre name or Genre1|Genre2 (OR) [[pill:REQ tone=alert]]
+tracks: 1-50, default 10 [[pill:OPT]]
+albums: 1-50, default 10 [[pill:OPT]]
+artists: 1-50, default 10 [[pill:OPT]]
+count: 1-50, applies the same amount to tracks, albums, and artists. Excludes tracks/albums/artists. [[pill:OPT]]
+vibe: `hot` (Top-N) or `mixed` (stratified random) [[pill:OPT]]
 :::
 ```
 
@@ -24,7 +24,7 @@ The renderer outputs a semantic definition list:
 ```html
 <dl class="mc-fields">
   <dt>genre:</dt>
-  <dd>Genre name or Genre1|Genre2 (OR) <span class="mc-badge mc-badge-req">REQ</span></dd>
+  <dd>Genre name or Genre1|Genre2 (OR) <span class="mc-pill mc-pill-alert">REQ</span></dd>
 </dl>
 ```
 
@@ -70,24 +70,42 @@ Supported options:
 
 Invalid option values are ignored.
 
-## Inline Badges
+## Inline Pills
 
-Badges are inline markers for compact metadata.
+Pills are inline markers for compact metadata.
 
 ```md
-genre: jazz [[REQ]]
-tracks: 20 [[OPT]]
+genre: jazz [[pill:REQ tone=alert]]
+tracks: 20 [[pill:OPT]]
+note: [[pill:Info tone=info]]
+status: [[pill:done tone=success case=upper]]
 ```
 
-Supported badges:
+Syntax:
 
-| Markdown | Output class | Meaning |
+```md
+[[pill:LABEL option=value option=value]]
+```
+
+`LABEL` is the text after `pill:` up to the next whitespace or closing `]]`.
+
+Supported options:
+
+| Option | Default | Values |
 | --- | --- | --- |
-| `[[REQ]]` | `mc-badge mc-badge-req` | Required, short form |
-| `[[REQUIRED]]` | `mc-badge mc-badge-req` | Required, full form |
-| `[[OPT]]` | `mc-badge mc-badge-opt` | Optional |
+| `tone` | `neutral` | `alert`, `info`, `neutral`, `success` |
+| `case` | `none` | `none`, `upper`, `lower` |
 
-Unknown badge markers stay as plain text.
+Rendered classes:
+
+| Tone | Output class |
+| --- | --- |
+| `alert` | `mc-pill mc-pill-alert` |
+| `info` | `mc-pill mc-pill-info` |
+| `neutral` | `mc-pill mc-pill-neutral` |
+| `success` | `mc-pill mc-pill-success` |
+
+Unknown options are ignored. Legacy badge markers such as `[[REQ]]`, `[[REQUIRED]]`, and `[[OPT]]` are not parsed and stay visible as plain text.
 
 ## Keyboard Hints
 
