@@ -259,90 +259,130 @@ function HelpExample({ label, code, description }: { label: string; code: string
   );
 }
 
-interface HelpWindowPosition {
+interface HelpWindowLayout {
   top: number;
   left: number;
-  maxHeight: number;
+  width: number;
+  height: number;
 }
 
-interface DragState {
+interface HelpWindowPointerState {
+  type: "move" | "resize";
   pointerId: number;
   startX: number;
   startY: number;
-  startLeft: number;
-  startTop: number;
+  startLayout: HelpWindowLayout;
 }
 
-const HELP_WINDOW_WIDTH = 512;
+const HELP_WINDOW_STORAGE_KEY = "musiccloud.markdownHelpWindow";
+const HELP_WINDOW_DEFAULT_WIDTH = 512;
+const HELP_WINDOW_DEFAULT_HEIGHT = 560;
+const HELP_WINDOW_MIN_WIDTH = 360;
+const HELP_WINDOW_MIN_HEIGHT = 320;
 const HELP_WINDOW_MARGIN = 16;
-const HELP_WINDOW_GAP = 8;
+const HELP_WINDOW_SMALL_SCREEN_MIN_WIDTH = 240;
+const HELP_WINDOW_SMALL_SCREEN_MIN_HEIGHT = 220;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function getHelpWindowMaxHeight(): number {
-  return Math.max(220, window.innerHeight - HELP_WINDOW_MARGIN * 2);
+function getHelpWindowBounds() {
+  const viewportWidth = window.innerWidth - HELP_WINDOW_MARGIN * 2;
+  const viewportHeight = window.innerHeight - HELP_WINDOW_MARGIN * 2;
+  const minWidth = Math.min(HELP_WINDOW_MIN_WIDTH, Math.max(HELP_WINDOW_SMALL_SCREEN_MIN_WIDTH, viewportWidth));
+  const minHeight = Math.min(HELP_WINDOW_MIN_HEIGHT, Math.max(HELP_WINDOW_SMALL_SCREEN_MIN_HEIGHT, viewportHeight));
+
+  return {
+    minWidth,
+    minHeight,
+    maxWidth: Math.max(minWidth, viewportWidth),
+    maxHeight: Math.max(minHeight, viewportHeight),
+  };
 }
 
-function clampHelpWindowPosition(position: HelpWindowPosition, panel?: HTMLDivElement | null): HelpWindowPosition {
-  const width = panel?.offsetWidth ?? Math.min(HELP_WINDOW_WIDTH, window.innerWidth - HELP_WINDOW_MARGIN * 2);
-  const height = panel?.offsetHeight ?? Math.min(520, getHelpWindowMaxHeight());
+function clampHelpWindowLayout(layout: HelpWindowLayout): HelpWindowLayout {
+  const bounds = getHelpWindowBounds();
+  const width = clamp(layout.width, bounds.minWidth, bounds.maxWidth);
+  const height = clamp(layout.height, bounds.minHeight, bounds.maxHeight);
   const maxLeft = Math.max(HELP_WINDOW_MARGIN, window.innerWidth - width - HELP_WINDOW_MARGIN);
   const maxTop = Math.max(HELP_WINDOW_MARGIN, window.innerHeight - height - HELP_WINDOW_MARGIN);
 
   return {
-    top: clamp(position.top, HELP_WINDOW_MARGIN, maxTop),
-    left: clamp(position.left, HELP_WINDOW_MARGIN, maxLeft),
-    maxHeight: getHelpWindowMaxHeight(),
+    top: clamp(layout.top, HELP_WINDOW_MARGIN, maxTop),
+    left: clamp(layout.left, HELP_WINDOW_MARGIN, maxLeft),
+    width,
+    height,
   };
 }
 
-function getInitialHelpWindowPosition(anchor: HTMLButtonElement): HelpWindowPosition {
-  const rect = anchor.getBoundingClientRect();
-  const width = Math.min(HELP_WINDOW_WIDTH, window.innerWidth - HELP_WINDOW_MARGIN * 2);
-  const maxHeight = getHelpWindowMaxHeight();
-  const preferredTop = rect.bottom + HELP_WINDOW_GAP;
-  const top =
-    preferredTop + Math.min(520, maxHeight) <= window.innerHeight - HELP_WINDOW_MARGIN
-      ? preferredTop
-      : rect.top - Math.min(520, maxHeight) - HELP_WINDOW_GAP;
+function getCenteredHelpWindowLayout(): HelpWindowLayout {
+  const bounds = getHelpWindowBounds();
+  const width = Math.min(HELP_WINDOW_DEFAULT_WIDTH, bounds.maxWidth);
+  const height = Math.min(HELP_WINDOW_DEFAULT_HEIGHT, bounds.maxHeight);
 
-  return clampHelpWindowPosition({
-    top,
-    left: rect.right - width,
-    maxHeight,
+  return clampHelpWindowLayout({
+    top: (window.innerHeight - height) / 2,
+    left: (window.innerWidth - width) / 2,
+    width,
+    height,
   });
 }
 
-function MarkdownHelpWindow({
-  open,
-  anchorRef,
-  id,
-  onClose,
-}: {
-  open: boolean;
-  anchorRef: React.RefObject<HTMLButtonElement | null>;
-  id: string;
-  onClose: () => void;
-}) {
-  const panelRef = React.useRef<HTMLDivElement>(null);
-  const dragRef = React.useRef<DragState | null>(null);
-  const [position, setPosition] = React.useState<HelpWindowPosition | null>(null);
+function isStoredHelpWindowLayout(value: unknown): value is HelpWindowLayout {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<Record<keyof HelpWindowLayout, unknown>>;
+  return (
+    typeof candidate.top === "number" &&
+    typeof candidate.left === "number" &&
+    typeof candidate.width === "number" &&
+    typeof candidate.height === "number"
+  );
+}
+
+function readStoredHelpWindowLayout(): HelpWindowLayout | null {
+  try {
+    const raw = localStorage.getItem(HELP_WINDOW_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    return isStoredHelpWindowLayout(parsed) ? clampHelpWindowLayout(parsed) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistHelpWindowLayout(layout: HelpWindowLayout) {
+  try {
+    localStorage.setItem(HELP_WINDOW_STORAGE_KEY, JSON.stringify(layout));
+  } catch {
+    // Persistence is an enhancement; editor usage must not depend on storage availability.
+  }
+}
+
+function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; onClose: () => void }) {
+  const interactionRef = React.useRef<HelpWindowPointerState | null>(null);
+  const layoutRef = React.useRef<HelpWindowLayout | null>(null);
+  const [layout, setLayout] = React.useState<HelpWindowLayout | null>(null);
   const closeHelp = React.useEffectEvent(onClose);
+
+  const applyLayout = React.useCallback((next: HelpWindowLayout) => {
+    const clamped = clampHelpWindowLayout(next);
+    layoutRef.current = clamped;
+    setLayout(clamped);
+  }, []);
+  const applyLayoutFromEvent = React.useEffectEvent(applyLayout);
 
   React.useEffect(() => {
     if (!open) return;
 
-    const anchor = anchorRef.current;
-    if (anchor) setPosition(getInitialHelpWindowPosition(anchor));
-  }, [anchorRef, open]);
+    applyLayout(readStoredHelpWindowLayout() ?? getCenteredHelpWindowLayout());
+  }, [applyLayout, open]);
 
   React.useEffect(() => {
     if (!open) return;
 
     const onResize = () => {
-      setPosition((current) => (current ? clampHelpWindowPosition(current, panelRef.current) : current));
+      applyLayoutFromEvent(layoutRef.current ?? getCenteredHelpWindowLayout());
     };
 
     window.addEventListener("resize", onResize);
@@ -364,56 +404,89 @@ function MarkdownHelpWindow({
     };
   }, [open]);
 
-  const startDrag = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0 || !position) return;
+  const startInteraction = React.useCallback(
+    (type: HelpWindowPointerState["type"], event: React.PointerEvent<HTMLElement>) => {
+      if (event.button !== 0 || !layout) return;
+      event.preventDefault();
+      event.stopPropagation();
       event.currentTarget.setPointerCapture(event.pointerId);
-      dragRef.current = {
+      interactionRef.current = {
+        type,
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
-        startLeft: position.left,
-        startTop: position.top,
+        startLayout: layoutRef.current ?? layout,
       };
     },
-    [position],
+    [layout],
   );
 
-  const drag = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const state = dragRef.current;
-    if (!state || state.pointerId !== event.pointerId) return;
-    const next = {
-      top: state.startTop + event.clientY - state.startY,
-      left: state.startLeft + event.clientX - state.startX,
-      maxHeight: getHelpWindowMaxHeight(),
-    };
-    setPosition(clampHelpWindowPosition(next, panelRef.current));
-  }, []);
+  const updateInteraction = React.useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      const state = interactionRef.current;
+      if (!state || state.pointerId !== event.pointerId) return;
+      event.preventDefault();
 
-  const stopDrag = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (dragRef.current?.pointerId === event.pointerId) {
-      dragRef.current = null;
-      event.currentTarget.releasePointerCapture(event.pointerId);
+      const deltaX = event.clientX - state.startX;
+      const deltaY = event.clientY - state.startY;
+      const next =
+        state.type === "move"
+          ? {
+              ...state.startLayout,
+              top: state.startLayout.top + deltaY,
+              left: state.startLayout.left + deltaX,
+            }
+          : {
+              ...state.startLayout,
+              width: state.startLayout.width + deltaX,
+              height: state.startLayout.height + deltaY,
+            };
+
+      applyLayout(next);
+    },
+    [applyLayout],
+  );
+
+  const stopInteraction = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
+    if (interactionRef.current?.pointerId === event.pointerId) {
+      interactionRef.current = null;
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      if (layoutRef.current) persistHelpWindowLayout(layoutRef.current);
     }
   }, []);
 
-  if (!open || !position) return null;
+  const startMove = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      startInteraction("move", event);
+    },
+    [startInteraction],
+  );
+
+  const startResize = React.useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      startInteraction("resize", event);
+    },
+    [startInteraction],
+  );
+
+  if (!open || !layout) return null;
 
   return createPortal(
     <div
-      ref={panelRef}
       id={id}
       role="dialog"
       aria-labelledby={`${id}-title`}
-      className="fixed z-50 flex w-[min(32rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-control border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] shadow-2xl shadow-black/30"
-      style={{ top: position.top, left: position.left, maxHeight: position.maxHeight }}
+      className="fixed z-50 flex flex-col overflow-hidden rounded-control border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] shadow-2xl shadow-black/30"
+      style={{ top: layout.top, left: layout.left, width: layout.width, height: layout.height }}
     >
       <div
-        className="flex cursor-move select-none items-start justify-between gap-3 border-b border-[var(--ds-border)] bg-[var(--ds-surface-inset)] px-4 py-3"
-        onPointerDown={startDrag}
-        onPointerMove={drag}
-        onPointerUp={stopDrag}
-        onPointerCancel={stopDrag}
+        className="flex cursor-move touch-none select-none items-start justify-between gap-3 border-b border-[var(--ds-border)] bg-[var(--ds-surface-inset)] px-4 py-3"
+        onPointerDown={startMove}
+        onPointerMove={updateInteraction}
+        onPointerUp={stopInteraction}
+        onPointerCancel={stopInteraction}
       >
         <div>
           <h3 id={`${id}-title`} className="text-sm font-semibold text-[var(--ds-text)]">
@@ -433,7 +506,7 @@ function MarkdownHelpWindow({
           <XIcon className="size-3.5" />
         </button>
       </div>
-      <div className="min-h-0 space-y-4 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         <HelpSection title="Shortcuts">
           <div className="grid grid-cols-2 gap-2">
             {SHORTCUT_HINTS.map((hint) => (
@@ -476,6 +549,21 @@ function MarkdownHelpWindow({
           </div>
         </HelpSection>
       </div>
+      <button
+        type="button"
+        aria-label="Resize Markdown help"
+        title="Resize Markdown help"
+        className="absolute bottom-1 right-1 flex size-5 cursor-nwse-resize touch-none items-end justify-end rounded-[2px] p-1 text-[var(--ds-text-subtle)] opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)]"
+        onPointerDown={startResize}
+        onPointerMove={updateInteraction}
+        onPointerUp={stopInteraction}
+        onPointerCancel={stopInteraction}
+      >
+        <span
+          aria-hidden
+          className="block size-3 bg-[linear-gradient(135deg,transparent_0_42%,currentColor_42%_49%,transparent_49%_58%,currentColor_58%_65%,transparent_65%_100%)]"
+        />
+      </button>
     </div>,
     document.body,
   );
@@ -485,7 +573,6 @@ const SHORTCUT_HINTS_MIN_WIDTH = 420;
 
 function HintsBar() {
   const ref = React.useRef<HTMLDivElement>(null);
-  const infoButtonRef = React.useRef<HTMLButtonElement>(null);
   const helpId = React.useId();
   const [showShortcuts, setShowShortcuts] = React.useState(true);
   const [helpOpen, setHelpOpen] = React.useState(false);
@@ -511,7 +598,6 @@ function HintsBar() {
         ))}
       </div>
       <button
-        ref={infoButtonRef}
         type="button"
         aria-controls={helpId}
         aria-expanded={helpOpen}
@@ -522,7 +608,7 @@ function HintsBar() {
       >
         <InfoIcon weight="duotone" className="size-3.5" />
       </button>
-      <MarkdownHelpWindow open={helpOpen} anchorRef={infoButtonRef} id={helpId} onClose={() => setHelpOpen(false)} />
+      <MarkdownHelpWindow open={helpOpen} id={helpId} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
