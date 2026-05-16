@@ -20,6 +20,7 @@ zerops:
         HOST: 0.0.0.0
         PORT: "4000"
         NODE_ENV: production
+        ALLOWED_ORIGINS: "https://musiccloud.io,https://dashboard.musiccloud.io"
         # Number of reverse-proxy hops to trust when resolving the client
         # IP from X-Forwarded-For. "1" covers the Zerops ingress. If a
         # CDN (e.g. Cloudflare) is placed in front, bump to "2".
