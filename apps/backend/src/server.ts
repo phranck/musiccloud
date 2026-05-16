@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
@@ -7,6 +9,12 @@ import swagger from "@fastify/swagger";
 import Fastify from "fastify";
 import { getRepository } from "./db/index.js";
 import { runMigrations } from "./db/run-migrations.js";
+import {
+  getScalarApiReferenceHtml,
+  getScalarReferenceFontCss,
+  SCALAR_API_REFERENCE_CONTENT_SECURITY_POLICY,
+  SCALAR_REFERENCE_FONT_FILES,
+} from "./docs/scalar-reference.js";
 import { requireEnvList } from "./lib/env.js";
 import authPlugin from "./plugins/auth.js";
 import adminAnalyticsRoutes from "./routes/admin-analytics.js";
@@ -241,7 +249,7 @@ async function buildApp() {
     },
   });
 
-  // Expose the raw OpenAPI document so Redoc (and external consumers)
+  // Expose the raw OpenAPI document so Scalar (and external consumers)
   // can load it. Uses `app.swagger()` per-request so the spec always
   // reflects the full route table after every plugin has registered.
   app.get(
@@ -252,156 +260,51 @@ async function buildApp() {
     async () => app.swagger(),
   );
 
-  // Redoc API reference UI at /docs. A tiny HTML shell that pulls the
-  // Redoc standalone bundle from jsDelivr and points it at /docs/json.
-  // We avoid the Fastify plugins @fastify/swagger-ui and
-  // @scalar/fastify-api-reference because both resolve their client
-  // assets via `path.join(__dirname, ...)` / `fileURLToPath` at runtime,
-  // which breaks when tsup inlines them into dist/server.js — and
-  // externalising them would require node_modules in the Zerops deploy
-  // (currently only apps/backend/dist ships).
+  // Scalar API Reference UI at /docs. We render the same CDN-backed HTML
+  // shell shape used by lmaa instead of registering a Fastify UI plugin:
+  // the backend is bundled into apps/backend/dist, so runtime file lookups
+  // inside UI plugins are fragile in the Zerops deploy artifact.
   app.get(
     "/docs",
     {
       schema: { hide: true },
     },
     async (_request, reply) => {
-      reply.type("text/html").send(`<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>musiccloud API Reference</title>
-    <link rel="icon" href="data:," />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Roboto+Condensed:wght@400;500;700&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      body { margin: 0; padding: 0; }
-      /* Keep the sidebar at its former size after we shrank the body
-         font for the middle column. Redoc inherits the body size into
-         menu items; override to preserve left-nav readability. */
-      .menu-content {
-        font-size: 18px !important;
+      reply.header("Cache-Control", "no-store");
+      reply.header("Content-Security-Policy", SCALAR_API_REFERENCE_CONTENT_SECURITY_POLICY);
+      reply.type("text/html").send(getScalarApiReferenceHtml());
+    },
+  );
+
+  app.get(
+    "/fonts/fonts.css",
+    {
+      schema: { hide: true },
+    },
+    async (_request, reply) => {
+      reply.header("Cache-Control", "public, max-age=31536000, immutable");
+      reply.type("text/css; charset=utf-8").send(getScalarReferenceFontCss());
+    },
+  );
+
+  app.get<{ Params: { file: string } }>(
+    "/fonts/:file",
+    {
+      schema: { hide: true },
+    },
+    async (request, reply) => {
+      const contentType = SCALAR_REFERENCE_FONT_FILES.get(request.params.file);
+      if (!contentType) {
+        return reply.status(404).send({ error: "NOT_FOUND" });
       }
-      /* Tighten the vertical rhythm of sidebar menu items. Redoc's
-         theme has no direct knob for this, so we target the rendered
-         <label> elements inside the left-nav tree. */
-      .menu-content li > label,
-      .menu-content li > a {
-        padding-top: 4px !important;
-        padding-bottom: 4px !important;
-        line-height: 1.25em !important;
+
+      try {
+        const font = await readDocsFont(request.params.file);
+        reply.header("Cache-Control", "public, max-age=31536000, immutable");
+        return reply.type(contentType).send(font);
+      } catch {
+        return reply.status(404).send({ error: "NOT_FOUND" });
       }
-      /* Shrink the operation-summary text that sits beside the HTTP
-         method badge in the sidebar. Same caveat as the .lbpUdJ rule
-         above: styled-components class, build-volatile but stable
-         within a bundle. If a Redoc upgrade breaks this, inspect
-         the wrapper around "Resolve a music URL ..." entries and
-         update the selector. */
-      .sc-kYxDKI .sc-kYxDKI {
-        font-size: 0.8em !important;
-      }
-      /* theme.typography.code.lineHeight does not always propagate to
-         the right-panel code samples and JSON response blocks. Request
-         samples render as <pre>; response examples render as Redoc's
-         interactive JSON tree (.redoc-json). Target both. */
-      pre, pre code, pre code *,
-      .redoc-json, .redoc-json *, code {
-        line-height: 1.15em !important;
-      }
-      /* Language picker + response-status tabs in the right panel.
-         Redoc renders them as react-tabs elements; shrink font + pad
-         so they sit closer together and don't wrap as aggressively. */
-      [role="tab"], .react-tabs__tab, .tab-list__tab {
-        font-family: 'Roboto Condensed', system-ui, sans-serif !important;
-        font-size: 13px !important;
-        padding: 0 8px !important;
-        margin: 0 3px 4px 0 !important;
-      }
-      /* Shrink horizontal padding of the dark right-column code
-         samples panel (Request/Response samples). Redoc renders this
-         with styled-components, so the class name is build-volatile
-         but stable within a given Redoc bundle. If a Redoc upgrade
-         breaks this, inspect the div that wraps "Request samples" /
-         "Response samples" and update the selector. */
-      .lbpUdJ {
-        padding: 0 15px !important;
-      }
-      /* Flush-left the tab rows (language picker, response codes) so
-         they align with the code-box below them. */
-      .lbpUdJ [role="tablist"],
-      .lbpUdJ .react-tabs__tab-list,
-      .lbpUdJ .tab-list {
-        margin-left: 0 !important;
-        padding-left: 0 !important;
-      }
-      /* Sample-block headings: use the Roboto Condensed heading font
-         and add a small left indent so they line up with the content
-         inside the code boxes below. */
-      .lbpUdJ h3, .lbpUdJ h5 {
-        font-family: 'Roboto Condensed', system-ui, sans-serif !important;
-        padding-left: 6px !important;
-      }
-      /* Markdown links inside operation descriptions: Redoc's
-         theme.typography.links knob doesn't always reach every Markdown
-         renderer in the description tree, so force underline + visible
-         color here as a fallback. */
-      .api-content a, .api-content a:visited {
-        color: #1d6ae5 !important;
-        text-decoration: underline !important;
-        text-underline-offset: 2px;
-      }
-      .api-content a:visited {
-        color: #6b3ec1 !important;
-      }
-      .api-content a:hover {
-        color: #0a4cb8 !important;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="redoc"></div>
-    <script src="https://cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js"></script>
-    <script>
-      Redoc.init(
-        "/docs/json",
-        {
-          theme: {
-            typography: {
-              fontSize: "16px",
-              lineHeight: "1.55em",
-              fontFamily: "Barlow, system-ui, sans-serif",
-              smallFontSize: "14px",
-              headings: {
-                fontFamily: "'Roboto Condensed', system-ui, sans-serif",
-                fontWeight: "600",
-                lineHeight: "1.35em",
-              },
-              code: {
-                fontSize: "14px",
-                lineHeight: "1.15em",
-                fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-              },
-              links: {
-                color: "#1d6ae5",
-                visited: "#6b3ec1",
-                hover: "#0a4cb8",
-                textDecoration: "underline",
-                hoverTextDecoration: "underline",
-              },
-            },
-            sidebar: {
-              width: "320px",
-            },
-          },
-        },
-        document.getElementById("redoc"),
-      );
-    </script>
-  </body>
-</html>`);
     },
   );
 
@@ -531,6 +434,20 @@ async function buildApp() {
   });
 
   return app;
+}
+
+async function readDocsFont(file: string): Promise<Buffer> {
+  const candidates = [path.join(__dirname, "fonts", file), path.join(__dirname, "..", "assets", "fonts", file)];
+
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    try {
+      return await readFile(candidate);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
 }
 
 async function start() {

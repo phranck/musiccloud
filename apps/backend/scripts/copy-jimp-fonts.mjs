@@ -1,6 +1,7 @@
-// Copies runtime font assets (TTF for Roboto Condensed) next to the built
-// backend bundle, so `opentype.loadSync(path.join(__dirname, ...))`
-// resolves correctly once tsup inlines the source into `dist/server.js`.
+// Copies runtime font assets next to the built backend bundle, so
+// `opentype.loadSync(path.join(__dirname, ...))` and the OpenAPI docs'
+// `/fonts/*` routes resolve correctly once tsup inlines the source into
+// `dist/server.js`.
 // Called from `tsup.config.ts` `onSuccess` (build) and from the dev script
 // in `package.json` (watch mode).
 

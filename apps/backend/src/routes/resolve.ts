@@ -59,6 +59,7 @@ import type {
 import { ENDPOINTS, formatUserMessage, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
+import { STRUCTURED_SEARCH_OPENAPI_SECTION, STRUCTURED_SEARCH_POST_OPENAPI_NOTE } from "../docs/resolve-openapi.js";
 import { requireEnvList } from "../lib/env.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
@@ -121,12 +122,9 @@ export default async function resolveRoutes(app: FastifyInstance) {
           "  - `genre: ?` → browse grid of popular genres (no other fields allowed).\n" +
           "  - `genre: <name>[|<name>...]<, modifier>*` → discovery results. Modifiers: `tracks`/`albums`/`artists` (1–50 each, default 10 of each when none specified), `count` (1–50, sets all three to the same value, mutually exclusive with per-type modifiers), `vibe` (`hot` for top-N, `mixed` for stratified random sample). `|` inside a value is OR.\n" +
           "  - Example: `genre: jazz|r&b, tracks: 20, vibe: mixed`.\n\n" +
-          "**4. Structured search query** — starts with `title:`, `artist:`, or `album:`. Returns either a resolved track or a disambiguation list, same outcome as free-text but with adapter-side field operators (Spotify, Deezer, MusicBrainz) for higher precision. Supported fields:\n" +
-          "  - `title:` and `artist:` — at least one is required.\n" +
-          "  - `album:` — optional, refines the match. Cannot be used alone.\n" +
-          "  - `count:` — optional, 1–10, caps the disambiguation list.\n" +
-          "  - Examples: `title: The Killing Moon, artist: Echo & The Bunnymen` · `artist: Radiohead` · `title: Karma Police, artist: Radiohead, album: OK Computer, count: 5`.\n\n" +
-          "After a disambiguation response, send the picked candidate's id back as `selectedCandidate` to complete the resolve.\n\n" +
+          `**4. Structured search query** — ${STRUCTURED_SEARCH_OPENAPI_SECTION}\n\n` +
+          `${STRUCTURED_SEARCH_POST_OPENAPI_NOTE}\n\n` +
+          "After any disambiguation response, send the picked candidate's id back as `selectedCandidate` to complete the resolve.\n\n" +
           "For a deep architectural walkthrough of the resolver pipeline, see the resolver-flow PDF in the repo: [Deutsch](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/de/resolve-flow.pdf) · [English](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/en/resolve-flow.pdf).",
         security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
         body: {
@@ -138,17 +136,29 @@ export default async function resolveRoutes(app: FastifyInstance) {
               type: "string",
               minLength: 1,
               maxLength: 500,
-              description: "Streaming-service URL or free-text search string.",
+              description: "Streaming-service URL, free-text query, genre-discovery query, or structured search query.",
+              examples: [
+                "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L",
+                "bohemian rhapsody queen",
+                "genre: jazz|r&b, tracks: 20, vibe: mixed",
+                "title: Karma Police, artist: Radiohead, album: OK Computer, count: 5",
+              ],
             },
             selectedCandidate: {
               type: "string",
               minLength: 1,
               maxLength: 200,
               description: "Identifier of a candidate returned by a previous disambiguation response.",
+              example: "spotify:track:2WfaOiMkCvy7F5fcp2zZ8L",
             },
           },
           anyOf: [{ required: ["query"] }, { required: ["selectedCandidate"] }],
           additionalProperties: false,
+          examples: [
+            { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" },
+            { query: "title: Karma Police, artist: Radiohead, album: OK Computer, count: 5" },
+            { selectedCandidate: "spotify:track:2WfaOiMkCvy7F5fcp2zZ8L" },
+          ],
         },
         response: {
           200: {
