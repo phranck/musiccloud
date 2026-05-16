@@ -7,12 +7,13 @@
  * Write missing default-locale rows:
  *   node scripts/audit-content-i18n.mjs --write
  *
- * Requires DATABASE_URL. The script is additive only: it inserts missing
- * default-locale rows for existing pages/segments and never updates or deletes
- * existing translation data.
+ * Reads DATABASE_URL from the environment or apps/backend/.env.local. The script
+ * is additive only: it inserts missing default-locale rows for existing
+ * pages/segments and never updates or deletes existing translation data.
  */
 
 import { createRequire } from "node:module";
+import { readFile } from "node:fs/promises";
 
 const DEFAULT_LOCALE = "en";
 const args = new Set(process.argv.slice(2));
@@ -34,6 +35,49 @@ function countRows(rows) {
   return Number(rows[0]?.count ?? 0);
 }
 
+function parseEnvValue(rawValue) {
+  const value = rawValue.trim();
+  const quote = value[0];
+  if ((quote === "\"" || quote === "'") && value.endsWith(quote)) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+async function readDatabaseUrlFromEnvFile(path) {
+  try {
+    const contents = await readFile(path, "utf8");
+    for (const line of contents.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      const separatorIndex = trimmed.indexOf("=");
+      if (separatorIndex === -1) continue;
+
+      const key = trimmed.slice(0, separatorIndex).trim();
+      if (key !== "DATABASE_URL") continue;
+
+      const value = parseEnvValue(trimmed.slice(separatorIndex + 1));
+      return value.length > 0 ? value : undefined;
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  return undefined;
+}
+
+async function loadDatabaseUrl() {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+
+  const localDatabaseUrl = await readDatabaseUrlFromEnvFile("apps/backend/.env.local");
+  if (localDatabaseUrl) {
+    process.env.DATABASE_URL = localDatabaseUrl;
+    return localDatabaseUrl;
+  }
+
+  return undefined;
+}
+
 function compactPage(row) {
   return { slug: row.slug, title: row.title };
 }
@@ -48,12 +92,17 @@ function compactSegment(row) {
 }
 
 async function getCounts(client) {
-  const [pages, pageDefaultTranslations, segments, segmentDefaultTranslations] = await Promise.all([
-    client.query("SELECT COUNT(*)::int AS count FROM content_pages"),
-    client.query("SELECT COUNT(*)::int AS count FROM content_page_translations WHERE locale = $1", [DEFAULT_LOCALE]),
-    client.query("SELECT COUNT(*)::int AS count FROM page_segments"),
-    client.query("SELECT COUNT(*)::int AS count FROM page_segment_translations WHERE locale = $1", [DEFAULT_LOCALE]),
-  ]);
+  const pages = await client.query("SELECT COUNT(*)::int AS count FROM content_pages");
+  const pageDefaultTranslations = await client.query(
+    "SELECT COUNT(*)::int AS count FROM content_page_translations WHERE locale = $1",
+    [DEFAULT_LOCALE],
+  );
+  const segments = await client.query("SELECT COUNT(*)::int AS count FROM page_segments");
+  const segmentDefaultTranslations = await client.query(
+    "SELECT COUNT(*)::int AS count FROM page_segment_translations WHERE locale = $1",
+    [DEFAULT_LOCALE],
+  );
+
   return {
     pages: countRows(pages.rows),
     pageDefaultTranslations: countRows(pageDefaultTranslations.rows),
@@ -63,26 +112,24 @@ async function getCounts(client) {
 }
 
 async function findMissing(client) {
-  const [pages, segments] = await Promise.all([
-    client.query(
-      `SELECT cp.slug, cp.title
+  const pages = await client.query(
+    `SELECT cp.slug, cp.title
          FROM content_pages cp
          LEFT JOIN content_page_translations cpt
            ON cpt.slug = cp.slug AND cpt.locale = $1
         WHERE cpt.slug IS NULL
         ORDER BY cp.slug`,
-      [DEFAULT_LOCALE],
-    ),
-    client.query(
-      `SELECT ps.id, ps.owner_slug, ps.target_slug, ps.label
+    [DEFAULT_LOCALE],
+  );
+  const segments = await client.query(
+    `SELECT ps.id, ps.owner_slug, ps.target_slug, ps.label
          FROM page_segments ps
          LEFT JOIN page_segment_translations pst
            ON pst.segment_id = ps.id AND pst.locale = $1
         WHERE pst.segment_id IS NULL
         ORDER BY ps.owner_slug, ps.position, ps.id`,
-      [DEFAULT_LOCALE],
-    ),
-  ]);
+    [DEFAULT_LOCALE],
+  );
 
   return {
     pages: pages.rows,
@@ -173,7 +220,7 @@ function printReport(report) {
 }
 
 async function main() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = await loadDatabaseUrl();
   if (!databaseUrl) {
     console.error("DATABASE_URL is required");
     process.exit(1);
@@ -181,7 +228,7 @@ async function main() {
 
   const requireFromBackend = createRequire(new URL("../apps/backend/package.json", import.meta.url));
   const pg = requireFromBackend("pg");
-  const client = new pg.Client({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } });
+  const client = new pg.Client({ connectionString: databaseUrl });
   await client.connect();
 
   try {
