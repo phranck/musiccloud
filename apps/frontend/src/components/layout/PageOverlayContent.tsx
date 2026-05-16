@@ -9,6 +9,12 @@ import { TranslucentCard } from "@/components/cards/TranslucentCard";
 import { EmbossedCloseButton } from "@/components/ui/EmbossedCloseButton";
 import { cn } from "@/lib/utils";
 
+const MD_FIELDS = [
+  "[&_.mc-fields]:my-3 [&_.mc-fields]:items-baseline [&_.mc-fields]:gap-y-1.5",
+  "[&_.mc-fields_dt]:min-w-0 [&_.mc-fields_dt]:font-mono [&_.mc-fields_dt]:text-sm [&_.mc-fields_dt]:font-semibold [&_.mc-fields_dt]:[overflow-wrap:anywhere]",
+  "[&_.mc-fields_dd]:m-0 [&_.mc-fields_dd]:min-w-0 [&_.mc-fields_dd]:leading-relaxed [&_.mc-fields_dd]:[overflow-wrap:anywhere]",
+].join(" ");
+
 const MD_TRANSLUCENT = [
   "[&_h1]:text-white [&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:mb-3 [&_h1]:mt-0",
   "[&_h2]:text-white/90 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-6 [&_h2:first-child]:mt-0",
@@ -27,6 +33,8 @@ const MD_TRANSLUCENT = [
   "[&_.mc-badge-req]:bg-error/20 [&_.mc-badge-req]:text-error",
   "[&_.mc-badge-opt]:bg-white/15 [&_.mc-badge-opt]:text-white/70",
   "[&_.mc-kbd]:inline-block [&_.mc-kbd]:px-1.5 [&_.mc-kbd]:py-0.5 [&_.mc-kbd]:rounded [&_.mc-kbd]:text-xs [&_.mc-kbd]:font-mono [&_.mc-kbd]:bg-white/15 [&_.mc-kbd]:border [&_.mc-kbd]:border-white/20 [&_.mc-kbd]:text-white/80 [&_.mc-kbd]:align-middle",
+  MD_FIELDS,
+  "[&_.mc-fields]:text-white/60 [&_.mc-fields_dt]:text-[var(--color-accent)] [&_.mc-fields_dd]:text-white/60",
   "[&>*:last-child]:mb-0",
 ].join(" ");
 
@@ -48,6 +56,8 @@ const MD_EMBOSSED = [
   "[&_.mc-badge-req]:bg-error/15 [&_.mc-badge-req]:text-error",
   "[&_.mc-badge-opt]:bg-text-muted/20 [&_.mc-badge-opt]:text-text-muted",
   "[&_.mc-kbd]:inline-block [&_.mc-kbd]:px-1.5 [&_.mc-kbd]:py-0.5 [&_.mc-kbd]:rounded [&_.mc-kbd]:text-xs [&_.mc-kbd]:font-mono [&_.mc-kbd]:bg-white/8 [&_.mc-kbd]:border [&_.mc-kbd]:border-white/12 [&_.mc-kbd]:text-text-secondary [&_.mc-kbd]:align-middle",
+  MD_FIELDS,
+  "[&_.mc-fields]:text-text-secondary [&_.mc-fields_dt]:text-[var(--color-accent)] [&_.mc-fields_dd]:text-text-secondary",
   "[&>*:last-child]:mb-0",
 ].join(" ");
 
