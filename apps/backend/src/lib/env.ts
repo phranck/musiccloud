@@ -7,9 +7,7 @@
 export function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
-    throw new Error(
-      `Missing required environment variable: ${name}. Define it in .env.local — manually or via pewee.`,
-    );
+    throw new Error(`Missing required environment variable: ${name}. Define it in .env.local — manually or via pewee.`);
   }
   return value;
 }
@@ -24,9 +22,7 @@ export function requireEnvList(name: string): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
   if (items.length === 0) {
-    throw new Error(
-      `Environment variable ${name} must contain at least one non-empty entry.`,
-    );
+    throw new Error(`Environment variable ${name} must contain at least one non-empty entry.`);
   }
   return items;
 }

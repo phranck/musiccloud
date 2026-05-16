@@ -27,6 +27,7 @@ import type { ResolveErrorResponse, ResolveSuccessResponse } from "@musiccloud/s
 import { ENDPOINTS, formatUserMessage, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
+import { requireEnvList } from "../lib/env.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
@@ -42,8 +43,6 @@ import {
   parseStructuredSearchQuery,
   StructuredSearchQueryParseError,
 } from "../services/structured-search/index.js";
-
-import { requireEnvList } from "../lib/env.js";
 
 /**
  * Whitelist for the `Origin` header used when building the user-facing short

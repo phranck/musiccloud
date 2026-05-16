@@ -5,9 +5,7 @@
 
 function requireEnv(key: string, value: string | undefined): string {
   if (!value) {
-    throw new Error(
-      `Missing ${key}. Define it in .env.local — manually or via pewee.`,
-    );
+    throw new Error(`Missing ${key}. Define it in .env.local — manually or via pewee.`);
   }
   return value;
 }
