@@ -1,4 +1,14 @@
 import type { PublicContentPage } from "@musiccloud/shared";
+import {
+  clampViewportRect,
+  getResizeHandleHitAreaStyle,
+  moveViewportRect,
+  RESIZE_HANDLES,
+  type ResizeHandle,
+  resizeViewportRect,
+  type ViewportRect,
+} from "@musiccloud/shared";
+import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { EmbossedOverlayContent, TranslucentOverlayContent } from "@/components/layout/PageOverlayContent";
@@ -37,16 +47,36 @@ interface Geom {
   h: number;
 }
 
+function getViewportConstraints() {
+  return {
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+    minWidth: MIN_W,
+    minHeight: MIN_H,
+    margin: VIEWPORT_MARGIN,
+  };
+}
+
+function geomToRect(g: Geom): ViewportRect {
+  return {
+    x: g.x,
+    y: g.y,
+    width: g.w,
+    height: g.h,
+  };
+}
+
+function rectToGeom(rect: ViewportRect): Geom {
+  return {
+    x: rect.x,
+    y: rect.y,
+    w: rect.width,
+    h: rect.height,
+  };
+}
+
 function clampGeom(g: Geom): Geom {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const maxW = Math.max(MIN_W, vw - VIEWPORT_MARGIN * 2);
-  const maxH = Math.max(MIN_H, vh - VIEWPORT_MARGIN * 2);
-  const w = Math.min(Math.max(g.w, MIN_W), maxW);
-  const h = Math.min(Math.max(g.h, MIN_H), maxH);
-  const x = Math.min(Math.max(g.x, VIEWPORT_MARGIN), vw - w - VIEWPORT_MARGIN);
-  const y = Math.min(Math.max(g.y, VIEWPORT_MARGIN), vh - h - VIEWPORT_MARGIN);
-  return { x, y, w, h };
+  return rectToGeom(clampViewportRect(geomToRect(g), getViewportConstraints()));
 }
 
 function defaultGeom(): Geom {
@@ -142,7 +172,7 @@ function OverlayShell({ initialPage }: Props) {
   // Backdrop-filter stays static; we fade the whole backdrop layer via
   // opacity instead of animating the blur itself. Opacity is composite-only
   // so the browser skips the per-frame filter rasterization cost.
-  const backdropStyle: React.CSSProperties = {
+  const backdropStyle: CSSProperties = {
     transition: `opacity ${TRANSITION_MS}ms ease-out`,
     backdropFilter: "blur(4px)",
     WebkitBackdropFilter: "blur(4px)",
@@ -174,17 +204,18 @@ function OverlayShell({ initialPage }: Props) {
  *
  * Owns the geometry state for the overlay (position + size). The user can
  * grab the header region (`.overlay-drag-handle`) to move the frame and
- * the bottom-right grip to resize it. Both gestures use pointer capture so
+ * any edge or corner to resize it. Both gestures use pointer capture so
  * tracking is reliable even when the pointer briefly leaves the element.
  * Geometry is persisted in `localStorage` per page-slug (one entry per
  * page) once per gesture (on `pointerup`) to avoid hammering the API
  * during drag.
  */
-function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: string; children: React.ReactNode }) {
+function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: string; children: ReactNode }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const [geom, setGeom] = useState<Geom | null>(null);
   const gestureRef = useRef<{
     kind: "drag" | "resize";
+    handle?: ResizeHandle;
     pointerId: number;
     startX: number;
     startY: number;
@@ -210,12 +241,18 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  function beginGesture(kind: "drag" | "resize", e: React.PointerEvent<HTMLDivElement>, origin: Geom): void {
+  function beginGesture(
+    kind: "drag" | "resize",
+    e: PointerEvent<HTMLDivElement>,
+    origin: Geom,
+    handle?: ResizeHandle,
+  ): void {
     const el = frameRef.current;
     if (!el) return;
     el.setPointerCapture(e.pointerId);
     gestureRef.current = {
       kind,
+      handle,
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
@@ -223,7 +260,7 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
     };
   }
 
-  function onFramePointerDown(e: React.PointerEvent<HTMLDivElement>): void {
+  function onFramePointerDown(e: PointerEvent<HTMLDivElement>): void {
     if (!geom) return;
     const target = e.target as HTMLElement;
     // Interactive chrome (close button, segmented tabs, links) always wins.
@@ -233,26 +270,27 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
     beginGesture("drag", e, geom);
   }
 
-  function onResizePointerDown(e: React.PointerEvent<HTMLDivElement>): void {
+  function onResizePointerDown(handle: ResizeHandle, e: PointerEvent<HTMLDivElement>): void {
     if (!geom) return;
     e.preventDefault();
     e.stopPropagation();
-    beginGesture("resize", e, geom);
+    beginGesture("resize", e, geom, handle);
   }
 
-  function onPointerMove(e: React.PointerEvent<HTMLDivElement>): void {
+  function onPointerMove(e: PointerEvent<HTMLDivElement>): void {
     const g = gestureRef.current;
     if (!g || e.pointerId !== g.pointerId) return;
     const dx = e.clientX - g.startX;
     const dy = e.clientY - g.startY;
+    const originRect = geomToRect(g.origin);
     if (g.kind === "drag") {
-      setGeom(clampGeom({ ...g.origin, x: g.origin.x + dx, y: g.origin.y + dy }));
+      setGeom(rectToGeom(moveViewportRect(originRect, dx, dy, getViewportConstraints())));
     } else {
-      setGeom(clampGeom({ ...g.origin, w: g.origin.w + dx, h: g.origin.h + dy }));
+      setGeom(rectToGeom(resizeViewportRect(originRect, g.handle ?? "se", dx, dy, getViewportConstraints())));
     }
   }
 
-  function endGesture(e: React.PointerEvent<HTMLDivElement>): void {
+  function endGesture(e: PointerEvent<HTMLDivElement>): void {
     const g = gestureRef.current;
     if (!g || e.pointerId !== g.pointerId) return;
     const el = frameRef.current;
@@ -266,7 +304,7 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
 
   if (!geom) return null;
 
-  const frameStyle: React.CSSProperties = {
+  const frameStyle: CSSProperties = {
     left: `${geom.x}px`,
     top: `${geom.y}px`,
     width: `${geom.w}px`,
@@ -288,25 +326,27 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
       onPointerCancel={endGesture}
     >
       {children}
-      <div
-        aria-hidden
-        onPointerDown={onResizePointerDown}
-        className="absolute bottom-[9px] right-2 w-4 h-4 cursor-nwse-resize text-white/30 hover:text-white/70 transition-colors"
-      >
-        <svg
-          viewBox="0 0 16 16"
-          width="16"
-          height="16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        >
-          <title>Resize</title>
-          <line x1="14" y1="6" x2="6" y2="14" />
-          <line x1="14" y1="11" x2="11" y2="14" />
-        </svg>
-      </div>
+      <ResizeHandles onResizeStart={onResizePointerDown} />
     </div>
+  );
+}
+
+interface ResizeHandlesProps {
+  onResizeStart: (handle: ResizeHandle, event: PointerEvent<HTMLDivElement>) => void;
+}
+
+function ResizeHandles({ onResizeStart }: ResizeHandlesProps) {
+  return (
+    <>
+      {RESIZE_HANDLES.map((handle) => (
+        <div
+          key={handle}
+          aria-hidden="true"
+          className="absolute z-20 touch-none"
+          style={getResizeHandleHitAreaStyle(handle) as CSSProperties}
+          onPointerDown={(event) => onResizeStart(handle, event)}
+        />
+      ))}
+    </>
   );
 }
