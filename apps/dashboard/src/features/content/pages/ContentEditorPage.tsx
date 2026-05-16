@@ -1,5 +1,5 @@
 import type { ContentPage, Locale, PageTitleAlignment as PageTitleAlignmentValue } from "@musiccloud/shared";
-import { DEFAULT_LOCALE, LOCALES } from "@musiccloud/shared";
+import { DEFAULT_LOCALE, getLocalizedText, LOCALES } from "@musiccloud/shared";
 import { EyeIcon, MarkdownLogoIcon, MinusCircleIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { lazy, Suspense, useCallback, useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams } from "react-router";
@@ -11,16 +11,19 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
 import { useI18n } from "@/context/I18nContext";
-import { FRONTEND_URL } from "@/lib/env";
 import { useAdminContentPage, useDeleteContentPage } from "@/features/content/hooks/useAdminContent";
+import { buildLocalizedPageTitle } from "@/features/content/pageLocalization";
 import { LanguageTabs } from "@/features/content/pages/LanguageTabs";
 import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
 import { PageTitleAlignment } from "@/features/content/pages/PageTitleAlignment";
 import { SegmentManager } from "@/features/content/pages/SegmentManager";
 import { useDeleteTranslation } from "@/features/content/pages/usePageTranslations";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
+import { isContentDirty } from "@/features/content/state/slices/contentSlice";
 import type { MetaFields } from "@/features/content/state/slices/metaSlice";
+import { isMetaFieldDirty } from "@/features/content/state/slices/metaSlice";
 import { isTranslationDirty } from "@/features/content/state/slices/translationsSlice";
+import { FRONTEND_URL } from "@/lib/env";
 
 const MarkdownEditor = lazy(() =>
   import("@/components/ui/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
@@ -532,7 +535,11 @@ export function ContentEditorPage() {
       loc,
       {
         status: statuses[loc] ?? "missing",
-        dirty: page ? isTranslationDirty(editor.translations, page.slug, loc) : false,
+        dirty: page
+          ? loc === DEFAULT_LOCALE
+            ? isMetaFieldDirty(editor.meta, page.slug, "title") || isContentDirty(editor.content, page.slug)
+            : isTranslationDirty(editor.translations, page.slug, loc)
+          : false,
       },
     ]),
   ) as Record<Locale, { status: ContentPage["translationStatus"][Locale]; dirty: boolean }>;
@@ -566,14 +573,18 @@ export function ContentEditorPage() {
   }
 
   const baseTitle = metaCurrent?.title ?? slug;
+  const localizedTitle = page
+    ? buildLocalizedPageTitle(baseTitle, page.translations, editor.translations.byPage[page.slug])
+    : {};
+  const activeTitle = getLocalizedText(localizedTitle, activeLocale, DEFAULT_LOCALE);
 
   const activeTranslation = activeLocale === DEFAULT_LOCALE ? undefined : translationCurrent(activeLocale);
   const hasActiveTranslation = activeLocale === DEFAULT_LOCALE || activeTranslation !== undefined;
 
   // Title shown in the metadata bar follows the active locale tab.
-  const displayTitle = activeLocale === DEFAULT_LOCALE ? baseTitle : (activeTranslation?.title ?? "");
+  const displayTitle = activeTitle.value;
   // Page-header title falls back to the base when a translation has no title yet.
-  const headerTitle = displayTitle || baseTitle;
+  const headerTitle = displayTitle || activeTitle.fallback || baseTitle;
 
   return (
     <PageLayout>

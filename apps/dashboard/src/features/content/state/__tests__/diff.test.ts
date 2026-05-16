@@ -115,4 +115,23 @@ describe("buildBulkPayload", () => {
     });
     expect(p.pageTranslations).toEqual([expect.objectContaining({ slug: "info", locale: "de", title: "A2" })]);
   });
+
+  it("does not emit slug or page meta for non-default title edits", () => {
+    const p = buildBulkPayload({
+      meta: { pages: {} },
+      content: { pages: {} },
+      segments: { byOwner: {} },
+      translations: {
+        byPage: {
+          info: {
+            de: { initial: { title: "Artists" }, current: { title: "Kuenstler" } },
+          },
+        },
+      },
+      sidebar: { initial: [], current: [] },
+    });
+
+    expect(p.pages).toBeUndefined();
+    expect(p.pageTranslations).toEqual([{ slug: "info", locale: "de", title: "Kuenstler" }]);
+  });
 });

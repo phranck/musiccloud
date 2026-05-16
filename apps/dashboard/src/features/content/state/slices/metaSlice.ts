@@ -56,6 +56,12 @@ export function isMetaDirty(s: MetaState, slug: string): boolean {
   return !shallowEqual(e.initial, e.current);
 }
 
+export function isMetaFieldDirty<K extends keyof MetaFields>(s: MetaState, slug: string, field: K): boolean {
+  const e = s.pages[slug];
+  if (!e) return false;
+  return e.initial[field] !== e.current[field];
+}
+
 function shallowEqual<T extends object>(a: T, b: T): boolean {
   for (const k of Object.keys(a) as Array<keyof T>) if (a[k] !== b[k]) return false;
   for (const k of Object.keys(b) as Array<keyof T>) if (a[k] !== b[k]) return false;
