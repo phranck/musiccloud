@@ -23,7 +23,6 @@ import { isContentDirty } from "@/features/content/state/slices/contentSlice";
 import type { MetaFields } from "@/features/content/state/slices/metaSlice";
 import { isMetaFieldDirty } from "@/features/content/state/slices/metaSlice";
 import { isTranslationDirty } from "@/features/content/state/slices/translationsSlice";
-import { FRONTEND_URL } from "@/lib/env";
 
 const MarkdownEditor = lazy(() =>
   import("@/components/ui/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
@@ -33,6 +32,7 @@ const FONT_SIZE_KEY = "content-editor-source-font-size";
 const FONT_SIZE_MIN = 10;
 const FONT_SIZE_MAX = 24;
 const FONT_SIZE_DEFAULT = 13;
+const FRONTEND_PREVIEW_BASE_URL = import.meta.env.DEV ? "http://localhost:3000" : "https://musiccloud.io";
 
 function loadFontSize(): number {
   const stored = localStorage.getItem(FONT_SIZE_KEY);
@@ -614,7 +614,7 @@ export function ContentEditorPage() {
           onIncreaseFont={() => changeFontSize(+1)}
           onOpenDelete={() => dispatch({ type: "setConfirmDelete", value: true })}
           onPreview={() => {
-            window.open(`${FRONTEND_URL}/${slug}`, "_blank");
+            window.open(`${FRONTEND_PREVIEW_BASE_URL}/${slug}`, "_blank");
           }}
         />
       </PageHeader>

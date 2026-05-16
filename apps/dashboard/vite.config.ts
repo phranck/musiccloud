@@ -4,11 +4,10 @@ import react from "@vitejs/plugin-react";
 import UnoCSS from "unocss/vite";
 import { defineConfig } from "vite";
 
+const DEFAULT_DEV_BACKEND_URL = "http://localhost:4000";
+
 function buildDevProxy() {
-  const backendUrl = process.env.BACKEND_URL?.trim();
-  if (!backendUrl) {
-    throw new Error("Missing BACKEND_URL. Define it in .env.local — manually or via pewee.");
-  }
+  const backendUrl = process.env.BACKEND_URL?.trim() || DEFAULT_DEV_BACKEND_URL;
   return {
     "/api": { target: backendUrl, changeOrigin: true },
   };

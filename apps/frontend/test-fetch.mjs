@@ -1,6 +1,6 @@
 const BACKEND_URL = process.env.BACKEND_URL?.trim();
 if (!BACKEND_URL) {
-  console.error("Missing BACKEND_URL. Define it in .env.local — manually or via pewee.");
+  console.error("Missing BACKEND_URL. Set it in the environment before running this local test script.");
   process.exit(1);
 }
 

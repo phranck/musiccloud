@@ -7,7 +7,10 @@
 export function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
-    throw new Error(`Missing required environment variable: ${name}. Define it in .env.local — manually or via pewee.`);
+    throw new Error(
+      `Missing required environment variable: ${name}. Set it in the runtime environment. ` +
+        ".env.local is only for local development.",
+    );
   }
   return value;
 }
