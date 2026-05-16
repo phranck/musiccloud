@@ -1,5 +1,5 @@
 import type { ContentPage } from "@musiccloud/shared";
-import { DEFAULT_LOCALE, LOCALES, type Locale } from "@musiccloud/shared";
+import { DEFAULT_LOCALE, getLocalizedText, LOCALES, type Locale } from "@musiccloud/shared";
 import { CaretDownIcon, CaretUpIcon, RowsIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
@@ -7,6 +7,7 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { NumberCircleIcon } from "@/components/ui/NumberCircleIcon";
 import { useI18n } from "@/context/I18nContext";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
+import { normalizeSegmentEntry } from "@/features/content/state/slices/segmentsSlice";
 
 interface Props {
   page: ContentPage;
@@ -29,12 +30,14 @@ export function SegmentManager({ page }: Props) {
   const sliceCurrent = editor.segments.byOwner[page.slug]?.current;
   const segments =
     sliceCurrent ??
-    page.segments.map((s, i) => ({
-      position: i,
-      label: s.label,
-      targetSlug: s.targetSlug,
-      translations: s.translations,
-    }));
+    page.segments.map((s, i) =>
+      normalizeSegmentEntry({
+        position: i,
+        label: s.label,
+        targetSlug: s.targetSlug,
+        translations: s.translations,
+      }),
+    );
 
   function toggleExpanded(targetSlug: string) {
     setExpandedRows((prev) => ({ ...prev, [targetSlug]: !prev[targetSlug] }));
@@ -61,12 +64,13 @@ export function SegmentManager({ page }: Props) {
                 </span>
                 <input
                   type="text"
-                  value={segment.label}
+                  value={getLocalizedText(segment.label, DEFAULT_LOCALE, DEFAULT_LOCALE).value}
                   onChange={(e) =>
                     editor.dispatch.segments({
                       type: "set-label",
                       owner: page.slug,
                       target: segment.targetSlug,
+                      locale: DEFAULT_LOCALE,
                       label: e.target.value,
                     })
                   }
@@ -96,8 +100,11 @@ export function SegmentManager({ page }: Props) {
                           </span>
                           <input
                             type="text"
-                            value={segment.translations?.[locale] ?? ""}
-                            placeholder={segment.label || text.labelPlaceholder}
+                            value={getLocalizedText(segment.label, locale, DEFAULT_LOCALE).value}
+                            placeholder={
+                              getLocalizedText(segment.label, DEFAULT_LOCALE, DEFAULT_LOCALE).value ||
+                              text.labelPlaceholder
+                            }
                             onChange={(e) =>
                               editor.dispatch.segments({
                                 type: "set-translation",

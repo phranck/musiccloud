@@ -1,23 +1,38 @@
-import type { PageSegmentInput } from "@musiccloud/shared";
+import {
+  DEFAULT_LOCALE,
+  getLocalizedText,
+  type Locale,
+  type LocalizedText,
+  normalizeLocalizedText,
+  type PageSegmentInput,
+  setLocalizedText,
+} from "@musiccloud/shared";
 
 export interface SegmentEntry {
   position: number;
-  label: string;
+  label: LocalizedText;
   targetSlug: string;
-  translations?: Record<string, string>;
 }
 
 export interface SegmentsState {
   byOwner: Record<string, { initial: SegmentEntry[]; current: SegmentEntry[] }>;
 }
 
+export interface SegmentEntryInput {
+  position: number;
+  label: string | LocalizedText;
+  targetSlug: string;
+  translations?: Partial<Record<string, string>>;
+}
+
 export type SegmentsAction =
-  | { type: "hydrate"; entries: Array<{ ownerSlug: string; segments: SegmentEntry[] }> }
+  | { type: "hydrate"; entries: Array<{ ownerSlug: string; segments: SegmentEntryInput[] }> }
+  | { type: "hydrate-owner"; ownerSlug: string; segments: SegmentEntryInput[] }
   | { type: "reorder"; owner: string; from: number; to: number }
   | { type: "move"; target: string; from: string; to: string; position: number }
   | { type: "add"; owner: string; target: string; position: number; label?: string }
   | { type: "remove"; owner: string; target: string }
-  | { type: "set-label"; owner: string; target: string; label: string }
+  | { type: "set-label"; owner: string; target: string; locale: Locale; label: string }
   | { type: "set-translation"; owner: string; target: string; locale: string; label: string }
   | { type: "reset" };
 
@@ -25,12 +40,32 @@ function reposition(arr: SegmentEntry[]): SegmentEntry[] {
   return arr.map((s, i) => ({ ...s, position: i }));
 }
 
+export function normalizeSegmentEntry(entry: SegmentEntryInput): SegmentEntry {
+  return {
+    position: entry.position,
+    label: normalizeLocalizedText(entry.label, { translations: entry.translations }).value,
+    targetSlug: entry.targetSlug,
+  };
+}
+
 export function segmentsReducer(state: SegmentsState, action: SegmentsAction): SegmentsState {
   switch (action.type) {
     case "hydrate": {
       const byOwner: SegmentsState["byOwner"] = {};
-      for (const e of action.entries) byOwner[e.ownerSlug] = { initial: e.segments, current: e.segments };
+      for (const e of action.entries) {
+        const segments = e.segments.map(normalizeSegmentEntry);
+        byOwner[e.ownerSlug] = { initial: segments, current: segments };
+      }
       return { byOwner };
+    }
+    case "hydrate-owner": {
+      const segments = action.segments.map(normalizeSegmentEntry);
+      return {
+        byOwner: {
+          ...state.byOwner,
+          [action.ownerSlug]: { initial: segments, current: segments },
+        },
+      };
     }
     case "reorder": {
       const entry = state.byOwner[action.owner];
@@ -64,7 +99,7 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
       const next = entry.current.slice();
       next.splice(action.position, 0, {
         position: action.position,
-        label: action.label ?? action.target,
+        label: { [DEFAULT_LOCALE]: action.label ?? action.target },
         targetSlug: action.target,
       });
       return { byOwner: { ...state.byOwner, [action.owner]: { ...entry, current: reposition(next) } } };
@@ -90,7 +125,11 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
           ...state.byOwner,
           [action.owner]: {
             ...entry,
-            current: entry.current.map((s) => (s.targetSlug === action.target ? { ...s, label: action.label } : s)),
+            current: entry.current.map((s) =>
+              s.targetSlug === action.target
+                ? { ...s, label: setLocalizedText(s.label, action.locale, action.label) }
+                : s,
+            ),
           },
         },
       };
@@ -105,7 +144,7 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
             ...entry,
             current: entry.current.map((s) =>
               s.targetSlug === action.target
-                ? { ...s, translations: { ...(s.translations ?? {}), [action.locale]: action.label } }
+                ? { ...s, label: setLocalizedText(s.label, action.locale as Locale, action.label) }
                 : s,
             ),
           },
@@ -131,18 +170,33 @@ function sameSegments(a: SegmentEntry[], b: SegmentEntry[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i].position !== b[i].position) return false;
-    if (a[i].label !== b[i].label) return false;
+    if (!sameLocalizedText(a[i].label, b[i].label)) return false;
     if (a[i].targetSlug !== b[i].targetSlug) return false;
-    if (JSON.stringify(a[i].translations ?? {}) !== JSON.stringify(b[i].translations ?? {})) return false;
+  }
+  return true;
+}
+
+function sameLocalizedText(a: LocalizedText, b: LocalizedText): boolean {
+  const locales = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const locale of locales) {
+    if (a[locale as Locale] !== b[locale as Locale]) return false;
   }
   return true;
 }
 
 export function toBulkSegmentsInput(s: SegmentsState["byOwner"][string]["current"]): PageSegmentInput[] {
-  return s.map((e) => ({
-    position: e.position,
-    label: e.label,
-    targetSlug: e.targetSlug,
-    ...(e.translations ? { translations: e.translations } : {}),
-  }));
+  return s.map((e) => {
+    const defaultLabel = getLocalizedText(e.label, DEFAULT_LOCALE, DEFAULT_LOCALE).value;
+    const translations = Object.fromEntries(
+      Object.entries(e.label).filter(
+        ([locale, label]) => locale !== DEFAULT_LOCALE && typeof label === "string" && label.length > 0,
+      ),
+    );
+    return {
+      position: e.position,
+      label: defaultLabel,
+      targetSlug: e.targetSlug,
+      ...(Object.keys(translations).length > 0 ? { translations } : {}),
+    };
+  });
 }

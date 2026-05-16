@@ -78,15 +78,15 @@ describe("buildBulkPayload", () => {
       segments: {
         byOwner: {
           info: {
-            initial: [{ position: 0, label: "A", targetSlug: "a" }],
+            initial: [{ position: 0, label: { en: "A" }, targetSlug: "a" }],
             current: [
-              { position: 0, label: "A", targetSlug: "a" },
-              { position: 1, label: "B", targetSlug: "b" },
+              { position: 0, label: { en: "A" }, targetSlug: "a" },
+              { position: 1, label: { en: "B", de: "B DE" }, targetSlug: "b" },
             ],
           },
           help: {
-            initial: [{ position: 0, label: "X", targetSlug: "x" }],
-            current: [{ position: 0, label: "X", targetSlug: "x" }],
+            initial: [{ position: 0, label: { en: "X" }, targetSlug: "x" }],
+            current: [{ position: 0, label: { en: "X" }, targetSlug: "x" }],
           },
         },
       },
@@ -96,6 +96,12 @@ describe("buildBulkPayload", () => {
     expect(p.segments).toHaveLength(1);
     expect(p.segments![0].ownerSlug).toBe("info");
     expect(p.segments![0].segments).toHaveLength(2);
+    expect(p.segments![0].segments[1]).toEqual({
+      position: 1,
+      label: "B",
+      targetSlug: "b",
+      translations: { de: "B DE" },
+    });
   });
 
   it("emits pageTranslations for each dirty (slug, locale)", () => {

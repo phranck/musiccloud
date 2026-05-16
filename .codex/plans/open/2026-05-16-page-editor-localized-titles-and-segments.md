@@ -294,12 +294,18 @@ Relevant known paths:
 
 ### 4. Normalize Segment Labels
 
-- [ ] Change segment state so `segment.label` is a localized value.
-- [ ] Import legacy `segment.translations` into `segment.label`.
+- [x] Change segment state so `segment.label` is a localized value.
+- [x] Import legacy `segment.translations` into `segment.label`.
 - [ ] Remove the `set-translation` segment action if no longer needed.
-- [ ] Remove dirty tracking for nested segment translations if no longer needed.
-- [ ] Ensure segment reorder, move, add and remove keep localized labels intact.
-- [ ] Add tests for legacy segment translation migration.
+- [x] Remove dirty tracking for nested segment translations if no longer needed.
+- [x] Ensure segment reorder, move, add and remove keep localized labels intact.
+- [x] Add tests for legacy segment translation migration.
+
+#### Verification
+
+- `pnpm --filter @musiccloud/dashboard typecheck`
+- `pnpm --filter @musiccloud/dashboard test:run -- src/features/content/state/__tests__/slices/segmentsSlice.test.ts src/features/content/state/__tests__/diff.test.ts`
+- `pnpm exec biome check apps/dashboard/src/features/content/state/slices/segmentsSlice.ts apps/dashboard/src/features/content/state/__tests__/slices/segmentsSlice.test.ts apps/dashboard/src/features/content/state/__tests__/diff.test.ts apps/dashboard/src/features/content/pages/SegmentManager.tsx apps/dashboard/src/features/content/pages/ContentEditorPage.tsx .codex/plans/open/2026-05-16-page-editor-localized-titles-and-segments.md`
 
 ### 5. Update Segment Manager UI
 
