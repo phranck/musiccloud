@@ -146,8 +146,7 @@ function validateSegmentsBody(body: unknown): PageSegmentInput[] | string {
       const translations: Partial<Record<string, string>> = {};
       for (const [key, val] of Object.entries(raw.translations)) {
         if (!isLocale(key)) return `segment ${i}.translations: unknown locale '${key}'`;
-        if (typeof val !== "string" || val.length === 0)
-          return `segment ${i}.translations: values must be non-empty strings`;
+        if (typeof val !== "string") return `segment ${i}.translations: values must be strings`;
         translations[key] = val;
       }
       segment.translations = translations as PageSegmentInput["translations"];

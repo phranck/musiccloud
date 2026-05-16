@@ -2739,13 +2739,35 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
       // 3) segments per owner — DELETE + INSERT (+ translations UPSERT)
       for (const entry of payload.segments) {
+        const preservedTranslationRows = await client.query<{
+          target_slug: string;
+          locale: string;
+          label: string;
+          source_updated_at: Date | null;
+        }>(
+          `SELECT ps.target_slug, pst.locale, pst.label, pst.source_updated_at
+             FROM page_segments ps
+             JOIN page_segment_translations pst ON pst.segment_id = ps.id
+            WHERE ps.owner_slug = $1`,
+          [entry.ownerSlug],
+        );
+        const preservedTranslations = new Map<
+          string,
+          { locale: string; label: string; sourceUpdatedAt: Date | null }[]
+        >();
+        for (const row of preservedTranslationRows.rows) {
+          const entries = preservedTranslations.get(row.target_slug) ?? [];
+          entries.push({ locale: row.locale, label: row.label, sourceUpdatedAt: row.source_updated_at });
+          preservedTranslations.set(row.target_slug, entries);
+        }
+
         await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [entry.ownerSlug]);
-        const idRows: { rows: { id: number }[] } = { rows: [] };
+        const idRows: { rows: { id: number; label_updated_at: Date }[] } = { rows: [] };
         for (const s of entry.segments) {
-          const inserted = await client.query<{ id: number }>(
+          const inserted = await client.query<{ id: number; label_updated_at: Date }>(
             `INSERT INTO page_segments (owner_slug, target_slug, position, label, label_updated_at)
              VALUES ($1, $2, $3, $4, NOW())
-             RETURNING id`,
+             RETURNING id, label_updated_at`,
             [entry.ownerSlug, s.targetSlug, s.position, s.label],
           );
           idRows.rows.push(inserted.rows[0]);
@@ -2753,15 +2775,24 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         for (let i = 0; i < entry.segments.length; i++) {
           const persisted = idRows.rows[i];
           const input = entry.segments[i];
-          if (!input.translations) continue;
-          for (const [locale, label] of Object.entries(input.translations)) {
+          const translations =
+            input.translations === undefined
+              ? (preservedTranslations.get(input.targetSlug) ?? [])
+              : Object.entries(input.translations)
+                  .filter(([, label]) => typeof label === "string" && label.length > 0)
+                  .map(([locale, label]) => ({
+                    locale,
+                    label,
+                    sourceUpdatedAt: persisted.label_updated_at,
+                  }));
+          for (const { locale, label, sourceUpdatedAt } of translations) {
             if (typeof label !== "string" || label.length === 0) continue;
             await client.query(
               `INSERT INTO page_segment_translations (segment_id, locale, label, source_updated_at)
-               VALUES ($1, $2, $3, NOW())
+               VALUES ($1, $2, $3, $4)
                ON CONFLICT (segment_id, locale)
                DO UPDATE SET label = EXCLUDED.label, source_updated_at = EXCLUDED.source_updated_at`,
-              [persisted.id, locale, label],
+              [persisted.id, locale, label, sourceUpdatedAt],
             );
           }
         }

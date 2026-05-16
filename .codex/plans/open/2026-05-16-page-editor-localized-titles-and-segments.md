@@ -325,13 +325,31 @@ Relevant known paths:
 
 ### 6. Backend And Persistence
 
-- [ ] Verify current database shape for titles, page translations and segment translations.
-- [ ] Decide whether localized page title lives directly on `content_pages.title`, in existing page translation rows, or through a compatibility mapper.
-- [ ] Decide whether localized segment labels live directly in `page_segments.label` as JSON or in an existing translation table.
-- [ ] Prefer the existing persistence pattern if one already exists.
-- [ ] Keep old reads working during the compatibility phase.
-- [ ] Ensure public content APIs return title and segment labels for the requested locale.
-- [ ] Ensure admin APIs return enough localized data for the editor.
+- [x] Verify current database shape for titles, page translations and segment translations.
+- [x] Decide whether localized page title lives directly on `content_pages.title`, in existing page translation rows, or through a compatibility mapper.
+- [x] Decide whether localized segment labels live directly in `page_segments.label` as JSON or in an existing translation table.
+- [x] Prefer the existing persistence pattern if one already exists.
+- [x] Keep old reads working during the compatibility phase.
+- [x] Ensure public content APIs return title and segment labels for the requested locale.
+- [x] Ensure admin APIs return enough localized data for the editor.
+
+#### Persistence Decision
+
+- Default-locale page title remains in `content_pages.title`.
+- Non-default page titles remain in `content_page_translations.title`.
+- Default-locale segment label remains in `page_segments.label`.
+- Non-default segment labels remain in `page_segment_translations.label`.
+- No JSON column migration is needed for this task.
+- Segment replacement now preserves existing segment translations when a payload omits `translations`, so reorder/move operations from summary-only state cannot drop localized labels.
+- Explicitly supplied segment translation maps remain authoritative; empty values are allowed by validation and are omitted on persistence, which supports intentional translation removal.
+
+#### Verification
+
+- `pnpm --filter @musiccloud/backend typecheck`
+- `pnpm --filter @musiccloud/dashboard typecheck`
+- `pnpm --filter @musiccloud/backend test:run -- src/__tests__/admin-segments.test.ts`
+- `pnpm --filter @musiccloud/dashboard test:run -- src/features/content/state/__tests__/diff.test.ts`
+- `pnpm exec biome check apps/backend/src/db/adapters/postgres.ts apps/backend/src/services/admin-segments.ts apps/backend/src/routes/admin-content.ts apps/backend/src/__tests__/admin-segments.test.ts apps/dashboard/src/features/content/state/slices/segmentsSlice.ts apps/dashboard/src/features/content/state/__tests__/diff.test.ts`
 
 ### 7. Persistent Migration
 
