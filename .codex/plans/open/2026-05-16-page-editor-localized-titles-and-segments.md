@@ -278,12 +278,19 @@ Relevant known paths:
 
 ### 3. Normalize Page Titles
 
-- [ ] Normalize old string page titles into localized title objects.
-- [ ] Ensure normal pages and segmented pages use the same title handling.
-- [ ] Keep `slug` outside all locale-specific state.
-- [ ] Ensure language tab changes update the title input value.
-- [ ] Ensure save payload writes localized title data.
-- [ ] Add tests for title localization and slug stability.
+- [x] Normalize old string page titles into localized title objects.
+- [x] Ensure normal pages and segmented pages use the same title handling.
+- [x] Keep `slug` outside all locale-specific state.
+- [x] Ensure language tab changes update the title input value.
+- [x] Ensure save payload writes localized title data.
+- [x] Add tests for title localization and slug stability.
+
+#### Verification
+
+- `pnpm --filter @musiccloud/shared build`
+- `pnpm --filter @musiccloud/dashboard typecheck`
+- `pnpm --filter @musiccloud/dashboard test:run -- src/features/content/__tests__/pageLocalization.test.ts src/features/content/state/__tests__/diff.test.ts src/features/content/state/__tests__/slices/metaSlice.test.ts`
+- `pnpm exec biome check apps/dashboard/src/features/content/pageLocalization.ts apps/dashboard/src/features/content/__tests__/pageLocalization.test.ts apps/dashboard/src/features/content/pages/ContentEditorPage.tsx apps/dashboard/src/features/content/state/slices/metaSlice.ts apps/dashboard/src/features/content/state/__tests__/slices/metaSlice.test.ts apps/dashboard/src/features/content/state/__tests__/diff.test.ts .codex/plans/open/2026-05-16-page-editor-localized-titles-and-segments.md`
 
 ### 4. Normalize Segment Labels
 

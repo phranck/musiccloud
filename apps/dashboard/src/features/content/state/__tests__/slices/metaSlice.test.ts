@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dirtySlugs, isMetaDirty, metaReducer } from "../../slices/metaSlice";
+import { dirtySlugs, isMetaDirty, isMetaFieldDirty, metaReducer } from "../../slices/metaSlice";
 import { makeMeta } from "../factories";
 
 describe("metaSlice", () => {
@@ -41,5 +41,16 @@ describe("metaSlice", () => {
     expect(isMetaDirty(s0, "info")).toBe(false);
     const s1 = metaReducer(s0, { type: "set-field", slug: "info", field: "title", value: "X" });
     expect(isMetaDirty(s1, "info")).toBe(true);
+  });
+
+  it("detects one dirty meta field without treating slug as localized", () => {
+    const s0 = metaReducer(
+      { pages: {} },
+      { type: "hydrate", entries: [{ slug: "info", meta: makeMeta({ title: "Info" }) }] },
+    );
+    const s1 = metaReducer(s0, { type: "set-field", slug: "info", field: "title", value: "Information" });
+
+    expect(isMetaFieldDirty(s1, "info", "title")).toBe(true);
+    expect(isMetaFieldDirty(s1, "info", "slug")).toBe(false);
   });
 });
