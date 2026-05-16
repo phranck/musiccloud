@@ -61,6 +61,7 @@ function escapeHtmlAttribute(s: string): string {
 const CSS_LENGTH_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch)$/;
 const FIELDS_DEFAULT_LABEL_WIDTH = "max-content";
 const FIELDS_DEFAULT_GAP = "1.1rem";
+const INLINE_OPTION_TOKEN_PATTERN = /^([A-Za-z][\w-]*)=([^\s=]+)$/;
 
 interface FieldsLayout {
   labelWidth: string;
@@ -81,12 +82,14 @@ interface McFieldsToken extends Tokens.Generic {
 function parseInlineOptions(raw: string | undefined): Array<[name: string, value: string]> {
   const options: Array<[name: string, value: string]> = [];
   for (const option of (raw ?? "").trim().split(/\s+/).filter(Boolean)) {
-    const parts = option.split("=");
-    if (parts.length !== 2) continue;
-    const [name, value] = parts;
-    if (name && value) options.push([name, value]);
+    const match = option.match(INLINE_OPTION_TOKEN_PATTERN);
+    if (match) options.push([match[1], match[2]]);
   }
   return options;
+}
+
+function isInlineOptionToken(token: string): boolean {
+  return INLINE_OPTION_TOKEN_PATTERN.test(token);
 }
 
 function isSafeCssLength(value: string): boolean {
@@ -220,6 +223,20 @@ interface McPillToken extends Tokens.Generic {
   textCase: PillCase;
 }
 
+function parsePillBody(raw: string): { text: string; options: string | undefined } {
+  const tokens = raw.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return { text: "", options: undefined };
+
+  let optionStart = tokens.length;
+  while (optionStart > 1 && isInlineOptionToken(tokens[optionStart - 1])) {
+    optionStart -= 1;
+  }
+
+  const text = tokens.slice(0, optionStart).join(" ");
+  const options = tokens.slice(optionStart).join(" ");
+  return { text, options: options || undefined };
+}
+
 function parsePillOptions(raw: string | undefined): { tone: PillTone; textCase: PillCase } {
   let tone: PillTone = "neutral";
   let textCase: PillCase = "none";
@@ -294,8 +311,11 @@ marked.use({
         return src.match(/\[\[pill:/)?.index;
       },
       tokenizer(src: string) {
-        const m = src.match(/^\[\[pill:([^\]\s]+)([^\]]*)\]\]/);
-        if (m) return { type: "mcPill", raw: m[0], text: m[1], ...parsePillOptions(m[2]) } satisfies McPillToken;
+        const m = src.match(/^\[\[pill:([^\]]+)\]\]/);
+        if (!m) return;
+        const { text, options } = parsePillBody(m[1]);
+        if (!text) return;
+        return { type: "mcPill", raw: m[0], text, ...parsePillOptions(options) } satisfies McPillToken;
       },
       renderer(token) {
         const pill = token as McPillToken;
