@@ -8,13 +8,9 @@ import {
 } from "@musiccloud/shared";
 
 const BACKEND_URL: string = (() => {
-  const value =
-    (import.meta.env.BACKEND_URL as string | undefined)?.trim() ||
-    process.env.BACKEND_URL?.trim();
+  const value = (import.meta.env.BACKEND_URL as string | undefined)?.trim() || process.env.BACKEND_URL?.trim();
   if (!value) {
-    throw new Error(
-      "Missing BACKEND_URL. Define it in .env.local — manually or via pewee.",
-    );
+    throw new Error("Missing BACKEND_URL. Define it in .env.local — manually or via pewee.");
   }
   return value;
 })();

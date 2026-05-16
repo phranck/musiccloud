@@ -1,6 +1,6 @@
 # Plan: Page Editor Localized Titles And Segment Labels
 
-**Status:** Open  
+**Status:** Done  
 **Owner:** Codex  
 **Date:** 2026-05-16  
 **Scope:** Dashboard Page Editor, content page localization model, segmented page labels, safe migration of existing page data.
@@ -378,15 +378,31 @@ Relevant known paths:
 
 ### 8. Tests And Gates
 
-- [ ] Unit tests for localization helpers.
-- [ ] Unit tests for title normalization.
-- [ ] Unit tests for segment label normalization.
-- [ ] State tests for language switching.
-- [ ] Save payload tests for global slug plus localized texts.
-- [ ] Migration tests for old, new and mixed data.
-- [ ] Backend tests for admin load/save if persistence changes.
-- [ ] Public API tests for locale-specific title and segment labels if affected.
-- [ ] Run the project's usual typecheck, lint and test gates.
+- [x] Unit tests for localization helpers.
+- [x] Unit tests for title normalization.
+- [x] Unit tests for segment label normalization.
+- [x] State tests for language switching.
+- [x] Save payload tests for global slug plus localized texts.
+- [x] Migration tests for old, new and mixed data.
+- [x] Backend tests for admin load/save if persistence changes.
+- [x] Public API tests for locale-specific title and segment labels if affected.
+- [x] Run the project's usual typecheck, lint and test gates.
+
+#### Verification
+
+- `pnpm --filter @musiccloud/shared build`
+- `pnpm --filter @musiccloud/dashboard typecheck`
+- `pnpm --filter @musiccloud/backend typecheck`
+- `pnpm lint` failed first on mechanical Biome formatting in existing files.
+- `pnpm lint:fix`
+- `pnpm lint`
+- `pnpm test:run`
+- `pnpm build`
+
+#### Notes
+
+- `pnpm build` passes with the existing Vite chunk-size warning for dashboard bundles.
+- Live migration dry-run remains unexecuted locally because `DATABASE_URL` is not set.
 
 ## Acceptance Criteria
 
