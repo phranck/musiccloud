@@ -10,7 +10,9 @@ import {
 const BACKEND_URL: string = (() => {
   const value = (import.meta.env.BACKEND_URL as string | undefined)?.trim() || process.env.BACKEND_URL?.trim();
   if (!value) {
-    throw new Error("Missing BACKEND_URL. Define it in .env.local — manually or via pewee.");
+    throw new Error(
+      "Missing BACKEND_URL. Set it in the runtime environment. .env.local is only for local development.",
+    );
   }
   return value;
 })();
