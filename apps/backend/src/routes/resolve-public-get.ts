@@ -27,6 +27,7 @@ import type { ResolveErrorResponse, ResolveSuccessResponse } from "@musiccloud/s
 import { ENDPOINTS, formatUserMessage, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
+import { STRUCTURED_SEARCH_GET_OPENAPI_NOTE, STRUCTURED_SEARCH_OPENAPI_SECTION } from "../docs/resolve-openapi.js";
 import { requireEnvList } from "../lib/env.js";
 import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
@@ -71,7 +72,8 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           "Unauthenticated companion to POST `/api/v1/resolve`, designed for scripting consumers (Apple Shortcuts, curl, bookmarklets). Accepts:\n\n" +
           "- **Streaming-service URL** (e.g. `https://open.spotify.com/track/...`)\n" +
           "- **Free-text query** (e.g. `bohemian rhapsody queen`)\n" +
-          "- **Structured search query** (e.g. `title: Bohemian Rhapsody, artist: Queen`) — supported fields: `title`, `artist`, `album`, `count` (1–10).\n\n" +
+          `- **Structured search query** — ${STRUCTURED_SEARCH_OPENAPI_SECTION}\n\n` +
+          `${STRUCTURED_SEARCH_GET_OPENAPI_NOTE}\n\n` +
           "Returns the resolved track (200) or 400 if the query is ambiguous, malformed, or cannot be resolved. Rate-limited per client IP.\n\n" +
           "Note: `genre:` discovery queries are not supported on this endpoint — they require the authenticated POST endpoint because their response is a list, not a single resolved track.\n\n" +
           "For a deep architectural walkthrough of the resolver pipeline, see the resolver-flow PDF in the repo: [Deutsch](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/de/resolve-flow.pdf) · [English](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/en/resolve-flow.pdf).",
@@ -85,6 +87,11 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
               maxLength: 500,
               description:
                 "Streaming-service URL, free-text query, or structured search query (e.g. `title: Bohemian Rhapsody, artist: Queen`).",
+              examples: [
+                "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L",
+                "bohemian rhapsody queen",
+                "title: Karma Police, artist: Radiohead, album: OK Computer, count: 5",
+              ],
             },
             format: {
               type: "string",
