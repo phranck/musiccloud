@@ -195,4 +195,48 @@ describe("marked custom code renderer", () => {
     expect(out).toContain('<kbd class="mc-kbd">&lt;script&gt;</kbd>');
     expect(out).not.toContain("<script>");
   });
+
+  it("renders :::fields blocks as definition lists with dynamic label width", async () => {
+    const out = (await marked.parse(
+      ":::fields\ngenre: Genre name or Genre1|Genre2 [[REQ]]\ncount: Applies the same amount to tracks, albums, and artists. {{Esc}}\n:::\n",
+      { async: true },
+    )) as string;
+
+    expect(out).toContain('<dl class="mc-fields"');
+    expect(out).toContain("grid-template-columns:max-content minmax(0, 1fr)");
+    expect(out).toContain("column-gap:1.1rem");
+    expect(out).toContain("<dt>genre:</dt>");
+    expect(out).toContain('<span class="mc-badge mc-badge-req">REQ</span>');
+    expect(out).toContain("<dt>count:</dt>");
+    expect(out).toContain('<kbd class="mc-kbd">Esc</kbd>');
+  });
+
+  it("accepts fixed labelWidth and gap options for :::fields blocks", async () => {
+    const out = (await marked.parse(
+      ":::fields labelWidth=9ch gap=1.25rem\ngenre: Jazz [[REQ]]\ntracks: 1-50 [[OPT]]\n:::\n",
+      { async: true },
+    )) as string;
+
+    expect(out).toContain("grid-template-columns:9ch minmax(0, 1fr)");
+    expect(out).toContain("column-gap:1.25rem");
+    expect(out).toContain('<span class="mc-badge mc-badge-opt">OPT</span>');
+  });
+
+  it("ignores unsafe :::fields layout values", async () => {
+    const out = (await marked.parse(
+      ":::fields labelWidth=url(javascript:alert(1)) gap=calc(1rem+1px)\nname: value\n:::\n",
+      { async: true },
+    )) as string;
+
+    expect(out).toContain("grid-template-columns:max-content minmax(0, 1fr)");
+    expect(out).toContain("column-gap:1.1rem");
+    expect(out).not.toContain("javascript");
+    expect(out).not.toContain("calc");
+  });
+
+  it("escapes :::fields labels", async () => {
+    const out = (await marked.parse(":::fields\n<script>: value\n:::\n", { async: true })) as string;
+    expect(out).toContain("<dt>&lt;script&gt;:</dt>");
+    expect(out).not.toContain("<script>");
+  });
 });

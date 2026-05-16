@@ -20,7 +20,7 @@ import {
   PAGE_TITLE_ALIGNMENTS,
   PAGE_TYPES,
 } from "@musiccloud/shared";
-import type { Tokens } from "marked";
+import type { Token, Tokens } from "marked";
 import { marked } from "marked";
 import markedFootnote from "marked-footnote";
 import { markedHighlight } from "marked-highlight";
@@ -52,6 +52,61 @@ function parseInfostring(raw: string): {
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function escapeHtmlAttribute(s: string): string {
+  return escapeHtml(s).replace(/"/g, "&quot;");
+}
+
+const CSS_LENGTH_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch)$/;
+const FIELDS_DEFAULT_LABEL_WIDTH = "max-content";
+const FIELDS_DEFAULT_GAP = "1.1rem";
+
+interface FieldsLayout {
+  labelWidth: string;
+  gap: string;
+}
+
+interface McFieldsRow {
+  label: string;
+  tokens: Token[];
+}
+
+interface McFieldsToken extends Tokens.Generic {
+  type: "mcFields";
+  rows: McFieldsRow[];
+  layout: FieldsLayout;
+}
+
+function isSafeCssLength(value: string): boolean {
+  return CSS_LENGTH_PATTERN.test(value);
+}
+
+function parseFieldsLayout(raw: string | undefined): FieldsLayout {
+  const layout: FieldsLayout = {
+    labelWidth: FIELDS_DEFAULT_LABEL_WIDTH,
+    gap: FIELDS_DEFAULT_GAP,
+  };
+
+  for (const option of (raw ?? "").trim().split(/\s+/).filter(Boolean)) {
+    const parts = option.split("=");
+    if (parts.length !== 2) continue;
+    const [name, value] = parts;
+    if (!value) continue;
+
+    if (name === "labelWidth") {
+      layout.labelWidth =
+        value === "auto" ? FIELDS_DEFAULT_LABEL_WIDTH : isSafeCssLength(value) ? value : layout.labelWidth;
+    } else if (name === "gap" && isSafeCssLength(value)) {
+      layout.gap = value;
+    }
+  }
+
+  return layout;
+}
+
+function renderFieldsStyle(layout: FieldsLayout): string {
+  return `display:grid;grid-template-columns:${layout.labelWidth} minmax(0, 1fr);column-gap:${layout.gap};`;
 }
 
 function highlightPlainText(code: string): string {
@@ -163,6 +218,50 @@ const BADGE_PATTERN = new RegExp(`^\\[\\[(${Object.keys(BADGE_LABELS).join("|")}
 
 marked.use({
   extensions: [
+    {
+      name: "mcFields",
+      level: "block",
+      start(src: string) {
+        return src.match(/^:::fields/m)?.index;
+      },
+      tokenizer(src: string) {
+        const match = src.match(/^:::fields(?:[ \t]+([^\r\n]*))?\r?\n([\s\S]*?)\r?\n:::[ \t]*(?:\r?\n|$)/);
+        if (!match) return;
+
+        const rows = match[2]
+          .split(/\r?\n/)
+          .map((line): McFieldsRow | null => {
+            const row = line.match(/^\s*([^:]+):\s*(.*)$/);
+            if (!row) return null;
+            const label = row[1].trim();
+            const value = row[2].trim();
+            if (!label) return null;
+            return {
+              label,
+              tokens: this.lexer.inline(value) as Token[],
+            };
+          })
+          .filter((row): row is McFieldsRow => row !== null);
+
+        return {
+          type: "mcFields",
+          raw: match[0],
+          rows,
+          layout: parseFieldsLayout(match[1]),
+        } satisfies McFieldsToken;
+      },
+      renderer(token) {
+        const fields = token as McFieldsToken;
+        const rows = fields.rows
+          .map((row) => {
+            const label = escapeHtml(row.label);
+            const content = this.parser.parseInline(row.tokens);
+            return `<dt>${label}:</dt><dd>${content}</dd>`;
+          })
+          .join("");
+        return `<dl class="mc-fields" style="${escapeHtmlAttribute(renderFieldsStyle(fields.layout))}">${rows}</dl>\n`;
+      },
+    },
     {
       name: "mcBadge",
       level: "inline",

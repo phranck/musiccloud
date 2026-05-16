@@ -134,6 +134,19 @@ const CODE_FENCE_EXAMPLES = [
   },
 ] satisfies { label: string; code: string; description: string }[];
 
+const FIELD_BLOCK_EXAMPLES = [
+  {
+    label: "Dynamic labels",
+    code: ":::fields\ngenre: Genre name or Genre1|Genre2 [[REQ]]\ntracks: 1-50, default 10 [[OPT]]\ncount: Applies the same amount to tracks, albums, and artists. [[OPT]]\n:::",
+    description: "The label column uses the widest label and wraps long descriptions from the second column start.",
+  },
+  {
+    label: "Fixed label width",
+    code: ":::fields labelWidth=9ch gap=1.25rem\ngenre: Genre name or Genre1|Genre2 [[REQ]]\ntracks: 1-50, default 10 [[OPT]]\n:::",
+    description: "labelWidth accepts auto, px, rem, em, or ch. gap controls the spacing between both columns.",
+  },
+] satisfies { label: string; code: string; description: string }[];
+
 const HIGHLIGHT_LANGUAGES = ["js", "ts", "jsx", "tsx", "python", "swift", "bash", "json", "css", "html", "mc-query"];
 
 function wrapSelection(view: EditorView, before: string, after: string): boolean {
@@ -493,7 +506,7 @@ function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; 
             Markdown help
           </h3>
           <p className="mt-1 text-xs leading-snug text-[var(--ds-text-muted)]">
-            Shortcuts, code fences, card modifiers, syntax highlighting, badges, and keyboard hints.
+            Shortcuts, code fences, field blocks, card modifiers, syntax highlighting, badges, and keyboard hints.
           </p>
         </div>
         <button
@@ -524,6 +537,14 @@ function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; 
           <div className="flex flex-wrap gap-1.5">
             {HIGHLIGHT_LANGUAGES.map((lang) => (
               <NotationCode key={lang}>{lang}</NotationCode>
+            ))}
+          </div>
+        </HelpSection>
+
+        <HelpSection title="Field blocks">
+          <div className="space-y-2">
+            {FIELD_BLOCK_EXAMPLES.map((example) => (
+              <HelpExample key={example.label} {...example} />
             ))}
           </div>
         </HelpSection>
