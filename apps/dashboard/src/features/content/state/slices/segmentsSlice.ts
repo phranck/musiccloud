@@ -170,9 +170,7 @@ export function toBulkSegmentsInput(s: SegmentsState["byOwner"][string]["current
   return s.map((e) => {
     const defaultLabel = getLocalizedText(e.label, DEFAULT_LOCALE, DEFAULT_LOCALE).value;
     const translations = Object.fromEntries(
-      Object.entries(e.label).filter(
-        ([locale, label]) => locale !== DEFAULT_LOCALE && typeof label === "string" && label.length > 0,
-      ),
+      Object.entries(e.label).filter(([locale, label]) => locale !== DEFAULT_LOCALE && typeof label === "string"),
     );
     return {
       position: e.position,

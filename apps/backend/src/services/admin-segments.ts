@@ -1,6 +1,7 @@
 import type { Locale, PageSegment, PageSegmentInput } from "@musiccloud/shared";
 import { DEFAULT_LOCALE, isLocale } from "@musiccloud/shared";
 
+import type { PageSegmentRow, PageSegmentTranslationRow } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 
 export type SegmentsResult =
@@ -50,6 +51,12 @@ export async function replaceSegments(ownerSlug: string, inputs: PageSegmentInpu
     }
   }
 
+  const [existingSegments, existingTranslationRows] = await Promise.all([
+    repo.listSegmentsForOwner(ownerSlug),
+    repo.listSegmentTranslationsForOwner(ownerSlug),
+  ]);
+  const preservedTranslations = translationsByTargetSlug(existingSegments, existingTranslationRows);
+
   const sorted = inputs.slice().sort((a, b) => a.position - b.position);
   const normalised = sorted.map((s, i) => ({ position: i, label: s.label.trim(), targetSlug: s.targetSlug }));
 
@@ -58,16 +65,19 @@ export async function replaceSegments(ownerSlug: string, inputs: PageSegmentInpu
   for (let i = 0; i < rows.length; i++) {
     const persisted = rows[i]!;
     const input = sorted[i]!;
-    const translations = Object.entries(input.translations ?? {})
-      .filter(
-        ([locale, label]) =>
-          isLocale(locale) && locale !== DEFAULT_LOCALE && typeof label === "string" && label.length > 0,
-      )
-      .map(([locale, label]) => ({
-        locale,
-        label: label as string,
-        sourceUpdatedAt: persisted.labelUpdatedAt,
-      }));
+    const translations =
+      input.translations === undefined
+        ? (preservedTranslations.get(input.targetSlug) ?? [])
+        : Object.entries(input.translations)
+            .filter(
+              ([locale, label]) =>
+                isLocale(locale) && locale !== DEFAULT_LOCALE && typeof label === "string" && label.length > 0,
+            )
+            .map(([locale, label]) => ({
+              locale,
+              label: label as string,
+              sourceUpdatedAt: persisted.labelUpdatedAt,
+            }));
     await repo.replaceSegmentTranslations(persisted.id, translations);
   }
 
@@ -109,4 +119,26 @@ export async function listSegments(ownerSlug: string): Promise<SegmentsResult> {
       targetSlug: r.targetSlug,
     })),
   };
+}
+
+function translationsByTargetSlug(
+  segments: PageSegmentRow[],
+  translations: PageSegmentTranslationRow[],
+): Map<string, { locale: string; label: string; sourceUpdatedAt: Date | null }[]> {
+  const targetById = new Map(segments.map((segment) => [segment.id, segment.targetSlug]));
+  const byTarget = new Map<string, { locale: string; label: string; sourceUpdatedAt: Date | null }[]>();
+
+  for (const translation of translations) {
+    const targetSlug = targetById.get(translation.segmentId);
+    if (!targetSlug || !isLocale(translation.locale) || translation.locale === DEFAULT_LOCALE) continue;
+    const entries = byTarget.get(targetSlug) ?? [];
+    entries.push({
+      locale: translation.locale,
+      label: translation.label,
+      sourceUpdatedAt: translation.sourceUpdatedAt,
+    });
+    byTarget.set(targetSlug, entries);
+  }
+
+  return byTarget;
 }

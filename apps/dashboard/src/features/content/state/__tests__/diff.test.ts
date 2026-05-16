@@ -122,6 +122,49 @@ describe("buildBulkPayload", () => {
     expect(p.pageTranslations).toEqual([expect.objectContaining({ slug: "info", locale: "de", title: "A2" })]);
   });
 
+  it("keeps explicit empty segment translations in the payload", () => {
+    const p = buildBulkPayload({
+      meta: { pages: {} },
+      content: { pages: {} },
+      segments: {
+        byOwner: {
+          info: {
+            initial: [{ position: 0, label: { en: "A", de: "Alt" }, targetSlug: "a" }],
+            current: [{ position: 0, label: { en: "A", de: "" }, targetSlug: "a" }],
+          },
+        },
+      },
+      translations: { byPage: {} },
+      sidebar: { initial: [], current: [] },
+    });
+
+    expect(p.segments![0].segments[0]).toEqual({
+      position: 0,
+      label: "A",
+      targetSlug: "a",
+      translations: { de: "" },
+    });
+  });
+
+  it("omits segment translations when no non-default locale is loaded", () => {
+    const p = buildBulkPayload({
+      meta: { pages: {} },
+      content: { pages: {} },
+      segments: {
+        byOwner: {
+          info: {
+            initial: [{ position: 0, label: { en: "A" }, targetSlug: "a" }],
+            current: [{ position: 0, label: { en: "B" }, targetSlug: "a" }],
+          },
+        },
+      },
+      translations: { byPage: {} },
+      sidebar: { initial: [], current: [] },
+    });
+
+    expect(p.segments![0].segments[0]).toEqual({ position: 0, label: "B", targetSlug: "a" });
+  });
+
   it("does not emit slug or page meta for non-default title edits", () => {
     const p = buildBulkPayload({
       meta: { pages: {} },
