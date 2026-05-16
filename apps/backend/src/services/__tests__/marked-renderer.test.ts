@@ -169,6 +169,13 @@ describe("marked custom code renderer", () => {
     expect(out).toContain('<span class="mc-pill mc-pill-alert">REQ</span>');
   });
 
+  it("allows spaces in [[pill:...]] labels before trailing options", async () => {
+    const out = (await marked.parse("foo [[pill:TITLE ODER ARTIST tone=alert]] bar", {
+      async: true,
+    })) as string;
+    expect(out).toContain('<span class="mc-pill mc-pill-alert">TITLE ODER ARTIST</span>');
+  });
+
   it("defaults [[pill:...]] to neutral tone and preserves casing", async () => {
     const out = (await marked.parse("foo [[pill:Info]] bar", { async: true })) as string;
     expect(out).toContain('<span class="mc-pill mc-pill-neutral">Info</span>');
@@ -185,6 +192,11 @@ describe("marked custom code renderer", () => {
   it("ignores unknown [[pill:...]] options", async () => {
     const out = (await marked.parse("foo [[pill:Status tone=danger case=title]] bar", { async: true })) as string;
     expect(out).toContain('<span class="mc-pill mc-pill-neutral">Status</span>');
+  });
+
+  it("keeps key-value text as a label when no pill label precedes it", async () => {
+    const out = (await marked.parse("foo [[pill:A=B]] bar", { async: true })) as string;
+    expect(out).toContain('<span class="mc-pill mc-pill-neutral">A=B</span>');
   });
 
   it("escapes HTML in [[pill:...]] labels", async () => {
