@@ -439,6 +439,18 @@ export function ContentEditorPage() {
         translationReady: t.translationReady,
       })),
     });
+    if (page.pageType === "segmented") {
+      editor.dispatch.segments({
+        type: "hydrate-owner",
+        ownerSlug: page.slug,
+        segments: page.segments.map((segment) => ({
+          position: segment.position,
+          label: segment.label,
+          targetSlug: segment.targetSlug,
+          translations: segment.translations,
+        })),
+      });
+    }
   }, [page, editor.dispatch]);
 
   // ---------------------------------------------------------------------------
