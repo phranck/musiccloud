@@ -95,13 +95,21 @@ const SHORTCUT_HINTS = [
   { keys: ["⌘", "⇧", "D"], label: "Strike" },
 ] satisfies { keys: string[]; label: string }[];
 
-const BADGE_HINTS = [
-  { notation: "[[REQ]]", variant: "req", pillLabel: "REQ", description: "Short required marker." },
-  { notation: "[[REQUIRED]]", variant: "req", pillLabel: "REQUIRED", description: "Full required marker." },
-  { notation: "[[OPT]]", variant: "opt", pillLabel: "OPT", description: "Optional marker." },
+type PillTone = "alert" | "info" | "neutral" | "success";
+
+const PILL_HINTS = [
+  { notation: "[[pill:REQ tone=alert]]", tone: "alert", pillLabel: "REQ", description: "Required marker." },
+  { notation: "[[pill:OPT]]", tone: "neutral", pillLabel: "OPT", description: "Neutral marker, default tone." },
+  { notation: "[[pill:Info tone=info]]", tone: "info", pillLabel: "Info", description: "Informational marker." },
+  {
+    notation: "[[pill:done tone=success case=upper]]",
+    tone: "success",
+    pillLabel: "DONE",
+    description: "Success marker with uppercase output.",
+  },
 ] satisfies {
   notation: string;
-  variant: "req" | "opt";
+  tone: PillTone;
   pillLabel: string;
   description: string;
 }[];
@@ -137,12 +145,12 @@ const CODE_FENCE_EXAMPLES = [
 const FIELD_BLOCK_EXAMPLES = [
   {
     label: "Dynamic labels",
-    code: ":::fields\ngenre: Genre name or Genre1|Genre2 [[REQ]]\ntracks: 1-50, default 10 [[OPT]]\ncount: Applies the same amount to tracks, albums, and artists. [[OPT]]\n:::",
+    code: ":::fields\ngenre: Genre name or Genre1|Genre2 [[pill:REQ tone=alert]]\ntracks: 1-50, default 10 [[pill:OPT]]\ncount: Applies the same amount to tracks, albums, and artists. [[pill:OPT]]\n:::",
     description: "The label column uses the widest label and wraps long descriptions from the second column start.",
   },
   {
     label: "Fixed label width",
-    code: ":::fields labelWidth=9ch gap=1.25rem\ngenre: Genre name or Genre1|Genre2 [[REQ]]\ntracks: 1-50, default 10 [[OPT]]\n:::",
+    code: ":::fields labelWidth=9ch gap=1.25rem\ngenre: Genre name or Genre1|Genre2 [[pill:REQ tone=alert]]\ntracks: 1-50, default 10 [[pill:OPT]]\n:::",
     description: "labelWidth accepts auto, px, rem, em, or ch. gap controls the spacing between both columns.",
   },
 ] satisfies { label: string; code: string; description: string }[];
@@ -204,36 +212,31 @@ function NotationCode({ children }: { children: string }) {
   );
 }
 
-function PillPreview({ variant, children }: { variant: "req" | "opt"; children: string }) {
-  const variantClasses =
-    variant === "req"
-      ? "bg-[var(--ds-danger-bg)] text-[var(--ds-danger-text)]"
-      : "bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)] border border-[var(--ds-border)]";
+function PillPreview({ tone, children }: { tone: PillTone; children: string }) {
+  const toneClasses = {
+    alert: "bg-[var(--ds-danger-bg)] text-[var(--ds-danger-text)]",
+    info: "bg-[var(--ds-bg-elevated)] text-[var(--color-primary)] border border-[var(--ds-border)]",
+    neutral: "bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)] border border-[var(--ds-border)]",
+    success: "bg-[var(--ds-success-bg)] text-[var(--ds-success-text)] border border-[var(--ds-success-border)]",
+  } satisfies Record<PillTone, string>;
+
   return (
     <span
-      className={`inline-flex items-center justify-center h-[1.25rem] px-1.5 rounded text-[0.625rem] font-semibold font-mono uppercase tracking-wider leading-none select-none ${variantClasses}`}
+      className={`inline-flex items-center justify-center h-[1.25rem] px-1.5 rounded text-[0.625rem] font-semibold font-mono tracking-wide leading-none select-none ${toneClasses[tone]}`}
     >
       {children}
     </span>
   );
 }
 
-function NotationHint({
-  notation,
-  variant,
-  pillLabel,
-}: {
-  notation: string;
-  variant: "req" | "opt";
-  pillLabel: string;
-}) {
+function NotationHint({ notation, tone, pillLabel }: { notation: string; tone: PillTone; pillLabel: string }) {
   return (
     <span className="flex items-center gap-1">
       <NotationCode>{notation}</NotationCode>
       <span className="text-[var(--ds-text-subtle)]" aria-hidden>
         →
       </span>
-      <PillPreview variant={variant}>{pillLabel}</PillPreview>
+      <PillPreview tone={tone}>{pillLabel}</PillPreview>
     </span>
   );
 }
@@ -506,7 +509,7 @@ function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; 
             Markdown help
           </h3>
           <p className="mt-1 text-xs leading-snug text-[var(--ds-text-muted)]">
-            Shortcuts, code fences, field blocks, card modifiers, syntax highlighting, badges, and keyboard hints.
+            Shortcuts, code fences, field blocks, card modifiers, syntax highlighting, pills, and keyboard hints.
           </p>
         </div>
         <button
@@ -551,9 +554,9 @@ function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; 
 
         <HelpSection title="Inline helpers">
           <div className="space-y-2">
-            {BADGE_HINTS.map((hint) => (
+            {PILL_HINTS.map((hint) => (
               <div key={hint.notation} className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <NotationHint notation={hint.notation} variant={hint.variant} pillLabel={hint.pillLabel} />
+                <NotationHint notation={hint.notation} tone={hint.tone} pillLabel={hint.pillLabel} />
                 <span className="text-[0.6875rem] text-[var(--ds-text-muted)]">{hint.description}</span>
               </div>
             ))}

@@ -164,25 +164,41 @@ describe("marked custom code renderer", () => {
     expect(out).toContain("puts");
   });
 
-  it("renders [[REQUIRED]] as a req badge", async () => {
-    const out = (await marked.parse("foo [[REQUIRED]] bar", { async: true })) as string;
-    expect(out).toContain('<span class="mc-badge mc-badge-req">REQUIRED</span>');
+  it("renders an alert [[pill:...]] marker", async () => {
+    const out = (await marked.parse("foo [[pill:REQ tone=alert]] bar", { async: true })) as string;
+    expect(out).toContain('<span class="mc-pill mc-pill-alert">REQ</span>');
   });
 
-  it("renders [[OPT]] as an opt badge", async () => {
-    const out = (await marked.parse("foo [[OPT]] bar", { async: true })) as string;
-    expect(out).toContain('<span class="mc-badge mc-badge-opt">OPT</span>');
+  it("defaults [[pill:...]] to neutral tone and preserves casing", async () => {
+    const out = (await marked.parse("foo [[pill:Info]] bar", { async: true })) as string;
+    expect(out).toContain('<span class="mc-pill mc-pill-neutral">Info</span>');
   });
 
-  it("treats [[REQ]] as alias for REQUIRED variant", async () => {
-    const out = (await marked.parse("foo [[REQ]] bar", { async: true })) as string;
-    expect(out).toContain('<span class="mc-badge mc-badge-req">REQ</span>');
+  it("applies [[pill:...]] case options", async () => {
+    const out = (await marked.parse("foo [[pill:done tone=success case=upper]] [[pill:LOUD case=lower]]", {
+      async: true,
+    })) as string;
+    expect(out).toContain('<span class="mc-pill mc-pill-success">DONE</span>');
+    expect(out).toContain('<span class="mc-pill mc-pill-neutral">loud</span>');
   });
 
-  it("leaves [[UNKNOWN]] markers untouched", async () => {
-    const out = (await marked.parse("foo [[UNKNOWN]] bar", { async: true })) as string;
-    expect(out).not.toContain("mc-badge");
-    expect(out).toContain("[[UNKNOWN]]");
+  it("ignores unknown [[pill:...]] options", async () => {
+    const out = (await marked.parse("foo [[pill:Status tone=danger case=title]] bar", { async: true })) as string;
+    expect(out).toContain('<span class="mc-pill mc-pill-neutral">Status</span>');
+  });
+
+  it("escapes HTML in [[pill:...]] labels", async () => {
+    const out = (await marked.parse("foo [[pill:<script> tone=alert]] bar", { async: true })) as string;
+    expect(out).toContain('<span class="mc-pill mc-pill-alert">&lt;script&gt;</span>');
+    expect(out).not.toContain("<script>");
+  });
+
+  it("leaves legacy badge markers as plain text", async () => {
+    const out = (await marked.parse("foo [[REQ]] [[REQUIRED]] [[OPT]] bar", { async: true })) as string;
+    expect(out).not.toContain("mc-pill");
+    expect(out).toContain("[[REQ]]");
+    expect(out).toContain("[[REQUIRED]]");
+    expect(out).toContain("[[OPT]]");
   });
 
   it("renders {{Esc}} as a mc-kbd element", async () => {
@@ -198,7 +214,7 @@ describe("marked custom code renderer", () => {
 
   it("renders :::fields blocks as definition lists with dynamic label width", async () => {
     const out = (await marked.parse(
-      ":::fields\ngenre: Genre name or Genre1|Genre2 [[REQ]]\ncount: Applies the same amount to tracks, albums, and artists. {{Esc}}\n:::\n",
+      ":::fields\ngenre: Genre name or Genre1|Genre2 [[pill:REQ tone=alert]]\ncount: Applies the same amount to tracks, albums, and artists. {{Esc}}\n:::\n",
       { async: true },
     )) as string;
 
@@ -206,20 +222,20 @@ describe("marked custom code renderer", () => {
     expect(out).toContain("grid-template-columns:max-content minmax(0, 1fr)");
     expect(out).toContain("column-gap:1.1rem");
     expect(out).toContain("<dt>genre:</dt>");
-    expect(out).toContain('<span class="mc-badge mc-badge-req">REQ</span>');
+    expect(out).toContain('<span class="mc-pill mc-pill-alert">REQ</span>');
     expect(out).toContain("<dt>count:</dt>");
     expect(out).toContain('<kbd class="mc-kbd">Esc</kbd>');
   });
 
   it("accepts fixed labelWidth and gap options for :::fields blocks", async () => {
     const out = (await marked.parse(
-      ":::fields labelWidth=9ch gap=1.25rem\ngenre: Jazz [[REQ]]\ntracks: 1-50 [[OPT]]\n:::\n",
+      ":::fields labelWidth=9ch gap=1.25rem\ngenre: Jazz [[pill:REQ tone=alert]]\ntracks: 1-50 [[pill:OPT]]\n:::\n",
       { async: true },
     )) as string;
 
     expect(out).toContain("grid-template-columns:9ch minmax(0, 1fr)");
     expect(out).toContain("column-gap:1.25rem");
-    expect(out).toContain('<span class="mc-badge mc-badge-opt">OPT</span>');
+    expect(out).toContain('<span class="mc-pill mc-pill-neutral">OPT</span>');
   });
 
   it("ignores unsafe :::fields layout values", async () => {
