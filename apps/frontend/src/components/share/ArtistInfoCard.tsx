@@ -6,7 +6,7 @@
 
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { XIcon } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { ArtistProfileSection } from "@/components/share/ArtistProfileSection";
@@ -38,9 +38,9 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
   // the "empty card flashes in then disappears" effect. If the fetch is
   // still pending after the threshold, the skeleton appears as before.
   const SKELETON_DELAY_MS = 300;
-  const [skeletonAllowed, setSkeletonAllowed] = useState(false);
+  const [skeletonAllowed, allowSkeleton] = useReducer(() => true, false);
   useEffect(() => {
-    const timer = setTimeout(() => setSkeletonAllowed(true), SKELETON_DELAY_MS);
+    const timer = setTimeout(allowSkeleton, SKELETON_DELAY_MS);
     return () => clearTimeout(timer);
   }, []);
 
@@ -175,7 +175,7 @@ function ProfileSkeleton() {
   return (
     <div className="animate-pulse">
       <div className="flex gap-4">
-        <div className="w-24 h-24 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
+        <div className="size-24 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
         <div className="flex-1 space-y-2 pt-1">
           <div className="flex gap-1.5 flex-wrap">
             <div className="h-5 w-14 rounded-full bg-white/[0.08]" />
@@ -199,7 +199,7 @@ function TracksSkeleton() {
     <div className="animate-pulse space-y-4">
       {(["sk-a", "sk-b", "sk-c"] as const).map((k) => (
         <div key={k} className="flex gap-3 items-center">
-          <div className="w-12 h-12 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
+          <div className="size-12 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
           <div className="flex-1 space-y-1.5">
             <div className="h-3 bg-white/[0.08] rounded w-4/5" />
             <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
@@ -234,7 +234,7 @@ function SimilarArtistsSkeleton() {
         <div key={k}>
           <div className="h-3 bg-white/[0.08] rounded w-1/4 mb-2" />
           <div className="flex gap-3 items-center">
-            <div className="w-12 h-12 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
+            <div className="size-12 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
             <div className="flex-1 space-y-1.5">
               <div className="h-3 bg-white/[0.08] rounded w-4/5" />
               <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />

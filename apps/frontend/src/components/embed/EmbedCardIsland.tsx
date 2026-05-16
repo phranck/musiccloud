@@ -31,7 +31,7 @@ export function EmbedCardIsland({
   album,
   platforms,
 }: EmbedCardIslandProps) {
-  const sorted = [...platforms].sort((a, b) => compareByDisplayOrder(a.platform, b.platform));
+  const sorted = platforms.toSorted((a, b) => compareByDisplayOrder(a.platform, b.platform));
 
   switch (size) {
     case "small":
@@ -90,7 +90,7 @@ function EmbedSmall({
       className="w-[400px] h-[88px] flex items-center gap-3 bg-surface-elevated shadow-lg"
     >
       <a href={shortUrl} target="_blank" rel="noopener noreferrer">
-        <img className="w-[68px] h-[68px] rounded-lg object-cover flex-shrink-0" src={artworkUrl} alt={title} />
+        <img className="size-[68px] rounded-lg object-cover flex-shrink-0" src={artworkUrl} alt={title} />
       </a>
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <a
@@ -106,7 +106,7 @@ function EmbedSmall({
           <div className="flex gap-1">
             {visiblePlatforms(platforms).map((p) => (
               <a key={p.platform} href={p.url} target="_blank" rel="noopener noreferrer">
-                <PlatformIcon platform={p.platform} className="w-[22px] h-[22px]" colored />
+                <PlatformIcon platform={p.platform} className="size-[22px]" colored />
               </a>
             ))}
           </div>
@@ -143,7 +143,7 @@ function EmbedRegular({
     <EmbossedCard padding="0" radius="0.75rem" className="w-[320px] bg-surface-elevated shadow-lg">
       <div className="w-full aspect-square overflow-hidden">
         <a href={shortUrl} target="_blank" rel="noopener noreferrer">
-          <img className="w-full h-full object-cover" src={artworkUrl} alt={title} />
+          <img className="size-full object-cover" src={artworkUrl} alt={title} />
         </a>
       </div>
       <div className="p-3.5 flex flex-col gap-2">
@@ -169,7 +169,7 @@ function EmbedRegular({
                 rel="noopener noreferrer"
                 className="hover:scale-110 transition-transform"
               >
-                <PlatformIcon platform={p.platform} className="w-8 h-8" colored />
+                <PlatformIcon platform={p.platform} className="size-8" colored />
               </a>
             ))}
           </RecessedCard.Body>
@@ -205,7 +205,7 @@ function EmbedLarge({
     <EmbossedCard padding="0" radius="0.75rem" className="w-[400px] bg-surface-elevated shadow-lg">
       <div className="w-full aspect-square overflow-hidden">
         <a href={shortUrl} target="_blank" rel="noopener noreferrer">
-          <img className="w-full h-full object-cover" src={artworkUrl} alt={title} />
+          <img className="size-full object-cover" src={artworkUrl} alt={title} />
         </a>
       </div>
       <div className="p-4 flex flex-col gap-3">

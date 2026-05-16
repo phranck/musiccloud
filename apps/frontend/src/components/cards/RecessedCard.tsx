@@ -1,4 +1,4 @@
-import { Children, createContext, forwardRef, isValidElement, type ReactNode, useContext, useState } from "react";
+import { Children, createContext, isValidElement, type ReactNode, type Ref, use, useState } from "react";
 import { cn } from "@/lib/utils";
 import { recessedStyle } from "@/styles/neumorphic";
 
@@ -53,7 +53,7 @@ interface HeaderProps {
 }
 
 function Header({ children, className }: HeaderProps) {
-  const ctx = useContext(RecessedContext);
+  const ctx = use(RecessedContext);
   const scrolled = ctx?.scrolled ?? false;
   return (
     <div
@@ -82,7 +82,7 @@ interface BodyProps {
 }
 
 function Body({ children, className, scrollable = false }: BodyProps) {
-  const ctx = useContext(RecessedContext);
+  const ctx = use(RecessedContext);
   const handleScroll = scrollable
     ? (e: React.UIEvent<HTMLDivElement>) => ctx?.setScrolled(e.currentTarget.scrollTop > 0)
     : undefined;
@@ -107,6 +107,7 @@ function hasTag(child: unknown, tag: symbol): boolean {
 interface RecessedCardProps {
   children: ReactNode;
   className?: string;
+  ref?: Ref<HTMLDivElement>;
   style?: React.CSSProperties;
   /** Width of the gradient border. Defaults to 1px. */
   borderWidth?: string;
@@ -180,10 +181,7 @@ const PADDING_CLASS_RE = /(^|\s)p[xytrbls]?-/;
  * classes — the component needs to align the gradient-border arc
  * with the corner.
  */
-const RecessedCardRoot = forwardRef<HTMLDivElement, RecessedCardProps>(function RecessedCard(
-  { children, className, style, borderWidth, radius, padding },
-  ref,
-) {
+function RecessedCardRoot({ children, className, ref, style, borderWidth, radius, padding }: RecessedCardProps) {
   const childArray = Children.toArray(children);
   const hasCompoundChild = childArray.some((c) => hasTag(c, HEADER_TAG) || hasTag(c, BODY_TAG));
 
@@ -233,7 +231,7 @@ const RecessedCardRoot = forwardRef<HTMLDivElement, RecessedCardProps>(function 
       {content}
     </div>
   );
-});
+}
 
 export const RecessedCard = Object.assign(RecessedCardRoot, {
   Header: Header as typeof Header & { Title: typeof Title; AddOn: typeof AddOn },

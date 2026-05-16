@@ -326,6 +326,7 @@ export interface DashboardMessages {
       confirmDeleteAction: string;
       saved: string;
       titleLabel: string;
+      pageTitleLabel: string;
       slugLabel: string;
       statusLabel: string;
       ok: string;
@@ -1084,6 +1085,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         confirmDeleteAction: "L\u00f6schen",
         saved: "Gespeichert",
         titleLabel: "Titel",
+        pageTitleLabel: "Seitentitel",
         slugLabel: "Slug",
         statusLabel: "Status",
         ok: "OK",
@@ -1813,6 +1815,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         confirmDeleteAction: "Delete",
         saved: "Saved",
         titleLabel: "Title",
+        pageTitleLabel: "Page title",
         slugLabel: "Slug",
         statusLabel: "Status",
         ok: "OK",

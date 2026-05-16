@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import type { Ref } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { NavigationBackButton } from "@/components/navigation/NavigationBackButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
@@ -39,6 +39,7 @@ interface GenreSearchResultsProps {
    */
   selectedId?: string | null;
   loading?: boolean;
+  ref?: Ref<HTMLDivElement>;
 }
 
 // Size classes for the spinning CD that replaces a row's artwork while the
@@ -58,10 +59,17 @@ const COMPACT_ART_SIZE = "w-12 h-12 md:w-14 md:h-14";
  * No FLIP animation here — clicks immediately start a follow-up resolve,
  * and the normal loading state covers the transition.
  */
-export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsProps>(function GenreSearchResults(
-  { results, queryDetails, warnings, onSelect, onCancel, onBack, selectedId, loading = false },
+export function GenreSearchResults({
+  results,
+  queryDetails,
+  warnings,
+  onSelect,
+  onCancel,
+  onBack,
+  selectedId,
+  loading = false,
   ref,
-) {
+}: GenreSearchResultsProps) {
   const t = useT();
   const { locale } = useLocale();
   const headline = buildHeadline(queryDetails, t, locale);
@@ -258,7 +266,7 @@ export const GenreSearchResults = forwardRef<HTMLDivElement, GenreSearchResultsP
       </EmbossedCard>
     </div>
   );
-});
+}
 
 // ─── Headline builder ───────────────────────────────────────────────────────
 //

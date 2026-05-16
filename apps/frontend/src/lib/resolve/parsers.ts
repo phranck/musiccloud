@@ -64,15 +64,27 @@ export function appReducer({ screen, stack }: ReducerState, action: AppAction): 
 // Response parsers
 // ---------------------------------------------------------------------------
 
-export function parseResolveResponse(data: ResolveSuccessResponse): SongResult {
-  const platforms: PlatformLink[] = data.links
-    .filter((link) => link.url && isValidServiceId(link.service))
-    .map((link) => ({
+type PlatformSourceLink =
+  | ResolveSuccessResponse["links"][number]
+  | AlbumResolveSuccessResponse["links"][number]
+  | ArtistResolveSuccessResponse["links"][number];
+
+function parsePlatformLinks(links: readonly PlatformSourceLink[]): PlatformLink[] {
+  const platforms: PlatformLink[] = [];
+  for (const link of links) {
+    if (!link.url || !isValidServiceId(link.service)) continue;
+    platforms.push({
       platform: link.service as ServiceId,
       url: link.url,
       displayName: link.displayName,
       matchMethod: link.matchMethod,
-    }));
+    });
+  }
+  return platforms;
+}
+
+export function parseResolveResponse(data: ResolveSuccessResponse): SongResult {
+  const platforms = parsePlatformLinks(data.links);
   return {
     kind: "song",
     title: data.track.title,
@@ -90,14 +102,7 @@ export function parseResolveResponse(data: ResolveSuccessResponse): SongResult {
 }
 
 export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): AlbumResult {
-  const platforms: PlatformLink[] = data.links
-    .filter((link) => link.url && isValidServiceId(link.service))
-    .map((link) => ({
-      platform: link.service as ServiceId,
-      url: link.url,
-      displayName: link.displayName,
-      matchMethod: link.matchMethod,
-    }));
+  const platforms = parsePlatformLinks(data.links);
   return {
     kind: "album",
     title: data.album.title,
@@ -114,14 +119,7 @@ export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): Al
 }
 
 export function parseArtistResolveResponse(data: ArtistResolveSuccessResponse): ArtistResult {
-  const platforms: PlatformLink[] = data.links
-    .filter((link) => link.url && isValidServiceId(link.service))
-    .map((link) => ({
-      platform: link.service as ServiceId,
-      url: link.url,
-      displayName: link.displayName,
-      matchMethod: link.matchMethod,
-    }));
+  const platforms = parsePlatformLinks(data.links);
   return {
     kind: "artist",
     name: data.artist.name,

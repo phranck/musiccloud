@@ -46,9 +46,7 @@ export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEv
 
 function formatEventDate(iso: string, locale: string): string {
   try {
-    return new Intl.DateTimeFormat(locale || "en", { month: "short", day: "numeric" }).format(
-      new Date(`${iso}T00:00:00`),
-    );
+    return new Date(`${iso}T00:00:00`).toLocaleDateString(locale || "en", { month: "short", day: "numeric" });
   } catch {
     return iso;
   }

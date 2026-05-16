@@ -401,7 +401,10 @@ Relevant known paths:
 
 #### Notes
 
-- `pnpm build` passes with the existing Vite chunk-size warning for dashboard bundles.
+- Dashboard Vite chunk-size warning fixed by moving dashboard builds to no-emit typechecks and using Rolldown code splitting groups for heavy editor/chart vendors.
+- `pnpm --filter @musiccloud/dashboard build` passes without warnings.
+- `pnpm lint` passes without warnings.
+- `npx -y react-doctor@latest . --verbose --diff` reports 100/100 for dashboard and frontend changed files.
 - Live migration dry-run remains unexecuted locally because `DATABASE_URL` is not set.
 
 ## Acceptance Criteria

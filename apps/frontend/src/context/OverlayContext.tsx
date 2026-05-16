@@ -1,5 +1,5 @@
 import type { PublicContentPage } from "@musiccloud/shared";
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useReducer } from "react";
+import { createContext, type ReactNode, use, useCallback, useEffect, useMemo, useReducer } from "react";
 
 interface OverlayState {
   page: PublicContentPage | null;
@@ -39,6 +39,14 @@ const PRESENCE_FLAG = "__mcOverlayActive";
 interface OverlayOpenDetail {
   slug: string;
   source?: string;
+}
+
+async function fetchOverlayPage(slug: string, signal: AbortSignal): Promise<PublicContentPage | null> {
+  const res = await fetch(`/api/v1/content/${slug}`, {
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  return res.ok ? ((await res.json()) as PublicContentPage) : null;
 }
 
 export function OverlayProvider({ children }: { children: ReactNode }) {
@@ -104,15 +112,11 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
       try {
-        const res = await fetch(`/api/v1/content/${detail.slug}`, {
-          headers: { Accept: "application/json" },
-          signal: controller.signal,
-        });
-        if (!res.ok) {
+        const page = await fetchOverlayPage(detail.slug, controller.signal);
+        if (!page) {
           window.location.href = `/${detail.slug}`;
           return;
         }
-        const page = (await res.json()) as PublicContentPage;
         open(page);
       } catch {
         window.location.href = `/${detail.slug}`;
@@ -138,7 +142,7 @@ export function isOverlayActive(): boolean {
 }
 
 export function useOverlay(): OverlayAPI {
-  const ctx = useContext(OverlayCtx);
+  const ctx = use(OverlayCtx);
   if (!ctx) throw new Error("useOverlay must be used inside OverlayProvider");
   return ctx;
 }

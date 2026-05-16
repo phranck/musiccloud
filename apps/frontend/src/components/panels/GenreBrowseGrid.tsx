@@ -1,5 +1,5 @@
 import type { ApiGenreTile } from "@musiccloud/shared";
-import { forwardRef } from "react";
+import type { Ref } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -19,6 +19,7 @@ function safeAccent(color: string | undefined): string | undefined {
 interface GenreBrowseGridProps {
   genres: ApiGenreTile[];
   onSelect: (genreName: string) => void;
+  ref?: Ref<HTMLDivElement>;
 }
 
 /**
@@ -26,10 +27,7 @@ interface GenreBrowseGridProps {
  * artworks. Shown when the user submits `genre:?`. Clicking a tile
  * triggers a full `genre:<name>` search via the parent's submit handler.
  */
-export const GenreBrowseGrid = forwardRef<HTMLDivElement, GenreBrowseGridProps>(function GenreBrowseGrid(
-  { genres, onSelect },
-  ref,
-) {
+export function GenreBrowseGrid({ genres, onSelect, ref }: GenreBrowseGridProps) {
   const t = useT();
 
   return (
@@ -82,4 +80,4 @@ export const GenreBrowseGrid = forwardRef<HTMLDivElement, GenreBrowseGridProps>(
       </EmbossedCard>
     </div>
   );
-});
+}

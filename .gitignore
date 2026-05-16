@@ -53,6 +53,11 @@ DerivedData/
 # Hosting
 .vercel/
 
+# Local app runner
+/.app/
+/app
+/app.config
+
 # OS
 .DS_Store
 

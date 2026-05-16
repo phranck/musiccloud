@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface LazyGenreArtworkProps {
@@ -51,7 +51,7 @@ function releaseSlot() {
  */
 export function LazyGenreArtwork({ url, fallbackUrl = "/og/default.jpg" }: LazyGenreArtworkProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [intersected, setIntersected] = useState(false);
+  const [intersected, markIntersected] = useReducer(() => true, false);
   const [canLoad, setCanLoad] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
@@ -63,7 +63,7 @@ export function LazyGenreArtwork({ url, fallbackUrl = "/og/default.jpg" }: LazyG
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setIntersected(true);
+          markIntersected();
           observer.disconnect();
         }
       },
@@ -99,17 +99,14 @@ export function LazyGenreArtwork({ url, fallbackUrl = "/og/default.jpg" }: LazyG
   }
 
   return (
-    <div ref={ref} className="relative w-full h-full">
+    <div ref={ref} className="relative size-full">
       {canLoad && (
         <img
           src={errored ? fallbackUrl : url}
           alt=""
           width={512}
           height={512}
-          className={cn(
-            "w-full h-full object-cover transition-opacity duration-200",
-            loaded ? "opacity-100" : "opacity-0",
-          )}
+          className={cn("size-full object-cover transition-opacity duration-200", loaded ? "opacity-100" : "opacity-0")}
           onLoad={() => {
             setLoaded(true);
             releaseOnce();
@@ -122,7 +119,7 @@ export function LazyGenreArtwork({ url, fallbackUrl = "/og/default.jpg" }: LazyG
       )}
       {!loaded && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-white/10 border-t-white/50 rounded-full animate-spin" />
+          <div className="size-6 border-2 border-white/10 border-t-white/50 rounded-full animate-spin" />
         </div>
       )}
     </div>

@@ -74,7 +74,7 @@ export function HeroInput({
     [onSubmit],
   );
 
-  const handleChange = useCallback(
+  const updateInputValue = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       cancelAutoSubmit();
       onChange(e.target.value);
@@ -149,7 +149,7 @@ export function HeroInput({
             type="text"
             inputMode="text"
             value={displayValue}
-            onChange={handleChange}
+            onChange={updateInputValue}
             onPaste={handlePaste}
             onKeyDown={handleKeyDown}
             onFocus={() => onFocus?.()}

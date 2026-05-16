@@ -58,7 +58,7 @@ export const SongInfo = memo(function SongInfo({
           <img
             src={albumArtUrl}
             alt={`"${title}" by ${artist} - album artwork`}
-            className="w-full h-full object-cover"
+            className="size-full object-cover"
             width={480}
             height={480}
             onError={(e) => {
@@ -66,7 +66,7 @@ export const SongInfo = memo(function SongInfo({
             }}
           />
         ) : (
-          <img src="/og/musiccloud.jpg" alt="" className="w-full h-full object-cover" width={480} height={480} />
+          <img src="/og/musiccloud.jpg" alt="" className="size-full object-cover" width={480} height={480} />
         )}
       </div>
 
@@ -81,7 +81,7 @@ export const SongInfo = memo(function SongInfo({
                 {isExplicit && (
                   <span
                     role="img"
-                    className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0"
+                    className="inline-flex items-center justify-center size-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0"
                     title="Explicit"
                     aria-label="Explicit content"
                   >
@@ -97,7 +97,7 @@ export const SongInfo = memo(function SongInfo({
             {isExplicit && (
               <span
                 role="img"
-                className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0"
+                className="inline-flex items-center justify-center size-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0"
                 title="Explicit"
                 aria-label="Explicit content"
               >

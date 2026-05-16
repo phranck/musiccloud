@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, type ReactNode, use, useCallback, useMemo, useState } from "react";
 import { Toast, type ToastVariant } from "@/components/ui/Toast";
 
 interface ToastAPI {
@@ -42,5 +42,5 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 /** Returns the toast API, or `null` when rendered outside a `ToastProvider`. */
 export function useToastSafe(): ToastAPI | null {
-  return useContext(ToastCtx);
+  return use(ToastCtx);
 }

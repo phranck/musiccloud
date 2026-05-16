@@ -12,7 +12,7 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
       <div className="flex gap-4 min-h-24">
         {profile.imageUrl && (
           <RecessedCard
-            className="p-0 w-24 h-24 flex-none relative overflow-hidden"
+            className="p-0 size-24 flex-none relative overflow-hidden"
             radius={{ base: "4px", sm: "8px" }}
             borderWidth="2px"
           >
@@ -23,7 +23,7 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
                 width={96}
                 height={96}
                 decoding="async"
-                className="w-full h-full object-cover"
+                className="size-full object-cover"
                 style={{ borderRadius: "var(--neu-radius-inner)" }}
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).style.display = "none";
