@@ -207,7 +207,7 @@ function OverlayShell({ initialPage }: Props) {
         type="button"
         aria-label="Close overlay"
         onClick={close}
-        className={cn("fixed inset-0 z-40 bg-black/40 cursor-default", visible ? "opacity-100" : "opacity-0")}
+        className={cn("fixed inset-0 z-40 bg-black/25 cursor-default", visible ? "opacity-100" : "opacity-0")}
         style={backdropStyle}
       />
       <OverlayFrame key={page.slug} visible={visible} slug={page.slug}>

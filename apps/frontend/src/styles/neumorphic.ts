@@ -17,6 +17,13 @@ export const embossedCardStyle: React.CSSProperties = {
   boxShadow: "0 2px 6px rgba(0,0,0,0.4), 0 -2px 6px rgba(255,255,255,0.03)",
 };
 
+/** Embossed page overlays need a stronger drop shadow than inline cards so
+ *  the draggable page frame reads as floating above the dimmed background. */
+export const embossedOverlayCardStyle: React.CSSProperties = {
+  boxShadow:
+    "0 30px 80px rgba(0,0,0,0.5), 0 12px 32px rgba(0,0,0,0.36), 0 0 28px rgba(0,0,0,0.22), 0 -2px 8px rgba(255,255,255,0.04)",
+};
+
 /** Inset/recessed shadow — single dark inset from top-left.
  *  No bottom-right highlight: the pushed-in impression should come from
  *  shadow alone, not from a competing rim light. */
