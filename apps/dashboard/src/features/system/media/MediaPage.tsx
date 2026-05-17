@@ -1,3 +1,4 @@
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import {
   ArrowsClockwiseIcon,
   FileIcon,
@@ -28,7 +29,7 @@ import { MediaGridItem } from "@/features/system/media/MediaGridItem";
 import { MediaTable } from "@/features/system/media/MediaTable";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
 import type { MediaAsset } from "@/shared/types/media";
-import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/shared/ui/Dialog";
+import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 type ViewMode = "list" | "grid";
 
@@ -212,28 +213,31 @@ export function MediaPage() {
           }}
         />
 
-        <button
-          type="button"
-          onClick={() => syncMedia.mutate()}
+        <DashboardActionButton
+          action="restore"
           disabled={syncMedia.isPending}
-          className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-border)] text-[var(--ds-text)] rounded-control text-sm font-medium hover:border-[var(--ds-border-strong)] transition-colors disabled:opacity-60"
-        >
-          <ArrowsClockwiseIcon
-            weight="duotone"
-            className={`w-3.5 h-3.5 ${syncMedia.isPending ? "animate-spin" : ""}`}
-          />
-          Sync
-        </button>
-
-        <button
+          icon={
+            <ArrowsClockwiseIcon
+              weight="duotone"
+              className={`w-3.5 h-3.5 ${syncMedia.isPending ? "animate-spin" : ""}`}
+            />
+          }
+          label="Sync"
+          onClick={() => syncMedia.mutate()}
+          size="control"
           type="button"
+        />
+
+        <DashboardActionButton
+          action="create"
+          busyLabel={mediaMessages.uploading}
+          icon={<PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />}
+          label={mediaMessages.upload}
           onClick={() => inputRef.current?.click()}
-          disabled={uploadMedia.isPending}
-          className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-60"
-        >
-          <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-          {uploadMedia.isPending ? mediaMessages.uploading : mediaMessages.upload}
-        </button>
+          size="control"
+          status={uploadMedia.isPending ? "busy" : "idle"}
+          type="button"
+        />
       </PageHeader>
 
       {editor.actionError && <p className="text-sm text-red-500 mb-3">{editor.actionError}</p>}
@@ -351,12 +355,20 @@ export function MediaPage() {
           </p>
         </div>
         <Dialog.Footer>
-          <button type="button" onClick={() => setDeleteTarget(null)} className={dialogBtnSecondary}>
-            {common.cancel}
-          </button>
-          <button
+          <DashboardActionButton
+            action="cancel"
+            icon={false}
+            label={common.cancel}
+            onClick={() => setDeleteTarget(null)}
             type="button"
-            disabled={deleteMedia.isPending || !deleteTarget}
+            variant="neutral"
+          />
+          <DashboardActionButton
+            action="delete"
+            busyLabel="\u2026"
+            disabled={!deleteTarget}
+            icon={false}
+            label={common.delete}
             onClick={() => {
               if (!deleteTarget) return;
               deleteMedia.mutate(deleteTarget.id, {
@@ -374,10 +386,9 @@ export function MediaPage() {
                 },
               });
             }}
-            className={dialogBtnDestructive}
-          >
-            {deleteMedia.isPending ? "\u2026" : common.delete}
-          </button>
+            status={deleteMedia.isPending ? "busy" : "idle"}
+            type="button"
+          />
         </Dialog.Footer>
       </Dialog>
     </PageLayout>
