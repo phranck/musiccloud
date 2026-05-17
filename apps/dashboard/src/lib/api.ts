@@ -3,23 +3,6 @@ import { createApiRequestError } from "@/shared/utils/api-error";
 const API_BASE = "/api";
 const FETCH_TIMEOUT_MS = 30_000;
 const ADMIN_STORAGE_KEY = "admin_token";
-const PRODUCTION_DASHBOARD_HOST = "dashboard.musiccloud.io";
-const PRODUCTION_API_ORIGIN = "https://api.musiccloud.io";
-
-function stripTrailingSlash(value: string): string {
-  return value.replace(/\/$/, "");
-}
-
-function getApiOrigin(): string {
-  const configuredOrigin = import.meta.env.VITE_API_ORIGIN?.trim();
-  if (configuredOrigin) return stripTrailingSlash(configuredOrigin);
-
-  if (typeof window !== "undefined" && window.location.hostname === PRODUCTION_DASHBOARD_HOST) {
-    return PRODUCTION_API_ORIGIN;
-  }
-
-  return "";
-}
 
 /**
  * Resolve a caller-supplied path to a full URL.
@@ -31,9 +14,7 @@ function getApiOrigin(): string {
  *   compatibility while the migration is in progress.
  */
 function resolvePath(path: string): string {
-  const apiOrigin = getApiOrigin();
-  const apiPath = path.startsWith("/api/") ? path : `${API_BASE}${path}`;
-  return `${apiOrigin}${apiPath}`;
+  return path.startsWith("/api/") ? path : `${API_BASE}${path}`;
 }
 
 function getAuthHeaders(): Record<string, string> {
