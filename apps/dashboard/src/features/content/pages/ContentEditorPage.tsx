@@ -414,7 +414,10 @@ interface PageTitleLocalizationFieldProps {
   value: string;
   fallback: string;
   placeholder: string;
+  deletePending?: boolean;
+  showDeleteTranslation?: boolean;
   onChange: (value: string) => void;
+  onDeleteTranslation?: () => void;
 }
 
 function PageTitleLocalizationField({
@@ -423,7 +426,10 @@ function PageTitleLocalizationField({
   value,
   fallback,
   placeholder,
+  deletePending = false,
+  showDeleteTranslation = false,
   onChange,
+  onDeleteTranslation,
 }: PageTitleLocalizationFieldProps) {
   const localeLabel = locale.toUpperCase();
   const inputId = `content-page-title-${locale}`;
@@ -432,37 +438,29 @@ function PageTitleLocalizationField({
     <div className="bg-[var(--ds-surface)] px-3 pt-2 pb-3">
       <div className="flex flex-col gap-1.5">
         <FormLabel htmlFor={inputId}>{label}</FormLabel>
-        <input
-          id={inputId}
-          type="text"
-          aria-label={`${label} ${localeLabel}`}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={fallback || placeholder}
-          className={formInputClass}
-        />
+        <div className="flex items-center gap-2">
+          <input
+            id={inputId}
+            type="text"
+            aria-label={`${label} ${localeLabel}`}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder={fallback || placeholder}
+            className={formInputClass}
+          />
+          {showDeleteTranslation && onDeleteTranslation && (
+            <button
+              type="button"
+              onClick={onDeleteTranslation}
+              disabled={deletePending}
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-control border border-[var(--ds-btn-danger-border)] px-3 text-xs font-medium text-[var(--ds-btn-danger-text)] transition-colors hover:border-[var(--ds-btn-danger-hover-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] disabled:opacity-60"
+            >
+              <TrashIcon weight="duotone" className="size-3" aria-hidden="true" />
+              Delete translation
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  );
-}
-
-interface TranslationActionsRowProps {
-  deletePending: boolean;
-  onDeleteTranslation: () => void;
-}
-
-function TranslationActionsRow({ deletePending, onDeleteTranslation }: TranslationActionsRowProps) {
-  return (
-    <div className="flex items-center justify-end bg-[var(--ds-surface)] px-3 pb-3 text-xs text-[var(--ds-text-muted)]">
-      <button
-        type="button"
-        onClick={onDeleteTranslation}
-        disabled={deletePending}
-        className="inline-flex h-7 items-center gap-1.5 rounded-control border border-[var(--ds-btn-danger-border)] px-3 text-xs font-medium text-[var(--ds-btn-danger-text)] transition-colors hover:border-[var(--ds-btn-danger-hover-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] disabled:opacity-60"
-      >
-        <TrashIcon weight="duotone" className="size-3" aria-hidden="true" />
-        Delete translation
-      </button>
     </div>
   );
 }
@@ -831,15 +829,9 @@ export function ContentEditorPage() {
           value={displayTitle}
           fallback={activeTitle.fallback}
           placeholder={pageMessages.titlePlaceholder}
-          onChange={handleTitleChange}
-        />
-      )}
-
-      {/* Translation action row — shared by both page types. The title field
-          above may auto-create a translation; this row appears once it exists. */}
-      {page && activeLocale !== DEFAULT_LOCALE && activeTranslation && (
-        <TranslationActionsRow
           deletePending={deleteTranslation.isPending}
+          showDeleteTranslation={activeLocale !== DEFAULT_LOCALE && activeTranslation !== undefined}
+          onChange={handleTitleChange}
           onDeleteTranslation={handleDeleteTranslation}
         />
       )}
