@@ -1,7 +1,8 @@
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import { useEffect, useState } from "react";
 import { useBlocker } from "react-router";
 
-import { Dialog, dialogBtnDestructive, dialogBtnPrimary, dialogBtnSecondary } from "@/components/ui/Dialog";
+import { Dialog } from "@/components/ui/Dialog";
 import { useI18n } from "@/context/I18nContext";
 
 import { usePagesEditor } from "./PagesEditorContext";
@@ -68,15 +69,32 @@ export function UnsavedGuard() {
     <Dialog open={open} title={t.title} onClose={handleCancel}>
       <div className="px-6 py-4 text-sm text-[var(--ds-text)]">{t.description}</div>
       <Dialog.Footer>
-        <button type="button" className={dialogBtnSecondary} onClick={handleCancel} disabled={isSaving}>
-          {t.cancel}
-        </button>
-        <button type="button" className={dialogBtnDestructive} onClick={handleDiscard} disabled={isSaving}>
-          {t.discard}
-        </button>
-        <button type="button" className={dialogBtnPrimary} onClick={handleSave} disabled={isSaving}>
-          {isSaving ? t.saving : t.save}
-        </button>
+        <DashboardActionButton
+          action="cancel"
+          disabled={isSaving}
+          icon={false}
+          label={t.cancel}
+          onClick={handleCancel}
+          type="button"
+          variant="neutral"
+        />
+        <DashboardActionButton
+          action="delete"
+          disabled={isSaving}
+          icon={false}
+          label={t.discard}
+          onClick={handleDiscard}
+          type="button"
+        />
+        <DashboardActionButton
+          action="save"
+          busyLabel={t.saving}
+          icon={false}
+          label={t.save}
+          onClick={handleSave}
+          status={isSaving ? "busy" : "idle"}
+          type="button"
+        />
       </Dialog.Footer>
     </Dialog>
   );
