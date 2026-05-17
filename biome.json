@@ -43,6 +43,8 @@
       "!apps/backend/src/db/migrations",
       "!apps/backend/src/scripts",
       "!apps/frontend/src/styles",
+      "!**/.pi",
+      "!**/.pi-lens",
       "!**/dist",
       "!**/node_modules"
     ]
