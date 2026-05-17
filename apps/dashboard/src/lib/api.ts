@@ -2,7 +2,24 @@ import { createApiRequestError } from "@/shared/utils/api-error";
 
 const API_BASE = "/api";
 const FETCH_TIMEOUT_MS = 30_000;
-const TOKEN_KEY = "admin_token";
+const ADMIN_STORAGE_KEY = "admin_token";
+const PRODUCTION_DASHBOARD_HOST = "dashboard.musiccloud.io";
+const PRODUCTION_API_ORIGIN = "https://api.musiccloud.io";
+
+function stripTrailingSlash(value: string): string {
+  return value.replace(/\/$/, "");
+}
+
+function getApiOrigin(): string {
+  const configuredOrigin = import.meta.env.VITE_API_ORIGIN?.trim();
+  if (configuredOrigin) return stripTrailingSlash(configuredOrigin);
+
+  if (typeof window !== "undefined" && window.location.hostname === PRODUCTION_DASHBOARD_HOST) {
+    return PRODUCTION_API_ORIGIN;
+  }
+
+  return "";
+}
 
 /**
  * Resolve a caller-supplied path to a full URL.
@@ -14,12 +31,14 @@ const TOKEN_KEY = "admin_token";
  *   compatibility while the migration is in progress.
  */
 function resolvePath(path: string): string {
-  return path.startsWith("/api/") ? path : `${API_BASE}${path}`;
+  const apiOrigin = getApiOrigin();
+  const apiPath = path.startsWith("/api/") ? path : `${API_BASE}${path}`;
+  return `${apiOrigin}${apiPath}`;
 }
 
 function getAuthHeaders(): Record<string, string> {
   try {
-    const stored = localStorage.getItem(TOKEN_KEY);
+    const stored = localStorage.getItem(ADMIN_STORAGE_KEY);
     if (!stored) return {};
     const { token } = JSON.parse(stored) as { token: string };
     if (!token) return {};
