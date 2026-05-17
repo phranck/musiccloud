@@ -2803,16 +2803,15 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       for (const t of payload.pageTranslations) {
         await client.query(
           `INSERT INTO content_page_translations
-             (slug, locale, title, content, translation_ready, updated_at, updated_by, source_updated_at)
-           VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW())
+             (slug, locale, title, content, updated_at, updated_by, source_updated_at)
+           VALUES ($1, $2, $3, $4, NOW(), $5, NOW())
            ON CONFLICT (slug, locale)
            DO UPDATE SET title = EXCLUDED.title,
                          content = EXCLUDED.content,
-                         translation_ready = EXCLUDED.translation_ready,
                          updated_at = EXCLUDED.updated_at,
                          updated_by = EXCLUDED.updated_by,
                          source_updated_at = EXCLUDED.source_updated_at`,
-          [t.slug, t.locale, t.title ?? null, t.content ?? null, t.translationReady ?? null, t.updatedBy ?? null],
+          [t.slug, t.locale, t.title ?? null, t.content ?? null, t.updatedBy ?? null],
         );
       }
 
@@ -2890,7 +2889,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async listPageTranslations(slug: string): Promise<ContentPageTranslationRow[]> {
     const result = await this.pool.query<ContentPageTranslationSqlRow>(
-      `SELECT slug, locale, title, content, translation_ready, source_updated_at, updated_at, updated_by
+      `SELECT slug, locale, title, content, source_updated_at, updated_at, updated_by
        FROM content_page_translations
        WHERE slug = $1
        ORDER BY locale ASC`,
@@ -2901,7 +2900,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async getPageTranslation(slug: string, locale: string): Promise<ContentPageTranslationRow | null> {
     const result = await this.pool.query<ContentPageTranslationSqlRow>(
-      `SELECT slug, locale, title, content, translation_ready, source_updated_at, updated_at, updated_by
+      `SELECT slug, locale, title, content, source_updated_at, updated_at, updated_by
        FROM content_page_translations
        WHERE slug = $1 AND locale = $2
        LIMIT 1`,
@@ -2914,27 +2913,17 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const now = new Date();
     const result = await this.pool.query<ContentPageTranslationSqlRow>(
       `INSERT INTO content_page_translations
-         (slug, locale, title, content, translation_ready, source_updated_at, updated_at, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (slug, locale, title, content, source_updated_at, updated_at, updated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT ON CONSTRAINT pk_content_page_translations
        DO UPDATE SET
          title = EXCLUDED.title,
          content = EXCLUDED.content,
-         translation_ready = EXCLUDED.translation_ready,
          source_updated_at = EXCLUDED.source_updated_at,
          updated_at = EXCLUDED.updated_at,
          updated_by = EXCLUDED.updated_by
-       RETURNING slug, locale, title, content, translation_ready, source_updated_at, updated_at, updated_by`,
-      [
-        input.slug,
-        input.locale,
-        input.title,
-        input.content,
-        input.translationReady,
-        input.sourceUpdatedAt,
-        now,
-        input.updatedBy,
-      ],
+       RETURNING slug, locale, title, content, source_updated_at, updated_at, updated_by`,
+      [input.slug, input.locale, input.title, input.content, input.sourceUpdatedAt, now, input.updatedBy],
     );
     return rowToContentPageTranslation(result.rows[0]);
   }
@@ -3474,7 +3463,6 @@ interface ContentPageTranslationSqlRow {
   locale: string;
   title: string;
   content: string;
-  translation_ready: boolean;
   source_updated_at: Date | null;
   updated_at: Date;
   updated_by: string | null;
@@ -3486,7 +3474,6 @@ function rowToContentPageTranslation(row: ContentPageTranslationSqlRow): Content
     locale: row.locale,
     title: row.title,
     content: row.content,
-    translationReady: row.translation_ready,
     sourceUpdatedAt: row.source_updated_at,
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,

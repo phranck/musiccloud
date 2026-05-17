@@ -94,7 +94,7 @@ describe("PUT /admin/pages/bulk", () => {
       payload: {
         pages: [{ slug: "info", meta: { title: "Info v2" }, content: "# Info v2" }],
         segments: [{ ownerSlug: "info", segments: [{ position: 0, label: "Privacy", targetSlug: "privacy" }] }],
-        pageTranslations: [{ slug: "info", locale: "de", title: "Information", translationReady: true }],
+        pageTranslations: [{ slug: "info", locale: "de", title: "Information" }],
         topLevelOrder: ["info", "help"],
       },
     });

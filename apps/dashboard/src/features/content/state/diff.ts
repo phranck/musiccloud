@@ -56,11 +56,7 @@ export function buildBulkPayload(b: SliceBundle): PagesBulkRequest {
   const trEntries: NonNullable<PagesBulkRequest["pageTranslations"]> = [];
   for (const [slug, locales] of Object.entries(b.translations.byPage)) {
     for (const [locale, v] of Object.entries(locales)) {
-      if (
-        v.initial.title !== v.current.title ||
-        v.initial.content !== v.current.content ||
-        v.initial.translationReady !== v.current.translationReady
-      ) {
+      if (v.initial.title !== v.current.title || v.initial.content !== v.current.content) {
         trEntries.push({ slug, locale: locale as never, ...v.current });
       }
     }

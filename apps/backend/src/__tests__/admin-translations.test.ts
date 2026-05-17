@@ -18,7 +18,6 @@ const repo: Partial<AdminRepository> = {
       locale: input.locale,
       title: input.title,
       content: input.content,
-      translationReady: input.translationReady,
       sourceUpdatedAt: input.sourceUpdatedAt,
       updatedAt: new Date(),
       updatedBy: input.updatedBy,
@@ -69,25 +68,6 @@ describe("admin translations service", () => {
     expect(s!.statuses.en).toBe("ready");
   });
 
-  it("status is 'draft' when translation_ready=false", async () => {
-    page = mkPage(new Date("2025-01-01"));
-    translations = [
-      {
-        slug: "s",
-        locale: "de",
-        title: "x",
-        content: "",
-        translationReady: false,
-        sourceUpdatedAt: new Date("2025-01-01"),
-        updatedAt: new Date("2025-01-02"),
-        updatedBy: null,
-      },
-    ];
-    const s = await getPageTranslationsWithStatus("s");
-    expect(s).not.toBeNull();
-    expect(s!.statuses.de).toBe("draft");
-  });
-
   it("status is 'stale' when source newer than snapshot", async () => {
     page = mkPage(new Date("2025-02-01"));
     translations = [
@@ -96,7 +76,6 @@ describe("admin translations service", () => {
         locale: "de",
         title: "x",
         content: "",
-        translationReady: true,
         sourceUpdatedAt: new Date("2025-01-01"),
         updatedAt: new Date("2025-01-02"),
         updatedBy: null,
@@ -107,7 +86,7 @@ describe("admin translations service", () => {
     expect(s!.statuses.de).toBe("stale");
   });
 
-  it("status is 'ready' when up-to-date and ready", async () => {
+  it("status is 'ready' when up-to-date", async () => {
     page = mkPage(new Date("2025-01-01"));
     translations = [
       {
@@ -115,7 +94,6 @@ describe("admin translations service", () => {
         locale: "de",
         title: "x",
         content: "",
-        translationReady: true,
         sourceUpdatedAt: new Date("2025-01-01"),
         updatedAt: new Date("2025-01-02"),
         updatedBy: null,
@@ -134,7 +112,6 @@ describe("admin translations service", () => {
       {
         title: "x",
         content: "",
-        translationReady: false,
       },
       null,
     );
@@ -151,7 +128,6 @@ describe("admin translations service", () => {
       {
         title: "x",
         content: "",
-        translationReady: true,
       },
       null,
     );

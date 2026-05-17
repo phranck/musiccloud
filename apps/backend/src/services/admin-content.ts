@@ -452,7 +452,6 @@ function rowToPage(
       locale: t.locale as Locale,
       title: t.title,
       content: t.content,
-      translationReady: t.translationReady,
       isStale: statuses[t.locale as Locale] === "stale",
       sourceUpdatedAt: t.sourceUpdatedAt ? t.sourceUpdatedAt.toISOString() : null,
       updatedAt: t.updatedAt.toISOString(),
@@ -635,13 +634,13 @@ export async function getPublicContentPage(slug: string, locale: Locale): Promis
   const row = await repo.getPublishedContentPageBySlug(slug);
   if (!row) return null;
 
-  // Resolve title + content from translation when locale is non-default and translation is ready.
+  // Resolve title + content from translation when locale is non-default and a translation row exists.
   let resolvedTitle = row.title;
   let resolvedContent = row.content;
 
   if (locale !== DEFAULT_LOCALE) {
     const translations = await repo.listPageTranslations(slug);
-    const tx = translations.find((t) => t.locale === locale && t.translationReady);
+    const tx = translations.find((t) => t.locale === locale);
     if (tx) {
       resolvedTitle = tx.title;
       resolvedContent = tx.content;
@@ -688,7 +687,7 @@ export async function getPublicContentPage(slug: string, locale: Locale): Promis
   if (locale !== DEFAULT_LOCALE) {
     for (const targetSlug of targetSlugs) {
       const txRows = await repo.listPageTranslations(targetSlug);
-      const tx = txRows.find((t) => t.locale === locale && t.translationReady);
+      const tx = txRows.find((t) => t.locale === locale);
       if (tx) targetTranslations.set(targetSlug, tx);
     }
   }

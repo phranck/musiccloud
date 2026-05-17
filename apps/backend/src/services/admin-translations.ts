@@ -23,7 +23,6 @@ function computeStatus(
 ): TranslationStatus {
   if (locale === DEFAULT_LOCALE) return "ready";
   if (!translation) return "missing";
-  if (!translation.translationReady) return "draft";
   const src = translation.sourceUpdatedAt?.getTime() ?? 0;
   if (page.contentUpdatedAt.getTime() > src) return "stale";
   return "ready";
@@ -45,7 +44,7 @@ export async function getPageTranslationsWithStatus(slug: string): Promise<PageT
 export async function upsertPageTranslation(
   slug: string,
   locale: string,
-  body: { title: string; content: string; translationReady: boolean },
+  body: { title: string; content: string },
   updatedBy: string | null,
 ): Promise<TranslationResult<ContentPageTranslationRow>> {
   if (!isLocale(locale)) {
@@ -73,7 +72,6 @@ export async function upsertPageTranslation(
     locale,
     title: body.title,
     content: body.content,
-    translationReady: body.translationReady,
     sourceUpdatedAt: page.contentUpdatedAt,
     updatedBy,
   });

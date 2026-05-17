@@ -31,7 +31,7 @@ describe("page localization helpers", () => {
         content: "# Artists",
         pageType: "default",
       }),
-    ).toEqual({ title: "Kuenstler", content: "# Artists", translationReady: false });
+    ).toEqual({ title: "Kuenstler", content: "# Artists" });
   });
 
   it("creates segmented-page title translation drafts without body content", () => {
@@ -41,6 +41,6 @@ describe("page localization helpers", () => {
         content: "# Should not be copied",
         pageType: "segmented",
       }),
-    ).toEqual({ title: "Suche", content: "", translationReady: false });
+    ).toEqual({ title: "Suche", content: "" });
   });
 });

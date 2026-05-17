@@ -18,7 +18,7 @@ describe("translationsSlice", () => {
       { byPage: {} },
       {
         type: "hydrate",
-        entries: [{ slug: "info", locale: "de", title: "Information", content: "# Info de", translationReady: true }],
+        entries: [{ slug: "info", locale: "de", title: "Information", content: "# Info de" }],
       },
     );
     expect(s.byPage.info.de.initial.title).toBe("Information");
@@ -90,11 +90,11 @@ describe("translationsSlice", () => {
         type: "add-locale",
         slug: "info",
         locale: "es",
-        fields: { title: "Información", content: "# es", translationReady: false },
+        fields: { title: "Información", content: "# es" },
       },
     );
-    expect(s.byPage.info.es.initial).toEqual({ title: "", content: "", translationReady: false });
-    expect(s.byPage.info.es.current).toEqual({ title: "Información", content: "# es", translationReady: false });
+    expect(s.byPage.info.es.initial).toEqual({ title: "", content: "" });
+    expect(s.byPage.info.es.current).toEqual({ title: "Información", content: "# es" });
     expect(dirtyEntries(s)).toEqual([{ slug: "info", locale: "es" }]);
   });
 
@@ -103,7 +103,7 @@ describe("translationsSlice", () => {
       type: "add-locale",
       slug: "info",
       locale: "es",
-      fields: { title: "Información", content: "# es", translationReady: false },
+      fields: { title: "Información", content: "# es" },
     });
     expect(s2.byPage.info.de.initial.title).toBe("Information");
     expect(s2.byPage.info.de.current.title).toBe("Information");
@@ -117,12 +117,12 @@ describe("translationsSlice", () => {
         type: "add-locale",
         slug: "info",
         locale: "es",
-        fields: { title: "X", content: "Y", translationReady: false },
+        fields: { title: "X", content: "Y" },
       },
     );
     const s2 = translationsReducer(s1, { type: "reset" });
     expect(dirtyEntries(s2)).toEqual([]);
-    expect(s2.byPage.info.es.current).toEqual({ title: "", content: "", translationReady: false });
+    expect(s2.byPage.info.es.current).toEqual({ title: "", content: "" });
   });
 
   it("isTranslationDirty: unknown slug/locale → false, hydrated clean → false, edited → true", () => {

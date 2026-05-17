@@ -20,7 +20,6 @@ describe.skipIf(!process.env.DATABASE_URL)("page translations repository (integr
       locale: "en",
       title: "About (IT)",
       content: "",
-      translationReady: true,
       sourceUpdatedAt: null,
       updatedBy: null,
     });
@@ -45,26 +44,22 @@ describe.skipIf(!process.env.DATABASE_URL)("page translations repository (integr
       locale: "de",
       title: "Über uns",
       content: "Hallo",
-      translationReady: false,
       sourceUpdatedAt: now,
       updatedBy: null,
     });
     expect(inserted.title).toBe("Über uns");
     expect(inserted.locale).toBe("de");
-    expect(inserted.translationReady).toBe(false);
 
     const updated = await repo.upsertPageTranslation({
       slug,
       locale: "de",
       title: "Über uns 2",
       content: "Hallo2",
-      translationReady: true,
       sourceUpdatedAt: now,
       updatedBy: null,
     });
     expect(updated.title).toBe("Über uns 2");
     expect(updated.content).toBe("Hallo2");
-    expect(updated.translationReady).toBe(true);
   });
 
   it("list returns all locales for slug (including en seed)", async () => {
@@ -74,7 +69,6 @@ describe.skipIf(!process.env.DATABASE_URL)("page translations repository (integr
       locale: "de",
       title: "x",
       content: "",
-      translationReady: false,
       sourceUpdatedAt: null,
       updatedBy: null,
     });
@@ -92,7 +86,6 @@ describe.skipIf(!process.env.DATABASE_URL)("page translations repository (integr
       locale: "de",
       title: "x",
       content: "",
-      translationReady: true,
       sourceUpdatedAt: null,
       updatedBy: null,
     });
@@ -107,7 +100,6 @@ describe.skipIf(!process.env.DATABASE_URL)("page translations repository (integr
       locale: "de",
       title: "x",
       content: "",
-      translationReady: false,
       sourceUpdatedAt: null,
       updatedBy: null,
     });
@@ -139,7 +131,6 @@ describe.skipIf(!process.env.DATABASE_URL)("page translations repository (integr
       locale: "de",
       title: "x",
       content: "",
-      translationReady: true,
       sourceUpdatedAt: null,
       updatedBy: null,
     });

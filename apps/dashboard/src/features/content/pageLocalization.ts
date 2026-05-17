@@ -3,7 +3,7 @@ import { normalizeLocalizedText, setLocalizedText } from "@musiccloud/shared";
 
 type PageTitleTranslation = { locale: Locale; title?: string };
 type PageTitleDrafts = Record<string, { current: { title?: string } }>;
-export type PageTitleTranslationDraft = { title: string; content: string; translationReady: false };
+export type PageTitleTranslationDraft = { title: string; content: string };
 
 export function buildLocalizedPageTitle(
   defaultTitle: string,
@@ -33,6 +33,5 @@ export function createPageTitleTranslationDraft({
   return {
     title,
     content: pageType === "segmented" ? "" : content,
-    translationReady: false,
   };
 }

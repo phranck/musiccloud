@@ -167,7 +167,7 @@ export async function getPublicNavItems(navId: NavId, locale: Locale): Promise<N
   const pageTxBySlug = new Map<string, string>();
   for (const pageSlug of pageSlugs) {
     const txRows = await repo.listPageTranslations(pageSlug);
-    const tx = txRows.find((t) => t.locale === locale && t.translationReady);
+    const tx = txRows.find((t) => t.locale === locale);
     if (tx) pageTxBySlug.set(pageSlug, tx.title);
   }
 

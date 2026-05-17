@@ -144,7 +144,6 @@ export interface ContentPageTranslationRow {
   locale: string;
   title: string;
   content: string;
-  translationReady: boolean;
   sourceUpdatedAt: Date | null;
   updatedAt: Date;
   updatedBy: string | null;
@@ -155,7 +154,6 @@ export interface ContentPageTranslationUpsert {
   locale: string;
   title: string;
   content: string;
-  translationReady: boolean;
   sourceUpdatedAt: Date | null;
   updatedBy: string | null;
 }
@@ -213,7 +211,6 @@ export interface BulkUpdatePagesPayload {
     locale: string;
     title?: string;
     content?: string;
-    translationReady?: boolean;
     updatedBy?: string | null;
   }>;
   topLevelOrder: string[];

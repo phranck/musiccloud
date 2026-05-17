@@ -10,7 +10,6 @@ import {
 interface TranslationBody {
   title?: unknown;
   content?: unknown;
-  translationReady?: unknown;
 }
 
 function getCallerId(request: FastifyRequest): string | null {
@@ -20,7 +19,7 @@ function getCallerId(request: FastifyRequest): string | null {
 
 function validateBody(
   body: unknown,
-): { ok: true; data: { title: string; content: string; translationReady: boolean } } | { ok: false; message: string } {
+): { ok: true; data: { title: string; content: string } } | { ok: false; message: string } {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return { ok: false, message: "body must be an object" };
   }
@@ -30,15 +29,11 @@ function validateBody(
   if (b.content !== undefined && typeof b.content !== "string") {
     return { ok: false, message: "content must be string" };
   }
-  if (b.translationReady !== undefined && typeof b.translationReady !== "boolean") {
-    return { ok: false, message: "translationReady must be boolean" };
-  }
   return {
     ok: true,
     data: {
       title: b.title,
       content: typeof b.content === "string" ? b.content : "",
-      translationReady: b.translationReady === true,
     },
   };
 }
@@ -54,7 +49,6 @@ export function registerAdminPageTranslationRoutes(app: FastifyInstance): void {
         locale: t.locale,
         title: t.title,
         content: t.content,
-        translationReady: t.translationReady,
         sourceUpdatedAt: t.sourceUpdatedAt?.toISOString() ?? null,
         updatedAt: t.updatedAt.toISOString(),
       })),
@@ -83,7 +77,6 @@ export function registerAdminPageTranslationRoutes(app: FastifyInstance): void {
         locale: res.data.locale,
         title: res.data.title,
         content: res.data.content,
-        translationReady: res.data.translationReady,
         sourceUpdatedAt: res.data.sourceUpdatedAt?.toISOString() ?? null,
         updatedAt: res.data.updatedAt.toISOString(),
       });

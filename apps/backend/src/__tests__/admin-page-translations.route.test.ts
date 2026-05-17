@@ -16,7 +16,6 @@ vi.mock("../services/admin-translations.js", () => ({
       locale: "de",
       title: "T",
       content: "",
-      translationReady: true,
       sourceUpdatedAt: new Date(),
       updatedAt: new Date(),
       updatedBy: null,
@@ -49,7 +48,7 @@ describe("admin-page-translations routes", () => {
     const res = await app.inject({
       method: "PUT",
       url: "/api/admin/pages/s/translations/de",
-      payload: { title: "T", content: "", translationReady: true },
+      payload: { title: "T", content: "" },
     });
     expect(res.statusCode).toBe(200);
   });
@@ -83,7 +82,7 @@ describe("admin-page-translations routes", () => {
     const res = await app.inject({
       method: "PUT",
       url: "/api/admin/pages/s/translations/de",
-      payload: { title: "   ", content: "", translationReady: false },
+      payload: { title: "   ", content: "" },
     });
     expect(res.statusCode).toBe(400);
     expect(res.json().message).toBe("title required");

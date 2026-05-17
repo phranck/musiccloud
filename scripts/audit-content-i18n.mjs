@@ -140,8 +140,8 @@ async function findMissing(client) {
 async function backfillMissing(client) {
   await client.query(
     `INSERT INTO content_page_translations
-       (slug, locale, title, content, translation_ready, source_updated_at, updated_at)
-     SELECT cp.slug, $1, cp.title, cp.content, true, cp.content_updated_at, NOW()
+       (slug, locale, title, content, source_updated_at, updated_at)
+     SELECT cp.slug, $1, cp.title, cp.content, cp.content_updated_at, NOW()
        FROM content_pages cp
       WHERE NOT EXISTS (
         SELECT 1

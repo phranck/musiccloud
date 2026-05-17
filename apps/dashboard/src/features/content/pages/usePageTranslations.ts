@@ -6,7 +6,6 @@ import { api } from "@/lib/api";
 export interface TranslationPayload {
   title: string;
   content: string;
-  translationReady: boolean;
 }
 
 export interface TranslationRow extends TranslationPayload {
