@@ -1,3 +1,4 @@
+import { type ControlSize, ControlTrigger, ListboxOption, ListboxPopover } from "@musiccloud/dashboard-ui";
 import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -107,6 +108,7 @@ export function Dropdown<T extends string = string>({
   );
 
   const current = options.find((o) => o.value === value);
+  const controlSize = (size === "sm" ? "compact" : "field") satisfies ControlSize;
 
   return (
     <div className={`flex flex-col gap-1${className ? ` ${className}` : ""}`}>
@@ -114,16 +116,14 @@ export function Dropdown<T extends string = string>({
         <span className="text-xs font-semibold text-[var(--ds-text-subtle)] uppercase tracking-wider">{label}</span>
       )}
       <div ref={ref} className="relative">
-        <button
-          type="button"
+        <ControlTrigger
+          controlSize={controlSize}
           onClick={toggleDropdown}
           onKeyDown={handleKeyDown}
+          open={open}
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-label={label}
-          className={`w-full flex items-center gap-2 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] transition-colors whitespace-nowrap ${
-            size === "sm" ? "h-7 px-2 text-xs" : "h-9 px-3 text-sm"
-          }`}
         >
           {current?.icon && <span className="shrink-0">{current.icon}</span>}
           <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">
@@ -147,30 +147,17 @@ export function Dropdown<T extends string = string>({
               className="h-4 w-4 shrink-0 text-[var(--ds-text-muted)]"
             />
           )}
-        </button>
+        </ControlTrigger>
         {open && (
-          <div
-            role="listbox"
-            tabIndex={-1}
-            className={`absolute z-20 ${align === "end" ? "right-0" : "left-0"} mt-1 py-1 min-w-full w-max bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-xl shadow-lg overflow-hidden`}
-          >
+          <ListboxPopover align={align}>
             {options.map(({ value: v, label: l, icon, count }, index) => (
-              <button
-                role="option"
+              <ListboxOption
                 key={v}
-                aria-selected={value === v}
-                type="button"
+                active={index === highlightIndex}
+                controlSize={controlSize}
                 onClick={() => selectOption(v)}
                 onMouseEnter={() => setHighlightIndex(index)}
-                className={`w-full flex items-center gap-2 transition-colors whitespace-nowrap ${
-                  size === "sm" ? "h-7 px-2 text-xs" : "h-8 px-3 text-sm"
-                } ${
-                  value === v
-                    ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)] font-medium"
-                    : index === highlightIndex
-                      ? "bg-[var(--ds-surface-hover)] text-[var(--ds-text)]"
-                      : "text-[var(--ds-text)] hover:bg-[var(--ds-surface-hover)]"
-                }`}
+                selected={value === v}
               >
                 {icon && <span className="shrink-0">{icon}</span>}
                 <span className="whitespace-nowrap">{l}</span>
@@ -179,9 +166,9 @@ export function Dropdown<T extends string = string>({
                     {count}
                   </span>
                 )}
-              </button>
+              </ListboxOption>
             ))}
-          </div>
+          </ListboxPopover>
         )}
       </div>
     </div>
