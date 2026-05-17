@@ -1,4 +1,4 @@
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
+import { DashboardActionButton, DashboardButton, DashboardInput } from "@musiccloud/dashboard-ui";
 import { ENDPOINTS } from "@musiccloud/shared";
 import {
   MagnifyingGlass as MagnifyingGlassIcon,
@@ -15,6 +15,7 @@ import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
+import { TableActionButton } from "@/components/ui/TableActionButton";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
@@ -169,14 +170,11 @@ export function TracksPage() {
         className: "w-36",
         cell: (track) => (
           <div className="flex gap-2 justify-end">
-            <button
-              type="button"
+            <TableActionButton
               onClick={() => navigate(`/tracks/${track.id}`)}
-              className="h-7 px-3 flex items-center gap-1.5 border border-[var(--ds-btn-neutral-border)] rounded-control text-[var(--ds-btn-neutral-text)] text-xs hover:border-[var(--ds-btn-neutral-hover-border)] hover:bg-[var(--ds-btn-neutral-hover-bg)] transition-colors"
-            >
-              <PencilSimpleIcon weight="duotone" className="w-3 h-3" />
-              {messages.common.edit}
-            </button>
+              icon={<PencilSimpleIcon weight="duotone" className="size-3" />}
+              label={messages.common.edit}
+            />
           </div>
         ),
       },
@@ -208,25 +206,28 @@ export function TracksPage() {
 
   const searchField = (
     <div className="relative">
-      <input
+      <DashboardInput
         type="text"
         value={table.searchInput}
         onChange={(e) => table.setSearchInput(e.target.value)}
         placeholder={mt.searchPlaceholder}
-        className="py-1.5 w-52 pl-8 pr-7 border border-[var(--ds-border)] rounded-control text-sm bg-[var(--ds-surface)] text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:border-[var(--color-primary)]"
+        className="w-52 pl-8 pr-7"
       />
       <MagnifyingGlassIcon
         weight="duotone"
         className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--ds-text-muted)]"
       />
       {table.searchInput && (
-        <button
-          type="button"
+        <DashboardActionButton
+          action="close"
+          icon={<XCircleIcon weight="duotone" className="size-3.5" />}
+          iconOnly
+          label={messages.common.close}
           onClick={() => table.setSearchInput("")}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--ds-text-subtle)] hover:text-[var(--ds-text-muted)]"
-        >
-          <XCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-        </button>
+          className="absolute right-1 top-1/2 -translate-y-1/2"
+          size="action"
+          type="button"
+        />
       )}
     </div>
   );
@@ -240,34 +241,33 @@ export function TracksPage() {
       )}
       <div className="ml-auto flex items-center gap-2">
         {table.editMode && table.selectedCount > 0 && (
-          <button
-            type="button"
+          <DashboardActionButton
+            action="delete"
+            icon={<TrashIcon weight="duotone" className="size-3.5" />}
+            label={m.deleteButton.replace("{count}", String(table.selectedCount))}
             onClick={() => {
               setDeleteError(null);
               setConfirmOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-control text-sm font-medium border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors"
-          >
-            <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
-            {m.deleteButton.replace("{count}", String(table.selectedCount))}
-          </button>
+            size="action"
+            type="button"
+          />
         )}
-        <button
+        <DashboardButton
           type="button"
           onClick={table.toggleEditMode}
-          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-control text-sm font-medium border transition-colors ${
-            table.editMode
-              ? "bg-[var(--ds-btn-primary-bg)] text-white border-[var(--ds-btn-primary-bg)]"
-              : "border-[var(--ds-border)] text-[var(--ds-text)] hover:border-[var(--ds-border-strong)]"
-          }`}
+          leadingIcon={
+            table.editMode ? (
+              <PencilSimpleSlashIcon weight="duotone" className="size-3.5" />
+            ) : (
+              <PencilSimpleIcon weight="duotone" className="size-3.5" />
+            )
+          }
+          size="action"
+          variant={table.editMode ? "primary" : "neutral"}
         >
-          {table.editMode ? (
-            <PencilSimpleSlashIcon weight="duotone" className="w-3.5 h-3.5" />
-          ) : (
-            <PencilSimpleIcon weight="duotone" className="w-3.5 h-3.5" />
-          )}
           {m.editButton}
-        </button>
+        </DashboardButton>
       </div>
     </Toolbar>
   );
@@ -288,7 +288,7 @@ export function TracksPage() {
           </div>
         )}
 
-        {table.isError && <p className="text-sm text-[var(--ds-btn-danger-text)] p-4">{table.errorMessage}</p>}
+        {table.isError && <p className="text-sm text-[var(--ds-danger-text)] p-4">{table.errorMessage}</p>}
 
         {!table.isInitialLoading && !table.isError && table.items.length === 0 && (
           <ContentUnavailableView
@@ -338,7 +338,7 @@ export function TracksPage() {
           <p className="text-sm text-[var(--ds-text)]">
             {m.deleteConfirmDescription.replace("{count}", String(table.selectedCount))}
           </p>
-          {deleteError && <p className="text-sm text-[var(--ds-btn-danger-text)]">{deleteError}</p>}
+          {deleteError && <p className="text-sm text-[var(--ds-danger-text)]">{deleteError}</p>}
         </div>
         <Dialog.Footer>
           <DashboardActionButton

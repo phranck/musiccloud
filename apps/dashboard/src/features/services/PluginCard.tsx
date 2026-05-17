@@ -1,3 +1,4 @@
+import { DashboardButton } from "@musiccloud/dashboard-ui";
 import { PLATFORM_CONFIG, type PluginInfo } from "@musiccloud/shared";
 
 import { useI18n } from "@/context/I18nContext";
@@ -63,19 +64,16 @@ export function PluginCard({ plugin, onToggle, disabled }: PluginCardProps) {
             ))}
         </div>
       </div>
-      <button
+      <DashboardButton
         type="button"
         onClick={() => onToggle(!plugin.enabled)}
         disabled={disabled}
         aria-label={s.toggleAction}
-        className={`flex-none h-8 px-3 rounded-md text-sm font-medium border transition-colors disabled:opacity-50 ${
-          plugin.enabled
-            ? "border-green-500/30 text-green-500 hover:bg-green-500/10"
-            : "border-[var(--ds-border)] text-[var(--ds-text-muted)] hover:border-[var(--ds-border-strong)]"
-        }`}
+        className="flex-none"
+        variant={plugin.enabled ? "success" : "neutral"}
       >
         {plugin.enabled ? s.enabled : s.disabled}
-      </button>
+      </DashboardButton>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { DashboardActionButton, DashboardInput } from "@musiccloud/dashboard-ui";
 import { CopyIcon, PersonIcon, PlusCircleIcon, UserCheckIcon, UserPlusIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
@@ -93,13 +94,7 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
             </div>
             <div>
               <FormLabel htmlFor="uc-invite-url">{usersMessages.createCard.inviteLink}</FormLabel>
-              <input
-                id="uc-invite-url"
-                type="text"
-                readOnly
-                value={inviteResult.inviteUrl}
-                className={formInputClass}
-              />
+              <DashboardInput id="uc-invite-url" type="text" readOnly value={inviteResult.inviteUrl} />
             </div>
           </div>
         ) : (
@@ -115,23 +110,21 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
             </div>
             <div>
               <FormLabel htmlFor="uc-username">{usersMessages.createCard.username}</FormLabel>
-              <input
+              <DashboardInput
                 id="uc-username"
                 type="text"
                 value={form.username}
                 onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
                 minLength={3}
-                className={formInputClass}
               />
             </div>
             <div>
               <FormLabel htmlFor="uc-email">{usersMessages.createCard.email}</FormLabel>
-              <input
+              <DashboardInput
                 id="uc-email"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className={formInputClass}
               />
             </div>
             <p className="text-xs text-[var(--ds-text-subtle)]">{usersMessages.createCard.inviteFlowHint}</p>
@@ -143,7 +136,7 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, welcomeTemplateId: e.target.value ? Number(e.target.value) : undefined }))
                 }
-                className={`${formInputClass} h-9`}
+                className={formInputClass}
               >
                 <option value="">{usersMessages.createCard.welcomeTemplateNone}</option>
                 {emailTemplates.map((t) => (
@@ -183,32 +176,36 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
       </OverlayCard.Body>
 
       <OverlayCard.Footer className="flex justify-end gap-2">
-        <button
-          type="button"
+        <DashboardActionButton
+          action="cancel"
+          icon={false}
+          label={common.cancel}
           onClick={onClose}
-          className="h-9 px-4 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-sm hover:border-[var(--ds-border-strong)] transition-colors"
-        >
-          {common.cancel}
-        </button>
+          size="control"
+          type="button"
+          variant="neutral"
+        />
         {inviteResult ? (
-          <button
-            type="button"
+          <DashboardActionButton
+            action="copy"
+            icon={<CopyIcon weight="duotone" className="size-3.5" />}
+            label={copied ? usersMessages.createCard.inviteCopied : usersMessages.createCard.copyInvite}
             onClick={handleCopyInviteLink}
-            className="flex items-center gap-2 h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors"
-          >
-            <CopyIcon weight="duotone" className="w-3.5 h-3.5" />
-            {copied ? usersMessages.createCard.inviteCopied : usersMessages.createCard.copyInvite}
-          </button>
-        ) : (
-          <button
+            size="control"
             type="button"
-            onClick={handleSubmit}
+          />
+        ) : (
+          <DashboardActionButton
+            action="create"
+            busyLabel={usersMessages.createCard.creating}
             disabled={!canSubmit}
-            className="flex items-center gap-2 h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-40"
-          >
-            <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-            {createMutation.isPending ? usersMessages.createCard.creating : usersMessages.createCard.create}
-          </button>
+            icon={<PlusCircleIcon weight="duotone" className="size-3.5" />}
+            label={usersMessages.createCard.create}
+            onClick={handleSubmit}
+            size="control"
+            status={createMutation.isPending ? "busy" : "idle"}
+            type="button"
+          />
         )}
       </OverlayCard.Footer>
     </OverlayCard>

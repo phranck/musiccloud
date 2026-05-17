@@ -5,7 +5,7 @@ export type { CharCounterProps } from "./CharCounter";
 export { CharCounter } from "./CharCounter";
 export type { CheckboxProps } from "./Checkbox";
 export { Checkbox } from "./Checkbox";
-export { Dialog, dialogBtnDestructive, dialogBtnPrimary, dialogBtnSecondary, dialogHeaderIconClass } from "./Dialog";
+export { Dialog, dialogHeaderIconClass } from "./Dialog";
 export {
   FormErrorText,
   FormHelpText,

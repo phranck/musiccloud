@@ -1,9 +1,11 @@
+import { DashboardActionButton, DashboardField, DashboardInput } from "@musiccloud/dashboard-ui";
 import { CheckCircleIcon, CircleIcon, FileIcon, FileTextIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { TableActionButton } from "@/components/ui/TableActionButton";
 import { useI18n } from "@/context/I18nContext";
 import {
   useCreateFormConfig,
@@ -11,13 +13,7 @@ import {
   useFormConfigs,
   useSetFormConfigActive,
 } from "@/features/templates/hooks/useFormConfig";
-import {
-  Dialog,
-  dialogBtnDestructive,
-  dialogBtnPrimary,
-  dialogBtnSecondary,
-  dialogHeaderIconClass,
-} from "@/shared/ui/Dialog";
+import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 function deriveSlug(name: string): string {
   return name
@@ -71,12 +67,6 @@ function NewFormDialog({
   const [slugEdited, setSlugEdited] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const nameInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    nameInputRef.current?.focus();
-  }, []);
-
   useEffect(() => {
     if (!slugEdited) {
       setSlug(deriveSlug(name));
@@ -129,46 +119,49 @@ function NewFormDialog({
     >
       <form onSubmit={handleSubmit}>
         <div className="px-6 py-3 space-y-4">
-          <div>
-            <label htmlFor="new-form-name" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
-              {m.formNameLabel}
-            </label>
-            <input
+          <DashboardField label={m.formNameLabel} labelHtmlFor="new-form-name">
+            <DashboardInput
               id="new-form-name"
-              ref={nameInputRef}
+              autoFocus
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
               placeholder="suggestion-form"
-              className="w-full px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent font-mono"
+              className="font-mono"
             />
-          </div>
-          <div>
-            <label htmlFor="new-form-slug" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
-              {m.formSlugLabel}
-            </label>
+          </DashboardField>
+          <DashboardField label={m.formSlugLabel} labelHtmlFor="new-form-slug" hint={m.formSlugHint}>
             <div className="flex items-center gap-2">
               <span className="text-xs text-[var(--ds-text-muted)] shrink-0">/</span>
-              <input
+              <DashboardInput
                 id="new-form-slug"
                 type="text"
                 value={slug}
                 onChange={(e) => handleSlugChange(e.target.value)}
                 placeholder={m.slugPlaceholder}
-                className="flex-1 px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent font-mono"
+                className="flex-1 font-mono"
               />
             </div>
-            <p className="text-xs text-[var(--ds-text-muted)] mt-1">{m.formSlugHint}</p>
-          </div>
+          </DashboardField>
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
         <Dialog.Footer>
-          <button type="button" onClick={onClose} className={dialogBtnSecondary}>
-            {messages.common.cancel}
-          </button>
-          <button type="submit" disabled={createMutation.isPending || !slug || !name} className={dialogBtnPrimary}>
-            {createMutation.isPending ? messages.common.saving : m.create}
-          </button>
+          <DashboardActionButton
+            action="cancel"
+            icon={false}
+            label={messages.common.cancel}
+            onClick={onClose}
+            type="button"
+            variant="neutral"
+          />
+          <DashboardActionButton
+            action="create"
+            busyLabel={messages.common.saving}
+            disabled={!slug || !name}
+            label={m.create}
+            status={createMutation.isPending ? "busy" : "idle"}
+            type="submit"
+          />
         </Dialog.Footer>
       </form>
     </Dialog>
@@ -203,14 +196,14 @@ export function FormBuilderListPage() {
   return (
     <>
       <PageHeader title={m.listTitle}>
-        <button
-          type="button"
+        <DashboardActionButton
+          action="create"
+          icon={<PlusCircleIcon weight="duotone" className="size-3.5" />}
+          label={m.newForm}
           onClick={() => setShowDialog(true)}
-          className="flex items-center gap-2 h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors"
-        >
-          <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-          {m.newForm}
-        </button>
+          size="control"
+          type="button"
+        />
       </PageHeader>
 
       <div className="space-y-6">
@@ -275,23 +268,18 @@ export function FormBuilderListPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
+                        <TableActionButton
                           onClick={() => navigate(`/forms/${form.name}`)}
-                          className="h-9 px-3 flex items-center gap-2 border border-[var(--ds-btn-neutral-border)] rounded-control text-[var(--ds-btn-neutral-text)] text-sm hover:border-[var(--ds-btn-neutral-hover-border)] hover:bg-[var(--ds-btn-neutral-hover-bg)] transition-colors"
-                        >
-                          <FileTextIcon weight="duotone" className="w-3.5 h-3.5" />
-                          {m.editButton}
-                        </button>
-                        <button
-                          type="button"
+                          icon={<FileTextIcon weight="duotone" className="size-3.5" />}
+                          label={m.editButton}
+                        />
+                        <TableActionButton
+                          variant="danger"
                           onClick={() => handleDelete(form.name)}
                           disabled={deleteForm.isPending}
-                          className="h-9 px-3 flex items-center gap-2 border border-[var(--ds-btn-danger-border)] rounded-control text-[var(--ds-btn-danger-text)] text-sm hover:border-[var(--ds-btn-danger-hover-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors disabled:opacity-40"
-                        >
-                          <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
-                          {messages.common.delete}
-                        </button>
+                          icon={<TrashIcon weight="duotone" className="size-3.5" />}
+                          label={messages.common.delete}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -314,17 +302,22 @@ export function FormBuilderListPage() {
           <p className="text-sm text-[var(--ds-text-muted)]">{m.deleteConfirmDescription}</p>
         </div>
         <Dialog.Footer>
-          <button type="button" onClick={() => setDeleteTarget(null)} className={dialogBtnSecondary}>
-            {messages.common.cancel}
-          </button>
-          <button
+          <DashboardActionButton
+            action="cancel"
+            icon={false}
+            label={messages.common.cancel}
+            onClick={() => setDeleteTarget(null)}
             type="button"
-            disabled={deleteForm.isPending}
+            variant="neutral"
+          />
+          <DashboardActionButton
+            action="delete"
+            busyLabel="…"
+            label={messages.common.delete}
             onClick={() => void confirmDelete()}
-            className={dialogBtnDestructive}
-          >
-            {deleteForm.isPending ? "\u2026" : messages.common.delete}
-          </button>
+            status={deleteForm.isPending ? "busy" : "idle"}
+            type="button"
+          />
         </Dialog.Footer>
       </Dialog>
     </>

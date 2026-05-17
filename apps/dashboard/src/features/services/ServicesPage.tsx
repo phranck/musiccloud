@@ -33,7 +33,7 @@ export function ServicesPage() {
         <p className="text-sm text-[var(--ds-text-muted)] max-w-3xl">{s.subtitle}</p>
 
         {flashError && (
-          <div className="rounded-md border border-[var(--ds-btn-danger-border)] bg-[var(--ds-btn-danger-bg)]/5 text-sm text-[var(--ds-btn-danger-text)] px-3 py-2">
+          <div className="rounded-md border border-[var(--ds-danger-border)] bg-[var(--ds-danger-bg)]/5 text-sm text-[var(--ds-danger-text)] px-3 py-2">
             {flashError}
           </div>
         )}
@@ -47,7 +47,7 @@ export function ServicesPage() {
         {isLoading ? (
           <p className="text-sm text-[var(--ds-text-muted)]">{s.loading}</p>
         ) : error ? (
-          <p className="text-sm text-[var(--ds-btn-danger-text)]">{s.loadError}</p>
+          <p className="text-sm text-[var(--ds-danger-text)]">{s.loadError}</p>
         ) : sortedPlugins.length === 0 ? (
           <p className="text-sm text-[var(--ds-text-muted)]">{s.empty}</p>
         ) : (

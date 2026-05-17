@@ -224,7 +224,7 @@ export function MultiSelect({
           isOpen
             ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/20"
             : error
-              ? "border-[var(--ds-btn-danger-border)]"
+              ? "border-[var(--ds-danger-border)]"
               : "border-[var(--ds-border)] hover:border-[var(--ds-border-strong)]",
           className,
         )}

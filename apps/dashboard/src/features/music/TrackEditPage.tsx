@@ -1,3 +1,4 @@
+import { DashboardInput, getDashboardIconButtonClassName } from "@musiccloud/dashboard-ui";
 import type { ServiceId } from "@musiccloud/shared";
 import { ENDPOINTS, isValidServiceId, PLATFORM_CONFIG, SERVICE_DISPLAY_ORDER } from "@musiccloud/shared";
 import {
@@ -34,12 +35,6 @@ interface TrackDetail {
   createdAt: number;
   serviceLinks: { service: string; url: string }[];
 }
-
-const fieldClass =
-  "w-full h-9 px-3 border border-[var(--ds-border)] rounded-control text-sm bg-[var(--ds-surface)] text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:border-[var(--color-primary)]";
-
-const readOnlyClass =
-  "w-full h-9 px-3 border border-[var(--ds-border)] rounded-control text-sm bg-[var(--ds-surface-raised)] text-[var(--ds-text-muted)] cursor-default";
 
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
@@ -241,13 +236,13 @@ export function TrackEditPage() {
             {track.sourceService && isValidServiceId(track.sourceService) ? (
               track.sourceUrl ? (
                 <a href={track.sourceUrl} target="_blank" rel="noopener noreferrer">
-                  <PlatformIcon platform={track.sourceService} colored className="w-9 h-9" />
+                  <PlatformIcon platform={track.sourceService} colored className="size-9" />
                 </a>
               ) : (
-                <PlatformIcon platform={track.sourceService} colored className="w-9 h-9" />
+                <PlatformIcon platform={track.sourceService} colored className="size-9" />
               )
             ) : (
-              <div className="w-9 h-9 rounded-lg bg-[var(--ds-surface-raised)] flex items-center justify-center text-[var(--ds-text-muted)] text-xs">
+              <div className="size-9 rounded-lg bg-[var(--ds-surface-raised)] flex items-center justify-center text-[var(--ds-text-muted)] text-xs">
                 {track.sourceService ?? "\u2014"}
               </div>
             )}
@@ -264,24 +259,22 @@ export function TrackEditPage() {
               <label htmlFor="track-title" className={labelClass}>
                 {m.title}
               </label>
-              <input
+              <DashboardInput
                 id="track-title"
                 type="text"
                 value={form.title}
                 onChange={(e) => formDispatch({ type: "set", field: "title", value: e.target.value })}
-                className={fieldClass}
               />
             </div>
             <div>
               <label htmlFor="track-artists" className={labelClass}>
                 {m.artists}
               </label>
-              <input
+              <DashboardInput
                 id="track-artists"
                 type="text"
                 value={form.artists}
                 onChange={(e) => formDispatch({ type: "set", field: "artists", value: e.target.value })}
-                className={fieldClass}
                 placeholder={m.artistsHint}
               />
             </div>
@@ -289,24 +282,22 @@ export function TrackEditPage() {
               <label htmlFor="track-album" className={labelClass}>
                 {m.albumName}
               </label>
-              <input
+              <DashboardInput
                 id="track-album"
                 type="text"
                 value={form.albumName}
                 onChange={(e) => formDispatch({ type: "set", field: "albumName", value: e.target.value })}
-                className={fieldClass}
               />
             </div>
             <div>
               <label htmlFor="track-isrc" className={labelClass}>
                 {m.isrc}
               </label>
-              <input
+              <DashboardInput
                 id="track-isrc"
                 type="text"
                 value={form.isrc}
                 onChange={(e) => formDispatch({ type: "set", field: "isrc", value: e.target.value })}
-                className={fieldClass}
               />
             </div>
           </div>
@@ -316,12 +307,11 @@ export function TrackEditPage() {
             <label htmlFor="track-artwork-url" className={labelClass}>
               {m.artworkUrl}
             </label>
-            <input
+            <DashboardInput
               id="track-artwork-url"
               type="text"
               value={form.artworkUrl}
               onChange={(e) => formDispatch({ type: "set", field: "artworkUrl", value: e.target.value })}
-              className={fieldClass}
             />
           </div>
 
@@ -345,25 +335,35 @@ export function TrackEditPage() {
                         {label}
                       </label>
                       <div className="flex items-center gap-2">
-                        <input
+                        <DashboardInput
                           id={`service-url-${service}`}
                           type="text"
                           readOnly
                           value={url ?? ""}
-                          className={readOnlyClass}
+                          className="bg-[var(--ds-surface-raised)] text-[var(--ds-text-muted)] cursor-default"
                         />
                         {url ? (
                           <a
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-control border border-[var(--ds-btn-neutral-border)] text-[var(--ds-btn-neutral-text)] hover:border-[var(--ds-btn-neutral-hover-border)] hover:bg-[var(--ds-btn-neutral-hover-bg)] transition-colors"
+                            className={getDashboardIconButtonClassName({
+                              className: "shrink-0",
+                              size: "control",
+                              variant: "neutral",
+                            })}
                             title={label}
                           >
                             <ArrowSquareOutIcon weight="duotone" className="w-4 h-4" />
                           </a>
                         ) : (
-                          <span className="shrink-0 w-9 h-9 flex items-center justify-center rounded-control border border-[var(--ds-border)] text-[var(--ds-text-muted)] opacity-40 cursor-default">
+                          <span
+                            className={getDashboardIconButtonClassName({
+                              className: "shrink-0 opacity-40 cursor-default",
+                              size: "control",
+                              variant: "neutral",
+                            })}
+                          >
                             <ArrowSquareOutIcon weight="duotone" className="w-4 h-4" />
                           </span>
                         )}

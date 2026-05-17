@@ -1,3 +1,4 @@
+import { DashboardActionButton, DashboardInput } from "@musiccloud/dashboard-ui";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useState } from "react";
 import { useNavigate } from "react-router";
@@ -62,54 +63,28 @@ export function SetupPage() {
               <label htmlFor="username" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {loginMessages.username}
               </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                minLength={3}
-                className="w-full h-9 px-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-sm text-[var(--ds-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-              />
+              <DashboardInput id="username" name="username" type="text" required minLength={3} />
             </div>
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {setupMessages.email}
               </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                className="w-full h-9 px-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-sm text-[var(--ds-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-              />
+              <DashboardInput id="email" name="email" type="email" required />
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {loginMessages.password}
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                minLength={8}
-                className="w-full h-9 px-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-sm text-[var(--ds-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-              />
+              <DashboardInput id="password" name="password" type="password" required minLength={8} />
             </div>
 
             <div>
               <label htmlFor="passwordConfirm" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {setupMessages.confirmPassword}
               </label>
-              <input
-                id="passwordConfirm"
-                name="passwordConfirm"
-                type="password"
-                required
-                className="w-full h-9 px-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-sm text-[var(--ds-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-              />
+              <DashboardInput id="passwordConfirm" name="passwordConfirm" type="password" required />
             </div>
 
             {error && (
@@ -120,14 +95,16 @@ export function SetupPage() {
           </form>
 
           <div className="bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border-subtle)] px-5 py-4 flex justify-end">
-            <button
-              type="submit"
-              form="setup-form"
+            <DashboardActionButton
+              action="create"
+              busyLabel={setupMessages.submitLoading}
               disabled={loading}
-              className="h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-60"
-            >
-              {loading ? setupMessages.submitLoading : setupMessages.submit}
-            </button>
+              form="setup-form"
+              label={setupMessages.submit}
+              size="control"
+              status={loading ? "busy" : "idle"}
+              type="submit"
+            />
           </div>
         </div>
       </div>

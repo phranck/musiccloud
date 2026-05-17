@@ -1,8 +1,5 @@
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
+import { DashboardActionButton, DashboardButton, DashboardInput, TableSortHeader } from "@musiccloud/dashboard-ui";
 import {
-  ArrowDown as ArrowDownIcon,
-  ArrowsDownUp as ArrowsDownUpIcon,
-  ArrowUp as ArrowUpIcon,
   PencilSimple as PencilSimpleIcon,
   PencilSimpleSlash as PencilSimpleSlashIcon,
   SpinnerGap as SpinnerGapIcon,
@@ -420,12 +417,12 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       {/* Toolbar */}
       <div className="flex shrink-0 items-center gap-3">
-        <input
+        <DashboardInput
           type="text"
           placeholder={config.searchPlaceholder}
           value={search.input}
           onChange={(e) => setSearch((s) => ({ ...s, input: e.target.value }))}
-          className="h-9 max-w-sm w-full rounded-md border border-[var(--ds-border)] bg-[var(--ds-surface)] px-3 text-sm text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] outline-none focus:border-[var(--ds-border-strong)] transition-colors"
+          className="max-w-sm"
         />
         {total !== null && (
           <span className="text-sm text-[var(--ds-text-muted)]">
@@ -435,29 +432,26 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
 
         <div className="ml-auto flex items-center gap-2">
           {hasDelete && editMode && selectedCount > 0 && (
-            <button
-              type="button"
+            <DashboardActionButton
+              action="delete"
+              icon={<TrashIcon className="size-4" />}
+              label={m.deleteButton.replace("{count}", String(selectedCount))}
               onClick={() => selectionDispatch({ type: "openDialog" })}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium bg-[var(--ds-btn-danger-bg)] text-[var(--ds-btn-danger-text)] border border-[var(--ds-btn-danger-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors"
-            >
-              <TrashIcon className="w-4 h-4" />
-              {m.deleteButton.replace("{count}", String(selectedCount))}
-            </button>
+              type="button"
+            />
           )}
 
           {hasDelete && (
-            <button
+            <DashboardButton
               type="button"
               onClick={handleEditToggle}
-              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium border transition-colors ${
-                editMode
-                  ? "bg-[var(--ds-btn-primary-bg)] text-white border-[var(--ds-btn-primary-bg)]"
-                  : "bg-transparent text-[var(--ds-text)] border-[var(--ds-border)] hover:border-[var(--ds-border-strong)]"
-              }`}
+              leadingIcon={
+                editMode ? <PencilSimpleSlashIcon className="size-4" /> : <PencilSimpleIcon className="size-4" />
+              }
+              variant={editMode ? "primary" : "neutral"}
             >
-              {editMode ? <PencilSimpleSlashIcon className="w-4 h-4" /> : <PencilSimpleIcon className="w-4 h-4" />}
               {m.editButton}
-            </button>
+            </DashboardButton>
           )}
         </div>
       </div>
@@ -472,7 +466,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
       )}
 
       {/* Error */}
-      {state.tag === "error" && <p className="text-sm text-[var(--ds-btn-danger-text)]">{state.message}</p>}
+      {state.tag === "error" && <p className="text-sm text-[var(--ds-danger-text)]">{state.message}</p>}
 
       {/* Table */}
       {!isInitialLoading && state.tag !== "error" && (
@@ -502,14 +496,13 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
                       className={`px-3 py-2 text-left text-xs font-medium text-[var(--ds-text-muted)] ${col.className ?? ""}`}
                     >
                       {col.sortKey ? (
-                        <button
-                          type="button"
-                          className="group inline-flex cursor-pointer items-center whitespace-nowrap hover:text-[var(--ds-text)]"
+                        <TableSortHeader
+                          direction={sort?.by === col.sortKey ? sort.dir : null}
                           onClick={() => handleSortClick(col.sortKey!)}
+                          className="whitespace-nowrap"
                         >
                           {col.header}
-                          <SortIcon colKey={col.sortKey} sort={sort} />
-                        </button>
+                        </TableSortHeader>
                       ) : (
                         col.header
                       )}
@@ -579,7 +572,7 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
           <p className="text-sm text-[var(--ds-text)]">
             {m.deleteConfirmDescription.replace("{count}", String(selectedCount))}
           </p>
-          {selection.error && <p className="text-sm text-[var(--ds-btn-danger-text)]">{selection.error}</p>}
+          {selection.error && <p className="text-sm text-[var(--ds-danger-text)]">{selection.error}</p>}
         </div>
         <Dialog.Footer>
           <DashboardActionButton
@@ -604,11 +597,4 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
       </Dialog>
     </div>
   );
-}
-
-function SortIcon({ colKey, sort }: { colKey: string; sort: { by: string; dir: "asc" | "desc" } | null }) {
-  if (!sort || sort.by !== colKey)
-    return <ArrowsDownUpIcon className="ml-1 inline w-3.5 h-3.5 opacity-35 group-hover:opacity-60" />;
-  if (sort.dir === "asc") return <ArrowUpIcon className="ml-1 inline w-3.5 h-3.5" />;
-  return <ArrowDownIcon className="ml-1 inline w-3.5 h-3.5" />;
 }

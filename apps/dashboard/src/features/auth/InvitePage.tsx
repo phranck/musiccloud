@@ -1,3 +1,4 @@
+import { DashboardActionButton, DashboardInput } from "@musiccloud/dashboard-ui";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams } from "react-router";
@@ -7,9 +8,6 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { AuthLogo } from "@/features/auth/AuthLogo";
 import { api } from "@/lib/api";
 import type { AdminInviteState, AdminUser } from "@/shared/types/admin";
-
-const inputClassName =
-  "w-full h-9 px-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-sm text-[var(--ds-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 
 interface UiState {
   phase: "loading" | "loaded" | "error";
@@ -130,13 +128,12 @@ export function InvitePage() {
                   <label htmlFor="invite-password" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                     {inviteMessages.password}
                   </label>
-                  <input
+                  <DashboardInput
                     id="invite-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     minLength={8}
-                    className={inputClassName}
                   />
                 </div>
 
@@ -147,13 +144,12 @@ export function InvitePage() {
                   >
                     {inviteMessages.confirmPassword}
                   </label>
-                  <input
+                  <DashboardInput
                     id="invite-password-confirm"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     minLength={8}
-                    className={inputClassName}
                   />
                 </div>
               </>
@@ -165,22 +161,27 @@ export function InvitePage() {
           </div>
 
           <div className="bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border-subtle)] px-5 py-4 flex justify-end gap-2">
-            <button
-              type="button"
+            <DashboardActionButton
+              action="cancel"
+              icon={false}
+              label={inviteMessages.toLogin}
               onClick={() => navigate("/login")}
-              className="h-9 px-4 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-sm hover:border-[var(--ds-border-strong)] transition-colors"
-            >
-              {inviteMessages.toLogin}
-            </button>
+              size="control"
+              type="button"
+              variant="neutral"
+            />
             {ui.data && (
-              <button
-                type="button"
-                disabled={ui.submitting || password.length < 8 || confirmPassword.length < 8}
+              <DashboardActionButton
+                action="approve"
+                busyLabel={inviteMessages.submitLoading}
+                disabled={password.length < 8 || confirmPassword.length < 8}
+                label={inviteMessages.submit}
                 onClick={handleSubmit}
-                className="h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-60"
-              >
-                {ui.submitting ? inviteMessages.submitLoading : inviteMessages.submit}
-              </button>
+                size="control"
+                status={ui.submitting ? "busy" : "idle"}
+                type="button"
+                variant="primary"
+              />
             )}
           </div>
         </div>

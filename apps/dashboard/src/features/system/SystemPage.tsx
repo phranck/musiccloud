@@ -1,3 +1,4 @@
+import { DashboardActionButton, DashboardButton } from "@musiccloud/dashboard-ui";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useEffect, useState } from "react";
 
@@ -52,19 +53,21 @@ function CacheAction<T = ClearResult>({
         <p className="font-medium text-sm text-[var(--ds-text)]">{label}</p>
         <p className="text-xs text-[var(--ds-text-muted)] mt-0.5">{description}</p>
         {message && (
-          <p className={`text-xs mt-1 ${state === "error" ? "text-[var(--ds-btn-danger-text)]" : "text-green-500"}`}>
+          <p className={`text-xs mt-1 ${state === "error" ? "text-[var(--ds-danger-text)]" : "text-green-500"}`}>
             {message}
           </p>
         )}
       </div>
-      <button
+      <DashboardButton
         type="button"
         onClick={handleClick}
         disabled={state === "loading"}
-        className="flex-none h-8 px-3 rounded-md text-sm font-medium border border-[var(--ds-border)] text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] transition-colors disabled:opacity-50"
+        className="flex-none"
+        size="action"
+        variant="neutral"
       >
-        {state === "loading" ? "\u2026" : buttonLabel}
-      </button>
+        {state === "loading" ? "…" : buttonLabel}
+      </DashboardButton>
     </div>
   );
 }
@@ -108,18 +111,16 @@ function TrackingToggle() {
         <p className="font-medium text-sm text-[var(--ds-text)]">{m.trackingLabel}</p>
         <p className="text-xs text-[var(--ds-text-muted)] mt-0.5">{m.trackingDescription}</p>
       </div>
-      <button
+      <DashboardButton
         type="button"
         onClick={handleToggle}
         disabled={saving}
-        className={`flex-none h-8 px-3 rounded-md text-sm font-medium border transition-colors disabled:opacity-50 ${
-          enabled
-            ? "border-green-500/30 text-green-500 hover:bg-green-500/10"
-            : "border-[var(--ds-border)] text-[var(--ds-text-muted)] hover:border-[var(--ds-border-strong)]"
-        }`}
+        className="flex-none"
+        size="action"
+        variant={enabled ? "success" : "neutral"}
       >
         {enabled ? m.trackingEnabled : m.trackingDisabled}
-      </button>
+      </DashboardButton>
     </div>
   );
 }
@@ -193,14 +194,14 @@ function DangerZone() {
 
   return (
     <div>
-      <h2 className="text-base font-semibold mb-1 text-[var(--ds-btn-danger-text)]">{m.dangerZoneTitle}</h2>
-      <div className="rounded-lg border border-[var(--ds-btn-danger-border)] bg-[var(--ds-btn-danger-bg)]/5 px-4">
+      <h2 className="text-base font-semibold mb-1 text-[var(--ds-danger-text)]">{m.dangerZoneTitle}</h2>
+      <div className="rounded-lg border border-[var(--ds-danger-border)] bg-[var(--ds-danger-bg)]/5 px-4">
         <div className="flex items-start justify-between gap-4 py-4">
           <div className="min-w-0">
             <p className="font-medium text-sm text-[var(--ds-text)]">{m.deleteAllLabel}</p>
             <p className="text-xs text-[var(--ds-text-muted)] mt-0.5">{formatDescription()}</p>
             {phase === "confirm" && (
-              <p className="text-xs text-[var(--ds-btn-danger-text)] mt-2 font-medium">{m.deleteAllIrreversible}</p>
+              <p className="text-xs text-[var(--ds-danger-text)] mt-2 font-medium">{m.deleteAllIrreversible}</p>
             )}
             {phase === "done" && counts && (
               <p className="text-xs text-green-500 mt-1">
@@ -211,63 +212,48 @@ function DangerZone() {
                   .replace("{albumsLabel}", albumsLabel(counts.albums))}
               </p>
             )}
-            {phase === "error" && <p className="text-xs text-[var(--ds-btn-danger-text)] mt-1">{error}</p>}
+            {phase === "error" && <p className="text-xs text-[var(--ds-danger-text)] mt-1">{error}</p>}
           </div>
 
           <div className="flex items-center gap-2 flex-none mt-0.5">
             {(phase === "idle" || phase === "error") && (
-              <button
-                type="button"
+              <DashboardActionButton
+                action="delete"
+                icon={false}
+                label={m.deleteAllButton}
                 onClick={handleInitiate}
-                className="h-8 px-3 rounded-md text-sm font-medium border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors"
-              >
-                {m.deleteAllButton}
-              </button>
+                type="button"
+              />
             )}
             {phase === "fetching" && (
-              <button
-                type="button"
-                disabled
-                className="h-8 px-3 rounded-md text-sm border border-[var(--ds-border)] opacity-50"
-              >
-                &hellip;
-              </button>
+              <DashboardActionButton action="delete" busyLabel="…" icon={false} status="busy" type="button" />
             )}
             {phase === "confirm" && (
               <>
-                <button
-                  type="button"
+                <DashboardActionButton
+                  action="cancel"
+                  icon={false}
+                  label={m.deleteAllCancel}
                   onClick={handleCancel}
-                  className="h-8 px-3 rounded-md text-sm font-medium border border-[var(--ds-border)] text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] transition-colors"
-                >
-                  {m.deleteAllCancel}
-                </button>
-                <button
                   type="button"
+                  variant="neutral"
+                />
+                <DashboardActionButton
+                  action="delete"
+                  icon={false}
+                  label={m.deleteAllConfirm}
                   onClick={handleConfirm}
-                  className="h-8 px-3 rounded-md text-sm font-medium bg-[var(--ds-btn-danger-bg)] text-white hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors"
-                >
-                  {m.deleteAllConfirm}
-                </button>
+                  type="button"
+                />
               </>
             )}
             {phase === "resetting" && (
-              <button
-                type="button"
-                disabled
-                className="h-8 px-3 rounded-md text-sm font-medium bg-[var(--ds-btn-danger-bg)]/70 text-white opacity-70"
-              >
-                &hellip;
-              </button>
+              <DashboardActionButton action="delete" busyLabel="…" icon={false} status="busy" type="button" />
             )}
             {phase === "done" && (
-              <button
-                type="button"
-                onClick={() => setPhase("idle")}
-                className="h-8 px-3 rounded-md text-sm font-medium border border-[var(--ds-border)] text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] transition-colors"
-              >
+              <DashboardButton type="button" onClick={() => setPhase("idle")} size="action" variant="neutral">
                 OK
-              </button>
+              </DashboardButton>
             )}
           </div>
         </div>

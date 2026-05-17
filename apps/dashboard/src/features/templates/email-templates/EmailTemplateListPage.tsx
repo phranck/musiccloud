@@ -1,3 +1,4 @@
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import {
   DownloadIcon,
   EnvelopeOpenIcon,
@@ -26,7 +27,7 @@ import {
   useImportEmailTemplate,
 } from "@/features/templates/hooks/useEmailTemplates";
 import { useImportQueue } from "@/lib/hooks/useImportQueue";
-import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/shared/ui/Dialog";
+import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 type ImportTemplateData = EmailTemplateInput;
 
@@ -165,31 +166,33 @@ export function EmailTemplateListPage() {
   return (
     <PageLayout>
       <PageHeader title={m.listTitle}>
-        <button
-          type="button"
+        <DashboardActionButton
+          action="import"
+          icon={<DownloadIcon weight="duotone" className="w-3.5 h-3.5" />}
+          label={m.importTemplate}
           onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-2 px-4 py-1.5 border border-[var(--ds-border)] rounded-control text-sm text-[var(--ds-text-muted)] hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)]"
-        >
-          <DownloadIcon weight="duotone" className="w-3.5 h-3.5" />
-          {m.importTemplate}
-        </button>
-        <button
+          size="control"
           type="button"
-          onClick={() => void exportEmailTemplateAll()}
+          variant="neutral"
+        />
+        <DashboardActionButton
+          action="export"
           disabled={templates.length === 0}
-          className="flex items-center gap-2 px-4 py-1.5 border border-[var(--ds-border)] rounded-control text-sm text-[var(--ds-text-muted)] hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] disabled:opacity-40"
-        >
-          <UploadIcon weight="duotone" className="w-3.5 h-3.5" />
-          {m.exportAll}
-        </button>
-        <button
+          icon={<UploadIcon weight="duotone" className="w-3.5 h-3.5" />}
+          label={m.exportAll}
+          onClick={() => void exportEmailTemplateAll()}
+          size="control"
           type="button"
+          variant="neutral"
+        />
+        <DashboardActionButton
+          action="create"
+          icon={<PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />}
+          label={m.newTemplate}
           onClick={() => navigate("/email-templates/new")}
-          className="flex items-center gap-2 h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)]"
-        >
-          <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-          {m.newTemplate}
-        </button>
+          size="control"
+          type="button"
+        />
       </PageHeader>
 
       <PageBody>
@@ -230,18 +233,22 @@ export function EmailTemplateListPage() {
             {m.deleteTemplateConfirm} <span className="font-medium">({deleteTarget.name})</span>
           </div>
           <Dialog.Footer>
-            <button type="button" onClick={() => setDeleteTarget(null)} className={dialogBtnSecondary}>
-              {common.cancel}
-            </button>
-            <button
+            <DashboardActionButton
+              action="cancel"
+              icon={false}
+              label={common.cancel}
+              onClick={() => setDeleteTarget(null)}
               type="button"
-              disabled={deleteMutation.isPending}
+              variant="neutral"
+            />
+            <DashboardActionButton
+              action="delete"
+              busyLabel="…"
+              label={common.delete}
               onClick={handleDeleteConfirm}
-              className={`${dialogBtnDestructive} flex items-center gap-2`}
-            >
-              <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
-              {deleteMutation.isPending ? "…" : common.delete}
-            </button>
+              status={deleteMutation.isPending ? "busy" : "idle"}
+              type="button"
+            />
           </Dialog.Footer>
         </Dialog>
       )}
@@ -254,9 +261,14 @@ export function EmailTemplateListPage() {
         onClose={() => importQueue.setAlertMessage(null)}
       >
         <Dialog.Footer>
-          <button type="button" onClick={() => importQueue.setAlertMessage(null)} className={dialogBtnSecondary}>
-            {common.close}
-          </button>
+          <DashboardActionButton
+            action="close"
+            icon={false}
+            label={common.close}
+            onClick={() => importQueue.setAlertMessage(null)}
+            type="button"
+            variant="neutral"
+          />
         </Dialog.Footer>
       </Dialog>
 

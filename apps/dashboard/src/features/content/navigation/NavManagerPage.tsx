@@ -15,12 +15,12 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { ControlTrigger, DashboardActionButton, DashboardInput, ListboxOption } from "@musiccloud/dashboard-ui";
 import type { NavId } from "@musiccloud/shared";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "@musiccloud/shared";
 import {
   CaretDownIcon,
   CaretUpIcon,
-  DownloadIcon,
   FileDashedIcon,
   FileMdIcon,
   ListIcon,
@@ -168,23 +168,25 @@ function SortableNavItem({
         <div className="text-xs text-[var(--ds-text-muted)] font-mono">{displayUrl}</div>
       </div>
 
-      <input
+      <DashboardInput
         type="text"
         value={item.label}
         onChange={(e) => onLabelChange(item.id, e.target.value)}
         placeholder={item.pageTitle ?? item.url ?? ""}
-        className="w-32 px-2 py-1 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+        className="w-32 text-xs"
         title={text.labelOverrideTitle}
       />
 
-      <button
-        type="button"
+      <DashboardActionButton
+        action="remove"
+        icon={<XCircleIcon weight="duotone" className="size-3.5" />}
+        iconOnly
+        label={text.remove}
         onClick={() => onRemove(item.id)}
-        className="p-1 text-[var(--ds-text-muted)] hover:text-red-500"
+        size="action"
         title={text.remove}
-      >
-        <XCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-      </button>
+        type="button"
+      />
 
       {/* Translations expandable */}
       <div className="w-full">
@@ -203,12 +205,12 @@ function SortableNavItem({
                 <span className="w-10 shrink-0 text-[10px] font-semibold uppercase text-[var(--ds-text-subtle)] tracking-widest">
                   {LOCALE_FLAG[locale] ?? ""} {locale.toUpperCase()}
                 </span>
-                <input
+                <DashboardInput
                   type="text"
                   value={item.translations[locale] ?? ""}
                   placeholder={translationPlaceholder}
                   onChange={(e) => onTranslationChange(item.id, locale, e.target.value)}
-                  className="flex-1 h-7 px-2 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] placeholder:text-[var(--ds-text-subtle)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                  className="flex-1 text-xs"
                 />
               </div>
             ))}
@@ -446,15 +448,16 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--ds-text)]">{label}</h3>
-        <button
-          type="button"
+        <DashboardActionButton
+          action="save"
+          busyLabel={text.saving}
+          disabled={!dirty}
+          label={text.save}
           onClick={handleSave}
-          disabled={!dirty || saveNav.isPending}
-          className="flex items-center gap-1.5 h-7 px-3 text-xs border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] disabled:opacity-50"
-        >
-          <DownloadIcon weight="duotone" className="w-3 h-3" />
-          {saveNav.isPending ? text.saving : text.save}
-        </button>
+          size="action"
+          status={saveNav.isPending ? "busy" : "idle"}
+          type="button"
+        />
       </div>
 
       {saveError && <p className="text-xs text-red-500">{saveError}</p>}
@@ -589,15 +592,17 @@ function NavColumnAddSection({
             placeholder={text.choosePageOrForm}
             formsLabel={text.forms}
           />
-          <button
-            type="button"
-            onClick={onAddPage}
+          <DashboardActionButton
+            action="create"
             disabled={!addPageSlug}
-            className="p-1.5 text-[var(--color-primary)] hover:opacity-80 disabled:opacity-40 transition-opacity"
+            icon={<PlusCircleIcon weight="duotone" className="size-4" />}
+            iconOnly
+            label={text.add}
+            onClick={onAddPage}
+            size="action"
             title={text.add}
-          >
-            <PlusCircleIcon weight="duotone" className="w-5 h-5" />
-          </button>
+            type="button"
+          />
         </div>
       ) : (
         <div className="space-y-2">
@@ -617,29 +622,31 @@ function NavColumnAddSection({
             </div>
           )}
           <div className="flex items-center gap-2">
-            <input
+            <DashboardInput
               type="text"
               value={addUrl}
               onChange={(e) => onUrlChange(e.target.value)}
               placeholder={text.urlPlaceholder}
-              className="flex-1 px-2 py-1.5 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] font-mono"
+              className="flex-1 text-xs font-mono"
             />
-            <input
+            <DashboardInput
               type="text"
               value={addLabel}
               onChange={(e) => onLabelChange(e.target.value)}
               placeholder={text.labelPlaceholder}
-              className="w-24 px-2 py-1.5 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+              className="w-24 text-xs"
             />
-            <button
-              type="button"
-              onClick={onAddUrl}
+            <DashboardActionButton
+              action="create"
               disabled={!addUrl.trim()}
-              className="p-1.5 text-[var(--color-primary)] hover:opacity-80 disabled:opacity-40 transition-opacity"
+              icon={<PlusCircleIcon weight="duotone" className="size-4" />}
+              iconOnly
+              label={text.add}
+              onClick={onAddUrl}
+              size="action"
               title={text.add}
-            >
-              <PlusCircleIcon weight="duotone" className="w-5 h-5" />
-            </button>
+              type="button"
+            />
           </div>
         </div>
       )}
@@ -723,32 +730,27 @@ function HierarchicalPagePicker({
   }) {
     const Icon = pageType === "segmented" ? FileDashedIcon : FileMdIcon;
     return (
-      <button
-        type="button"
+      <ListboxOption
         onClick={() => pick(slug)}
-        className={`w-full text-left text-xs py-1.5 flex items-center gap-2 hover:bg-[var(--ds-nav-hover-bg)] ${
-          value === slug ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]" : "text-[var(--ds-text)]"
-        }`}
+        selected={value === slug}
+        className="text-xs"
+        controlSize="compact"
         style={{ paddingLeft: 8 + depth * 20, paddingRight: 8 }}
       >
         <Icon weight="duotone" className="w-4 h-4 shrink-0 text-[var(--ds-text-muted)]" />
         <span className="truncate">
           {title} <span className="text-[var(--ds-text-muted)] font-mono">/{slug}</span>
         </span>
-      </button>
+      </ListboxOption>
     );
   }
 
   return (
     <div ref={ref} className="relative flex-1">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control px-2 py-1.5 text-left flex items-center justify-between focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
-      >
+      <ControlTrigger controlSize="compact" open={open} onClick={() => setOpen((o) => !o)} className="justify-between">
         <span className={value ? "text-[var(--ds-text)]" : "text-[var(--ds-text-muted)]"}>{selectedLabel}</span>
         <CaretDownIcon weight="duotone" className="w-3 h-3 shrink-0 text-[var(--ds-text-muted)]" />
-      </button>
+      </ControlTrigger>
       {open && (
         <div className="absolute z-20 mt-1 w-full bg-[var(--ds-bg-elevated,var(--ds-surface))] border border-[var(--ds-border)] rounded-control shadow-lg max-h-80 overflow-auto py-1">
           {pagesGrouped.orphans.map((p) => (
@@ -770,18 +772,15 @@ function HierarchicalPagePicker({
               {forms.map(
                 (f) =>
                   f.slug && (
-                    <button
+                    <ListboxOption
                       key={f.slug}
-                      type="button"
                       onClick={() => pick(`form:${f.slug}`)}
-                      className={`w-full text-left text-xs py-1.5 px-2 hover:bg-[var(--ds-nav-hover-bg)] ${
-                        value === `form:${f.slug}`
-                          ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]"
-                          : "text-[var(--ds-text)]"
-                      }`}
+                      selected={value === `form:${f.slug}`}
+                      className="text-xs"
+                      controlSize="compact"
                     >
                       {f.name} <span className="text-[var(--ds-text-muted)] font-mono">/{f.slug}</span>
-                    </button>
+                    </ListboxOption>
                   ),
               )}
             </>

@@ -1,3 +1,4 @@
+import { DashboardActionButton, DashboardInput } from "@musiccloud/dashboard-ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -79,9 +80,6 @@ export function LoginPage() {
     if (e.key === "Enter") handleLogin();
   }
 
-  const inputClassName =
-    "w-full h-9 px-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-sm text-[var(--ds-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
-
   return (
     <AuthBackground>
       <div className="w-full max-w-sm">
@@ -102,7 +100,7 @@ export function LoginPage() {
               <label htmlFor="username" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {loginMessages.username}
               </label>
-              <input
+              <DashboardInput
                 id="username"
                 type="text"
                 autoComplete="off"
@@ -110,7 +108,6 @@ export function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className={inputClassName}
               />
             </div>
 
@@ -118,7 +115,7 @@ export function LoginPage() {
               <label htmlFor="password" className="block text-sm font-medium text-[var(--ds-text)] mb-1.5">
                 {loginMessages.password}
               </label>
-              <input
+              <DashboardInput
                 id="password"
                 type="password"
                 autoComplete="off"
@@ -126,7 +123,6 @@ export function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className={inputClassName}
               />
             </div>
 
@@ -138,14 +134,17 @@ export function LoginPage() {
           </div>
 
           <div className="bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border-subtle)] px-5 py-4 flex justify-end">
-            <button
-              type="button"
-              disabled={loading || !username || !password}
+            <DashboardActionButton
+              action="approve"
+              busyLabel={loginMessages.submitLoading}
+              disabled={!username || !password}
+              label={loginMessages.submit}
               onClick={handleLogin}
-              className="h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-60"
-            >
-              {loading ? loginMessages.submitLoading : loginMessages.submit}
-            </button>
+              size="control"
+              status={loading ? "busy" : "idle"}
+              type="button"
+              variant="primary"
+            />
           </div>
         </div>
       </div>

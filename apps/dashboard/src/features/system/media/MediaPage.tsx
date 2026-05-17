@@ -332,7 +332,7 @@ export function MediaPage() {
           }`}
         >
           <div className="rounded-2xl border border-[var(--ds-border)] bg-[var(--ds-surface)]/95 px-6 py-5 text-center shadow-lg backdrop-blur-sm">
-            <PlusCircleIcon weight="duotone" className="mx-auto mb-3 h-8 w-8 text-[var(--color-primary)]" />
+            <PlusCircleIcon weight="duotone" className="mx-auto mb-3 size-8 text-[var(--color-primary)]" />
             <p className="text-sm font-medium text-[var(--ds-text)]">{mediaMessages.upload}</p>
             <p className="mt-1 text-xs text-[var(--ds-text-subtle)]">{mediaMessages.uploadHint}</p>
           </div>

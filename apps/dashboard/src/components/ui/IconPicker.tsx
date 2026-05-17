@@ -1,3 +1,4 @@
+import { DashboardInput } from "@musiccloud/dashboard-ui";
 import { useState } from "react";
 import { useI18n } from "@/context/I18nContext";
 import { BUTTON_ICON_LIST, getButtonIconComponent } from "@/shared/ui/ButtonIcons";
@@ -24,12 +25,12 @@ export function IconPicker({ value, onChange, label, noneLabel }: IconPickerProp
   return (
     <div className="flex flex-col gap-2">
       <span className="text-xs font-semibold text-[var(--ds-text-subtle)] uppercase tracking-wider">{label}</span>
-      <input
+      <DashboardInput
         type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={mp.iconPickerSearch}
-        className="w-full px-2 py-1 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+        className="text-xs"
       />
       <div className="grid grid-cols-6 gap-1 max-h-[276px] overflow-y-auto pr-px">
         {!q && (
@@ -37,7 +38,7 @@ export function IconPicker({ value, onChange, label, noneLabel }: IconPickerProp
             type="button"
             title={noneLabel}
             onClick={() => onChange(undefined)}
-            className={`h-8 flex items-center justify-center rounded-control border text-xs transition-colors ${
+            className={`h-[var(--ds-control-h-action)] flex items-center justify-center rounded-control border text-xs transition-colors ${
               !value
                 ? "border-[var(--color-primary)] bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]"
                 : "border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-[var(--ds-text-subtle)] hover:border-[var(--color-primary)]"
@@ -58,7 +59,7 @@ export function IconPicker({ value, onChange, label, noneLabel }: IconPickerProp
                 type="button"
                 title={entry.label}
                 onClick={() => onChange(entry.name)}
-                className={`h-9 flex items-center justify-center rounded-control border transition-colors ${
+                className={`h-[var(--ds-control-h-field)] flex items-center justify-center rounded-control border transition-colors ${
                   value === entry.name
                     ? "border-[var(--color-primary)] bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]"
                     : "border-[var(--ds-border)] bg-[var(--ds-input-bg)] text-[var(--ds-text)] hover:border-[var(--color-primary)]"

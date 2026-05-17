@@ -15,7 +15,7 @@ interface DropdownProps<T extends string = string> {
   options: DropdownOption<T>[];
   label?: string;
   className?: string;
-  /** Trigger size. "sm" matches the dense text-xs form inputs (h-7); "md" (default) is the standard h-9. */
+  /** Trigger size. "sm" matches compact dense controls; "md" (default) uses the standard field control height. */
   size?: "sm" | "md";
   /**
    * Menu alignment. "start" anchors the menu to the trigger's left edge so it

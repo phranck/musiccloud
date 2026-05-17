@@ -36,7 +36,7 @@ export function PagesSaveBar() {
         variant="ghost"
       />
       {errorDetails && errorDetails.length > 0 && (
-        <span className="text-xs text-[var(--ds-btn-danger-text)]">
+        <span className="text-xs text-[var(--ds-danger-text)]">
           {errorDetails.length === 1 ? "1 Fehler" : `${errorDetails.length} Fehler`}
         </span>
       )}

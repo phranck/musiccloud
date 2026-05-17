@@ -1,4 +1,3 @@
-import { getDashboardButtonClassName } from "@musiccloud/dashboard-ui";
 import type { ReactNode } from "react";
 
 import { OverlayCard } from "./OverlayCard";
@@ -46,9 +45,3 @@ export function Dialog({ open, title, titleIcon, onClose, children, maxWidth = "
 }
 
 Dialog.Footer = DialogFooter;
-
-export const dialogBtnPrimary = getDashboardButtonClassName({ variant: "primary" });
-
-export const dialogBtnSecondary = getDashboardButtonClassName({ variant: "neutral" });
-
-export const dialogBtnDestructive = getDashboardButtonClassName({ variant: "danger" });

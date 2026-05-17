@@ -1,3 +1,4 @@
+import { DashboardActionButton, DashboardInput } from "@musiccloud/dashboard-ui";
 import { DownloadIcon, TrashIcon, TrayArrowUpIcon, UserCircleIcon } from "@phosphor-icons/react";
 import md5 from "blueimp-md5";
 import { type ChangeEvent, type Reducer, type RefObject, useEffect, useReducer, useRef } from "react";
@@ -149,31 +150,30 @@ function UserAvatarEditor({
       </div>
 
       <div className="flex flex-col gap-1.5 w-full">
-        <button
-          type="button"
+        <DashboardActionButton
+          action="import"
+          icon={<TrayArrowUpIcon weight="duotone" className="size-3.5 shrink-0" />}
+          label={usersMessages.editCard.uploadImage}
           onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-control border border-[var(--ds-border)] text-xs text-[var(--ds-text-muted)] hover:border-[var(--ds-border-strong)] transition-colors"
-        >
-          <TrayArrowUpIcon weight="duotone" className="w-3.5 h-3.5 shrink-0" />
-          {usersMessages.editCard.uploadImage}
-        </button>
-        <button
           type="button"
+          variant="neutral"
+        />
+        <DashboardActionButton
+          action="copy"
+          icon={<UserCircleIcon weight="duotone" className="size-3.5 shrink-0" />}
+          label={usersMessages.editCard.useGravatar}
           onClick={onUseGravatar}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-control border border-[var(--ds-border)] text-xs text-[var(--ds-text-muted)] hover:border-[var(--ds-border-strong)] transition-colors"
-        >
-          <UserCircleIcon weight="duotone" className="w-3.5 h-3.5 shrink-0" />
-          {usersMessages.editCard.useGravatar}
-        </button>
+          type="button"
+          variant="neutral"
+        />
         {currentAvatarUrl && (
-          <button
-            type="button"
+          <DashboardActionButton
+            action="delete"
+            icon={<TrashIcon weight="duotone" className="size-3.5 shrink-0" />}
+            label={usersMessages.editCard.removeAvatar}
             onClick={onRemoveAvatar}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-control border border-[var(--ds-border)] text-xs text-[var(--ds-text-muted)] hover:text-red-500 hover:border-red-300 dark:hover:border-red-700 transition-colors"
-          >
-            <TrashIcon weight="duotone" className="w-3.5 h-3.5 shrink-0" />
-            {usersMessages.editCard.removeAvatar}
-          </button>
+            type="button"
+          />
         )}
       </div>
 
@@ -215,42 +215,38 @@ function UserProfileFields({
     <div className="flex-1 space-y-3 min-w-0">
       <div>
         <FormLabel htmlFor="user-edit-username">{usersMessages.editCard.username}</FormLabel>
-        <input
+        <DashboardInput
           id="user-edit-username"
           type="text"
           value={draft.username}
           onChange={(e) => onFieldChange("username", e.target.value)}
-          className={formInputClass}
         />
       </div>
       <div>
         <FormLabel htmlFor="user-edit-email">{usersMessages.editCard.email}</FormLabel>
-        <input
+        <DashboardInput
           id="user-edit-email"
           type="email"
           value={draft.email}
           onChange={(e) => onFieldChange("email", e.target.value)}
-          className={formInputClass}
         />
       </div>
       <div>
         <FormLabel htmlFor="user-edit-first-name">{usersMessages.editCard.firstName}</FormLabel>
-        <input
+        <DashboardInput
           id="user-edit-first-name"
           type="text"
           value={draft.firstName}
           onChange={(e) => onFieldChange("firstName", e.target.value)}
-          className={formInputClass}
         />
       </div>
       <div>
         <FormLabel htmlFor="user-edit-last-name">{usersMessages.editCard.lastName}</FormLabel>
-        <input
+        <DashboardInput
           id="user-edit-last-name"
           type="text"
           value={draft.lastName}
           onChange={(e) => onFieldChange("lastName", e.target.value)}
-          className={formInputClass}
         />
       </div>
       {canChangeRole && (
@@ -269,13 +265,12 @@ function UserProfileFields({
       )}
       <div>
         <FormLabel htmlFor="user-edit-password">{usersMessages.editCard.password}</FormLabel>
-        <input
+        <DashboardInput
           id="user-edit-password"
           type="password"
           value={draft.password}
           onChange={(e) => onFieldChange("password", e.target.value)}
           placeholder={usersMessages.editCard.passwordPlaceholder}
-          className={formInputClass}
         />
       </div>
       {me?.id === userId && (
@@ -288,7 +283,7 @@ function UserProfileFields({
           </div>
           <div>
             <FormLabel htmlFor="user-edit-session-timeout">{usersMessages.editCard.sessionTimeout}</FormLabel>
-            <input
+            <DashboardInput
               id="user-edit-session-timeout"
               type="number"
               min="1"
@@ -296,7 +291,6 @@ function UserProfileFields({
               value={draft.sessionTimeoutMinutes}
               onChange={(e) => onFieldChange("sessionTimeoutMinutes", e.target.value)}
               placeholder={usersMessages.editCard.sessionTimeoutNone}
-              className={formInputClass}
             />
           </div>
           <label className="flex items-center gap-2 cursor-pointer select-none px-[5px] pt-1">
@@ -482,22 +476,26 @@ function UserEditCardForm({
       </OverlayCard.Body>
 
       <OverlayCard.Footer className="flex justify-end gap-2">
-        <button
-          type="button"
+        <DashboardActionButton
+          action="cancel"
+          icon={false}
+          label={common.cancel}
           onClick={onClose}
-          className="py-1.5 px-4 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-sm hover:border-[var(--ds-border-strong)] transition-colors"
-        >
-          {common.cancel}
-        </button>
-        <button
+          size="control"
           type="button"
-          onClick={() => void handleSave()}
+          variant="neutral"
+        />
+        <DashboardActionButton
+          action="save"
+          busyLabel={common.saving}
           disabled={!canSave}
-          className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-40"
-        >
-          <DownloadIcon weight="duotone" className="w-3.5 h-3.5" />
-          {isPending ? common.saving : common.save}
-        </button>
+          icon={<DownloadIcon weight="duotone" className="size-3.5" />}
+          label={common.save}
+          onClick={() => void handleSave()}
+          size="control"
+          status={isPending ? "busy" : "idle"}
+          type="button"
+        />
       </OverlayCard.Footer>
 
       <AlertDialog

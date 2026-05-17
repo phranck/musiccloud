@@ -20,7 +20,7 @@ const sizeStyles = {
   },
   md: {
     container: "gap-1 p-1",
-    button: "px-3.5 h-8 text-sm",
+    button: "px-3.5 h-[var(--ds-control-h-action)] text-sm",
   },
 } as const;
 

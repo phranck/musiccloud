@@ -1,3 +1,4 @@
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import { DownloadIcon, PlusCircleIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useReducer } from "react";
 import { Card } from "@/components/ui/Card";
@@ -139,15 +140,16 @@ export function MarkdownWidgetsPage() {
   return (
     <PageLayout>
       <PageHeader title={widgetMessages.title}>
-        <button
-          type="button"
+        <DashboardActionButton
+          action="save"
+          busyLabel={common.saving}
+          disabled={!draft}
+          icon={<DownloadIcon weight="duotone" className="size-3.5" />}
+          label={savedOk ? common.saved : common.save}
           onClick={handleSave}
-          disabled={!draft || saveWidget.isPending}
-          className="flex items-center gap-2 h-8 min-w-8 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] disabled:opacity-60 transition-colors"
-        >
-          <DownloadIcon weight="duotone" className="w-3.5 h-3.5" />
-          {savedOk ? common.saved : saveWidget.isPending ? common.saving : common.save}
-        </button>
+          status={saveWidget.isPending ? "busy" : "idle"}
+          type="button"
+        />
       </PageHeader>
 
       <PageBody>
@@ -164,14 +166,14 @@ export function MarkdownWidgetsPage() {
                     <h2 className="text-sm font-semibold text-[var(--ds-text)]">{widgetMessages.widgetsTitle}</h2>
                     <p className="text-xs text-[var(--ds-text-muted)]">{widgetMessages.widgetsHint}</p>
                   </div>
-                  <button
-                    type="button"
+                  <DashboardActionButton
+                    action="create"
+                    icon={<PlusCircleIcon weight="duotone" className="size-3.5" />}
+                    label={widgetMessages.newWidget}
                     onClick={handleAddWidget}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-control border border-[var(--ds-border)] px-3 text-xs font-medium text-[var(--ds-text)] hover:border-[var(--ds-border-strong)]"
-                  >
-                    <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-                    {widgetMessages.newWidget}
-                  </button>
+                    type="button"
+                    variant="neutral"
+                  />
                 </div>
 
                 <div className="space-y-2">

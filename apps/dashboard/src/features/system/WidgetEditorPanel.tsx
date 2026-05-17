@@ -1,15 +1,14 @@
+import { DashboardActionButton, DashboardInput, TextareaPrimitive } from "@musiccloud/dashboard-ui";
 import { TrashIcon } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/Card";
 import type { MarkdownWidget } from "@/features/system/hooks/useMarkdownWidgets";
 
 const fieldLabelClass = "px-1 text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-subtle)]";
 const fieldHintClass = "px-1 text-xs leading-5 text-[var(--ds-text-subtle)]";
-const textInputClass =
-  "h-9 w-full rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3 text-sm text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:border-[var(--color-primary)]";
-const textAreaClass =
-  "w-full rounded-[calc(var(--radius-control)-2px)] border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3 py-1.5 text-sm text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:border-[var(--color-primary)]";
+const selectClass =
+  "h-[var(--ds-control-h-field)] w-full rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3 text-sm text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--ds-focus-ring)]";
 const checkboxRowClass =
-  "flex h-9 items-center gap-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3";
+  "flex h-[var(--ds-control-h-field)] items-center gap-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3";
 const insetCardClass =
   "space-y-3 rounded-[calc(var(--radius-card)-12px)] border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] p-3";
 
@@ -87,30 +86,28 @@ export function WidgetEditorPanel({
               </span>
             </p>
           </div>
-          <button
-            type="button"
+          <DashboardActionButton
+            action="delete"
+            icon={<TrashIcon weight="duotone" className="size-3.5" />}
+            label={messages.deleteWidget}
             onClick={() => onDelete(selectedWidgetId)}
-            className="inline-flex h-9 items-center gap-2 rounded-control border border-[var(--ds-btn-danger-border)] px-3 text-sm font-medium text-[var(--ds-btn-danger-text)] hover:bg-[var(--ds-btn-danger-hover-bg)]"
-          >
-            <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
-            {messages.deleteWidget}
-          </button>
+            size="control"
+            type="button"
+          />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <Field label={messages.keyLabel} hint={messages.keyHint}>
-            <input
+            <DashboardInput
               value={draft.key ?? ""}
               onChange={(event) => onUpdateDraft((d) => ({ ...d, key: event.target.value.toLowerCase() }))}
-              className={textInputClass}
             />
           </Field>
 
           <Field label={messages.nameLabel}>
-            <input
+            <DashboardInput
               value={draft.name ?? ""}
               onChange={(event) => onUpdateDraft((d) => ({ ...d, name: event.target.value }))}
-              className={textInputClass}
             />
           </Field>
 
@@ -123,7 +120,7 @@ export function WidgetEditorPanel({
                   type: event.target.value as MarkdownWidget["type"],
                 }))
               }
-              className={textInputClass}
+              className={selectClass}
             >
               {widgetTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -134,7 +131,7 @@ export function WidgetEditorPanel({
           </Field>
 
           <Field label={messages.defaultHeightLabel} hint={messages.defaultHeightHint}>
-            <input
+            <DashboardInput
               type="number"
               min={80}
               max={2400}
@@ -145,7 +142,6 @@ export function WidgetEditorPanel({
                   defaultHeight: Number(event.target.value) || 320,
                 }))
               }
-              className={textInputClass}
             />
           </Field>
         </div>
@@ -160,11 +156,10 @@ export function WidgetEditorPanel({
         </label>
 
         <Field label={messages.descriptionLabel} hint={messages.descriptionHint}>
-          <textarea
+          <TextareaPrimitive
             rows={3}
             value={draft.description ?? ""}
             onChange={(event) => onUpdateDraft((d) => ({ ...d, description: event.target.value }))}
-            className={textAreaClass}
           />
         </Field>
 
@@ -176,20 +171,19 @@ export function WidgetEditorPanel({
 
           {draft.type === "html" ? (
             <Field label={messages.types.html.snippetLabel} hint={messages.types.html.snippetHint}>
-              <textarea
+              <TextareaPrimitive
                 rows={14}
                 value={draft.snippet ?? ""}
                 onChange={(event) => onUpdateDraft((d) => ({ ...d, snippet: event.target.value }))}
-                className={`${textAreaClass} font-mono text-xs`}
+                className="font-mono text-xs"
               />
             </Field>
           ) : (
             <Field label={messages.types.iframe.urlLabel} hint={messages.types.iframe.urlHint}>
-              <input
+              <DashboardInput
                 type="url"
                 value={draft.url ?? ""}
                 onChange={(event) => onUpdateDraft((d) => ({ ...d, url: event.target.value }))}
-                className={textInputClass}
               />
             </Field>
           )}

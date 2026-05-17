@@ -1,4 +1,5 @@
-import { CheckCircleIcon, DownloadIcon, PaperPlaneTiltIcon, SealWarningIcon } from "@phosphor-icons/react";
+import { DashboardActionButton, DashboardButton, DashboardField, DashboardInput } from "@musiccloud/dashboard-ui";
+import { CheckCircleIcon, PaperPlaneTiltIcon, SealWarningIcon } from "@phosphor-icons/react";
 import { lazy, Suspense, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
@@ -29,17 +30,17 @@ interface FieldProps {
 }
 
 function Field({ label, htmlFor, required, hint, children }: FieldProps) {
+  const labelContent = (
+    <>
+      {label}
+      {required && <SealWarningIcon weight="duotone" className="inline-block ml-1 size-3 text-red-500 align-middle" />}
+    </>
+  );
+
   return (
-    <div className="space-y-1">
-      <label htmlFor={htmlFor} className="block text-xs font-medium text-[var(--ds-text-muted)]">
-        {label}
-        {required && (
-          <SealWarningIcon weight="duotone" className="inline-block ml-1 w-3 h-3 text-red-500 align-middle" />
-        )}
-      </label>
+    <DashboardField label={labelContent} labelHtmlFor={htmlFor} hint={hint}>
       {children}
-      {hint && <p className="text-xs text-[var(--ds-text-muted)]">{hint}</p>}
-    </div>
+    </DashboardField>
   );
 }
 
@@ -55,13 +56,12 @@ function TextInput({
   placeholder?: string;
 }) {
   return (
-    <input
+    <DashboardInput
       id={id}
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
     />
   );
 }
@@ -220,25 +220,27 @@ export function EmailTemplateEditPage() {
           )}
           {error && <p className="text-xs text-red-500">{error}</p>}
           {!isNew && (
-            <button
-              type="button"
-              onClick={handleSendTest}
+            <DashboardButton
               disabled={!canSendTest}
-              className="flex items-center gap-2 h-9 px-4 border border-[var(--ds-border)] text-[var(--ds-text)] rounded-control text-sm font-medium hover:bg-[var(--ds-surface-hover)] disabled:opacity-60"
+              leadingIcon={<PaperPlaneTiltIcon weight="duotone" className="size-3.5" />}
+              onClick={handleSendTest}
+              size="control"
+              type="button"
+              variant="neutral"
             >
-              <PaperPlaneTiltIcon weight="duotone" className="w-3.5 h-3.5" />
               {sendTestMutation.isPending ? m.sendingTest : m.sendTest}
-            </button>
+            </DashboardButton>
           )}
-          <button
-            type="button"
-            onClick={handleSave}
+          <DashboardActionButton
+            action="save"
+            busyLabel={messages.common.saving}
             disabled={isPending}
-            className="flex items-center gap-2 h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] disabled:opacity-60"
-          >
-            <DownloadIcon weight="duotone" className="w-3.5 h-3.5" />
-            {isPending ? messages.common.saving : m.save}
-          </button>
+            label={m.save}
+            onClick={handleSave}
+            size="control"
+            status={isPending ? "busy" : "idle"}
+            type="button"
+          />
         </div>
       </PageHeader>
 
@@ -252,12 +254,12 @@ export function EmailTemplateEditPage() {
           {m.backToList}
         </button>
         <span className="text-[var(--ds-border)]">·</span>
-        <input
+        <DashboardInput
           type="text"
           value={name}
           onChange={(e) => updateField("name", e.target.value)}
           placeholder={m.newTemplate}
-          className="w-64 px-2 py-1 text-sm font-mono bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+          className="w-64 font-mono"
         />
         {existing?.isSystemTemplate && (
           <span className="px-2 py-0.5 rounded text-xs bg-[var(--ds-surface-hover)] text-[var(--ds-text-muted)]">

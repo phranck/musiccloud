@@ -1,4 +1,4 @@
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
+import { DashboardActionButton, DashboardButton, DashboardIconButton, DashboardInput } from "@musiccloud/dashboard-ui";
 import type { ContentPage, Locale, PageTitleAlignment as PageTitleAlignmentValue } from "@musiccloud/shared";
 import { DEFAULT_LOCALE, getLocalizedText, LOCALES } from "@musiccloud/shared";
 import { EyeIcon, MarkdownLogoIcon, MinusCircleIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
@@ -24,7 +24,7 @@ import { isContentDirty } from "@/features/content/state/slices/contentSlice";
 import type { MetaFields } from "@/features/content/state/slices/metaSlice";
 import { isMetaFieldDirty } from "@/features/content/state/slices/metaSlice";
 import { isTranslationDirty } from "@/features/content/state/slices/translationsSlice";
-import { FormLabel, formInputClass } from "@/shared/ui/FormPrimitives";
+import { FormLabel } from "@/shared/ui/FormPrimitives";
 
 const MarkdownEditor = lazy(() =>
   import("@/components/ui/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
@@ -178,44 +178,51 @@ function EditorHeaderActions({
     <div className="flex items-center gap-3">
       <div className="flex items-center gap-1 border border-[var(--ds-border)] rounded-control px-2 py-1.5 text-[var(--ds-text-muted)]">
         <span className="text-xs font-medium mr-1 select-none">Aa</span>
-        <button
-          type="button"
+        <DashboardIconButton
           onClick={onDecreaseFont}
           disabled={!canDecreaseFont}
-          className="size-5 flex items-center justify-center rounded hover:bg-[var(--ds-surface-hover)] disabled:opacity-30"
+          size="action"
           title={editorMessages.decreaseFontSize}
+          type="button"
+          variant="ghost"
+          aria-label={editorMessages.decreaseFontSize}
         >
           <MinusCircleIcon weight="duotone" className="size-3.5" />
-        </button>
+        </DashboardIconButton>
         <span className="w-8 text-center text-xs tabular-nums select-none">{sourceFontSize}px</span>
-        <button
-          type="button"
+        <DashboardIconButton
           onClick={onIncreaseFont}
           disabled={!canIncreaseFont}
-          className="size-5 flex items-center justify-center rounded hover:bg-[var(--ds-surface-hover)] disabled:opacity-30"
+          size="action"
           title={editorMessages.increaseFontSize}
+          type="button"
+          variant="ghost"
+          aria-label={editorMessages.increaseFontSize}
         >
           <PlusCircleIcon weight="duotone" className="size-3.5" />
-        </button>
+        </DashboardIconButton>
       </div>
 
-      <button
-        type="button"
+      <DashboardActionButton
+        action="copy"
+        icon={<EyeIcon weight="duotone" className="size-3.5" />}
+        label={editorMessages.preview}
         onClick={onPreview}
-        className="flex items-center gap-2 px-3 h-8 min-w-8 border border-[var(--ds-border)] text-[var(--ds-text-muted)] rounded-control text-sm font-medium hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)]"
-      >
-        <EyeIcon weight="duotone" className="size-3.5" />
-        {editorMessages.preview}
-      </button>
-
-      <button
+        size="action"
         type="button"
+        variant="neutral"
+      />
+
+      <DashboardActionButton
+        action="delete"
+        icon={<TrashIcon weight="duotone" className="size-3.5" />}
+        iconOnly
+        label={editorMessages.deletePage}
         onClick={onOpenDelete}
-        className="flex size-8 items-center justify-center border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded-control text-sm font-medium hover:bg-[var(--ds-btn-danger-hover-bg)] hover:border-[var(--ds-btn-danger-hover-border)]"
+        size="action"
         title={editorMessages.deletePage}
-      >
-        <TrashIcon weight="duotone" className="size-3.5" />
-      </button>
+        type="button"
+      />
     </div>
   );
 }
@@ -334,7 +341,7 @@ function EditorMetadataBar({
         {editingSlug ? (
           <div className="flex items-center gap-1">
             <span className="text-[var(--ds-text-muted)]">/</span>
-            <input
+            <DashboardInput
               type="text"
               value={editSlugValue}
               onChange={(e) => onSlugValueChange(e.target.value)}
@@ -343,14 +350,20 @@ function EditorMetadataBar({
                 if (e.key === "Enter") onSaveSlug();
               }}
               pattern="[a-z0-9-]+"
-              className="px-2 py-0.5 text-xs bg-[var(--ds-input-bg)] border border-[var(--color-primary)] rounded text-[var(--ds-text)] focus:outline-none font-mono w-40"
+              className="w-40 font-mono text-xs"
             />
-            <button type="button" onClick={onSaveSlug} className="text-[var(--color-primary)] hover:underline">
+            <DashboardButton type="button" onClick={onSaveSlug} size="action" variant="primary">
               {editorMessages.ok}
-            </button>
-            <button type="button" onClick={onCancelSlug} className="hover:underline">
-              {common.cancel}
-            </button>
+            </DashboardButton>
+            <DashboardActionButton
+              action="cancel"
+              icon={false}
+              label={common.cancel}
+              onClick={onCancelSlug}
+              size="action"
+              type="button"
+              variant="neutral"
+            />
           </div>
         ) : (
           <button type="button" onClick={onStartEditSlug} className="hover:underline font-mono text-[var(--ds-text)]">
@@ -440,14 +453,13 @@ function PageTitleLocalizationField({
       <div className="flex flex-col gap-1.5">
         <FormLabel htmlFor={inputId}>{label}</FormLabel>
         <div className="flex items-center gap-2">
-          <input
+          <DashboardInput
             id={inputId}
             type="text"
             aria-label={`${label} ${localeLabel}`}
             value={value}
             onChange={(event) => onChange(event.target.value)}
             placeholder={fallback || placeholder}
-            className={formInputClass}
           />
           {showDeleteTranslation && onDeleteTranslation && (
             <DashboardActionButton
@@ -520,13 +532,13 @@ function EditorContentSurface({
         {!hasActiveTranslation ? (
           <div className="flex flex-col items-center justify-center h-48 gap-3">
             <p className="text-sm text-[var(--ds-text-muted)]">No {activeLocale.toUpperCase()} translation yet.</p>
-            <button
-              type="button"
+            <DashboardActionButton
+              action="create"
+              label={`Create translation from ${DEFAULT_LOCALE.toUpperCase()}`}
               onClick={onCreateTranslation}
-              className="flex items-center gap-2 px-4 py-2 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)]"
-            >
-              Create translation from {DEFAULT_LOCALE.toUpperCase()}
-            </button>
+              size="control"
+              type="button"
+            />
           </div>
         ) : (
           <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>

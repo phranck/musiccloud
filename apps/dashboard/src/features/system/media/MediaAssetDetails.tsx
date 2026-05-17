@@ -1,3 +1,4 @@
+import { DashboardActionButton, DashboardInput, getDashboardButtonClassName } from "@musiccloud/dashboard-ui";
 import { CopyIcon, FileIcon, LinkIcon, TrashIcon } from "@phosphor-icons/react";
 import { SectionCard } from "@/components/ui/Card";
 import { formatBytes, formatMediaDate, getMediaTypeLabel, isImageAsset } from "@/features/system/media/media-utils";
@@ -22,6 +23,7 @@ interface MediaDetailsMessages {
   copyUrl: string;
   openFile: string;
   unsupportedPreview: string;
+  deleteTitle: string;
 }
 
 function MediaPreview({ asset, unsupportedPreview }: { asset: MediaAsset; unsupportedPreview: string }) {
@@ -78,32 +80,39 @@ export function MediaAssetDetails({
       </SectionCard>
 
       <SectionCard title={messages.detailsTitle}>
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-[var(--ds-text)]">{messages.displayName}</span>
-          <input
+        <div className="block space-y-1.5">
+          <label htmlFor="media-asset-display-name" className="text-sm font-medium text-[var(--ds-text)]">
+            {messages.displayName}
+          </label>
+          <DashboardInput
+            id="media-asset-display-name"
             type="text"
             value={draftName}
             onChange={(event) => onDraftNameChange(event.target.value)}
-            className="w-full px-3 py-2.5 border border-[var(--ds-border)] rounded-control text-sm bg-[var(--ds-input-bg)] text-[var(--ds-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
           />
-        </label>
+        </div>
 
         <div className="flex gap-2">
-          <button
-            type="button"
+          <DashboardActionButton
+            action="save"
+            busyLabel={savingLabel}
+            className="flex-1"
+            disabled={draftName.trim().length === 0 || draftName.trim() === asset.displayName}
+            label={messages.saveName}
             onClick={onSave}
-            disabled={saving || draftName.trim().length === 0 || draftName.trim() === asset.displayName}
-            className="flex-1 h-9 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors disabled:opacity-60"
-          >
-            {saving ? savingLabel : messages.saveName}
-          </button>
-          <button
+            size="control"
+            status={saving ? "busy" : "idle"}
             type="button"
+          />
+          <DashboardActionButton
+            action="delete"
+            icon={<TrashIcon weight="duotone" className="size-4" />}
+            iconOnly
+            label={messages.deleteTitle}
             onClick={onRequestDelete}
-            className="h-9 px-4 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-danger-hover-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors"
-          >
-            <TrashIcon weight="duotone" className="w-4 h-4" />
-          </button>
+            size="control"
+            type="button"
+          />
         </div>
       </SectionCard>
 
@@ -150,21 +159,23 @@ export function MediaAssetDetails({
         </div>
 
         <div className="flex gap-2">
-          <button
-            type="button"
+          <DashboardActionButton
+            action="copy"
+            className="flex-1"
+            icon={<CopyIcon weight="duotone" className="size-4" />}
+            label={copied ? messages.copied : messages.copyUrl}
             onClick={onCopyUrl}
-            className="flex-1 h-9 px-4 border border-[var(--ds-border)] rounded-control text-sm text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] transition-colors flex items-center justify-center gap-2"
-          >
-            <CopyIcon weight="duotone" className="w-4 h-4" />
-            {copied ? messages.copied : messages.copyUrl}
-          </button>
+            size="control"
+            type="button"
+            variant="neutral"
+          />
           <a
             href={asset.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 h-9 px-4 border border-[var(--ds-border)] rounded-control text-sm text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] transition-colors flex items-center justify-center gap-2"
+            className={getDashboardButtonClassName({ className: "flex-1", size: "control", variant: "neutral" })}
           >
-            <LinkIcon weight="duotone" className="w-4 h-4" />
+            <LinkIcon weight="duotone" className="size-4" />
             {messages.openFile}
           </a>
         </div>
