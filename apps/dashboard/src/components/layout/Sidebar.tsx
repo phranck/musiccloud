@@ -65,6 +65,7 @@ const TREE_VERT_X: Record<TreeDepth, number> = { 1: 20, 2: 48 };
 const TREE_ROW_PADDING: Record<TreeDepth, number> = { 1: 28, 2: 56 };
 const TREE_STUB_W = 18;
 const TREE_TOP_EXTRA = 28;
+const TREE_ROW_GAP = 2;
 
 interface PageTreeRowProps {
   depth: TreeDepth;
@@ -101,24 +102,28 @@ function PageTreeRow({
   if (isFirstAtTopLevel) {
     incomingTop = -TREE_TOP_EXTRA;
     incomingHeight = `calc(50% + ${TREE_TOP_EXTRA}px)`;
-  } else if (isFirstChild) {
-    incomingTop = -12;
-    incomingHeight = "calc(50% + 12px)";
   }
+  const incomingTopWithGap =
+    typeof incomingTop === "number" ? incomingTop - TREE_ROW_GAP : `calc(${incomingTop} - ${TREE_ROW_GAP}px)`;
+  const incomingHeightWithGap =
+    typeof incomingHeight === "number" ? incomingHeight + TREE_ROW_GAP : `calc(${incomingHeight} + ${TREE_ROW_GAP}px)`;
+  const ancestorTop = isFirstChild ? `calc(-50% - ${TREE_ROW_GAP}px)` : -TREE_ROW_GAP;
+  const ancestorHeight = isFirstChild ? `calc(150% + ${TREE_ROW_GAP}px)` : `calc(100% + ${TREE_ROW_GAP}px)`;
+
   return (
     <div className="relative" style={{ paddingLeft: TREE_ROW_PADDING[depth] }}>
       {ancestorContinues.map((d) => (
         <span
           key={d}
           aria-hidden
-          className="pointer-events-none absolute top-0 h-full w-0.5 bg-[var(--ds-border)]"
-          style={{ left: TREE_VERT_X[d] - 1 }}
+          className="pointer-events-none absolute w-0.5 bg-[var(--ds-border)]"
+          style={{ left: TREE_VERT_X[d] - 1, top: ancestorTop, height: ancestorHeight }}
         />
       ))}
       <span
         aria-hidden
         className="pointer-events-none absolute w-0.5 bg-[var(--ds-border)]"
-        style={{ left: vertX - 1, top: incomingTop, height: incomingHeight }}
+        style={{ left: vertX - 1, top: incomingTopWithGap, height: incomingHeightWithGap }}
       />
       <span
         aria-hidden
