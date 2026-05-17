@@ -112,6 +112,9 @@ zerops:
         - fonts
         - icons
         - img
+        - favicon.ico
+        - favicon.png
+        - manifest.json
         - site_config.tmpl
     run:
       base: nginx@1.22
