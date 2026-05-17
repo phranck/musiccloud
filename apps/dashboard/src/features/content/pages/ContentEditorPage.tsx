@@ -181,6 +181,7 @@ function EditorHeaderActions({
         <DashboardIconButton
           onClick={onDecreaseFont}
           disabled={!canDecreaseFont}
+          className="size-5"
           size="action"
           title={editorMessages.decreaseFontSize}
           type="button"
@@ -189,10 +190,13 @@ function EditorHeaderActions({
         >
           <MinusCircleIcon weight="duotone" className="size-3.5" />
         </DashboardIconButton>
-        <span className="w-8 text-center text-xs tabular-nums select-none">{sourceFontSize}px</span>
+        <span className="w-8 text-center text-xs tabular-nums select-none text-[var(--ds-text)]">
+          {sourceFontSize}px
+        </span>
         <DashboardIconButton
           onClick={onIncreaseFont}
           disabled={!canIncreaseFont}
+          className="size-5"
           size="action"
           title={editorMessages.increaseFontSize}
           type="button"

@@ -54,7 +54,7 @@ export function FooterUserInfo({
     onLogout();
   }
 
-  const iconButtonClass = "size-7 bg-[var(--ds-surface-hover)]";
+  const iconButtonClass = "bg-[var(--ds-surface-hover)]";
 
   return (
     <>

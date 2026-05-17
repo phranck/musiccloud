@@ -62,8 +62,10 @@ function DashboardSectionHeader({ icon, title, addOn, className = "" }: Dashboar
       } ${className}`}
     >
       <span className="shrink-0 text-[var(--ds-text-muted)]">{icon}</span>
-      <span className="text-lg font-medium font-heading text-[var(--ds-text)]">{title}</span>
-      {addOn && <span className="ml-auto flex items-center">{addOn}</span>}
+      <span className="min-w-0 flex-1">
+        <span className="block text-lg font-medium font-serif text-[var(--ds-text)]">{title}</span>
+      </span>
+      {addOn && <span className="ml-auto flex shrink-0 items-center gap-2">{addOn}</span>}
     </div>
   );
 }

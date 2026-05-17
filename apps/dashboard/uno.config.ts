@@ -1,9 +1,9 @@
-import { defineConfig, presetTypography, presetWind4, transformerDirectives } from "unocss";
+import { defineConfig, type PresetWind4Theme, presetTypography, presetWind4, transformerDirectives } from "unocss";
 
-export default defineConfig({
+export default defineConfig<PresetWind4Theme>({
   presets: [
     presetWind4({ dark: "class" }),
-    presetTypography({
+    presetTypography<PresetWind4Theme>({
       cssExtend: {
         h1: {
           "margin-top": "0",
@@ -45,19 +45,11 @@ export default defineConfig({
     font: {
       sans: '"Inter", system-ui, -apple-system, sans-serif',
       heading: '"Barlow Condensed", system-ui, sans-serif',
-    },
-    fontSize: {
-      xs: ["var(--ds-text-xs)", { lineHeight: "var(--ds-leading-xs)" }],
-      sm: ["var(--ds-text-sm)", { lineHeight: "var(--ds-leading-sm)" }],
-      base: ["var(--ds-text-base)", { lineHeight: "var(--ds-leading-base)" }],
-      lg: ["var(--ds-text-lg)", { lineHeight: "var(--ds-leading-lg)" }],
-      xl: ["var(--ds-text-xl)", { lineHeight: "var(--ds-leading-xl)" }],
-      "2xl": ["var(--ds-text-2xl)", { lineHeight: "var(--ds-leading-2xl)" }],
-      "3xl": ["var(--ds-text-3xl)", { lineHeight: "var(--ds-leading-3xl)" }],
-      "4xl": ["var(--ds-text-4xl)", { lineHeight: "var(--ds-leading-4xl)" }],
+      serif: '"Barlow Condensed", system-ui, sans-serif',
     },
   },
   content: {
+    filesystem: ["../../packages/dashboard-ui/src/**/*.{ts,tsx}", "../../packages/dashboard-ui/dist/**/*.{js,mjs}"],
     pipeline: {
       include: ["./src/**/*.{ts,tsx,html}", "../../packages/dashboard-ui/src/**/*.{ts,tsx}"],
     },
