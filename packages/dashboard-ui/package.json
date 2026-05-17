@@ -1,0 +1,45 @@
+{
+  "name": "@musiccloud/dashboard-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./primitives": {
+      "import": "./dist/primitives/index.js",
+      "types": "./dist/primitives/index.d.ts"
+    },
+    "./dashboard": {
+      "import": "./dist/dashboard/index.js",
+      "types": "./dist/dashboard/index.d.ts"
+    },
+    "./dashboard/actions": {
+      "import": "./dist/dashboard/actionCatalog.js",
+      "types": "./dist/dashboard/actionCatalog.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "prepare": "pnpm run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "react": "^19.2.4"
+  },
+  "devDependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@types/react": "^19.2.14",
+    "react": "^19.2.4",
+    "typescript": "~5.9.3"
+  }
+}

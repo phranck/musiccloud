@@ -59,7 +59,7 @@ export default defineConfig({
   },
   content: {
     pipeline: {
-      include: ["./src/**/*.{ts,tsx,html}"],
+      include: ["./src/**/*.{ts,tsx,html}", "../../packages/dashboard-ui/src/**/*.{ts,tsx}"],
     },
   },
 });

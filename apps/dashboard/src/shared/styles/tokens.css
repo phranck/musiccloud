@@ -162,6 +162,21 @@
   /* Alias */
   --color-primary: var(--ds-accent);
 
+  /* Control foundation */
+  --ds-control-h-action: 2rem;
+  --ds-control-h-icon: 2rem;
+  --ds-control-h-field: 2rem;
+  --ds-control-h-field-large: 2.25rem;
+  --ds-control-h-menu-item: 2rem;
+  --ds-border-focus: var(--ds-accent);
+  --ds-focus-ring: var(--color-primary);
+  --ds-focus-ring-offset: var(--ds-surface);
+  --ds-control-hover-bg: oklch(var(--ds-L-text) var(--ds-neutral-c) var(--ds-neutral-h) / 0.06);
+  --ds-control-active-bg: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  --ds-control-disabled-opacity: 0.4;
+  --ds-bg-hover: var(--ds-control-hover-bg);
+  --ds-surface-hover: var(--ds-control-hover-bg);
+
   /* Vertical rhythm */
   --ds-space-xs: 0.375rem;
   --ds-space-sm: 0.75rem;
@@ -200,6 +215,11 @@
 
   --ds-text-inverse: oklch(var(--ds-L-inset) 0 0);
   --ds-input-bg: var(--ds-bg-elevated);
+  --ds-focus-ring-offset: var(--ds-bg);
+  --ds-control-hover-bg: oklch(var(--ds-L-text) var(--ds-neutral-c) var(--ds-neutral-h) / 0.08);
+  --ds-control-active-bg: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  --ds-bg-hover: var(--ds-control-hover-bg);
+  --ds-surface-hover: var(--ds-control-hover-bg);
 
   /* Borders */
   --ds-border: #3d444d;
