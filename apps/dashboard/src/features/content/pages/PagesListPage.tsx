@@ -11,7 +11,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { DEFAULT_LOCALE, LOCALES, type Locale, type TranslationStatus } from "@musiccloud/shared";
+import { DEFAULT_LOCALE, LOCALES, type TranslationStatus } from "@musiccloud/shared";
 import type { Icon } from "@phosphor-icons/react";
 import {
   CheckCircleIcon,
@@ -19,7 +19,6 @@ import {
   FileIcon,
   FileMdIcon,
   PencilLineIcon,
-  PencilSimpleIcon,
   PlusCircleIcon,
   QuestionIcon,
   TrashIcon,
@@ -48,14 +47,12 @@ import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 const TRANSLATION_ICON: Record<TranslationStatus, Icon> = {
   ready: CheckCircleIcon,
   stale: WarningIcon,
-  draft: PencilSimpleIcon,
   missing: QuestionIcon,
 };
 
 const TRANSLATION_COLOR: Record<TranslationStatus, string> = {
   ready: "text-emerald-500",
   stale: "text-amber-500",
-  draft: "text-[var(--ds-text-muted)]",
   missing: "text-[var(--ds-text-muted)] opacity-60",
 };
 
@@ -210,18 +207,22 @@ export function PagesListPage() {
     const { segmentedBlocks: rawBlocks, orphanDefaults } = groupPagesByHierarchy(pages);
     const orderedParents =
       editor.sidebar.current.length > 0
-        ? editor.sidebar.current
-            .map((slug) => rawBlocks.find((b) => b.parent.slug === slug))
-            .filter((b): b is (typeof rawBlocks)[number] => b !== undefined)
+        ? editor.sidebar.current.reduce<typeof rawBlocks>((acc, slug) => {
+            const block = rawBlocks.find((b) => b.parent.slug === slug);
+            if (block) acc.push(block);
+            return acc;
+          }, [])
         : rawBlocks;
     const out: HierarchicalPage[] = [];
     for (const { parent, children } of orderedParents) {
       out.push({ ...parent, depth: 0 });
       const sliceCurrent = editor.segments.byOwner[parent.slug]?.current;
       const orderedChildren = sliceCurrent
-        ? sliceCurrent
-            .map((entry) => bySlug.get(entry.targetSlug))
-            .filter((c): c is ContentPageSummary => c !== undefined)
+        ? sliceCurrent.reduce<ContentPageSummary[]>((acc, entry) => {
+            const child = bySlug.get(entry.targetSlug);
+            if (child) acc.push(child);
+            return acc;
+          }, [])
         : children;
       for (const child of orderedChildren) {
         out.push({ ...child, depth: 1, parentSlug: parent.slug });
@@ -377,7 +378,7 @@ export function PagesListPage() {
           const Icon = page.pageType === "segmented" ? FileDashedIcon : FileMdIcon;
           return (
             <div className="flex items-center gap-2" style={{ paddingLeft: page.depth * 24 }}>
-              <Icon weight="duotone" className="w-4 h-4 shrink-0 text-[var(--ds-text-muted)]" />
+              <Icon weight="duotone" className="size-4 shrink-0 text-[var(--ds-text-muted)]" />
               <button
                 type="button"
                 onClick={() => navigate(`/pages/${page.slug}`)}
@@ -426,7 +427,8 @@ export function PagesListPage() {
         header: text.table.translations,
         cell: (page) => (
           <div className="flex gap-1.5 flex-wrap">
-            {LOCALES.filter((l): l is Locale => l !== DEFAULT_LOCALE).map((locale) => {
+            {LOCALES.map((locale) => {
+              if (locale === DEFAULT_LOCALE) return null;
               const s: TranslationStatus = page.translationStatus?.[locale] ?? "missing";
               const StatusIcon = TRANSLATION_ICON[s];
               return (
@@ -450,14 +452,14 @@ export function PagesListPage() {
           <div className="flex gap-2 justify-end">
             <TableActionButton
               onClick={() => navigate(`/pages/${page.slug}`)}
-              icon={<PencilLineIcon weight="duotone" className="w-3.5 h-3.5" />}
+              icon={<PencilLineIcon weight="duotone" className="size-3.5" />}
               label={common.edit}
             />
             <TableActionButton
               variant="danger"
               onClick={() => handleDeleteRequest(page.slug, page.title)}
               disabled={deletePage.isPending}
-              icon={<TrashIcon weight="duotone" className="w-3.5 h-3.5" />}
+              icon={<TrashIcon weight="duotone" className="size-3.5" />}
               label={common.delete}
             />
           </div>
@@ -476,7 +478,7 @@ export function PagesListPage() {
             onClick={() => dispatch({ showCreate: true })}
             className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)]"
           >
-            <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
+            <PlusCircleIcon weight="duotone" className="size-3.5" />
             {text.newPage}
           </button>
         )}

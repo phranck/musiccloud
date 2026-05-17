@@ -7,7 +7,6 @@ describe("content translation types", () => {
       locale: "de",
       title: "Titel",
       content: "# Inhalt",
-      translationReady: true,
       isStale: false,
       sourceUpdatedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -45,7 +44,7 @@ describe("content translation types", () => {
   });
 
   it("ContentPage exposes translations + status", () => {
-    const statuses: Record<string, TranslationStatus> = { en: "ready", de: "draft" };
+    const statuses: Record<string, TranslationStatus> = { en: "ready", de: "stale" };
     const p: ContentPage = {
       slug: "about",
       title: "About",

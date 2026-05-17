@@ -1,4 +1,4 @@
-type TranslationFields = { title?: string; content?: string; translationReady?: boolean };
+type TranslationFields = { title?: string; content?: string };
 
 export interface TranslationsState {
   byPage: Record<string, Record<string /* locale */, { initial: TranslationFields; current: TranslationFields }>>;
@@ -24,7 +24,6 @@ export function translationsReducer(state: TranslationsState, action: Translatio
         const fields: TranslationFields = {
           ...(e.title !== undefined ? { title: e.title } : {}),
           ...(e.content !== undefined ? { content: e.content } : {}),
-          ...(e.translationReady !== undefined ? { translationReady: e.translationReady } : {}),
         };
         byPage[e.slug] = { ...(byPage[e.slug] ?? {}), [e.locale]: { initial: fields, current: fields } };
       }
@@ -44,7 +43,7 @@ export function translationsReducer(state: TranslationsState, action: Translatio
       };
     }
     case "add-locale": {
-      const emptyInitial: TranslationFields = { title: "", content: "", translationReady: false };
+      const emptyInitial: TranslationFields = { title: "", content: "" };
       const page = state.byPage[action.slug] ?? {};
       return {
         byPage: {
@@ -69,7 +68,7 @@ export function translationsReducer(state: TranslationsState, action: Translatio
 }
 
 function fieldsEqual(a: TranslationFields, b: TranslationFields): boolean {
-  return a.title === b.title && a.content === b.content && a.translationReady === b.translationReady;
+  return a.title === b.title && a.content === b.content;
 }
 
 export function dirtyEntries(s: TranslationsState): Array<{ slug: string; locale: string }> {

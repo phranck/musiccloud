@@ -230,7 +230,7 @@ export const ENDPOINTS = {
       translations: {
         /** GET: list all translations (including default-locale) for a page + per-locale status. */
         list: (slug: string) => `/api/admin/pages/${slug}/translations`,
-        /** GET: one translation / PUT: upsert {title, content, translationReady} / DELETE: remove. */
+        /** GET: one translation / PUT: upsert {title, content} / DELETE: remove. */
         detail: (slug: string, locale: Locale) => `/api/admin/pages/${slug}/translations/${locale}`,
       },
     },

@@ -1,0 +1,1 @@
+ALTER TABLE "content_page_translations" DROP COLUMN "translation_ready";

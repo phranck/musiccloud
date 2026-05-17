@@ -23,6 +23,7 @@ import { isContentDirty } from "@/features/content/state/slices/contentSlice";
 import type { MetaFields } from "@/features/content/state/slices/metaSlice";
 import { isMetaFieldDirty } from "@/features/content/state/slices/metaSlice";
 import { isTranslationDirty } from "@/features/content/state/slices/translationsSlice";
+import { FormLabel, formInputClass } from "@/shared/ui/FormPrimitives";
 
 const MarkdownEditor = lazy(() =>
   import("@/components/ui/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
@@ -125,7 +126,6 @@ function useHydratePageEditor(page: ContentPage | undefined, editorDispatch: Pag
         locale: translation.locale,
         title: translation.title,
         content: translation.content,
-        translationReady: translation.translationReady,
       })),
     });
     if (page.pageType === "segmented") {
@@ -426,60 +426,41 @@ function PageTitleLocalizationField({
   onChange,
 }: PageTitleLocalizationFieldProps) {
   const localeLabel = locale.toUpperCase();
+  const inputId = `content-page-title-${locale}`;
 
   return (
-    <div className="px-3 pt-3">
-      <label className="flex flex-col gap-1.5">
-        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ds-text-muted)]">
-          {label}
-          <span className="px-1.5 py-0.5 rounded border border-[var(--ds-border)] bg-[var(--ds-surface)] font-mono text-[10px] leading-none text-[var(--ds-text-subtle)]">
-            {localeLabel}
-          </span>
-        </span>
+    <div className="bg-[var(--ds-surface)] px-3 pt-2 pb-3">
+      <div className="flex flex-col gap-1.5">
+        <FormLabel htmlFor={inputId}>{label}</FormLabel>
         <input
+          id={inputId}
           type="text"
           aria-label={`${label} ${localeLabel}`}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={fallback || placeholder}
-          className="h-10 w-full rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] px-3 text-sm text-[var(--ds-text)] placeholder:text-[var(--ds-text-subtle)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+          className={formInputClass}
         />
-      </label>
+      </div>
     </div>
   );
 }
 
-interface TranslationControlRowProps {
-  translationReady: boolean;
+interface TranslationActionsRowProps {
   deletePending: boolean;
-  onTranslationReadyChange: (value: boolean) => void;
   onDeleteTranslation: () => void;
 }
 
-function TranslationControlRow({
-  translationReady,
-  deletePending,
-  onTranslationReadyChange,
-  onDeleteTranslation,
-}: TranslationControlRowProps) {
+function TranslationActionsRow({ deletePending, onDeleteTranslation }: TranslationActionsRowProps) {
   return (
-    <div className="px-3 pt-3 flex items-center justify-end gap-3 text-xs text-[var(--ds-text-muted)]">
-      <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={translationReady}
-          onChange={(event) => onTranslationReadyChange(event.target.checked)}
-          className="accent-[var(--color-primary)] cursor-pointer"
-        />
-        Translation ready
-      </label>
+    <div className="flex items-center justify-end bg-[var(--ds-surface)] px-3 pb-3 text-xs text-[var(--ds-text-muted)]">
       <button
         type="button"
         onClick={onDeleteTranslation}
         disabled={deletePending}
-        className="flex items-center gap-1 px-2 py-1 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded hover:bg-[var(--ds-btn-danger-hover-bg)] disabled:opacity-60"
+        className="inline-flex h-7 items-center gap-1.5 rounded-control border border-[var(--ds-btn-danger-border)] px-3 text-xs font-medium text-[var(--ds-btn-danger-text)] transition-colors hover:border-[var(--ds-btn-danger-hover-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] disabled:opacity-60"
       >
-        <TrashIcon weight="duotone" className="size-3" />
+        <TrashIcon weight="duotone" className="size-3" aria-hidden="true" />
         Delete translation
       </button>
     </div>
@@ -854,21 +835,11 @@ export function ContentEditorPage() {
         />
       )}
 
-      {/* Translation control row — shared by both page types. The title field
+      {/* Translation action row — shared by both page types. The title field
           above may auto-create a translation; this row appears once it exists. */}
       {page && activeLocale !== DEFAULT_LOCALE && activeTranslation && (
-        <TranslationControlRow
-          translationReady={activeTranslation.translationReady ?? false}
+        <TranslationActionsRow
           deletePending={deleteTranslation.isPending}
-          onTranslationReadyChange={(value) =>
-            editor.dispatch.translations({
-              type: "set-field",
-              slug: page.slug,
-              locale: activeLocale,
-              field: "translationReady",
-              value,
-            })
-          }
           onDeleteTranslation={handleDeleteTranslation}
         />
       )}

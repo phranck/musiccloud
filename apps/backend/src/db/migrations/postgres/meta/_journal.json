@@ -197,6 +197,13 @@
       "when": 1777752457939,
       "tag": "0027_red_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1778976310689,
+      "tag": "0028_wealthy_exiles",
+      "breakpoints": true
     }
   ]
 }

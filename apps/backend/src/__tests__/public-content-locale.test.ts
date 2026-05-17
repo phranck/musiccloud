@@ -92,7 +92,7 @@ describe("getPublicContentPage locale fallback", () => {
     expect(r?.content).toBe("EN body");
   });
 
-  it("returns de content when translation_ready=true", async () => {
+  it("returns de content when a translation exists", async () => {
     page = mkPage();
     translations = [
       {
@@ -100,7 +100,6 @@ describe("getPublicContentPage locale fallback", () => {
         locale: "de",
         title: "Über uns",
         content: "DE body",
-        translationReady: true,
         sourceUpdatedAt: new Date(),
         updatedAt: new Date(),
         updatedBy: null,
@@ -112,26 +111,6 @@ describe("getPublicContentPage locale fallback", () => {
     expect(r?.content).toBe("DE body");
   });
 
-  it("falls back to en when translation_ready=false", async () => {
-    page = mkPage();
-    translations = [
-      {
-        slug: "about",
-        locale: "de",
-        title: "Über uns",
-        content: "DE body",
-        translationReady: false,
-        sourceUpdatedAt: new Date(),
-        updatedAt: new Date(),
-        updatedBy: null,
-      },
-    ];
-    const { getPublicContentPage } = await import("../services/admin-content.js");
-    const r = await getPublicContentPage("about", "de");
-    expect(r?.title).toBe("About");
-    expect(r?.content).toBe("EN body");
-  });
-
   it("defaults to en when requested locale is already default", async () => {
     page = mkPage();
     translations = [
@@ -140,7 +119,6 @@ describe("getPublicContentPage locale fallback", () => {
         locale: "de",
         title: "Über uns",
         content: "DE body",
-        translationReady: true,
         sourceUpdatedAt: new Date(),
         updatedAt: new Date(),
         updatedBy: null,
@@ -155,6 +133,7 @@ describe("getPublicContentPage locale fallback", () => {
 
 describe("getPublicNavItems locale fallback", () => {
   beforeEach(() => {
+    translations = [];
     navRows = [];
     navTranslations = [];
     pageTranslationsBySlug = new Map();
@@ -177,7 +156,7 @@ describe("getPublicNavItems locale fallback", () => {
     expect(result[0]?.label).toBe("Startseite");
   });
 
-  it("falls back to linked page translation title when nav has no custom label and translation is ready", async () => {
+  it("falls back to linked page translation title when nav has no custom label and a translation exists", async () => {
     navRows = [mkNavRow({ id: 2, label: null, pageSlug: "about", pageTitle: "About" })];
     navTranslations = [];
     pageTranslationsBySlug.set("about", [
@@ -186,7 +165,6 @@ describe("getPublicNavItems locale fallback", () => {
         locale: "de",
         title: "Über uns",
         content: "DE body",
-        translationReady: true,
         sourceUpdatedAt: new Date(),
         updatedAt: new Date(),
         updatedBy: null,
@@ -198,21 +176,9 @@ describe("getPublicNavItems locale fallback", () => {
     expect(result[0]?.pageTitle).toBe("Über uns");
   });
 
-  it("falls back to default locale title when page translation not ready", async () => {
+  it("falls back to default locale title when linked page translation is missing", async () => {
     navRows = [mkNavRow({ id: 3, label: null, pageSlug: "about", pageTitle: "About" })];
     navTranslations = [];
-    pageTranslationsBySlug.set("about", [
-      {
-        slug: "about",
-        locale: "de",
-        title: "Über uns",
-        content: "DE body",
-        translationReady: false,
-        sourceUpdatedAt: new Date(),
-        updatedAt: new Date(),
-        updatedBy: null,
-      },
-    ]);
     const { getPublicNavItems } = await import("../services/admin-nav.js");
     const result = await getPublicNavItems("header", "de");
     expect(result[0]?.label).toBe("About");

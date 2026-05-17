@@ -540,8 +540,8 @@ export type AppTelemetryEventRow = typeof appTelemetryEvents.$inferSelect;
 export type AppTelemetryEventInsert = typeof appTelemetryEvents.$inferInsert;
 
 // Per-locale translations of a content page. Parent row in `content_pages`
-// holds the default-locale (en) source of truth + fallback. Missing or
-// `translation_ready=false` rows trigger fallback at render time.
+// holds the default-locale (en) source of truth + fallback. Missing rows
+// trigger fallback at render time.
 export const contentPageTranslations = pgTable(
   "content_page_translations",
   {
@@ -551,7 +551,6 @@ export const contentPageTranslations = pgTable(
     locale: text("locale").notNull(),
     title: text("title").notNull(),
     content: text("content").notNull().default(""),
-    translationReady: boolean("translation_ready").notNull().default(false),
     sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     updatedBy: text("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),

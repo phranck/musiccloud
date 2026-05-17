@@ -14,13 +14,12 @@ export type PageDisplayMode = "fullscreen" | "embossed" | "translucent";
 export type OverlayWidth = "small" | "regular" | "big";
 export type PageTitleAlignment = "left" | "center" | "right";
 
-export type TranslationStatus = "missing" | "draft" | "stale" | "ready";
+export type TranslationStatus = "missing" | "stale" | "ready";
 
 export interface PageTranslation {
   locale: Locale;
   title: string;
   content: string;
-  translationReady: boolean;
   isStale: boolean;
   sourceUpdatedAt: string | null;
   updatedAt: string;
@@ -152,7 +151,6 @@ export interface PagesBulkPageTranslationEntry {
   locale: Locale;
   title?: string;
   content?: string;
-  translationReady?: boolean;
 }
 
 export interface PagesBulkRequest {
