@@ -1,3 +1,4 @@
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import type { ContentPage, Locale, PageTitleAlignment as PageTitleAlignmentValue } from "@musiccloud/shared";
 import { DEFAULT_LOCALE, getLocalizedText, LOCALES } from "@musiccloud/shared";
 import { EyeIcon, MarkdownLogoIcon, MinusCircleIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
@@ -5,7 +6,7 @@ import { lazy, Suspense, useCallback, useEffect, useReducer, useState } from "re
 import { useNavigate, useParams } from "react-router";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/components/ui/Dialog";
+import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
@@ -449,15 +450,14 @@ function PageTitleLocalizationField({
             className={formInputClass}
           />
           {showDeleteTranslation && onDeleteTranslation && (
-            <button
-              type="button"
-              onClick={onDeleteTranslation}
+            <DashboardActionButton
+              action="delete"
               disabled={deletePending}
-              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-control border border-[var(--ds-btn-danger-border)] px-3 text-xs font-medium text-[var(--ds-btn-danger-text)] transition-colors hover:border-[var(--ds-btn-danger-hover-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] disabled:opacity-60"
-            >
-              <TrashIcon weight="duotone" className="size-3" aria-hidden="true" />
-              Delete translation
-            </button>
+              iconClassName="size-3"
+              label="Delete translation"
+              onClick={onDeleteTranslation}
+              type="button"
+            />
           )}
         </div>
       </div>
@@ -573,12 +573,24 @@ function DeletePageDialog({ open, title, pending, messages, common, onClose, onD
         {messages.confirmDeletePrefix} „<span className="font-bold">{title}</span>" {messages.confirmDeleteSuffix}
       </div>
       <Dialog.Footer>
-        <button type="button" className={dialogBtnSecondary} onClick={onClose} disabled={pending}>
-          {common.cancel}
-        </button>
-        <button type="button" className={dialogBtnDestructive} onClick={onDelete} disabled={pending}>
-          {pending ? "…" : common.delete}
-        </button>
+        <DashboardActionButton
+          action="cancel"
+          disabled={pending}
+          icon={false}
+          label={common.cancel}
+          onClick={onClose}
+          type="button"
+          variant="neutral"
+        />
+        <DashboardActionButton
+          action="delete"
+          busyLabel="…"
+          icon={false}
+          label={common.delete}
+          onClick={onDelete}
+          status={pending ? "busy" : "idle"}
+          type="button"
+        />
       </Dialog.Footer>
     </Dialog>
   );
