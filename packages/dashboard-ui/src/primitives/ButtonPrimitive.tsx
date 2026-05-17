@@ -31,10 +31,10 @@ export interface IconButtonPrimitiveProps extends Omit<ComponentPropsWithoutRef<
   size?: ButtonPrimitiveSize;
 }
 
-const buttonBaseClass =
+export const buttonPrimitiveBaseClass =
   "inline-flex shrink-0 items-center justify-center rounded-control border font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--ds-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ds-control-disabled-opacity)]";
 
-const buttonVariantClass: Record<ButtonPrimitiveVariant, string> = {
+export const buttonPrimitiveVariantClass: Record<ButtonPrimitiveVariant, string> = {
   neutral:
     "border-[var(--ds-btn-neutral-border)] text-[var(--ds-btn-neutral-text)] hover:border-[var(--ds-btn-neutral-hover-border)] hover:bg-[var(--ds-btn-neutral-hover-bg)]",
   primary:
@@ -53,17 +53,38 @@ const buttonVariantClass: Record<ButtonPrimitiveVariant, string> = {
     "border-transparent text-[var(--ds-text-muted)] hover:bg-[var(--ds-control-hover-bg)] hover:text-[var(--ds-text)]",
 };
 
-const buttonSizeClass: Record<ButtonPrimitiveSize, string> = {
+export const buttonPrimitiveSizeClass: Record<ButtonPrimitiveSize, string> = {
   action: "h-[var(--ds-control-h-action)] gap-1.5 px-3 text-xs",
   control: "h-[var(--ds-control-h-field)] gap-2 px-3 text-sm",
   large: "h-[var(--ds-control-h-field-large)] gap-2 px-4 text-sm",
 };
 
-const iconButtonSizeClass: Record<ButtonPrimitiveSize, string> = {
+export const iconButtonPrimitiveSizeClass: Record<ButtonPrimitiveSize, string> = {
   action: "size-[var(--ds-control-h-icon)] text-xs",
   control: "size-[var(--ds-control-h-field)] text-sm",
   large: "size-[var(--ds-control-h-field-large)] text-sm",
 };
+
+export function getButtonPrimitiveClassName({
+  className,
+  size = "action",
+  variant = "neutral",
+}: Pick<ButtonPrimitiveProps, "className" | "size" | "variant"> = {}) {
+  return cx(buttonPrimitiveBaseClass, buttonPrimitiveSizeClass[size], buttonPrimitiveVariantClass[variant], className);
+}
+
+export function getIconButtonPrimitiveClassName({
+  className,
+  size = "action",
+  variant = "ghost",
+}: Pick<IconButtonPrimitiveProps, "className" | "size" | "variant"> = {}) {
+  return cx(
+    buttonPrimitiveBaseClass,
+    iconButtonPrimitiveSizeClass[size],
+    buttonPrimitiveVariantClass[variant],
+    className,
+  );
+}
 
 export function ButtonPrimitive({
   children,
@@ -81,7 +102,7 @@ export function ButtonPrimitive({
       {...buttonProps}
       ref={ref}
       type={type}
-      className={cx(buttonBaseClass, buttonSizeClass[size], buttonVariantClass[variant], className)}
+      className={getButtonPrimitiveClassName({ className, size, variant })}
     >
       {leadingIcon}
       {children}
@@ -104,7 +125,7 @@ export function IconButtonPrimitive({
       {...buttonProps}
       ref={ref}
       type={type}
-      className={cx(buttonBaseClass, iconButtonSizeClass[size], buttonVariantClass[variant], className)}
+      className={getIconButtonPrimitiveClassName({ className, size, variant })}
     >
       {children}
     </button>

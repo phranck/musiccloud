@@ -6,6 +6,8 @@ import {
   type ButtonPrimitiveProps,
   type ButtonPrimitiveSize,
   type ButtonPrimitiveVariant,
+  getButtonPrimitiveClassName,
+  getIconButtonPrimitiveClassName,
   IconButtonPrimitive,
   type IconButtonPrimitiveProps,
 } from "../primitives/ButtonPrimitive.js";
@@ -26,6 +28,30 @@ const reviewVariantClass =
 
 function resolvePrimitiveVariant(variant: DashboardButtonVariant): ButtonPrimitiveVariant {
   return variant === "review" ? "neutral" : variant;
+}
+
+export function getDashboardButtonClassName({
+  className,
+  size = "action",
+  variant = "neutral",
+}: Pick<DashboardButtonProps, "className" | "size" | "variant"> = {}) {
+  return getButtonPrimitiveClassName({
+    className: cx(variant === "review" && reviewVariantClass, className),
+    size,
+    variant: resolvePrimitiveVariant(variant),
+  });
+}
+
+export function getDashboardIconButtonClassName({
+  className,
+  size = "action",
+  variant = "ghost",
+}: Pick<DashboardIconButtonProps, "className" | "size" | "variant"> = {}) {
+  return getIconButtonPrimitiveClassName({
+    className: cx(variant === "review" && reviewVariantClass, className),
+    size,
+    variant: resolvePrimitiveVariant(variant),
+  });
 }
 
 export function DashboardButton({

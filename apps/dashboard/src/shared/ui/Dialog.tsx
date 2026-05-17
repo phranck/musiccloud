@@ -1,3 +1,4 @@
+import { getDashboardButtonClassName } from "@musiccloud/dashboard-ui";
 import type { ReactNode } from "react";
 
 import { OverlayCard } from "./OverlayCard";
@@ -46,11 +47,8 @@ export function Dialog({ open, title, titleIcon, onClose, children, maxWidth = "
 
 Dialog.Footer = DialogFooter;
 
-export const dialogBtnPrimary =
-  "h-9 px-4 border border-[var(--ds-accent)] text-[var(--ds-accent)] rounded-control text-sm font-medium hover:bg-[var(--ds-accent-subtle)] transition-colors disabled:opacity-60";
+export const dialogBtnPrimary = getDashboardButtonClassName({ variant: "primary" });
 
-export const dialogBtnSecondary =
-  "h-9 px-4 border border-[var(--ds-border)] rounded-control text-sm text-[var(--ds-text-muted)] hover:border-[var(--ds-border-strong)] transition-colors";
+export const dialogBtnSecondary = getDashboardButtonClassName({ variant: "neutral" });
 
-export const dialogBtnDestructive =
-  "h-9 px-4 border border-[var(--ds-btn-danger-border)] text-[var(--ds-btn-danger-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-danger-hover-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors disabled:opacity-60";
+export const dialogBtnDestructive = getDashboardButtonClassName({ variant: "danger" });
