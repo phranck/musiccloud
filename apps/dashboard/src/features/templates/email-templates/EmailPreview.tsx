@@ -1,5 +1,8 @@
 import { ENDPOINTS } from "@musiccloud/shared";
+import { EyeIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
+
+import { DashboardSection } from "@/components/ui/DashboardSection";
 import { ThemeSegmentedControl } from "@/components/ui/ThemeSegmentedControl";
 import { useI18n } from "@/context/I18nContext";
 import { api } from "@/lib/api";
@@ -58,22 +61,25 @@ export function EmailPreview({
   }, [headerBannerUrl, headerText, bodyText, footerText, footerBannerUrl, colorScheme]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-5 py-3 shrink-0 flex items-center justify-between">
-        <span className="text-xs font-semibold text-[var(--ds-text-muted)] uppercase tracking-wide">{m.preview}</span>
-        <ThemeSegmentedControl
-          value={colorScheme}
-          onChange={(v) => {
-            if (v === "system") return;
-            setColorScheme(v);
-            localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, v);
-          }}
-          options={["light", "dark"]}
-        />
-      </div>
-      <div className="flex-1 overflow-hidden">
+    <DashboardSection className="flex h-full min-h-0 flex-col overflow-hidden">
+      <DashboardSection.Header
+        icon={<EyeIcon weight="duotone" className="size-4" />}
+        title={m.previewTitle}
+        addOn={
+          <ThemeSegmentedControl
+            value={colorScheme}
+            onChange={(value) => {
+              if (value === "system") return;
+              setColorScheme(value);
+              localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, value);
+            }}
+            options={["light", "dark"]}
+          />
+        }
+      />
+      <DashboardSection.Body className="min-h-0 flex-1 !gap-0 !p-0">
         <iframe srcDoc={srcDoc} className="w-full h-full border-0" title={m.previewTitle} sandbox="allow-same-origin" />
-      </div>
-    </div>
+      </DashboardSection.Body>
+    </DashboardSection>
   );
 }

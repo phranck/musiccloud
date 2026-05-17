@@ -1,9 +1,17 @@
-import { DashboardActionButton, DashboardButton, DashboardField, DashboardInput } from "@musiccloud/dashboard-ui";
-import { CheckCircleIcon, PaperPlaneTiltIcon, SealWarningIcon } from "@phosphor-icons/react";
-import { lazy, Suspense, useState } from "react";
+import { DashboardButton, DashboardInput, SaveActionButton } from "@musiccloud/dashboard-ui";
+import {
+  ArticleIcon,
+  CheckCircleIcon,
+  EnvelopeOpenIcon,
+  EnvelopeSimpleIcon,
+  PaperPlaneTiltIcon,
+  SealWarningIcon,
+  SquareHalfBottomIcon,
+} from "@phosphor-icons/react";
+import { lazy, type ReactNode, Suspense, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
-import { Card, SectionCard } from "@/components/ui/Card";
+import { DashboardSection } from "@/components/ui/DashboardSection";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/context/I18nContext";
@@ -21,48 +29,44 @@ const MarkdownEditor = lazy(() =>
   import("@/components/ui/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
 );
 
-interface FieldProps {
-  label: string;
-  htmlFor?: string;
-  required?: boolean;
-  hint?: string;
-  children: React.ReactNode;
+const FLUSH_MARKDOWN_EDITOR_CLASS = "rounded-none border-x-0 border-b-0";
+
+interface TemplateFormFields {
+  name: string;
+  subject: string;
+  headerBannerUrl: string;
+  headerText: string;
+  bodyText: string;
+  footerBannerUrl: string;
+  footerText: string;
 }
 
-function Field({ label, htmlFor, required, hint, children }: FieldProps) {
-  const labelContent = (
-    <>
-      {label}
-      {required && <SealWarningIcon weight="duotone" className="inline-block ml-1 size-3 text-red-500 align-middle" />}
-    </>
-  );
-
-  return (
-    <DashboardField label={labelContent} labelHtmlFor={htmlFor} hint={hint}>
-      {children}
-    </DashboardField>
-  );
-}
-
-function TextInput({
+function MarkdownEditorField({
   id,
-  value,
-  onChange,
-  placeholder,
+  label,
+  required,
+  showLabel = true,
+  children,
 }: {
-  id?: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
+  id: string;
+  label: string;
+  required?: boolean;
+  showLabel?: boolean;
+  children: ReactNode;
 }) {
   return (
-    <DashboardInput
-      id={id}
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-    />
+    <div>
+      <label
+        htmlFor={id}
+        className={showLabel ? "block px-3 pb-1 text-xs font-medium text-[var(--ds-text-subtle)]" : "sr-only"}
+      >
+        {label}
+        {required && (
+          <SealWarningIcon weight="duotone" className="inline-block ml-1 size-3 text-red-500 align-middle" />
+        )}
+      </label>
+      {children}
+    </div>
   );
 }
 
@@ -84,16 +88,6 @@ export function EmailTemplateEditPage() {
   const sendTestMutation = useSendTestEmail();
   const [testFeedback, setTestFeedback] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
-  interface TemplateFormFields {
-    name: string;
-    subject: string;
-    headerBannerUrl: string;
-    headerText: string;
-    bodyText: string;
-    footerBannerUrl: string;
-    footerText: string;
-  }
-
   const [form, setForm] = useState<TemplateFormFields>({
     name: "",
     subject: "",
@@ -113,9 +107,9 @@ export function EmailTemplateEditPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Populate form when existing template data arrives (adjust-state-during-render pattern)
-  const [syncedExistingId, setSyncedExistingId] = useState<number | undefined>();
-  if (existing && existing.id !== syncedExistingId) {
-    setSyncedExistingId(existing.id);
+  const syncedExistingIdRef = useRef<number | undefined>(undefined);
+  if (existing && existing.id !== syncedExistingIdRef.current) {
+    syncedExistingIdRef.current = existing.id;
     setForm({
       name: existing.name,
       subject: existing.subject,
@@ -202,170 +196,317 @@ export function EmailTemplateEditPage() {
           <HeaderBackButton label={messages.emailTemplates.listTitle} onClick={() => navigate("/email-templates")} />
         }
       >
-        <div className="flex items-center gap-3">
-          {savedIndicator && (
-            <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-              <CheckCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-              {m.saved}
-            </span>
-          )}
-          {testFeedback && (
-            <span
-              className={`text-xs ${
-                testFeedback.type === "ok" ? "text-green-600 dark:text-green-400" : "text-red-500"
-              }`}
-            >
-              {testFeedback.text}
-            </span>
-          )}
-          {error && <p className="text-xs text-red-500">{error}</p>}
-          {!isNew && (
-            <DashboardButton
-              disabled={!canSendTest}
-              leadingIcon={<PaperPlaneTiltIcon weight="duotone" className="size-3.5" />}
-              onClick={handleSendTest}
-              size="control"
-              type="button"
-              variant="neutral"
-            >
-              {sendTestMutation.isPending ? m.sendingTest : m.sendTest}
-            </DashboardButton>
-          )}
-          <DashboardActionButton
-            action="save"
-            busyLabel={messages.common.saving}
-            disabled={isPending}
-            label={m.save}
-            onClick={handleSave}
-            size="control"
-            status={isPending ? "busy" : "idle"}
-            type="button"
-          />
-        </div>
+        <EmailTemplateHeaderActions
+          savedIndicator={savedIndicator}
+          testFeedback={testFeedback}
+          error={error}
+          isPending={isPending}
+          showSendTest={!isNew}
+          canSendTest={canSendTest}
+          isSendingTest={sendTestMutation.isPending}
+          savedLabel={m.saved}
+          sendingTestLabel={m.sendingTest}
+          sendTestLabel={m.sendTest}
+          savingLabel={messages.common.saving}
+          saveLabel={m.save}
+          onSendTest={handleSendTest}
+          onSave={handleSave}
+        />
       </PageHeader>
 
-      {/* Sub-bar: back link + inline name input */}
-      <div className="px-3 py-1.5 shrink-0 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => navigate("/email-templates")}
-          className="text-sm text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] shrink-0"
+      <EmailTemplateMetaBar
+        name={name}
+        isSystemTemplate={Boolean(existing?.isSystemTemplate)}
+        labels={{
+          newTemplate: m.newTemplate,
+          templateName: m.templateName,
+          systemBadge: m.systemBadge,
+        }}
+        onNameChange={(value) => updateField("name", value)}
+      />
+
+      <EmailTemplateEditorGrid form={form} labels={m} onFieldChange={updateField} />
+    </div>
+  );
+}
+
+interface EmailTemplateHeaderActionsProps {
+  savedIndicator: boolean;
+  testFeedback: { type: "ok" | "err"; text: string } | null;
+  error: string | null;
+  isPending: boolean;
+  showSendTest: boolean;
+  canSendTest: boolean;
+  isSendingTest: boolean;
+  savedLabel: string;
+  sendingTestLabel: string;
+  sendTestLabel: string;
+  savingLabel: string;
+  saveLabel: string;
+  onSendTest: () => void;
+  onSave: () => void;
+}
+
+function EmailTemplateHeaderActions({
+  savedIndicator,
+  testFeedback,
+  error,
+  isPending,
+  showSendTest,
+  canSendTest,
+  isSendingTest,
+  savedLabel,
+  sendingTestLabel,
+  sendTestLabel,
+  savingLabel,
+  saveLabel,
+  onSendTest,
+  onSave,
+}: EmailTemplateHeaderActionsProps) {
+  return (
+    <div className="flex items-center gap-3">
+      {savedIndicator && (
+        <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+          <CheckCircleIcon weight="duotone" className="size-3.5" />
+          {savedLabel}
+        </span>
+      )}
+      {testFeedback && (
+        <span
+          className={`text-xs ${testFeedback.type === "ok" ? "text-green-600 dark:text-green-400" : "text-red-500"}`}
         >
-          {m.backToList}
-        </button>
-        <span className="text-[var(--ds-border)]">·</span>
-        <DashboardInput
-          type="text"
-          value={name}
-          onChange={(e) => updateField("name", e.target.value)}
-          placeholder={m.newTemplate}
-          className="w-64 font-mono"
-        />
-        {existing?.isSystemTemplate && (
+          {testFeedback.text}
+        </span>
+      )}
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      {showSendTest && (
+        <DashboardButton
+          disabled={!canSendTest}
+          leadingIcon={<PaperPlaneTiltIcon weight="duotone" className="size-3.5" />}
+          onClick={onSendTest}
+          size="action"
+          type="button"
+          variant="neutral"
+        >
+          {isSendingTest ? sendingTestLabel : sendTestLabel}
+        </DashboardButton>
+      )}
+      <SaveActionButton
+        type="button"
+        onClick={onSave}
+        disabled={isPending}
+        busyLabel={savingLabel}
+        label={saveLabel}
+        status={isPending ? "busy" : "idle"}
+      />
+    </div>
+  );
+}
+
+interface EmailTemplateMetaBarProps {
+  name: string;
+  isSystemTemplate: boolean;
+  labels: {
+    newTemplate: string;
+    templateName: string;
+    systemBadge: string;
+  };
+  onNameChange: (value: string) => void;
+}
+
+function EmailTemplateMetaBar({ name, isSystemTemplate, labels, onNameChange }: EmailTemplateMetaBarProps) {
+  return (
+    <div className="flex shrink-0 items-end gap-3 px-3 py-2">
+      <DashboardInput
+        fieldClassName="w-64"
+        id="email-template-name"
+        type="text"
+        value={name}
+        onChange={(event) => onNameChange(event.target.value)}
+        placeholder={labels.newTemplate}
+        className="font-mono"
+        label={labels.templateName}
+      />
+      <div className="ml-auto flex items-center">
+        {isSystemTemplate && (
           <span className="px-2 py-0.5 rounded text-xs bg-[var(--ds-surface-hover)] text-[var(--ds-text-muted)]">
-            {m.systemBadge}
+            {labels.systemBadge}
           </span>
         )}
       </div>
+    </div>
+  );
+}
 
-      {/* Body: two-column split — wrapped in a card */}
-      <div className="flex-1 overflow-hidden">
-        <Card className="h-full flex overflow-hidden">
-          {/* Left: form */}
-          <div className="w-1/2 overflow-y-auto p-3 space-y-3 border-r border-[var(--ds-border)]">
-            {/* Subject */}
-            <Field label={m.templateSubject} htmlFor="tpl-subject" required>
-              <TextInput
-                id="tpl-subject"
-                value={subject}
-                onChange={(v) => updateField("subject", v)}
-                placeholder={m.subjectPlaceholder}
+interface EmailTemplateEditorGridProps {
+  form: TemplateFormFields;
+  labels: ReturnType<typeof useI18n>["messages"]["emailTemplates"];
+  onFieldChange: <K extends keyof TemplateFormFields>(key: K, value: TemplateFormFields[K]) => void;
+}
+
+function EmailTemplateEditorGrid({ form, labels, onFieldChange }: EmailTemplateEditorGridProps) {
+  return (
+    <div className="flex-1 overflow-hidden">
+      <div className="grid h-full grid-cols-1 gap-3 overflow-hidden xl:grid-cols-[minmax(0,1fr)_minmax(26rem,0.9fr)]">
+        <div className="min-w-0 overflow-y-auto">
+          <div className="space-y-4">
+            <DashboardSection className="overflow-hidden">
+              <DashboardSection.Header
+                icon={<EnvelopeSimpleIcon weight="duotone" className="size-4" />}
+                title={labels.templateSubject}
               />
-            </Field>
-
-            {/* Header */}
-            <SectionCard title={m.sectionHeader}>
-              <Field label={m.headerBanner} htmlFor="tpl-header-banner">
-                <TextInput
-                  id="tpl-header-banner"
-                  value={headerBannerUrl}
-                  onChange={(v) => updateField("headerBannerUrl", v)}
-                  placeholder="https://example.com/header.png"
+              <DashboardSection.Body>
+                <DashboardInput
+                  aria-label={labels.templateSubject}
+                  id="tpl-subject"
+                  required
+                  type="text"
+                  value={form.subject}
+                  onChange={(event) => onFieldChange("subject", event.target.value)}
+                  placeholder={labels.subjectPlaceholder}
                 />
-              </Field>
-              <Field label={m.headerText} htmlFor="tpl-header-text">
-                <Suspense
-                  fallback={
-                    <div className="h-[6rem] rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] animate-pulse" />
-                  }
-                >
-                  <MarkdownEditor
-                    id="tpl-header-text"
-                    value={headerText}
-                    onChange={(v) => updateField("headerText", v)}
-                    rows={4}
-                  />
-                </Suspense>
-              </Field>
-            </SectionCard>
+              </DashboardSection.Body>
+            </DashboardSection>
 
-            {/* Body */}
-            <SectionCard title={m.sectionBody}>
-              <Field label={m.bodyText} htmlFor="tpl-body-text" required>
-                <Suspense
-                  fallback={
-                    <div className="h-[18rem] rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] animate-pulse" />
-                  }
-                >
-                  <MarkdownEditor
-                    id="tpl-body-text"
-                    value={bodyText}
-                    onChange={(v) => updateField("bodyText", v)}
-                    rows={12}
-                  />
-                </Suspense>
-              </Field>
-            </SectionCard>
+            <EmailTemplateMarkdownSection
+              icon={<EnvelopeOpenIcon weight="duotone" className="size-4" />}
+              title={labels.sectionHeader}
+              banner={{
+                id: "tpl-header-banner",
+                value: form.headerBannerUrl,
+                label: labels.headerBanner,
+                placeholder: "https://example.com/header.png",
+                onChange: (value) => onFieldChange("headerBannerUrl", value),
+              }}
+              editor={{
+                id: "tpl-header-text",
+                value: form.headerText,
+                label: labels.headerText,
+                rows: 4,
+                fallbackHeight: "h-[6rem]",
+                onChange: (value) => onFieldChange("headerText", value),
+              }}
+            />
 
-            {/* Footer */}
-            <SectionCard title={m.sectionFooter}>
-              <Field label={m.footerText} htmlFor="tpl-footer-text">
-                <Suspense
-                  fallback={
-                    <div className="h-[6rem] rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] animate-pulse" />
-                  }
-                >
-                  <MarkdownEditor
-                    id="tpl-footer-text"
-                    value={footerText}
-                    onChange={(v) => updateField("footerText", v)}
-                    rows={4}
-                  />
-                </Suspense>
-              </Field>
-              <Field label={m.footerBanner} htmlFor="tpl-footer-banner">
-                <TextInput
-                  id="tpl-footer-banner"
-                  value={footerBannerUrl}
-                  onChange={(v) => updateField("footerBannerUrl", v)}
-                  placeholder="https://example.com/footer.png"
-                />
-              </Field>
-            </SectionCard>
-          </div>
+            <EmailTemplateMarkdownSection
+              icon={<ArticleIcon weight="duotone" className="size-4" />}
+              title={
+                <>
+                  {labels.sectionBody}
+                  <SealWarningIcon weight="duotone" className="inline-block ml-1 size-3.5 text-red-500 align-middle" />
+                </>
+              }
+              editor={{
+                id: "tpl-body-text",
+                value: form.bodyText,
+                label: labels.bodyText,
+                rows: 12,
+                fallbackHeight: "h-[18rem]",
+                required: true,
+                showLabel: false,
+                onChange: (value) => onFieldChange("bodyText", value),
+              }}
+            />
 
-          {/* Right: live preview */}
-          <div className="w-1/2 overflow-hidden">
-            <EmailPreview
-              headerBannerUrl={headerBannerUrl}
-              headerText={headerText}
-              bodyText={bodyText}
-              footerBannerUrl={footerBannerUrl}
-              footerText={footerText}
+            <EmailTemplateMarkdownSection
+              icon={<SquareHalfBottomIcon weight="duotone" className="size-4" />}
+              title={labels.sectionFooter}
+              banner={{
+                id: "tpl-footer-banner",
+                value: form.footerBannerUrl,
+                label: labels.footerBanner,
+                placeholder: "https://example.com/footer.png",
+                onChange: (value) => onFieldChange("footerBannerUrl", value),
+              }}
+              editor={{
+                id: "tpl-footer-text",
+                value: form.footerText,
+                label: labels.footerText,
+                rows: 4,
+                fallbackHeight: "h-[6rem]",
+                onChange: (value) => onFieldChange("footerText", value),
+              }}
             />
           </div>
-        </Card>
+        </div>
+
+        <div className="min-h-[32rem] overflow-hidden xl:min-h-0">
+          <EmailPreview
+            headerBannerUrl={form.headerBannerUrl}
+            headerText={form.headerText}
+            bodyText={form.bodyText}
+            footerBannerUrl={form.footerBannerUrl}
+            footerText={form.footerText}
+          />
+        </div>
       </div>
     </div>
+  );
+}
+
+interface EmailTemplateMarkdownSectionProps {
+  icon: ReactNode;
+  title: ReactNode;
+  banner?: {
+    id: string;
+    value: string;
+    label: string;
+    placeholder: string;
+    onChange: (value: string) => void;
+  };
+  editor: {
+    id: string;
+    value: string;
+    label: string;
+    rows: number;
+    fallbackHeight: string;
+    required?: boolean;
+    showLabel?: boolean;
+    onChange: (value: string) => void;
+  };
+}
+
+function EmailTemplateMarkdownSection({ icon, title, banner, editor }: EmailTemplateMarkdownSectionProps) {
+  return (
+    <DashboardSection className="overflow-hidden">
+      <DashboardSection.Header icon={icon} title={title} />
+      <DashboardSection.Body className="!gap-0 !p-0">
+        {banner && (
+          <div className="p-3">
+            <DashboardInput
+              id={banner.id}
+              type="text"
+              value={banner.value}
+              onChange={(event) => banner.onChange(event.target.value)}
+              placeholder={banner.placeholder}
+              label={banner.label}
+            />
+          </div>
+        )}
+        <MarkdownEditorField
+          id={editor.id}
+          label={editor.label}
+          required={editor.required}
+          showLabel={editor.showLabel}
+        >
+          <Suspense
+            fallback={
+              <div
+                className={`${editor.fallbackHeight} animate-pulse rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)]`}
+              />
+            }
+          >
+            <MarkdownEditor
+              id={editor.id}
+              value={editor.value}
+              onChange={editor.onChange}
+              rows={editor.rows}
+              resizable
+              className={FLUSH_MARKDOWN_EDITOR_CLASS}
+            />
+          </Suspense>
+        </MarkdownEditorField>
+      </DashboardSection.Body>
+    </DashboardSection>
   );
 }

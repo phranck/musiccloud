@@ -19,7 +19,7 @@ export interface DashboardSectionProps {
 
 export interface DashboardSectionHeaderProps {
   icon: ReactNode;
-  title: string;
+  title: ReactNode;
   /** Optional right-aligned content (e.g. a toggle switch). */
   addOn?: ReactNode;
   className?: string;
