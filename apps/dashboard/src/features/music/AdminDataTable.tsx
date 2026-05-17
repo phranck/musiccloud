@@ -1,3 +1,4 @@
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import {
   ArrowDown as ArrowDownIcon,
   ArrowsDownUp as ArrowsDownUpIcon,
@@ -14,7 +15,7 @@ import { useI18n } from "@/context/I18nContext";
 import { useAdminSSE } from "@/features/music/hooks/useAdminSSE";
 import { api } from "@/lib/api";
 import { Checkbox } from "@/shared/ui/Checkbox";
-import { Dialog, dialogBtnDestructive, dialogBtnSecondary } from "@/shared/ui/Dialog";
+import { Dialog } from "@/shared/ui/Dialog";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -581,22 +582,24 @@ export function AdminDataTable<T extends { id: string }>({ config }: { config: A
           {selection.error && <p className="text-sm text-[var(--ds-btn-danger-text)]">{selection.error}</p>}
         </div>
         <Dialog.Footer>
-          <button
-            type="button"
-            className={dialogBtnSecondary}
+          <DashboardActionButton
+            action="cancel"
+            disabled={selection.deleting}
+            icon={false}
+            label={m.deleteConfirmCancel}
             onClick={() => selectionDispatch({ type: "closeDialog" })}
-            disabled={selection.deleting}
-          >
-            {m.deleteConfirmCancel}
-          </button>
-          <button
             type="button"
-            className={dialogBtnDestructive}
+            variant="neutral"
+          />
+          <DashboardActionButton
+            action="delete"
+            busyLabel="\u2026"
+            icon={false}
+            label={m.deleteConfirmAction}
             onClick={handleConfirmDelete}
-            disabled={selection.deleting}
-          >
-            {selection.deleting ? "\u2026" : m.deleteConfirmAction}
-          </button>
+            status={selection.deleting ? "busy" : "idle"}
+            type="button"
+          />
         </Dialog.Footer>
       </Dialog>
     </div>
