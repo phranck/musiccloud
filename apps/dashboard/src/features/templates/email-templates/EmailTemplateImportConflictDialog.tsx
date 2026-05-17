@@ -1,8 +1,9 @@
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import { DownloadIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { useI18n } from "@/context/I18nContext";
-import { Dialog, dialogBtnSecondary, dialogHeaderIconClass } from "@/shared/ui/Dialog";
+import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 interface EmailTemplateImportConflictDialogProps {
   templateName: string;
@@ -48,41 +49,48 @@ export function EmailTemplateImportConflictDialog({
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="w-full px-3 py-1.5 border border-[var(--ds-border)] rounded-control text-sm bg-[var(--ds-surface)] text-[var(--ds-text)] focus:outline-none focus:border-[var(--ds-border-strong)]"
+              className="w-full h-[var(--ds-control-h-field)] px-3 border border-[var(--ds-border)] rounded-control text-sm bg-[var(--ds-form-control-bg,var(--ds-input-bg))] text-[var(--ds-text)] focus:outline-none focus:border-[var(--ds-border-focus)] focus:ring-2 focus:ring-[var(--ds-focus-ring)]"
             />
           </div>
         )}
       </div>
 
       <Dialog.Footer className="flex flex-col gap-2">
-        <button
-          type="button"
+        <DashboardActionButton
+          action="overwrite"
+          icon={false}
+          label={m.importOverwrite}
           onClick={onOverwrite}
-          className="h-9 px-4 bg-[var(--ds-accent)] text-white rounded-control text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          {m.importOverwrite}
-        </button>
+          type="button"
+        />
         {showRename ? (
-          <button
-            type="button"
+          <DashboardActionButton
+            action="import"
             disabled={!newName.trim()}
+            icon={false}
+            label={m.importRename}
             onClick={() => onRename(newName.trim())}
-            className="h-9 px-4 border border-[var(--ds-border)] rounded-control text-sm font-medium text-[var(--ds-text)] hover:border-[var(--ds-border-strong)] disabled:opacity-50"
-          >
-            {m.importRename}
-          </button>
-        ) : (
-          <button
             type="button"
+            variant="neutral"
+          />
+        ) : (
+          <DashboardActionButton
+            action="import"
+            icon={false}
+            label={m.importRename}
             onClick={() => setShowRename(true)}
-            className="h-9 px-4 border border-[var(--ds-border)] rounded-control text-sm font-medium text-[var(--ds-text)] hover:border-[var(--ds-border-strong)]"
-          >
-            {m.importRename}
-          </button>
+            type="button"
+            variant="neutral"
+          />
         )}
-        <button type="button" onClick={onCancel} className={dialogBtnSecondary}>
-          {m.importSkip}
-        </button>
+        <DashboardActionButton
+          action="skip"
+          icon={false}
+          label={m.importSkip}
+          onClick={onCancel}
+          type="button"
+          variant="neutral"
+        />
       </Dialog.Footer>
     </Dialog>
   );
