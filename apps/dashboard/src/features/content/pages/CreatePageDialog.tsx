@@ -1,12 +1,13 @@
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import type { ContentPage, PageType } from "@musiccloud/shared";
 import { PlusCircleIcon } from "@phosphor-icons/react";
 import { useReducer } from "react";
 
-import { Dialog, dialogBtnPrimary, dialogBtnSecondary, dialogHeaderIconClass } from "@/components/ui/Dialog";
+import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { useI18n } from "@/context/I18nContext";
 import { useCreateContentPage } from "@/features/content/hooks/useAdminContent";
-import { FormLabel, FormLabelText } from "@/shared/ui/FormPrimitives";
+import { FormLabel, FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
 
 interface Props {
   open: boolean;
@@ -102,7 +103,7 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
               required
               autoFocus
               placeholder={text.titlePlaceholder}
-              className="w-full px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              className={formInputClass}
             />
           </div>
           <div>
@@ -117,7 +118,7 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
                 required
                 pattern="[a-z0-9-]+"
                 placeholder={text.slugPlaceholder}
-                className="flex-1 px-3 py-1.5 text-sm bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded-control text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent font-mono"
+                className={`${formInputClass} font-mono`}
               />
             </div>
           </div>
@@ -139,12 +140,24 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
         <Dialog.Footer>
-          <button type="button" onClick={handleClose} disabled={createPage.isPending} className={dialogBtnSecondary}>
-            {common.cancel}
-          </button>
-          <button type="submit" disabled={createPage.isPending || !slug || !title} className={dialogBtnPrimary}>
-            {createPage.isPending ? text.creating : text.create}
-          </button>
+          <DashboardActionButton
+            action="cancel"
+            disabled={createPage.isPending}
+            icon={false}
+            label={common.cancel}
+            onClick={handleClose}
+            type="button"
+            variant="neutral"
+          />
+          <DashboardActionButton
+            action="create"
+            busyLabel={text.creating}
+            disabled={!slug || !title}
+            icon={false}
+            label={text.create}
+            status={createPage.isPending ? "busy" : "idle"}
+            type="submit"
+          />
         </Dialog.Footer>
       </form>
     </Dialog>
