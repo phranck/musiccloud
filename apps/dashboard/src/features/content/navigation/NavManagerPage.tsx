@@ -15,21 +15,33 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ControlTrigger, DashboardActionButton, DashboardInput, ListboxOption } from "@musiccloud/dashboard-ui";
+import {
+  ControlTrigger,
+  DashboardActionButton,
+  DashboardIconButton,
+  DashboardInput,
+  ListboxOption,
+  SaveActionButton,
+} from "@musiccloud/dashboard-ui";
 import type { NavId } from "@musiccloud/shared";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "@musiccloud/shared";
 import {
+  BrowsersIcon,
   CaretDownIcon,
   CaretUpIcon,
   FileDashedIcon,
   FileMdIcon,
   ListIcon,
   PlusCircleIcon,
+  SquareHalfBottomIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
-import { Fragment, useEffect, useReducer, useRef, useState } from "react";
+import { Fragment, type Ref, useCallback, useEffect, useImperativeHandle, useReducer, useRef, useState } from "react";
 
+import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
+import { SegmentSwitch } from "@/components/ui/SegmentSwitch";
 import { useI18n } from "@/context/I18nContext";
 import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
@@ -151,19 +163,21 @@ function SortableNavItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex flex-wrap items-center gap-3 p-3 bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-control"
+      className="grid grid-cols-[auto_minmax(0,1fr)_minmax(10rem,11rem)_auto] items-center gap-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface)] p-3"
     >
-      <button
+      <DashboardIconButton
         type="button"
         {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] touch-none"
+        className="touch-none cursor-grab active:cursor-grabbing"
         title={text.dragTitle}
+        aria-label={text.dragTitle}
+        variant="ghost"
       >
-        <ListIcon weight="duotone" className="w-4 h-4" />
-      </button>
+        <ListIcon weight="bold" className="size-4" />
+      </DashboardIconButton>
 
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 overflow-hidden">
         <div className="text-sm font-medium text-[var(--ds-text)] truncate">{item.pageTitle ?? item.url}</div>
         <div className="text-xs text-[var(--ds-text-muted)] font-mono">{displayUrl}</div>
       </div>
@@ -173,7 +187,7 @@ function SortableNavItem({
         value={item.label}
         onChange={(e) => onLabelChange(item.id, e.target.value)}
         placeholder={item.pageTitle ?? item.url ?? ""}
-        className="w-32 text-xs"
+        className="w-44 min-w-0 text-xs"
         title={text.labelOverrideTitle}
       />
 
@@ -189,7 +203,7 @@ function SortableNavItem({
       />
 
       {/* Translations expandable */}
-      <div className="w-full">
+      <div className="col-span-4 w-full">
         <button
           type="button"
           onClick={() => onToggleExpanded(item.id)}
@@ -221,7 +235,18 @@ function SortableNavItem({
   );
 }
 
-function NavColumn({ navId, label }: { navId: NavId; label: string }) {
+export interface NavColumnHandle {
+  save: () => Promise<boolean>;
+  hasDirty: () => boolean;
+}
+
+interface NavColumnProps {
+  navId: NavId;
+  onDirtyChange?: (dirty: boolean) => void;
+  ref?: Ref<NavColumnHandle>;
+}
+
+function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
   const { locale } = useI18n();
   const text = NAV_TEXT[locale];
   const staticRoutes = text.staticRoutes;
@@ -262,6 +287,14 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
     dispatch({ items: typeof updater === "function" ? updater(items) : updater });
   };
 
+  const setDirty = useCallback(
+    (nextDirty: boolean) => {
+      dispatch({ dirty: nextDirty });
+      onDirtyChange?.(nextDirty);
+    },
+    [onDirtyChange],
+  );
+
   useEffect(() => {
     dispatch({
       items: serverItems.map((si) => ({
@@ -290,17 +323,17 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
       const newIndex = prev.findIndex((i) => i.id === over.id);
       return arrayMove(prev, oldIndex, newIndex);
     });
-    dispatch({ dirty: true });
+    setDirty(true);
   }
 
   function handleRemove(id: number) {
     setItems((prev) => prev.filter((i) => i.id !== id));
-    dispatch({ dirty: true });
+    setDirty(true);
   }
 
   function handleLabelChange(id: number, label: string) {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, label } : i)));
-    dispatch({ dirty: true });
+    setDirty(true);
   }
 
   function handleTranslationChange(id: number, locale: Locale, value: string) {
@@ -316,7 +349,7 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
         return { ...i, translations: next };
       }),
     );
-    dispatch({ dirty: true });
+    setDirty(true);
   }
 
   function handleToggleExpanded(id: number) {
@@ -345,7 +378,7 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
         },
       ]);
       dispatch({ addPageSlug: "" });
-      dispatch({ dirty: true });
+      setDirty(true);
       return;
     }
     const page = allPages.find((p) => p.slug === addPageSlug);
@@ -364,7 +397,7 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
       },
     ]);
     dispatch({ addPageSlug: "" });
-    dispatch({ dirty: true });
+    setDirty(true);
   }
 
   function handleAddUrl() {
@@ -387,7 +420,8 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
         translations: {},
       },
     ]);
-    dispatch({ addUrl: "", addLabel: "", addTarget: "_self", dirty: true });
+    dispatch({ addUrl: "", addLabel: "", addTarget: "_self" });
+    setDirty(true);
   }
 
   function handleAddStatic(route: { label: string; url: string }) {
@@ -404,10 +438,11 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
         translations: {},
       },
     ]);
-    dispatch({ dirty: true });
+    setDirty(true);
   }
 
-  async function handleSave() {
+  const handleSave = useCallback(async (): Promise<boolean> => {
+    if (!dirty) return true;
     dispatch({ saveError: null });
     try {
       await saveNav.mutateAsync(
@@ -422,11 +457,22 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
           return tx.length > 0 ? { ...base, translations: Object.fromEntries(tx) } : base;
         }),
       );
-      dispatch({ dirty: false });
+      setDirty(false);
+      return true;
     } catch (err) {
       dispatch({ saveError: err instanceof Error ? err.message : text.errorSaving });
+      return false;
     }
-  }
+  }, [dirty, items, saveNav, setDirty, text.errorSaving]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      save: handleSave,
+      hasDirty: () => dirty,
+    }),
+    [dirty, handleSave],
+  );
 
   const usedUrls = new Set(items.filter((i) => i.url).map((i) => i.url));
   const availableStatics = staticRoutes.filter((r) => !usedUrls.has(r.url));
@@ -446,20 +492,6 @@ function NavColumn({ navId, label }: { navId: NavId; label: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[var(--ds-text)]">{label}</h3>
-        <DashboardActionButton
-          action="save"
-          busyLabel={text.saving}
-          disabled={!dirty}
-          label={text.save}
-          onClick={handleSave}
-          size="action"
-          status={saveNav.isPending ? "busy" : "idle"}
-          type="button"
-        />
-      </div>
-
       {saveError && <p className="text-xs text-red-500">{saveError}</p>}
 
       {isLoading ? (
@@ -556,31 +588,16 @@ function NavColumnAddSection({
 }: NavColumnAddSectionProps) {
   return (
     <div className="border-t border-[var(--ds-border)] pt-3 space-y-3">
-      {/* Type toggle */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => onTypeChange("page")}
-          className={`px-3 py-1 text-xs rounded-control border ${
-            addType === "page"
-              ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)] border-[var(--ds-nav-active-border)]"
-              : "text-[var(--ds-text-muted)] border-[var(--ds-border)] hover:text-[var(--ds-text)]"
-          }`}
-        >
-          {text.typePage}
-        </button>
-        <button
-          type="button"
-          onClick={() => onTypeChange("url")}
-          className={`px-3 py-1 text-xs rounded-control border ${
-            addType === "url"
-              ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)] border-[var(--ds-nav-active-border)]"
-              : "text-[var(--ds-text-muted)] border-[var(--ds-border)] hover:text-[var(--ds-text)]"
-          }`}
-        >
-          {text.typeUrl}
-        </button>
-      </div>
+      <SegmentSwitch
+        aria-label={text.choosePageOrForm}
+        value={addType === "form" ? "page" : addType}
+        onChange={(value) => onTypeChange(value)}
+        options={[
+          { value: "page", label: text.typePage },
+          { value: "url", label: text.typeUrl },
+        ]}
+        size="sm"
+      />
 
       {addType === "page" ? (
         <div className="flex items-center gap-2">
@@ -627,7 +644,7 @@ function NavColumnAddSection({
               value={addUrl}
               onChange={(e) => onUrlChange(e.target.value)}
               placeholder={text.urlPlaceholder}
-              className="flex-1 text-xs font-mono"
+              className="min-w-0 flex-1 font-mono text-xs"
             />
             <DashboardInput
               type="text"
@@ -797,19 +814,59 @@ function HierarchicalPagePicker({
  * @returns Nav manager route component.
  */
 export function NavManagerPage() {
-  const { locale } = useI18n();
+  const { locale, messages } = useI18n();
+  const common = messages.common;
   const text = NAV_TEXT[locale];
+
+  const headerRef = useRef<NavColumnHandle>(null);
+  const footerRef = useRef<NavColumnHandle>(null);
+  const [headerDirty, setHeaderDirty] = useState(false);
+  const [footerDirty, setFooterDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const { phase: savedPhase, show: showSaved } = useSaveNotification();
+
+  const isDirty = headerDirty || footerDirty;
+
+  async function handleSave() {
+    if (!isDirty || isSaving) return;
+    setIsSaving(true);
+    const [headerOk, footerOk] = await Promise.all([
+      headerRef.current?.save() ?? Promise.resolve(true),
+      footerRef.current?.save() ?? Promise.resolve(true),
+    ]);
+    setIsSaving(false);
+    if (headerOk && footerOk) showSaved();
+  }
 
   return (
     <>
-      <PageHeader title={text.pageTitle} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-control p-5">
-          <NavColumn navId="header" label={text.headerNav} />
-        </div>
-        <div className="bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-control p-5">
-          <NavColumn navId="footer" label={text.footerNav} />
-        </div>
+      <PageHeader title={text.pageTitle}>
+        <SaveNotification phase={savedPhase} label={common.saved} />
+        <SaveActionButton
+          onClick={handleSave}
+          disabled={!isDirty || isSaving}
+          busyLabel={common.saving}
+          label={common.save}
+          status={isSaving ? "busy" : "idle"}
+        />
+      </PageHeader>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <DashboardSection>
+          <DashboardSection.Header icon={<BrowsersIcon weight="duotone" className="size-4" />} title={text.headerNav} />
+          <DashboardSection.Body>
+            <NavColumn ref={headerRef} navId="header" onDirtyChange={setHeaderDirty} />
+          </DashboardSection.Body>
+        </DashboardSection>
+        <DashboardSection>
+          <DashboardSection.Header
+            icon={<SquareHalfBottomIcon weight="duotone" className="size-4" />}
+            title={text.footerNav}
+          />
+          <DashboardSection.Body>
+            <NavColumn ref={footerRef} navId="footer" onDirtyChange={setFooterDirty} />
+          </DashboardSection.Body>
+        </DashboardSection>
       </div>
     </>
   );
