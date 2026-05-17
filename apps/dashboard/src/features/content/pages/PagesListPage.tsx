@@ -11,6 +11,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import { DEFAULT_LOCALE, LOCALES, type TranslationStatus } from "@musiccloud/shared";
 import type { Icon } from "@phosphor-icons/react";
 import {
@@ -27,7 +28,7 @@ import {
 import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/components/ui/Dialog";
+import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import type { ColumnDef, DataTableRowProps } from "@/components/ui/Table";
@@ -473,14 +474,14 @@ export function PagesListPage() {
     <PageLayout>
       <PageHeader title={text.title}>
         {!showCreate && (
-          <button
-            type="button"
+          <DashboardActionButton
+            action="create"
+            icon={<PlusCircleIcon weight="duotone" className="size-3.5" />}
+            label={text.newPage}
             onClick={() => dispatch({ showCreate: true })}
-            className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)]"
-          >
-            <PlusCircleIcon weight="duotone" className="size-3.5" />
-            {text.newPage}
-          </button>
+            size="control"
+            type="button"
+          />
         )}
       </PageHeader>
 
@@ -534,22 +535,24 @@ export function PagesListPage() {
           {text.confirmDeleteSuffix}
         </div>
         <Dialog.Footer>
-          <button
-            type="button"
-            className={dialogBtnSecondary}
+          <DashboardActionButton
+            action="cancel"
+            disabled={deletePage.isPending}
+            icon={false}
+            label={common.cancel}
             onClick={() => dispatch({ deleteTarget: null })}
-            disabled={deletePage.isPending}
-          >
-            {common.cancel}
-          </button>
-          <button
             type="button"
-            className={dialogBtnDestructive}
+            variant="neutral"
+          />
+          <DashboardActionButton
+            action="delete"
+            busyLabel="…"
+            icon={false}
+            label={common.delete}
             onClick={handleDeleteConfirm}
-            disabled={deletePage.isPending}
-          >
-            {deletePage.isPending ? "…" : common.delete}
-          </button>
+            status={deletePage.isPending ? "busy" : "idle"}
+            type="button"
+          />
         </Dialog.Footer>
       </Dialog>
     </PageLayout>
