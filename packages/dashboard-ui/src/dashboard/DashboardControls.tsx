@@ -1,3 +1,7 @@
+import { CaretDownIcon, CaretUpDownIcon, CaretUpIcon } from "@phosphor-icons/react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
+
+import { cx } from "../classNames.js";
 import {
   FieldShell,
   type FieldShellProps,
@@ -81,4 +85,42 @@ export function DashboardTextarea({
       <TextareaPrimitive id={id} {...textareaProps} />
     </DashboardField>
   );
+}
+
+export type TableSortDirection = "asc" | "desc" | null;
+
+export interface TableSortHeaderProps extends Omit<ComponentPropsWithoutRef<"button">, "children"> {
+  children: ReactNode;
+  direction?: TableSortDirection;
+}
+
+export function TableSortHeader({
+  children,
+  className,
+  direction = null,
+  type = "button",
+  ...buttonProps
+}: TableSortHeaderProps) {
+  return (
+    <button
+      {...buttonProps}
+      type={type}
+      className={cx("inline-flex items-center gap-1.5 hover:text-[var(--ds-text)] transition-colors", className)}
+    >
+      {children}
+      <TableSortIcon direction={direction} />
+    </button>
+  );
+}
+
+export function getTableSortAriaSort(direction: TableSortDirection) {
+  if (direction === "asc") return "ascending";
+  if (direction === "desc") return "descending";
+  return "none";
+}
+
+function TableSortIcon({ direction }: { direction: TableSortDirection }) {
+  const Icon = direction === "asc" ? CaretUpIcon : direction === "desc" ? CaretDownIcon : CaretUpDownIcon;
+
+  return <Icon weight="duotone" className={cx("w-3 h-3 shrink-0", direction === null && "opacity-40")} />;
 }

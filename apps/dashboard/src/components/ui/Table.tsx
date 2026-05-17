@@ -1,4 +1,4 @@
-import { CaretDownIcon, CaretUpDownIcon, CaretUpIcon } from "@phosphor-icons/react";
+import { getTableSortAriaSort, TableSortHeader } from "@musiccloud/dashboard-ui";
 import type { ComponentType, HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
 import { forwardRef, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -260,36 +260,15 @@ export function DataTable<T>({
           {columns.map((col, index) => (
             <Th
               key={col.id}
-              aria-sort={
-                col.sortKey
-                  ? sort?.id === col.id
-                    ? sort.dir === "asc"
-                      ? "ascending"
-                      : "descending"
-                    : "none"
-                  : undefined
-              }
+              aria-sort={col.sortKey ? getTableSortAriaSort(sort?.id === col.id ? sort.dir : null) : undefined}
               className={`${col.headerClassName ?? col.className ?? ""} ${col.sortKey ? "select-none" : ""}`}
               style={columnWidths[col.id] ? { width: columnWidths[col.id], minWidth: columnWidths[col.id] } : undefined}
             >
               <div className="relative -mx-1 px-1">
                 {col.sortKey ? (
-                  <button
-                    type="button"
-                    onClick={() => handleSort(col)}
-                    className="inline-flex items-center gap-1.5 hover:text-[var(--ds-text)] transition-colors"
-                  >
+                  <TableSortHeader direction={sort?.id === col.id ? sort.dir : null} onClick={() => handleSort(col)}>
                     {col.header}
-                    {sort?.id === col.id ? (
-                      sort.dir === "asc" ? (
-                        <CaretUpIcon weight="duotone" className="w-3 h-3 shrink-0" />
-                      ) : (
-                        <CaretDownIcon weight="duotone" className="w-3 h-3 shrink-0" />
-                      )
-                    ) : (
-                      <CaretUpDownIcon weight="duotone" className="w-3 h-3 shrink-0 opacity-40" />
-                    )}
-                  </button>
+                  </TableSortHeader>
                 ) : (
                   col.header
                 )}
