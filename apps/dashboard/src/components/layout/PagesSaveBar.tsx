@@ -1,11 +1,8 @@
-import {
-  ArrowCounterClockwise as ArrowCounterClockwiseIcon,
-  FloppyDisk as FloppyDiskIcon,
-} from "@phosphor-icons/react";
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import { useGlobalPagesSave } from "@/features/content/state/useGlobalPagesSave";
-import { Dialog, dialogBtnDestructive, dialogBtnSecondary } from "@/shared/ui/Dialog";
+import { Dialog } from "@/shared/ui/Dialog";
 
 export function PagesSaveBar() {
   const editor = usePagesEditor();
@@ -22,23 +19,22 @@ export function PagesSaveBar() {
 
   return (
     <div className="flex items-center gap-2">
-      <button
-        type="button"
+      <DashboardActionButton
+        action="save"
+        busyLabel="Speichert…"
+        label={`Speichern (${dirtyCount})`}
         onClick={() => void save()}
-        disabled={isSaving}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[var(--color-primary)] rounded-control disabled:opacity-50"
-      >
-        <FloppyDiskIcon weight="duotone" className="w-3.5 h-3.5" />
-        {isSaving ? "Speichert…" : `Speichern (${dirtyCount})`}
-      </button>
-      <button
+        status={isSaving ? "busy" : "idle"}
         type="button"
+        variant="accent"
+      />
+      <DashboardActionButton
+        action="restore"
+        label="Verwerfen"
         onClick={() => setConfirmDiscardOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] transition-colors"
-      >
-        <ArrowCounterClockwiseIcon weight="duotone" className="w-3.5 h-3.5" />
-        Verwerfen
-      </button>
+        type="button"
+        variant="ghost"
+      />
       {errorDetails && errorDetails.length > 0 && (
         <span className="text-xs text-[var(--ds-btn-danger-text)]">
           {errorDetails.length === 1 ? "1 Fehler" : `${errorDetails.length} Fehler`}
@@ -51,19 +47,24 @@ export function PagesSaveBar() {
           </p>
         </div>
         <Dialog.Footer>
-          <button type="button" className={dialogBtnSecondary} onClick={() => setConfirmDiscardOpen(false)}>
-            Abbrechen
-          </button>
-          <button
+          <DashboardActionButton
+            action="cancel"
+            icon={false}
+            label="Abbrechen"
+            onClick={() => setConfirmDiscardOpen(false)}
             type="button"
-            className={dialogBtnDestructive}
+            variant="neutral"
+          />
+          <DashboardActionButton
+            action="delete"
+            icon={false}
+            label="Verwerfen"
             onClick={() => {
               discard();
               setConfirmDiscardOpen(false);
             }}
-          >
-            Verwerfen
-          </button>
+            type="button"
+          />
         </Dialog.Footer>
       </Dialog>
     </div>
