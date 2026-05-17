@@ -1,3 +1,4 @@
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import {
   Info as InfoIcon,
   SealWarning as SealWarningIcon,
@@ -5,7 +6,7 @@ import {
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
-import { Dialog, dialogBtnPrimary, dialogHeaderIconClass } from "./Dialog";
+import { Dialog, dialogHeaderIconClass } from "./Dialog";
 
 type AlertVariant = "info" | "warning" | "error";
 
@@ -36,9 +37,7 @@ export function AlertDialog({
     <Dialog open={open} title={title} titleIcon={variantIcons[variant]} onClose={onClose}>
       <div className="px-6 py-4 text-sm text-[var(--ds-text)]">{children}</div>
       <Dialog.Footer>
-        <button type="button" className={dialogBtnPrimary} onClick={onClose}>
-          {buttonLabel}
-        </button>
+        <DashboardActionButton action="approve" icon={false} label={buttonLabel} onClick={onClose} variant="primary" />
       </Dialog.Footer>
     </Dialog>
   );
