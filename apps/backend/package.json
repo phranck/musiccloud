@@ -1,6 +1,6 @@
 {
   "name": "@musiccloud/backend",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "node --env-file=.env.local ./node_modules/tsup/dist/cli-default.js --watch --onSuccess \"node scripts/copy-jimp-fonts.mjs && node start-dev.mjs\"",
