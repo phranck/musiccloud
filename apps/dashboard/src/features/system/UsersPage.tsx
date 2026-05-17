@@ -1,3 +1,4 @@
+import { DashboardActionButton } from "@musiccloud/dashboard-ui";
 import { FileTextIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
@@ -7,7 +8,7 @@ import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { useI18n } from "@/context/I18nContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAdminUsers, useDeleteUser } from "@/features/system/hooks/useAdminUsers";
-import { Dialog, dialogBtnDestructive, dialogBtnSecondary, dialogHeaderIconClass } from "@/shared/ui/Dialog";
+import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 import { UserAvatar } from "./UserAvatar";
 import { UserCreateCard } from "./UserCreateCard";
@@ -30,14 +31,14 @@ export function UsersPage() {
   return (
     <PageLayout>
       <PageHeader title={usersMessages.title}>
-        <button
-          type="button"
+        <DashboardActionButton
+          action="create"
+          icon={<PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />}
+          label={usersMessages.inviteUser}
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 py-1.5 px-4 border border-[var(--ds-btn-primary-border)] text-[var(--ds-btn-primary-text)] rounded-control text-sm font-medium hover:border-[var(--ds-btn-primary-hover-border)] hover:bg-[var(--ds-btn-primary-hover-bg)] transition-colors"
-        >
-          <PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-          {usersMessages.inviteUser}
-        </button>
+          size="control"
+          type="button"
+        />
       </PageHeader>
 
       <PageBody>
@@ -81,24 +82,24 @@ export function UsersPage() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {(me?.isOwner || user.id === me?.id) && (
-                  <button
-                    type="button"
+                  <DashboardActionButton
+                    action="edit"
+                    icon={<FileTextIcon weight="duotone" className="w-3.5 h-3.5" />}
+                    label={usersMessages.editCard.editTooltip}
                     onClick={() => setEditingUserId(user.id)}
-                    className="py-1.5 px-3 flex items-center gap-2 rounded-control border border-[var(--ds-border)] text-[var(--ds-text-muted)] text-sm hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] transition-colors"
-                  >
-                    <FileTextIcon weight="duotone" className="w-3.5 h-3.5" />
-                    {usersMessages.editCard.editTooltip}
-                  </button>
+                    size="control"
+                    type="button"
+                  />
                 )}
                 {me?.isOwner && user.id !== me?.id && (
-                  <button
-                    type="button"
+                  <DashboardActionButton
+                    action="delete"
+                    icon={<TrashIcon weight="duotone" className="w-3.5 h-3.5" />}
+                    label={usersMessages.remove}
                     onClick={() => setDeleteId(user.id)}
-                    className="py-1.5 px-3 flex items-center gap-2 text-sm border border-[var(--ds-btn-danger-border)] rounded-control text-[var(--ds-btn-danger-text)] hover:border-[var(--ds-btn-danger-hover-border)] hover:bg-[var(--ds-btn-danger-hover-bg)] transition-colors"
-                  >
-                    <TrashIcon weight="duotone" className="w-3.5 h-3.5" />
-                    {usersMessages.remove}
-                  </button>
+                    size="control"
+                    type="button"
+                  />
                 )}
               </div>
             </ItemCard>
@@ -118,19 +119,25 @@ export function UsersPage() {
           </p>
         </div>
         <Dialog.Footer>
-          <button type="button" onClick={() => setDeleteId(null)} className={dialogBtnSecondary}>
-            {common.cancel}
-          </button>
-          <button
+          <DashboardActionButton
+            action="cancel"
+            icon={false}
+            label={common.cancel}
+            onClick={() => setDeleteId(null)}
             type="button"
-            disabled={deleteMutation.isPending}
+            variant="neutral"
+          />
+          <DashboardActionButton
+            action="delete"
+            busyLabel="\u2026"
+            icon={false}
+            label={common.remove}
             onClick={() => {
               if (deleteId !== null) deleteMutation.mutate(deleteId, { onSuccess: () => setDeleteId(null) });
             }}
-            className={dialogBtnDestructive}
-          >
-            {deleteMutation.isPending ? "\u2026" : common.remove}
-          </button>
+            status={deleteMutation.isPending ? "busy" : "idle"}
+            type="button"
+          />
         </Dialog.Footer>
       </Dialog>
 
