@@ -282,7 +282,8 @@
 
   /* Segment controls */
   --ds-segment-bg: var(--ds-bg-elevated);
-  --ds-segment-active-bg: var(--ds-surface);
+  --ds-segment-active-bg: var(--ds-control-active-bg);
+  --ds-segment-active-border: color-mix(in srgb, var(--color-primary) 16%, var(--ds-border));
 
   /* Neutral outline button */
   --ds-btn-neutral-border: var(--ds-border);
@@ -333,7 +334,8 @@
   --ds-btn-primary-hover-bg: hsl(195 30% 20%);
 
   --ds-segment-bg: var(--ds-bg-elevated);
-  --ds-segment-active-bg: var(--ds-surface);
+  --ds-segment-active-bg: var(--ds-control-active-bg);
+  --ds-segment-active-border: color-mix(in srgb, var(--color-primary) 20%, var(--ds-border));
 
   --ds-btn-neutral-border: var(--ds-border);
   --ds-btn-neutral-text: var(--ds-text-muted);

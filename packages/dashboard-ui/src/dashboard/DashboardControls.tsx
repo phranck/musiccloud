@@ -10,6 +10,8 @@ import {
   TextareaPrimitive,
   type TextareaPrimitiveProps,
 } from "../primitives/FieldPrimitives.js";
+import type { SegmentedControlPrimitiveProps } from "../primitives/SegmentedControlPrimitive.js";
+import { SegmentedControlPrimitive } from "../primitives/SegmentedControlPrimitive.js";
 
 export type DashboardFieldProps = FieldShellProps;
 
@@ -123,4 +125,8 @@ function TableSortIcon({ direction }: { direction: TableSortDirection }) {
   const Icon = direction === "asc" ? CaretUpIcon : direction === "desc" ? CaretDownIcon : CaretUpDownIcon;
 
   return <Icon weight="duotone" className={cx("w-3 h-3 shrink-0", direction === null && "opacity-40")} />;
+}
+
+export function DashboardSegmentedControl<T extends string = string>(props: SegmentedControlPrimitiveProps<T>) {
+  return <SegmentedControlPrimitive {...props} />;
 }
