@@ -1,9 +1,10 @@
+import { DashboardActionButton, DashboardIconButton } from "@musiccloud/dashboard-ui";
 import { SignOutIcon, UserCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useI18n } from "@/context/I18nContext";
 import { UserAvatar } from "@/features/system/UserAvatar";
 import type { AdminRole } from "@/shared/types/admin";
-import { Dialog, dialogBtnPrimary, dialogBtnSecondary, dialogHeaderIconClass } from "@/shared/ui/Dialog";
+import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 const SKIP_KEY = "logout-skip-confirm";
 
@@ -53,8 +54,7 @@ export function FooterUserInfo({
     onLogout();
   }
 
-  const btnClass =
-    "w-7 h-7 flex items-center justify-center rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface-hover)] text-[var(--ds-text-muted)] hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] shrink-0";
+  const iconButtonClass = "size-7 bg-[var(--ds-surface-hover)]";
 
   return (
     <>
@@ -65,13 +65,23 @@ export function FooterUserInfo({
           {role && <p className="text-xs text-[var(--ds-text-muted)] truncate">{roleLabel[role]}</p>}
         </div>
         {onEditProfile && (
-          <button type="button" onClick={onEditProfile} aria-label={s.editProfile} className={btnClass}>
+          <DashboardIconButton
+            aria-label={s.editProfile}
+            className={iconButtonClass}
+            onClick={onEditProfile}
+            variant="neutral"
+          >
             <UserCircleIcon weight="duotone" className="w-3.5 h-3.5" />
-          </button>
+          </DashboardIconButton>
         )}
-        <button type="button" onClick={handleLogoutClick} aria-label={s.logout} className={btnClass}>
+        <DashboardIconButton
+          aria-label={s.logout}
+          className={iconButtonClass}
+          onClick={handleLogoutClick}
+          variant="neutral"
+        >
           <SignOutIcon weight="duotone" className="w-3.5 h-3.5" />
-        </button>
+        </DashboardIconButton>
       </div>
 
       <Dialog
@@ -93,12 +103,22 @@ export function FooterUserInfo({
           </label>
         </div>
         <Dialog.Footer>
-          <button type="button" onClick={() => setConfirmOpen(false)} className={dialogBtnSecondary}>
-            {messages.common.cancel}
-          </button>
-          <button type="button" onClick={handleConfirm} className={dialogBtnPrimary}>
-            {s.logoutConfirmAction}
-          </button>
+          <DashboardActionButton
+            action="cancel"
+            icon={false}
+            label={messages.common.cancel}
+            onClick={() => setConfirmOpen(false)}
+            type="button"
+            variant="neutral"
+          />
+          <DashboardActionButton
+            action="approve"
+            icon={false}
+            label={s.logoutConfirmAction}
+            onClick={handleConfirm}
+            type="button"
+            variant="primary"
+          />
         </Dialog.Footer>
       </Dialog>
     </>
