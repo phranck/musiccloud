@@ -17,9 +17,12 @@ import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useLocale, useT } from "@/i18n/context";
 
+type ArtistInfoStatus = "loading" | "ready" | "empty" | "error";
+
 interface ArtistInfoCardProps {
   data: ArtistInfoResponse | null;
   isLoading: boolean;
+  status?: ArtistInfoStatus;
   userRegion: string;
   onClose?: () => void;
   onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
@@ -29,6 +32,7 @@ interface ArtistInfoCardProps {
 export function ArtistInfoCard({
   data,
   isLoading,
+  status,
   userRegion,
   onClose,
   onTrackResolve,
@@ -48,8 +52,19 @@ export function ArtistInfoCard({
     return () => clearTimeout(timer);
   }, []);
 
-  // Never render when the API returned nothing useful
-  if (!isLoading && !data) return null;
+  const effectiveStatus: ArtistInfoStatus = status ?? (isLoading ? "loading" : data ? "ready" : "empty");
+
+  // Keep a visible card shell when the API returned nothing useful. The VFD
+  // carries the machine-readable status; this inline message explains why the
+  // artist panel has no sections instead of silently disappearing.
+  if (!isLoading && !data) {
+    return (
+      <ArtistInfoNoticeCard
+        onClose={onClose}
+        message={effectiveStatus === "error" ? t("artist.error") : t("artist.empty")}
+      />
+    );
+  }
   // Keep the card surface mounted during the initial grace window. The
   // skeleton content itself is still delayed, but the desktop slot no longer
   // pops from empty space into a full card after hydration/fetch startup.
@@ -76,8 +91,10 @@ export function ArtistInfoCard({
   const similarSwapKey =
     data?.similarArtistTracks?.map((entry) => `${entry.artistName}:${entry.track?.deezerUrl ?? ""}`).join("|") ??
     "similar-empty";
-  // All sections empty after load -> nothing to render
-  if (!isLoading && !showProfile && !showTracks && !showEvents && !showSimilar) return null;
+  // All sections empty after load -> keep the card shell and explain the empty state.
+  if (!isLoading && !showProfile && !showTracks && !showEvents && !showSimilar) {
+    return <ArtistInfoNoticeCard onClose={onClose} message={t("artist.empty")} />;
+  }
 
   return (
     <EmbossedCard className="w-full rounded-[1.375rem] sm:rounded-[1.625rem] p-0">
@@ -179,6 +196,33 @@ export function ArtistInfoCard({
             </RecessedCard.Body>
           </RecessedCard>
         </CollapsibleSection>
+      </div>
+    </EmbossedCard>
+  );
+}
+
+function ArtistInfoNoticeCard({ onClose, message }: { onClose?: () => void; message: string }) {
+  const t = useT();
+  return (
+    <EmbossedCard className="w-full rounded-[1.375rem] sm:rounded-[1.625rem] p-0">
+      <div className="relative">
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-3 right-3 z-10 p-1.5 rounded-full text-text-secondary hover:text-text-primary hover:bg-white/[0.08] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+            aria-label={t("artist.closeInfo")}
+          >
+            <XIcon size={16} weight="duotone" />
+          </button>
+        )}
+        <div className="p-3">
+          <RecessedCard className="p-4 min-h-[108px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+            <RecessedCard.Body>
+              <p className="text-sm text-text-secondary text-center">{message}</p>
+            </RecessedCard.Body>
+          </RecessedCard>
+        </div>
       </div>
     </EmbossedCard>
   );

@@ -22,12 +22,27 @@ import { UserIcon, XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-type ArtistState = { isLoading: boolean; artistData: ArtistInfoResponse | null };
-type ArtistAction = { type: "loading" } | { type: "done"; data: ArtistInfoResponse | null };
+type ArtistLoadStatus = "loading" | "ready" | "empty" | "error";
+type ArtistState = { status: ArtistLoadStatus; artistData: ArtistInfoResponse | null; errorCode?: string };
+type ArtistAction =
+  | { type: "loading" }
+  | { type: "done"; data: ArtistInfoResponse | null }
+  | { type: "error"; code: string };
+
+function hasArtistInfoContent(data: ArtistInfoResponse | null): boolean {
+  return Boolean(
+    data &&
+      (data.profile ||
+        (data.topTracks?.length ?? 0) > 0 ||
+        (data.events?.length ?? 0) > 0 ||
+        (data.similarArtistTracks?.length ?? 0) > 0),
+  );
+}
 
 function artistReducer(state: ArtistState, action: ArtistAction): ArtistState {
-  if (action.type === "loading") return { isLoading: true, artistData: state.artistData };
-  return { isLoading: false, artistData: action.data };
+  if (action.type === "loading") return { status: "loading", artistData: state.artistData };
+  if (action.type === "error") return { status: "error", artistData: null, errorCode: action.code };
+  return { status: hasArtistInfoContent(action.data) ? "ready" : "empty", artistData: action.data };
 }
 
 import { ArtistInfoCard } from "@/components/share/ArtistInfoCard";
@@ -146,11 +161,22 @@ async function fetchArtistInfo(
   artistName: string,
   userRegion: string,
   signal: AbortSignal,
-): Promise<ArtistInfoResponse | null> {
+): Promise<ArtistInfoResponse> {
   const params = new URLSearchParams({ name: artistName });
   if (userRegion) params.set("region", userRegion);
   const res = await fetch(`${ENDPOINTS.frontend.artistInfo}?${params.toString()}`, { signal });
-  return res.ok ? ((await res.json()) as ArtistInfoResponse) : null;
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as ArtistInfoResponse;
+}
+
+function artistFetchErrorCode(err: unknown): string {
+  if (err instanceof Error && err.name === "AbortError") return "TIMEOUT";
+  if (err instanceof Error && /^HTTP \d+/.test(err.message)) return err.message;
+  return "ERR";
+}
+
+function normalizeArtistName(name: string): string {
+  return name.trim().toLocaleLowerCase();
 }
 
 function pathFromShortUrl(shortUrl: string): string {
@@ -274,15 +300,18 @@ function ShareLayoutInner({
   const t = useT();
   // Detect region synchronously on first render (client-only, Astro island)
   const [userRegion] = useState(detectRegion);
-  const [{ isLoading, artistData }, dispatch] = useReducer(artistReducer, {
-    isLoading: true,
+  const [artistState, dispatch] = useReducer(artistReducer, {
+    status: "loading",
     artistData: null,
   });
+  const { status: artistLoadStatus, artistData, errorCode: artistErrorCode } = artistState;
+  const isLoading = artistLoadStatus === "loading";
   const [sheetOpen, setSheetOpen] = useState(false);
   const [currentConfig, setCurrentConfig] = useState(config);
   const [currentArtistName, setCurrentArtistName] = useState(artistName);
   const [resolveTriggeredArtistLoad, setResolveTriggeredArtistLoad] = useState(false);
   const [artistReadyVisible, setArtistReadyVisible] = useState(false);
+  const [resolveErrorVisible, setResolveErrorVisible] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<AudioPreviewStatus | null>(null);
   const mounted = useIsClient();
   const ownerAlbumArtLoad = useRef(config.onAlbumArtLoad);
@@ -359,7 +388,7 @@ function ShareLayoutInner({
 
   const artistStatusLoading = isLoading || resolveTriggeredArtistLoad;
   useEffect(() => {
-    if (artistStatusLoading) {
+    if (artistStatusLoading || artistLoadStatus !== "ready") {
       setArtistReadyVisible(false);
       return;
     }
@@ -367,15 +396,27 @@ function ShareLayoutInner({
     setArtistReadyVisible(true);
     const timeout = setTimeout(() => setArtistReadyVisible(false), 6000);
     return () => clearTimeout(timeout);
-  }, [artistStatusLoading]);
+  }, [artistLoadStatus, artistStatusLoading]);
+
+  useEffect(() => {
+    if (!resolveErrorVisible) return;
+    const timeout = setTimeout(() => setResolveErrorVisible(false), 6000);
+    return () => clearTimeout(timeout);
+  }, [resolveErrorVisible]);
 
   const vfdStatusLine = artistStatusLoading
     ? t("artist.statusLoading")
-    : previewStatus === "playing"
-      ? t("audio.statusPlaying")
-      : artistReadyVisible
-        ? t("artist.statusReady")
-        : "";
+    : resolveErrorVisible
+      ? t("artist.statusResolveError")
+      : artistLoadStatus === "error"
+        ? t("artist.statusError", { code: artistErrorCode ?? "ERR" })
+        : artistLoadStatus === "empty"
+          ? t("artist.statusEmpty")
+          : previewStatus === "playing"
+            ? t("audio.statusPlaying")
+            : artistReadyVisible
+              ? t("artist.statusReady")
+              : "";
   const vfdStatusActive = artistStatusLoading || previewStatus === "playing";
 
   const enrichedConfig = useMemo(
@@ -402,8 +443,8 @@ function ShareLayoutInner({
       .then((data) => {
         if (!cancelled) dispatch({ type: "done", data });
       })
-      .catch(() => {
-        if (!cancelled) dispatch({ type: "done", data: null });
+      .catch((err) => {
+        if (!cancelled) dispatch({ type: "error", code: artistFetchErrorCode(err) });
       })
       .finally(() => {
         if (!cancelled) setResolveTriggeredArtistLoad(false);
@@ -424,6 +465,7 @@ function ShareLayoutInner({
     // before the resolve request returns and before artist-info loading starts.
     // Lift that moment into ShareLayout so the VFD flips to loading in sync
     // with the visible spinning-disc affordance.
+    setResolveErrorVisible(false);
     setResolveTriggeredArtistLoad(true);
   }, []);
 
@@ -431,6 +473,7 @@ function ShareLayoutInner({
     async (track: ArtistTopTrack) => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
+      let keepResolveLoadingForArtistFetch = false;
       try {
         const response = await fetch(ENDPOINTS.frontend.resolve, {
           method: "POST",
@@ -452,23 +495,29 @@ function ShareLayoutInner({
         const resolved = data as UnifiedResolveSuccessResponse;
         if (currentConfig.type === "share") {
           const next = buildShareConfigFromResolved(resolved, t);
+          const shouldFetchArtist = normalizeArtistName(next.artistName) !== normalizeArtistName(currentArtistName);
+          keepResolveLoadingForArtistFetch = shouldFetchArtist;
           setCurrentConfig(next.config);
-          setCurrentArtistName(next.artistName);
+          if (shouldFetchArtist) setCurrentArtistName(next.artistName);
           document.title = next.pageTitle;
           return;
         }
 
         const active = parseUnifiedResolveResponse(resolved);
+        const nextArtistName = resultArtistName(active);
+        const shouldFetchArtist = normalizeArtistName(nextArtistName) !== normalizeArtistName(currentArtistName);
+        keepResolveLoadingForArtistFetch = shouldFetchArtist;
         setCurrentConfig(buildActiveConfig(active, t, handleShareAlbumArtLoad));
-        setCurrentArtistName(resultArtistName(active));
+        if (shouldFetchArtist) setCurrentArtistName(nextArtistName);
       } catch (err) {
-        setResolveTriggeredArtistLoad(false);
+        setResolveErrorVisible(true);
         throw err;
       } finally {
+        if (!keepResolveLoadingForArtistFetch) setResolveTriggeredArtistLoad(false);
         clearTimeout(timeout);
       }
     },
-    [currentConfig, handleShareAlbumArtLoad, t],
+    [currentArtistName, currentConfig, handleShareAlbumArtLoad, t],
   );
 
   return (
@@ -497,6 +546,7 @@ function ShareLayoutInner({
           <ArtistInfoCard
             data={artistData}
             isLoading={isLoading}
+            status={artistLoadStatus}
             userRegion={userRegion}
             onTrackResolve={handleTrackResolve}
             onResolveStart={handleArtistResolveStart}
@@ -566,6 +616,7 @@ function ShareLayoutInner({
                   <ArtistInfoCard
                     data={artistData}
                     isLoading={isLoading}
+                    status={artistLoadStatus}
                     userRegion={userRegion}
                     onTrackResolve={handleTrackResolve}
                     onResolveStart={handleArtistResolveStart}

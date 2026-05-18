@@ -163,10 +163,8 @@
   --neu-light: hsl(0 0% 100% / 0.14);
 }
 
-.mc-raised-control,
-.mc-player-button {
-  /* Match surrounding p-0.75 RecessedCards: inner radius = outer radius - 3px inset. */
-  border-radius: max(4px, calc(var(--neu-radius) - 0.1875rem));
+.mc-raised-control {
+  border-radius: var(--neu-radius);
   box-shadow:
     inset 1px 1px 0 rgba(255, 255, 255, 0.12),
     inset -1px -1px 0 rgba(0, 0, 0, 0.48);
@@ -177,21 +175,11 @@
     transform 140ms ease-out;
 }
 
-.mc-player-button {
-  background: rgba(255, 255, 255, 0.06);
-}
-
 .mc-raised-control:not(:disabled):active,
-.mc-player-button:not(:disabled):active,
-.mc-player-button-active {
+.mc-raised-control-pressed {
   background: rgba(0, 0, 0, 0.16);
   box-shadow: none;
   transform: translate3d(0, 1px, 0);
-}
-
-.mc-player-button:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.38);
-  outline-offset: 2px;
 }
 
 /* Reusable VFD module. Runtime animations are opacity/translate3d only;

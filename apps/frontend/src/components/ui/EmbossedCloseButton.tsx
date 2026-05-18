@@ -22,8 +22,7 @@ export function EmbossedCloseButton({ onClick, ariaLabel = "Close", className }:
         as="button"
         onClick={onClick}
         aria-label={ariaLabel}
-        style={{ "--neu-radius-base": "16px" } as React.CSSProperties}
-        className="rounded-full size-8 p-0 flex items-center justify-center text-text-secondary hover:text-text-primary"
+        className="size-8 p-0 flex items-center justify-center text-text-secondary hover:text-text-primary"
       >
         <XIcon size={14} weight="bold" />
       </EmbossedButton>

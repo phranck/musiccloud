@@ -1,12 +1,27 @@
 import { cn } from "@/lib/utils";
-import { recessedStyle } from "@/styles/neumorphic";
+
+const CONTROL_RADIUS_BASE = "max(4px, calc(var(--mc-recessed-radius-base, 1rem) - var(--mc-recessed-padding, 0px)))";
+const CONTROL_RADIUS_SM =
+  "max(4px, calc(var(--mc-recessed-radius-sm, var(--mc-recessed-radius-base, 1rem)) - var(--mc-recessed-padding, 0px)))";
+
+const controlRadiusStyle = {
+  "--neu-radius-base": CONTROL_RADIUS_BASE,
+  "--neu-radius-sm": CONTROL_RADIUS_SM,
+  // The old play button blueprint used the inset control shadow as its visible border.
+  // Keep the gradient-border layer present for API compatibility, but neutral by default.
+  "--neu-light": "transparent",
+  "--neu-shadow": "transparent",
+  borderRadius: "var(--neu-radius)",
+} as React.CSSProperties;
 
 const baseClasses = [
-  "bg-gray-700/[0.50] px-5 py-2.5 overflow-hidden cursor-pointer transform-gpu",
+  "mc-raised-control bg-white/[0.06] px-5 py-2.5 overflow-hidden cursor-pointer transform-gpu",
   "transition-[background-color,transform] duration-100",
+  "disabled:cursor-not-allowed disabled:opacity-50",
+  "focus-visible:outline-2 focus-visible:outline-white/40 focus-visible:outline-offset-2",
 ];
 
-const raisedHoverClasses = ["hover:bg-gray-600/[0.50]", "focus-visible:bg-gray-600/[0.50]"];
+const raisedHoverClasses = ["hover:bg-white/[0.09]", "focus-visible:bg-white/[0.09]"];
 
 const raisedScaleClasses = ["hover:scale-[1.015]", "focus-visible:scale-[1.015]", "active:scale-[0.985]"];
 
@@ -16,7 +31,6 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { as: "button
 type EmbossedButtonProps = (AnchorProps | ButtonProps) & {
   children: React.ReactNode;
   className?: string;
-  hasInnerShadow?: boolean;
   /** When true, render as a latched/pressed-in button (recessed look, no hover scale). */
   pressed?: boolean;
   /** When true, disable the hover/active scale transition. */
@@ -24,34 +38,16 @@ type EmbossedButtonProps = (AnchorProps | ButtonProps) & {
 };
 
 /**
- * A button/link with a raised/embossed appearance matching EmbossedCard.
+ * A button/link with the raised control appearance used inside recessed button wells.
  *
  * Renders as `<a>` by default. Pass `as="button"` for a `<button>` element.
- * No default border-radius -- the caller must set it.
+ * Corner radii default to the surrounding `RecessedCard` radius minus its padding.
  */
-/** CSS filter value to apply on SVG icons inside an EmbossedButton with hasInnerShadow. */
-export const iconInnerShadow = "url(#icon-inset)";
-
-const InnerShadowFilter = () => (
-  <svg className="absolute size-0 overflow-hidden" aria-hidden="true">
-    <defs>
-      <filter id="icon-inset">
-        <feFlood floodColor="black" floodOpacity="0.7" />
-        <feComposite operator="out" in2="SourceGraphic" />
-        <feMorphology operator="dilate" radius="0.5" />
-        <feGaussianBlur stdDeviation="0.8" />
-        <feOffset dx="1" dy="1" />
-        <feComposite operator="atop" in2="SourceGraphic" />
-      </filter>
-    </defs>
-  </svg>
-);
 
 export function EmbossedButton({
   children,
   className,
   style,
-  hasInnerShadow,
   pressed = false,
   noScale = false,
   ...props
@@ -60,17 +56,17 @@ export function EmbossedButton({
   const mergedClassName = cn(
     surfaceClass,
     baseClasses,
+    pressed && "mc-raised-control-pressed",
     !pressed && raisedHoverClasses,
     !pressed && !noScale && raisedScaleClasses,
     className,
   );
-  const mergedStyle: React.CSSProperties = pressed ? { ...recessedStyle, ...style } : (style ?? {});
+  const mergedStyle: React.CSSProperties = { ...controlRadiusStyle, ...style };
 
   if ("as" in props && props.as === "button") {
     const { as: _, ...buttonProps } = props as ButtonProps;
     return (
       <button className={mergedClassName} style={mergedStyle} {...buttonProps}>
-        {hasInnerShadow && <InnerShadowFilter />}
         {children}
       </button>
     );
@@ -79,7 +75,6 @@ export function EmbossedButton({
   const { as: _, ...anchorProps } = props as AnchorProps;
   return (
     <a className={mergedClassName} style={mergedStyle} {...anchorProps}>
-      {hasInnerShadow && <InnerShadowFilter />}
       {children}
     </a>
   );

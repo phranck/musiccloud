@@ -1,5 +1,5 @@
 import { CodeIcon } from "@phosphor-icons/react";
-import { type CSSProperties, useState } from "react";
+import { useState } from "react";
 import { AudioPreviewPlayer, type AudioPreviewStatus } from "@/components/audio/AudioPreviewPlayer";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -30,11 +30,6 @@ interface MediaCardProps {
   animated?: boolean;
   onPreviewStatusChange?: (status: AudioPreviewStatus) => void;
 }
-
-const MEDIA_CARD_BUTTON_RADIUS_STYLE = {
-  "--neu-radius-base": "7px",
-  "--neu-radius-sm": "11px",
-} as CSSProperties;
 
 export function MediaCard({ content, className, animated = true, onPreviewStatusChange }: MediaCardProps) {
   const t = useT();
@@ -105,11 +100,10 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
                     type="button"
                     onClick={() => setEmbedOpen(true)}
                     className={cn(
-                      "mc-raised-control flex items-center justify-center gap-2",
-                      "w-full rounded-[7px] sm:rounded-[11px] font-semibold text-[15px] tracking-[-0.01em]",
+                      "flex items-center justify-center gap-2",
+                      "w-full font-semibold text-[15px] tracking-[-0.01em]",
                       "min-h-[50px]",
                     )}
-                    style={MEDIA_CARD_BUTTON_RADIUS_STYLE}
                   >
                     <CodeIcon size={20} weight="duotone" />
                     {isAlbum ? t("embed.buttonAlbum") : t("embed.button")}

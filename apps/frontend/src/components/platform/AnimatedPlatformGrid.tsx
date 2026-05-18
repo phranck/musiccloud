@@ -1,5 +1,5 @@
 import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
-import { type CSSProperties, useLayoutEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import type { PlatformLink } from "@/lib/types/platform";
 
@@ -10,11 +10,6 @@ interface AnimatedPlatformGridProps {
 
 const GRID_ANIMATION_MS = 620;
 const GRID_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
-const MEDIA_CARD_PLATFORM_RADIUS_STYLE = {
-  "--neu-radius-base": "7px",
-  "--neu-radius-sm": "11px",
-} as CSSProperties;
-
 export function AnimatedPlatformGrid({ platforms, songTitle }: AnimatedPlatformGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef(new Map<ServiceId, HTMLDivElement>());
@@ -118,8 +113,6 @@ export function AnimatedPlatformGrid({ platforms, songTitle }: AnimatedPlatformG
             songTitle={songTitle}
             displayName={platform.displayName}
             matchMethod={platform.matchMethod}
-            className="rounded-[7px] sm:rounded-[11px]"
-            style={MEDIA_CARD_PLATFORM_RADIUS_STYLE}
           />
         </div>
       ))}

@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, use, useLayoutEffect, useRef } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { iconInnerShadow } from "@/components/ui/EmbossedButton";
+import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
 import { cn } from "@/lib/utils";
 
@@ -169,31 +169,30 @@ function PlayerButton({ className }: PlayerButtonProps) {
   return (
     <RecessedCard
       className={cn(
-        "mc-player-button-recess p-0.75 flex-none h-[var(--mc-player-control-size,3rem)] w-[var(--mc-player-control-size,3rem)]",
+        "mc-player-button-recess flex-none h-[var(--mc-player-control-size,3rem)] w-[var(--mc-player-control-size,3rem)]",
         className,
       )}
+      padding="0.1875rem"
       radius={{ base: "0.625rem", sm: "0.875rem" }}
     >
       <RecessedCard.Body className="h-full">
-        <button
+        <EmbossedButton
+          as="button"
           type="button"
           onClick={onTogglePlay}
           disabled={isDisabled}
           aria-label={ariaLabel}
           aria-pressed={isPlaying}
           title={title}
-          className={cn(
-            "mc-player-button relative flex size-full items-center justify-center px-0 py-0",
-            isPlaying && !isDisabled && "mc-player-button-active",
-            isDisabled && "cursor-not-allowed opacity-50",
-          )}
+          pressed={isPlaying && !isDisabled}
+          noScale
+          className="relative flex size-full items-center justify-center px-0 py-0"
         >
           <svg
             className={cn("block", isPlaying ? "size-6" : "size-7 -translate-x-px -translate-y-[0.5px]")}
             viewBox="0 0 24 24"
             fill={accentColor}
             aria-hidden="true"
-            style={{ filter: isDisabled ? "none" : iconInnerShadow }}
           >
             {isPlaying ? (
               <>
@@ -204,7 +203,7 @@ function PlayerButton({ className }: PlayerButtonProps) {
               <path d="M8 5.14v14l11-7-11-7z" />
             )}
           </svg>
-        </button>
+        </EmbossedButton>
       </RecessedCard.Body>
     </RecessedCard>
   );

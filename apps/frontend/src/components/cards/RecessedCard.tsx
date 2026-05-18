@@ -152,6 +152,28 @@ const INHERITED_PADDING = "calc(var(--emb-padding, 2rem) / 2)";
 // Backward-compat: callers that still set padding via Tailwind (`p-*`,
 // `px-*`, etc.) opt out of inline padding so their class wins.
 const PADDING_CLASS_RE = /(^|\s)p[xytrbls]?-/;
+const FULL_PADDING_CLASS_RE = /(?:^|\s)p-(?:\[([^\]]+)\]|([0-9.]+))(?:\s|$)/;
+const TAILWIND_PADDING_SCALE: Record<string, string> = {
+  "0": "0px",
+  "0.5": "0.125rem",
+  "0.75": "0.1875rem",
+  "1": "0.25rem",
+  "1.5": "0.375rem",
+  "2": "0.5rem",
+  "2.5": "0.625rem",
+  "3": "0.75rem",
+  "3.5": "0.875rem",
+  "4": "1rem",
+  "5": "1.25rem",
+  "6": "1.5rem",
+};
+
+function paddingFromClassName(className: string | undefined): string | undefined {
+  if (!className) return undefined;
+  const match = className.match(FULL_PADDING_CLASS_RE);
+  if (!match) return undefined;
+  return match[1] ?? TAILWIND_PADDING_SCALE[match[2] ?? ""];
+}
 
 /**
  * A card with a recessed/inset appearance. Light source from top-left:
@@ -203,11 +225,15 @@ function RecessedCardRoot({ children, className, ref, style, borderWidth, radius
   // explicit prop, or fall back to the inherited `--emb-padding / 2`.
   const paddingClassOverride = typeof className === "string" && PADDING_CLASS_RE.test(className);
   const paddingValue = padding ?? (paddingClassOverride ? undefined : INHERITED_PADDING);
+  const publishedPadding = paddingValue ?? paddingFromClassName(className);
 
   const mergedStyle: React.CSSProperties = {
     ...recessedStyle,
     "--neu-radius-base": radiusBase,
     "--neu-radius-sm": radiusSm,
+    "--mc-recessed-radius-base": radiusBase,
+    "--mc-recessed-radius-sm": radiusSm,
+    ...(publishedPadding !== undefined ? { "--mc-recessed-padding": publishedPadding } : {}),
     ...(borderWidth ? { "--neu-border-width": borderWidth } : {}),
     borderRadius: "var(--neu-radius)",
     ...(paddingValue !== undefined ? { padding: paddingValue } : {}),
