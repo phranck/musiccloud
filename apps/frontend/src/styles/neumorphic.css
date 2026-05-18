@@ -18,7 +18,7 @@
  *
  * Light source: top-left.
  *   Embossed: top-left=bright, bottom-right=dark
- *   Recessed: top-left=dark,   bottom-right=bright
+ *   Recessed: top-left=neutral, bottom-right=bright
  */
 
 .embossed-gradient-border,
@@ -93,7 +93,7 @@
 }
 .recessed-gradient-border {
   --neu-light: hsl(0 0% 100% / 0.22);
-  --neu-shadow: hsl(0 0% 0% / 0.3);
+  --neu-shadow: transparent;
 }
 
 .embossed-gradient-border::before,

@@ -169,7 +169,7 @@ function PlayerButton({ className }: PlayerButtonProps) {
   return (
     <RecessedCard
       className={cn(
-        "p-0.5 flex-none h-[var(--mc-player-control-size,3rem)] w-[var(--mc-player-control-size,3rem)]",
+        "mc-player-button-recess p-0.75 flex-none h-[var(--mc-player-control-size,3rem)] w-[var(--mc-player-control-size,3rem)]",
         className,
       )}
       radius={{ base: "0.625rem", sm: "0.875rem" }}
@@ -189,7 +189,7 @@ function PlayerButton({ className }: PlayerButtonProps) {
           )}
         >
           <svg
-            className={cn("block size-6 translate-y-[1px]", !isPlaying && "-translate-x-px")}
+            className={cn("block", isPlaying ? "size-6" : "size-7 -translate-x-px -translate-y-[0.5px]")}
             viewBox="0 0 24 24"
             fill={accentColor}
             aria-hidden="true"
