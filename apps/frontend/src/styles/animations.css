@@ -158,6 +158,31 @@
   box-shadow: inset 4px 4px 12px rgba(0, 0, 0, 0.9);
 }
 
+.mc-player-button {
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 1px 1px 2px rgba(255, 255, 255, 0.08),
+    inset -2px -2px 5px rgba(0, 0, 0, 0.46);
+  transform: translate3d(0, 0, 0);
+  transition:
+    background-color 180ms ease-out,
+    box-shadow 180ms ease-out,
+    transform 140ms ease-out;
+}
+
+.mc-player-button:not(:disabled):active,
+.mc-player-button-active {
+  background: rgba(0, 0, 0, 0.16);
+  box-shadow: inset -2px -2px 6px rgba(0, 0, 0, 0.58);
+  transform: translate3d(0, 1px, 0);
+}
+
+.mc-player-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.38);
+  outline-offset: 2px;
+}
+
 /* Reusable VFD module. Runtime animations are opacity/translate3d only;
    the dot matrix and glass layers are static paint effects. */
 @keyframes mc-vfd-line-refresh {
@@ -204,14 +229,10 @@
   --mc-vfd-bg: rgba(5, 8, 10, 0.92);
   position: relative;
   overflow: hidden;
-  border-radius: 0.875rem;
-  background:
-    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--mc-vfd-color) 10%, transparent), transparent 35%),
-    linear-gradient(180deg, color-mix(in srgb, var(--mc-vfd-color) 8%, rgba(7, 10, 12, 0.96)), var(--mc-vfd-bg));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -10px 24px rgba(0, 0, 0, 0.55),
-    inset 0 0 18px color-mix(in srgb, var(--mc-vfd-color) 12%, transparent);
+  border-radius: var(--neu-radius-inner, 0.875rem);
+  border: 1px solid color-mix(in srgb, var(--mc-vfd-color) 16%, rgba(255, 255, 255, 0.04));
+  background: color-mix(in srgb, var(--mc-vfd-color) 5%, var(--mc-vfd-bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mc-vfd-color) 8%, rgba(0, 0, 0, 0.35));
   color: var(--mc-vfd-color);
   font-family: var(--font-dot-matrix);
   letter-spacing: 0.06em;
@@ -223,8 +244,8 @@
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--mc-vfd-color) 5%, transparent), transparent 44%);
-  opacity: 0.4;
+  background: color-mix(in srgb, var(--mc-vfd-color) 2%, transparent);
+  opacity: 0.18;
   pointer-events: none;
 }
 
@@ -249,9 +270,7 @@
   overflow: hidden;
   white-space: nowrap;
   line-height: 1.1;
-  text-shadow:
-    0 0 3px color-mix(in srgb, var(--mc-vfd-color) 54%, transparent),
-    0 0 9px color-mix(in srgb, var(--mc-vfd-color) 24%, transparent);
+  text-shadow: none;
 }
 
 .mc-vfd-line-matrix {
@@ -259,7 +278,7 @@
   inset: 0;
   overflow: hidden;
   color: var(--mc-vfd-color);
-  opacity: 0.09;
+  opacity: 0.14;
   text-shadow: none;
   pointer-events: none;
   user-select: none;
@@ -305,6 +324,10 @@
   animation: mc-vfd-line-refresh 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.mc-vfd-line-content-static {
+  animation: none;
+}
+
 .mc-vfd-line-content-out {
   position: absolute;
   inset: 0;
@@ -313,15 +336,18 @@
 }
 
 .mc-vfd-bright {
+  color: color-mix(in srgb, var(--mc-vfd-color) 88%, white);
   opacity: 1;
 }
 
 .mc-vfd-normal {
-  opacity: 0.74;
+  color: color-mix(in srgb, var(--mc-vfd-color) 84%, black);
+  opacity: 1;
 }
 
 .mc-vfd-dim {
-  opacity: 0.46;
+  color: color-mix(in srgb, var(--mc-vfd-color) 58%, black);
+  opacity: 1;
 }
 
 .mc-vfd-line-pulse {

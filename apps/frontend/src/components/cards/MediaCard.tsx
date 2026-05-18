@@ -72,19 +72,15 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
         onAlbumArtLoad={onAlbumArtLoad}
       />
 
-      <CollapsibleSection visible={showPreview} sectionClass="p-3">
+      <CollapsibleSection visible={showPreview} sectionClass="px-3 pt-0 pb-3">
         {showPreview && (
-          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-            <RecessedCard.Body>
-              <AudioPreviewPlayer
-                key={audioPreviewKey}
-                previewUrl={content.previewUrl}
-                refreshShortId={content.previewRefreshable ? content.shortId : undefined}
-                trackTitle={content.title}
-                onStatusChange={onPreviewStatusChange}
-              />
-            </RecessedCard.Body>
-          </RecessedCard>
+          <AudioPreviewPlayer
+            key={audioPreviewKey}
+            previewUrl={content.previewUrl}
+            refreshShortId={content.previewRefreshable ? content.shortId : undefined}
+            trackTitle={content.title}
+            onStatusChange={onPreviewStatusChange}
+          />
         )}
       </CollapsibleSection>
 

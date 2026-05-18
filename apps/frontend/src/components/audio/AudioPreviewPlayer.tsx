@@ -1,7 +1,6 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import { PlaybackButton } from "@/components/playback/PlaybackButton";
-import { ProgressTrack } from "@/components/playback/ProgressTrack";
+import { Player, type PlayerProgressVariant } from "@/components/playback/Player";
 import { useT } from "@/i18n/context";
 
 export type AudioPreviewStatus = "loading" | "ready" | "playing" | "paused" | "ended" | "unavailable";
@@ -15,13 +14,15 @@ interface AudioPreviewPlayerProps {
   refreshShortId?: string;
   trackTitle: string;
   onStatusChange?: (status: AudioPreviewStatus) => void;
+  /** Settings-ready visual mode for the VFD progress section. */
+  progressVariant?: PlayerProgressVariant;
 }
 
 /**
  * AudioPreviewPlayer - Audio preview playback component
  *
- * Orchestrates generic playback components (PlaybackButton, ProgressTrack)
- * for audio preview functionality. Handles audio element lifecycle and state management.
+ * Orchestrates the compound Player component for audio preview functionality.
+ * Handles audio element lifecycle and state management.
  *
  * State machine phases:
  *   loading  — Waiting for a lazy fetch to deliver a preview URL.
@@ -47,8 +48,7 @@ type PlayerAction =
   | { type: "PAUSE" }
   | { type: "TIME_UPDATE"; currentTime: number; duration: number }
   | { type: "ENDED" }
-  | { type: "ERROR" }
-  | { type: "SEEK"; time: number };
+  | { type: "ERROR" };
 
 function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
   switch (action.type) {
@@ -78,9 +78,6 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
       return state;
     case "ERROR":
       return { phase: "error" };
-    case "SEEK":
-      if (state.phase === "playing" || state.phase === "paused") return { ...state, currentTime: action.time };
-      return state;
     default:
       return state;
   }
@@ -104,6 +101,7 @@ export function AudioPreviewPlayer({
   refreshShortId,
   trackTitle,
   onStatusChange,
+  progressVariant = "blocks",
 }: AudioPreviewPlayerProps) {
   const t = useT();
   const initialPhase: PlayerState = previewUrl ? { phase: "idle", duration: 30 } : { phase: "loading" };
@@ -191,36 +189,6 @@ export function AudioPreviewPlayer({
     }
   }, [state.phase]);
 
-  const handleSeek = useCallback((time: number) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.currentTime = time;
-    dispatch({ type: "SEEK", time });
-  }, []);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      const audio = audioRef.current;
-      if (!audio) return;
-
-      if (e.key === " " || e.key === "Enter") {
-        e.preventDefault();
-        togglePlay();
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        const newTime = Math.min(audio.currentTime + 5, audio.duration || 30);
-        audio.currentTime = newTime;
-        dispatch({ type: "SEEK", time: newTime });
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        const newTime = Math.max(audio.currentTime - 5, 0);
-        audio.currentTime = newTime;
-        dispatch({ type: "SEEK", time: newTime });
-      }
-    },
-    [togglePlay],
-  );
-
   const isLoading = state.phase === "loading";
   const isUnavailable = state.phase === "error" || state.phase === "unavailable";
   const isDisabled = isLoading || isUnavailable;
@@ -257,30 +225,19 @@ export function AudioPreviewPlayer({
         : "Play preview";
 
   return (
-    <section aria-label={`Preview: ${trackTitle}`} className="flex items-center gap-3" onKeyDown={handleKeyDown}>
-      <PlaybackButton
+    <section aria-label={`Preview: ${trackTitle}`}>
+      <Player
         isPlaying={isPlaying}
-        onClick={togglePlay}
-        disabled={isDisabled}
-        ariaLabel={ariaLabel}
-        title={isLoading ? t("audio.previewLoading") : isUnavailable ? t("audio.previewUnavailable") : undefined}
-        size="medium"
-      />
-
-      <ProgressTrack
+        isDisabled={isDisabled}
         currentTime={currentTime}
         duration={duration}
-        isDisabled={state.phase === "idle" || isDisabled}
-        onSeek={handleSeek}
-        ariaLabel="Preview position"
-        ariaValueText={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+        timeText={timeText}
+        ariaLabel={ariaLabel}
+        title={isLoading ? t("audio.previewLoading") : isUnavailable ? t("audio.previewUnavailable") : undefined}
+        progressVariant={progressVariant}
+        phosphorColor="rgb(var(--color-accent-rgb-resolved, 127 234 255))"
+        onTogglePlay={togglePlay}
       />
-
-      <span
-        className={`flex-shrink-0 text-xs min-w-[2.5rem] text-right ${isDisabled ? "text-white/30" : "tabular-nums text-white/50"}`}
-      >
-        {timeText}
-      </span>
     </section>
   );
 }

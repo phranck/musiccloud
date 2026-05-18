@@ -12,10 +12,10 @@ import {
 import { cn } from "@/lib/utils";
 
 export type VfdBrightness = "bright" | "normal" | "dim";
-export type VfdDisplaySize = "compact" | "regular" | "large";
 export type VfdSectionAlign = "left" | "center" | "right";
 export type VfdSectionCells = number | "auto" | "fill";
 export type VfdMarqueeMode = boolean | "overflow";
+export type VfdContentTransition = "slide" | "none";
 
 export interface VfdDisplaySection {
   /** Text or inline content for one fixed-width section inside a VFD row. */
@@ -46,6 +46,8 @@ export interface VfdDisplayLine {
   marquee?: VfdMarqueeMode;
   /** Enables a subtle compositor-only opacity pulse, useful for loading states. */
   pulse?: boolean;
+  /** Content replacement mode. Use `none` for high-frequency updates like progress meters. */
+  transition?: VfdContentTransition;
   /** Stable content identity for non-string ReactNode content. String content uses itself as identity. */
   key?: string;
   className?: string;
@@ -57,7 +59,6 @@ export interface VfdDisplayProps {
   rows?: number;
   /** Fixed number of VFD cells per row. String content is clipped/padded to this grid. */
   charsPerLine?: number;
-  size?: VfdDisplaySize;
   className?: string;
   ariaLabel?: string;
   /** CSS color for the VFD phosphor. Defaults to blue-green like HiFi VFD modules. */
@@ -83,6 +84,7 @@ interface NormalizedVfdLine {
   align: VfdSectionAlign;
   marquee?: VfdMarqueeMode;
   pulse?: boolean;
+  transition: VfdContentTransition;
   className?: string;
 }
 
@@ -104,11 +106,9 @@ interface CellGridOptions {
   className?: string;
 }
 
-const SIZE_CLASSES: Record<VfdDisplaySize, string> = {
-  compact: "px-4 py-3 gap-1.5 text-[0.72rem] sm:text-[0.78rem]",
-  regular: "px-5 py-4 gap-2 text-[0.82rem] sm:text-[0.92rem]",
-  large: "px-6 py-5 gap-2.5 text-[0.92rem] sm:text-[1.05rem]",
-};
+// Treat the VFD as one hardware module: callers may change rows and
+// characters per line, but the cell/font geometry must stay identical.
+const VFD_DEVICE_CLASSES = "px-5 py-4 gap-2 text-[0.82rem] sm:text-[0.92rem]";
 
 const BRIGHTNESS_CLASSES: Record<VfdBrightness, string> = {
   bright: "mc-vfd-bright",
@@ -213,6 +213,7 @@ function normalizeLine(index: number, line: VfdDisplayLine | undefined): Normali
     align: safeLine.align ?? "left",
     marquee: safeLine.marquee,
     pulse: safeLine.pulse,
+    transition: safeLine.transition ?? "slide",
     className: safeLine.className,
   };
 }
@@ -241,6 +242,7 @@ function sameLinePresentation(a: NormalizedVfdLine, b: NormalizedVfdLine): boole
     a.align === b.align &&
     a.marquee === b.marquee &&
     a.pulse === b.pulse &&
+    a.transition === b.transition &&
     a.className === b.className
   );
 }
@@ -346,6 +348,7 @@ const VfdRow = memo(function VfdRow({
   align,
   marquee,
   pulse,
+  transition,
   className,
   ghostPattern,
   cellCount,
@@ -367,7 +370,10 @@ const VfdRow = memo(function VfdRow({
           {buildSectionedContent(outgoing.line, cellCount, cellKeys)}
         </span>
       )}
-      <span key={contentKey} className="mc-vfd-line-content">
+      <span
+        key={contentKey}
+        className={cn("mc-vfd-line-content", transition === "none" && "mc-vfd-line-content-static")}
+      >
         {buildSectionedContent(line, cellCount, cellKeys)}
       </span>
     </div>
@@ -399,7 +405,6 @@ export function VfdDisplay({
   lines,
   rows = DEFAULT_VFD_ROWS,
   charsPerLine = DEFAULT_VFD_CELL_COUNT,
-  size = "regular",
   className,
   ariaLabel,
   phosphorColor = "#7feaff",
@@ -433,7 +438,7 @@ export function VfdDisplay({
           index === rowIndex ? nextLine : (currentLines[index] ?? normalizeLine(index, undefined)),
         );
 
-        if (previousLine && previousLine.contentKey !== nextLine.contentKey) {
+        if (previousLine && previousLine.contentKey !== nextLine.contentKey && nextLine.transition !== "none") {
           if (clearTimers.current[rowIndex]) clearTimeout(clearTimers.current[rowIndex] ?? undefined);
           const outgoingKey = `${previousLine.contentKey}:${generationRef.current}`;
           generationRef.current += 1;
@@ -473,7 +478,7 @@ export function VfdDisplay({
   const style = { "--mc-vfd-color": phosphorColor, "--mc-vfd-cells": cellCount } as CSSProperties;
 
   return (
-    <section className={cn("mc-vfd", SIZE_CLASSES[size], className)} style={style} aria-label={ariaLabel}>
+    <section className={cn("mc-vfd", VFD_DEVICE_CLASSES, className)} style={style} aria-label={ariaLabel}>
       <div className="mc-vfd-grid" aria-hidden="true" />
       <div className="mc-vfd-scan" aria-hidden="true" />
       <div className="relative z-10 grid gap-[inherit]">
