@@ -173,7 +173,7 @@ const pageTitle = notFound
       </a>
     </div>
     {shareConfig && (
-      <div>
+      <div class="animate-fade-in">
         <ShareLayout client:load config={shareConfig} artistName={isArtist ? displayTitle : artistDisplay} initialLocale={locale} />
       </div>
     )}

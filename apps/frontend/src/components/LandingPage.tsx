@@ -35,12 +35,15 @@ const EMPTY_NAV_ITEMS: NavItem[] = [];
 
 function ShareResultPlaceholder() {
   return (
-    <div className="mx-auto w-full max-w-[512px] min-[1080px]:max-w-[1048px] animate-fade-in" aria-hidden="true">
+    <div
+      className="mx-auto w-full max-w-[512px] min-[1080px]:max-w-[1048px] opacity-0 pointer-events-none"
+      aria-hidden="true"
+    >
       <div className="hidden min-[1080px]:grid grid-cols-[512px_512px] gap-6">
-        <div className="h-[560px] rounded-[1.625rem] border border-white/[0.04] bg-white/[0.015]" />
-        <div className="h-[560px] rounded-[1.625rem] border border-white/[0.035] bg-white/[0.012]" />
+        <div className="h-[560px]" />
+        <div className="h-[560px]" />
       </div>
-      <div className="min-[1080px]:hidden h-[520px] rounded-[1.625rem] border border-white/[0.04] bg-white/[0.015]" />
+      <div className="min-[1080px]:hidden h-[520px]" />
     </div>
   );
 }
@@ -171,7 +174,15 @@ function LandingPageInner({
     return () => window.cancelAnimationFrame(frame);
   }, [state.type]);
 
-  const activeConfig = active ? buildActiveConfig(active, t, handleAlbumArtLoad) : null;
+  const handleAmbientAlbumArtLoad = useCallback(
+    (img: HTMLImageElement) => {
+      if (state.type === "clearing") return;
+      handleAlbumArtLoad(img);
+    },
+    [handleAlbumArtLoad, state.type],
+  );
+
+  const activeConfig = active ? buildActiveConfig(active, t, handleAmbientAlbumArtLoad) : null;
 
   return (
     <>
@@ -303,13 +314,16 @@ function LandingPageInner({
             >
               <div className="mt-6 sm:mt-8">
                 <Suspense fallback={<ShareResultPlaceholder />}>
-                  <ShareLayout
-                    config={activeConfig}
-                    artistName={active.kind === "artist" ? active.name : active.artist}
-                    animated
-                    onBack={canGoBack ? handleBack : undefined}
-                    backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
-                  />
+                  <div className="animate-fade-in">
+                    <ShareLayout
+                      config={activeConfig}
+                      artistName={active.kind === "artist" ? active.name : active.artist}
+                      animated
+                      mirrorAlbumColorsToRoot={false}
+                      onBack={canGoBack ? handleBack : undefined}
+                      backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
+                    />
+                  </div>
                 </Suspense>
               </div>
             </div>

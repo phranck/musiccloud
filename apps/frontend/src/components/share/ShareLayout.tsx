@@ -148,6 +148,12 @@ interface ShareLayoutProps {
   animated?: boolean;
   initialLocale?: string;
   /**
+   * Direct share pages let ShareLayout mirror artwork colors onto the static
+   * Astro background. Landing results pass `false` because LandingPage owns
+   * the root cloud/particle colors and resets them during ESC/back clears.
+   */
+  mirrorAlbumColorsToRoot?: boolean;
+  /**
    * Optional back action. When present, a subtle "back" link is rendered
    * above the share cards so users who arrived here from a list view
    * (currently: genre-search discovery) can navigate back to that list
@@ -168,7 +174,14 @@ export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
   );
 }
 
-function ShareLayoutInner({ config, artistName, animated = false, onBack, backLabel }: ShareLayoutProps) {
+function ShareLayoutInner({
+  config,
+  artistName,
+  animated = false,
+  mirrorAlbumColorsToRoot = true,
+  onBack,
+  backLabel,
+}: ShareLayoutProps) {
   const t = useT();
   // Detect region synchronously on first render (client-only, Astro island)
   const [userRegion] = useState(detectRegion);
@@ -192,7 +205,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
   // Safety net: if extraction hasn't produced an accent after 3 s
   // (broken CORS, dead artwork URL, canvas tainted), we fall back to the
   // brand default so the button doesn't stay visually muted forever.
-  const { dynamicAccent, handleAlbumArtLoad } = useAlbumColors();
+  const { dynamicAccent, handleAlbumArtLoad } = useAlbumColors({ mirrorRoot: mirrorAlbumColorsToRoot });
   const [extractionTimedOut, setExtractionTimedOut] = useState(false);
   useEffect(() => {
     if (dynamicAccent) return;
@@ -224,10 +237,19 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
         : {}
   ) as React.CSSProperties;
 
-  // Inject the client-side onAlbumArtLoad callback into the (SSR-serialized) config
+  // Inject the client-side onAlbumArtLoad callback into the (SSR-serialized)
+  // config while preserving an upstream owner callback from LandingPage.
+  const handleShareAlbumArtLoad = useCallback(
+    (img: HTMLImageElement) => {
+      config.onAlbumArtLoad?.(img);
+      handleAlbumArtLoad(img);
+    },
+    [config.onAlbumArtLoad, handleAlbumArtLoad],
+  );
+
   const enrichedConfig = useMemo(
-    () => ({ ...config, onAlbumArtLoad: handleAlbumArtLoad }),
-    [config, handleAlbumArtLoad],
+    () => ({ ...config, onAlbumArtLoad: handleShareAlbumArtLoad }),
+    [config, handleShareAlbumArtLoad],
   );
 
   // Fetch artist data immediately (SSR already rendered the share card)

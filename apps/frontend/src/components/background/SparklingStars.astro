@@ -68,9 +68,9 @@ const particles = generateParticles();
   {
     particles.map((p) => {
       const boxShadow = [
-        `0 0 ${p.glowSize * (p.bright ? 1.5 : 1)}px var(--color-accent-glow)`,
-        `0 0 ${p.glowSize * (p.bright ? 3.5 : 2.5)}px var(--color-accent-glow)`,
-        `0 0 ${p.glowSize * 4}px rgba(44, 185, 200, ${p.bright ? 0.15 : 0.08})`,
+        `0 0 ${p.glowSize * (p.bright ? 1.5 : 1)}px var(--bg-particle-glow)`,
+        `0 0 ${p.glowSize * (p.bright ? 3.5 : 2.5)}px var(--bg-particle-glow)`,
+        `0 0 ${p.glowSize * 4}px var(--bg-particle-halo)`,
       ].join(", ");
       const blurPx = p.size * 0.4;
       const animationName = p.flash
@@ -85,7 +85,7 @@ const particles = generateParticles();
         `top: ${p.y}%`,
         `width: ${p.size}px`,
         `height: ${p.size}px`,
-        `background: var(--color-accent)`,
+        `background: var(--bg-particle-color)`,
         `filter: blur(${blurPx}px)`,
         `box-shadow: ${boxShadow}`,
         `opacity: 0`,
