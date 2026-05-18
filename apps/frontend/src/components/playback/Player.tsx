@@ -229,27 +229,23 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
 
   return (
     <div className={cn("flex-1 min-w-0", className)} data-player-progress-card="true">
-      <RecessedCard className="p-0.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-        <RecessedCard.Body className="relative">
-          <VfdDisplay
-            rows={1}
-            charsPerLine={36}
-            phosphorColor={phosphorColor}
-            ariaLabel={`Preview progress ${timeText}`}
-            lines={[
-              {
-                brightness: isDisabled ? "dim" : "normal",
-                transition: "none",
-                sections: [
-                  ...progressSections,
-                  { content: "  ", cells: 2, align: "left", brightness: "dim" },
-                  { content: timeText, cells: "auto", align: "right", brightness: "dim" },
-                ],
-              },
-            ]}
-          />
-        </RecessedCard.Body>
-      </RecessedCard>
+      <VfdDisplay
+        rows={1}
+        charsPerLine={36}
+        phosphorColor={phosphorColor}
+        ariaLabel={`Preview progress ${timeText}`}
+        lines={[
+          {
+            brightness: isDisabled ? "dim" : "normal",
+            transition: "none",
+            sections: [
+              ...progressSections,
+              { content: "  ", cells: 2, align: "left", brightness: "dim" },
+              { content: timeText, cells: "auto", align: "right", brightness: "dim" },
+            ],
+          },
+        ]}
+      />
     </div>
   );
 }

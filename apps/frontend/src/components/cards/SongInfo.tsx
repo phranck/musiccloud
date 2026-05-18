@@ -138,43 +138,39 @@ export const SongInfo = memo(function SongInfo({
       </div>
 
       <div className="px-3 pt-3 pb-3">
-        {/* Fixed four-row VFD inside a recessed card. Text changes refresh via
+        {/* Fixed four-row hardware-style VFD. Text changes refresh via
             clipped translate3d movement, while the display height never changes.
             Weight hierarchy is modeled as phosphor intensity in VfdDisplay,
             not font-weight. */}
-        <RecessedCard className="p-0.5" radius={{ base: "0.75rem", sm: "0.875rem" }}>
-          <RecessedCard.Body>
-            <VfdDisplay
-              phosphorColor="rgb(var(--color-accent-rgb-resolved, 127 234 255))"
-              ariaLabel={`Track information: ${title} ${artist} ${detailLine} ${statusLine}`}
-              lines={[
-                {
-                  brightness: "bright",
-                  sections: metaLine
-                    ? [
-                        { content: title, cells: "fill", align: "left", marquee: "overflow" },
-                        // Keep duration/year pinned on the right while the
-                        // title gets the remaining cells and scrolls only if
-                        // it overflows. VfdDisplay stays generic: it only
-                        // knows section sizing/alignment, not song metadata.
-                        { content: ` ${metaLine}`, cells: "auto", align: "right", brightness: "dim" },
-                      ]
-                    : [{ content: title, cells: "fill", align: "left", marquee: "overflow" }],
-                },
-                { content: artist, brightness: "normal" },
-                { content: detailLine, brightness: "dim" },
-                {
-                  content: statusLine,
-                  brightness: "normal",
-                  align: "center",
-                  marquee: shouldMarqueeStatus,
-                  pulse: statusActive,
-                  className: isPreviewPlayingStatus ? "mc-vfd-line-pulse-slow" : undefined,
-                },
-              ]}
-            />
-          </RecessedCard.Body>
-        </RecessedCard>
+        <VfdDisplay
+          phosphorColor="rgb(var(--color-accent-rgb-resolved, 127 234 255))"
+          ariaLabel={`Track information: ${title} ${artist} ${detailLine} ${statusLine}`}
+          lines={[
+            {
+              brightness: "bright",
+              sections: metaLine
+                ? [
+                    { content: title, cells: "fill", align: "left", marquee: "overflow" },
+                    // Keep duration/year pinned on the right while the
+                    // title gets the remaining cells and scrolls only if
+                    // it overflows. VfdDisplay stays generic: it only
+                    // knows section sizing/alignment, not song metadata.
+                    { content: ` ${metaLine}`, cells: "auto", align: "right", brightness: "dim" },
+                  ]
+                : [{ content: title, cells: "fill", align: "left", marquee: "overflow" }],
+            },
+            { content: artist, brightness: "normal" },
+            { content: detailLine, brightness: "dim" },
+            {
+              content: statusLine,
+              brightness: "normal",
+              align: "center",
+              marquee: shouldMarqueeStatus,
+              pulse: statusActive,
+              className: isPreviewPlayingStatus ? "mc-vfd-line-pulse-slow" : undefined,
+            },
+          ]}
+        />
       </div>
     </div>
   );

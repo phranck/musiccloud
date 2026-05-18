@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
 
 export type VfdBrightness = "bright" | "normal" | "dim";
@@ -478,21 +479,25 @@ export function VfdDisplay({
   const style = { "--mc-vfd-color": phosphorColor, "--mc-vfd-cells": cellCount } as CSSProperties;
 
   return (
-    <section className={cn("mc-vfd", VFD_DEVICE_CLASSES, className)} style={style} aria-label={ariaLabel}>
-      <div className="mc-vfd-grid" aria-hidden="true" />
-      <div className="mc-vfd-scan" aria-hidden="true" />
-      <div className="relative z-10 grid gap-[inherit]">
-        {displayLines.map((line, index) => (
-          <VfdRow
-            key={line.rowKey}
-            {...line}
-            ghostPattern={ghostCells}
-            cellCount={cellCount}
-            cellKeys={cellKeys}
-            outgoing={outgoingLines[index]}
-          />
-        ))}
-      </div>
-    </section>
+    <RecessedCard className={cn("p-0.5", className)} radius={{ base: "0.75rem", sm: "0.875rem" }}>
+      <RecessedCard.Body>
+        <section className={cn("mc-vfd", VFD_DEVICE_CLASSES)} style={style} aria-label={ariaLabel}>
+          <div className="mc-vfd-grid" aria-hidden="true" />
+          <div className="mc-vfd-scan" aria-hidden="true" />
+          <div className="relative z-10 grid gap-[inherit]">
+            {displayLines.map((line, index) => (
+              <VfdRow
+                key={line.rowKey}
+                {...line}
+                ghostPattern={ghostCells}
+                cellCount={cellCount}
+                cellKeys={cellKeys}
+                outgoing={outgoingLines[index]}
+              />
+            ))}
+          </div>
+        </section>
+      </RecessedCard.Body>
+    </RecessedCard>
   );
 }
