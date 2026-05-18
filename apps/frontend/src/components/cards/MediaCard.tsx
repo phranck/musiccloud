@@ -36,6 +36,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
   const sharePageContent = isSharePageContent(content) ? content : null;
   const [embedOpen, setEmbedOpen] = useState(false);
   const isAlbum = content.type === "album" || sharePageContent?.platformsLabelKey === "results.openAlbumOn";
+  const audioPreviewKey = [content.shortId ?? "", content.previewUrl ?? "", content.title, content.artist].join("::");
   return (
     <EmbossedCard
       className={cn(
@@ -65,6 +66,7 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
           <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <RecessedCard.Body>
               <AudioPreviewPlayer
+                key={audioPreviewKey}
                 previewUrl={content.previewUrl}
                 refreshShortId={content.previewRefreshable ? content.shortId : undefined}
                 trackTitle={content.title}
