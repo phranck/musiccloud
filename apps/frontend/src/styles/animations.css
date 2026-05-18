@@ -130,6 +130,25 @@
   transform: translate3d(0, 0, 0);
 }
 
+.mc-tft-screen {
+  border-radius: var(--neu-radius-inner);
+  background: #05070a;
+}
+
+.mc-tft-screen-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.24) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0 1px, transparent 1px 4px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 30%, rgba(0, 0, 0, 0.16));
+  background-size: 4px 4px, 4px 4px, 100% 100%;
+  opacity: 0.42;
+}
+
 /* Reusable VFD module. Runtime animations are opacity/translate3d only;
    the dot matrix and glass layers are static paint effects. */
 @keyframes mc-vfd-line-refresh {

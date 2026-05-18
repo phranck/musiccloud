@@ -109,25 +109,42 @@ export const SongInfo = memo(function SongInfo({
 
   return (
     <div>
-      <div className="aspect-square w-full overflow-hidden rounded-t-[1.375rem] sm:rounded-t-[1.625rem] relative">
-        {artworkState.previousUrl !== null && (
-          <ArtworkImage
-            key={`cover-out-${artworkState.generation}`}
-            url={artworkState.previousUrl}
-            alt=""
-            className="absolute inset-0 mc-cover-slide-out transform-gpu will-change-transform"
-          />
-        )}
-        <ArtworkImage
-          key={`cover-in-${artworkState.generation}`}
-          url={artworkState.currentUrl}
-          alt={`"${title}" by ${artist} - album artwork`}
-          className={
-            artworkState.previousUrl !== null
-              ? "absolute inset-0 mc-cover-slide-in transform-gpu will-change-transform"
-              : ""
-          }
-        />
+      <div className="px-3 pt-3">
+        <RecessedCard className="p-0.5" radius={{ base: "0.75rem", sm: "0.875rem" }}>
+          <RecessedCard.Body>
+            <div className="mc-tft-screen aspect-square w-full overflow-hidden relative">
+              {artworkState.previousUrl !== null && (
+                <ArtworkImage
+                  key={`cover-out-${artworkState.generation}`}
+                  url={artworkState.previousUrl}
+                  alt=""
+                  className="absolute inset-0 mc-cover-slide-out transform-gpu will-change-transform"
+                />
+              )}
+              <ArtworkImage
+                key={`cover-in-${artworkState.generation}`}
+                url={artworkState.currentUrl}
+                alt={`"${title}" by ${artist} - album artwork`}
+                className={
+                  artworkState.previousUrl !== null
+                    ? "absolute inset-0 mc-cover-slide-in transform-gpu will-change-transform"
+                    : ""
+                }
+              />
+              {/* Subtle RGB subpixel and scanline texture so the artwork reads
+                  like a small TFT panel, not a raw image. It sits above the
+                  animated cover layers and remains pointer-transparent. */}
+              <div className="mc-tft-screen-overlay" aria-hidden="true" />
+              {/* Match the ArtistInfo profile image's top/left inset shadow so
+                  this larger cover also reads as recessed into the hardware. */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 z-[4] pointer-events-none"
+                style={{ boxShadow: "inset 4px 4px 12px rgba(0,0,0,0.9)" }}
+              />
+            </div>
+          </RecessedCard.Body>
+        </RecessedCard>
       </div>
 
       <div className="px-3 pt-3 pb-3">
