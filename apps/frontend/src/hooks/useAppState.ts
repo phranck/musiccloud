@@ -66,7 +66,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
   const selectedGenreResultId = screen.type === "genre-search_loading" ? screen.selectedId : null;
   const canGoBack = stack.length > 0;
   const errorMessage = screen.type === "error" ? t(screen.message) : undefined;
-  const showCompact = !!(active || candidates || genreBrowseGenres || genreSearchPayload);
+  const showCompact = !!(screen.type === "loading" || active || candidates || genreBrowseGenres || genreSearchPayload);
 
   const handleSubmit = useCallback(async (url: string) => {
     dispatch({ type: "SUBMIT" });

@@ -33,6 +33,18 @@ const Toast = lazy(loadToast);
 
 const EMPTY_NAV_ITEMS: NavItem[] = [];
 
+function ShareResultPlaceholder() {
+  return (
+    <div className="mx-auto w-full max-w-[512px] min-[1080px]:max-w-[1048px] animate-fade-in" aria-hidden="true">
+      <div className="hidden min-[1080px]:grid grid-cols-[512px_512px] gap-6">
+        <div className="h-[560px] rounded-[1.625rem] border border-white/[0.04] bg-white/[0.015]" />
+        <div className="h-[560px] rounded-[1.625rem] border border-white/[0.035] bg-white/[0.012]" />
+      </div>
+      <div className="min-[1080px]:hidden h-[520px] rounded-[1.625rem] border border-white/[0.04] bg-white/[0.015]" />
+    </div>
+  );
+}
+
 function LandingPageInner({
   headerNav = EMPTY_NAV_ITEMS,
   footerNav = EMPTY_NAV_ITEMS,
@@ -180,7 +192,7 @@ function LandingPageInner({
         <PageHeader navItems={headerNav} />
 
         <div className="flex-1 flex flex-col items-center justify-center w-full">
-          {!active && !candidates && !genreBrowseGenres && !genreSearchPayload && (
+          {!showCompact && (
             <div className={`flex justify-center mb-10 ${isReturning ? "animate-fade-in" : ""}`}>
               <LogoView className="w-80 sm:w-96 md:w-[28rem] h-auto" />
             </div>
@@ -212,17 +224,22 @@ function LandingPageInner({
             />
           </div>
 
-          {!active && !candidates && !genreBrowseGenres && !genreSearchPayload && exampleShortId && (
-            <p className="mt-4 text-sm text-text-secondary text-center">
-              {t("landing.exampleTeaser")}{" "}
-              <a
-                href={`/${exampleShortId}`}
-                className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
-              >
-                {t("landing.exampleLink")}
-              </a>
-            </p>
-          )}
+          {state.type !== "loading" &&
+            !active &&
+            !candidates &&
+            !genreBrowseGenres &&
+            !genreSearchPayload &&
+            exampleShortId && (
+              <p className="mt-4 text-sm text-text-secondary text-center">
+                {t("landing.exampleTeaser")}{" "}
+                <a
+                  href={`/${exampleShortId}`}
+                  className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
+                >
+                  {t("landing.exampleLink")}
+                </a>
+              </p>
+            )}
 
           <div className="sr-only" aria-live="polite" aria-atomic="true">
             {active?.kind === "song" ? t("results.found", { title: active.title, artist: active.artist }) : ""}
@@ -271,6 +288,12 @@ function LandingPageInner({
             </Suspense>
           )}
 
+          {state.type === "loading" && (
+            <div className="mt-6 sm:mt-8 w-full">
+              <ShareResultPlaceholder />
+            </div>
+          )}
+
           {activeConfig && active && (
             <div
               ref={resultsPanelRef}
@@ -279,7 +302,7 @@ function LandingPageInner({
               onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
             >
               <div className="mt-6 sm:mt-8">
-                <Suspense fallback={null}>
+                <Suspense fallback={<ShareResultPlaceholder />}>
                   <ShareLayout
                     config={activeConfig}
                     artistName={active.kind === "artist" ? active.name : active.artist}
