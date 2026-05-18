@@ -26,7 +26,7 @@ export function SimilarArtistsSection({
   if (withTrack.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-0.5">
       {withTrack.map(({ artistName, track }) => (
         <PopularTrack
           key={artistName}

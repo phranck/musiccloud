@@ -117,7 +117,7 @@ export function ArtistInfoCard({
 
         {/* 2. Popular Tracks */}
         <CollapsibleSection visible={showTracks} sectionClass="p-3">
-          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+          <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <RecessedCard.Header>
               <RecessedCard.Header.Title>{t("artist.popularTracks")}</RecessedCard.Header.Title>
             </RecessedCard.Header>
@@ -139,7 +139,7 @@ export function ArtistInfoCard({
 
         {/* 3. Upcoming Events */}
         <CollapsibleSection visible={showEvents} sectionClass="p-3">
-          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+          <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <RecessedCard.Header>
               <RecessedCard.Header.Title>{t("artist.upcomingEvents")}</RecessedCard.Header.Title>
             </RecessedCard.Header>
@@ -160,7 +160,7 @@ export function ArtistInfoCard({
 
         {/* 4. Similar Artists */}
         <CollapsibleSection visible={showSimilar} sectionClass="p-3">
-          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+          <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <RecessedCard.Header>
               <RecessedCard.Header.Title>{t("artist.similarArtists")}</RecessedCard.Header.Title>
             </RecessedCard.Header>

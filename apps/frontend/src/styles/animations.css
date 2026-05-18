@@ -163,10 +163,10 @@
   --neu-light: hsl(0 0% 100% / 0.14);
 }
 
+.mc-raised-control,
 .mc-player-button {
-  /* Match the surrounding RecessedCard geometry: inner radius = outer radius - p-0.75 inset. */
+  /* Match surrounding p-0.75 RecessedCards: inner radius = outer radius - 3px inset. */
   border-radius: max(4px, calc(var(--neu-radius) - 0.1875rem));
-  background: rgba(255, 255, 255, 0.06);
   box-shadow:
     inset 1px 1px 0 rgba(255, 255, 255, 0.12),
     inset -1px -1px 0 rgba(0, 0, 0, 0.48);
@@ -177,6 +177,11 @@
     transform 140ms ease-out;
 }
 
+.mc-player-button {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mc-raised-control:not(:disabled):active,
 .mc-player-button:not(:disabled):active,
 .mc-player-button-active {
   background: rgba(0, 0, 0, 0.16);

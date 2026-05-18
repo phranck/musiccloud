@@ -1,5 +1,6 @@
 import type { ArtistEvent } from "@musiccloud/shared";
 import { TicketIcon } from "@phosphor-icons/react";
+import type { CSSProperties } from "react";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 
 interface UpcomingEventsSectionProps {
@@ -8,9 +9,14 @@ interface UpcomingEventsSectionProps {
   locale: string;
 }
 
+const ARTIST_INFO_ROW_RADIUS_STYLE = {
+  "--neu-radius-base": "7px",
+  "--neu-radius-sm": "11px",
+} as CSSProperties;
+
 export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEventsSectionProps) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-0.5">
       {events.map((event) => {
         const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
         const linkProps = event.ticketUrl
@@ -20,7 +26,8 @@ export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEv
           <EmbossedButton
             key={`${event.date}-${event.venueName || event.city}`}
             noScale
-            className="flex items-center gap-3 w-full rounded-[4px] sm:rounded-lg px-3 py-2 no-underline"
+            className="flex items-center gap-3 w-full rounded-[7px] sm:rounded-[11px] px-3 py-2 no-underline"
+            style={ARTIST_INFO_ROW_RADIUS_STYLE}
             {...linkProps}
           >
             <div className="min-w-0 flex-1">

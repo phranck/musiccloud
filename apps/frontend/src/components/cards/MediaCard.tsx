@@ -1,5 +1,5 @@
 import { CodeIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { type CSSProperties, useState } from "react";
 import { AudioPreviewPlayer, type AudioPreviewStatus } from "@/components/audio/AudioPreviewPlayer";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -30,6 +30,11 @@ interface MediaCardProps {
   animated?: boolean;
   onPreviewStatusChange?: (status: AudioPreviewStatus) => void;
 }
+
+const MEDIA_CARD_BUTTON_RADIUS_STYLE = {
+  "--neu-radius-base": "7px",
+  "--neu-radius-sm": "11px",
+} as CSSProperties;
 
 export function MediaCard({ content, className, animated = true, onPreviewStatusChange }: MediaCardProps) {
   const t = useT();
@@ -85,40 +90,33 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
       </CollapsibleSection>
 
       <CollapsibleSection visible={showShareButton} sectionClass="p-3">
-        {shareUrl && (
-          <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-            <RecessedCard.Body>
-              <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
-            </RecessedCard.Body>
-          </RecessedCard>
-        )}
+        {shareUrl && <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />}
       </CollapsibleSection>
 
       <CollapsibleSection visible={showSharePageActions} sectionClass="p-3">
         {sharePageContent && (
           <>
-            <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-              <RecessedCard.Body className="flex flex-col gap-1.5">
-                <ShareButton
-                  shareUrl={sharePageContent.shortUrl}
-                  songTitle={content.title}
-                  artistName={content.artist}
-                />
-                <EmbossedButton
-                  as="button"
-                  type="button"
-                  onClick={() => setEmbedOpen(true)}
-                  className={cn(
-                    "flex items-center justify-center gap-2",
-                    "w-full rounded-[4px] sm:rounded-lg font-semibold text-[15px] tracking-[-0.01em]",
-                    "min-h-[50px]",
-                  )}
-                >
-                  <CodeIcon size={20} weight="duotone" />
-                  {isAlbum ? t("embed.buttonAlbum") : t("embed.button")}
-                </EmbossedButton>
-              </RecessedCard.Body>
-            </RecessedCard>
+            <div className="flex flex-col gap-0.5">
+              <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
+              <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+                <RecessedCard.Body>
+                  <EmbossedButton
+                    as="button"
+                    type="button"
+                    onClick={() => setEmbedOpen(true)}
+                    className={cn(
+                      "mc-raised-control flex items-center justify-center gap-2",
+                      "w-full rounded-[7px] sm:rounded-[11px] font-semibold text-[15px] tracking-[-0.01em]",
+                      "min-h-[50px]",
+                    )}
+                    style={MEDIA_CARD_BUTTON_RADIUS_STYLE}
+                  >
+                    <CodeIcon size={20} weight="duotone" />
+                    {isAlbum ? t("embed.buttonAlbum") : t("embed.button")}
+                  </EmbossedButton>
+                </RecessedCard.Body>
+              </RecessedCard>
+            </div>
             <EmbedModal
               open={embedOpen}
               onClose={() => setEmbedOpen(false)}
@@ -138,7 +136,7 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
       <CollapsibleSection visible={showPlatforms} sectionClass="p-3">
         {showPlatforms && (
           <>
-            <RecessedCard className="p-1.5" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+            <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
               <RecessedCard.Header>
                 <RecessedCard.Header.Title>{content.platformsLabel}</RecessedCard.Header.Title>
               </RecessedCard.Header>

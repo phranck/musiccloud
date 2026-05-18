@@ -1,5 +1,5 @@
 import type { ArtistTopTrack } from "@musiccloud/shared";
-import { type MouseEvent, useCallback, useState } from "react";
+import { type CSSProperties, type MouseEvent, useCallback, useState } from "react";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useToastSafe } from "@/context/ToastContext";
@@ -11,9 +11,14 @@ interface PopularTracksSectionProps {
   onResolveStart?: () => void;
 }
 
+const ARTIST_INFO_ROW_RADIUS_STYLE = {
+  "--neu-radius-base": "7px",
+  "--neu-radius-sm": "11px",
+} as CSSProperties;
+
 export function PopularTracksSection({ tracks, onTrackResolve, onResolveStart }: PopularTracksSectionProps) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-0.5">
       {tracks.map((track) => (
         <PopularTrack
           key={track.deezerUrl}
@@ -74,7 +79,8 @@ export function PopularTrack({
       disabled={resolving}
       aria-busy={resolving}
       noScale
-      className="flex items-center gap-3 w-full rounded-[4px] sm:rounded-lg p-2"
+      className="flex items-center gap-3 w-full rounded-[7px] sm:rounded-[11px] p-2"
+      style={ARTIST_INFO_ROW_RADIUS_STYLE}
     >
       <SlideArtwork active={resolving} artworkUrl={track.artworkUrl ?? undefined} sizeClass="w-10 h-10" imgDim={40} />
       <div className="min-w-0 flex-1 text-left">

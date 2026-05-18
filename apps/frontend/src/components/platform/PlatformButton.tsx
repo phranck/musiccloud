@@ -1,5 +1,5 @@
 import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
-import { memo } from "react";
+import { type CSSProperties, memo } from "react";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { trackServiceLinkClick } from "@/lib/analytics";
@@ -15,6 +15,7 @@ interface PlatformButtonProps {
   matchMethod?: "isrc" | "search" | "odesli" | "cache" | "upc" | "isrc-inference";
   size?: PlatformButtonSize;
   className?: string;
+  style?: CSSProperties;
 }
 
 const sizeConfig: Record<PlatformButtonSize, { minH: string; icon: string; text: string; gap: string }> = {
@@ -34,6 +35,7 @@ export const PlatformButton = memo(function PlatformButton({
   matchMethod,
   size = "lg",
   className,
+  style,
 }: PlatformButtonProps) {
   const config = PLATFORM_CONFIG[platform];
   const label = displayName || config.label;
@@ -69,7 +71,14 @@ export const PlatformButton = memo(function PlatformButton({
         s.gap,
         className,
       )}
-      style={{ "--embossed-glow": `${config.color}60` } as React.CSSProperties}
+      style={
+        {
+          "--embossed-glow": `${config.color}60`,
+          "--neu-radius-base": "4px",
+          "--neu-radius-sm": "8px",
+          ...style,
+        } as CSSProperties
+      }
     >
       <PlatformIcon platform={platform} className={cn(s.icon, "flex-shrink-0")} colored={true} />
       <div className="flex-1">
