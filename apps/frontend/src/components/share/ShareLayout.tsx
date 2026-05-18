@@ -276,7 +276,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
         <div style={{ width: `${MEDIA_W}px`, flexShrink: 0 }}>
           <SharePageCard config={enrichedConfig} animated={animated} />
         </div>
-        <div style={{ width: `${ARTIST_W}px`, flexShrink: 0 }}>
+        <div className="min-h-[560px]" style={{ width: `${ARTIST_W}px`, flexShrink: 0 }}>
           <ArtistInfoCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
         </div>
       </div>

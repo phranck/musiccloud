@@ -60,9 +60,16 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
 
   // Never render when the API returned nothing useful
   if (!isLoading && !data) return null;
-  // Suppress the loading skeleton while we are still inside the grace
-  // window — avoids a brief flash for fast/null fetches.
-  if (isLoading && !skeletonAllowed) return null;
+  // Keep the card surface mounted during the initial grace window. The
+  // skeleton content itself is still delayed, but the desktop slot no longer
+  // pops from empty space into a full card after hydration/fetch startup.
+  if (isLoading && !skeletonAllowed) {
+    return (
+      <EmbossedCard className="w-full rounded-[1.375rem] sm:rounded-[1.625rem] p-0">
+        <div className="min-h-[560px]" aria-hidden="true" />
+      </EmbossedCard>
+    );
+  }
 
   const showProfile = isLoading || !!data?.profile;
   const showTracks = isLoading || (data?.topTracks.length ?? 0) > 0;
