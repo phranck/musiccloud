@@ -11,23 +11,25 @@ import { useAppState } from "@/hooks/useAppState";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
 import { useToast } from "@/hooks/useToast";
 import { LocaleProvider, useT } from "@/i18n/context";
+import {
+  loadDisambiguationPanel,
+  loadGenreBrowseGrid,
+  loadGenreSearchResults,
+  loadShareLayout,
+  loadToast,
+  preloadResolveResultRuntime,
+} from "@/lib/preload/resultRuntime";
 import { buildActiveConfig } from "@/lib/resolve/parsers";
 import type { InputState } from "@/lib/types/app";
 import { hexToRgb } from "@/lib/ui/colors";
 
 // Lazy-loaded panels — only pulled into the bundle when the user needs them.
 // Fallback is `null` because each is only rendered behind a visibility flag anyway.
-const DisambiguationPanel = lazy(() =>
-  import("@/components/panels/DisambiguationPanel").then((m) => ({ default: m.DisambiguationPanel })),
-);
-const GenreBrowseGrid = lazy(() =>
-  import("@/components/panels/GenreBrowseGrid").then((m) => ({ default: m.GenreBrowseGrid })),
-);
-const GenreSearchResults = lazy(() =>
-  import("@/components/panels/GenreSearchResults").then((m) => ({ default: m.GenreSearchResults })),
-);
-const ShareLayout = lazy(() => import("@/components/share/ShareLayout").then((m) => ({ default: m.ShareLayout })));
-const Toast = lazy(() => import("@/components/ui/Toast").then((m) => ({ default: m.Toast })));
+const DisambiguationPanel = lazy(loadDisambiguationPanel);
+const GenreBrowseGrid = lazy(loadGenreBrowseGrid);
+const GenreSearchResults = lazy(loadGenreSearchResults);
+const ShareLayout = lazy(loadShareLayout);
+const Toast = lazy(loadToast);
 
 const EMPTY_NAV_ITEMS: NavItem[] = [];
 
@@ -146,6 +148,16 @@ function LandingPageInner({
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [showCompact, handleClear]);
+
+  useEffect(() => {
+    if (state.type !== "loading") return;
+
+    const frame = window.requestAnimationFrame(() => {
+      preloadResolveResultRuntime();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [state.type]);
 
   const activeConfig = active ? buildActiveConfig(active, t, handleAlbumArtLoad) : null;
 
