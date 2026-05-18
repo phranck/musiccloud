@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchWithTimeout } from "../../../../lib/infra/fetch";
 import { napsterAdapter } from "../adapter";
+
+vi.mock("../../../../lib/infra/fetch", () => ({
+  fetchWithTimeout: vi.fn(),
+}));
+
+const fetchWithTimeoutMock = vi.mocked(fetchWithTimeout);
 
 // =============================================================================
 // Mock data
@@ -76,16 +83,16 @@ describe("Napster: isAvailable", () => {
   });
 
   afterEach(() => {
-    delete import.meta.env.NAPSTER_API_KEY;
+    delete process.env.NAPSTER_API_KEY;
   });
 
   it("should return true when API key is set", () => {
-    import.meta.env.NAPSTER_API_KEY = "test-api-key";
+    process.env.NAPSTER_API_KEY = "test-api-key";
     expect(napsterAdapter.isAvailable()).toBe(true);
   });
 
   it("should return false when API key is missing", () => {
-    delete import.meta.env.NAPSTER_API_KEY;
+    delete process.env.NAPSTER_API_KEY;
     expect(napsterAdapter.isAvailable()).toBe(false);
   });
 });
@@ -115,17 +122,15 @@ describe("Napster: capabilities", () => {
 describe("Napster: getTrack", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    import.meta.env.NAPSTER_API_KEY = "test-api-key";
+    process.env.NAPSTER_API_KEY = "test-api-key";
   });
 
   afterEach(() => {
-    delete import.meta.env.NAPSTER_API_KEY;
+    delete process.env.NAPSTER_API_KEY;
   });
 
   it("should fetch and map track data correctly", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }),
-    );
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }));
 
     const track = await napsterAdapter.getTrack("tra.262370664");
 
@@ -143,7 +148,7 @@ describe("Napster: getTrack", () => {
   });
 
   it("should convert playbackSeconds to milliseconds", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    fetchWithTimeoutMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ tracks: [{ ...MOCK_NAPSTER_TRACK, playbackSeconds: 300 }] }), { status: 200 }),
     );
 
@@ -152,7 +157,7 @@ describe("Napster: getTrack", () => {
   });
 
   it("should throw on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
 
     await expect(napsterAdapter.getTrack("tra.999")).rejects.toThrow("Napster track fetch failed: 404");
   });
@@ -162,9 +167,9 @@ describe("Napster: getTrack", () => {
   });
 
   it("should include apikey in request URL", async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }));
+    const fetchSpy = fetchWithTimeoutMock.mockResolvedValueOnce(
+      new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }),
+    );
 
     await napsterAdapter.getTrack("tra.262370664");
 
@@ -180,17 +185,15 @@ describe("Napster: getTrack", () => {
 describe("Napster: findByIsrc", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    import.meta.env.NAPSTER_API_KEY = "test-api-key";
+    process.env.NAPSTER_API_KEY = "test-api-key";
   });
 
   afterEach(() => {
-    delete import.meta.env.NAPSTER_API_KEY;
+    delete process.env.NAPSTER_API_KEY;
   });
 
   it("should find track by ISRC", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }),
-    );
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }));
 
     const track = await napsterAdapter.findByIsrc("USMC16758823");
 
@@ -201,23 +204,23 @@ describe("Napster: findByIsrc", () => {
   });
 
   it("should return null when ISRC is not found", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ tracks: [] }), { status: 200 }));
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response(JSON.stringify({ tracks: [] }), { status: 200 }));
 
     const track = await napsterAdapter.findByIsrc("INVALID000000");
     expect(track).toBeNull();
   });
 
   it("should return null on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Server Error", { status: 500 }));
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response("Server Error", { status: 500 }));
 
     const track = await napsterAdapter.findByIsrc("USMC16758823");
     expect(track).toBeNull();
   });
 
   it("should use ISRC endpoint", async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }));
+    const fetchSpy = fetchWithTimeoutMock.mockResolvedValueOnce(
+      new Response(JSON.stringify(MOCK_TRACKS_RESPONSE), { status: 200 }),
+    );
 
     await napsterAdapter.findByIsrc("USMC16758823");
 
@@ -233,17 +236,15 @@ describe("Napster: findByIsrc", () => {
 describe("Napster: searchTrack", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    import.meta.env.NAPSTER_API_KEY = "test-api-key";
+    process.env.NAPSTER_API_KEY = "test-api-key";
   });
 
   afterEach(() => {
-    delete import.meta.env.NAPSTER_API_KEY;
+    delete process.env.NAPSTER_API_KEY;
   });
 
   it("should find track with structured query", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }),
-    );
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
 
     const result = await napsterAdapter.searchTrack({
       title: "What A Wonderful World",
@@ -257,7 +258,7 @@ describe("Napster: searchTrack", () => {
   });
 
   it("should return not found for empty results", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    fetchWithTimeoutMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ search: { data: { tracks: [] } }, meta: { totalCount: 0 } }), { status: 200 }),
     );
 
@@ -271,7 +272,7 @@ describe("Napster: searchTrack", () => {
   });
 
   it("should return not found on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     const result = await napsterAdapter.searchTrack({
       title: "Test",
@@ -283,9 +284,9 @@ describe("Napster: searchTrack", () => {
   });
 
   it("should use combined query for free-text search", async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
+    const fetchSpy = fetchWithTimeoutMock.mockResolvedValueOnce(
+      new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }),
+    );
 
     await napsterAdapter.searchTrack({
       title: "Louis Armstrong Wonderful World",
@@ -309,7 +310,7 @@ describe("Napster: searchTrack", () => {
       },
       meta: { totalCount: 2 },
     };
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(multiResults), { status: 200 }));
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response(JSON.stringify(multiResults), { status: 200 }));
 
     const result = await napsterAdapter.searchTrack({
       title: "What A Wonderful World",
