@@ -21,10 +21,12 @@ interface Particle {
   driftY: number;
   drift: boolean;
   bright: boolean;
+  flash: boolean;
 }
 
-const PARTICLE_COUNT = 24;
+const PARTICLE_COUNT = 36;
 const TOTAL_CYCLE = 8;
+const FLASH_PROBABILITY = 0.25;
 
 function generateParticles(): Particle[] {
   const particles: Particle[] = [];
@@ -48,8 +50,9 @@ function generateParticles(): Particle[] {
     const delay = (i / PARTICLE_COUNT) * TOTAL_CYCLE + Math.random() * 1.5;
     const drift = Math.random() > 0.15;
     const bright = Math.random() > 0.7;
+    const flash = Math.random() < FLASH_PROBABILITY;
 
-    particles.push({ x, y, size, glowSize, duration, delay, driftX, driftY, drift, bright });
+    particles.push({ x, y, size, glowSize, duration, delay, driftX, driftY, drift, bright, flash });
   }
   return particles;
 }
@@ -69,18 +72,27 @@ const particles = generateParticles();
         `0 0 ${p.glowSize * (p.bright ? 3.5 : 2.5)}px var(--color-accent-glow)`,
         `0 0 ${p.glowSize * 4}px rgba(44, 185, 200, ${p.bright ? 0.15 : 0.08})`,
       ].join(", ");
+      const blurPx = p.size * 0.4;
+      const animationName = p.flash
+        ? p.drift
+          ? "sparkle-drift-flash"
+          : "sparkle-flash"
+        : p.drift
+          ? "sparkle-drift"
+          : "sparkle-fade";
       const style = [
         `left: ${p.x}%`,
         `top: ${p.y}%`,
         `width: ${p.size}px`,
         `height: ${p.size}px`,
         `background: var(--color-accent)`,
-        `filter: blur(${p.size * 0.4}px)`,
+        `filter: blur(${blurPx}px)`,
         `box-shadow: ${boxShadow}`,
         `opacity: 0`,
-        `animation: ${p.drift ? "sparkle-drift" : "sparkle-fade"} ${p.duration}s ease-in ${p.delay}s infinite`,
+        `animation: ${animationName} ${p.duration}s ease-in ${p.delay}s infinite`,
         `--drift-x: ${p.driftX}vw`,
         `--drift-y: ${p.driftY}vh`,
+        `--sparkle-blur: ${blurPx}px`,
       ].join(";");
       return <div class="absolute rounded-full" style={style}></div>;
     })

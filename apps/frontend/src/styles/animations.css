@@ -149,6 +149,67 @@
   }
 }
 
+/* Sparkling stars - subtle extra flash, then stay in place and fade.
+   Same brightness peak as sparkle-drift-flash but no center pull. */
+@keyframes sparkle-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
+  }
+  15% {
+    opacity: 0.9;
+    transform: scale(1);
+    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.15);
+    filter: blur(var(--sparkle-blur, 0px)) brightness(1.5);
+  }
+  35% {
+    opacity: 0.85;
+    transform: scale(1);
+    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
+  }
+}
+
+/* Sparkling stars - subtle extra flash before drifting toward center.
+   Keeps per-particle blur via --sparkle-blur var so the flash modulates
+   brightness without losing the soft halo. */
+@keyframes sparkle-drift-flash {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0);
+    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
+  }
+  15% {
+    opacity: 0.9;
+    transform: translate(0, 0) scale(1);
+    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.15);
+    filter: blur(var(--sparkle-blur, 0px)) brightness(1.5);
+  }
+  35% {
+    opacity: 0.85;
+    transform: translate(0, 0) scale(1);
+    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift-x), var(--drift-y)) scale(0.3);
+    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
+  }
+}
+
 /* Ambilight ring - rotate gradient origin + shift hue, GPU-accelerated */
 @property --ambilight-angle {
   syntax: "<angle>";
