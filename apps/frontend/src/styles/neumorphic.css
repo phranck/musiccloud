@@ -101,6 +101,7 @@
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 2;
   padding: var(--neu-border-width, 1px);
   border-radius: inherit;
   /* Subtract the content-box from the border-box → only the 1px strip remains.
@@ -119,6 +120,9 @@
     linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
+  /* Keep the 1px gradient rim above flush children like album artwork.
+     The cover image touches the card edge, so without this layer order it
+     paints over the top highlight/shadow and the border appears to stop. */
   /* Force a GPU compositing layer at element-creation time. WebKit (Safari
      26.5 macOS+iOS) was observed to paint the ::before with mask-composite
      in its initial state on freshly-injected DOM (Astro server-defer +

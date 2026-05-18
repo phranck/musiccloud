@@ -37,6 +37,10 @@ export interface MediaCardContentConfiguration {
   platformsLabel: string;
   /** Optional pre-translated availability note below the platform grid */
   platformsInfo?: string;
+  /** Optional one-line status for the fourth VFD row. Pre-translated by caller. */
+  statusLine?: string;
+  /** When true, the VFD status row subtly pulses to indicate active work. */
+  statusActive?: boolean;
   /**
    * Called when the album art image finishes loading — used to extract
    * dynamic accent colors. Not serializable; must be provided client-side.

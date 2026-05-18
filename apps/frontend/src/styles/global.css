@@ -32,6 +32,7 @@
   --font-sans: "Barlow", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-condensed: "Roboto Condensed", "Barlow", sans-serif;
   --font-mono: "SF Mono", "Fira Code", monospace;
+  --font-dot-matrix: "MatrixType Display", "SF Mono", "Fira Code", monospace;
 
   /* Spacing - inset aligned to card corner radius */
   --spacing-card-inset: 12px;

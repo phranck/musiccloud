@@ -31,7 +31,7 @@ function artistReducer(state: ArtistState, action: ArtistAction): ArtistState {
 }
 
 import { ArtistInfoCard } from "@/components/share/ArtistInfoCard";
-import { SharePageCard } from "@/components/share/SharePageCard";
+import { type AudioPreviewStatus, SharePageCard } from "@/components/share/SharePageCard";
 import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { ToastProvider } from "@/context/ToastContext";
@@ -281,6 +281,9 @@ function ShareLayoutInner({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [currentConfig, setCurrentConfig] = useState(config);
   const [currentArtistName, setCurrentArtistName] = useState(artistName);
+  const [resolveTriggeredArtistLoad, setResolveTriggeredArtistLoad] = useState(false);
+  const [artistReadyVisible, setArtistReadyVisible] = useState(false);
+  const [previewStatus, setPreviewStatus] = useState<AudioPreviewStatus | null>(null);
   const mounted = useIsClient();
   const ownerAlbumArtLoad = useRef(config.onAlbumArtLoad);
   const lastPropsConfigKey = useRef(configIdentity(config));
@@ -352,9 +355,39 @@ function ShareLayoutInner({
     [handleAlbumArtLoad],
   );
 
+  const artistStatusLoading = isLoading || resolveTriggeredArtistLoad;
+  useEffect(() => {
+    if (artistStatusLoading) {
+      setArtistReadyVisible(false);
+      return;
+    }
+
+    setArtistReadyVisible(true);
+    const timeout = setTimeout(() => setArtistReadyVisible(false), 6000);
+    return () => clearTimeout(timeout);
+  }, [artistStatusLoading]);
+
+  const vfdStatusLine = artistStatusLoading
+    ? t("artist.statusLoading")
+    : previewStatus === "playing"
+      ? t("audio.statusPlaying")
+      : artistReadyVisible
+        ? t("artist.statusReady")
+        : "";
+  const vfdStatusActive = artistStatusLoading || previewStatus === "playing";
+
   const enrichedConfig = useMemo(
-    () => ({ ...currentConfig, onAlbumArtLoad: handleShareAlbumArtLoad }),
-    [currentConfig, handleShareAlbumArtLoad],
+    () => ({
+      ...currentConfig,
+      // Fourth VFD row in SongInfo. Status is orchestrated here because the
+      // signals live in different subtrees: artist-row resolve clicks, artist
+      // info fetch state, and the preview player. VfdDisplay stays reusable
+      // and only receives plain lines plus compositor-friendly pulse flags.
+      statusLine: vfdStatusLine,
+      statusActive: vfdStatusActive,
+      onAlbumArtLoad: handleShareAlbumArtLoad,
+    }),
+    [currentConfig, handleShareAlbumArtLoad, vfdStatusActive, vfdStatusLine],
   );
 
   // Fetch artist data immediately (SSR already rendered the share card)
@@ -370,7 +403,10 @@ function ShareLayoutInner({
       .catch(() => {
         if (!cancelled) dispatch({ type: "done", data: null });
       })
-      .finally(() => clearTimeout(timeout));
+      .finally(() => {
+        if (!cancelled) setResolveTriggeredArtistLoad(false);
+        clearTimeout(timeout);
+      });
     return () => {
       cancelled = true;
       controller.abort();
@@ -380,6 +416,14 @@ function ShareLayoutInner({
 
   const openSheet = useCallback(() => setSheetOpen(true), []);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
+
+  const handleArtistResolveStart = useCallback(() => {
+    // Popular/Similar rows show their spinning disc immediately on click,
+    // before the resolve request returns and before artist-info loading starts.
+    // Lift that moment into ShareLayout so the VFD flips to loading in sync
+    // with the visible spinning-disc affordance.
+    setResolveTriggeredArtistLoad(true);
+  }, []);
 
   const handleTrackResolve = useCallback(
     async (track: ArtistTopTrack) => {
@@ -415,6 +459,9 @@ function ShareLayoutInner({
         const active = parseUnifiedResolveResponse(resolved);
         setCurrentConfig(buildActiveConfig(active, t, handleShareAlbumArtLoad));
         setCurrentArtistName(resultArtistName(active));
+      } catch (err) {
+        setResolveTriggeredArtistLoad(false);
+        throw err;
       } finally {
         clearTimeout(timeout);
       }
@@ -442,7 +489,7 @@ function ShareLayoutInner({
         style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}
       >
         <div style={{ width: `${MEDIA_W}px`, flexShrink: 0 }}>
-          <SharePageCard config={enrichedConfig} animated={animated} />
+          <SharePageCard config={enrichedConfig} animated={animated} onPreviewStatusChange={setPreviewStatus} />
         </div>
         <div className="min-h-[560px]" style={{ width: `${ARTIST_W}px`, flexShrink: 0 }}>
           <ArtistInfoCard
@@ -450,13 +497,14 @@ function ShareLayoutInner({
             isLoading={isLoading}
             userRegion={userRegion}
             onTrackResolve={handleTrackResolve}
+            onResolveStart={handleArtistResolveStart}
           />
         </div>
       </div>
 
       {/* Mobile: nur MediaCard + Button für BottomSheet */}
       <div className="block min-[1080px]:hidden">
-        <SharePageCard config={enrichedConfig} animated={animated} />
+        <SharePageCard config={enrichedConfig} animated={animated} onPreviewStatusChange={setPreviewStatus} />
         <div className="mt-3 flex justify-center">
           <EmbossedButton
             as="button"
@@ -518,6 +566,7 @@ function ShareLayoutInner({
                     isLoading={isLoading}
                     userRegion={userRegion}
                     onTrackResolve={handleTrackResolve}
+                    onResolveStart={handleArtistResolveStart}
                   />
                 </div>
               </div>

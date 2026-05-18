@@ -12,8 +12,11 @@ const GRID_ANIMATION_MS = 620;
 const GRID_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
 
 export function AnimatedPlatformGrid({ platforms, songTitle }: AnimatedPlatformGridProps) {
+  const gridRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef(new Map<ServiceId, HTMLDivElement>());
   const previousRects = useRef(new Map<ServiceId, DOMRect>());
+  const previousGridHeight = useRef<number | null>(null);
+  const heightResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const visiblePlatforms = useMemo(
     () =>
@@ -31,6 +34,27 @@ export function AnimatedPlatformGrid({ platforms, songTitle }: AnimatedPlatformG
       if (!el) continue;
       nextRects.set(platform.platform, el.getBoundingClientRect());
     }
+
+    const grid = gridRef.current;
+    const nextGridHeight = grid?.getBoundingClientRect().height ?? null;
+    const previousHeight = previousGridHeight.current;
+    if (grid && nextGridHeight !== null && previousHeight !== null && Math.abs(nextGridHeight - previousHeight) > 1) {
+      if (heightResetTimer.current) clearTimeout(heightResetTimer.current);
+      Object.assign(grid.style, {
+        height: `${previousHeight}px`,
+        overflow: "hidden",
+        transition: "none",
+      });
+      void grid.offsetHeight;
+      Object.assign(grid.style, {
+        height: `${nextGridHeight}px`,
+        transition: `height ${GRID_ANIMATION_MS}ms ${GRID_EASE}`,
+      });
+      heightResetTimer.current = setTimeout(() => {
+        Object.assign(grid.style, { height: "auto", overflow: "", transition: "" });
+      }, GRID_ANIMATION_MS + 80);
+    }
+    previousGridHeight.current = nextGridHeight;
 
     const frames: number[] = [];
     for (const platform of visiblePlatforms) {
@@ -69,11 +93,12 @@ export function AnimatedPlatformGrid({ platforms, songTitle }: AnimatedPlatformG
 
     return () => {
       for (const frame of frames) cancelAnimationFrame(frame);
+      if (heightResetTimer.current) clearTimeout(heightResetTimer.current);
     };
   }, [visiblePlatforms]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+    <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
       {visiblePlatforms.map((platform) => (
         <div
           key={platform.platform}

@@ -1,6 +1,7 @@
 import { buildMetaLine } from "@musiccloud/shared";
 import { memo, useEffect, useRef, useState } from "react";
-import { SmoothSwap } from "@/components/ui/SmoothSwap";
+import { RecessedCard } from "@/components/cards/RecessedCard";
+import { VfdDisplay } from "@/components/ui/VfdDisplay";
 
 interface SongInfoProps {
   title: string;
@@ -13,6 +14,10 @@ interface SongInfoProps {
   onAlbumArtLoad?: (img: HTMLImageElement) => void;
   /** When provided, replaces the automatically computed meta line (duration · year) */
   metaOverride?: string;
+  /** Fourth VFD row. Pre-translated by the caller so the component stays reusable. */
+  statusLine?: string;
+  /** Pulses the fourth VFD row with compositor-only opacity animation. */
+  statusActive?: boolean;
 }
 
 const ARTWORK_SWAP_MS = 740;
@@ -27,8 +32,13 @@ export const SongInfo = memo(function SongInfo({
   albumArtUrl,
   onAlbumArtLoad,
   metaOverride,
+  statusLine = "READY",
+  statusActive = false,
 }: SongInfoProps) {
   const metaLine = metaOverride ?? buildMetaLine({ durationMs, releaseDate });
+  const detailLine = [album, isExplicit ? "E" : null].filter(Boolean).join(" · ");
+  const shouldMarqueeStatus = statusLine.length > 28;
+  const isPreviewPlayingStatus = /^[♪♫♬]/u.test(statusLine);
   const [artworkState, setArtworkState] = useState({
     currentUrl: albumArtUrl,
     previousUrl: null as string | null,
@@ -120,48 +130,47 @@ export const SongInfo = memo(function SongInfo({
         />
       </div>
 
-      <div className="px-7 pt-5 pb-4">
-        <SmoothSwap
-          swapKey={[title, artist, album ?? "", metaLine ?? "", isExplicit ? "explicit" : "clean"].join("::")}
-        >
-          <div>
-            <h2 className="text-xl md:text-2xl font-semibold tracking-[-0.02em] text-text-primary">{title}</h2>
-            <p className="text-base text-text-secondary mt-1">{artist}</p>
-            {album ? (
-              <div className="flex items-baseline justify-between gap-3 mt-1">
-                <p className="text-base text-text-muted">{album}</p>
-                {(isExplicit || metaLine) && (
-                  <p className="text-sm text-text-muted/60 font-mono tracking-wide flex items-center gap-1.5 flex-shrink-0">
-                    {isExplicit && <ExplicitBadge />}
-                    <span>{metaLine}</span>
-                  </p>
-                )}
-              </div>
-            ) : isExplicit || metaLine ? (
-              <p className="text-sm text-text-muted/60 mt-2 font-mono tracking-wide flex items-center gap-1.5">
-                {isExplicit && <ExplicitBadge />}
-                <span>{metaLine}</span>
-              </p>
-            ) : null}
-          </div>
-        </SmoothSwap>
+      <div className="px-3 pt-3 pb-3">
+        {/* Fixed four-row VFD inside a recessed card. Text changes refresh via
+            clipped translate3d movement, while the display height never changes.
+            Weight hierarchy is modeled as phosphor intensity in VfdDisplay,
+            not font-weight. */}
+        <RecessedCard className="p-0.5" radius={{ base: "0.75rem", sm: "0.875rem" }}>
+          <RecessedCard.Body>
+            <VfdDisplay
+              ariaLabel={`Track information: ${title} ${artist} ${detailLine} ${statusLine}`}
+              lines={[
+                {
+                  brightness: "bright",
+                  sections: metaLine
+                    ? [
+                        { content: title, cells: "fill", align: "left", marquee: "overflow" },
+                        // Keep duration/year pinned on the right while the
+                        // title gets the remaining cells and scrolls only if
+                        // it overflows. VfdDisplay stays generic: it only
+                        // knows section sizing/alignment, not song metadata.
+                        { content: ` ${metaLine}`, cells: "auto", align: "right", brightness: "dim" },
+                      ]
+                    : [{ content: title, cells: "fill", align: "left", marquee: "overflow" }],
+                },
+                { content: artist, brightness: "normal" },
+                { content: detailLine, brightness: "dim" },
+                {
+                  content: statusLine,
+                  brightness: "normal",
+                  align: "center",
+                  marquee: shouldMarqueeStatus,
+                  pulse: statusActive,
+                  className: isPreviewPlayingStatus ? "mc-vfd-line-pulse-slow" : undefined,
+                },
+              ]}
+            />
+          </RecessedCard.Body>
+        </RecessedCard>
       </div>
     </div>
   );
 });
-
-function ExplicitBadge() {
-  return (
-    <span
-      role="img"
-      className="inline-flex items-center justify-center size-[18px] rounded-[3px] bg-text-muted/20 text-text-muted text-[10px] font-bold leading-none flex-shrink-0"
-      title="Explicit"
-      aria-label="Explicit content"
-    >
-      E
-    </span>
-  );
-}
 
 function ArtworkImage({ url, alt, className }: { url: string; alt: string; className?: string }) {
   const src = url || "/og/musiccloud.jpg";

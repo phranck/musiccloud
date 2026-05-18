@@ -8,18 +8,27 @@
  * reactive via the calling component's t() and is passed through unchanged.
  */
 
-import { MediaCard } from "@/components/cards/MediaCard";
+import { type AudioPreviewStatus, MediaCard } from "@/components/cards/MediaCard";
 import { useT } from "@/i18n/context";
 import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
+
+export type { AudioPreviewStatus } from "@/components/cards/MediaCard";
 
 interface SharePageCardProps {
   config: MediaCardContentConfiguration;
   animated?: boolean;
+  onPreviewStatusChange?: (status: AudioPreviewStatus) => void;
 }
 
-export function SharePageCard({ config, animated = false }: SharePageCardProps) {
+export function SharePageCard({ config, animated = false, onPreviewStatusChange }: SharePageCardProps) {
   const t = useT();
   const platformsLabel =
     config.type === "share" ? t((config as ShareContentConfiguration).platformsLabelKey) : config.platformsLabel;
-  return <MediaCard content={{ ...config, platformsLabel }} animated={animated} />;
+  return (
+    <MediaCard
+      content={{ ...config, platformsLabel }}
+      animated={animated}
+      onPreviewStatusChange={onPreviewStatusChange}
+    />
+  );
 }

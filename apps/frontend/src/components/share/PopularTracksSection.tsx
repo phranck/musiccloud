@@ -8,13 +8,19 @@ import { useT } from "@/i18n/context";
 interface PopularTracksSectionProps {
   tracks: ArtistTopTrack[];
   onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
+  onResolveStart?: () => void;
 }
 
-export function PopularTracksSection({ tracks, onTrackResolve }: PopularTracksSectionProps) {
+export function PopularTracksSection({ tracks, onTrackResolve, onResolveStart }: PopularTracksSectionProps) {
   return (
     <div className="flex flex-col gap-1.5">
       {tracks.map((track) => (
-        <PopularTrack key={track.deezerUrl} track={track} onTrackResolve={onTrackResolve} />
+        <PopularTrack
+          key={track.deezerUrl}
+          track={track}
+          onTrackResolve={onTrackResolve}
+          onResolveStart={onResolveStart}
+        />
       ))}
     </div>
   );
@@ -24,10 +30,12 @@ export function PopularTrack({
   track,
   artistLabel,
   onTrackResolve,
+  onResolveStart,
 }: {
   track: ArtistTopTrack;
   artistLabel?: string;
   onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
+  onResolveStart?: () => void;
 }) {
   const t = useT();
   const toast = useToastSafe();
@@ -41,6 +49,7 @@ export function PopularTrack({
       if (resolving) return;
 
       setResolving(true);
+      onResolveStart?.();
       try {
         if (!onTrackResolve) {
           throw new Error("missing in-place resolve handler");
@@ -54,7 +63,7 @@ export function PopularTrack({
         toast?.show(t("error.generic"), "error");
       }
     },
-    [onTrackResolve, resolving, track, toast, t],
+    [onResolveStart, onTrackResolve, resolving, track, toast, t],
   );
 
   return (

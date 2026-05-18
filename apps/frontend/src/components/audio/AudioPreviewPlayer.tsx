@@ -4,6 +4,8 @@ import { PlaybackButton } from "@/components/playback/PlaybackButton";
 import { ProgressTrack } from "@/components/playback/ProgressTrack";
 import { useT } from "@/i18n/context";
 
+export type AudioPreviewStatus = "loading" | "ready" | "playing" | "paused" | "ended" | "unavailable";
+
 interface AudioPreviewPlayerProps {
   /** Immediately-playable preview URL. Optional when `refreshShortId` is set. */
   previewUrl?: string;
@@ -12,6 +14,7 @@ interface AudioPreviewPlayerProps {
    *  player mounts in a loading state and fetches on mount. */
   refreshShortId?: string;
   trackTitle: string;
+  onStatusChange?: (status: AudioPreviewStatus) => void;
 }
 
 /**
@@ -96,7 +99,12 @@ async function fetchPreviewUrl(refreshShortId: string, signal: AbortSignal): Pro
   return body.previewUrl;
 }
 
-export function AudioPreviewPlayer({ previewUrl, refreshShortId, trackTitle }: AudioPreviewPlayerProps) {
+export function AudioPreviewPlayer({
+  previewUrl,
+  refreshShortId,
+  trackTitle,
+  onStatusChange,
+}: AudioPreviewPlayerProps) {
   const t = useT();
   const initialPhase: PlayerState = previewUrl ? { phase: "idle", duration: 30 } : { phase: "loading" };
   const [state, dispatch] = useReducer(playerReducer, initialPhase);
@@ -217,6 +225,19 @@ export function AudioPreviewPlayer({ previewUrl, refreshShortId, trackTitle }: A
   const isUnavailable = state.phase === "error" || state.phase === "unavailable";
   const isDisabled = isLoading || isUnavailable;
   const isPlaying = state.phase === "playing";
+
+  useEffect(() => {
+    const status: AudioPreviewStatus = isLoading
+      ? "loading"
+      : isUnavailable
+        ? "unavailable"
+        : state.phase === "playing"
+          ? "playing"
+          : state.phase === "paused"
+            ? "paused"
+            : "ready";
+    onStatusChange?.(status);
+  }, [isLoading, isUnavailable, onStatusChange, state.phase]);
   const currentTime = state.phase === "playing" || state.phase === "paused" ? state.currentTime : 0;
   const duration =
     state.phase === "idle" || state.phase === "playing" || state.phase === "paused" ? state.duration : 30;

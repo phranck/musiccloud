@@ -23,9 +23,17 @@ interface ArtistInfoCardProps {
   userRegion: string;
   onClose?: () => void;
   onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
+  onResolveStart?: () => void;
 }
 
-export function ArtistInfoCard({ data, isLoading, userRegion, onClose, onTrackResolve }: ArtistInfoCardProps) {
+export function ArtistInfoCard({
+  data,
+  isLoading,
+  userRegion,
+  onClose,
+  onTrackResolve,
+  onResolveStart,
+}: ArtistInfoCardProps) {
   const t = useT();
   const { locale } = useLocale();
 
@@ -118,7 +126,11 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose, onTrackRe
                 <TracksSkeleton />
               ) : data && data.topTracks.length > 0 ? (
                 <SmoothSwap swapKey={tracksSwapKey}>
-                  <PopularTracksSection tracks={data.topTracks} onTrackResolve={onTrackResolve} />
+                  <PopularTracksSection
+                    tracks={data.topTracks}
+                    onTrackResolve={onTrackResolve}
+                    onResolveStart={onResolveStart}
+                  />
                 </SmoothSwap>
               ) : null}
             </RecessedCard.Body>
@@ -160,6 +172,7 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose, onTrackRe
                   <SimilarArtistsSection
                     similarArtistTracks={data.similarArtistTracks}
                     onTrackResolve={onTrackResolve}
+                    onResolveStart={onResolveStart}
                   />
                 </SmoothSwap>
               ) : null}
