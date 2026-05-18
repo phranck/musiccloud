@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
-import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useT } from "@/i18n/context";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ interface DisambiguationPanelProps {
   loading?: boolean;
 }
 
-const ANIM_MS = 420;
+const ANIM_MS = 520;
 const ANIM_EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
 
 export function DisambiguationPanel({
@@ -195,7 +195,14 @@ export function DisambiguationPanel({
                       >
                         <CandidateRowContent
                           artwork={
-                            isThisSelected ? <CDSpinArtwork className="size-14 md:size-16 flex-shrink-0" /> : undefined
+                            isThisSelected ? (
+                              <SlideArtwork
+                                active
+                                artworkUrl={candidate.artworkUrl}
+                                sizeClass="size-14 md:size-16"
+                                imgDim={64}
+                              />
+                            ) : undefined
                           }
                           artworkUrl={candidate.artworkUrl}
                           primary={candidate.title}

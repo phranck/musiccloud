@@ -43,9 +43,18 @@ export function HeroInput({
 
   useAmbilightAnimation(ambilightRef);
 
-  // Focus input on mount for non-touch devices only (avoids iOS 26 keyboard suppression on load)
+  // Focus input on mount for non-touch devices only. A direct share-page
+  // Escape exit sets a one-shot flag so the landing field regains focus.
   useEffect(() => {
-    if (window.matchMedia("(hover: hover)").matches) {
+    let forceFocus = false;
+    try {
+      forceFocus = window.sessionStorage.getItem("mc:focusHero") === "1";
+      if (forceFocus) window.sessionStorage.removeItem("mc:focusHero");
+    } catch {
+      forceFocus = false;
+    }
+
+    if (forceFocus || window.matchMedia("(hover: hover)").matches) {
       const timer = setTimeout(() => inputRef.current?.focus(), 50);
       return () => clearTimeout(timer);
     }

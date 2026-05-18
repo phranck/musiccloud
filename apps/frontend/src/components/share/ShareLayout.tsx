@@ -8,16 +8,25 @@
  *                as a bottom sheet.
  */
 
-import { type ArtistInfoResponse, ENDPOINTS } from "@musiccloud/shared";
+import {
+  type ArtistInfoResponse,
+  type ArtistTopTrack,
+  buildMetaLine,
+  ENDPOINTS,
+  isValidServiceId,
+  type ResolveErrorResponse,
+  type ServiceId,
+  type UnifiedResolveSuccessResponse,
+} from "@musiccloud/shared";
 import { UserIcon, XIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 type ArtistState = { isLoading: boolean; artistData: ArtistInfoResponse | null };
 type ArtistAction = { type: "loading" } | { type: "done"; data: ArtistInfoResponse | null };
 
-function artistReducer(_: ArtistState, action: ArtistAction): ArtistState {
-  if (action.type === "loading") return { isLoading: true, artistData: null };
+function artistReducer(state: ArtistState, action: ArtistAction): ArtistState {
+  if (action.type === "loading") return { isLoading: true, artistData: state.artistData };
   return { isLoading: false, artistData: action.data };
 }
 
@@ -29,7 +38,9 @@ import { ToastProvider } from "@/context/ToastContext";
 import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { useIsClient } from "@/hooks/useIsClient";
 import { LocaleProvider, useT } from "@/i18n/context";
-import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
+import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
+import type { ActiveResult } from "@/lib/types/app";
+import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
 import { hexToRgb } from "@/lib/ui/colors";
 import { cn } from "@/lib/utils";
 
@@ -142,6 +153,84 @@ async function fetchArtistInfo(
   return res.ok ? ((await res.json()) as ArtistInfoResponse) : null;
 }
 
+function pathFromShortUrl(shortUrl: string): string {
+  try {
+    const base = typeof window === "undefined" ? "https://musiccloud.io" : window.location.origin;
+    return new URL(shortUrl, base).pathname;
+  } catch {
+    return "/";
+  }
+}
+
+function shortIdFromShortUrl(shortUrl: string): string | undefined {
+  const path = pathFromShortUrl(shortUrl);
+  const shortId = path.replace(/^\/+/, "").split("/")[0];
+  return shortId || undefined;
+}
+
+function configIdentity(config: MediaCardContentConfiguration): string {
+  const shareUrl = "shareUrl" in config ? config.shareUrl : "";
+  const shortUrl = "shortUrl" in config ? config.shortUrl : "";
+  return [config.type, config.title, config.artist, config.artworkUrl, shareUrl, shortUrl].join("::");
+}
+
+function resultArtistName(active: ActiveResult): string {
+  return active.kind === "artist" ? active.name : active.artist;
+}
+
+function buildShareConfigFromResolved(
+  data: UnifiedResolveSuccessResponse,
+  t: (key: string, vars?: Record<string, string>) => string,
+): { config: ShareContentConfiguration; artistName: string; pageTitle: string } {
+  const isArtist = data.type === "artist";
+  const isAlbum = data.type === "album";
+  const track = data.type === "track" ? data.track : null;
+  const album = data.type === "album" ? data.album : null;
+  const artist = data.type === "artist" ? data.artist : null;
+  const artistDisplay = isArtist ? "" : isAlbum ? (album?.artists.join(", ") ?? "") : (track?.artists.join(", ") ?? "");
+  const displayTitle = isArtist ? (artist?.name ?? "") : isAlbum ? (album?.title ?? "") : (track?.title ?? "");
+  const artworkUrl = isArtist ? artist?.imageUrl : isAlbum ? album?.artworkUrl : track?.artworkUrl;
+  const trackMetaLine = track ? buildMetaLine({ durationMs: track.durationMs, releaseDate: track.releaseDate }) : null;
+  const albumYear = album?.releaseDate?.slice(0, 4);
+  const albumMetaLine = isAlbum
+    ? [album?.totalTracks ? t("results.albumTracks", { count: String(album.totalTracks) }) : null, albumYear]
+        .filter(Boolean)
+        .join(" \u00B7 ")
+    : null;
+  const artistMetaLine = isArtist ? artist?.genres?.join(", ") : null;
+  const platformsLabelKey = isArtist ? "results.viewArtistOn" : isAlbum ? "results.openAlbumOn" : "results.listenOn";
+  const platformLinks = data.links
+    .filter((link) => link.url && isValidServiceId(link.service))
+    .map((link) => ({
+      platform: link.service as ServiceId,
+      url: link.url,
+      displayName: link.displayName,
+      matchMethod: link.matchMethod,
+    }));
+  const config: ShareContentConfiguration = {
+    type: "share",
+    title: displayTitle,
+    artist: artistDisplay,
+    artworkUrl: artworkUrl ?? "",
+    album: isAlbum ? undefined : (track?.albumName ?? undefined),
+    isExplicit: !isAlbum && !isArtist && track?.isExplicit ? true : undefined,
+    previewUrl: isArtist ? undefined : isAlbum ? (album?.previewUrl ?? undefined) : (track?.previewUrl ?? undefined),
+    previewRefreshable: !isArtist && !isAlbum ? track?.previewRefreshable : undefined,
+    shortId: shortIdFromShortUrl(data.shortUrl),
+    metaLine: isArtist
+      ? artistMetaLine || undefined
+      : isAlbum
+        ? albumMetaLine || undefined
+        : trackMetaLine || undefined,
+    platforms: platformLinks,
+    platformsLabel: t(platformsLabelKey),
+    platformsLabelKey,
+    shortUrl: data.shortUrl,
+  };
+  const pageTitle = isArtist ? `${displayTitle} - musiccloud` : `${displayTitle} by ${artistDisplay} - musiccloud`;
+  return { config, artistName: isArtist ? displayTitle : artistDisplay, pageTitle };
+}
+
 interface ShareLayoutProps {
   config: MediaCardContentConfiguration;
   artistName: string;
@@ -190,7 +279,23 @@ function ShareLayoutInner({
     artistData: null,
   });
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [currentConfig, setCurrentConfig] = useState(config);
+  const [currentArtistName, setCurrentArtistName] = useState(artistName);
   const mounted = useIsClient();
+  const ownerAlbumArtLoad = useRef(config.onAlbumArtLoad);
+  const lastPropsConfigKey = useRef(configIdentity(config));
+
+  useEffect(() => {
+    ownerAlbumArtLoad.current = config.onAlbumArtLoad;
+  }, [config.onAlbumArtLoad]);
+
+  useEffect(() => {
+    const nextConfigKey = configIdentity(config);
+    if (lastPropsConfigKey.current === nextConfigKey) return;
+    lastPropsConfigKey.current = nextConfigKey;
+    setCurrentConfig(config);
+    setCurrentArtistName(artistName);
+  }, [artistName, config]);
 
   // Dynamic accent color extraction from album artwork. The accent kicks in
   // as soon as the image has loaded and the colors are computed.
@@ -241,15 +346,15 @@ function ShareLayoutInner({
   // config while preserving an upstream owner callback from LandingPage.
   const handleShareAlbumArtLoad = useCallback(
     (img: HTMLImageElement) => {
-      config.onAlbumArtLoad?.(img);
+      ownerAlbumArtLoad.current?.(img);
       handleAlbumArtLoad(img);
     },
-    [config.onAlbumArtLoad, handleAlbumArtLoad],
+    [handleAlbumArtLoad],
   );
 
   const enrichedConfig = useMemo(
-    () => ({ ...config, onAlbumArtLoad: handleShareAlbumArtLoad }),
-    [config, handleShareAlbumArtLoad],
+    () => ({ ...currentConfig, onAlbumArtLoad: handleShareAlbumArtLoad }),
+    [currentConfig, handleShareAlbumArtLoad],
   );
 
   // Fetch artist data immediately (SSR already rendered the share card)
@@ -258,7 +363,7 @@ function ShareLayoutInner({
     dispatch({ type: "loading" });
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
-    fetchArtistInfo(artistName, userRegion, controller.signal)
+    fetchArtistInfo(currentArtistName, userRegion, controller.signal)
       .then((data) => {
         if (!cancelled) dispatch({ type: "done", data });
       })
@@ -271,10 +376,51 @@ function ShareLayoutInner({
       controller.abort();
       clearTimeout(timeout);
     };
-  }, [artistName, userRegion]);
+  }, [currentArtistName, userRegion]);
 
   const openSheet = useCallback(() => setSheetOpen(true), []);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
+
+  const handleTrackResolve = useCallback(
+    async (track: ArtistTopTrack) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      try {
+        const response = await fetch(ENDPOINTS.frontend.resolve, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: track.deezerUrl }),
+          signal: controller.signal,
+        });
+        const data = (await response.json().catch(() => ({}))) as
+          | UnifiedResolveSuccessResponse
+          | Partial<ResolveErrorResponse>
+          | { status?: string };
+        if (!response.ok) {
+          throw new Error("message" in data && data.message ? data.message : "error.generic");
+        }
+        if ("status" in data && data.status) {
+          throw new Error("resolve did not return a final result");
+        }
+
+        const resolved = data as UnifiedResolveSuccessResponse;
+        if (currentConfig.type === "share") {
+          const next = buildShareConfigFromResolved(resolved, t);
+          setCurrentConfig(next.config);
+          setCurrentArtistName(next.artistName);
+          document.title = next.pageTitle;
+          return;
+        }
+
+        const active = parseUnifiedResolveResponse(resolved);
+        setCurrentConfig(buildActiveConfig(active, t, handleShareAlbumArtLoad));
+        setCurrentArtistName(resultArtistName(active));
+      } finally {
+        clearTimeout(timeout);
+      }
+    },
+    [currentConfig, handleShareAlbumArtLoad, t],
+  );
 
   return (
     <div style={accentStyle}>
@@ -299,7 +445,12 @@ function ShareLayoutInner({
           <SharePageCard config={enrichedConfig} animated={animated} />
         </div>
         <div className="min-h-[560px]" style={{ width: `${ARTIST_W}px`, flexShrink: 0 }}>
-          <ArtistInfoCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
+          <ArtistInfoCard
+            data={artistData}
+            isLoading={isLoading}
+            userRegion={userRegion}
+            onTrackResolve={handleTrackResolve}
+          />
         </div>
       </div>
 
@@ -362,7 +513,12 @@ function ShareLayoutInner({
                   </button>
                 </div>
                 <div className="overflow-y-auto px-3 pb-8">
-                  <ArtistInfoCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
+                  <ArtistInfoCard
+                    data={artistData}
+                    isLoading={isLoading}
+                    userRegion={userRegion}
+                    onTrackResolve={handleTrackResolve}
+                  />
                 </div>
               </div>
             </div>

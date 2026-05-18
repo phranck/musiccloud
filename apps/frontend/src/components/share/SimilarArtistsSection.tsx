@@ -1,8 +1,9 @@
-import type { SimilarArtistTrack } from "@musiccloud/shared";
+import type { ArtistTopTrack, SimilarArtistTrack } from "@musiccloud/shared";
 import { PopularTrack } from "@/components/share/PopularTracksSection";
 
 interface SimilarArtistsSectionProps {
   similarArtistTracks: SimilarArtistTrack[];
+  onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
 }
 
 type ResolvedSimilarArtist = SimilarArtistTrack & { track: NonNullable<SimilarArtistTrack["track"]> };
@@ -11,7 +12,7 @@ function hasTrack(entry: SimilarArtistTrack): entry is ResolvedSimilarArtist {
   return entry.track != null;
 }
 
-export function SimilarArtistsSection({ similarArtistTracks }: SimilarArtistsSectionProps) {
+export function SimilarArtistsSection({ similarArtistTracks, onTrackResolve }: SimilarArtistsSectionProps) {
   // Only surface similar artists for which we actually resolved a playable
   // track. A name-only row is a dead end for the user — nothing to click,
   // nothing to preview — so we drop it instead of rendering an empty button.
@@ -22,7 +23,7 @@ export function SimilarArtistsSection({ similarArtistTracks }: SimilarArtistsSec
   return (
     <div className="flex flex-col gap-1.5">
       {withTrack.map(({ artistName, track }) => (
-        <PopularTrack key={artistName} track={track} artistLabel={artistName} />
+        <PopularTrack key={artistName} track={track} artistLabel={artistName} onTrackResolve={onTrackResolve} />
       ))}
     </div>
   );

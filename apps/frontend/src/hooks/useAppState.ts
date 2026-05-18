@@ -11,13 +11,7 @@ import { useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
 import { trackResolve } from "@/lib/analytics";
 import { detectServiceFromUrl } from "@/lib/platform/url";
-import {
-  appReducer,
-  parseAlbumResolveResponse,
-  parseArtistResolveResponse,
-  parseErrorKey,
-  parseResolveResponse,
-} from "@/lib/resolve/parsers";
+import { appReducer, parseErrorKey, parseResolveResponse, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import type { ActiveResult, AppState, GenreSearchPayload, ReducerState } from "@/lib/types/app";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 
@@ -66,7 +60,13 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
   const selectedGenreResultId = screen.type === "genre-search_loading" ? screen.selectedId : null;
   const canGoBack = stack.length > 0;
   const errorMessage = screen.type === "error" ? t(screen.message) : undefined;
-  const showCompact = !!(screen.type === "loading" || active || candidates || genreBrowseGenres || genreSearchPayload);
+  const showCompact = !!(
+    (screen.type === "loading" && screen.compact) ||
+    active ||
+    candidates ||
+    genreBrowseGenres ||
+    genreSearchPayload
+  );
 
   const handleSubmit = useCallback(async (url: string) => {
     dispatch({ type: "SUBMIT" });
@@ -111,13 +111,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
         return;
       }
       const resolved = data as UnifiedResolveSuccessResponse;
-      const active =
-        resolved.type === "artist"
-          ? parseArtistResolveResponse(resolved)
-          : resolved.type === "album"
-            ? parseAlbumResolveResponse(resolved)
-            : parseResolveResponse(resolved);
-      dispatch({ type: "RESOLVE_SUCCESS", active });
+      dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved) });
       trackResolve(detectServiceFromUrl(url));
     } catch (err) {
       dispatch({ type: "ERROR", message: parseErrorKey(err) });
@@ -174,13 +168,7 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
         throw new Error(errorData.message || "error.generic");
       }
       const data = (await response.json()) as UnifiedResolveSuccessResponse;
-      const active =
-        data.type === "artist"
-          ? parseArtistResolveResponse(data)
-          : data.type === "album"
-            ? parseAlbumResolveResponse(data)
-            : parseResolveResponse(data);
-      dispatch({ type: "RESOLVE_SUCCESS", active });
+      dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data) });
       trackResolve(detectServiceFromUrl(webUrl));
     } catch (err) {
       dispatch({ type: "ERROR", message: parseErrorKey(err) });

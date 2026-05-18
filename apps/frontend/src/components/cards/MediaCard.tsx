@@ -1,11 +1,10 @@
-import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { CodeIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SongInfo } from "@/components/cards/SongInfo";
-import { PlatformButton } from "@/components/platform/PlatformButton";
+import { AnimatedPlatformGrid } from "@/components/platform/AnimatedPlatformGrid";
 import { EmbedModal } from "@/components/share/EmbedModal";
 import { ShareButton } from "@/components/share/ShareButton";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -37,7 +36,6 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
   const sharePageContent = isSharePageContent(content) ? content : null;
   const [embedOpen, setEmbedOpen] = useState(false);
   const isAlbum = content.type === "album" || sharePageContent?.platformsLabelKey === "results.openAlbumOn";
-
   return (
     <EmbossedCard
       className={cn(
@@ -127,20 +125,8 @@ export function MediaCard({ content, className, animated = true }: MediaCardProp
             <RecessedCard.Header>
               <RecessedCard.Header.Title>{content.platformsLabel}</RecessedCard.Header.Title>
             </RecessedCard.Header>
-            <RecessedCard.Body className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {[...content.platforms]
-                .filter((p) => !PLATFORM_CONFIG[p.platform]?.hidden)
-                .sort((a, b) => PLATFORM_CONFIG[a.platform].label.localeCompare(PLATFORM_CONFIG[b.platform].label))
-                .map((p) => (
-                  <PlatformButton
-                    key={p.platform}
-                    platform={p.platform}
-                    url={p.url}
-                    songTitle={content.title}
-                    displayName={p.displayName}
-                    matchMethod={p.matchMethod}
-                  />
-                ))}
+            <RecessedCard.Body>
+              <AnimatedPlatformGrid platforms={content.platforms} songTitle={content.title} />
             </RecessedCard.Body>
           </RecessedCard>
           {content.platformsInfo && (

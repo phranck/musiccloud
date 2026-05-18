@@ -83,7 +83,7 @@ export type ActiveResult = SongResult | AlbumResult | ArtistResult;
 
 export type AppState =
   | { type: "idle" }
-  | { type: "loading" }
+  | { type: "loading"; compact: boolean }
   | { type: "result"; active: ActiveResult }
   | { type: "clearing"; active: ActiveResult }
   | { type: "error"; message: string }

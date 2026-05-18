@@ -4,9 +4,9 @@
  * Visually matches MediaCard: EmbossedCard with RecessedCard sections.
  */
 
-import type { ArtistInfoResponse } from "@musiccloud/shared";
+import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
 import { XIcon } from "@phosphor-icons/react";
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { ArtistProfileSection } from "@/components/share/ArtistProfileSection";
@@ -14,7 +14,7 @@ import { PopularTracksSection } from "@/components/share/PopularTracksSection";
 import { SimilarArtistsSection } from "@/components/share/SimilarArtistsSection";
 import { UpcomingEventsSection } from "@/components/share/UpcomingEventsSection";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import { CrossFade } from "@/components/ui/CrossFade";
+import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useLocale, useT } from "@/i18n/context";
 
 interface ArtistInfoCardProps {
@@ -22,16 +22,12 @@ interface ArtistInfoCardProps {
   isLoading: boolean;
   userRegion: string;
   onClose?: () => void;
+  onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
 }
 
-export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistInfoCardProps) {
+export function ArtistInfoCard({ data, isLoading, userRegion, onClose, onTrackResolve }: ArtistInfoCardProps) {
   const t = useT();
   const { locale } = useLocale();
-
-  // contentReady triggers the crossfade. Double-rAF ensures:
-  //   Frame 1: React renders with contentReady=false -> content enters DOM at opacity-0
-  //   Frame 2: setContentReady(true) -> skeleton fades to 0, content fades to 1 (simultaneously)
-  const [contentReady, setContentReady] = useState(false);
 
   // Skeleton render gate. Suppresses the loading skeleton for the first
   // 300 ms of mount, so a fast/null fetch (cache hit, 5xx) never produces
@@ -44,26 +40,12 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (!isLoading) {
-      let id1: number, id2: number;
-      id1 = requestAnimationFrame(() => {
-        id2 = requestAnimationFrame(() => setContentReady(true));
-      });
-      return () => {
-        cancelAnimationFrame(id1);
-        cancelAnimationFrame(id2);
-      };
-    }
-    setContentReady(false);
-  }, [isLoading]);
-
   // Never render when the API returned nothing useful
   if (!isLoading && !data) return null;
   // Keep the card surface mounted during the initial grace window. The
   // skeleton content itself is still delayed, but the desktop slot no longer
   // pops from empty space into a full card after hydration/fetch startup.
-  if (isLoading && !skeletonAllowed) {
+  if (isLoading && !data && !skeletonAllowed) {
     return (
       <EmbossedCard className="w-full rounded-[1.375rem] sm:rounded-[1.625rem] p-0">
         <div className="min-h-[560px]" aria-hidden="true" />
@@ -71,11 +53,21 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
     );
   }
 
-  const showProfile = isLoading || !!data?.profile;
-  const showTracks = isLoading || (data?.topTracks.length ?? 0) > 0;
-  const showEvents = isLoading || (data?.events.length ?? 0) > 0;
-  const showSimilar = isLoading || (data?.similarArtistTracks?.length ?? 0) > 0;
-
+  const showInitialSkeleton = isLoading && !data;
+  const showProfile = showInitialSkeleton || !!data?.profile;
+  const showTracks = showInitialSkeleton || (data?.topTracks.length ?? 0) > 0;
+  const showEvents = showInitialSkeleton || (data?.events.length ?? 0) > 0;
+  const showSimilar = showInitialSkeleton || (data?.similarArtistTracks?.length ?? 0) > 0;
+  const profileSwapKey = data?.profile
+    ? [data.profile.imageUrl, data.profile.genres.join("|"), data.profile.bioSummary ?? ""].join("::")
+    : "profile-empty";
+  const tracksSwapKey = data?.topTracks.map((track) => track.deezerUrl).join("|") ?? "tracks-empty";
+  const eventsSwapKey =
+    data?.events.map((event) => `${event.date}:${event.venueName}:${event.city}:${event.ticketUrl ?? ""}`).join("|") ??
+    "events-empty";
+  const similarSwapKey =
+    data?.similarArtistTracks?.map((entry) => `${entry.artistName}:${entry.track?.deezerUrl ?? ""}`).join("|") ??
+    "similar-empty";
   // All sections empty after load -> nothing to render
   if (!isLoading && !showProfile && !showTracks && !showEvents && !showSimilar) return null;
 
@@ -101,14 +93,16 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
               bottom edge doesn't slide up against the artwork. */}
           <RecessedCard className="p-1.5 min-h-[108px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
             <RecessedCard.Body>
-              <CrossFade
-                contentReady={contentReady}
-                skeleton={<ProfileSkeleton />}
-                content={data?.profile ? <ArtistProfileSection profile={data.profile} t={t} /> : null}
-              />
+              {showInitialSkeleton ? (
+                <ProfileSkeleton />
+              ) : data?.profile ? (
+                <SmoothSwap swapKey={profileSwapKey}>
+                  <ArtistProfileSection profile={data.profile} t={t} />
+                </SmoothSwap>
+              ) : null}
             </RecessedCard.Body>
           </RecessedCard>
-          {contentReady && data?.profile && (
+          {!showInitialSkeleton && data?.profile && (
             <p className="mt-2 text-xs text-text-muted text-center px-2">{t("artist.profileProvidedBy")}</p>
           )}
         </CollapsibleSection>
@@ -120,11 +114,13 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
               <RecessedCard.Header.Title>{t("artist.popularTracks")}</RecessedCard.Header.Title>
             </RecessedCard.Header>
             <RecessedCard.Body>
-              <CrossFade
-                contentReady={contentReady}
-                skeleton={<TracksSkeleton />}
-                content={data && data.topTracks.length > 0 ? <PopularTracksSection tracks={data.topTracks} /> : null}
-              />
+              {showInitialSkeleton ? (
+                <TracksSkeleton />
+              ) : data && data.topTracks.length > 0 ? (
+                <SmoothSwap swapKey={tracksSwapKey}>
+                  <PopularTracksSection tracks={data.topTracks} onTrackResolve={onTrackResolve} />
+                </SmoothSwap>
+              ) : null}
             </RecessedCard.Body>
           </RecessedCard>
         </CollapsibleSection>
@@ -136,18 +132,16 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
               <RecessedCard.Header.Title>{t("artist.upcomingEvents")}</RecessedCard.Header.Title>
             </RecessedCard.Header>
             <RecessedCard.Body>
-              <CrossFade
-                contentReady={contentReady}
-                skeleton={<EventsSkeleton />}
-                content={
-                  data && data.events.length > 0 ? (
-                    <UpcomingEventsSection events={data.events} userRegion={userRegion} locale={locale} />
-                  ) : null
-                }
-              />
+              {showInitialSkeleton ? (
+                <EventsSkeleton />
+              ) : data && data.events.length > 0 ? (
+                <SmoothSwap swapKey={eventsSwapKey}>
+                  <UpcomingEventsSection events={data.events} userRegion={userRegion} locale={locale} />
+                </SmoothSwap>
+              ) : null}
             </RecessedCard.Body>
           </RecessedCard>
-          {contentReady && data && data.events.length > 0 && (
+          {!showInitialSkeleton && data && data.events.length > 0 && (
             <p className="mt-2 text-xs text-text-muted text-center px-2">{t("artist.eventsProvidedBy")}</p>
           )}
         </CollapsibleSection>
@@ -159,15 +153,16 @@ export function ArtistInfoCard({ data, isLoading, userRegion, onClose }: ArtistI
               <RecessedCard.Header.Title>{t("artist.similarArtists")}</RecessedCard.Header.Title>
             </RecessedCard.Header>
             <RecessedCard.Body>
-              <CrossFade
-                contentReady={contentReady}
-                skeleton={<SimilarArtistsSkeleton />}
-                content={
-                  data?.similarArtistTracks && data.similarArtistTracks.length > 0 ? (
-                    <SimilarArtistsSection similarArtistTracks={data.similarArtistTracks} />
-                  ) : null
-                }
-              />
+              {showInitialSkeleton ? (
+                <SimilarArtistsSkeleton />
+              ) : data?.similarArtistTracks && data.similarArtistTracks.length > 0 ? (
+                <SmoothSwap swapKey={similarSwapKey}>
+                  <SimilarArtistsSection
+                    similarArtistTracks={data.similarArtistTracks}
+                    onTrackResolve={onTrackResolve}
+                  />
+                </SmoothSwap>
+              ) : null}
             </RecessedCard.Body>
           </RecessedCard>
         </CollapsibleSection>

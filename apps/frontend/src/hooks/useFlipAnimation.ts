@@ -44,7 +44,7 @@ export function useFlipAnimation(searchFieldRef: RefObject<HTMLDivElement | null
     el.offsetHeight; // force reflow
     Object.assign(el.style, {
       transform: "",
-      transition: "transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
+      transition: "transform 0.62s cubic-bezier(0.16, 1, 0.3, 1)",
     });
 
     const cleanup = () => {

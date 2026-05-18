@@ -51,7 +51,7 @@ export function SlideArtwork({ active, artworkUrl, kind = "square", sizeClass, i
         {active && (
           <div
             className={cn(
-              "absolute inset-0 z-0 transition-transform duration-300 ease-in-out",
+              "absolute inset-0 z-0 transition-transform duration-[420ms] ease-in-out",
               entered ? "translate-y-0" : "-translate-y-full",
             )}
           >
@@ -62,7 +62,7 @@ export function SlideArtwork({ active, artworkUrl, kind = "square", sizeClass, i
         {/* Cover artwork -- pushed down when CD slides in */}
         <div
           className={cn(
-            "relative z-0 transition-transform duration-300 ease-in-out w-full h-full bg-surface",
+            "relative z-0 transition-transform duration-[420ms] ease-in-out w-full h-full bg-surface",
             active && entered ? "translate-y-full" : "translate-y-0",
           )}
         >

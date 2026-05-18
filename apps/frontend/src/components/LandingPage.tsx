@@ -1,6 +1,16 @@
 import type { NavItem } from "@musiccloud/shared";
 import { ENDPOINTS } from "@musiccloud/shared";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  type AnimationEvent,
+  lazy,
+  type MouseEvent,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { HeroInput } from "@/components/input/HeroInput";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -19,7 +29,7 @@ import {
   loadToast,
   preloadResolveResultRuntime,
 } from "@/lib/preload/resultRuntime";
-import { buildActiveConfig } from "@/lib/resolve/parsers";
+import { buildShareConfigFromActive } from "@/lib/resolve/parsers";
 import type { InputState } from "@/lib/types/app";
 import { hexToRgb } from "@/lib/ui/colors";
 
@@ -89,6 +99,8 @@ function LandingPageInner({
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [exampleShortId, setExampleShortId] = useState<string | null>(null);
+  const previousSearchTop = useRef<number | null>(null);
+  const previousShowCompact = useRef(showCompact);
 
   // Optional discovery teaser: fetch a random existing share on mount and,
   // if one exists, render a "try this example" link. The BFF at
@@ -145,24 +157,53 @@ function LandingPageInner({
     if (focusGenreResults) genreSearchRef.current?.focus();
   }, [focusGenreResults]);
 
-  const handleClearAnimationEnd = useCallback(() => {
-    capturePosition();
-    triggerReturn();
+  const handleClearAnimationEnd = useCallback(
+    (event: AnimationEvent<HTMLDivElement>) => {
+      if (event.currentTarget !== event.target) return;
+      if (searchFieldRef.current) {
+        capturePosition();
+        triggerReturn();
+      }
+      setInputValue("");
+      handleClear();
+    },
+    [capturePosition, triggerReturn, handleClear],
+  );
+
+  const beginShareExit = useCallback(() => {
+    try {
+      window.sessionStorage.setItem("mc:focusHero", "1");
+    } catch {
+      // sessionStorage can be unavailable in private or locked-down contexts.
+    }
     setInputValue("");
     handleClear();
-  }, [capturePosition, triggerReturn, handleClear]);
+  }, [handleClear]);
+
+  const handleShareLogoClick = useCallback(
+    (event: MouseEvent<HTMLAnchorElement>) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      beginShareExit();
+    },
+    [beginShareExit],
+  );
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && showCompact) {
         e.preventDefault();
+        if (active) {
+          beginShareExit();
+          return;
+        }
         setInputValue("");
         handleClear();
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [showCompact, handleClear]);
+  }, [active, beginShareExit, showCompact, handleClear]);
 
   useEffect(() => {
     if (state.type !== "loading") return;
@@ -182,7 +223,42 @@ function LandingPageInner({
     [handleAlbumArtLoad, state.type],
   );
 
-  const activeConfig = active ? buildActiveConfig(active, t, handleAmbientAlbumArtLoad) : null;
+  useLayoutEffect(() => {
+    const el = searchFieldRef.current;
+    if (!el) return;
+
+    const nextTop = el.getBoundingClientRect().top;
+    const becameCompact = showCompact && !previousShowCompact.current;
+    const previousTop = previousSearchTop.current;
+
+    if (becameCompact && previousTop !== null && !isReturning) {
+      const delta = previousTop - nextTop;
+      if (Math.abs(delta) >= 2) {
+        Object.assign(el.style, {
+          transform: `translateY(${delta}px)`,
+          transition: "none",
+        });
+        void el.offsetHeight;
+        Object.assign(el.style, {
+          transform: "",
+          transition: "transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)",
+        });
+
+        const cleanup = () => {
+          Object.assign(el.style, { transform: "", transition: "" });
+          el.removeEventListener("transitionend", cleanup);
+        };
+        el.addEventListener("transitionend", cleanup);
+      }
+    }
+
+    previousSearchTop.current = nextTop;
+    previousShowCompact.current = showCompact;
+  });
+
+  const activeShareConfig = active ? buildShareConfigFromActive(active, t, handleAmbientAlbumArtLoad) : null;
+  const activeArtistName = active ? (active.kind === "artist" ? active.name : active.artist) : "";
+  const isSharePageView = !!(activeShareConfig && active);
 
   return (
     <>
@@ -202,131 +278,131 @@ function LandingPageInner({
       >
         <PageHeader navItems={headerNav} />
 
-        <div className="flex-1 flex flex-col items-center justify-center w-full">
-          {!showCompact && (
-            <div className={`flex justify-center mb-10 ${isReturning ? "animate-fade-in" : ""}`}>
-              <LogoView className="w-80 sm:w-96 md:w-[28rem] h-auto" />
-            </div>
-          )}
-
-          {showCompact && (
-            <div className="mb-6">
-              <LogoView className="w-56 h-auto" />
-            </div>
-          )}
-
-          <div ref={searchFieldRef} className="w-full flex flex-col items-center">
-            <HeroInput
-              value={inputValue}
-              onChange={setInputValue}
-              onSubmit={handleSubmit}
-              onClear={() => {
-                setInputValue("");
-                handleClear();
-              }}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              state={inputState}
-              compact={showCompact}
-              songName={
-                active ? (active.kind === "artist" ? active.name : `${active.title} - ${active.artist}`) : undefined
-              }
-              errorMessage={errorMessage}
-            />
-          </div>
-
-          {state.type !== "loading" &&
-            !active &&
-            !candidates &&
-            !genreBrowseGenres &&
-            !genreSearchPayload &&
-            exampleShortId && (
-              <p className="mt-4 text-sm text-text-secondary text-center">
-                {t("landing.exampleTeaser")}{" "}
-                <a
-                  href={`/${exampleShortId}`}
-                  className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
-                >
-                  {t("landing.exampleLink")}
-                </a>
-              </p>
-            )}
-
-          <div className="sr-only" aria-live="polite" aria-atomic="true">
-            {active?.kind === "song" ? t("results.found", { title: active.title, artist: active.artist }) : ""}
-          </div>
-
-          {candidates && candidates.length > 0 && (
-            <div ref={disambiguationRef} tabIndex={-1} className="outline-none w-full">
-              <Suspense fallback={null}>
-                <DisambiguationPanel
-                  candidates={candidates}
-                  onSelect={handleSelectCandidate}
-                  onCancel={handleClear}
-                  selectedId={selectedCandidateId}
-                  loading={state.type === "disambiguation_loading"}
-                />
-              </Suspense>
-            </div>
-          )}
-
-          {genreBrowseGenres && (
-            <Suspense fallback={null}>
-              <GenreBrowseGrid
-                genres={genreBrowseGenres}
-                onSelect={(name) => {
-                  const query = `genre: ${name}`;
-                  setInputValue(query);
-                  handleSubmit(query);
-                }}
-              />
-            </Suspense>
-          )}
-
-          {genreSearchPayload && (
-            <Suspense fallback={null}>
-              <GenreSearchResults
-                ref={genreSearchRef}
-                results={genreSearchPayload.results}
-                queryDetails={genreSearchPayload.queryDetails}
-                warnings={genreSearchPayload.warnings}
-                onSelect={handleSelectGenreResult}
-                onCancel={handleClear}
-                onBack={canGoBack ? handleBack : undefined}
-                selectedId={selectedGenreResultId}
-                loading={isGenreSearchLoading}
-              />
-            </Suspense>
-          )}
-
-          {state.type === "loading" && (
-            <div className="mt-6 sm:mt-8 w-full">
-              <ShareResultPlaceholder />
-            </div>
-          )}
-
-          {activeConfig && active && (
+        <div
+          className={`flex-1 flex flex-col items-center w-full ${
+            isSharePageView ? "justify-start pt-10 sm:pt-12 md:pt-14 pb-12" : "justify-center"
+          }`}
+        >
+          {activeShareConfig && active ? (
             <div
               ref={resultsPanelRef}
               tabIndex={-1}
               className={`outline-none w-full ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
               onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
             >
-              <div className="mt-6 sm:mt-8">
+              <div className="mb-6 text-center">
+                <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleShareLogoClick}>
+                  <LogoView className="w-56 sm:w-64 h-auto" />
+                </a>
+              </div>
+              <div className="animate-fade-in">
                 <Suspense fallback={<ShareResultPlaceholder />}>
-                  <div className="animate-fade-in">
-                    <ShareLayout
-                      config={activeConfig}
-                      artistName={active.kind === "artist" ? active.name : active.artist}
-                      animated
-                      mirrorAlbumColorsToRoot={false}
-                      onBack={canGoBack ? handleBack : undefined}
-                      backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
-                    />
-                  </div>
+                  <ShareLayout
+                    config={activeShareConfig}
+                    artistName={activeArtistName}
+                    mirrorAlbumColorsToRoot={false}
+                    onBack={canGoBack ? handleBack : undefined}
+                    backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
+                  />
                 </Suspense>
               </div>
             </div>
+          ) : (
+            <>
+              {!showCompact && (
+                <div className={`flex justify-center mb-10 ${isReturning ? "animate-fade-in" : ""}`}>
+                  <LogoView className="w-80 sm:w-96 md:w-[28rem] h-auto" />
+                </div>
+              )}
+
+              {showCompact && (
+                <div className="mb-6">
+                  <LogoView className="w-56 h-auto" />
+                </div>
+              )}
+
+              <div ref={searchFieldRef} className="w-full flex flex-col items-center">
+                <HeroInput
+                  value={inputValue}
+                  onChange={setInputValue}
+                  onSubmit={handleSubmit}
+                  onClear={() => {
+                    setInputValue("");
+                    handleClear();
+                  }}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  state={inputState}
+                  compact={showCompact}
+                  errorMessage={errorMessage}
+                />
+              </div>
+
+              {state.type !== "loading" &&
+                !candidates &&
+                !genreBrowseGenres &&
+                !genreSearchPayload &&
+                exampleShortId && (
+                  <p className="mt-4 text-sm text-text-secondary text-center">
+                    {t("landing.exampleTeaser")}{" "}
+                    <a
+                      href={`/${exampleShortId}`}
+                      className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
+                    >
+                      {t("landing.exampleLink")}
+                    </a>
+                  </p>
+                )}
+
+              {candidates && candidates.length > 0 && (
+                <div ref={disambiguationRef} tabIndex={-1} className="outline-none w-full">
+                  <Suspense fallback={null}>
+                    <DisambiguationPanel
+                      candidates={candidates}
+                      onSelect={handleSelectCandidate}
+                      onCancel={handleClear}
+                      selectedId={selectedCandidateId}
+                      loading={state.type === "disambiguation_loading"}
+                    />
+                  </Suspense>
+                </div>
+              )}
+
+              {genreBrowseGenres && (
+                <Suspense fallback={null}>
+                  <GenreBrowseGrid
+                    genres={genreBrowseGenres}
+                    onSelect={(name) => {
+                      const query = `genre: ${name}`;
+                      setInputValue(query);
+                      handleSubmit(query);
+                    }}
+                  />
+                </Suspense>
+              )}
+
+              {genreSearchPayload && (
+                <Suspense fallback={null}>
+                  <GenreSearchResults
+                    ref={genreSearchRef}
+                    results={genreSearchPayload.results}
+                    queryDetails={genreSearchPayload.queryDetails}
+                    warnings={genreSearchPayload.warnings}
+                    onSelect={handleSelectGenreResult}
+                    onCancel={handleClear}
+                    onBack={canGoBack ? handleBack : undefined}
+                    selectedId={selectedGenreResultId}
+                    loading={isGenreSearchLoading}
+                  />
+                </Suspense>
+              )}
+
+              {state.type === "loading" && showCompact && (
+                <div className="mt-6 sm:mt-8 w-full">
+                  <ShareResultPlaceholder />
+                </div>
+              )}
+            </>
           )}
         </div>
 

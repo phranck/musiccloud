@@ -2,12 +2,14 @@ import type {
   AlbumResolveSuccessResponse,
   ArtistResolveSuccessResponse,
   ResolveSuccessResponse,
+  UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { buildMetaLine, isValidServiceId, PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 import type { ActiveResult, AlbumResult, AppAction, ArtistResult, ReducerState, SongResult } from "@/lib/types/app";
 import type {
   AlbumContentConfiguration,
   ArtistContentConfiguration,
+  ShareContentConfiguration,
   SongContentConfiguration,
 } from "@/lib/types/media-card";
 import type { PlatformLink } from "@/lib/types/platform";
@@ -18,11 +20,14 @@ import type { PlatformLink } from "@/lib/types/platform";
 
 export function appReducer({ screen, stack }: ReducerState, action: AppAction): ReducerState {
   switch (action.type) {
-    case "SUBMIT":
+    case "SUBMIT": {
+      const compact = screen.type !== "idle" && screen.type !== "error";
+      const loadingScreen = { type: "loading" as const, compact };
       // Navigating from genre-browse preserves the browse state for back-navigation.
       // Any other submission starts a fresh journey (stack cleared).
-      if (screen.type === "genre-browse") return { screen: { type: "loading" }, stack: [...stack, screen] };
-      return { screen: { type: "loading" }, stack: [] };
+      if (screen.type === "genre-browse") return { screen: loadingScreen, stack: [...stack, screen] };
+      return { screen: loadingScreen, stack: [] };
+    }
     case "RESOLVE_SUCCESS":
       return { screen: { type: "result", active: action.active }, stack };
     case "DISAMBIGUATION":
@@ -130,6 +135,12 @@ export function parseArtistResolveResponse(data: ArtistResolveSuccessResponse): 
   };
 }
 
+export function parseUnifiedResolveResponse(data: UnifiedResolveSuccessResponse): ActiveResult {
+  if (data.type === "artist") return parseArtistResolveResponse(data);
+  if (data.type === "album") return parseAlbumResolveResponse(data);
+  return parseResolveResponse(data);
+}
+
 export function parseErrorKey(err: unknown): string {
   if (err instanceof TypeError && err.message.includes("Failed to fetch")) return "error.offline";
   if (err instanceof Error && err.name === "AbortError") return "error.timeout";
@@ -144,6 +155,15 @@ export function parseErrorKey(err: unknown): string {
 // ---------------------------------------------------------------------------
 
 type TFunc = (key: string, vars?: Record<string, string>) => string;
+
+function shortIdFromShortUrl(shortUrl: string): string | undefined {
+  try {
+    const shortId = new URL(shortUrl, "https://musiccloud.io").pathname.replace(/^\/+/, "").split("/")[0];
+    return shortId || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export function getPlatformsInfo(platforms: PlatformLink[], t: TFunc): string | undefined {
   const count = platforms.length;
@@ -218,6 +238,77 @@ export function buildActiveConfig(
     platformsInfo,
     shareUrl: active.shareUrl,
     srAnnouncement: t("results.foundAlbum", { title: active.title, artist: active.artist }),
+    onAlbumArtLoad,
+  };
+}
+
+export function buildShareConfigFromActive(
+  active: ActiveResult,
+  t: TFunc,
+  onAlbumArtLoad: (img: HTMLImageElement) => void,
+): ShareContentConfiguration {
+  const platformsInfo = getPlatformsInfo(active.platforms, t);
+  const shortId = shortIdFromShortUrl(active.shareUrl);
+
+  if (active.kind === "artist") {
+    const platformsLabelKey = "results.viewArtistOn";
+    return {
+      type: "share",
+      title: active.name,
+      artist: "",
+      artworkUrl: active.imageUrl,
+      metaLine: active.genres?.join(", ") || undefined,
+      platforms: active.platforms,
+      platformsLabel: t(platformsLabelKey),
+      platformsLabelKey,
+      platformsInfo,
+      shortUrl: active.shareUrl,
+      shortId,
+      onAlbumArtLoad,
+    };
+  }
+
+  if (active.kind === "album") {
+    const platformsLabelKey = "results.openAlbumOn";
+    const year = active.releaseDate?.slice(0, 4);
+    const metaParts = [
+      active.totalTracks ? t("results.albumTracks", { count: String(active.totalTracks) }) : null,
+      year,
+    ].filter(Boolean) as string[];
+
+    return {
+      type: "share",
+      title: active.title,
+      artist: active.artist,
+      artworkUrl: active.artworkUrl,
+      previewUrl: active.previewUrl,
+      metaLine: metaParts.join(" \u00B7") || undefined,
+      platforms: active.platforms,
+      platformsLabel: t(platformsLabelKey),
+      platformsLabelKey,
+      platformsInfo,
+      shortUrl: active.shareUrl,
+      shortId,
+      onAlbumArtLoad,
+    };
+  }
+
+  const platformsLabelKey = "results.listenOn";
+  return {
+    type: "share",
+    title: active.title,
+    artist: active.artist,
+    album: active.album,
+    artworkUrl: active.artworkUrl,
+    isExplicit: active.isExplicit,
+    previewUrl: active.previewUrl,
+    metaLine: buildMetaLine({ durationMs: active.durationMs, releaseDate: active.releaseDate }) || undefined,
+    platforms: active.platforms,
+    platformsLabel: t(platformsLabelKey),
+    platformsLabelKey,
+    platformsInfo,
+    shortUrl: active.shareUrl,
+    shortId,
     onAlbumArtLoad,
   };
 }

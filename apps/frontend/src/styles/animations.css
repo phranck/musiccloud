@@ -69,6 +69,67 @@
   pointer-events: none;
 }
 
+/* GPU-only grouped content swaps: no crossfade, only compositor transforms. */
+@keyframes mc-group-slide-in {
+  from {
+    transform: translate3d(0, -112%, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes mc-group-slide-out {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 112%, 0);
+  }
+}
+
+.mc-group-slide-in {
+  animation: mc-group-slide-in var(--mc-swap-duration, 680ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+.mc-group-slide-out {
+  animation: mc-group-slide-out var(--mc-swap-duration, 680ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+@keyframes mc-cover-slide-in {
+  from {
+    transform: translate3d(0, -100%, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes mc-cover-slide-out {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+.mc-cover-slide-in {
+  animation: mc-cover-slide-in 740ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+.mc-cover-slide-out {
+  animation: mc-cover-slide-out 740ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
 /* Card entrance - zoom from behind with fade */
 @keyframes zoom-in {
   from {

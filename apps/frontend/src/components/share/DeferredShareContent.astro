@@ -18,7 +18,7 @@ import { fetchPublicContentPage, fetchShareData } from "@/api/client";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import { MarkdownHtml, SegmentedPageFullscreen } from "@/components/layout/PageOverlayContent";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { ShareLayout } from "@/components/share/ShareLayout";
+import { SharePageShell } from "@/components/share/SharePageShell";
 import { LogoView } from "@/components/ui/LogoView";
 import { getLocaleFromCookie } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
@@ -165,19 +165,8 @@ const pageTitle = notFound
   </main>
 )}
 
-{!notFound && !contentPage && (
-  <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
-    <div class="mb-6 text-center">
-      <a href="/" aria-label="Go to musiccloud home" class="inline-block">
-        <LogoView className="w-56 sm:w-64 h-auto" />
-      </a>
-    </div>
-    {shareConfig && (
-      <div class="animate-fade-in">
-        <ShareLayout client:load config={shareConfig} artistName={isArtist ? displayTitle : artistDisplay} initialLocale={locale} />
-      </div>
-    )}
-  </main>
+{!notFound && !contentPage && shareConfig && (
+  <SharePageShell client:load config={shareConfig} artistName={isArtist ? displayTitle : artistDisplay} initialLocale={locale} />
 )}
 
 {/* Always-on overlay host (see note in [shortId].astro); needed when the

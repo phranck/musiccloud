@@ -1,5 +1,5 @@
-import { type ArtistTopTrack, ENDPOINTS } from "@musiccloud/shared";
-import { useCallback, useState } from "react";
+import type { ArtistTopTrack } from "@musiccloud/shared";
+import { type MouseEvent, useCallback, useState } from "react";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useToastSafe } from "@/context/ToastContext";
@@ -7,65 +7,63 @@ import { useT } from "@/i18n/context";
 
 interface PopularTracksSectionProps {
   tracks: ArtistTopTrack[];
+  onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
 }
 
-export function PopularTracksSection({ tracks }: PopularTracksSectionProps) {
+export function PopularTracksSection({ tracks, onTrackResolve }: PopularTracksSectionProps) {
   return (
     <div className="flex flex-col gap-1.5">
       {tracks.map((track) => (
-        <PopularTrack key={track.deezerUrl} track={track} />
+        <PopularTrack key={track.deezerUrl} track={track} onTrackResolve={onTrackResolve} />
       ))}
     </div>
   );
 }
 
-export function PopularTrack({ track, artistLabel }: { track: ArtistTopTrack; artistLabel?: string }) {
+export function PopularTrack({
+  track,
+  artistLabel,
+  onTrackResolve,
+}: {
+  track: ArtistTopTrack;
+  artistLabel?: string;
+  onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
+}) {
   const t = useT();
   const toast = useToastSafe();
   const showAlbum = !artistLabel && track.albumName && track.albumName !== track.title;
   const [resolving, setResolving] = useState(false);
 
-  const handleListen = useCallback(() => {
-    if (track.shortId) {
-      window.location.href = `/${track.shortId}`;
-      return;
-    }
-    setResolving(true);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    fetch(ENDPOINTS.frontend.resolve, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: track.deezerUrl }),
-      signal: controller.signal,
-    })
-      .then((res) => {
-        clearTimeout(timeout);
-        if (!res.ok) throw new Error(`resolve failed: ${res.status}`);
-        return res.json() as Promise<{ shortUrl?: string }>;
-      })
-      .then((data) => {
-        if (data.shortUrl) {
-          const path = new URL(data.shortUrl).pathname;
-          window.location.href = path;
-        } else {
-          setResolving(false);
-          toast?.show(t("error.generic"), "error");
+  const handleListen = useCallback(
+    async (event: MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (resolving) return;
+
+      setResolving(true);
+      try {
+        if (!onTrackResolve) {
+          throw new Error("missing in-place resolve handler");
         }
-      })
-      .catch((err) => {
-        clearTimeout(timeout);
+
+        await onTrackResolve(track);
+        setResolving(false);
+      } catch (err) {
         setResolving(false);
         if (import.meta.env.DEV) console.warn("[PopularTrack] resolve failed:", err);
         toast?.show(t("error.generic"), "error");
-      });
-  }, [track.shortId, track.deezerUrl, toast, t]);
+      }
+    },
+    [onTrackResolve, resolving, track, toast, t],
+  );
 
   return (
     <EmbossedButton
       as="button"
       type="button"
       onClick={handleListen}
+      disabled={resolving}
+      aria-busy={resolving}
       noScale
       className="flex items-center gap-3 w-full rounded-[4px] sm:rounded-lg p-2"
     >
