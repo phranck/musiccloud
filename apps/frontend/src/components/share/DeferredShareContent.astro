@@ -173,7 +173,7 @@ const pageTitle = notFound
       </a>
     </div>
     {shareConfig && (
-      <div class="animate-slide-up will-change-transform">
+      <div>
         <ShareLayout client:load config={shareConfig} artistName={isArtist ? displayTitle : artistDisplay} initialLocale={locale} />
       </div>
     )}

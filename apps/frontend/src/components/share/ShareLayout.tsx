@@ -299,10 +299,10 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
 
       {/* Bottom Sheet (mobile) — portalled to document.body to escape any
           ancestor containing-block breaker (transform / filter /
-          will-change / contain). DeferredShareContent wraps this component
-          in `animate-slide-up will-change-transform`, which would otherwise
-          turn the sheet's `fixed inset-0` into a box relative to that
-          wrapper and leave part of the sheet visible below the viewport. */}
+          will-change / contain). ShareLayout is also used inside animated
+          result wrappers, which would otherwise turn the sheet's `fixed
+          inset-0` into a box relative to that wrapper and leave part of the
+          sheet visible below the viewport. */}
       {mounted &&
         createPortal(
           <div style={accentStyle}>

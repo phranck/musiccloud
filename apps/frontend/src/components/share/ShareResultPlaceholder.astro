@@ -1,0 +1,21 @@
+---
+/**
+ * Static share-result placeholder for Astro-rendered shells.
+ * Mirrors the client-side ShareResultPlaceholder used on the landing page,
+ * but stays CSS-only so direct share pages can reserve the result area before
+ * DeferredShareContent streams in.
+ */
+interface Props {
+  className?: string;
+}
+
+const { className = "" } = Astro.props;
+---
+
+<div class:list={["mx-auto w-full max-w-[512px] min-[1080px]:max-w-[1048px]", className]} aria-hidden="true">
+  <div class="hidden min-[1080px]:grid grid-cols-[512px_512px] gap-6">
+    <div class="h-[560px] rounded-[1.625rem] border border-white/[0.04] bg-white/[0.015]"></div>
+    <div class="h-[560px] rounded-[1.625rem] border border-white/[0.035] bg-white/[0.012]"></div>
+  </div>
+  <div class="min-[1080px]:hidden h-[520px] rounded-[1.625rem] border border-white/[0.04] bg-white/[0.015]"></div>
+</div>

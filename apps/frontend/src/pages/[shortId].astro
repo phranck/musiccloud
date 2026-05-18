@@ -24,6 +24,7 @@ import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import { MarkdownHtml, SegmentedPageFullscreen } from "@/components/layout/PageOverlayContent";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import DeferredShareContent from "@/components/share/DeferredShareContent.astro";
+import ShareResultPlaceholder from "@/components/share/ShareResultPlaceholder.astro";
 import { ShareLayout } from "@/components/share/ShareLayout";
 import { LogoView } from "@/components/ui/LogoView";
 import { getLocaleFromCookie } from "@/i18n/locales";
@@ -253,6 +254,7 @@ if (treatAsBot) {
                 <LogoView className="w-56 sm:w-64 h-auto" />
               </a>
             </div>
+            <ShareResultPlaceholder className="mt-6 sm:mt-8" />
           </main>
         </Fragment>
       </DeferredShareContent>
