@@ -1,6 +1,7 @@
 import { buildMetaLine } from "@musiccloud/shared";
 import { memo, useEffect, useRef, useState } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { TftScreen } from "@/components/ui/TftScreen";
 import { VfdDisplay } from "@/components/ui/VfdDisplay";
 
 interface SongInfoProps {
@@ -20,7 +21,7 @@ interface SongInfoProps {
   statusActive?: boolean;
 }
 
-const ARTWORK_SWAP_MS = 740;
+const ARTWORK_SWAP_MS = 900;
 
 export const SongInfo = memo(function SongInfo({
   title,
@@ -112,7 +113,7 @@ export const SongInfo = memo(function SongInfo({
       <div className="px-3 pt-3">
         <RecessedCard className="p-0.5" radius={{ base: "0.75rem", sm: "0.875rem" }}>
           <RecessedCard.Body>
-            <div className="mc-tft-screen aspect-square w-full overflow-hidden relative">
+            <TftScreen className="aspect-square w-full">
               {artworkState.previousUrl !== null && (
                 <ArtworkImage
                   key={`cover-out-${artworkState.generation}`}
@@ -131,18 +132,7 @@ export const SongInfo = memo(function SongInfo({
                     : ""
                 }
               />
-              {/* Subtle RGB subpixel and scanline texture so the artwork reads
-                  like a small TFT panel, not a raw image. It sits above the
-                  animated cover layers and remains pointer-transparent. */}
-              <div className="mc-tft-screen-overlay" aria-hidden="true" />
-              {/* Match the ArtistInfo profile image's top/left inset shadow so
-                  this larger cover also reads as recessed into the hardware. */}
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 z-[4] pointer-events-none"
-                style={{ boxShadow: "inset 4px 4px 12px rgba(0,0,0,0.9)" }}
-              />
-            </div>
+            </TftScreen>
           </RecessedCard.Body>
         </RecessedCard>
       </div>
@@ -155,6 +145,7 @@ export const SongInfo = memo(function SongInfo({
         <RecessedCard className="p-0.5" radius={{ base: "0.75rem", sm: "0.875rem" }}>
           <RecessedCard.Body>
             <VfdDisplay
+              phosphorColor="rgb(var(--color-accent-rgb-resolved, 127 234 255))"
               ariaLabel={`Track information: ${title} ${artist} ${detailLine} ${statusLine}`}
               lines={[
                 {

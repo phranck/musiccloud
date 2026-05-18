@@ -326,6 +326,7 @@ function ShareLayoutInner({
       ? {
           "--color-accent": dynamicAccent.base,
           "--color-accent-rgb": hexToRgb(dynamicAccent.base),
+          "--color-accent-rgb-resolved": hexToRgb(dynamicAccent.base),
           "--color-accent-hover": dynamicAccent.hover,
           "--color-accent-glow": dynamicAccent.glow,
           "--color-accent-contrast": dynamicAccent.contrastText,
@@ -339,6 +340,7 @@ function ShareLayoutInner({
             // Graceful fallback after timeout — use the brand/global accent
             // so the button is never left in its neutral waiting state.
             "--color-accent-resolved": "var(--color-accent)",
+            "--color-accent-rgb-resolved": "var(--color-accent-rgb)",
             "--color-accent-hover-resolved": "var(--color-accent-hover)",
             "--color-accent-contrast-resolved": "var(--color-accent-contrast)",
           }

@@ -37,7 +37,7 @@ export function PlaybackButton({
   title,
   size = "medium",
 }: PlaybackButtonProps) {
-  const accentColor = disabled ? "rgba(255,255,255,0.2)" : "rgb(var(--color-accent-rgb))";
+  const accentColor = disabled ? "rgba(255,255,255,0.2)" : "rgb(var(--color-accent-rgb-resolved, 255 255 255))";
 
   return (
     <EmbossedButton

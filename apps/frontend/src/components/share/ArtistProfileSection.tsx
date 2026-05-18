@@ -1,5 +1,6 @@
 import type { ArtistProfile } from "@musiccloud/shared";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { TftScreen } from "@/components/ui/TftScreen";
 
 interface ArtistProfileSectionProps {
   profile: ArtistProfile;
@@ -17,34 +18,19 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
             borderWidth="2px"
           >
             <RecessedCard.Body className="contents">
-              <img
-                src={profile.imageUrl}
-                alt=""
-                width={96}
-                height={96}
-                decoding="async"
-                className="size-full object-cover"
-                style={{ borderRadius: "var(--neu-radius-inner)" }}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
-              {/* Inner shadow overlay: same visual deboss feel as the
-                  PlaybackButton's iconInnerShadow filter, but implemented
-                  with box-shadow: inset since raster images have no alpha
-                  edges for the SVG filter to hook into.
-                  Uses --neu-radius-inner (outer radius minus border width)
-                  so the inset-shadow curvature matches the inner edge of
-                  the gradient border — `rounded-[inherit]` would round at
-                  the OUTER radius and leave a slight mismatch. */}
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  borderRadius: "var(--neu-radius-inner)",
-                  boxShadow: "inset 4px 4px 12px rgba(0,0,0,0.9)",
-                }}
-              />
+              <TftScreen className="size-full">
+                <img
+                  src={profile.imageUrl}
+                  alt=""
+                  width={96}
+                  height={96}
+                  decoding="async"
+                  className="size-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              </TftScreen>
             </RecessedCard.Body>
           </RecessedCard>
         )}
