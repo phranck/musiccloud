@@ -48,16 +48,16 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
   );
 
   return (
-    <div className="flex gap-0.5">
-      <RecessedCard className="p-[0.1875rem] flex-1" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-        <RecessedCard.Body>
+    <div className="flex items-center gap-3">
+      <RecessedCard className="p-[0.1875rem] flex-1 h-[47px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+        <RecessedCard.Body className="h-full">
           <EmbossedButton
             as="button"
             type="button"
             onClick={handleCopy}
             aria-label={t("share.copyLink")}
             className={cn(
-              "flex w-full min-h-[50px] items-center justify-center gap-2",
+              "flex h-full min-h-0 w-full items-center justify-center gap-2 py-0",
               "font-bold text-[15px] tracking-[-0.01em] text-text-primary",
               state === "copied" && "text-success",
               state === "error" && "text-error",
@@ -93,13 +93,13 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
       </RecessedCard>
 
       {supportsNativeShare && (
-        <RecessedCard className="p-[0.1875rem] flex-none" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-          <RecessedCard.Body>
+        <RecessedCard className="p-[0.1875rem] flex-none size-[47px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+          <RecessedCard.Body className="h-full">
             <EmbossedButton
               as="button"
               type="button"
               onClick={handleNativeShare}
-              className="flex min-h-[50px] items-center justify-center px-4 py-0"
+              className="flex size-full min-h-0 items-center justify-center px-0 py-0"
               aria-label={songTitle ? t("share.nativeShare", { title: songTitle }) : t("share.shareLink")}
             >
               <ShareNetworkIcon size={24} weight="duotone" className="text-text-primary" />

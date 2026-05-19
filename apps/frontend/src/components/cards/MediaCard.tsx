@@ -90,18 +90,17 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
       <CollapsibleSection visible={showSharePageActions} sectionClass="p-3">
         {sharePageContent && (
           <>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-3">
               <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
-              <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-                <RecessedCard.Body>
+              <RecessedCard className="p-[0.1875rem] h-[47px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+                <RecessedCard.Body className="h-full">
                   <EmbossedButton
                     as="button"
                     type="button"
                     onClick={() => setEmbedOpen(true)}
                     className={cn(
-                      "flex items-center justify-center gap-2",
+                      "flex h-full min-h-0 items-center justify-center gap-2 py-0",
                       "w-full font-semibold text-[15px] tracking-[-0.01em]",
-                      "min-h-[50px]",
                     )}
                   >
                     <CodeIcon size={20} weight="duotone" />
