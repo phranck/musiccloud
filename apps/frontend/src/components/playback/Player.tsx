@@ -5,6 +5,7 @@ import { VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/
 import { cn } from "@/lib/utils";
 
 export type PlayerProgressVariant = "blocks" | "marker" | "segments";
+export type PlayerProgressGranularity = "blocks" | "pixels";
 
 interface PlayerContextValue {
   isPlaying: boolean;
@@ -15,6 +16,7 @@ interface PlayerContextValue {
   ariaLabel: string;
   title?: string;
   progressVariant: PlayerProgressVariant;
+  progressGranularity: PlayerProgressGranularity;
   phosphorColor: string;
   onTogglePlay: () => void;
 }
@@ -68,7 +70,27 @@ function compactSections(sections: Array<VfdDisplaySection | null>): VfdDisplayS
   return sections.filter((section): section is VfdDisplaySection => Boolean(section));
 }
 
-function renderProgressSections(variant: PlayerProgressVariant, progress: number, cells = 30): VfdDisplaySection[] {
+function partialProgressGlyph(columns: number): string {
+  switch (columns) {
+    case 1:
+      return VFD_GLYPHS.progressBlock1;
+    case 2:
+      return VFD_GLYPHS.progressBlock2;
+    case 3:
+      return VFD_GLYPHS.progressBlock3;
+    case 4:
+      return VFD_GLYPHS.progressBlock4;
+    default:
+      return "";
+  }
+}
+
+function renderProgressSections(
+  variant: PlayerProgressVariant,
+  progressGranularity: PlayerProgressGranularity,
+  progress: number,
+  cells = 30,
+): VfdDisplaySection[] {
   const safeCells = Math.max(4, cells);
 
   if (variant === "marker") {
@@ -81,10 +103,22 @@ function renderProgressSections(variant: PlayerProgressVariant, progress: number
   }
 
   if (variant === "segments") {
+    if (progressGranularity === "pixels") {
+      const activeColumns = Math.round(progress * safeCells * 5);
+      const fullBlocks = Math.floor(activeColumns / 5);
+      const partialColumns = activeColumns % 5;
+      const partialBlock = partialProgressGlyph(partialColumns);
+      const filled = `${VFD_GLYPHS.progressBlock.repeat(fullBlocks)}${partialBlock}`;
+      const empty = safeCells - fullBlocks - (partialBlock ? 1 : 0);
+      return compactSections([
+        sectionFor(filled, "bright"),
+        sectionFor(VFD_GLYPHS.progressEmpty.repeat(Math.max(0, empty)), "dim"),
+      ]);
+    }
+
     const active = Math.round(progress * safeCells);
-    const filled = active > 0 ? `${VFD_GLYPHS.progressBlock.repeat(active - 1)}${VFD_GLYPHS.progressHead}` : "";
     return compactSections([
-      sectionFor(filled, "bright"),
+      sectionFor(VFD_GLYPHS.progressBlock.repeat(active), "bright"),
       sectionFor(VFD_GLYPHS.progressEmpty.repeat(Math.max(0, safeCells - active)), "dim"),
     ]);
   }
@@ -96,8 +130,13 @@ function renderProgressSections(variant: PlayerProgressVariant, progress: number
   ]);
 }
 
-function renderProgressCells(variant: PlayerProgressVariant, progress: number, cells = 30): string {
-  return renderProgressSections(variant, progress, cells)
+function renderProgressCells(
+  variant: PlayerProgressVariant,
+  progressGranularity: PlayerProgressGranularity,
+  progress: number,
+  cells = 30,
+): string {
+  return renderProgressSections(variant, progressGranularity, progress, cells)
     .map((section) => (typeof section.content === "string" ? section.content : ""))
     .join("");
 }
@@ -113,6 +152,7 @@ function PlayerRoot({
   ariaLabel,
   title,
   progressVariant = "blocks",
+  progressGranularity = "pixels",
   phosphorColor,
   onTogglePlay,
 }: PlayerProps) {
@@ -126,6 +166,7 @@ function PlayerRoot({
     ariaLabel,
     title,
     progressVariant,
+    progressGranularity,
     phosphorColor,
     onTogglePlay,
   };
@@ -208,7 +249,16 @@ function PlayerButton({ className }: PlayerButtonProps) {
 }
 
 function PlayerProgress({ className, children }: PlayerProgressProps) {
-  const { currentTime, duration, isDisabled, isPlaying, timeText, phosphorColor, progressVariant } = usePlayerContext();
+  const {
+    currentTime,
+    duration,
+    isDisabled,
+    isPlaying,
+    timeText,
+    phosphorColor,
+    progressVariant,
+    progressGranularity,
+  } = usePlayerContext();
   const progress = clampProgress(currentTime, duration);
   const progressSections = children
     ? [
@@ -219,7 +269,7 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
           brightness: isDisabled ? "dim" : "bright",
         } satisfies VfdDisplaySection,
       ]
-    : renderProgressSections(progressVariant, progress).map((section) => ({
+    : renderProgressSections(progressVariant, progressGranularity, progress).map((section) => ({
         ...section,
         brightness: isDisabled ? "dim" : section.brightness,
       }));
@@ -257,9 +307,9 @@ function PlayerProgressTrack({ children, className }: PlayerProgressTrackProps) 
 }
 
 function PlayerProgressFill({ className }: PlayerProgressFillProps) {
-  const { currentTime, duration, progressVariant } = usePlayerContext();
+  const { currentTime, duration, progressVariant, progressGranularity } = usePlayerContext();
   const progress = clampProgress(currentTime, duration);
-  return <span className={className}>{renderProgressCells(progressVariant, progress)}</span>;
+  return <span className={className}>{renderProgressCells(progressVariant, progressGranularity, progress)}</span>;
 }
 
 function PlayerTime({ className }: PlayerTimeProps) {

@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import { Player, type PlayerProgressVariant } from "@/components/playback/Player";
+import { Player, type PlayerProgressGranularity, type PlayerProgressVariant } from "@/components/playback/Player";
 import { useT } from "@/i18n/context";
 
 export type AudioPreviewStatus = "loading" | "ready" | "playing" | "paused" | "ended" | "unavailable";
@@ -16,6 +16,8 @@ interface AudioPreviewPlayerProps {
   onStatusChange?: (status: AudioPreviewStatus) => void;
   /** Settings-ready visual mode for the VFD progress section. */
   progressVariant?: PlayerProgressVariant;
+  /** Settings-ready progress stepping mode for the VFD progress section. */
+  progressGranularity?: PlayerProgressGranularity;
 }
 
 /**
@@ -102,6 +104,7 @@ export function AudioPreviewPlayer({
   trackTitle,
   onStatusChange,
   progressVariant = "segments",
+  progressGranularity = "pixels",
 }: AudioPreviewPlayerProps) {
   const t = useT();
   const initialPhase: PlayerState = previewUrl ? { phase: "idle", duration: 30 } : { phase: "loading" };
@@ -235,6 +238,7 @@ export function AudioPreviewPlayer({
         ariaLabel={ariaLabel}
         title={isLoading ? t("audio.previewLoading") : isUnavailable ? t("audio.previewUnavailable") : undefined}
         progressVariant={progressVariant}
+        progressGranularity={progressGranularity}
         phosphorColor="rgb(var(--color-accent-rgb-resolved, 127 234 255))"
         onTogglePlay={togglePlay}
       />
