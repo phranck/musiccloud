@@ -638,7 +638,7 @@ function buildVfdCells(
   const glyphs = layoutStringGlyphs(content, visibleCells, align, effectiveMarquee);
   const animateMarquee = shouldMarquee(content, effectiveMarquee, visibleCells);
 
-  return (
+  const row = (
     <VfdSegmentRow
       glyphs={glyphs}
       cellKeys={cellKeys}
@@ -648,6 +648,10 @@ function buildVfdCells(
       symbolPrefix={symbolPrefix}
     />
   );
+
+  if (!animateMarquee) return row;
+
+  return <span className="mc-vfd-marquee-viewport">{row}</span>;
 }
 
 function buildSectionedContent(

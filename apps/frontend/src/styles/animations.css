@@ -132,8 +132,6 @@
 
 .mc-tft-screen {
   position: relative;
-  contain: paint;
-  isolation: isolate;
   border-radius: var(--neu-radius-inner);
   background: #05070a;
 }
@@ -142,32 +140,33 @@
   position: absolute;
   inset: 0;
   z-index: 0;
+  overflow: hidden;
+  contain: paint;
+  isolation: isolate;
+  border-radius: inherit;
+  transform: translate3d(0, 0, 0);
 }
 
-.mc-tft-screen::before,
-.mc-tft-screen::after {
-  content: "";
+.mc-tft-screen-matrix,
+.mc-tft-screen-shadow {
   position: absolute;
   inset: 0;
   pointer-events: none;
   border-radius: inherit;
 }
 
-.mc-tft-screen::before {
+.mc-tft-screen-matrix {
   z-index: 10;
-  background:
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px 4px),
-    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.24) 0 1px, transparent 1px 4px),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 30%, rgba(0, 0, 0, 0.16));
-  background-size: 4px 4px, 4px 4px, 100% 100%;
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: hidden;
   opacity: 0.48;
+  contain: paint;
 }
 
-.mc-tft-screen::after {
+.mc-tft-screen-shadow {
   z-index: 20;
-}
-
-.mc-tft-screen-inset-shadow::after {
   box-shadow: inset 4px 4px 12px rgba(0, 0, 0, 0.9);
 }
 
@@ -448,6 +447,13 @@
 
 .mc-player-spectrum-active {
   color: currentColor;
+}
+
+.mc-vfd-marquee-viewport {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  overflow: hidden;
 }
 
 .mc-vfd-marquee {
