@@ -149,7 +149,7 @@
 
 .mc-raised-control:not(:disabled):active,
 .mc-raised-control-pressed {
-  background: rgba(0, 0, 0, 0.16);
+  background: #1f242f;
   box-shadow: none;
   transform: translate3d(0, 1px, 0);
 }
@@ -193,36 +193,36 @@
   border-radius: var(--neu-radius-inner, 0.875rem);
   border: 0;
   background: color-mix(in srgb, var(--mc-vfd-color) 5%, var(--mc-vfd-bg));
+  box-shadow:
+    inset 1px 1px 0 color-mix(in srgb, var(--mc-vfd-color) 14%, rgba(255, 255, 255, 0.1)),
+    inset -1px -1px 0 color-mix(in srgb, var(--mc-vfd-color) 8%, rgba(0, 0, 0, 0.82));
   color: var(--mc-vfd-color);
   --mc-vfd-bright-color: hsl(from var(--mc-vfd-color) h s calc(l + 10));
   --mc-vfd-normal-color: hsl(from var(--mc-vfd-color) h s l);
   --mc-vfd-dim-color: hsl(from var(--mc-vfd-color) h calc(s - 8) calc(l - 18));
   --mc-vfd-ghost-color: hsl(from var(--mc-vfd-color) h 42% 14%);
   --mc-vfd-cells: 44;
+  --mc-vfd-row-height: 13px;
+  --mc-vfd-row-gap: 10.5px;
   isolation: isolate;
 }
 
-.mc-vfd-scan {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: repeating-linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--mc-vfd-color) 4%, transparent) 0,
-    color-mix(in srgb, var(--mc-vfd-color) 4%, transparent) 1px,
-    transparent 1px,
-    transparent 5px
-  );
-  pointer-events: none;
+.mc-vfd-row-group {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  gap: var(--mc-vfd-row-gap);
+  align-content: center;
 }
 
 .mc-vfd-line {
   position: relative;
   min-width: 0;
-  min-height: 1.1em;
+  block-size: var(--mc-vfd-row-height);
+  min-height: var(--mc-vfd-row-height);
   overflow: hidden;
   white-space: nowrap;
-  line-height: 1.1;
+  line-height: var(--mc-vfd-row-height);
 }
 
 .mc-vfd-line-matrix {
@@ -230,6 +230,7 @@
   inset: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
   overflow: hidden;
   color: var(--mc-vfd-ghost-color);
   pointer-events: none;
@@ -253,6 +254,7 @@
   inline-size: 100%;
   min-height: inherit;
   align-items: center;
+  justify-content: center;
 }
 
 .mc-vfd-section-layout {
@@ -276,7 +278,7 @@
   block-size: auto;
   min-width: 0;
   overflow: visible;
-  shape-rendering: geometricPrecision;
+  shape-rendering: crispEdges;
 }
 
 .mc-vfd-segment {
@@ -340,7 +342,7 @@
   inline-size: 100%;
   block-size: auto;
   overflow: visible;
-  shape-rendering: geometricPrecision;
+  shape-rendering: crispEdges;
 }
 
 .mc-player-progress-rail-ghost {

@@ -12,6 +12,7 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
 import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
+import { solidEmbossedCardStyle } from "@/styles/neumorphic";
 
 export type { AudioPreviewStatus } from "@/components/audio/AudioPreviewPlayer";
 
@@ -52,6 +53,7 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
         animated && "animate-zoom-in",
         className,
       )}
+      style={solidEmbossedCardStyle}
     >
       {srAnnouncement && (
         <p className="sr-only" aria-live="polite">

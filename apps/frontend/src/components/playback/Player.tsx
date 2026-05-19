@@ -52,17 +52,23 @@ interface PlayerTimeProps {
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
 const PLAYER_PROGRESS_CELLS = scaledVfdCellCount(30);
-const PLAYER_PROGRESS_DOT_RADIUS = 1;
-const PLAYER_PROGRESS_DOT_PITCH = 3;
+const PLAYER_PROGRESS_PIXEL_SIZE = 1;
+const PLAYER_PROGRESS_PIXEL_GAP = 1;
+const PLAYER_PROGRESS_DOT_PITCH = PLAYER_PROGRESS_PIXEL_SIZE + PLAYER_PROGRESS_PIXEL_GAP;
 const PLAYER_PROGRESS_SEGMENT_COLUMNS = 5;
 const PLAYER_PROGRESS_SEGMENT_ROWS = 7;
-const PLAYER_PROGRESS_SEGMENT_GAP = 2;
-const PLAYER_PROGRESS_SEGMENT_WIDTH = PLAYER_PROGRESS_SEGMENT_COLUMNS * PLAYER_PROGRESS_DOT_PITCH;
-const PLAYER_PROGRESS_SEGMENT_HEIGHT = PLAYER_PROGRESS_SEGMENT_ROWS * PLAYER_PROGRESS_DOT_PITCH;
+const PLAYER_PROGRESS_SEGMENT_GAP = 3;
+const PLAYER_PROGRESS_SEGMENT_WIDTH =
+  PLAYER_PROGRESS_SEGMENT_COLUMNS * PLAYER_PROGRESS_PIXEL_SIZE +
+  (PLAYER_PROGRESS_SEGMENT_COLUMNS - 1) * PLAYER_PROGRESS_PIXEL_GAP;
+const PLAYER_PROGRESS_SEGMENT_HEIGHT =
+  PLAYER_PROGRESS_SEGMENT_ROWS * PLAYER_PROGRESS_PIXEL_SIZE +
+  (PLAYER_PROGRESS_SEGMENT_ROWS - 1) * PLAYER_PROGRESS_PIXEL_GAP;
 const PLAYER_PROGRESS_SEGMENT_PITCH = PLAYER_PROGRESS_SEGMENT_WIDTH + PLAYER_PROGRESS_SEGMENT_GAP;
 const PLAYER_PROGRESS_MARKER_COLUMNS = 2;
 const PLAYER_PROGRESS_MARKER_WIDTH =
-  (PLAYER_PROGRESS_MARKER_COLUMNS - 1) * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS * 2;
+  PLAYER_PROGRESS_MARKER_COLUMNS * PLAYER_PROGRESS_PIXEL_SIZE +
+  (PLAYER_PROGRESS_MARKER_COLUMNS - 1) * PLAYER_PROGRESS_PIXEL_GAP;
 const PLAYER_PROGRESS_WIDTH =
   PLAYER_PROGRESS_CELLS * PLAYER_PROGRESS_SEGMENT_WIDTH + (PLAYER_PROGRESS_CELLS - 1) * PLAYER_PROGRESS_SEGMENT_GAP;
 const PLAYER_PROGRESS_MARKER_MAX_X = PLAYER_PROGRESS_WIDTH - PLAYER_PROGRESS_MARKER_WIDTH;
@@ -73,8 +79,8 @@ const PLAYER_SPECTRUM_DOTS = Array.from({ length: PLAYER_PROGRESS_CELLS }).flatM
       key: `spectrum-${cell}-${row}-${column}`,
       band: cell,
       row,
-      cx: cell * PLAYER_PROGRESS_SEGMENT_PITCH + column * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
-      cy: row * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
+      x: cell * PLAYER_PROGRESS_SEGMENT_PITCH + column * PLAYER_PROGRESS_DOT_PITCH,
+      y: row * PLAYER_PROGRESS_DOT_PITCH,
     })),
   ),
 );
@@ -83,8 +89,8 @@ const PLAYER_PROGRESS_RAIL_DOTS = Array.from({ length: PLAYER_PROGRESS_CELLS }).
   [5, 6].flatMap((row) =>
     Array.from({ length: PLAYER_PROGRESS_SEGMENT_COLUMNS }, (_, column) => ({
       key: `rail-${cell}-${row}-${column}`,
-      cx: cell * PLAYER_PROGRESS_SEGMENT_PITCH + column * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
-      cy: row * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
+      x: cell * PLAYER_PROGRESS_SEGMENT_PITCH + column * PLAYER_PROGRESS_DOT_PITCH,
+      y: row * PLAYER_PROGRESS_DOT_PITCH,
     })),
   ),
 );
@@ -92,8 +98,8 @@ const PLAYER_PROGRESS_RAIL_DOTS = Array.from({ length: PLAYER_PROGRESS_CELLS }).
 const PLAYER_PROGRESS_MARKER_DOTS = Array.from({ length: PLAYER_PROGRESS_SEGMENT_ROWS }).flatMap((_, row) =>
   Array.from({ length: PLAYER_PROGRESS_MARKER_COLUMNS }, (_, column) => ({
     key: `marker-${row}-${column}`,
-    cx: column * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
-    cy: row * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
+    x: column * PLAYER_PROGRESS_DOT_PITCH,
+    y: row * PLAYER_PROGRESS_DOT_PITCH,
   })),
 );
 
@@ -107,14 +113,15 @@ const PlayerProgressRailDots = memo(function PlayerProgressRailDots({
   return (
     <g className={className}>
       {PLAYER_PROGRESS_RAIL_DOTS.flatMap((dot) => {
-        if (maxX !== undefined && dot.cx > maxX) return [];
+        if (maxX !== undefined && dot.x >= maxX) return [];
         return [
-          <circle
+          <rect
             key={dot.key}
             className="mc-vfd-symbol-pixel"
-            cx={dot.cx}
-            cy={dot.cy}
-            r={PLAYER_PROGRESS_DOT_RADIUS}
+            x={dot.x}
+            y={dot.y}
+            width={PLAYER_PROGRESS_PIXEL_SIZE}
+            height={PLAYER_PROGRESS_PIXEL_SIZE}
           />,
         ];
       })}
@@ -126,7 +133,14 @@ const PlayerProgressMarkerDots = memo(function PlayerProgressMarkerDots() {
   return (
     <g className="mc-player-progress-marker-g">
       {PLAYER_PROGRESS_MARKER_DOTS.map((dot) => (
-        <circle key={dot.key} className="mc-vfd-symbol-pixel" cx={dot.cx} cy={dot.cy} r={PLAYER_PROGRESS_DOT_RADIUS} />
+        <rect
+          key={dot.key}
+          className="mc-vfd-symbol-pixel"
+          x={dot.x}
+          y={dot.y}
+          width={PLAYER_PROGRESS_PIXEL_SIZE}
+          height={PLAYER_PROGRESS_PIXEL_SIZE}
+        />
       ))}
     </g>
   );
@@ -152,12 +166,13 @@ function PlayerSpectrumMeter({ bands }: { bands: readonly number[] }) {
       >
         <g className="mc-player-spectrum-ghost">
           {PLAYER_SPECTRUM_DOTS.map((dot) => (
-            <circle
+            <rect
               key={dot.key}
               className="mc-vfd-symbol-pixel"
-              cx={dot.cx}
-              cy={dot.cy}
-              r={PLAYER_PROGRESS_DOT_RADIUS}
+              x={dot.x}
+              y={dot.y}
+              width={PLAYER_PROGRESS_PIXEL_SIZE}
+              height={PLAYER_PROGRESS_PIXEL_SIZE}
             />
           ))}
         </g>
@@ -166,12 +181,13 @@ function PlayerSpectrumMeter({ bands }: { bands: readonly number[] }) {
             const level = bandLevels[dot.band] ?? 0;
             if (PLAYER_PROGRESS_SEGMENT_ROWS - dot.row > level) return [];
             return [
-              <circle
+              <rect
                 key={dot.key}
                 className="mc-vfd-symbol-pixel"
-                cx={dot.cx}
-                cy={dot.cy}
-                r={PLAYER_PROGRESS_DOT_RADIUS}
+                x={dot.x}
+                y={dot.y}
+                width={PLAYER_PROGRESS_PIXEL_SIZE}
+                height={PLAYER_PROGRESS_PIXEL_SIZE}
               />,
             ];
           })}

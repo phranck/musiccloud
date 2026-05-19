@@ -113,7 +113,7 @@ interface VfdSegmentCell {
 
 // Treat the VFD as one hardware module: callers may change rows and
 // characters per line, but the cell/font geometry must stay identical.
-const VFD_DEVICE_CLASSES = "px-5 py-4 gap-1.5 text-[0.82rem] sm:text-[0.92rem]";
+const VFD_DEVICE_CLASSES = "px-5 py-4 text-[0.82rem] sm:text-[0.92rem]";
 
 const BRIGHTNESS_CLASSES: Record<VfdBrightness, string> = {
   bright: "mc-vfd-bright",
@@ -302,14 +302,27 @@ const VFD_GLYPH_PATTERNS: Record<string, readonly string[]> = {
 
 export const VFD_SEGMENT_SCALE = 1.2;
 
-const VFD_DOT_RADIUS = 1;
-const VFD_DOT_PITCH = 3;
+const VFD_PIXEL_SIZE = 1;
+const VFD_PIXEL_GAP = 1;
+const VFD_DOT_PITCH = VFD_PIXEL_SIZE + VFD_PIXEL_GAP;
 const VFD_SEGMENT_COLUMNS = 5;
 const VFD_SEGMENT_ROWS = 7;
-const VFD_SEGMENT_GAP = 2;
-const VFD_SEGMENT_WIDTH = VFD_SEGMENT_COLUMNS * VFD_DOT_PITCH;
-const VFD_SEGMENT_HEIGHT = VFD_SEGMENT_ROWS * VFD_DOT_PITCH;
+const VFD_SEGMENT_GAP = 3;
+const VFD_SEGMENT_WIDTH = VFD_SEGMENT_COLUMNS * VFD_PIXEL_SIZE + (VFD_SEGMENT_COLUMNS - 1) * VFD_PIXEL_GAP;
+const VFD_SEGMENT_HEIGHT = VFD_SEGMENT_ROWS * VFD_PIXEL_SIZE + (VFD_SEGMENT_ROWS - 1) * VFD_PIXEL_GAP;
 const VFD_SEGMENT_PITCH = VFD_SEGMENT_WIDTH + VFD_SEGMENT_GAP;
+const VFD_ROW_GAP = 10.75;
+
+function vfdContentWidth(element: HTMLElement): number {
+  const style = window.getComputedStyle(element);
+  const paddingX = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+  return Math.max(0, element.getBoundingClientRect().width - paddingX);
+}
+
+function vfdCellCountForWidth(availableWidth: number): number {
+  if (!Number.isFinite(availableWidth) || availableWidth <= 0) return 1;
+  return Math.max(1, Math.floor((availableWidth + VFD_SEGMENT_GAP) / VFD_SEGMENT_PITCH));
+}
 
 const VFD_PIXEL_CELLS = Array.from({ length: VFD_SEGMENT_COLUMNS * VFD_SEGMENT_ROWS }, (_, pixel) => ({
   key: `vfd-pixel-${pixel}`,
@@ -481,12 +494,13 @@ function VfdGlyphSymbol({ glyph, ghost, symbolPrefix }: { glyph: string; ghost: 
       {VFD_PIXEL_CELLS.flatMap(({ key, row, column }) =>
         pattern[row]?.[column] === "1"
           ? [
-              <circle
+              <rect
                 key={key}
                 className="mc-vfd-symbol-pixel"
-                cx={column * VFD_DOT_PITCH + VFD_DOT_RADIUS}
-                cy={row * VFD_DOT_PITCH + VFD_DOT_RADIUS}
-                r={VFD_DOT_RADIUS}
+                x={column * VFD_DOT_PITCH}
+                y={row * VFD_DOT_PITCH}
+                width={VFD_PIXEL_SIZE}
+                height={VFD_PIXEL_SIZE}
               />,
             ]
           : [],
@@ -542,6 +556,8 @@ function VfdSegmentRow({
   }));
   const renderedCellCount = Math.max(1, glyphs.length);
   const uniqueGlyphs = Array.from(new Set(segmentCells.map((cell) => cell.glyph)));
+  const rowWidth = vfdRowWidth(renderedCellCount);
+  const rowHeight = VFD_SEGMENT_HEIGHT;
 
   return (
     <svg
@@ -552,6 +568,8 @@ function VfdSegmentRow({
       focusable="false"
       style={
         {
+          inlineSize: `${rowWidth}px`,
+          blockSize: `${rowHeight}px`,
           "--mc-vfd-rendered-cells": renderedCellCount,
           "--mc-vfd-visible-cells": visibleCells,
           "--mc-vfd-grid-scale": renderedCellCount / visibleCells,
@@ -807,7 +825,7 @@ const VfdRow = memo(function VfdRow({
  */
 export function VfdDisplay({
   lines,
-  rows = DEFAULT_VFD_ROWS,
+  rows,
   charsPerLine = DEFAULT_VFD_CELL_COUNT,
   className,
   ariaLabel,
@@ -816,11 +834,13 @@ export function VfdDisplay({
 }: VfdDisplayProps) {
   const reactId = useId();
   const symbolPrefix = useMemo(() => `mc-vfd-${reactId.replace(/[^a-zA-Z0-9_-]/g, "") || "display"}`, [reactId]);
-  const rowCount = normalizePositiveInteger(rows, DEFAULT_VFD_ROWS);
+  const rowCount = normalizePositiveInteger(rows ?? lines.length, DEFAULT_VFD_ROWS);
   const requestedCellCount = normalizePositiveInteger(charsPerLine, DEFAULT_VFD_CELL_COUNT);
-  const cellCount = scaledVfdCellCount(requestedCellCount);
+  const fallbackCellCount = scaledVfdCellCount(requestedCellCount);
+  const [cellCount, setCellCount] = useState(fallbackCellCount);
   const cellKeys = useMemo(() => Array.from({ length: cellCount }, (_, index) => `vfd-cell-${index}`), [cellCount]);
   const ghostCells = useMemo(() => fitPatternToCells(ghostPattern, cellCount), [cellCount, ghostPattern]);
+  const vfdRef = useRef<HTMLElement | null>(null);
   const generationRef = useRef(0);
   const clearTimers = useRef<Array<ReturnType<typeof setTimeout> | null>>([]);
   const [displayLines, setDisplayLines] = useState<NormalizedVfdLine[]>(() =>
@@ -877,6 +897,26 @@ export function VfdDisplay({
     });
   }, [normalizedLines, setLineContent]);
 
+  useLayoutEffect(() => {
+    const element = vfdRef.current;
+    if (!element || typeof ResizeObserver === "undefined") {
+      setCellCount(fallbackCellCount);
+      return;
+    }
+
+    const updateCellCount = (availableWidth: number) => {
+      const nextCellCount = vfdCellCountForWidth(availableWidth);
+      setCellCount((currentCellCount) => (currentCellCount === nextCellCount ? currentCellCount : nextCellCount));
+    };
+
+    updateCellCount(vfdContentWidth(element));
+    const observer = new ResizeObserver(([entry]) => {
+      updateCellCount(entry?.contentRect.width ?? vfdContentWidth(element));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [fallbackCellCount]);
+
   useEffect(() => {
     return () => {
       clearTimers.current.forEach((timer) => {
@@ -885,14 +925,18 @@ export function VfdDisplay({
     };
   }, []);
 
-  const style = { "--mc-vfd-color": phosphorColor, "--mc-vfd-cells": cellCount } as CSSProperties;
+  const style = {
+    "--mc-vfd-color": phosphorColor,
+    "--mc-vfd-cells": cellCount,
+    "--mc-vfd-row-height": `${VFD_SEGMENT_HEIGHT}px`,
+    "--mc-vfd-row-gap": `${VFD_ROW_GAP}px`,
+  } as CSSProperties;
 
   return (
     <RecessedCard className={cn("p-0.5", className)} radius={{ base: "0.75rem", sm: "0.875rem" }}>
       <RecessedCard.Body>
-        <section className={cn("mc-vfd", VFD_DEVICE_CLASSES)} style={style} aria-label={ariaLabel}>
-          <div className="mc-vfd-scan" aria-hidden="true" />
-          <div className="relative z-10 grid gap-[inherit]">
+        <section ref={vfdRef} className={cn("mc-vfd", VFD_DEVICE_CLASSES)} style={style} aria-label={ariaLabel}>
+          <div className="mc-vfd-row-group">
             {Array.from({ length: rowCount }, (_, index) => {
               const stateLine = displayLines[index] ?? normalizeLine(index, undefined);
               const liveLine = normalizedLines[index]?.transition === "none" ? normalizedLines[index] : stateLine;
