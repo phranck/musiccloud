@@ -1,6 +1,7 @@
-import { type MouseEvent, useCallback, useEffect, useRef } from "react";
+import { type MouseEvent, useCallback, useRef } from "react";
 import { ShareLayout } from "@/components/share/ShareLayout";
 import { LogoView } from "@/components/ui/LogoView";
+import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 interface SharePageShellProps {
@@ -23,15 +24,7 @@ export function SharePageShell({ config, artistName, initialLocale }: SharePageS
     window.location.assign("/");
   }, []);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      navigateHome();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [navigateHome]);
+  useOverlayEscape({ enabled: true, onEscape: navigateHome });
 
   const handleLogoClick = useCallback(
     (event: MouseEvent<HTMLAnchorElement>) => {

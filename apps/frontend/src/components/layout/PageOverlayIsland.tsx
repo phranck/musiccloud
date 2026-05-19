@@ -12,17 +12,15 @@ import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { useEffect, useReducer, useRef, useState } from "react";
 
 import { EmbossedOverlayContent, TranslucentOverlayContent } from "@/components/layout/PageOverlayContent";
+import { OVERLAY_TRANSITION_MS, OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
 import { OverlayProvider, useOverlay } from "@/context/OverlayContext";
+import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider } from "@/i18n/context";
 import { cn } from "@/lib/utils";
 
 interface Props {
   initialPage: PublicContentPage | null;
 }
-
-// Fade duration in ms — shared by backdrop and card so they come in /
-// leave in lockstep.
-const TRANSITION_MS = 320;
 
 // Default + limits for the draggable / resizable overlay frame.
 const DEFAULT_W = 520;
@@ -147,7 +145,7 @@ function OverlayShell({ initialPage }: Props) {
   // `visible` drives the transition classes; flipped on one frame after
   // mount so the browser paints the "hidden" state first and the opacity
   // / scale tween animates from 0 → 1. On close we flip it to false and
-  // unmount after TRANSITION_MS so the reverse tween actually runs.
+  // unmount after OVERLAY_TRANSITION_MS so the reverse tween actually runs.
   const [{ mounted, visible }, dispatchVisibility] = useReducer(overlayVisibilityReducer, {
     mounted: false,
     visible: false,
@@ -168,7 +166,7 @@ function OverlayShell({ initialPage }: Props) {
     }
     dispatchVisibility({ type: "hide" });
     if (!mountedRef.current) return;
-    const id = window.setTimeout(() => dispatchVisibility({ type: "unmount" }), TRANSITION_MS);
+    const id = window.setTimeout(() => dispatchVisibility({ type: "unmount" }), OVERLAY_TRANSITION_MS);
     return () => window.clearTimeout(id);
   }, [page]);
 
@@ -179,31 +177,13 @@ function OverlayShell({ initialPage }: Props) {
     }
   }, []);
 
-  // ESC closes the overlay.
-  useEffect(() => {
-    if (!page) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [page, close]);
+  useOverlayEscape({ enabled: Boolean(page && page.displayMode !== "fullscreen"), onEscape: close });
 
   if (!mounted || !page || page.displayMode === "fullscreen") return null;
 
-  const backdropStyle: CSSProperties = {
-    transition: `opacity ${TRANSITION_MS}ms ease-out`,
-  };
-
   return (
     <>
-      <button
-        type="button"
-        aria-label="Close overlay"
-        onClick={close}
-        className={cn("fixed inset-0 z-40 bg-black/25 cursor-default", visible ? "opacity-100" : "opacity-0")}
-        style={backdropStyle}
-      />
+      <OverlayBackdrop open={visible} onClick={close} ariaLabel="Close overlay" placement="fixed" className="z-40" />
       <OverlayFrame key={page.slug} visible={visible} slug={page.slug}>
         {page.displayMode === "translucent" ? (
           <TranslucentOverlayContent page={page} onClose={close} />
@@ -315,7 +295,7 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
     top: `${geom.y}px`,
     width: `${geom.w}px`,
     height: `${geom.h}px`,
-    transition: `opacity ${TRANSITION_MS}ms ease-out, transform ${TRANSITION_MS}ms ease-out`,
+    transition: `opacity ${OVERLAY_TRANSITION_MS}ms ease-out, transform ${OVERLAY_TRANSITION_MS}ms ease-out`,
   };
 
   return (

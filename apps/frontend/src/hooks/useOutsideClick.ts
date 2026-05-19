@@ -1,5 +1,7 @@
 import { type RefObject, useEffect } from "react";
 
+import { useOverlayEscape } from "@/hooks/useOverlayEscape";
+
 /**
  * Closes a dropdown/panel on outside-click (mousedown) and ESC key.
  * Both handlers are only registered when `isOpen` is true.
@@ -14,12 +16,5 @@ export function useOutsideClick(ref: RefObject<HTMLElement | null>, isOpen: bool
     return () => document.removeEventListener("mousedown", onDown);
   }, [isOpen, onClose, ref]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  useOverlayEscape({ enabled: isOpen, onEscape: onClose });
 }

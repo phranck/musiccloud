@@ -49,8 +49,10 @@ import { ArtistInfoCard } from "@/components/share/ArtistInfoCard";
 import { type AudioPreviewStatus, SharePageCard } from "@/components/share/SharePageCard";
 import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
 import { ToastProvider } from "@/context/ToastContext";
 import { useIsClient } from "@/hooks/useIsClient";
+import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider, useT } from "@/i18n/context";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import type { ActiveResult } from "@/lib/types/app";
@@ -378,6 +380,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
 
   const openSheet = useCallback(() => setSheetOpen(true), []);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
+  useOverlayEscape({ enabled: sheetOpen, onEscape: closeSheet });
 
   const handleArtistResolveStart = useCallback(() => {
     // Popular/Similar rows show their spinning disc immediately on click,
@@ -504,14 +507,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
                 sheetOpen ? "pointer-events-auto" : "pointer-events-none",
               )}
             >
-              <div
-                className={cn(
-                  "absolute inset-0 transition-colors duration-300",
-                  sheetOpen ? "bg-black/75" : "bg-black/0",
-                )}
-                onClick={closeSheet}
-                aria-hidden="true"
-              />
+              <OverlayBackdrop open={sheetOpen} onClick={closeSheet} ariaLabel={t("artist.closeInfo")} />
               <div
                 className={cn(
                   "relative z-10 rounded-t-[36px] bg-surface-elevated max-h-[85dvh] flex flex-col",
