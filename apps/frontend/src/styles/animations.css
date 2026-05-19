@@ -29,46 +29,6 @@
   }
 }
 
-/* CD shimmer - slow counter-rotation for iridescent wobble */
-@keyframes cd-shimmer {
-  0% {
-    transform: rotate(0deg);
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    transform: rotate(-360deg);
-    opacity: 0.6;
-  }
-}
-
-/* Utility: input focus glow pulse - GPU-accelerated via opacity */
-@keyframes pulse-glow {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/* Glow layer for pulse-glow: parent must be position:relative */
-.animate-pulse-glow {
-  position: relative;
-}
-.animate-pulse-glow::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: 0 0 30px rgba(40, 168, 216, 0.3);
-  animation: pulse-glow 2.5s ease-in-out infinite;
-  pointer-events: none;
-}
-
 /* GPU-only grouped content swaps: no crossfade, only compositor transforms. */
 @keyframes mc-group-slide-in {
   from {
@@ -469,13 +429,6 @@
   }
 }
 
-/* Glassmorphism fallback for browsers without backdrop-filter */
-@supports not (backdrop-filter: blur(1px)) {
-  .glass-fallback {
-    background-color: rgba(22, 22, 24, 0.95) !important;
-  }
-}
-
 /* Respect user preference for reduced motion (WCAG 2.3) */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -484,12 +437,5 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-}
-
-/* Disable background animations on touch/mobile devices */
-@media (pointer: coarse) {
-  .animate-pulse-glow::after {
-    animation: none !important;
   }
 }

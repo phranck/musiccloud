@@ -105,7 +105,7 @@ export function AnimatedPlatformGrid({ platforms, songTitle }: AnimatedPlatformG
             if (el) itemRefs.current.set(platform.platform, el);
             else itemRefs.current.delete(platform.platform);
           }}
-          className="transform-gpu will-change-transform"
+          className="transform-gpu"
         >
           <PlatformButton
             platform={platform.platform}

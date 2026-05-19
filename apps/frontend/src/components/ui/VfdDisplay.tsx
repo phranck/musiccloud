@@ -888,7 +888,7 @@ export function VfdDisplay({
   const style = { "--mc-vfd-color": phosphorColor, "--mc-vfd-cells": cellCount } as CSSProperties;
 
   return (
-    <RecessedCard className={cn("p-0.5", className)} radius={{ base: "0.75rem", sm: "0.875rem" }} disableBackdropBlur>
+    <RecessedCard className={cn("p-0.5", className)} radius={{ base: "0.75rem", sm: "0.875rem" }}>
       <RecessedCard.Body>
         <section className={cn("mc-vfd", VFD_DEVICE_CLASSES)} style={style} aria-label={ariaLabel}>
           <div className="mc-vfd-scan" aria-hidden="true" />

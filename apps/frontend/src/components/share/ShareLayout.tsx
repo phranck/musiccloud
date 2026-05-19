@@ -506,15 +506,15 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
             >
               <div
                 className={cn(
-                  "absolute inset-0 transition-all duration-300",
-                  sheetOpen ? "bg-black/70 backdrop-blur-lg" : "bg-black/0 backdrop-blur-none",
+                  "absolute inset-0 transition-colors duration-300",
+                  sheetOpen ? "bg-black/75" : "bg-black/0",
                 )}
                 onClick={closeSheet}
                 aria-hidden="true"
               />
               <div
                 className={cn(
-                  "relative z-10 rounded-t-[36px] bg-surface-elevated shadow-2xl max-h-[85dvh] flex flex-col",
+                  "relative z-10 rounded-t-[36px] bg-surface-elevated max-h-[85dvh] flex flex-col",
                   "transition-transform duration-300 ease-out",
                   sheetOpen ? "translate-y-0" : "translate-y-full",
                 )}

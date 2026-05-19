@@ -43,9 +43,7 @@
   --animate-fade-in: fade-in 0.25s cubic-bezier(0, 0, 0.2, 1) both;
   --animate-spin: spin 1s linear infinite;
   --animate-vinyl-spin: spin 0.7s linear infinite;
-  --animate-cd-shimmer: cd-shimmer 4s ease-in-out infinite;
-  /* pulse-glow: defined as manual utility in animations.css (GPU-accelerated ::after) */
-  /* cosmic-glow: removed (unused) */
+  /* cosmetic glow and shimmer animations removed to reduce paint work */
 }
 
 @import "./animations.css";

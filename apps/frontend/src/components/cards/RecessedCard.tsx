@@ -111,8 +111,6 @@ interface RecessedCardProps {
   style?: React.CSSProperties;
   /** Width of the gradient border. Defaults to 1px. */
   borderWidth?: string;
-  /** Disables the backdrop blur for dense rendering surfaces such as VFD matrices. */
-  disableBackdropBlur?: boolean;
   /**
    * Corner radius as a CSS length (e.g. "0.75rem", "12px", "1rem").
    *
@@ -205,16 +203,7 @@ function paddingFromClassName(className: string | undefined): string | undefined
  * classes — the component needs to align the gradient-border arc
  * with the corner.
  */
-function RecessedCardRoot({
-  children,
-  className,
-  ref,
-  style,
-  borderWidth,
-  radius,
-  padding,
-  disableBackdropBlur = false,
-}: RecessedCardProps) {
+function RecessedCardRoot({ children, className, ref, style, borderWidth, radius, padding }: RecessedCardProps) {
   const childArray = Children.toArray(children);
   const hasCompoundChild = childArray.some((c) => hasTag(c, HEADER_TAG) || hasTag(c, BODY_TAG));
 
@@ -262,11 +251,7 @@ function RecessedCardRoot({
   return (
     <div
       ref={ref}
-      className={cn(
-        "recessed-gradient-border bg-black/25 overflow-hidden",
-        !disableBackdropBlur && "backdrop-blur-md",
-        className,
-      )}
+      className={cn("recessed-gradient-border bg-black/25 overflow-hidden", className)}
       style={mergedStyle}
     >
       {content}

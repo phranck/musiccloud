@@ -38,9 +38,8 @@ export function Toast({ message, variant, visible, onDismiss, duration = 3000 }:
       className={cn(
         "fixed bottom-6 left-1/2 -translate-x-1/2 z-50",
         "px-5 py-3 rounded-xl",
-        "bg-surface-elevated/90 backdrop-blur-[20px]",
+        "bg-surface-elevated",
         "border",
-        "shadow-xl",
         "flex items-center gap-3",
         "transition-all duration-350",
         variantStyles[variant],

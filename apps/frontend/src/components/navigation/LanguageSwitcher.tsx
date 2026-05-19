@@ -26,7 +26,7 @@ export function LanguageSwitcher() {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-1 py-1 min-w-[160px] bg-[#1c1c1e]/95 backdrop-blur-2xl border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden z-50">
+        <div className="absolute top-full right-0 mt-1 py-1 min-w-[160px] bg-[#1c1c1e] border border-white/[0.08] rounded-xl overflow-hidden z-50">
           {LOCALES.map((code) => {
             const meta = LOCALE_META[code];
             const active = locale === code;

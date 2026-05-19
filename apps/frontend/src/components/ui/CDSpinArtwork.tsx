@@ -18,7 +18,7 @@ export interface CDSpinArtworkProps {
 
 /**
  * Animated CD-disc spinner used as a loading indicator. Shows a metallic
- * disc with a rainbow-shimmer ring and a black centre label, spinning via
+ * disc with a static iridescent ring and a black centre label, spinning via
  * `animate-vinyl-spin` (`styles/animations.css`). Visually a CD, not a
  * vinyl record — the disc is silver with an iridescent data-side sheen.
  *
@@ -38,11 +38,10 @@ export function CDSpinArtwork({ className }: CDSpinArtworkProps) {
         }}
       />
       <div
-        className="absolute inset-0 rounded-full animate-cd-shimmer"
+        className="absolute inset-0 rounded-full"
         style={{
           background:
-            "conic-gradient(from 30deg, #a060ff 0%, #40b0ff 20%, #40ffc0 35%, #ffe040 50%, #ff6090 65%, #a060ff 80%, transparent 95%)",
-          opacity: 0.45,
+            "conic-gradient(from 30deg, rgba(160,96,255,0.45) 0%, rgba(64,176,255,0.45) 20%, rgba(64,255,192,0.45) 35%, rgba(255,224,64,0.45) 50%, rgba(255,96,144,0.45) 65%, rgba(160,96,255,0.45) 80%, transparent 95%)",
         }}
       />
       <div

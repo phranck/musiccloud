@@ -16,6 +16,6 @@ const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
 const headerNav = await fetchNavigation("header", locale);
 ---
 
-<div class="animate-slide-down-in will-change-transform">
+<div class="animate-slide-down-in">
   <PageHeaderIsland client:idle navItems={headerNav} />
 </div>

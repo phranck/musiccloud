@@ -25,7 +25,7 @@ interface TranslucentCardProps {
 }
 
 /**
- * Glassy overlay card — backdrop-blur + semi-transparent white surface.
+ * Translucent overlay card with a semi-transparent surface.
  * Used by the translucent-mode content-page overlay.
  */
 export function TranslucentCard({ children, className, style }: TranslucentCardProps) {
@@ -40,7 +40,7 @@ export function TranslucentCard({ children, className, style }: TranslucentCardP
     <div
       className={cn(
         "flex flex-col",
-        "bg-white/[0.05] backdrop-blur-2xl border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden",
+        "bg-white/[0.08] border border-white/[0.08] rounded-2xl overflow-hidden",
         className,
       )}
       style={style}

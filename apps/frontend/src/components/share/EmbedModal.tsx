@@ -116,8 +116,8 @@ export function EmbedModal({
         type="button"
         aria-label="Close"
         className={cn(
-          "absolute inset-0 transition-all duration-300 cursor-default",
-          open ? "bg-black/40 backdrop-blur-sm" : "bg-black/0 backdrop-blur-none",
+          "absolute inset-0 transition-colors duration-300 cursor-default",
+          open ? "bg-black/50" : "bg-black/0",
         )}
         onClick={onClose}
       >

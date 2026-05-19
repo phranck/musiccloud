@@ -126,13 +126,12 @@ export function HeroInput({
           className={cn(
             "relative flex items-center rounded-full",
             "bg-surface",
-            "backdrop-blur-[20px]",
             "border",
             "transition-all duration-[250ms]",
             state === "idle" && (compact ? "border-[var(--color-accent)]/25" : "border-white/15"),
             state === "focused" &&
               (compact ? ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"] : "border-white/10"),
-            state === "loading" && ["border-accent", "animate-pulse-glow"],
+            state === "loading" && "border-accent",
             state === "success" && ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"],
             state === "error" && ["border-error", "shadow-[0_0_12px_rgba(255,69,58,0.25)]"],
           )}

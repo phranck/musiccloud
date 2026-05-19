@@ -58,7 +58,7 @@ export function EmbossedSegmentedControl<T extends string>({
       <RecessedCard.Body className="contents">
         {indicator && (
           <div
-            className="absolute top-1 bottom-1 transition-[transform,width] duration-250 ease-out will-change-transform"
+            className="absolute top-1 bottom-1 transition-[transform,width] duration-250 ease-out"
             style={{
               width: indicator.width,
               transform: `translateX(${indicator.left - 4}px)`,

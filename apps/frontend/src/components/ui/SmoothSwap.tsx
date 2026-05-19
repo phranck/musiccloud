@@ -130,7 +130,7 @@ export function SmoothSwap({ swapKey, children, className, durationMs = 680 }: S
         <div
           ref={previousRef}
           key={`previous-${state.generation}`}
-          className="col-start-1 row-start-1 pointer-events-none mc-group-slide-out transform-gpu will-change-transform"
+          className="col-start-1 row-start-1 pointer-events-none mc-group-slide-out transform-gpu"
           aria-hidden="true"
         >
           {state.previous}
@@ -139,10 +139,7 @@ export function SmoothSwap({ swapKey, children, className, durationMs = 680 }: S
       <div
         ref={currentRef}
         key={`current-${state.generation}`}
-        className={cn(
-          "col-start-1 row-start-1 transform-gpu will-change-transform",
-          state.previous && "mc-group-slide-in",
-        )}
+        className={cn("col-start-1 row-start-1 transform-gpu", state.previous && "mc-group-slide-in")}
       >
         {currentChildren}
       </div>
