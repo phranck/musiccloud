@@ -101,7 +101,7 @@ export function AudioPreviewPlayer({
   refreshShortId,
   trackTitle,
   onStatusChange,
-  progressVariant = "blocks",
+  progressVariant = "segments",
 }: AudioPreviewPlayerProps) {
   const t = useT();
   const initialPhase: PlayerState = previewUrl ? { phase: "idle", duration: 30 } : { phase: "loading" };

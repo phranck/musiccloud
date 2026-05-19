@@ -4,6 +4,7 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -64,7 +65,7 @@ export interface VfdDisplayProps {
   ariaLabel?: string;
   /** CSS color for the VFD phosphor. Defaults to blue-green like HiFi VFD modules. */
   phosphorColor?: string;
-  /** Faint inactive-cell glyphs behind every row. Uses the same font, so dots line up with live text. */
+  /** Faint inactive-cell matrix behind every row. Defaults to a custom 5x7 cell, not a font glyph. */
   ghostPattern?: string;
 }
 
@@ -98,6 +99,7 @@ interface VfdRowProps extends NormalizedVfdLine {
   ghostPattern: string;
   cellCount: number;
   cellKeys: string[];
+  symbolPrefix: string;
   outgoing?: OutgoingVfdLine | null;
 }
 
@@ -107,9 +109,14 @@ interface CellGridOptions {
   className?: string;
 }
 
+interface VfdSegmentCell {
+  glyph: string;
+  className?: string;
+}
+
 // Treat the VFD as one hardware module: callers may change rows and
 // characters per line, but the cell/font geometry must stay identical.
-const VFD_DEVICE_CLASSES = "px-5 py-4 gap-2 text-[0.82rem] sm:text-[0.92rem]";
+const VFD_DEVICE_CLASSES = "px-5 py-4 gap-1.5 text-[0.82rem] sm:text-[0.92rem]";
 
 const BRIGHTNESS_CLASSES: Record<VfdBrightness, string> = {
   bright: "mc-vfd-bright",
@@ -122,14 +129,197 @@ const DEFAULT_VFD_ROWS = 4;
 const DEFAULT_VFD_CELL_COUNT = 44;
 const EMPTY_CELL = "\u00A0";
 
+export const VFD_GLYPHS = {
+  ghost: "\uE000",
+  progressFill: "\uE001",
+  progressEmpty: "\uE002",
+  progressBlock: "\uE008",
+  progressHead: "\uE009",
+  progressRailActive: "\uE003",
+  progressRailEmpty: "\uE004",
+  progressMarker: "\uE005",
+  progressBracketLeft: "\uE006",
+  progressBracketRight: "\uE007",
+} as const;
+
+const BLANK_GLYPH = ["00000", "00000", "00000", "00000", "00000", "00000", "00000"] as const;
+const FULL_GLYPH = ["11111", "11111", "11111", "11111", "11111", "11111", "11111"] as const;
+
+const VFD_GLYPH_PATTERNS: Record<string, readonly string[]> = {
+  " ": BLANK_GLYPH,
+  [EMPTY_CELL]: BLANK_GLYPH,
+  "0": ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
+  "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+  "2": ["01110", "10001", "00001", "00010", "00100", "01000", "11111"],
+  "3": ["11110", "00001", "00001", "01110", "00001", "00001", "11110"],
+  "4": ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
+  "5": ["11111", "10000", "10000", "11110", "00001", "00001", "11110"],
+  "6": ["01110", "10000", "10000", "11110", "10001", "10001", "01110"],
+  "7": ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
+  "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
+  "9": ["01110", "10001", "10001", "01111", "00001", "00001", "01110"],
+  A: ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+  B: ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
+  C: ["01111", "10000", "10000", "10000", "10000", "10000", "01111"],
+  D: ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
+  E: ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+  F: ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
+  G: ["01111", "10000", "10000", "10011", "10001", "10001", "01111"],
+  H: ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
+  I: ["11111", "00100", "00100", "00100", "00100", "00100", "11111"],
+  J: ["00111", "00010", "00010", "00010", "00010", "10010", "01100"],
+  K: ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
+  L: ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+  M: ["10001", "11011", "10101", "10101", "10001", "10001", "10001"],
+  N: ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
+  O: ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+  P: ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
+  Q: ["01110", "10001", "10001", "10001", "10101", "10010", "01101"],
+  R: ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
+  S: ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
+  T: ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+  U: ["10001", "10001", "10001", "10001", "10001", "10001", "01110"],
+  V: ["10001", "10001", "10001", "10001", "10001", "01010", "00100"],
+  W: ["10001", "10001", "10001", "10101", "10101", "10101", "01010"],
+  X: ["10001", "10001", "01010", "00100", "01010", "10001", "10001"],
+  Y: ["10001", "10001", "01010", "00100", "00100", "00100", "00100"],
+  Z: ["11111", "00001", "00010", "00100", "01000", "10000", "11111"],
+  a: ["00000", "00000", "01110", "00001", "01111", "10001", "01111"],
+  b: ["10000", "10000", "10110", "11001", "10001", "10001", "11110"],
+  c: ["00000", "00000", "01111", "10000", "10000", "10000", "01111"],
+  d: ["00001", "00001", "01101", "10011", "10001", "10001", "01111"],
+  e: ["00000", "00000", "01110", "10001", "11111", "10000", "01110"],
+  f: ["00110", "01001", "01000", "11100", "01000", "01000", "01000"],
+  g: ["00000", "00000", "01111", "10001", "01111", "00001", "01110"],
+  h: ["10000", "10000", "10110", "11001", "10001", "10001", "10001"],
+  i: ["00100", "00000", "01100", "00100", "00100", "00100", "01110"],
+  j: ["00010", "00000", "00110", "00010", "00010", "10010", "01100"],
+  k: ["10000", "10000", "10010", "10100", "11000", "10100", "10010"],
+  l: ["01100", "00100", "00100", "00100", "00100", "00100", "01110"],
+  m: ["00000", "00000", "11010", "10101", "10101", "10101", "10101"],
+  n: ["00000", "00000", "10110", "11001", "10001", "10001", "10001"],
+  o: ["00000", "00000", "01110", "10001", "10001", "10001", "01110"],
+  p: ["00000", "00000", "11110", "10001", "11110", "10000", "10000"],
+  q: ["00000", "00000", "01111", "10001", "01111", "00001", "00001"],
+  r: ["00000", "00000", "10110", "11001", "10000", "10000", "10000"],
+  s: ["00000", "00000", "01111", "10000", "01110", "00001", "11110"],
+  t: ["01000", "01000", "11100", "01000", "01000", "01001", "00110"],
+  u: ["00000", "00000", "10001", "10001", "10001", "10011", "01101"],
+  v: ["00000", "00000", "10001", "10001", "10001", "01010", "00100"],
+  w: ["00000", "00000", "10001", "10001", "10101", "10101", "01010"],
+  x: ["00000", "00000", "10001", "01010", "00100", "01010", "10001"],
+  y: ["00000", "00000", "10001", "10001", "01111", "00001", "01110"],
+  z: ["00000", "00000", "11111", "00010", "00100", "01000", "11111"],
+  Ä: ["01010", "00000", "01110", "10001", "11111", "10001", "10001"],
+  Ö: ["01010", "00000", "01110", "10001", "10001", "10001", "01110"],
+  Ü: ["01010", "00000", "10001", "10001", "10001", "10001", "01110"],
+  ä: ["01010", "00000", "01110", "00001", "01111", "10001", "01111"],
+  ö: ["01010", "00000", "01110", "10001", "10001", "10001", "01110"],
+  ü: ["01010", "00000", "10001", "10001", "10001", "10011", "01101"],
+  ß: ["01100", "10010", "10010", "11100", "10010", "10010", "11100"],
+  é: ["00010", "00100", "01110", "10001", "11111", "10000", "01110"],
+  è: ["01000", "00100", "01110", "10001", "11111", "10000", "01110"],
+  á: ["00010", "00100", "01110", "00001", "01111", "10001", "01111"],
+  à: ["01000", "00100", "01110", "00001", "01111", "10001", "01111"],
+  ó: ["00010", "00100", "01110", "10001", "10001", "10001", "01110"],
+  ò: ["01000", "00100", "01110", "10001", "10001", "10001", "01110"],
+  ú: ["00010", "00100", "10001", "10001", "10001", "10011", "01101"],
+  ù: ["01000", "00100", "10001", "10001", "10001", "10011", "01101"],
+  ñ: ["01010", "10100", "10110", "11001", "10001", "10001", "10001"],
+  ç: ["00000", "00000", "01111", "10000", "10000", "01111", "00100"],
+  ".": ["00000", "00000", "00000", "00000", "00000", "01100", "01100"],
+  ",": ["00000", "00000", "00000", "00000", "01100", "00100", "01000"],
+  ":": ["00000", "01100", "01100", "00000", "01100", "01100", "00000"],
+  ";": ["00000", "01100", "01100", "00000", "01100", "00100", "01000"],
+  "-": ["00000", "00000", "00000", "11111", "00000", "00000", "00000"],
+  _: ["00000", "00000", "00000", "00000", "00000", "00000", "11111"],
+  "/": ["00001", "00010", "00010", "00100", "01000", "01000", "10000"],
+  "\\": ["10000", "01000", "01000", "00100", "00010", "00010", "00001"],
+  "'": ["01100", "00100", "01000", "00000", "00000", "00000", "00000"],
+  '"': ["01010", "01010", "01010", "00000", "00000", "00000", "00000"],
+  "(": ["00010", "00100", "01000", "01000", "01000", "00100", "00010"],
+  ")": ["01000", "00100", "00010", "00010", "00010", "00100", "01000"],
+  "[": ["01110", "01000", "01000", "01000", "01000", "01000", "01110"],
+  "]": ["01110", "00010", "00010", "00010", "00010", "00010", "01110"],
+  "&": ["01100", "10010", "10100", "01000", "10101", "10010", "01101"],
+  "+": ["00000", "00100", "00100", "11111", "00100", "00100", "00000"],
+  "!": ["00100", "00100", "00100", "00100", "00100", "00000", "00100"],
+  "?": ["01110", "10001", "00001", "00010", "00100", "00000", "00100"],
+  "·": ["00000", "00000", "00000", "01100", "01100", "00000", "00000"],
+  "…": ["00000", "00000", "00000", "00000", "00000", "10101", "10101"],
+  "♪": ["00010", "00011", "00010", "00010", "01110", "11110", "01100"],
+  "♫": ["00101", "00111", "00101", "00101", "11111", "11111", "01010"],
+  "♬": ["01010", "01111", "01010", "01010", "11111", "11111", "01010"],
+  "’": ["01100", "00100", "01000", "00000", "00000", "00000", "00000"],
+  "‘": ["00110", "00100", "00010", "00000", "00000", "00000", "00000"],
+  "`": ["01000", "00100", "00010", "00000", "00000", "00000", "00000"],
+  "´": ["00010", "00100", "01000", "00000", "00000", "00000", "00000"],
+  "“": ["01010", "01010", "10100", "00000", "00000", "00000", "00000"],
+  "”": ["01010", "01010", "00101", "00000", "00000", "00000", "00000"],
+  "‚": ["00000", "00000", "00000", "00000", "00110", "00100", "01000"],
+  "„": ["00000", "00000", "00000", "00000", "01010", "01010", "10100"],
+  "–": ["00000", "00000", "00000", "11111", "00000", "00000", "00000"],
+  "—": ["00000", "00000", "11111", "11111", "00000", "00000", "00000"],
+  "•": ["00000", "00000", "01110", "01110", "01110", "00000", "00000"],
+  "*": ["00000", "10101", "01110", "11111", "01110", "10101", "00000"],
+  "=": ["00000", "00000", "11111", "00000", "11111", "00000", "00000"],
+  "<": ["00010", "00100", "01000", "10000", "01000", "00100", "00010"],
+  ">": ["01000", "00100", "00010", "00001", "00010", "00100", "01000"],
+  "|": ["00100", "00100", "00100", "00100", "00100", "00100", "00100"],
+  "@": ["01110", "10001", "10111", "10101", "10111", "10000", "01110"],
+  "#": ["01010", "01010", "11111", "01010", "11111", "01010", "01010"],
+  "%": ["11001", "11010", "00010", "00100", "01000", "01011", "10011"],
+  $: ["00100", "01111", "10100", "01110", "00101", "11110", "00100"],
+  "€": ["00111", "01000", "11110", "01000", "11110", "01000", "00111"],
+  "°": ["01100", "10010", "10010", "01100", "00000", "00000", "00000"],
+  "^": ["00100", "01010", "10001", "00000", "00000", "00000", "00000"],
+  "~": ["00000", "00000", "01001", "10110", "00000", "00000", "00000"],
+  "{": ["00010", "00100", "00100", "01000", "00100", "00100", "00010"],
+  "}": ["01000", "00100", "00100", "00010", "00100", "00100", "01000"],
+  Ø: ["01111", "10011", "10101", "10101", "10101", "11001", "11110"],
+  ø: ["00000", "00001", "01110", "10011", "10101", "11001", "01110"],
+  Æ: ["01111", "10100", "10100", "11110", "10100", "10100", "10111"],
+  æ: ["00000", "00000", "11010", "00101", "01111", "10100", "01011"],
+  [VFD_GLYPHS.ghost]: FULL_GLYPH,
+  [VFD_GLYPHS.progressFill]: ["11110", "11110", "11110", "11110", "11110", "11110", "11110"],
+  [VFD_GLYPHS.progressEmpty]: BLANK_GLYPH,
+  [VFD_GLYPHS.progressBlock]: ["00000", "11111", "11111", "11111", "11111", "11111", "00000"],
+  [VFD_GLYPHS.progressHead]: ["00000", "11100", "11110", "11111", "11110", "11100", "00000"],
+  [VFD_GLYPHS.progressRailActive]: ["00000", "00000", "11110", "11110", "11110", "00000", "00000"],
+  [VFD_GLYPHS.progressRailEmpty]: ["00000", "00000", "11110", "00000", "11110", "00000", "00000"],
+  [VFD_GLYPHS.progressMarker]: ["00100", "01110", "11111", "11111", "11111", "01110", "00100"],
+  [VFD_GLYPHS.progressBracketLeft]: ["01110", "01000", "01000", "01000", "01000", "01000", "01110"],
+  [VFD_GLYPHS.progressBracketRight]: ["01110", "00010", "00010", "00010", "00010", "00010", "01110"],
+};
+
+const VFD_DOT_RADIUS = 1;
+const VFD_DOT_PITCH = 3;
+const VFD_SEGMENT_COLUMNS = 5;
+const VFD_SEGMENT_ROWS = 7;
+const VFD_SEGMENT_GAP = 2;
+const VFD_SEGMENT_WIDTH = VFD_SEGMENT_COLUMNS * VFD_DOT_PITCH;
+const VFD_SEGMENT_HEIGHT = VFD_SEGMENT_ROWS * VFD_DOT_PITCH;
+const VFD_SEGMENT_PITCH = VFD_SEGMENT_WIDTH + VFD_SEGMENT_GAP;
+
+const VFD_PIXEL_CELLS = Array.from({ length: VFD_SEGMENT_COLUMNS * VFD_SEGMENT_ROWS }, (_, pixel) => ({
+  key: `vfd-pixel-${pixel}`,
+  row: Math.floor(pixel / VFD_SEGMENT_COLUMNS),
+  column: pixel % VFD_SEGMENT_COLUMNS,
+}));
+
+function vfdRowWidth(segmentCount: number): number {
+  const safeSegmentCount = Math.max(1, segmentCount);
+  return safeSegmentCount * VFD_SEGMENT_WIDTH + (safeSegmentCount - 1) * VFD_SEGMENT_GAP;
+}
+
 function normalizePositiveInteger(value: number | undefined, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   return Math.max(1, Math.floor(value ?? fallback));
 }
 
 function fitPatternToCells(pattern: string, cellCount: number): string {
-  const chars = Array.from(pattern || "8");
-  return Array.from({ length: cellCount }, (_, index) => chars[index % chars.length] ?? "8").join("");
+  const chars = Array.from(pattern || VFD_GLYPHS.ghost);
+  return Array.from({ length: cellCount }, (_, index) => chars[index % chars.length] ?? VFD_GLYPHS.ghost).join("");
 }
 
 function stringLength(content: ReactNode): number {
@@ -254,14 +444,150 @@ function shouldMarquee(content: ReactNode, mode: VfdMarqueeMode | undefined, vis
   return stringLength(content) > visibleCells;
 }
 
-function buildVfdCells(
-  content: ReactNode,
-  visibleCells: number,
-  cellKeys: string[],
-  { align, marquee, className }: CellGridOptions,
-): ReactNode {
-  if (typeof content !== "string") return content;
+function glyphPatternFor(glyph: string): readonly string[] {
+  if (VFD_GLYPH_PATTERNS[glyph]) return VFD_GLYPH_PATTERNS[glyph];
+  const normalizedGlyph = glyph.toLocaleUpperCase("en-US");
+  const baseGlyph = normalizedGlyph.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return VFD_GLYPH_PATTERNS[normalizedGlyph] ?? VFD_GLYPH_PATTERNS[baseGlyph] ?? VFD_GLYPH_PATTERNS["?"] ?? BLANK_GLYPH;
+}
 
+function safeSvgIdPart(value: string): string {
+  return Array.from(value)
+    .map((char) => char.codePointAt(0)?.toString(16) ?? "0")
+    .join("-");
+}
+
+function glyphSymbolId(symbolPrefix: string, glyph: string, ghost: boolean): string {
+  return `${symbolPrefix}-${ghost ? "ghost" : "glyph"}-${safeSvgIdPart(glyph || EMPTY_CELL)}`;
+}
+
+function VfdGlyphSymbol({ glyph, ghost, symbolPrefix }: { glyph: string; ghost: boolean; symbolPrefix: string }) {
+  const pattern = ghost ? FULL_GLYPH : glyphPatternFor(glyph);
+
+  return (
+    <symbol id={glyphSymbolId(symbolPrefix, glyph, ghost)} viewBox={`0 0 ${VFD_SEGMENT_WIDTH} ${VFD_SEGMENT_HEIGHT}`}>
+      {VFD_PIXEL_CELLS.flatMap(({ key, row, column }) =>
+        pattern[row]?.[column] === "1"
+          ? [
+              <circle
+                key={key}
+                className="mc-vfd-symbol-pixel"
+                cx={column * VFD_DOT_PITCH + VFD_DOT_RADIUS}
+                cy={row * VFD_DOT_PITCH + VFD_DOT_RADIUS}
+                r={VFD_DOT_RADIUS}
+              />,
+            ]
+          : [],
+      )}
+    </symbol>
+  );
+}
+
+function VfdSegment({
+  glyph = EMPTY_CELL,
+  ghost = false,
+  index,
+  symbolPrefix,
+  className,
+}: {
+  glyph?: string;
+  ghost?: boolean;
+  index: number;
+  symbolPrefix: string;
+  className?: string;
+}) {
+  const segmentX = index * VFD_SEGMENT_PITCH;
+  const href = `#${glyphSymbolId(symbolPrefix, glyph, ghost)}`;
+
+  return (
+    <g
+      className={cn("mc-vfd-segment", ghost && "mc-vfd-segment-ghost", className)}
+      transform={`translate(${segmentX} 0)`}
+    >
+      <use
+        href={href}
+        width={VFD_SEGMENT_WIDTH}
+        height={VFD_SEGMENT_HEIGHT}
+        className={ghost ? "mc-vfd-glyph-ghost" : "mc-vfd-glyph-core"}
+      />
+    </g>
+  );
+}
+
+function VfdSegmentRow({
+  glyphs,
+  cellKeys,
+  className,
+  ghost = false,
+  marquee = false,
+  visibleCells,
+  symbolPrefix,
+}: {
+  glyphs: Array<string | VfdSegmentCell>;
+  cellKeys: string[];
+  className?: string;
+  ghost?: boolean;
+  marquee?: boolean;
+  visibleCells: number;
+  symbolPrefix: string;
+}) {
+  const segmentCells = glyphs.map((cell, index) => ({
+    glyph: typeof cell === "string" ? cell : cell.glyph,
+    className: typeof cell === "string" ? undefined : cell.className,
+    key: cellKeys[index] ?? `vfd-cell-extra-${index}`,
+  }));
+  const renderedCellCount = Math.max(1, glyphs.length);
+  const uniqueGlyphs = Array.from(new Set(segmentCells.map((cell) => cell.glyph)));
+
+  return (
+    <svg
+      className={cn("mc-vfd-segment-row", marquee && "mc-vfd-marquee", className)}
+      viewBox={`0 0 ${vfdRowWidth(renderedCellCount)} ${VFD_SEGMENT_HEIGHT}`}
+      role="presentation"
+      aria-hidden="true"
+      focusable="false"
+      style={
+        {
+          "--mc-vfd-rendered-cells": renderedCellCount,
+          "--mc-vfd-visible-cells": visibleCells,
+          "--mc-vfd-grid-scale": renderedCellCount / visibleCells,
+          "--mc-vfd-marquee-shift":
+            marquee && renderedCellCount > visibleCells
+              ? `${-((renderedCellCount - visibleCells) / renderedCellCount) * 100}%`
+              : "0%",
+        } as CSSProperties
+      }
+    >
+      <defs>
+        {uniqueGlyphs.map((glyph) => (
+          <VfdGlyphSymbol
+            key={glyphSymbolId(symbolPrefix, glyph, ghost)}
+            glyph={glyph}
+            ghost={ghost}
+            symbolPrefix={symbolPrefix}
+          />
+        ))}
+      </defs>
+      {segmentCells.map(({ glyph, key, className }, index) => (
+        <VfdSegment
+          key={key}
+          glyph={glyph}
+          ghost={ghost}
+          index={index}
+          symbolPrefix={symbolPrefix}
+          className={className}
+        />
+      ))}
+    </svg>
+  );
+}
+
+function layoutStringGlyphs(
+  content: string,
+  visibleCells: number,
+  align: VfdSectionAlign,
+  marquee?: VfdMarqueeMode,
+): string[] {
   const chars = content === EMPTY_CELL ? [] : Array.from(content);
   const animateMarquee = shouldMarquee(content, marquee, visibleCells);
   const renderedCellCount = animateMarquee ? Math.max(chars.length, visibleCells) : visibleCells;
@@ -273,33 +599,31 @@ function buildVfdCells(
       : align === "right"
         ? Math.max(0, visibleCells - displayChars.length)
         : 0;
-  const marqueeShift =
-    animateMarquee && renderedCellCount > visibleCells
-      ? `${-((renderedCellCount - visibleCells) / renderedCellCount) * 100}%`
-      : "0%";
+
+  return Array.from({ length: renderedCellCount }, (_, index) => displayChars[index - startIndex] ?? EMPTY_CELL);
+}
+
+function buildVfdCells(
+  content: ReactNode,
+  visibleCells: number,
+  cellKeys: string[],
+  { align, marquee, className }: CellGridOptions,
+  symbolPrefix: string,
+): ReactNode {
+  if (typeof content !== "string") return content;
+
+  const glyphs = layoutStringGlyphs(content, visibleCells, align, marquee);
+  const animateMarquee = shouldMarquee(content, marquee, visibleCells);
 
   return (
-    <span
-      className={cn("mc-vfd-cell-grid", animateMarquee && "mc-vfd-marquee", className)}
-      style={
-        {
-          "--mc-vfd-cells": renderedCellCount,
-          "--mc-vfd-rendered-cells": renderedCellCount,
-          "--mc-vfd-visible-cells": visibleCells,
-          "--mc-vfd-grid-scale": renderedCellCount / visibleCells,
-          "--mc-vfd-marquee-shift": marqueeShift,
-        } as CSSProperties
-      }
-    >
-      {Array.from({ length: renderedCellCount }, (_, index) => {
-        const char = displayChars[index - startIndex] ?? EMPTY_CELL;
-        return (
-          <span key={cellKeys[index] ?? `vfd-cell-${index}`} className="mc-vfd-cell">
-            {char}
-          </span>
-        );
-      })}
-    </span>
+    <VfdSegmentRow
+      glyphs={glyphs}
+      cellKeys={cellKeys}
+      className={className}
+      marquee={animateMarquee}
+      visibleCells={visibleCells}
+      symbolPrefix={symbolPrefix}
+    />
   );
 }
 
@@ -307,19 +631,49 @@ function buildSectionedContent(
   line: Pick<NormalizedVfdLine, "content" | "sections" | "align" | "marquee">,
   cellCount: number,
   cellKeys: string[],
+  symbolPrefix: string,
 ): ReactNode {
   if (!line.sections?.length) {
-    return buildVfdCells(line.content, cellCount, cellKeys, {
-      align: line.align,
-      marquee: line.marquee,
-    });
+    return buildVfdCells(
+      line.content,
+      cellCount,
+      cellKeys,
+      {
+        align: line.align,
+        marquee: line.marquee,
+      },
+      `${symbolPrefix}-line`,
+    );
   }
 
   const sectionCells = resolveSectionCells(line.sections, cellCount);
-  const template = sectionCells.map((cells) => `${cells}fr`).join(" ");
+  const canRenderHardwareRow = line.sections.every((section) => typeof section.content === "string");
+
+  if (canRenderHardwareRow) {
+    const glyphs = line.sections.flatMap((section, index): VfdSegmentCell[] => {
+      const cells = sectionCells[index] ?? 0;
+      if (cells <= 0 || typeof section.content !== "string") return [];
+      const className = cn(section.brightness && BRIGHTNESS_CLASSES[section.brightness], section.className);
+      return layoutStringGlyphs(section.content, cells, section.align, undefined).map((glyph) => ({
+        glyph,
+        className,
+      }));
+    });
+    const rowGlyphs = glyphs.slice(0, cellCount);
+    while (rowGlyphs.length < cellCount) rowGlyphs.push({ glyph: EMPTY_CELL });
+
+    return (
+      <VfdSegmentRow
+        glyphs={rowGlyphs}
+        cellKeys={cellKeys}
+        visibleCells={cellCount}
+        symbolPrefix={`${symbolPrefix}-sections`}
+      />
+    );
+  }
 
   return (
-    <span className="mc-vfd-section-layout" style={{ gridTemplateColumns: template }}>
+    <span className="mc-vfd-section-layout">
       {line.sections.map((section, index) => {
         const cells = sectionCells[index] ?? 0;
         if (cells <= 0) return null;
@@ -328,11 +682,17 @@ function buildSectionedContent(
             key={section.key}
             className={cn("mc-vfd-section", section.brightness && BRIGHTNESS_CLASSES[section.brightness])}
           >
-            {buildVfdCells(section.content, cells, cellKeys, {
-              align: section.align,
-              marquee: section.marquee,
-              className: section.className,
-            })}
+            {buildVfdCells(
+              section.content,
+              cells,
+              cellKeys,
+              {
+                align: section.align,
+                marquee: section.marquee,
+                className: section.className,
+              },
+              `${symbolPrefix}-section-${index}`,
+            )}
           </span>
         );
       })}
@@ -354,28 +714,36 @@ const VfdRow = memo(function VfdRow({
   ghostPattern,
   cellCount,
   cellKeys,
+  symbolPrefix,
   outgoing,
 }: VfdRowProps) {
   const line = { content, sections, align, marquee };
 
   return (
-    <div
-      className={cn("mc-vfd-line", BRIGHTNESS_CLASSES[brightness], pulse && "mc-vfd-line-pulse", className)}
-      data-row={rowKey}
-    >
+    <div className={cn("mc-vfd-line", BRIGHTNESS_CLASSES[brightness])} data-row={rowKey}>
       <span className="mc-vfd-line-matrix" aria-hidden="true">
-        {buildVfdCells(ghostPattern, cellCount, cellKeys, { align: "left" })}
+        <VfdSegmentRow
+          glyphs={Array.from(ghostPattern)}
+          cellKeys={cellKeys}
+          ghost
+          visibleCells={cellCount}
+          symbolPrefix={`${symbolPrefix}-ghost`}
+        />
       </span>
       {outgoing && (
         <span key={outgoing.key} className="mc-vfd-line-content-out" aria-hidden="true">
-          {buildSectionedContent(outgoing.line, cellCount, cellKeys)}
+          <span className="mc-vfd-line-content-inner">
+            {buildSectionedContent(outgoing.line, cellCount, cellKeys, `${symbolPrefix}-out`)}
+          </span>
         </span>
       )}
       <span
         key={contentKey}
         className={cn("mc-vfd-line-content", transition === "none" && "mc-vfd-line-content-static")}
       >
-        {buildSectionedContent(line, cellCount, cellKeys)}
+        <span className={cn("mc-vfd-line-content-inner", pulse && "mc-vfd-line-pulse", className)}>
+          {buildSectionedContent(line, cellCount, cellKeys, `${symbolPrefix}-in`)}
+        </span>
       </span>
     </div>
   );
@@ -398,9 +766,8 @@ const VfdRow = memo(function VfdRow({
  * - Runtime animations are compositor-friendly only: opacity and translate3d.
  * - Content changes are routed through `setLineContent(index, line)` below.
  *   Updating only the affected row keeps unchanged VFD rows mounted and still.
- * - Inactive background cells are rendered with the same dot-matrix font as
- *   the live text. This keeps the ghost dots aligned to the glyph dots instead
- *   of approximating them with an unrelated radial CSS grid.
+ * - Inactive background cells are custom 5x7 pixel matrices, so the ghost
+ *   layer represents the actual hardware cell geometry instead of a font "8".
  */
 export function VfdDisplay({
   lines,
@@ -409,8 +776,10 @@ export function VfdDisplay({
   className,
   ariaLabel,
   phosphorColor = "#7feaff",
-  ghostPattern = "8",
+  ghostPattern = VFD_GLYPHS.ghost,
 }: VfdDisplayProps) {
+  const reactId = useId();
+  const symbolPrefix = useMemo(() => `mc-vfd-${reactId.replace(/[^a-zA-Z0-9_-]/g, "") || "display"}`, [reactId]);
   const rowCount = normalizePositiveInteger(rows, DEFAULT_VFD_ROWS);
   const cellCount = normalizePositiveInteger(charsPerLine, DEFAULT_VFD_CELL_COUNT);
   const cellKeys = useMemo(() => Array.from({ length: cellCount }, (_, index) => `vfd-cell-${index}`), [cellCount]);
@@ -492,6 +861,7 @@ export function VfdDisplay({
                 ghostPattern={ghostCells}
                 cellCount={cellCount}
                 cellKeys={cellKeys}
+                symbolPrefix={`${symbolPrefix}-row-${index}`}
                 outgoing={outgoingLines[index]}
               />
             ))}

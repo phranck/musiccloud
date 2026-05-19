@@ -1,7 +1,7 @@
 import { createContext, type ReactNode, use, useLayoutEffect, useRef } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
+import { VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
 import { cn } from "@/lib/utils";
 
 export type PlayerProgressVariant = "blocks" | "marker" | "segments";
@@ -74,27 +74,25 @@ function renderProgressSections(variant: PlayerProgressVariant, progress: number
   if (variant === "marker") {
     const markerIndex = Math.round(progress * (safeCells - 1));
     return compactSections([
-      sectionFor("━".repeat(markerIndex), "normal"),
-      sectionFor("●", "bright"),
-      sectionFor("─".repeat(Math.max(0, safeCells - markerIndex - 1)), "dim"),
+      sectionFor(VFD_GLYPHS.progressRailActive.repeat(markerIndex), "normal"),
+      sectionFor(VFD_GLYPHS.progressMarker, "bright"),
+      sectionFor(VFD_GLYPHS.progressRailEmpty.repeat(Math.max(0, safeCells - markerIndex - 1)), "dim"),
     ]);
   }
 
   if (variant === "segments") {
-    const innerCells = Math.max(2, safeCells - 2);
-    const active = Math.round(progress * innerCells);
+    const active = Math.round(progress * safeCells);
+    const filled = active > 0 ? `${VFD_GLYPHS.progressBlock.repeat(active - 1)}${VFD_GLYPHS.progressHead}` : "";
     return compactSections([
-      sectionFor("[", "dim"),
-      sectionFor("■".repeat(active), "bright"),
-      sectionFor("□".repeat(Math.max(0, innerCells - active)), "dim"),
-      sectionFor("]", "dim"),
+      sectionFor(filled, "bright"),
+      sectionFor(VFD_GLYPHS.progressEmpty.repeat(Math.max(0, safeCells - active)), "dim"),
     ]);
   }
 
   const active = Math.round(progress * safeCells);
   return compactSections([
-    sectionFor("▰".repeat(active), "bright"),
-    sectionFor("▱".repeat(Math.max(0, safeCells - active)), "dim"),
+    sectionFor(VFD_GLYPHS.progressFill.repeat(active), "bright"),
+    sectionFor(VFD_GLYPHS.progressEmpty.repeat(Math.max(0, safeCells - active)), "dim"),
   ]);
 }
 
@@ -210,7 +208,7 @@ function PlayerButton({ className }: PlayerButtonProps) {
 }
 
 function PlayerProgress({ className, children }: PlayerProgressProps) {
-  const { currentTime, duration, isDisabled, timeText, phosphorColor, progressVariant } = usePlayerContext();
+  const { currentTime, duration, isDisabled, isPlaying, timeText, phosphorColor, progressVariant } = usePlayerContext();
   const progress = clampProgress(currentTime, duration);
   const progressSections = children
     ? [
@@ -240,7 +238,12 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
             sections: [
               ...progressSections,
               { content: "  ", cells: 2, align: "left", brightness: "dim" },
-              { content: timeText, cells: "auto", align: "right", brightness: "dim" },
+              {
+                content: timeText,
+                cells: "auto",
+                align: "right",
+                brightness: isPlaying && !isDisabled ? "bright" : "dim",
+              },
             ],
           },
         ]}
