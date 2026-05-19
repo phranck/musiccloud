@@ -186,24 +186,30 @@
 }
 
 .mc-vfd {
-  --mc-vfd-color: #7feaff;
+  --mc-vfd-base-color: #7aebff;
+  --mc-vfd-color: var(--mc-vfd-base-color);
   --mc-vfd-bg: rgba(5, 8, 10, 0.92);
+  --mc-vfd-glass-tint: color-mix(in srgb, var(--mc-vfd-base-color) 7%, var(--mc-vfd-bg));
+  --mc-vfd-glass-edge-light: color-mix(in srgb, var(--mc-vfd-base-color) 16%, rgba(255, 255, 255, 0.1));
+  --mc-vfd-glass-edge-shade: color-mix(in srgb, var(--mc-vfd-base-color) 9%, rgba(0, 0, 0, 0.82));
   position: relative;
   overflow: hidden;
   border-radius: var(--neu-radius-inner, 0.875rem);
   border: 0;
-  background: color-mix(in srgb, var(--mc-vfd-color) 5%, var(--mc-vfd-bg));
+  background: var(--mc-vfd-glass-tint);
   box-shadow:
-    inset 1px 1px 0 color-mix(in srgb, var(--mc-vfd-color) 14%, rgba(255, 255, 255, 0.1)),
-    inset -1px -1px 0 color-mix(in srgb, var(--mc-vfd-color) 8%, rgba(0, 0, 0, 0.82));
+    inset 1px 1px 0 var(--mc-vfd-glass-edge-light),
+    inset -1px -1px 0 var(--mc-vfd-glass-edge-shade);
   color: var(--mc-vfd-color);
-  --mc-vfd-bright-color: hsl(from var(--mc-vfd-color) h s calc(l + 10));
-  --mc-vfd-normal-color: hsl(from var(--mc-vfd-color) h s l);
-  --mc-vfd-dim-color: hsl(from var(--mc-vfd-color) h calc(s - 8) calc(l - 18));
-  --mc-vfd-ghost-color: hsl(from var(--mc-vfd-color) h 42% 14%);
+  --mc-vfd-bright-color: #7aebff;
+  --mc-vfd-normal-color: #5fb7c7;
+  --mc-vfd-dim-color: #3f7a85;
+  --mc-vfd-ghost-color: #1b3438;
   --mc-vfd-cells: 44;
   --mc-vfd-row-height: 13px;
-  --mc-vfd-row-gap: 10.5px;
+  --mc-vfd-row-gap: 11px;
+  --mc-vfd-row-width: 525px;
+  --mc-vfd-row-offset: 0px;
   isolation: isolate;
 }
 
@@ -211,12 +217,14 @@
   position: relative;
   z-index: 10;
   display: grid;
+  inline-size: var(--mc-vfd-row-width);
   gap: var(--mc-vfd-row-gap);
-  align-content: center;
+  margin-inline-start: var(--mc-vfd-row-offset);
 }
 
 .mc-vfd-line {
   position: relative;
+  inline-size: var(--mc-vfd-row-width);
   min-width: 0;
   block-size: var(--mc-vfd-row-height);
   min-height: var(--mc-vfd-row-height);
@@ -230,7 +238,7 @@
   inset: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   overflow: hidden;
   color: var(--mc-vfd-ghost-color);
   pointer-events: none;
@@ -254,7 +262,7 @@
   inline-size: 100%;
   min-height: inherit;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .mc-vfd-section-layout {
@@ -323,50 +331,6 @@
 
 .mc-vfd-ghost {
   color: var(--mc-vfd-ghost-color);
-}
-
-.mc-player-progress-section {
-  display: flex;
-  align-items: center;
-}
-
-.mc-player-progress-meter {
-  display: block;
-  inline-size: 100%;
-  min-inline-size: 0;
-  color: inherit;
-}
-
-.mc-player-progress-svg {
-  display: block;
-  inline-size: 100%;
-  block-size: auto;
-  overflow: visible;
-  shape-rendering: crispEdges;
-}
-
-.mc-player-progress-rail-ghost {
-  color: var(--mc-vfd-ghost-color);
-}
-
-.mc-player-progress-rail-active {
-  color: currentColor;
-}
-
-.mc-player-progress-marker-g {
-  color: currentColor;
-  transform: translate3d(var(--mc-player-progress-marker-x, 0%), 0, 0);
-  transform-box: view-box;
-  transform-origin: 0 0;
-  will-change: transform;
-}
-
-.mc-player-spectrum-ghost {
-  color: var(--mc-vfd-ghost-color);
-}
-
-.mc-player-spectrum-active {
-  color: currentColor;
 }
 
 .mc-vfd-marquee-viewport {

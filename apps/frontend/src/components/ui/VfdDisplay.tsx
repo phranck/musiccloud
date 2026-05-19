@@ -143,6 +143,14 @@ export const VFD_GLYPHS = {
   progressMarkerEnd1: "\uE00F",
   progressMarkerNext1: "\uE010",
   progressMarkerNext2: "\uE011",
+  spectrumLevel0: "\uE013",
+  spectrumLevel1: "\uE014",
+  spectrumLevel2: "\uE015",
+  spectrumLevel3: "\uE016",
+  spectrumLevel4: "\uE017",
+  spectrumLevel5: "\uE018",
+  spectrumLevel6: "\uE019",
+  spectrumLevel7: "\uE01A",
 } as const;
 
 const BLANK_GLYPH = ["00000", "00000", "00000", "00000", "00000", "00000", "00000"] as const;
@@ -298,9 +306,15 @@ const VFD_GLYPH_PATTERNS: Record<string, readonly string[]> = {
   [VFD_GLYPHS.progressMarkerEnd1]: ["00001", "00001", "00001", "00001", "00001", "11111", "11111"],
   [VFD_GLYPHS.progressMarkerNext1]: ["10000", "10000", "10000", "10000", "10000", "10000", "10000"],
   [VFD_GLYPHS.progressMarkerNext2]: ["11000", "11000", "11000", "11000", "11000", "11000", "11000"],
+  [VFD_GLYPHS.spectrumLevel0]: BLANK_GLYPH,
+  [VFD_GLYPHS.spectrumLevel1]: ["00000", "00000", "00000", "00000", "00000", "00000", "11111"],
+  [VFD_GLYPHS.spectrumLevel2]: ["00000", "00000", "00000", "00000", "00000", "11111", "11111"],
+  [VFD_GLYPHS.spectrumLevel3]: ["00000", "00000", "00000", "00000", "11111", "11111", "11111"],
+  [VFD_GLYPHS.spectrumLevel4]: ["00000", "00000", "00000", "11111", "11111", "11111", "11111"],
+  [VFD_GLYPHS.spectrumLevel5]: ["00000", "00000", "11111", "11111", "11111", "11111", "11111"],
+  [VFD_GLYPHS.spectrumLevel6]: ["00000", "11111", "11111", "11111", "11111", "11111", "11111"],
+  [VFD_GLYPHS.spectrumLevel7]: FULL_GLYPH,
 };
-
-export const VFD_SEGMENT_SCALE = 1.2;
 
 const VFD_PIXEL_SIZE = 1;
 const VFD_PIXEL_GAP = 1;
@@ -311,17 +325,23 @@ const VFD_SEGMENT_GAP = 3;
 const VFD_SEGMENT_WIDTH = VFD_SEGMENT_COLUMNS * VFD_PIXEL_SIZE + (VFD_SEGMENT_COLUMNS - 1) * VFD_PIXEL_GAP;
 const VFD_SEGMENT_HEIGHT = VFD_SEGMENT_ROWS * VFD_PIXEL_SIZE + (VFD_SEGMENT_ROWS - 1) * VFD_PIXEL_GAP;
 const VFD_SEGMENT_PITCH = VFD_SEGMENT_WIDTH + VFD_SEGMENT_GAP;
-const VFD_ROW_GAP = 10.75;
+const VFD_ROW_GAP = 11;
 
 function vfdContentWidth(element: HTMLElement): number {
   const style = window.getComputedStyle(element);
-  const paddingX = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
-  return Math.max(0, element.getBoundingClientRect().width - paddingX);
+  const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
+  const paddingRight = Number.parseFloat(style.paddingRight) || 0;
+  return Math.max(0, Math.floor(element.getBoundingClientRect().width - paddingLeft - paddingRight));
 }
 
 function vfdCellCountForWidth(availableWidth: number): number {
   if (!Number.isFinite(availableWidth) || availableWidth <= 0) return 1;
-  return Math.max(1, Math.floor((availableWidth + VFD_SEGMENT_GAP) / VFD_SEGMENT_PITCH));
+  return Math.max(1, Math.floor((Math.floor(availableWidth) + VFD_SEGMENT_GAP) / VFD_SEGMENT_PITCH));
+}
+
+function vfdRowOffsetForWidth(availableWidth: number, cellCount: number): number {
+  if (!Number.isFinite(availableWidth) || availableWidth <= 0) return 0;
+  return Math.max(0, Math.floor((Math.floor(availableWidth) - vfdRowWidth(cellCount)) / 2));
 }
 
 const VFD_PIXEL_CELLS = Array.from({ length: VFD_SEGMENT_COLUMNS * VFD_SEGMENT_ROWS }, (_, pixel) => ({
@@ -338,10 +358,6 @@ function vfdRowWidth(segmentCount: number): number {
 function normalizePositiveInteger(value: number | undefined, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   return Math.max(1, Math.floor(value ?? fallback));
-}
-
-export function scaledVfdCellCount(cells: number): number {
-  return Math.max(1, Math.floor(cells / VFD_SEGMENT_SCALE));
 }
 
 function fitPatternToCells(pattern: string, cellCount: number): string {
@@ -397,10 +413,7 @@ function resolveSectionCells(sections: NormalizedVfdSection[], totalCells: numbe
   const cells = desired.map((value) => value ?? 0);
   let remaining = totalCells - nonFillTotal;
 
-  if (fillIndexes.length === 0) {
-    cells[0] = (cells[0] ?? 0) + remaining;
-    return cells;
-  }
+  if (fillIndexes.length === 0) return cells;
 
   fillIndexes.forEach((index, fillPosition) => {
     const share = Math.floor(remaining / (fillIndexes.length - fillPosition));
@@ -829,15 +842,16 @@ export function VfdDisplay({
   charsPerLine = DEFAULT_VFD_CELL_COUNT,
   className,
   ariaLabel,
-  phosphorColor = "#7feaff",
+  phosphorColor = "#7aebff",
   ghostPattern = VFD_GLYPHS.ghost,
 }: VfdDisplayProps) {
   const reactId = useId();
   const symbolPrefix = useMemo(() => `mc-vfd-${reactId.replace(/[^a-zA-Z0-9_-]/g, "") || "display"}`, [reactId]);
   const rowCount = normalizePositiveInteger(rows ?? lines.length, DEFAULT_VFD_ROWS);
   const requestedCellCount = normalizePositiveInteger(charsPerLine, DEFAULT_VFD_CELL_COUNT);
-  const fallbackCellCount = scaledVfdCellCount(requestedCellCount);
-  const [cellCount, setCellCount] = useState(fallbackCellCount);
+  const fallbackCellCount = requestedCellCount;
+  const [layout, setLayout] = useState(() => ({ cellCount: fallbackCellCount, rowOffset: 0 }));
+  const { cellCount, rowOffset } = layout;
   const cellKeys = useMemo(() => Array.from({ length: cellCount }, (_, index) => `vfd-cell-${index}`), [cellCount]);
   const ghostCells = useMemo(() => fitPatternToCells(ghostPattern, cellCount), [cellCount, ghostPattern]);
   const vfdRef = useRef<HTMLElement | null>(null);
@@ -900,18 +914,23 @@ export function VfdDisplay({
   useLayoutEffect(() => {
     const element = vfdRef.current;
     if (!element || typeof ResizeObserver === "undefined") {
-      setCellCount(fallbackCellCount);
+      setLayout({ cellCount: fallbackCellCount, rowOffset: 0 });
       return;
     }
 
-    const updateCellCount = (availableWidth: number) => {
+    const updateLayout = (availableWidth: number) => {
       const nextCellCount = vfdCellCountForWidth(availableWidth);
-      setCellCount((currentCellCount) => (currentCellCount === nextCellCount ? currentCellCount : nextCellCount));
+      const nextRowOffset = vfdRowOffsetForWidth(availableWidth, nextCellCount);
+      setLayout((currentLayout) =>
+        currentLayout.cellCount === nextCellCount && currentLayout.rowOffset === nextRowOffset
+          ? currentLayout
+          : { cellCount: nextCellCount, rowOffset: nextRowOffset },
+      );
     };
 
-    updateCellCount(vfdContentWidth(element));
-    const observer = new ResizeObserver(([entry]) => {
-      updateCellCount(entry?.contentRect.width ?? vfdContentWidth(element));
+    updateLayout(vfdContentWidth(element));
+    const observer = new ResizeObserver(() => {
+      updateLayout(vfdContentWidth(element));
     });
     observer.observe(element);
     return () => observer.disconnect();
@@ -930,6 +949,8 @@ export function VfdDisplay({
     "--mc-vfd-cells": cellCount,
     "--mc-vfd-row-height": `${VFD_SEGMENT_HEIGHT}px`,
     "--mc-vfd-row-gap": `${VFD_ROW_GAP}px`,
+    "--mc-vfd-row-width": `${vfdRowWidth(cellCount)}px`,
+    "--mc-vfd-row-offset": `${rowOffset}px`,
   } as CSSProperties;
 
   return (

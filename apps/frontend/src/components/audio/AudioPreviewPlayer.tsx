@@ -374,7 +374,7 @@ export function AudioPreviewPlayer({
         progressVariant={progressVariant}
         progressGranularity={progressGranularity}
         spectrumBands={spectrumBands}
-        phosphorColor="rgb(127 234 255)"
+        phosphorColor="#7aebff"
         onTogglePlay={togglePlay}
       />
     </section>

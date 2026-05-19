@@ -1,7 +1,7 @@
-import { type CSSProperties, createContext, memo, type ReactNode, use, useLayoutEffect, useRef } from "react";
+import { createContext, type ReactNode, use, useLayoutEffect, useRef } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { scaledVfdCellCount, VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
+import { VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
 import { cn } from "@/lib/utils";
 
 export type PlayerProgressVariant = "marker" | "segments";
@@ -51,176 +51,17 @@ interface PlayerTimeProps {
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
-const PLAYER_PROGRESS_CELLS = scaledVfdCellCount(30);
-const PLAYER_PROGRESS_PIXEL_SIZE = 1;
-const PLAYER_PROGRESS_PIXEL_GAP = 1;
-const PLAYER_PROGRESS_DOT_PITCH = PLAYER_PROGRESS_PIXEL_SIZE + PLAYER_PROGRESS_PIXEL_GAP;
-const PLAYER_PROGRESS_SEGMENT_COLUMNS = 5;
-const PLAYER_PROGRESS_SEGMENT_ROWS = 7;
-const PLAYER_PROGRESS_SEGMENT_GAP = 3;
-const PLAYER_PROGRESS_SEGMENT_WIDTH =
-  PLAYER_PROGRESS_SEGMENT_COLUMNS * PLAYER_PROGRESS_PIXEL_SIZE +
-  (PLAYER_PROGRESS_SEGMENT_COLUMNS - 1) * PLAYER_PROGRESS_PIXEL_GAP;
-const PLAYER_PROGRESS_SEGMENT_HEIGHT =
-  PLAYER_PROGRESS_SEGMENT_ROWS * PLAYER_PROGRESS_PIXEL_SIZE +
-  (PLAYER_PROGRESS_SEGMENT_ROWS - 1) * PLAYER_PROGRESS_PIXEL_GAP;
-const PLAYER_PROGRESS_SEGMENT_PITCH = PLAYER_PROGRESS_SEGMENT_WIDTH + PLAYER_PROGRESS_SEGMENT_GAP;
-const PLAYER_PROGRESS_MARKER_COLUMNS = 2;
-const PLAYER_PROGRESS_MARKER_WIDTH =
-  PLAYER_PROGRESS_MARKER_COLUMNS * PLAYER_PROGRESS_PIXEL_SIZE +
-  (PLAYER_PROGRESS_MARKER_COLUMNS - 1) * PLAYER_PROGRESS_PIXEL_GAP;
-const PLAYER_PROGRESS_WIDTH =
-  PLAYER_PROGRESS_CELLS * PLAYER_PROGRESS_SEGMENT_WIDTH + (PLAYER_PROGRESS_CELLS - 1) * PLAYER_PROGRESS_SEGMENT_GAP;
-const PLAYER_PROGRESS_MARKER_MAX_X = PLAYER_PROGRESS_WIDTH - PLAYER_PROGRESS_MARKER_WIDTH;
-
-const PLAYER_SPECTRUM_DOTS = Array.from({ length: PLAYER_PROGRESS_CELLS }).flatMap((_, cell) =>
-  Array.from({ length: PLAYER_PROGRESS_SEGMENT_ROWS }).flatMap((_, row) =>
-    Array.from({ length: PLAYER_PROGRESS_SEGMENT_COLUMNS }, (_, column) => ({
-      key: `spectrum-${cell}-${row}-${column}`,
-      band: cell,
-      row,
-      x: cell * PLAYER_PROGRESS_SEGMENT_PITCH + column * PLAYER_PROGRESS_DOT_PITCH,
-      y: row * PLAYER_PROGRESS_DOT_PITCH,
-    })),
-  ),
-);
-
-const PLAYER_PROGRESS_RAIL_DOTS = Array.from({ length: PLAYER_PROGRESS_CELLS }).flatMap((_, cell) =>
-  [5, 6].flatMap((row) =>
-    Array.from({ length: PLAYER_PROGRESS_SEGMENT_COLUMNS }, (_, column) => ({
-      key: `rail-${cell}-${row}-${column}`,
-      x: cell * PLAYER_PROGRESS_SEGMENT_PITCH + column * PLAYER_PROGRESS_DOT_PITCH,
-      y: row * PLAYER_PROGRESS_DOT_PITCH,
-    })),
-  ),
-);
-
-const PLAYER_PROGRESS_MARKER_DOTS = Array.from({ length: PLAYER_PROGRESS_SEGMENT_ROWS }).flatMap((_, row) =>
-  Array.from({ length: PLAYER_PROGRESS_MARKER_COLUMNS }, (_, column) => ({
-    key: `marker-${row}-${column}`,
-    x: column * PLAYER_PROGRESS_DOT_PITCH,
-    y: row * PLAYER_PROGRESS_DOT_PITCH,
-  })),
-);
-
-const PlayerProgressRailDots = memo(function PlayerProgressRailDots({
-  className,
-  maxX,
-}: {
-  className: string;
-  maxX?: number;
-}) {
-  return (
-    <g className={className}>
-      {PLAYER_PROGRESS_RAIL_DOTS.flatMap((dot) => {
-        if (maxX !== undefined && dot.x >= maxX) return [];
-        return [
-          <rect
-            key={dot.key}
-            className="mc-vfd-symbol-pixel"
-            x={dot.x}
-            y={dot.y}
-            width={PLAYER_PROGRESS_PIXEL_SIZE}
-            height={PLAYER_PROGRESS_PIXEL_SIZE}
-          />,
-        ];
-      })}
-    </g>
-  );
-});
-
-const PlayerProgressMarkerDots = memo(function PlayerProgressMarkerDots() {
-  return (
-    <g className="mc-player-progress-marker-g">
-      {PLAYER_PROGRESS_MARKER_DOTS.map((dot) => (
-        <rect
-          key={dot.key}
-          className="mc-vfd-symbol-pixel"
-          x={dot.x}
-          y={dot.y}
-          width={PLAYER_PROGRESS_PIXEL_SIZE}
-          height={PLAYER_PROGRESS_PIXEL_SIZE}
-        />
-      ))}
-    </g>
-  );
-});
-
-function PlayerSpectrumMeter({ bands }: { bands: readonly number[] }) {
-  const bandLevels = Array.from({ length: PLAYER_PROGRESS_CELLS }, (_, index) => {
-    const sourceIndex = Math.min(bands.length - 1, Math.floor((index / PLAYER_PROGRESS_CELLS) * bands.length));
-    return Math.max(
-      0,
-      Math.min(PLAYER_PROGRESS_SEGMENT_ROWS, Math.round((bands[sourceIndex] ?? 0) * PLAYER_PROGRESS_SEGMENT_ROWS)),
-    );
-  });
-
-  return (
-    <span className="mc-player-progress-meter" aria-hidden="true">
-      <svg
-        className="mc-player-progress-svg"
-        viewBox={`0 0 ${PLAYER_PROGRESS_WIDTH} ${PLAYER_PROGRESS_SEGMENT_HEIGHT}`}
-        role="presentation"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <g className="mc-player-spectrum-ghost">
-          {PLAYER_SPECTRUM_DOTS.map((dot) => (
-            <rect
-              key={dot.key}
-              className="mc-vfd-symbol-pixel"
-              x={dot.x}
-              y={dot.y}
-              width={PLAYER_PROGRESS_PIXEL_SIZE}
-              height={PLAYER_PROGRESS_PIXEL_SIZE}
-            />
-          ))}
-        </g>
-        <g className="mc-player-spectrum-active">
-          {PLAYER_SPECTRUM_DOTS.flatMap((dot) => {
-            const level = bandLevels[dot.band] ?? 0;
-            if (PLAYER_PROGRESS_SEGMENT_ROWS - dot.row > level) return [];
-            return [
-              <rect
-                key={dot.key}
-                className="mc-vfd-symbol-pixel"
-                x={dot.x}
-                y={dot.y}
-                width={PLAYER_PROGRESS_PIXEL_SIZE}
-                height={PLAYER_PROGRESS_PIXEL_SIZE}
-              />,
-            ];
-          })}
-        </g>
-      </svg>
-    </span>
-  );
-}
-
-function PlayerProgressMarkerMeter({ progress }: { progress: number }) {
-  const safeProgress = Math.min(1, Math.max(0, progress));
-  const markerX = (safeProgress * PLAYER_PROGRESS_MARKER_MAX_X) / PLAYER_PROGRESS_WIDTH;
-  const activeRailMaxX = safeProgress * PLAYER_PROGRESS_WIDTH;
-  const style = {
-    "--mc-player-progress-marker-x": `${markerX * 100}%`,
-  } as CSSProperties;
-
-  return (
-    <span className="mc-player-progress-meter" style={style} aria-hidden="true">
-      <svg
-        className="mc-player-progress-svg"
-        viewBox={`0 0 ${PLAYER_PROGRESS_WIDTH} ${PLAYER_PROGRESS_SEGMENT_HEIGHT}`}
-        role="presentation"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <PlayerProgressRailDots className="mc-player-progress-rail-ghost" />
-        <PlayerProgressRailDots className="mc-player-progress-rail-active" maxX={activeRailMaxX} />
-        <PlayerProgressMarkerDots />
-      </svg>
-    </span>
-  );
-}
+const PLAYER_PROGRESS_CELLS = 30;
+const PLAYER_SPECTRUM_LEVEL_GLYPHS = [
+  VFD_GLYPHS.spectrumLevel0,
+  VFD_GLYPHS.spectrumLevel1,
+  VFD_GLYPHS.spectrumLevel2,
+  VFD_GLYPHS.spectrumLevel3,
+  VFD_GLYPHS.spectrumLevel4,
+  VFD_GLYPHS.spectrumLevel5,
+  VFD_GLYPHS.spectrumLevel6,
+  VFD_GLYPHS.spectrumLevel7,
+] as const;
 
 function usePlayerContext(): PlayerContextValue {
   const ctx = use(PlayerContext);
@@ -240,6 +81,22 @@ function sectionFor(content: string, brightness: VfdDisplaySection["brightness"]
 
 function compactSections(sections: Array<VfdDisplaySection | null>): VfdDisplaySection[] {
   return sections.filter((section): section is VfdDisplaySection => Boolean(section));
+}
+
+function spectrumGlyphForLevel(level: number): string {
+  const safeLevel = Math.max(0, Math.min(PLAYER_SPECTRUM_LEVEL_GLYPHS.length - 1, level));
+  return PLAYER_SPECTRUM_LEVEL_GLYPHS[safeLevel] ?? VFD_GLYPHS.spectrumLevel0;
+}
+
+function renderSpectrumSections(bands: readonly number[], cells = PLAYER_PROGRESS_CELLS): VfdDisplaySection[] {
+  const safeCells = Math.max(1, cells);
+  const content = Array.from({ length: safeCells }, (_, index) => {
+    const sourceIndex = Math.min(bands.length - 1, Math.floor((index / safeCells) * bands.length));
+    const level = Math.round((bands[sourceIndex] ?? 0) * (PLAYER_SPECTRUM_LEVEL_GLYPHS.length - 1));
+    return spectrumGlyphForLevel(level);
+  }).join("");
+
+  return compactSections([sectionFor(content, "bright")]);
 }
 
 function partialProgressGlyph(columns: number): string {
@@ -303,7 +160,7 @@ function renderProgressSections(
   variant: PlayerProgressVariant,
   progressGranularity: PlayerProgressGranularity,
   progress: number,
-  cells = 30,
+  cells = PLAYER_PROGRESS_CELLS,
 ): VfdDisplaySection[] {
   const safeCells = Math.max(4, cells);
 
@@ -337,7 +194,7 @@ function renderProgressCells(
   variant: PlayerProgressVariant,
   progressGranularity: PlayerProgressGranularity,
   progress: number,
-  cells = 30,
+  cells = PLAYER_PROGRESS_CELLS,
 ): string {
   return renderProgressSections(variant, progressGranularity, progress, cells)
     .map((section) => (typeof section.content === "string" ? section.content : ""))
@@ -408,7 +265,7 @@ function PlayerRoot({
 
 function PlayerButton({ className }: PlayerButtonProps) {
   const { isPlaying, isDisabled, onTogglePlay, ariaLabel, title } = usePlayerContext();
-  const accentColor = isDisabled ? "rgba(255,255,255,0.2)" : "rgb(127 234 255)";
+  const accentColor = isDisabled ? "rgba(255,255,255,0.2)" : "#7aebff";
 
   return (
     <RecessedCard
@@ -466,6 +323,10 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
     spectrumBands,
   } = usePlayerContext();
   const progress = clampProgress(currentTime, duration);
+  const renderedProgressSections =
+    progressVariant === "marker" && isPlaying && spectrumBands && spectrumBands.length > 0
+      ? renderSpectrumSections(spectrumBands)
+      : renderProgressSections(progressVariant, progressGranularity, progress);
   const progressSections = children
     ? [
         {
@@ -475,26 +336,10 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
           brightness: isDisabled ? "dim" : "bright",
         } satisfies VfdDisplaySection,
       ]
-    : progressVariant === "marker"
-      ? [
-          {
-            content:
-              isPlaying && spectrumBands && spectrumBands.length > 0 ? (
-                <PlayerSpectrumMeter bands={spectrumBands} />
-              ) : (
-                <PlayerProgressMarkerMeter progress={progress} />
-              ),
-            cells: 30,
-            align: "left",
-            brightness: isDisabled ? "dim" : "bright",
-            key: "player-progress-marker-meter",
-            className: "mc-player-progress-section",
-          } satisfies VfdDisplaySection,
-        ]
-      : renderProgressSections(progressVariant, progressGranularity, progress).map((section) => ({
-          ...section,
-          brightness: isDisabled ? "dim" : section.brightness,
-        }));
+    : renderedProgressSections.map((section) => ({
+        ...section,
+        brightness: isDisabled ? "dim" : section.brightness,
+      }));
 
   return (
     <div className={cn("flex-1 min-w-0", className)} data-player-progress-card="true">
