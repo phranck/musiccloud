@@ -442,6 +442,14 @@
   will-change: transform;
 }
 
+.mc-player-spectrum-ghost {
+  color: var(--mc-vfd-ghost-color);
+}
+
+.mc-player-spectrum-active {
+  color: currentColor;
+}
+
 .mc-vfd-marquee {
   overflow: visible;
   text-overflow: clip;

@@ -17,6 +17,7 @@ interface PlayerContextValue {
   title?: string;
   progressVariant: PlayerProgressVariant;
   progressGranularity: PlayerProgressGranularity;
+  spectrumBands?: readonly number[] | null;
   phosphorColor: string;
   onTogglePlay: () => void;
 }
@@ -66,6 +67,18 @@ const PLAYER_PROGRESS_WIDTH =
   PLAYER_PROGRESS_CELLS * PLAYER_PROGRESS_SEGMENT_WIDTH + (PLAYER_PROGRESS_CELLS - 1) * PLAYER_PROGRESS_SEGMENT_GAP;
 const PLAYER_PROGRESS_MARKER_MAX_X = PLAYER_PROGRESS_WIDTH - PLAYER_PROGRESS_MARKER_WIDTH;
 
+const PLAYER_SPECTRUM_DOTS = Array.from({ length: PLAYER_PROGRESS_CELLS }).flatMap((_, cell) =>
+  Array.from({ length: PLAYER_PROGRESS_SEGMENT_ROWS }).flatMap((_, row) =>
+    Array.from({ length: PLAYER_PROGRESS_SEGMENT_COLUMNS }, (_, column) => ({
+      key: `spectrum-${cell}-${row}-${column}`,
+      band: cell,
+      row,
+      cx: cell * PLAYER_PROGRESS_SEGMENT_PITCH + column * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
+      cy: row * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
+    })),
+  ),
+);
+
 const PLAYER_PROGRESS_RAIL_DOTS = Array.from({ length: PLAYER_PROGRESS_CELLS }).flatMap((_, cell) =>
   [5, 6].flatMap((row) =>
     Array.from({ length: PLAYER_PROGRESS_SEGMENT_COLUMNS }, (_, column) => ({
@@ -103,6 +116,55 @@ const PlayerProgressMarkerDots = memo(function PlayerProgressMarkerDots() {
     </g>
   );
 });
+
+function PlayerSpectrumMeter({ bands }: { bands: readonly number[] }) {
+  const bandLevels = Array.from({ length: PLAYER_PROGRESS_CELLS }, (_, index) => {
+    const sourceIndex = Math.min(bands.length - 1, Math.floor((index / PLAYER_PROGRESS_CELLS) * bands.length));
+    return Math.max(
+      0,
+      Math.min(PLAYER_PROGRESS_SEGMENT_ROWS, Math.round((bands[sourceIndex] ?? 0) * PLAYER_PROGRESS_SEGMENT_ROWS)),
+    );
+  });
+
+  return (
+    <span className="mc-player-progress-meter" aria-hidden="true">
+      <svg
+        className="mc-player-progress-svg"
+        viewBox={`0 0 ${PLAYER_PROGRESS_WIDTH} ${PLAYER_PROGRESS_SEGMENT_HEIGHT}`}
+        role="presentation"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <g className="mc-player-spectrum-ghost">
+          {PLAYER_SPECTRUM_DOTS.map((dot) => (
+            <circle
+              key={dot.key}
+              className="mc-vfd-symbol-pixel"
+              cx={dot.cx}
+              cy={dot.cy}
+              r={PLAYER_PROGRESS_DOT_RADIUS}
+            />
+          ))}
+        </g>
+        <g className="mc-player-spectrum-active">
+          {PLAYER_SPECTRUM_DOTS.flatMap((dot) => {
+            const level = bandLevels[dot.band] ?? 0;
+            if (PLAYER_PROGRESS_SEGMENT_ROWS - dot.row > level) return [];
+            return [
+              <circle
+                key={dot.key}
+                className="mc-vfd-symbol-pixel"
+                cx={dot.cx}
+                cy={dot.cy}
+                r={PLAYER_PROGRESS_DOT_RADIUS}
+              />,
+            ];
+          })}
+        </g>
+      </svg>
+    </span>
+  );
+}
 
 function PlayerProgressMarkerMeter({ progress }: { progress: number }) {
   const safeProgress = Math.min(1, Math.max(0, progress));
@@ -264,6 +326,7 @@ function PlayerRoot({
   title,
   progressVariant = "segments",
   progressGranularity = "pixels",
+  spectrumBands,
   phosphorColor,
   onTogglePlay,
 }: PlayerProps) {
@@ -278,6 +341,7 @@ function PlayerRoot({
     title,
     progressVariant,
     progressGranularity,
+    spectrumBands,
     phosphorColor,
     onTogglePlay,
   };
@@ -369,6 +433,7 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
     phosphorColor,
     progressVariant,
     progressGranularity,
+    spectrumBands,
   } = usePlayerContext();
   const progress = clampProgress(currentTime, duration);
   const progressSections = children
@@ -383,7 +448,12 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
     : progressVariant === "marker"
       ? [
           {
-            content: <PlayerProgressMarkerMeter progress={progress} />,
+            content:
+              isPlaying && spectrumBands && spectrumBands.length > 0 ? (
+                <PlayerSpectrumMeter bands={spectrumBands} />
+              ) : (
+                <PlayerProgressMarkerMeter progress={progress} />
+              ),
             cells: 30,
             align: "left",
             brightness: isDisabled ? "dim" : "bright",

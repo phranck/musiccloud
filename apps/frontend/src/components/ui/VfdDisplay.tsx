@@ -620,6 +620,11 @@ function layoutStringGlyphs(
   return Array.from({ length: renderedCellCount }, (_, index) => displayChars[index - startIndex] ?? EMPTY_CELL);
 }
 
+function defaultMarqueeMode(content: ReactNode, marquee: VfdMarqueeMode | undefined): VfdMarqueeMode | undefined {
+  if (marquee !== undefined) return marquee;
+  return typeof content === "string" ? "overflow" : undefined;
+}
+
 function buildVfdCells(
   content: ReactNode,
   visibleCells: number,
@@ -629,8 +634,9 @@ function buildVfdCells(
 ): ReactNode {
   if (typeof content !== "string") return content;
 
-  const glyphs = layoutStringGlyphs(content, visibleCells, align, marquee);
-  const animateMarquee = shouldMarquee(content, marquee, visibleCells);
+  const effectiveMarquee = defaultMarqueeMode(content, marquee);
+  const glyphs = layoutStringGlyphs(content, visibleCells, align, effectiveMarquee);
+  const animateMarquee = shouldMarquee(content, effectiveMarquee, visibleCells);
 
   return (
     <VfdSegmentRow
@@ -664,14 +670,27 @@ function buildSectionedContent(
   }
 
   const sectionCells = resolveSectionCells(line.sections, cellCount);
-  const canRenderHardwareRow = line.sections.every((section) => typeof section.content === "string");
+  const hasScrollingSection = line.sections.some((section, index) => {
+    const cells = sectionCells[index] ?? 0;
+    return (
+      typeof section.content === "string" &&
+      shouldMarquee(section.content, defaultMarqueeMode(section.content, section.marquee), cells)
+    );
+  });
+  const canRenderHardwareRow =
+    !hasScrollingSection && line.sections.every((section) => typeof section.content === "string");
 
   if (canRenderHardwareRow) {
     const glyphs = line.sections.flatMap((section, index): VfdSegmentCell[] => {
       const cells = sectionCells[index] ?? 0;
       if (cells <= 0 || typeof section.content !== "string") return [];
       const className = cn(section.brightness && BRIGHTNESS_CLASSES[section.brightness], section.className);
-      return layoutStringGlyphs(section.content, cells, section.align, undefined).map((glyph) => ({
+      return layoutStringGlyphs(
+        section.content,
+        cells,
+        section.align,
+        defaultMarqueeMode(section.content, section.marquee),
+      ).map((glyph) => ({
         glyph,
         className,
       }));
