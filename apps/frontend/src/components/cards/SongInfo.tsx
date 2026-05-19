@@ -127,6 +127,7 @@ export const SongInfo = memo(function SongInfo({
             Weight hierarchy is modeled as phosphor intensity in VfdDisplay,
             not font-weight. */}
         <VfdDisplay
+          sizingMode="container"
           phosphorColor="#7aebff"
           ariaLabel={`Track information: ${title} ${artist} ${detailLine} ${statusLine}`}
           lines={[

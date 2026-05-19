@@ -323,10 +323,10 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
     spectrumBands,
   } = usePlayerContext();
   const progress = clampProgress(currentTime, duration);
-  const renderedProgressSections =
-    progressVariant === "marker" && isPlaying && spectrumBands && spectrumBands.length > 0
-      ? renderSpectrumSections(spectrumBands)
-      : renderProgressSections(progressVariant, progressGranularity, progress);
+  const showsSpectrum = progressVariant === "marker" && isPlaying && spectrumBands && spectrumBands.length > 0;
+  const renderedProgressSections = showsSpectrum
+    ? renderSpectrumSections(spectrumBands)
+    : renderProgressSections(progressVariant, progressGranularity, progress);
   const progressSections = children
     ? [
         {
@@ -338,14 +338,15 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
       ]
     : renderedProgressSections.map((section) => ({
         ...section,
+        marquee: false,
         brightness: isDisabled ? "dim" : section.brightness,
       }));
 
   return (
     <div className={cn("flex-1 min-w-0", className)} data-player-progress-card="true">
       <VfdDisplay
+        sizingMode="container"
         rows={1}
-        charsPerLine={36}
         phosphorColor={phosphorColor}
         ariaLabel={`Preview progress ${timeText}`}
         lines={[
@@ -353,12 +354,19 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
             brightness: isDisabled ? "dim" : "normal",
             transition: "none",
             sections: [
+              // VfdDisplay is a dumb hardware renderer. The Player owns this
+              // layout contract: progress/analyzer keeps its own section
+              // brightness, the blank fill section absorbs spare cells, two dim
+              // blank segments keep the hardware-style gap, and playtime is the
+              // trailing auto-sized right section.
               ...progressSections,
-              { content: "  ", cells: 2, align: "left", brightness: "dim" },
+              { content: "", cells: "fill", align: "left", brightness: "ghost", marquee: false, key: "progress-fill" },
+              { content: "  ", cells: 2, align: "left", brightness: "dim", marquee: false },
               {
                 content: timeText,
                 cells: "auto",
                 align: "right",
+                marquee: false,
                 brightness: isPlaying && !isDisabled ? "bright" : "dim",
               },
             ],

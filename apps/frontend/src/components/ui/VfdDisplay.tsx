@@ -13,18 +13,59 @@ import {
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
 
+/** Phosphor intensity for one VFD row or section. */
 export type VfdBrightness = "bright" | "normal" | "dim" | "ghost";
+
+/** Horizontal alignment inside an already allocated integer segment range. */
 export type VfdSectionAlign = "left" | "center" | "right";
+
+/**
+ * Segment allocation for a row section.
+ *
+ * `number` is a fixed integer segment count, `auto` uses the text length, and
+ * `fill` receives remaining integer segments after fixed and auto sections.
+ * Alignment is applied after this allocation. A right-aligned auto section has
+ * no spare cells by design, but it still stays right-pinned when previous
+ * sections absorb row-width changes or overflow pressure.
+ */
 export type VfdSectionCells = number | "auto" | "fill";
+
+/** Enables VFD marquee rendering for strings wider than their allocated segment range. */
 export type VfdMarqueeMode = boolean | "overflow";
+
+/** Row content replacement animation mode. */
 export type VfdContentTransition = "slide" | "none";
 
+/**
+ * Hardware sizing mode for the VFD module.
+ *
+ * - `matrix`: caller provides the physical matrix via `rows` and
+ *   `charsPerLine`; the component renders exactly that many rows and segments.
+ * - `container`: caller provides the outer CSS size; the component derives the
+ *   maximum whole-number rows and whole-number segments per row that fit.
+ *
+ * Both modes keep the segment geometry unchanged. Container sizing never scales
+ * a segment. It only decides how many complete 5x7 segments fit.
+ */
+export type VfdSizingMode = "matrix" | "container";
+
+/**
+ * One logical section inside a VFD row.
+ *
+ * The display remains hardware-generic and deliberately dumb: sections know
+ * nothing about songs, playtime, titles, metadata, or caller intent. VfdDisplay
+ * does not infer which section should be flexible, important, pinned, or
+ * truncated. It only allocates whole segments from the props it receives and
+ * renders the given content into those segment cells. Callers must describe the
+ * desired layout explicitly, e.g. by giving one section `fill` when another
+ * section should stay right-pinned.
+ */
 export interface VfdDisplaySection {
-  /** Text or inline content for one fixed-width section inside a VFD row. */
+  /** Text or inline content for this fixed-width section inside a VFD row. */
   content: ReactNode;
-  /** Fixed cell count, content-sized cells, or remaining available cells. Defaults to fill for the first section. */
+  /** Fixed integer cells, content-sized cells, or remaining available cells. Defaults to fill for the first section. */
   cells?: VfdSectionCells;
-  /** Horizontal placement inside this section's own cell grid. */
+  /** Horizontal placement inside this section's own allocated integer cell grid. */
   align?: VfdSectionAlign;
   /** Scrolls this section when enabled. `overflow` only scrolls when text is wider than its allocated cells. */
   marquee?: VfdMarqueeMode;
@@ -32,13 +73,15 @@ export interface VfdDisplaySection {
   brightness?: VfdBrightness;
   /** Stable content identity for non-string ReactNode content. String content uses itself as identity. */
   key?: string;
+  /** Optional CSS class applied to this section's rendered glyphs or wrapper. */
   className?: string;
 }
 
+/** One fixed row in the VFD module. */
 export interface VfdDisplayLine {
   /** Text or inline content for one fixed display row. Keep the row height stable. */
   content?: ReactNode;
-  /** Optional fixed-cell sections. Use this for rows with pinned right/center/left regions. */
+  /** Optional fixed-cell sections. Use this for pinned left/center/right regions. */
   sections?: VfdDisplaySection[];
   /** Phosphor brightness replaces font-weight so the VFD keeps one consistent dot-matrix weight. */
   brightness?: VfdBrightness;
@@ -50,16 +93,55 @@ export interface VfdDisplayLine {
   transition?: VfdContentTransition;
   /** Stable content identity for non-string ReactNode content. String content uses itself as identity. */
   key?: string;
+  /** Optional CSS class applied to the row content wrapper. */
   className?: string;
 }
 
+/**
+ * Configuration for the generic VFD hardware emulator.
+ *
+ * There are exactly two supported rendering modes:
+ *
+ * 1. Matrix mode, the default: provide `rows` and `charsPerLine`. The component
+ *    renders exactly that many rows and exactly that many 5x7 segments per row.
+ *    The display becomes as large as that matrix requires. Segment pixels are
+ *    not auto-scaled. Never add or remove segments because of spare container
+ *    width.
+ * 2. Container mode: provide a CSS size from the outside and set
+ *    `sizingMode="container"`. The component measures the available content box
+ *    and renders the maximum number of complete rows and complete segments that
+ *    fit. Segment geometry is still fixed. The component never creates
+ *    fractional segment pixels and never scales a segment to fill leftover
+ *    space.
+ *
+ * All geometry is integer-only. A display contains rows, a row contains
+ * segments, and a segment contains a fixed 5x7 matrix of segment pixels. Any
+ * future visual scaling must be an integer segment-pixel scale, e.g. 1x1, 2x2,
+ * 3x3. Arbitrary CSS transforms, percentage-based glyph widths, or subpixel
+ * offsets are not valid for the hardware matrix.
+ *
+ * VfdDisplay is intentionally a dumb renderer. It must not inspect content
+ * semantics or apply product-specific rules such as "playtime belongs on the
+ * right". If a caller needs right-pinned content, the caller must provide the
+ * correct section model, usually a preceding `fill` section and a trailing
+ * `auto` section with `align: "right"`. Keeping this component dumb prevents
+ * hidden Player-specific behavior from leaking into other hardware displays.
+ */
 export interface VfdDisplayProps {
+  /** Rows to render into the fixed hardware matrix. Missing rows render as inactive/blank rows. */
   lines: VfdDisplayLine[];
-  /** Fixed row count. Empty rows keep the module height stable during content changes. */
+  /**
+   * Hardware sizing strategy. Defaults to matrix mode, where `rows` and
+   * `charsPerLine` are exact physical counts.
+   */
+  sizingMode?: VfdSizingMode;
+  /** Fixed integer row count in matrix mode. Empty rows keep the module height stable during content changes. */
   rows?: number;
-  /** Fixed number of VFD cells per row. String content is clipped/padded to this grid. */
+  /** Fixed integer number of 5x7 segments per row in matrix mode. Content is clipped/padded to this grid. */
   charsPerLine?: number;
+  /** Optional wrapper class for the recessed VFD card. */
   className?: string;
+  /** Accessible label for the rendered hardware display. */
   ariaLabel?: string;
   /** CSS color for the VFD phosphor. Defaults to blue-green like HiFi VFD modules. */
   phosphorColor?: string;
@@ -111,8 +193,12 @@ interface VfdSegmentCell {
   className?: string;
 }
 
-// Treat the VFD as one hardware module: callers may change rows and
-// characters per line, but the cell/font geometry must stay identical.
+/**
+ * Fixed chrome around the emulated hardware module.
+ *
+ * Do not use font-size or container width to infer additional VFD segments.
+ * The physical segment matrix is configured through `rows` and `charsPerLine`.
+ */
 const VFD_DEVICE_CLASSES = "px-5 py-4 text-[0.82rem] sm:text-[0.92rem]";
 
 const BRIGHTNESS_CLASSES: Record<VfdBrightness, string> = {
@@ -316,6 +402,19 @@ const VFD_GLYPH_PATTERNS: Record<string, readonly string[]> = {
   [VFD_GLYPHS.spectrumLevel7]: FULL_GLYPH,
 };
 
+/**
+ * Segment geometry contract.
+ *
+ * The VFD is a hardware emulation, not a fluid text layout. The smallest
+ * display has one segment. One segment is a fixed 5x7 matrix of segment
+ * pixels. Every coordinate below is an integer in segment-pixel space. Avoid
+ * fractions, CSS percentage sizing, or layout-derived subpixels in the glyph
+ * pipeline. If the display ever needs to scale visually, scale the segment
+ * pixel size by an integer factor (1x1, 2x2, 3x3, ...), then recompute these
+ * derived integer dimensions from that scale. Never scale rows to arbitrary
+ * container widths and never add extra segments because the container happens
+ * to have spare space.
+ */
 const VFD_PIXEL_SIZE = 1;
 const VFD_PIXEL_GAP = 1;
 const VFD_DOT_PITCH = VFD_PIXEL_SIZE + VFD_PIXEL_GAP;
@@ -327,16 +426,27 @@ const VFD_SEGMENT_HEIGHT = VFD_SEGMENT_ROWS * VFD_PIXEL_SIZE + (VFD_SEGMENT_ROWS
 const VFD_SEGMENT_PITCH = VFD_SEGMENT_WIDTH + VFD_SEGMENT_GAP;
 const VFD_ROW_GAP = 11;
 
-function vfdContentWidth(element: HTMLElement): number {
+function vfdContentBox(element: HTMLElement): { width: number; height: number } {
   const style = window.getComputedStyle(element);
   const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
   const paddingRight = Number.parseFloat(style.paddingRight) || 0;
-  return Math.max(0, Math.floor(element.getBoundingClientRect().width - paddingLeft - paddingRight));
+  const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+  const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+  const rect = element.getBoundingClientRect();
+  return {
+    width: Math.max(0, Math.floor(rect.width - paddingLeft - paddingRight)),
+    height: Math.max(0, Math.floor(rect.height - paddingTop - paddingBottom)),
+  };
 }
 
-function vfdCellCountForWidth(availableWidth: number): number {
+function vfdCellCountForContentWidth(availableWidth: number): number {
   if (!Number.isFinite(availableWidth) || availableWidth <= 0) return 1;
   return Math.max(1, Math.floor((Math.floor(availableWidth) + VFD_SEGMENT_GAP) / VFD_SEGMENT_PITCH));
+}
+
+function vfdRowCountForContentHeight(availableHeight: number, fallbackRows: number): number {
+  if (!Number.isFinite(availableHeight) || availableHeight <= 0) return fallbackRows;
+  return Math.max(1, Math.floor((Math.floor(availableHeight) + VFD_ROW_GAP) / (VFD_SEGMENT_HEIGHT + VFD_ROW_GAP)));
 }
 
 function vfdRowOffsetForWidth(availableWidth: number, cellCount: number): number {
@@ -399,10 +509,12 @@ function resolveSectionCells(sections: NormalizedVfdSection[], totalCells: numbe
   if (nonFillTotal >= totalCells) {
     let remaining = totalCells;
     const cells = Array.from({ length: sections.length }, () => 0);
-    // Preserve trailing/pinned sections first. For title + right meta, the
-    // meta block stays visible and the title receives the remaining cells.
+    // Preserve trailing/pinned fixed and auto sections first. Fill sections are
+    // elastic by definition: when fixed/auto content already fills or exceeds
+    // the row, they collapse to zero instead of stealing cells from pinned
+    // sections such as a trailing readout.
     for (let index = sections.length - 1; index >= 0; index -= 1) {
-      const requested = desired[index] ?? remaining;
+      const requested = desired[index] ?? 0;
       cells[index] = Math.min(requested, remaining);
       remaining -= cells[index];
     }
@@ -838,6 +950,7 @@ const VfdRow = memo(function VfdRow({
  */
 export function VfdDisplay({
   lines,
+  sizingMode = "matrix",
   rows,
   charsPerLine = DEFAULT_VFD_CELL_COUNT,
   className,
@@ -847,11 +960,15 @@ export function VfdDisplay({
 }: VfdDisplayProps) {
   const reactId = useId();
   const symbolPrefix = useMemo(() => `mc-vfd-${reactId.replace(/[^a-zA-Z0-9_-]/g, "") || "display"}`, [reactId]);
-  const rowCount = normalizePositiveInteger(rows ?? lines.length, DEFAULT_VFD_ROWS);
+  const configuredRowCount = normalizePositiveInteger(rows ?? lines.length, DEFAULT_VFD_ROWS);
   const requestedCellCount = normalizePositiveInteger(charsPerLine, DEFAULT_VFD_CELL_COUNT);
-  const fallbackCellCount = requestedCellCount;
-  const [layout, setLayout] = useState(() => ({ cellCount: fallbackCellCount, rowOffset: 0 }));
-  const { cellCount, rowOffset } = layout;
+  const fallbackCellCount = sizingMode === "container" ? 1 : requestedCellCount;
+  const [layout, setLayout] = useState(() => ({
+    cellCount: fallbackCellCount,
+    rowCount: configuredRowCount,
+    rowOffset: 0,
+  }));
+  const { cellCount, rowCount, rowOffset } = layout;
   const cellKeys = useMemo(() => Array.from({ length: cellCount }, (_, index) => `vfd-cell-${index}`), [cellCount]);
   const ghostCells = useMemo(() => fitPatternToCells(ghostPattern, cellCount), [cellCount, ghostPattern]);
   const vfdRef = useRef<HTMLElement | null>(null);
@@ -914,27 +1031,31 @@ export function VfdDisplay({
   useLayoutEffect(() => {
     const element = vfdRef.current;
     if (!element || typeof ResizeObserver === "undefined") {
-      setLayout({ cellCount: fallbackCellCount, rowOffset: 0 });
+      setLayout({ cellCount: fallbackCellCount, rowCount: configuredRowCount, rowOffset: 0 });
       return;
     }
 
-    const updateLayout = (availableWidth: number) => {
-      const nextCellCount = vfdCellCountForWidth(availableWidth);
-      const nextRowOffset = vfdRowOffsetForWidth(availableWidth, nextCellCount);
+    const updateLayout = ({ width, height }: { width: number; height: number }) => {
+      const nextCellCount = sizingMode === "container" ? vfdCellCountForContentWidth(width) : requestedCellCount;
+      const nextRowCount =
+        sizingMode === "container" ? vfdRowCountForContentHeight(height, configuredRowCount) : configuredRowCount;
+      const nextRowOffset = vfdRowOffsetForWidth(width, nextCellCount);
       setLayout((currentLayout) =>
-        currentLayout.cellCount === nextCellCount && currentLayout.rowOffset === nextRowOffset
+        currentLayout.cellCount === nextCellCount &&
+        currentLayout.rowCount === nextRowCount &&
+        currentLayout.rowOffset === nextRowOffset
           ? currentLayout
-          : { cellCount: nextCellCount, rowOffset: nextRowOffset },
+          : { cellCount: nextCellCount, rowCount: nextRowCount, rowOffset: nextRowOffset },
       );
     };
 
-    updateLayout(vfdContentWidth(element));
+    updateLayout(vfdContentBox(element));
     const observer = new ResizeObserver(() => {
-      updateLayout(vfdContentWidth(element));
+      updateLayout(vfdContentBox(element));
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [fallbackCellCount]);
+  }, [configuredRowCount, fallbackCellCount, requestedCellCount, sizingMode]);
 
   useEffect(() => {
     return () => {
