@@ -4,19 +4,12 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
 import { cn } from "@/lib/utils";
 
-export type PlayerProgressVariant = "marker" | "segments";
-export type PlayerProgressGranularity = "blocks" | "pixels";
-
 interface PlayerContextValue {
   isPlaying: boolean;
   isDisabled: boolean;
-  currentTime: number;
-  duration: number;
   timeText: string;
   ariaLabel: string;
   title?: string;
-  progressVariant: PlayerProgressVariant;
-  progressGranularity: PlayerProgressGranularity;
   spectrumBands?: readonly number[] | null;
   phosphorColor: string;
   onTogglePlay: () => void;
@@ -36,22 +29,13 @@ interface PlayerProgressProps {
   children?: ReactNode;
 }
 
-interface PlayerProgressTrackProps {
-  className?: string;
-  children?: ReactNode;
-}
-
-interface PlayerProgressFillProps {
-  className?: string;
-}
-
 interface PlayerTimeProps {
   className?: string;
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
-const PLAYER_PROGRESS_CELLS = 30;
+const PLAYER_SPECTRUM_CELLS = 30;
 const PLAYER_SPECTRUM_LEVEL_GLYPHS = [
   VFD_GLYPHS.spectrumLevel0,
   VFD_GLYPHS.spectrumLevel1,
@@ -69,11 +53,6 @@ function usePlayerContext(): PlayerContextValue {
   return ctx;
 }
 
-function clampProgress(currentTime: number, duration: number): number {
-  if (!Number.isFinite(duration) || duration <= 0) return 0;
-  return Math.min(1, Math.max(0, currentTime / duration));
-}
-
 function sectionFor(content: string, brightness: VfdDisplaySection["brightness"]): VfdDisplaySection | null {
   if (!content) return null;
   return { content, cells: Array.from(content).length, align: "left", brightness };
@@ -88,7 +67,7 @@ function spectrumGlyphForLevel(level: number): string {
   return PLAYER_SPECTRUM_LEVEL_GLYPHS[safeLevel] ?? VFD_GLYPHS.spectrumLevel0;
 }
 
-function renderSpectrumSections(bands: readonly number[], cells = PLAYER_PROGRESS_CELLS): VfdDisplaySection[] {
+function renderSpectrumSections(bands: readonly number[], cells = PLAYER_SPECTRUM_CELLS): VfdDisplaySection[] {
   const safeCells = Math.max(1, cells);
   const content = Array.from({ length: safeCells }, (_, index) => {
     const sourceIndex = Math.min(bands.length - 1, Math.floor((index / safeCells) * bands.length));
@@ -99,120 +78,14 @@ function renderSpectrumSections(bands: readonly number[], cells = PLAYER_PROGRES
   return compactSections([sectionFor(content, "bright")]);
 }
 
-function partialProgressGlyph(columns: number): string {
-  switch (columns) {
-    case 1:
-      return VFD_GLYPHS.progressBlock1;
-    case 2:
-      return VFD_GLYPHS.progressBlock2;
-    case 3:
-      return VFD_GLYPHS.progressBlock3;
-    case 4:
-      return VFD_GLYPHS.progressBlock4;
-    default:
-      return "";
-  }
-}
-
-function markerGlyphsForPixelOffset(offset: number): string[] {
-  switch (offset) {
-    case 0:
-      return [VFD_GLYPHS.progressMarkerStart];
-    case 1:
-      return [VFD_GLYPHS.progressMarker];
-    case 2:
-      return [VFD_GLYPHS.progressMarkerRight];
-    case 3:
-      return [VFD_GLYPHS.progressMarkerEnd2];
-    case 4:
-      return [VFD_GLYPHS.progressMarkerEnd1, VFD_GLYPHS.progressMarkerNext1];
-    default:
-      return [VFD_GLYPHS.progressMarker];
-  }
-}
-
-function renderMarkerProgressSections(
-  progressGranularity: PlayerProgressGranularity,
-  progress: number,
-  cells: number,
-): VfdDisplaySection[] {
-  if (progressGranularity === "pixels") {
-    const markerStart = Math.round(progress * Math.max(0, cells * 5 - 2));
-    const trackBefore = Math.floor(markerStart / 5);
-    const markerGlyphs = markerGlyphsForPixelOffset(markerStart % 5).join("");
-    const trackAfter = cells - trackBefore - Array.from(markerGlyphs).length;
-    return compactSections([
-      sectionFor(VFD_GLYPHS.progressRailEmpty.repeat(trackBefore), "bright"),
-      sectionFor(markerGlyphs, "bright"),
-      sectionFor(VFD_GLYPHS.progressRailEmpty.repeat(Math.max(0, trackAfter)), "ghost"),
-    ]);
-  }
-
-  const markerIndex = Math.round(progress * (cells - 1));
-  return compactSections([
-    sectionFor(VFD_GLYPHS.progressRailEmpty.repeat(markerIndex), "bright"),
-    sectionFor(VFD_GLYPHS.progressMarker, "bright"),
-    sectionFor(VFD_GLYPHS.progressRailEmpty.repeat(Math.max(0, cells - markerIndex - 1)), "ghost"),
-  ]);
-}
-
-function renderProgressSections(
-  variant: PlayerProgressVariant,
-  progressGranularity: PlayerProgressGranularity,
-  progress: number,
-  cells = PLAYER_PROGRESS_CELLS,
-): VfdDisplaySection[] {
-  const safeCells = Math.max(4, cells);
-
-  if (variant === "marker") return renderMarkerProgressSections(progressGranularity, progress, safeCells);
-
-  if (variant === "segments") {
-    if (progressGranularity === "pixels") {
-      const activeColumns = Math.round(progress * safeCells * 5);
-      const fullBlocks = Math.floor(activeColumns / 5);
-      const partialColumns = activeColumns % 5;
-      const partialBlock = partialProgressGlyph(partialColumns);
-      const filled = `${VFD_GLYPHS.progressBlock.repeat(fullBlocks)}${partialBlock}`;
-      const empty = safeCells - fullBlocks - (partialBlock ? 1 : 0);
-      return compactSections([
-        sectionFor(filled, "bright"),
-        sectionFor(VFD_GLYPHS.progressEmpty.repeat(Math.max(0, empty)), "dim"),
-      ]);
-    }
-
-    const active = Math.round(progress * safeCells);
-    return compactSections([
-      sectionFor(VFD_GLYPHS.progressBlock.repeat(active), "bright"),
-      sectionFor(VFD_GLYPHS.progressEmpty.repeat(Math.max(0, safeCells - active)), "dim"),
-    ]);
-  }
-
-  return [];
-}
-
-function renderProgressCells(
-  variant: PlayerProgressVariant,
-  progressGranularity: PlayerProgressGranularity,
-  progress: number,
-  cells = PLAYER_PROGRESS_CELLS,
-): string {
-  return renderProgressSections(variant, progressGranularity, progress, cells)
-    .map((section) => (typeof section.content === "string" ? section.content : ""))
-    .join("");
-}
-
 function PlayerRoot({
   children,
   className,
   isPlaying,
   isDisabled,
-  currentTime,
-  duration,
   timeText,
   ariaLabel,
   title,
-  progressVariant = "segments",
-  progressGranularity = "pixels",
   spectrumBands,
   phosphorColor,
   onTogglePlay,
@@ -221,13 +94,9 @@ function PlayerRoot({
   const value: PlayerContextValue = {
     isPlaying,
     isDisabled,
-    currentTime,
-    duration,
     timeText,
     ariaLabel,
     title,
-    progressVariant,
-    progressGranularity,
     spectrumBands,
     phosphorColor,
     onTogglePlay,
@@ -311,22 +180,8 @@ function PlayerButton({ className }: PlayerButtonProps) {
 }
 
 function PlayerProgress({ className, children }: PlayerProgressProps) {
-  const {
-    currentTime,
-    duration,
-    isDisabled,
-    isPlaying,
-    timeText,
-    phosphorColor,
-    progressVariant,
-    progressGranularity,
-    spectrumBands,
-  } = usePlayerContext();
-  const progress = clampProgress(currentTime, duration);
-  const showsSpectrum = progressVariant === "marker" && isPlaying && spectrumBands && spectrumBands.length > 0;
-  const renderedProgressSections = showsSpectrum
-    ? renderSpectrumSections(spectrumBands)
-    : renderProgressSections(progressVariant, progressGranularity, progress);
+  const { isDisabled, isPlaying, timeText, phosphorColor, spectrumBands } = usePlayerContext();
+  const analyzerSections = renderSpectrumSections(spectrumBands ?? []);
   const progressSections = children
     ? [
         {
@@ -336,7 +191,7 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
           brightness: isDisabled ? "dim" : "bright",
         } satisfies VfdDisplaySection,
       ]
-    : renderedProgressSections.map((section) => ({
+    : analyzerSections.map((section) => ({
         ...section,
         marquee: false,
         brightness: isDisabled ? "dim" : section.brightness,
@@ -355,7 +210,7 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
             transition: "none",
             sections: [
               // VfdDisplay is a dumb hardware renderer. The Player owns this
-              // layout contract: progress/analyzer keeps its own section
+              // layout contract: analyzer cells keep their own section
               // brightness, the blank fill section absorbs spare cells, two dim
               // blank segments keep the hardware-style gap, and playtime is the
               // trailing auto-sized right section.
@@ -377,16 +232,6 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
   );
 }
 
-function PlayerProgressTrack({ children, className }: PlayerProgressTrackProps) {
-  return <span className={className}>{children ?? <PlayerProgressFill />}</span>;
-}
-
-function PlayerProgressFill({ className }: PlayerProgressFillProps) {
-  const { currentTime, duration, progressVariant, progressGranularity } = usePlayerContext();
-  const progress = clampProgress(currentTime, duration);
-  return <span className={className}>{renderProgressCells(progressVariant, progressGranularity, progress)}</span>;
-}
-
 function PlayerTime({ className }: PlayerTimeProps) {
   const { timeText } = usePlayerContext();
   return <span className={className}>{timeText}</span>;
@@ -394,9 +239,6 @@ function PlayerTime({ className }: PlayerTimeProps) {
 
 export const Player = Object.assign(PlayerRoot, {
   Button: PlayerButton,
-  Progress: Object.assign(PlayerProgress, {
-    Track: PlayerProgressTrack,
-    Fill: PlayerProgressFill,
-  }),
+  Progress: PlayerProgress,
   Time: PlayerTime,
 });
