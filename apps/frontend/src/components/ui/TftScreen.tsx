@@ -10,13 +10,10 @@ interface TftScreenProps {
 
 export function TftScreen({ children, className, insetShadow = true }: TftScreenProps) {
   return (
-    <div className={cn("mc-tft-screen relative overflow-hidden", className)}>
+    <div
+      className={cn("mc-tft-screen relative overflow-hidden", insetShadow && "mc-tft-screen-inset-shadow", className)}
+    >
       <div className="mc-tft-screen-content">{children}</div>
-      {/* Shared dark TFT matrix overlay. Kept here so MediaCard and ArtistInfo
-          artwork use the exact same screen treatment instead of duplicating
-          layer order, radius handling, and pointer transparency. */}
-      <div className="mc-tft-screen-overlay" aria-hidden="true" />
-      {insetShadow && <div className="mc-tft-screen-shadow" aria-hidden="true" />}
     </div>
   );
 }
