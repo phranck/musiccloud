@@ -154,26 +154,7 @@
   transform: translate3d(0, 1px, 0);
 }
 
-/* Reusable VFD module. Runtime animations are translate3d-only;
-   the dot matrix and glass layers are static paint effects. */
-@keyframes mc-vfd-line-refresh {
-  from {
-    transform: translate3d(0, -115%, 0);
-  }
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes mc-vfd-line-exit {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(0, 115%, 0);
-  }
-}
-
+/* Reusable VFD module. Canvas owns the fixed integer pixel matrix. */
 .mc-vfd {
   --mc-vfd-base-color: #7aebff;
   --mc-vfd-color: var(--mc-vfd-base-color);
@@ -198,128 +179,18 @@
   --mc-vfd-row-height: 13px;
   --mc-vfd-row-gap: 11px;
   --mc-vfd-row-width: 525px;
-  --mc-vfd-row-offset: 0px;
+  --mc-vfd-display-height: 85px;
   isolation: isolate;
 }
 
-.mc-vfd-row-group {
-  position: relative;
-  z-index: 10;
-  display: grid;
+.mc-vfd-canvas {
+  display: block;
   inline-size: var(--mc-vfd-row-width);
-  gap: var(--mc-vfd-row-gap);
-  margin-inline-start: var(--mc-vfd-row-offset);
-}
-
-.mc-vfd-line {
-  position: relative;
-  inline-size: var(--mc-vfd-row-width);
-  min-width: 0;
-  block-size: var(--mc-vfd-row-height);
-  min-height: var(--mc-vfd-row-height);
-  overflow: hidden;
-  white-space: nowrap;
-  line-height: var(--mc-vfd-row-height);
-}
-
-.mc-vfd-line-matrix {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  overflow: hidden;
-  color: var(--mc-vfd-ghost-color);
+  block-size: var(--mc-vfd-display-height);
+  margin-inline: auto;
+  image-rendering: pixelated;
   pointer-events: none;
   user-select: none;
-}
-
-.mc-vfd-line-content,
-.mc-vfd-line-content-out {
-  position: relative;
-  display: flex;
-  min-height: inherit;
-  align-items: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
-}
-
-.mc-vfd-line-content-inner {
-  display: flex;
-  inline-size: 100%;
-  min-height: inherit;
-  align-items: center;
-  justify-content: flex-start;
-}
-
-.mc-vfd-section-layout {
-  display: flex;
-  gap: var(--mc-vfd-section-gap, 3px);
-  inline-size: 100%;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.mc-vfd-section {
-  flex: 0 0 var(--mc-vfd-section-width);
-  inline-size: var(--mc-vfd-section-width);
-  min-width: 0;
-  overflow: hidden;
-}
-
-.mc-vfd-segment-row {
-  display: block;
-  inline-size: calc(100% * var(--mc-vfd-grid-scale, 1));
-  block-size: auto;
-  min-width: 0;
-  overflow: visible;
-  shape-rendering: crispEdges;
-}
-
-.mc-vfd-segment {
-  transform-box: fill-box;
-}
-
-.mc-vfd-symbol-pixel {
-  fill: currentColor;
-}
-
-.mc-vfd-line-content {
-  animation: mc-vfd-line-refresh 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.mc-vfd-line-content:not(.mc-vfd-line-content-static),
-.mc-vfd-line-content-out {
-  will-change: transform;
-}
-
-.mc-vfd-line-content-static {
-  animation: none;
-}
-
-.mc-vfd-line-content-out {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  animation: mc-vfd-line-exit 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.mc-vfd-bright {
-  color: var(--mc-vfd-bright-color);
-}
-
-.mc-vfd-normal {
-  color: var(--mc-vfd-normal-color);
-}
-
-.mc-vfd-dim {
-  color: var(--mc-vfd-dim-color);
-}
-
-.mc-vfd-ghost {
-  color: var(--mc-vfd-ghost-color);
 }
 
 /* Card entrance - zoom from behind with fade */

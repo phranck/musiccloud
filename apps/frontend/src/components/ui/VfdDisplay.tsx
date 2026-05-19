@@ -1,36 +1,25 @@
-import {
-  type CSSProperties,
-  memo,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
 
 /** Phosphor intensity for one VFD row or section. */
 export type VfdBrightness = "bright" | "normal" | "dim" | "ghost";
 
-/** Horizontal alignment inside an already allocated integer segment range. */
+/** Horizontal alignment inside an already allocated integer glyph-cell range. */
 export type VfdSectionAlign = "left" | "center" | "right";
 
 /**
- * Segment allocation for a row section.
+ * Cell allocation for a row section.
  *
- * `number` is a fixed integer segment count, `auto` uses the text length, and
- * `fill` receives remaining integer segments after fixed and auto sections.
+ * `number` is a fixed integer glyph-cell count, `auto` uses the text length, and
+ * `fill` receives remaining integer glyph cells after fixed and auto sections.
  * Alignment is applied after this allocation. A right-aligned auto section has
  * no spare cells by design, but it still stays right-pinned when previous
  * sections absorb row-width changes or overflow pressure.
  */
 export type VfdSectionCells = number | "auto" | "fill";
 
-/** Enables VFD marquee rendering for strings wider than their allocated segment range. */
+/** Enables VFD marquee rendering for strings wider than their allocated glyph-cell range. */
 export type VfdMarqueeMode = boolean | "overflow";
 
 /** Row content replacement animation mode. */
@@ -40,12 +29,12 @@ export type VfdContentTransition = "slide" | "none";
  * Hardware sizing mode for the VFD module.
  *
  * - `matrix`: caller provides the physical matrix via `rows` and
- *   `charsPerLine`; the component renders exactly that many rows and segments.
+ *   `charsPerLine`; the component renders exactly that many rows and glyph cells.
  * - `container`: caller provides the outer CSS size; the component derives the
- *   maximum whole-number rows and whole-number segments per row that fit.
+ *   maximum whole-number rows and whole-number glyph cells per row that fit.
  *
- * Both modes keep the segment geometry unchanged. Container sizing never scales
- * a segment. It only decides how many complete 5x7 segments fit.
+ * Both modes keep the pixel geometry unchanged. Container sizing never scales a
+ * pixel. It only decides how many complete glyph cells fit.
  */
 export type VfdSizingMode = "matrix" | "container";
 
@@ -55,8 +44,8 @@ export type VfdSizingMode = "matrix" | "container";
  * The display remains hardware-generic and deliberately dumb: sections know
  * nothing about songs, playtime, titles, metadata, or caller intent. VfdDisplay
  * does not infer which section should be flexible, important, pinned, or
- * truncated. It only allocates whole segments from the props it receives and
- * renders the given content into those segment cells. Callers must describe the
+ * truncated. It only allocates whole glyph cells from the props it receives and
+ * renders the given content into pixel columns. Callers must describe the
  * desired layout explicitly, e.g. by giving one section `fill` when another
  * section should stay right-pinned.
  */
@@ -87,7 +76,7 @@ export interface VfdDisplayLine {
   brightness?: VfdBrightness;
   /** Horizontal placement for non-sectioned string content. */
   align?: VfdSectionAlign;
-  /** Enables segment-stepped marquee movement for the whole line. */
+  /** Enables pixel-column marquee movement for the whole line. */
   marquee?: VfdMarqueeMode;
   /** Content replacement mode. Use `none` for high-frequency updates like progress meters. */
   transition?: VfdContentTransition;
@@ -103,20 +92,19 @@ export interface VfdDisplayLine {
  * There are exactly two supported rendering modes:
  *
  * 1. Matrix mode, the default: provide `rows` and `charsPerLine`. The component
- *    renders exactly that many rows and exactly that many 5x7 segments per row.
- *    The display becomes as large as that matrix requires. Segment pixels are
- *    not auto-scaled. Never add or remove segments because of spare container
+ *    renders exactly that many rows and exactly that many glyph cells per row.
+ *    The display becomes as large as that matrix requires. Pixel columns are
+ *    not auto-scaled. Never add or remove glyph cells because of spare container
  *    width.
  * 2. Container mode: provide a CSS size from the outside and set
  *    `sizingMode="container"`. The component measures the available content box
- *    and renders the maximum number of complete rows and complete segments that
- *    fit. Segment geometry is still fixed. The component never creates
- *    fractional segment pixels and never scales a segment to fill leftover
- *    space.
+ *    and renders the maximum number of complete rows and complete glyph cells that
+ *    fit. Pixel geometry is still fixed. The component never creates
+ *    fractional pixels and never scales a pixel band to fill leftover space.
  *
- * All geometry is integer-only. A display contains rows, a row contains
- * segments, and a segment contains a fixed 5x7 matrix of segment pixels. Any
- * future visual scaling must be an integer segment-pixel scale, e.g. 1x1, 2x2,
+ * All geometry is integer-only. A display contains rows, a row contains one
+ * x*7 pixel band, and a glyph occupies five pixel columns. Any
+ * future visual scaling must be an integer pixel scale, e.g. 1x1, 2x2,
  * 3x3. Arbitrary CSS transforms, percentage-based glyph widths, or subpixel
  * offsets are not valid for the hardware matrix.
  *
@@ -137,7 +125,7 @@ export interface VfdDisplayProps {
   sizingMode?: VfdSizingMode;
   /** Fixed integer row count in matrix mode. Empty rows keep the module height stable during content changes. */
   rows?: number;
-  /** Fixed integer number of 5x7 segments per row in matrix mode. Content is clipped/padded to this grid. */
+  /** Fixed integer number of glyph cells per row in matrix mode. Content is clipped/padded to this grid. */
   charsPerLine?: number;
   /** Optional wrapper class for the recessed VFD card. */
   className?: string;
@@ -169,47 +157,44 @@ interface NormalizedVfdLine {
   className?: string;
 }
 
-interface OutgoingVfdLine {
-  key: string;
-  line: NormalizedVfdLine;
+interface VfdCanvasPixelColumn {
+  mask: number;
+  brightness: VfdBrightness;
 }
 
-interface VfdRowProps extends NormalizedVfdLine {
-  ghostPattern: string;
+interface VfdMarqueeRuntimeState {
+  offset: number;
+  direction: number;
+  holdSteps: number;
+  elapsedMs: number;
+  previousFrameTime: number | null;
+}
+
+interface VfdLineTransition {
+  previous: NormalizedVfdLine;
+  startedAt: number;
+  durationMs: number;
+}
+
+interface VfdCanvasRenderState {
+  lines: NormalizedVfdLine[];
+  transitions: Map<number, VfdLineTransition>;
+  marqueeStates: Map<string, VfdMarqueeRuntimeState>;
   cellCount: number;
-  cellKeys: string[];
-  symbolPrefix: string;
-  outgoing?: OutgoingVfdLine | null;
-}
-
-interface CellGridOptions {
-  align: VfdSectionAlign;
-  marquee?: VfdMarqueeMode;
-  className?: string;
-}
-
-interface VfdSegmentCell {
-  glyph: string;
-  className?: string;
+  rowCount: number;
+  prefersReducedMotion: boolean;
 }
 
 /**
  * Fixed chrome around the emulated hardware module.
  *
- * Do not use font-size or container width to infer additional VFD segments.
- * The physical segment matrix is configured through `rows` and `charsPerLine`.
+ * Do not use font-size or container width to infer additional VFD columns.
+ * The physical pixel band is configured through `rows` and `charsPerLine`.
  */
-const VFD_DEVICE_CLASSES = "px-5 py-4 text-[0.82rem] sm:text-[0.92rem]";
+const VFD_DEVICE_CLASSES = "px-3 py-4 text-[0.82rem] sm:text-[0.92rem]";
 
-const BRIGHTNESS_CLASSES: Record<VfdBrightness, string> = {
-  bright: "mc-vfd-bright",
-  normal: "mc-vfd-normal",
-  dim: "mc-vfd-dim",
-  ghost: "mc-vfd-ghost",
-};
-
-const VFD_LINE_SWAP_MS = 900;
-const VFD_MARQUEE_STEP_MS = 260;
+const VFD_LINE_SWAP_MS = 650;
+const VFD_MARQUEE_COLUMN_STEP_MS = 67;
 const VFD_MARQUEE_EDGE_HOLD_STEPS = 4;
 const DEFAULT_VFD_ROWS = 4;
 const DEFAULT_VFD_CELL_COUNT = 44;
@@ -405,27 +390,25 @@ const VFD_GLYPH_PATTERNS: Record<string, readonly string[]> = {
 };
 
 /**
- * Segment geometry contract.
+ * Pixel-band geometry contract.
  *
- * The VFD is a hardware emulation, not a fluid text layout. The smallest
- * display has one segment. One segment is a fixed 5x7 matrix of segment
- * pixels. Every coordinate below is an integer in segment-pixel space. Avoid
- * fractions, CSS percentage sizing, or layout-derived subpixels in the glyph
- * pipeline. If the display ever needs to scale visually, scale the segment
- * pixel size by an integer factor (1x1, 2x2, 3x3, ...), then recompute these
- * derived integer dimensions from that scale. Never scale rows to arbitrary
- * container widths and never add extra segments because the container happens
- * to have spare space.
+ * The VFD is a hardware emulation, not a fluid text layout. A row is a single
+ * x*7 pixel band. Glyphs are 5 columns wide and adjacent glyphs are separated
+ * by one blank pixel column in that same band. Every coordinate below is an
+ * integer in pixel-band space. Avoid fractions, CSS percentage sizing, or
+ * layout-derived subpixels in the glyph pipeline. If the display ever needs to
+ * scale visually, scale the pixel size by an integer factor (1x1, 2x2, 3x3,
+ * ...), then recompute these derived integer dimensions from that scale.
  */
 const VFD_PIXEL_SIZE = 1;
 const VFD_PIXEL_GAP = 1;
 const VFD_DOT_PITCH = VFD_PIXEL_SIZE + VFD_PIXEL_GAP;
-const VFD_SEGMENT_COLUMNS = 5;
-const VFD_SEGMENT_ROWS = 7;
-const VFD_SEGMENT_GAP = 3;
-const VFD_SEGMENT_WIDTH = VFD_SEGMENT_COLUMNS * VFD_PIXEL_SIZE + (VFD_SEGMENT_COLUMNS - 1) * VFD_PIXEL_GAP;
-const VFD_SEGMENT_HEIGHT = VFD_SEGMENT_ROWS * VFD_PIXEL_SIZE + (VFD_SEGMENT_ROWS - 1) * VFD_PIXEL_GAP;
-const VFD_SEGMENT_PITCH = VFD_SEGMENT_WIDTH + VFD_SEGMENT_GAP;
+const VFD_GLYPH_COLUMNS = 5;
+const VFD_GLYPH_ROWS = 7;
+const VFD_GLYPH_SPACING_COLUMNS = 1;
+const VFD_CELL_COLUMNS = VFD_GLYPH_COLUMNS + VFD_GLYPH_SPACING_COLUMNS;
+const VFD_BAND_HEIGHT = VFD_GLYPH_ROWS * VFD_PIXEL_SIZE + (VFD_GLYPH_ROWS - 1) * VFD_PIXEL_GAP;
+const VFD_FULL_COLUMN_MASK = (1 << VFD_GLYPH_ROWS) - 1;
 const VFD_ROW_GAP = 11;
 
 function vfdContentBox(element: HTMLElement): { width: number; height: number } {
@@ -441,40 +424,39 @@ function vfdContentBox(element: HTMLElement): { width: number; height: number } 
   };
 }
 
+function vfdColumnCountForCells(cellCount: number): number {
+  const safeCellCount = Math.max(1, cellCount);
+  return safeCellCount * VFD_CELL_COLUMNS - VFD_GLYPH_SPACING_COLUMNS;
+}
+
+function vfdPixelBandWidth(columnCount: number): number {
+  const safeColumnCount = Math.max(1, columnCount);
+  return safeColumnCount * VFD_PIXEL_SIZE + (safeColumnCount - 1) * VFD_PIXEL_GAP;
+}
+
+function vfdCellPitchWidth(): number {
+  return VFD_CELL_COLUMNS * VFD_DOT_PITCH;
+}
+
 function vfdCellCountForContentWidth(availableWidth: number): number {
   if (!Number.isFinite(availableWidth) || availableWidth <= 0) return 1;
-  return Math.max(1, Math.floor((Math.floor(availableWidth) + VFD_SEGMENT_GAP) / VFD_SEGMENT_PITCH));
+  const firstCellWidth = vfdPixelBandWidth(VFD_GLYPH_COLUMNS);
+  if (availableWidth <= firstCellWidth) return 1;
+  return Math.max(1, Math.floor((Math.floor(availableWidth) - firstCellWidth) / vfdCellPitchWidth()) + 1);
 }
 
 function vfdRowCountForContentHeight(availableHeight: number, fallbackRows: number): number {
   if (!Number.isFinite(availableHeight) || availableHeight <= 0) return fallbackRows;
-  return Math.max(1, Math.floor((Math.floor(availableHeight) + VFD_ROW_GAP) / (VFD_SEGMENT_HEIGHT + VFD_ROW_GAP)));
+  return Math.max(1, Math.floor((Math.floor(availableHeight) + VFD_ROW_GAP) / (VFD_BAND_HEIGHT + VFD_ROW_GAP)));
 }
 
-function vfdRowOffsetForWidth(availableWidth: number, cellCount: number): number {
-  if (!Number.isFinite(availableWidth) || availableWidth <= 0) return 0;
-  return Math.max(0, Math.floor((Math.floor(availableWidth) - vfdRowWidth(cellCount)) / 2));
-}
-
-const VFD_PIXEL_CELLS = Array.from({ length: VFD_SEGMENT_COLUMNS * VFD_SEGMENT_ROWS }, (_, pixel) => ({
-  key: `vfd-pixel-${pixel}`,
-  row: Math.floor(pixel / VFD_SEGMENT_COLUMNS),
-  column: pixel % VFD_SEGMENT_COLUMNS,
-}));
-
-function vfdRowWidth(segmentCount: number): number {
-  const safeSegmentCount = Math.max(1, segmentCount);
-  return safeSegmentCount * VFD_SEGMENT_WIDTH + (safeSegmentCount - 1) * VFD_SEGMENT_GAP;
+function vfdRowWidth(cellCount: number): number {
+  return vfdPixelBandWidth(vfdColumnCountForCells(cellCount));
 }
 
 function normalizePositiveInteger(value: number | undefined, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   return Math.max(1, Math.floor(value ?? fallback));
-}
-
-function fitPatternToCells(pattern: string, cellCount: number): string {
-  const chars = Array.from(pattern || VFD_GLYPHS.ghost);
-  return Array.from({ length: cellCount }, (_, index) => chars[index % chars.length] ?? VFD_GLYPHS.ghost).join("");
 }
 
 function stringLength(content: ReactNode): number {
@@ -603,149 +585,11 @@ function glyphPatternFor(glyph: string): readonly string[] {
   return VFD_GLYPH_PATTERNS[normalizedGlyph] ?? VFD_GLYPH_PATTERNS[baseGlyph] ?? VFD_GLYPH_PATTERNS["?"] ?? BLANK_GLYPH;
 }
 
-function safeSvgIdPart(value: string): string {
-  return Array.from(value)
-    .map((char) => char.codePointAt(0)?.toString(16) ?? "0")
-    .join("-");
-}
-
-function glyphSymbolId(symbolPrefix: string, glyph: string, ghost: boolean): string {
-  return `${symbolPrefix}-${ghost ? "ghost" : "glyph"}-${safeSvgIdPart(glyph || EMPTY_CELL)}`;
-}
-
-function VfdGlyphSymbol({ glyph, ghost, symbolPrefix }: { glyph: string; ghost: boolean; symbolPrefix: string }) {
-  const pattern = ghost ? FULL_GLYPH : glyphPatternFor(glyph);
-
-  return (
-    <symbol id={glyphSymbolId(symbolPrefix, glyph, ghost)} viewBox={`0 0 ${VFD_SEGMENT_WIDTH} ${VFD_SEGMENT_HEIGHT}`}>
-      {VFD_PIXEL_CELLS.flatMap(({ key, row, column }) =>
-        pattern[row]?.[column] === "1"
-          ? [
-              <rect
-                key={key}
-                className="mc-vfd-symbol-pixel"
-                x={column * VFD_DOT_PITCH}
-                y={row * VFD_DOT_PITCH}
-                width={VFD_PIXEL_SIZE}
-                height={VFD_PIXEL_SIZE}
-              />,
-            ]
-          : [],
-      )}
-    </symbol>
-  );
-}
-
-function VfdSegment({
-  glyph = EMPTY_CELL,
-  ghost = false,
-  index,
-  symbolPrefix,
-  className,
-}: {
-  glyph?: string;
-  ghost?: boolean;
-  index: number;
-  symbolPrefix: string;
-  className?: string;
-}) {
-  const segmentX = index * VFD_SEGMENT_PITCH;
-  const href = `#${glyphSymbolId(symbolPrefix, glyph, ghost)}`;
-
-  return (
-    <g className={cn("mc-vfd-segment", className)} transform={`translate(${segmentX} 0)`}>
-      <use href={href} width={VFD_SEGMENT_WIDTH} height={VFD_SEGMENT_HEIGHT} />
-    </g>
-  );
-}
-
-function VfdSegmentRow({
-  glyphs,
-  cellKeys,
-  className,
-  ghost = false,
-  visibleCells,
-  symbolPrefix,
-}: {
-  glyphs: Array<string | VfdSegmentCell>;
-  cellKeys: string[];
-  className?: string;
-  ghost?: boolean;
-  visibleCells: number;
-  symbolPrefix: string;
-}) {
-  const segmentCells = glyphs.map((cell, index) => ({
-    glyph: typeof cell === "string" ? cell : cell.glyph,
-    className: typeof cell === "string" ? undefined : cell.className,
-    key: cellKeys[index] ?? `vfd-cell-extra-${index}`,
-  }));
-  const renderedCellCount = Math.max(1, glyphs.length);
-  const uniqueGlyphs = Array.from(new Set(segmentCells.map((cell) => cell.glyph)));
-  const rowWidth = vfdRowWidth(renderedCellCount);
-  const rowHeight = VFD_SEGMENT_HEIGHT;
-
-  return (
-    <svg
-      className={cn("mc-vfd-segment-row", className)}
-      viewBox={`0 0 ${vfdRowWidth(renderedCellCount)} ${VFD_SEGMENT_HEIGHT}`}
-      role="presentation"
-      aria-hidden="true"
-      focusable="false"
-      style={
-        {
-          inlineSize: `${rowWidth}px`,
-          blockSize: `${rowHeight}px`,
-          "--mc-vfd-rendered-cells": renderedCellCount,
-          "--mc-vfd-visible-cells": visibleCells,
-          "--mc-vfd-grid-scale": renderedCellCount / visibleCells,
-        } as CSSProperties
-      }
-    >
-      <defs>
-        {uniqueGlyphs.map((glyph) => (
-          <VfdGlyphSymbol
-            key={glyphSymbolId(symbolPrefix, glyph, ghost)}
-            glyph={glyph}
-            ghost={ghost}
-            symbolPrefix={symbolPrefix}
-          />
-        ))}
-      </defs>
-      {segmentCells.map(({ glyph, key, className }, index) => (
-        <VfdSegment
-          key={key}
-          glyph={glyph}
-          ghost={ghost}
-          index={index}
-          symbolPrefix={symbolPrefix}
-          className={className}
-        />
-      ))}
-    </svg>
-  );
-}
-
-function layoutStringGlyphs(
-  content: string,
-  visibleCells: number,
-  align: VfdSectionAlign,
-  marquee?: VfdMarqueeMode,
-  marqueeOffset = 0,
-): string[] {
-  const chars = content === EMPTY_CELL ? [] : Array.from(content);
-  const animateMarquee = shouldMarquee(content, marquee, visibleCells);
-  const displayChars = animateMarquee
-    ? chars.slice(marqueeOffset, marqueeOffset + visibleCells)
-    : chars.slice(0, visibleCells);
-  const startIndex = animateMarquee
-    ? 0
-    : align === "center"
-      ? Math.max(0, Math.floor((visibleCells - displayChars.length) / 2))
-      : align === "right"
-        ? Math.max(0, visibleCells - displayChars.length)
-        : 0;
-
-  return Array.from({ length: visibleCells }, (_, index) => displayChars[index - startIndex] ?? EMPTY_CELL);
+function patternColumnMask(pattern: readonly string[], column: number): number {
+  return pattern.reduce((mask, rowPattern, row) => {
+    if (rowPattern[column] !== "1") return mask;
+    return mask | (1 << row);
+  }, 0);
 }
 
 function defaultMarqueeMode(content: ReactNode, marquee: VfdMarqueeMode | undefined): VfdMarqueeMode | undefined {
@@ -769,250 +613,325 @@ function usePrefersReducedMotion(): boolean {
   return prefersReducedMotion;
 }
 
-function useVfdMarqueeOffset(content: string, visibleCells: number, animateMarquee: boolean): number {
-  const overflowCells = Math.max(0, stringLength(content) - visibleCells);
-  const [state, setState] = useState({ offset: 0, direction: 1, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS });
+function nextMarqueeState(
+  state: { offset: number; direction: number; holdSteps: number },
+  overflowColumns: number,
+): { offset: number; direction: number; holdSteps: number } {
+  if (state.holdSteps > 0) return { ...state, holdSteps: state.holdSteps - 1 };
 
-  useEffect(() => {
-    if (!animateMarquee || overflowCells <= 0) return;
-
-    const timer = window.setInterval(() => {
-      setState(({ offset, direction, holdSteps }) => {
-        if (holdSteps > 0) return { offset, direction, holdSteps: holdSteps - 1 };
-
-        const nextOffset = offset + direction;
-        if (nextOffset >= overflowCells) {
-          return { offset: overflowCells, direction: -1, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS };
-        }
-        if (nextOffset <= 0) {
-          return { offset: 0, direction: 1, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS };
-        }
-        return { offset: nextOffset, direction, holdSteps: 0 };
-      });
-    }, VFD_MARQUEE_STEP_MS);
-
-    return () => window.clearInterval(timer);
-  }, [animateMarquee, overflowCells]);
-
-  return animateMarquee ? Math.min(state.offset, overflowCells) : 0;
+  const nextOffset = state.offset + state.direction;
+  if (nextOffset >= overflowColumns) {
+    return { offset: overflowColumns, direction: -1, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS };
+  }
+  if (nextOffset <= 0) {
+    return { offset: 0, direction: 1, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS };
+  }
+  return { offset: nextOffset, direction: state.direction, holdSteps: 0 };
 }
 
-function VfdStringCells({
-  content,
-  visibleCells,
-  cellKeys,
-  align,
-  marquee,
-  className,
-  symbolPrefix,
-}: {
-  content: string;
-  visibleCells: number;
-  cellKeys: string[];
-  align: VfdSectionAlign;
-  marquee?: VfdMarqueeMode;
-  className?: string;
-  symbolPrefix: string;
-}) {
-  const prefersReducedMotion = usePrefersReducedMotion();
-  const effectiveMarquee = defaultMarqueeMode(content, marquee);
-  const animateMarquee = !prefersReducedMotion && shouldMarquee(content, effectiveMarquee, visibleCells);
-  const marqueeOffset = useVfdMarqueeOffset(content, visibleCells, animateMarquee);
-  const glyphs = layoutStringGlyphs(content, visibleCells, align, effectiveMarquee, marqueeOffset);
+type VfdCanvasColors = Record<VfdBrightness, string>;
 
-  return (
-    <VfdSegmentRow
-      glyphs={glyphs}
-      cellKeys={cellKeys}
-      className={className}
-      visibleCells={visibleCells}
-      symbolPrefix={symbolPrefix}
-    />
-  );
+function vfdDisplayHeight(rowCount: number): number {
+  const safeRowCount = Math.max(1, rowCount);
+  return safeRowCount * VFD_BAND_HEIGHT + (safeRowCount - 1) * VFD_ROW_GAP;
 }
 
-function buildVfdCells(
-  content: ReactNode,
+function blankCanvasColumn(brightness: VfdBrightness): VfdCanvasPixelColumn {
+  return { mask: 0, brightness };
+}
+
+function glyphCanvasPixelColumns(glyph: string, brightness: VfdBrightness): VfdCanvasPixelColumn[] {
+  const pattern = glyphPatternFor(glyph);
+  return Array.from({ length: VFD_GLYPH_COLUMNS }, (_, column) => ({
+    mask: patternColumnMask(pattern, column),
+    brightness,
+  }));
+}
+
+function glyphCellsToCanvasPixelColumns(cells: string[], brightness: VfdBrightness): VfdCanvasPixelColumn[] {
+  return cells.flatMap((glyph, index) => {
+    const columns = glyphCanvasPixelColumns(glyph, brightness);
+    if (index < cells.length - 1) columns.push(blankCanvasColumn(brightness));
+    return columns;
+  });
+}
+
+function contentCanvasPixelColumns(content: string, brightness: VfdBrightness): VfdCanvasPixelColumn[] {
+  if (content === EMPTY_CELL) return [];
+  return glyphCellsToCanvasPixelColumns(Array.from(content), brightness);
+}
+
+function layoutStringCanvasPixelColumns(
+  content: string,
   visibleCells: number,
-  cellKeys: string[],
-  { align, marquee, className }: CellGridOptions,
-  symbolPrefix: string,
-): ReactNode {
-  if (typeof content !== "string") return content;
+  align: VfdSectionAlign,
+  brightness: VfdBrightness,
+): VfdCanvasPixelColumn[] {
+  const chars = content === EMPTY_CELL ? [] : Array.from(content).slice(0, visibleCells);
+  const startIndex =
+    align === "center"
+      ? Math.max(0, Math.floor((visibleCells - chars.length) / 2))
+      : align === "right"
+        ? Math.max(0, visibleCells - chars.length)
+        : 0;
+  const cells = Array.from({ length: visibleCells }, (_, index) => chars[index - startIndex] ?? EMPTY_CELL);
+  return glyphCellsToCanvasPixelColumns(cells, brightness);
+}
 
-  return (
-    <VfdStringCells
-      key={`${symbolPrefix}:${content}:${visibleCells}:${String(marquee)}`}
-      content={content}
-      visibleCells={visibleCells}
-      cellKeys={cellKeys}
-      align={align}
-      marquee={marquee}
-      className={className}
-      symbolPrefix={symbolPrefix}
-    />
+function scrolledCanvasPixelColumns(
+  content: string,
+  brightness: VfdBrightness,
+  visibleCells: number,
+  columnOffset: number,
+): VfdCanvasPixelColumn[] {
+  const sourceColumns = contentCanvasPixelColumns(content, brightness);
+  const visibleColumns = vfdColumnCountForCells(visibleCells);
+  return Array.from(
+    { length: visibleColumns },
+    (_, index) => sourceColumns[columnOffset + index] ?? blankCanvasColumn(brightness),
   );
 }
 
-function buildSectionedContent(
-  line: Pick<NormalizedVfdLine, "content" | "sections" | "align" | "marquee">,
+function marqueeStateFor(
+  state: VfdCanvasRenderState,
+  key: string,
+  now: number,
+  overflowColumns: number,
+): VfdMarqueeRuntimeState {
+  const current = state.marqueeStates.get(key);
+  if (!current) {
+    const next = {
+      offset: 0,
+      direction: 1,
+      holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS,
+      elapsedMs: 0,
+      previousFrameTime: now,
+    };
+    state.marqueeStates.set(key, next);
+    return next;
+  }
+
+  if (current.previousFrameTime !== null) current.elapsedMs += now - current.previousFrameTime;
+  current.previousFrameTime = now;
+
+  const steps = Math.floor(current.elapsedMs / VFD_MARQUEE_COLUMN_STEP_MS);
+  if (steps > 0) {
+    current.elapsedMs -= steps * VFD_MARQUEE_COLUMN_STEP_MS;
+    for (let step = 0; step < steps; step += 1) {
+      const next = nextMarqueeState(current, overflowColumns);
+      current.offset = next.offset;
+      current.direction = next.direction;
+      current.holdSteps = next.holdSteps;
+    }
+  }
+
+  current.offset = Math.min(current.offset, overflowColumns);
+  return current;
+}
+
+function lineCanvasColumns(
+  line: Pick<NormalizedVfdLine, "content" | "sections" | "align" | "marquee" | "brightness">,
   cellCount: number,
-  cellKeys: string[],
-  symbolPrefix: string,
-): ReactNode {
+  rowIndex: number,
+  state: VfdCanvasRenderState,
+  now: number,
+): { columns: VfdCanvasPixelColumn[]; hasActiveMarquee: boolean } {
+  const rowColumns = Array.from({ length: vfdColumnCountForCells(cellCount) }, () =>
+    blankCanvasColumn(line.brightness),
+  );
+  let hasActiveMarquee = false;
+
+  const writeColumns = (startColumn: number, sourceColumns: VfdCanvasPixelColumn[]) => {
+    sourceColumns.forEach((column, index) => {
+      const targetIndex = startColumn + index;
+      if (targetIndex >= 0 && targetIndex < rowColumns.length) rowColumns[targetIndex] = column;
+    });
+  };
+
+  const sectionColumns = (
+    content: ReactNode,
+    visibleCells: number,
+    align: VfdSectionAlign,
+    marquee: VfdMarqueeMode | undefined,
+    brightness: VfdBrightness,
+    marqueeKey: string,
+  ) => {
+    if (typeof content !== "string" || visibleCells <= 0) {
+      return Array.from({ length: vfdColumnCountForCells(Math.max(1, visibleCells)) }, () =>
+        blankCanvasColumn(brightness),
+      );
+    }
+
+    const effectiveMarquee = defaultMarqueeMode(content, marquee);
+    const animateMarquee =
+      !state.prefersReducedMotion &&
+      shouldMarquee(content, effectiveMarquee, visibleCells) &&
+      contentCanvasPixelColumns(content, brightness).length > vfdColumnCountForCells(visibleCells);
+
+    if (!animateMarquee) return layoutStringCanvasPixelColumns(content, visibleCells, align, brightness);
+
+    const sourceColumns = contentCanvasPixelColumns(content, brightness);
+    const overflowColumns = Math.max(0, sourceColumns.length - vfdColumnCountForCells(visibleCells));
+    const marqueeState = marqueeStateFor(state, marqueeKey, now, overflowColumns);
+    hasActiveMarquee = true;
+    return scrolledCanvasPixelColumns(content, brightness, visibleCells, marqueeState.offset);
+  };
+
   if (!line.sections?.length) {
-    return buildVfdCells(
-      line.content,
-      cellCount,
-      cellKeys,
-      {
-        align: line.align,
-        marquee: line.marquee,
-      },
-      `${symbolPrefix}-line`,
+    writeColumns(
+      0,
+      sectionColumns(
+        line.content,
+        cellCount,
+        line.align,
+        line.marquee,
+        line.brightness,
+        `row:${rowIndex}:${line.content}`,
+      ),
     );
+    return { columns: rowColumns, hasActiveMarquee };
   }
 
   const sectionCells = resolveSectionCells(line.sections, cellCount);
-  const hasScrollingSection = line.sections.some((section, index) => {
-    const cells = sectionCells[index] ?? 0;
-    return (
-      typeof section.content === "string" &&
-      shouldMarquee(section.content, defaultMarqueeMode(section.content, section.marquee), cells)
-    );
-  });
-  const canRenderHardwareRow =
-    !hasScrollingSection && line.sections.every((section) => typeof section.content === "string");
-
-  if (canRenderHardwareRow) {
-    const glyphs = line.sections.flatMap((section, index): VfdSegmentCell[] => {
-      const cells = sectionCells[index] ?? 0;
-      if (cells <= 0 || typeof section.content !== "string") return [];
-      const className = cn(section.brightness && BRIGHTNESS_CLASSES[section.brightness], section.className);
-      return layoutStringGlyphs(
+  let cellCursor = 0;
+  line.sections.forEach((section, sectionIndex) => {
+    const cells = sectionCells[sectionIndex] ?? 0;
+    if (cells <= 0) return;
+    const brightness = section.brightness ?? line.brightness;
+    const startColumn = cellCursor * VFD_CELL_COLUMNS;
+    writeColumns(
+      startColumn,
+      sectionColumns(
         section.content,
         cells,
         section.align,
-        defaultMarqueeMode(section.content, section.marquee),
-      ).map((glyph) => ({
-        glyph,
-        className,
-      }));
-    });
-    const rowGlyphs = glyphs.slice(0, cellCount);
-    while (rowGlyphs.length < cellCount) rowGlyphs.push({ glyph: EMPTY_CELL });
-
-    return (
-      <VfdSegmentRow
-        glyphs={rowGlyphs}
-        cellKeys={cellKeys}
-        visibleCells={cellCount}
-        symbolPrefix={`${symbolPrefix}-sections`}
-      />
+        section.marquee,
+        brightness,
+        `row:${rowIndex}:section:${section.key}:${typeof section.content === "string" ? section.content : sectionIndex}`,
+      ),
     );
-  }
+    cellCursor += cells;
+  });
 
-  return (
-    <span className="mc-vfd-section-layout" style={{ "--mc-vfd-section-gap": `${VFD_SEGMENT_GAP}px` } as CSSProperties}>
-      {line.sections.map((section, index) => {
-        const cells = sectionCells[index] ?? 0;
-        if (cells <= 0) return null;
-        return (
-          <span
-            key={section.key}
-            className={cn(
-              "mc-vfd-section",
-              section.brightness && BRIGHTNESS_CLASSES[section.brightness],
-              section.className,
-            )}
-            style={{ "--mc-vfd-section-width": `${vfdRowWidth(cells)}px` } as CSSProperties}
-          >
-            {buildVfdCells(
-              section.content,
-              cells,
-              cellKeys,
-              {
-                align: section.align,
-                marquee: section.marquee,
-                className: section.className,
-              },
-              `${symbolPrefix}-section-${index}`,
-            )}
-          </span>
-        );
-      })}
-    </span>
-  );
+  return { columns: rowColumns, hasActiveMarquee };
 }
 
-const VfdRow = memo(function VfdRow({
-  rowKey,
-  content,
-  contentKey,
-  sections,
-  brightness,
-  align,
-  marquee,
-  transition,
-  className,
-  ghostPattern,
-  cellCount,
-  cellKeys,
-  symbolPrefix,
-  outgoing,
-}: VfdRowProps) {
-  const line = { content, sections, align, marquee };
+function drawCanvasPixelColumns(
+  ctx: CanvasRenderingContext2D,
+  columns: VfdCanvasPixelColumn[],
+  rowTop: number,
+  matrixRowOffset: number,
+  colors: VfdCanvasColors,
+) {
+  let activeBrightness: VfdBrightness | null = null;
 
-  return (
-    <div className={cn("mc-vfd-line", BRIGHTNESS_CLASSES[brightness])} data-row={rowKey}>
-      <span className="mc-vfd-line-matrix" aria-hidden="true">
-        <VfdSegmentRow
-          glyphs={Array.from(ghostPattern)}
-          cellKeys={cellKeys}
-          ghost
-          visibleCells={cellCount}
-          symbolPrefix={`${symbolPrefix}-ghost`}
-        />
-      </span>
-      {outgoing && (
-        <span key={outgoing.key} className="mc-vfd-line-content-out" aria-hidden="true">
-          <span className="mc-vfd-line-content-inner">
-            {buildSectionedContent(outgoing.line, cellCount, cellKeys, `${symbolPrefix}-out`)}
-          </span>
-        </span>
-      )}
-      <span
-        key={contentKey}
-        className={cn("mc-vfd-line-content", transition === "none" && "mc-vfd-line-content-static")}
-      >
-        <span className={cn("mc-vfd-line-content-inner", className)}>
-          {buildSectionedContent(line, cellCount, cellKeys, `${symbolPrefix}-in`)}
-        </span>
-      </span>
-    </div>
-  );
-});
+  columns.forEach((column, columnIndex) => {
+    if (column.mask === 0) return;
+    if (activeBrightness !== column.brightness) {
+      activeBrightness = column.brightness;
+      ctx.fillStyle = colors[column.brightness];
+    }
+
+    for (let row = 0; row < VFD_GLYPH_ROWS; row += 1) {
+      if (!((column.mask >> row) & 1)) continue;
+      const y = rowTop + (row + matrixRowOffset) * VFD_DOT_PITCH;
+      ctx.fillRect(columnIndex * VFD_DOT_PITCH, y, VFD_PIXEL_SIZE, VFD_PIXEL_SIZE);
+    }
+  });
+}
+
+function drawVfdCanvas(
+  canvas: HTMLCanvasElement,
+  state: VfdCanvasRenderState,
+  colors: VfdCanvasColors,
+  now: number,
+): boolean {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return false;
+
+  const width = vfdRowWidth(state.cellCount);
+  const height = vfdDisplayHeight(state.rowCount);
+  const ratio = Math.max(1, window.devicePixelRatio || 1);
+  const backingWidth = Math.max(1, Math.round(width * ratio));
+  const backingHeight = Math.max(1, Math.round(height * ratio));
+
+  if (canvas.width !== backingWidth || canvas.height !== backingHeight) {
+    canvas.width = backingWidth;
+    canvas.height = backingHeight;
+  }
+
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, width, height);
+
+  let hasActiveMarquee = false;
+  const ghostColumns = Array.from({ length: vfdColumnCountForCells(state.cellCount) }, () => ({
+    mask: VFD_FULL_COLUMN_MASK,
+    brightness: "ghost" as const,
+  }));
+
+  for (let rowIndex = 0; rowIndex < state.rowCount; rowIndex += 1) {
+    const rowTop = rowIndex * (VFD_BAND_HEIGHT + VFD_ROW_GAP);
+    drawCanvasPixelColumns(ctx, ghostColumns, rowTop, 0, colors);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, rowTop, width, VFD_BAND_HEIGHT);
+    ctx.clip();
+
+    const line = state.lines[rowIndex] ?? normalizeLine(rowIndex, undefined);
+    const transition = state.transitions.get(rowIndex);
+    if (transition && !state.prefersReducedMotion) {
+      const progress = Math.min(1, Math.max(0, (now - transition.startedAt) / transition.durationMs));
+      const stepCount = VFD_GLYPH_ROWS + 1;
+      const step = Math.min(stepCount, Math.floor(progress * stepCount));
+      const previous = lineCanvasColumns(transition.previous, state.cellCount, rowIndex, state, now);
+      const current = lineCanvasColumns(line, state.cellCount, rowIndex, state, now);
+      hasActiveMarquee = hasActiveMarquee || previous.hasActiveMarquee || current.hasActiveMarquee;
+      drawCanvasPixelColumns(ctx, previous.columns, rowTop, step, colors);
+      drawCanvasPixelColumns(ctx, current.columns, rowTop, -stepCount + step, colors);
+      if (progress >= 1) state.transitions.delete(rowIndex);
+    } else {
+      const current = lineCanvasColumns(line, state.cellCount, rowIndex, state, now);
+      hasActiveMarquee = hasActiveMarquee || current.hasActiveMarquee;
+      drawCanvasPixelColumns(ctx, current.columns, rowTop, 0, colors);
+    }
+
+    ctx.restore();
+  }
+
+  return state.transitions.size > 0 || hasActiveMarquee;
+}
+
+function defaultCanvasColors(phosphorColor: string): VfdCanvasColors {
+  return {
+    bright: phosphorColor,
+    normal: "#5fb7c7",
+    dim: "#3f7a85",
+    ghost: "#1b3438",
+  };
+}
+
+function resolveCanvasColors(element: HTMLElement, phosphorColor: string): VfdCanvasColors {
+  const computed = window.getComputedStyle(element);
+  const fallback = defaultCanvasColors(phosphorColor);
+  return {
+    bright: computed.getPropertyValue("--mc-vfd-bright-color").trim() || fallback.bright,
+    normal: computed.getPropertyValue("--mc-vfd-normal-color").trim() || fallback.normal,
+    dim: computed.getPropertyValue("--mc-vfd-dim-color").trim() || fallback.dim,
+    ghost: computed.getPropertyValue("--mc-vfd-ghost-color").trim() || fallback.ghost,
+  };
+}
 
 /**
  * Reusable fixed-height VFD / dot-matrix display.
  *
  * Design notes:
- * - The display always renders a fixed number of rows, so text changes never
- *   resize the surrounding card. Empty rows render a non-breaking-space cell.
- * - `rows` and `charsPerLine` define the fixed VFD matrix. String content is
- *   rendered into exact cells, so clipping happens between cells, not through
- *   a glyph.
- * - Rows may define `sections` for pinned left/center/right regions. This is
- *   intentionally generic: the title row can reserve a right meta section,
- *   but VfdDisplay itself does not know about titles, durations, or years.
- * - Font weight stays visually constant. Hierarchy is expressed via phosphor
- *   brightness (opacity + text-shadow), matching real VFD modules.
- * - Content replacement animations are compositor-friendly translate3d movements.
- * - Marquee text advances in whole segment steps, never across segment gaps.
- * - Content changes are routed through `setLineContent(index, line)` below.
- *   Updating only the affected row keeps unchanged VFD rows mounted and still.
- * - Inactive background cells are custom 5x7 pixel matrices, so the ghost
- *   layer represents the actual hardware cell geometry instead of a font "8".
+ * - Canvas owns the full hardware matrix. React only supplies new line props.
+ * - All glyph, marquee, and content-change movement uses integer matrix columns
+ *   or rows. No per-frame React state and no CSS transforms touch lit pixels.
+ * - Rows may define sections for pinned left/center/right matrix ranges. The
+ *   component stays generic and does not infer product-specific semantics.
  */
 export function VfdDisplay({
   lines,
@@ -1022,82 +941,61 @@ export function VfdDisplay({
   className,
   ariaLabel,
   phosphorColor = "#7aebff",
-  ghostPattern = VFD_GLYPHS.ghost,
 }: VfdDisplayProps) {
-  const reactId = useId();
-  const symbolPrefix = useMemo(() => `mc-vfd-${reactId.replace(/[^a-zA-Z0-9_-]/g, "") || "display"}`, [reactId]);
   const configuredRowCount = normalizePositiveInteger(rows ?? lines.length, DEFAULT_VFD_ROWS);
   const requestedCellCount = normalizePositiveInteger(charsPerLine, DEFAULT_VFD_CELL_COUNT);
   const fallbackCellCount = sizingMode === "container" ? 1 : requestedCellCount;
   const [layout, setLayout] = useState(() => ({
     cellCount: fallbackCellCount,
     rowCount: configuredRowCount,
-    rowOffset: 0,
   }));
-  const { cellCount, rowCount, rowOffset } = layout;
-  const cellKeys = useMemo(() => Array.from({ length: cellCount }, (_, index) => `vfd-cell-${index}`), [cellCount]);
-  const ghostCells = useMemo(() => fitPatternToCells(ghostPattern, cellCount), [cellCount, ghostPattern]);
+  const { cellCount, rowCount } = layout;
   const vfdRef = useRef<HTMLElement | null>(null);
-  const generationRef = useRef(0);
-  const clearTimers = useRef<Array<ReturnType<typeof setTimeout> | null>>([]);
-  const [displayLines, setDisplayLines] = useState<NormalizedVfdLine[]>(() =>
-    Array.from({ length: rowCount }, (_, index) => normalizeLine(index, lines[index])),
-  );
-  const [outgoingLines, setOutgoingLines] = useState<Array<OutgoingVfdLine | null>>(() =>
-    Array.from({ length: rowCount }, () => null),
-  );
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const requestDrawRef = useRef<(() => void) | null>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   const normalizedLines = useMemo(
     () => Array.from({ length: rowCount }, (_, index) => normalizeLine(index, lines[index])),
     [lines, rowCount],
   );
 
-  const setLineContent = useCallback(
-    (rowIndex: number, nextLine: NormalizedVfdLine) => {
-      setDisplayLines((currentLines) => {
-        const previousLine = currentLines[rowIndex];
-        if (previousLine && sameLinePresentation(previousLine, nextLine)) return currentLines;
-
-        const nextLines = Array.from({ length: rowCount }, (_, index) =>
-          index === rowIndex ? nextLine : (currentLines[index] ?? normalizeLine(index, undefined)),
-        );
-
-        if (previousLine && previousLine.contentKey !== nextLine.contentKey && nextLine.transition !== "none") {
-          if (clearTimers.current[rowIndex]) clearTimeout(clearTimers.current[rowIndex] ?? undefined);
-          const outgoingKey = `${previousLine.contentKey}:${generationRef.current}`;
-          generationRef.current += 1;
-          setOutgoingLines((currentOutgoing) => {
-            const nextOutgoing = Array.from({ length: rowCount }, (_, index) => currentOutgoing[index] ?? null);
-            nextOutgoing[rowIndex] = { key: outgoingKey, line: previousLine };
-            return nextOutgoing;
-          });
-          clearTimers.current[rowIndex] = setTimeout(() => {
-            setOutgoingLines((currentOutgoing) => {
-              const nextOutgoing = Array.from({ length: rowCount }, (_, index) => currentOutgoing[index] ?? null);
-              nextOutgoing[rowIndex] = null;
-              return nextOutgoing;
-            });
-            clearTimers.current[rowIndex] = null;
-          }, VFD_LINE_SWAP_MS + 80);
-        }
-
-        return nextLines;
-      });
-    },
-    [rowCount],
-  );
+  const renderStateRef = useRef<VfdCanvasRenderState>({
+    lines: normalizedLines,
+    transitions: new Map(),
+    marqueeStates: new Map(),
+    cellCount,
+    rowCount,
+    prefersReducedMotion,
+  });
 
   useLayoutEffect(() => {
+    const state = renderStateRef.current;
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
     normalizedLines.forEach((line, index) => {
-      if (line.transition === "none") return;
-      setLineContent(index, line);
+      const previousLine = state.lines[index];
+      if (!previousLine || sameLinePresentation(previousLine, line)) return;
+      if (previousLine.contentKey !== line.contentKey && line.transition !== "none" && !prefersReducedMotion) {
+        state.transitions.set(index, { previous: previousLine, startedAt: now, durationMs: VFD_LINE_SWAP_MS });
+      } else {
+        state.transitions.delete(index);
+      }
     });
-  }, [normalizedLines, setLineContent]);
+    for (const rowIndex of Array.from(state.transitions.keys())) {
+      if (rowIndex >= rowCount) state.transitions.delete(rowIndex);
+    }
+    state.lines = normalizedLines;
+    state.cellCount = cellCount;
+    state.rowCount = rowCount;
+    state.prefersReducedMotion = prefersReducedMotion;
+    requestDrawRef.current?.();
+  }, [cellCount, normalizedLines, prefersReducedMotion, rowCount]);
 
   useLayoutEffect(() => {
     const element = vfdRef.current;
     if (!element || typeof ResizeObserver === "undefined") {
-      setLayout({ cellCount: fallbackCellCount, rowCount: configuredRowCount, rowOffset: 0 });
+      setLayout({ cellCount: fallbackCellCount, rowCount: configuredRowCount });
       return;
     }
 
@@ -1105,13 +1003,10 @@ export function VfdDisplay({
       const nextCellCount = sizingMode === "container" ? vfdCellCountForContentWidth(width) : requestedCellCount;
       const nextRowCount =
         sizingMode === "container" ? vfdRowCountForContentHeight(height, configuredRowCount) : configuredRowCount;
-      const nextRowOffset = vfdRowOffsetForWidth(width, nextCellCount);
       setLayout((currentLayout) =>
-        currentLayout.cellCount === nextCellCount &&
-        currentLayout.rowCount === nextRowCount &&
-        currentLayout.rowOffset === nextRowOffset
+        currentLayout.cellCount === nextCellCount && currentLayout.rowCount === nextRowCount
           ? currentLayout
-          : { cellCount: nextCellCount, rowCount: nextRowCount, rowOffset: nextRowOffset },
+          : { cellCount: nextCellCount, rowCount: nextRowCount },
       );
     };
 
@@ -1123,44 +1018,59 @@ export function VfdDisplay({
     return () => observer.disconnect();
   }, [configuredRowCount, fallbackCellCount, requestedCellCount, sizingMode]);
 
-  useEffect(() => {
-    return () => {
-      clearTimers.current.forEach((timer) => {
-        if (timer) clearTimeout(timer);
-      });
-    };
-  }, []);
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    const element = vfdRef.current;
+    if (!canvas || !element) return;
 
+    let disposed = false;
+    const draw = (now: number) => {
+      frameRef.current = null;
+      if (disposed) return;
+      const colors = resolveCanvasColors(element, phosphorColor);
+      const hasActiveAnimation = drawVfdCanvas(canvas, renderStateRef.current, colors, now);
+      if (hasActiveAnimation) requestFrame();
+    };
+    const requestFrame = () => {
+      if (frameRef.current !== null || disposed) return;
+      frameRef.current = window.requestAnimationFrame(draw);
+    };
+
+    requestDrawRef.current = requestFrame;
+    requestFrame();
+
+    return () => {
+      disposed = true;
+      requestDrawRef.current = null;
+      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    };
+  }, [phosphorColor]);
+
+  const canvasWidth = vfdRowWidth(cellCount);
+  const canvasHeight = vfdDisplayHeight(rowCount);
   const style = {
+    "--mc-vfd-base-color": phosphorColor,
     "--mc-vfd-color": phosphorColor,
+    "--mc-vfd-bright-color": phosphorColor,
     "--mc-vfd-cells": cellCount,
-    "--mc-vfd-row-height": `${VFD_SEGMENT_HEIGHT}px`,
+    "--mc-vfd-row-height": `${VFD_BAND_HEIGHT}px`,
     "--mc-vfd-row-gap": `${VFD_ROW_GAP}px`,
-    "--mc-vfd-row-width": `${vfdRowWidth(cellCount)}px`,
-    "--mc-vfd-row-offset": `${rowOffset}px`,
+    "--mc-vfd-row-width": `${canvasWidth}px`,
+    "--mc-vfd-display-height": `${canvasHeight}px`,
   } as CSSProperties;
 
   return (
     <RecessedCard className={cn("p-0.5", className)} radius={{ base: "0.75rem", sm: "0.875rem" }}>
       <RecessedCard.Body>
         <section ref={vfdRef} className={cn("mc-vfd", VFD_DEVICE_CLASSES)} style={style} aria-label={ariaLabel}>
-          <div className="mc-vfd-row-group">
-            {Array.from({ length: rowCount }, (_, index) => {
-              const stateLine = displayLines[index] ?? normalizeLine(index, undefined);
-              const liveLine = normalizedLines[index]?.transition === "none" ? normalizedLines[index] : stateLine;
-              return (
-                <VfdRow
-                  key={liveLine.rowKey}
-                  {...liveLine}
-                  ghostPattern={ghostCells}
-                  cellCount={cellCount}
-                  cellKeys={cellKeys}
-                  symbolPrefix={`${symbolPrefix}-row-${index}`}
-                  outgoing={liveLine.transition === "none" ? null : outgoingLines[index]}
-                />
-              );
-            })}
-          </div>
+          <canvas
+            ref={canvasRef}
+            className="mc-vfd-canvas"
+            width={canvasWidth}
+            height={canvasHeight}
+            style={{ inlineSize: `${canvasWidth}px`, blockSize: `${canvasHeight}px` }}
+          />
         </section>
       </RecessedCard.Body>
     </RecessedCard>
