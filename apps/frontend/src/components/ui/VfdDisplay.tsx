@@ -87,7 +87,7 @@ export interface VfdDisplayLine {
   brightness?: VfdBrightness;
   /** Horizontal placement for non-sectioned string content. */
   align?: VfdSectionAlign;
-  /** Enables compositor-only marquee movement for the whole line. */
+  /** Enables segment-stepped marquee movement for the whole line. */
   marquee?: VfdMarqueeMode;
   /** Content replacement mode. Use `none` for high-frequency updates like progress meters. */
   transition?: VfdContentTransition;
@@ -209,6 +209,8 @@ const BRIGHTNESS_CLASSES: Record<VfdBrightness, string> = {
 };
 
 const VFD_LINE_SWAP_MS = 900;
+const VFD_MARQUEE_STEP_MS = 260;
+const VFD_MARQUEE_EDGE_HOLD_STEPS = 4;
 const DEFAULT_VFD_ROWS = 4;
 const DEFAULT_VFD_CELL_COUNT = 44;
 const EMPTY_CELL = "\u00A0";
@@ -662,7 +664,6 @@ function VfdSegmentRow({
   cellKeys,
   className,
   ghost = false,
-  marquee = false,
   visibleCells,
   symbolPrefix,
 }: {
@@ -670,7 +671,6 @@ function VfdSegmentRow({
   cellKeys: string[];
   className?: string;
   ghost?: boolean;
-  marquee?: boolean;
   visibleCells: number;
   symbolPrefix: string;
 }) {
@@ -686,7 +686,7 @@ function VfdSegmentRow({
 
   return (
     <svg
-      className={cn("mc-vfd-segment-row", marquee && "mc-vfd-marquee", className)}
+      className={cn("mc-vfd-segment-row", className)}
       viewBox={`0 0 ${vfdRowWidth(renderedCellCount)} ${VFD_SEGMENT_HEIGHT}`}
       role="presentation"
       aria-hidden="true"
@@ -698,10 +698,6 @@ function VfdSegmentRow({
           "--mc-vfd-rendered-cells": renderedCellCount,
           "--mc-vfd-visible-cells": visibleCells,
           "--mc-vfd-grid-scale": renderedCellCount / visibleCells,
-          "--mc-vfd-marquee-shift":
-            marquee && renderedCellCount > visibleCells
-              ? `${-((renderedCellCount - visibleCells) / renderedCellCount) * 100}%`
-              : "0%",
         } as CSSProperties
       }
     >
@@ -734,11 +730,13 @@ function layoutStringGlyphs(
   visibleCells: number,
   align: VfdSectionAlign,
   marquee?: VfdMarqueeMode,
+  marqueeOffset = 0,
 ): string[] {
   const chars = content === EMPTY_CELL ? [] : Array.from(content);
   const animateMarquee = shouldMarquee(content, marquee, visibleCells);
-  const renderedCellCount = animateMarquee ? Math.max(chars.length, visibleCells) : visibleCells;
-  const displayChars = animateMarquee ? chars : chars.slice(0, visibleCells);
+  const displayChars = animateMarquee
+    ? chars.slice(marqueeOffset, marqueeOffset + visibleCells)
+    : chars.slice(0, visibleCells);
   const startIndex = animateMarquee
     ? 0
     : align === "center"
@@ -747,12 +745,90 @@ function layoutStringGlyphs(
         ? Math.max(0, visibleCells - displayChars.length)
         : 0;
 
-  return Array.from({ length: renderedCellCount }, (_, index) => displayChars[index - startIndex] ?? EMPTY_CELL);
+  return Array.from({ length: visibleCells }, (_, index) => displayChars[index - startIndex] ?? EMPTY_CELL);
 }
 
 function defaultMarqueeMode(content: ReactNode, marquee: VfdMarqueeMode | undefined): VfdMarqueeMode | undefined {
   if (marquee !== undefined) return marquee;
   return typeof content === "string" ? "overflow" : undefined;
+}
+
+function usePrefersReducedMotion(): boolean {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches);
+    updatePreference();
+    mediaQuery.addEventListener("change", updatePreference);
+    return () => mediaQuery.removeEventListener("change", updatePreference);
+  }, []);
+
+  return prefersReducedMotion;
+}
+
+function useVfdMarqueeOffset(content: string, visibleCells: number, animateMarquee: boolean): number {
+  const overflowCells = Math.max(0, stringLength(content) - visibleCells);
+  const [state, setState] = useState({ offset: 0, direction: 1, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS });
+
+  useEffect(() => {
+    if (!animateMarquee || overflowCells <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setState(({ offset, direction, holdSteps }) => {
+        if (holdSteps > 0) return { offset, direction, holdSteps: holdSteps - 1 };
+
+        const nextOffset = offset + direction;
+        if (nextOffset >= overflowCells) {
+          return { offset: overflowCells, direction: -1, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS };
+        }
+        if (nextOffset <= 0) {
+          return { offset: 0, direction: 1, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS };
+        }
+        return { offset: nextOffset, direction, holdSteps: 0 };
+      });
+    }, VFD_MARQUEE_STEP_MS);
+
+    return () => window.clearInterval(timer);
+  }, [animateMarquee, overflowCells]);
+
+  return animateMarquee ? Math.min(state.offset, overflowCells) : 0;
+}
+
+function VfdStringCells({
+  content,
+  visibleCells,
+  cellKeys,
+  align,
+  marquee,
+  className,
+  symbolPrefix,
+}: {
+  content: string;
+  visibleCells: number;
+  cellKeys: string[];
+  align: VfdSectionAlign;
+  marquee?: VfdMarqueeMode;
+  className?: string;
+  symbolPrefix: string;
+}) {
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const effectiveMarquee = defaultMarqueeMode(content, marquee);
+  const animateMarquee = !prefersReducedMotion && shouldMarquee(content, effectiveMarquee, visibleCells);
+  const marqueeOffset = useVfdMarqueeOffset(content, visibleCells, animateMarquee);
+  const glyphs = layoutStringGlyphs(content, visibleCells, align, effectiveMarquee, marqueeOffset);
+
+  return (
+    <VfdSegmentRow
+      glyphs={glyphs}
+      cellKeys={cellKeys}
+      className={className}
+      visibleCells={visibleCells}
+      symbolPrefix={symbolPrefix}
+    />
+  );
 }
 
 function buildVfdCells(
@@ -764,24 +840,18 @@ function buildVfdCells(
 ): ReactNode {
   if (typeof content !== "string") return content;
 
-  const effectiveMarquee = defaultMarqueeMode(content, marquee);
-  const glyphs = layoutStringGlyphs(content, visibleCells, align, effectiveMarquee);
-  const animateMarquee = shouldMarquee(content, effectiveMarquee, visibleCells);
-
-  const row = (
-    <VfdSegmentRow
-      glyphs={glyphs}
-      cellKeys={cellKeys}
-      className={className}
-      marquee={animateMarquee}
+  return (
+    <VfdStringCells
+      key={`${symbolPrefix}:${content}:${visibleCells}:${String(marquee)}`}
+      content={content}
       visibleCells={visibleCells}
+      cellKeys={cellKeys}
+      align={align}
+      marquee={marquee}
+      className={className}
       symbolPrefix={symbolPrefix}
     />
   );
-
-  if (!animateMarquee) return row;
-
-  return <span className="mc-vfd-marquee-viewport">{row}</span>;
 }
 
 function buildSectionedContent(
@@ -843,7 +913,7 @@ function buildSectionedContent(
   }
 
   return (
-    <span className="mc-vfd-section-layout">
+    <span className="mc-vfd-section-layout" style={{ "--mc-vfd-section-gap": `${VFD_SEGMENT_GAP}px` } as CSSProperties}>
       {line.sections.map((section, index) => {
         const cells = sectionCells[index] ?? 0;
         if (cells <= 0) return null;
@@ -855,12 +925,7 @@ function buildSectionedContent(
               section.brightness && BRIGHTNESS_CLASSES[section.brightness],
               section.className,
             )}
-            style={
-              {
-                "--mc-vfd-section-cells": cells,
-                "--mc-vfd-section-total-cells": cellCount,
-              } as CSSProperties
-            }
+            style={{ "--mc-vfd-section-width": `${vfdRowWidth(cells)}px` } as CSSProperties}
           >
             {buildVfdCells(
               section.content,
@@ -942,7 +1007,8 @@ const VfdRow = memo(function VfdRow({
  *   but VfdDisplay itself does not know about titles, durations, or years.
  * - Font weight stays visually constant. Hierarchy is expressed via phosphor
  *   brightness (opacity + text-shadow), matching real VFD modules.
- * - Runtime animations are compositor-friendly translate3d movements only.
+ * - Content replacement animations are compositor-friendly translate3d movements.
+ * - Marquee text advances in whole segment steps, never across segment gaps.
  * - Content changes are routed through `setLineContent(index, line)` below.
  *   Updating only the affected row keeps unchanged VFD rows mounted and still.
  * - Inactive background cells are custom 5x7 pixel matrices, so the ghost

@@ -174,17 +174,6 @@
   }
 }
 
-@keyframes mc-vfd-marquee {
-  0%,
-  18% {
-    transform: translate3d(0, 0, 0);
-  }
-  82%,
-  100% {
-    transform: translate3d(var(--mc-vfd-marquee-shift, -35%), 0, 0);
-  }
-}
-
 .mc-vfd {
   --mc-vfd-base-color: #7aebff;
   --mc-vfd-color: var(--mc-vfd-base-color);
@@ -267,15 +256,15 @@
 
 .mc-vfd-section-layout {
   display: flex;
+  gap: var(--mc-vfd-section-gap, 3px);
   inline-size: 100%;
   min-width: 0;
   overflow: hidden;
 }
 
 .mc-vfd-section {
-  flex: 0 0 calc(
-    (100% / var(--mc-vfd-section-total-cells, var(--mc-vfd-cells, 44))) * var(--mc-vfd-section-cells, 1)
-  );
+  flex: 0 0 var(--mc-vfd-section-width);
+  inline-size: var(--mc-vfd-section-width);
   min-width: 0;
   overflow: hidden;
 }
@@ -331,20 +320,6 @@
 
 .mc-vfd-ghost {
   color: var(--mc-vfd-ghost-color);
-}
-
-.mc-vfd-marquee-viewport {
-  display: block;
-  inline-size: 100%;
-  min-inline-size: 0;
-  overflow: hidden;
-}
-
-.mc-vfd-marquee {
-  overflow: visible;
-  text-overflow: clip;
-  animation: mc-vfd-marquee 8s linear 900ms infinite alternate;
-  will-change: transform;
 }
 
 /* Card entrance - zoom from behind with fade */
