@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, use, useLayoutEffect, useRef } from "react";
+import { type CSSProperties, createContext, memo, type ReactNode, use, useLayoutEffect, useRef } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
@@ -50,6 +50,86 @@ interface PlayerTimeProps {
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
+const PLAYER_PROGRESS_CELLS = 30;
+const PLAYER_PROGRESS_DOT_RADIUS = 1;
+const PLAYER_PROGRESS_DOT_PITCH = 3;
+const PLAYER_PROGRESS_SEGMENT_COLUMNS = 5;
+const PLAYER_PROGRESS_SEGMENT_ROWS = 7;
+const PLAYER_PROGRESS_SEGMENT_GAP = 2;
+const PLAYER_PROGRESS_SEGMENT_WIDTH = PLAYER_PROGRESS_SEGMENT_COLUMNS * PLAYER_PROGRESS_DOT_PITCH;
+const PLAYER_PROGRESS_SEGMENT_HEIGHT = PLAYER_PROGRESS_SEGMENT_ROWS * PLAYER_PROGRESS_DOT_PITCH;
+const PLAYER_PROGRESS_SEGMENT_PITCH = PLAYER_PROGRESS_SEGMENT_WIDTH + PLAYER_PROGRESS_SEGMENT_GAP;
+const PLAYER_PROGRESS_MARKER_COLUMNS = 2;
+const PLAYER_PROGRESS_MARKER_WIDTH =
+  (PLAYER_PROGRESS_MARKER_COLUMNS - 1) * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS * 2;
+const PLAYER_PROGRESS_WIDTH =
+  PLAYER_PROGRESS_CELLS * PLAYER_PROGRESS_SEGMENT_WIDTH + (PLAYER_PROGRESS_CELLS - 1) * PLAYER_PROGRESS_SEGMENT_GAP;
+const PLAYER_PROGRESS_MARKER_MAX_X = PLAYER_PROGRESS_WIDTH - PLAYER_PROGRESS_MARKER_WIDTH;
+
+const PLAYER_PROGRESS_RAIL_DOTS = Array.from({ length: PLAYER_PROGRESS_CELLS }).flatMap((_, cell) =>
+  [5, 6].flatMap((row) =>
+    Array.from({ length: PLAYER_PROGRESS_SEGMENT_COLUMNS }, (_, column) => ({
+      key: `rail-${cell}-${row}-${column}`,
+      cx: cell * PLAYER_PROGRESS_SEGMENT_PITCH + column * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
+      cy: row * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
+    })),
+  ),
+);
+
+const PLAYER_PROGRESS_MARKER_DOTS = Array.from({ length: PLAYER_PROGRESS_SEGMENT_ROWS }).flatMap((_, row) =>
+  Array.from({ length: PLAYER_PROGRESS_MARKER_COLUMNS }, (_, column) => ({
+    key: `marker-${row}-${column}`,
+    cx: column * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
+    cy: row * PLAYER_PROGRESS_DOT_PITCH + PLAYER_PROGRESS_DOT_RADIUS,
+  })),
+);
+
+const PlayerProgressRailDots = memo(function PlayerProgressRailDots({ className }: { className: string }) {
+  return (
+    <g className={className}>
+      {PLAYER_PROGRESS_RAIL_DOTS.map((dot) => (
+        <circle key={dot.key} className="mc-vfd-symbol-pixel" cx={dot.cx} cy={dot.cy} r={PLAYER_PROGRESS_DOT_RADIUS} />
+      ))}
+    </g>
+  );
+});
+
+const PlayerProgressMarkerDots = memo(function PlayerProgressMarkerDots() {
+  return (
+    <g className="mc-player-progress-marker-g">
+      {PLAYER_PROGRESS_MARKER_DOTS.map((dot) => (
+        <circle key={dot.key} className="mc-vfd-symbol-pixel" cx={dot.cx} cy={dot.cy} r={PLAYER_PROGRESS_DOT_RADIUS} />
+      ))}
+    </g>
+  );
+});
+
+function PlayerProgressMarkerMeter({ progress }: { progress: number }) {
+  const safeProgress = Math.min(1, Math.max(0, progress));
+  const markerX = (safeProgress * PLAYER_PROGRESS_MARKER_MAX_X) / PLAYER_PROGRESS_WIDTH;
+  const style = {
+    "--mc-player-progress": safeProgress,
+    "--mc-player-progress-percent": `${safeProgress * 100}%`,
+    "--mc-player-progress-marker-x": `${markerX * 100}%`,
+  } as CSSProperties;
+
+  return (
+    <span className="mc-player-progress-meter" style={style} aria-hidden="true">
+      <svg
+        className="mc-player-progress-svg"
+        viewBox={`0 0 ${PLAYER_PROGRESS_WIDTH} ${PLAYER_PROGRESS_SEGMENT_HEIGHT}`}
+        role="presentation"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <PlayerProgressRailDots className="mc-player-progress-rail-ghost" />
+        <PlayerProgressRailDots className="mc-player-progress-rail-active" />
+        <PlayerProgressMarkerDots />
+      </svg>
+    </span>
+  );
+}
+
 function usePlayerContext(): PlayerContextValue {
   const ctx = use(PlayerContext);
   if (!ctx) throw new Error("Player compound components must be rendered inside <Player>.");
@@ -94,9 +174,9 @@ function markerGlyphsForPixelOffset(offset: number): string[] {
     case 2:
       return [VFD_GLYPHS.progressMarkerRight];
     case 3:
-      return [VFD_GLYPHS.progressMarkerEnd2, VFD_GLYPHS.progressMarkerNext1];
+      return [VFD_GLYPHS.progressMarkerEnd2];
     case 4:
-      return [VFD_GLYPHS.progressMarkerEnd1, VFD_GLYPHS.progressMarkerNext2];
+      return [VFD_GLYPHS.progressMarkerEnd1, VFD_GLYPHS.progressMarkerNext1];
     default:
       return [VFD_GLYPHS.progressMarker];
   }
@@ -108,7 +188,7 @@ function renderMarkerProgressSections(
   cells: number,
 ): VfdDisplaySection[] {
   if (progressGranularity === "pixels") {
-    const markerStart = Math.round(progress * Math.max(0, cells * 5 - 3));
+    const markerStart = Math.round(progress * Math.max(0, cells * 5 - 2));
     const trackBefore = Math.floor(markerStart / 5);
     const markerGlyphs = markerGlyphsForPixelOffset(markerStart % 5).join("");
     const trackAfter = cells - trackBefore - Array.from(markerGlyphs).length;
@@ -300,10 +380,21 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
           brightness: isDisabled ? "dim" : "bright",
         } satisfies VfdDisplaySection,
       ]
-    : renderProgressSections(progressVariant, progressGranularity, progress).map((section) => ({
-        ...section,
-        brightness: isDisabled ? "dim" : section.brightness,
-      }));
+    : progressVariant === "marker"
+      ? [
+          {
+            content: <PlayerProgressMarkerMeter progress={progress} />,
+            cells: 30,
+            align: "left",
+            brightness: isDisabled ? "dim" : "bright",
+            key: "player-progress-marker-meter",
+            className: "mc-player-progress-section",
+          } satisfies VfdDisplaySection,
+        ]
+      : renderProgressSections(progressVariant, progressGranularity, progress).map((section) => ({
+          ...section,
+          brightness: isDisabled ? "dim" : section.brightness,
+        }));
 
   return (
     <div className={cn("flex-1 min-w-0", className)} data-player-progress-card="true">

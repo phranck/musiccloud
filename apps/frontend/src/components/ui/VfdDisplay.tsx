@@ -294,9 +294,9 @@ const VFD_GLYPH_PATTERNS: Record<string, readonly string[]> = {
   [VFD_GLYPHS.progressBlock4]: ["00000", "11110", "11110", "11110", "11110", "11110", "00000"],
   [VFD_GLYPHS.progressBlock]: ["00000", "11111", "11111", "11111", "11111", "11111", "00000"],
   [VFD_GLYPHS.progressRailEmpty]: ["00000", "00000", "00000", "00000", "00000", "11111", "11111"],
-  [VFD_GLYPHS.progressMarker]: ["01110", "01110", "01110", "01110", "01110", "11110", "11110"],
-  [VFD_GLYPHS.progressMarkerStart]: ["11100", "11100", "11100", "11100", "11100", "11100", "11100"],
-  [VFD_GLYPHS.progressMarkerRight]: ["00111", "00111", "00111", "00111", "00111", "11111", "11111"],
+  [VFD_GLYPHS.progressMarker]: ["01100", "01100", "01100", "01100", "01100", "11100", "11100"],
+  [VFD_GLYPHS.progressMarkerStart]: ["11000", "11000", "11000", "11000", "11000", "11000", "11000"],
+  [VFD_GLYPHS.progressMarkerRight]: ["00110", "00110", "00110", "00110", "00110", "11110", "11110"],
   [VFD_GLYPHS.progressMarkerEnd2]: ["00011", "00011", "00011", "00011", "00011", "11111", "11111"],
   [VFD_GLYPHS.progressMarkerEnd1]: ["00001", "00001", "00001", "00001", "00001", "11111", "11111"],
   [VFD_GLYPHS.progressMarkerNext1]: ["10000", "10000", "10000", "10000", "10000", "10000", "10000"],
@@ -691,7 +691,17 @@ function buildSectionedContent(
         return (
           <span
             key={section.key}
-            className={cn("mc-vfd-section", section.brightness && BRIGHTNESS_CLASSES[section.brightness])}
+            className={cn(
+              "mc-vfd-section",
+              section.brightness && BRIGHTNESS_CLASSES[section.brightness],
+              section.className,
+            )}
+            style={
+              {
+                "--mc-vfd-section-cells": cells,
+                "--mc-vfd-section-total-cells": cellCount,
+              } as CSSProperties
+            }
           >
             {buildVfdCells(
               section.content,
@@ -845,7 +855,10 @@ export function VfdDisplay({
   );
 
   useLayoutEffect(() => {
-    normalizedLines.forEach((line, index) => setLineContent(index, line));
+    normalizedLines.forEach((line, index) => {
+      if (line.transition === "none") return;
+      setLineContent(index, line);
+    });
   }, [normalizedLines, setLineContent]);
 
   useEffect(() => {
@@ -865,17 +878,21 @@ export function VfdDisplay({
           <div className="mc-vfd-grid" aria-hidden="true" />
           <div className="mc-vfd-scan" aria-hidden="true" />
           <div className="relative z-10 grid gap-[inherit]">
-            {displayLines.map((line, index) => (
-              <VfdRow
-                key={line.rowKey}
-                {...line}
-                ghostPattern={ghostCells}
-                cellCount={cellCount}
-                cellKeys={cellKeys}
-                symbolPrefix={`${symbolPrefix}-row-${index}`}
-                outgoing={outgoingLines[index]}
-              />
-            ))}
+            {Array.from({ length: rowCount }, (_, index) => {
+              const stateLine = displayLines[index] ?? normalizeLine(index, undefined);
+              const liveLine = normalizedLines[index]?.transition === "none" ? normalizedLines[index] : stateLine;
+              return (
+                <VfdRow
+                  key={liveLine.rowKey}
+                  {...liveLine}
+                  ghostPattern={ghostCells}
+                  cellCount={cellCount}
+                  cellKeys={cellKeys}
+                  symbolPrefix={`${symbolPrefix}-row-${index}`}
+                  outgoing={liveLine.transition === "none" ? null : outgoingLines[index]}
+                />
+              );
+            })}
           </div>
         </section>
       </RecessedCard.Body>

@@ -298,7 +298,6 @@
   text-overflow: ellipsis;
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
-  will-change: transform;
 }
 
 .mc-vfd-line-content-inner {
@@ -316,6 +315,9 @@
 }
 
 .mc-vfd-section {
+  flex: 0 0 calc(
+    (100% / var(--mc-vfd-section-total-cells, var(--mc-vfd-cells, 44))) * var(--mc-vfd-section-cells, 1)
+  );
   min-width: 0;
   overflow: hidden;
 }
@@ -347,6 +349,11 @@
 
 .mc-vfd-line-content {
   animation: mc-vfd-line-refresh 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.mc-vfd-line-content:not(.mc-vfd-line-content-static),
+.mc-vfd-line-content-out {
+  will-change: transform;
 }
 
 .mc-vfd-line-content-static {
@@ -383,6 +390,43 @@
 
 .mc-vfd-line-pulse-slow {
   animation-duration: 2.8s;
+}
+
+.mc-player-progress-section {
+  display: flex;
+  align-items: center;
+}
+
+.mc-player-progress-meter {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  color: inherit;
+}
+
+.mc-player-progress-svg {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  overflow: visible;
+  shape-rendering: geometricPrecision;
+}
+
+.mc-player-progress-rail-ghost {
+  color: var(--mc-vfd-ghost-color);
+}
+
+.mc-player-progress-rail-active {
+  clip-path: inset(0 calc(100% - var(--mc-player-progress-percent, 0%)) 0 0);
+  color: currentColor;
+}
+
+.mc-player-progress-marker-g {
+  color: currentColor;
+  transform: translate3d(var(--mc-player-progress-marker-x, 0%), 0, 0);
+  transform-box: view-box;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 
 .mc-vfd-marquee {
