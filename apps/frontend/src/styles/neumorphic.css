@@ -92,7 +92,7 @@
   --neu-shadow: hsl(0 0% 0% / 0.35);
 }
 .recessed-gradient-border {
-  --neu-light: hsl(0 0% 100% / 0.22);
+  --neu-light: hsl(0 0% 100% / 0.18);
   --neu-shadow: transparent;
 }
 

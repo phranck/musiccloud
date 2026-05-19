@@ -131,14 +131,22 @@
 }
 
 .mc-tft-screen {
+  contain: paint;
+  isolation: isolate;
   border-radius: var(--neu-radius-inner);
   background: #05070a;
+}
+
+.mc-tft-screen-content {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
 }
 
 .mc-tft-screen-overlay {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 10;
   pointer-events: none;
   border-radius: inherit;
   background:
@@ -147,15 +155,17 @@
     linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 30%, rgba(0, 0, 0, 0.16));
   background-size: 4px 4px, 4px 4px, 100% 100%;
   opacity: 0.48;
+  transform: translateZ(0);
 }
 
 .mc-tft-screen-shadow {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 20;
   pointer-events: none;
   border-radius: inherit;
   box-shadow: inset 4px 4px 12px rgba(0, 0, 0, 0.9);
+  transform: translateZ(0);
 }
 
 .mc-player-button-recess {
