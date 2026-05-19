@@ -179,7 +179,6 @@ export function getPlatformsInfo(platforms: PlatformLink[], t: TFunc): string | 
 export function buildActiveConfig(
   active: ActiveResult,
   t: TFunc,
-  onAlbumArtLoad: (img: HTMLImageElement) => void,
 ): SongContentConfiguration | AlbumContentConfiguration | ArtistContentConfiguration {
   const platformsInfo = getPlatformsInfo(active.platforms, t);
 
@@ -198,7 +197,6 @@ export function buildActiveConfig(
       platformsInfo,
       shareUrl: active.shareUrl,
       srAnnouncement: t("results.found", { title: active.title, artist: active.artist }),
-      onAlbumArtLoad,
     };
   }
 
@@ -216,7 +214,6 @@ export function buildActiveConfig(
       platformsInfo,
       shareUrl: active.shareUrl,
       srAnnouncement: t("results.foundArtist", { name: active.name }),
-      onAlbumArtLoad,
     };
   }
 
@@ -238,15 +235,10 @@ export function buildActiveConfig(
     platformsInfo,
     shareUrl: active.shareUrl,
     srAnnouncement: t("results.foundAlbum", { title: active.title, artist: active.artist }),
-    onAlbumArtLoad,
   };
 }
 
-export function buildShareConfigFromActive(
-  active: ActiveResult,
-  t: TFunc,
-  onAlbumArtLoad: (img: HTMLImageElement) => void,
-): ShareContentConfiguration {
+export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): ShareContentConfiguration {
   const platformsInfo = getPlatformsInfo(active.platforms, t);
   const shortId = shortIdFromShortUrl(active.shareUrl);
 
@@ -264,7 +256,6 @@ export function buildShareConfigFromActive(
       platformsInfo,
       shortUrl: active.shareUrl,
       shortId,
-      onAlbumArtLoad,
     };
   }
 
@@ -289,7 +280,6 @@ export function buildShareConfigFromActive(
       platformsInfo,
       shortUrl: active.shareUrl,
       shortId,
-      onAlbumArtLoad,
     };
   }
 
@@ -309,6 +299,5 @@ export function buildShareConfigFromActive(
     platformsInfo,
     shortUrl: active.shareUrl,
     shortId,
-    onAlbumArtLoad,
   };
 }

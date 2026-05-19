@@ -65,8 +65,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
             style={
               state === "idle"
                 ? ({
-                    color: "var(--color-accent-resolved, var(--color-text-primary))",
-                    transition: "color 220ms ease-out",
+                    color: "rgb(127 234 255)",
                   } as CSSProperties)
                 : undefined
             }

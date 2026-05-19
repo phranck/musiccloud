@@ -92,6 +92,7 @@ function formatTime(seconds: number): string {
 }
 
 const SPECTRUM_BAND_COUNT = 25;
+const SPECTRUM_LEVEL_COUNT = 7;
 const SPECTRUM_UPDATE_MS = 50;
 
 type BrowserAudioContextConstructor = typeof AudioContext;
@@ -117,6 +118,10 @@ function resolveSpectrumBandRange(band: number, bandCount: number, usableBins: n
   return [start, Math.max(start + 1, end)];
 }
 
+function sameSpectrumBands(a: readonly number[] | null, b: readonly number[]): boolean {
+  return a !== null && a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
 function resolveSpectrumBands(frequencyData: Uint8Array<ArrayBuffer>, bandCount: number): number[] {
   const usableBins = Math.max(1, frequencyData.length - 2);
   const rawBands = Array.from({ length: bandCount }, (_, band) => {
@@ -136,7 +141,9 @@ function resolveSpectrumBands(frequencyData: Uint8Array<ArrayBuffer>, bandCount:
 
   const framePeak = Math.max(...rawBands, 0);
   const frameGain = framePeak > 0 ? Math.min(1.35, 0.82 / Math.max(framePeak, 0.38)) : 1;
-  return rawBands.map((band) => Math.min(1, band * frameGain));
+  return rawBands.map(
+    (band) => Math.round(Math.min(1, band * frameGain) * SPECTRUM_LEVEL_COUNT) / SPECTRUM_LEVEL_COUNT,
+  );
 }
 
 export function AudioPreviewPlayer({
@@ -161,6 +168,7 @@ export function AudioPreviewPlayer({
   const spectrumFrameRef = useRef<number | null>(null);
   const spectrumDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
   const spectrumLastUpdateRef = useRef(0);
+  const spectrumBandsRef = useRef<number[] | null>(null);
   const [spectrumBands, setSpectrumBands] = useState<number[] | null>(null);
 
   // Lazy fetch the preview URL when the component mounted without one.
@@ -189,6 +197,7 @@ export function AudioPreviewPlayer({
     if (spectrumFrameRef.current !== null) cancelAnimationFrame(spectrumFrameRef.current);
     spectrumFrameRef.current = null;
     spectrumLastUpdateRef.current = 0;
+    spectrumBandsRef.current = null;
     setSpectrumBands(null);
   }, []);
 
@@ -213,7 +222,10 @@ export function AudioPreviewPlayer({
       if (now - spectrumLastUpdateRef.current < SPECTRUM_UPDATE_MS) return;
       spectrumLastUpdateRef.current = now;
       analyser.getByteFrequencyData(data);
-      setSpectrumBands(resolveSpectrumBands(data, SPECTRUM_BAND_COUNT));
+      const nextBands = resolveSpectrumBands(data, SPECTRUM_BAND_COUNT);
+      if (sameSpectrumBands(spectrumBandsRef.current, nextBands)) return;
+      spectrumBandsRef.current = nextBands;
+      setSpectrumBands(nextBands);
     };
 
     spectrumFrameRef.current = requestAnimationFrame(tick);
@@ -362,7 +374,7 @@ export function AudioPreviewPlayer({
         progressVariant={progressVariant}
         progressGranularity={progressGranularity}
         spectrumBands={spectrumBands}
-        phosphorColor="rgb(var(--color-accent-rgb-resolved, 127 234 255))"
+        phosphorColor="rgb(127 234 255)"
         onTogglePlay={togglePlay}
       />
     </section>

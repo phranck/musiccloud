@@ -1,25 +1,19 @@
 ---
 /**
- * Static ambient background — three animated color blobs. Rendered at
- * build-time; no JavaScript, no hydration cost.
+ * Static ambient background.
  *
- * Dynamic album colors (when a track is resolved) are mirrored onto
- * `<html>` as `--bg-blob-*` custom properties by `useAlbumColors`.
- * The blob colors below fall back to the default palette otherwise.
+ * Deliberately no JavaScript and no runtime animation: the soft radial fields
+ * are painted once and then stay fixed so the share/player UI can keep the
+ * main thread and compositor budget for interactive controls.
  */
 ---
 
 <div class="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden="true">
   <div
-    class="absolute rounded-full blur-[150px] w-[50vw] h-[50vw] top-[-5%] left-[-5%] transition-[background-color] duration-800 ease-in-out"
-    style="background-color: var(--bg-blob-primary, rgba(40, 168, 216, 0.18)); animation: blob-drift-1 120s ease-in-out infinite; will-change: transform"
-  ></div>
-  <div
-    class="absolute rounded-full blur-[160px] w-[45vw] h-[45vw] top-[30%] right-[-10%] transition-[background-color] duration-800 ease-in-out"
-    style="background-color: var(--bg-blob-secondary, rgba(212, 168, 67, 0.12)); animation: blob-drift-2 150s ease-in-out infinite; will-change: transform"
-  ></div>
-  <div
-    class="absolute rounded-full blur-[170px] w-[55vw] h-[55vw] bottom-[-10%] left-[30%] transition-[background-color] duration-800 ease-in-out"
-    style="background-color: var(--bg-blob-tertiary, rgba(22, 140, 180, 0.08)); animation: blob-drift-3 180s ease-in-out infinite; will-change: transform"
+    class="absolute inset-0"
+    style="background:
+      radial-gradient(circle at 8% 10%, rgba(40, 168, 216, 0.22) 0, rgba(40, 168, 216, 0.12) 18%, transparent 42%),
+      radial-gradient(circle at 92% 36%, rgba(212, 168, 67, 0.14) 0, rgba(212, 168, 67, 0.08) 20%, transparent 44%),
+      radial-gradient(circle at 45% 105%, rgba(22, 140, 180, 0.18) 0, rgba(22, 140, 180, 0.09) 22%, transparent 48%);"
   ></div>
 </div>

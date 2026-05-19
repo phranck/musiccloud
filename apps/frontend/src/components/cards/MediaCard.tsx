@@ -36,7 +36,6 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
   const shareable = isShareableContent(content) ? content : null;
   const shareUrl = shareable?.shareUrl;
   const srAnnouncement = shareable?.srAnnouncement;
-  const onAlbumArtLoad = content.onAlbumArtLoad;
   const sharePageContent = isSharePageContent(content) ? content : null;
   const [embedOpen, setEmbedOpen] = useState(false);
   const isAlbum = content.type === "album" || sharePageContent?.platformsLabelKey === "results.openAlbumOn";
@@ -68,8 +67,6 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
         isExplicit={content.isExplicit}
         metaOverride={content.metaLine}
         statusLine={content.statusLine}
-        statusActive={content.statusActive}
-        onAlbumArtLoad={onAlbumArtLoad}
       />
 
       <CollapsibleSection visible={showPreview} sectionClass="px-3 pt-0 pb-3">

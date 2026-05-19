@@ -194,7 +194,7 @@
   transform: translate3d(0, 1px, 0);
 }
 
-/* Reusable VFD module. Runtime animations are opacity/translate3d only;
+/* Reusable VFD module. Runtime animations are translate3d-only;
    the dot matrix and glass layers are static paint effects. */
 @keyframes mc-vfd-line-refresh {
   from {
@@ -211,16 +211,6 @@
   }
   to {
     transform: translate3d(0, 115%, 0);
-  }
-}
-
-@keyframes mc-vfd-pulse {
-  0%,
-  100% {
-    opacity: 0.34;
-  }
-  50% {
-    opacity: 1;
   }
 }
 
@@ -243,25 +233,13 @@
   border-radius: var(--neu-radius-inner, 0.875rem);
   border: 0;
   background: color-mix(in srgb, var(--mc-vfd-color) 5%, var(--mc-vfd-bg));
-  box-shadow:
-    inset 1px 1px 0 color-mix(in srgb, var(--mc-vfd-color) 14%, rgba(255, 255, 255, 0.1)),
-    inset -1px -1px 0 color-mix(in srgb, var(--mc-vfd-color) 8%, rgba(0, 0, 0, 0.82));
   color: var(--mc-vfd-color);
   --mc-vfd-bright-color: hsl(from var(--mc-vfd-color) h s calc(l + 10));
   --mc-vfd-normal-color: hsl(from var(--mc-vfd-color) h s l);
   --mc-vfd-dim-color: hsl(from var(--mc-vfd-color) h calc(s - 8) calc(l - 18));
-  --mc-vfd-ghost-color: hsl(from var(--mc-vfd-color) h calc(s - 18) calc(l - 34));
+  --mc-vfd-ghost-color: hsl(from var(--mc-vfd-color) h 42% 14%);
   --mc-vfd-cells: 44;
   isolation: isolate;
-}
-
-.mc-vfd-grid {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: color-mix(in srgb, var(--mc-vfd-color) 2%, transparent);
-  opacity: 0.18;
-  pointer-events: none;
 }
 
 .mc-vfd-scan {
@@ -285,7 +263,6 @@
   overflow: hidden;
   white-space: nowrap;
   line-height: 1.1;
-  text-shadow: none;
 }
 
 .mc-vfd-line-matrix {
@@ -295,7 +272,6 @@
   align-items: center;
   overflow: hidden;
   color: var(--mc-vfd-ghost-color);
-  text-shadow: none;
   pointer-events: none;
   user-select: none;
 }
@@ -351,14 +327,6 @@
   fill: currentColor;
 }
 
-.mc-vfd-glyph-ghost {
-  opacity: 1;
-}
-
-.mc-vfd-glyph-core {
-  opacity: 1;
-}
-
 .mc-vfd-line-content {
   animation: mc-vfd-line-refresh 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -395,15 +363,6 @@
   color: var(--mc-vfd-ghost-color);
 }
 
-.mc-vfd-line-pulse {
-  animation: mc-vfd-pulse 0.95s ease-in-out infinite;
-  will-change: opacity;
-}
-
-.mc-vfd-line-pulse-slow {
-  animation-duration: 2.8s;
-}
-
 .mc-player-progress-section {
   display: flex;
   align-items: center;
@@ -429,7 +388,6 @@
 }
 
 .mc-player-progress-rail-active {
-  clip-path: inset(0 calc(100% - var(--mc-player-progress-percent, 0%)) 0 0);
   color: currentColor;
 }
 
@@ -509,155 +467,6 @@
     opacity: 0;
     transform: translateY(40px) scale(0.95);
   }
-}
-
-/* Sparkling stars - brief flash then fade */
-@keyframes sparkle-fade {
-  0% {
-    opacity: 0;
-    transform: scale(0);
-  }
-  20% {
-    opacity: 0.9;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.4);
-  }
-}
-
-/* Sparkling stars - flash then drift toward center while fading */
-@keyframes sparkle-drift {
-  0% {
-    opacity: 0;
-    transform: translate(0, 0) scale(0);
-  }
-  20% {
-    opacity: 0.9;
-    transform: translate(0, 0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--drift-x), var(--drift-y)) scale(0.3);
-  }
-}
-
-/* Sparkling stars - subtle extra flash, then stay in place and fade.
-   Same brightness peak as sparkle-drift-flash but no center pull. */
-@keyframes sparkle-flash {
-  0% {
-    opacity: 0;
-    transform: scale(0);
-    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
-  }
-  15% {
-    opacity: 0.9;
-    transform: scale(1);
-    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
-  }
-  25% {
-    opacity: 1;
-    transform: scale(1.15);
-    filter: blur(var(--sparkle-blur, 0px)) brightness(1.5);
-  }
-  35% {
-    opacity: 0.85;
-    transform: scale(1);
-    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.4);
-    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
-  }
-}
-
-/* Sparkling stars - subtle extra flash before drifting toward center.
-   Keeps per-particle blur via --sparkle-blur var so the flash modulates
-   brightness without losing the soft halo. */
-@keyframes sparkle-drift-flash {
-  0% {
-    opacity: 0;
-    transform: translate(0, 0) scale(0);
-    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
-  }
-  15% {
-    opacity: 0.9;
-    transform: translate(0, 0) scale(1);
-    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
-  }
-  25% {
-    opacity: 1;
-    transform: translate(0, 0) scale(1.15);
-    filter: blur(var(--sparkle-blur, 0px)) brightness(1.5);
-  }
-  35% {
-    opacity: 0.85;
-    transform: translate(0, 0) scale(1);
-    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--drift-x), var(--drift-y)) scale(0.3);
-    filter: blur(var(--sparkle-blur, 0px)) brightness(1);
-  }
-}
-
-/* Ambilight ring - rotate gradient origin + shift hue, GPU-accelerated */
-@property --ambilight-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-@property --ambilight-hue {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-@keyframes ambilight-spin {
-  0% {
-    --ambilight-angle: 0deg;
-    --ambilight-hue: 0deg;
-  }
-  100% {
-    --ambilight-angle: 360deg;
-    --ambilight-hue: 360deg;
-  }
-}
-
-/* Blob drift animations - organic floating movement, GPU-accelerated */
-@keyframes blob-drift-1 {
-  0%   { transform: translate(0, 0) scale(0.9) rotate(0deg); }
-  12%  { transform: translate(15vw, 8dvh) scale(1.05) rotate(5deg); }
-  25%  { transform: translate(25vw, -5dvh) scale(0.85) rotate(-3deg); }
-  37%  { transform: translate(10vw, -15dvh) scale(1.1) rotate(8deg); }
-  50%  { transform: translate(-10vw, -8dvh) scale(0.95) rotate(-5deg); }
-  62%  { transform: translate(-20vw, 5dvh) scale(1.0) rotate(3deg); }
-  75%  { transform: translate(-15vw, 15dvh) scale(0.88) rotate(-7deg); }
-  87%  { transform: translate(5vw, 10dvh) scale(1.08) rotate(6deg); }
-  100% { transform: translate(0, 0) scale(0.9) rotate(0deg); }
-}
-
-@keyframes blob-drift-2 {
-  0%   { transform: translate(0, 0) scale(1.0) rotate(0deg); }
-  14%  { transform: translate(-18vw, 12dvh) scale(0.88) rotate(-6deg); }
-  28%  { transform: translate(-8vw, -10dvh) scale(1.12) rotate(4deg); }
-  42%  { transform: translate(12vw, -18dvh) scale(0.92) rotate(-8deg); }
-  57%  { transform: translate(22vw, 3dvh) scale(1.05) rotate(5deg); }
-  71%  { transform: translate(8vw, 15dvh) scale(0.85) rotate(-4deg); }
-  85%  { transform: translate(-12vw, 8dvh) scale(1.1) rotate(7deg); }
-  100% { transform: translate(0, 0) scale(1.0) rotate(0deg); }
-}
-
-@keyframes blob-drift-3 {
-  0%   { transform: translate(0, 0) scale(0.95) rotate(0deg); }
-  16%  { transform: translate(20vw, -12dvh) scale(1.08) rotate(7deg); }
-  33%  { transform: translate(-5vw, -20dvh) scale(0.87) rotate(-5deg); }
-  50%  { transform: translate(-22vw, -5dvh) scale(1.1) rotate(4deg); }
-  66%  { transform: translate(-10vw, 12dvh) scale(0.9) rotate(-8deg); }
-  83%  { transform: translate(15vw, 18dvh) scale(1.05) rotate(6deg); }
-  100% { transform: translate(0, 0) scale(0.95) rotate(0deg); }
 }
 
 /* Glassmorphism fallback for browsers without backdrop-filter */

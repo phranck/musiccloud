@@ -1,7 +1,6 @@
 import { ArrowRightIcon, CheckIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef } from "react";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
-import { useAmbilightAnimation } from "@/hooks/useAmbilightAnimation";
 import { useT } from "@/i18n/context";
 import { isMusicUrl } from "@/lib/platform/url";
 import type { InputState } from "@/lib/types/app";
@@ -38,10 +37,7 @@ export function HeroInput({
 }: HeroInputProps) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
-  const ambilightRef = useRef<HTMLDivElement>(null);
   const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useAmbilightAnimation(ambilightRef);
 
   // Focus input on mount for non-touch devices only. A direct share-page
   // Escape exit sets a one-shot flag so the landing field regains focus.
@@ -126,18 +122,6 @@ export function HeroInput({
       )}
     >
       <div className="relative">
-        <div
-          ref={ambilightRef}
-          className="absolute inset-[-3px] rounded-full blur-[10px] opacity-90 pointer-events-none"
-          aria-hidden="true"
-          style={{
-            maskImage:
-              "radial-gradient(farthest-side at 50% 50%, transparent calc(100% - 12px), black calc(100% - 4px))",
-            WebkitMaskImage:
-              "radial-gradient(farthest-side at 50% 50%, transparent calc(100% - 12px), black calc(100% - 4px))",
-          }}
-        />
-
         <div
           className={cn(
             "relative flex items-center rounded-full",

@@ -50,13 +50,11 @@ import { type AudioPreviewStatus, SharePageCard } from "@/components/share/Share
 import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { ToastProvider } from "@/context/ToastContext";
-import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { useIsClient } from "@/hooks/useIsClient";
 import { LocaleProvider, useT } from "@/i18n/context";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import type { ActiveResult } from "@/lib/types/app";
 import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
-import { hexToRgb } from "@/lib/ui/colors";
 import { cn } from "@/lib/utils";
 
 const MEDIA_W = 512;
@@ -263,12 +261,6 @@ interface ShareLayoutProps {
   animated?: boolean;
   initialLocale?: string;
   /**
-   * Direct share pages let ShareLayout mirror artwork colors onto the static
-   * Astro background. Landing results pass `false` because LandingPage owns
-   * the root cloud/particle colors and resets them during ESC/back clears.
-   */
-  mirrorAlbumColorsToRoot?: boolean;
-  /**
    * Optional back action. When present, a subtle "back" link is rendered
    * above the share cards so users who arrived here from a list view
    * (currently: genre-search discovery) can navigate back to that list
@@ -289,14 +281,7 @@ export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
   );
 }
 
-function ShareLayoutInner({
-  config,
-  artistName,
-  animated = false,
-  mirrorAlbumColorsToRoot = true,
-  onBack,
-  backLabel,
-}: ShareLayoutProps) {
+function ShareLayoutInner({ config, artistName, animated = false, onBack, backLabel }: ShareLayoutProps) {
   const t = useT();
   // Detect region synchronously on first render (client-only, Astro island)
   const [userRegion] = useState(detectRegion);
@@ -314,12 +299,7 @@ function ShareLayoutInner({
   const [resolveErrorVisible, setResolveErrorVisible] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<AudioPreviewStatus | null>(null);
   const mounted = useIsClient();
-  const ownerAlbumArtLoad = useRef(config.onAlbumArtLoad);
   const lastPropsConfigKey = useRef(configIdentity(config));
-
-  useEffect(() => {
-    ownerAlbumArtLoad.current = config.onAlbumArtLoad;
-  }, [config.onAlbumArtLoad]);
 
   useEffect(() => {
     const nextConfigKey = configIdentity(config);
@@ -328,63 +308,6 @@ function ShareLayoutInner({
     setCurrentConfig(config);
     setCurrentArtistName(artistName);
   }, [artistName, config]);
-
-  // Dynamic accent color extraction from album artwork. The accent kicks in
-  // as soon as the image has loaded and the colors are computed.
-  //
-  // Rendering strategy (see ShareButton): accent-tinted elements read
-  // `--color-accent-resolved` — a sentinel that is ONLY set once we have a
-  // real dynamic accent. Until then they render in a neutral pre-accent
-  // state. This avoids the "flash from wrong accent to right accent" on
-  // first paint: users see a neutral surface, which then gently reveals
-  // the dynamic accent — never a jarring color swap.
-  //
-  // Safety net: if extraction hasn't produced an accent after 3 s
-  // (broken CORS, dead artwork URL, canvas tainted), we fall back to the
-  // brand default so the button doesn't stay visually muted forever.
-  const { dynamicAccent, handleAlbumArtLoad } = useAlbumColors({ mirrorRoot: mirrorAlbumColorsToRoot });
-  const [extractionTimedOut, setExtractionTimedOut] = useState(false);
-  useEffect(() => {
-    if (dynamicAccent) return;
-    const timer = setTimeout(() => setExtractionTimedOut(true), 3000);
-    return () => clearTimeout(timer);
-  }, [dynamicAccent]);
-
-  const accentStyle = (
-    dynamicAccent
-      ? {
-          "--color-accent": dynamicAccent.base,
-          "--color-accent-rgb": hexToRgb(dynamicAccent.base),
-          "--color-accent-rgb-resolved": hexToRgb(dynamicAccent.base),
-          "--color-accent-hover": dynamicAccent.hover,
-          "--color-accent-glow": dynamicAccent.glow,
-          "--color-accent-contrast": dynamicAccent.contrastText,
-          // Sentinel: presence signals "we have a real dynamic accent".
-          "--color-accent-resolved": dynamicAccent.base,
-          "--color-accent-hover-resolved": dynamicAccent.hover,
-          "--color-accent-contrast-resolved": dynamicAccent.contrastText,
-        }
-      : extractionTimedOut
-        ? {
-            // Graceful fallback after timeout — use the brand/global accent
-            // so the button is never left in its neutral waiting state.
-            "--color-accent-resolved": "var(--color-accent)",
-            "--color-accent-rgb-resolved": "var(--color-accent-rgb)",
-            "--color-accent-hover-resolved": "var(--color-accent-hover)",
-            "--color-accent-contrast-resolved": "var(--color-accent-contrast)",
-          }
-        : {}
-  ) as React.CSSProperties;
-
-  // Inject the client-side onAlbumArtLoad callback into the (SSR-serialized)
-  // config while preserving an upstream owner callback from LandingPage.
-  const handleShareAlbumArtLoad = useCallback(
-    (img: HTMLImageElement) => {
-      ownerAlbumArtLoad.current?.(img);
-      handleAlbumArtLoad(img);
-    },
-    [handleAlbumArtLoad],
-  );
 
   const artistStatusLoading = isLoading || resolveTriggeredArtistLoad;
   useEffect(() => {
@@ -417,20 +340,16 @@ function ShareLayoutInner({
             : artistReadyVisible
               ? t("artist.statusReady")
               : "";
-  const vfdStatusActive = artistStatusLoading || previewStatus === "playing";
-
   const enrichedConfig = useMemo(
     () => ({
       ...currentConfig,
       // Fourth VFD row in SongInfo. Status is orchestrated here because the
       // signals live in different subtrees: artist-row resolve clicks, artist
       // info fetch state, and the preview player. VfdDisplay stays reusable
-      // and only receives plain lines plus compositor-friendly pulse flags.
+      // and only receives plain translated text.
       statusLine: vfdStatusLine,
-      statusActive: vfdStatusActive,
-      onAlbumArtLoad: handleShareAlbumArtLoad,
     }),
-    [currentConfig, handleShareAlbumArtLoad, vfdStatusActive, vfdStatusLine],
+    [currentConfig, vfdStatusLine],
   );
 
   // Fetch artist data immediately (SSR already rendered the share card)
@@ -507,7 +426,7 @@ function ShareLayoutInner({
         const nextArtistName = resultArtistName(active);
         const shouldFetchArtist = normalizeArtistName(nextArtistName) !== normalizeArtistName(currentArtistName);
         keepResolveLoadingForArtistFetch = shouldFetchArtist;
-        setCurrentConfig(buildActiveConfig(active, t, handleShareAlbumArtLoad));
+        setCurrentConfig(buildActiveConfig(active, t));
         if (shouldFetchArtist) setCurrentArtistName(nextArtistName);
       } catch (err) {
         setResolveErrorVisible(true);
@@ -517,11 +436,11 @@ function ShareLayoutInner({
         clearTimeout(timeout);
       }
     },
-    [currentArtistName, currentConfig, handleShareAlbumArtLoad, t],
+    [currentArtistName, currentConfig, t],
   );
 
   return (
-    <div style={accentStyle}>
+    <div>
       {onBack && backLabel && (
         <div
           // Width-matched to the desktop card row so the link sits flush with
@@ -578,7 +497,7 @@ function ShareLayoutInner({
           sheet visible below the viewport. */}
       {mounted &&
         createPortal(
-          <div style={accentStyle}>
+          <div>
             <div
               className={cn(
                 "fixed inset-0 z-50 flex flex-col justify-end",

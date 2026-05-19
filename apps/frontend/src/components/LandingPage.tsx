@@ -16,7 +16,6 @@ import { AppFooter } from "@/components/layout/AppFooter";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { LogoView } from "@/components/ui/LogoView";
-import { useAlbumColors } from "@/hooks/useAlbumColors";
 import { useAppState } from "@/hooks/useAppState";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
 import { useToast } from "@/hooks/useToast";
@@ -31,7 +30,6 @@ import {
 } from "@/lib/preload/resultRuntime";
 import { buildShareConfigFromActive } from "@/lib/resolve/parsers";
 import type { InputState } from "@/lib/types/app";
-import { hexToRgb } from "@/lib/ui/colors";
 
 // Lazy-loaded panels — only pulled into the bundle when the user needs them.
 // Fallback is `null` because each is only rendered behind a visibility flag anyway.
@@ -71,7 +69,6 @@ function LandingPageInner({
   const disambiguationRef = useRef<HTMLDivElement>(null);
   const searchFieldRef = useRef<HTMLDivElement>(null);
 
-  const { dynamicAccent, handleAlbumArtLoad, resetColors } = useAlbumColors();
   const {
     state,
     active,
@@ -93,7 +90,7 @@ function LandingPageInner({
     handleSelectGenreResult,
     handleBack,
     handleClear,
-  } = useAppState(resetColors);
+  } = useAppState();
   const { isReturning, capturePosition, triggerReturn } = useFlipAnimation(searchFieldRef);
 
   const [inputValue, setInputValue] = useState("");
@@ -215,14 +212,6 @@ function LandingPageInner({
     return () => window.cancelAnimationFrame(frame);
   }, [state.type]);
 
-  const handleAmbientAlbumArtLoad = useCallback(
-    (img: HTMLImageElement) => {
-      if (state.type === "clearing") return;
-      handleAlbumArtLoad(img);
-    },
-    [handleAlbumArtLoad, state.type],
-  );
-
   useLayoutEffect(() => {
     const el = searchFieldRef.current;
     if (!el) return;
@@ -256,26 +245,13 @@ function LandingPageInner({
     previousShowCompact.current = showCompact;
   });
 
-  const activeShareConfig = active ? buildShareConfigFromActive(active, t, handleAmbientAlbumArtLoad) : null;
+  const activeShareConfig = active ? buildShareConfigFromActive(active, t) : null;
   const activeArtistName = active ? (active.kind === "artist" ? active.name : active.artist) : "";
   const isSharePageView = !!(activeShareConfig && active);
 
   return (
     <>
-      <div
-        className="flex-1 flex flex-col items-center px-4 transition-colors duration-700 relative"
-        style={
-          dynamicAccent
-            ? ({
-                "--color-accent": dynamicAccent.base,
-                "--color-accent-rgb": hexToRgb(dynamicAccent.base),
-                "--color-accent-hover": dynamicAccent.hover,
-                "--color-accent-glow": dynamicAccent.glow,
-                "--color-accent-contrast": dynamicAccent.contrastText,
-              } as React.CSSProperties)
-            : undefined
-        }
-      >
+      <div className="flex-1 flex flex-col items-center px-4 transition-colors duration-700 relative">
         <PageHeader navItems={headerNav} />
 
         <div
@@ -300,7 +276,6 @@ function LandingPageInner({
                   <ShareLayout
                     config={activeShareConfig}
                     artistName={activeArtistName}
-                    mirrorAlbumColorsToRoot={false}
                     onBack={canGoBack ? handleBack : undefined}
                     backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
                   />

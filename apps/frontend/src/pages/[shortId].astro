@@ -17,7 +17,6 @@ import type { ServiceId } from "@musiccloud/shared";
 import { buildMetaLine, isValidServiceId } from "@musiccloud/shared";
 import { fetchPublicContentPage, fetchShareData } from "@/api/client";
 import GradientBackground from "@/components/background/GradientBackground.astro";
-import SparklingStars from "@/components/background/SparklingStars.astro";
 import DeferredFooter from "@/components/layout/DeferredFooter.astro";
 import DeferredHeader from "@/components/layout/DeferredHeader.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
@@ -182,9 +181,6 @@ if (treatAsBot) {
   <DeferredHeader server:defer />
 
   <GradientBackground />
-
-  <!-- Non-essential ambient UI: static (CSS-only animation) -->
-  <SparklingStars />
 
   <div class="min-h-dvh flex flex-col">
     {treatAsBot ? (

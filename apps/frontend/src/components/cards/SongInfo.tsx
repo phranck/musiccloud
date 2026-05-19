@@ -12,16 +12,30 @@ interface SongInfoProps {
   durationMs?: number;
   isExplicit?: boolean;
   albumArtUrl: string;
-  onAlbumArtLoad?: (img: HTMLImageElement) => void;
   /** When provided, replaces the automatically computed meta line (duration · year) */
   metaOverride?: string;
   /** Fourth VFD row. Pre-translated by the caller so the component stays reusable. */
   statusLine?: string;
-  /** Pulses the fourth VFD row with compositor-only opacity animation. */
-  statusActive?: boolean;
 }
 
 const ARTWORK_SWAP_MS = 900;
+
+function nextAnimationFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+async function decodeArtwork(url: string): Promise<void> {
+  const img = new Image();
+  img.decoding = "async";
+  img.src = url;
+  try {
+    await img.decode();
+  } catch {
+    // Broken artwork should not block the cover transition. The visible image
+    // still has its own fallback path via ArtworkImage.onError.
+  }
+  await nextAnimationFrame();
+}
 
 export const SongInfo = memo(function SongInfo({
   title,
@@ -31,10 +45,8 @@ export const SongInfo = memo(function SongInfo({
   durationMs,
   isExplicit,
   albumArtUrl,
-  onAlbumArtLoad,
   metaOverride,
   statusLine = "READY",
-  statusActive = false,
 }: SongInfoProps) {
   const metaLine = metaOverride ?? buildMetaLine({ durationMs, releaseDate });
   const detailLine = [album, isExplicit ? "E" : null].filter(Boolean).join(" · ");
@@ -71,11 +83,7 @@ export const SongInfo = memo(function SongInfo({
     if (!albumArtUrl) {
       startSwap();
     } else {
-      const img = new Image();
-      img.decoding = "async";
-      img.onload = startSwap;
-      img.onerror = startSwap;
-      img.src = albumArtUrl;
+      void decodeArtwork(albumArtUrl).then(startSwap);
     }
 
     return () => {
@@ -83,30 +91,6 @@ export const SongInfo = memo(function SongInfo({
       if (timeout) clearTimeout(timeout);
     };
   }, [albumArtUrl]);
-
-  // Load a hidden CORS image for color extraction. Using a separate Image object
-  // avoids the SSR hydration problem where the visible img is already loaded by the
-  // browser before React can attach the onLoad handler. The visible img never needs
-  // crossOrigin — only the hidden one used for canvas sampling does.
-  //
-  // fetchPriority="high" + eager decode minimises the gap between first paint and
-  // the point at which the dynamic accent becomes available, because the button
-  // stays in its neutral pre-accent state until this image resolves.
-  useEffect(() => {
-    if (!albumArtUrl || !onAlbumArtLoad) return;
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.decoding = "async";
-    if ("fetchPriority" in img) {
-      (img as HTMLImageElement & { fetchPriority: string }).fetchPriority = "high";
-    }
-    img.onload = () => onAlbumArtLoad(img);
-    img.src = albumArtUrl;
-    return () => {
-      img.onload = null;
-      img.src = "";
-    };
-  }, [albumArtUrl, onAlbumArtLoad]);
 
   return (
     <div>
@@ -143,7 +127,7 @@ export const SongInfo = memo(function SongInfo({
             Weight hierarchy is modeled as phosphor intensity in VfdDisplay,
             not font-weight. */}
         <VfdDisplay
-          phosphorColor="rgb(var(--color-accent-rgb-resolved, 127 234 255))"
+          phosphorColor="rgb(127 234 255)"
           ariaLabel={`Track information: ${title} ${artist} ${detailLine} ${statusLine}`}
           lines={[
             {
@@ -166,8 +150,6 @@ export const SongInfo = memo(function SongInfo({
               brightness: "normal",
               align: "center",
               marquee: shouldMarqueeStatus,
-              pulse: statusActive,
-              className: statusActive ? "mc-vfd-line-pulse-slow" : undefined,
             },
           ]}
         />

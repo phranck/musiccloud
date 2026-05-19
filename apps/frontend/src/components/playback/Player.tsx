@@ -97,12 +97,27 @@ const PLAYER_PROGRESS_MARKER_DOTS = Array.from({ length: PLAYER_PROGRESS_SEGMENT
   })),
 );
 
-const PlayerProgressRailDots = memo(function PlayerProgressRailDots({ className }: { className: string }) {
+const PlayerProgressRailDots = memo(function PlayerProgressRailDots({
+  className,
+  maxX,
+}: {
+  className: string;
+  maxX?: number;
+}) {
   return (
     <g className={className}>
-      {PLAYER_PROGRESS_RAIL_DOTS.map((dot) => (
-        <circle key={dot.key} className="mc-vfd-symbol-pixel" cx={dot.cx} cy={dot.cy} r={PLAYER_PROGRESS_DOT_RADIUS} />
-      ))}
+      {PLAYER_PROGRESS_RAIL_DOTS.flatMap((dot) => {
+        if (maxX !== undefined && dot.cx > maxX) return [];
+        return [
+          <circle
+            key={dot.key}
+            className="mc-vfd-symbol-pixel"
+            cx={dot.cx}
+            cy={dot.cy}
+            r={PLAYER_PROGRESS_DOT_RADIUS}
+          />,
+        ];
+      })}
     </g>
   );
 });
@@ -169,9 +184,8 @@ function PlayerSpectrumMeter({ bands }: { bands: readonly number[] }) {
 function PlayerProgressMarkerMeter({ progress }: { progress: number }) {
   const safeProgress = Math.min(1, Math.max(0, progress));
   const markerX = (safeProgress * PLAYER_PROGRESS_MARKER_MAX_X) / PLAYER_PROGRESS_WIDTH;
+  const activeRailMaxX = safeProgress * PLAYER_PROGRESS_WIDTH;
   const style = {
-    "--mc-player-progress": safeProgress,
-    "--mc-player-progress-percent": `${safeProgress * 100}%`,
     "--mc-player-progress-marker-x": `${markerX * 100}%`,
   } as CSSProperties;
 
@@ -185,7 +199,7 @@ function PlayerProgressMarkerMeter({ progress }: { progress: number }) {
         focusable="false"
       >
         <PlayerProgressRailDots className="mc-player-progress-rail-ghost" />
-        <PlayerProgressRailDots className="mc-player-progress-rail-active" />
+        <PlayerProgressRailDots className="mc-player-progress-rail-active" maxX={activeRailMaxX} />
         <PlayerProgressMarkerDots />
       </svg>
     </span>
@@ -378,7 +392,7 @@ function PlayerRoot({
 
 function PlayerButton({ className }: PlayerButtonProps) {
   const { isPlaying, isDisabled, onTogglePlay, ariaLabel, title } = usePlayerContext();
-  const accentColor = isDisabled ? "rgba(255,255,255,0.2)" : "rgb(var(--color-accent-rgb-resolved, 255 255 255))";
+  const accentColor = isDisabled ? "rgba(255,255,255,0.2)" : "rgb(127 234 255)";
 
   return (
     <RecessedCard

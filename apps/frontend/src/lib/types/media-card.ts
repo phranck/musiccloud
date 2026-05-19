@@ -39,13 +39,6 @@ export interface MediaCardContentConfiguration {
   platformsInfo?: string;
   /** Optional one-line status for the fourth VFD row. Pre-translated by caller. */
   statusLine?: string;
-  /** When true, the VFD status row subtly pulses to indicate active work. */
-  statusActive?: boolean;
-  /**
-   * Called when the album art image finishes loading — used to extract
-   * dynamic accent colors. Not serializable; must be provided client-side.
-   */
-  onAlbumArtLoad?: (img: HTMLImageElement) => void;
 }
 
 /**
@@ -82,8 +75,6 @@ export interface ArtistContentConfiguration extends MediaCardContentConfiguratio
  * Share page (`/[shortId]`).
  * No ShareButton, no sr-announcement.
  * Plain data fields are fully JSON-serializable (from Astro SSR).
- * `onAlbumArtLoad` (inherited from base) is injected client-side by ShareLayoutInner.
- *
  * `platformsLabelKey` is the i18n key for the platforms label so the
  * client-side LocaleProvider can re-translate it after a locale change.
  * `platformsLabel` (from base) serves as SSR-rendered fallback to avoid flash.

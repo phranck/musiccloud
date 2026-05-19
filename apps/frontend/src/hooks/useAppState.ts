@@ -42,7 +42,7 @@ interface UseAppStateResult {
  * Manages the full app state machine for the landing page:
  * loading, results, disambiguation, error, and clearing states.
  */
-export function useAppState(onClearColors: () => void): UseAppStateResult {
+export function useAppState(): UseAppStateResult {
   const t = useT();
   const initialState: ReducerState = { screen: { type: "idle" }, stack: [] };
   const [{ screen, stack }, dispatch] = useReducer(appReducer, initialState);
@@ -177,13 +177,11 @@ export function useAppState(onClearColors: () => void): UseAppStateResult {
 
   const handleClear = useCallback(() => {
     dispatch({ type: "CLEAR_START" });
-    onClearColors();
-  }, [onClearColors]);
+  }, []);
 
   const handleBack = useCallback(() => {
     dispatch({ type: "NAV_BACK" });
-    onClearColors();
-  }, [onClearColors]);
+  }, []);
 
   return {
     state: screen,

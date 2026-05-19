@@ -46,8 +46,6 @@ export interface VfdDisplayLine {
   align?: VfdSectionAlign;
   /** Enables compositor-only marquee movement for the whole line. */
   marquee?: VfdMarqueeMode;
-  /** Enables a subtle compositor-only opacity pulse, useful for loading states. */
-  pulse?: boolean;
   /** Content replacement mode. Use `none` for high-frequency updates like progress meters. */
   transition?: VfdContentTransition;
   /** Stable content identity for non-string ReactNode content. String content uses itself as identity. */
@@ -85,7 +83,6 @@ interface NormalizedVfdLine {
   brightness: VfdBrightness;
   align: VfdSectionAlign;
   marquee?: VfdMarqueeMode;
-  pulse?: boolean;
   transition: VfdContentTransition;
   className?: string;
 }
@@ -420,7 +417,6 @@ function normalizeLine(index: number, line: VfdDisplayLine | undefined): Normali
     brightness: safeLine.brightness ?? "normal",
     align: safeLine.align ?? "left",
     marquee: safeLine.marquee,
-    pulse: safeLine.pulse,
     transition: safeLine.transition ?? "slide",
     className: safeLine.className,
   };
@@ -449,7 +445,6 @@ function sameLinePresentation(a: NormalizedVfdLine, b: NormalizedVfdLine): boole
     a.brightness === b.brightness &&
     a.align === b.align &&
     a.marquee === b.marquee &&
-    a.pulse === b.pulse &&
     a.transition === b.transition &&
     a.className === b.className
   );
@@ -517,16 +512,8 @@ function VfdSegment({
   const href = `#${glyphSymbolId(symbolPrefix, glyph, ghost)}`;
 
   return (
-    <g
-      className={cn("mc-vfd-segment", ghost && "mc-vfd-segment-ghost", className)}
-      transform={`translate(${segmentX} 0)`}
-    >
-      <use
-        href={href}
-        width={VFD_SEGMENT_WIDTH}
-        height={VFD_SEGMENT_HEIGHT}
-        className={ghost ? "mc-vfd-glyph-ghost" : "mc-vfd-glyph-core"}
-      />
+    <g className={cn("mc-vfd-segment", className)} transform={`translate(${segmentX} 0)`}>
+      <use href={href} width={VFD_SEGMENT_WIDTH} height={VFD_SEGMENT_HEIGHT} />
     </g>
   );
 }
@@ -758,7 +745,6 @@ const VfdRow = memo(function VfdRow({
   brightness,
   align,
   marquee,
-  pulse,
   transition,
   className,
   ghostPattern,
@@ -791,7 +777,7 @@ const VfdRow = memo(function VfdRow({
         key={contentKey}
         className={cn("mc-vfd-line-content", transition === "none" && "mc-vfd-line-content-static")}
       >
-        <span className={cn("mc-vfd-line-content-inner", pulse && "mc-vfd-line-pulse", className)}>
+        <span className={cn("mc-vfd-line-content-inner", className)}>
           {buildSectionedContent(line, cellCount, cellKeys, `${symbolPrefix}-in`)}
         </span>
       </span>
@@ -813,7 +799,7 @@ const VfdRow = memo(function VfdRow({
  *   but VfdDisplay itself does not know about titles, durations, or years.
  * - Font weight stays visually constant. Hierarchy is expressed via phosphor
  *   brightness (opacity + text-shadow), matching real VFD modules.
- * - Runtime animations are compositor-friendly only: opacity and translate3d.
+ * - Runtime animations are compositor-friendly translate3d movements only.
  * - Content changes are routed through `setLineContent(index, line)` below.
  *   Updating only the affected row keeps unchanged VFD rows mounted and still.
  * - Inactive background cells are custom 5x7 pixel matrices, so the ghost
@@ -902,10 +888,9 @@ export function VfdDisplay({
   const style = { "--mc-vfd-color": phosphorColor, "--mc-vfd-cells": cellCount } as CSSProperties;
 
   return (
-    <RecessedCard className={cn("p-0.5", className)} radius={{ base: "0.75rem", sm: "0.875rem" }}>
+    <RecessedCard className={cn("p-0.5", className)} radius={{ base: "0.75rem", sm: "0.875rem" }} disableBackdropBlur>
       <RecessedCard.Body>
         <section className={cn("mc-vfd", VFD_DEVICE_CLASSES)} style={style} aria-label={ariaLabel}>
-          <div className="mc-vfd-grid" aria-hidden="true" />
           <div className="mc-vfd-scan" aria-hidden="true" />
           <div className="relative z-10 grid gap-[inherit]">
             {Array.from({ length: rowCount }, (_, index) => {
