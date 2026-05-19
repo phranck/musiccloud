@@ -155,7 +155,7 @@ export const SongInfo = memo(function SongInfo({
                     // title gets the remaining cells and scrolls only if
                     // it overflows. VfdDisplay stays generic: it only
                     // knows section sizing/alignment, not song metadata.
-                    { content: ` ${metaLine}`, cells: "auto", align: "right", brightness: "dim" },
+                    { content: ` ${metaLine}`, cells: "auto", align: "right", brightness: "normal" },
                   ]
                 : [{ content: title, cells: "fill", align: "left", marquee: "overflow" }],
             },

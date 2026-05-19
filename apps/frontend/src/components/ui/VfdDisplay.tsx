@@ -303,6 +303,8 @@ const VFD_GLYPH_PATTERNS: Record<string, readonly string[]> = {
   [VFD_GLYPHS.progressMarkerNext2]: ["11000", "11000", "11000", "11000", "11000", "11000", "11000"],
 };
 
+export const VFD_SEGMENT_SCALE = 1.2;
+
 const VFD_DOT_RADIUS = 1;
 const VFD_DOT_PITCH = 3;
 const VFD_SEGMENT_COLUMNS = 5;
@@ -326,6 +328,10 @@ function vfdRowWidth(segmentCount: number): number {
 function normalizePositiveInteger(value: number | undefined, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   return Math.max(1, Math.floor(value ?? fallback));
+}
+
+export function scaledVfdCellCount(cells: number): number {
+  return Math.max(1, Math.floor(cells / VFD_SEGMENT_SCALE));
 }
 
 function fitPatternToCells(pattern: string, cellCount: number): string {
@@ -802,7 +808,8 @@ export function VfdDisplay({
   const reactId = useId();
   const symbolPrefix = useMemo(() => `mc-vfd-${reactId.replace(/[^a-zA-Z0-9_-]/g, "") || "display"}`, [reactId]);
   const rowCount = normalizePositiveInteger(rows, DEFAULT_VFD_ROWS);
-  const cellCount = normalizePositiveInteger(charsPerLine, DEFAULT_VFD_CELL_COUNT);
+  const requestedCellCount = normalizePositiveInteger(charsPerLine, DEFAULT_VFD_CELL_COUNT);
+  const cellCount = scaledVfdCellCount(requestedCellCount);
   const cellKeys = useMemo(() => Array.from({ length: cellCount }, (_, index) => `vfd-cell-${index}`), [cellCount]);
   const ghostCells = useMemo(() => fitPatternToCells(ghostPattern, cellCount), [cellCount, ghostPattern]);
   const generationRef = useRef(0);

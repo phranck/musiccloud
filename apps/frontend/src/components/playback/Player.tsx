@@ -1,7 +1,7 @@
 import { type CSSProperties, createContext, memo, type ReactNode, use, useLayoutEffect, useRef } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
+import { scaledVfdCellCount, VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
 import { cn } from "@/lib/utils";
 
 export type PlayerProgressVariant = "marker" | "segments";
@@ -50,7 +50,7 @@ interface PlayerTimeProps {
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
-const PLAYER_PROGRESS_CELLS = 30;
+const PLAYER_PROGRESS_CELLS = scaledVfdCellCount(30);
 const PLAYER_PROGRESS_DOT_RADIUS = 1;
 const PLAYER_PROGRESS_DOT_PITCH = 3;
 const PLAYER_PROGRESS_SEGMENT_COLUMNS = 5;
