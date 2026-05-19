@@ -235,10 +235,10 @@
     inset 1px 1px 0 color-mix(in srgb, var(--mc-vfd-color) 14%, rgba(255, 255, 255, 0.1)),
     inset -1px -1px 0 color-mix(in srgb, var(--mc-vfd-color) 8%, rgba(0, 0, 0, 0.82));
   color: var(--mc-vfd-color);
-  --mc-vfd-bright-color: hsl(from var(--mc-vfd-color) h s calc(l + 12));
-  --mc-vfd-normal-color: hsl(from var(--mc-vfd-color) h s calc(l - 8));
-  --mc-vfd-dim-color: hsl(from var(--mc-vfd-color) h s calc(l - 34));
-  --mc-vfd-ghost-color: hsl(from var(--mc-vfd-color) h s calc(l - 52));
+  --mc-vfd-bright-color: hsl(from var(--mc-vfd-color) h s calc(l + 10));
+  --mc-vfd-normal-color: hsl(from var(--mc-vfd-color) h s l);
+  --mc-vfd-dim-color: hsl(from var(--mc-vfd-color) h calc(s - 8) calc(l - 18));
+  --mc-vfd-ghost-color: hsl(from var(--mc-vfd-color) h calc(s - 18) calc(l - 34));
   --mc-vfd-cells: 44;
   isolation: isolate;
 }
@@ -370,6 +370,10 @@
 
 .mc-vfd-dim {
   color: var(--mc-vfd-dim-color);
+}
+
+.mc-vfd-ghost {
+  color: var(--mc-vfd-ghost-color);
 }
 
 .mc-vfd-line-pulse {

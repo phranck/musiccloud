@@ -4,7 +4,7 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
 import { cn } from "@/lib/utils";
 
-export type PlayerProgressVariant = "blocks" | "marker" | "segments";
+export type PlayerProgressVariant = "marker" | "segments";
 export type PlayerProgressGranularity = "blocks" | "pixels";
 
 interface PlayerContextValue {
@@ -85,6 +85,48 @@ function partialProgressGlyph(columns: number): string {
   }
 }
 
+function markerGlyphsForPixelOffset(offset: number): string[] {
+  switch (offset) {
+    case 0:
+      return [VFD_GLYPHS.progressMarkerStart];
+    case 1:
+      return [VFD_GLYPHS.progressMarker];
+    case 2:
+      return [VFD_GLYPHS.progressMarkerRight];
+    case 3:
+      return [VFD_GLYPHS.progressMarkerEnd2, VFD_GLYPHS.progressMarkerNext1];
+    case 4:
+      return [VFD_GLYPHS.progressMarkerEnd1, VFD_GLYPHS.progressMarkerNext2];
+    default:
+      return [VFD_GLYPHS.progressMarker];
+  }
+}
+
+function renderMarkerProgressSections(
+  progressGranularity: PlayerProgressGranularity,
+  progress: number,
+  cells: number,
+): VfdDisplaySection[] {
+  if (progressGranularity === "pixels") {
+    const markerStart = Math.round(progress * Math.max(0, cells * 5 - 3));
+    const trackBefore = Math.floor(markerStart / 5);
+    const markerGlyphs = markerGlyphsForPixelOffset(markerStart % 5).join("");
+    const trackAfter = cells - trackBefore - Array.from(markerGlyphs).length;
+    return compactSections([
+      sectionFor(VFD_GLYPHS.progressRailEmpty.repeat(trackBefore), "bright"),
+      sectionFor(markerGlyphs, "bright"),
+      sectionFor(VFD_GLYPHS.progressRailEmpty.repeat(Math.max(0, trackAfter)), "ghost"),
+    ]);
+  }
+
+  const markerIndex = Math.round(progress * (cells - 1));
+  return compactSections([
+    sectionFor(VFD_GLYPHS.progressRailEmpty.repeat(markerIndex), "bright"),
+    sectionFor(VFD_GLYPHS.progressMarker, "bright"),
+    sectionFor(VFD_GLYPHS.progressRailEmpty.repeat(Math.max(0, cells - markerIndex - 1)), "ghost"),
+  ]);
+}
+
 function renderProgressSections(
   variant: PlayerProgressVariant,
   progressGranularity: PlayerProgressGranularity,
@@ -93,14 +135,7 @@ function renderProgressSections(
 ): VfdDisplaySection[] {
   const safeCells = Math.max(4, cells);
 
-  if (variant === "marker") {
-    const markerIndex = Math.round(progress * (safeCells - 1));
-    return compactSections([
-      sectionFor(VFD_GLYPHS.progressRailActive.repeat(markerIndex), "normal"),
-      sectionFor(VFD_GLYPHS.progressMarker, "bright"),
-      sectionFor(VFD_GLYPHS.progressRailEmpty.repeat(Math.max(0, safeCells - markerIndex - 1)), "dim"),
-    ]);
-  }
+  if (variant === "marker") return renderMarkerProgressSections(progressGranularity, progress, safeCells);
 
   if (variant === "segments") {
     if (progressGranularity === "pixels") {
@@ -123,11 +158,7 @@ function renderProgressSections(
     ]);
   }
 
-  const active = Math.round(progress * safeCells);
-  return compactSections([
-    sectionFor(VFD_GLYPHS.progressFill.repeat(active), "bright"),
-    sectionFor(VFD_GLYPHS.progressEmpty.repeat(Math.max(0, safeCells - active)), "dim"),
-  ]);
+  return [];
 }
 
 function renderProgressCells(
@@ -151,7 +182,7 @@ function PlayerRoot({
   timeText,
   ariaLabel,
   title,
-  progressVariant = "blocks",
+  progressVariant = "segments",
   progressGranularity = "pixels",
   phosphorColor,
   onTogglePlay,
@@ -189,7 +220,7 @@ function PlayerRoot({
 
   return (
     <PlayerContext.Provider value={value}>
-      <section ref={rootRef} className={cn("flex items-start gap-3", className)} aria-label={ariaLabel}>
+      <section ref={rootRef} className={cn("flex items-center gap-3", className)} aria-label={ariaLabel}>
         {children ?? (
           <>
             <PlayerButton />
@@ -208,7 +239,7 @@ function PlayerButton({ className }: PlayerButtonProps) {
   return (
     <RecessedCard
       className={cn(
-        "mc-player-button-recess flex-none h-[var(--mc-player-control-size,3rem)] w-[var(--mc-player-control-size,3rem)]",
+        "mc-player-button-recess flex-none h-[calc(var(--mc-player-control-size,3rem)-2px)] w-[calc(var(--mc-player-control-size,3rem)-2px)]",
         className,
       )}
       padding="0.1875rem"

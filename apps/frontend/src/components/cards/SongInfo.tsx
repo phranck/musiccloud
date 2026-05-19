@@ -39,7 +39,7 @@ export const SongInfo = memo(function SongInfo({
   const metaLine = metaOverride ?? buildMetaLine({ durationMs, releaseDate });
   const detailLine = [album, isExplicit ? "E" : null].filter(Boolean).join(" · ");
   const shouldMarqueeStatus = statusLine.length > 28;
-  const isPreviewPlayingStatus = /^[♪♫♬]/u.test(statusLine);
+
   const [artworkState, setArtworkState] = useState({
     currentUrl: albumArtUrl,
     previousUrl: null as string | null,
@@ -167,7 +167,7 @@ export const SongInfo = memo(function SongInfo({
               align: "center",
               marquee: shouldMarqueeStatus,
               pulse: statusActive,
-              className: isPreviewPlayingStatus ? "mc-vfd-line-pulse-slow" : undefined,
+              className: statusActive ? "mc-vfd-line-pulse-slow" : undefined,
             },
           ]}
         />

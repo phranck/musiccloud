@@ -103,7 +103,7 @@ export function AudioPreviewPlayer({
   refreshShortId,
   trackTitle,
   onStatusChange,
-  progressVariant = "segments",
+  progressVariant = "marker",
   progressGranularity = "pixels",
 }: AudioPreviewPlayerProps) {
   const t = useT();

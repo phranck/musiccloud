@@ -13,7 +13,7 @@ import {
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
 
-export type VfdBrightness = "bright" | "normal" | "dim";
+export type VfdBrightness = "bright" | "normal" | "dim" | "ghost";
 export type VfdSectionAlign = "left" | "center" | "right";
 export type VfdSectionCells = number | "auto" | "fill";
 export type VfdMarqueeMode = boolean | "overflow";
@@ -122,6 +122,7 @@ const BRIGHTNESS_CLASSES: Record<VfdBrightness, string> = {
   bright: "mc-vfd-bright",
   normal: "mc-vfd-normal",
   dim: "mc-vfd-dim",
+  ghost: "mc-vfd-ghost",
 };
 
 const VFD_LINE_SWAP_MS = 900;
@@ -131,18 +132,20 @@ const EMPTY_CELL = "\u00A0";
 
 export const VFD_GLYPHS = {
   ghost: "\uE000",
-  progressFill: "\uE001",
   progressEmpty: "\uE002",
   progressBlock1: "\uE009",
   progressBlock2: "\uE00A",
   progressBlock3: "\uE00B",
   progressBlock4: "\uE00C",
   progressBlock: "\uE008",
-  progressRailActive: "\uE003",
   progressRailEmpty: "\uE004",
   progressMarker: "\uE005",
-  progressBracketLeft: "\uE006",
-  progressBracketRight: "\uE007",
+  progressMarkerStart: "\uE00D",
+  progressMarkerRight: "\uE012",
+  progressMarkerEnd2: "\uE00E",
+  progressMarkerEnd1: "\uE00F",
+  progressMarkerNext1: "\uE010",
+  progressMarkerNext2: "\uE011",
 } as const;
 
 const BLANK_GLYPH = ["00000", "00000", "00000", "00000", "00000", "00000", "00000"] as const;
@@ -284,18 +287,20 @@ const VFD_GLYPH_PATTERNS: Record<string, readonly string[]> = {
   Æ: ["01111", "10100", "10100", "11110", "10100", "10100", "10111"],
   æ: ["00000", "00000", "11010", "00101", "01111", "10100", "01011"],
   [VFD_GLYPHS.ghost]: FULL_GLYPH,
-  [VFD_GLYPHS.progressFill]: ["11110", "11110", "11110", "11110", "11110", "11110", "11110"],
   [VFD_GLYPHS.progressEmpty]: BLANK_GLYPH,
   [VFD_GLYPHS.progressBlock1]: ["00000", "10000", "10000", "10000", "10000", "10000", "00000"],
   [VFD_GLYPHS.progressBlock2]: ["00000", "11000", "11000", "11000", "11000", "11000", "00000"],
   [VFD_GLYPHS.progressBlock3]: ["00000", "11100", "11100", "11100", "11100", "11100", "00000"],
   [VFD_GLYPHS.progressBlock4]: ["00000", "11110", "11110", "11110", "11110", "11110", "00000"],
   [VFD_GLYPHS.progressBlock]: ["00000", "11111", "11111", "11111", "11111", "11111", "00000"],
-  [VFD_GLYPHS.progressRailActive]: ["00000", "00000", "11110", "11110", "11110", "00000", "00000"],
-  [VFD_GLYPHS.progressRailEmpty]: ["00000", "00000", "11110", "00000", "11110", "00000", "00000"],
-  [VFD_GLYPHS.progressMarker]: ["00100", "01110", "11111", "11111", "11111", "01110", "00100"],
-  [VFD_GLYPHS.progressBracketLeft]: ["01110", "01000", "01000", "01000", "01000", "01000", "01110"],
-  [VFD_GLYPHS.progressBracketRight]: ["01110", "00010", "00010", "00010", "00010", "00010", "01110"],
+  [VFD_GLYPHS.progressRailEmpty]: ["00000", "00000", "00000", "00000", "00000", "11111", "11111"],
+  [VFD_GLYPHS.progressMarker]: ["01110", "01110", "01110", "01110", "01110", "11110", "11110"],
+  [VFD_GLYPHS.progressMarkerStart]: ["11100", "11100", "11100", "11100", "11100", "11100", "11100"],
+  [VFD_GLYPHS.progressMarkerRight]: ["00111", "00111", "00111", "00111", "00111", "11111", "11111"],
+  [VFD_GLYPHS.progressMarkerEnd2]: ["00011", "00011", "00011", "00011", "00011", "11111", "11111"],
+  [VFD_GLYPHS.progressMarkerEnd1]: ["00001", "00001", "00001", "00001", "00001", "11111", "11111"],
+  [VFD_GLYPHS.progressMarkerNext1]: ["10000", "10000", "10000", "10000", "10000", "10000", "10000"],
+  [VFD_GLYPHS.progressMarkerNext2]: ["11000", "11000", "11000", "11000", "11000", "11000", "11000"],
 };
 
 const VFD_DOT_RADIUS = 1;
