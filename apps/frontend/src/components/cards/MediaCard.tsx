@@ -1,6 +1,11 @@
 import { CodeIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { AudioPreviewPlayer, type AudioPreviewStatus } from "@/components/audio/AudioPreviewPlayer";
+import {
+  outerEmbossedCardClassName,
+  recessedControlHeightClassName,
+  recessedControlInsetClassName,
+} from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SongInfo } from "@/components/cards/SongInfo";
@@ -33,11 +38,7 @@ interface MediaCardProps {
 }
 
 function mediaCardClassName(animated: boolean, className?: string) {
-  return cn(
-    "w-full max-w-full sm:max-w-lg mx-auto rounded-[1.375rem] sm:rounded-[1.625rem] p-0",
-    animated && "animate-zoom-in",
-    className,
-  );
+  return cn(outerEmbossedCardClassName, animated && "animate-zoom-in", className);
 }
 
 export function MediaCard({ content, className, animated = true, onPreviewStatusChange }: MediaCardProps) {
@@ -94,8 +95,7 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
             <div className="flex flex-col gap-3">
               <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
               <RecessedCard
-                className="hidden h-[47px] p-[0.1875rem] sm:block"
-                radius={{ base: "0.625rem", sm: "0.875rem" }}
+                className={cn("hidden sm:block", recessedControlHeightClassName, recessedControlInsetClassName)}
               >
                 <RecessedCard.Body className="h-full">
                   <EmbossedButton
@@ -132,7 +132,7 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
       <CollapsibleSection visible={showPlatforms} sectionClass="p-3">
         {showPlatforms && (
           <>
-            <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+            <RecessedCard className={recessedControlInsetClassName}>
               <RecessedCard.Header>
                 <RecessedCard.Header.Title>{content.platformsLabel}</RecessedCard.Header.Title>
               </RecessedCard.Header>

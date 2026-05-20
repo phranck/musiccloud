@@ -95,7 +95,7 @@ export const SongInfo = memo(function SongInfo({
   return (
     <div>
       <div className="px-3 pt-3">
-        <RecessedCard className="p-0.5" radius={{ base: "0.75rem", sm: "0.875rem" }}>
+        <RecessedCard className="p-0.5">
           <RecessedCard.Body>
             <TftScreen className="aspect-square w-full">
               {artworkState.previousUrl !== null && (

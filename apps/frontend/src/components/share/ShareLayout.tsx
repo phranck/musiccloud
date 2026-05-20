@@ -50,6 +50,7 @@ import { ArtistProfileDesktopCard } from "@/components/artist/ArtistProfileDeskt
 import { EventsCard } from "@/components/artist/EventsCard";
 import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
 import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
+import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
 import { ServicesCard } from "@/components/cards/ServicesCard";
 import { ShareCard } from "@/components/cards/ShareCard";
@@ -502,11 +503,12 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
             as="button"
             type="button"
             onClick={openSheet}
-            className="flex min-h-[48px] w-[calc((100%-0.125rem)/2-0.1875rem)] items-center justify-center gap-3 px-3 text-base text-text-primary max-[389px]:min-h-[40px] max-[389px]:gap-1.5 max-[389px]:px-2 max-[389px]:text-[13px] max-[389px]:font-normal min-[390px]:font-medium"
+            className="flex min-h-[48px] w-[calc((100%-0.125rem)/2-var(--mc-recessed-control-inset))] items-center justify-center gap-3 px-3 text-base text-text-primary max-[389px]:min-h-[40px] max-[389px]:gap-1.5 max-[389px]:px-2 max-[389px]:text-[13px] max-[389px]:font-normal min-[390px]:font-medium"
             style={
               {
-                "--neu-radius-base": "calc(0.625rem - 0.1875rem)",
-                "--neu-radius-sm": "calc(0.875rem - 0.1875rem)",
+                "--mc-recessed-control-inset": recessedControlInset,
+                "--neu-radius-base": raisedControlRadius,
+                "--neu-radius-sm": raisedControlRadius,
               } as CSSProperties
             }
           >

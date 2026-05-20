@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
+import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
@@ -54,7 +55,7 @@ export function EmbossedSegmentedControl<T extends string>({
   }, [value, segments]);
 
   return (
-    <RecessedCard ref={containerRef} className={cn("relative flex p-1", className)} radius="0.75rem">
+    <RecessedCard ref={containerRef} className={cn("relative flex p-1", className)} radius={recessedSurfaceRadius}>
       <RecessedCard.Body className="contents">
         {indicator && (
           <div
@@ -65,7 +66,7 @@ export function EmbossedSegmentedControl<T extends string>({
               left: "0.25rem",
             }}
           >
-            <EmbossedCard className="size-full rounded-lg p-0 bg-zinc-700/[0.65]" />
+            <EmbossedCard className="size-full p-0 bg-zinc-700/[0.65]" radius={raisedControlRadius} />
           </div>
         )}
         {segments.map(({ key, label }) => (

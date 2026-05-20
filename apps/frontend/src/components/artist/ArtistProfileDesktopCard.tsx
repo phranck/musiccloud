@@ -32,7 +32,7 @@ export function ArtistProfileDesktopCard({ data, isLoading, status }: ArtistProf
     return (
       <ArtistCardShell title={t("artist.infoTitle")}>
         <div className="p-3">
-          <RecessedCard className="p-4 min-h-[108px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+          <RecessedCard className="p-4 min-h-[108px]">
             <RecessedCard.Body>
               <ArtistNoticeContent message={effectiveStatus === "error" ? t("artist.error") : t("artist.empty")} />
             </RecessedCard.Body>

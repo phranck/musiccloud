@@ -1,4 +1,5 @@
 import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
 
@@ -1061,7 +1062,7 @@ export function VfdDisplay({
   } as CSSProperties;
 
   return (
-    <RecessedCard className={cn("p-0.5", className)} radius={{ base: "0.75rem", sm: "0.875rem" }}>
+    <RecessedCard className={cn("p-0.5", className)} radius={recessedSurfaceRadius}>
       <RecessedCard.Body>
         <section ref={vfdRef} className={cn("mc-vfd", VFD_DEVICE_CLASSES)} style={style} aria-label={ariaLabel}>
           <canvas

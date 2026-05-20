@@ -1,4 +1,9 @@
 import { Children, createContext, isValidElement, type ReactNode, type Ref, use, useState } from "react";
+import {
+  embossedCardContentInset,
+  embossedCardOuterRadius,
+  recessedSurfaceRadius,
+} from "@/components/cards/cardGeometry";
 import { cn } from "@/lib/utils";
 import { recessedStyle } from "@/styles/neumorphic";
 
@@ -136,17 +141,17 @@ interface RecessedCardProps {
 }
 
 // Fallback chain defaults: used when RecessedCard is rendered without an
-// EmbossedCard ancestor. Preserve the pre-cascade behaviour so existing
-// standalone call-sites render unchanged.
-const STANDALONE_RADIUS_FALLBACK = "1rem";
+// EmbossedCard ancestor. Keep standalone controls aligned with the shared
+// outer-card geometry: inner radius = outer radius − card inset.
+const STANDALONE_RADIUS_FALLBACK = recessedSurfaceRadius;
 
 // When the caller omits `radius`/`padding`, we want `calc()` to resolve to
 // the standalone fallback if `--emb-*` isn't set. CSS `var(x, fb)` returns
 // `fb` literally when `x` is unset, so we embed the fallback inside the var
-// — `calc(var(--emb-radius, 2rem) - var(--emb-padding, 1rem))` yields 1rem
-// standalone, and the correct inscribed radius when nested.
-const INHERITED_RADIUS_BASE = "calc(var(--emb-radius-base, 2rem) - var(--emb-padding, 1rem))";
-const INHERITED_RADIUS_SM = "calc(var(--emb-radius-sm, var(--emb-radius-base, 2rem)) - var(--emb-padding, 1rem))";
+// — `var(--mc-card-inner-radius-base, calc(var(--emb-radius, 2rem) - var(--emb-padding, 1rem)))`
+// yields 1rem standalone, and the correct inscribed radius when nested.
+const INHERITED_RADIUS_BASE = `var(--mc-card-inner-radius-base, calc(var(--emb-radius-base, ${embossedCardOuterRadius}) - var(--emb-padding, ${embossedCardContentInset})))`;
+const INHERITED_RADIUS_SM = `var(--mc-card-inner-radius-sm, calc(var(--emb-radius-sm, var(--emb-radius-base, ${embossedCardOuterRadius})) - var(--emb-padding, ${embossedCardContentInset})))`;
 const INHERITED_PADDING = "calc(var(--emb-padding, 2rem) / 2)";
 
 // Backward-compat: callers that still set padding via Tailwind (`p-*`,

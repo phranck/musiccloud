@@ -130,11 +130,6 @@
   box-shadow: inset 4px 4px 12px rgba(0, 0, 0, 0.9);
 }
 
-.mc-player-button-recess {
-  --neu-shadow: transparent;
-  --neu-light: hsl(0 0% 100% / 0.14);
-}
-
 .mc-raised-control {
   border-radius: var(--neu-radius);
   box-shadow:

@@ -1,6 +1,7 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistCardShell, EventsSkeleton, useSkeletonAllowed } from "@/components/artist/ArtistCardParts";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
+import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useLocale, useT } from "@/i18n/context";
@@ -35,7 +36,7 @@ export function EventsCard({ data, isLoading, userRegion }: EventsCardProps) {
   return (
     <ArtistCardShell title={t("artist.upcomingEvents")} footer={footer}>
       <div className={footer ? "px-3 pt-3 pb-2" : "p-3"}>
-        <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+        <RecessedCard className={recessedControlInsetClassName}>
           <RecessedCard.Body>
             {showInitialSkeleton ? (
               <EventsSkeleton />

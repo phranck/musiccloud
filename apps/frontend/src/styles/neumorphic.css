@@ -57,7 +57,23 @@
    the @media swap below matches the card's own responsive radius 1:1.
    Non-RecessedCard descendants simply ignore the variable. */
 .embossed-gradient-border {
-  --emb-radius: var(--emb-radius-base, 1.5rem);
+  --mc-embossed-card-radius-fallback: 1.375rem;
+  --mc-card-content-inset-fallback: 0.75rem;
+  --emb-radius: var(--emb-radius-base, var(--mc-embossed-card-radius-fallback));
+  --mc-card-inner-radius: var(
+    --mc-card-inner-radius-base,
+    max(
+      0px,
+      calc(
+        var(--emb-radius, var(--mc-embossed-card-radius-fallback)) -
+          var(--mc-card-content-inset, var(--mc-card-content-inset-fallback))
+      )
+    )
+  );
+  --mc-card-chrome-x: var(
+    --mc-card-chrome-x-base,
+    calc(var(--mc-card-content-inset, var(--mc-card-content-inset-fallback)) + var(--mc-card-inner-radius) / 2)
+  );
 }
 
 /* `border-radius` is NOT set on `.recessed-gradient-border` itself,
@@ -79,7 +95,27 @@
     --neu-radius: var(--neu-radius-sm, var(--neu-radius-base, 16px));
   }
   .embossed-gradient-border {
-    --emb-radius: var(--emb-radius-sm, var(--emb-radius-base, 1.5rem));
+    --emb-radius: var(--emb-radius-sm, var(--emb-radius-base, var(--mc-embossed-card-radius-fallback)));
+    --mc-card-inner-radius: var(
+      --mc-card-inner-radius-sm,
+      var(
+        --mc-card-inner-radius-base,
+        max(
+          0px,
+          calc(
+            var(--emb-radius, var(--mc-embossed-card-radius-fallback)) -
+              var(--mc-card-content-inset, var(--mc-card-content-inset-fallback))
+          )
+        )
+      )
+    );
+    --mc-card-chrome-x: var(
+      --mc-card-chrome-x-sm,
+      var(
+        --mc-card-chrome-x-base,
+        calc(var(--mc-card-content-inset, var(--mc-card-content-inset-fallback)) + var(--mc-card-inner-radius) / 2)
+      )
+    );
   }
 }
 

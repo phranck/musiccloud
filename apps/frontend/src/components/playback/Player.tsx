@@ -1,4 +1,5 @@
-import { createContext, type ReactNode, use, useLayoutEffect, useRef } from "react";
+import { createContext, type ReactNode, use } from "react";
+import { recessedControlInsetClassName, recessedControlSizeClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
@@ -90,7 +91,6 @@ function PlayerRoot({
   phosphorColor,
   onTogglePlay,
 }: PlayerProps) {
-  const rootRef = useRef<HTMLElement | null>(null);
   const value: PlayerContextValue = {
     isPlaying,
     isDisabled,
@@ -102,25 +102,9 @@ function PlayerRoot({
     onTogglePlay,
   };
 
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    const progressCard = root?.querySelector<HTMLElement>("[data-player-progress-card]");
-    if (!root || !progressCard) return;
-
-    const syncControlSize = () => {
-      const height = progressCard.getBoundingClientRect().height;
-      if (height > 0) root.style.setProperty("--mc-player-control-size", `${height}px`);
-    };
-
-    syncControlSize();
-    const observer = new ResizeObserver(syncControlSize);
-    observer.observe(progressCard);
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <PlayerContext.Provider value={value}>
-      <section ref={rootRef} className={cn("flex items-center gap-3", className)} aria-label={ariaLabel}>
+      <section className={cn("flex items-center gap-3", className)} aria-label={ariaLabel}>
         {children ?? (
           <>
             <PlayerButton />
@@ -137,14 +121,7 @@ function PlayerButton({ className }: PlayerButtonProps) {
   const accentColor = isDisabled ? "rgba(255,255,255,0.2)" : "#7aebff";
 
   return (
-    <RecessedCard
-      className={cn(
-        "mc-player-button-recess flex-none h-[calc(var(--mc-player-control-size,3rem)-2px)] w-[calc(var(--mc-player-control-size,3rem)-2px)]",
-        className,
-      )}
-      padding="0.1875rem"
-      radius={{ base: "0.625rem", sm: "0.875rem" }}
-    >
+    <RecessedCard className={cn("flex-none", recessedControlSizeClassName, recessedControlInsetClassName, className)}>
       <RecessedCard.Body className="h-full">
         <EmbossedButton
           as="button"
@@ -198,7 +175,7 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
       }));
 
   return (
-    <div className={cn("flex-1 min-w-0", className)} data-player-progress-card="true">
+    <div className={cn("flex-1 min-w-0", className)}>
       <VfdDisplay
         sizingMode="container"
         rows={1}

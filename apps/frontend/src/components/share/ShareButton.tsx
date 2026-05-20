@@ -1,5 +1,10 @@
 import { CheckIcon, LinkSimpleIcon, ShareNetworkIcon, WarningIcon } from "@phosphor-icons/react";
 import { type CSSProperties, useCallback, useState, useSyncExternalStore } from "react";
+import {
+  recessedControlHeightClassName,
+  recessedControlInsetClassName,
+  recessedControlSizeClassName,
+} from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
@@ -49,7 +54,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
 
   return (
     <div className="flex items-center gap-3">
-      <RecessedCard className="p-[0.1875rem] flex-1 h-[47px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+      <RecessedCard className={cn(recessedControlInsetClassName, "flex-1", recessedControlHeightClassName)}>
         <RecessedCard.Body className="h-full">
           <EmbossedButton
             as="button"
@@ -93,7 +98,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
       </RecessedCard>
 
       {supportsNativeShare && (
-        <RecessedCard className="p-[0.1875rem] flex-none size-[47px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+        <RecessedCard className={cn(recessedControlInsetClassName, "flex-none", recessedControlSizeClassName)}>
           <RecessedCard.Body className="h-full">
             <EmbossedButton
               as="button"

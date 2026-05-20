@@ -1,8 +1,8 @@
+import { recessedControlInset, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { cn } from "@/lib/utils";
 
-const CONTROL_RADIUS_BASE = "max(4px, calc(var(--mc-recessed-radius-base, 1rem) - var(--mc-recessed-padding, 0px)))";
-const CONTROL_RADIUS_SM =
-  "max(4px, calc(var(--mc-recessed-radius-sm, var(--mc-recessed-radius-base, 1rem)) - var(--mc-recessed-padding, 0px)))";
+const CONTROL_RADIUS_BASE = `max(4px, calc(var(--mc-recessed-radius-base, ${recessedSurfaceRadius}) - var(--mc-recessed-padding, ${recessedControlInset})))`;
+const CONTROL_RADIUS_SM = `max(4px, calc(var(--mc-recessed-radius-sm, var(--mc-recessed-radius-base, ${recessedSurfaceRadius})) - var(--mc-recessed-padding, ${recessedControlInset})))`;
 
 const controlRadiusStyle = {
   "--neu-radius-base": CONTROL_RADIUS_BASE,

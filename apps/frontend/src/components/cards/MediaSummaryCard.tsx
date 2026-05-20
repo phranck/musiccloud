@@ -1,4 +1,5 @@
 import { AudioPreviewPlayer, type AudioPreviewStatus } from "@/components/audio/AudioPreviewPlayer";
+import { outerEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
@@ -14,11 +15,7 @@ interface MediaSummaryCardProps {
 }
 
 function mediaCardClassName(animated: boolean, className?: string) {
-  return cn(
-    "w-full max-w-full sm:max-w-lg mx-auto rounded-[1.375rem] sm:rounded-[1.625rem] p-0",
-    animated && "animate-zoom-in",
-    className,
-  );
+  return cn(outerEmbossedCardClassName, animated && "animate-zoom-in", className);
 }
 
 export function MediaSummaryCard({

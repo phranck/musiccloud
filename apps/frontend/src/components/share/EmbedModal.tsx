@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbedCardIsland } from "@/components/embed/EmbedCardIsland";
@@ -327,7 +328,7 @@ export function EmbedModal({
                 >
                   {t("embed.code")}
                 </p>
-                <RecessedCard padding="3px" radius="0.5rem" className="inline-flex">
+                <RecessedCard padding="3px" radius={recessedSurfaceRadius} className="inline-flex">
                   <RecessedCard.Body>
                     <EmbossedButton
                       as="button"

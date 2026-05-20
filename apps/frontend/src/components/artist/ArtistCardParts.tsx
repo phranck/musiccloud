@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useReducer } from "react";
+import { fullWidthEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import {
   sectionCardFooterClassName,
@@ -28,10 +29,7 @@ interface ArtistCardShellProps {
 
 export function ArtistCardShell({ children, className, footer, title }: ArtistCardShellProps) {
   return (
-    <EmbossedCard
-      className={className ?? "w-full rounded-[1.375rem] sm:rounded-[1.625rem] p-0"}
-      style={solidEmbossedCardStyle}
-    >
+    <EmbossedCard className={className ?? fullWidthEmbossedCardClassName} style={solidEmbossedCardStyle}>
       {title && (
         <EmbossedCard.Header className={sectionCardHeaderClassName}>
           <EmbossedCard.Header.Title className={sectionCardTitleClassName}>{title}</EmbossedCard.Header.Title>

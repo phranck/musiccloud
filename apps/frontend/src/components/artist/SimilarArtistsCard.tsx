@@ -1,6 +1,7 @@
 import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
 import { ArtistCardShell, SimilarArtistsSkeleton, useSkeletonAllowed } from "@/components/artist/ArtistCardParts";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
+import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useT } from "@/i18n/context";
@@ -33,7 +34,7 @@ export function SimilarArtistsCard({ data, isLoading, onTrackResolve, onResolveS
   return (
     <ArtistCardShell title={t("artist.similarArtists")}>
       <div className="p-3">
-        <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+        <RecessedCard className={recessedControlInsetClassName}>
           <RecessedCard.Body>
             {showInitialSkeleton ? (
               <SimilarArtistsSkeleton />

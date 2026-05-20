@@ -1,6 +1,7 @@
 import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
 import { ArtistCardShell, TracksSkeleton, useSkeletonAllowed } from "@/components/artist/ArtistCardParts";
 import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
+import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useT } from "@/i18n/context";
@@ -31,7 +32,7 @@ export function PopularTracksCard({ data, isLoading, onTrackResolve, onResolveSt
   return (
     <ArtistCardShell title={t("artist.popularTracks")}>
       <div className="p-3">
-        <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+        <RecessedCard className={recessedControlInsetClassName}>
           <RecessedCard.Body>
             {showInitialSkeleton ? (
               <TracksSkeleton />

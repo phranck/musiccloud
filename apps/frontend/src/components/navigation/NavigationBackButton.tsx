@@ -1,4 +1,5 @@
 import { ArrowFatLeftIcon } from "@phosphor-icons/react";
+import { recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,7 @@ interface NavigationBackButtonProps {
  */
 export function NavigationBackButton({ onClick, label, className }: NavigationBackButtonProps) {
   return (
-    <RecessedCard radius="0.625rem" className={cn("inline-flex items-center p-0.5", className)}>
+    <RecessedCard radius={recessedSurfaceRadius} className={cn("inline-flex items-center p-0.5", className)}>
       <RecessedCard.Body>
         <EmbossedButton
           as="button"

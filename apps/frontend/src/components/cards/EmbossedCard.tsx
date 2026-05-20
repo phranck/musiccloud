@@ -1,4 +1,9 @@
 import { Children, isValidElement, type ReactNode } from "react";
+import {
+  embossedCardContentInset,
+  embossedCardOuterRadius,
+  recessedControlInset,
+} from "@/components/cards/cardGeometry";
 import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
 import { cn } from "@/lib/utils";
 import { embossedCardStyle } from "@/styles/neumorphic";
@@ -149,13 +154,13 @@ interface EmbossedCardProps {
    * radii (swaps at the `sm` breakpoint, 640 px). Published as
    * `--emb-radius-base` / `--emb-radius-sm` so a nested `RecessedCard`
    * can derive its own radius (`outerRadius − outerPadding`).
-   * Defaults to `1.875rem` (matches the 3-column reference layout).
+   * Defaults to `1.375rem` (22 px) and is shared through the card geometry tokens.
    */
   radius?: string | { base: string; sm?: string };
 }
 
 const DEFAULT_PADDING = "0.75rem";
-const DEFAULT_RADIUS = "1.875rem";
+const DEFAULT_RADIUS = embossedCardOuterRadius;
 
 // Backward-compat detection: a caller that still sets `p-*` or `rounded-*`
 // via the className is opting out of the cascaded geometry. Skip inline
@@ -231,15 +236,27 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   // active value into `--emb-radius`). Keep `--neu-radius-base/sm` in
   // lockstep so this card's own gradient-border transition arc aligns
   // with its actual rounded corner.
+  const activeRadiusSm = radiusSm ?? radiusBase;
+  const innerRadiusBase =
+    radiusBase !== undefined ? `max(0px, calc(${radiusBase} - var(--mc-card-content-inset)))` : undefined;
+  const innerRadiusSm =
+    activeRadiusSm !== undefined ? `max(0px, calc(${activeRadiusSm} - var(--mc-card-content-inset)))` : undefined;
+
   const mergedStyle: React.CSSProperties = {
     ...embossedCardStyle,
+    "--mc-card-content-inset": embossedCardContentInset,
+    "--mc-recessed-control-inset": recessedControlInset,
     ...(effectivePadding !== undefined ? { "--emb-padding": effectivePadding, padding: "var(--emb-padding)" } : {}),
     ...(radiusBase !== undefined
       ? {
           "--emb-radius-base": radiusBase,
-          "--emb-radius-sm": radiusSm ?? radiusBase,
+          "--emb-radius-sm": activeRadiusSm,
+          "--mc-card-inner-radius-base": innerRadiusBase,
+          "--mc-card-inner-radius-sm": innerRadiusSm,
+          "--mc-card-chrome-x-base": "calc(var(--mc-card-content-inset) + var(--mc-card-inner-radius-base) / 2)",
+          "--mc-card-chrome-x-sm": "calc(var(--mc-card-content-inset) + var(--mc-card-inner-radius-sm) / 2)",
           "--neu-radius-base": radiusBase,
-          "--neu-radius-sm": radiusSm ?? radiusBase,
+          "--neu-radius-sm": activeRadiusSm,
           borderRadius: "var(--emb-radius)",
         }
       : {}),

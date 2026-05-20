@@ -1,5 +1,10 @@
 import { CodeIcon } from "@phosphor-icons/react";
 import { useState } from "react";
+import {
+  outerEmbossedCardClassName,
+  recessedControlHeightClassName,
+  recessedControlInsetClassName,
+} from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/components/cards/sectionCardChromeStyles";
@@ -18,11 +23,7 @@ interface ShareCardProps {
 }
 
 function mediaCardClassName(animated: boolean, className?: string) {
-  return cn(
-    "w-full max-w-full sm:max-w-lg mx-auto rounded-[1.375rem] sm:rounded-[1.625rem] p-0",
-    animated && "animate-zoom-in",
-    className,
-  );
+  return cn(outerEmbossedCardClassName, animated && "animate-zoom-in", className);
 }
 
 export function ShareCard({ content, className, animated = false }: ShareCardProps) {
@@ -44,7 +45,7 @@ export function ShareCard({ content, className, animated = false }: ShareCardPro
         <div className="flex flex-col gap-3 p-3">
           <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
           {sharePageContent && (
-            <RecessedCard className="p-[0.1875rem] h-[47px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+            <RecessedCard className={cn(recessedControlInsetClassName, recessedControlHeightClassName)}>
               <RecessedCard.Body className="h-full">
                 <EmbossedButton
                   as="button"

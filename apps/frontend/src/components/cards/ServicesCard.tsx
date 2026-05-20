@@ -1,3 +1,4 @@
+import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/components/cards/sectionCardChromeStyles";
@@ -13,11 +14,7 @@ interface ServicesCardProps {
 }
 
 function mediaCardClassName(animated: boolean, className?: string) {
-  return cn(
-    "w-full max-w-full sm:max-w-lg mx-auto rounded-[1.375rem] sm:rounded-[1.625rem] p-0",
-    animated && "animate-zoom-in",
-    className,
-  );
+  return cn(outerEmbossedCardClassName, animated && "animate-zoom-in", className);
 }
 
 export function ServicesCard({ content, className, animated = false }: ServicesCardProps) {
@@ -36,7 +33,7 @@ export function ServicesCard({ content, className, animated = false }: ServicesC
       <EmbossedCard.Body>
         {showPlatforms && (
           <div className="p-3">
-            <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+            <RecessedCard className={recessedControlInsetClassName}>
               <RecessedCard.Body>
                 <AnimatedPlatformGrid platforms={content.platforms} songTitle={content.title} />
               </RecessedCard.Body>
