@@ -36,13 +36,13 @@ export function SharePageShell({ config, artistName, initialLocale }: SharePageS
   );
 
   return (
-    <main id="main-content" className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-10 sm:pt-12 md:pt-14 pb-12">
-      <div className="mb-6 text-center">
+    <main id="main-content" className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-8 sm:pt-12 md:pt-14 pb-12">
+      <div className="mb-4 text-center sm:mb-6">
         <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleLogoClick}>
           <LogoView className="w-56 sm:w-64 h-auto" />
         </a>
       </div>
-      <div className="animate-fade-in">
+      <div className="w-full animate-fade-in">
         <ShareLayout config={config} artistName={artistName} initialLocale={initialLocale} />
       </div>
     </main>

@@ -21,7 +21,12 @@ interface PlatformButtonProps {
 const sizeConfig: Record<PlatformButtonSize, { minH: string; icon: string; text: string; gap: string }> = {
   sm: { minH: "min-h-[36px]", icon: "w-5 h-5", text: "text-xs", gap: "gap-2" },
   md: { minH: "min-h-[42px]", icon: "w-6 h-6", text: "text-sm", gap: "gap-2.5" },
-  lg: { minH: "min-h-[48px]", icon: "w-8 h-8", text: "text-base", gap: "gap-3" },
+  lg: {
+    minH: "min-h-[48px] max-[389px]:min-h-[40px]",
+    icon: "h-8 w-8 max-[389px]:h-5 max-[389px]:w-5",
+    text: "text-base max-[389px]:text-[13px]",
+    gap: "gap-3 max-[389px]:gap-1.5",
+  },
 };
 
 /**
@@ -65,7 +70,7 @@ export const PlatformButton = memo(function PlatformButton({
       aria-label={`Open ${songTitle} on ${label} (opens in new window)`}
       onClick={() => trackServiceLinkClick(platform)}
       className={cn(
-        "flex items-center px-3 no-underline w-full",
+        "flex w-full items-center px-3 no-underline max-[389px]:px-2",
         "hover:shadow-[0_0_8px_var(--embossed-glow)] focus-visible:shadow-[0_0_8px_var(--embossed-glow)]",
         s.minH,
         s.gap,
@@ -74,9 +79,12 @@ export const PlatformButton = memo(function PlatformButton({
       style={{ "--embossed-glow": `${config.color}60`, ...style } as CSSProperties}
     >
       <PlatformIcon platform={platform} className={cn(s.icon, "flex-shrink-0")} colored={true} />
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <span
-          className={cn("font-medium text-text-primary tracking-[0]", s.text)}
+          className={cn(
+            "block truncate text-text-primary tracking-[0] max-[389px]:font-normal min-[390px]:font-medium",
+            s.text,
+          )}
           style={{ fontFamily: "var(--font-condensed)" }}
         >
           {label}

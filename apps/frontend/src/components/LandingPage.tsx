@@ -256,7 +256,7 @@ function LandingPageInner({
 
         <div
           className={`flex-1 flex flex-col items-center w-full ${
-            isSharePageView ? "justify-start pt-10 sm:pt-12 md:pt-14 pb-12" : "justify-center"
+            isSharePageView ? "justify-start pt-8 sm:pt-12 md:pt-14 pb-12" : "justify-center"
           }`}
         >
           {activeShareConfig && active ? (
@@ -266,7 +266,7 @@ function LandingPageInner({
               className={`outline-none w-full ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
               onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
             >
-              <div className="mb-6 text-center">
+              <div className="mb-4 text-center sm:mb-6">
                 <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleShareLogoClick}>
                   <LogoView className="w-56 sm:w-64 h-auto" />
                 </a>

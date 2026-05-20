@@ -18,8 +18,8 @@ import {
   type ServiceId,
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
-import { UserIcon, XIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { MicrophoneStageIcon, XIcon } from "@phosphor-icons/react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 type ArtistLoadStatus = "loading" | "ready" | "empty" | "error";
@@ -443,7 +443,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
   );
 
   return (
-    <div>
+    <div className="w-full">
       {onBack && backLabel && (
         <div
           // Width-matched to the desktop card row so the link sits flush with
@@ -479,15 +479,21 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
       {/* Mobile: nur MediaCard + Button für BottomSheet */}
       <div className="block min-[1080px]:hidden">
         <SharePageCard config={enrichedConfig} animated={animated} onPreviewStatusChange={setPreviewStatus} />
-        <div className="mt-3 flex justify-center">
+        <div className="mt-3 flex justify-center px-3">
           <EmbossedButton
             as="button"
             type="button"
             onClick={openSheet}
-            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm text-text-primary"
+            className="flex min-h-[48px] w-[calc((100%-0.125rem)/2-0.1875rem)] items-center justify-center gap-3 px-3 text-base text-text-primary max-[389px]:min-h-[40px] max-[389px]:gap-1.5 max-[389px]:px-2 max-[389px]:text-[13px] max-[389px]:font-normal min-[390px]:font-medium"
+            style={
+              {
+                "--neu-radius-base": "calc(0.625rem - 0.1875rem)",
+                "--neu-radius-sm": "calc(0.875rem - 0.1875rem)",
+              } as CSSProperties
+            }
           >
-            <UserIcon size={15} weight="duotone" />
-            {t("artist.mobileButton")}
+            <MicrophoneStageIcon className="h-8 w-8 flex-shrink-0 max-[389px]:h-5 max-[389px]:w-5" weight="duotone" />
+            <span className="truncate leading-none">{t("artist.mobileButton")}</span>
           </EmbossedButton>
         </div>
       </div>

@@ -92,7 +92,10 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
           <>
             <div className="flex flex-col gap-3">
               <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
-              <RecessedCard className="p-[0.1875rem] h-[47px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+              <RecessedCard
+                className="hidden h-[47px] p-[0.1875rem] sm:block"
+                radius={{ base: "0.625rem", sm: "0.875rem" }}
+              >
                 <RecessedCard.Body className="h-full">
                   <EmbossedButton
                     as="button"
