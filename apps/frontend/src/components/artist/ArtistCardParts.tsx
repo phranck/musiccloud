@@ -1,5 +1,11 @@
 import { type ReactNode, useEffect, useReducer } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import {
+  sectionCardFooterClassName,
+  sectionCardFooterTextClassName,
+  sectionCardHeaderClassName,
+  sectionCardTitleClassName,
+} from "@/components/cards/sectionCardChromeStyles";
 import { solidEmbossedCardStyle } from "@/styles/neumorphic";
 
 export type ArtistInfoStatus = "loading" | "ready" | "empty" | "error";
@@ -13,13 +19,30 @@ export function useSkeletonAllowed() {
   return skeletonAllowed;
 }
 
-export function ArtistCardShell({ children, className }: { children: ReactNode; className?: string }) {
+interface ArtistCardShellProps {
+  children: ReactNode;
+  className?: string;
+  footer?: ReactNode;
+  title?: ReactNode;
+}
+
+export function ArtistCardShell({ children, className, footer, title }: ArtistCardShellProps) {
   return (
     <EmbossedCard
       className={className ?? "w-full rounded-[1.375rem] sm:rounded-[1.625rem] p-0"}
       style={solidEmbossedCardStyle}
     >
-      {children}
+      {title && (
+        <EmbossedCard.Header className={sectionCardHeaderClassName}>
+          <EmbossedCard.Header.Title className={sectionCardTitleClassName}>{title}</EmbossedCard.Header.Title>
+        </EmbossedCard.Header>
+      )}
+      {title || footer ? <EmbossedCard.Body>{children}</EmbossedCard.Body> : children}
+      {footer && (
+        <EmbossedCard.Footer className={sectionCardFooterClassName}>
+          <p className={sectionCardFooterTextClassName}>{footer}</p>
+        </EmbossedCard.Footer>
+      )}
     </EmbossedCard>
   );
 }

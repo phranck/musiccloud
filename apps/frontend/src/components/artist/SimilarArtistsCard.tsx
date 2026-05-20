@@ -23,7 +23,7 @@ export function SimilarArtistsCard({ data, isLoading, onTrackResolve, onResolveS
 
   if (isLoading && !data && !skeletonAllowed) {
     return (
-      <ArtistCardShell>
+      <ArtistCardShell title={t("artist.similarArtists")}>
         <div className="min-h-[205px]" aria-hidden="true" />
       </ArtistCardShell>
     );
@@ -31,12 +31,9 @@ export function SimilarArtistsCard({ data, isLoading, onTrackResolve, onResolveS
   if (!showSimilar) return null;
 
   return (
-    <ArtistCardShell>
+    <ArtistCardShell title={t("artist.similarArtists")}>
       <div className="p-3">
         <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-          <RecessedCard.Header>
-            <RecessedCard.Header.Title>{t("artist.similarArtists")}</RecessedCard.Header.Title>
-          </RecessedCard.Header>
           <RecessedCard.Body>
             {showInitialSkeleton ? (
               <SimilarArtistsSkeleton />

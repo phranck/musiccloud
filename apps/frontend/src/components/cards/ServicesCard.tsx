@@ -1,5 +1,6 @@
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/components/cards/sectionCardChromeStyles";
 import { AnimatedPlatformGrid } from "@/components/platform/AnimatedPlatformGrid";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
@@ -27,22 +28,28 @@ export function ServicesCard({ content, className, animated = false }: ServicesC
 
   return (
     <EmbossedCard className={mediaCardClassName(animated, className)} style={solidEmbossedCardStyle}>
-      {showPlatforms && (
-        <div className="p-3">
-          <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-            <RecessedCard.Header>
-              <RecessedCard.Header.Title>{content.platformsLabel}</RecessedCard.Header.Title>
-            </RecessedCard.Header>
-            <RecessedCard.Body>
-              <AnimatedPlatformGrid platforms={content.platforms} songTitle={content.title} />
-            </RecessedCard.Body>
-          </RecessedCard>
-          {content.platformsInfo && (
-            <p className="text-sm text-text-secondary text-center mt-4">{content.platformsInfo}</p>
-          )}
-        </div>
-      )}
-      {showPlatformsInfoOnly && <p className="p-3 text-sm text-text-secondary text-center">{content.platformsInfo}</p>}
+      <EmbossedCard.Header className={sectionCardHeaderClassName}>
+        <EmbossedCard.Header.Title className={sectionCardTitleClassName}>
+          {content.platformsLabel}
+        </EmbossedCard.Header.Title>
+      </EmbossedCard.Header>
+      <EmbossedCard.Body>
+        {showPlatforms && (
+          <div className="p-3">
+            <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+              <RecessedCard.Body>
+                <AnimatedPlatformGrid platforms={content.platforms} songTitle={content.title} />
+              </RecessedCard.Body>
+            </RecessedCard>
+            {content.platformsInfo && (
+              <p className="text-sm text-text-secondary text-center mt-4">{content.platformsInfo}</p>
+            )}
+          </div>
+        )}
+        {showPlatformsInfoOnly && (
+          <p className="p-3 text-sm text-text-secondary text-center">{content.platformsInfo}</p>
+        )}
+      </EmbossedCard.Body>
     </EmbossedCard>
   );
 }

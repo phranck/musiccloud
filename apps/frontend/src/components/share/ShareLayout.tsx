@@ -1,11 +1,11 @@
 /**
  * ShareLayout
  *
- * Desktop: MediaCard and ArtistInfoCard side-by-side, horizontally centered.
- *          Artist data is fetched immediately on mount.
+ * Desktop/tablet: split media, actions, services, and artist data cards,
+ *                 horizontally centered. Artist data is fetched immediately.
  *
- * Mobile (< sm): MediaCard only, with a button that opens ArtistInfoCard
- *                as a bottom sheet.
+ * Mobile: SharePageCard only, with a button that opens ArtistInfoCard
+ *         as a bottom sheet.
  */
 
 import {
@@ -46,7 +46,7 @@ function artistReducer(state: ArtistState, action: ArtistAction): ArtistState {
 }
 
 import { ArtistInfoCard } from "@/components/artist/ArtistInfoCard";
-import { ArtistProfileCard } from "@/components/artist/ArtistProfileCard";
+import { ArtistProfileDesktopCard } from "@/components/artist/ArtistProfileDesktopCard";
 import { EventsCard } from "@/components/artist/EventsCard";
 import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
 import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
@@ -477,7 +477,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
           <ServicesCard content={enrichedConfig} animated={animated} />
         </div>
         <div className="flex flex-col gap-6" style={{ width: `${ARTIST_W}px` }}>
-          <ArtistProfileCard data={artistData} isLoading={isLoading} status={artistLoadStatus} />
+          <ArtistProfileDesktopCard data={artistData} isLoading={isLoading} status={artistLoadStatus} />
           <PopularTracksCard
             data={artistData}
             isLoading={isLoading}

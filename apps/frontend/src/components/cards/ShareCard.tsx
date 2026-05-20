@@ -2,6 +2,7 @@ import { CodeIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/components/cards/sectionCardChromeStyles";
 import { EmbedModal } from "@/components/share/EmbedModal";
 import { ShareButton } from "@/components/share/ShareButton";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -36,27 +37,32 @@ export function ShareCard({ content, className, animated = false }: ShareCardPro
 
   return (
     <EmbossedCard className={mediaCardClassName(animated, className)} style={solidEmbossedCardStyle}>
-      <div className="flex flex-col gap-3 p-3">
-        <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
-        {sharePageContent && (
-          <RecessedCard className="p-[0.1875rem] h-[47px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-            <RecessedCard.Body className="h-full">
-              <EmbossedButton
-                as="button"
-                type="button"
-                onClick={() => setEmbedOpen(true)}
-                className={cn(
-                  "flex h-full min-h-0 items-center justify-center gap-2 py-0",
-                  "w-full font-semibold text-[15px] tracking-[-0.01em]",
-                )}
-              >
-                <CodeIcon size={20} weight="duotone" />
-                {isAlbum ? t("embed.buttonAlbum") : t("embed.button")}
-              </EmbossedButton>
-            </RecessedCard.Body>
-          </RecessedCard>
-        )}
-      </div>
+      <EmbossedCard.Header className={sectionCardHeaderClassName}>
+        <EmbossedCard.Header.Title className={sectionCardTitleClassName}>{t("share.title")}</EmbossedCard.Header.Title>
+      </EmbossedCard.Header>
+      <EmbossedCard.Body>
+        <div className="flex flex-col gap-3 p-3">
+          <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />
+          {sharePageContent && (
+            <RecessedCard className="p-[0.1875rem] h-[47px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
+              <RecessedCard.Body className="h-full">
+                <EmbossedButton
+                  as="button"
+                  type="button"
+                  onClick={() => setEmbedOpen(true)}
+                  className={cn(
+                    "flex h-full min-h-0 items-center justify-center gap-2 py-0",
+                    "w-full font-semibold text-[15px] tracking-[-0.01em]",
+                  )}
+                >
+                  <CodeIcon size={20} weight="duotone" />
+                  {isAlbum ? t("embed.buttonAlbum") : t("embed.button")}
+                </EmbossedButton>
+              </RecessedCard.Body>
+            </RecessedCard>
+          )}
+        </div>
+      </EmbossedCard.Body>
       {sharePageContent && (
         <EmbedModal
           open={embedOpen}

@@ -21,7 +21,7 @@ export function PopularTracksCard({ data, isLoading, onTrackResolve, onResolveSt
 
   if (isLoading && !data && !skeletonAllowed) {
     return (
-      <ArtistCardShell>
+      <ArtistCardShell title={t("artist.popularTracks")}>
         <div className="min-h-[186px]" aria-hidden="true" />
       </ArtistCardShell>
     );
@@ -29,12 +29,9 @@ export function PopularTracksCard({ data, isLoading, onTrackResolve, onResolveSt
   if (!showTracks) return null;
 
   return (
-    <ArtistCardShell>
+    <ArtistCardShell title={t("artist.popularTracks")}>
       <div className="p-3">
         <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-          <RecessedCard.Header>
-            <RecessedCard.Header.Title>{t("artist.popularTracks")}</RecessedCard.Header.Title>
-          </RecessedCard.Header>
           <RecessedCard.Body>
             {showInitialSkeleton ? (
               <TracksSkeleton />

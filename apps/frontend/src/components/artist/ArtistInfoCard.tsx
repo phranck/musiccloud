@@ -7,7 +7,7 @@
 import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
 import { XIcon } from "@phosphor-icons/react";
 import { useEffect, useReducer } from "react";
-import { ArtistProfileSection } from "@/components/artist/ArtistProfileSection";
+import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
 import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
@@ -82,9 +82,6 @@ export function ArtistInfoCard({
   const showTracks = showInitialSkeleton || (data?.topTracks.length ?? 0) > 0;
   const showEvents = showInitialSkeleton || (data?.events.length ?? 0) > 0;
   const showSimilar = showInitialSkeleton || (data?.similarArtistTracks?.length ?? 0) > 0;
-  const profileSwapKey = data?.profile
-    ? [data.profile.imageUrl, data.profile.genres.join("|"), data.profile.bioSummary ?? ""].join("::")
-    : "profile-empty";
   const tracksSwapKey = data?.topTracks.map((track) => track.deezerUrl).join("|") ?? "tracks-empty";
   const eventsSwapKey =
     data?.events.map((event) => `${event.date}:${event.venueName}:${event.city}:${event.ticketUrl ?? ""}`).join("|") ??
@@ -112,26 +109,12 @@ export function ArtistInfoCard({
         )}
 
         {/* 1. Artist Profile */}
-        <CollapsibleSection visible={showProfile} sectionClass="p-3">
-          {/* min-h = artwork (96) + 2 × 6 padding = 108 px. Guarantees the
-              card never collapses below the artwork height when the profile
-              has minimal text (no genres, no similar artists, no bio), so the
-              bottom edge doesn't slide up against the artwork. */}
-          <RecessedCard className="p-1.5 min-h-[108px]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-            <RecessedCard.Body>
-              {showInitialSkeleton ? (
-                <ProfileSkeleton />
-              ) : data?.profile ? (
-                <SmoothSwap swapKey={profileSwapKey}>
-                  <ArtistProfileSection profile={data.profile} t={t} />
-                </SmoothSwap>
-              ) : null}
-            </RecessedCard.Body>
-          </RecessedCard>
-          {!showInitialSkeleton && data?.profile && (
-            <p className="mt-2 text-xs text-text-muted text-center px-2">{t("artist.profileProvidedBy")}</p>
-          )}
-        </CollapsibleSection>
+        <ArtistProfileMobileCard
+          visible={showProfile}
+          profile={data?.profile}
+          showInitialSkeleton={showInitialSkeleton}
+          providedByLabel={!showInitialSkeleton && data?.profile ? t("artist.profileProvidedBy") : undefined}
+        />
 
         {/* 2. Popular Tracks */}
         <CollapsibleSection visible={showTracks} sectionClass="p-3">
@@ -230,29 +213,6 @@ function ArtistInfoNoticeCard({ onClose, message }: { onClose?: () => void; mess
 }
 
 // --- Skeletons ---
-
-function ProfileSkeleton() {
-  return (
-    <div className="animate-pulse">
-      <div className="flex gap-4">
-        <div className="size-24 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
-        <div className="flex-1 space-y-2 pt-1">
-          <div className="flex gap-1.5 flex-wrap">
-            <div className="h-5 w-14 rounded-full bg-white/[0.08]" />
-            <div className="h-5 w-10 rounded-full bg-white/[0.08]" />
-          </div>
-          <div className="h-3 bg-white/[0.08] rounded w-3/4" />
-          <div className="h-3 bg-white/[0.08] rounded w-1/2" />
-        </div>
-      </div>
-      <div className="mt-3 space-y-1.5">
-        <div className="h-3 bg-white/[0.08] rounded w-full" />
-        <div className="h-3 bg-white/[0.08] rounded w-[90%]" />
-        <div className="h-3 bg-white/[0.08] rounded w-4/5" />
-      </div>
-    </div>
-  );
-}
 
 function TracksSkeleton() {
   return (

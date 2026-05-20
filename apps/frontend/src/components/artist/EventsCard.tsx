@@ -23,20 +23,19 @@ export function EventsCard({ data, isLoading, userRegion }: EventsCardProps) {
 
   if (isLoading && !data && !skeletonAllowed) {
     return (
-      <ArtistCardShell>
+      <ArtistCardShell title={t("artist.upcomingEvents")}>
         <div className="min-h-[140px]" aria-hidden="true" />
       </ArtistCardShell>
     );
   }
   if (!showEvents) return null;
 
+  const footer = !showInitialSkeleton && data && data.events.length > 0 ? t("artist.eventsProvidedBy") : undefined;
+
   return (
-    <ArtistCardShell>
-      <div className="p-3">
+    <ArtistCardShell title={t("artist.upcomingEvents")} footer={footer}>
+      <div className={footer ? "px-3 pt-3 pb-2" : "p-3"}>
         <RecessedCard className="p-[0.1875rem]" radius={{ base: "0.625rem", sm: "0.875rem" }}>
-          <RecessedCard.Header>
-            <RecessedCard.Header.Title>{t("artist.upcomingEvents")}</RecessedCard.Header.Title>
-          </RecessedCard.Header>
           <RecessedCard.Body>
             {showInitialSkeleton ? (
               <EventsSkeleton />
@@ -47,9 +46,6 @@ export function EventsCard({ data, isLoading, userRegion }: EventsCardProps) {
             ) : null}
           </RecessedCard.Body>
         </RecessedCard>
-        {!showInitialSkeleton && data && data.events.length > 0 && (
-          <p className="mt-2 text-xs text-text-muted text-center px-2">{t("artist.eventsProvidedBy")}</p>
-        )}
       </div>
     </ArtistCardShell>
   );
