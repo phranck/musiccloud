@@ -24,6 +24,7 @@ data/*.db-shm
 .agents/
 .claude/
 .codex/
+docs/
 .pi/
 .pi-lens/
 .remember/
