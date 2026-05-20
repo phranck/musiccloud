@@ -45,7 +45,14 @@ function artistReducer(state: ArtistState, action: ArtistAction): ArtistState {
   return { status: hasArtistInfoContent(action.data) ? "ready" : "empty", artistData: action.data };
 }
 
-import { ArtistInfoCard } from "@/components/share/ArtistInfoCard";
+import { ArtistInfoCard } from "@/components/artist/ArtistInfoCard";
+import { ArtistProfileCard } from "@/components/artist/ArtistProfileCard";
+import { EventsCard } from "@/components/artist/EventsCard";
+import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
+import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
+import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
+import { ServicesCard } from "@/components/cards/ServicesCard";
+import { ShareCard } from "@/components/cards/ShareCard";
 import { type AudioPreviewStatus, SharePageCard } from "@/components/share/SharePageCard";
 import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -345,13 +352,16 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
   const enrichedConfig = useMemo(
     () => ({
       ...currentConfig,
+      ...("platformsLabelKey" in currentConfig
+        ? { platformsLabel: t((currentConfig as ShareContentConfiguration).platformsLabelKey) }
+        : {}),
       // Fourth VFD row in SongInfo. Status is orchestrated here because the
       // signals live in different subtrees: artist-row resolve clicks, artist
       // info fetch state, and the preview player. VfdDisplay stays reusable
       // and only receives plain translated text.
       statusLine: vfdStatusLine,
     }),
-    [currentConfig, vfdStatusLine],
+    [currentConfig, t, vfdStatusLine],
   );
 
   // Fetch artist data immediately (SSR already rendered the share card)
@@ -456,20 +466,28 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
         </div>
       )}
 
-      {/* Desktop: beide Cards nebeneinander */}
+      {/* Desktop/tablet: split media, actions, services, and artist data into separate cards. */}
       <div
-        className="hidden min-[1080px]:flex items-start gap-6 mx-auto"
+        className="hidden min-[1080px]:grid grid-cols-[512px_512px] items-start gap-6 mx-auto"
         style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}
       >
-        <div style={{ width: `${MEDIA_W}px`, flexShrink: 0 }}>
-          <SharePageCard config={enrichedConfig} animated={animated} onPreviewStatusChange={setPreviewStatus} />
+        <div className="flex flex-col gap-6" style={{ width: `${MEDIA_W}px` }}>
+          <MediaSummaryCard content={enrichedConfig} animated={animated} onPreviewStatusChange={setPreviewStatus} />
+          <ShareCard content={enrichedConfig} animated={animated} />
+          <ServicesCard content={enrichedConfig} animated={animated} />
         </div>
-        <div className="min-h-[560px]" style={{ width: `${ARTIST_W}px`, flexShrink: 0 }}>
-          <ArtistInfoCard
+        <div className="flex flex-col gap-6" style={{ width: `${ARTIST_W}px` }}>
+          <ArtistProfileCard data={artistData} isLoading={isLoading} status={artistLoadStatus} />
+          <PopularTracksCard
             data={artistData}
             isLoading={isLoading}
-            status={artistLoadStatus}
-            userRegion={userRegion}
+            onTrackResolve={handleTrackResolve}
+            onResolveStart={handleArtistResolveStart}
+          />
+          <EventsCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
+          <SimilarArtistsCard
+            data={artistData}
+            isLoading={isLoading}
             onTrackResolve={handleTrackResolve}
             onResolveStart={handleArtistResolveStart}
           />

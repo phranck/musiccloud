@@ -7,12 +7,12 @@
 import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
 import { XIcon } from "@phosphor-icons/react";
 import { useEffect, useReducer } from "react";
+import { ArtistProfileSection } from "@/components/artist/ArtistProfileSection";
+import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
+import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
+import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { ArtistProfileSection } from "@/components/share/ArtistProfileSection";
-import { PopularTracksSection } from "@/components/share/PopularTracksSection";
-import { SimilarArtistsSection } from "@/components/share/SimilarArtistsSection";
-import { UpcomingEventsSection } from "@/components/share/UpcomingEventsSection";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useLocale, useT } from "@/i18n/context";

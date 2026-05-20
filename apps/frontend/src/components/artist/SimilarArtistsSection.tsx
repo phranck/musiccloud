@@ -1,5 +1,5 @@
 import type { ArtistTopTrack, SimilarArtistTrack } from "@musiccloud/shared";
-import { PopularTrack } from "@/components/share/PopularTracksSection";
+import { PopularTrack } from "@/components/artist/PopularTracksSection";
 
 interface SimilarArtistsSectionProps {
   similarArtistTracks: SimilarArtistTrack[];

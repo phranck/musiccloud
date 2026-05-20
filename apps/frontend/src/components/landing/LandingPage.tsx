@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { HeroInput } from "@/components/input/HeroInput";
+import { HeroInput } from "@/components/landing/HeroInput";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";

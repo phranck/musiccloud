@@ -32,6 +32,14 @@ interface MediaCardProps {
   onPreviewStatusChange?: (status: AudioPreviewStatus) => void;
 }
 
+function mediaCardClassName(animated: boolean, className?: string) {
+  return cn(
+    "w-full max-w-full sm:max-w-lg mx-auto rounded-[1.375rem] sm:rounded-[1.625rem] p-0",
+    animated && "animate-zoom-in",
+    className,
+  );
+}
+
 export function MediaCard({ content, className, animated = true, onPreviewStatusChange }: MediaCardProps) {
   const t = useT();
   const shareable = isShareableContent(content) ? content : null;
@@ -47,14 +55,7 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
   const showPlatforms = content.platforms.length > 0;
   const showPlatformsInfoOnly = content.platforms.length === 0 && !!content.platformsInfo;
   return (
-    <EmbossedCard
-      className={cn(
-        "w-full max-w-full sm:max-w-lg mx-auto rounded-[1.375rem] sm:rounded-[1.625rem] p-0",
-        animated && "animate-zoom-in",
-        className,
-      )}
-      style={solidEmbossedCardStyle}
-    >
+    <EmbossedCard className={mediaCardClassName(animated, className)} style={solidEmbossedCardStyle}>
       {srAnnouncement && (
         <p className="sr-only" aria-live="polite">
           {srAnnouncement}

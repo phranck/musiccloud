@@ -13,25 +13,25 @@ import type { ComponentProps, ComponentType } from "react";
 type LazyComponent<TProps> = { default: ComponentType<TProps> };
 
 type DisambiguationPanelProps = ComponentProps<
-  typeof import("@/components/panels/DisambiguationPanel").DisambiguationPanel
+  typeof import("@/components/discovery/DisambiguationPanel").DisambiguationPanel
 >;
-type GenreBrowseGridProps = ComponentProps<typeof import("@/components/panels/GenreBrowseGrid").GenreBrowseGrid>;
+type GenreBrowseGridProps = ComponentProps<typeof import("@/components/discovery/GenreBrowseGrid").GenreBrowseGrid>;
 type GenreSearchResultsProps = ComponentProps<
-  typeof import("@/components/panels/GenreSearchResults").GenreSearchResults
+  typeof import("@/components/discovery/GenreSearchResults").GenreSearchResults
 >;
 type ShareLayoutProps = ComponentProps<typeof import("@/components/share/ShareLayout").ShareLayout>;
 type ToastProps = ComponentProps<typeof import("@/components/ui/Toast").Toast>;
 
 export function loadDisambiguationPanel(): Promise<LazyComponent<DisambiguationPanelProps>> {
-  return import("@/components/panels/DisambiguationPanel").then((m) => ({ default: m.DisambiguationPanel }));
+  return import("@/components/discovery/DisambiguationPanel").then((m) => ({ default: m.DisambiguationPanel }));
 }
 
 export function loadGenreBrowseGrid(): Promise<LazyComponent<GenreBrowseGridProps>> {
-  return import("@/components/panels/GenreBrowseGrid").then((m) => ({ default: m.GenreBrowseGrid }));
+  return import("@/components/discovery/GenreBrowseGrid").then((m) => ({ default: m.GenreBrowseGrid }));
 }
 
 export function loadGenreSearchResults(): Promise<LazyComponent<GenreSearchResultsProps>> {
-  return import("@/components/panels/GenreSearchResults").then((m) => ({ default: m.GenreSearchResults }));
+  return import("@/components/discovery/GenreSearchResults").then((m) => ({ default: m.GenreSearchResults }));
 }
 
 export function loadShareLayout(): Promise<LazyComponent<ShareLayoutProps>> {
