@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   customType,
+  date,
   index,
   integer,
   jsonb,
@@ -237,12 +239,349 @@ export const albumShortUrls = pgTable(
   (table) => [index("idx_album_short_urls_album_id").on(table.albumId)],
 );
 
+// ─── Normalized Artist Identity Tables ───────────────────────────────────────
+
+export const artistEntities = pgTable(
+  "artist_entities",
+  {
+    id: text("id").primaryKey(),
+    entityType: text("entity_type").notNull().default("unknown"),
+    verificationStatus: text("verification_status").notNull().default("candidate"),
+    confidence: real("confidence"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_artist_entities_type_status").on(table.entityType, table.verificationStatus),
+    check("chk_artist_entities_entity_type", sql`${table.entityType} IN ('person', 'group', 'persona', 'unknown')`),
+    check(
+      "chk_artist_entities_verification_status",
+      sql`${table.verificationStatus} IN ('candidate', 'verified', 'rejected')`,
+    ),
+  ],
+);
+
+export const artistSources = pgTable(
+  "artist_sources",
+  {
+    id: text("id").primaryKey(),
+    provider: text("provider").notNull(),
+    providerEntityId: text("provider_entity_id"),
+    sourceUrl: text("source_url"),
+    confidence: real("confidence"),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_artist_sources_provider_entity").on(table.provider, table.providerEntityId),
+    index("idx_artist_sources_fetched_at").on(table.fetchedAt),
+  ],
+);
+
+export const artistSourcePayloads = pgTable("artist_source_payloads", {
+  sourceId: text("source_id")
+    .primaryKey()
+    .references(() => artistSources.id, { onDelete: "cascade" }),
+  rawPayload: jsonb("raw_payload").notNull(),
+});
+
+export const artistEntityIdentifiers = pgTable(
+  "artist_entity_identifiers",
+  {
+    id: text("id").primaryKey(),
+    artistEntityId: text("artist_entity_id")
+      .notNull()
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    externalId: text("external_id").notNull(),
+    externalUrl: text("external_url"),
+    sourceId: text("source_id").references(() => artistSources.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("idx_artist_entity_identifiers_provider_external").on(table.provider, table.externalId),
+    uniqueIndex("idx_artist_entity_identifiers_entity_provider_external").on(
+      table.artistEntityId,
+      table.provider,
+      table.externalId,
+    ),
+    index("idx_artist_entity_identifiers_entity").on(table.artistEntityId),
+  ],
+);
+
+export const artistEntityNames = pgTable(
+  "artist_entity_names",
+  {
+    id: text("id").primaryKey(),
+    artistEntityId: text("artist_entity_id")
+      .notNull()
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
+    locale: text("locale"),
+    name: text("name").notNull(),
+    nameType: text("name_type").notNull().default("alias"),
+    sourceId: text("source_id").references(() => artistSources.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_artist_entity_names_entity_locale_type").on(table.artistEntityId, table.locale, table.nameType),
+    index("idx_artist_entity_names_name_type").on(table.nameType),
+    check(
+      "chk_artist_entity_names_name_type",
+      sql`${table.nameType} IN ('canonical', 'alias', 'legal', 'stage', 'credit', 'sort')`,
+    ),
+  ],
+);
+
+export const artistEntityTexts = pgTable(
+  "artist_entity_texts",
+  {
+    id: text("id").primaryKey(),
+    artistEntityId: text("artist_entity_id")
+      .notNull()
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
+    locale: text("locale").notNull(),
+    textType: text("text_type").notNull(),
+    content: text("content").notNull(),
+    sourceId: text("source_id").references(() => artistSources.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("idx_artist_entity_texts_unique").on(
+      table.artistEntityId,
+      table.locale,
+      table.textType,
+      table.sourceId,
+    ),
+    index("idx_artist_entity_texts_entity_locale").on(table.artistEntityId, table.locale),
+    check("chk_artist_entity_texts_text_type", sql`${table.textType} IN ('description', 'short_bio')`),
+  ],
+);
+
+export const places = pgTable("places", {
+  id: text("id").primaryKey(),
+  countryCode: text("country_code"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const placeNames = pgTable(
+  "place_names",
+  {
+    id: text("id").primaryKey(),
+    placeId: text("place_id")
+      .notNull()
+      .references(() => places.id, { onDelete: "cascade" }),
+    locale: text("locale"),
+    name: text("name").notNull(),
+    sourceId: text("source_id").references(() => artistSources.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_place_names_place_locale").on(table.placeId, table.locale),
+    index("idx_place_names_name").on(table.name),
+  ],
+);
+
+export const placeIdentifiers = pgTable(
+  "place_identifiers",
+  {
+    id: text("id").primaryKey(),
+    placeId: text("place_id")
+      .notNull()
+      .references(() => places.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    externalId: text("external_id").notNull(),
+    externalUrl: text("external_url"),
+    sourceId: text("source_id").references(() => artistSources.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("idx_place_identifiers_provider_external").on(table.provider, table.externalId),
+    index("idx_place_identifiers_place").on(table.placeId),
+  ],
+);
+
+export const artistEntityEvents = pgTable(
+  "artist_entity_events",
+  {
+    id: text("id").primaryKey(),
+    artistEntityId: text("artist_entity_id")
+      .notNull()
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
+    eventType: text("event_type").notNull(),
+    dateValue: date("date_value"),
+    datePrecision: text("date_precision").notNull().default("unknown"),
+    eventYear: integer("event_year"),
+    eventMonth: integer("event_month"),
+    eventDay: integer("event_day"),
+    placeId: text("place_id").references(() => places.id, { onDelete: "set null" }),
+    sourceId: text("source_id").references(() => artistSources.id, { onDelete: "set null" }),
+    confidence: real("confidence"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_artist_entity_events_today")
+      .on(table.eventType, table.eventMonth, table.eventDay)
+      .where(sql`${table.datePrecision} = 'day'`),
+    index("idx_artist_entity_events_entity_type").on(table.artistEntityId, table.eventType),
+    index("idx_artist_entity_events_type_year").on(table.eventType, table.eventYear),
+    check("chk_artist_entity_events_event_type", sql`${table.eventType} IN ('birth', 'death', 'formed', 'disbanded')`),
+    check(
+      "chk_artist_entity_events_date_precision",
+      sql`${table.datePrecision} IN ('year', 'month', 'day', 'unknown')`,
+    ),
+    check("chk_artist_entity_events_month", sql`${table.eventMonth} IS NULL OR ${table.eventMonth} BETWEEN 1 AND 12`),
+    check("chk_artist_entity_events_day", sql`${table.eventDay} IS NULL OR ${table.eventDay} BETWEEN 1 AND 31`),
+  ],
+);
+
+export const artistGroupMemberships = pgTable(
+  "artist_group_memberships",
+  {
+    id: text("id").primaryKey(),
+    groupArtistEntityId: text("group_artist_entity_id")
+      .notNull()
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
+    memberArtistEntityId: text("member_artist_entity_id")
+      .notNull()
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
+    memberNameCredit: text("member_name_credit"),
+    beginDate: date("begin_date"),
+    beginDatePrecision: text("begin_date_precision").notNull().default("unknown"),
+    beginYear: integer("begin_year"),
+    beginMonth: integer("begin_month"),
+    beginDay: integer("begin_day"),
+    endDate: date("end_date"),
+    endDatePrecision: text("end_date_precision").notNull().default("unknown"),
+    endYear: integer("end_year"),
+    endMonth: integer("end_month"),
+    endDay: integer("end_day"),
+    isCurrent: boolean("is_current"),
+    sourceId: text("source_id").references(() => artistSources.id, { onDelete: "set null" }),
+    confidence: real("confidence"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_artist_group_memberships_group").on(table.groupArtistEntityId),
+    index("idx_artist_group_memberships_member").on(table.memberArtistEntityId),
+    index("idx_artist_group_memberships_current_group")
+      .on(table.groupArtistEntityId, table.isCurrent)
+      .where(sql`${table.isCurrent} = true`),
+    check("chk_artist_group_memberships_not_self", sql`${table.groupArtistEntityId} <> ${table.memberArtistEntityId}`),
+    check(
+      "chk_artist_group_memberships_begin_precision",
+      sql`${table.beginDatePrecision} IN ('year', 'month', 'day', 'unknown')`,
+    ),
+    check(
+      "chk_artist_group_memberships_end_precision",
+      sql`${table.endDatePrecision} IN ('year', 'month', 'day', 'unknown')`,
+    ),
+    check(
+      "chk_artist_group_memberships_begin_month",
+      sql`${table.beginMonth} IS NULL OR ${table.beginMonth} BETWEEN 1 AND 12`,
+    ),
+    check(
+      "chk_artist_group_memberships_end_month",
+      sql`${table.endMonth} IS NULL OR ${table.endMonth} BETWEEN 1 AND 12`,
+    ),
+    check(
+      "chk_artist_group_memberships_begin_day",
+      sql`${table.beginDay} IS NULL OR ${table.beginDay} BETWEEN 1 AND 31`,
+    ),
+    check("chk_artist_group_memberships_end_day", sql`${table.endDay} IS NULL OR ${table.endDay} BETWEEN 1 AND 31`),
+  ],
+);
+
+export const artistGroupMembershipRoles = pgTable(
+  "artist_group_membership_roles",
+  {
+    membershipId: text("membership_id")
+      .notNull()
+      .references(() => artistGroupMemberships.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+  },
+  (table) => [primaryKey({ name: "pk_artist_group_membership_roles", columns: [table.membershipId, table.role] })],
+);
+
+export const trackArtistCredits = pgTable(
+  "track_artist_credits",
+  {
+    id: text("id").primaryKey(),
+    trackId: text("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    artistEntityId: text("artist_entity_id")
+      .notNull()
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
+    creditName: text("credit_name").notNull(),
+    creditPosition: integer("credit_position").notNull().default(0),
+    creditRole: text("credit_role").notNull().default("main"),
+    confidence: real("confidence"),
+    matchMethod: text("match_method"),
+    sourceId: text("source_id").references(() => artistSources.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_track_artist_credits_track").on(table.trackId, table.creditPosition),
+    index("idx_track_artist_credits_entity").on(table.artistEntityId),
+    uniqueIndex("idx_track_artist_credits_unique").on(
+      table.trackId,
+      table.creditPosition,
+      table.creditRole,
+      table.artistEntityId,
+    ),
+    check(
+      "chk_track_artist_credits_role",
+      sql`${table.creditRole} IN ('main', 'featured', 'remixer', 'producer', 'composer', 'lyricist', 'performer', 'unknown')`,
+    ),
+  ],
+);
+
+export const albumArtistCredits = pgTable(
+  "album_artist_credits",
+  {
+    id: text("id").primaryKey(),
+    albumId: text("album_id")
+      .notNull()
+      .references(() => albums.id, { onDelete: "cascade" }),
+    artistEntityId: text("artist_entity_id")
+      .notNull()
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
+    creditName: text("credit_name").notNull(),
+    creditPosition: integer("credit_position").notNull().default(0),
+    creditRole: text("credit_role").notNull().default("main"),
+    confidence: real("confidence"),
+    matchMethod: text("match_method"),
+    sourceId: text("source_id").references(() => artistSources.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_album_artist_credits_album").on(table.albumId, table.creditPosition),
+    index("idx_album_artist_credits_entity").on(table.artistEntityId),
+    uniqueIndex("idx_album_artist_credits_unique").on(
+      table.albumId,
+      table.creditPosition,
+      table.creditRole,
+      table.artistEntityId,
+    ),
+    check(
+      "chk_album_artist_credits_role",
+      sql`${table.creditRole} IN ('main', 'featured', 'remixer', 'producer', 'composer', 'lyricist', 'performer', 'unknown')`,
+    ),
+  ],
+);
+
 // ─── Artist Resolution Tables ────────────────────────────────────────────────
 
 export const artists = pgTable(
   "artists",
   {
     id: text("id").primaryKey(),
+    artistEntityId: text("artist_entity_id").references(() => artistEntities.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     imageUrl: text("image_url"),
     genres: text("genres"), // JSON array
@@ -252,6 +591,7 @@ export const artists = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
   (table) => [
+    index("idx_artists_artist_entity_id").on(table.artistEntityId),
     index("idx_artists_name").on(table.name),
     // Mirror of idx_tracks_created_at: ArtistsPage default sort.
     index("idx_artists_created_at").on(table.createdAt.desc()),

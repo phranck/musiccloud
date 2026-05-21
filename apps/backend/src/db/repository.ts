@@ -198,6 +198,52 @@ export interface ArtistCacheData {
   eventsUpdatedAt?: number;
 }
 
+// ─── Normalized Artist Identity Types ────────────────────────────────────────
+
+export type ArtistEntityType = "person" | "group" | "persona" | "unknown";
+export type ArtistVerificationStatus = "candidate" | "verified" | "rejected";
+export type ArtistIdentityEventType = "birth" | "death" | "formed" | "disbanded";
+export type DatePrecision = "year" | "month" | "day" | "unknown";
+
+export interface ArtistIdentityEventRecord {
+  eventId: string;
+  artistEntityId: string;
+  entityType: ArtistEntityType;
+  verificationStatus: ArtistVerificationStatus;
+  displayName: string;
+  eventType: ArtistIdentityEventType;
+  dateValue: string | null;
+  datePrecision: DatePrecision;
+  eventYear: number | null;
+  eventMonth: number | null;
+  eventDay: number | null;
+  placeName: string | null;
+  countryCode: string | null;
+  sourceProvider: string | null;
+  sourceUrl: string | null;
+  confidence: number | null;
+}
+
+export interface ArtistGroupMembershipRecord {
+  membershipId: string;
+  groupArtistEntityId: string;
+  groupName: string;
+  memberArtistEntityId: string;
+  memberName: string;
+  memberNameCredit: string | null;
+  roles: string[];
+  beginDate: string | null;
+  beginDatePrecision: DatePrecision;
+  beginYear: number | null;
+  endDate: string | null;
+  endDatePrecision: DatePrecision;
+  endYear: number | null;
+  isCurrent: boolean | null;
+  sourceProvider: string | null;
+  sourceUrl: string | null;
+  confidence: number | null;
+}
+
 // ─── Crawler Types ───────────────────────────────────────────────────────────
 
 /** Idempotent default-row payload written by the heartbeat for every source
@@ -397,6 +443,18 @@ export interface TrackRepository {
   // Artist cache (popular tracks, profile, tour dates)
   findArtistCache(artistName: string): Promise<ArtistCacheRow | null>;
   saveArtistCache(data: ArtistCacheData): Promise<void>;
+
+  // Normalized artist identity reads (migration 0029)
+  listArtistIdentityEventsByDay(params: {
+    month: number;
+    day: number;
+    locale?: string;
+    eventTypes?: ArtistIdentityEventType[];
+    catalogOnly?: boolean;
+  }): Promise<ArtistIdentityEventRecord[]>;
+  listArtistGroupMembers(groupArtistEntityId: string, locale?: string): Promise<ArtistGroupMembershipRecord[]>;
+  listArtistMemberships(memberArtistEntityId: string, locale?: string): Promise<ArtistGroupMembershipRecord[]>;
+  findArtistEntityIdByIdentifier(provider: string, externalId: string): Promise<string | null>;
 
   // Example: random short ID for landing page teaser
   getRandomShortId(): Promise<string | null>;

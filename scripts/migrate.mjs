@@ -1,21 +1,30 @@
 /**
- * Database migration runner for Postgres (production).
+ * Drizzle migration runner for Postgres.
  *
- * Reads SQL files from src/db/migrations/postgres/ in order,
- * tracks applied migrations in a _migrations table,
- * and applies only pending ones.
+ * Uses Drizzle's migrator and its drizzle.__drizzle_migrations table.
  *
  * Usage: node scripts/migrate.mjs
  * Requires DATABASE_URL environment variable.
  */
 
-import pg from "pg";
-import { readFileSync, readdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = join(__dirname, "..", "apps", "backend", "src", "db", "migrations", "postgres");
+const requireFromBackend = createRequire(new URL("../apps/backend/package.json", import.meta.url));
+const pg = requireFromBackend("pg");
+const { drizzle } = requireFromBackend("drizzle-orm/node-postgres");
+const { migrate: drizzleMigrate } = requireFromBackend("drizzle-orm/node-postgres/migrator");
+
+function shouldUseSsl(databaseUrl) {
+  const parsed = new URL(databaseUrl);
+  const sslMode = parsed.searchParams.get("sslmode") ?? process.env.PGSSLMODE;
+  if (sslMode === "disable") return false;
+  if (sslMode === "require" || sslMode === "prefer") return true;
+  return !["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
+}
 
 async function migrate() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -24,52 +33,16 @@ async function migrate() {
     process.exit(1);
   }
 
-  const client = new pg.Client({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } });
+  const client = new pg.Client({
+    connectionString: databaseUrl,
+    ssl: shouldUseSsl(databaseUrl) ? { rejectUnauthorized: false } : false,
+  });
   await client.connect();
 
   try {
-    // Create migrations tracking table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS _migrations (
-        name TEXT PRIMARY KEY,
-        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-
-    // Get already applied migrations
-    const { rows: applied } = await client.query(`SELECT name FROM _migrations ORDER BY name`);
-    const appliedSet = new Set(applied.map((r) => r.name));
-
-    // Read migration files in order
-    const files = readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith(".sql"))
-      .sort();
-
-    let count = 0;
-    for (const file of files) {
-      if (appliedSet.has(file)) continue;
-
-      const sql = readFileSync(join(MIGRATIONS_DIR, file), "utf-8");
-      console.log(`Applying migration: ${file}`);
-
-      await client.query("BEGIN");
-      try {
-        await client.query(sql);
-        await client.query(`INSERT INTO _migrations (name) VALUES ($1)`, [file]);
-        await client.query("COMMIT");
-        count++;
-      } catch (error) {
-        await client.query("ROLLBACK");
-        console.error(`Migration ${file} failed:`, error);
-        process.exit(1);
-      }
-    }
-
-    if (count === 0) {
-      console.log("No pending migrations.");
-    } else {
-      console.log(`Applied ${count} migration(s).`);
-    }
+    const db = drizzle(client);
+    await drizzleMigrate(db, { migrationsFolder: MIGRATIONS_DIR });
+    console.log("Drizzle migrations applied.");
   } finally {
     await client.end();
   }

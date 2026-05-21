@@ -204,6 +204,13 @@
       "when": 1778976310689,
       "tag": "0028_wealthy_exiles",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1779378841117,
+      "tag": "0029_aromatic_penance",
+      "breakpoints": true
     }
   ]
 }
