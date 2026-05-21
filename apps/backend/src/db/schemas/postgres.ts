@@ -32,7 +32,6 @@ export const tracks = pgTable(
   {
     id: text("id").primaryKey(),
     title: text("title").notNull(),
-    artists: text("artists").notNull(), // JSON array
     albumName: text("album_name"),
     isrc: text("isrc"),
     artworkUrl: text("artwork_url"),
@@ -139,7 +138,10 @@ export const shortUrls = pgTable(
   },
   // LEFT JOIN target in listTracks. Without this index the join degrades to
   // a sequential scan of every short_urls row on every list-page request.
-  (table) => [index("idx_short_urls_track_id").on(table.trackId)],
+  (table) => [
+    index("idx_short_urls_track_id").on(table.trackId),
+    uniqueIndex("uq_short_urls_track_id").on(table.trackId),
+  ],
 );
 
 export const albums = pgTable(
@@ -147,7 +149,6 @@ export const albums = pgTable(
   {
     id: text("id").primaryKey(),
     title: text("title").notNull(),
-    artists: text("artists").notNull(), // JSON array
     releaseDate: text("release_date"),
     totalTracks: integer("total_tracks"),
     artworkUrl: text("artwork_url"),
@@ -236,7 +237,10 @@ export const albumShortUrls = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   },
   // Same rationale as idx_short_urls_track_id: LEFT JOIN in listAlbums.
-  (table) => [index("idx_album_short_urls_album_id").on(table.albumId)],
+  (table) => [
+    index("idx_album_short_urls_album_id").on(table.albumId),
+    uniqueIndex("uq_album_short_urls_album_id").on(table.albumId),
+  ],
 );
 
 // ─── Normalized Artist Identity Tables ───────────────────────────────────────
@@ -575,14 +579,15 @@ export const albumArtistCredits = pgTable(
   ],
 );
 
-// ─── Artist Resolution Tables ────────────────────────────────────────────────
+// ─── Artist Profile / Share Tables ──────────────────────────────────────────
 
-export const artists = pgTable(
-  "artists",
+export const artistProfiles = pgTable(
+  "artist_profiles",
   {
-    id: text("id").primaryKey(),
-    artistEntityId: text("artist_entity_id").references(() => artistEntities.id, { onDelete: "set null" }),
-    name: text("name").notNull(),
+    artistEntityId: text("artist_entity_id")
+      .primaryKey()
+      .notNull()
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
     imageUrl: text("image_url"),
     genres: text("genres"), // JSON array
     sourceService: text("source_service"),
@@ -591,10 +596,9 @@ export const artists = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    index("idx_artists_artist_entity_id").on(table.artistEntityId),
-    index("idx_artists_name").on(table.name),
+    uniqueIndex("idx_artist_profiles_source_url").on(table.sourceUrl),
     // Mirror of idx_tracks_created_at: ArtistsPage default sort.
-    index("idx_artists_created_at").on(table.createdAt.desc()),
+    index("idx_artist_profiles_created_at").on(table.createdAt.desc()),
   ],
 );
 
@@ -602,9 +606,9 @@ export const artistServiceLinks = pgTable(
   "artist_service_links",
   {
     id: text("id").primaryKey(),
-    artistId: text("artist_id")
+    artistEntityId: text("artist_entity_id")
       .notNull()
-      .references(() => artists.id),
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
     service: text("service").notNull(),
     externalId: text("external_id"),
     url: text("url").notNull(),
@@ -613,7 +617,7 @@ export const artistServiceLinks = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("idx_artist_service_links_artist_service").on(table.artistId, table.service),
+    uniqueIndex("idx_artist_service_links_entity_service").on(table.artistEntityId, table.service),
     index("idx_artist_service_links_service_external").on(table.service, table.externalId),
   ],
 );
@@ -624,18 +628,23 @@ export const artistExternalIds = pgTable(
   "artist_external_ids",
   {
     id: text("id").primaryKey(),
-    artistId: text("artist_id")
+    artistEntityId: text("artist_entity_id")
       .notNull()
-      .references(() => artists.id, { onDelete: "cascade" }),
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
     idType: text("id_type").notNull(),
     idValue: text("id_value").notNull(),
     sourceService: text("source_service").notNull(),
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("idx_artist_external_ids_unique").on(table.artistId, table.idType, table.idValue, table.sourceService),
+    uniqueIndex("idx_artist_external_ids_unique").on(
+      table.artistEntityId,
+      table.idType,
+      table.idValue,
+      table.sourceService,
+    ),
     index("idx_artist_external_ids_lookup").on(table.idType, table.idValue),
-    index("idx_artist_external_ids_artist").on(table.artistId),
+    index("idx_artist_external_ids_entity").on(table.artistEntityId),
   ],
 );
 
@@ -643,13 +652,16 @@ export const artistShortUrls = pgTable(
   "artist_short_urls",
   {
     id: text("id").primaryKey(),
-    artistId: text("artist_id")
+    artistEntityId: text("artist_entity_id")
       .notNull()
-      .references(() => artists.id),
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   },
   // Same rationale as idx_short_urls_track_id: LEFT JOIN in listArtists.
-  (table) => [index("idx_artist_short_urls_artist_id").on(table.artistId)],
+  (table) => [
+    index("idx_artist_short_urls_entity_id").on(table.artistEntityId),
+    uniqueIndex("uq_artist_short_urls_entity_id").on(table.artistEntityId),
+  ],
 );
 
 export const adminUsers = pgTable("admin_users", {
@@ -681,15 +693,6 @@ export const artistCache = pgTable("artist_cache", {
   eventsUpdatedAt: timestamp("events_updated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
-});
-
-// URL aliases for backward compatibility / tracking
-export const urlAliases = pgTable("url_aliases", {
-  id: text("id").primaryKey(),
-  shortId: text("short_id").notNull().unique(),
-  trackId: text("track_id").references(() => tracks.id),
-  albumId: text("album_id").references(() => albums.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });
 
 // Site-wide settings (key/value store)

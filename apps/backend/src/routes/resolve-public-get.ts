@@ -304,19 +304,6 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
     }
   }
 
-  // `inputUrl` is set when the resolver expanded a short/redirect link (e.g.
-  // link.deezer.com/s/…) to its canonical form. Remembering the original
-  // lets a later request on that same short URL hit the cache. The alias is
-  // a pure optimization, so a duplicate-insert or any other write failure
-  // must not bubble up and turn a successful resolve into an error response.
-  if (result.inputUrl) {
-    try {
-      await repo.addTrackUrlAlias(result.inputUrl, trackId);
-    } catch {
-      // Non-fatal: see comment above.
-    }
-  }
-
   // Deezer preview URLs are CDN-signed (`dzcdn.net?hdnea=exp=…`) and expire,
   // so a cached track can come back with a dead preview. When we have an
   // ISRC we can cheaply ask Deezer for a fresh one and update in place.

@@ -170,6 +170,7 @@ interface AlbumListRow {
 
 interface ArtistRow {
   id: string;
+  artist_entity_id: string;
   name: string;
   image_url: string | null;
   genres: string | null;
@@ -256,6 +257,36 @@ function safeParseJson<T>(json: string | null | undefined, fallback: T): T {
     return fallback;
   }
 }
+
+const TRACK_ARTISTS_SELECT = `COALESCE((
+  SELECT jsonb_agg(tac.credit_name ORDER BY tac.credit_position, tac.created_at)::text
+  FROM track_artist_credits tac
+  WHERE tac.track_id = t.id AND tac.credit_role = 'main'
+), '[]') AS artists`;
+
+const ALBUM_ARTISTS_SELECT = `COALESCE((
+  SELECT jsonb_agg(aac.credit_name ORDER BY aac.credit_position, aac.created_at)::text
+  FROM album_artist_credits aac
+  WHERE aac.album_id = a.id AND aac.credit_role = 'main'
+), '[]') AS artists`;
+
+const ARTIST_NAME_SELECT = `COALESCE(artist_name.name, '[unnamed artist]') AS name`;
+
+const ARTIST_NAME_LATERAL_JOIN = `LEFT JOIN LATERAL (
+  SELECT n.name
+  FROM artist_entity_names n
+  WHERE n.artist_entity_id = ar.artist_entity_id
+  ORDER BY
+    CASE
+      WHEN n.name_type = 'canonical' AND n.locale IS NULL THEN 0
+      WHEN n.name_type = 'canonical' THEN 1
+      WHEN n.name_type = 'credit' THEN 2
+      WHEN n.locale IS NULL THEN 3
+      ELSE 4
+    END,
+    n.created_at ASC
+  LIMIT 1
+) artist_name ON TRUE`;
 
 // Convert Date to milliseconds for compatibility with sqlite.ts interface
 function dateToMs(date: Date | null | undefined): number {
@@ -364,7 +395,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -388,7 +419,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     // there from persistence-time.
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -427,13 +458,18 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       }
 
       // Build WHERE clause: each word must match either title or artists
-      const whereClauses = words.map((_, i) => `(t.title ILIKE $${i + 1} OR t.artists ILIKE $${i + 1})`).join(" OR ");
+      const whereClauses = words
+        .map(
+          (_, i) =>
+            `(t.title ILIKE $${i + 1} OR EXISTS (SELECT 1 FROM track_artist_credits tac WHERE tac.track_id = t.id AND tac.credit_name ILIKE $${i + 1}))`,
+        )
+        .join(" OR ");
       const params: (string | number)[] = words.map((w) => `%${w}%`);
       params.push(maxResults);
 
       const searchResult = await this.pool.query(
         `SELECT
-          t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
+          t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
           t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
           t.source_service, t.source_url,
@@ -492,7 +528,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async loadByShortId(shortId: string): Promise<SharePageDbResult | null> {
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -513,7 +549,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async loadByTrackId(trackId: string): Promise<SharePageDbResult | null> {
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -578,14 +614,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         // Update existing track metadata
         await client.query(
           `UPDATE tracks SET
-            title = $2, artists = $3, album_name = $4, artwork_url = $5,
-            duration_ms = $6, release_date = $7, is_explicit = $8,
-            updated_at = $9
+            title = $2, album_name = $3, artwork_url = $4,
+            duration_ms = $5, release_date = $6, is_explicit = $7,
+            updated_at = $8
           WHERE id = $1`,
           [
             trackId,
             data.sourceTrack.title,
-            JSON.stringify(data.sourceTrack.artists),
             data.sourceTrack.albumName ?? null,
             data.sourceTrack.artworkUrl ?? null,
             data.sourceTrack.durationMs ?? null,
@@ -598,14 +633,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         // Insert new track
         await client.query(
           `INSERT INTO tracks (
-            id, title, artists, album_name, isrc, artwork_url, duration_ms,
+            id, title, album_name, isrc, artwork_url, duration_ms,
             release_date, is_explicit, source_service, source_url,
             created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             trackId,
             data.sourceTrack.title,
-            JSON.stringify(data.sourceTrack.artists),
             data.sourceTrack.albumName ?? null,
             data.sourceTrack.isrc ?? null,
             data.sourceTrack.artworkUrl ?? null,
@@ -619,6 +653,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
           ],
         );
       }
+
+      await this.replaceTrackArtistCredits(client, trackId, data.sourceTrack.artists, now);
 
       // Upsert service links
       for (const link of data.links) {
@@ -703,16 +739,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     }
   }
 
-  async addTrackUrlAlias(url: string, trackId: string): Promise<void> {
-    const now = new Date();
-
-    await this.pool.query(
-      `INSERT INTO url_aliases (id, url, track_id, created_at) VALUES ($1, $2, $3, $4)
-       ON CONFLICT DO NOTHING`,
-      [`${trackId}-${url.slice(-20)}`, url, trackId, now],
-    );
-  }
-
   // ============================================================================
   // EXTERNAL-ID AGGREGATION (TrackRepository) — migration 0019
   // ============================================================================
@@ -729,7 +755,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async addArtistExternalIds(artistId: string, records: ExternalIdRecord[]): Promise<void> {
     if (records.length === 0) return;
-    await this.insertExternalIds("artist_external_ids", "artist_id", artistId, records);
+    const client = await this.pool.connect();
+    try {
+      await this.ensureArtistEntityExists(client, artistId);
+      await this.insertExternalIds("artist_external_ids", "artist_entity_id", artistId, records);
+    } finally {
+      client.release();
+    }
   }
 
   /**
@@ -740,7 +772,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
    */
   private async insertExternalIds(
     table: "track_external_ids" | "album_external_ids" | "artist_external_ids",
-    fkColumn: "track_id" | "album_id" | "artist_id",
+    fkColumn: "track_id" | "album_id" | "artist_entity_id",
     entityId: string,
     records: ExternalIdRecord[],
   ): Promise<void> {
@@ -778,7 +810,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async findTrackByExternalId(idType: string, idValue: string): Promise<CachedTrackResult | null> {
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -800,7 +832,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async findAlbumByExternalId(idType: string, idValue: string): Promise<CachedAlbumResult | null> {
     const result = await this.pool.query(
       `SELECT
-        a.id, a.title, a.artists, a.release_date, a.total_tracks,
+        a.id, a.title, ${ALBUM_ARTISTS_SELECT}, a.release_date, a.total_tracks,
         a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
         (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
         asl.url as link_url, asl.service, asl.confidence, asl.match_method,
@@ -1207,7 +1239,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async findAlbumByUrl(url: string): Promise<CachedAlbumResult | null> {
     const result = await this.pool.query(
       `SELECT
-        a.id, a.title, a.artists, a.release_date, a.total_tracks,
+        a.id, a.title, ${ALBUM_ARTISTS_SELECT}, a.release_date, a.total_tracks,
         a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
         (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
         asl.url as link_url, asl.service, asl.confidence, asl.match_method,
@@ -1228,7 +1260,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     // Fast path: canonical column.
     const result = await this.pool.query(
       `SELECT
-        a.id, a.title, a.artists, a.release_date, a.total_tracks,
+        a.id, a.title, ${ALBUM_ARTISTS_SELECT}, a.release_date, a.total_tracks,
         a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
         (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
         asl.url as link_url, asl.service, asl.confidence, asl.match_method,
@@ -1317,13 +1349,12 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         // Update existing album metadata
         await client.query(
           `UPDATE albums SET
-            title = $2, artists = $3, release_date = $4, total_tracks = $5,
-            artwork_url = $6, label = $7, updated_at = $8
+            title = $2, release_date = $3, total_tracks = $4,
+            artwork_url = $5, label = $6, updated_at = $7
           WHERE id = $1`,
           [
             albumId,
             data.sourceAlbum.title,
-            JSON.stringify(data.sourceAlbum.artists),
             data.sourceAlbum.releaseDate ?? null,
             data.sourceAlbum.totalTracks ?? null,
             data.sourceAlbum.artworkUrl ?? null,
@@ -1335,14 +1366,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         // Insert new album
         await client.query(
           `INSERT INTO albums (
-            id, title, artists, release_date, total_tracks, artwork_url,
+            id, title, release_date, total_tracks, artwork_url,
             label, upc, source_service, source_url,
             created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
           [
             albumId,
             data.sourceAlbum.title,
-            JSON.stringify(data.sourceAlbum.artists),
             data.sourceAlbum.releaseDate ?? null,
             data.sourceAlbum.totalTracks ?? null,
             data.sourceAlbum.artworkUrl ?? null,
@@ -1355,6 +1385,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
           ],
         );
       }
+
+      await this.replaceAlbumArtistCredits(client, albumId, data.sourceAlbum.artists, now);
 
       // Upsert service links
       for (const link of data.links) {
@@ -1441,7 +1473,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async loadAlbumByShortId(shortId: string): Promise<SharePageAlbumResult | null> {
     const result = await this.pool.query(
       `SELECT
-        a.id, a.title, a.artists, a.release_date, a.total_tracks,
+        a.id, a.title, ${ALBUM_ARTISTS_SELECT}, a.release_date, a.total_tracks,
         a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
         asl.url as link_url, asl.service,
         asu.id as short_id
@@ -1479,12 +1511,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async findArtistByUrl(url: string): Promise<CachedArtistResult | null> {
     const result = await this.pool.query(
       `SELECT
-        ar.id, ar.name, ar.image_url, ar.genres, ar.source_service, ar.source_url,
+        ar.artist_entity_id AS id, ar.artist_entity_id, ${ARTIST_NAME_SELECT}, ar.image_url, ar.genres, ar.source_service, ar.source_url,
         asl.url as link_url, asl.service, asl.confidence, asl.match_method,
         asu.id as short_id, ar.created_at, ar.updated_at
-      FROM artists ar
-      LEFT JOIN artist_service_links asl ON ar.id = asl.artist_id
-      LEFT JOIN artist_short_urls asu ON ar.id = asu.artist_id
+      FROM artist_profiles ar
+      ${ARTIST_NAME_LATERAL_JOIN}
+      LEFT JOIN artist_service_links asl ON ar.artist_entity_id = asl.artist_entity_id
+      LEFT JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
       WHERE ar.source_url = $1
       ORDER BY asl.created_at ASC`,
       [url],
@@ -1497,13 +1530,18 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async findArtistByName(name: string): Promise<CachedArtistResult | null> {
     const result = await this.pool.query(
       `SELECT
-        ar.id, ar.name, ar.image_url, ar.genres, ar.source_service, ar.source_url,
+        ar.artist_entity_id AS id, ar.artist_entity_id, ${ARTIST_NAME_SELECT}, ar.image_url, ar.genres, ar.source_service, ar.source_url,
         asl.url as link_url, asl.service, asl.confidence, asl.match_method,
         asu.id as short_id, ar.created_at, ar.updated_at
-      FROM artists ar
-      LEFT JOIN artist_service_links asl ON ar.id = asl.artist_id
-      LEFT JOIN artist_short_urls asu ON ar.id = asu.artist_id
-      WHERE LOWER(ar.name) = LOWER($1)
+      FROM artist_profiles ar
+      ${ARTIST_NAME_LATERAL_JOIN}
+      LEFT JOIN artist_service_links asl ON ar.artist_entity_id = asl.artist_entity_id
+      LEFT JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
+      WHERE EXISTS (
+        SELECT 1
+        FROM artist_entity_names n
+        WHERE n.artist_entity_id = ar.artist_entity_id AND LOWER(n.name) = LOWER($1)
+      )
       ORDER BY asl.created_at ASC`,
       [name],
     );
@@ -1515,12 +1553,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async loadArtistByShortId(shortId: string): Promise<SharePageArtistResult | null> {
     const result = await this.pool.query(
       `SELECT
-        ar.id, ar.name, ar.image_url, ar.genres, ar.source_service, ar.source_url,
+        ar.artist_entity_id AS id, ar.artist_entity_id, ${ARTIST_NAME_SELECT}, ar.image_url, ar.genres, ar.source_service, ar.source_url,
         asl.url as link_url, asl.service,
         asu.id as short_id
-      FROM artists ar
-      JOIN artist_short_urls asu ON ar.id = asu.artist_id
-      LEFT JOIN artist_service_links asl ON ar.id = asl.artist_id
+      FROM artist_profiles ar
+      ${ARTIST_NAME_LATERAL_JOIN}
+      JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
+      LEFT JOIN artist_service_links asl ON ar.artist_entity_id = asl.artist_entity_id
       WHERE asu.id = $1`,
       [shortId],
     );
@@ -1555,86 +1594,80 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
       const now = new Date();
 
-      // Look up existing artist by source_url or name to prevent duplicates
-      let existingArtistId: string | null = null;
+      // Look up existing artist profile by source_url or name to prevent duplicates.
       let existingShortId: string | null = null;
+      let existingArtistEntityId: string | null = null;
 
       if (data.sourceArtist.sourceUrl) {
-        const found = await client.query(
-          `SELECT ar.id, asu.id as short_id FROM artists ar
-           LEFT JOIN artist_short_urls asu ON ar.id = asu.artist_id
+        const found = await client.query<{ short_id: string | null; artist_entity_id: string }>(
+          `SELECT ar.artist_entity_id, asu.id as short_id FROM artist_profiles ar
+           LEFT JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
            WHERE ar.source_url = $1 LIMIT 1`,
           [data.sourceArtist.sourceUrl],
         );
         if (found.rows.length > 0) {
-          existingArtistId = found.rows[0].id;
           existingShortId = found.rows[0].short_id;
+          existingArtistEntityId = found.rows[0].artist_entity_id;
         }
       }
 
-      if (!existingArtistId) {
-        const found = await client.query(
-          `SELECT ar.id, asu.id as short_id FROM artists ar
-           LEFT JOIN artist_short_urls asu ON ar.id = asu.artist_id
-           WHERE LOWER(ar.name) = LOWER($1) LIMIT 1`,
+      if (!existingArtistEntityId) {
+        const found = await client.query<{ short_id: string | null; artist_entity_id: string }>(
+          `SELECT ar.artist_entity_id, asu.id as short_id FROM artist_profiles ar
+           LEFT JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
+           WHERE EXISTS (
+             SELECT 1
+             FROM artist_entity_names n
+             WHERE n.artist_entity_id = ar.artist_entity_id AND LOWER(n.name) = LOWER($1)
+           )
+           LIMIT 1`,
           [data.sourceArtist.name],
         );
         if (found.rows.length > 0) {
-          existingArtistId = found.rows[0].id;
           existingShortId = found.rows[0].short_id;
+          existingArtistEntityId = found.rows[0].artist_entity_id;
         }
       }
 
-      const artistId = existingArtistId ?? generateTrackId();
       const shortId = existingShortId ?? generateShortId();
+      const artistEntityId =
+        existingArtistEntityId ?? (await this.ensureArtistEntityForName(client, data.sourceArtist.name, now));
+      await this.ensureArtistEntityName(client, artistEntityId, data.sourceArtist.name, now);
 
-      if (existingArtistId) {
-        // Update existing artist metadata
-        await client.query(
-          `UPDATE artists SET
-            name = $2, image_url = $3, genres = $4, updated_at = $5
-          WHERE id = $1`,
-          [
-            artistId,
-            data.sourceArtist.name,
-            data.sourceArtist.imageUrl ?? null,
-            data.sourceArtist.genres ? JSON.stringify(data.sourceArtist.genres) : null,
-            now,
-          ],
-        );
-      } else {
-        // Insert new artist
-        await client.query(
-          `INSERT INTO artists (
-            id, name, image_url, genres, source_service, source_url,
-            created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [
-            artistId,
-            data.sourceArtist.name,
-            data.sourceArtist.imageUrl ?? null,
-            data.sourceArtist.genres ? JSON.stringify(data.sourceArtist.genres) : null,
-            data.sourceArtist.sourceService ?? null,
-            data.sourceArtist.sourceUrl ?? null,
-            now,
-            now,
-          ],
-        );
-      }
+      await client.query(
+        `INSERT INTO artist_profiles (
+          artist_entity_id, image_url, genres, source_service, source_url,
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $6)
+        ON CONFLICT (artist_entity_id) DO UPDATE SET
+          image_url = EXCLUDED.image_url,
+          genres = EXCLUDED.genres,
+          source_service = COALESCE(EXCLUDED.source_service, artist_profiles.source_service),
+          source_url = COALESCE(EXCLUDED.source_url, artist_profiles.source_url),
+          updated_at = EXCLUDED.updated_at`,
+        [
+          artistEntityId,
+          data.sourceArtist.imageUrl ?? null,
+          data.sourceArtist.genres ? JSON.stringify(data.sourceArtist.genres) : null,
+          data.sourceArtist.sourceService ?? null,
+          data.sourceArtist.sourceUrl ?? null,
+          now,
+        ],
+      );
 
       // Upsert service links
       for (const link of data.links) {
         await client.query(
           `INSERT INTO artist_service_links (
-            id, artist_id, service, external_id, url, confidence, match_method, created_at
+            id, artist_entity_id, service, external_id, url, confidence, match_method, created_at
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (artist_id, service) DO UPDATE SET
+          ON CONFLICT (artist_entity_id, service) DO UPDATE SET
             external_id = EXCLUDED.external_id,
             url = EXCLUDED.url,
             confidence = EXCLUDED.confidence`,
           [
-            `${artistId}-${link.service}`,
-            artistId,
+            `${artistEntityId}-${link.service}`,
+            artistEntityId,
             link.service,
             link.externalId ?? null,
             link.url,
@@ -1648,14 +1681,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       // Insert short URL (only if new)
       if (!existingShortId) {
         await client.query(
-          `INSERT INTO artist_short_urls (id, artist_id, created_at) VALUES ($1, $2, $3)
+          `INSERT INTO artist_short_urls (id, artist_entity_id, created_at) VALUES ($1, $2, $3)
            ON CONFLICT DO NOTHING`,
-          [shortId, artistId, now],
+          [shortId, artistEntityId, now],
         );
       }
 
       await client.query("COMMIT");
-      return { artistId, shortId };
+      return { artistId: artistEntityId, shortId };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -1672,13 +1705,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     try {
       await client.query("BEGIN");
       const now = new Date();
+      await this.ensureArtistEntityExists(client, artistId);
 
       for (const link of links) {
         await client.query(
           `INSERT INTO artist_service_links (
-            id, artist_id, service, external_id, url, confidence, match_method, created_at
+            id, artist_entity_id, service, external_id, url, confidence, match_method, created_at
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (artist_id, service) DO UPDATE SET
+          ON CONFLICT (artist_entity_id, service) DO UPDATE SET
             external_id = EXCLUDED.external_id,
             url = EXCLUDED.url,
             confidence = EXCLUDED.confidence`,
@@ -1906,7 +1940,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async getTrackById(id: string) {
     const trackResult = await this.pool.query(
-      `SELECT t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
+      `SELECT t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url, t.created_at,
@@ -1954,38 +1988,52 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       artworkUrl?: string | null;
     },
   ) {
-    const sets: string[] = [];
-    const values: (string | number | null | Date)[] = [];
-    let idx = 1;
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const sets: string[] = [];
+      const values: (string | number | null | Date)[] = [];
+      let idx = 1;
+      const now = new Date();
 
-    if (data.title !== undefined) {
-      sets.push(`title = $${idx++}`);
-      values.push(data.title);
-    }
-    if (data.artists !== undefined) {
-      sets.push(`artists = $${idx++}`);
-      values.push(JSON.stringify(data.artists));
-    }
-    if (data.albumName !== undefined) {
-      sets.push(`album_name = $${idx++}`);
-      values.push(data.albumName);
-    }
-    if (data.isrc !== undefined) {
-      sets.push(`isrc = $${idx++}`);
-      values.push(data.isrc);
-    }
-    if (data.artworkUrl !== undefined) {
-      sets.push(`artwork_url = $${idx++}`);
-      values.push(data.artworkUrl);
-    }
+      if (data.title !== undefined) {
+        sets.push(`title = $${idx++}`);
+        values.push(data.title);
+      }
+      if (data.albumName !== undefined) {
+        sets.push(`album_name = $${idx++}`);
+        values.push(data.albumName);
+      }
+      if (data.isrc !== undefined) {
+        sets.push(`isrc = $${idx++}`);
+        values.push(data.isrc);
+      }
+      if (data.artworkUrl !== undefined) {
+        sets.push(`artwork_url = $${idx++}`);
+        values.push(data.artworkUrl);
+      }
 
-    if (sets.length === 0) return;
+      if (sets.length > 0) {
+        sets.push(`updated_at = $${idx++}`);
+        values.push(now);
+        values.push(id);
+        await client.query(`UPDATE tracks SET ${sets.join(", ")} WHERE id = $${idx}`, values);
+      }
 
-    sets.push(`updated_at = $${idx++}`);
-    values.push(new Date());
-    values.push(id);
+      if (data.artists !== undefined) {
+        await this.replaceTrackArtistCredits(client, id, data.artists, now);
+        if (sets.length === 0) {
+          await client.query(`UPDATE tracks SET updated_at = $1 WHERE id = $2`, [now, id]);
+        }
+      }
 
-    await this.pool.query(`UPDATE tracks SET ${sets.join(", ")} WHERE id = $${idx}`, values);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   // ============================================================================
@@ -2009,7 +2057,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     let whereClause = "";
     const dataParams: (string | number)[] = [];
     if (q) {
-      whereClause = `WHERE t.title ILIKE $1 OR t.artists ILIKE $1`;
+      whereClause = `WHERE t.title ILIKE $1 OR EXISTS (SELECT 1 FROM track_artist_credits tac WHERE tac.track_id = t.id AND tac.credit_name ILIKE $1)`;
       dataParams.push(`%${q}%`);
     }
 
@@ -2033,7 +2081,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     // (track_id, service) composite index for each.
     dataParams.push(limit, offset);
     const query = `SELECT
-      t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
+      t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
       t.source_service, t.created_at,
       su.id as short_id,
       (SELECT COUNT(*) FROM service_links sl WHERE sl.track_id = t.id) as link_count
@@ -2079,7 +2127,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     let whereClause = "";
     const dataParams: (string | number)[] = [];
     if (q) {
-      whereClause = `WHERE a.title ILIKE $1 OR a.artists ILIKE $1`;
+      whereClause = `WHERE a.title ILIKE $1 OR EXISTS (SELECT 1 FROM album_artist_credits aac WHERE aac.album_id = a.id AND aac.credit_name ILIKE $1)`;
       dataParams.push(`%${q}%`);
     }
 
@@ -2094,7 +2142,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     dataParams.push(limit, offset);
     const query = `SELECT
-      a.id, a.title, a.artists, a.release_date, a.total_tracks,
+      a.id, a.title, ${ALBUM_ARTISTS_SELECT}, a.release_date, a.total_tracks,
       a.artwork_url, a.upc, a.source_service, a.created_at,
       asu.id as short_id,
       (SELECT COUNT(*) FROM album_service_links asl WHERE asl.album_id = a.id) as link_count
@@ -2139,7 +2187,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       // Delete associated records first (due to foreign keys)
       await client.query(`DELETE FROM service_links WHERE track_id IN (${placeholders})`, ids);
       await client.query(`DELETE FROM short_urls WHERE track_id IN (${placeholders})`, ids);
-      await client.query(`DELETE FROM url_aliases WHERE track_id IN (${placeholders})`, ids);
 
       // Delete tracks
       await client.query(`DELETE FROM tracks WHERE id IN (${placeholders}) RETURNING id`, ids);
@@ -2170,7 +2217,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       // Delete associated records first
       await client.query(`DELETE FROM album_service_links WHERE album_id IN (${placeholders})`, ids);
       await client.query(`DELETE FROM album_short_urls WHERE album_id IN (${placeholders})`, ids);
-      await client.query(`DELETE FROM url_aliases WHERE album_id IN (${placeholders})`, ids);
 
       // Delete albums
       await client.query(`DELETE FROM albums WHERE id IN (${placeholders}) RETURNING id`, ids);
@@ -2224,8 +2270,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async invalidateArtistCache(shortId: string): Promise<{ ok: true }> {
     const result = await this.pool.query(
-      `UPDATE artists SET updated_at = to_timestamp(0)
-       WHERE id = (SELECT artist_id FROM artist_short_urls WHERE id = $1)`,
+      `UPDATE artist_profiles SET updated_at = to_timestamp(0)
+       WHERE artist_entity_id = (SELECT artist_entity_id FROM artist_short_urls WHERE id = $1)`,
       [shortId],
     );
     if ((result.rowCount ?? 0) === 0) {
@@ -2240,7 +2286,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       await client.query("BEGIN");
       const tracksResult = await client.query(`UPDATE tracks SET updated_at = to_timestamp(0)`);
       const albumsResult = await client.query(`UPDATE albums SET updated_at = to_timestamp(0)`);
-      const artistsResult = await client.query(`UPDATE artists SET updated_at = to_timestamp(0)`);
+      const artistsResult = await client.query(`UPDATE artist_profiles SET updated_at = to_timestamp(0)`);
       await client.query("COMMIT");
       return {
         tracks: tracksResult.rowCount ?? 0,
@@ -2266,6 +2312,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const offset = (page - 1) * limit;
     const ALLOWED = ["created_at", "updated_at", "name"];
     const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
+    const orderExpr = col === "name" ? "name" : `a.${col}`;
     const dir = sortDir === "asc" ? "ASC" : "DESC";
 
     // See listTracks for the rationale behind the query shape, the
@@ -2273,14 +2320,18 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     let whereClause = "";
     const dataParams: (string | number)[] = [];
     if (q) {
-      whereClause = `WHERE a.name ILIKE $1`;
+      whereClause = `WHERE EXISTS (
+        SELECT 1
+        FROM artist_entity_names n
+        WHERE n.artist_entity_id = a.artist_entity_id AND n.name ILIKE $1
+      )`;
       dataParams.push(`%${q}%`);
     }
 
     let total: number | string = -1;
     if (page === 1) {
       const countResult = await this.pool.query<CountRow>(
-        `SELECT COUNT(*) as count FROM artists a ${whereClause}`,
+        `SELECT COUNT(*) as count FROM artist_profiles a ${whereClause}`,
         q ? dataParams : [],
       );
       total = countResult.rows[0]?.count ?? 0;
@@ -2288,13 +2339,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     dataParams.push(limit, offset);
     const query = `SELECT
-      a.id, a.name, a.image_url, a.genres, a.source_service, a.created_at,
+      a.artist_entity_id AS id, a.artist_entity_id, ${ARTIST_NAME_SELECT}, a.image_url, a.genres, a.source_service, a.created_at,
       asu.id as short_id,
-      (SELECT COUNT(*) FROM artist_service_links asl WHERE asl.artist_id = a.id) as link_count
-    FROM artists a
-    LEFT JOIN artist_short_urls asu ON a.id = asu.artist_id
+      (SELECT COUNT(*) FROM artist_service_links asl WHERE asl.artist_entity_id = a.artist_entity_id) as link_count
+    FROM artist_profiles a
+    ${ARTIST_NAME_LATERAL_JOIN}
+    LEFT JOIN artist_short_urls asu ON a.artist_entity_id = asu.artist_entity_id
     ${whereClause}
-    ORDER BY a.${col} ${dir}
+    ORDER BY ${orderExpr} ${dir}
     LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
 
     const rows = await this.pool.query(query, dataParams);
@@ -2325,15 +2377,19 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     try {
       await client.query("BEGIN");
 
-      const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
+      const entityPlaceholders = ids.map((_, i) => `$${i + 1}`).join(",");
 
       // Delete associated records first
-      await client.query(`DELETE FROM artist_service_links WHERE artist_id IN (${placeholders})`, ids);
-      await client.query(`DELETE FROM artist_short_urls WHERE artist_id IN (${placeholders})`, ids);
-      await client.query(`DELETE FROM url_aliases WHERE artist_id IN (${placeholders})`, ids);
+      await client.query(`DELETE FROM artist_external_ids WHERE artist_entity_id IN (${entityPlaceholders})`, ids);
+      await client.query(`DELETE FROM artist_service_links WHERE artist_entity_id IN (${entityPlaceholders})`, ids);
+      await client.query(`DELETE FROM artist_short_urls WHERE artist_entity_id IN (${entityPlaceholders})`, ids);
 
-      // Delete artists
-      await client.query(`DELETE FROM artists WHERE id IN (${placeholders}) RETURNING id`, ids);
+      // Delete artist profiles. Keep artist_entities because tracks/albums
+      // and identity data can still reference the canonical entity.
+      await client.query(
+        `DELETE FROM artist_profiles WHERE artist_entity_id IN (${entityPlaceholders}) RETURNING artist_entity_id`,
+        ids,
+      );
 
       await client.query("COMMIT");
 
@@ -2357,7 +2413,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async countAllData(): Promise<{ tracks: number; albums: number; artists: number }> {
     const tracksResult = await this.pool.query(`SELECT COUNT(*) as count FROM tracks`);
     const albumsResult = await this.pool.query(`SELECT COUNT(*) as count FROM albums`);
-    const artistsResult = await this.pool.query(`SELECT COUNT(*) as count FROM artists`);
+    const artistsResult = await this.pool.query(`SELECT COUNT(*) as count FROM artist_profiles`);
 
     return {
       tracks: tracksResult.rows[0]?.count ?? 0,
@@ -2374,21 +2430,21 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       // Get counts before deletion
       const tracksResult = await client.query(`SELECT COUNT(*) as count FROM tracks`);
       const albumsResult = await client.query(`SELECT COUNT(*) as count FROM albums`);
-      const artistsResult = await client.query(`SELECT COUNT(*) as count FROM artists`);
+      const artistsResult = await client.query(`SELECT COUNT(*) as count FROM artist_profiles`);
 
       const trackCount = tracksResult.rows[0]?.count ?? 0;
       const albumCount = albumsResult.rows[0]?.count ?? 0;
       const artistCount = artistsResult.rows[0]?.count ?? 0;
 
       // Delete in reverse order of foreign key dependencies
-      await client.query("DELETE FROM url_aliases");
       await client.query("DELETE FROM artist_short_urls");
+      await client.query("DELETE FROM artist_external_ids");
       await client.query("DELETE FROM artist_service_links");
+      await client.query("DELETE FROM artist_profiles");
       await client.query("DELETE FROM album_short_urls");
       await client.query("DELETE FROM album_service_links");
       await client.query("DELETE FROM short_urls");
       await client.query("DELETE FROM service_links");
-      await client.query("DELETE FROM artists");
       await client.query("DELETE FROM albums");
       await client.query("DELETE FROM tracks");
       await client.query("DELETE FROM artist_cache");
@@ -2412,7 +2468,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const placeholders = shortIds.map((_, i) => `$${i + 1}`).join(", ");
 
     const trackRows = await this.pool.query(
-      `SELECT su.id AS short_id, t.title, t.artists
+      `SELECT su.id AS short_id, t.title, ${TRACK_ARTISTS_SELECT}
        FROM short_urls su JOIN tracks t ON su.track_id = t.id
        WHERE su.id IN (${placeholders})`,
       shortIds,
@@ -2426,7 +2482,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     if (remaining.length > 0) {
       const albumPlaceholders = remaining.map((_, i) => `$${i + 1}`).join(", ");
       const albumRows = await this.pool.query(
-        `SELECT asu.id AS short_id, a.title, a.artists
+        `SELECT asu.id AS short_id, a.title, ${ALBUM_ARTISTS_SELECT}
          FROM album_short_urls asu JOIN albums a ON asu.album_id = a.id
          WHERE asu.id IN (${albumPlaceholders})`,
         remaining,
@@ -2447,7 +2503,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async loadSharePageResult(shortId: string): Promise<SharePageDbResult | null> {
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, t.artists, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -2484,6 +2540,121 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // ============================================================================
   // HELPER METHODS
   // ============================================================================
+
+  private async ensureArtistEntityExists(client: PoolClient, artistEntityId: string): Promise<void> {
+    const result = await client.query<{ id: string }>(`SELECT id FROM artist_entities WHERE id = $1`, [artistEntityId]);
+    if (!result.rows[0]?.id) {
+      throw new Error(`Artist entity not found: ${artistEntityId}`);
+    }
+  }
+
+  private async ensureArtistEntityForName(client: PoolClient, name: string, now: Date): Promise<string> {
+    const creditName = name.trim();
+    if (!creditName) {
+      return this.ensureArtistEntityForName(client, "Unknown Artist", now);
+    }
+
+    const existing = await client.query<{ artist_entity_id: string }>(
+      `SELECT artist_entity_id
+       FROM artist_entity_names
+       WHERE LOWER(name) = LOWER($1)
+       ORDER BY
+         CASE
+           WHEN name_type = 'canonical' AND locale IS NULL THEN 0
+           WHEN name_type = 'canonical' THEN 1
+           WHEN name_type = 'credit' THEN 2
+           WHEN locale IS NULL THEN 3
+           ELSE 4
+         END,
+         created_at ASC
+       LIMIT 1`,
+      [creditName],
+    );
+    if (existing.rows[0]?.artist_entity_id) {
+      return existing.rows[0].artist_entity_id;
+    }
+
+    const artistEntityId = generateTrackId();
+    await client.query(
+      `INSERT INTO artist_entities (id, entity_type, verification_status, confidence, created_at, updated_at)
+       VALUES ($1, 'unknown', 'candidate', NULL, $2, $2)`,
+      [artistEntityId, now],
+    );
+    await client.query(
+      `INSERT INTO artist_entity_names (id, artist_entity_id, locale, name, name_type, source_id, created_at)
+       VALUES ($1, $2, NULL, $3, 'canonical', NULL, $4)`,
+      [generateTrackId(), artistEntityId, creditName, now],
+    );
+    return artistEntityId;
+  }
+
+  private async ensureArtistEntityName(
+    client: PoolClient,
+    artistEntityId: string,
+    name: string,
+    now: Date,
+    nameType: "canonical" | "credit" = "canonical",
+  ): Promise<void> {
+    const creditName = name.trim();
+    if (!creditName) return;
+
+    const existing = await client.query<{ id: string }>(
+      `SELECT id
+       FROM artist_entity_names
+       WHERE artist_entity_id = $1 AND LOWER(name) = LOWER($2) AND name_type = $3
+       LIMIT 1`,
+      [artistEntityId, creditName, nameType],
+    );
+    if (existing.rows.length > 0) return;
+
+    await client.query(
+      `INSERT INTO artist_entity_names (id, artist_entity_id, locale, name, name_type, source_id, created_at)
+       VALUES ($1, $2, NULL, $3, $4, NULL, $5)`,
+      [generateTrackId(), artistEntityId, creditName, nameType, now],
+    );
+  }
+
+  private async replaceTrackArtistCredits(
+    client: PoolClient,
+    trackId: string,
+    artistNames: string[],
+    now: Date,
+  ): Promise<void> {
+    await client.query(`DELETE FROM track_artist_credits WHERE track_id = $1 AND credit_role = 'main'`, [trackId]);
+
+    const creditNames = artistNames.map((name) => name.trim()).filter(Boolean);
+    for (const [index, creditName] of creditNames.entries()) {
+      const artistEntityId = await this.ensureArtistEntityForName(client, creditName, now);
+      await client.query(
+        `INSERT INTO track_artist_credits (
+          id, track_id, artist_entity_id, credit_name, credit_position, credit_role,
+          confidence, match_method, source_id, created_at
+        ) VALUES ($1, $2, $3, $4, $5, 'main', NULL, 'legacy_name', NULL, $6)`,
+        [generateTrackId(), trackId, artistEntityId, creditName, index, now],
+      );
+    }
+  }
+
+  private async replaceAlbumArtistCredits(
+    client: PoolClient,
+    albumId: string,
+    artistNames: string[],
+    now: Date,
+  ): Promise<void> {
+    await client.query(`DELETE FROM album_artist_credits WHERE album_id = $1 AND credit_role = 'main'`, [albumId]);
+
+    const creditNames = artistNames.map((name) => name.trim()).filter(Boolean);
+    for (const [index, creditName] of creditNames.entries()) {
+      const artistEntityId = await this.ensureArtistEntityForName(client, creditName, now);
+      await client.query(
+        `INSERT INTO album_artist_credits (
+          id, album_id, artist_entity_id, credit_name, credit_position, credit_role,
+          confidence, match_method, source_id, created_at
+        ) VALUES ($1, $2, $3, $4, $5, 'main', NULL, 'legacy_name', NULL, $6)`,
+        [generateTrackId(), albumId, artistEntityId, creditName, index, now],
+      );
+    }
+  }
 
   private buildCachedResult(rows: TrackWithLinkRow[]): CachedTrackResult | null {
     if (rows.length === 0) return null;

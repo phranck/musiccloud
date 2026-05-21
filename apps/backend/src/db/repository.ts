@@ -403,9 +403,6 @@ export interface TrackRepository {
     }>,
   ): Promise<void>;
 
-  // URL aliases (short links that redirect to a canonical service URL)
-  addTrackUrlAlias(url: string, trackId: string): Promise<void>;
-
   // External-ID aggregation (track/album/artist) — see migration 0019.
   // The unique index on (entity_id, id_type, id_value, source_service)
   // makes the inserts idempotent: re-running a resolve doesn't create

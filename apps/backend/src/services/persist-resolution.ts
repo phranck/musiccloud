@@ -104,15 +104,6 @@ export async function persistResolution(result: ResolutionResult): Promise<Persi
     }
   }
 
-  // If the original input was a short link, save it as an alias for fast future lookups.
-  if (result.inputUrl) {
-    try {
-      await repo.addTrackUrlAlias(result.inputUrl, trackId);
-    } catch {
-      // Non-fatal — alias write failure must not break the caller.
-    }
-  }
-
   // Refresh missing or expired Deezer preview URLs before returning so
   // clients (route or crawler) do not surface dead signed preview links.
   let refreshedPreviewUrl: string | undefined = result.sourceTrack.previewUrl ?? undefined;

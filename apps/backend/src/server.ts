@@ -353,7 +353,7 @@ async function buildApp() {
       const expected = [
         "tracks",
         "albums",
-        "artists",
+        "artist_profiles",
         "short_urls",
         "album_short_urls",
         "artist_short_urls",

@@ -15,6 +15,9 @@ describe.skipIf(!process.env.DATABASE_URL)("artist identity repository (integrat
   const formedEventId = `event-formed-${suffix}`;
   const birthEventId = `event-birth-${suffix}`;
   const outsiderBirthEventId = `event-outsider-birth-${suffix}`;
+  const creditTrackSourceUrl = `https://example.test/credit-track/${suffix}`;
+  const creditArtistOne = `Credit Artist One ${suffix}`;
+  const creditArtistTwo = `Credit Artist Two ${suffix}`;
 
   let client: pg.Client;
 
@@ -88,10 +91,10 @@ describe.skipIf(!process.env.DATABASE_URL)("artist identity repository (integrat
     );
     await client.query(
       `INSERT INTO tracks (
-         id, title, artists, source_service, source_url, created_at, updated_at
+         id, title, source_service, source_url, created_at, updated_at
        )
-       VALUES ($1, 'Identity Integration Track', $2, 'manual', $3, NOW(), NOW())`,
-      [trackId, JSON.stringify(["Integration Test Band"]), `https://example.test/track/${suffix}`],
+       VALUES ($1, 'Identity Integration Track', 'manual', $2, NOW(), NOW())`,
+      [trackId, `https://example.test/track/${suffix}`],
     );
     await client.query(
       `INSERT INTO track_artist_credits (
@@ -103,6 +106,20 @@ describe.skipIf(!process.env.DATABASE_URL)("artist identity repository (integrat
   });
 
   afterAll(async () => {
+    await client.query(`DELETE FROM service_links WHERE track_id IN (SELECT id FROM tracks WHERE source_url = $1)`, [
+      creditTrackSourceUrl,
+    ]);
+    await client.query(`DELETE FROM short_urls WHERE track_id IN (SELECT id FROM tracks WHERE source_url = $1)`, [
+      creditTrackSourceUrl,
+    ]);
+    await client.query(`DELETE FROM tracks WHERE source_url = $1`, [creditTrackSourceUrl]);
+    await client.query(
+      `DELETE FROM artist_entities
+       WHERE id IN (
+         SELECT artist_entity_id FROM artist_entity_names WHERE name = ANY($1::text[])
+       )`,
+      [[creditArtistOne, creditArtistTwo]],
+    );
     await client.query(`DELETE FROM tracks WHERE id = $1`, [trackId]);
     await client.query(`DELETE FROM artist_entities WHERE id = ANY($1::text[])`, [[groupId, memberId, outsiderId]]);
     await client.query(`DELETE FROM places WHERE id = $1`, [placeId]);
@@ -172,5 +189,22 @@ describe.skipIf(!process.env.DATABASE_URL)("artist identity repository (integrat
     const repo = await getRepository();
     await expect(repo.findArtistEntityIdByIdentifier("wikidata", `Q${suffix}`)).resolves.toBe(memberId);
     await expect(repo.findArtistEntityIdByIdentifier("wikidata", `missing-${suffix}`)).resolves.toBeNull();
+  });
+
+  it("persists and reads track artist display names through credits", async () => {
+    const repo = await getRepository();
+
+    await repo.persistTrackWithLinks({
+      sourceTrack: {
+        title: "Credit Backed Track",
+        artists: [creditArtistOne, creditArtistTwo],
+        sourceService: "manual",
+        sourceUrl: creditTrackSourceUrl,
+      },
+      links: [{ service: "manual", url: creditTrackSourceUrl, confidence: 1, matchMethod: "integration-test" }],
+    });
+
+    const cached = await repo.findTrackByUrl(creditTrackSourceUrl);
+    expect(cached?.track.artists).toEqual([creditArtistOne, creditArtistTwo]);
   });
 });
