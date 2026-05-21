@@ -4,10 +4,12 @@ import { RateLimiter } from "@/lib/infra/rate-limiter";
 describe("RateLimiter", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    delete process.env.DISABLE_RATE_LIMIT;
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    delete process.env.DISABLE_RATE_LIMIT;
   });
 
   it("should allow requests below limit", () => {
@@ -65,5 +67,14 @@ describe("RateLimiter", () => {
 
     // client-1 should still be limited (1 request in window, limit is 1)
     expect(limiter.isLimited("client-1")).toBe(true);
+  });
+
+  it("should skip limiting when explicitly disabled", () => {
+    process.env.DISABLE_RATE_LIMIT = "true";
+    const limiter = new RateLimiter(1, 60_000);
+
+    expect(limiter.isLimited("client-1")).toBe(false);
+    expect(limiter.isLimited("client-1")).toBe(false);
+    expect(limiter.isLimited("client-1")).toBe(false);
   });
 });

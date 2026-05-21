@@ -28,6 +28,8 @@ export class RateLimiter {
   ) {}
 
   isLimited(key: string): boolean {
+    if (isRateLimitDisabled()) return false;
+
     const now = Date.now();
     const windowStart = now - this.windowMs;
 
@@ -95,6 +97,15 @@ export class RateLimiter {
 // background noise on the event loop.
 export const apiRateLimiter = new RateLimiter(10, 60_000);
 setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);
+
+/**
+ * Explicit local/test escape hatch for migration and compatibility test
+ * suites that intentionally hit the same endpoint many times from one IP.
+ * Production must leave this unset.
+ */
+export function isRateLimitDisabled(): boolean {
+  return process.env.DISABLE_RATE_LIMIT === "true";
+}
 
 /**
  * Check whether a request comes from the internal Astro SSR proxy.
