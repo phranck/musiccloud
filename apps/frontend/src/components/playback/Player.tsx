@@ -83,7 +83,9 @@ function spectrumGlyphForLevel(level: number): string {
 }
 
 function isStereoSpectrumBands(bands: PlayerSpectrumBands): bands is StereoSpectrumBands {
-  return !Array.isArray(bands) && Array.isArray(bands.left) && Array.isArray(bands.right);
+  if (Array.isArray(bands)) return false;
+  const candidate = bands as Partial<StereoSpectrumBands>;
+  return Array.isArray(candidate.left) && Array.isArray(candidate.right);
 }
 
 function renderBandContent(bands: readonly number[], cells: number): string {
