@@ -11,10 +11,17 @@ interface PlayerContextValue {
   timeText: string;
   ariaLabel: string;
   title?: string;
-  spectrumBands?: readonly number[] | null;
+  spectrumBands?: PlayerSpectrumBands | null;
   phosphorColor: string;
   onTogglePlay: () => void;
 }
+
+interface StereoSpectrumBands {
+  left: readonly number[];
+  right: readonly number[];
+}
+
+type PlayerSpectrumBands = readonly number[] | StereoSpectrumBands;
 
 interface PlayerProps extends PlayerContextValue {
   children?: ReactNode;
@@ -37,6 +44,8 @@ interface PlayerTimeProps {
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
 const PLAYER_SPECTRUM_CELLS = 30;
+const PLAYER_STEREO_CHANNEL_CELLS = 12;
+const PLAYER_STEREO_CHANNEL_GAP_CELLS = 3;
 const PLAYER_SPECTRUM_LEVEL_GLYPHS = [
   VFD_GLYPHS.spectrumLevel0,
   VFD_GLYPHS.spectrumLevel1,
@@ -54,9 +63,14 @@ function usePlayerContext(): PlayerContextValue {
   return ctx;
 }
 
-function sectionFor(content: string, brightness: VfdDisplaySection["brightness"]): VfdDisplaySection | null {
+function sectionFor(
+  content: string,
+  brightness: VfdDisplaySection["brightness"],
+  cells: VfdDisplaySection["cells"] = Array.from(content).length,
+  key?: string,
+): VfdDisplaySection | null {
   if (!content) return null;
-  return { content, cells: Array.from(content).length, align: "left", brightness };
+  return { content, cells, align: "left", brightness, key };
 }
 
 function compactSections(sections: Array<VfdDisplaySection | null>): VfdDisplaySection[] {
@@ -68,13 +82,31 @@ function spectrumGlyphForLevel(level: number): string {
   return PLAYER_SPECTRUM_LEVEL_GLYPHS[safeLevel] ?? VFD_GLYPHS.spectrumLevel0;
 }
 
-function renderSpectrumSections(bands: readonly number[], cells = PLAYER_SPECTRUM_CELLS): VfdDisplaySection[] {
+function isStereoSpectrumBands(bands: PlayerSpectrumBands): bands is StereoSpectrumBands {
+  return !Array.isArray(bands) && Array.isArray(bands.left) && Array.isArray(bands.right);
+}
+
+function renderBandContent(bands: readonly number[], cells: number): string {
   const safeCells = Math.max(1, cells);
-  const content = Array.from({ length: safeCells }, (_, index) => {
+  return Array.from({ length: safeCells }, (_, index) => {
     const sourceIndex = Math.min(bands.length - 1, Math.floor((index / safeCells) * bands.length));
     const level = Math.round((bands[sourceIndex] ?? 0) * (PLAYER_SPECTRUM_LEVEL_GLYPHS.length - 1));
     return spectrumGlyphForLevel(level);
   }).join("");
+}
+
+function renderSpectrumSections(bands: PlayerSpectrumBands, cells = PLAYER_SPECTRUM_CELLS): VfdDisplaySection[] {
+  if (isStereoSpectrumBands(bands)) {
+    return compactSections([
+      sectionFor("L", "normal", 1, "spectrum-left-label"),
+      sectionFor(renderBandContent(bands.left, PLAYER_STEREO_CHANNEL_CELLS), "bright", "fill", "spectrum-left"),
+      sectionFor(" ".repeat(PLAYER_STEREO_CHANNEL_GAP_CELLS), "ghost", PLAYER_STEREO_CHANNEL_GAP_CELLS, "spectrum-gap"),
+      sectionFor("R", "normal", 1, "spectrum-right-label"),
+      sectionFor(renderBandContent(bands.right, PLAYER_STEREO_CHANNEL_CELLS), "bright", "fill", "spectrum-right"),
+    ]);
+  }
+
+  const content = renderBandContent(bands, cells);
 
   return compactSections([sectionFor(content, "bright")]);
 }
@@ -158,6 +190,8 @@ function PlayerButton({ className }: PlayerButtonProps) {
 
 function PlayerProgress({ className, children }: PlayerProgressProps) {
   const { isDisabled, isPlaying, timeText, phosphorColor, spectrumBands } = usePlayerContext();
+  const isStereoAnalyzer =
+    !children && spectrumBands !== null && spectrumBands !== undefined && isStereoSpectrumBands(spectrumBands);
   const analyzerSections = renderSpectrumSections(spectrumBands ?? []);
   const progressSections = children
     ? [
@@ -187,12 +221,23 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
             transition: "none",
             sections: [
               // VfdDisplay is a dumb hardware renderer. The Player owns this
-              // layout contract: analyzer cells keep their own section
-              // brightness, the blank fill section absorbs spare cells, two dim
-              // blank segments keep the hardware-style gap, and playtime is the
+              // layout contract: analyzer cells keep their own brightness, mono
+              // progress gets a blank fill section, stereo analyzer channels
+              // split the available fill area evenly, and playtime remains the
               // trailing auto-sized right section.
               ...progressSections,
-              { content: "", cells: "fill", align: "left", brightness: "ghost", marquee: false, key: "progress-fill" },
+              ...(isStereoAnalyzer
+                ? []
+                : [
+                    {
+                      content: "",
+                      cells: "fill",
+                      align: "left",
+                      brightness: "ghost",
+                      marquee: false,
+                      key: "progress-fill",
+                    } satisfies VfdDisplaySection,
+                  ]),
               { content: "  ", cells: 2, align: "left", brightness: "dim", marquee: false },
               {
                 content: timeText,

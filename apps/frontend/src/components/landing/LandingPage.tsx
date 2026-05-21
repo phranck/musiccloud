@@ -13,7 +13,6 @@ import {
 } from "react";
 import { HeroInput } from "@/components/landing/HeroInput";
 import { AppFooter } from "@/components/layout/AppFooter";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { LogoView } from "@/components/ui/LogoView";
 import { useAppState } from "@/hooks/useAppState";
@@ -56,13 +55,7 @@ function ShareResultPlaceholder() {
   );
 }
 
-function LandingPageInner({
-  headerNav = EMPTY_NAV_ITEMS,
-  footerNav = EMPTY_NAV_ITEMS,
-}: {
-  headerNav?: NavItem[];
-  footerNav?: NavItem[];
-}) {
+function LandingPageInner({ footerNav = EMPTY_NAV_ITEMS }: { footerNav?: NavItem[] }) {
   const t = useT();
 
   const resultsPanelRef = useRef<HTMLDivElement>(null);
@@ -252,11 +245,9 @@ function LandingPageInner({
   return (
     <>
       <div className="flex-1 flex flex-col items-center px-4 transition-colors duration-700 relative">
-        <PageHeader navItems={headerNav} />
-
         <div
           className={`flex-1 flex flex-col items-center w-full ${
-            isSharePageView ? "justify-start pt-8 sm:pt-12 md:pt-14 pb-12" : "justify-center"
+            isSharePageView ? "justify-start pt-20 sm:pt-12 md:pt-14 pb-12" : "justify-center"
           }`}
         >
           {activeShareConfig && active ? (
@@ -396,17 +387,11 @@ function LandingPageInner({
   );
 }
 
-export function LandingPage({
-  headerNav = EMPTY_NAV_ITEMS,
-  footerNav = EMPTY_NAV_ITEMS,
-}: {
-  headerNav?: NavItem[];
-  footerNav?: NavItem[];
-} = {}) {
+export function LandingPage({ footerNav = EMPTY_NAV_ITEMS }: { footerNav?: NavItem[] } = {}) {
   return (
     <ErrorBoundary>
       <LocaleProvider>
-        <LandingPageInner headerNav={headerNav} footerNav={footerNav} />
+        <LandingPageInner footerNav={footerNav} />
       </LocaleProvider>
     </ErrorBoundary>
   );

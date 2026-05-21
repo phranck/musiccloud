@@ -38,9 +38,9 @@ function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): vo
  */
 export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
   return (
-    <div className="fixed top-4 right-4 z-40 hidden sm:flex items-center gap-3">
+    <div className="fixed top-3 right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 sm:top-4 sm:right-4 sm:gap-3">
       {navItems.length > 0 && (
-        <nav aria-label="Header navigation" className="flex items-center gap-4 mr-2 text-sm">
+        <nav aria-label="Header navigation" className="flex items-center gap-3 text-xs sm:gap-4 sm:mr-2 sm:text-sm">
           {navItems.map((item) => (
             <a
               key={item.id}

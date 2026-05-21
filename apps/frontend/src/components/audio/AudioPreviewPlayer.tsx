@@ -87,11 +87,26 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-const SPECTRUM_BAND_COUNT = 25;
+const SPECTRUM_CHANNEL_BAND_COUNT = 12;
 const SPECTRUM_LEVEL_COUNT = 7;
 const SPECTRUM_UPDATE_MS = 50;
 
 type BrowserAudioContextConstructor = typeof AudioContext;
+
+interface StereoSpectrumBands {
+  left: number[];
+  right: number[];
+}
+
+interface StereoSpectrumData {
+  left: Uint8Array<ArrayBuffer>;
+  right: Uint8Array<ArrayBuffer>;
+}
+
+interface StereoSpectrumAnalysers {
+  left: AnalyserNode;
+  right: AnalyserNode;
+}
 
 async function fetchPreviewUrl(refreshShortId: string, signal: AbortSignal): Promise<string | null> {
   const res = await fetch(ENDPOINTS.frontend.sharePreview(refreshShortId), { signal });
@@ -116,6 +131,10 @@ function resolveSpectrumBandRange(band: number, bandCount: number, usableBins: n
 
 function sameSpectrumBands(a: readonly number[] | null, b: readonly number[]): boolean {
   return a !== null && a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function sameStereoSpectrumBands(a: StereoSpectrumBands | null, b: StereoSpectrumBands): boolean {
+  return a !== null && sameSpectrumBands(a.left, b.left) && sameSpectrumBands(a.right, b.right);
 }
 
 function resolveSpectrumBands(frequencyData: Uint8Array<ArrayBuffer>, bandCount: number): number[] {
@@ -157,13 +176,14 @@ export function AudioPreviewPlayer({
   );
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
+  const analysersRef = useRef<StereoSpectrumAnalysers | null>(null);
+  const channelSplitterRef = useRef<ChannelSplitterNode | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const spectrumFrameRef = useRef<number | null>(null);
-  const spectrumDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  const spectrumDataRef = useRef<StereoSpectrumData | null>(null);
   const spectrumLastUpdateRef = useRef(0);
-  const spectrumBandsRef = useRef<number[] | null>(null);
-  const [spectrumBands, setSpectrumBands] = useState<number[] | null>(null);
+  const spectrumBandsRef = useRef<StereoSpectrumBands | null>(null);
+  const [spectrumBands, setSpectrumBands] = useState<StereoSpectrumBands | null>(null);
 
   // Lazy fetch the preview URL when the component mounted without one.
   // Aborts on unmount so a slow Deezer call doesn't update a stale tree.
@@ -198,26 +218,36 @@ export function AudioPreviewPlayer({
   const teardownSpectrum = useCallback(() => {
     stopSpectrumLoop();
     mediaSourceRef.current?.disconnect();
-    analyserRef.current?.disconnect();
+    channelSplitterRef.current?.disconnect();
+    analysersRef.current?.left.disconnect();
+    analysersRef.current?.right.disconnect();
     mediaSourceRef.current = null;
-    analyserRef.current = null;
+    channelSplitterRef.current = null;
+    analysersRef.current = null;
     spectrumDataRef.current = null;
   }, [stopSpectrumLoop]);
 
   const startSpectrumLoop = useCallback(() => {
-    const analyser = analyserRef.current;
-    if (!analyser || spectrumFrameRef.current !== null) return;
+    const analysers = analysersRef.current;
+    if (!analysers || spectrumFrameRef.current !== null) return;
 
-    const data = spectrumDataRef.current ?? new Uint8Array(analyser.frequencyBinCount);
+    const data = spectrumDataRef.current ?? {
+      left: new Uint8Array(analysers.left.frequencyBinCount),
+      right: new Uint8Array(analysers.right.frequencyBinCount),
+    };
     spectrumDataRef.current = data;
 
     const tick = (now: number) => {
       spectrumFrameRef.current = requestAnimationFrame(tick);
       if (now - spectrumLastUpdateRef.current < SPECTRUM_UPDATE_MS) return;
       spectrumLastUpdateRef.current = now;
-      analyser.getByteFrequencyData(data);
-      const nextBands = resolveSpectrumBands(data, SPECTRUM_BAND_COUNT);
-      if (sameSpectrumBands(spectrumBandsRef.current, nextBands)) return;
+      analysers.left.getByteFrequencyData(data.left);
+      analysers.right.getByteFrequencyData(data.right);
+      const nextBands: StereoSpectrumBands = {
+        left: resolveSpectrumBands(data.left, SPECTRUM_CHANNEL_BAND_COUNT),
+        right: resolveSpectrumBands(data.right, SPECTRUM_CHANNEL_BAND_COUNT),
+      };
+      if (sameStereoSpectrumBands(spectrumBandsRef.current, nextBands)) return;
       spectrumBandsRef.current = nextBands;
       setSpectrumBands(nextBands);
     };
@@ -226,7 +256,7 @@ export function AudioPreviewPlayer({
   }, []);
 
   const ensureSpectrumAnalyzer = useCallback(async (audio: HTMLAudioElement) => {
-    if (analyserRef.current) {
+    if (analysersRef.current) {
       if (audioContextRef.current?.state === "suspended") await audioContextRef.current.resume();
       return;
     }
@@ -238,17 +268,27 @@ export function AudioPreviewPlayer({
     audioContextRef.current = audioContext;
     if (audioContext.state === "suspended") await audioContext.resume();
 
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 128;
-    analyser.smoothingTimeConstant = 0.74;
+    const splitter = audioContext.createChannelSplitter(2);
+    const leftAnalyser = audioContext.createAnalyser();
+    const rightAnalyser = audioContext.createAnalyser();
+    for (const analyser of [leftAnalyser, rightAnalyser]) {
+      analyser.fftSize = 128;
+      analyser.smoothingTimeConstant = 0.74;
+    }
 
     const source = audioContext.createMediaElementSource(audio);
-    source.connect(analyser);
-    analyser.connect(audioContext.destination);
+    source.connect(audioContext.destination);
+    source.connect(splitter);
+    splitter.connect(leftAnalyser, 0);
+    splitter.connect(rightAnalyser, 1);
 
     mediaSourceRef.current = source;
-    analyserRef.current = analyser;
-    spectrumDataRef.current = new Uint8Array(analyser.frequencyBinCount);
+    channelSplitterRef.current = splitter;
+    analysersRef.current = { left: leftAnalyser, right: rightAnalyser };
+    spectrumDataRef.current = {
+      left: new Uint8Array(leftAnalyser.frequencyBinCount),
+      right: new Uint8Array(rightAnalyser.frequencyBinCount),
+    };
   }, []);
 
   // Bind the <audio> element when a URL becomes available. The only

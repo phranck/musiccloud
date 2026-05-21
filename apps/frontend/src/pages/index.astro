@@ -1,20 +1,21 @@
 ---
 import { ENDPOINTS } from "@musiccloud/shared";
+import { fetchNavigation } from "@/api/client";
 import { LandingPage } from "@/components/landing/LandingPage";
 import GradientBackground from "@/components/background/GradientBackground.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { getLocaleFromCookie } from "@/i18n/locales";
-import { loadNav } from "@/lib/loadNav";
 
 const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
-const { header: headerNav, footer: footerNav } = await loadNav(locale);
+const footerNav = await fetchNavigation("footer", locale);
 ---
 
 <BaseLayout
   title="musiccloud - Share music across every platform"
   description="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere."
   canonicalUrl="https://musiccloud.io"
+  lang={locale}
 >
   <Fragment slot="head">
     <meta name="title" content="musiccloud - Share music across every platform" />
@@ -65,7 +66,7 @@ const { header: headerNav, footer: footerNav } = await loadNav(locale);
   <GradientBackground />
 
   <div class="min-h-dvh flex flex-col">
-    <LandingPage client:idle headerNav={headerNav} footerNav={footerNav} />
+    <LandingPage client:idle footerNav={footerNav} />
   </div>
 
   <!-- Mounted with null initialPage so nav clicks on overlay-mode pages

@@ -10,6 +10,7 @@ import "../styles/fonts.css";
 import "../styles/global.css";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { isTrackingEnabled } from "@/api/client";
+import DeferredHeader from "@/components/layout/DeferredHeader.astro";
 
 const trackingEnabled = isTrackingEnabled();
 
@@ -20,9 +21,10 @@ interface Props {
   preloadImage?: string;
   noindex?: boolean;
   lang?: string;
+  showHeader?: boolean;
 }
 
-const { title, description, canonicalUrl, preloadImage, noindex, lang = "en" } = Astro.props;
+const { title, description, canonicalUrl, preloadImage, noindex, lang = "en", showHeader = true } = Astro.props;
 ---
 
 <!doctype html>
@@ -51,6 +53,7 @@ const { title, description, canonicalUrl, preloadImage, noindex, lang = "en" } =
     {trackingEnabled && <script is:inline defer src={`${ENDPOINTS.frontend.umami}/script.js`} data-website-id="3826f51b-34e0-4c61-a89d-a7de016fe712" data-host-url={ENDPOINTS.frontend.umami}></script>}
   </head>
   <body class="bg-background text-text-primary antialiased">
+    {showHeader && <DeferredHeader server:defer />}
     <slot />
   </body>
 </html>
