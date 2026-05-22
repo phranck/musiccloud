@@ -63,6 +63,7 @@ import type {
   SharePageDbResult,
   TrackRepository,
   WebsiteAnalyticsBatchInput,
+  WebsiteAnalyticsEventInput,
   WebsiteAnalyticsOverview,
   WebsiteAnalyticsPathEvent,
 } from "../repository.js";
@@ -4301,6 +4302,7 @@ async function insertWebsiteAnalyticsBatch(
 
     let inserted = 0;
     let insertedPageviews = 0;
+    const insertedEvents: WebsiteAnalyticsEventInput[] = [];
     for (const event of batch.events) {
       const result = await client.query(
         `INSERT INTO analytics_events
@@ -4339,6 +4341,7 @@ async function insertWebsiteAnalyticsBatch(
       );
       if (result.rowCount === 1) {
         inserted += 1;
+        insertedEvents.push(event);
         if (event.eventType === "page_view") insertedPageviews += 1;
       }
     }
@@ -4351,6 +4354,7 @@ async function insertWebsiteAnalyticsBatch(
          WHERE id = $1`,
         [batch.session.id, insertedPageviews, inserted],
       );
+      await refreshWebsiteAnalyticsDailySummaries(client, insertedEvents);
     }
 
     await client.query("COMMIT");
@@ -4360,6 +4364,70 @@ async function insertWebsiteAnalyticsBatch(
     throw err;
   } finally {
     client.release();
+  }
+}
+
+async function refreshWebsiteAnalyticsDailySummaries(
+  client: PoolClient,
+  insertedEvents: WebsiteAnalyticsEventInput[],
+): Promise<void> {
+  const affected = new Map<string, { day: string; networkClusterKey: string }>();
+  for (const event of insertedEvents) {
+    const day = event.occurredAt.toISOString().slice(0, 10);
+    const key = `${day}:${event.networkClusterKey}`;
+    affected.set(key, { day, networkClusterKey: event.networkClusterKey });
+  }
+
+  for (const { day, networkClusterKey } of affected.values()) {
+    await client.query(
+      `INSERT INTO analytics_cluster_daily_summaries
+         (day, network_cluster_key, confidence, device_count, session_count,
+          event_count, pageview_count, search_count, resolve_count, listen_on_click_count,
+          similar_artist_click_count, popular_track_click_count, upcoming_event_click_count,
+          player_start_count, info_page_click_count, help_page_click_count, ui_click_count,
+          updated_at)
+       SELECT
+          (occurred_at AT TIME ZONE 'UTC')::date AS day,
+          network_cluster_key,
+          MAX(confidence) AS confidence,
+          COUNT(DISTINCT device_key)::int AS device_count,
+          COUNT(DISTINCT session_id)::int AS session_count,
+          COUNT(*)::int AS event_count,
+          COUNT(*) FILTER (WHERE event_type = 'page_view')::int AS pageview_count,
+          COUNT(*) FILTER (WHERE event_type = 'search_submitted')::int AS search_count,
+          COUNT(*) FILTER (WHERE event_type = 'resolve_succeeded')::int AS resolve_count,
+          COUNT(*) FILTER (WHERE event_type = 'listen_on_clicked')::int AS listen_on_click_count,
+          COUNT(*) FILTER (WHERE event_type = 'similar_artist_clicked')::int AS similar_artist_click_count,
+          COUNT(*) FILTER (WHERE event_type = 'popular_track_clicked')::int AS popular_track_click_count,
+          COUNT(*) FILTER (WHERE event_type = 'upcoming_event_clicked')::int AS upcoming_event_click_count,
+          COUNT(*) FILTER (WHERE event_type = 'player_started')::int AS player_start_count,
+          COUNT(*) FILTER (WHERE event_type = 'info_page_clicked')::int AS info_page_click_count,
+          COUNT(*) FILTER (WHERE event_type = 'help_page_clicked')::int AS help_page_click_count,
+          COUNT(*) FILTER (WHERE event_type = 'ui_click')::int AS ui_click_count,
+          NOW() AS updated_at
+       FROM analytics_events
+       WHERE (occurred_at AT TIME ZONE 'UTC')::date = $1::date
+         AND network_cluster_key = $2
+       GROUP BY (occurred_at AT TIME ZONE 'UTC')::date, network_cluster_key
+       ON CONFLICT (day, network_cluster_key) DO UPDATE SET
+          confidence = EXCLUDED.confidence,
+          device_count = EXCLUDED.device_count,
+          session_count = EXCLUDED.session_count,
+          event_count = EXCLUDED.event_count,
+          pageview_count = EXCLUDED.pageview_count,
+          search_count = EXCLUDED.search_count,
+          resolve_count = EXCLUDED.resolve_count,
+          listen_on_click_count = EXCLUDED.listen_on_click_count,
+          similar_artist_click_count = EXCLUDED.similar_artist_click_count,
+          popular_track_click_count = EXCLUDED.popular_track_click_count,
+          upcoming_event_click_count = EXCLUDED.upcoming_event_click_count,
+          player_start_count = EXCLUDED.player_start_count,
+          info_page_click_count = EXCLUDED.info_page_click_count,
+          help_page_click_count = EXCLUDED.help_page_click_count,
+          ui_click_count = EXCLUDED.ui_click_count,
+          updated_at = NOW()`,
+      [day, networkClusterKey],
+    );
   }
 }
 
