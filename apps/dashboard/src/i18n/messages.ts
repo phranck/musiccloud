@@ -157,6 +157,10 @@ export interface DashboardMessages {
       total: string;
       noArtists: string;
       noArtistsHint: string;
+      deleteButton: string;
+      deleteConfirmTitle: string;
+      deleteConfirmDescription: string;
+      deleteConfirmAction: string;
       colName: string;
       colGenres: string;
       colSource: string;
@@ -914,6 +918,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         total: "Artist-Profile",
         noArtists: "Keine Artist-Profile vorhanden",
         noArtistsHint: "Artist-Profile werden automatisch beim Aufl\u00f6sen von Artist-Links erstellt.",
+        deleteButton: "Profile l\u00f6schen ({count})",
+        deleteConfirmTitle: "Artist-Profile l\u00f6schen",
+        deleteConfirmDescription:
+          "{count} Artist-Profile werden entfernt. Die normalisierten Artist-Entities und Track-/Album-Credits bleiben erhalten.",
+        deleteConfirmAction: "Profile l\u00f6schen",
         colName: "Name",
         colGenres: "Genres",
         colSource: "Quelle",
@@ -1645,6 +1654,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         total: "artist profiles",
         noArtists: "No artist profiles yet",
         noArtistsHint: "Artist profiles are created automatically when resolving artist links.",
+        deleteButton: "Delete profiles ({count})",
+        deleteConfirmTitle: "Delete artist profiles",
+        deleteConfirmDescription:
+          "{count} artist profiles will be removed. Normalized artist entities and track/album credits stay intact.",
+        deleteConfirmAction: "Delete profiles",
         colName: "Name",
         colGenres: "Genres",
         colSource: "Source",

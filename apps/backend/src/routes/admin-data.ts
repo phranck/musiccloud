@@ -229,7 +229,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     const ids = (body.ids as unknown[]).filter((id): id is string => typeof id === "string");
     const repo = await getAdminRepository();
     await repo.deleteArtists(ids);
-    return { deleted: ids.length };
+    return { deleted: ids.length, deletedProfiles: ids.length };
   });
 
   app.delete(ENDPOINTS.admin.albums.list, async (request, reply) => {

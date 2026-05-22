@@ -220,7 +220,7 @@ export function ArtistsPage() {
           <DashboardActionButton
             action="delete"
             icon={<TrashIcon weight="duotone" className="size-3.5" />}
-            label={m.deleteButton.replace("{count}", String(table.selectedCount))}
+            label={ma.deleteButton.replace("{count}", String(table.selectedCount))}
             onClick={() => {
               setDeleteError(null);
               setConfirmOpen(true);
@@ -309,10 +309,10 @@ export function ArtistsPage() {
 
       {toolbarContent}
 
-      <Dialog open={confirmOpen} title={m.deleteConfirmTitle} onClose={() => setConfirmOpen(false)}>
+      <Dialog open={confirmOpen} title={ma.deleteConfirmTitle} onClose={() => setConfirmOpen(false)}>
         <div className="px-6 py-4 space-y-3">
           <p className="text-sm text-[var(--ds-text)]">
-            {m.deleteConfirmDescription.replace("{count}", String(table.selectedCount))}
+            {ma.deleteConfirmDescription.replace("{count}", String(table.selectedCount))}
           </p>
           {deleteError && <p className="text-sm text-[var(--ds-danger-text)]">{deleteError}</p>}
         </div>
@@ -330,7 +330,7 @@ export function ArtistsPage() {
             action="delete"
             busyLabel="\u2026"
             icon={false}
-            label={m.deleteConfirmAction}
+            label={ma.deleteConfirmAction}
             onClick={handleConfirmDelete}
             status={deleting ? "busy" : "idle"}
             type="button"
