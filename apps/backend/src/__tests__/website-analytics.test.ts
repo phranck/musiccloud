@@ -1,0 +1,129 @@
+import type { FastifyInstance } from "fastify";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { deriveDeviceKey, deriveNetworkClusterKey } from "../services/website-analytics.js";
+
+const insertWebsiteAnalyticsBatchMock = vi.fn(async () => 1);
+
+vi.mock("../db/index.js", () => ({
+  getRepository: vi.fn(async () => ({
+    insertWebsiteAnalyticsBatch: insertWebsiteAnalyticsBatchMock,
+  })),
+}));
+
+import { buildApp } from "../server.js";
+
+const ENDPOINT = "/api/v1/analytics/website-events";
+const SESSION_ID = "11111111-1111-4111-8111-111111111111";
+const EVENT_ID = "22222222-2222-4222-8222-222222222222";
+
+function validBody(overrides: Record<string, unknown> = {}) {
+  return {
+    sessionId: SESSION_ID,
+    visitorId: "visitor-local-test",
+    events: [
+      {
+        id: EVENT_ID,
+        occurredAt: "2026-05-22T10:00:00.000Z",
+        eventType: "ui_click",
+        path: "/abc123",
+        routeTemplate: "/:shortId",
+        surface: "share_card",
+        elementKey: "listen_on.spotify",
+        xPct: 42.5,
+        yPct: 12.25,
+        viewportBucket: "desktop",
+        eventData: {
+          service: "spotify",
+          ip: "192.168.1.10",
+          userAgent: "raw ua",
+          canvas: "fingerprint",
+        },
+      },
+    ],
+    ...overrides,
+  };
+}
+
+let app: FastifyInstance;
+
+beforeAll(async () => {
+  process.env.JWT_SECRET = "test-secret-website-analytics";
+  process.env.WEBSITE_ANALYTICS_HMAC_SECRET = "test-analytics-secret";
+  app = await buildApp();
+});
+
+afterAll(async () => {
+  await app.close();
+});
+
+beforeEach(() => {
+  process.env.WEBSITE_ANALYTICS_HMAC_SECRET = "test-analytics-secret";
+  insertWebsiteAnalyticsBatchMock.mockClear();
+  insertWebsiteAnalyticsBatchMock.mockResolvedValue(1);
+});
+
+describe("website analytics privacy helpers", () => {
+  it("derives the same network cluster for IPv4 addresses in the same /24", () => {
+    const day = new Date("2026-05-22T10:00:00.000Z");
+    const a = deriveNetworkClusterKey("203.0.113.12", day, "secret");
+    const b = deriveNetworkClusterKey("203.0.113.240", day, "secret");
+    const c = deriveNetworkClusterKey("203.0.114.12", day, "secret");
+
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
+    expect(a).not.toContain("203.0.113");
+  });
+
+  it("derives stable pseudonymous device keys without exposing the visitor id", () => {
+    const key = deriveDeviceKey("visitor-local-test", "secret");
+    expect(key).toMatch(/^wdev_[a-f0-9]{40}$/);
+    expect(key).not.toContain("visitor-local-test");
+  });
+});
+
+describe(`POST ${ENDPOINT}`, () => {
+  it("accepts a valid batch and strips forbidden eventData keys before persistence", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINT,
+      remoteAddress: "203.0.113.12",
+      payload: validBody(),
+    });
+
+    expect(res.statusCode).toBe(202);
+    expect(res.json()).toEqual({ accepted: 1 });
+    expect(insertWebsiteAnalyticsBatchMock).toHaveBeenCalledTimes(1);
+
+    const [batch] = insertWebsiteAnalyticsBatchMock.mock.calls[0];
+    expect(batch.session.id).toBe(SESSION_ID);
+    expect(batch.session.deviceKey).toMatch(/^wdev_[a-f0-9]{40}$/);
+    expect(batch.session.networkClusterKey).toMatch(/^wnc_[a-f0-9]{40}$/);
+    expect(batch.events[0].eventData).toEqual({ service: "spotify" });
+  });
+
+  it("rejects unknown event types before reaching persistence", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINT,
+      payload: validBody({
+        events: [{ occurredAt: "2026-05-22T10:00:00.000Z", eventType: "fingerprint_probe" }],
+      }),
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(insertWebsiteAnalyticsBatchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when the HMAC secret is not configured", async () => {
+    delete process.env.WEBSITE_ANALYTICS_HMAC_SECRET;
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINT,
+      payload: validBody(),
+    });
+
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toMatchObject({ error: "ANALYTICS_NOT_CONFIGURED" });
+  });
+});

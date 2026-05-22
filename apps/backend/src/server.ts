@@ -40,6 +40,7 @@ import shareRoutes from "./routes/share.js";
 import sharePreviewRoutes from "./routes/share-preview.js";
 import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site-settings.js";
 import telemetryAppErrorRoutes from "./routes/telemetry-app-error.js";
+import websiteAnalyticsRoutes from "./routes/website-analytics.js";
 import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
 import { validateAdapters } from "./services/index.js";
 import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
@@ -409,6 +410,9 @@ async function buildApp() {
 
   // Apple-client telemetry ingest (public, no auth, Testflight-only caller)
   await app.register(telemetryAppErrorRoutes);
+
+  // Public website analytics ingest (public, first-party website caller)
+  await app.register(websiteAnalyticsRoutes);
 
   // Protected API routes (X-API-Key or Bearer JWT)
   await app.register(async function protectedRoutes(protectedApp) {

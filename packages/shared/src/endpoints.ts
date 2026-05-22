@@ -81,6 +81,10 @@ export const ENDPOINTS = {
       /** POST: ingest an app-side error event from the Apple client (Testflight). */
       appError: "/api/v1/telemetry/app-error",
     },
+    analytics: {
+      /** POST: ingest first-party website behaviour analytics batches. */
+      websiteEvents: "/api/v1/analytics/website-events",
+    },
   },
 
   /** `/api/auth/...`: public auth endpoints (machine-to-machine token issuance). */

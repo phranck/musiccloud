@@ -14,6 +14,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -939,6 +940,140 @@ export const navItemTranslations = pgTable(
 
 export type NavItemTranslationRow = typeof navItemTranslations.$inferSelect;
 export type NavItemTranslationInsert = typeof navItemTranslations.$inferInsert;
+
+// Website behaviour analytics. These tables intentionally do not extend
+// Umami: they store curated product events for the public website while
+// keeping raw IP addresses and browser fingerprinting signals out of
+// persistence. See architecture/adr/0001-website-analytics-privacy-boundary.md.
+export const analyticsSessions = pgTable(
+  "analytics_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
+    deviceKey: text("device_key"),
+    networkClusterKey: text("network_cluster_key").notNull(),
+    confidence: text("confidence").notNull().default("low"),
+    entryPath: text("entry_path"),
+    exitPath: text("exit_path"),
+    pageviewCount: integer("pageview_count").notNull().default(0),
+    eventCount: integer("event_count").notNull().default(0),
+  },
+  (table) => [
+    index("idx_analytics_sessions_cluster_first_seen").on(table.networkClusterKey, table.firstSeenAt.desc()),
+    index("idx_analytics_sessions_device_first_seen").on(table.deviceKey, table.firstSeenAt.desc()),
+    index("idx_analytics_sessions_last_seen").on(table.lastSeenAt.desc()),
+    check("chk_analytics_sessions_confidence", sql`${table.confidence} IN ('low', 'medium', 'high')`),
+    check("chk_analytics_sessions_pageviews_nonnegative", sql`${table.pageviewCount} >= 0`),
+    check("chk_analytics_sessions_events_nonnegative", sql`${table.eventCount} >= 0`),
+  ],
+);
+
+export const analyticsEvents = pgTable(
+  "analytics_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    eventType: text("event_type").notNull(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => analyticsSessions.id),
+    deviceKey: text("device_key"),
+    networkClusterKey: text("network_cluster_key").notNull(),
+    confidence: text("confidence").notNull().default("low"),
+    path: text("path"),
+    routeTemplate: text("route_template"),
+    referrerDomain: text("referrer_domain"),
+    deviceClass: text("device_class"),
+    browserFamily: text("browser_family"),
+    osFamily: text("os_family"),
+    platform: text("platform"),
+    mediaType: text("media_type"),
+    shortId: text("short_id"),
+    surface: text("surface"),
+    elementKey: text("element_key"),
+    xPct: real("x_pct"),
+    yPct: real("y_pct"),
+    viewportBucket: text("viewport_bucket"),
+    eventData: jsonb("event_data").notNull().default({}),
+  },
+  (table) => [
+    index("idx_analytics_events_occurred_at").on(table.occurredAt.desc()),
+    index("idx_analytics_events_type_occurred").on(table.eventType, table.occurredAt.desc()),
+    index("idx_analytics_events_cluster_occurred").on(table.networkClusterKey, table.occurredAt.desc()),
+    index("idx_analytics_events_session_occurred").on(table.sessionId, table.occurredAt),
+    index("idx_analytics_events_route_type_occurred").on(table.routeTemplate, table.eventType, table.occurredAt.desc()),
+    index("idx_analytics_events_platform_occurred").on(table.platform, table.occurredAt.desc()),
+    check(
+      "chk_analytics_events_event_type",
+      sql`${table.eventType} IN ('page_view', 'search_submitted', 'resolve_started', 'resolve_succeeded', 'resolve_failed', 'listen_on_clicked', 'similar_artist_clicked', 'popular_track_clicked', 'upcoming_event_clicked', 'player_started', 'player_paused', 'player_resumed', 'player_completed', 'player_unavailable', 'info_page_clicked', 'help_page_clicked', 'ui_click')`,
+    ),
+    check("chk_analytics_events_confidence", sql`${table.confidence} IN ('low', 'medium', 'high')`),
+    check("chk_analytics_events_x_pct", sql`${table.xPct} IS NULL OR ${table.xPct} BETWEEN 0 AND 100`),
+    check("chk_analytics_events_y_pct", sql`${table.yPct} IS NULL OR ${table.yPct} BETWEEN 0 AND 100`),
+    check(
+      "chk_analytics_events_viewport_bucket",
+      sql`${table.viewportBucket} IS NULL OR ${table.viewportBucket} IN ('mobile', 'tablet', 'desktop')`,
+    ),
+  ],
+);
+
+export const analyticsClusterDailySummaries = pgTable(
+  "analytics_cluster_daily_summaries",
+  {
+    day: date("day").notNull(),
+    networkClusterKey: text("network_cluster_key").notNull(),
+    confidence: text("confidence").notNull().default("low"),
+    deviceCount: integer("device_count").notNull().default(0),
+    sessionCount: integer("session_count").notNull().default(0),
+    eventCount: integer("event_count").notNull().default(0),
+    pageviewCount: integer("pageview_count").notNull().default(0),
+    searchCount: integer("search_count").notNull().default(0),
+    resolveCount: integer("resolve_count").notNull().default(0),
+    listenOnClickCount: integer("listen_on_click_count").notNull().default(0),
+    similarArtistClickCount: integer("similar_artist_click_count").notNull().default(0),
+    popularTrackClickCount: integer("popular_track_click_count").notNull().default(0),
+    upcomingEventClickCount: integer("upcoming_event_click_count").notNull().default(0),
+    playerStartCount: integer("player_start_count").notNull().default(0),
+    infoPageClickCount: integer("info_page_click_count").notNull().default(0),
+    helpPageClickCount: integer("help_page_click_count").notNull().default(0),
+    uiClickCount: integer("ui_click_count").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      name: "pk_analytics_cluster_daily_summaries",
+      columns: [table.day, table.networkClusterKey],
+    }),
+    index("idx_analytics_cluster_daily_day").on(table.day.desc()),
+    index("idx_analytics_cluster_daily_cluster_day").on(table.networkClusterKey, table.day.desc()),
+    check("chk_analytics_cluster_daily_confidence", sql`${table.confidence} IN ('low', 'medium', 'high')`),
+    check(
+      "chk_analytics_cluster_daily_counts_nonnegative",
+      sql`${table.deviceCount} >= 0
+        AND ${table.sessionCount} >= 0
+        AND ${table.eventCount} >= 0
+        AND ${table.pageviewCount} >= 0
+        AND ${table.searchCount} >= 0
+        AND ${table.resolveCount} >= 0
+        AND ${table.listenOnClickCount} >= 0
+        AND ${table.similarArtistClickCount} >= 0
+        AND ${table.popularTrackClickCount} >= 0
+        AND ${table.upcomingEventClickCount} >= 0
+        AND ${table.playerStartCount} >= 0
+        AND ${table.infoPageClickCount} >= 0
+        AND ${table.helpPageClickCount} >= 0
+        AND ${table.uiClickCount} >= 0`,
+    ),
+  ],
+);
+
+export type AnalyticsSessionRow = typeof analyticsSessions.$inferSelect;
+export type AnalyticsSessionInsert = typeof analyticsSessions.$inferInsert;
+export type AnalyticsEventRow = typeof analyticsEvents.$inferSelect;
+export type AnalyticsEventInsert = typeof analyticsEvents.$inferInsert;
+export type AnalyticsClusterDailySummaryRow = typeof analyticsClusterDailySummaries.$inferSelect;
+export type AnalyticsClusterDailySummaryInsert = typeof analyticsClusterDailySummaries.$inferInsert;
 
 // Per-source crawler state. Populated lazily on heartbeat tick via
 // idempotent ON CONFLICT DO NOTHING upsert from the in-memory registry —

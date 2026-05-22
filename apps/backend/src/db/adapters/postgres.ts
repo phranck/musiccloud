@@ -62,6 +62,7 @@ import type {
   SharePageArtistResult,
   SharePageDbResult,
   TrackRepository,
+  WebsiteAnalyticsBatchInput,
 } from "../repository.js";
 
 // ============================================================================
@@ -471,6 +472,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async insertAppTelemetryEvent(row: AppTelemetryEventInput): Promise<void> {
     await insertAppTelemetryEvent(this.pool, row);
+  }
+
+  async insertWebsiteAnalyticsBatch(batch: WebsiteAnalyticsBatchInput): Promise<number> {
+    return insertWebsiteAnalyticsBatch(this.pool, batch);
   }
 
   // ============================================================================
@@ -4234,6 +4239,102 @@ async function insertAppTelemetryEvent(
       row.message,
     ],
   );
+}
+
+async function insertWebsiteAnalyticsBatch(
+  pool: InstanceType<typeof pgModule.default.Pool>,
+  batch: WebsiteAnalyticsBatchInput,
+): Promise<number> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO analytics_sessions
+         (id, first_seen_at, last_seen_at, device_key, network_cluster_key,
+          confidence, entry_path, exit_path, pageview_count, event_count)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0)
+       ON CONFLICT (id) DO UPDATE SET
+         first_seen_at = LEAST(analytics_sessions.first_seen_at, EXCLUDED.first_seen_at),
+         last_seen_at = GREATEST(analytics_sessions.last_seen_at, EXCLUDED.last_seen_at),
+         device_key = COALESCE(analytics_sessions.device_key, EXCLUDED.device_key),
+         network_cluster_key = EXCLUDED.network_cluster_key,
+         confidence = EXCLUDED.confidence,
+         entry_path = COALESCE(analytics_sessions.entry_path, EXCLUDED.entry_path),
+         exit_path = COALESCE(EXCLUDED.exit_path, analytics_sessions.exit_path)`,
+      [
+        batch.session.id,
+        batch.session.firstSeenAt,
+        batch.session.lastSeenAt,
+        batch.session.deviceKey,
+        batch.session.networkClusterKey,
+        batch.session.confidence,
+        batch.session.entryPath,
+        batch.session.exitPath,
+      ],
+    );
+
+    let inserted = 0;
+    let insertedPageviews = 0;
+    for (const event of batch.events) {
+      const result = await client.query(
+        `INSERT INTO analytics_events
+           (id, occurred_at, event_type, session_id, device_key, network_cluster_key,
+            confidence, path, route_template, referrer_domain, device_class, browser_family,
+            os_family, platform, media_type, short_id, surface, element_key, x_pct, y_pct,
+            viewport_bucket, event_data)
+         VALUES
+           ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+            $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          event.id,
+          event.occurredAt,
+          event.eventType,
+          event.sessionId,
+          event.deviceKey,
+          event.networkClusterKey,
+          event.confidence,
+          event.path,
+          event.routeTemplate,
+          event.referrerDomain,
+          event.deviceClass,
+          event.browserFamily,
+          event.osFamily,
+          event.platform,
+          event.mediaType,
+          event.shortId,
+          event.surface,
+          event.elementKey,
+          event.xPct,
+          event.yPct,
+          event.viewportBucket,
+          event.eventData,
+        ],
+      );
+      if (result.rowCount === 1) {
+        inserted += 1;
+        if (event.eventType === "page_view") insertedPageviews += 1;
+      }
+    }
+
+    if (inserted > 0) {
+      await client.query(
+        `UPDATE analytics_sessions
+         SET pageview_count = pageview_count + $2,
+             event_count = event_count + $3
+         WHERE id = $1`,
+        [batch.session.id, insertedPageviews, inserted],
+      );
+    }
+
+    await client.query("COMMIT");
+    return inserted;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 function rowToNavItem(row: NavItemSqlRow): NavItemRow {

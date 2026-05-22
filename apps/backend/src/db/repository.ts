@@ -474,6 +474,9 @@ export interface TrackRepository {
   // Apple client telemetry (Testflight diagnostics)
   insertAppTelemetryEvent(row: AppTelemetryEventInput): Promise<void>;
 
+  // Website behaviour analytics (public website, pseudonymous)
+  insertWebsiteAnalyticsBatch(batch: WebsiteAnalyticsBatchInput): Promise<number>;
+
   // Crawler: state + runs (migration 0023). The heartbeat lives in
   // services/crawler/heartbeat.ts and orchestrates these calls; the admin
   // API uses the same surface for list/patch/run-now/release-lock.
@@ -509,4 +512,66 @@ export interface AppTelemetryEventInput {
   errorKind: string;
   httpStatus: number | null;
   message: string;
+}
+
+export type WebsiteAnalyticsEventType =
+  | "page_view"
+  | "search_submitted"
+  | "resolve_started"
+  | "resolve_succeeded"
+  | "resolve_failed"
+  | "listen_on_clicked"
+  | "similar_artist_clicked"
+  | "popular_track_clicked"
+  | "upcoming_event_clicked"
+  | "player_started"
+  | "player_paused"
+  | "player_resumed"
+  | "player_completed"
+  | "player_unavailable"
+  | "info_page_clicked"
+  | "help_page_clicked"
+  | "ui_click";
+
+export type WebsiteAnalyticsConfidence = "low" | "medium" | "high";
+
+export interface WebsiteAnalyticsSessionInput {
+  id: string;
+  firstSeenAt: Date;
+  lastSeenAt: Date;
+  deviceKey: string | null;
+  networkClusterKey: string;
+  confidence: WebsiteAnalyticsConfidence;
+  entryPath: string | null;
+  exitPath: string | null;
+}
+
+export interface WebsiteAnalyticsEventInput {
+  id: string;
+  occurredAt: Date;
+  eventType: WebsiteAnalyticsEventType;
+  sessionId: string;
+  deviceKey: string | null;
+  networkClusterKey: string;
+  confidence: WebsiteAnalyticsConfidence;
+  path: string | null;
+  routeTemplate: string | null;
+  referrerDomain: string | null;
+  deviceClass: string | null;
+  browserFamily: string | null;
+  osFamily: string | null;
+  platform: string | null;
+  mediaType: string | null;
+  shortId: string | null;
+  surface: string | null;
+  elementKey: string | null;
+  xPct: number | null;
+  yPct: number | null;
+  viewportBucket: "mobile" | "tablet" | "desktop" | null;
+  eventData: Record<string, unknown>;
+}
+
+export interface WebsiteAnalyticsBatchInput {
+  session: WebsiteAnalyticsSessionInput;
+  events: WebsiteAnalyticsEventInput[];
 }
