@@ -477,6 +477,9 @@ export interface TrackRepository {
   // Website behaviour analytics (public website, pseudonymous)
   insertWebsiteAnalyticsBatch(batch: WebsiteAnalyticsBatchInput): Promise<number>;
   getWebsiteAnalyticsOverview(since: Date): Promise<WebsiteAnalyticsOverview>;
+  getWebsiteAnalyticsDrilldown(params: WebsiteAnalyticsDrilldownParams): Promise<WebsiteAnalyticsDrilldown>;
+  exportWebsiteAnalytics(since: Date): Promise<WebsiteAnalyticsExport>;
+  runWebsiteAnalyticsRetention(now: Date): Promise<WebsiteAnalyticsRetentionResult>;
 
   // Crawler: state + runs (migration 0023). The heartbeat lives in
   // services/crawler/heartbeat.ts and orchestrates these calls; the admin
@@ -591,6 +594,7 @@ export interface WebsiteAnalyticsOverview {
   };
   platforms: Array<{ platform: string; resolves: number }>;
   clusters: Array<{
+    clusterKey: string;
     cluster: string;
     confidence: string;
     devices: number;
@@ -623,6 +627,8 @@ export interface WebsiteAnalyticsPathEvent {
   occurredAt: string;
   eventType: string;
   sessionId: string;
+  deviceKey: string | null;
+  clusterKey: string;
   cluster: string;
   confidence: string;
   path: string | null;
@@ -636,4 +642,66 @@ export interface WebsiteAnalyticsPathEvent {
   shortId: string | null;
   elementKey: string | null;
   label: string | null;
+}
+
+export interface WebsiteAnalyticsDrilldownParams {
+  since: Date;
+  clusterKey?: string;
+  deviceKey?: string;
+  sessionId?: string;
+}
+
+export interface WebsiteAnalyticsDeviceSummary {
+  deviceKey: string | null;
+  label: string;
+  sessions: number;
+  events: number;
+  lastSeenAt: string;
+  deviceClass: string | null;
+  browserFamily: string | null;
+  osFamily: string | null;
+}
+
+export interface WebsiteAnalyticsSessionSummary {
+  sessionId: string;
+  deviceKey: string | null;
+  clusterKey: string;
+  cluster: string;
+  events: number;
+  pageviews: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  entryPath: string | null;
+  exitPath: string | null;
+}
+
+export interface WebsiteAnalyticsDrilldown {
+  filters: {
+    clusterKey: string | null;
+    deviceKey: string | null;
+    sessionId: string | null;
+  };
+  devices: WebsiteAnalyticsDeviceSummary[];
+  sessions: WebsiteAnalyticsSessionSummary[];
+  events: WebsiteAnalyticsPathEvent[];
+}
+
+export interface WebsiteAnalyticsExport {
+  generatedAt: string;
+  since: string;
+  retentionPolicy: WebsiteAnalyticsRetentionPolicy;
+  overview: WebsiteAnalyticsOverview;
+  drilldown: WebsiteAnalyticsDrilldown;
+}
+
+export interface WebsiteAnalyticsRetentionPolicy {
+  rawEventsDays: number;
+  summariesDays: number;
+}
+
+export interface WebsiteAnalyticsRetentionResult {
+  policy: WebsiteAnalyticsRetentionPolicy;
+  deletedEvents: number;
+  deletedSessions: number;
+  deletedSummaries: number;
 }

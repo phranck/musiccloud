@@ -274,6 +274,12 @@ export const ENDPOINTS = {
       website: {
         /** GET: first-party website analytics overview. */
         overview: "/api/admin/analytics/website/overview",
+        /** GET: cluster/device/session drilldown for first-party website analytics. */
+        detail: "/api/admin/analytics/website/detail",
+        /** GET: JSON export for first-party website analytics. */
+        export: "/api/admin/analytics/website/export",
+        /** GET/POST: retention policy and manual cleanup run. */
+        retention: "/api/admin/analytics/website/retention",
       },
     },
 

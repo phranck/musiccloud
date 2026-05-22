@@ -135,4 +135,32 @@ export default async function adminAnalyticsRoutes(app: FastifyInstance) {
     const repo = await getRepository();
     return repo.getWebsiteAnalyticsOverview(periodSince(q.period));
   });
+
+  app.get(ENDPOINTS.admin.analytics.website.detail, async (request) => {
+    const q = request.query as { period?: string; clusterKey?: string; deviceKey?: string; sessionId?: string };
+    const repo = await getRepository();
+    return repo.getWebsiteAnalyticsDrilldown({
+      since: periodSince(q.period),
+      clusterKey: q.clusterKey,
+      deviceKey: q.deviceKey,
+      sessionId: q.sessionId,
+    });
+  });
+
+  app.get(ENDPOINTS.admin.analytics.website.export, async (request, reply) => {
+    const q = request.query as { period?: string };
+    const repo = await getRepository();
+    const payload = await repo.exportWebsiteAnalytics(periodSince(q.period));
+    reply.header("Content-Disposition", `attachment; filename="website-analytics-${q.period ?? "7d"}.json"`);
+    return payload;
+  });
+
+  app.get(ENDPOINTS.admin.analytics.website.retention, async () => ({
+    policy: { rawEventsDays: 180, summariesDays: 730 },
+  }));
+
+  app.post(ENDPOINTS.admin.analytics.website.retention, async () => {
+    const repo = await getRepository();
+    return repo.runWebsiteAnalyticsRetention(new Date());
+  });
 }

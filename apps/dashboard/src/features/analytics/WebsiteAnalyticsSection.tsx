@@ -4,23 +4,38 @@ import {
   ChartLineIcon,
   ClockCounterClockwiseIcon,
   CursorClickIcon,
+  DownloadIcon,
   FlowArrowIcon,
   FunnelIcon,
+  ListBulletsIcon,
   MagnifyingGlassIcon,
   PathIcon,
   PulseIcon,
+  TrashIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import type { DashboardLocale } from "@/i18n/messages";
 
 interface WebsiteAnalyticsSectionProps {
   data: WebsiteAnalyticsOverview | undefined;
+  detail: WebsiteAnalyticsDrilldown | undefined;
   formatNumber: (value: number) => string;
+  isExporting: boolean;
   isLoading: boolean;
+  isRunningRetention: boolean;
   locale: DashboardLocale;
+  onExport: () => void;
+  onRunRetention: () => void;
+  onSelectCluster: (clusterKey: string | null) => void;
+  onSelectDevice: (deviceKey: string | null) => void;
+  onSelectSession: (sessionId: string | null) => void;
+  retentionResult: WebsiteAnalyticsRetentionResult | null;
+  selectedClusterKey: string | null;
+  selectedDeviceKey: string | null;
+  selectedSessionId: string | null;
 }
 
 export interface WebsiteAnalyticsPathEvent {
@@ -28,6 +43,8 @@ export interface WebsiteAnalyticsPathEvent {
   occurredAt: string;
   eventType: string;
   sessionId: string;
+  deviceKey: string | null;
+  clusterKey: string;
   cluster: string;
   confidence: string;
   path: string | null;
@@ -57,6 +74,7 @@ export interface WebsiteAnalyticsOverview {
   };
   platforms: Array<{ platform: string; resolves: number }>;
   clusters: Array<{
+    clusterKey: string;
     cluster: string;
     confidence: string;
     devices: number;
@@ -84,6 +102,59 @@ export interface WebsiteAnalyticsOverview {
   };
 }
 
+export interface WebsiteAnalyticsDeviceSummary {
+  deviceKey: string | null;
+  label: string;
+  sessions: number;
+  events: number;
+  lastSeenAt: string;
+  deviceClass: string | null;
+  browserFamily: string | null;
+  osFamily: string | null;
+}
+
+export interface WebsiteAnalyticsSessionSummary {
+  sessionId: string;
+  deviceKey: string | null;
+  clusterKey: string;
+  cluster: string;
+  events: number;
+  pageviews: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  entryPath: string | null;
+  exitPath: string | null;
+}
+
+export interface WebsiteAnalyticsDrilldown {
+  filters: {
+    clusterKey: string | null;
+    deviceKey: string | null;
+    sessionId: string | null;
+  };
+  devices: WebsiteAnalyticsDeviceSummary[];
+  sessions: WebsiteAnalyticsSessionSummary[];
+  events: WebsiteAnalyticsPathEvent[];
+}
+
+export interface WebsiteAnalyticsRetentionResult {
+  policy: {
+    rawEventsDays: number;
+    summariesDays: number;
+  };
+  deletedEvents: number;
+  deletedSessions: number;
+  deletedSummaries: number;
+}
+
+export interface WebsiteAnalyticsExport {
+  generatedAt: string;
+  since: string;
+  retentionPolicy: WebsiteAnalyticsRetentionResult["policy"];
+  overview: WebsiteAnalyticsOverview;
+  drilldown: WebsiteAnalyticsDrilldown;
+}
+
 interface WebsiteCopy {
   badge: string;
   note: string;
@@ -92,6 +163,11 @@ interface WebsiteCopy {
   allRoutes: string;
   topQuery: string;
   lastSeen: string;
+  exportJson: string;
+  retention: string;
+  retentionDone: string;
+  clearSelection: string;
+  selectedScope: string;
   kpis: {
     clusters: string;
     devices: string;
@@ -108,6 +184,7 @@ interface WebsiteCopy {
     households: string;
     heatmap: string;
     clickpath: string;
+    drilldown: string;
     inspector: string;
     interactions: string;
     searches: string;
@@ -125,6 +202,12 @@ interface WebsiteCopy {
     event: string;
     count: string;
     clusters: string;
+    sessions: string;
+    events: string;
+    pageviews: string;
+    firstSeen: string;
+    entry: string;
+    exit: string;
   };
   heatmapHint: string;
   pathHint: string;
@@ -139,6 +222,11 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
     allRoutes: "Alle Routen",
     topQuery: "Top-Suche",
     lastSeen: "Zuletzt",
+    exportJson: "JSON exportieren",
+    retention: "Retention ausfuehren",
+    retentionDone: "Retention abgeschlossen",
+    clearSelection: "Auswahl loeschen",
+    selectedScope: "Aktiver Drilldown",
     kpis: {
       clusters: "Network Cluster",
       devices: "Geraete",
@@ -155,6 +243,7 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       households: "Geschaetzte Haushalte",
       heatmap: "Klick-Heatmap je Seite",
       clickpath: "Clickpath Flow",
+      drilldown: "Cluster-, Device- und Session-Drilldown",
       inspector: "Node-Inspector",
       interactions: "Interaktionen",
       searches: "Suchbegriffe",
@@ -172,6 +261,12 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       event: "Event",
       count: "Anzahl",
       clusters: "Cluster",
+      sessions: "Sessions",
+      events: "Events",
+      pageviews: "Pageviews",
+      firstSeen: "Erster Besuch",
+      entry: "Entry",
+      exit: "Exit",
     },
     heatmapHint:
       "Aggregierte relative Klickkoordinaten pro freigegebener Route. Es werden keine DOM-Snapshots oder Formularinhalte gespeichert.",
@@ -186,6 +281,11 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
     allRoutes: "All routes",
     topQuery: "Top query",
     lastSeen: "Last seen",
+    exportJson: "Export JSON",
+    retention: "Run retention",
+    retentionDone: "Retention completed",
+    clearSelection: "Clear selection",
+    selectedScope: "Active drilldown",
     kpis: {
       clusters: "Network Clusters",
       devices: "Devices",
@@ -202,6 +302,7 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       households: "Estimated Households",
       heatmap: "Click Heatmap per Page",
       clickpath: "Clickpath Flow",
+      drilldown: "Cluster, Device and Session Drilldown",
       inspector: "Node Inspector",
       interactions: "Interactions",
       searches: "Search Terms",
@@ -219,6 +320,12 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       event: "Event",
       count: "Count",
       clusters: "Clusters",
+      sessions: "Sessions",
+      events: "Events",
+      pageviews: "Pageviews",
+      firstSeen: "First seen",
+      entry: "Entry",
+      exit: "Exit",
     },
     heatmapHint:
       "Aggregated relative click coordinates per allowed route. DOM snapshots and form contents are not stored.",
@@ -354,12 +461,16 @@ function HouseholdTable({
   copy,
   formatNumber,
   locale,
+  onSelectCluster,
   rows,
+  selectedClusterKey,
 }: {
   copy: WebsiteCopy;
   formatNumber: (value: number) => string;
   locale: DashboardLocale;
+  onSelectCluster: (clusterKey: string | null) => void;
   rows: WebsiteAnalyticsOverview["clusters"];
+  selectedClusterKey: string | null;
 }) {
   return (
     <DashboardSection>
@@ -379,7 +490,16 @@ function HouseholdTable({
         ) : (
           <div className="space-y-2">
             {rows.map((row) => (
-              <div key={row.cluster} className="rounded-lg bg-[var(--ds-bg-elevated)] px-3 py-2">
+              <button
+                type="button"
+                key={row.clusterKey}
+                onClick={() => onSelectCluster(row.clusterKey === selectedClusterKey ? null : row.clusterKey)}
+                className={`w-full rounded-lg px-3 py-2 text-left hover:bg-[var(--ds-surface-hover)] ${
+                  row.clusterKey === selectedClusterKey
+                    ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]"
+                    : "bg-[var(--ds-bg-elevated)]"
+                }`}
+              >
                 <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 text-sm">
                   <span className="font-mono text-[var(--ds-text)]">{row.cluster}</span>
                   <span className="text-right tabular-nums text-[var(--ds-text-subtle)]">{row.confidence}</span>
@@ -394,10 +514,212 @@ function HouseholdTable({
                     {copy.lastSeen}: {formatDateTime(row.lastSeenAt, locale)}
                   </span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
+      </DashboardSection.Body>
+    </DashboardSection>
+  );
+}
+
+function WebsiteActionButton({
+  children,
+  disabled,
+  icon,
+  onClick,
+}: {
+  children: string;
+  disabled?: boolean;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-8 items-center gap-2 rounded-control bg-[var(--ds-bg-elevated)] px-3 text-xs font-medium text-[var(--ds-text-subtle)] hover:bg-[var(--ds-surface-hover)] hover:text-[var(--ds-text)] disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {icon}
+      <span>{children}</span>
+    </button>
+  );
+}
+
+function MaintenanceActions({
+  copy,
+  isExporting,
+  isRunningRetention,
+  onExport,
+  onRunRetention,
+  retentionResult,
+}: {
+  copy: WebsiteCopy;
+  isExporting: boolean;
+  isRunningRetention: boolean;
+  onExport: () => void;
+  onRunRetention: () => void;
+  retentionResult: WebsiteAnalyticsRetentionResult | null;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <WebsiteActionButton
+        disabled={isExporting}
+        icon={<DownloadIcon weight="duotone" className="h-3.5 w-3.5" />}
+        onClick={onExport}
+      >
+        {copy.exportJson}
+      </WebsiteActionButton>
+      <WebsiteActionButton
+        disabled={isRunningRetention}
+        icon={<TrashIcon weight="duotone" className="h-3.5 w-3.5" />}
+        onClick={onRunRetention}
+      >
+        {copy.retention}
+      </WebsiteActionButton>
+      {retentionResult && (
+        <span className="text-xs text-[var(--ds-text-muted)]">
+          {copy.retentionDone}: {retentionResult.deletedEvents} / {retentionResult.deletedSessions} /{" "}
+          {retentionResult.deletedSummaries}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function DrilldownSection({
+  copy,
+  detail,
+  formatNumber,
+  locale,
+  onSelectCluster,
+  onSelectDevice,
+  onSelectSession,
+  selectedClusterKey,
+  selectedDeviceKey,
+  selectedSessionId,
+}: {
+  copy: WebsiteCopy;
+  detail: WebsiteAnalyticsDrilldown | undefined;
+  formatNumber: (value: number) => string;
+  locale: DashboardLocale;
+  onSelectCluster: (clusterKey: string | null) => void;
+  onSelectDevice: (deviceKey: string | null) => void;
+  onSelectSession: (sessionId: string | null) => void;
+  selectedClusterKey: string | null;
+  selectedDeviceKey: string | null;
+  selectedSessionId: string | null;
+}) {
+  const hasSelection = Boolean(selectedClusterKey || selectedDeviceKey || selectedSessionId);
+  const scope = [
+    selectedClusterKey ? `cluster:${selectedClusterKey.slice(-6)}` : null,
+    selectedDeviceKey ? `device:${selectedDeviceKey.slice(-6)}` : null,
+    selectedSessionId ? `session:${selectedSessionId.slice(0, 8)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" / ");
+
+  return (
+    <DashboardSection>
+      <DashboardSection.Header
+        icon={<ListBulletsIcon weight="duotone" className="h-4 w-4" />}
+        title={copy.sections.drilldown}
+        addOn={
+          hasSelection ? (
+            <button
+              type="button"
+              onClick={() => onSelectCluster(null)}
+              className="h-8 rounded-control bg-[var(--ds-bg-elevated)] px-3 text-xs font-medium text-[var(--ds-text-subtle)] hover:bg-[var(--ds-surface-hover)] hover:text-[var(--ds-text)]"
+            >
+              {copy.clearSelection}
+            </button>
+          ) : null
+        }
+      />
+      <DashboardSection.Body>
+        <div className="text-sm text-[var(--ds-text-subtle)]">
+          {copy.selectedScope}: {scope || "overview"}
+        </div>
+        <div className="grid gap-3 xl:grid-cols-2">
+          <div className="space-y-2">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-[var(--ds-border-subtle)] pb-2 text-sm font-medium text-[var(--ds-text-subtle)]">
+              <span>{copy.columns.devices}</span>
+              <span className="text-right">{copy.columns.sessions}</span>
+              <span className="text-right">{copy.columns.events}</span>
+            </div>
+            {(detail?.devices ?? []).length === 0 ? (
+              <EmptyState copy={copy} />
+            ) : (
+              detail?.devices.map((device) => (
+                <button
+                  type="button"
+                  key={device.deviceKey ?? "unknown"}
+                  disabled={!device.deviceKey}
+                  onClick={() => onSelectDevice(device.deviceKey === selectedDeviceKey ? null : device.deviceKey)}
+                  className={`grid w-full grid-cols-[1fr_auto_auto] gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-[var(--ds-surface-hover)] disabled:cursor-not-allowed disabled:opacity-70 ${
+                    device.deviceKey && device.deviceKey === selectedDeviceKey
+                      ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]"
+                      : "bg-[var(--ds-bg-elevated)]"
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-mono text-xs text-[var(--ds-text)]">{device.label}</span>
+                    <span className="block truncate text-xs text-[var(--ds-text-muted)]">
+                      {[device.deviceClass, device.osFamily, device.browserFamily].filter(Boolean).join(" / ") || "-"}
+                    </span>
+                  </span>
+                  <span className="text-right tabular-nums text-[var(--ds-text)]">{formatNumber(device.sessions)}</span>
+                  <span className="text-right tabular-nums text-[var(--ds-text)]">{formatNumber(device.events)}</span>
+                </button>
+              ))
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-[var(--ds-border-subtle)] pb-2 text-sm font-medium text-[var(--ds-text-subtle)]">
+              <span>{copy.columns.sessions}</span>
+              <span className="text-right">{copy.columns.pageviews}</span>
+              <span className="text-right">{copy.columns.events}</span>
+            </div>
+            {(detail?.sessions ?? []).length === 0 ? (
+              <EmptyState copy={copy} />
+            ) : (
+              detail?.sessions.map((session) => (
+                <button
+                  type="button"
+                  key={session.sessionId}
+                  onClick={() => onSelectSession(session.sessionId === selectedSessionId ? null : session.sessionId)}
+                  className={`w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-[var(--ds-surface-hover)] ${
+                    session.sessionId === selectedSessionId
+                      ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]"
+                      : "bg-[var(--ds-bg-elevated)]"
+                  }`}
+                >
+                  <div className="grid grid-cols-[1fr_auto_auto] gap-3">
+                    <span className="min-w-0 truncate font-mono text-xs text-[var(--ds-text)]">
+                      {session.sessionId}
+                    </span>
+                    <span className="text-right tabular-nums text-[var(--ds-text)]">
+                      {formatNumber(session.pageviews)}
+                    </span>
+                    <span className="text-right tabular-nums text-[var(--ds-text)]">
+                      {formatNumber(session.events)}
+                    </span>
+                  </div>
+                  <div className="mt-1 grid grid-cols-2 gap-3 text-xs text-[var(--ds-text-muted)]">
+                    <span className="min-w-0 truncate">
+                      {copy.columns.entry}: {session.entryPath ?? "-"}
+                    </span>
+                    <span className="min-w-0 truncate text-right">
+                      {copy.lastSeen}: {formatDateTime(session.lastSeenAt, locale)}
+                    </span>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
       </DashboardSection.Body>
     </DashboardSection>
   );
@@ -762,7 +1084,24 @@ function NodeInspector({
   );
 }
 
-export function WebsiteAnalyticsSection({ data, formatNumber, isLoading, locale }: WebsiteAnalyticsSectionProps) {
+export function WebsiteAnalyticsSection({
+  data,
+  detail,
+  formatNumber,
+  isExporting,
+  isLoading,
+  isRunningRetention,
+  locale,
+  onExport,
+  onRunRetention,
+  onSelectCluster,
+  onSelectDevice,
+  onSelectSession,
+  retentionResult,
+  selectedClusterKey,
+  selectedDeviceKey,
+  selectedSessionId,
+}: WebsiteAnalyticsSectionProps) {
   const copy = COPY[locale];
   const totals = data?.totals ?? {
     clusters: 0,
@@ -775,12 +1114,14 @@ export function WebsiteAnalyticsSection({ data, formatNumber, isLoading, locale 
     playerStarts: 0,
     interactions: 0,
   };
-  const initialEvent = data?.clickpath.events[0] ?? data?.recentEvents[0];
+  const hasDrilldownSelection = Boolean(selectedClusterKey || selectedDeviceKey || selectedSessionId);
+  const clickpathEvents = hasDrilldownSelection ? (detail?.events ?? []) : (data?.clickpath.events ?? []);
+  const initialEvent = clickpathEvents[0] ?? data?.recentEvents[0];
   const [selectedEventId, setSelectedEventId] = useState<string | null>(initialEvent?.id ?? null);
   const selectedEvent = useMemo(() => {
-    const events = [...(data?.clickpath.events ?? []), ...(data?.recentEvents ?? [])];
+    const events = [...clickpathEvents, ...(data?.recentEvents ?? [])];
     return events.find((event) => event.id === selectedEventId) ?? initialEvent;
-  }, [data, initialEvent, selectedEventId]);
+  }, [clickpathEvents, data, initialEvent, selectedEventId]);
   const handleSelectEvent = useCallback((event: WebsiteAnalyticsPathEvent) => {
     setSelectedEventId(event.id);
   }, []);
@@ -802,7 +1143,20 @@ export function WebsiteAnalyticsSection({ data, formatNumber, isLoading, locale 
   return (
     <div className="space-y-4">
       <DashboardSection>
-        <DashboardSection.Header icon={<ChartLineIcon weight="duotone" className="h-4 w-4" />} title={copy.badge} />
+        <DashboardSection.Header
+          icon={<ChartLineIcon weight="duotone" className="h-4 w-4" />}
+          title={copy.badge}
+          addOn={
+            <MaintenanceActions
+              copy={copy}
+              isExporting={isExporting}
+              isRunningRetention={isRunningRetention}
+              onExport={onExport}
+              onRunRetention={onRunRetention}
+              retentionResult={retentionResult}
+            />
+          }
+        />
         <DashboardSection.Body>
           <p className="max-w-3xl text-sm text-[var(--ds-text-subtle)]">{copy.note}</p>
           {isLoading && <p className="text-sm text-[var(--ds-text-subtle)]">{copy.loading}</p>}
@@ -817,8 +1171,28 @@ export function WebsiteAnalyticsSection({ data, formatNumber, isLoading, locale 
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <PlatformFunnel copy={copy} formatNumber={formatNumber} rows={data?.platforms ?? []} />
-        <HouseholdTable copy={copy} formatNumber={formatNumber} locale={locale} rows={data?.clusters ?? []} />
+        <HouseholdTable
+          copy={copy}
+          formatNumber={formatNumber}
+          locale={locale}
+          onSelectCluster={onSelectCluster}
+          rows={data?.clusters ?? []}
+          selectedClusterKey={selectedClusterKey}
+        />
       </div>
+
+      <DrilldownSection
+        copy={copy}
+        detail={detail}
+        formatNumber={formatNumber}
+        locale={locale}
+        onSelectCluster={onSelectCluster}
+        onSelectDevice={onSelectDevice}
+        onSelectSession={onSelectSession}
+        selectedClusterKey={selectedClusterKey}
+        selectedDeviceKey={selectedDeviceKey}
+        selectedSessionId={selectedSessionId}
+      />
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.85fr)]">
         <HeatmapPreview copy={copy} points={data?.heatmap ?? []} routes={data?.heatmapRoutes ?? []} />
@@ -830,7 +1204,7 @@ export function WebsiteAnalyticsSection({ data, formatNumber, isLoading, locale 
 
       <ClickpathFlow
         copy={copy}
-        events={data?.clickpath.events ?? []}
+        events={clickpathEvents}
         onSelectEvent={handleSelectEvent}
         selectedEventId={selectedEvent?.id ?? null}
       />
