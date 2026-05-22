@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useReducer } from "react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
@@ -10,7 +10,6 @@ import type { UmamiPeriod } from "@/features/analytics/hooks/useUmamiStats";
 import { useAuth } from "@/features/auth/AuthContext";
 import { api } from "@/lib/api";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
-
 import {
   type WebsiteAnalyticsDrilldown,
   type WebsiteAnalyticsExport,
@@ -18,13 +17,50 @@ import {
   type WebsiteAnalyticsRetentionResult,
   WebsiteAnalyticsSection,
 } from "./WebsiteAnalyticsSection";
+import { buildWebsiteAnalyticsPeriodOptions, loadWebsiteAnalyticsPeriod } from "./websiteAnalyticsPeriod";
 
-const WEBSITE_ANALYTICS_PERIODS: UmamiPeriod[] = ["today", "7d", "30d", "60d", "90d"];
+interface WebsiteAnalyticsPageState {
+  period: UmamiPeriod;
+  retentionResult: WebsiteAnalyticsRetentionResult | null;
+  selectedClusterKey: string | null;
+  selectedDeviceKey: string | null;
+  selectedSessionId: string | null;
+}
 
-function loadWebsiteAnalyticsPeriod(storageKey: string): UmamiPeriod {
-  const saved = localStorage.getItem(storageKey);
-  if (saved && WEBSITE_ANALYTICS_PERIODS.some((period) => period === saved)) return saved as UmamiPeriod;
-  return "7d";
+type WebsiteAnalyticsPageAction =
+  | { type: "periodChanged"; period: UmamiPeriod }
+  | { type: "retentionCompleted"; result: WebsiteAnalyticsRetentionResult }
+  | { type: "selectedClusterChanged"; clusterKey: string | null }
+  | { type: "selectedDeviceChanged"; deviceKey: string | null }
+  | { type: "selectedSessionChanged"; sessionId: string | null };
+
+function websiteAnalyticsPageReducer(
+  state: WebsiteAnalyticsPageState,
+  action: WebsiteAnalyticsPageAction,
+): WebsiteAnalyticsPageState {
+  switch (action.type) {
+    case "periodChanged":
+      return {
+        ...state,
+        period: action.period,
+        selectedClusterKey: null,
+        selectedDeviceKey: null,
+        selectedSessionId: null,
+      };
+    case "retentionCompleted":
+      return { ...state, retentionResult: action.result };
+    case "selectedClusterChanged":
+      return {
+        ...state,
+        selectedClusterKey: action.clusterKey,
+        selectedDeviceKey: null,
+        selectedSessionId: null,
+      };
+    case "selectedDeviceChanged":
+      return { ...state, selectedDeviceKey: action.deviceKey, selectedSessionId: null };
+    case "selectedSessionChanged":
+      return { ...state, selectedSessionId: action.sessionId };
+  }
 }
 
 export function WebsiteAnalyticsPage() {
@@ -32,11 +68,14 @@ export function WebsiteAnalyticsPage() {
   const { locale, messages, formatNumber } = useI18n();
   const queryClient = useQueryClient();
   const periodStorageKey = getSegmentedStorageKey(user?.id, "website-analytics:period");
-  const [period, setPeriod] = useState<UmamiPeriod>(() => loadWebsiteAnalyticsPeriod(periodStorageKey));
-  const [selectedClusterKey, setSelectedClusterKey] = useState<string | null>(null);
-  const [selectedDeviceKey, setSelectedDeviceKey] = useState<string | null>(null);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [retentionResult, setRetentionResult] = useState<WebsiteAnalyticsRetentionResult | null>(null);
+  const [state, dispatch] = useReducer(websiteAnalyticsPageReducer, periodStorageKey, (storageKey) => ({
+    period: loadWebsiteAnalyticsPeriod(storageKey),
+    retentionResult: null,
+    selectedClusterKey: null,
+    selectedDeviceKey: null,
+    selectedSessionId: null,
+  }));
+  const { period, retentionResult, selectedClusterKey, selectedDeviceKey, selectedSessionId } = state;
   const m = messages.analytics;
   const detailPath = useMemo(() => {
     const params = new URLSearchParams({ period });
@@ -62,47 +101,37 @@ export function WebsiteAnalyticsPage() {
       link.download = `website-analytics-${period}.json`;
       link.click();
       URL.revokeObjectURL(url);
+      void queryClient.invalidateQueries({ queryKey: ["website-analytics-overview"] });
+      void queryClient.invalidateQueries({ queryKey: ["website-analytics-detail"] });
     },
   });
   const retentionMutation = useMutation({
     mutationFn: () => api.post<WebsiteAnalyticsRetentionResult>(ENDPOINTS.admin.analytics.website.retention),
     onSuccess: (result) => {
-      setRetentionResult(result);
+      dispatch({ type: "retentionCompleted", result });
       void queryClient.invalidateQueries({ queryKey: ["website-analytics-overview"] });
       void queryClient.invalidateQueries({ queryKey: ["website-analytics-detail"] });
     },
   });
 
   const handlePeriodChange = useCallback((nextPeriod: UmamiPeriod) => {
-    setPeriod(nextPeriod);
-    setSelectedClusterKey(null);
-    setSelectedDeviceKey(null);
-    setSelectedSessionId(null);
+    dispatch({ type: "periodChanged", period: nextPeriod });
   }, []);
 
   const handleSelectCluster = useCallback((clusterKey: string | null) => {
-    setSelectedClusterKey(clusterKey);
-    setSelectedDeviceKey(null);
-    setSelectedSessionId(null);
+    dispatch({ type: "selectedClusterChanged", clusterKey });
   }, []);
 
   const handleSelectDevice = useCallback((deviceKey: string | null) => {
-    setSelectedDeviceKey(deviceKey);
-    setSelectedSessionId(null);
+    dispatch({ type: "selectedDeviceChanged", deviceKey });
   }, []);
 
   const handleSelectSession = useCallback((sessionId: string | null) => {
-    setSelectedSessionId(sessionId);
+    dispatch({ type: "selectedSessionChanged", sessionId });
   }, []);
 
   const periodOptions = useMemo<{ label: string; value: UmamiPeriod }[]>(
-    () => [
-      { value: "today", label: m.periods.today },
-      { value: "7d", label: m.periods.d7 },
-      { value: "30d", label: m.periods.d30 },
-      { value: "60d", label: m.periods.d60 },
-      { value: "90d", label: m.periods.d90 },
-    ],
+    () => buildWebsiteAnalyticsPeriodOptions(m.periods),
     [m],
   );
 

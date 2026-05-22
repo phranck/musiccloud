@@ -33,6 +33,7 @@ export const WEBSITE_ANALYTICS_EVENT_TYPES = [
   "info_page_clicked",
   "help_page_clicked",
   "live_example_clicked",
+  "layered_footer_clicked",
   "ui_click",
 ] as const satisfies readonly WebsiteAnalyticsEventType[];
 

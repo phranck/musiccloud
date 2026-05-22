@@ -1,7 +1,7 @@
 import type { NavItem } from "@musiccloud/shared";
 
 import { useT } from "@/i18n/context";
-import { trackContentPageClick } from "@/lib/analytics";
+import { trackContentPageClick, trackLayeredFooterClick } from "@/lib/analytics";
 import { navHref, navLabel } from "@/lib/nav";
 
 const START_YEAR = 2026;
@@ -61,6 +61,7 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
           href="https://layered.work"
           target="_blank"
           rel="noopener noreferrer"
+          onClick={trackLayeredFooterClick}
           className="hover:text-text-secondary transition-colors duration-150 ml-1"
         >
           LAYERED

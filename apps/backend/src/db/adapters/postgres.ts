@@ -114,6 +114,7 @@ interface WebsiteAnalyticsPathEventRow {
   confidence: string;
   path: string | null;
   route_template: string | null;
+  referrer_domain: string | null;
   device_class: string | null;
   browser_family: string | null;
   os_family: string | null;
@@ -4483,7 +4484,7 @@ async function getWebsiteAnalyticsOverview(
   pool: InstanceType<typeof pgModule.default.Pool>,
   since: Date,
 ): Promise<WebsiteAnalyticsOverview> {
-  const [totals, platforms, clusters, heatmapRoutes, heatmap, interactions, searches, recentEvents, clickpathEvents] =
+  const [totals, platforms, clusters, referrers, interactions, searches, recentEvents, clickpathEvents] =
     await Promise.all([
       pool.query(
         `WITH event_uniques AS (
@@ -4514,11 +4515,13 @@ async function getWebsiteAnalyticsOverview(
           FROM analytics_cluster_daily_summaries
           WHERE day >= ($1::timestamptz AT TIME ZONE 'UTC')::date
         ),
-        live_example_totals AS (
-          SELECT COUNT(*)::int AS live_examples
+        direct_interaction_totals AS (
+          SELECT
+            COUNT(*) FILTER (WHERE event_type = 'live_example_clicked')::int AS live_examples,
+            COUNT(*) FILTER (WHERE event_type = 'layered_footer_clicked')::int AS layered_footer_clicks
           FROM analytics_events
           WHERE occurred_at >= $1
-            AND event_type = 'live_example_clicked'
+            AND event_type IN ('live_example_clicked', 'layered_footer_clicked')
         )
         SELECT
           event_uniques.*,
@@ -4527,10 +4530,14 @@ async function getWebsiteAnalyticsOverview(
           summary_totals.resolves,
           summary_totals.listen_on,
           summary_totals.player_starts,
-          (summary_totals.interactions + live_example_totals.live_examples)::int AS interactions
+          (
+            summary_totals.interactions +
+            direct_interaction_totals.live_examples +
+            direct_interaction_totals.layered_footer_clicks
+          )::int AS interactions
         FROM event_uniques
         CROSS JOIN summary_totals
-        CROSS JOIN live_example_totals`,
+        CROSS JOIN direct_interaction_totals`,
         [since],
       ),
       pool.query(
@@ -4596,36 +4603,17 @@ async function getWebsiteAnalyticsOverview(
       ),
       pool.query(
         `SELECT
+        COALESCE(NULLIF(referrer_domain, ''), 'direct') AS referrer_domain,
         COALESCE(route_template, path, 'unknown') AS route_template,
-        viewport_bucket,
-        COUNT(*)::int AS clicks
+        COUNT(*)::int AS pageviews,
+        COUNT(DISTINCT network_cluster_key)::int AS clusters
        FROM analytics_events
        WHERE occurred_at >= $1
-         AND event_type = 'ui_click'
-         AND x_pct IS NOT NULL
-         AND y_pct IS NOT NULL
-       GROUP BY COALESCE(route_template, path, 'unknown'), viewport_bucket
-       ORDER BY clicks DESC, route_template ASC
+         AND event_type = 'page_view'
+         AND COALESCE(route_template, path) IN ('/', '/:shortId')
+       GROUP BY COALESCE(NULLIF(referrer_domain, ''), 'direct'), COALESCE(route_template, path, 'unknown')
+       ORDER BY pageviews DESC, referrer_domain ASC
        LIMIT 12`,
-        [since],
-      ),
-      pool.query(
-        `SELECT
-        ROUND(AVG(x_pct)::numeric, 2)::float AS x,
-        ROUND(AVG(y_pct)::numeric, 2)::float AS y,
-        COUNT(*)::int AS count,
-        element_key,
-        surface,
-        COALESCE(route_template, path, 'unknown') AS route_template,
-        viewport_bucket
-       FROM analytics_events
-       WHERE occurred_at >= $1
-         AND event_type = 'ui_click'
-         AND x_pct IS NOT NULL
-         AND y_pct IS NOT NULL
-       GROUP BY COALESCE(route_template, path, 'unknown'), viewport_bucket, element_key, surface
-       ORDER BY count DESC
-       LIMIT 20`,
         [since],
       ),
       pool.query(
@@ -4647,6 +4635,7 @@ async function getWebsiteAnalyticsOverview(
            'info_page_clicked',
            'help_page_clicked',
            'live_example_clicked',
+           'layered_footer_clicked',
            'ui_click'
          )
        GROUP BY event_type
@@ -4680,6 +4669,7 @@ async function getWebsiteAnalyticsOverview(
         confidence,
         path,
         route_template,
+        referrer_domain,
         device_class,
         browser_family,
         os_family,
@@ -4724,6 +4714,7 @@ async function getWebsiteAnalyticsOverview(
         confidence,
         path,
         route_template,
+        referrer_domain,
         device_class,
         browser_family,
         os_family,
@@ -4781,19 +4772,11 @@ async function getWebsiteAnalyticsOverview(
             : "",
       topQuery: row.top_query,
     })),
-    heatmapRoutes: heatmapRoutes.rows.map((row) => ({
-      routeTemplate: String(row.route_template),
-      viewportBucket: row.viewport_bucket,
-      clicks: Number(row.clicks),
-    })),
-    heatmap: heatmap.rows.map((row) => ({
-      x: Number(row.x),
-      y: Number(row.y),
-      count: Number(row.count),
-      elementKey: row.element_key,
-      surface: row.surface,
+    referrers: referrers.rows.map((row) => ({
+      referrerDomain: String(row.referrer_domain),
       routeTemplate: row.route_template,
-      viewportBucket: row.viewport_bucket,
+      pageviews: Number(row.pageviews),
+      clusters: Number(row.clusters),
     })),
     interactions: interactions.rows.map((row) => ({ eventType: String(row.event_type), count: Number(row.count) })),
     searches: searches.rows.map((row) => ({
@@ -4822,6 +4805,7 @@ function rowToWebsiteAnalyticsPathEvent(row: WebsiteAnalyticsPathEventRow): Webs
     confidence: row.confidence,
     path: row.path,
     routeTemplate: row.route_template,
+    referrerDomain: row.referrer_domain,
     deviceClass: row.device_class,
     browserFamily: row.browser_family,
     osFamily: row.os_family,
@@ -4921,6 +4905,7 @@ async function getWebsiteAnalyticsDrilldown(
         confidence,
         path,
         route_template,
+        referrer_domain,
         device_class,
         browser_family,
         os_family,

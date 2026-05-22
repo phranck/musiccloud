@@ -40,6 +40,7 @@ import { isContentDirty } from "@/features/content/state/slices/contentSlice";
 import { isMetaDirty } from "@/features/content/state/slices/metaSlice";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
+import type { DashboardMessages } from "@/i18n/messages";
 import type { AdminRole } from "@/shared/types/admin";
 
 const ROLE_RANK: Record<AdminRole, number> = { owner: 2, admin: 1, moderator: 0 };
@@ -67,6 +68,7 @@ const TREE_ROW_PADDING: Record<TreeDepth, number> = { 1: 28, 2: 56 };
 const TREE_STUB_W = 18;
 const TREE_TOP_EXTRA = 28;
 const TREE_ROW_GAP = 2;
+type SidebarLabels = DashboardMessages["layout"]["sidebar"];
 
 interface PageTreeRowProps {
   depth: TreeDepth;
@@ -168,13 +170,7 @@ function PageTreeContent({ page, icon }: { page: { slug: string; title: string; 
         <span className="truncate">{page.title}</span>
         <span className="truncate text-xs opacity-50">/{page.slug}</span>
       </span>
-      {dirty && (
-        <span
-          role="img"
-          aria-label="ungespeichert"
-          className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]"
-        />
-      )}
+      {dirty && <span aria-hidden="true" className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]" />}
     </>
   );
 }
@@ -200,7 +196,7 @@ function PagesGroup({
   const currentSlug = editorMatch?.params.slug;
   const [showCreate, setShowCreate] = useState(false);
 
-  const list = pages ?? [];
+  const list = useMemo(() => pages ?? [], [pages]);
   const { segmentedBlocks: rawSegmentedBlocks, orphanDefaults } = groupPagesByHierarchy(list);
 
   const bySlug = useMemo(() => {
@@ -506,6 +502,120 @@ function EmailTemplatesGroup({
   );
 }
 
+function SidebarGeneralSection({ onItemClick, s }: { onItemClick?: () => void; s: SidebarLabels }) {
+  return (
+    <div className="mt-3">
+      <DashboardSection>
+        <DashboardSection.Header
+          icon={<HouseSimpleIcon weight="duotone" className="w-4 h-4" />}
+          title={s.sectionGeneral}
+        />
+        <DashboardSection.Body className="!gap-0.5 !p-2">
+          <NavLink to="/" end onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<SquaresFourIcon weight="duotone" className="w-4 h-4" />}
+                label={s.overview}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+        </DashboardSection.Body>
+      </DashboardSection>
+    </div>
+  );
+}
+
+function SidebarMusicSection({
+  albums,
+  artists,
+  onItemClick,
+  s,
+  tracks,
+}: {
+  albums?: number;
+  artists?: number;
+  onItemClick?: () => void;
+  s: SidebarLabels;
+  tracks?: number;
+}) {
+  return (
+    <div className="mt-3">
+      <DashboardSection>
+        <DashboardSection.Header
+          icon={<MusicNotesIcon weight="duotone" className="w-4 h-4" />}
+          title={s.sectionMusic}
+        />
+        <DashboardSection.Body className="!gap-0.5 !p-2">
+          <NavLink to="/tracks" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<MusicNotesIcon weight="duotone" className="w-4 h-4" />}
+                label={s.tracks}
+                badge={tracks}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+          <NavLink to="/albums" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<VinylRecordIcon weight="duotone" className="w-4 h-4" />}
+                label={s.albums}
+                badge={albums}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+          <NavLink to="/artists" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<MicrophoneStageIcon weight="duotone" className="w-4 h-4" />}
+                label={s.artists}
+                badge={artists}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+        </DashboardSection.Body>
+      </DashboardSection>
+    </div>
+  );
+}
+
+function SidebarAnalyticsSection({ onItemClick, s }: { onItemClick?: () => void; s: SidebarLabels }) {
+  return (
+    <div className="mt-3">
+      <DashboardSection>
+        <DashboardSection.Header
+          icon={<ChartBarIcon weight="duotone" className="w-4 h-4" />}
+          title={s.sectionAnalytics}
+        />
+        <DashboardSection.Body className="!gap-0.5 !p-2">
+          <NavLink to="/analytics" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<ChartBarIcon weight="duotone" className="w-4 h-4" />}
+                label={s.analytics}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+          <NavLink to="/website-analytics" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<ChartLineIcon weight="duotone" className="w-4 h-4" />}
+                label={s.websiteAnalytics}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+        </DashboardSection.Body>
+      </DashboardSection>
+    </div>
+  );
+}
+
 export function Sidebar({
   username,
   firstName,
@@ -589,68 +699,14 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* General */}
-        <div className="mt-3">
-          <DashboardSection>
-            <DashboardSection.Header
-              icon={<HouseSimpleIcon weight="duotone" className="w-4 h-4" />}
-              title={s.sectionGeneral}
-            />
-            <DashboardSection.Body className="!gap-0.5 !p-2">
-              <NavLink to="/" end onClick={onItemClick} className="contents">
-                {({ isActive }) => (
-                  <DashboardSection.Item
-                    icon={<SquaresFourIcon weight="duotone" className="w-4 h-4" />}
-                    label={s.overview}
-                    active={isActive}
-                  />
-                )}
-              </NavLink>
-            </DashboardSection.Body>
-          </DashboardSection>
-        </div>
-
-        {/* Music */}
-        <div className="mt-3">
-          <DashboardSection>
-            <DashboardSection.Header
-              icon={<MusicNotesIcon weight="duotone" className="w-4 h-4" />}
-              title={s.sectionMusic}
-            />
-            <DashboardSection.Body className="!gap-0.5 !p-2">
-              <NavLink to="/tracks" onClick={onItemClick} className="contents">
-                {({ isActive }) => (
-                  <DashboardSection.Item
-                    icon={<MusicNotesIcon weight="duotone" className="w-4 h-4" />}
-                    label={s.tracks}
-                    badge={stats?.tracks}
-                    active={isActive}
-                  />
-                )}
-              </NavLink>
-              <NavLink to="/albums" onClick={onItemClick} className="contents">
-                {({ isActive }) => (
-                  <DashboardSection.Item
-                    icon={<VinylRecordIcon weight="duotone" className="w-4 h-4" />}
-                    label={s.albums}
-                    badge={stats?.albums}
-                    active={isActive}
-                  />
-                )}
-              </NavLink>
-              <NavLink to="/artists" onClick={onItemClick} className="contents">
-                {({ isActive }) => (
-                  <DashboardSection.Item
-                    icon={<MicrophoneStageIcon weight="duotone" className="w-4 h-4" />}
-                    label={s.artists}
-                    badge={stats?.artists}
-                    active={isActive}
-                  />
-                )}
-              </NavLink>
-            </DashboardSection.Body>
-          </DashboardSection>
-        </div>
+        <SidebarGeneralSection onItemClick={onItemClick} s={s} />
+        <SidebarMusicSection
+          albums={stats?.albums}
+          artists={stats?.artists}
+          onItemClick={onItemClick}
+          s={s}
+          tracks={stats?.tracks}
+        />
 
         {/* Content */}
         {isAdmin && (
@@ -707,37 +763,7 @@ export function Sidebar({
           </div>
         )}
 
-        {/* Analytics */}
-        {isAdmin && (
-          <div className="mt-3">
-            <DashboardSection>
-              <DashboardSection.Header
-                icon={<ChartBarIcon weight="duotone" className="w-4 h-4" />}
-                title={s.sectionAnalytics}
-              />
-              <DashboardSection.Body className="!gap-0.5 !p-2">
-                <NavLink to="/analytics" onClick={onItemClick} className="contents">
-                  {({ isActive }) => (
-                    <DashboardSection.Item
-                      icon={<ChartBarIcon weight="duotone" className="w-4 h-4" />}
-                      label={s.analytics}
-                      active={isActive}
-                    />
-                  )}
-                </NavLink>
-                <NavLink to="/website-analytics" onClick={onItemClick} className="contents">
-                  {({ isActive }) => (
-                    <DashboardSection.Item
-                      icon={<ChartLineIcon weight="duotone" className="w-4 h-4" />}
-                      label={s.websiteAnalytics}
-                      active={isActive}
-                    />
-                  )}
-                </NavLink>
-              </DashboardSection.Body>
-            </DashboardSection>
-          </div>
-        )}
+        {isAdmin && <SidebarAnalyticsSection onItemClick={onItemClick} s={s} />}
 
         {/* System */}
         {isAdmin && (

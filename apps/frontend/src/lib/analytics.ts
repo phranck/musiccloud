@@ -18,6 +18,7 @@ type WebsiteAnalyticsEventType =
   | "info_page_clicked"
   | "help_page_clicked"
   | "live_example_clicked"
+  | "layered_footer_clicked"
   | "ui_click";
 
 type ViewportBucket = "mobile" | "tablet" | "desktop";
@@ -219,11 +220,11 @@ export function initWebsiteAnalytics() {
   if (typeof window === "undefined" || window.__musiccloudAnalyticsInitialized) return;
   window.__musiccloudAnalyticsInitialized = true;
   trackPageView();
-  document.addEventListener("click", trackHeatmapClick, { passive: true });
+  document.addEventListener("click", trackElementClick, { passive: true });
   window.addEventListener("pagehide", () => flush(true));
 }
 
-function trackHeatmapClick(event: MouseEvent) {
+function trackElementClick(event: MouseEvent) {
   const target = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-analytics-key]") : null;
   if (!target) return;
   const rect = target.getBoundingClientRect();
@@ -239,7 +240,7 @@ function trackHeatmapClick(event: MouseEvent) {
   });
 }
 
-export function trackPageView() {
+function trackPageView() {
   enqueue(baseEvent("page_view"));
 }
 
@@ -270,6 +271,15 @@ export function trackLiveExampleClick(shortId: string) {
     surface: "landing_example",
     elementKey: "landing.live_example",
     eventData: { suppressResolveAnalytics: true },
+  });
+}
+
+export function trackLayeredFooterClick() {
+  enqueue({
+    ...baseEvent("layered_footer_clicked"),
+    platform: "layered",
+    surface: "footer",
+    elementKey: "footer.layered",
   });
 }
 

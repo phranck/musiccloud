@@ -536,6 +536,7 @@ export type WebsiteAnalyticsEventType =
   | "info_page_clicked"
   | "help_page_clicked"
   | "live_example_clicked"
+  | "layered_footer_clicked"
   | "ui_click";
 
 export type WebsiteAnalyticsConfidence = "low" | "medium" | "high";
@@ -603,15 +604,11 @@ export interface WebsiteAnalyticsOverview {
     lastSeenAt: string;
     topQuery: string | null;
   }>;
-  heatmapRoutes: Array<{ routeTemplate: string; viewportBucket: string | null; clicks: number }>;
-  heatmap: Array<{
-    x: number;
-    y: number;
-    count: number;
-    elementKey: string | null;
-    surface: string | null;
+  referrers: Array<{
+    referrerDomain: string;
     routeTemplate: string | null;
-    viewportBucket: string | null;
+    pageviews: number;
+    clusters: number;
   }>;
   interactions: Array<{ eventType: string; count: number }>;
   searches: Array<{ query: string; searches: number; clusters: number }>;
@@ -634,6 +631,7 @@ export interface WebsiteAnalyticsPathEvent {
   confidence: string;
   path: string | null;
   routeTemplate: string | null;
+  referrerDomain: string | null;
   deviceClass: string | null;
   browserFamily: string | null;
   osFamily: string | null;

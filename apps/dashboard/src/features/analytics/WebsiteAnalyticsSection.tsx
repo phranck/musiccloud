@@ -3,7 +3,6 @@ import "@xyflow/react/dist/style.css";
 import {
   ChartLineIcon,
   ClockCounterClockwiseIcon,
-  CursorClickIcon,
   DownloadIcon,
   FlowArrowIcon,
   FunnelIcon,
@@ -19,6 +18,7 @@ import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import type { DashboardLocale } from "@/i18n/messages";
+import { formatNaturalText, getWebsiteAnalyticsCopy, type WebsiteCopy } from "./websiteAnalyticsText";
 
 interface WebsiteAnalyticsSectionProps {
   data: WebsiteAnalyticsOverview | undefined;
@@ -50,6 +50,7 @@ export interface WebsiteAnalyticsPathEvent {
   confidence: string;
   path: string | null;
   routeTemplate: string | null;
+  referrerDomain: string | null;
   deviceClass: string | null;
   browserFamily: string | null;
   osFamily: string | null;
@@ -83,15 +84,11 @@ export interface WebsiteAnalyticsOverview {
     lastSeenAt: string;
     topQuery: string | null;
   }>;
-  heatmapRoutes: Array<{ routeTemplate: string; viewportBucket: string | null; clicks: number }>;
-  heatmap: Array<{
-    x: number;
-    y: number;
-    count: number;
-    elementKey: string | null;
-    surface: string | null;
+  referrers: Array<{
+    referrerDomain: string;
     routeTemplate: string | null;
-    viewportBucket: string | null;
+    pageviews: number;
+    clusters: number;
   }>;
   interactions: Array<{ eventType: string; count: number }>;
   searches: Array<{ query: string; searches: number; clusters: number }>;
@@ -155,353 +152,6 @@ export interface WebsiteAnalyticsExport {
   overview: WebsiteAnalyticsOverview;
   drilldown: WebsiteAnalyticsDrilldown;
 }
-
-interface WebsiteCopy {
-  badge: string;
-  loading: string;
-  noData: string;
-  allRoutes: string;
-  topQuery: string;
-  lastSeen: string;
-  exportJson: string;
-  retention: string;
-  retentionDone: string;
-  clearSelection: string;
-  selectedScope: string;
-  scopeLabels: {
-    overview: string;
-    cluster: string;
-    device: string;
-    session: string;
-  };
-  inspectorLabels: {
-    event: string;
-    cluster: string;
-    confidence: string;
-    session: string;
-    surface: string;
-    platform: string;
-    route: string;
-    device: string;
-    detail: string;
-    occurredAt: string;
-  };
-  eventLabels: Record<string, string>;
-  identifierLabels: Record<string, string>;
-  confidenceLabels: Record<string, string>;
-  kpis: {
-    clusters: string;
-    devices: string;
-    sessions: string;
-    pageviews: string;
-    searches: string;
-    resolves: string;
-    listenOn: string;
-    interactions: string;
-    playerStarts: string;
-  };
-  sections: {
-    funnel: string;
-    households: string;
-    heatmap: string;
-    clickpath: string;
-    drilldown: string;
-    deviceDrilldown: string;
-    sessionDrilldown: string;
-    inspector: string;
-    interactions: string;
-    searches: string;
-    timeline: string;
-  };
-  columns: {
-    platform: string;
-    resolves: string;
-    share: string;
-    household: string;
-    confidence: string;
-    devices: string;
-    searches: string;
-    query: string;
-    event: string;
-    count: string;
-    clusters: string;
-    sessions: string;
-    events: string;
-    pageviews: string;
-    firstSeen: string;
-    entry: string;
-    exit: string;
-  };
-  heatmapHint: string;
-  pathHint: string;
-}
-
-const COPY: Record<DashboardLocale, WebsiteCopy> = {
-  de: {
-    badge: "First-party Website Analytics",
-    loading: "Lade echte Website-Analytics...",
-    noData: "Noch keine Daten im gewaehlten Zeitraum.",
-    allRoutes: "Alle Routen",
-    topQuery: "Top-Suche",
-    lastSeen: "Zuletzt",
-    exportJson: "JSON exportieren",
-    retention: "Retention ausfuehren",
-    retentionDone: "Retention abgeschlossen",
-    clearSelection: "Auswahl loeschen",
-    selectedScope: "Aktiver Drilldown",
-    scopeLabels: {
-      overview: "Uebersicht",
-      cluster: "Cluster",
-      device: "Geraet",
-      session: "Session",
-    },
-    inspectorLabels: {
-      event: "Event",
-      cluster: "Cluster",
-      confidence: "Sicherheit",
-      session: "Session",
-      surface: "Bereich",
-      platform: "Plattform",
-      route: "Route",
-      device: "Geraet",
-      detail: "Detail",
-      occurredAt: "Zeitpunkt",
-    },
-    eventLabels: {
-      page_view: "Seitenaufruf",
-      search_submitted: "Suche gesendet",
-      resolve_started: "Resolve gestartet",
-      resolve_succeeded: "Resolve erfolgreich",
-      resolve_failed: "Resolve fehlgeschlagen",
-      listen_on_clicked: "Listen-On geklickt",
-      similar_artist_clicked: "Aehnlicher Artist geklickt",
-      popular_track_clicked: "Popular Track geklickt",
-      upcoming_event_clicked: "Upcoming Event geklickt",
-      player_started: "Player gestartet",
-      player_paused: "Player pausiert",
-      player_resumed: "Player fortgesetzt",
-      player_completed: "Player beendet",
-      player_unavailable: "Player nicht verfuegbar",
-      info_page_clicked: "Info-Seite geklickt",
-      help_page_clicked: "Help-Seite geklickt",
-      live_example_clicked: "Live-Beispiel geklickt",
-      ui_click: "UI-Klick",
-    },
-    identifierLabels: {
-      artist_panel: "Artist Panel",
-      footer: "Footer",
-      help_page: "Help-Seite",
-      hero: "Hero",
-      info_page: "Info-Seite",
-      landing: "Landingpage",
-      landing_example: "Landing-Beispiel",
-      live_example: "Live-Beispiel",
-      listen_on: "Listen-On",
-      overlay: "Overlay",
-      player: "Player",
-      popular_track: "Popular Track",
-      search_input: "Sucheingabe",
-      share_card: "Share Card",
-      similar_artist: "Similar Artist",
-      system_menu: "Systemmenue",
-      upcoming_event: "Upcoming Event",
-      ui: "UI",
-      unknown: "Unbekannt",
-    },
-    confidenceLabels: {
-      low: "Niedrig",
-      medium: "Mittel",
-      high: "Hoch",
-    },
-    kpis: {
-      clusters: "Network Cluster",
-      devices: "Geraete",
-      sessions: "Sessions",
-      pageviews: "Pageviews",
-      searches: "Suchen",
-      resolves: "Resolves",
-      listenOn: "Listen-On Klicks",
-      interactions: "Interaktionen",
-      playerStarts: "Player Starts",
-    },
-    sections: {
-      funnel: "Resolve Funnel nach Plattform",
-      households: "Geschaetzte Haushalte",
-      heatmap: "Klick-Heatmap je Seite",
-      clickpath: "Clickpath Flow",
-      drilldown: "Cluster-, Device- und Session-Drilldown",
-      deviceDrilldown: "Geraete-Drilldown",
-      sessionDrilldown: "Session-Drilldown",
-      inspector: "Node-Inspector",
-      interactions: "Interaktionen",
-      searches: "Suchbegriffe",
-      timeline: "Letzte Events",
-    },
-    columns: {
-      platform: "Plattform",
-      resolves: "Resolves",
-      share: "Anteil",
-      household: "Cluster",
-      confidence: "Sicherheit",
-      devices: "Geraete",
-      searches: "Suchen",
-      query: "Suchbegriff",
-      event: "Event",
-      count: "Anzahl",
-      clusters: "Cluster",
-      sessions: "Sessions",
-      events: "Events",
-      pageviews: "Pageviews",
-      firstSeen: "Erster Besuch",
-      entry: "Entry",
-      exit: "Exit",
-    },
-    heatmapHint:
-      "Aggregierte relative Klickkoordinaten pro freigegebener Route. Es werden keine DOM-Snapshots oder Formularinhalte gespeichert.",
-    pathHint:
-      "Der Flow zeigt die echte Eventfolge des aktivsten Network Clusters im Zeitraum. Nodes sind anklickbar und fuellen den Inspector.",
-  },
-  en: {
-    badge: "First-party Website Analytics",
-    loading: "Loading real website analytics...",
-    noData: "No data in the selected period yet.",
-    allRoutes: "All routes",
-    topQuery: "Top query",
-    lastSeen: "Last seen",
-    exportJson: "Export JSON",
-    retention: "Run retention",
-    retentionDone: "Retention completed",
-    clearSelection: "Clear selection",
-    selectedScope: "Active drilldown",
-    scopeLabels: {
-      overview: "Overview",
-      cluster: "Cluster",
-      device: "Device",
-      session: "Session",
-    },
-    inspectorLabels: {
-      event: "Event",
-      cluster: "Cluster",
-      confidence: "Confidence",
-      session: "Session",
-      surface: "Surface",
-      platform: "Platform",
-      route: "Route",
-      device: "Device",
-      detail: "Detail",
-      occurredAt: "Timestamp",
-    },
-    eventLabels: {
-      page_view: "Page View",
-      search_submitted: "Search Submitted",
-      resolve_started: "Resolve Started",
-      resolve_succeeded: "Resolve Succeeded",
-      resolve_failed: "Resolve Failed",
-      listen_on_clicked: "Listen-On Clicked",
-      similar_artist_clicked: "Similar Artist Clicked",
-      popular_track_clicked: "Popular Track Clicked",
-      upcoming_event_clicked: "Upcoming Event Clicked",
-      player_started: "Player Started",
-      player_paused: "Player Paused",
-      player_resumed: "Player Resumed",
-      player_completed: "Player Completed",
-      player_unavailable: "Player Unavailable",
-      info_page_clicked: "Info Page Clicked",
-      help_page_clicked: "Help Page Clicked",
-      live_example_clicked: "Live Example Clicked",
-      ui_click: "UI Click",
-    },
-    identifierLabels: {
-      artist_panel: "Artist Panel",
-      footer: "Footer",
-      help_page: "Help Page",
-      hero: "Hero",
-      info_page: "Info Page",
-      landing: "Landing Page",
-      landing_example: "Landing Example",
-      live_example: "Live Example",
-      listen_on: "Listen-On",
-      overlay: "Overlay",
-      player: "Player",
-      popular_track: "Popular Track",
-      search_input: "Search Input",
-      share_card: "Share Card",
-      similar_artist: "Similar Artist",
-      system_menu: "System Menu",
-      upcoming_event: "Upcoming Event",
-      ui: "UI",
-      unknown: "Unknown",
-    },
-    confidenceLabels: {
-      low: "Low",
-      medium: "Medium",
-      high: "High",
-    },
-    kpis: {
-      clusters: "Network Clusters",
-      devices: "Devices",
-      sessions: "Sessions",
-      pageviews: "Pageviews",
-      searches: "Searches",
-      resolves: "Resolves",
-      listenOn: "Listen-On Clicks",
-      interactions: "Interactions",
-      playerStarts: "Player Starts",
-    },
-    sections: {
-      funnel: "Resolve Funnel by Platform",
-      households: "Estimated Households",
-      heatmap: "Click Heatmap per Page",
-      clickpath: "Clickpath Flow",
-      drilldown: "Cluster, Device and Session Drilldown",
-      deviceDrilldown: "Device Drilldown",
-      sessionDrilldown: "Session Drilldown",
-      inspector: "Node Inspector",
-      interactions: "Interactions",
-      searches: "Search Terms",
-      timeline: "Recent Events",
-    },
-    columns: {
-      platform: "Platform",
-      resolves: "Resolves",
-      share: "Share",
-      household: "Cluster",
-      confidence: "Confidence",
-      devices: "Devices",
-      searches: "Searches",
-      query: "Query",
-      event: "Event",
-      count: "Count",
-      clusters: "Clusters",
-      sessions: "Sessions",
-      events: "Events",
-      pageviews: "Pageviews",
-      firstSeen: "First seen",
-      entry: "Entry",
-      exit: "Exit",
-    },
-    heatmapHint:
-      "Aggregated relative click coordinates per allowed route. DOM snapshots and form contents are not stored.",
-    pathHint:
-      "The flow shows the real event sequence for the most active network cluster in the period. Nodes are selectable and populate the inspector.",
-  },
-};
-
-const SERVICE_LABELS: Record<string, string> = {
-  amazon: "Amazon Music",
-  amazon_music: "Amazon Music",
-  apple: "Apple Music",
-  apple_music: "Apple Music",
-  bandcamp: "Bandcamp",
-  deezer: "Deezer",
-  musicbrainz: "MusicBrainz",
-  qobuz: "Qobuz",
-  soundcloud: "SoundCloud",
-  spotify: "Spotify",
-  tidal: "TIDAL",
-  youtube: "YouTube Music",
-  youtube_music: "YouTube Music",
-};
 
 const FLOW_LANES: Record<string, number> = {
   page_view: 40,
@@ -571,36 +221,6 @@ function EmptyState({ copy }: { copy: WebsiteCopy }) {
   return <p className="text-sm text-[var(--ds-text-subtle)]">{copy.noData}</p>;
 }
 
-function titleCase(value: string) {
-  return value.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
-}
-
-function normalizeIdentifier(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[.\s-]+/g, "_");
-}
-
-function formatNaturalText(value: string | null | undefined, copy: WebsiteCopy) {
-  if (!value) return "-";
-  if (value.startsWith("/") || value.startsWith("#")) return value;
-
-  const normalized = normalizeIdentifier(value);
-  if (SERVICE_LABELS[normalized]) return SERVICE_LABELS[normalized];
-  if (copy.identifierLabels[normalized]) return copy.identifierLabels[normalized];
-  if (copy.eventLabels[normalized]) return copy.eventLabels[normalized];
-
-  return value
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((part) => {
-      const partKey = normalizeIdentifier(part);
-      return SERVICE_LABELS[partKey] ?? copy.identifierLabels[partKey] ?? titleCase(part);
-    })
-    .join(" ");
-}
-
 function formatEventType(eventType: string, copy: WebsiteCopy) {
   return copy.eventLabels[eventType] ?? formatNaturalText(eventType, copy);
 }
@@ -633,6 +253,15 @@ function formatDeviceMeta(
 function eventDetail(event: WebsiteAnalyticsPathEvent, copy: WebsiteCopy) {
   const detail = event.label ?? event.platform ?? event.surface ?? event.routeTemplate ?? event.path;
   return detail ? formatNaturalText(detail, copy) : formatEventType(event.eventType, copy);
+}
+
+function formatReferrer(value: string | null | undefined, copy: WebsiteCopy) {
+  return value && value !== "direct" ? value : copy.directTraffic;
+}
+
+function formatRoute(value: string | null | undefined, copy: WebsiteCopy) {
+  if (!value) return "-";
+  return copy.routeLabels[value] ?? formatNaturalText(value, copy);
 }
 
 function PlatformFunnel({
@@ -780,6 +409,69 @@ function HouseholdTable({
             getRowClassName={(row) => (row.clusterKey === selectedClusterKey ? "bg-[var(--ds-nav-active-bg)]" : "")}
             getRowKey={(row) => row.clusterKey}
             defaultSort={{ id: "searches", dir: "desc" }}
+          />
+        )}
+      </DashboardSection.Body>
+    </DashboardSection>
+  );
+}
+
+function ReferrerTable({
+  copy,
+  formatNumber,
+  rows,
+}: {
+  copy: WebsiteCopy;
+  formatNumber: (value: number) => string;
+  rows: WebsiteAnalyticsOverview["referrers"];
+}) {
+  const columns = useMemo<ColumnDef<WebsiteAnalyticsOverview["referrers"][number]>[]>(
+    () => [
+      {
+        id: "source",
+        header: copy.columns.sourceWebsite,
+        cell: (row) => <span className="font-mono text-xs">{formatReferrer(row.referrerDomain, copy)}</span>,
+        sortKey: (row) => row.referrerDomain,
+      },
+      {
+        id: "route",
+        header: copy.columns.route,
+        cell: (row) => formatRoute(row.routeTemplate, copy),
+        sortKey: (row) => formatRoute(row.routeTemplate, copy),
+      },
+      {
+        id: "pageviews",
+        header: copy.columns.pageviews,
+        cell: (row) => <span className="tabular-nums">{formatNumber(row.pageviews)}</span>,
+        className: "text-right",
+        sortKey: (row) => row.pageviews,
+      },
+      {
+        id: "clusters",
+        header: copy.columns.clusters,
+        cell: (row) => <span className="tabular-nums">{formatNumber(row.clusters)}</span>,
+        className: "text-right",
+        sortKey: (row) => row.clusters,
+      },
+    ],
+    [copy, formatNumber],
+  );
+
+  return (
+    <DashboardSection>
+      <DashboardSection.Header
+        icon={<PathIcon weight="duotone" className="h-4 w-4" />}
+        title={copy.sections.referrers}
+      />
+      <DashboardSection.Body flush={rows.length > 0}>
+        {rows.length === 0 ? (
+          <EmptyState copy={copy} />
+        ) : (
+          <DataTable
+            columns={columns}
+            data={rows}
+            getRowKey={(row) => `${row.routeTemplate ?? "unknown"}:${row.referrerDomain}`}
+            defaultSort={{ id: "pageviews", dir: "desc" }}
           />
         )}
       </DashboardSection.Body>
@@ -1030,96 +722,6 @@ function DrilldownSection({
   );
 }
 
-function HeatmapPreview({
-  copy,
-  points,
-  routes,
-}: {
-  copy: WebsiteCopy;
-  points: WebsiteAnalyticsOverview["heatmap"];
-  routes: WebsiteAnalyticsOverview["heatmapRoutes"];
-}) {
-  const [selectedRoute, setSelectedRoute] = useState("all");
-  const filteredPoints = useMemo(
-    () => points.filter((point) => selectedRoute === "all" || point.routeTemplate === selectedRoute),
-    [points, selectedRoute],
-  );
-
-  return (
-    <DashboardSection className="min-h-full">
-      <DashboardSection.Header
-        icon={<CursorClickIcon weight="duotone" className="h-4 w-4" />}
-        title={copy.sections.heatmap}
-      />
-      <DashboardSection.Body>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setSelectedRoute("all")}
-            className={`h-8 rounded-control px-3 text-xs font-medium ${
-              selectedRoute === "all"
-                ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]"
-                : "bg-[var(--ds-bg-elevated)] text-[var(--ds-text-subtle)] hover:text-[var(--ds-text)]"
-            }`}
-          >
-            {copy.allRoutes}
-          </button>
-          {routes.map((route) => (
-            <button
-              type="button"
-              key={`${route.routeTemplate}-${route.viewportBucket ?? "all"}`}
-              onClick={() => setSelectedRoute(route.routeTemplate)}
-              className={`h-8 rounded-control px-3 text-xs font-medium ${
-                selectedRoute === route.routeTemplate
-                  ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]"
-                  : "bg-[var(--ds-bg-elevated)] text-[var(--ds-text-subtle)] hover:text-[var(--ds-text)]"
-              }`}
-            >
-              {route.routeTemplate} - {route.clicks}
-            </button>
-          ))}
-        </div>
-        <div className="relative h-80 overflow-hidden rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-bg-elevated)]">
-          <div className="absolute inset-0 grid grid-cols-[1fr_1.35fr] gap-4 p-5 opacity-70">
-            <div className="space-y-3">
-              <div className="h-9 rounded-lg bg-[var(--ds-surface)]" />
-              <div className="h-24 rounded-lg bg-[var(--ds-surface)]" />
-              <div className="h-16 rounded-lg bg-[var(--ds-surface)]" />
-            </div>
-            <div className="space-y-3">
-              <div className="h-16 rounded-lg bg-[var(--ds-surface)]" />
-              <div className="grid grid-cols-2 gap-3">
-                <div className="h-24 rounded-lg bg-[var(--ds-surface)]" />
-                <div className="h-24 rounded-lg bg-[var(--ds-surface)]" />
-              </div>
-              <div className="h-12 rounded-lg bg-[var(--ds-surface)]" />
-            </div>
-          </div>
-          {filteredPoints.map((point) => {
-            const size = Math.min(110, 42 + point.count * 10);
-            return (
-              <span
-                key={`${point.routeTemplate ?? ""}-${point.x}-${point.y}-${point.elementKey ?? ""}`}
-                className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-400/45 blur-xl"
-                style={{ left: `${point.x}%`, top: `${point.y}%`, width: size, height: size }}
-                title={formatNaturalText(point.elementKey ?? point.surface, copy)}
-              />
-            );
-          })}
-          {filteredPoints.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <EmptyState copy={copy} />
-            </div>
-          )}
-          <div className="absolute bottom-4 left-4 right-4 rounded-lg border border-[var(--ds-border-subtle)] bg-[var(--ds-surface)]/90 px-3 py-2 text-sm text-[var(--ds-text-subtle)] backdrop-blur">
-            {copy.heatmapHint}
-          </div>
-        </div>
-      </DashboardSection.Body>
-    </DashboardSection>
-  );
-}
-
 function ClickpathFlow({
   copy,
   events,
@@ -1356,7 +958,8 @@ function NodeInspector({
         [copy.inspectorLabels.session, formatSessionId(event.sessionId)],
         [copy.inspectorLabels.surface, formatNaturalText(event.surface, copy)],
         [copy.inspectorLabels.platform, formatNaturalText(event.platform, copy)],
-        [copy.inspectorLabels.route, event.routeTemplate ?? event.path ?? "-"],
+        [copy.inspectorLabels.route, formatRoute(event.routeTemplate ?? event.path, copy)],
+        [copy.inspectorLabels.referrer, formatReferrer(event.referrerDomain, copy)],
         [copy.inspectorLabels.device, formatDeviceMeta([event.deviceClass, event.osFamily, event.browserFamily], copy)],
         [copy.inspectorLabels.detail, eventDetail(event, copy)],
         [copy.inspectorLabels.occurredAt, formatDateTime(event.occurredAt, locale)],
@@ -1407,7 +1010,7 @@ export function WebsiteAnalyticsSection({
   selectedDeviceKey,
   selectedSessionId,
 }: WebsiteAnalyticsSectionProps) {
-  const copy = COPY[locale];
+  const copy = getWebsiteAnalyticsCopy(locale);
   const totals = data?.totals ?? EMPTY_TOTALS;
   const hasDrilldownSelection = Boolean(selectedClusterKey || selectedDeviceKey || selectedSessionId);
   const clickpathEvents = useMemo(
@@ -1481,6 +1084,8 @@ export function WebsiteAnalyticsSection({
         />
       </div>
 
+      <ReferrerTable copy={copy} formatNumber={formatNumber} rows={data?.referrers ?? []} />
+
       <DrilldownSection
         copy={copy}
         detail={detail}
@@ -1494,12 +1099,9 @@ export function WebsiteAnalyticsSection({
         selectedSessionId={selectedSessionId}
       />
 
-      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.85fr)]">
-        <HeatmapPreview copy={copy} points={data?.heatmap ?? []} routes={data?.heatmapRoutes ?? []} />
-        <div className="grid gap-3">
-          <TopSearches copy={copy} formatNumber={formatNumber} rows={data?.searches ?? []} />
-          <InteractionBreakdown copy={copy} formatNumber={formatNumber} rows={data?.interactions ?? []} />
-        </div>
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
+        <TopSearches copy={copy} formatNumber={formatNumber} rows={data?.searches ?? []} />
+        <InteractionBreakdown copy={copy} formatNumber={formatNumber} rows={data?.interactions ?? []} />
       </div>
 
       <ClickpathFlow
