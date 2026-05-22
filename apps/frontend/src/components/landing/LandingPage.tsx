@@ -78,7 +78,15 @@ function ActiveShareResult({
       onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
     >
       <div className="mb-4 text-center sm:mb-6">
-        <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleShareLogoClick}>
+        <a
+          href="/"
+          aria-label="Go to musiccloud home"
+          className="inline-block"
+          onClick={handleShareLogoClick}
+          data-analytics-key="logo.home"
+          data-analytics-label="logo_home"
+          data-analytics-surface="logo"
+        >
           <LogoView className="w-56 sm:w-64 h-auto" />
         </a>
       </div>

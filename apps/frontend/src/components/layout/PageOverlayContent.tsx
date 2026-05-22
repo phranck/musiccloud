@@ -7,6 +7,7 @@ import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { TranslucentCard } from "@/components/cards/TranslucentCard";
 import { EmbossedCloseButton } from "@/components/ui/EmbossedCloseButton";
+import { getContentPageKind, trackContentSegmentClick } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { embossedOverlayCardStyle } from "@/styles/neumorphic";
 
@@ -117,7 +118,7 @@ function useSegmented(page: PublicContentPage): {
   segments: { key: string; label: string }[];
   active: string;
   activeIndex: number;
-  setActive: (next: string) => void;
+  setActive: (next: string, surface?: string) => void;
   currentHtml: string;
   currentTitle: string;
   currentShowTitle: boolean;
@@ -132,9 +133,20 @@ function useSegmented(page: PublicContentPage): {
     segments,
     active: String(activeIndex),
     activeIndex,
-    setActive: (next) => {
+    setActive: (next, surface = "content") => {
       const idx = Number.parseInt(next, 10);
-      if (!Number.isNaN(idx)) setActiveIndex(idx);
+      if (Number.isNaN(idx)) return;
+      const segment = page.segments[idx];
+      if (segment) {
+        trackContentSegmentClick({
+          label: segment.label,
+          pageKind: getContentPageKind(page.slug, page.title),
+          segmentIndex: idx,
+          slug: page.slug,
+          surface,
+        });
+      }
+      setActiveIndex(idx);
     },
     currentHtml: current?.contentHtml ?? "",
     currentTitle: current?.title ?? page.title,
@@ -176,7 +188,7 @@ export function TranslucentOverlayContent({ page, onClose }: OverlayContentProps
         <TranslucentCard.SegmentedControl
           segments={segmented.segments}
           value={segmented.active}
-          onChange={segmented.setActive}
+          onChange={(value) => segmented.setActive(value, "overlay_segment")}
         />
       )}
       <TranslucentCard.Body className={isSegmented ? "px-4 sm:px-5" : undefined}>
@@ -206,7 +218,7 @@ export function EmbossedOverlayContent({ page, onClose }: OverlayContentProps) {
         <EmbossedCard.SegmentedControl
           segments={segmented.segments}
           value={segmented.active}
-          onChange={segmented.setActive}
+          onChange={(value) => segmented.setActive(value, "overlay_segment")}
         />
       )}
       <EmbossedCard.Body className="flex-1 min-h-0 overflow-hidden pt-3">
@@ -257,7 +269,7 @@ export function SegmentedPageFullscreen({ page }: { page: PublicContentPage }) {
         <EmbossedCard.SegmentedControl
           segments={segmented.segments}
           value={segmented.active}
-          onChange={segmented.setActive}
+          onChange={(value) => segmented.setActive(value, "content_segment")}
         />
       )}
       <EmbossedCard.Body className="p-3">

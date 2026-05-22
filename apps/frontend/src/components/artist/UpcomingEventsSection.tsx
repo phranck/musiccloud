@@ -21,9 +21,11 @@ export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEv
           <EmbossedButton
             key={`${event.date}-${event.venueName || event.city}`}
             noScale
-            onClick={event.ticketUrl ? () => trackUpcomingEventClick(index, "ticketmaster") : undefined}
-            data-analytics-key="artist.upcoming_event"
-            data-analytics-surface="upcoming_events"
+            onClick={
+              event.ticketUrl
+                ? () => trackUpcomingEventClick(index, "ticketmaster", `${event.venueName} - ${event.city}`)
+                : undefined
+            }
             className="flex items-center gap-3 w-full px-3 py-2 no-underline"
             {...linkProps}
           >

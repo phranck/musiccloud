@@ -165,6 +165,15 @@ function baseEvent(eventType: WebsiteAnalyticsEventType): WebsiteAnalyticsEvent 
   };
 }
 
+function navigationType(): "back_forward" | "navigate" | "reload" {
+  const entry = performance.getEntriesByType("navigation")[0];
+  if (entry && "type" in entry) {
+    const type = entry.type;
+    if (type === "back_forward" || type === "reload") return type;
+  }
+  return "navigate";
+}
+
 function safeDomain(value: string): string | null {
   if (!value) return null;
   try {
@@ -237,16 +246,24 @@ function trackElementClick(event: MouseEvent) {
     platform: target.dataset.analyticsPlatform ?? null,
     xPct: Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
     yPct: Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100)),
+    eventData: { label: target.dataset.analyticsLabel ?? target.ariaLabel ?? null },
   });
 }
 
 function trackPageView() {
-  enqueue(baseEvent("page_view"));
+  const type = navigationType();
+  enqueue({
+    ...baseEvent("page_view"),
+    surface: "browser",
+    elementKey: `browser.${type}`,
+    eventData: { label: `browser_${type}`, navigation_type: type },
+  });
 }
 
-export function trackSearchSubmitted(query: string, queryType: string) {
+export function trackSearchSubmitted(query: string, queryType: string, platform?: string | null) {
   enqueue({
     ...baseEvent("search_submitted"),
+    platform: platform ?? null,
     eventData: { query_normalized: query.trim().slice(0, 160), query_type: queryType },
   });
 }
@@ -262,6 +279,15 @@ export function trackResolve(service: string, surface = "unknown") {
 
 export function trackResolveFailed(platform: string | null, surface: string, errorClass: string) {
   enqueue({ ...baseEvent("resolve_failed"), platform, surface, eventData: { error_class: errorClass } });
+}
+
+export function trackSelectedCandidateClick(candidateId: string) {
+  enqueue({
+    ...baseEvent("ui_click"),
+    surface: "disambiguation",
+    elementKey: "disambiguation.selected_candidate",
+    eventData: { candidate_id: candidateId, label: "selected_candidate" },
+  });
 }
 
 export function trackLiveExampleClick(shortId: string) {
@@ -283,37 +309,85 @@ export function trackLayeredFooterClick() {
   });
 }
 
-export function trackServiceLinkClick(service: string) {
+export function trackOverlayPanelGesture(slug: string, gesture: "drag" | "resize") {
+  enqueue({
+    ...baseEvent("ui_click"),
+    surface: "overlay_panel",
+    elementKey: `overlay.${gesture}`,
+    eventData: { label: `overlay_${gesture}`, slug },
+  });
+}
+
+export function trackContentSegmentClick({
+  label,
+  pageKind,
+  segmentIndex,
+  slug,
+  surface,
+}: {
+  label: string;
+  pageKind: "help" | "info" | null;
+  segmentIndex: number;
+  slug: string;
+  surface: string;
+}) {
+  enqueue({
+    ...baseEvent(pageKind === "help" ? "help_page_clicked" : pageKind === "info" ? "info_page_clicked" : "ui_click"),
+    elementKey: `content.segment.${slug}.${segmentIndex}`,
+    surface,
+    eventData: {
+      label,
+      page_kind: pageKind,
+      segment_index: segmentIndex,
+      slug,
+    },
+  });
+}
+
+export function trackServiceLinkClick(service: string, label?: string | null) {
   trackUmami("service-link-click", { service });
   enqueue({
     ...baseEvent("listen_on_clicked"),
     platform: service,
     surface: "listen_on",
     elementKey: `listen_on.${service}`,
+    eventData: { label: label ?? service },
   });
 }
 
-export function trackPopularTrackClick(position?: number) {
+export function trackPopularTrackClick(position?: number, trackTitle?: string | null, artistName?: string | null) {
+  const label = trackTitle && artistName ? `${trackTitle} - ${artistName}` : trackTitle;
   enqueue({
     ...baseEvent("popular_track_clicked"),
     surface: "popular_tracks",
-    eventData: { position: position ?? null },
+    eventData: {
+      artist_name: artistName ?? null,
+      label: label ?? null,
+      position: position ?? null,
+      track_title: trackTitle ?? null,
+    },
   });
 }
 
-export function trackSimilarArtistClick(position?: number) {
+export function trackSimilarArtistClick(position?: number, trackTitle?: string | null, artistName?: string | null) {
+  const label = trackTitle && artistName ? `${trackTitle} - ${artistName}` : (artistName ?? trackTitle);
   enqueue({
     ...baseEvent("similar_artist_clicked"),
     surface: "similar_artists",
-    eventData: { position: position ?? null },
+    eventData: {
+      artist_name: artistName ?? null,
+      label: label ?? null,
+      position: position ?? null,
+      track_title: trackTitle ?? null,
+    },
   });
 }
 
-export function trackUpcomingEventClick(position: number, provider?: string | null) {
+export function trackUpcomingEventClick(position: number, provider?: string | null, label?: string | null) {
   enqueue({
     ...baseEvent("upcoming_event_clicked"),
     surface: "upcoming_events",
-    eventData: { position, provider: provider ?? null },
+    eventData: { label: label ?? null, position, provider: provider ?? null },
   });
 }
 
@@ -329,6 +403,10 @@ function contentPageKind(slug: string, label?: string | null): "help" | "info" |
   if (/\b(help|hilfe|support|faq)\b/.test(haystack)) return "help";
   if (/\b(info|about|ueber|uber|impressum|privacy|datenschutz)\b/.test(haystack)) return "info";
   return null;
+}
+
+export function getContentPageKind(slug: string, label?: string | null): "help" | "info" | null {
+  return contentPageKind(slug, label);
 }
 
 export function trackContentPageClick({

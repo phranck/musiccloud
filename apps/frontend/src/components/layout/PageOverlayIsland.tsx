@@ -16,6 +16,7 @@ import { OVERLAY_TRANSITION_MS, OverlayBackdrop } from "@/components/ui/OverlayB
 import { OverlayProvider, useOverlay } from "@/context/OverlayContext";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider } from "@/i18n/context";
+import { trackOverlayPanelGesture } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -284,6 +285,7 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
     const el = frameRef.current;
     if (el?.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
     gestureRef.current = null;
+    trackOverlayPanelGesture(slug, g.kind);
     setGeom((cur) => {
       if (cur) saveGeom(slug, cur);
       return cur;

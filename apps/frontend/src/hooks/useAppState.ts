@@ -9,7 +9,13 @@ import {
 } from "@musiccloud/shared";
 import { useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
-import { trackResolve, trackResolveFailed, trackResolveStarted, trackSearchSubmitted } from "@/lib/analytics";
+import {
+  trackResolve,
+  trackResolveFailed,
+  trackResolveStarted,
+  trackSearchSubmitted,
+  trackSelectedCandidateClick,
+} from "@/lib/analytics";
 import { detectServiceFromUrl } from "@/lib/platform/url";
 import { appReducer, parseErrorKey, parseResolveResponse, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import type { ActiveResult, AppState, GenreSearchPayload, ReducerState } from "@/lib/types/app";
@@ -88,7 +94,7 @@ export function useAppState(): UseAppStateResult {
     const sourcePlatform = detectServiceFromUrl(url);
     const surface = options.surface ?? "landing_search";
     if (!options.suppressResolveAnalytics) {
-      trackSearchSubmitted(url, queryType(url));
+      trackSearchSubmitted(url, queryType(url), sourcePlatform);
       trackResolveStarted(sourcePlatform, surface);
     }
     try {
@@ -142,7 +148,7 @@ export function useAppState(): UseAppStateResult {
 
   const handleSelectCandidate = useCallback(async (candidate: DisambiguationCandidate) => {
     dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
-    trackResolveStarted("selected_candidate", "disambiguation");
+    trackSelectedCandidateClick(candidate.id);
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
@@ -159,9 +165,7 @@ export function useAppState(): UseAppStateResult {
       }
       const data = (await response.json()) as ResolveSuccessResponse;
       dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data) });
-      trackResolve("selected_candidate", "disambiguation");
     } catch (err) {
-      trackResolveFailed("selected_candidate", "disambiguation", parseErrorKey(err));
       dispatch({ type: "ERROR", message: parseErrorKey(err) });
     }
   }, []);

@@ -68,10 +68,7 @@ export const PlatformButton = memo(function PlatformButton({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Open ${songTitle} on ${label} (opens in new window)`}
-      onClick={() => trackServiceLinkClick(platform)}
-      data-analytics-key={`listen_on.${platform}`}
-      data-analytics-surface="listen_on"
-      data-analytics-platform={platform}
+      onClick={() => trackServiceLinkClick(platform, label)}
       className={cn(
         "flex w-full items-center px-3 no-underline max-[389px]:px-2",
         "hover:shadow-[0_0_8px_var(--embossed-glow)] focus-visible:shadow-[0_0_8px_var(--embossed-glow)]",

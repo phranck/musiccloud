@@ -68,7 +68,7 @@ export function PopularTrack({
       if (resolving) return;
 
       setResolving(true);
-      if (surface === "popular_tracks") trackPopularTrackClick(position);
+      if (surface === "popular_tracks") trackPopularTrackClick(position, track.title, track.artists.join(", "));
       onResolveStart?.();
       try {
         if (!onTrackResolve) {
@@ -93,9 +93,6 @@ export function PopularTrack({
       onClick={handleListen}
       disabled={resolving}
       aria-busy={resolving}
-      data-analytics-key={`artist.${surface}`}
-      data-analytics-surface={surface}
-      data-analytics-media-type="track"
       noScale
       className="flex items-center gap-3 w-full p-2"
     >

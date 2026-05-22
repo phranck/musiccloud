@@ -37,7 +37,7 @@ export function SimilarArtistsSection({
           surface="similar_artists"
           onTrackResolve={onTrackResolve}
           onResolveStart={() => {
-            trackSimilarArtistClick(index);
+            trackSimilarArtistClick(index, track.title, artistName);
             onResolveStart?.();
           }}
         />
