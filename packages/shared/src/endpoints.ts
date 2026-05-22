@@ -271,6 +271,10 @@ export const ENDPOINTS = {
         /** GET: interactions (total count). */
         interactionsTotal: "/api/admin/analytics/events/interactions/total",
       },
+      website: {
+        /** GET: first-party website analytics overview. */
+        overview: "/api/admin/analytics/website/overview",
+      },
     },
 
     crawler: {

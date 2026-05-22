@@ -476,6 +476,7 @@ export interface TrackRepository {
 
   // Website behaviour analytics (public website, pseudonymous)
   insertWebsiteAnalyticsBatch(batch: WebsiteAnalyticsBatchInput): Promise<number>;
+  getWebsiteAnalyticsOverview(since: Date): Promise<WebsiteAnalyticsOverview>;
 
   // Crawler: state + runs (migration 0023). The heartbeat lives in
   // services/crawler/heartbeat.ts and orchestrates these calls; the admin
@@ -574,4 +575,25 @@ export interface WebsiteAnalyticsEventInput {
 export interface WebsiteAnalyticsBatchInput {
   session: WebsiteAnalyticsSessionInput;
   events: WebsiteAnalyticsEventInput[];
+}
+
+export interface WebsiteAnalyticsOverview {
+  totals: {
+    clusters: number;
+    devices: number;
+    sessions: number;
+    searches: number;
+    resolves: number;
+    listenOn: number;
+  };
+  platforms: Array<{ platform: string; resolves: number }>;
+  clusters: Array<{ cluster: string; confidence: string; devices: number; searches: number }>;
+  heatmap: Array<{ x: number; y: number; count: number; elementKey: string | null; surface: string | null }>;
+  recentEvents: Array<{
+    occurredAt: string;
+    eventType: string;
+    cluster: string;
+    surface: string | null;
+    platform: string | null;
+  }>;
 }

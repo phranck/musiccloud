@@ -63,6 +63,7 @@ import type {
   SharePageDbResult,
   TrackRepository,
   WebsiteAnalyticsBatchInput,
+  WebsiteAnalyticsOverview,
 } from "../repository.js";
 
 // ============================================================================
@@ -476,6 +477,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async insertWebsiteAnalyticsBatch(batch: WebsiteAnalyticsBatchInput): Promise<number> {
     return insertWebsiteAnalyticsBatch(this.pool, batch);
+  }
+
+  async getWebsiteAnalyticsOverview(since: Date): Promise<WebsiteAnalyticsOverview> {
+    return getWebsiteAnalyticsOverview(this.pool, since);
   }
 
   // ============================================================================
@@ -4335,6 +4340,111 @@ async function insertWebsiteAnalyticsBatch(
   } finally {
     client.release();
   }
+}
+
+async function getWebsiteAnalyticsOverview(
+  pool: InstanceType<typeof pgModule.default.Pool>,
+  since: Date,
+): Promise<WebsiteAnalyticsOverview> {
+  const [totals, platforms, clusters, heatmap, recentEvents] = await Promise.all([
+    pool.query(
+      `SELECT
+        COUNT(DISTINCT network_cluster_key)::int AS clusters,
+        COUNT(DISTINCT device_key)::int AS devices,
+        COUNT(DISTINCT session_id)::int AS sessions,
+        COUNT(*) FILTER (WHERE event_type = 'search_submitted')::int AS searches,
+        COUNT(*) FILTER (WHERE event_type = 'resolve_succeeded')::int AS resolves,
+        COUNT(*) FILTER (WHERE event_type = 'listen_on_clicked')::int AS listen_on
+       FROM analytics_events
+       WHERE occurred_at >= $1`,
+      [since],
+    ),
+    pool.query(
+      `SELECT COALESCE(platform, 'unknown') AS platform, COUNT(*)::int AS resolves
+       FROM analytics_events
+       WHERE occurred_at >= $1 AND event_type = 'resolve_succeeded'
+       GROUP BY COALESCE(platform, 'unknown')
+       ORDER BY resolves DESC, platform ASC
+       LIMIT 8`,
+      [since],
+    ),
+    pool.query(
+      `SELECT
+        CONCAT('#', RIGHT(network_cluster_key, 6)) AS cluster,
+        MAX(confidence) AS confidence,
+        COUNT(DISTINCT device_key)::int AS devices,
+        COUNT(*) FILTER (WHERE event_type = 'search_submitted')::int AS searches
+       FROM analytics_events
+       WHERE occurred_at >= $1
+       GROUP BY network_cluster_key
+       ORDER BY searches DESC, devices DESC, cluster ASC
+       LIMIT 8`,
+      [since],
+    ),
+    pool.query(
+      `SELECT
+        ROUND(AVG(x_pct)::numeric, 2)::float AS x,
+        ROUND(AVG(y_pct)::numeric, 2)::float AS y,
+        COUNT(*)::int AS count,
+        element_key,
+        surface
+       FROM analytics_events
+       WHERE occurred_at >= $1
+         AND event_type = 'ui_click'
+         AND x_pct IS NOT NULL
+         AND y_pct IS NOT NULL
+       GROUP BY route_template, viewport_bucket, element_key, surface
+       ORDER BY count DESC
+       LIMIT 20`,
+      [since],
+    ),
+    pool.query(
+      `SELECT
+        occurred_at,
+        event_type,
+        CONCAT('#', RIGHT(network_cluster_key, 6)) AS cluster,
+        surface,
+        platform
+       FROM analytics_events
+       WHERE occurred_at >= $1
+       ORDER BY occurred_at DESC
+       LIMIT 12`,
+      [since],
+    ),
+  ]);
+
+  const totalsRow = totals.rows[0] ?? {};
+  return {
+    totals: {
+      clusters: Number(totalsRow.clusters ?? 0),
+      devices: Number(totalsRow.devices ?? 0),
+      sessions: Number(totalsRow.sessions ?? 0),
+      searches: Number(totalsRow.searches ?? 0),
+      resolves: Number(totalsRow.resolves ?? 0),
+      listenOn: Number(totalsRow.listen_on ?? 0),
+    },
+    platforms: platforms.rows.map((row) => ({ platform: String(row.platform), resolves: Number(row.resolves) })),
+    clusters: clusters.rows.map((row) => ({
+      cluster: String(row.cluster),
+      confidence: String(row.confidence ?? "low"),
+      devices: Number(row.devices),
+      searches: Number(row.searches),
+    })),
+    heatmap: heatmap.rows.map((row) => ({
+      x: Number(row.x),
+      y: Number(row.y),
+      count: Number(row.count),
+      elementKey: row.element_key,
+      surface: row.surface,
+    })),
+    recentEvents: recentEvents.rows.map((row) => ({
+      occurredAt: row.occurred_at instanceof Date ? row.occurred_at.toISOString() : String(row.occurred_at),
+      eventType: String(row.event_type),
+      cluster: String(row.cluster),
+      surface: row.surface,
+      platform: row.platform,
+    })),
+  };
 }
 
 function rowToNavItem(row: NavItemSqlRow): NavItemRow {

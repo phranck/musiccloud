@@ -35,7 +35,7 @@
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
-import { getAdminRepository } from "../db/index.js";
+import { getAdminRepository, getRepository } from "../db/index.js";
 import {
   getManagedUmamiActive,
   getManagedUmamiInteractionTotal,
@@ -48,6 +48,12 @@ import {
   getManagedUmamiResolveTotal,
   getManagedUmamiStats,
 } from "../services/admin-umami.js";
+
+function periodSince(period: string | undefined): Date {
+  const now = Date.now();
+  const days = period === "today" ? 1 : period === "30d" ? 30 : period === "60d" ? 60 : period === "90d" ? 90 : 7;
+  return new Date(now - days * 24 * 60 * 60 * 1000);
+}
 
 export default async function adminAnalyticsRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.analytics.stats, async (request) => {
@@ -122,5 +128,11 @@ export default async function adminAnalyticsRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.analytics.events.interactionsTotal, async (request) => {
     const q = request.query as { period?: string };
     return (await getManagedUmamiInteractionTotal(q.period)) ?? { total: 0 };
+  });
+
+  app.get(ENDPOINTS.admin.analytics.website.overview, async (request) => {
+    const q = request.query as { period?: string };
+    const repo = await getRepository();
+    return repo.getWebsiteAnalyticsOverview(periodSince(q.period));
   });
 }

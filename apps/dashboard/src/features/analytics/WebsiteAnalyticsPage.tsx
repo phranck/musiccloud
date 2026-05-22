@@ -1,3 +1,5 @@
+import { ENDPOINTS } from "@musiccloud/shared";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -6,9 +8,10 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useI18n } from "@/context/I18nContext";
 import type { UmamiPeriod } from "@/features/analytics/hooks/useUmamiStats";
 import { useAuth } from "@/features/auth/AuthContext";
+import { api } from "@/lib/api";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
 
-import { WebsiteAnalyticsSection } from "./WebsiteAnalyticsSection";
+import { type WebsiteAnalyticsOverview, WebsiteAnalyticsSection } from "./WebsiteAnalyticsSection";
 
 const WEBSITE_ANALYTICS_PERIODS: UmamiPeriod[] = ["today", "7d", "30d", "60d", "90d"];
 
@@ -24,6 +27,10 @@ export function WebsiteAnalyticsPage() {
   const periodStorageKey = getSegmentedStorageKey(user?.id, "website-analytics:period");
   const [period, setPeriod] = useState<UmamiPeriod>(() => loadWebsiteAnalyticsPeriod(periodStorageKey));
   const m = messages.analytics;
+  const overviewQuery = useQuery({
+    queryKey: ["website-analytics-overview", period],
+    queryFn: () => api.get<WebsiteAnalyticsOverview>(`${ENDPOINTS.admin.analytics.website.overview}?period=${period}`),
+  });
 
   const handlePeriodChange = useCallback((nextPeriod: UmamiPeriod) => {
     setPeriod(nextPeriod);
@@ -52,7 +59,12 @@ export function WebsiteAnalyticsPage() {
             options={periodOptions}
           />
         </div>
-        <WebsiteAnalyticsSection formatNumber={formatNumber} locale={locale} period={period} />
+        <WebsiteAnalyticsSection
+          data={overviewQuery.data}
+          formatNumber={formatNumber}
+          isLoading={overviewQuery.isLoading}
+          locale={locale}
+        />
       </PageBody>
     </PageLayout>
   );
