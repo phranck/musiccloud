@@ -302,3 +302,36 @@ export function trackPlayerEvent(
 ) {
   enqueue({ ...baseEvent(eventType), shortId: shortId ?? currentShortId(), surface: "player" });
 }
+
+function contentPageKind(slug: string, label?: string | null): "help" | "info" | null {
+  const haystack = `${slug} ${label ?? ""}`.toLowerCase();
+  if (/\b(help|hilfe|support|faq)\b/.test(haystack)) return "help";
+  if (/\b(info|about|ueber|uber|impressum|privacy|datenschutz)\b/.test(haystack)) return "info";
+  return null;
+}
+
+export function trackContentPageClick({
+  label,
+  openMode,
+  slug,
+  surface,
+}: {
+  label?: string | null;
+  openMode: "fullscreen" | "overlay" | "external";
+  slug: string;
+  surface: string;
+}) {
+  const kind = contentPageKind(slug, label);
+  if (!kind) return;
+  enqueue({
+    ...baseEvent(kind === "help" ? "help_page_clicked" : "info_page_clicked"),
+    elementKey: `content.${kind}.${slug}`,
+    surface,
+    eventData: {
+      label: label ?? null,
+      open_mode: openMode,
+      page_kind: kind,
+      slug,
+    },
+  });
+}
