@@ -620,6 +620,13 @@ export interface WebsiteAnalyticsOverview {
   };
 }
 
+export interface WebsiteAnalyticsEventSubject {
+  type: "track" | "album" | "artist";
+  title: string;
+  artist: string | null;
+  artworkUrl: string | null;
+}
+
 export interface WebsiteAnalyticsPathEvent {
   id: string;
   occurredAt: string;
@@ -641,6 +648,8 @@ export interface WebsiteAnalyticsPathEvent {
   shortId: string | null;
   elementKey: string | null;
   label: string | null;
+  eventData: Record<string, unknown> | null;
+  subject: WebsiteAnalyticsEventSubject | null;
 }
 
 export interface WebsiteAnalyticsDrilldownParams {

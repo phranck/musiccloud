@@ -124,6 +124,11 @@ interface WebsiteAnalyticsPathEventRow {
   short_id: string | null;
   element_key: string | null;
   label: string | null;
+  event_data: Record<string, unknown> | null;
+  subject_type: "track" | "album" | "artist" | null;
+  subject_title: string | null;
+  subject_artist: string | null;
+  subject_artwork_url: string | null;
 }
 
 interface WebsiteAnalyticsDeviceSummaryRow {
@@ -136,6 +141,22 @@ interface WebsiteAnalyticsDeviceSummaryRow {
   browser_family: string | null;
   os_family: string | null;
 }
+
+const WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS = [
+  "amazon",
+  "amazon_music",
+  "apple",
+  "apple_music",
+  "bandcamp",
+  "deezer",
+  "musicbrainz",
+  "qobuz",
+  "soundcloud",
+  "spotify",
+  "tidal",
+  "youtube",
+  "youtube_music",
+] as const;
 
 interface WebsiteAnalyticsSessionSummaryRow {
   session_id: string;
@@ -433,6 +454,166 @@ const ARTIST_NAME_LATERAL_JOIN = `LEFT JOIN LATERAL (
     n.created_at ASC
   LIMIT 1
 ) artist_name ON TRUE`;
+
+const WEBSITE_ANALYTICS_SUBJECT_JOIN = `LEFT JOIN LATERAL (
+  SELECT
+    'track'::text AS subject_type,
+    t.title AS subject_title,
+    COALESCE((
+      SELECT tac.credit_name
+      FROM track_artist_credits tac
+      WHERE tac.track_id = t.id AND tac.credit_role = 'main'
+      ORDER BY tac.credit_position, tac.created_at
+      LIMIT 1
+    ), 'Unknown') AS subject_artist,
+    t.artwork_url AS subject_artwork_url
+  FROM tracks t
+  WHERE EXISTS (
+      SELECT 1
+      FROM short_urls su
+      WHERE su.track_id = t.id AND su.id = e.short_id
+    )
+     OR (
+      e.event_data->>'query_type' = 'url'
+      AND (
+        LOWER(SPLIT_PART(t.source_url, '?', 1)) = LOWER(SPLIT_PART(e.event_data->>'query_normalized', '?', 1))
+        OR EXISTS (
+          SELECT 1
+          FROM service_links slq
+          WHERE slq.track_id = t.id
+            AND (
+              LOWER(SPLIT_PART(slq.url, '?', 1)) = LOWER(SPLIT_PART(e.event_data->>'query_normalized', '?', 1))
+              OR (
+                slq.external_id IS NOT NULL
+                AND e.event_data->>'query_normalized' ILIKE '%' || slq.external_id || '%'
+              )
+            )
+        )
+      )
+    )
+
+  UNION ALL
+
+  SELECT
+    'album'::text AS subject_type,
+    a.title AS subject_title,
+    COALESCE((
+      SELECT aac.credit_name
+      FROM album_artist_credits aac
+      WHERE aac.album_id = a.id AND aac.credit_role = 'main'
+      ORDER BY aac.credit_position, aac.created_at
+      LIMIT 1
+    ), 'Unknown') AS subject_artist,
+    a.artwork_url AS subject_artwork_url
+  FROM albums a
+  WHERE EXISTS (
+      SELECT 1
+      FROM album_short_urls asu
+      WHERE asu.album_id = a.id AND asu.id = e.short_id
+    )
+     OR (
+      e.event_data->>'query_type' = 'url'
+      AND (
+        LOWER(SPLIT_PART(a.source_url, '?', 1)) = LOWER(SPLIT_PART(e.event_data->>'query_normalized', '?', 1))
+        OR EXISTS (
+          SELECT 1
+          FROM album_service_links aslq
+          WHERE aslq.album_id = a.id
+            AND (
+              LOWER(SPLIT_PART(aslq.url, '?', 1)) = LOWER(SPLIT_PART(e.event_data->>'query_normalized', '?', 1))
+              OR (
+                aslq.external_id IS NOT NULL
+                AND e.event_data->>'query_normalized' ILIKE '%' || aslq.external_id || '%'
+              )
+            )
+        )
+      )
+    )
+
+  UNION ALL
+
+  SELECT
+    'artist'::text AS subject_type,
+    COALESCE((
+      SELECT n.name
+      FROM artist_entity_names n
+      WHERE n.artist_entity_id = ar.artist_entity_id
+      ORDER BY
+        CASE
+          WHEN n.name_type = 'canonical' AND n.locale IS NULL THEN 0
+          WHEN n.name_type = 'canonical' THEN 1
+          WHEN n.name_type = 'credit' THEN 2
+          WHEN n.locale IS NULL THEN 3
+          ELSE 4
+        END,
+        n.created_at ASC
+      LIMIT 1
+    ), '[unnamed artist]') AS subject_title,
+    NULL::text AS subject_artist,
+    ar.image_url AS subject_artwork_url
+  FROM artist_profiles ar
+  WHERE EXISTS (
+      SELECT 1
+      FROM artist_short_urls asu
+      WHERE asu.artist_entity_id = ar.artist_entity_id AND asu.id = e.short_id
+    )
+     OR (
+      e.event_data->>'query_type' = 'url'
+      AND (
+        LOWER(SPLIT_PART(ar.source_url, '?', 1)) = LOWER(SPLIT_PART(e.event_data->>'query_normalized', '?', 1))
+        OR EXISTS (
+          SELECT 1
+          FROM artist_service_links aslq
+          WHERE aslq.artist_entity_id = ar.artist_entity_id
+            AND (
+              LOWER(SPLIT_PART(aslq.url, '?', 1)) = LOWER(SPLIT_PART(e.event_data->>'query_normalized', '?', 1))
+              OR (
+                aslq.external_id IS NOT NULL
+                AND e.event_data->>'query_normalized' ILIKE '%' || aslq.external_id || '%'
+              )
+            )
+        )
+      )
+    )
+
+  LIMIT 1
+) subject ON TRUE`;
+
+const WEBSITE_ANALYTICS_PATH_EVENT_SELECT = `e.id::text,
+        e.occurred_at,
+        e.event_type,
+        e.session_id::text,
+        e.device_key,
+        e.network_cluster_key,
+        CONCAT('#', RIGHT(e.network_cluster_key, 6)) AS cluster,
+        e.confidence,
+        e.path,
+        e.route_template,
+        e.referrer_domain,
+        e.device_class,
+        e.browser_family,
+        e.os_family,
+        e.surface,
+        e.platform,
+        e.media_type,
+        e.short_id,
+        e.element_key,
+        e.event_data,
+        subject.subject_type,
+        subject.subject_title,
+        subject.subject_artist,
+        subject.subject_artwork_url,
+        COALESCE(
+          NULLIF(e.event_data->>'label', ''),
+          NULLIF(subject.subject_title, ''),
+          NULLIF(e.event_data->>'query_normalized', ''),
+          NULLIF(e.event_data->>'error_class', ''),
+          NULLIF(e.event_data->>'provider', ''),
+          NULLIF(e.element_key, ''),
+          NULLIF(e.platform, ''),
+          NULLIF(e.route_template, ''),
+          NULLIF(e.path, '')
+        ) AS label`;
 
 // Convert Date to milliseconds for compatibility with sqlite.ts interface
 function dateToMs(date: Date | null | undefined): number {
@@ -4444,7 +4625,10 @@ async function refreshWebsiteAnalyticsDailySummaries(
           COUNT(*)::int AS event_count,
           COUNT(*) FILTER (WHERE event_type = 'page_view')::int AS pageview_count,
           COUNT(*) FILTER (WHERE event_type = 'search_submitted')::int AS search_count,
-          COUNT(*) FILTER (WHERE event_type = 'resolve_succeeded')::int AS resolve_count,
+          COUNT(*) FILTER (
+            WHERE event_type = 'resolve_succeeded'
+              AND (platform IS NULL OR platform = ANY($3::text[]))
+          )::int AS resolve_count,
           COUNT(*) FILTER (WHERE event_type = 'listen_on_clicked')::int AS listen_on_click_count,
           COUNT(*) FILTER (WHERE event_type = 'similar_artist_clicked')::int AS similar_artist_click_count,
           COUNT(*) FILTER (WHERE event_type = 'popular_track_clicked')::int AS popular_track_click_count,
@@ -4475,7 +4659,7 @@ async function refreshWebsiteAnalyticsDailySummaries(
           help_page_click_count = EXCLUDED.help_page_click_count,
           ui_click_count = EXCLUDED.ui_click_count,
           updated_at = NOW()`,
-      [day, networkClusterKey],
+      [day, networkClusterKey, WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS],
     );
   }
 }
@@ -4543,11 +4727,13 @@ async function getWebsiteAnalyticsOverview(
       pool.query(
         `SELECT COALESCE(platform, 'unknown') AS platform, COUNT(*)::int AS resolves
        FROM analytics_events
-       WHERE occurred_at >= $1 AND event_type = 'resolve_succeeded'
+       WHERE occurred_at >= $1
+         AND event_type = 'resolve_succeeded'
+         AND (platform IS NULL OR platform = ANY($2::text[]))
        GROUP BY COALESCE(platform, 'unknown')
        ORDER BY resolves DESC, platform ASC
        LIMIT 8`,
-        [since],
+        [since, WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS],
       ),
       pool.query(
         `WITH cluster_summaries AS (
@@ -4659,38 +4845,11 @@ async function getWebsiteAnalyticsOverview(
       ),
       pool.query<WebsiteAnalyticsPathEventRow>(
         `SELECT
-        id::text,
-        occurred_at,
-        event_type,
-        session_id::text,
-        device_key,
-        network_cluster_key,
-        CONCAT('#', RIGHT(network_cluster_key, 6)) AS cluster,
-        confidence,
-        path,
-        route_template,
-        referrer_domain,
-        device_class,
-        browser_family,
-        os_family,
-        surface,
-        platform,
-        media_type,
-        short_id,
-        element_key,
-        COALESCE(
-          NULLIF(event_data->>'query_normalized', ''),
-          NULLIF(event_data->>'error_class', ''),
-          NULLIF(event_data->>'provider', ''),
-          NULLIF(element_key, ''),
-          NULLIF(platform, ''),
-          NULLIF(short_id, ''),
-          NULLIF(route_template, ''),
-          NULLIF(path, '')
-        ) AS label
-       FROM analytics_events
-       WHERE occurred_at >= $1
-       ORDER BY occurred_at DESC
+        ${WEBSITE_ANALYTICS_PATH_EVENT_SELECT}
+       FROM analytics_events e
+       ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
+       WHERE e.occurred_at >= $1
+       ORDER BY e.occurred_at DESC
        LIMIT 18`,
         [since],
       ),
@@ -4704,39 +4863,12 @@ async function getWebsiteAnalyticsOverview(
          LIMIT 1
        )
        SELECT
-        id::text,
-        occurred_at,
-        event_type,
-        session_id::text,
-        device_key,
-        network_cluster_key,
-        CONCAT('#', RIGHT(network_cluster_key, 6)) AS cluster,
-        confidence,
-        path,
-        route_template,
-        referrer_domain,
-        device_class,
-        browser_family,
-        os_family,
-        surface,
-        platform,
-        media_type,
-        short_id,
-        element_key,
-        COALESCE(
-          NULLIF(event_data->>'query_normalized', ''),
-          NULLIF(event_data->>'error_class', ''),
-          NULLIF(event_data->>'provider', ''),
-          NULLIF(element_key, ''),
-          NULLIF(platform, ''),
-          NULLIF(short_id, ''),
-          NULLIF(route_template, ''),
-          NULLIF(path, '')
-        ) AS label
-       FROM analytics_events
-       WHERE occurred_at >= $1
-         AND network_cluster_key = (SELECT network_cluster_key FROM top_cluster)
-       ORDER BY occurred_at ASC
+        ${WEBSITE_ANALYTICS_PATH_EVENT_SELECT}
+       FROM analytics_events e
+       ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
+       WHERE e.occurred_at >= $1
+         AND e.network_cluster_key = (SELECT network_cluster_key FROM top_cluster)
+       ORDER BY e.occurred_at ASC
        LIMIT 80`,
         [since],
       ),
@@ -4815,6 +4947,16 @@ function rowToWebsiteAnalyticsPathEvent(row: WebsiteAnalyticsPathEventRow): Webs
     shortId: row.short_id,
     elementKey: row.element_key,
     label: row.label,
+    eventData: row.event_data,
+    subject:
+      row.subject_type && row.subject_title
+        ? {
+            type: row.subject_type,
+            title: row.subject_title,
+            artist: row.subject_artist,
+            artworkUrl: row.subject_artwork_url,
+          }
+        : null,
   };
 }
 
@@ -4895,40 +5037,13 @@ async function getWebsiteAnalyticsDrilldown(
     ),
     pool.query<WebsiteAnalyticsPathEventRow>(
       `SELECT
-        id::text,
-        occurred_at,
-        event_type,
-        session_id::text,
-        device_key,
-        network_cluster_key,
-        CONCAT('#', RIGHT(network_cluster_key, 6)) AS cluster,
-        confidence,
-        path,
-        route_template,
-        referrer_domain,
-        device_class,
-        browser_family,
-        os_family,
-        surface,
-        platform,
-        media_type,
-        short_id,
-        element_key,
-        COALESCE(
-          NULLIF(event_data->>'query_normalized', ''),
-          NULLIF(event_data->>'error_class', ''),
-          NULLIF(event_data->>'provider', ''),
-          NULLIF(element_key, ''),
-          NULLIF(platform, ''),
-          NULLIF(short_id, ''),
-          NULLIF(route_template, ''),
-          NULLIF(path, '')
-        ) AS label
-       FROM analytics_events
-       WHERE ${filter.where}
-       ORDER BY occurred_at ASC
+        ${WEBSITE_ANALYTICS_PATH_EVENT_SELECT}
+       FROM analytics_events e
+       ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
+       WHERE ${eventFilter.where}
+       ORDER BY e.occurred_at ASC
        LIMIT 200`,
-      filter.values,
+      eventFilter.values,
     ),
   ]);
 
