@@ -23,6 +23,10 @@ import { type CSSProperties, useCallback, useEffect, useMemo, useReducer, useRef
 import { createPortal } from "react-dom";
 
 type ArtistLoadStatus = "loading" | "ready" | "empty" | "error";
+export interface ArtistInfoContext {
+  shortId?: string;
+  artistEntityId?: string;
+}
 type ArtistState = { status: ArtistLoadStatus; artistData: ArtistInfoResponse | null; errorCode?: string };
 type ArtistAction =
   | { type: "loading" }
@@ -168,10 +172,13 @@ function detectRegion(): string {
 async function fetchArtistInfo(
   artistName: string,
   userRegion: string,
+  context: ArtistInfoContext,
   signal: AbortSignal,
 ): Promise<ArtistInfoResponse> {
   const params = new URLSearchParams({ name: artistName });
   if (userRegion) params.set("region", userRegion);
+  if (context.shortId) params.set("shortId", context.shortId);
+  if (context.artistEntityId) params.set("artistEntityId", context.artistEntityId);
   const res = await fetch(`${ENDPOINTS.frontend.artistInfo}?${params.toString()}`, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as ArtistInfoResponse;
@@ -202,6 +209,22 @@ function shortIdFromShortUrl(shortUrl: string): string | undefined {
   return shortId || undefined;
 }
 
+function artistInfoContextFromConfig(config: MediaCardContentConfiguration): ArtistInfoContext {
+  return { shortId: config.shortId };
+}
+
+function artistInfoContextFromResolved(data: UnifiedResolveSuccessResponse): ArtistInfoContext {
+  const shortId = shortIdFromShortUrl(data.shortUrl);
+  const credits =
+    data.type === "track" ? data.track.artistCredits : data.type === "album" ? data.album.artistCredits : undefined;
+  const mainCredit = credits?.find((credit) => credit.role === "main") ?? credits?.[0];
+  return { shortId, artistEntityId: mainCredit?.artistEntityId };
+}
+
+function sameArtistInfoContext(a: ArtistInfoContext, b: ArtistInfoContext): boolean {
+  return (a.shortId ?? "") === (b.shortId ?? "") && (a.artistEntityId ?? "") === (b.artistEntityId ?? "");
+}
+
 function configIdentity(config: MediaCardContentConfiguration): string {
   const shareUrl = "shareUrl" in config ? config.shareUrl : "";
   const shortUrl = "shortUrl" in config ? config.shortUrl : "";
@@ -215,7 +238,7 @@ function resultArtistName(active: ActiveResult): string {
 function buildShareConfigFromResolved(
   data: UnifiedResolveSuccessResponse,
   t: (key: string, vars?: Record<string, string>) => string,
-): { config: ShareContentConfiguration; artistName: string; pageTitle: string } {
+): { config: ShareContentConfiguration; artistName: string; artistInfoContext: ArtistInfoContext; pageTitle: string } {
   const isArtist = data.type === "artist";
   const isAlbum = data.type === "album";
   const track = data.type === "track" ? data.track : null;
@@ -262,12 +285,18 @@ function buildShareConfigFromResolved(
     shortUrl: data.shortUrl,
   };
   const pageTitle = isArtist ? `${displayTitle} - musiccloud` : `${displayTitle} by ${artistDisplay} - musiccloud`;
-  return { config, artistName: isArtist ? displayTitle : artistDisplay, pageTitle };
+  return {
+    config,
+    artistName: isArtist ? displayTitle : artistDisplay,
+    artistInfoContext: artistInfoContextFromResolved(data),
+    pageTitle,
+  };
 }
 
 interface ShareLayoutProps {
   config: MediaCardContentConfiguration;
   artistName: string;
+  artistInfoContext?: ArtistInfoContext;
   animated?: boolean;
   initialLocale?: string;
   /**
@@ -291,7 +320,14 @@ export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
   );
 }
 
-function ShareLayoutInner({ config, artistName, animated = false, onBack, backLabel }: ShareLayoutProps) {
+function ShareLayoutInner({
+  config,
+  artistName,
+  artistInfoContext,
+  animated = false,
+  onBack,
+  backLabel,
+}: ShareLayoutProps) {
   const t = useT();
   // Detect region synchronously on first render (client-only, Astro island)
   const [userRegion] = useState(detectRegion);
@@ -304,6 +340,9 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
   const [sheetOpen, setSheetOpen] = useState(false);
   const [currentConfig, setCurrentConfig] = useState(config);
   const [currentArtistName, setCurrentArtistName] = useState(artistName);
+  const [currentArtistContext, setCurrentArtistContext] = useState<ArtistInfoContext>(
+    () => artistInfoContext ?? artistInfoContextFromConfig(config),
+  );
   const [resolveTriggeredArtistLoad, setResolveTriggeredArtistLoad] = useState(false);
   const [artistReadyVisible, setArtistReadyVisible] = useState(false);
   const [resolveErrorVisible, setResolveErrorVisible] = useState(false);
@@ -317,7 +356,8 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
     lastPropsConfigKey.current = nextConfigKey;
     setCurrentConfig(config);
     setCurrentArtistName(artistName);
-  }, [artistName, config]);
+    setCurrentArtistContext(artistInfoContext ?? artistInfoContextFromConfig(config));
+  }, [artistInfoContext, artistName, config]);
 
   const artistStatusLoading = isLoading || resolveTriggeredArtistLoad;
   useEffect(() => {
@@ -371,7 +411,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
     dispatch({ type: "loading" });
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
-    fetchArtistInfo(currentArtistName, userRegion, controller.signal)
+    fetchArtistInfo(currentArtistName, userRegion, currentArtistContext, controller.signal)
       .then((data) => {
         if (!cancelled) dispatch({ type: "done", data });
       })
@@ -387,7 +427,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
       controller.abort();
       clearTimeout(timeout);
     };
-  }, [currentArtistName, userRegion]);
+  }, [currentArtistContext, currentArtistName, userRegion]);
 
   const openSheet = useCallback(() => setSheetOpen(true), []);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
@@ -428,9 +468,12 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
         const resolved = data as UnifiedResolveSuccessResponse;
         if (currentConfig.type === "share") {
           const next = buildShareConfigFromResolved(resolved, t);
-          const shouldFetchArtist = normalizeArtistName(next.artistName) !== normalizeArtistName(currentArtistName);
+          const shouldFetchArtist =
+            normalizeArtistName(next.artistName) !== normalizeArtistName(currentArtistName) ||
+            !sameArtistInfoContext(next.artistInfoContext, currentArtistContext);
           keepResolveLoadingForArtistFetch = shouldFetchArtist;
           setCurrentConfig(next.config);
+          setCurrentArtistContext(next.artistInfoContext);
           if (shouldFetchArtist) setCurrentArtistName(next.artistName);
           document.title = next.pageTitle;
           return;
@@ -450,7 +493,7 @@ function ShareLayoutInner({ config, artistName, animated = false, onBack, backLa
         clearTimeout(timeout);
       }
     },
-    [currentArtistName, currentConfig, t],
+    [currentArtistContext, currentArtistName, currentConfig, t],
   );
 
   return (

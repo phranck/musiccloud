@@ -29,6 +29,7 @@ import { getLocaleFromCookie } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
 import { isBot } from "@/lib/isBot";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import type { ArtistInfoContext } from "@/components/share/ShareLayout";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 const { shortId } = Astro.params;
@@ -65,6 +66,7 @@ let artistDisplay = "";
 let artworkUrl: string | undefined | null = null;
 let displayTitle = "";
 let shareConfig: ShareContentConfiguration | null = null;
+let artistInfoContext: ArtistInfoContext | undefined;
 let pageTitle = "musiccloud";
 
 if (treatAsBot) {
@@ -136,6 +138,14 @@ if (treatAsBot) {
         shortUrl: data.shortUrl,
       }
     : null;
+  const artistCredits = isAlbum ? album?.artistCredits : isArtist ? undefined : track?.artistCredits;
+  const mainArtistCredit = artistCredits?.find((credit) => credit.role === "main") ?? artistCredits?.[0];
+  artistInfoContext = data
+    ? {
+        shortId,
+        artistEntityId: mainArtistCredit?.artistEntityId,
+      }
+    : undefined;
 
   pageTitle = contentPage
     ? `${contentPage.title} - musiccloud`
@@ -229,7 +239,13 @@ if (treatAsBot) {
               </a>
             </div>
             {shareConfig && (
-              <ShareLayout client:load config={shareConfig} artistName={isArtist ? displayTitle : artistDisplay} initialLocale={locale} />
+              <ShareLayout
+                client:load
+                config={shareConfig}
+                artistName={isArtist ? displayTitle : artistDisplay}
+                artistInfoContext={artistInfoContext}
+                initialLocale={locale}
+              />
             )}
           </main>
         )}

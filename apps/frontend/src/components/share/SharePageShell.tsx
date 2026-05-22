@@ -1,5 +1,5 @@
 import { type MouseEvent, useCallback, useRef } from "react";
-import { ShareLayout } from "@/components/share/ShareLayout";
+import { type ArtistInfoContext, ShareLayout } from "@/components/share/ShareLayout";
 import { LogoView } from "@/components/ui/LogoView";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
@@ -7,10 +7,11 @@ import type { ShareContentConfiguration } from "@/lib/types/media-card";
 interface SharePageShellProps {
   config: ShareContentConfiguration;
   artistName: string;
+  artistInfoContext?: ArtistInfoContext;
   initialLocale?: string;
 }
 
-export function SharePageShell({ config, artistName, initialLocale }: SharePageShellProps) {
+export function SharePageShell({ config, artistName, artistInfoContext, initialLocale }: SharePageShellProps) {
   const navigated = useRef(false);
 
   const navigateHome = useCallback(() => {
@@ -43,7 +44,12 @@ export function SharePageShell({ config, artistName, initialLocale }: SharePageS
         </a>
       </div>
       <div className="w-full animate-fade-in">
-        <ShareLayout config={config} artistName={artistName} initialLocale={initialLocale} />
+        <ShareLayout
+          config={config}
+          artistName={artistName}
+          artistInfoContext={artistInfoContext}
+          initialLocale={initialLocale}
+        />
       </div>
     </main>
   );

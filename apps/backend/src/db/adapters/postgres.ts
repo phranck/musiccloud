@@ -1046,9 +1046,47 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     };
   }
 
+  async findArtistInfoAliasByShortId(shortId: string, artistName: string): Promise<string | null> {
+    const requestedName = artistName.trim().toLowerCase();
+    if (!shortId || !requestedName) return null;
+
+    const result = await this.pool.query(
+      `WITH target_links AS (
+         SELECT sl.url
+         FROM short_urls su
+         JOIN service_links sl ON sl.track_id = su.track_id
+         WHERE su.id = $1 AND sl.url IS NOT NULL
+         UNION
+         SELECT asl.url
+         FROM album_short_urls asu
+         JOIN album_service_links asl ON asl.album_id = asu.album_id
+         WHERE asu.id = $1 AND asl.url IS NOT NULL
+       ),
+       matches AS (
+         SELECT DISTINCT ac.artist_name
+         FROM artist_cache ac
+         JOIN target_links tl ON ac.top_tracks ILIKE '%' || tl.url || '%'
+         WHERE ac.artist_name <> $2
+       )
+       SELECT artist_name
+       FROM matches
+       ORDER BY
+         CASE WHEN artist_name LIKE '%' || $2 || '%' THEN 0 ELSE 1 END,
+         length(artist_name) DESC
+       LIMIT 1`,
+      [shortId, requestedName],
+    );
+
+    const alias = result.rows[0]?.artist_name;
+    return typeof alias === "string" && alias.trim() ? alias : null;
+  }
+
   async saveArtistCache(data: ArtistCacheData): Promise<void> {
     const now = new Date();
     const id = `artist-${data.artistName}`;
+    const hasProfile = Object.hasOwn(data, "profile");
+    const hasTopTracks = Object.hasOwn(data, "topTracks");
+    const hasEvents = Object.hasOwn(data, "events");
 
     await this.pool.query(
       `INSERT INTO artist_cache (
@@ -1057,24 +1095,28 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       ON CONFLICT (id) DO UPDATE SET
-        profile = EXCLUDED.profile,
-        top_tracks = EXCLUDED.top_tracks,
-        events = EXCLUDED.events,
-        profile_updated_at = EXCLUDED.profile_updated_at,
-        tracks_updated_at = EXCLUDED.tracks_updated_at,
-        events_updated_at = EXCLUDED.events_updated_at,
+        artist_name = EXCLUDED.artist_name,
+        profile = CASE WHEN $11 THEN EXCLUDED.profile ELSE artist_cache.profile END,
+        top_tracks = CASE WHEN $12 THEN EXCLUDED.top_tracks ELSE artist_cache.top_tracks END,
+        events = CASE WHEN $13 THEN EXCLUDED.events ELSE artist_cache.events END,
+        profile_updated_at = CASE WHEN $11 THEN EXCLUDED.profile_updated_at ELSE artist_cache.profile_updated_at END,
+        tracks_updated_at = CASE WHEN $12 THEN EXCLUDED.tracks_updated_at ELSE artist_cache.tracks_updated_at END,
+        events_updated_at = CASE WHEN $13 THEN EXCLUDED.events_updated_at ELSE artist_cache.events_updated_at END,
         updated_at = EXCLUDED.updated_at`,
       [
         id,
         data.artistName,
-        data.profile ? JSON.stringify(data.profile) : null,
-        data.topTracks ? JSON.stringify(data.topTracks) : null,
-        data.events ? JSON.stringify(data.events) : null,
+        hasProfile && data.profile ? JSON.stringify(data.profile) : null,
+        hasTopTracks && data.topTracks ? JSON.stringify(data.topTracks) : null,
+        hasEvents && data.events ? JSON.stringify(data.events) : null,
         data.profileUpdatedAt ? msToDate(data.profileUpdatedAt) : null,
         data.tracksUpdatedAt ? msToDate(data.tracksUpdatedAt) : null,
         data.eventsUpdatedAt ? msToDate(data.eventsUpdatedAt) : null,
         now,
         now,
+        hasProfile,
+        hasTopTracks,
+        hasEvents,
       ],
     );
   }

@@ -22,6 +22,7 @@ import { SharePageShell } from "@/components/share/SharePageShell";
 import { LogoView } from "@/components/ui/LogoView";
 import { getLocaleFromCookie } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
+import type { ArtistInfoContext } from "@/components/share/ShareLayout";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 interface Props {
@@ -97,6 +98,14 @@ const shareConfig: ShareContentConfiguration | null = data
       shortUrl: data.shortUrl,
     }
   : null;
+const artistCredits = isAlbum ? album?.artistCredits : isArtist ? undefined : track?.artistCredits;
+const mainArtistCredit = artistCredits?.find((credit) => credit.role === "main") ?? artistCredits?.[0];
+const artistInfoContext: ArtistInfoContext | undefined = data
+  ? {
+      shortId,
+      artistEntityId: mainArtistCredit?.artistEntityId,
+    }
+  : undefined;
 
 const pageTitle = notFound
   ? null
@@ -166,7 +175,13 @@ const pageTitle = notFound
 )}
 
 {!notFound && !contentPage && shareConfig && (
-  <SharePageShell client:load config={shareConfig} artistName={isArtist ? displayTitle : artistDisplay} initialLocale={locale} />
+  <SharePageShell
+    client:load
+    config={shareConfig}
+    artistName={isArtist ? displayTitle : artistDisplay}
+    artistInfoContext={artistInfoContext}
+    initialLocale={locale}
+  />
 )}
 
 {/* Always-on overlay host (see note in [shortId].astro); needed when the

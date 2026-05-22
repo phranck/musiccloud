@@ -16,7 +16,7 @@
  * | Section     | TTL  | Rationale                                         |
  * | ----------- | ---- | ------------------------------------------------- |
  * | `topTracks` |  7 d | Chart positions move on weekly cycles             |
- * | `profile`   |  7 d | Bio / genres / similar-artist set is stable       |
+ * | `profile`   | 183 d| Bio / genres / similar-artist set is stable       |
  * | `events`    | 24 h | Tour dates can add, reschedule, or cancel daily   |
  *
  * Having one TTL per section means a daily event refresh does not burn
@@ -63,10 +63,12 @@ import { log } from "../lib/infra/logger.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { stripYouTubeTopicSuffix } from "../lib/youtube-topic.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
+import { sanitizeArtistProfile } from "../services/artist-bio-sanitizer.js";
 import { fetchArtistEvents, fetchArtistProfile, fetchArtistTopTracks } from "../services/artist-info.js";
 
 const TTL_TRACKS_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const TTL_PROFILE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const TTL_PROFILE_DAYS = Math.round(365 / 2);
+const TTL_PROFILE_MS = TTL_PROFILE_DAYS * 24 * 60 * 60 * 1000; // 183 days
 const TTL_EVENTS_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export default async function artistInfoRoutes(app: FastifyInstance) {
@@ -99,6 +101,24 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
               description:
                 "ISO country code (2-letter, case-insensitive). When present, events in this country are sorted first.",
             },
+            shortId: {
+              type: "string",
+              minLength: 1,
+              maxLength: 32,
+              description:
+                "Optional musiccloud share short ID. Used only as lookup context for ambiguous artist names.",
+            },
+            artistEntityId: {
+              type: "string",
+              minLength: 1,
+              maxLength: 80,
+              description: "Optional normalized artist entity ID. Reserved for context-aware artist-info lookups.",
+            },
+            refresh: {
+              type: "string",
+              enum: ["profile"],
+              description: "Explicitly refresh a stable cache section. Currently only `profile` is supported.",
+            },
           },
           additionalProperties: false,
         },
@@ -121,7 +141,13 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         });
       }
 
-      const query = request.query as { name: string; region?: string };
+      const query = request.query as {
+        name: string;
+        region?: string;
+        shortId?: string;
+        artistEntityId?: string;
+        refresh?: "profile";
+      };
 
       // Strip the YouTube auto-channel "- Topic" suffix before any lookup
       // so cached rows written before the YouTube-adapter fix (which now
@@ -132,19 +158,21 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: "INVALID_REQUEST", message: "Query param 'name' is required." });
       }
 
-      const artistName = rawName.toLowerCase();
       const region = (query.region ?? "").toUpperCase().slice(0, 2);
 
       const repo = await getRepository();
+      const contextAlias = query.shortId ? await repo.findArtistInfoAliasByShortId(query.shortId, rawName) : null;
+      const lookupName = contextAlias ?? rawName;
+      const artistName = lookupName.toLowerCase();
       const cached = await repo.findArtistCache(artistName);
       const now = Date.now();
 
       let topTracks = cached?.topTracks ?? [];
-      let profile = cached?.profile ?? null;
+      let profile = sanitizeArtistProfile(cached?.profile ?? null);
       let events = cached?.events ?? [];
 
       const needsTracks = !cached || now - cached.tracksUpdatedAt > TTL_TRACKS_MS;
-      const needsProfile = !cached || now - cached.profileUpdatedAt > TTL_PROFILE_MS;
+      const needsProfile = query.refresh === "profile" || !cached || now - cached.profileUpdatedAt > TTL_PROFILE_MS;
       const needsEvents = !cached || now - cached.eventsUpdatedAt > TTL_EVENTS_MS;
 
       // Only the stale sections are refetched, and they run in parallel.
@@ -154,7 +182,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
 
       if (needsTracks) {
         fetches.push(
-          fetchArtistTopTracks(rawName).then(async (tracks) => {
+          fetchArtistTopTracks(lookupName).then(async (tracks) => {
             topTracks = tracks;
             await repo.saveArtistCache({ artistName, topTracks: tracks });
           }),
@@ -163,16 +191,16 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
 
       if (needsProfile) {
         fetches.push(
-          fetchArtistProfile(rawName).then(async (p) => {
-            profile = p;
-            await repo.saveArtistCache({ artistName, profile: p });
+          fetchArtistProfile(lookupName).then(async (p) => {
+            profile = sanitizeArtistProfile(p);
+            await repo.saveArtistCache({ artistName, profile });
           }),
         );
       }
 
       if (needsEvents) {
         fetches.push(
-          fetchArtistEvents(rawName).then(async (ev) => {
+          fetchArtistEvents(lookupName).then(async (ev) => {
             events = ev;
             await repo.saveArtistCache({ artistName, events: ev });
           }),
@@ -180,10 +208,10 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       }
 
       if (fetches.length > 0) {
-        log.debug("ArtistInfo", `Fetching fresh data for "${rawName}" (region: ${region || "none"})`);
+        log.debug("ArtistInfo", `Fetching fresh data for "${lookupName}" (region: ${region || "none"})`);
         await Promise.all(fetches);
       } else {
-        log.debug("ArtistInfo", `Cache hit for "${rawName}"`);
+        log.debug("ArtistInfo", `Cache hit for "${lookupName}"`);
       }
 
       // Defensive filter: cached entries written before the upstream-mapper
@@ -235,7 +263,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       );
 
       const response: ArtistInfoResponse = {
-        artistName: rawName,
+        artistName: lookupName,
         topTracks: enrichedTracks,
         profile,
         events: sortedEvents,

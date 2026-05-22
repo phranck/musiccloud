@@ -453,6 +453,7 @@ export interface TrackRepository {
 
   // Artist cache (popular tracks, profile, tour dates)
   findArtistCache(artistName: string): Promise<ArtistCacheRow | null>;
+  findArtistInfoAliasByShortId(shortId: string, artistName: string): Promise<string | null>;
   saveArtistCache(data: ArtistCacheData): Promise<void>;
 
   // Normalized artist identity reads (migration 0029)

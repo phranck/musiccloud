@@ -80,6 +80,16 @@ const LASTFM_INFO = {
   },
 };
 
+const AMBIGUOUS_LASTFM_INFO = {
+  artist: {
+    bio: {
+      summary: "There are at least 5 artists with this name: 1. Krishnakumar Kunnath was an Indian playback singer.",
+    },
+    stats: { playcount: "3121025", listeners: "6709" },
+    similar: { artist: [{ name: "Mohit Chauhan" }] },
+  },
+};
+
 const LASTFM_TAGS = {
   toptags: { tag: [{ name: "electronic" }, { name: "house" }] },
 };
@@ -220,6 +230,24 @@ describe("fetchArtistProfile", () => {
     const profile = await fetchArtistProfile("Daft Punk");
     expect(profile).not.toBeNull();
     expect(profile as Record<string, unknown> | null).not.toHaveProperty("spotifyId");
+  });
+
+  it("filters Last.fm disambiguation biographies from artist profiles", async () => {
+    route({
+      spotify: "404",
+      deezerSearch: DEEZER_SEARCH_HIT,
+      deezerFans: DEEZER_FANS,
+      lastfmInfo: AMBIGUOUS_LASTFM_INFO,
+      lastfmTags: LASTFM_TAGS,
+    });
+
+    const profile = await fetchArtistProfile("KK");
+    expect(profile).not.toBeNull();
+    expect(profile?.imageUrl).toBe(DEEZER_SEARCH_HIT.data[0].picture_xl);
+    expect(profile?.followers).toBe(DEEZER_FANS.nb_fan);
+    expect(profile?.bioSummary).toBeNull();
+    expect(profile?.scrobbles).toBeNull();
+    expect(profile?.similarArtists).toEqual([]);
   });
 });
 

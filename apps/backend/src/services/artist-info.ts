@@ -15,6 +15,7 @@
 import type { ArtistEvent, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
+import { sanitizeArtistProfile } from "./artist-bio-sanitizer.js";
 import { mergeArtistPartials, pickSourceForField } from "./artist-composition/merge.js";
 import { fetchDeezerArtistPartial } from "./artist-composition/sources/deezer-source.js";
 import { fetchLastFmArtistPartial } from "./artist-composition/sources/lastfm-source.js";
@@ -81,7 +82,7 @@ export async function fetchArtistProfile(artistName: string): Promise<ArtistProf
       }
     }
 
-    return mapCanonicalToArtistProfile(merged);
+    return sanitizeArtistProfile(mapCanonicalToArtistProfile(merged));
   } catch (err) {
     log.debug("ArtistInfo", "fetchArtistProfile error:", err instanceof Error ? err.message : String(err));
     return null;

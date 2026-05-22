@@ -8,6 +8,7 @@
  * the only signal available post-Feb-2026.
  */
 
+import { hasAmbiguousLastFmBio } from "../../artist-bio-sanitizer.js";
 import { fetchLastFmArtistInfo } from "../../plugins/lastfm/artist-info.js";
 import { fetchLastFmTopTags } from "../../plugins/lastfm/artist-top-tags.js";
 import { fetchLastFmTopTracks } from "../../plugins/lastfm/artist-top-tracks.js";
@@ -21,15 +22,16 @@ export async function fetchLastFmArtistPartial(name: string): Promise<ArtistPart
   ]);
 
   if (!info && tags.length === 0 && topTracks.length === 0) return null;
+  const ambiguousBio = hasAmbiguousLastFmBio(info?.bioSummary);
 
   return {
     __source: "lastfm",
     genres: tags,
-    popularity: info?.listeners ?? null,
-    followers: info?.listeners ?? null,
-    scrobbles: info?.scrobbles ?? null,
-    bioSummary: info?.bioSummary ?? null,
-    similarArtists: info?.similarArtists ?? [],
+    popularity: ambiguousBio ? null : (info?.listeners ?? null),
+    followers: ambiguousBio ? null : (info?.listeners ?? null),
+    scrobbles: ambiguousBio ? null : (info?.scrobbles ?? null),
+    bioSummary: ambiguousBio ? null : (info?.bioSummary ?? null),
+    similarArtists: ambiguousBio ? [] : (info?.similarArtists ?? []),
     topTracks,
   };
 }
