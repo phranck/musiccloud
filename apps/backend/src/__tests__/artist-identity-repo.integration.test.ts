@@ -16,6 +16,8 @@ describe.skipIf(!process.env.DATABASE_URL)("artist identity repository (integrat
   const birthEventId = `event-birth-${suffix}`;
   const outsiderBirthEventId = `event-outsider-birth-${suffix}`;
   const creditTrackSourceUrl = `https://example.test/credit-track/${suffix}`;
+  const structuredTrackSourceUrl = `https://example.test/structured-credit-track/${suffix}`;
+  const structuredAlbumSourceUrl = `https://example.test/structured-credit-album/${suffix}`;
   const creditArtistOne = `Credit Artist One ${suffix}`;
   const creditArtistTwo = `Credit Artist Two ${suffix}`;
 
@@ -109,10 +111,25 @@ describe.skipIf(!process.env.DATABASE_URL)("artist identity repository (integrat
     await client.query(`DELETE FROM service_links WHERE track_id IN (SELECT id FROM tracks WHERE source_url = $1)`, [
       creditTrackSourceUrl,
     ]);
+    await client.query(`DELETE FROM service_links WHERE track_id IN (SELECT id FROM tracks WHERE source_url = $1)`, [
+      structuredTrackSourceUrl,
+    ]);
     await client.query(`DELETE FROM short_urls WHERE track_id IN (SELECT id FROM tracks WHERE source_url = $1)`, [
       creditTrackSourceUrl,
     ]);
+    await client.query(`DELETE FROM short_urls WHERE track_id IN (SELECT id FROM tracks WHERE source_url = $1)`, [
+      structuredTrackSourceUrl,
+    ]);
     await client.query(`DELETE FROM tracks WHERE source_url = $1`, [creditTrackSourceUrl]);
+    await client.query(`DELETE FROM tracks WHERE source_url = $1`, [structuredTrackSourceUrl]);
+    await client.query(
+      `DELETE FROM album_service_links WHERE album_id IN (SELECT id FROM albums WHERE source_url = $1)`,
+      [structuredAlbumSourceUrl],
+    );
+    await client.query(`DELETE FROM album_short_urls WHERE album_id IN (SELECT id FROM albums WHERE source_url = $1)`, [
+      structuredAlbumSourceUrl,
+    ]);
+    await client.query(`DELETE FROM albums WHERE source_url = $1`, [structuredAlbumSourceUrl]);
     await client.query(
       `DELETE FROM artist_entities
        WHERE id IN (
@@ -211,5 +228,39 @@ describe.skipIf(!process.env.DATABASE_URL)("artist identity repository (integrat
       expect.objectContaining({ name: creditArtistTwo, role: "main", position: 1 }),
     ]);
     expect(cached?.track.artistCredits).toEqual(persisted.artistCredits);
+  });
+
+  it("persists track and album credits using explicit artist entity refs", async () => {
+    const repo = await getRepository();
+
+    const track = await repo.persistTrackWithLinks({
+      sourceTrack: {
+        title: "Structured Credit Track",
+        artists: ["Integration Test Member"],
+        artistCredits: [{ artistEntityId: memberId, name: "Integration Test Member", role: "main", position: 0 }],
+        sourceService: "manual",
+        sourceUrl: structuredTrackSourceUrl,
+      },
+      links: [{ service: "manual", url: structuredTrackSourceUrl, confidence: 1, matchMethod: "integration-test" }],
+    });
+
+    const album = await repo.persistAlbumWithLinks({
+      sourceAlbum: {
+        title: "Structured Credit Album",
+        artists: ["Integration Test Band"],
+        artistCredits: [{ artistEntityId: groupId, name: "Integration Test Band", role: "main", position: 0 }],
+        sourceService: "manual",
+        sourceUrl: structuredAlbumSourceUrl,
+      },
+      links: [{ service: "manual", url: structuredAlbumSourceUrl, confidence: 1, matchMethod: "integration-test" }],
+    });
+
+    const cachedTrack = await repo.findTrackByUrl(structuredTrackSourceUrl);
+    const cachedAlbum = await repo.findAlbumByUrl(structuredAlbumSourceUrl);
+
+    expect(track.artistCredits[0]?.artistEntityId).toBe(memberId);
+    expect(album.artistCredits[0]?.artistEntityId).toBe(groupId);
+    expect(cachedTrack?.track.artistCredits?.[0]?.artistEntityId).toBe(memberId);
+    expect(cachedAlbum?.album.artistCredits?.[0]?.artistEntityId).toBe(groupId);
   });
 });

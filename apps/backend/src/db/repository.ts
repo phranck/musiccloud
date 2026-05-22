@@ -46,6 +46,7 @@ export interface PersistTrackData {
   sourceTrack: {
     title: string;
     artists: string[];
+    artistCredits?: ArtistCredit[];
     albumName?: string;
     isrc?: string;
     artworkUrl?: string;
@@ -120,6 +121,7 @@ export interface PersistAlbumData {
   sourceAlbum: {
     title: string;
     artists: string[];
+    artistCredits?: ArtistCredit[];
     upc?: string;
     releaseDate?: string;
     totalTracks?: number;

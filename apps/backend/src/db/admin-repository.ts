@@ -78,6 +78,7 @@ export interface TrackDetail {
 export interface TrackUpdateData {
   title?: string;
   artists?: string[];
+  artistCredits?: ArtistCredit[];
   albumName?: string | null;
   isrc?: string | null;
   artworkUrl?: string | null;

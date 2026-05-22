@@ -283,6 +283,24 @@ function safeParseArtistCredits(json: string, fallback: ArtistCredit[] = []): Ar
   }
 }
 
+function normalizeArtistCreditInputs(
+  artistNames: string[],
+  structuredCredits: ArtistCredit[] | undefined,
+): Array<{ artistEntityId?: string; name: string }> {
+  if (structuredCredits && structuredCredits.length > 0) {
+    return structuredCredits.flatMap((credit) => {
+      const name = credit.name.trim();
+      if (!name) return [];
+      return [{ artistEntityId: credit.artistEntityId, name }];
+    });
+  }
+
+  return artistNames
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .map((name) => ({ name }));
+}
+
 function safeParseJson<T>(json: string | null | undefined, fallback: T): T {
   if (!json) return fallback;
   try {
@@ -721,7 +739,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         );
       }
 
-      const artistCredits = await this.replaceTrackArtistCredits(client, trackId, data.sourceTrack.artists, now);
+      const artistCredits = await this.replaceTrackArtistCredits(
+        client,
+        trackId,
+        data.sourceTrack.artists,
+        now,
+        data.sourceTrack.artistCredits,
+      );
 
       // Upsert service links
       for (const link of data.links) {
@@ -1454,7 +1478,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         );
       }
 
-      const artistCredits = await this.replaceAlbumArtistCredits(client, albumId, data.sourceAlbum.artists, now);
+      const artistCredits = await this.replaceAlbumArtistCredits(
+        client,
+        albumId,
+        data.sourceAlbum.artists,
+        now,
+        data.sourceAlbum.artistCredits,
+      );
 
       // Upsert service links
       for (const link of data.links) {
@@ -2054,6 +2084,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     data: {
       title?: string;
       artists?: string[];
+      artistCredits?: ArtistCredit[];
       albumName?: string | null;
       isrc?: string | null;
       artworkUrl?: string | null;
@@ -2091,8 +2122,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         await client.query(`UPDATE tracks SET ${sets.join(", ")} WHERE id = $${idx}`, values);
       }
 
-      if (data.artists !== undefined) {
-        await this.replaceTrackArtistCredits(client, id, data.artists, now);
+      if (data.artists !== undefined || data.artistCredits !== undefined) {
+        await this.replaceTrackArtistCredits(client, id, data.artists ?? [], now, data.artistCredits);
         if (sets.length === 0) {
           await client.query(`UPDATE tracks SET updated_at = $1 WHERE id = $2`, [now, id]);
         }
@@ -2623,6 +2654,17 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     }
   }
 
+  private async ensureExistingArtistEntityForCredit(
+    client: PoolClient,
+    artistEntityId: string,
+    creditName: string,
+    now: Date,
+  ): Promise<string> {
+    await this.ensureArtistEntityExists(client, artistEntityId);
+    await this.ensureArtistEntityName(client, artistEntityId, creditName, now, "credit");
+    return artistEntityId;
+  }
+
   private async ensureArtistEntityForName(client: PoolClient, name: string, now: Date): Promise<string> {
     const creditName = name.trim();
     if (!creditName) {
@@ -2694,21 +2736,32 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     trackId: string,
     artistNames: string[],
     now: Date,
+    structuredCredits?: ArtistCredit[],
   ): Promise<ArtistCredit[]> {
     await client.query(`DELETE FROM track_artist_credits WHERE track_id = $1 AND credit_role = 'main'`, [trackId]);
 
-    const creditNames = artistNames.map((name) => name.trim()).filter(Boolean);
+    const creditInputs = normalizeArtistCreditInputs(artistNames, structuredCredits);
     const artistCredits: ArtistCredit[] = [];
-    for (const [index, creditName] of creditNames.entries()) {
-      const artistEntityId = await this.ensureArtistEntityForName(client, creditName, now);
+    for (const [index, creditInput] of creditInputs.entries()) {
+      const artistEntityId = creditInput.artistEntityId
+        ? await this.ensureExistingArtistEntityForCredit(client, creditInput.artistEntityId, creditInput.name, now)
+        : await this.ensureArtistEntityForName(client, creditInput.name, now);
       await client.query(
         `INSERT INTO track_artist_credits (
           id, track_id, artist_entity_id, credit_name, credit_position, credit_role,
           confidence, match_method, source_id, created_at
-        ) VALUES ($1, $2, $3, $4, $5, 'main', NULL, 'legacy_name', NULL, $6)`,
-        [generateTrackId(), trackId, artistEntityId, creditName, index, now],
+        ) VALUES ($1, $2, $3, $4, $5, 'main', NULL, $6, NULL, $7)`,
+        [
+          generateTrackId(),
+          trackId,
+          artistEntityId,
+          creditInput.name,
+          index,
+          creditInput.artistEntityId ? "entity_ref" : "legacy_name",
+          now,
+        ],
       );
-      artistCredits.push({ artistEntityId, name: creditName, role: "main", position: index });
+      artistCredits.push({ artistEntityId, name: creditInput.name, role: "main", position: index });
     }
     return artistCredits;
   }
@@ -2718,21 +2771,32 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     albumId: string,
     artistNames: string[],
     now: Date,
+    structuredCredits?: ArtistCredit[],
   ): Promise<ArtistCredit[]> {
     await client.query(`DELETE FROM album_artist_credits WHERE album_id = $1 AND credit_role = 'main'`, [albumId]);
 
-    const creditNames = artistNames.map((name) => name.trim()).filter(Boolean);
+    const creditInputs = normalizeArtistCreditInputs(artistNames, structuredCredits);
     const artistCredits: ArtistCredit[] = [];
-    for (const [index, creditName] of creditNames.entries()) {
-      const artistEntityId = await this.ensureArtistEntityForName(client, creditName, now);
+    for (const [index, creditInput] of creditInputs.entries()) {
+      const artistEntityId = creditInput.artistEntityId
+        ? await this.ensureExistingArtistEntityForCredit(client, creditInput.artistEntityId, creditInput.name, now)
+        : await this.ensureArtistEntityForName(client, creditInput.name, now);
       await client.query(
         `INSERT INTO album_artist_credits (
           id, album_id, artist_entity_id, credit_name, credit_position, credit_role,
           confidence, match_method, source_id, created_at
-        ) VALUES ($1, $2, $3, $4, $5, 'main', NULL, 'legacy_name', NULL, $6)`,
-        [generateTrackId(), albumId, artistEntityId, creditName, index, now],
+        ) VALUES ($1, $2, $3, $4, $5, 'main', NULL, $6, NULL, $7)`,
+        [
+          generateTrackId(),
+          albumId,
+          artistEntityId,
+          creditInput.name,
+          index,
+          creditInput.artistEntityId ? "entity_ref" : "legacy_name",
+          now,
+        ],
       );
-      artistCredits.push({ artistEntityId, name: creditName, role: "main", position: index });
+      artistCredits.push({ artistEntityId, name: creditInput.name, role: "main", position: index });
     }
     return artistCredits;
   }
