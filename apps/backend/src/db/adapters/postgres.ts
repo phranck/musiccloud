@@ -10,6 +10,7 @@ import type {
   AdminRepository,
   AdminUser,
   AlbumListItem,
+  ArtistEntityListItem,
   ArtistListItem,
   BulkUpdatePagesPayload,
   ContentPageCreateData,
@@ -2474,6 +2475,103 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return { items, total, page, limit };
   }
 
+  async listArtistEntities(params: {
+    page: number;
+    limit: number;
+    q?: string;
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
+  }): Promise<ListResult<ArtistEntityListItem>> {
+    const { page = 1, limit = 50, q, sortBy = "created_at", sortDir = "desc" } = params;
+    const offset = (page - 1) * limit;
+    const ALLOWED = ["created_at", "name", "entity_type", "verification_status"];
+    const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
+    const orderExpr = col === "name" ? "display_name" : `ae.${col}`;
+    const dir = sortDir === "asc" ? "ASC" : "DESC";
+
+    let whereClause = "";
+    const dataParams: (string | number)[] = [];
+    if (q) {
+      whereClause = `WHERE EXISTS (
+        SELECT 1
+        FROM artist_entity_names n
+        WHERE n.artist_entity_id = ae.id AND n.name ILIKE $1
+      )`;
+      dataParams.push(`%${q}%`);
+    }
+
+    let total: number | string = -1;
+    if (page === 1) {
+      const countResult = await this.pool.query<CountRow>(
+        `SELECT COUNT(*) as count FROM artist_entities ae ${whereClause}`,
+        q ? dataParams : [],
+      );
+      total = countResult.rows[0]?.count ?? 0;
+    }
+
+    dataParams.push(limit, offset);
+    const query = `SELECT
+      ae.id,
+      ae.entity_type,
+      ae.verification_status,
+      COALESCE(entity_name.name, '[unnamed artist]') AS display_name,
+      ae.created_at,
+      ap.artist_entity_id IS NOT NULL AS has_profile,
+      asu.id AS short_id,
+      (SELECT COUNT(*) FROM track_artist_credits tac WHERE tac.artist_entity_id = ae.id)::int AS track_credit_count,
+      (SELECT COUNT(*) FROM album_artist_credits aac WHERE aac.artist_entity_id = ae.id)::int AS album_credit_count
+    FROM artist_entities ae
+    LEFT JOIN LATERAL (
+      SELECT n.name
+      FROM artist_entity_names n
+      WHERE n.artist_entity_id = ae.id
+      ORDER BY
+        CASE
+          WHEN n.name_type = 'canonical' AND n.locale IS NULL THEN 0
+          WHEN n.name_type = 'canonical' THEN 1
+          WHEN n.name_type = 'credit' THEN 2
+          WHEN n.locale IS NULL THEN 3
+          ELSE 4
+        END,
+        n.created_at ASC
+      LIMIT 1
+    ) entity_name ON TRUE
+    LEFT JOIN artist_profiles ap ON ap.artist_entity_id = ae.id
+    LEFT JOIN artist_short_urls asu ON asu.artist_entity_id = ae.id
+    ${whereClause}
+    ORDER BY ${orderExpr} ${dir}
+    LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
+
+    const rows = await this.pool.query<{
+      id: string;
+      entity_type: string;
+      verification_status: string;
+      display_name: string;
+      created_at: Date;
+      has_profile: boolean;
+      short_id: string | null;
+      track_credit_count: number;
+      album_credit_count: number;
+    }>(query, dataParams);
+
+    return {
+      items: rows.rows.map((r) => ({
+        id: r.id,
+        name: r.display_name,
+        entityType: r.entity_type,
+        verificationStatus: r.verification_status,
+        trackCreditCount: r.track_credit_count,
+        albumCreditCount: r.album_credit_count,
+        hasProfile: r.has_profile,
+        shortId: r.short_id,
+        createdAt: dateToMs(r.created_at),
+      })),
+      total,
+      page,
+      limit,
+    };
+  }
+
   async deleteArtists(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
 
@@ -2514,15 +2612,24 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return { deleted: result.rowCount ?? 0 };
   }
 
-  async countAllData(): Promise<{ tracks: number; albums: number; artists: number }> {
+  async countAllData(): Promise<{
+    tracks: number;
+    albums: number;
+    artists: number;
+    artistProfiles: number;
+    artistEntities: number;
+  }> {
     const tracksResult = await this.pool.query(`SELECT COUNT(*) as count FROM tracks`);
     const albumsResult = await this.pool.query(`SELECT COUNT(*) as count FROM albums`);
     const artistsResult = await this.pool.query(`SELECT COUNT(*) as count FROM artist_profiles`);
+    const artistEntitiesResult = await this.pool.query(`SELECT COUNT(*) as count FROM artist_entities`);
 
     return {
       tracks: tracksResult.rows[0]?.count ?? 0,
       albums: albumsResult.rows[0]?.count ?? 0,
       artists: artistsResult.rows[0]?.count ?? 0,
+      artistProfiles: artistsResult.rows[0]?.count ?? 0,
+      artistEntities: artistEntitiesResult.rows[0]?.count ?? 0,
     };
   }
 

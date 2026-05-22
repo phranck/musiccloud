@@ -56,6 +56,18 @@ export interface ArtistListItem {
   shortId: string | null;
 }
 
+export interface ArtistEntityListItem {
+  id: string;
+  name: string;
+  entityType: string;
+  verificationStatus: string;
+  trackCreditCount: number;
+  albumCreditCount: number;
+  hasProfile: boolean;
+  shortId: string | null;
+  createdAt: number;
+}
+
 export interface TrackDetail {
   id: string;
   title: string;
@@ -310,13 +322,26 @@ export interface AdminRepository {
     sortBy?: string;
     sortDir?: "asc" | "desc";
   }): Promise<ListResult<ArtistListItem>>;
+  listArtistEntities(params: {
+    page: number;
+    limit: number;
+    q?: string;
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
+  }): Promise<ListResult<ArtistEntityListItem>>;
   deleteArtists(ids: string[]): Promise<void>;
   getTrackById(id: string): Promise<TrackDetail | null>;
   updateTrack(id: string, data: TrackUpdateData): Promise<void>;
   deleteTracks(ids: string[]): Promise<void>;
   deleteAlbums(ids: string[]): Promise<void>;
   clearArtistCache(): Promise<{ deleted: number }>;
-  countAllData(): Promise<{ tracks: number; albums: number; artists: number }>;
+  countAllData(): Promise<{
+    tracks: number;
+    albums: number;
+    artists: number;
+    artistProfiles: number;
+    artistEntities: number;
+  }>;
   resetAllData(): Promise<{ tracks: number; albums: number; artists: number }>;
   resolveShortIds(shortIds: string[]): Promise<Map<string, { title: string; artist: string }>>;
 

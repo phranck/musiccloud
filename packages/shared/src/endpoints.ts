@@ -164,10 +164,15 @@ export const ENDPOINTS = {
     },
 
     artists: {
-      /** GET: list / DELETE: bulk delete. */
+      /** GET: list / DELETE: bulk delete artist share profiles. */
       list: "/api/admin/artists",
       /** POST: mark this artist's cached resolution as stale. */
       invalidateCache: (shortId: string) => `/api/admin/artists/${shortId}/invalidate-cache`,
+    },
+
+    artistEntities: {
+      /** GET: list normalized artist identity entities. */
+      list: "/api/admin/artist-entities",
     },
 
     cache: {

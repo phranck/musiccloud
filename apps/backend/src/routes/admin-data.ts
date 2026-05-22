@@ -210,6 +210,17 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return repo.listArtists({ page, limit, q: search, sortBy: q.sortBy, sortDir });
   });
 
+  app.get(ENDPOINTS.admin.artistEntities.list, async (request) => {
+    const q = request.query as { page?: string; limit?: string; q?: string; sortBy?: string; sortDir?: string };
+    const page = Math.max(1, parseInt(q.page ?? "1", 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(q.limit ?? "20", 10) || 20));
+    const search = q.q?.trim() || undefined;
+    const sortDir = q.sortDir === "asc" || q.sortDir === "desc" ? q.sortDir : undefined;
+
+    const repo = await getAdminRepository();
+    return repo.listArtistEntities({ page, limit, q: search, sortBy: q.sortBy, sortDir });
+  });
+
   app.delete(ENDPOINTS.admin.artists.list, async (request, reply) => {
     const body = request.body as { ids?: unknown };
     if (!Array.isArray(body?.ids) || body.ids.length === 0) {
@@ -236,6 +247,13 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     const repo = await getAdminRepository();
     const counts = await repo.countAllData();
     const adminCount = await repo.countAdmins();
-    return { tracks: counts.tracks, albums: counts.albums, artists: counts.artists, users: adminCount };
+    return {
+      tracks: counts.tracks,
+      albums: counts.albums,
+      artists: counts.artists,
+      artistProfiles: counts.artistProfiles,
+      artistEntities: counts.artistEntities,
+      users: adminCount,
+    };
   });
 }

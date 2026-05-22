@@ -104,6 +104,7 @@ export interface DashboardMessages {
       tracks: string;
       albums: string;
       artists: string;
+      artistEntities: string;
       users: string;
     };
   };
@@ -859,7 +860,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       cards: {
         tracks: "Tracks",
         albums: "Alben",
-        artists: "K\u00fcnstler",
+        artists: "Artist-Profile",
+        artistEntities: "Artist-Entities",
         users: "Benutzer",
       },
     },
@@ -907,11 +909,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         colAdded: "Hinzugef\u00fcgt",
       },
       artists: {
-        title: "K\u00fcnstler",
-        searchPlaceholder: "K\u00fcnstler suchen\u2026",
-        total: "K\u00fcnstler",
-        noArtists: "Keine K\u00fcnstler vorhanden",
-        noArtistsHint: "K\u00fcnstler werden automatisch beim Aufl\u00f6sen von Links erstellt.",
+        title: "Artist-Profile",
+        searchPlaceholder: "Artist-Profile suchen\u2026",
+        total: "Artist-Profile",
+        noArtists: "Keine Artist-Profile vorhanden",
+        noArtistsHint: "Artist-Profile werden automatisch beim Aufl\u00f6sen von Artist-Links erstellt.",
         colName: "Name",
         colGenres: "Genres",
         colSource: "Quelle",
@@ -1589,7 +1591,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       cards: {
         tracks: "Tracks",
         albums: "Albums",
-        artists: "Artists",
+        artists: "Artist Profiles",
+        artistEntities: "Artist Entities",
         users: "Users",
       },
     },
@@ -1637,11 +1640,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         colAdded: "Added",
       },
       artists: {
-        title: "Artists",
-        searchPlaceholder: "Search artists\u2026",
-        total: "artists",
-        noArtists: "No artists yet",
-        noArtistsHint: "Artists are created automatically when resolving links.",
+        title: "Artist Profiles",
+        searchPlaceholder: "Search artist profiles\u2026",
+        total: "artist profiles",
+        noArtists: "No artist profiles yet",
+        noArtistsHint: "Artist profiles are created automatically when resolving artist links.",
         colName: "Name",
         colGenres: "Genres",
         colSource: "Source",
