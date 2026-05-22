@@ -53,6 +53,7 @@
 import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getAdminRepository } from "../db/index.js";
+import type { ArtistCredit } from "../db/repository.js";
 import { clearAllArtworks } from "../services/genre-artwork/index.js";
 import { resetBrowseCache } from "../services/genre-search/lastfm.js";
 
@@ -93,6 +94,21 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     const data: Record<string, unknown> = {};
     if (typeof body.title === "string") data.title = body.title;
     if (Array.isArray(body.artists)) data.artists = body.artists;
+    if (Array.isArray(body.artistCredits)) {
+      data.artistCredits = body.artistCredits.flatMap((credit): ArtistCredit[] => {
+        if (!credit || typeof credit !== "object") return [];
+        const row = credit as Record<string, unknown>;
+        if (
+          typeof row.artistEntityId !== "string" ||
+          typeof row.name !== "string" ||
+          row.role !== "main" ||
+          typeof row.position !== "number"
+        ) {
+          return [];
+        }
+        return [{ artistEntityId: row.artistEntityId, name: row.name, role: "main", position: row.position }];
+      });
+    }
     if (body.albumName !== undefined) data.albumName = body.albumName ?? null;
     if (body.isrc !== undefined) data.isrc = body.isrc ?? null;
     if (body.artworkUrl !== undefined) data.artworkUrl = body.artworkUrl ?? null;

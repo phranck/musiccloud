@@ -22,6 +22,7 @@ interface TrackDetail {
   id: string;
   title: string;
   artists: string[];
+  artistCredits: ArtistCredit[];
   albumName: string | null;
   isrc: string | null;
   artworkUrl: string | null;
@@ -34,6 +35,13 @@ interface TrackDetail {
   shortId: string | null;
   createdAt: number;
   serviceLinks: { service: string; url: string }[];
+}
+
+interface ArtistCredit {
+  artistEntityId: string;
+  name: string;
+  role: "main";
+  position: number;
 }
 
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
@@ -58,6 +66,7 @@ function loadReducer(_state: LoadState, action: LoadAction): LoadState {
 interface FormState {
   title: string;
   artists: string;
+  artistCredits: ArtistCredit[];
   albumName: string;
   isrc: string;
   artworkUrl: string;
@@ -73,7 +82,27 @@ function formReducer(state: FormState, action: FormAction): FormState {
   }
 }
 
-const emptyForm: FormState = { title: "", artists: "", albumName: "", isrc: "", artworkUrl: "" };
+const emptyForm: FormState = { title: "", artists: "", artistCredits: [], albumName: "", isrc: "", artworkUrl: "" };
+
+function parseArtistNames(value: string): string[] {
+  return value.split(",").flatMap((a) => {
+    const trimmed = a.trim();
+    return trimmed ? [trimmed] : [];
+  });
+}
+
+function buildArtistCreditsForSave(form: FormState): ArtistCredit[] | undefined {
+  const names = parseArtistNames(form.artists);
+  if (names.length !== form.artistCredits.length) return undefined;
+
+  const credits = names.map((name, index) => {
+    const existing = form.artistCredits[index];
+    if (!existing || existing.name !== name) return null;
+    return { ...existing, position: index };
+  });
+
+  return credits.every(Boolean) ? (credits as ArtistCredit[]) : undefined;
+}
 
 interface SaveState {
   saving: boolean;
@@ -118,6 +147,7 @@ export function TrackEditPage() {
           form: {
             title: data.title,
             artists: data.artists.join(", "),
+            artistCredits: data.artistCredits ?? [],
             albumName: data.albumName ?? "",
             isrc: data.isrc ?? "",
             artworkUrl: data.artworkUrl ?? "",
@@ -131,12 +161,11 @@ export function TrackEditPage() {
     if (!id || save.saving) return;
     saveDispatch({ type: "start" });
     try {
+      const artistCredits = buildArtistCreditsForSave(form);
       await api.patch(ENDPOINTS.admin.tracks.detail(id), {
         title: form.title,
-        artists: form.artists.split(",").flatMap((a) => {
-          const trimmed = a.trim();
-          return trimmed ? [trimmed] : [];
-        }),
+        artists: parseArtistNames(form.artists),
+        ...(artistCredits ? { artistCredits } : {}),
         albumName: form.albumName || null,
         isrc: form.isrc || null,
         artworkUrl: form.artworkUrl || null,
@@ -174,6 +203,7 @@ export function TrackEditPage() {
 
   const track = load.track;
   const linksByService = new Map(track.serviceLinks.map((l) => [l.service, l.url]));
+  const activeArtistCredits = buildArtistCreditsForSave(form) ?? [];
 
   const toolbar = (
     <div className="flex items-center gap-3 ml-auto">
@@ -277,6 +307,19 @@ export function TrackEditPage() {
                 onChange={(e) => formDispatch({ type: "set", field: "artists", value: e.target.value })}
                 placeholder={m.artistsHint}
               />
+              {activeArtistCredits.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {activeArtistCredits.map((credit) => (
+                    <span
+                      key={`${credit.artistEntityId}-${credit.position}`}
+                      className="rounded-md border border-[var(--ds-border-subtle)] px-2 py-1 text-[11px] text-[var(--ds-text-muted)]"
+                      title={credit.artistEntityId}
+                    >
+                      {credit.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <div>
               <label htmlFor="track-album" className={labelClass}>
