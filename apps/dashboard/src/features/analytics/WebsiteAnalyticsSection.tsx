@@ -1,3 +1,11 @@
+import {
+  ChartLineIcon,
+  CursorClickIcon,
+  FlowArrowIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  UsersThreeIcon,
+} from "@phosphor-icons/react";
 import { useMemo } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -172,7 +180,7 @@ function PlatformFunnel({
   return (
     <DashboardSection>
       <DashboardSection.Header
-        icon={<span className="h-2 w-2 rounded-full bg-emerald-400" />}
+        icon={<FunnelIcon weight="duotone" className="h-4 w-4" />}
         title={copy.sections.funnel}
       />
       <DashboardSection.Body>
@@ -214,7 +222,7 @@ function HouseholdTable({
   return (
     <DashboardSection>
       <DashboardSection.Header
-        icon={<span className="h-2 w-2 rounded-full bg-cyan-400" />}
+        icon={<UsersThreeIcon weight="duotone" className="h-4 w-4" />}
         title={copy.sections.households}
       />
       <DashboardSection.Body>
@@ -245,7 +253,7 @@ function HeatmapPreview({ copy }: { copy: WebsiteCopy }) {
   return (
     <DashboardSection className="min-h-full">
       <DashboardSection.Header
-        icon={<span className="h-2 w-2 rounded-full bg-amber-300" />}
+        icon={<CursorClickIcon weight="duotone" className="h-4 w-4" />}
         title={copy.sections.heatmap}
       />
       <DashboardSection.Body>
@@ -285,7 +293,7 @@ function ClickpathFlow({ copy }: { copy: WebsiteCopy }) {
   return (
     <DashboardSection className="min-h-full">
       <DashboardSection.Header
-        icon={<span className="h-2 w-2 rounded-full bg-sky-400" />}
+        icon={<FlowArrowIcon weight="duotone" className="h-4 w-4" />}
         title={copy.sections.clickpath}
       />
       <DashboardSection.Body>
@@ -363,7 +371,7 @@ function NodeInspector({ copy }: { copy: WebsiteCopy }) {
   return (
     <DashboardSection>
       <DashboardSection.Header
-        icon={<span className="h-2 w-2 rounded-full bg-rose-300" />}
+        icon={<MagnifyingGlassIcon weight="duotone" className="h-4 w-4" />}
         title={copy.sections.inspector}
       />
       <DashboardSection.Body>
@@ -408,7 +416,7 @@ export function WebsiteAnalyticsSection({ formatNumber, locale, period }: Websit
   return (
     <div className="space-y-4">
       <DashboardSection>
-        <DashboardSection.Header icon={<span className="h-2 w-2 rounded-full bg-cyan-400" />} title={copy.badge} />
+        <DashboardSection.Header icon={<ChartLineIcon weight="duotone" className="h-4 w-4" />} title={copy.badge} />
         <DashboardSection.Body>
           <p className="max-w-3xl text-sm text-[var(--ds-text-subtle)]">{copy.note}</p>
         </DashboardSection.Body>
