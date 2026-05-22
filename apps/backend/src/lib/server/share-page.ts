@@ -1,5 +1,6 @@
 import { isValidServiceId, type ServiceId } from "@musiccloud/shared";
 import { getRepository } from "../../db/index.js";
+import type { ArtistCredit } from "../../db/repository.js";
 import { deezerAdapter } from "../../services/plugins/deezer/adapter.js";
 import { isExpiredDeezerPreviewUrl } from "../preview-url.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
@@ -16,6 +17,7 @@ export interface SharePageData {
     previewUrl: string | null;
   };
   artists: string[];
+  artistCredits: ArtistCredit[];
   artistDisplay: string;
   shortId: string;
   trackId: string;
@@ -72,6 +74,7 @@ export interface ShareAlbumPageData {
     previewUrl: string | null;
   };
   artists: string[];
+  artistCredits: ArtistCredit[];
   artistDisplay: string;
   shortId: string;
   links: { service: string; url: string }[];
@@ -158,6 +161,7 @@ function enrichWithOGMeta(
     };
     trackId: string;
     artists: string[];
+    artistCredits: ArtistCredit[];
     artistDisplay: string;
     shortId: string;
     links: { service: string; url: string }[];

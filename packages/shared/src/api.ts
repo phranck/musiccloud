@@ -16,9 +16,17 @@
  * one endpoint for all three without the frontend probing fields.
  */
 
+export interface ApiArtistCredit {
+  artistEntityId: string;
+  name: string;
+  role: "main" | "featured" | "remixer" | "producer" | "composer" | "lyricist" | "performer" | "unknown";
+  position: number;
+}
+
 export interface ApiTrack {
   title: string;
   artists: string[];
+  artistCredits?: ApiArtistCredit[];
   albumName?: string;
   artworkUrl?: string;
   durationMs?: number;
@@ -182,6 +190,7 @@ export type UnifiedResolveSuccessResponse =
 export interface ApiAlbum {
   title: string;
   artists: string[];
+  artistCredits?: ApiArtistCredit[];
   releaseDate?: string;
   totalTracks?: number;
   artworkUrl?: string;

@@ -79,6 +79,7 @@ export interface NormalizedTrack {
   sourceId: string;
   title: string;
   artists: string[];
+  artistCredits?: ArtistCredit[];
   albumName?: string;
   durationMs?: number;
   releaseDate?: string;
@@ -86,6 +87,13 @@ export interface NormalizedTrack {
   artworkUrl?: string;
   previewUrl?: string;
   webUrl: string;
+}
+
+export interface ArtistCredit {
+  artistEntityId: string;
+  name: string;
+  role: "main" | "featured" | "remixer" | "producer" | "composer" | "lyricist" | "performer" | "unknown";
+  position: number;
 }
 
 export interface MatchResult {
@@ -284,6 +292,7 @@ export interface NormalizedAlbum {
   sourceId: string;
   title: string;
   artists: string[];
+  artistCredits?: ArtistCredit[];
   releaseDate?: string;
   totalTracks?: number;
   artworkUrl?: string;

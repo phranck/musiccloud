@@ -1,4 +1,5 @@
 import type { ContentCardStyle, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
+import type { ArtistCredit } from "../services/types.js";
 
 export interface AdminUser {
   id: string;
@@ -19,6 +20,7 @@ export interface TrackListItem {
   id: string;
   title: string;
   artists: string[];
+  artistCredits: ArtistCredit[];
   albumName: string | null;
   isrc: string | null;
   artworkUrl: string | null;
@@ -32,6 +34,7 @@ export interface AlbumListItem {
   id: string;
   title: string;
   artists: string[];
+  artistCredits: ArtistCredit[];
   releaseDate: string | null;
   totalTracks: number | null;
   artworkUrl: string | null;
@@ -57,6 +60,7 @@ export interface TrackDetail {
   id: string;
   title: string;
   artists: string[];
+  artistCredits: ArtistCredit[];
   albumName: string | null;
   isrc: string | null;
   artworkUrl: string | null;

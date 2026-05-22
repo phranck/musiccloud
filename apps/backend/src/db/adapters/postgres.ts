@@ -36,6 +36,7 @@ import type {
   AppTelemetryEventInput,
   ArtistCacheData,
   ArtistCacheRow,
+  ArtistCredit,
   ArtistGroupMembershipRecord,
   ArtistIdentityEventRecord,
   ArtistIdentityEventType,
@@ -70,6 +71,7 @@ interface TrackRow {
   id: string;
   title: string;
   artists: string;
+  artist_credits: string;
   album_name: string | null;
   isrc: string | null;
   artwork_url: string | null;
@@ -95,6 +97,7 @@ interface AlbumRow {
   id: string;
   title: string;
   artists: string;
+  artist_credits: string;
   release_date: string | null;
   total_tracks: number | null;
   artwork_url: string | null;
@@ -145,6 +148,7 @@ interface TrackListRow {
   id: string;
   title: string;
   artists: string;
+  artist_credits: string;
   album_name: string | null;
   isrc: string | null;
   artwork_url: string | null;
@@ -158,6 +162,7 @@ interface AlbumListRow {
   id: string;
   title: string;
   artists: string;
+  artist_credits: string;
   release_date: string | null;
   total_tracks: number | null;
   artwork_url: string | null;
@@ -249,6 +254,35 @@ function safeParseArray(json: string, fallback: string[] = []): string[] {
   }
 }
 
+function safeParseArtistCredits(json: string, fallback: ArtistCredit[] = []): ArtistCredit[] {
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    if (!Array.isArray(parsed)) return fallback;
+    return parsed.flatMap((credit) => {
+      if (!credit || typeof credit !== "object") return [];
+      const row = credit as Record<string, unknown>;
+      if (
+        typeof row.artistEntityId !== "string" ||
+        typeof row.name !== "string" ||
+        typeof row.role !== "string" ||
+        typeof row.position !== "number"
+      ) {
+        return [];
+      }
+      return [
+        {
+          artistEntityId: row.artistEntityId,
+          name: row.name,
+          role: row.role as ArtistCredit["role"],
+          position: row.position,
+        },
+      ];
+    });
+  } catch {
+    return fallback;
+  }
+}
+
 function safeParseJson<T>(json: string | null | undefined, fallback: T): T {
   if (!json) return fallback;
   try {
@@ -264,11 +298,43 @@ const TRACK_ARTISTS_SELECT = `COALESCE((
   WHERE tac.track_id = t.id AND tac.credit_role = 'main'
 ), '[]') AS artists`;
 
+const TRACK_ARTIST_CREDITS_SELECT = `COALESCE((
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'artistEntityId', tac.artist_entity_id,
+      'name', tac.credit_name,
+      'role', tac.credit_role,
+      'position', tac.credit_position
+    )
+    ORDER BY tac.credit_position, tac.created_at
+  )::text
+  FROM track_artist_credits tac
+  WHERE tac.track_id = t.id AND tac.credit_role = 'main'
+), '[]') AS artist_credits`;
+
+const TRACK_ARTIST_FIELDS_SELECT = `${TRACK_ARTISTS_SELECT}, ${TRACK_ARTIST_CREDITS_SELECT}`;
+
 const ALBUM_ARTISTS_SELECT = `COALESCE((
   SELECT jsonb_agg(aac.credit_name ORDER BY aac.credit_position, aac.created_at)::text
   FROM album_artist_credits aac
   WHERE aac.album_id = a.id AND aac.credit_role = 'main'
 ), '[]') AS artists`;
+
+const ALBUM_ARTIST_CREDITS_SELECT = `COALESCE((
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'artistEntityId', aac.artist_entity_id,
+      'name', aac.credit_name,
+      'role', aac.credit_role,
+      'position', aac.credit_position
+    )
+    ORDER BY aac.credit_position, aac.created_at
+  )::text
+  FROM album_artist_credits aac
+  WHERE aac.album_id = a.id AND aac.credit_role = 'main'
+), '[]') AS artist_credits`;
+
+const ALBUM_ARTIST_FIELDS_SELECT = `${ALBUM_ARTISTS_SELECT}, ${ALBUM_ARTIST_CREDITS_SELECT}`;
 
 const ARTIST_NAME_SELECT = `COALESCE(artist_name.name, '[unnamed artist]') AS name`;
 
@@ -395,7 +461,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -419,7 +485,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     // there from persistence-time.
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -469,7 +535,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
       const searchResult = await this.pool.query(
         `SELECT
-          t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
+          t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
           t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
           t.source_service, t.source_url,
@@ -528,7 +594,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async loadByShortId(shortId: string): Promise<SharePageDbResult | null> {
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -549,7 +615,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async loadByTrackId(trackId: string): Promise<SharePageDbResult | null> {
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -570,6 +636,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async persistTrackWithLinks(data: PersistTrackData): Promise<{
     trackId: string;
     shortId: string;
+    artistCredits: ArtistCredit[];
   }> {
     const client = await this.pool.connect();
     try {
@@ -654,7 +721,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         );
       }
 
-      await this.replaceTrackArtistCredits(client, trackId, data.sourceTrack.artists, now);
+      const artistCredits = await this.replaceTrackArtistCredits(client, trackId, data.sourceTrack.artists, now);
 
       // Upsert service links
       for (const link of data.links) {
@@ -690,7 +757,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       }
 
       await client.query("COMMIT");
-      return { trackId, shortId };
+      return { trackId, shortId, artistCredits };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -810,7 +877,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async findTrackByExternalId(idType: string, idValue: string): Promise<CachedTrackResult | null> {
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -832,7 +899,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async findAlbumByExternalId(idType: string, idValue: string): Promise<CachedAlbumResult | null> {
     const result = await this.pool.query(
       `SELECT
-        a.id, a.title, ${ALBUM_ARTISTS_SELECT}, a.release_date, a.total_tracks,
+        a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
         a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
         (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
         asl.url as link_url, asl.service, asl.confidence, asl.match_method,
@@ -1239,7 +1306,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async findAlbumByUrl(url: string): Promise<CachedAlbumResult | null> {
     const result = await this.pool.query(
       `SELECT
-        a.id, a.title, ${ALBUM_ARTISTS_SELECT}, a.release_date, a.total_tracks,
+        a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
         a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
         (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
         asl.url as link_url, asl.service, asl.confidence, asl.match_method,
@@ -1260,7 +1327,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     // Fast path: canonical column.
     const result = await this.pool.query(
       `SELECT
-        a.id, a.title, ${ALBUM_ARTISTS_SELECT}, a.release_date, a.total_tracks,
+        a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
         a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
         (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
         asl.url as link_url, asl.service, asl.confidence, asl.match_method,
@@ -1305,6 +1372,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async persistAlbumWithLinks(data: PersistAlbumData): Promise<{
     albumId: string;
     shortId: string;
+    artistCredits: ArtistCredit[];
   }> {
     const client = await this.pool.connect();
     try {
@@ -1386,7 +1454,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         );
       }
 
-      await this.replaceAlbumArtistCredits(client, albumId, data.sourceAlbum.artists, now);
+      const artistCredits = await this.replaceAlbumArtistCredits(client, albumId, data.sourceAlbum.artists, now);
 
       // Upsert service links
       for (const link of data.links) {
@@ -1421,7 +1489,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       }
 
       await client.query("COMMIT");
-      return { albumId, shortId };
+      return { albumId, shortId, artistCredits };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -1473,7 +1541,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async loadAlbumByShortId(shortId: string): Promise<SharePageAlbumResult | null> {
     const result = await this.pool.query(
       `SELECT
-        a.id, a.title, ${ALBUM_ARTISTS_SELECT}, a.release_date, a.total_tracks,
+        a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
         a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
         asl.url as link_url, asl.service,
         asu.id as short_id
@@ -1488,11 +1556,13 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     const firstRow = result.rows[0] as AlbumWithLinkRow;
     const artists = safeParseArray(firstRow.artists);
+    const artistCredits = safeParseArtistCredits(firstRow.artist_credits);
     const artistDisplay = artists.length > 0 ? artists[0] : "Unknown Artist";
 
     return {
       album: this.rowToAlbum(firstRow),
       artists,
+      artistCredits,
       links: (result.rows as AlbumWithLinkRow[])
         .filter((r) => r.link_url && r.service)
         .map((r) => ({
@@ -1940,7 +2010,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async getTrackById(id: string) {
     const trackResult = await this.pool.query(
-      `SELECT t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
+      `SELECT t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url, t.created_at,
@@ -1963,6 +2033,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       id: r.id,
       title: r.title,
       artists: safeParseArray(r.artists),
+      artistCredits: safeParseArtistCredits(r.artist_credits),
       albumName: r.album_name ?? null,
       isrc: r.isrc ?? null,
       artworkUrl: r.artwork_url ?? null,
@@ -2081,7 +2152,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     // (track_id, service) composite index for each.
     dataParams.push(limit, offset);
     const query = `SELECT
-      t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
+      t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
       t.source_service, t.created_at,
       su.id as short_id,
       (SELECT COUNT(*) FROM service_links sl WHERE sl.track_id = t.id) as link_count
@@ -2097,6 +2168,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       id: r.id,
       title: r.title,
       artists: safeParseArray(r.artists),
+      artistCredits: safeParseArtistCredits(r.artist_credits),
       albumName: r.album_name ?? null,
       isrc: r.isrc ?? null,
       artworkUrl: r.artwork_url ?? null,
@@ -2142,7 +2214,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     dataParams.push(limit, offset);
     const query = `SELECT
-      a.id, a.title, ${ALBUM_ARTISTS_SELECT}, a.release_date, a.total_tracks,
+      a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
       a.artwork_url, a.upc, a.source_service, a.created_at,
       asu.id as short_id,
       (SELECT COUNT(*) FROM album_service_links asl WHERE asl.album_id = a.id) as link_count
@@ -2158,6 +2230,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       id: r.id,
       title: r.title,
       artists: safeParseArray(r.artists),
+      artistCredits: safeParseArtistCredits(r.artist_credits),
       releaseDate: r.release_date ?? null,
       totalTracks: r.total_tracks ?? null,
       artworkUrl: r.artwork_url ?? null,
@@ -2468,7 +2541,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     const placeholders = shortIds.map((_, i) => `$${i + 1}`).join(", ");
 
     const trackRows = await this.pool.query(
-      `SELECT su.id AS short_id, t.title, ${TRACK_ARTISTS_SELECT}
+      `SELECT su.id AS short_id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}
        FROM short_urls su JOIN tracks t ON su.track_id = t.id
        WHERE su.id IN (${placeholders})`,
       shortIds,
@@ -2482,7 +2555,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     if (remaining.length > 0) {
       const albumPlaceholders = remaining.map((_, i) => `$${i + 1}`).join(", ");
       const albumRows = await this.pool.query(
-        `SELECT asu.id AS short_id, a.title, ${ALBUM_ARTISTS_SELECT}
+        `SELECT asu.id AS short_id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}
          FROM album_short_urls asu JOIN albums a ON asu.album_id = a.id
          WHERE asu.id IN (${albumPlaceholders})`,
         remaining,
@@ -2503,7 +2576,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   async loadSharePageResult(shortId: string): Promise<SharePageDbResult | null> {
     const result = await this.pool.query(
       `SELECT
-        t.id, t.title, ${TRACK_ARTISTS_SELECT}, t.album_name, t.isrc, t.artwork_url,
+        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
         (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
         t.source_service, t.source_url,
@@ -2520,12 +2593,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     const firstRow = result.rows[0] as TrackWithLinkRow;
     const artists = safeParseArray(firstRow.artists);
+    const artistCredits = safeParseArtistCredits(firstRow.artist_credits);
     const artistDisplay = artists.length > 0 ? artists[0] : "Unknown Artist";
 
     return {
       trackId: firstRow.id,
       track: this.rowToSharePageTrack(firstRow),
       artists,
+      artistCredits,
       links: (result.rows as TrackWithLinkRow[])
         .filter((r) => r.url && r.service)
         .map((r) => ({
@@ -2619,10 +2694,11 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     trackId: string,
     artistNames: string[],
     now: Date,
-  ): Promise<void> {
+  ): Promise<ArtistCredit[]> {
     await client.query(`DELETE FROM track_artist_credits WHERE track_id = $1 AND credit_role = 'main'`, [trackId]);
 
     const creditNames = artistNames.map((name) => name.trim()).filter(Boolean);
+    const artistCredits: ArtistCredit[] = [];
     for (const [index, creditName] of creditNames.entries()) {
       const artistEntityId = await this.ensureArtistEntityForName(client, creditName, now);
       await client.query(
@@ -2632,7 +2708,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         ) VALUES ($1, $2, $3, $4, $5, 'main', NULL, 'legacy_name', NULL, $6)`,
         [generateTrackId(), trackId, artistEntityId, creditName, index, now],
       );
+      artistCredits.push({ artistEntityId, name: creditName, role: "main", position: index });
     }
+    return artistCredits;
   }
 
   private async replaceAlbumArtistCredits(
@@ -2640,10 +2718,11 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     albumId: string,
     artistNames: string[],
     now: Date,
-  ): Promise<void> {
+  ): Promise<ArtistCredit[]> {
     await client.query(`DELETE FROM album_artist_credits WHERE album_id = $1 AND credit_role = 'main'`, [albumId]);
 
     const creditNames = artistNames.map((name) => name.trim()).filter(Boolean);
+    const artistCredits: ArtistCredit[] = [];
     for (const [index, creditName] of creditNames.entries()) {
       const artistEntityId = await this.ensureArtistEntityForName(client, creditName, now);
       await client.query(
@@ -2653,7 +2732,9 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         ) VALUES ($1, $2, $3, $4, $5, 'main', NULL, 'legacy_name', NULL, $6)`,
         [generateTrackId(), albumId, artistEntityId, creditName, index, now],
       );
+      artistCredits.push({ artistEntityId, name: creditName, role: "main", position: index });
     }
+    return artistCredits;
   }
 
   private buildCachedResult(rows: TrackWithLinkRow[]): CachedTrackResult | null {
@@ -2723,12 +2804,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     const firstRow = rows[0];
     const artists = safeParseArray(firstRow.artists);
+    const artistCredits = safeParseArtistCredits(firstRow.artist_credits);
     const artistDisplay = artists.length > 0 ? artists[0] : "Unknown Artist";
 
     return {
       trackId: firstRow.id,
       track: this.rowToSharePageTrack(firstRow),
       artists,
+      artistCredits,
       links: rows
         .filter((r) => r.url && r.service)
         .map((r) => ({
@@ -2746,6 +2829,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       sourceId: row.id,
       title: row.title,
       artists: safeParseArray(row.artists),
+      artistCredits: safeParseArtistCredits(row.artist_credits),
       albumName: row.album_name ?? undefined,
       isrc: row.isrc ?? undefined,
       artworkUrl: row.artwork_url ?? undefined,
@@ -2789,6 +2873,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       sourceId: row.id,
       title: row.title,
       artists: safeParseArray(row.artists),
+      artistCredits: safeParseArtistCredits(row.artist_credits),
       releaseDate: row.release_date ?? undefined,
       totalTracks: row.total_tracks ?? undefined,
       artworkUrl: row.artwork_url ?? undefined,

@@ -120,6 +120,7 @@ export default async function shareRoutes(app: FastifyInstance) {
           track: {
             title: trackData.track.title,
             artists: trackData.artists,
+            artistCredits: trackData.artistCredits,
             albumName: trackData.track.albumName ?? undefined,
             artworkUrl: trackData.track.artworkUrl ?? undefined,
             durationMs: trackData.track.durationMs ?? undefined,
@@ -155,6 +156,7 @@ export default async function shareRoutes(app: FastifyInstance) {
           album: {
             title: albumData.album.title,
             artists: albumData.artists,
+            artistCredits: albumData.artistCredits,
             releaseDate: albumData.album.releaseDate ?? undefined,
             totalTracks: albumData.album.totalTracks ?? undefined,
             artworkUrl: albumData.album.artworkUrl ?? undefined,

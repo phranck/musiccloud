@@ -277,7 +277,7 @@ function jsonError(
 async function persistAndRespond(result: ResolutionResult, origin: string): Promise<ResolveSuccessResponse> {
   const repo = await getRepository();
 
-  const { trackId, shortId } = await repo.persistTrackWithLinks({
+  const { trackId, shortId, artistCredits } = await repo.persistTrackWithLinks({
     sourceTrack: {
       ...result.sourceTrack,
       sourceUrl: result.sourceTrack.webUrl,
@@ -346,6 +346,7 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
     track: {
       title: result.sourceTrack.title,
       artists: result.sourceTrack.artists,
+      artistCredits,
       albumName: result.sourceTrack.albumName,
       artworkUrl: result.sourceTrack.artworkUrl,
       durationMs: result.sourceTrack.durationMs,

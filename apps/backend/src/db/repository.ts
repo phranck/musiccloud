@@ -1,6 +1,12 @@
-import type { ExternalIdRecord, NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "../services/types.js";
+import type {
+  ArtistCredit,
+  ExternalIdRecord,
+  NormalizedAlbum,
+  NormalizedArtist,
+  NormalizedTrack,
+} from "../services/types.js";
 
-export type { ExternalIdRecord } from "../services/types.js";
+export type { ArtistCredit, ExternalIdRecord } from "../services/types.js";
 
 /** Cached track with its cross-service links (returned by URL/ISRC lookups) */
 export interface CachedTrackResult {
@@ -29,6 +35,7 @@ export interface SharePageDbResult {
     previewUrl: string | null;
   };
   artists: string[];
+  artistCredits: ArtistCredit[];
   artistDisplay: string;
   shortId: string;
   links: Array<{ service: string; url: string }>;
@@ -102,6 +109,7 @@ export interface SharePageAlbumResult {
     previewUrl: string | null;
   };
   artists: string[];
+  artistCredits: ArtistCredit[];
   artistDisplay: string;
   shortId: string;
   links: Array<{ service: string; url: string }>;
@@ -350,7 +358,9 @@ export interface TrackRepository {
   loadByTrackId(trackId: string): Promise<SharePageDbResult | null>;
 
   // Track: Write operations (transaction-safe)
-  persistTrackWithLinks(data: PersistTrackData): Promise<{ trackId: string; shortId: string }>;
+  persistTrackWithLinks(
+    data: PersistTrackData,
+  ): Promise<{ trackId: string; shortId: string; artistCredits: ArtistCredit[] }>;
   addLinksToTrack(
     trackId: string,
     links: Array<{
@@ -371,7 +381,9 @@ export interface TrackRepository {
   loadAlbumByShortId(shortId: string): Promise<SharePageAlbumResult | null>;
 
   // Album: Write operations (transaction-safe)
-  persistAlbumWithLinks(data: PersistAlbumData): Promise<{ albumId: string; shortId: string }>;
+  persistAlbumWithLinks(
+    data: PersistAlbumData,
+  ): Promise<{ albumId: string; shortId: string; artistCredits: ArtistCredit[] }>;
   addLinksToAlbum(
     albumId: string,
     links: Array<{

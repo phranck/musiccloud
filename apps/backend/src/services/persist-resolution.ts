@@ -21,6 +21,7 @@ import { stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { deezerAdapter } from "./plugins/deezer/adapter.js";
 import type { ResolutionResult } from "./resolver.js";
+import type { ArtistCredit } from "./types.js";
 
 export interface PersistResolutionResult {
   trackId: string;
@@ -30,6 +31,7 @@ export interface PersistResolutionResult {
    *  resolver's preview was missing/expired. `undefined` when no preview
    *  could be obtained. */
   refreshedPreviewUrl: string | undefined;
+  artistCredits: ArtistCredit[];
 }
 
 /**
@@ -43,7 +45,7 @@ export interface PersistResolutionResult {
 export async function persistResolution(result: ResolutionResult): Promise<PersistResolutionResult> {
   const repo = await getRepository();
 
-  const { trackId, shortId } = await repo.persistTrackWithLinks({
+  const { trackId, shortId, artistCredits } = await repo.persistTrackWithLinks({
     sourceTrack: {
       ...result.sourceTrack,
       sourceUrl: result.sourceTrack.webUrl,
@@ -128,5 +130,5 @@ export async function persistResolution(result: ResolutionResult): Promise<Persi
     }
   }
 
-  return { trackId, shortId, refreshedPreviewUrl };
+  return { trackId, shortId, refreshedPreviewUrl, artistCredits };
 }

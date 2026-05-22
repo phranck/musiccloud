@@ -194,7 +194,7 @@ describe.skipIf(!process.env.DATABASE_URL)("artist identity repository (integrat
   it("persists and reads track artist display names through credits", async () => {
     const repo = await getRepository();
 
-    await repo.persistTrackWithLinks({
+    const persisted = await repo.persistTrackWithLinks({
       sourceTrack: {
         title: "Credit Backed Track",
         artists: [creditArtistOne, creditArtistTwo],
@@ -206,5 +206,10 @@ describe.skipIf(!process.env.DATABASE_URL)("artist identity repository (integrat
 
     const cached = await repo.findTrackByUrl(creditTrackSourceUrl);
     expect(cached?.track.artists).toEqual([creditArtistOne, creditArtistTwo]);
+    expect(persisted.artistCredits).toEqual([
+      expect.objectContaining({ name: creditArtistOne, role: "main", position: 0 }),
+      expect.objectContaining({ name: creditArtistTwo, role: "main", position: 1 }),
+    ]);
+    expect(cached?.track.artistCredits).toEqual(persisted.artistCredits);
   });
 });

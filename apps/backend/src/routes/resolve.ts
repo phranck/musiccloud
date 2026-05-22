@@ -390,7 +390,7 @@ async function persistTrackAndRespond(
   result: ResolutionResult,
   origin: string,
 ): Promise<UnifiedResolveSuccessResponse> {
-  const { trackId, shortId, refreshedPreviewUrl } = await persistResolution(result);
+  const { trackId, shortId, refreshedPreviewUrl, artistCredits } = await persistResolution(result);
   const shortUrl = `${origin}/${shortId}`;
 
   return {
@@ -400,6 +400,7 @@ async function persistTrackAndRespond(
     track: {
       title: result.sourceTrack.title,
       artists: result.sourceTrack.artists,
+      artistCredits,
       albumName: result.sourceTrack.albumName,
       artworkUrl: result.sourceTrack.artworkUrl,
       durationMs: result.sourceTrack.durationMs,
@@ -454,7 +455,7 @@ async function persistAlbumAndRespond(
     }
   }
 
-  const { albumId, shortId } = await repo.persistAlbumWithLinks({
+  const { albumId, shortId, artistCredits } = await repo.persistAlbumWithLinks({
     sourceAlbum: {
       ...result.sourceAlbum,
       sourceUrl: result.sourceAlbum.webUrl,
@@ -502,6 +503,7 @@ async function persistAlbumAndRespond(
     album: {
       title: result.sourceAlbum.title,
       artists: result.sourceAlbum.artists,
+      artistCredits,
       releaseDate: result.sourceAlbum.releaseDate,
       totalTracks: result.sourceAlbum.totalTracks,
       artworkUrl: result.sourceAlbum.artworkUrl,

@@ -14,6 +14,30 @@
  * "Take on Me" by a-ha throughout for visual consistency.
  */
 
+export const ArtistCreditSchema = {
+  $id: "ArtistCredit",
+  type: "object",
+  description:
+    "Normalized artist entity reference for one display credit. `artists` remains the compatibility display array.",
+  required: ["artistEntityId", "name", "role", "position"],
+  additionalProperties: false,
+  properties: {
+    artistEntityId: { type: "string", description: "Internal normalized artist entity id." },
+    name: { type: "string", description: "Display credit exactly as stored for this track or album." },
+    role: {
+      type: "string",
+      enum: ["main", "featured", "remixer", "producer", "composer", "lyricist", "performer", "unknown"],
+    },
+    position: { type: "integer", minimum: 0 },
+  },
+  example: {
+    artistEntityId: "artist_a_ha",
+    name: "a-ha",
+    role: "main",
+    position: 0,
+  },
+} as const;
+
 export const TrackSchema = {
   $id: "Track",
   type: "object",
@@ -26,6 +50,11 @@ export const TrackSchema = {
       type: "array",
       items: { type: "string" },
       description: "Credited artists, ordered as the origin service returns them (primary first).",
+    },
+    artistCredits: {
+      type: "array",
+      items: { $ref: "ArtistCredit#" },
+      description: "Normalized artist entity credits. Added alongside `artists` for entity-aware clients.",
     },
     albumName: { type: "string", description: "Containing album title, when known." },
     artworkUrl: { type: "string", format: "uri", description: "Absolute URL to the highest-quality artwork." },
@@ -43,6 +72,7 @@ export const TrackSchema = {
   example: {
     title: "Take on Me",
     artists: ["a-ha"],
+    artistCredits: [{ artistEntityId: "artist_a_ha", name: "a-ha", role: "main", position: 0 }],
     albumName: "Hunting High and Low",
     artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
     durationMs: 225280,
@@ -62,6 +92,11 @@ export const AlbumSchema = {
   properties: {
     title: { type: "string" },
     artists: { type: "array", items: { type: "string" } },
+    artistCredits: {
+      type: "array",
+      items: { $ref: "ArtistCredit#" },
+      description: "Normalized artist entity credits. Added alongside `artists` for entity-aware clients.",
+    },
     releaseDate: { type: "string", format: "date" },
     totalTracks: { type: "integer", minimum: 0 },
     artworkUrl: { type: "string", format: "uri" },
@@ -72,6 +107,7 @@ export const AlbumSchema = {
   example: {
     title: "Hunting High and Low",
     artists: ["a-ha"],
+    artistCredits: [{ artistEntityId: "artist_a_ha", name: "a-ha", role: "main", position: 0 }],
     releaseDate: "1985-06-01",
     totalTracks: 10,
     artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
@@ -838,6 +874,7 @@ export const ActiveServiceSchema = {
  * public API reference by the `transform` filter in `server.ts`.
  */
 export const OPENAPI_SCHEMAS = [
+  ArtistCreditSchema,
   TrackSchema,
   AlbumSchema,
   ArtistSchema,
