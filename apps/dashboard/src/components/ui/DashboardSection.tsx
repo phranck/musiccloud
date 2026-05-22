@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
-import { createContext, use, useMemo } from "react";
+import { Children, createContext, isValidElement, use, useMemo } from "react";
 
 /* ---- Context for collapsible state -------------------------------- */
 interface DashboardSectionContextValue {
   expanded: boolean;
+  hasFooter: boolean;
 }
 
-const DashboardSectionContext = createContext<DashboardSectionContextValue>({ expanded: true });
+const DashboardSectionContext = createContext<DashboardSectionContextValue>({ expanded: true, hasFooter: false });
 
 /* ---- Props -------------------------------------------------------- */
 
@@ -49,7 +50,10 @@ export interface DashboardSectionItemProps {
 /* ---- DashboardSection (root container) ---------------------------- */
 
 export function DashboardSection({ children, expanded = true, className = "" }: DashboardSectionProps) {
-  const contextValue = useMemo(() => ({ expanded }), [expanded]);
+  const hasFooter = Children.toArray(children).some(
+    (child) => isValidElement(child) && child.type === DashboardSectionFooter,
+  );
+  const contextValue = useMemo(() => ({ expanded, hasFooter }), [expanded, hasFooter]);
   return (
     <DashboardSectionContext.Provider value={contextValue}>
       <div className={`bg-[var(--ds-section-body-bg)] rounded-xl shadow-sm ${className}`}>{children}</div>
@@ -80,11 +84,13 @@ function DashboardSectionHeader({ icon, title, addOn, className = "" }: Dashboar
 /* ---- DashboardSection.Body ---------------------------------------- */
 
 function DashboardSectionBody({ children, className = "", flush = false }: DashboardSectionBodyProps) {
-  const { expanded } = use(DashboardSectionContext);
+  const { expanded, hasFooter } = use(DashboardSectionContext);
 
   if (!expanded) return null;
 
-  const baseClass = flush ? "flex flex-col overflow-hidden rounded-b-xl" : "flex flex-col gap-3 p-3";
+  const baseClass = flush
+    ? `flex flex-col overflow-hidden ${hasFooter ? "" : "rounded-b-xl"}`
+    : "flex flex-col gap-3 p-3";
   return <div className={`${baseClass} ${className}`}>{children}</div>;
 }
 

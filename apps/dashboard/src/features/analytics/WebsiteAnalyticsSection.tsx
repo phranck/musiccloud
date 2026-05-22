@@ -1,5 +1,6 @@
-import { Background, Controls, type Edge, MiniMap, type Node, type NodeMouseHandler, ReactFlow } from "@xyflow/react";
+import { Background, Controls, type Edge, type Node, type NodeMouseHandler, Position, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 import {
   ChartLineIcon,
   ClockCounterClockwiseIcon,
@@ -13,11 +14,13 @@ import {
   TrashIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
-import { type ReactNode, useCallback, useMemo, useState } from "react";
+import { type ReactNode, type PointerEvent as ReactPointerEvent, useCallback, useMemo, useRef, useState } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import type { DashboardLocale } from "@/i18n/messages";
+import { PlatformIcon } from "@/shared/ui/PlatformIcon";
 import { formatNaturalText, getWebsiteAnalyticsCopy, type WebsiteCopy } from "./websiteAnalyticsText";
 
 interface WebsiteAnalyticsSectionProps {
@@ -60,6 +63,13 @@ export interface WebsiteAnalyticsPathEvent {
   shortId: string | null;
   elementKey: string | null;
   label: string | null;
+  eventData: Record<string, unknown> | null;
+  subject: {
+    type: "track" | "album" | "artist";
+    title: string;
+    artist: string | null;
+    artworkUrl: string | null;
+  } | null;
 }
 
 export interface WebsiteAnalyticsOverview {
@@ -153,26 +163,42 @@ export interface WebsiteAnalyticsExport {
   drilldown: WebsiteAnalyticsDrilldown;
 }
 
-const FLOW_LANES: Record<string, number> = {
-  page_view: 40,
-  search_submitted: 150,
-  resolve_started: 260,
-  resolve_succeeded: 260,
-  resolve_failed: 260,
-  popular_track_clicked: 370,
-  similar_artist_clicked: 370,
-  upcoming_event_clicked: 370,
-  info_page_clicked: 370,
-  help_page_clicked: 370,
-  live_example_clicked: 370,
-  ui_click: 370,
-  player_started: 480,
-  player_paused: 480,
-  player_resumed: 480,
-  player_completed: 480,
-  player_unavailable: 480,
-  listen_on_clicked: 590,
+type ClickpathCanvasSize = "normal" | "large" | "max";
+
+const CLICKPATH_CANVAS_SIZE_STORAGE_KEY = "website-analytics:clickpath-canvas-size";
+const CLICKPATH_CANVAS_HEIGHT_STORAGE_KEY = "website-analytics:clickpath-canvas-height";
+const CLICKPATH_CANVAS_HEIGHTS: Record<ClickpathCanvasSize, number> = {
+  normal: 640,
+  large: 880,
+  max: 1120,
 };
+const CLICKPATH_CANVAS_MIN_HEIGHT = 420;
+const CLICKPATH_CANVAS_MAX_HEIGHT = 1600;
+const FLOW_NODE_BASE_X = 380;
+const FLOW_NODE_WAVE_AMPLITUDE = 170;
+const FLOW_NODE_VERTICAL_GAP = 168;
+const CLICKPATH_INTERACTION_EVENT_TYPES = new Set([
+  "search_submitted",
+  "listen_on_clicked",
+  "similar_artist_clicked",
+  "popular_track_clicked",
+  "upcoming_event_clicked",
+  "player_started",
+  "player_paused",
+  "player_resumed",
+  "info_page_clicked",
+  "help_page_clicked",
+  "live_example_clicked",
+  "layered_footer_clicked",
+  "ui_click",
+]);
+
+interface ClickpathCanvasResizeState {
+  captureTarget: HTMLDivElement;
+  pointerId: number;
+  startHeight: number;
+  startY: number;
+}
 
 const TIME_FORMATTERS: Record<DashboardLocale, Intl.DateTimeFormat> = {
   de: new Intl.DateTimeFormat("de-DE", {
@@ -250,9 +276,73 @@ function formatDeviceMeta(
   return formatted.length > 0 ? formatted.join(" / ") : (options.fallback ?? "-");
 }
 
+function formatDeviceSummaryLabel(device: WebsiteAnalyticsDeviceSummary, copy: WebsiteCopy) {
+  return formatDeviceMeta([device.deviceClass, device.osFamily, device.browserFamily], copy, {
+    fallback: device.label,
+  });
+}
+
+function eventDataString(event: WebsiteAnalyticsPathEvent, key: string) {
+  const value = event.eventData?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function serviceId(value: string | null | undefined): ServiceId | null {
+  return value && value in PLATFORM_CONFIG ? (value as ServiceId) : null;
+}
+
+function searchEventTitle(event: WebsiteAnalyticsPathEvent, copy: WebsiteCopy) {
+  const queryType = eventDataString(event, "query_type");
+  if (queryType === "url") return formatNaturalText("streaming_url_submitted", copy);
+  if (queryType === "genre") return formatNaturalText("genre_search_submitted", copy);
+  return formatEventType(event.eventType, copy);
+}
+
 function eventDetail(event: WebsiteAnalyticsPathEvent, copy: WebsiteCopy) {
-  const detail = event.label ?? event.platform ?? event.surface ?? event.routeTemplate ?? event.path;
+  if (shouldShowEventSubject(event)) {
+    const subject = event.subject;
+    return subject.artist ? `${subject.title} - ${subject.artist}` : subject.title;
+  }
+
+  if (event.eventType === "search_submitted") {
+    const queryType = eventDataString(event, "query_type");
+    if (queryType === "url") return event.platform ? formatNaturalText(event.platform, copy) : "-";
+    return eventDataString(event, "query_normalized") ?? "-";
+  }
+
+  const label = event.label && event.label !== event.shortId ? event.label : null;
+  if (event.eventType === "ui_click") {
+    const action = event.elementKey ?? event.surface ?? label;
+    return action ? formatNaturalText(action, copy) : formatEventType(event.eventType, copy);
+  }
+
+  if (
+    (event.eventType === "popular_track_clicked" || event.eventType === "similar_artist_clicked") &&
+    !label &&
+    !event.platform
+  ) {
+    return formatNaturalText("track_context_not_stored", copy);
+  }
+
+  const detail = label ?? event.platform ?? event.surface ?? event.routeTemplate ?? event.path;
   return detail ? formatNaturalText(detail, copy) : formatEventType(event.eventType, copy);
+}
+
+function isDedicatedEventDuplicate(event: WebsiteAnalyticsPathEvent) {
+  if (event.eventType !== "ui_click") return false;
+  const elementKey = event.elementKey ?? "";
+  return (
+    elementKey.startsWith("listen_on.") ||
+    elementKey === "artist.popular_tracks" ||
+    elementKey === "artist.similar_artists" ||
+    elementKey === "artist.upcoming_event"
+  );
+}
+
+function eventSubjectLabel(event: WebsiteAnalyticsPathEvent, copy: WebsiteCopy) {
+  if (!shouldShowEventSubject(event)) return eventDetail(event, copy);
+  const subject = event.subject;
+  return subject.artist ? `${subject.title} - ${subject.artist}` : subject.title;
 }
 
 function formatReferrer(value: string | null | undefined, copy: WebsiteCopy) {
@@ -262,6 +352,84 @@ function formatReferrer(value: string | null | undefined, copy: WebsiteCopy) {
 function formatRoute(value: string | null | undefined, copy: WebsiteCopy) {
   if (!value) return "-";
   return copy.routeLabels[value] ?? formatNaturalText(value, copy);
+}
+
+function flowNodePosition(index: number) {
+  return {
+    x: FLOW_NODE_BASE_X + Math.round(Math.sin(index * 0.92) * FLOW_NODE_WAVE_AMPLITUDE),
+    y: index * FLOW_NODE_VERTICAL_GAP,
+  };
+}
+
+function isClickpathInteraction(event: WebsiteAnalyticsPathEvent) {
+  if (isDedicatedEventDuplicate(event)) return false;
+  return CLICKPATH_INTERACTION_EVENT_TYPES.has(event.eventType);
+}
+
+function shouldShowEventSubject(
+  event: WebsiteAnalyticsPathEvent,
+): event is WebsiteAnalyticsPathEvent & { subject: NonNullable<WebsiteAnalyticsPathEvent["subject"]> } {
+  if (!event.subject) return false;
+  return [
+    "search_submitted",
+    "player_started",
+    "player_paused",
+    "player_resumed",
+    "player_completed",
+    "player_unavailable",
+  ].includes(event.eventType);
+}
+
+function getCanvasSizeOptions(copy: WebsiteCopy) {
+  return [
+    { value: "normal" as const, label: copy.flowLabels.canvasNormal },
+    { value: "large" as const, label: copy.flowLabels.canvasLarge },
+    { value: "max" as const, label: copy.flowLabels.canvasMax },
+  ];
+}
+
+function clampCanvasHeight(value: number) {
+  return Math.max(CLICKPATH_CANVAS_MIN_HEIGHT, Math.min(CLICKPATH_CANVAS_MAX_HEIGHT, Math.round(value)));
+}
+
+function loadStoredCanvasHeight() {
+  if (typeof window === "undefined") return CLICKPATH_CANVAS_HEIGHTS.normal;
+  try {
+    const raw = window.localStorage.getItem(CLICKPATH_CANVAS_HEIGHT_STORAGE_KEY);
+    if (!raw) return CLICKPATH_CANVAS_HEIGHTS.normal;
+    const parsed: unknown = JSON.parse(raw);
+    return typeof parsed === "number" && Number.isFinite(parsed)
+      ? clampCanvasHeight(parsed)
+      : CLICKPATH_CANVAS_HEIGHTS.normal;
+  } catch {
+    return CLICKPATH_CANVAS_HEIGHTS.normal;
+  }
+}
+
+function loadStoredCanvasSize(): ClickpathCanvasSize {
+  if (typeof window === "undefined") return "normal";
+  try {
+    const raw = window.localStorage.getItem(CLICKPATH_CANVAS_SIZE_STORAGE_KEY);
+    return raw === "normal" || raw === "large" || raw === "max" ? raw : "normal";
+  } catch {
+    return "normal";
+  }
+}
+
+function persistCanvasHeight(value: number) {
+  try {
+    window.localStorage.setItem(CLICKPATH_CANVAS_HEIGHT_STORAGE_KEY, JSON.stringify(clampCanvasHeight(value)));
+  } catch {
+    // Persistence is optional; the canvas still works without storage access.
+  }
+}
+
+function persistCanvasSize(value: ClickpathCanvasSize) {
+  try {
+    window.localStorage.setItem(CLICKPATH_CANVAS_SIZE_STORAGE_KEY, value);
+  } catch {
+    // Persistence is optional; the canvas still works without storage access.
+  }
 }
 
 function PlatformFunnel({
@@ -365,6 +533,7 @@ function HouseholdTable({
             <span className="mt-0.5 block truncate text-xs text-[var(--ds-text-muted)]">
               {copy.lastSeen}: {row.lastSeenAt ? formatDateTime(row.lastSeenAt, locale) : "-"}
             </span>
+            <span className="mt-1 block text-xs font-medium text-cyan-300">{copy.flowLabels.showFlow}</span>
           </button>
         ),
         sortKey: (row) => row.cluster,
@@ -582,18 +751,16 @@ function DrilldownSection({
             onClick={() => onSelectDevice(device.deviceKey === selectedDeviceKey ? null : device.deviceKey)}
             className="min-w-0 text-left disabled:cursor-not-allowed disabled:opacity-70"
           >
-            <span className="block font-mono text-xs text-[var(--ds-text)]">
-              {copy.scopeLabels.device} {device.label}
-            </span>
-            <span className="mt-0.5 block truncate text-xs text-[var(--ds-text-muted)]">
-              {formatDeviceMeta([device.deviceClass, device.osFamily, device.browserFamily], copy)}
+            <span className="block truncate text-sm font-medium text-[var(--ds-text)]">
+              {formatDeviceSummaryLabel(device, copy)}
             </span>
             <span className="mt-0.5 block text-xs text-[var(--ds-text-muted)]">
               {copy.lastSeen}: {formatDateTime(device.lastSeenAt, locale)}
             </span>
+            <span className="mt-1 block text-xs font-medium text-cyan-300">{copy.flowLabels.showFlow}</span>
           </button>
         ),
-        sortKey: (device) => device.label,
+        sortKey: (device) => formatDeviceSummaryLabel(device, copy),
       },
       {
         id: "sessions",
@@ -635,6 +802,7 @@ function DrilldownSection({
             <span className="mt-0.5 block text-xs text-[var(--ds-text-muted)]">
               {copy.lastSeen}: {formatDateTime(session.lastSeenAt, locale)}
             </span>
+            <span className="mt-1 block text-xs font-medium text-cyan-300">{copy.flowLabels.showFlow}</span>
           </button>
         ),
         sortKey: (session) => session.sessionId,
@@ -722,40 +890,156 @@ function DrilldownSection({
   );
 }
 
-function ClickpathFlow({
+function ClickpathNodeContent({
   copy,
-  events,
-  onSelectEvent,
-  selectedEventId,
+  event,
+  selected,
 }: {
   copy: WebsiteCopy;
+  event: WebsiteAnalyticsPathEvent;
+  selected: boolean;
+}) {
+  const subject = shouldShowEventSubject(event) ? event.subject : null;
+  const title =
+    event.eventType === "search_submitted" ? searchEventTitle(event, copy) : formatEventType(event.eventType, copy);
+  const platformId = serviceId(event.platform);
+  return (
+    <div
+      className={`min-w-[260px] max-w-[380px] rounded-2xl px-4 py-3 text-center shadow-sm ${
+        selected
+          ? "border border-cyan-300/80 bg-cyan-500/15 shadow-cyan-500/15"
+          : "border border-white/15 bg-[var(--ds-surface)]"
+      }`}
+    >
+      <div className="text-sm font-semibold leading-tight text-[var(--ds-text)]">{title}</div>
+      {subject ? (
+        <div className="mt-3 flex min-w-0 items-center gap-3 text-left">
+          {subject.artworkUrl ? (
+            <img
+              src={subject.artworkUrl}
+              alt=""
+              className="h-12 w-12 shrink-0 rounded-lg object-cover"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--ds-section-header-bg)] text-xs font-semibold text-[var(--ds-text-subtle)]">
+              {formatNaturalText(subject.type, copy).slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="break-words text-sm font-medium leading-snug text-[var(--ds-text)]">{subject.title}</div>
+            {subject.artist && (
+              <div className="mt-0.5 break-words text-xs leading-snug text-[var(--ds-text-subtle)]">
+                {subject.artist}
+              </div>
+            )}
+            {event.eventType === "search_submitted" && event.platform && (
+              <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-[var(--ds-text-muted)]">
+                {platformId && <PlatformIcon platform={platformId} colored className="h-4 w-4" />}
+                {formatNaturalText(event.platform, copy)}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-1 break-words font-mono text-xs leading-snug text-[var(--ds-text-subtle)]">
+          {eventSubjectLabel(event, copy)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClickpathFlow({
+  canvasSize,
+  canvasHeight,
+  copy,
+  events,
+  onCanvasHeightChange,
+  onSelectEvent,
+  onSelectCanvasSize,
+  scopeLabel,
+  selectedEventId,
+}: {
+  canvasSize: ClickpathCanvasSize;
+  canvasHeight: number;
+  copy: WebsiteCopy;
   events: WebsiteAnalyticsPathEvent[];
+  onCanvasHeightChange: (value: number) => void;
   onSelectEvent: (event: WebsiteAnalyticsPathEvent) => void;
+  onSelectCanvasSize: (value: ClickpathCanvasSize) => void;
+  scopeLabel: string;
   selectedEventId: string | null;
 }) {
-  const visibleEvents = useMemo(() => events.slice(0, 28), [events]);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const resizeStateRef = useRef<ClickpathCanvasResizeState | null>(null);
+  const canvasSizeOptions = useMemo(() => getCanvasSizeOptions(copy), [copy]);
+  const visibleEvents = useMemo(() => events.filter(isClickpathInteraction).slice(0, 28), [events]);
+  const headerAddOn = useMemo(
+    () => (
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+        <span className="max-w-[36rem] truncate rounded-control bg-[var(--ds-bg-elevated)] px-3 py-1 text-xs font-medium text-[var(--ds-text-subtle)]">
+          {scopeLabel}
+        </span>
+        <SegmentedControl value={canvasSize} onChange={onSelectCanvasSize} options={canvasSizeOptions} />
+      </div>
+    ),
+    [canvasSize, canvasSizeOptions, onSelectCanvasSize, scopeLabel],
+  );
+  const startCanvasResize = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const captureTarget = event.currentTarget;
+      captureTarget.setPointerCapture(event.pointerId);
+      resizeStateRef.current = {
+        captureTarget,
+        pointerId: event.pointerId,
+        startHeight: canvasHeight,
+        startY: event.clientY,
+      };
+    },
+    [canvasHeight],
+  );
+  const updateCanvasResize = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const state = resizeStateRef.current;
+      if (!state || state.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      const nextHeight = clampCanvasHeight(state.startHeight + event.clientY - state.startY);
+      onCanvasHeightChange(nextHeight);
+    },
+    [onCanvasHeightChange],
+  );
+  const stopCanvasResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = resizeStateRef.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    resizeStateRef.current = null;
+    if (state.captureTarget.hasPointerCapture(event.pointerId)) {
+      state.captureTarget.releasePointerCapture(event.pointerId);
+    }
+    persistCanvasHeight(clampCanvasHeight(state.startHeight + event.clientY - state.startY));
+  }, []);
   const nodes = useMemo<Node[]>(
     () =>
       visibleEvents.map((event, index) => {
         const selected = event.id === selectedEventId;
         return {
           id: event.id,
-          position: { x: index * 188, y: FLOW_LANES[event.eventType] ?? 370 },
+          position: flowNodePosition(index),
+          sourcePosition: Position.Bottom,
+          targetPosition: Position.Top,
           data: {
-            label: (
-              <div className="min-w-36 max-w-44">
-                <div className="truncate text-xs font-semibold">{formatEventType(event.eventType, copy)}</div>
-                <div className="mt-1 truncate font-mono text-[10px] opacity-70">{eventDetail(event, copy)}</div>
-              </div>
-            ),
+            label: <ClickpathNodeContent copy={copy} event={event} selected={selected} />,
           },
+          className: "!border-0 !bg-transparent !p-0",
           style: {
-            borderRadius: 12,
-            border: selected ? "1px solid rgb(34 211 238)" : "1px solid rgba(255,255,255,.16)",
-            background: selected ? "rgba(8, 145, 178, .24)" : "var(--ds-surface)",
+            background: "transparent",
             color: "var(--ds-text)",
-            boxShadow: selected ? "0 0 0 3px rgba(34,211,238,.15)" : "none",
-            padding: 10,
+            padding: 0,
+            width: "max-content",
           },
         };
       }),
@@ -767,6 +1051,7 @@ function ClickpathFlow({
         id: `${visibleEvents[index].id}-${event.id}`,
         source: visibleEvents[index].id,
         target: event.id,
+        type: "default",
         animated: true,
         style: { stroke: "rgb(34 211 238)", strokeWidth: 2 },
       })),
@@ -781,37 +1066,52 @@ function ClickpathFlow({
   );
 
   return (
-    <DashboardSection className="min-h-full">
+    <DashboardSection>
       <DashboardSection.Header
         icon={<FlowArrowIcon weight="duotone" className="h-4 w-4" />}
         title={copy.sections.clickpath}
+        addOn={headerAddOn}
       />
-      <DashboardSection.Body>
+      <DashboardSection.Body flush={visibleEvents.length > 0}>
         {visibleEvents.length === 0 ? (
           <EmptyState copy={copy} />
         ) : (
-          <>
-            <div className="h-[520px] overflow-hidden rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-bg-elevated)]">
-              <ReactFlow
-                colorMode="dark"
-                edges={edges}
-                fitView
-                maxZoom={1.3}
-                minZoom={0.18}
-                nodes={nodes}
-                nodesDraggable={false}
-                onNodeClick={handleNodeClick}
-                panOnScroll
-              >
-                <Background color="rgba(255,255,255,.12)" gap={24} />
-                <MiniMap pannable zoomable nodeColor="rgb(34 211 238)" />
-                <Controls showInteractive={false} />
-              </ReactFlow>
-            </div>
-            <p className="text-sm text-[var(--ds-text-subtle)]">{copy.pathHint}</p>
-          </>
+          <div
+            ref={canvasRef}
+            className="relative overflow-hidden bg-[var(--ds-bg-elevated)]"
+            style={{
+              height: canvasHeight,
+              maxHeight: CLICKPATH_CANVAS_MAX_HEIGHT,
+              minHeight: CLICKPATH_CANVAS_MIN_HEIGHT,
+            }}
+          >
+            <ReactFlow
+              colorMode="dark"
+              defaultViewport={{ x: 70, y: 30, zoom: 0.95 }}
+              edges={edges}
+              maxZoom={1.15}
+              minZoom={0.25}
+              nodes={nodes}
+              nodesDraggable={false}
+              onNodeClick={handleNodeClick}
+              panOnScroll
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background color="rgba(255,255,255,.12)" gap={24} />
+              <Controls showInteractive={false} />
+            </ReactFlow>
+            <div
+              aria-hidden="true"
+              className="absolute right-0 bottom-0 z-20 h-7 w-7 cursor-se-resize touch-none bg-[linear-gradient(135deg,transparent_0_50%,rgba(255,255,255,.18)_50%_58%,transparent_58%_66%,rgba(255,255,255,.18)_66%_74%,transparent_74%)]"
+              onPointerDown={startCanvasResize}
+              onPointerMove={updateCanvasResize}
+              onPointerUp={stopCanvasResize}
+              onPointerCancel={stopCanvasResize}
+            />
+          </div>
         )}
       </DashboardSection.Body>
+      {visibleEvents.length > 0 && <DashboardSection.Footer>{copy.pathHint}</DashboardSection.Footer>}
     </DashboardSection>
   );
 }
@@ -961,6 +1261,7 @@ function NodeInspector({
         [copy.inspectorLabels.route, formatRoute(event.routeTemplate ?? event.path, copy)],
         [copy.inspectorLabels.referrer, formatReferrer(event.referrerDomain, copy)],
         [copy.inspectorLabels.device, formatDeviceMeta([event.deviceClass, event.osFamily, event.browserFamily], copy)],
+        [copy.inspectorLabels.subject, shouldShowEventSubject(event) ? eventSubjectLabel(event, copy) : "-"],
         [copy.inspectorLabels.detail, eventDetail(event, copy)],
         [copy.inspectorLabels.occurredAt, formatDateTime(event.occurredAt, locale)],
       ]
@@ -1018,13 +1319,25 @@ export function WebsiteAnalyticsSection({
     [data?.clickpath.events, detail?.events, hasDrilldownSelection],
   );
   const initialEvent = clickpathEvents[0] ?? data?.recentEvents[0];
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(initialEvent?.id ?? null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [canvasSize, setCanvasSize] = useState<ClickpathCanvasSize>(loadStoredCanvasSize);
+  const [canvasHeight, setCanvasHeight] = useState(loadStoredCanvasHeight);
   const selectedEvent = useMemo(() => {
     const events = [...clickpathEvents, ...(data?.recentEvents ?? [])];
     return events.find((event) => event.id === selectedEventId) ?? initialEvent;
   }, [clickpathEvents, data, initialEvent, selectedEventId]);
   const handleSelectEvent = useCallback((event: WebsiteAnalyticsPathEvent) => {
     setSelectedEventId(event.id);
+  }, []);
+  const handleCanvasSizeChange = useCallback((next: ClickpathCanvasSize) => {
+    const nextHeight = CLICKPATH_CANVAS_HEIGHTS[next];
+    setCanvasSize(next);
+    setCanvasHeight(nextHeight);
+    persistCanvasSize(next);
+    persistCanvasHeight(nextHeight);
+  }, []);
+  const handleCanvasHeightChange = useCallback((next: number) => {
+    setCanvasHeight(clampCanvasHeight(next));
   }, []);
   const kpis = useMemo(
     () => [
@@ -1053,6 +1366,31 @@ export function WebsiteAnalyticsSection({
     ),
     [copy, isExporting, isRunningRetention, onExport, onRunRetention, retentionResult],
   );
+  const flowScopeLabel = useMemo(() => {
+    if (selectedSessionId) return `${copy.flowLabels.session} ${formatSessionId(selectedSessionId)}`;
+
+    if (selectedDeviceKey) {
+      const device = detail?.devices.find((candidate) => candidate.deviceKey === selectedDeviceKey);
+      return `${copy.flowLabels.device} ${device ? formatDeviceSummaryLabel(device, copy) : `#${selectedDeviceKey.slice(-6)}`}`;
+    }
+
+    if (selectedClusterKey) {
+      const cluster = data?.clusters.find((candidate) => candidate.clusterKey === selectedClusterKey);
+      return `${copy.flowLabels.household} ${cluster?.cluster ?? `#${selectedClusterKey.slice(-6)}`}`;
+    }
+
+    return data?.clickpath.cluster
+      ? `${copy.flowLabels.automatic} ${data.clickpath.cluster}`
+      : copy.flowLabels.automatic;
+  }, [
+    copy,
+    data?.clickpath.cluster,
+    data?.clusters,
+    detail?.devices,
+    selectedClusterKey,
+    selectedDeviceKey,
+    selectedSessionId,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -1105,9 +1443,14 @@ export function WebsiteAnalyticsSection({
       </div>
 
       <ClickpathFlow
+        canvasHeight={canvasHeight}
+        canvasSize={canvasSize}
         copy={copy}
         events={clickpathEvents}
+        onCanvasHeightChange={handleCanvasHeightChange}
         onSelectEvent={handleSelectEvent}
+        onSelectCanvasSize={handleCanvasSizeChange}
+        scopeLabel={flowScopeLabel}
         selectedEventId={selectedEvent?.id ?? null}
       />
 
