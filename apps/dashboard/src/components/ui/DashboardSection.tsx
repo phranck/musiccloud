@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { createContext, useContext } from "react";
+import { createContext, use, useMemo } from "react";
 
 /* ---- Context for collapsible state -------------------------------- */
 interface DashboardSectionContextValue {
@@ -30,6 +30,12 @@ export interface DashboardSectionFooterProps {
   className?: string;
 }
 
+export interface DashboardSectionBodyProps {
+  children: ReactNode;
+  className?: string;
+  flush?: boolean;
+}
+
 export interface DashboardSectionItemProps {
   icon: ReactNode;
   label: string;
@@ -43,8 +49,9 @@ export interface DashboardSectionItemProps {
 /* ---- DashboardSection (root container) ---------------------------- */
 
 export function DashboardSection({ children, expanded = true, className = "" }: DashboardSectionProps) {
+  const contextValue = useMemo(() => ({ expanded }), [expanded]);
   return (
-    <DashboardSectionContext.Provider value={{ expanded }}>
+    <DashboardSectionContext.Provider value={contextValue}>
       <div className={`bg-[var(--ds-section-body-bg)] rounded-xl shadow-sm ${className}`}>{children}</div>
     </DashboardSectionContext.Provider>
   );
@@ -53,7 +60,7 @@ export function DashboardSection({ children, expanded = true, className = "" }: 
 /* ---- DashboardSection.Header -------------------------------------- */
 
 function DashboardSectionHeader({ icon, title, addOn, className = "" }: DashboardSectionHeaderProps) {
-  const { expanded } = useContext(DashboardSectionContext);
+  const { expanded } = use(DashboardSectionContext);
 
   return (
     <div
@@ -72,12 +79,13 @@ function DashboardSectionHeader({ icon, title, addOn, className = "" }: Dashboar
 
 /* ---- DashboardSection.Body ---------------------------------------- */
 
-function DashboardSectionBody({ children, className = "" }: { children: ReactNode; className?: string }) {
-  const { expanded } = useContext(DashboardSectionContext);
+function DashboardSectionBody({ children, className = "", flush = false }: DashboardSectionBodyProps) {
+  const { expanded } = use(DashboardSectionContext);
 
   if (!expanded) return null;
 
-  return <div className={`flex flex-col gap-3 p-3 ${className}`}>{children}</div>;
+  const baseClass = flush ? "flex flex-col overflow-hidden rounded-b-xl" : "flex flex-col gap-3 p-3";
+  return <div className={`${baseClass} ${className}`}>{children}</div>;
 }
 
 /* ---- DashboardSection.Footer -------------------------------------- */

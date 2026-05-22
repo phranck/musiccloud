@@ -4,11 +4,11 @@
  * Visually matches MediaCard: EmbossedCard with RecessedCard sections.
  */
 
-import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
+import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { XIcon } from "@phosphor-icons/react";
 import { useEffect, useReducer } from "react";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
-import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
+import { type ArtistPanelTrackResolveHandler, PopularTracksSection } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
 import { fullWidthEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
@@ -27,7 +27,7 @@ interface ArtistInfoCardProps {
   status?: ArtistInfoStatus;
   userRegion: string;
   onClose?: () => void;
-  onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
+  onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
 }
 

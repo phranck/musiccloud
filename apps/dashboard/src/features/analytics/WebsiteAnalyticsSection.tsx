@@ -206,6 +206,8 @@ interface WebsiteCopy {
     heatmap: string;
     clickpath: string;
     drilldown: string;
+    deviceDrilldown: string;
+    sessionDrilldown: string;
     inspector: string;
     interactions: string;
     searches: string;
@@ -328,6 +330,8 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       heatmap: "Klick-Heatmap je Seite",
       clickpath: "Clickpath Flow",
       drilldown: "Cluster-, Device- und Session-Drilldown",
+      deviceDrilldown: "Geraete-Drilldown",
+      sessionDrilldown: "Session-Drilldown",
       inspector: "Node-Inspector",
       interactions: "Interaktionen",
       searches: "Suchbegriffe",
@@ -450,6 +454,8 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       heatmap: "Click Heatmap per Page",
       clickpath: "Clickpath Flow",
       drilldown: "Cluster, Device and Session Drilldown",
+      deviceDrilldown: "Device Drilldown",
+      sessionDrilldown: "Session Drilldown",
       inspector: "Node Inspector",
       interactions: "Interactions",
       searches: "Search Terms",
@@ -662,7 +668,7 @@ function PlatformFunnel({
           return (
             <div className="min-w-32">
               <span className="tabular-nums">{percentage}%</span>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--ds-bg-elevated)]">
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--ds-section-header-bg)]">
                 <div className="h-full rounded-full bg-cyan-400" style={{ width: `${percentage}%` }} />
               </div>
             </div>
@@ -681,7 +687,7 @@ function PlatformFunnel({
         icon={<FunnelIcon weight="duotone" className="h-4 w-4" />}
         title={copy.sections.funnel}
       />
-      <DashboardSection.Body>
+      <DashboardSection.Body flush={rows.length > 0}>
         {rows.length === 0 ? (
           <EmptyState copy={copy} />
         ) : (
@@ -764,7 +770,7 @@ function HouseholdTable({
         icon={<UsersThreeIcon weight="duotone" className="h-4 w-4" />}
         title={copy.sections.households}
       />
-      <DashboardSection.Body>
+      <DashboardSection.Body flush={rows.length > 0}>
         {rows.length === 0 ? (
           <EmptyState copy={copy} />
         ) : (
@@ -872,13 +878,6 @@ function DrilldownSection({
   const hasSelection = Boolean(selectedClusterKey || selectedDeviceKey || selectedSessionId);
   const devices = detail?.devices ?? [];
   const sessions = detail?.sessions ?? [];
-  const scope = [
-    selectedClusterKey ? `${copy.scopeLabels.cluster} #${selectedClusterKey.slice(-6)}` : null,
-    selectedDeviceKey ? `${copy.scopeLabels.device} #${selectedDeviceKey.slice(-6)}` : null,
-    selectedSessionId ? `${copy.scopeLabels.session} ${formatSessionId(selectedSessionId)}` : null,
-  ]
-    .filter(Boolean)
-    .join(" / ");
   const deviceColumns = useMemo<ColumnDef<WebsiteAnalyticsDeviceSummary>[]>(
     () => [
       {
@@ -981,51 +980,53 @@ function DrilldownSection({
   );
 
   return (
-    <DashboardSection>
-      <DashboardSection.Header
-        icon={<ListBulletsIcon weight="duotone" className="h-4 w-4" />}
-        title={copy.sections.drilldown}
-        addOn={headerAddOn}
-      />
-      <DashboardSection.Body>
-        <div className="text-sm text-[var(--ds-text-subtle)]">
-          {copy.selectedScope}: {scope || copy.scopeLabels.overview}
-        </div>
-        <div className="grid gap-3 xl:grid-cols-2">
-          <div>
-            {devices.length === 0 ? (
-              <EmptyState copy={copy} />
-            ) : (
-              <DataTable
-                columns={deviceColumns}
-                data={devices}
-                getRowClassName={(device) =>
-                  device.deviceKey && device.deviceKey === selectedDeviceKey ? "bg-[var(--ds-nav-active-bg)]" : ""
-                }
-                getRowKey={(device) => device.deviceKey ?? "unknown"}
-                defaultSort={{ id: "events", dir: "desc" }}
-              />
-            )}
-          </div>
+    <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
+      <DashboardSection>
+        <DashboardSection.Header
+          icon={<ListBulletsIcon weight="duotone" className="h-4 w-4" />}
+          title={copy.sections.deviceDrilldown}
+          addOn={headerAddOn}
+        />
+        <DashboardSection.Body flush={devices.length > 0}>
+          {devices.length === 0 ? (
+            <EmptyState copy={copy} />
+          ) : (
+            <DataTable
+              columns={deviceColumns}
+              data={devices}
+              getRowClassName={(device) =>
+                device.deviceKey && device.deviceKey === selectedDeviceKey ? "bg-[var(--ds-nav-active-bg)]" : ""
+              }
+              getRowKey={(device) => device.deviceKey ?? "unknown"}
+              defaultSort={{ id: "events", dir: "desc" }}
+            />
+          )}
+        </DashboardSection.Body>
+      </DashboardSection>
 
-          <div>
-            {sessions.length === 0 ? (
-              <EmptyState copy={copy} />
-            ) : (
-              <DataTable
-                columns={sessionColumns}
-                data={sessions}
-                getRowClassName={(session) =>
-                  session.sessionId === selectedSessionId ? "bg-[var(--ds-nav-active-bg)]" : ""
-                }
-                getRowKey={(session) => session.sessionId}
-                defaultSort={{ id: "events", dir: "desc" }}
-              />
-            )}
-          </div>
-        </div>
-      </DashboardSection.Body>
-    </DashboardSection>
+      <DashboardSection>
+        <DashboardSection.Header
+          icon={<ListBulletsIcon weight="duotone" className="h-4 w-4" />}
+          title={copy.sections.sessionDrilldown}
+          addOn={headerAddOn}
+        />
+        <DashboardSection.Body flush={sessions.length > 0}>
+          {sessions.length === 0 ? (
+            <EmptyState copy={copy} />
+          ) : (
+            <DataTable
+              columns={sessionColumns}
+              data={sessions}
+              getRowClassName={(session) =>
+                session.sessionId === selectedSessionId ? "bg-[var(--ds-nav-active-bg)]" : ""
+              }
+              getRowKey={(session) => session.sessionId}
+              defaultSort={{ id: "events", dir: "desc" }}
+            />
+          )}
+        </DashboardSection.Body>
+      </DashboardSection>
+    </div>
   );
 }
 
@@ -1280,7 +1281,7 @@ function InteractionBreakdown({
                 <div key={row.eventType} className="grid grid-cols-[1fr_auto] items-center gap-3 text-sm">
                   <span className="min-w-0 truncate text-[var(--ds-text)]">{formatEventType(row.eventType, copy)}</span>
                   <span className="text-right tabular-nums text-[var(--ds-text)]">{formatNumber(row.count)}</span>
-                  <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-[var(--ds-bg-elevated)]">
+                  <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-[var(--ds-section-header-bg)]">
                     <div className="h-full rounded-full bg-emerald-400" style={{ width: `${percentage}%` }} />
                   </div>
                 </div>
@@ -1468,7 +1469,7 @@ export function WebsiteAnalyticsSection({
         </DashboardSection.Body>
       </DashboardSection>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
         <PlatformFunnel copy={copy} formatNumber={formatNumber} rows={data?.platforms ?? []} />
         <HouseholdTable
           copy={copy}
@@ -1493,7 +1494,7 @@ export function WebsiteAnalyticsSection({
         selectedSessionId={selectedSessionId}
       />
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.85fr)]">
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.85fr)]">
         <HeatmapPreview copy={copy} points={data?.heatmap ?? []} routes={data?.heatmapRoutes ?? []} />
         <div className="grid gap-3">
           <TopSearches copy={copy} formatNumber={formatNumber} rows={data?.searches ?? []} />
@@ -1508,7 +1509,7 @@ export function WebsiteAnalyticsSection({
         selectedEventId={selectedEvent?.id ?? null}
       />
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         <RecentEventTimeline
           copy={copy}
           events={data?.recentEvents ?? []}

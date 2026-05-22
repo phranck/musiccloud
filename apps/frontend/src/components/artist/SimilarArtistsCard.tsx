@@ -1,5 +1,6 @@
-import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
+import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistCardShell, SimilarArtistsSkeleton, useSkeletonAllowed } from "@/components/artist/ArtistCardParts";
+import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -9,7 +10,7 @@ import { useT } from "@/i18n/context";
 interface SimilarArtistsCardProps {
   data: ArtistInfoResponse | null;
   isLoading: boolean;
-  onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
+  onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
 }
 

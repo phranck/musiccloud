@@ -19,7 +19,7 @@ import {
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { MicrophoneStageIcon, XIcon } from "@phosphor-icons/react";
-import { type CSSProperties, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useReducer } from "react";
 import { createPortal } from "react-dom";
 
 type ArtistLoadStatus = "loading" | "ready" | "empty" | "error";
@@ -32,6 +32,35 @@ type ArtistAction =
   | { type: "loading" }
   | { type: "done"; data: ArtistInfoResponse | null }
   | { type: "error"; code: string };
+interface ShareUiState {
+  artistReadyVisible: boolean;
+  currentArtistContext: ArtistInfoContext;
+  currentArtistName: string;
+  currentConfig: MediaCardContentConfiguration;
+  lastPropsConfigKey: string;
+  previewStatus: AudioPreviewStatus | null;
+  resolveErrorVisible: boolean;
+  resolveTriggeredArtistLoad: boolean;
+  sheetOpen: boolean;
+}
+type ShareUiAction =
+  | { type: "artistFetchFinished" }
+  | { type: "artistReadyHidden" }
+  | { type: "artistReadyVisible" }
+  | { type: "closeSheet" }
+  | { type: "openSheet" }
+  | { type: "previewStatusChanged"; status: AudioPreviewStatus | null }
+  | {
+      type: "propsChanged";
+      artistContext: ArtistInfoContext;
+      artistName: string;
+      config: MediaCardContentConfiguration;
+      configKey: string;
+    }
+  | { type: "resolveErrorHidden" }
+  | { type: "resolveErrorVisible" }
+  | { type: "resolveStarted" }
+  | { type: "resolved"; artistContext?: ArtistInfoContext; artistName?: string; config: MediaCardContentConfiguration };
 
 function hasArtistInfoContent(data: ArtistInfoResponse | null): boolean {
   return Boolean(
@@ -49,10 +78,71 @@ function artistReducer(state: ArtistState, action: ArtistAction): ArtistState {
   return { status: hasArtistInfoContent(action.data) ? "ready" : "empty", artistData: action.data };
 }
 
+function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiState {
+  switch (action.type) {
+    case "artistFetchFinished":
+      return { ...state, resolveTriggeredArtistLoad: false };
+    case "artistReadyHidden":
+      return { ...state, artistReadyVisible: false };
+    case "artistReadyVisible":
+      return { ...state, artistReadyVisible: true };
+    case "closeSheet":
+      return { ...state, sheetOpen: false };
+    case "openSheet":
+      return { ...state, sheetOpen: true };
+    case "previewStatusChanged":
+      return { ...state, previewStatus: action.status };
+    case "propsChanged":
+      if (state.lastPropsConfigKey === action.configKey) return state;
+      return {
+        ...state,
+        currentArtistContext: action.artistContext,
+        currentArtistName: action.artistName,
+        currentConfig: action.config,
+        lastPropsConfigKey: action.configKey,
+      };
+    case "resolveErrorHidden":
+      return { ...state, resolveErrorVisible: false };
+    case "resolveErrorVisible":
+      return { ...state, resolveErrorVisible: true };
+    case "resolveStarted":
+      return { ...state, resolveErrorVisible: false, resolveTriggeredArtistLoad: true };
+    case "resolved":
+      return {
+        ...state,
+        currentArtistContext: action.artistContext ?? state.currentArtistContext,
+        currentArtistName: action.artistName ?? state.currentArtistName,
+        currentConfig: action.config,
+      };
+  }
+}
+
+function initialShareUiState({
+  artistInfoContext,
+  artistName,
+  config,
+}: Pick<ShareLayoutProps, "artistInfoContext" | "artistName" | "config">): ShareUiState {
+  return {
+    artistReadyVisible: false,
+    currentArtistContext: artistInfoContext ?? artistInfoContextFromConfig(config),
+    currentArtistName: artistName,
+    currentConfig: config,
+    lastPropsConfigKey: configIdentity(config),
+    previewStatus: null,
+    resolveErrorVisible: false,
+    resolveTriggeredArtistLoad: false,
+    sheetOpen: false,
+  };
+}
+
 import { ArtistInfoCard } from "@/components/artist/ArtistInfoCard";
 import { ArtistProfileDesktopCard } from "@/components/artist/ArtistProfileDesktopCard";
 import { EventsCard } from "@/components/artist/EventsCard";
 import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
+import type {
+  ArtistPanelTrackResolveHandler,
+  ArtistPanelTrackResolveOptions,
+} from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
@@ -258,14 +348,16 @@ function buildShareConfigFromResolved(
     : null;
   const artistMetaLine = isArtist ? artist?.genres?.join(", ") : null;
   const platformsLabelKey = isArtist ? "results.viewArtistOn" : isAlbum ? "results.openAlbumOn" : "results.listenOn";
-  const platformLinks = data.links
-    .filter((link) => link.url && isValidServiceId(link.service))
-    .map((link) => ({
+  const platformLinks = data.links.reduce<ShareContentConfiguration["platforms"]>((links, link) => {
+    if (!link.url || !isValidServiceId(link.service)) return links;
+    links.push({
       platform: link.service as ServiceId,
       url: link.url,
       displayName: link.displayName,
       matchMethod: link.matchMethod,
-    }));
+    });
+    return links;
+  }, []);
   const config: ShareContentConfiguration = {
     type: "share",
     title: displayTitle,
@@ -331,51 +423,55 @@ function ShareLayoutInner({
   backLabel,
 }: ShareLayoutProps) {
   const t = useT();
-  // Detect region synchronously on first render (client-only, Astro island)
-  const [userRegion] = useState(detectRegion);
+  const userRegion = useMemo(detectRegion, []);
   const [artistState, dispatch] = useReducer(artistReducer, {
     status: "loading",
     artistData: null,
   });
   const { status: artistLoadStatus, artistData, errorCode: artistErrorCode } = artistState;
   const isLoading = artistLoadStatus === "loading";
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [currentConfig, setCurrentConfig] = useState(config);
-  const [currentArtistName, setCurrentArtistName] = useState(artistName);
-  const [currentArtistContext, setCurrentArtistContext] = useState<ArtistInfoContext>(
-    () => artistInfoContext ?? artistInfoContextFromConfig(config),
+  const [shareUiState, dispatchUi] = useReducer(
+    shareUiReducer,
+    { artistInfoContext, artistName, config },
+    initialShareUiState,
   );
-  const [resolveTriggeredArtistLoad, setResolveTriggeredArtistLoad] = useState(false);
-  const [artistReadyVisible, setArtistReadyVisible] = useState(false);
-  const [resolveErrorVisible, setResolveErrorVisible] = useState(false);
-  const [previewStatus, setPreviewStatus] = useState<AudioPreviewStatus | null>(null);
+  const {
+    artistReadyVisible,
+    currentArtistContext,
+    currentArtistName,
+    currentConfig,
+    previewStatus,
+    resolveErrorVisible,
+    resolveTriggeredArtistLoad,
+    sheetOpen,
+  } = shareUiState;
   const mounted = useIsClient();
-  const lastPropsConfigKey = useRef(configIdentity(config));
 
   useEffect(() => {
-    const nextConfigKey = configIdentity(config);
-    if (lastPropsConfigKey.current === nextConfigKey) return;
-    lastPropsConfigKey.current = nextConfigKey;
-    setCurrentConfig(config);
-    setCurrentArtistName(artistName);
-    setCurrentArtistContext(artistInfoContext ?? artistInfoContextFromConfig(config));
+    dispatchUi({
+      type: "propsChanged",
+      artistContext: artistInfoContext ?? artistInfoContextFromConfig(config),
+      artistName,
+      config,
+      configKey: configIdentity(config),
+    });
   }, [artistInfoContext, artistName, config]);
 
   const artistStatusLoading = isLoading || resolveTriggeredArtistLoad;
   useEffect(() => {
     if (artistStatusLoading || artistLoadStatus !== "ready") {
-      setArtistReadyVisible(false);
+      dispatchUi({ type: "artistReadyHidden" });
       return;
     }
 
-    setArtistReadyVisible(true);
-    const timeout = setTimeout(() => setArtistReadyVisible(false), 6000);
+    dispatchUi({ type: "artistReadyVisible" });
+    const timeout = setTimeout(() => dispatchUi({ type: "artistReadyHidden" }), 6000);
     return () => clearTimeout(timeout);
   }, [artistLoadStatus, artistStatusLoading]);
 
   useEffect(() => {
     if (!resolveErrorVisible) return;
-    const timeout = setTimeout(() => setResolveErrorVisible(false), 6000);
+    const timeout = setTimeout(() => dispatchUi({ type: "resolveErrorHidden" }), 6000);
     return () => clearTimeout(timeout);
   }, [resolveErrorVisible]);
 
@@ -421,7 +517,7 @@ function ShareLayoutInner({
         if (!cancelled) dispatch({ type: "error", code: artistFetchErrorCode(err) });
       })
       .finally(() => {
-        if (!cancelled) setResolveTriggeredArtistLoad(false);
+        if (!cancelled) dispatchUi({ type: "artistFetchFinished" });
         clearTimeout(timeout);
       });
     return () => {
@@ -431,8 +527,12 @@ function ShareLayoutInner({
     };
   }, [currentArtistContext, currentArtistName, userRegion]);
 
-  const openSheet = useCallback(() => setSheetOpen(true), []);
-  const closeSheet = useCallback(() => setSheetOpen(false), []);
+  const openSheet = useCallback(() => dispatchUi({ type: "openSheet" }), []);
+  const closeSheet = useCallback(() => dispatchUi({ type: "closeSheet" }), []);
+  const handlePreviewStatusChange = useCallback(
+    (status: AudioPreviewStatus | null) => dispatchUi({ type: "previewStatusChanged", status }),
+    [],
+  );
   useOverlayEscape({ enabled: sheetOpen, onEscape: closeSheet });
 
   const handleArtistResolveStart = useCallback(() => {
@@ -440,17 +540,19 @@ function ShareLayoutInner({
     // before the resolve request returns and before artist-info loading starts.
     // Lift that moment into ShareLayout so the VFD flips to loading in sync
     // with the visible spinning-disc affordance.
-    setResolveErrorVisible(false);
-    setResolveTriggeredArtistLoad(true);
+    dispatchUi({ type: "resolveStarted" });
   }, []);
 
   const handleTrackResolve = useCallback(
-    async (track: ArtistTopTrack) => {
+    async (track: ArtistTopTrack, options: ArtistPanelTrackResolveOptions) => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
       let keepResolveLoadingForArtistFetch = false;
       const sourcePlatform = detectServiceFromUrl(track.deezerUrl);
-      trackResolveStarted(sourcePlatform, "artist_panel");
+      // Popular Tracks and Similar Artists are secondary navigation clicks.
+      // Count the click itself, but do not treat the follow-up resolve request
+      // as a user-intent resolve in Website Analytics or Umami.
+      if (!options.suppressResolveAnalytics) trackResolveStarted(sourcePlatform, options.surface);
       try {
         const response = await fetch(ENDPOINTS.frontend.resolve, {
           method: "POST",
@@ -476,11 +578,14 @@ function ShareLayoutInner({
             normalizeArtistName(next.artistName) !== normalizeArtistName(currentArtistName) ||
             !sameArtistInfoContext(next.artistInfoContext, currentArtistContext);
           keepResolveLoadingForArtistFetch = shouldFetchArtist;
-          setCurrentConfig(next.config);
-          setCurrentArtistContext(next.artistInfoContext);
-          if (shouldFetchArtist) setCurrentArtistName(next.artistName);
+          dispatchUi({
+            type: "resolved",
+            artistContext: next.artistInfoContext,
+            artistName: shouldFetchArtist ? next.artistName : undefined,
+            config: next.config,
+          });
           document.title = next.pageTitle;
-          trackResolve(sourcePlatform, "artist_panel");
+          if (!options.suppressResolveAnalytics) trackResolve(sourcePlatform, options.surface);
           return;
         }
 
@@ -488,15 +593,20 @@ function ShareLayoutInner({
         const nextArtistName = resultArtistName(active);
         const shouldFetchArtist = normalizeArtistName(nextArtistName) !== normalizeArtistName(currentArtistName);
         keepResolveLoadingForArtistFetch = shouldFetchArtist;
-        setCurrentConfig(buildActiveConfig(active, t));
-        if (shouldFetchArtist) setCurrentArtistName(nextArtistName);
-        trackResolve(sourcePlatform, "artist_panel");
+        dispatchUi({
+          type: "resolved",
+          artistName: shouldFetchArtist ? nextArtistName : undefined,
+          config: buildActiveConfig(active, t),
+        });
+        if (!options.suppressResolveAnalytics) trackResolve(sourcePlatform, options.surface);
       } catch (err) {
-        setResolveErrorVisible(true);
-        trackResolveFailed(sourcePlatform, "artist_panel", err instanceof Error ? err.message : "error.generic");
+        dispatchUi({ type: "resolveErrorVisible" });
+        if (!options.suppressResolveAnalytics) {
+          trackResolveFailed(sourcePlatform, options.surface, err instanceof Error ? err.message : "error.generic");
+        }
         throw err;
       } finally {
-        if (!keepResolveLoadingForArtistFetch) setResolveTriggeredArtistLoad(false);
+        if (!keepResolveLoadingForArtistFetch) dispatchUi({ type: "artistFetchFinished" });
         clearTimeout(timeout);
       }
     },
@@ -505,119 +615,204 @@ function ShareLayoutInner({
 
   return (
     <div className="w-full">
-      {onBack && backLabel && (
-        <div
-          // Width-matched to the desktop card row so the link sits flush with
-          // the left edge of the media card; on mobile it sits at the screen's
-          // own left gutter.
-          className="mx-auto mb-3 min-[1080px]:mb-4"
-          style={{ maxWidth: `${MEDIA_W + GAP + ARTIST_W}px` }}
-        >
-          <BackLink onClick={onBack} label={backLabel} />
-        </div>
-      )}
-
-      {/* Desktop/tablet: split media, actions, services, and artist data into separate cards. */}
-      <div
-        className="hidden min-[1080px]:grid grid-cols-[512px_512px] items-start gap-6 mx-auto"
-        style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}
-      >
-        <div className="flex flex-col gap-6" style={{ width: `${MEDIA_W}px` }}>
-          <MediaSummaryCard content={enrichedConfig} animated={animated} onPreviewStatusChange={setPreviewStatus} />
-          <ShareCard content={enrichedConfig} animated={animated} />
-          <ServicesCard content={enrichedConfig} animated={animated} />
-        </div>
-        <div className="flex flex-col gap-6" style={{ width: `${ARTIST_W}px` }}>
-          <ArtistProfileDesktopCard data={artistData} isLoading={isLoading} status={artistLoadStatus} />
-          <PopularTracksCard
-            data={artistData}
-            isLoading={isLoading}
-            onTrackResolve={handleTrackResolve}
-            onResolveStart={handleArtistResolveStart}
-          />
-          <EventsCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
-          <SimilarArtistsCard
-            data={artistData}
-            isLoading={isLoading}
-            onTrackResolve={handleTrackResolve}
-            onResolveStart={handleArtistResolveStart}
-          />
-        </div>
-      </div>
-
-      {/* Mobile: nur MediaCard + Button für BottomSheet */}
-      <div className="block min-[1080px]:hidden">
-        <SharePageCard config={enrichedConfig} animated={animated} onPreviewStatusChange={setPreviewStatus} />
-        <div className="mt-3 flex justify-center px-3">
-          <EmbossedButton
-            as="button"
-            type="button"
-            onClick={openSheet}
-            className="flex min-h-[48px] w-[calc((100%-0.125rem)/2-var(--mc-recessed-control-inset))] items-center justify-center gap-3 px-3 text-base text-text-primary max-[389px]:min-h-[40px] max-[389px]:gap-1.5 max-[389px]:px-2 max-[389px]:text-[13px] max-[389px]:font-normal min-[390px]:font-medium"
-            style={
-              {
-                "--mc-recessed-control-inset": recessedControlInset,
-                "--neu-radius-base": raisedControlRadius,
-                "--neu-radius-sm": raisedControlRadius,
-              } as CSSProperties
-            }
-          >
-            <MicrophoneStageIcon className="h-8 w-8 flex-shrink-0 max-[389px]:h-5 max-[389px]:w-5" weight="duotone" />
-            <span className="truncate leading-none">{t("artist.mobileButton")}</span>
-          </EmbossedButton>
-        </div>
-      </div>
-
-      {/* Bottom Sheet (mobile) — portalled to document.body to escape any
-          ancestor containing-block breaker (transform / filter /
-          will-change / contain). ShareLayout is also used inside animated
-          result wrappers, which would otherwise turn the sheet's `fixed
-          inset-0` into a box relative to that wrapper and leave part of the
-          sheet visible below the viewport. */}
+      <ShareBackLink label={backLabel} onBack={onBack} />
+      <DesktopShareLayout
+        animated={animated}
+        artistData={artistData}
+        artistLoadStatus={artistLoadStatus}
+        config={enrichedConfig}
+        isLoading={isLoading}
+        onArtistResolveStart={handleArtistResolveStart}
+        onPreviewStatusChange={handlePreviewStatusChange}
+        onTrackResolve={handleTrackResolve}
+        userRegion={userRegion}
+      />
+      <MobileShareLayout
+        animated={animated}
+        config={enrichedConfig}
+        label={t("artist.mobileButton")}
+        onOpenSheet={openSheet}
+        onPreviewStatusChange={handlePreviewStatusChange}
+      />
       {mounted &&
         createPortal(
-          <div>
-            <div
-              className={cn(
-                "fixed inset-0 z-50 flex flex-col justify-end",
-                sheetOpen ? "pointer-events-auto" : "pointer-events-none",
-              )}
-            >
-              <OverlayBackdrop open={sheetOpen} onClick={closeSheet} ariaLabel={t("artist.closeInfo")} />
-              <div
-                className={cn(
-                  "relative z-10 rounded-t-[36px] bg-surface-elevated max-h-[85dvh] flex flex-col",
-                  "transition-transform duration-300 ease-out",
-                  sheetOpen ? "translate-y-0" : "translate-y-full",
-                )}
-              >
-                <div className="flex items-center justify-between px-5 pt-3 pb-2 flex-shrink-0">
-                  <div className="w-8" />
-                  <div className="h-1 w-10 rounded-full bg-[var(--border)]" />
-                  <button
-                    type="button"
-                    onClick={closeSheet}
-                    className="size-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-colors"
-                    aria-label={t("artist.closeInfo")}
-                  >
-                    <XIcon size={16} weight="duotone" />
-                  </button>
-                </div>
-                <div className="overflow-y-auto px-3 pb-8">
-                  <ArtistInfoCard
-                    data={artistData}
-                    isLoading={isLoading}
-                    status={artistLoadStatus}
-                    userRegion={userRegion}
-                    onTrackResolve={handleTrackResolve}
-                    onResolveStart={handleArtistResolveStart}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>,
+          <MobileArtistSheet
+            artistData={artistData}
+            artistLoadStatus={artistLoadStatus}
+            closeLabel={t("artist.closeInfo")}
+            isLoading={isLoading}
+            onArtistResolveStart={handleArtistResolveStart}
+            onClose={closeSheet}
+            onTrackResolve={handleTrackResolve}
+            open={sheetOpen}
+            userRegion={userRegion}
+          />,
           document.body,
         )}
+    </div>
+  );
+}
+
+function ShareBackLink({ label, onBack }: { label?: string; onBack?: () => void }) {
+  if (!onBack || !label) return null;
+
+  return (
+    <div className="mx-auto mb-3 min-[1080px]:mb-4" style={{ maxWidth: `${MEDIA_W + GAP + ARTIST_W}px` }}>
+      <BackLink onClick={onBack} label={label} />
+    </div>
+  );
+}
+
+interface DesktopShareLayoutProps {
+  animated: boolean;
+  artistData: ArtistInfoResponse | null;
+  artistLoadStatus: ArtistLoadStatus;
+  config: MediaCardContentConfiguration;
+  isLoading: boolean;
+  onArtistResolveStart: () => void;
+  onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
+  onTrackResolve: ArtistPanelTrackResolveHandler;
+  userRegion: string;
+}
+
+function DesktopShareLayout({
+  animated,
+  artistData,
+  artistLoadStatus,
+  config,
+  isLoading,
+  onArtistResolveStart,
+  onPreviewStatusChange,
+  onTrackResolve,
+  userRegion,
+}: DesktopShareLayoutProps) {
+  return (
+    <div
+      className="hidden min-[1080px]:grid grid-cols-[512px_512px] items-start gap-6 mx-auto"
+      style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}
+    >
+      <div className="flex flex-col gap-6" style={{ width: `${MEDIA_W}px` }}>
+        <MediaSummaryCard content={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
+        <ShareCard content={config} animated={animated} />
+        <ServicesCard content={config} animated={animated} />
+      </div>
+      <div className="flex flex-col gap-6" style={{ width: `${ARTIST_W}px` }}>
+        <ArtistProfileDesktopCard data={artistData} isLoading={isLoading} status={artistLoadStatus} />
+        <PopularTracksCard
+          data={artistData}
+          isLoading={isLoading}
+          onTrackResolve={onTrackResolve}
+          onResolveStart={onArtistResolveStart}
+        />
+        <EventsCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
+        <SimilarArtistsCard
+          data={artistData}
+          isLoading={isLoading}
+          onTrackResolve={onTrackResolve}
+          onResolveStart={onArtistResolveStart}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface MobileShareLayoutProps {
+  animated: boolean;
+  config: MediaCardContentConfiguration;
+  label: string;
+  onOpenSheet: () => void;
+  onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
+}
+
+function MobileShareLayout({ animated, config, label, onOpenSheet, onPreviewStatusChange }: MobileShareLayoutProps) {
+  return (
+    <div className="block min-[1080px]:hidden">
+      <SharePageCard config={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
+      <div className="mt-3 flex justify-center px-3">
+        <EmbossedButton
+          as="button"
+          type="button"
+          onClick={onOpenSheet}
+          className="flex min-h-[48px] w-[calc((100%-0.125rem)/2-var(--mc-recessed-control-inset))] items-center justify-center gap-3 px-3 text-base text-text-primary max-[389px]:min-h-[40px] max-[389px]:gap-1.5 max-[389px]:px-2 max-[389px]:text-[13px] max-[389px]:font-normal min-[390px]:font-medium"
+          style={
+            {
+              "--mc-recessed-control-inset": recessedControlInset,
+              "--neu-radius-base": raisedControlRadius,
+              "--neu-radius-sm": raisedControlRadius,
+            } as CSSProperties
+          }
+        >
+          <MicrophoneStageIcon className="size-8 flex-shrink-0 max-[389px]:size-5" weight="duotone" />
+          <span className="truncate leading-none">{label}</span>
+        </EmbossedButton>
+      </div>
+    </div>
+  );
+}
+
+interface MobileArtistSheetProps {
+  artistData: ArtistInfoResponse | null;
+  artistLoadStatus: ArtistLoadStatus;
+  closeLabel: string;
+  isLoading: boolean;
+  onArtistResolveStart: () => void;
+  onClose: () => void;
+  onTrackResolve: ArtistPanelTrackResolveHandler;
+  open: boolean;
+  userRegion: string;
+}
+
+function MobileArtistSheet({
+  artistData,
+  artistLoadStatus,
+  closeLabel,
+  isLoading,
+  onArtistResolveStart,
+  onClose,
+  onTrackResolve,
+  open,
+  userRegion,
+}: MobileArtistSheetProps) {
+  return (
+    <div>
+      <div
+        className={cn(
+          "fixed inset-0 z-50 flex flex-col justify-end",
+          open ? "pointer-events-auto" : "pointer-events-none",
+        )}
+      >
+        <OverlayBackdrop open={open} onClick={onClose} ariaLabel={closeLabel} />
+        <div
+          className={cn(
+            "relative z-10 rounded-t-[36px] bg-surface-elevated max-h-[85dvh] flex flex-col",
+            "transition-transform duration-300 ease-out",
+            open ? "translate-y-0" : "translate-y-full",
+          )}
+        >
+          <div className="flex items-center justify-between px-5 pt-3 pb-2 flex-shrink-0">
+            <div className="w-8" />
+            <div className="h-1 w-10 rounded-full bg-[var(--border)]" />
+            <button
+              type="button"
+              onClick={onClose}
+              className="size-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-colors"
+              aria-label={closeLabel}
+            >
+              <XIcon size={16} weight="duotone" />
+            </button>
+          </div>
+          <div className="overflow-y-auto px-3 pb-8">
+            <ArtistInfoCard
+              data={artistData}
+              isLoading={isLoading}
+              status={artistLoadStatus}
+              userRegion={userRegion}
+              onTrackResolve={onTrackResolve}
+              onResolveStart={onArtistResolveStart}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

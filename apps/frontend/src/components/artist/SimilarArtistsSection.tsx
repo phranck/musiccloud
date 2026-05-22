@@ -1,10 +1,10 @@
-import type { ArtistTopTrack, SimilarArtistTrack } from "@musiccloud/shared";
-import { PopularTrack } from "@/components/artist/PopularTracksSection";
+import type { SimilarArtistTrack } from "@musiccloud/shared";
+import { type ArtistPanelTrackResolveHandler, PopularTrack } from "@/components/artist/PopularTracksSection";
 import { trackSimilarArtistClick } from "@/lib/analytics";
 
 interface SimilarArtistsSectionProps {
   similarArtistTracks: SimilarArtistTrack[];
-  onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
+  onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
 }
 

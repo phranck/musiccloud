@@ -8,9 +8,21 @@ import { trackPopularTrackClick } from "@/lib/analytics";
 
 interface PopularTracksSectionProps {
   tracks: ArtistTopTrack[];
-  onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
+  onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
 }
+
+export type ArtistPanelResolveSurface = "popular_tracks" | "similar_artists";
+
+export interface ArtistPanelTrackResolveOptions {
+  surface: ArtistPanelResolveSurface;
+  suppressResolveAnalytics: boolean;
+}
+
+export type ArtistPanelTrackResolveHandler = (
+  track: ArtistTopTrack,
+  options: ArtistPanelTrackResolveOptions,
+) => Promise<void>;
 
 export function PopularTracksSection({ tracks, onTrackResolve, onResolveStart }: PopularTracksSectionProps) {
   return (
@@ -40,8 +52,8 @@ export function PopularTrack({
   track: ArtistTopTrack;
   artistLabel?: string;
   position?: number;
-  surface?: "popular_tracks" | "similar_artists";
-  onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
+  surface?: ArtistPanelResolveSurface;
+  onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
 }) {
   const t = useT();
@@ -63,7 +75,7 @@ export function PopularTrack({
           throw new Error("missing in-place resolve handler");
         }
 
-        await onTrackResolve(track);
+        await onTrackResolve(track, { surface, suppressResolveAnalytics: true });
         setResolving(false);
       } catch (err) {
         setResolving(false);

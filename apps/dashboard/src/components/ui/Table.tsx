@@ -1,6 +1,14 @@
 import { getTableSortAriaSort, TableSortHeader } from "@musiccloud/dashboard-ui";
-import type { ComponentType, HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
-import { forwardRef, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  ComponentType,
+  HTMLAttributes,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+  Ref,
+  TdHTMLAttributes,
+  ThHTMLAttributes,
+} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function Table({ className = "", ...props }: HTMLAttributes<HTMLTableElement>) {
   return (
@@ -17,18 +25,19 @@ function TableHead({ className = "", ...props }: HTMLAttributes<HTMLTableSection
 function TableBody({ className = "", ...props }: HTMLAttributes<HTMLTableSectionElement>) {
   return (
     <tbody
-      className={`divide-y divide-[var(--ds-table-row-separator)] bg-[var(--ds-surface)] ${className}`}
+      className={`divide-y divide-[var(--ds-table-row-separator)] bg-[var(--ds-section-body-bg)] ${className}`}
       {...props}
     />
   );
 }
 
-const TableRow = forwardRef<HTMLTableRowElement, HTMLAttributes<HTMLTableRowElement>>(function TableRow(
-  { className = "", ...props },
-  ref,
-) {
+interface TableRowProps extends HTMLAttributes<HTMLTableRowElement> {
+  ref?: Ref<HTMLTableRowElement>;
+}
+
+function TableRow({ className = "", ref, ...props }: TableRowProps) {
   return <tr ref={ref} className={`table-row-hover ${className}`} {...props} />;
-});
+}
 
 function Th({ className = "", ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
   return <th className={`section-header px-4 ${className}`} {...props} />;
@@ -77,6 +86,18 @@ function loadColumnWidths(storageKey: string | null): Record<string, number> {
   }
 }
 
+type ToSortedArray<T> = T[] & {
+  toSorted?: (compareFn: (a: T, b: T) => number) => T[];
+};
+
+function sortDataRows<T>(rows: T[], compare: (a: T, b: T) => number): T[] {
+  const toSorted = (rows as ToSortedArray<T>).toSorted;
+  if (typeof toSorted === "function") {
+    return toSorted.call(rows, compare);
+  }
+  return Array.from(rows).sort(compare);
+}
+
 export interface DataTableRowProps<T> {
   row: T;
   rowKey: string | number;
@@ -100,8 +121,27 @@ function DefaultDataTableRow<T>({ className, children }: DataTableRowProps<T>) {
   return <TableRow className={className}>{children}</TableRow>;
 }
 
-export function DataTable<T>({
+export function DataTable<T>({ columns, ...props }: DataTableProps<T>) {
+  const columnIds = useMemo(() => columns.map((col) => col.id), [columns]);
+  const columnStorageKey = getColumnWidthStorageKey(columnIds);
+
+  return (
+    <DataTableContent
+      key={columnStorageKey ?? "default"}
+      columns={columns}
+      columnStorageKey={columnStorageKey}
+      {...props}
+    />
+  );
+}
+
+interface DataTableContentProps<T> extends DataTableProps<T> {
+  columnStorageKey: string | null;
+}
+
+function DataTableContent<T>({
   columns,
+  columnStorageKey,
   data,
   getRowKey,
   getRowClassName,
@@ -109,10 +149,8 @@ export function DataTable<T>({
   defaultSort = null,
   allowUnsorted = true,
   RowComponent,
-}: DataTableProps<T>) {
+}: DataTableContentProps<T>) {
   const Row = (RowComponent ?? DefaultDataTableRow) as ComponentType<DataTableRowProps<T>>;
-  const columnIds = useMemo(() => columns.map((col) => col.id), [columns]);
-  const columnStorageKey = getColumnWidthStorageKey(columnIds);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => loadColumnWidths(columnStorageKey));
   const [sort, setSort] = useState<SortState | null>(() => defaultSort);
   const mouseMoveHandlerRef = useRef<(event: MouseEvent) => void>(() => {});
@@ -123,10 +161,6 @@ export function DataTable<T>({
     startLeftWidth: number;
     startRightWidth: number;
   } | null>(null);
-
-  useEffect(() => {
-    setColumnWidths(loadColumnWidths(columnStorageKey));
-  }, [columnStorageKey]);
 
   useEffect(() => {
     if (!columnStorageKey) return;
@@ -180,7 +214,7 @@ export function DataTable<T>({
   }, [onMouseMove]);
 
   const startResize = useCallback(
-    (event: React.MouseEvent, leftColIndex: number) => {
+    (event: ReactMouseEvent, leftColIndex: number) => {
       event.preventDefault();
       event.stopPropagation();
       const header = (event.currentTarget as HTMLElement).closest("th");
@@ -235,7 +269,7 @@ export function DataTable<T>({
   const sorted = useMemo(
     () =>
       sort
-        ? [...data].sort((a, b) => {
+        ? sortDataRows(data, (a, b) => {
             const col = columns.find((c) => c.id === sort.id);
             if (!col?.sortKey) return 0;
             const av = col.sortKey(a);

@@ -1,6 +1,6 @@
-import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
+import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistCardShell, TracksSkeleton, useSkeletonAllowed } from "@/components/artist/ArtistCardParts";
-import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
+import { type ArtistPanelTrackResolveHandler, PopularTracksSection } from "@/components/artist/PopularTracksSection";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
@@ -9,7 +9,7 @@ import { useT } from "@/i18n/context";
 interface PopularTracksCardProps {
   data: ArtistInfoResponse | null;
   isLoading: boolean;
-  onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
+  onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
 }
 
