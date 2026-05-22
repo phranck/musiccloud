@@ -114,6 +114,39 @@ describe(`POST ${ENDPOINT}`, () => {
     expect(insertWebsiteAnalyticsBatchMock).not.toHaveBeenCalled();
   });
 
+  it("accepts live-example clicks without turning them into resolve events", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINT,
+      remoteAddress: "203.0.113.12",
+      payload: validBody({
+        events: [
+          {
+            id: EVENT_ID,
+            occurredAt: "2026-05-22T10:00:00.000Z",
+            eventType: "live_example_clicked",
+            path: "/",
+            routeTemplate: "/",
+            surface: "landing_example",
+            elementKey: "landing.live_example",
+            shortId: "abc123",
+            eventData: { suppressResolveAnalytics: true },
+          },
+        ],
+      }),
+    });
+
+    expect(res.statusCode).toBe(202);
+    const [batch] = insertWebsiteAnalyticsBatchMock.mock.calls[0];
+    expect(batch.events[0]).toMatchObject({
+      eventType: "live_example_clicked",
+      shortId: "abc123",
+      surface: "landing_example",
+      elementKey: "landing.live_example",
+      eventData: { suppressResolveAnalytics: true },
+    });
+  });
+
   it("returns 503 when the HMAC secret is not configured", async () => {
     delete process.env.WEBSITE_ANALYTICS_HMAC_SECRET;
 

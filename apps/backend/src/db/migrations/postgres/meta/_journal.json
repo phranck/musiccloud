@@ -253,6 +253,13 @@
       "when": 1779464888542,
       "tag": "0035_nappy_cobalt_man",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1779469301534,
+      "tag": "0036_live_example_analytics",
+      "breakpoints": true
     }
   ]
 }

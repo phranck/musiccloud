@@ -6,11 +6,10 @@ import {
   type ButtonPrimitiveProps,
   type ButtonPrimitiveSize,
   type ButtonPrimitiveVariant,
-  getButtonPrimitiveClassName,
-  getIconButtonPrimitiveClassName,
   IconButtonPrimitive,
   type IconButtonPrimitiveProps,
 } from "../primitives/ButtonPrimitive.js";
+import { dashboardReviewVariantClass, resolveDashboardPrimitiveVariant } from "./dashboardButtonClasses.js";
 
 export type DashboardButtonVariant = ButtonPrimitiveVariant | "review";
 export type DashboardButtonSize = ButtonPrimitiveSize;
@@ -23,37 +22,6 @@ export interface DashboardIconButtonProps extends Omit<IconButtonPrimitiveProps,
   variant?: DashboardButtonVariant;
 }
 
-const reviewVariantClass =
-  "border-[var(--ds-badge-review-text)]/30 text-[var(--ds-badge-review-text)] hover:border-[var(--ds-badge-review-text)]/50 hover:bg-[var(--ds-badge-review-bg)]";
-
-function resolvePrimitiveVariant(variant: DashboardButtonVariant): ButtonPrimitiveVariant {
-  return variant === "review" ? "neutral" : variant;
-}
-
-export function getDashboardButtonClassName({
-  className,
-  size = "action",
-  variant = "neutral",
-}: Pick<DashboardButtonProps, "className" | "size" | "variant"> = {}) {
-  return getButtonPrimitiveClassName({
-    className: cx(variant === "review" && reviewVariantClass, className),
-    size,
-    variant: resolvePrimitiveVariant(variant),
-  });
-}
-
-export function getDashboardIconButtonClassName({
-  className,
-  size = "action",
-  variant = "ghost",
-}: Pick<DashboardIconButtonProps, "className" | "size" | "variant"> = {}) {
-  return getIconButtonPrimitiveClassName({
-    className: cx(variant === "review" && reviewVariantClass, className),
-    size,
-    variant: resolvePrimitiveVariant(variant),
-  });
-}
-
 export function DashboardButton({
   className,
   size = "action",
@@ -64,8 +32,8 @@ export function DashboardButton({
     <ButtonPrimitive
       {...buttonProps}
       size={size}
-      variant={resolvePrimitiveVariant(variant)}
-      className={cx(variant === "review" && reviewVariantClass, className)}
+      variant={resolveDashboardPrimitiveVariant(variant)}
+      className={cx(variant === "review" && dashboardReviewVariantClass, className)}
     />
   );
 }
@@ -80,8 +48,8 @@ export function DashboardIconButton({
     <IconButtonPrimitive
       {...buttonProps}
       size={size}
-      variant={resolvePrimitiveVariant(variant)}
-      className={cx(variant === "review" && reviewVariantClass, className)}
+      variant={resolveDashboardPrimitiveVariant(variant)}
+      className={cx(variant === "review" && dashboardReviewVariantClass, className)}
     />
   );
 }

@@ -1,6 +1,6 @@
 ---
 import { ENDPOINTS } from "@musiccloud/shared";
-import { fetchNavigation } from "@/api/client";
+import { fetchNavigation, fetchRandomExample } from "@/api/client";
 import { LandingPage } from "@/components/landing/LandingPage";
 import GradientBackground from "@/components/background/GradientBackground.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
@@ -9,6 +9,8 @@ import { getLocaleFromCookie } from "@/i18n/locales";
 
 const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
 const footerNav = await fetchNavigation("footer", locale);
+const randomExample = await fetchRandomExample();
+const exampleShortId = randomExample?.shortId ?? null;
 ---
 
 <BaseLayout
@@ -66,7 +68,7 @@ const footerNav = await fetchNavigation("footer", locale);
   <GradientBackground />
 
   <div class="min-h-dvh flex flex-col">
-    <LandingPage client:idle footerNav={footerNav} />
+    <LandingPage client:idle footerNav={footerNav} exampleShortId={exampleShortId} />
   </div>
 
   <!-- Mounted with null initialPage so nav clicks on overlay-mode pages

@@ -12,6 +12,7 @@ import {
 } from "../primitives/FieldPrimitives.js";
 import type { SegmentedControlPrimitiveProps } from "../primitives/SegmentedControlPrimitive.js";
 import { SegmentedControlPrimitive } from "../primitives/SegmentedControlPrimitive.js";
+import type { TableSortDirection } from "./tableSort.js";
 
 export type DashboardFieldProps = FieldShellProps;
 
@@ -89,8 +90,6 @@ export function DashboardTextarea({
   );
 }
 
-export type TableSortDirection = "asc" | "desc" | null;
-
 export interface TableSortHeaderProps extends Omit<ComponentPropsWithoutRef<"button">, "children"> {
   children: ReactNode;
   direction?: TableSortDirection;
@@ -113,12 +112,6 @@ export function TableSortHeader({
       <TableSortIcon direction={direction} />
     </button>
   );
-}
-
-export function getTableSortAriaSort(direction: TableSortDirection) {
-  if (direction === "asc") return "ascending";
-  if (direction === "desc") return "descending";
-  return "none";
 }
 
 function TableSortIcon({ direction }: { direction: TableSortDirection }) {

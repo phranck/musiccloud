@@ -1,12 +1,13 @@
 import type { NavItem } from "@musiccloud/shared";
-import { ENDPOINTS } from "@musiccloud/shared";
 import {
   type AnimationEvent,
   lazy,
   type MouseEvent,
+  type RefObject,
   Suspense,
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useRef,
   useState,
@@ -19,6 +20,7 @@ import { useAppState } from "@/hooks/useAppState";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
 import { useToast } from "@/hooks/useToast";
 import { LocaleProvider, useT } from "@/i18n/context";
+import { trackLiveExampleClick } from "@/lib/analytics";
 import {
   loadDisambiguationPanel,
   loadGenreBrowseGrid,
@@ -40,6 +42,101 @@ const Toast = lazy(loadToast);
 
 const EMPTY_NAV_ITEMS: NavItem[] = [];
 
+interface LandingPageProps {
+  exampleShortId?: string | null;
+  footerNav?: NavItem[];
+}
+
+interface ActiveShareResultProps {
+  activeArtistName: string;
+  activeShareConfig: ReturnType<typeof buildShareConfigFromActive>;
+  backLabel?: string;
+  canGoBack: boolean;
+  handleBack: () => void;
+  handleClearAnimationEnd: (event: AnimationEvent<HTMLDivElement>) => void;
+  handleShareLogoClick: (event: MouseEvent<HTMLAnchorElement>) => void;
+  isClearing: boolean;
+  resultsPanelRef: RefObject<HTMLDivElement | null>;
+}
+
+function ActiveShareResult({
+  activeArtistName,
+  activeShareConfig,
+  backLabel,
+  canGoBack,
+  handleBack,
+  handleClearAnimationEnd,
+  handleShareLogoClick,
+  isClearing,
+  resultsPanelRef,
+}: ActiveShareResultProps) {
+  return (
+    <div
+      ref={resultsPanelRef}
+      tabIndex={-1}
+      className={`outline-none w-full ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
+      onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
+    >
+      <div className="mb-4 text-center sm:mb-6">
+        <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleShareLogoClick}>
+          <LogoView className="w-56 sm:w-64 h-auto" />
+        </a>
+      </div>
+      <div className="animate-fade-in">
+        <Suspense fallback={<ShareResultPlaceholder />}>
+          <ShareLayout
+            config={activeShareConfig}
+            artistName={activeArtistName}
+            onBack={canGoBack ? handleBack : undefined}
+            backLabel={canGoBack ? backLabel : undefined}
+          />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+function LiveExampleTeaser({
+  exampleShortId,
+  label,
+  teaser,
+  onClick,
+}: {
+  exampleShortId: string;
+  label: string;
+  teaser: string;
+  onClick: () => void;
+}) {
+  return (
+    <p className="mt-4 text-sm text-text-secondary text-center">
+      {teaser}{" "}
+      <a
+        href={`/${exampleShortId}`}
+        className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
+        onClick={onClick}
+      >
+        {label}
+      </a>
+    </p>
+  );
+}
+
+function LandingLogoBlock({ isReturning, showCompact }: { isReturning: boolean; showCompact: boolean }) {
+  if (showCompact) {
+    return (
+      <div className="mb-6">
+        <LogoView className="w-56 h-auto" />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex justify-center mb-10 ${isReturning ? "animate-fade-in" : ""}`}>
+      <LogoView className="w-80 sm:w-96 md:w-[28rem] h-auto" />
+    </div>
+  );
+}
+
 function ShareResultPlaceholder() {
   return (
     <div
@@ -55,7 +152,7 @@ function ShareResultPlaceholder() {
   );
 }
 
-function LandingPageInner({ footerNav = EMPTY_NAV_ITEMS }: { footerNav?: NavItem[] }) {
+function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }: LandingPageProps) {
   const t = useT();
 
   const resultsPanelRef = useRef<HTMLDivElement>(null);
@@ -88,32 +185,8 @@ function LandingPageInner({ footerNav = EMPTY_NAV_ITEMS }: { footerNav?: NavItem
 
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  const [exampleShortId, setExampleShortId] = useState<string | null>(null);
   const previousSearchTop = useRef<number | null>(null);
   const previousShowCompact = useRef(showCompact);
-
-  // Optional discovery teaser: fetch a random existing share on mount and,
-  // if one exists, render a "try this example" link. The BFF at
-  // `pages/api/random-example.ts` returns `200 { shortId: null }` when the
-  // backend has no data yet (fresh DB) — a null shortId means "no teaser
-  // today", not an error, so we silently skip rendering. Anything else that
-  // goes wrong (network, 5xx, abort) is also swallowed: the teaser is
-  // non-essential and must never surface as a user-visible failure.
-  useEffect(() => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    fetch(ENDPOINTS.frontend.randomExample, { signal: controller.signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { shortId: string | null } | null) => {
-        if (data?.shortId) setExampleShortId(data.shortId);
-      })
-      .catch(() => {})
-      .finally(() => clearTimeout(timeout));
-    return () => {
-      clearTimeout(timeout);
-      controller.abort();
-    };
-  }, []);
   const toast = useToast();
 
   const baseInputState: InputState =
@@ -179,21 +252,29 @@ function LandingPageInner({ footerNav = EMPTY_NAV_ITEMS }: { footerNav?: NavItem
     [beginShareExit],
   );
 
+  const handleLiveExampleClick = useCallback(() => {
+    if (!exampleShortId) return;
+    trackLiveExampleClick(exampleShortId);
+  }, [exampleShortId]);
+
+  const handleEscapeKey = useEffectEvent((e: KeyboardEvent) => {
+    if (e.key !== "Escape" || !showCompact) return;
+    e.preventDefault();
+    if (active) {
+      beginShareExit();
+      return;
+    }
+    setInputValue("");
+    handleClear();
+  });
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && showCompact) {
-        e.preventDefault();
-        if (active) {
-          beginShareExit();
-          return;
-        }
-        setInputValue("");
-        handleClear();
-      }
+      handleEscapeKey(e);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [active, beginShareExit, showCompact, handleClear]);
+  }, []);
 
   useEffect(() => {
     if (state.type !== "loading") return;
@@ -208,6 +289,7 @@ function LandingPageInner({ footerNav = EMPTY_NAV_ITEMS }: { footerNav?: NavItem
   useLayoutEffect(() => {
     const el = searchFieldRef.current;
     if (!el) return;
+    let transitionEndCleanup: (() => void) | undefined;
 
     const nextTop = el.getBoundingClientRect().top;
     const becameCompact = showCompact && !previousShowCompact.current;
@@ -229,13 +311,21 @@ function LandingPageInner({ footerNav = EMPTY_NAV_ITEMS }: { footerNav?: NavItem
         const cleanup = () => {
           Object.assign(el.style, { transform: "", transition: "" });
           el.removeEventListener("transitionend", cleanup);
+          transitionEndCleanup = undefined;
         };
+        transitionEndCleanup = cleanup;
         el.addEventListener("transitionend", cleanup);
       }
     }
 
     previousSearchTop.current = nextTop;
     previousShowCompact.current = showCompact;
+
+    return () => {
+      if (!transitionEndCleanup) return;
+      Object.assign(el.style, { transform: "", transition: "" });
+      el.removeEventListener("transitionend", transitionEndCleanup);
+    };
   });
 
   const activeShareConfig = active ? buildShareConfigFromActive(active, t) : null;
@@ -251,41 +341,20 @@ function LandingPageInner({ footerNav = EMPTY_NAV_ITEMS }: { footerNav?: NavItem
           }`}
         >
           {activeShareConfig && active ? (
-            <div
-              ref={resultsPanelRef}
-              tabIndex={-1}
-              className={`outline-none w-full ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
-              onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
-            >
-              <div className="mb-4 text-center sm:mb-6">
-                <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleShareLogoClick}>
-                  <LogoView className="w-56 sm:w-64 h-auto" />
-                </a>
-              </div>
-              <div className="animate-fade-in">
-                <Suspense fallback={<ShareResultPlaceholder />}>
-                  <ShareLayout
-                    config={activeShareConfig}
-                    artistName={activeArtistName}
-                    onBack={canGoBack ? handleBack : undefined}
-                    backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
-                  />
-                </Suspense>
-              </div>
-            </div>
+            <ActiveShareResult
+              activeArtistName={activeArtistName}
+              activeShareConfig={activeShareConfig}
+              backLabel={t("genreSearch.backToResults")}
+              canGoBack={canGoBack}
+              handleBack={handleBack}
+              handleClearAnimationEnd={handleClearAnimationEnd}
+              handleShareLogoClick={handleShareLogoClick}
+              isClearing={isClearing}
+              resultsPanelRef={resultsPanelRef}
+            />
           ) : (
             <>
-              {!showCompact && (
-                <div className={`flex justify-center mb-10 ${isReturning ? "animate-fade-in" : ""}`}>
-                  <LogoView className="w-80 sm:w-96 md:w-[28rem] h-auto" />
-                </div>
-              )}
-
-              {showCompact && (
-                <div className="mb-6">
-                  <LogoView className="w-56 h-auto" />
-                </div>
-              )}
+              <LandingLogoBlock isReturning={isReturning} showCompact={showCompact} />
 
               <div ref={searchFieldRef} className="w-full flex flex-col items-center">
                 <HeroInput
@@ -309,15 +378,12 @@ function LandingPageInner({ footerNav = EMPTY_NAV_ITEMS }: { footerNav?: NavItem
                 !genreBrowseGenres &&
                 !genreSearchPayload &&
                 exampleShortId && (
-                  <p className="mt-4 text-sm text-text-secondary text-center">
-                    {t("landing.exampleTeaser")}{" "}
-                    <a
-                      href={`/${exampleShortId}`}
-                      className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
-                    >
-                      {t("landing.exampleLink")}
-                    </a>
-                  </p>
+                  <LiveExampleTeaser
+                    exampleShortId={exampleShortId}
+                    label={t("landing.exampleLink")}
+                    teaser={t("landing.exampleTeaser")}
+                    onClick={handleLiveExampleClick}
+                  />
                 )}
 
               {candidates && candidates.length > 0 && (
@@ -387,11 +453,11 @@ function LandingPageInner({ footerNav = EMPTY_NAV_ITEMS }: { footerNav?: NavItem
   );
 }
 
-export function LandingPage({ footerNav = EMPTY_NAV_ITEMS }: { footerNav?: NavItem[] } = {}) {
+export function LandingPage({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }: LandingPageProps = {}) {
   return (
     <ErrorBoundary>
       <LocaleProvider>
-        <LandingPageInner footerNav={footerNav} />
+        <LandingPageInner exampleShortId={exampleShortId} footerNav={footerNav} />
       </LocaleProvider>
     </ErrorBoundary>
   );

@@ -535,6 +535,7 @@ export type WebsiteAnalyticsEventType =
   | "player_unavailable"
   | "info_page_clicked"
   | "help_page_clicked"
+  | "live_example_clicked"
   | "ui_click";
 
 export type WebsiteAnalyticsConfidence = "low" | "medium" | "high";

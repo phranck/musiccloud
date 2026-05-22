@@ -1,5 +1,5 @@
 import type { KeyboardEvent, ReactNode } from "react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import { cx } from "../classNames.js";
 
@@ -64,8 +64,9 @@ export function SegmentedControlPrimitive<T extends string = string>({
   const hasIcons = options.some((option) => Boolean(option.icon));
   const hasLabels = options.some((option) => Boolean(option.label));
   const iconOnly = hasIcons && !hasLabels;
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLFieldSetElement>(null);
   const didMountRef = useRef(false);
+  const measurePillRef = useRef<() => void>(() => {});
   const [pill, setPill] = useState<SegmentPill | null>(null);
 
   const measurePill = useCallback(() => {
@@ -107,6 +108,10 @@ export function SegmentedControlPrimitive<T extends string = string>({
   }, [activeIndex]);
 
   useLayoutEffect(() => {
+    measurePillRef.current = measurePill;
+  }, [measurePill]);
+
+  useLayoutEffect(() => {
     measurePill();
   }, [measurePill]);
 
@@ -116,31 +121,31 @@ export function SegmentedControlPrimitive<T extends string = string>({
       return;
     }
 
-    const observer = new ResizeObserver(() => measurePill());
+    const observer = new ResizeObserver(() => measurePillRef.current());
     observer.observe(container);
     for (const button of getSegmentButtons(container)) {
       observer.observe(button);
     }
 
-    window.addEventListener("resize", measurePill);
+    const handleResize = () => measurePillRef.current();
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      window.removeEventListener("resize", measurePill);
+      window.removeEventListener("resize", handleResize);
       observer.disconnect();
     };
-  }, [measurePill]);
+  }, []);
 
-  useEffect(() => {
-    measurePill();
-  }, [measurePill]);
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const direction = getSegmentKeyDirection(event.key);
     if (direction === null && event.key !== "Home" && event.key !== "End") {
       return;
     }
 
-    const buttons = getSegmentButtons(event.currentTarget).filter((button) => !button.disabled);
+    const container = containerRef.current;
+    if (!container) return;
+
+    const buttons = getSegmentButtons(container).filter((button) => !button.disabled);
     if (buttons.length === 0) {
       return;
     }
@@ -167,20 +172,17 @@ export function SegmentedControlPrimitive<T extends string = string>({
   };
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: role="group" on a div is intentional; a fieldset would disrupt the sliding-pill layout.
-    <div
+    <fieldset
       aria-label={ariaLabel}
       className={cx(
-        "relative flex w-fit items-center rounded-control p-[1px]",
+        "relative m-0 flex w-fit min-w-0 items-center rounded-control border-0 p-[1px]",
         containerSizeClass[size],
         variant === "outline"
           ? "border border-[var(--ds-border)] bg-[var(--ds-form-control-bg)]"
           : "border border-transparent bg-[var(--ds-segment-bg)]",
         className,
       )}
-      onKeyDown={handleKeyDown}
       ref={containerRef}
-      role="group"
     >
       {pill && (
         <div
@@ -225,6 +227,7 @@ export function SegmentedControlPrimitive<T extends string = string>({
                 onValueChange(option.value);
               }
             }}
+            onKeyDown={handleKeyDown}
             tabIndex={isActive ? 0 : -1}
             type="button"
           >
@@ -234,7 +237,7 @@ export function SegmentedControlPrimitive<T extends string = string>({
           </button>
         );
       })}
-    </div>
+    </fieldset>
   );
 }
 

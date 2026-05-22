@@ -1006,7 +1006,7 @@ export const analyticsEvents = pgTable(
     index("idx_analytics_events_platform_occurred").on(table.platform, table.occurredAt.desc()),
     check(
       "chk_analytics_events_event_type",
-      sql`${table.eventType} IN ('page_view', 'search_submitted', 'resolve_started', 'resolve_succeeded', 'resolve_failed', 'listen_on_clicked', 'similar_artist_clicked', 'popular_track_clicked', 'upcoming_event_clicked', 'player_started', 'player_paused', 'player_resumed', 'player_completed', 'player_unavailable', 'info_page_clicked', 'help_page_clicked', 'ui_click')`,
+      sql`${table.eventType} IN ('page_view', 'search_submitted', 'resolve_started', 'resolve_succeeded', 'resolve_failed', 'listen_on_clicked', 'similar_artist_clicked', 'popular_track_clicked', 'upcoming_event_clicked', 'player_started', 'player_paused', 'player_resumed', 'player_completed', 'player_unavailable', 'info_page_clicked', 'help_page_clicked', 'live_example_clicked', 'ui_click')`,
     ),
     check("chk_analytics_events_confidence", sql`${table.confidence} IN ('low', 'medium', 'high')`),
     check("chk_analytics_events_x_pct", sql`${table.xPct} IS NULL OR ${table.xPct} BETWEEN 0 AND 100`),

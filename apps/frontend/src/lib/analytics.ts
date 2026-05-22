@@ -17,6 +17,7 @@ type WebsiteAnalyticsEventType =
   | "player_unavailable"
   | "info_page_clicked"
   | "help_page_clicked"
+  | "live_example_clicked"
   | "ui_click";
 
 type ViewportBucket = "mobile" | "tablet" | "desktop";
@@ -260,6 +261,16 @@ export function trackResolve(service: string, surface = "unknown") {
 
 export function trackResolveFailed(platform: string | null, surface: string, errorClass: string) {
   enqueue({ ...baseEvent("resolve_failed"), platform, surface, eventData: { error_class: errorClass } });
+}
+
+export function trackLiveExampleClick(shortId: string) {
+  enqueue({
+    ...baseEvent("live_example_clicked"),
+    shortId,
+    surface: "landing_example",
+    elementKey: "landing.live_example",
+    eventData: { suppressResolveAnalytics: true },
+  });
 }
 
 export function trackServiceLinkClick(service: string) {

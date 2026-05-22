@@ -37,11 +37,20 @@ interface UseAppStateResult {
   isGenreBrowsing: boolean;
   isGenreSearching: boolean;
   isGenreSearchLoading: boolean;
-  handleSubmit: (url: string) => Promise<void>;
+  handleSubmit: (url: string, options?: ResolveAnalyticsOptions) => Promise<void>;
   handleSelectCandidate: (candidate: DisambiguationCandidate) => Promise<void>;
   handleSelectGenreResult: (webUrl: string, id: string) => Promise<void>;
   handleBack: () => void;
   handleClear: () => void;
+}
+
+interface ResolveAnalyticsOptions {
+  /**
+   * Demo/example flows may reuse the resolve endpoint to render a real result,
+   * but they must not pollute user-intent search and resolve analytics.
+   */
+  suppressResolveAnalytics?: boolean;
+  surface?: string;
 }
 
 /**
@@ -74,11 +83,14 @@ export function useAppState(): UseAppStateResult {
     genreSearchPayload
   );
 
-  const handleSubmit = useCallback(async (url: string) => {
+  const handleSubmit = useCallback(async (url: string, options: ResolveAnalyticsOptions = {}) => {
     dispatch({ type: "SUBMIT" });
     const sourcePlatform = detectServiceFromUrl(url);
-    trackSearchSubmitted(url, queryType(url));
-    trackResolveStarted(sourcePlatform, "landing_search");
+    const surface = options.surface ?? "landing_search";
+    if (!options.suppressResolveAnalytics) {
+      trackSearchSubmitted(url, queryType(url));
+      trackResolveStarted(sourcePlatform, surface);
+    }
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
@@ -121,9 +133,9 @@ export function useAppState(): UseAppStateResult {
       }
       const resolved = data as UnifiedResolveSuccessResponse;
       dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved) });
-      trackResolve(sourcePlatform, "landing_search");
+      if (!options.suppressResolveAnalytics) trackResolve(sourcePlatform, surface);
     } catch (err) {
-      trackResolveFailed(sourcePlatform, "landing_search", parseErrorKey(err));
+      if (!options.suppressResolveAnalytics) trackResolveFailed(sourcePlatform, surface, parseErrorKey(err));
       dispatch({ type: "ERROR", message: parseErrorKey(err) });
     }
   }, []);

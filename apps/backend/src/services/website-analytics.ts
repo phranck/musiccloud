@@ -32,6 +32,7 @@ export const WEBSITE_ANALYTICS_EVENT_TYPES = [
   "player_unavailable",
   "info_page_clicked",
   "help_page_clicked",
+  "live_example_clicked",
   "ui_click",
 ] as const satisfies readonly WebsiteAnalyticsEventType[];
 

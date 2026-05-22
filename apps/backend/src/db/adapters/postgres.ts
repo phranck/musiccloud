@@ -4513,10 +4513,24 @@ async function getWebsiteAnalyticsOverview(
             ), 0)::int AS interactions
           FROM analytics_cluster_daily_summaries
           WHERE day >= ($1::timestamptz AT TIME ZONE 'UTC')::date
+        ),
+        live_example_totals AS (
+          SELECT COUNT(*)::int AS live_examples
+          FROM analytics_events
+          WHERE occurred_at >= $1
+            AND event_type = 'live_example_clicked'
         )
-        SELECT *
+        SELECT
+          event_uniques.*,
+          summary_totals.pageviews,
+          summary_totals.searches,
+          summary_totals.resolves,
+          summary_totals.listen_on,
+          summary_totals.player_starts,
+          (summary_totals.interactions + live_example_totals.live_examples)::int AS interactions
         FROM event_uniques
-        CROSS JOIN summary_totals`,
+        CROSS JOIN summary_totals
+        CROSS JOIN live_example_totals`,
         [since],
       ),
       pool.query(
@@ -4632,6 +4646,7 @@ async function getWebsiteAnalyticsOverview(
            'player_unavailable',
            'info_page_clicked',
            'help_page_clicked',
+           'live_example_clicked',
            'ui_click'
          )
        GROUP BY event_type
