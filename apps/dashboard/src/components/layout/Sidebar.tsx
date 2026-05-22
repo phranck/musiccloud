@@ -4,6 +4,7 @@ import {
   CaretCircleDoubleUpIcon,
   CaretDownIcon,
   ChartBarIcon,
+  ChartLineIcon,
   CopyIcon,
   EnvelopeOpenIcon,
   FileDashedIcon,
@@ -720,6 +721,15 @@ export function Sidebar({
                     <DashboardSection.Item
                       icon={<ChartBarIcon weight="duotone" className="w-4 h-4" />}
                       label={s.analytics}
+                      active={isActive}
+                    />
+                  )}
+                </NavLink>
+                <NavLink to="/website-analytics" onClick={onItemClick} className="contents">
+                  {({ isActive }) => (
+                    <DashboardSection.Item
+                      icon={<ChartLineIcon weight="duotone" className="w-4 h-4" />}
+                      label={s.websiteAnalytics}
                       active={isActive}
                     />
                   )}

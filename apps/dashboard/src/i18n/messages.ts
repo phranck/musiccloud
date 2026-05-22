@@ -29,6 +29,7 @@ export interface DashboardMessages {
       sectionTemplates: string;
       sectionAnalytics: string;
       analytics: string;
+      websiteAnalytics: string;
       sectionSystem: string;
       overview: string;
       tracks: string;
@@ -790,6 +791,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         sectionTemplates: "Vorlagen",
         sectionAnalytics: "Analyse",
         analytics: "Statistiken",
+        websiteAnalytics: "Website Analytics",
         sectionSystem: "System",
         overview: "\u00dcbersicht",
         tracks: "Tracks",
@@ -1526,6 +1528,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         sectionTemplates: "Templates",
         sectionAnalytics: "Analytics",
         analytics: "Statistics",
+        websiteAnalytics: "Website Analytics",
         sectionSystem: "System",
         overview: "Overview",
         tracks: "Tracks",
