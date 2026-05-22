@@ -582,18 +582,58 @@ export interface WebsiteAnalyticsOverview {
     clusters: number;
     devices: number;
     sessions: number;
+    pageviews: number;
     searches: number;
     resolves: number;
     listenOn: number;
+    playerStarts: number;
+    interactions: number;
   };
   platforms: Array<{ platform: string; resolves: number }>;
-  clusters: Array<{ cluster: string; confidence: string; devices: number; searches: number }>;
-  heatmap: Array<{ x: number; y: number; count: number; elementKey: string | null; surface: string | null }>;
-  recentEvents: Array<{
-    occurredAt: string;
-    eventType: string;
+  clusters: Array<{
     cluster: string;
-    surface: string | null;
-    platform: string | null;
+    confidence: string;
+    devices: number;
+    searches: number;
+    lastSeenAt: string;
+    topQuery: string | null;
   }>;
+  heatmapRoutes: Array<{ routeTemplate: string; viewportBucket: string | null; clicks: number }>;
+  heatmap: Array<{
+    x: number;
+    y: number;
+    count: number;
+    elementKey: string | null;
+    surface: string | null;
+    routeTemplate: string | null;
+    viewportBucket: string | null;
+  }>;
+  interactions: Array<{ eventType: string; count: number }>;
+  searches: Array<{ query: string; searches: number; clusters: number }>;
+  recentEvents: WebsiteAnalyticsPathEvent[];
+  clickpath: {
+    cluster: string | null;
+    confidence: string | null;
+    events: WebsiteAnalyticsPathEvent[];
+  };
+}
+
+export interface WebsiteAnalyticsPathEvent {
+  id: string;
+  occurredAt: string;
+  eventType: string;
+  sessionId: string;
+  cluster: string;
+  confidence: string;
+  path: string | null;
+  routeTemplate: string | null;
+  deviceClass: string | null;
+  browserFamily: string | null;
+  osFamily: string | null;
+  surface: string | null;
+  platform: string | null;
+  mediaType: string | null;
+  shortId: string | null;
+  elementKey: string | null;
+  label: string | null;
 }
