@@ -45,6 +45,7 @@ export function MediaSummaryCard({
             key={audioPreviewKey}
             previewUrl={content.previewUrl}
             refreshShortId={content.previewRefreshable ? content.shortId : undefined}
+            shortId={content.shortId}
             trackTitle={content.title}
             onStatusChange={onPreviewStatusChange}
           />

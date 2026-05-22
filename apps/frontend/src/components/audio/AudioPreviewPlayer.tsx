@@ -2,6 +2,7 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { Player } from "@/components/playback/Player";
 import { useT } from "@/i18n/context";
+import { trackPlayerEvent } from "@/lib/analytics";
 
 export type AudioPreviewStatus = "loading" | "ready" | "playing" | "paused" | "ended" | "unavailable";
 
@@ -12,6 +13,7 @@ interface AudioPreviewPlayerProps {
    *  `/api/share-preview/:shortId` proxy. When set without `previewUrl`, the
    *  player mounts in a loading state and fetches on mount. */
   refreshShortId?: string;
+  shortId?: string;
   trackTitle: string;
   onStatusChange?: (status: AudioPreviewStatus) => void;
 }
@@ -164,6 +166,7 @@ function resolveSpectrumBands(frequencyData: Uint8Array<ArrayBuffer>, bandCount:
 export function AudioPreviewPlayer({
   previewUrl,
   refreshShortId,
+  shortId,
   trackTitle,
   onStatusChange,
 }: AudioPreviewPlayerProps) {
@@ -183,6 +186,7 @@ export function AudioPreviewPlayer({
   const spectrumDataRef = useRef<StereoSpectrumData | null>(null);
   const spectrumLastUpdateRef = useRef(0);
   const spectrumBandsRef = useRef<StereoSpectrumBands | null>(null);
+  const hasStartedRef = useRef(false);
   const [spectrumBands, setSpectrumBands] = useState<StereoSpectrumBands | null>(null);
 
   // Lazy fetch the preview URL when the component mounted without one.
@@ -197,15 +201,17 @@ export function AudioPreviewPlayer({
           setEffectiveUrl(nextPreviewUrl);
           dispatch({ type: "URL_READY" });
         } else {
+          trackPlayerEvent("player_unavailable", shortId ?? refreshShortId);
           dispatch({ type: "URL_UNAVAILABLE" });
         }
       } catch (err) {
         if ((err as { name?: string })?.name === "AbortError") return;
+        trackPlayerEvent("player_unavailable", shortId ?? refreshShortId);
         dispatch({ type: "URL_UNAVAILABLE" });
       }
     })();
     return () => controller.abort();
-  }, [previewUrl, refreshShortId]);
+  }, [previewUrl, refreshShortId, shortId]);
 
   const stopSpectrumLoop = useCallback(() => {
     if (spectrumFrameRef.current !== null) cancelAnimationFrame(spectrumFrameRef.current);
@@ -313,9 +319,13 @@ export function AudioPreviewPlayer({
     };
     const handleEnded = () => {
       stopSpectrumLoop();
+      trackPlayerEvent("player_completed", shortId ?? refreshShortId);
       dispatch({ type: "ENDED" });
     };
-    const handleError = () => dispatch({ type: "ERROR" });
+    const handleError = () => {
+      trackPlayerEvent("player_unavailable", shortId ?? refreshShortId);
+      dispatch({ type: "ERROR" });
+    };
 
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("timeupdate", handleTimeUpdate);
@@ -334,7 +344,7 @@ export function AudioPreviewPlayer({
       audio.src = "";
       audioRef.current = null;
     };
-  }, [effectiveUrl, stopSpectrumLoop, teardownSpectrum]);
+  }, [effectiveUrl, refreshShortId, shortId, stopSpectrumLoop, teardownSpectrum]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
@@ -350,15 +360,18 @@ export function AudioPreviewPlayer({
         .play()
         .then(() => {
           dispatch({ type: "PLAY" });
+          trackPlayerEvent(hasStartedRef.current ? "player_resumed" : "player_started", shortId ?? refreshShortId);
+          hasStartedRef.current = true;
           startSpectrumLoop();
         })
         .catch(() => dispatch({ type: "ERROR" }));
     } else if (state.phase === "playing") {
       audio.pause();
       stopSpectrumLoop();
+      trackPlayerEvent("player_paused", shortId ?? refreshShortId);
       dispatch({ type: "PAUSE" });
     }
-  }, [ensureSpectrumAnalyzer, startSpectrumLoop, state.phase, stopSpectrumLoop]);
+  }, [ensureSpectrumAnalyzer, refreshShortId, shortId, startSpectrumLoop, state.phase, stopSpectrumLoop]);
 
   const isLoading = state.phase === "loading";
   const isUnavailable = state.phase === "error" || state.phase === "unavailable";

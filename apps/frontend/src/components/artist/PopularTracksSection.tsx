@@ -4,6 +4,7 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useToastSafe } from "@/context/ToastContext";
 import { useT } from "@/i18n/context";
+import { trackPopularTrackClick } from "@/lib/analytics";
 
 interface PopularTracksSectionProps {
   tracks: ArtistTopTrack[];
@@ -14,10 +15,12 @@ interface PopularTracksSectionProps {
 export function PopularTracksSection({ tracks, onTrackResolve, onResolveStart }: PopularTracksSectionProps) {
   return (
     <div className="flex flex-col gap-0.5">
-      {tracks.map((track) => (
+      {tracks.map((track, index) => (
         <PopularTrack
           key={track.deezerUrl}
           track={track}
+          position={index}
+          surface="popular_tracks"
           onTrackResolve={onTrackResolve}
           onResolveStart={onResolveStart}
         />
@@ -29,11 +32,15 @@ export function PopularTracksSection({ tracks, onTrackResolve, onResolveStart }:
 export function PopularTrack({
   track,
   artistLabel,
+  position,
+  surface = "popular_tracks",
   onTrackResolve,
   onResolveStart,
 }: {
   track: ArtistTopTrack;
   artistLabel?: string;
+  position?: number;
+  surface?: "popular_tracks" | "similar_artists";
   onTrackResolve?: (track: ArtistTopTrack) => Promise<void>;
   onResolveStart?: () => void;
 }) {
@@ -49,6 +56,7 @@ export function PopularTrack({
       if (resolving) return;
 
       setResolving(true);
+      if (surface === "popular_tracks") trackPopularTrackClick(position);
       onResolveStart?.();
       try {
         if (!onTrackResolve) {
@@ -63,7 +71,7 @@ export function PopularTrack({
         toast?.show(t("error.generic"), "error");
       }
     },
-    [onResolveStart, onTrackResolve, resolving, track, toast, t],
+    [onResolveStart, onTrackResolve, position, resolving, surface, track, toast, t],
   );
 
   return (
@@ -73,6 +81,9 @@ export function PopularTrack({
       onClick={handleListen}
       disabled={resolving}
       aria-busy={resolving}
+      data-analytics-key={`artist.${surface}`}
+      data-analytics-surface={surface}
+      data-analytics-media-type="track"
       noScale
       className="flex items-center gap-3 w-full p-2"
     >

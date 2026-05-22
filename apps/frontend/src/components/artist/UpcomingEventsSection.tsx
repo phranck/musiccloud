@@ -1,6 +1,7 @@
 import type { ArtistEvent } from "@musiccloud/shared";
 import { TicketIcon } from "@phosphor-icons/react";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { trackUpcomingEventClick } from "@/lib/analytics";
 
 interface UpcomingEventsSectionProps {
   events: ArtistEvent[];
@@ -11,7 +12,7 @@ interface UpcomingEventsSectionProps {
 export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEventsSectionProps) {
   return (
     <div className="flex flex-col gap-0.5">
-      {events.map((event) => {
+      {events.map((event, index) => {
         const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
         const linkProps = event.ticketUrl
           ? ({ href: event.ticketUrl, target: "_blank", rel: "noopener noreferrer" } as const)
@@ -20,6 +21,9 @@ export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEv
           <EmbossedButton
             key={`${event.date}-${event.venueName || event.city}`}
             noScale
+            onClick={event.ticketUrl ? () => trackUpcomingEventClick(index, "ticketmaster") : undefined}
+            data-analytics-key="artist.upcoming_event"
+            data-analytics-surface="upcoming_events"
             className="flex items-center gap-3 w-full px-3 py-2 no-underline"
             {...linkProps}
           >

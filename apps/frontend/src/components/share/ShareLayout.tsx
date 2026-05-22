@@ -66,6 +66,8 @@ import { ToastProvider } from "@/context/ToastContext";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider, useT } from "@/i18n/context";
+import { trackResolve, trackResolveFailed, trackResolveStarted } from "@/lib/analytics";
+import { detectServiceFromUrl } from "@/lib/platform/url";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import type { ActiveResult } from "@/lib/types/app";
 import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
@@ -447,6 +449,8 @@ function ShareLayoutInner({
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
       let keepResolveLoadingForArtistFetch = false;
+      const sourcePlatform = detectServiceFromUrl(track.deezerUrl);
+      trackResolveStarted(sourcePlatform, "artist_panel");
       try {
         const response = await fetch(ENDPOINTS.frontend.resolve, {
           method: "POST",
@@ -476,6 +480,7 @@ function ShareLayoutInner({
           setCurrentArtistContext(next.artistInfoContext);
           if (shouldFetchArtist) setCurrentArtistName(next.artistName);
           document.title = next.pageTitle;
+          trackResolve(sourcePlatform, "artist_panel");
           return;
         }
 
@@ -485,8 +490,10 @@ function ShareLayoutInner({
         keepResolveLoadingForArtistFetch = shouldFetchArtist;
         setCurrentConfig(buildActiveConfig(active, t));
         if (shouldFetchArtist) setCurrentArtistName(nextArtistName);
+        trackResolve(sourcePlatform, "artist_panel");
       } catch (err) {
         setResolveErrorVisible(true);
+        trackResolveFailed(sourcePlatform, "artist_panel", err instanceof Error ? err.message : "error.generic");
         throw err;
       } finally {
         if (!keepResolveLoadingForArtistFetch) setResolveTriggeredArtistLoad(false);

@@ -118,6 +118,10 @@ export const ENDPOINTS = {
     redirect: "/api/redirect",
     /** Umami analytics proxy prefix (script.js + event endpoint live beneath). */
     umami: "/api/mc",
+    analytics: {
+      /** POST: first-party website behaviour analytics batch. */
+      websiteEvents: "/api/analytics/website-events",
+    },
   },
 
   /** `/api/admin/...`: admin dashboard endpoints (JWT-protected). */
