@@ -40,6 +40,7 @@ sources alongside their D2 diagram sources.
 - [Cache architecture](docs/cache-architecture.md)
 - [Crawler architecture](docs/crawler-architecture.md)
 - [Artist composition](docs/artist-composition-architecture.md)
+- [Website analytics Geo realtime](architecture/website-analytics-geo-realtime.md)
 
 ## Supported streaming services
 
