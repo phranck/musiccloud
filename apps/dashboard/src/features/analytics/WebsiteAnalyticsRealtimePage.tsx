@@ -1,6 +1,15 @@
+import { DashboardButton } from "@musiccloud/dashboard-ui";
 import { ENDPOINTS } from "@musiccloud/shared";
-import { CrosshairIcon, GlobeHemisphereWestIcon, MapPinIcon, PulseIcon } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowClockwiseIcon,
+  CheckCircleIcon,
+  CrosshairIcon,
+  GlobeHemisphereWestIcon,
+  MapPinIcon,
+  PulseIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type WheelEvent } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -66,6 +75,26 @@ interface GeoOverview {
   countries: GeoCountrySummary[];
   cities: GeoLocationSummary[];
   recent: GeoPoint[];
+}
+
+type GeoIpStatusState = "disabled" | "fresh" | "stale" | "missing" | "updating" | "error";
+
+interface GeoIpStatus {
+  state: GeoIpStatusState;
+  provider: string;
+  databasePath: string;
+  databaseType: string | null;
+  buildEpoch: string | null;
+  lastModifiedAt: string | null;
+  ageDays: number | null;
+  maxAgeDays: number;
+  message: string | null;
+}
+
+interface GeoIpUpdateResult {
+  ok: boolean;
+  status: GeoIpStatus;
+  message: string;
 }
 
 interface LivePoint extends GeoPoint {
@@ -242,6 +271,19 @@ function pointOpacity(point: LivePoint, now: number) {
 
 function activityLabel(activity: GeoActivity) {
   return ACTIVITY_META[activity]?.label ?? activity;
+}
+
+function geoIpStatusTone(state: GeoIpStatusState | undefined) {
+  if (state === "fresh") return "text-[#64ff9a]";
+  if (state === "updating") return "text-[#56d8ff]";
+  if (state === "disabled" || state === "missing" || state === "stale") return "text-[#fff177]";
+  return "text-[#ff6d6d]";
+}
+
+function formatStatusDate(value: string | null | undefined) {
+  if (!value) return "n/a";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "n/a" : date.toLocaleString();
 }
 
 function mergeLivePoints(previous: LivePoint[], incoming: GeoPoint[], now: number) {
@@ -561,8 +603,79 @@ function TopLocationList({ cities }: { cities: GeoLocationSummary[] }) {
   );
 }
 
+function MaxMindControl({
+  isLoading,
+  isUpdating,
+  onUpdate,
+  status,
+  updateMessage,
+}: {
+  isLoading: boolean;
+  isUpdating: boolean;
+  onUpdate: () => void;
+  status: GeoIpStatus | undefined;
+  updateMessage: string | null;
+}) {
+  const { messages } = useI18n();
+  const state = status?.state;
+  const Icon = state === "fresh" ? CheckCircleIcon : WarningCircleIcon;
+  const age =
+    status?.ageDays === null || status?.ageDays === undefined
+      ? "n/a"
+      : `${status.ageDays.toFixed(1)} / ${status.maxAgeDays}d`;
+
+  return (
+    <DashboardSection>
+      <DashboardSection.Header
+        icon={<Icon weight="duotone" className={`size-4 ${geoIpStatusTone(state)}`} />}
+        title="MaxMind"
+        addOn={
+          <DashboardButton
+            type="button"
+            onClick={onUpdate}
+            disabled={isUpdating || state === "disabled"}
+            leadingIcon={<ArrowClockwiseIcon weight="duotone" className="size-3.5" />}
+            size="action"
+            variant="neutral"
+          >
+            {isUpdating ? messages.common.loading : "Update"}
+          </DashboardButton>
+        }
+      />
+      <DashboardSection.Body>
+        <div className="grid grid-cols-2 gap-3 text-sm xl:grid-cols-1">
+          <div>
+            <div className="text-xs text-[var(--ds-text-muted)]">Status</div>
+            <div className={`capitalize tabular-nums text-lg ${geoIpStatusTone(state)}`}>
+              {isLoading ? messages.common.loading : (state ?? "unknown")}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-[var(--ds-text-muted)]">Age</div>
+            <div className="tabular-nums text-lg text-[var(--ds-text)]">{age}</div>
+          </div>
+          <div>
+            <div className="text-xs text-[var(--ds-text-muted)]">Build</div>
+            <div className="truncate text-sm text-[var(--ds-text)]">{formatStatusDate(status?.buildEpoch)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-[var(--ds-text-muted)]">Database</div>
+            <div className="truncate text-sm text-[var(--ds-text)]">{status?.databaseType ?? "n/a"}</div>
+          </div>
+        </div>
+        {(status?.message || updateMessage) && (
+          <div className="rounded-md border border-[var(--ds-border)] bg-[var(--ds-surface-muted)] px-3 py-2 text-xs text-[var(--ds-text-muted)]">
+            {updateMessage ?? status?.message}
+          </div>
+        )}
+      </DashboardSection.Body>
+    </DashboardSection>
+  );
+}
+
 export function WebsiteAnalyticsRealtimePage() {
   const { messages, formatNumber } = useI18n();
+  const queryClient = useQueryClient();
   const [points, setPoints] = useState<LivePoint[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const geoQuery = useQuery({
@@ -570,6 +683,19 @@ export function WebsiteAnalyticsRealtimePage() {
     queryFn: () => api.get<GeoOverview>(`${ENDPOINTS.admin.analytics.website.geo}?period=today&realtimeMinutes=5&limit=250`),
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
+  });
+  const geoIpStatusQuery = useQuery({
+    queryKey: ["website-analytics-geoip-status"],
+    queryFn: () => api.get<GeoIpStatus>(ENDPOINTS.admin.analytics.website.geoIpStatus),
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+  });
+  const geoIpUpdateMutation = useMutation({
+    mutationFn: () => api.post<GeoIpUpdateResult>(ENDPOINTS.admin.analytics.website.geoIpUpdate),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["website-analytics-geoip-status"] });
+      void queryClient.invalidateQueries({ queryKey: ["website-analytics-geo-realtime"] });
+    },
   });
 
   useEffect(() => {
@@ -623,41 +749,51 @@ export function WebsiteAnalyticsRealtimePage() {
               </DashboardSection.Body>
             </DashboardSection>
 
-            <DashboardSection>
-              <DashboardSection.Header icon={<CrosshairIcon weight="duotone" className="size-4" />} title="Signal" />
-              <DashboardSection.Body>
-                <div className="grid grid-cols-2 gap-3 text-sm xl:grid-cols-1">
-                  <div>
-                    <div className="text-xs text-[var(--ds-text-muted)]">Geo Events</div>
-                    <div className="tabular-nums text-lg text-[var(--ds-text)]">
-                      {formatNumber(coverage?.geolocatedEvents ?? 0)}
+            <div className="grid gap-3">
+              <MaxMindControl
+                isLoading={geoIpStatusQuery.isLoading}
+                isUpdating={geoIpUpdateMutation.isPending || geoIpStatusQuery.data?.state === "updating"}
+                onUpdate={() => geoIpUpdateMutation.mutate()}
+                status={geoIpStatusQuery.data}
+                updateMessage={geoIpUpdateMutation.data?.message ?? null}
+              />
+
+              <DashboardSection>
+                <DashboardSection.Header icon={<CrosshairIcon weight="duotone" className="size-4" />} title="Signal" />
+                <DashboardSection.Body>
+                  <div className="grid grid-cols-2 gap-3 text-sm xl:grid-cols-1">
+                    <div>
+                      <div className="text-xs text-[var(--ds-text-muted)]">Geo Events</div>
+                      <div className="tabular-nums text-lg text-[var(--ds-text)]">
+                        {formatNumber(coverage?.geolocatedEvents ?? 0)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-[var(--ds-text-muted)]">Countries</div>
+                      <div className="tabular-nums text-lg text-[var(--ds-text)]">
+                        {formatNumber(coverage?.countries ?? countries.length)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-[var(--ds-text-muted)]">Total Events</div>
+                      <div className="tabular-nums text-lg text-[var(--ds-text)]">
+                        {formatNumber(coverage?.totalEvents ?? 0)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-[var(--ds-text-muted)]">MMDB Build</div>
+                      <div className="truncate text-sm text-[var(--ds-text)]">
+                        {coverage?.latestDatabaseBuildAt
+                          ? new Date(coverage.latestDatabaseBuildAt).toLocaleDateString()
+                          : geoQuery.isLoading
+                            ? messages.common.loading
+                            : "n/a"}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="text-xs text-[var(--ds-text-muted)]">Countries</div>
-                    <div className="tabular-nums text-lg text-[var(--ds-text)]">
-                      {formatNumber(coverage?.countries ?? countries.length)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-[var(--ds-text-muted)]">Total Events</div>
-                    <div className="tabular-nums text-lg text-[var(--ds-text)]">
-                      {formatNumber(coverage?.totalEvents ?? 0)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-[var(--ds-text-muted)]">MMDB Build</div>
-                    <div className="truncate text-sm text-[var(--ds-text)]">
-                      {coverage?.latestDatabaseBuildAt
-                        ? new Date(coverage.latestDatabaseBuildAt).toLocaleDateString()
-                        : geoQuery.isLoading
-                          ? messages.common.loading
-                          : "n/a"}
-                    </div>
-                  </div>
-                </div>
-              </DashboardSection.Body>
-            </DashboardSection>
+                </DashboardSection.Body>
+              </DashboardSection>
+            </div>
           </div>
         </div>
       </PageBody>
