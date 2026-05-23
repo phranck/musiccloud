@@ -9,8 +9,9 @@
 import "../styles/fonts.css";
 import "../styles/global.css";
 import { ENDPOINTS } from "@musiccloud/shared";
-import { isTrackingEnabled } from "@/api/client";
-import DeferredHeader from "@/components/layout/DeferredHeader.astro";
+import { fetchNavigation, isTrackingEnabled } from "@/api/client";
+import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
+import { getLocaleFromCookie } from "@/i18n/locales";
 
 const trackingEnabled = isTrackingEnabled();
 
@@ -25,6 +26,8 @@ interface Props {
 }
 
 const { title, description, canonicalUrl, preloadImage, noindex, lang = "en", showHeader = true } = Astro.props;
+const headerLocale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
+const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [];
 ---
 
 <!doctype html>
@@ -60,7 +63,13 @@ const { title, description, canonicalUrl, preloadImage, noindex, lang = "en", sh
     )}
   </head>
   <body class="bg-background text-text-primary antialiased">
-    {showHeader && <DeferredHeader server:defer />}
+    {
+      showHeader && (
+        <div class="animate-slide-down-in">
+          <PageHeaderIsland client:idle navItems={headerNav} />
+        </div>
+      )
+    }
     <slot />
   </body>
 </html>
