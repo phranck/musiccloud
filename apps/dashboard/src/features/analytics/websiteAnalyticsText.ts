@@ -19,6 +19,12 @@ export interface WebsiteCopy {
     percentColumn: string;
     visitors: string;
   };
+  botTraffic: {
+    bot: string;
+    category: string;
+    events: string;
+    pageviews: string;
+  };
   kpis: {
     clusters: string;
     devices: string;
@@ -38,6 +44,7 @@ export interface WebsiteCopy {
     referrers: string;
     interactions: string;
     searches: string;
+    botTraffic: string;
   };
   columns: {
     intent: string;
@@ -171,6 +178,12 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       percentColumn: "%",
       visitors: "Besucher",
     },
+    botTraffic: {
+      bot: "Bot",
+      category: "Kategorie",
+      events: "Events",
+      pageviews: "Seitenaufrufe",
+    },
     kpis: {
       clusters: "Haushalte",
       devices: "Geräte",
@@ -190,6 +203,7 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       referrers: "Website-Quellen",
       interactions: "Interaktionen",
       searches: "Suchbegriffe",
+      botTraffic: "Bot-Traffic",
     },
     columns: {
       intent: "Intent",
@@ -321,6 +335,12 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       percentColumn: "%",
       visitors: "Visitors",
     },
+    botTraffic: {
+      bot: "Bot",
+      category: "Category",
+      events: "Events",
+      pageviews: "Pageviews",
+    },
     kpis: {
       clusters: "Households",
       devices: "Devices",
@@ -340,6 +360,7 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       referrers: "Website Sources",
       interactions: "Interactions",
       searches: "Search Terms",
+      botTraffic: "Bot Traffic",
     },
     columns: {
       intent: "Intent",

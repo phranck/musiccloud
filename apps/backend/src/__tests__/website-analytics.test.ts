@@ -103,7 +103,80 @@ describe(`POST ${ENDPOINT}`, () => {
     expect(batch.session.deviceKey).toMatch(/^wdev_[a-f0-9]{40}$/);
     expect(batch.session.networkClusterKey).toMatch(/^wnc_[a-f0-9]{40}$/);
     expect(batch.events[0].deviceModel).toBe("Pixel 9");
+    expect(batch.events[0].isBot).toBe(false);
     expect(batch.events[0].eventData).toEqual({ service: "spotify" });
+  });
+
+  it("resolves Android model codes from browser Client Hints before persistence", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINT,
+      headers: {
+        "sec-ch-ua": '"Chromium";v="125", "Google Chrome";v="125", "Not.A/Brand";v="24"',
+        "sec-ch-ua-mobile": "?1",
+        "sec-ch-ua-model": '"CPH2663"',
+        "sec-ch-ua-platform": '"Android"',
+        "user-agent":
+          "Mozilla/5.0 (Linux; Android 14; CPH2663) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36",
+      },
+      payload: validBody({
+        events: [
+          {
+            id: EVENT_ID,
+            occurredAt: "2026-05-22T10:00:00.000Z",
+            eventType: "page_view",
+            path: "/abc123",
+            routeTemplate: "/:shortId",
+            deviceClass: "phone",
+            browserFamily: "chrome",
+            osFamily: "android",
+            deviceModel: "CPH2663",
+          },
+        ],
+      }),
+    });
+
+    expect(res.statusCode).toBe(202);
+    const [batch] = insertWebsiteAnalyticsBatchMock.mock.calls[0];
+    expect(batch.events[0]).toMatchObject({
+      browserFamily: "Chrome Mobile",
+      deviceBrand: "OnePlus",
+      deviceClass: "phone",
+      deviceModel: "OnePlus Nord 4",
+      deviceModelCode: "CPH2663",
+      isBot: false,
+      osFamily: "Android",
+    });
+  });
+
+  it("marks bot traffic separately from human website analytics", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINT,
+      headers: {
+        "user-agent":
+          "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+      },
+      payload: validBody({
+        events: [
+          {
+            id: EVENT_ID,
+            occurredAt: "2026-05-22T10:00:00.000Z",
+            eventType: "page_view",
+            path: "/abc123",
+            routeTemplate: "/:shortId",
+          },
+        ],
+      }),
+    });
+
+    expect(res.statusCode).toBe(202);
+    const [batch] = insertWebsiteAnalyticsBatchMock.mock.calls[0];
+    expect(batch.events[0]).toMatchObject({
+      botName: "Googlebot",
+      isBot: true,
+    });
+    expect(batch.events[0].botCategory).toBeTruthy();
   });
 
   it("rejects unknown event types before reaching persistence", async () => {

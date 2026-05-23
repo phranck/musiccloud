@@ -119,8 +119,15 @@ interface WebsiteAnalyticsPathEventRow {
   referrer_domain: string | null;
   device_class: string | null;
   browser_family: string | null;
+  browser_version: string | null;
   os_family: string | null;
+  os_version: string | null;
+  device_brand: string | null;
   device_model: string | null;
+  device_model_code: string | null;
+  is_bot: boolean | null;
+  bot_name: string | null;
+  bot_category: string | null;
   surface: string | null;
   platform: string | null;
   media_type: string | null;
@@ -163,6 +170,13 @@ interface WebsiteAnalyticsEnvironmentSummaryRow {
   visitors: number | string | null;
 }
 
+interface WebsiteAnalyticsBotTrafficSummaryRow {
+  bot: string | null;
+  category: string | null;
+  events: number | string | null;
+  pageviews: number | string | null;
+}
+
 interface WebsiteAnalyticsDeviceSummaryRow {
   device_key: string | null;
   label: string;
@@ -171,8 +185,12 @@ interface WebsiteAnalyticsDeviceSummaryRow {
   last_seen_at: Date | string;
   device_class: string | null;
   browser_family: string | null;
+  browser_version: string | null;
   os_family: string | null;
+  os_version: string | null;
+  device_brand: string | null;
   device_model: string | null;
+  device_model_code: string | null;
 }
 
 interface WebsiteAnalyticsTotalsRow {
@@ -654,8 +672,15 @@ const WEBSITE_ANALYTICS_PATH_EVENT_SELECT = `e.id::text,
         e.referrer_domain,
         e.device_class,
         e.browser_family,
+        e.browser_version,
         e.os_family,
+        e.os_version,
+        e.device_brand,
         e.device_model,
+        e.device_model_code,
+        e.is_bot,
+        e.bot_name,
+        e.bot_category,
         e.surface,
         e.platform,
         e.media_type,
@@ -4616,11 +4641,13 @@ async function insertWebsiteAnalyticsBatch(
         `INSERT INTO analytics_events
            (id, occurred_at, event_type, session_id, device_key, network_cluster_key,
             confidence, path, route_template, referrer_domain, device_class, browser_family,
-            os_family, device_model, platform, media_type, short_id, surface, element_key, x_pct, y_pct,
+            browser_version, os_family, os_version, device_brand, device_model, device_model_code,
+            is_bot, bot_name, bot_category, platform, media_type, short_id, surface, element_key, x_pct, y_pct,
             viewport_bucket, event_data)
          VALUES
            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-            $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+            $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
+            $25, $26, $27, $28, $29, $30)
          ON CONFLICT (id) DO NOTHING`,
         [
           event.id,
@@ -4635,8 +4662,15 @@ async function insertWebsiteAnalyticsBatch(
           event.referrerDomain,
           event.deviceClass,
           event.browserFamily,
+          event.browserVersion,
           event.osFamily,
+          event.osVersion,
+          event.deviceBrand,
           event.deviceModel,
+          event.deviceModelCode,
+          event.isBot,
+          event.botName,
+          event.botCategory,
           event.platform,
           event.mediaType,
           event.shortId,
@@ -4720,6 +4754,7 @@ async function refreshWebsiteAnalyticsDailySummaries(
        FROM analytics_events
        WHERE (occurred_at AT TIME ZONE 'UTC')::date = $1::date
          AND network_cluster_key = $2
+         AND COALESCE(is_bot, false) = false
        GROUP BY (occurred_at AT TIME ZONE 'UTC')::date, network_cluster_key
        ON CONFLICT (day, network_cluster_key) DO UPDATE SET
           confidence = EXCLUDED.confidence,
@@ -4764,7 +4799,8 @@ async function queryWebsiteAnalyticsTotals(
       COUNT(*) FILTER (WHERE event_type = ANY($4::text[]))::int AS interactions
     FROM analytics_events
     WHERE occurred_at >= $1
-      AND ($2::timestamptz IS NULL OR occurred_at < $2)`,
+      AND ($2::timestamptz IS NULL OR occurred_at < $2)
+      AND COALESCE(is_bot, false) = false`,
     [since, until, WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS, WEBSITE_ANALYTICS_INTERACTION_EVENT_TYPES],
   );
   const row = result.rows[0];
@@ -4834,6 +4870,7 @@ async function getWebsiteAnalyticsOverview(
     environmentBrowsers,
     environmentOs,
     environmentDevices,
+    botTraffic,
     clusters,
     referrers,
     searchIntents,
@@ -4847,6 +4884,7 @@ async function getWebsiteAnalyticsOverview(
       `SELECT COALESCE(platform, 'unknown') AS platform, COUNT(*)::int AS resolves
        FROM analytics_events
        WHERE occurred_at >= $1
+         AND COALESCE(is_bot, false) = false
          AND event_type = 'resolve_succeeded'
          AND (platform IS NULL OR platform = ANY($2::text[]))
        GROUP BY COALESCE(platform, 'unknown')
@@ -4859,6 +4897,7 @@ async function getWebsiteAnalyticsOverview(
         COUNT(DISTINCT COALESCE(device_key, session_id::text))::int AS visitors
        FROM analytics_events
        WHERE occurred_at >= $1
+         AND COALESCE(is_bot, false) = false
        GROUP BY COALESCE(NULLIF(browser_family, ''), 'unknown')
        ORDER BY visitors DESC, value ASC
        LIMIT 12`,
@@ -4869,6 +4908,7 @@ async function getWebsiteAnalyticsOverview(
         COUNT(DISTINCT COALESCE(device_key, session_id::text))::int AS visitors
        FROM analytics_events
        WHERE occurred_at >= $1
+         AND COALESCE(is_bot, false) = false
        GROUP BY COALESCE(NULLIF(os_family, ''), 'unknown')
        ORDER BY visitors DESC, value ASC
        LIMIT 12`,
@@ -4884,11 +4924,26 @@ async function getWebsiteAnalyticsOverview(
           COALESCE(device_key, session_id::text) AS visitor_key
         FROM analytics_events
         WHERE occurred_at >= $1
+          AND COALESCE(is_bot, false) = false
        )
        SELECT value, COUNT(DISTINCT visitor_key)::int AS visitors
        FROM device_values
        GROUP BY value
        ORDER BY visitors DESC, value ASC
+       LIMIT 12`,
+      [since],
+    ),
+    pool.query<WebsiteAnalyticsBotTrafficSummaryRow>(
+      `SELECT
+        COALESCE(NULLIF(bot_name, ''), 'Unknown bot') AS bot,
+        NULLIF(bot_category, '') AS category,
+        COUNT(*)::int AS events,
+        COUNT(*) FILTER (WHERE event_type = 'page_view')::int AS pageviews
+       FROM analytics_events
+       WHERE occurred_at >= $1
+         AND COALESCE(is_bot, false) = true
+       GROUP BY COALESCE(NULLIF(bot_name, ''), 'Unknown bot'), NULLIF(bot_category, '')
+       ORDER BY events DESC, pageviews DESC, bot ASC
        LIMIT 12`,
       [since],
     ),
@@ -4908,6 +4963,7 @@ async function getWebsiteAnalyticsOverview(
             occurred_at AS last_seen_at
           FROM analytics_events
           WHERE occurred_at >= $1
+            AND COALESCE(is_bot, false) = false
           ORDER BY network_cluster_key, occurred_at DESC
         ),
         cluster_devices AS (
@@ -4916,6 +4972,7 @@ async function getWebsiteAnalyticsOverview(
             COUNT(DISTINCT device_key) FILTER (WHERE device_key IS NOT NULL)::int AS devices
           FROM analytics_events
           WHERE occurred_at >= $1
+            AND COALESCE(is_bot, false) = false
           GROUP BY network_cluster_key
         ),
         cluster_queries AS (
@@ -4925,6 +4982,7 @@ async function getWebsiteAnalyticsOverview(
           FROM analytics_events e
           ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
           WHERE e.occurred_at >= $1
+            AND COALESCE(e.is_bot, false) = false
             AND e.event_type = 'search_submitted'
             AND NULLIF(e.event_data->>'query_normalized', '') IS NOT NULL
           ORDER BY e.network_cluster_key, e.occurred_at DESC
@@ -4959,6 +5017,7 @@ async function getWebsiteAnalyticsOverview(
         COUNT(DISTINCT network_cluster_key)::int AS clusters
        FROM analytics_events
        WHERE occurred_at >= $1
+         AND COALESCE(is_bot, false) = false
          AND event_type = 'page_view'
          AND COALESCE(route_template, path) IN ('/', '/:shortId')
        GROUP BY COALESCE(NULLIF(referrer_domain, ''), 'direct'), COALESCE(route_template, path, 'unknown')
@@ -4973,6 +5032,7 @@ async function getWebsiteAnalyticsOverview(
         COUNT(DISTINCT network_cluster_key)::int AS clusters
        FROM analytics_events
        WHERE occurred_at >= $1
+         AND COALESCE(is_bot, false) = false
          AND event_type = 'search_submitted'
        GROUP BY COALESCE(NULLIF(event_data->>'query_type', ''), 'unknown')
        ORDER BY searches DESC, clusters DESC, intent ASC
@@ -5025,6 +5085,7 @@ async function getWebsiteAnalyticsOverview(
           COALESCE(NULLIF(platform, ''), NULLIF(event_data->>'service', ''), NULLIF(event_data->>'provider', '')) AS platform
         FROM analytics_events
         WHERE occurred_at >= $1
+          AND COALESCE(is_bot, false) = false
           AND event_type = ANY($2::text[])
        )
        SELECT event_type, label, surface, element_key, platform, COUNT(*)::int AS count
@@ -5042,6 +5103,7 @@ async function getWebsiteAnalyticsOverview(
         FROM analytics_events e
         ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
         WHERE e.occurred_at >= $1
+          AND COALESCE(e.is_bot, false) = false
           AND e.event_type = 'search_submitted'
           AND NULLIF(e.event_data->>'query_normalized', '') IS NOT NULL
        )
@@ -5067,6 +5129,7 @@ async function getWebsiteAnalyticsOverview(
        FROM analytics_events e
        ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
        WHERE e.occurred_at >= $1
+         AND COALESCE(e.is_bot, false) = false
        ORDER BY e.occurred_at DESC
        LIMIT 18`,
       [since],
@@ -5090,6 +5153,12 @@ async function getWebsiteAnalyticsOverview(
         visitors: Number(row.visitors),
       })),
     },
+    botTraffic: botTraffic.rows.map((row) => ({
+      bot: String(row.bot ?? "Unknown bot"),
+      category: row.category,
+      events: Number(row.events),
+      pageviews: Number(row.pageviews),
+    })),
     platforms: platforms.rows.map((row) => ({ platform: String(row.platform), resolves: Number(row.resolves) })),
     clusters: clusters.rows.map((row) => ({
       clusterKey: String(row.network_cluster_key),
@@ -5164,8 +5233,15 @@ function rowToWebsiteAnalyticsPathEvent(row: WebsiteAnalyticsPathEventRow): Webs
     referrerDomain: row.referrer_domain,
     deviceClass: row.device_class,
     browserFamily: row.browser_family,
+    browserVersion: row.browser_version,
     osFamily: row.os_family,
+    osVersion: row.os_version,
+    deviceBrand: row.device_brand,
     deviceModel: row.device_model,
+    deviceModelCode: row.device_model_code,
+    isBot: Boolean(row.is_bot),
+    botName: row.bot_name,
+    botCategory: row.bot_category,
     surface: row.surface,
     platform: row.platform,
     mediaType: row.media_type,
@@ -5218,7 +5294,7 @@ function websiteAnalyticsFilterSql(
   values: unknown[];
 } {
   const column = (name: string) => (tableAlias ? `${tableAlias}.${name}` : name);
-  const clauses = [`${column("occurred_at")} >= $1`];
+  const clauses = [`${column("occurred_at")} >= $1`, `COALESCE(${column("is_bot")}, false) = false`];
   const values: unknown[] = [params.since];
 
   if (params.clusterKey) {
@@ -5253,8 +5329,12 @@ async function getWebsiteAnalyticsDrilldown(
         MAX(occurred_at) AS last_seen_at,
         MAX(device_class) AS device_class,
         MAX(browser_family) AS browser_family,
+        MAX(browser_version) AS browser_version,
         MAX(os_family) AS os_family,
-        MAX(device_model) AS device_model
+        MAX(os_version) AS os_version,
+        MAX(device_brand) AS device_brand,
+        MAX(device_model) AS device_model,
+        MAX(device_model_code) AS device_model_code
        FROM analytics_events
        WHERE ${filter.where}
        GROUP BY device_key
@@ -5308,8 +5388,12 @@ async function getWebsiteAnalyticsDrilldown(
       lastSeenAt: dateToIso(row.last_seen_at),
       deviceClass: row.device_class,
       browserFamily: row.browser_family,
+      browserVersion: row.browser_version,
       osFamily: row.os_family,
+      osVersion: row.os_version,
+      deviceBrand: row.device_brand,
       deviceModel: row.device_model,
+      deviceModelCode: row.device_model_code,
     })),
     sessions: sessions.rows.map((row) => ({
       sessionId: row.session_id,

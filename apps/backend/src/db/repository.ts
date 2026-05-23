@@ -568,8 +568,15 @@ export interface WebsiteAnalyticsEventInput {
   referrerDomain: string | null;
   deviceClass: string | null;
   browserFamily: string | null;
+  browserVersion: string | null;
   osFamily: string | null;
+  osVersion: string | null;
+  deviceBrand: string | null;
   deviceModel: string | null;
+  deviceModelCode: string | null;
+  isBot: boolean;
+  botName: string | null;
+  botCategory: string | null;
   platform: string | null;
   mediaType: string | null;
   shortId: string | null;
@@ -604,6 +611,7 @@ export interface WebsiteAnalyticsOverview {
     os: WebsiteAnalyticsEnvironmentSummary[];
     devices: WebsiteAnalyticsEnvironmentSummary[];
   };
+  botTraffic: WebsiteAnalyticsBotTrafficSummary[];
   platforms: Array<{ platform: string; resolves: number }>;
   clusters: Array<{
     clusterKey: string;
@@ -629,6 +637,13 @@ export interface WebsiteAnalyticsOverview {
 export interface WebsiteAnalyticsEnvironmentSummary {
   value: string;
   visitors: number;
+}
+
+export interface WebsiteAnalyticsBotTrafficSummary {
+  bot: string;
+  category: string | null;
+  events: number;
+  pageviews: number;
 }
 
 export interface WebsiteAnalyticsTrend {
@@ -678,8 +693,15 @@ export interface WebsiteAnalyticsPathEvent {
   referrerDomain: string | null;
   deviceClass: string | null;
   browserFamily: string | null;
+  browserVersion: string | null;
   osFamily: string | null;
+  osVersion: string | null;
+  deviceBrand: string | null;
   deviceModel: string | null;
+  deviceModelCode: string | null;
+  isBot: boolean;
+  botName: string | null;
+  botCategory: string | null;
   surface: string | null;
   platform: string | null;
   mediaType: string | null;
@@ -705,8 +727,12 @@ export interface WebsiteAnalyticsDeviceSummary {
   lastSeenAt: string;
   deviceClass: string | null;
   browserFamily: string | null;
+  browserVersion: string | null;
   osFamily: string | null;
+  osVersion: string | null;
+  deviceBrand: string | null;
   deviceModel: string | null;
+  deviceModelCode: string | null;
 }
 
 export interface WebsiteAnalyticsSessionSummary {

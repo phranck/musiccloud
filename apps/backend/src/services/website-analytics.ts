@@ -7,6 +7,7 @@ import type {
   WebsiteAnalyticsEventInput,
   WebsiteAnalyticsEventType,
 } from "../db/repository.js";
+import { detectWebsiteAnalyticsDevice, type WebsiteAnalyticsHeaderMap } from "./website-analytics-device.js";
 
 const MAX_EVENTS_PER_BATCH = 50;
 const MAX_TEXT_LEN = 512;
@@ -66,6 +67,7 @@ export interface WebsiteAnalyticsBatchRequest {
 }
 
 export interface WebsiteAnalyticsRequestContext {
+  headers?: WebsiteAnalyticsHeaderMap;
   ip: string;
 }
 
@@ -138,8 +140,9 @@ function ipPrefix(rawIp: string): string {
  * prefix and a daily rotating period. This is pseudonymisation, not
  * anonymisation. Do not replace this with plain SHA hashing and do not add
  * browser fingerprinting signals such as canvas, fonts, plugins or audio
- * probes. Optional device model data is accepted only from standard browser
- * Client Hints and may be null when browsers withhold it.
+ * probes. Optional device and bot data is derived from standard User-Agent
+ * and Client Hint headers inside the request only. Raw headers are never
+ * persisted.
  */
 export function deriveNetworkClusterKey(rawIp: string, occurredAt: Date, secret: string): string {
   return `wnc_${hmacKey(secret, "network-cluster", `${utcDay(occurredAt)}:${ipPrefix(rawIp)}`).slice(0, 40)}`;
@@ -197,6 +200,7 @@ export async function ingestWebsiteAnalyticsBatch(
   const confidence = toConfidence(deviceKey);
   const events: WebsiteAnalyticsEventInput[] = payload.events.map((event) => {
     const occurredAt = parseOccurredAt(event.occurredAt);
+    const detectedDevice = detectWebsiteAnalyticsDevice(context.headers ?? {}, event);
     return {
       id: event.id ?? randomUUID(),
       occurredAt,
@@ -208,10 +212,17 @@ export async function ingestWebsiteAnalyticsBatch(
       path: trimText(event.path),
       routeTemplate: trimText(event.routeTemplate, 128),
       referrerDomain: trimText(event.referrerDomain, 255),
-      deviceClass: trimText(event.deviceClass, 32),
-      browserFamily: trimText(event.browserFamily, 64),
-      osFamily: trimText(event.osFamily, 64),
-      deviceModel: trimText(event.deviceModel, 96),
+      deviceClass: trimText(detectedDevice.deviceClass, 32),
+      browserFamily: trimText(detectedDevice.browserFamily, 64),
+      browserVersion: trimText(detectedDevice.browserVersion, 32),
+      osFamily: trimText(detectedDevice.osFamily, 64),
+      osVersion: trimText(detectedDevice.osVersion, 32),
+      deviceBrand: trimText(detectedDevice.deviceBrand, 64),
+      deviceModel: trimText(detectedDevice.deviceModel, 96),
+      deviceModelCode: trimText(detectedDevice.deviceModelCode, 96),
+      isBot: detectedDevice.isBot,
+      botName: trimText(detectedDevice.botName, 96),
+      botCategory: trimText(detectedDevice.botCategory, 96),
       platform: trimText(event.platform, 64),
       mediaType: trimText(event.mediaType, 32),
       shortId: trimText(event.shortId, 64),

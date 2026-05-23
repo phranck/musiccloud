@@ -13,6 +13,7 @@ import {
   FaLinux,
   FaMobileScreenButton,
   FaOpera,
+  FaRobot,
   FaSafari,
   FaTabletScreenButton,
   FaWindows,
@@ -46,8 +47,15 @@ export interface WebsiteAnalyticsPathEvent {
   referrerDomain: string | null;
   deviceClass: string | null;
   browserFamily: string | null;
+  browserVersion: string | null;
   osFamily: string | null;
+  osVersion: string | null;
+  deviceBrand: string | null;
   deviceModel: string | null;
+  deviceModelCode: string | null;
+  isBot: boolean;
+  botName: string | null;
+  botCategory: string | null;
   surface: string | null;
   platform: string | null;
   mediaType: string | null;
@@ -97,6 +105,12 @@ export interface WebsiteAnalyticsOverview {
     os: WebsiteAnalyticsEnvironmentRow[];
     devices: WebsiteAnalyticsEnvironmentRow[];
   };
+  botTraffic: Array<{
+    bot: string;
+    category: string | null;
+    events: number;
+    pageviews: number;
+  }>;
   platforms: Array<{ platform: string; resolves: number }>;
   clusters: Array<{
     clusterKey: string;
@@ -144,8 +158,12 @@ export interface WebsiteAnalyticsDeviceSummary {
   lastSeenAt: string;
   deviceClass: string | null;
   browserFamily: string | null;
+  browserVersion: string | null;
   osFamily: string | null;
+  osVersion: string | null;
+  deviceBrand: string | null;
   deviceModel: string | null;
+  deviceModelCode: string | null;
 }
 
 export interface WebsiteAnalyticsSessionSummary {
@@ -565,6 +583,66 @@ function PlatformFunnel({
   );
 }
 
+function BotTrafficTable({
+  copy,
+  formatNumber,
+  rows,
+}: {
+  copy: WebsiteCopy;
+  formatNumber: (value: number) => string;
+  rows: WebsiteAnalyticsOverview["botTraffic"];
+}) {
+  const columns = useMemo<ColumnDef<WebsiteAnalyticsOverview["botTraffic"][number]>[]>(
+    () => [
+      {
+        id: "bot",
+        header: copy.botTraffic.bot,
+        cell: (row) => row.bot,
+        sortKey: (row) => row.bot,
+      },
+      {
+        id: "category",
+        header: copy.botTraffic.category,
+        cell: (row) => formatNaturalText(row.category, copy),
+        sortKey: (row) => row.category ?? "",
+      },
+      {
+        id: "pageviews",
+        header: copy.botTraffic.pageviews,
+        cell: (row) => <span className="tabular-nums">{formatNumber(row.pageviews)}</span>,
+        className: "text-right",
+        sortKey: (row) => row.pageviews,
+      },
+      {
+        id: "events",
+        header: copy.botTraffic.events,
+        cell: (row) => <span className="tabular-nums">{formatNumber(row.events)}</span>,
+        className: "text-right",
+        sortKey: (row) => row.events,
+      },
+    ],
+    [copy, formatNumber],
+  );
+
+  return (
+    <DashboardSection>
+      <DashboardSection.Header icon={<FaRobot className="h-4 w-4" />} title={copy.sections.botTraffic} />
+      <DashboardSection.Body flush={rows.length > 0}>
+        {rows.length === 0 ? (
+          <EmptyState copy={copy} />
+        ) : (
+          <DataTable
+            columns={columns}
+            data={rows}
+            getRowKey={(row) => `${row.bot}:${row.category ?? "unknown"}`}
+            defaultSort={{ id: "events", dir: "desc" }}
+          />
+        )}
+      </DashboardSection.Body>
+    </DashboardSection>
+  );
+}
+
 function SearchIntentTable({
   copy,
   formatNumber,
@@ -839,6 +917,7 @@ export function WebsiteAnalyticsSection({
           formatNumber={formatNumber}
           storageKey={environmentStorageKey}
         />
+        <BotTrafficTable copy={copy} formatNumber={formatNumber} rows={data?.botTraffic ?? []} />
       </div>
     </div>
   );

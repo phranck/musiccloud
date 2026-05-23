@@ -6,6 +6,8 @@
  * network/device keys server-side. The route is intentionally hidden from
  * the public API reference.
  */
+
+import type { IncomingHttpHeaders } from "node:http";
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import {
@@ -16,6 +18,31 @@ import {
 } from "../services/website-analytics.js";
 
 const WEBSITE_ANALYTICS_BODY_LIMIT = 64 * 1024;
+const WEBSITE_ANALYTICS_DEVICE_HEADER_ALLOWLIST = [
+  "user-agent",
+  "sec-ch-ua",
+  "sec-ch-ua-arch",
+  "sec-ch-ua-bitness",
+  "sec-ch-ua-form-factors",
+  "sec-ch-ua-full-version-list",
+  "sec-ch-ua-mobile",
+  "sec-ch-ua-model",
+  "sec-ch-ua-platform",
+  "sec-ch-ua-platform-version",
+  "sec-ch-ua-wow64",
+] as const;
+
+function websiteAnalyticsDeviceHeaders(headers: IncomingHttpHeaders) {
+  const selected: Record<string, string> = {};
+  for (const name of WEBSITE_ANALYTICS_DEVICE_HEADER_ALLOWLIST) {
+    const value = headers[name];
+    const firstValue = Array.isArray(value) ? value[0] : value;
+    if (typeof firstValue === "string" && firstValue.trim()) {
+      selected[name] = firstValue;
+    }
+  }
+  return selected;
+}
 
 export default async function websiteAnalyticsRoutes(app: FastifyInstance) {
   app.post<{ Body: WebsiteAnalyticsBatchRequest }>(
@@ -88,7 +115,10 @@ export default async function websiteAnalyticsRoutes(app: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        const result = await ingestWebsiteAnalyticsBatch(request.body, { ip: request.ip });
+        const result = await ingestWebsiteAnalyticsBatch(request.body, {
+          headers: websiteAnalyticsDeviceHeaders(request.headers),
+          ip: request.ip,
+        });
         return reply.code(202).send(result);
       } catch (err) {
         if (err instanceof WebsiteAnalyticsConfigError) {
