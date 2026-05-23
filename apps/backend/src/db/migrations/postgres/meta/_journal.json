@@ -281,6 +281,13 @@
       "when": 1779565585240,
       "tag": "0039_superb_doomsday",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1779568863838,
+      "tag": "0040_vengeful_luke_cage",
+      "breakpoints": true
     }
   ]
 }
