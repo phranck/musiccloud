@@ -25,7 +25,7 @@ HMAC over a truncated IP prefix and a rotating period. This is pseudonymisation,
 an IP address is forbidden because the IP search space is small enough for practical precomputation.
 
 Geo-IP enrichment may use the same request-scoped raw IP, but only to derive curated location fields from the configured
-local MaxMind database. Raw IP addresses must not be returned to the dashboard, written to logs for analytics, or
+local DB-IP database. Raw IP addresses must not be returned to the dashboard, written to logs for analytics, or
 persisted. Persisted Geo-IP fields are limited to country, region, city, latitude, longitude, accuracy radius, timezone,
 provider and database build timestamp. The local database must be treated as stale when it exceeds the configured maximum
 age, and stale databases must not be used for lookup.

@@ -26,6 +26,14 @@ zerops:
         # IP from X-Forwarded-For. "1" covers the Zerops ingress. If a
         # CDN (e.g. Cloudflare) is placed in front, bump to "2".
         TRUST_PROXY: "1"
+        # Local DB-IP City Lite MMDB. Startup updates download the current
+        # monthly free database directly from DB-IP, without a system package
+        # or per-request external lookup. DBIP_REQUIRE_READY keeps the
+        # container out of rotation when the local database is absent/stale.
+        DBIP_DB_DIR: /var/www/data/geoip
+        DBIP_UPDATE_ON_START: "true"
+        DBIP_REQUIRE_READY: "true"
+        DBIP_MAX_AGE_DAYS: "45"
         # Set these in Zerops Secrets:
         # DATABASE_URL: postgresql://db:password@postgresql:5432/musiccloud
         # JWT_SECRET: <random 64-char string>

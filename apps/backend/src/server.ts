@@ -42,6 +42,7 @@ import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site
 import telemetryAppErrorRoutes from "./routes/telemetry-app-error.js";
 import websiteAnalyticsRoutes from "./routes/website-analytics.js";
 import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
+import { ensureGeoIpDatabaseReady, getGeoIpStatus, isGeoIpRequiredForReadiness } from "./services/geo-ip.js";
 import { validateAdapters } from "./services/index.js";
 import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
 
@@ -134,7 +135,9 @@ async function buildApp() {
       // Admin SSE streams are long-lived and polled heavily by the dashboard;
       // the event buses fan out to every connected client so a pure request
       // counter would throttle legitimate multi-tab admins.
-      return request.url.startsWith("/api/admin/events") || request.url.startsWith("/api/admin/analytics/website/realtime");
+      return (
+        request.url.startsWith("/api/admin/events") || request.url.startsWith("/api/admin/analytics/website/realtime")
+      );
     },
   });
 
@@ -372,6 +375,20 @@ async function buildApp() {
         if (missing.length > 0) {
           return reply.status(503).send({ status: "not_ready", missingTables: missing });
         }
+        if (isGeoIpRequiredForReadiness()) {
+          const geoIpStatus = await getGeoIpStatus();
+          if (geoIpStatus.state !== "fresh" || geoIpStatus.updateAvailable === true) {
+            return reply.status(503).send({
+              status: "not_ready",
+              geoIp: {
+                provider: geoIpStatus.provider,
+                state: geoIpStatus.state,
+                latestRelease: geoIpStatus.latestRelease,
+                updateAvailable: geoIpStatus.updateAvailable,
+              },
+            });
+          }
+        }
         return { status: "ready" };
       } catch (err) {
         return reply.status(503).send({ status: "not_ready", error: (err as Error).message });
@@ -469,6 +486,7 @@ async function start() {
 
   try {
     await runMigrations();
+    await ensureGeoIpDatabaseReady();
     await app.listen({ host: HOST, port: PORT });
     app.log.info(`Backend listening on ${HOST}:${PORT}`);
     validateAdapters();

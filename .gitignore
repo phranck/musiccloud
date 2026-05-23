@@ -15,6 +15,7 @@ vite.config.d.ts
 data/*.db
 data/*.db-wal
 data/*.db-shm
+apps/backend/data/
 
 # Environment
 .env

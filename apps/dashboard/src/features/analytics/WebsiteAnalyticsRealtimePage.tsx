@@ -5,12 +5,17 @@ import {
   CheckCircleIcon,
   CrosshairIcon,
   GlobeHemisphereWestIcon,
+  HouseIcon,
   MapPinIcon,
   PulseIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type WheelEvent } from "react";
+import { geoGraticule, geoNaturalEarth1, geoPath } from "d3-geo";
+import type { Feature, FeatureCollection, Geometry, MultiLineString } from "geojson";
+import { memo, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { feature, mesh } from "topojson-client";
+import type { GeometryObject, Topology } from "topojson-specification";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -19,6 +24,12 @@ import { useI18n } from "@/context/I18nContext";
 import { api } from "@/lib/api";
 
 type GeoActivity = "page_view" | "search" | "resolve" | "listen" | "player" | "interaction" | "bot";
+
+interface CountryProperties {
+  isoA2: string;
+  isoA3: string;
+  name: string;
+}
 
 interface GeoPoint {
   id: string;
@@ -89,6 +100,10 @@ interface GeoIpStatus {
   ageDays: number | null;
   maxAgeDays: number;
   message: string | null;
+  latestRelease: string | null;
+  latestReleaseAt: string | null;
+  lastDownloadedAt: string | null;
+  updateAvailable: boolean | null;
 }
 
 interface GeoIpUpdateResult {
@@ -113,15 +128,37 @@ interface DragState {
   startY: number;
   originX: number;
   originY: number;
+  unitsPerPixelX: number;
+  unitsPerPixelY: number;
 }
 
-const MAP_WIDTH = 1000;
-const MAP_HEIGHT = 520;
+interface WorldMapGeometry {
+  borders: MultiLineString;
+  countries: FeatureCollection<Geometry, CountryProperties>;
+}
+
+interface CountryPath {
+  d: string;
+  key: string;
+  name: string;
+}
+
+type MapDetailLevel = "base" | "borders" | "labels";
+
+const MAP_WIDTH = 1400;
+const MAP_HEIGHT = 620;
 const MAX_POINTS = 320;
 const FLASH_MS = 1_800;
 const PULSE_MS = 60_000;
 const FADE_MS = 18_000;
 const POINT_TTL_MS = FLASH_MS + PULSE_MS + FADE_MS;
+const MAP_PADDING_X = 34;
+const MAP_PADDING_Y = 28;
+const HOME_ANIMATION_MS = 820;
+const MAX_MAP_SCALE = 10;
+const INITIAL_MAP_VIEW: ViewTransform = { scale: 1, x: 0, y: 0 };
+const MAP_VIEW_STORAGE_KEY = "musiccloud.analytics.realtime.mapView.v1";
+const WORLD_TOPOLOGY_URL = `${import.meta.env.BASE_URL}map-data/natural-earth-countries-50m.json`;
 
 const ACTIVITY_META: Record<GeoActivity, { color: string; label: string }> = {
   page_view: { color: "#56d8ff", label: "Page View" },
@@ -133,95 +170,27 @@ const ACTIVITY_META: Record<GeoActivity, { color: string; label: string }> = {
   bot: { color: "#8a96a8", label: "Bot" },
 };
 
-const WORLD_REGIONS: Array<{ name: string; points: Array<[number, number]> }> = [
-  {
-    name: "north-america",
-    points: [
-      [-168, 72],
-      [-140, 70],
-      [-124, 58],
-      [-128, 48],
-      [-116, 32],
-      [-104, 24],
-      [-84, 18],
-      [-62, 45],
-      [-54, 58],
-      [-74, 68],
-      [-104, 72],
-      [-138, 74],
-      [-168, 72],
-    ],
-  },
-  {
-    name: "south-america",
-    points: [
-      [-82, 12],
-      [-70, 8],
-      [-54, -2],
-      [-42, -18],
-      [-50, -40],
-      [-68, -55],
-      [-76, -36],
-      [-80, -12],
-      [-82, 12],
-    ],
-  },
-  {
-    name: "eurasia",
-    points: [
-      [-10, 36],
-      [8, 58],
-      [44, 70],
-      [92, 72],
-      [142, 62],
-      [170, 50],
-      [150, 30],
-      [118, 18],
-      [82, 8],
-      [44, 18],
-      [28, 34],
-      [10, 36],
-      [-10, 36],
-    ],
-  },
-  {
-    name: "africa",
-    points: [
-      [-18, 34],
-      [14, 36],
-      [34, 22],
-      [50, 4],
-      [42, -24],
-      [22, -36],
-      [6, -28],
-      [-12, -4],
-      [-18, 18],
-      [-18, 34],
-    ],
-  },
-  {
-    name: "australia",
-    points: [
-      [112, -12],
-      [154, -20],
-      [150, -38],
-      [126, -42],
-      [112, -30],
-      [112, -12],
-    ],
-  },
-  {
-    name: "greenland",
-    points: [
-      [-52, 60],
-      [-28, 70],
-      [-40, 82],
-      [-62, 76],
-      [-72, 66],
-      [-52, 60],
-    ],
-  },
-];
+const WORLD_GRATICULE = geoGraticule();
+let worldGeometryPromise: Promise<WorldMapGeometry> | null = null;
+
+function parseWorldMapTopology(rawTopology: unknown): WorldMapGeometry {
+  const topology = rawTopology as Topology<{ countries: GeometryObject<CountryProperties> }>;
+  return {
+    borders: mesh(topology, topology.objects.countries, (a, b) => a !== b) as MultiLineString,
+    countries: feature<CountryProperties>(topology, topology.objects.countries) as unknown as FeatureCollection<
+      Geometry,
+      CountryProperties
+    >,
+  };
+}
+
+function loadWorldMapGeometry() {
+  worldGeometryPromise ??= fetch(WORLD_TOPOLOGY_URL).then(async (response) => {
+    if (!response.ok) throw new Error(`Failed to load world map data: ${response.status}`);
+    return parseWorldMapTopology(await response.json());
+  });
+  return worldGeometryPromise;
+}
 
 function getToken(): string | null {
   try {
@@ -232,22 +201,6 @@ function getToken(): string | null {
   } catch {
     return null;
   }
-}
-
-function project(lon: number, lat: number) {
-  return {
-    x: ((lon + 180) / 360) * MAP_WIDTH,
-    y: ((90 - lat) / 180) * MAP_HEIGHT,
-  };
-}
-
-function toPolyline(points: Array<[number, number]>) {
-  return points
-    .map(([lon, lat]) => {
-      const p = project(lon, lat);
-      return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
-    })
-    .join(" ");
 }
 
 function pointKey(point: GeoPoint) {
@@ -271,6 +224,58 @@ function pointOpacity(point: LivePoint, now: number) {
 
 function activityLabel(activity: GeoActivity) {
   return ACTIVITY_META[activity]?.label ?? activity;
+}
+
+function mapDetailLevel(scale: number): MapDetailLevel {
+  if (scale >= 2.35) return "labels";
+  if (scale >= 1.55) return "borders";
+  return "base";
+}
+
+function mapTransform({ scale, x, y }: ViewTransform) {
+  return `translate(${x} ${y}) scale(${scale})`;
+}
+
+function clampMapView(view: ViewTransform): ViewTransform {
+  return {
+    scale: Math.min(MAX_MAP_SCALE, Math.max(1, view.scale)),
+    x: Number.isFinite(view.x) ? view.x : 0,
+    y: Number.isFinite(view.y) ? view.y : 0,
+  };
+}
+
+function readPersistedMapView(): ViewTransform {
+  try {
+    const raw = localStorage.getItem(MAP_VIEW_STORAGE_KEY);
+    if (!raw) return INITIAL_MAP_VIEW;
+    const parsed = JSON.parse(raw) as Partial<ViewTransform>;
+    if (typeof parsed.scale !== "number" || typeof parsed.x !== "number" || typeof parsed.y !== "number") {
+      return INITIAL_MAP_VIEW;
+    }
+    return clampMapView({ scale: parsed.scale, x: parsed.x, y: parsed.y });
+  } catch {
+    return INITIAL_MAP_VIEW;
+  }
+}
+
+function persistMapView(view: ViewTransform) {
+  try {
+    localStorage.setItem(MAP_VIEW_STORAGE_KEY, JSON.stringify(clampMapView(view)));
+  } catch {
+    // localStorage can be unavailable in restricted browser modes.
+  }
+}
+
+function easeOutExpo(t: number) {
+  return t >= 1 ? 1 : 1 - 2 ** (-10 * t);
+}
+
+function interpolateMapView(from: ViewTransform, to: ViewTransform, progress: number): ViewTransform {
+  return {
+    scale: from.scale + (to.scale - from.scale) * progress,
+    x: from.x + (to.x - from.x) * progress,
+    y: from.y + (to.y - from.y) * progress,
+  };
 }
 
 function geoIpStatusTone(state: GeoIpStatusState | undefined) {
@@ -370,83 +375,341 @@ function useWebsiteAnalyticsRealtimeStream(onPoint: (point: GeoPoint) => void) {
   }, []);
 }
 
-function buildGraticule(step: number) {
-  const lines: Array<{ key: string; points: string }> = [];
-  for (let lon = -180; lon <= 180; lon += step) {
-    lines.push({ key: `lon-${lon}`, points: toPolyline([[lon, -80], [lon, 80]]) });
-  }
-  for (let lat = -60; lat <= 75; lat += step) {
-    lines.push({ key: `lat-${lat}`, points: toPolyline([[-180, lat], [180, lat]]) });
-  }
-  return lines;
+function useWorldMapGeometry() {
+  const [geometry, setGeometry] = useState<WorldMapGeometry | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    loadWorldMapGeometry()
+      .then((loadedGeometry) => {
+        if (active) setGeometry(loadedGeometry);
+      })
+      .catch(() => {
+        if (active) setGeometry(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return geometry;
 }
+
+const StaticWorldLayer = memo(function StaticWorldLayer({
+  borderPath,
+  countryPaths,
+  detailLevel,
+  graticulePath,
+  isLoaded,
+}: {
+  borderPath: string;
+  countryPaths: CountryPath[];
+  detailLevel: MapDetailLevel;
+  graticulePath: string;
+  isLoaded: boolean;
+}) {
+  return (
+    <>
+      <path
+        d={graticulePath}
+        fill="none"
+        stroke="#1c86ff"
+        strokeOpacity={detailLevel === "base" ? 0.14 : 0.22}
+        strokeWidth="0.7"
+        vectorEffect="non-scaling-stroke"
+      />
+      {!isLoaded && (
+        <text
+          x={MAP_WIDTH / 2}
+          y={MAP_HEIGHT / 2}
+          fill="#72dcff"
+          fontSize="14"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+          opacity="0.76"
+          textAnchor="middle"
+        >
+          LOADING MAP DATA
+        </text>
+      )}
+      {countryPaths.map((country) => (
+        <path
+          key={country.key}
+          d={country.d}
+          aria-label={country.name}
+          fill="rgba(17, 124, 210, 0.052)"
+          stroke="#5ecbff"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeOpacity={detailLevel === "base" ? 0.72 : 0.48}
+          strokeWidth={detailLevel === "base" ? 1.15 : 0.85}
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+      {detailLevel !== "base" && borderPath && (
+        <path
+          d={borderPath}
+          fill="none"
+          stroke="#77d8ff"
+          strokeOpacity={detailLevel === "labels" ? 0.46 : 0.28}
+          strokeWidth="0.55"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+    </>
+  );
+});
+
+const CityLayer = memo(function CityLayer({
+  cities,
+  detailLevel,
+  projection,
+}: {
+  cities: GeoLocationSummary[];
+  detailLevel: MapDetailLevel;
+  projection: ReturnType<typeof geoNaturalEarth1> | null;
+}) {
+  const visibleCities =
+    detailLevel === "labels"
+      ? cities.slice(0, 28)
+      : detailLevel === "borders"
+        ? cities.slice(0, 18)
+        : cities.slice(0, 8);
+
+  return (
+    <>
+      {visibleCities.map((city) => {
+        if (!projection) return null;
+        const projected = projection([city.longitude, city.latitude]);
+        if (!projected) return null;
+        const [x, y] = projected;
+        return (
+          <g key={`${city.countryCode ?? "xx"}-${city.regionName ?? "region"}-${city.city ?? "city"}`}>
+            <circle cx={x} cy={y} r="2.4" fill="#2ad7ff" opacity={0.48} />
+            {detailLevel === "labels" && (
+              <text x={x + 6} y={y - 4} fill="#83ddff" fontSize="10" opacity={0.72}>
+                {city.city ?? city.regionName ?? city.countryCode ?? "Unknown"}
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </>
+  );
+});
 
 function RealtimeWorldMap({
   cities,
-  points,
   now,
+  points,
+  resetSignal,
 }: {
   cities: GeoLocationSummary[];
-  points: LivePoint[];
   now: number;
+  points: LivePoint[];
+  resetSignal: number;
 }) {
-  const [view, setView] = useState<ViewTransform>({ scale: 1, x: 0, y: 0 });
+  const initialViewRef = useRef<ViewTransform>(readPersistedMapView());
+  const animationFrameRef = useRef<number | null>(null);
+  const [detailLevel, setDetailLevel] = useState<MapDetailLevel>(() => mapDetailLevel(initialViewRef.current.scale));
   const dragRef = useRef<DragState | null>(null);
-  const mapRef = useRef<SVGSVGElement | null>(null);
-  const graticule = useMemo(() => buildGraticule(view.scale >= 2 ? 15 : 30), [view.scale]);
-  const visibleCities = view.scale >= 1.85 ? cities.slice(0, 18) : cities.slice(0, 8);
+  const frameRef = useRef<number | null>(null);
+  const hasResetSignalMountedRef = useRef(false);
+  const mapLayerRef = useRef<SVGGElement | null>(null);
+  const persistTimerRef = useRef<number | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const viewRef = useRef<ViewTransform>(initialViewRef.current);
+  const zoomTextRef = useRef<SVGTextElement | null>(null);
+  const mapGeometry = useWorldMapGeometry();
+  const projection = useMemo(() => {
+    if (!mapGeometry) return null;
+    return geoNaturalEarth1().fitExtent(
+      [
+        [MAP_PADDING_X, MAP_PADDING_Y],
+        [MAP_WIDTH - MAP_PADDING_X, MAP_HEIGHT - MAP_PADDING_Y],
+      ],
+      mapGeometry.countries,
+    );
+  }, [mapGeometry]);
+  const path = useMemo(() => (projection ? geoPath(projection) : null), [projection]);
+  const countryPaths = useMemo(() => {
+    if (!mapGeometry || !path) return [];
+    return mapGeometry.countries.features
+      .map((country: Feature<Geometry, CountryProperties>, index) => ({
+        d: path(country),
+        key: country.properties.isoA3 || country.properties.isoA2 || country.properties.name || `country-${index}`,
+        name: country.properties.name,
+      }))
+      .filter((country): country is { d: string; key: string; name: string } => typeof country.d === "string");
+  }, [mapGeometry, path]);
+  const borderPath = useMemo(() => (mapGeometry && path ? (path(mapGeometry.borders) ?? "") : ""), [mapGeometry, path]);
+  const graticulePaths = useMemo(() => {
+    if (!path) return "";
+    return {
+      base: path(WORLD_GRATICULE.step([30, 30])()) ?? "",
+      borders: path(WORLD_GRATICULE.step([15, 15])()) ?? "",
+      labels: path(WORLD_GRATICULE.step([10, 10])()) ?? "",
+    };
+  }, [path]);
 
-  const handleWheel = useCallback((event: WheelEvent<SVGSVGElement>) => {
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const px = event.clientX - rect.left;
-    const py = event.clientY - rect.top;
-    const nextScale = Math.min(5, Math.max(1, view.scale * (event.deltaY < 0 ? 1.16 : 0.86)));
-    const ratio = nextScale / view.scale;
-    setView({
-      scale: nextScale,
-      x: px - (px - view.x) * ratio,
-      y: py - (py - view.y) * ratio,
-    });
-  }, [view]);
+  const applyTransform = useCallback((nextView: ViewTransform) => {
+    const currentView = clampMapView(nextView);
+    viewRef.current = currentView;
+    mapLayerRef.current?.setAttribute("transform", mapTransform(currentView));
+    if (zoomTextRef.current) zoomTextRef.current.textContent = `ZOOM ${currentView.scale.toFixed(2)}X`;
+  }, []);
+
+  const schedulePersist = useCallback((nextView: ViewTransform) => {
+    if (persistTimerRef.current !== null) window.clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null;
+      persistMapView(nextView);
+    }, 180);
+  }, []);
+
+  const scheduleTransformUpdate = useCallback(
+    (nextView: ViewTransform, persist = false) => {
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      const currentView = clampMapView(nextView);
+      viewRef.current = currentView;
+      const nextDetailLevel = mapDetailLevel(currentView.scale);
+      setDetailLevel((currentDetailLevel) =>
+        currentDetailLevel === nextDetailLevel ? currentDetailLevel : nextDetailLevel,
+      );
+      if (persist) schedulePersist(currentView);
+      if (frameRef.current !== null) return;
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = null;
+        applyTransform(viewRef.current);
+      });
+    },
+    [applyTransform, schedulePersist],
+  );
+
+  useEffect(
+    () => () => {
+      if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
+      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      if (persistTimerRef.current !== null) window.clearTimeout(persistTimerRef.current);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    applyTransform(viewRef.current);
+  }, [applyTransform]);
+
+  useEffect(() => {
+    if (resetSignal === 0 && !hasResetSignalMountedRef.current) {
+      hasResetSignalMountedRef.current = true;
+      return;
+    }
+    if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
+
+    const startView = viewRef.current;
+    const startTime = performance.now();
+
+    const tick = (time: number) => {
+      const progress = Math.min(1, (time - startTime) / HOME_ANIMATION_MS);
+      const nextView = interpolateMapView(startView, INITIAL_MAP_VIEW, easeOutExpo(progress));
+      viewRef.current = nextView;
+      applyTransform(nextView);
+      const nextDetailLevel = mapDetailLevel(nextView.scale);
+      setDetailLevel((currentDetailLevel) =>
+        currentDetailLevel === nextDetailLevel ? currentDetailLevel : nextDetailLevel,
+      );
+
+      if (progress < 1) {
+        animationFrameRef.current = window.requestAnimationFrame(tick);
+        return;
+      }
+
+      animationFrameRef.current = null;
+      viewRef.current = INITIAL_MAP_VIEW;
+      applyTransform(INITIAL_MAP_VIEW);
+      persistMapView(INITIAL_MAP_VIEW);
+      setDetailLevel("base");
+    };
+
+    animationFrameRef.current = window.requestAnimationFrame(tick);
+  }, [applyTransform, resetSignal]);
 
   const handlePointerDown = useCallback((event: PointerEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const currentView = viewRef.current;
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      originX: view.x,
-      originY: view.y,
+      originX: currentView.x,
+      originY: currentView.y,
+      unitsPerPixelX: MAP_WIDTH / rect.width,
+      unitsPerPixelY: MAP_HEIGHT / rect.height,
     };
-  }, [view.x, view.y]);
-
-  const handlePointerMove = useCallback((event: PointerEvent<SVGSVGElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    setView((current) => ({
-      ...current,
-      x: drag.originX + event.clientX - drag.startX,
-      y: drag.originY + event.clientY - drag.startY,
-    }));
   }, []);
+
+  const handlePointerMove = useCallback(
+    (event: PointerEvent<SVGSVGElement>) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const currentView = viewRef.current;
+      scheduleTransformUpdate({
+        ...currentView,
+        x: drag.originX + (event.clientX - drag.startX) * drag.unitsPerPixelX,
+        y: drag.originY + (event.clientY - drag.startY) * drag.unitsPerPixelY,
+      });
+    },
+    [scheduleTransformUpdate],
+  );
 
   const handlePointerUp = useCallback((event: PointerEvent<SVGSVGElement>) => {
     if (dragRef.current?.pointerId === event.pointerId) {
       dragRef.current = null;
       event.currentTarget.releasePointerCapture(event.pointerId);
+      persistMapView(viewRef.current);
     }
   }, []);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const rect = svg.getBoundingClientRect();
+      const px = ((event.clientX - rect.left) / rect.width) * MAP_WIDTH;
+      const py = ((event.clientY - rect.top) / rect.height) * MAP_HEIGHT;
+      const currentView = viewRef.current;
+      const nextScale = Math.min(MAX_MAP_SCALE, Math.max(1, currentView.scale * (event.deltaY < 0 ? 1.16 : 0.86)));
+      const ratio = nextScale / currentView.scale;
+
+      scheduleTransformUpdate(
+        {
+          scale: nextScale,
+          x: px - (px - currentView.x) * ratio,
+          y: py - (py - currentView.y) * ratio,
+        },
+        true,
+      );
+    };
+
+    svg.addEventListener("wheel", handleWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", handleWheel);
+  }, [scheduleTransformUpdate]);
 
   return (
     <div className="relative overflow-hidden rounded-lg border border-[#1e8cff66] bg-[#020a12] shadow-[0_0_36px_rgba(31,139,255,0.18)_inset]">
       <svg
-        ref={mapRef}
+        ref={svgRef}
         viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
-        className="h-[min(68vh,620px)] min-h-[420px] w-full touch-none select-none"
+        className="h-[min(74vh,740px)] min-h-[520px] w-full touch-none select-none"
         role="img"
         aria-label="Realtime website activity world map"
-        onWheel={handleWheel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerCancel={handlePointerUp}
@@ -467,51 +730,20 @@ function RealtimeWorldMap({
           </radialGradient>
         </defs>
         <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="url(#mapVignette)" />
-        <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
-          {graticule.map((line) => (
-            <polyline
-              key={line.key}
-              points={line.points}
-              fill="none"
-              stroke="#1c86ff"
-              strokeOpacity={view.scale >= 2 ? 0.22 : 0.14}
-              strokeWidth={0.7 / view.scale}
-            />
-          ))}
-          {WORLD_REGIONS.map((region) => (
-            <polyline
-              key={region.name}
-              points={toPolyline(region.points)}
-              fill="rgba(17, 124, 210, 0.045)"
-              stroke="#5ecbff"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeOpacity={0.82}
-              strokeWidth={1.25 / view.scale}
-              filter="url(#vfdGlow)"
-            />
-          ))}
-          {visibleCities.map((city) => {
-            const p = project(city.longitude, city.latitude);
-            return (
-              <g key={`${city.countryCode ?? "xx"}-${city.regionName ?? "region"}-${city.city ?? "city"}`}>
-                <circle cx={p.x} cy={p.y} r={2.4 / Math.sqrt(view.scale)} fill="#2ad7ff" opacity={0.48} />
-                {view.scale >= 2.35 && (
-                  <text
-                    x={p.x + 6 / view.scale}
-                    y={p.y - 4 / view.scale}
-                    fill="#83ddff"
-                    fontSize={10 / view.scale}
-                    opacity={0.72}
-                  >
-                    {city.city ?? city.regionName ?? city.countryCode ?? "Unknown"}
-                  </text>
-                )}
-              </g>
-            );
-          })}
+        <g ref={mapLayerRef}>
+          <StaticWorldLayer
+            borderPath={borderPath}
+            countryPaths={countryPaths}
+            detailLevel={detailLevel}
+            graticulePath={graticulePaths ? graticulePaths[detailLevel] : ""}
+            isLoaded={Boolean(mapGeometry)}
+          />
+          <CityLayer cities={cities} detailLevel={detailLevel} projection={projection} />
           {points.map((point) => {
-            const p = project(point.longitude, point.latitude);
+            if (!projection) return null;
+            const projected = projection([point.longitude, point.latitude]);
+            if (!projected) return null;
+            const [x, y] = projected;
             const meta = ACTIVITY_META[point.activity] ?? ACTIVITY_META.interaction;
             const age = pointAge(point, now);
             const opacity = pointOpacity(point, now);
@@ -522,34 +754,37 @@ function RealtimeWorldMap({
               <g key={point.id} opacity={opacity}>
                 {flash && (
                   <circle
-                    cx={p.x}
-                    cy={p.y}
-                    r={18 / Math.sqrt(view.scale)}
+                    cx={x}
+                    cy={y}
+                    r={18}
                     fill="none"
                     stroke={meta.color}
-                    strokeWidth={1.4 / view.scale}
+                    strokeWidth={1.4}
                     opacity={0.95}
+                    vectorEffect="non-scaling-stroke"
                   />
                 )}
                 {pulse && (
                   <circle
-                    cx={p.x}
-                    cy={p.y}
-                    r={(radius + 8) / Math.sqrt(view.scale)}
+                    cx={x}
+                    cy={y}
+                    r={radius + 8}
                     fill="none"
                     stroke={meta.color}
-                    strokeWidth={0.8 / view.scale}
+                    strokeWidth={0.8}
                     opacity={0.36}
+                    vectorEffect="non-scaling-stroke"
                   />
                 )}
                 <circle
-                  cx={p.x}
-                  cy={p.y}
-                  r={radius / Math.sqrt(view.scale)}
+                  cx={x}
+                  cy={y}
+                  r={radius}
                   fill={meta.color}
                   stroke="#dff8ff"
-                  strokeWidth={0.7 / view.scale}
+                  strokeWidth={0.7}
                   filter="url(#vfdGlow)"
+                  vectorEffect="non-scaling-stroke"
                 />
               </g>
             );
@@ -557,8 +792,15 @@ function RealtimeWorldMap({
         </g>
         <g opacity="0.78">
           <rect x="18" y="18" width="176" height="32" fill="rgba(2,10,18,0.72)" stroke="#1e8cff66" />
-          <text x="32" y="39" fill="#72dcff" fontSize="14" fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace">
-            ZOOM {view.scale.toFixed(2)}X
+          <text
+            ref={zoomTextRef}
+            x="32"
+            y="39"
+            fill="#72dcff"
+            fontSize="14"
+            fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+          >
+            ZOOM 1.00X
           </text>
         </g>
       </svg>
@@ -603,7 +845,7 @@ function TopLocationList({ cities }: { cities: GeoLocationSummary[] }) {
   );
 }
 
-function MaxMindControl({
+function DbIpControl({
   isLoading,
   isUpdating,
   onUpdate,
@@ -628,15 +870,19 @@ function MaxMindControl({
     <DashboardSection>
       <DashboardSection.Header
         icon={<Icon weight="duotone" className={`size-4 ${geoIpStatusTone(state)}`} />}
-        title="MaxMind"
+        title="DB-IP"
         addOn={
           <DashboardButton
             type="button"
-            onClick={onUpdate}
-            disabled={isUpdating || state === "disabled"}
-            leadingIcon={<ArrowClockwiseIcon weight="duotone" className="size-3.5" />}
+            onClick={isUpdating ? undefined : onUpdate}
+            aria-disabled={isUpdating}
+            className={isUpdating ? "cursor-progress" : undefined}
+            disabled={state === "disabled"}
+            leadingIcon={
+              <ArrowClockwiseIcon weight="duotone" className={`size-3.5 ${isUpdating ? "animate-spin" : ""}`} />
+            }
             size="action"
-            variant="neutral"
+            variant="primary"
           >
             {isUpdating ? messages.common.loading : "Update"}
           </DashboardButton>
@@ -662,7 +908,31 @@ function MaxMindControl({
             <div className="text-xs text-[var(--ds-text-muted)]">Database</div>
             <div className="truncate text-sm text-[var(--ds-text)]">{status?.databaseType ?? "n/a"}</div>
           </div>
+          <div>
+            <div className="text-xs text-[var(--ds-text-muted)]">Latest</div>
+            <div className="truncate text-sm text-[var(--ds-text)]">
+              {status?.latestRelease ?? (status?.updateAvailable === null ? "unknown" : "n/a")}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-[var(--ds-text-muted)]">Update</div>
+            <div className={`text-sm ${status?.updateAvailable ? "text-[#fff177]" : "text-[var(--ds-text)]"}`}>
+              {status?.updateAvailable === true
+                ? "available"
+                : status?.updateAvailable === false
+                  ? "current"
+                  : "unknown"}
+            </div>
+          </div>
         </div>
+        <a
+          href="https://db-ip.com"
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs text-[var(--ds-text-muted)] underline decoration-[#56d8ff55] underline-offset-4 hover:text-[var(--ds-text)]"
+        >
+          IP Geolocation by DB-IP
+        </a>
         {(status?.message || updateMessage) && (
           <div className="rounded-md border border-[var(--ds-border)] bg-[var(--ds-surface-muted)] px-3 py-2 text-xs text-[var(--ds-text-muted)]">
             {updateMessage ?? status?.message}
@@ -678,9 +948,11 @@ export function WebsiteAnalyticsRealtimePage() {
   const queryClient = useQueryClient();
   const [points, setPoints] = useState<LivePoint[]>([]);
   const [now, setNow] = useState(() => Date.now());
+  const [mapResetSignal, setMapResetSignal] = useState(0);
   const geoQuery = useQuery({
     queryKey: ["website-analytics-geo-realtime"],
-    queryFn: () => api.get<GeoOverview>(`${ENDPOINTS.admin.analytics.website.geo}?period=today&realtimeMinutes=5&limit=250`),
+    queryFn: () =>
+      api.get<GeoOverview>(`${ENDPOINTS.admin.analytics.website.geo}?period=today&realtimeMinutes=5&limit=250`),
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
   });
@@ -729,14 +1001,25 @@ export function WebsiteAnalyticsRealtimePage() {
               icon={<GlobeHemisphereWestIcon weight="duotone" className="size-4" />}
               title="Control Room"
               addOn={
-                <div className="flex items-center gap-2 text-xs text-[var(--ds-text-muted)]">
-                  <PulseIcon weight="duotone" className="size-4 text-[#64ff9a]" />
-                  <span className="tabular-nums">{formatNumber(visiblePoints.length)}</span>
+                <div className="flex items-center gap-2">
+                  <DashboardButton
+                    type="button"
+                    onClick={() => setMapResetSignal((current) => current + 1)}
+                    leadingIcon={<HouseIcon weight="duotone" className="size-3.5" />}
+                    size="action"
+                    variant="neutral"
+                  >
+                    Home
+                  </DashboardButton>
+                  <div className="flex items-center gap-2 text-xs text-[var(--ds-text-muted)]">
+                    <PulseIcon weight="duotone" className="size-4 text-[#64ff9a]" />
+                    <span className="tabular-nums">{formatNumber(visiblePoints.length)}</span>
+                  </div>
                 </div>
               }
             />
             <DashboardSection.Body className="gap-3">
-              <RealtimeWorldMap cities={cities} now={now} points={visiblePoints} />
+              <RealtimeWorldMap cities={cities} now={now} points={visiblePoints} resetSignal={mapResetSignal} />
               <ActivityLegend />
             </DashboardSection.Body>
           </DashboardSection>
@@ -750,7 +1033,7 @@ export function WebsiteAnalyticsRealtimePage() {
             </DashboardSection>
 
             <div className="grid gap-3">
-              <MaxMindControl
+              <DbIpControl
                 isLoading={geoIpStatusQuery.isLoading}
                 isUpdating={geoIpUpdateMutation.isPending || geoIpStatusQuery.data?.state === "updating"}
                 onUpdate={() => geoIpUpdateMutation.mutate()}

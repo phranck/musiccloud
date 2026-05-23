@@ -284,9 +284,9 @@ export const ENDPOINTS = {
         retention: "/api/admin/analytics/website/retention",
         /** GET: realtime SSE stream for first-party website Geo-IP events. */
         realtime: "/api/admin/analytics/website/realtime",
-        /** GET: local MaxMind Geo-IP database status. */
+        /** GET: local DB-IP Geo-IP database status. */
         geoIpStatus: "/api/admin/analytics/website/geoip/status",
-        /** POST: run a local MaxMind Geo-IP database update. */
+        /** POST: run a local DB-IP Geo-IP database update. */
         geoIpUpdate: "/api/admin/analytics/website/geoip/update",
       },
     },
