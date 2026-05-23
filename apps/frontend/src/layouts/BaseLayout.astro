@@ -63,13 +63,7 @@ const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [
     )}
   </head>
   <body class="bg-background text-text-primary antialiased">
-    {
-      showHeader && (
-        <div class="animate-slide-down-in">
-          <PageHeaderIsland client:idle navItems={headerNav} />
-        </div>
-      )
-    }
+    {showHeader && <PageHeaderIsland client:idle navItems={headerNav} />}
     <slot />
   </body>
 </html>

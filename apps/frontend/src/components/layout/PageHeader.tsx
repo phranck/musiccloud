@@ -50,7 +50,7 @@ function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): vo
  */
 export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
   return (
-    <div className="fixed top-3 right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 sm:top-4 sm:right-4 sm:gap-3">
+    <div className="fixed top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center gap-2 sm:top-4 sm:right-4 sm:gap-3">
       {navItems.length > 0 && (
         <nav aria-label="Header navigation" className="flex items-center gap-3 text-xs sm:gap-4 sm:mr-2 sm:text-sm">
           {navItems.map((item) => (
@@ -62,7 +62,7 @@ export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
               onClick={(e) => handleNavClick(e, item)}
               data-analytics-key={item.pageSlug ? `content.${item.pageSlug}` : undefined}
               data-analytics-surface="header_nav"
-              className="text-text-secondary hover:text-text-primary transition-colors duration-150"
+              className="text-text-primary/85 hover:text-text-primary transition-colors duration-150"
             >
               {navLabel(item)}
             </a>

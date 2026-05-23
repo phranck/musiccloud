@@ -20,7 +20,7 @@ export function LanguageSwitcher() {
         onClick={() => setIsOpen((o) => !o)}
         aria-label={`Language: ${current.label}`}
         aria-expanded={isOpen}
-        className="p-2 opacity-40 hover:opacity-80 transition-opacity duration-150 rounded-lg focus:outline-none"
+        className="p-2 opacity-70 hover:opacity-100 transition-opacity duration-150 rounded-lg focus:outline-none"
       >
         <span className="text-[18px] leading-none select-none">{current.flag}</span>
       </button>
