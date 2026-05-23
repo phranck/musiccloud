@@ -19,6 +19,11 @@ import {
 } from "./WebsiteAnalyticsSection";
 import { buildWebsiteAnalyticsPeriodOptions, loadWebsiteAnalyticsPeriod } from "./websiteAnalyticsPeriod";
 
+const WEBSITE_ANALYTICS_POLLING_INTERVAL_MS = {
+  today: 10_000,
+  default: 30_000,
+} as const;
+
 interface WebsiteAnalyticsPageState {
   period: UmamiPeriod;
   retentionResult: WebsiteAnalyticsRetentionResult | null;
@@ -63,6 +68,12 @@ function websiteAnalyticsPageReducer(
   }
 }
 
+function websiteAnalyticsPollingInterval(period: UmamiPeriod) {
+  return period === "today"
+    ? WEBSITE_ANALYTICS_POLLING_INTERVAL_MS.today
+    : WEBSITE_ANALYTICS_POLLING_INTERVAL_MS.default;
+}
+
 export function WebsiteAnalyticsPage() {
   const { user } = useAuth();
   const { locale, messages, formatNumber } = useI18n();
@@ -76,6 +87,7 @@ export function WebsiteAnalyticsPage() {
     selectedSessionId: null,
   }));
   const { period, retentionResult, selectedClusterKey, selectedDeviceKey, selectedSessionId } = state;
+  const pollingInterval = websiteAnalyticsPollingInterval(period);
   const m = messages.analytics;
   const detailPath = useMemo(() => {
     const params = new URLSearchParams({ period });
@@ -87,10 +99,14 @@ export function WebsiteAnalyticsPage() {
   const overviewQuery = useQuery({
     queryKey: ["website-analytics-overview", period],
     queryFn: () => api.get<WebsiteAnalyticsOverview>(`${ENDPOINTS.admin.analytics.website.overview}?period=${period}`),
+    refetchInterval: pollingInterval,
+    refetchIntervalInBackground: false,
   });
   const detailQuery = useQuery({
     queryKey: ["website-analytics-detail", period, selectedClusterKey, selectedDeviceKey, selectedSessionId],
     queryFn: () => api.get<WebsiteAnalyticsDrilldown>(detailPath),
+    refetchInterval: pollingInterval,
+    refetchIntervalInBackground: false,
   });
   const exportMutation = useMutation({
     mutationFn: () => api.get<WebsiteAnalyticsExport>(`${ENDPOINTS.admin.analytics.website.export}?period=${period}`),

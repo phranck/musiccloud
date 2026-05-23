@@ -82,6 +82,7 @@ interface DeviceProfile {
 }
 
 const SESSION_KEY = "mc:analytics:session";
+const ENTRY_REFERRER_KEY = "mc:analytics:entry-referrer";
 const VISITOR_KEY = "mc:analytics:visitor";
 const FLUSH_DELAY_MS = 1200;
 const MAX_BATCH_SIZE = 20;
@@ -283,7 +284,7 @@ function baseEvent(eventType: WebsiteAnalyticsEventType): WebsiteAnalyticsEvent 
     eventType,
     path: window.location.pathname,
     routeTemplate: routeTemplate(),
-    referrerDomain: safeDomain(document.referrer),
+    referrerDomain: entryReferrerDomain(),
     deviceClass: profile.deviceClass,
     browserFamily: profile.browserFamily,
     osFamily: profile.osFamily,
@@ -309,6 +310,26 @@ function safeDomain(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+function entryReferrerDomain(): string | null {
+  const currentHost = window.location.hostname;
+  const referrer = safeDomain(document.referrer);
+  const externalReferrer = referrer && referrer !== currentHost ? referrer : null;
+
+  try {
+    const stored = window.sessionStorage.getItem(ENTRY_REFERRER_KEY);
+    if (externalReferrer && stored !== externalReferrer) {
+      window.sessionStorage.setItem(ENTRY_REFERRER_KEY, externalReferrer);
+      return externalReferrer;
+    }
+    if (stored) return stored === "direct" ? null : stored;
+    window.sessionStorage.setItem(ENTRY_REFERRER_KEY, externalReferrer ?? "direct");
+  } catch {
+    // Referrer storage is best-effort only.
+  }
+
+  return externalReferrer;
 }
 
 function send(events: WebsiteAnalyticsEvent[], useBeacon = false) {

@@ -607,7 +607,7 @@ export interface WebsiteAnalyticsOverview {
     devices: number;
     searches: number;
     lastSeenAt: string;
-    topQuery: string | null;
+    topQuery: WebsiteAnalyticsSearchDescriptor | null;
   }>;
   referrers: Array<{
     referrerDomain: string;
@@ -616,8 +616,8 @@ export interface WebsiteAnalyticsOverview {
     clusters: number;
   }>;
   searchIntents: Array<{ intent: string; searches: number; clusters: number }>;
-  interactions: Array<{ eventType: string; count: number }>;
-  searches: Array<{ query: string; searches: number; clusters: number }>;
+  interactions: WebsiteAnalyticsInteractionSummary[];
+  searches: WebsiteAnalyticsSearchSummary[];
   recentEvents: WebsiteAnalyticsPathEvent[];
 }
 
@@ -631,6 +631,27 @@ export interface WebsiteAnalyticsEventSubject {
   title: string;
   artist: string | null;
   artworkUrl: string | null;
+}
+
+export interface WebsiteAnalyticsSearchDescriptor {
+  label: string;
+  queryType: string | null;
+  platform: string | null;
+  subject: WebsiteAnalyticsEventSubject | null;
+}
+
+export interface WebsiteAnalyticsSearchSummary extends WebsiteAnalyticsSearchDescriptor {
+  searches: number;
+  clusters: number;
+}
+
+export interface WebsiteAnalyticsInteractionSummary {
+  eventType: string;
+  label: string | null;
+  surface: string | null;
+  elementKey: string | null;
+  platform: string | null;
+  count: number;
 }
 
 export interface WebsiteAnalyticsPathEvent {

@@ -67,6 +67,20 @@ export interface WebsiteAnalyticsPathEvent {
   } | null;
 }
 
+interface WebsiteAnalyticsSubject {
+  type: "track" | "album" | "artist";
+  title: string;
+  artist: string | null;
+  artworkUrl: string | null;
+}
+
+interface WebsiteAnalyticsSearchDescriptor {
+  label: string;
+  queryType: string | null;
+  platform: string | null;
+  subject: WebsiteAnalyticsSubject | null;
+}
+
 export interface WebsiteAnalyticsOverview {
   totals: {
     clusters: number;
@@ -88,7 +102,7 @@ export interface WebsiteAnalyticsOverview {
     devices: number;
     searches: number;
     lastSeenAt: string;
-    topQuery: string | null;
+    topQuery: WebsiteAnalyticsSearchDescriptor | null;
   }>;
   referrers: Array<{
     referrerDomain: string;
@@ -97,8 +111,15 @@ export interface WebsiteAnalyticsOverview {
     clusters: number;
   }>;
   searchIntents: Array<{ intent: string; searches: number; clusters: number }>;
-  interactions: Array<{ eventType: string; count: number }>;
-  searches: Array<{ query: string; searches: number; clusters: number }>;
+  interactions: Array<{
+    eventType: string;
+    label: string | null;
+    surface: string | null;
+    elementKey: string | null;
+    platform: string | null;
+    count: number;
+  }>;
+  searches: Array<WebsiteAnalyticsSearchDescriptor & { searches: number; clusters: number }>;
   recentEvents: WebsiteAnalyticsPathEvent[];
 }
 
@@ -165,10 +186,12 @@ const TIME_FORMATTERS: Record<DashboardLocale, Intl.DateTimeFormat> = {
   de: new Intl.DateTimeFormat("de-DE", {
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
   }),
   en: new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
   }),
 };
 
@@ -316,13 +339,60 @@ function eventSubjectDetail(event: WebsiteAnalyticsPathEvent) {
   return event.subject.artist ? `${event.subject.title} - ${event.subject.artist}` : event.subject.title;
 }
 
+function formatSubject(subject: WebsiteAnalyticsSubject) {
+  return subject.artist ? `${subject.title} - ${subject.artist}` : subject.title;
+}
+
+function formatSearchDescriptor(search: WebsiteAnalyticsSearchDescriptor | null | undefined, copy: WebsiteCopy) {
+  if (!search) return "-";
+  const platform = search.platform ? formatNaturalText(search.platform, copy) : null;
+  const label = search.subject ? formatSubject(search.subject) : search.label;
+  if (search.queryType === "url") {
+    const readableLabel =
+      label === "streaming_url_submitted" ? formatNaturalText("streaming_url_submitted", copy) : label;
+    return platform ? `${platform} · ${readableLabel}` : readableLabel;
+  }
+  return label === "unknown" ? formatNaturalText("unknown", copy) : label;
+}
+
+function formatInteractionSummary(row: WebsiteAnalyticsOverview["interactions"][number], copy: WebsiteCopy) {
+  if (row.eventType === "ui_click") {
+    return formatNaturalText(row.elementKey ?? row.surface ?? row.label ?? row.eventType, copy);
+  }
+
+  const eventLabel = formatEventType(row.eventType, copy);
+  if (row.eventType === "listen_on_clicked") {
+    const service = extractListenOnService(row.platform ?? row.label);
+    return service ? `${formatNaturalText(service, copy)} · ${eventLabel}` : eventLabel;
+  }
+  if (row.label && row.label !== row.eventType) {
+    return `${eventLabel} · ${formatNaturalText(row.label, copy)}`;
+  }
+  return eventLabel;
+}
+
+function extractListenOnService(value: string | null | undefined) {
+  const cleaned = value
+    ?.trim()
+    .replace(/^listen[\s_-]*on[\s:-]*/i, "")
+    .trim();
+  if (!cleaned || cleaned === "listen_on_clicked") return null;
+  return cleaned;
+}
+
 function eventDetail(event: WebsiteAnalyticsPathEvent, copy: WebsiteCopy) {
   if (event.eventType === "search_submitted") {
     const queryType = eventDataString(event, "query_type");
     if (queryType === "url") {
-      return event.platform
-        ? `${formatNaturalText("streaming_url_submitted", copy)}: ${formatNaturalText(event.platform, copy)}`
-        : formatNaturalText("streaming_url_submitted", copy);
+      return formatSearchDescriptor(
+        {
+          label: eventDataString(event, "query_normalized") ?? "streaming_url_submitted",
+          platform: event.platform,
+          queryType,
+          subject: event.subject,
+        },
+        copy,
+      );
     }
     if (queryType === "genre") return eventDataString(event, "query_normalized") ?? formatNaturalText("genre", copy);
     return eventDataString(event, "query_normalized") ?? "-";
@@ -555,7 +625,7 @@ function HouseholdTable({
           >
             <span className="block font-mono text-[var(--ds-text)]">{row.cluster}</span>
             <span className="mt-0.5 block truncate text-xs text-[var(--ds-text-muted)]">
-              {copy.topQuery}: {row.topQuery ?? "-"}
+              {copy.topQuery}: {formatSearchDescriptor(row.topQuery, copy)}
             </span>
             <span className="mt-0.5 block truncate text-xs text-[var(--ds-text-muted)]">
               {copy.lastSeen}: {row.lastSeenAt ? formatDateTime(row.lastSeenAt, locale) : "-"}
@@ -936,10 +1006,10 @@ function TopSearches({
           <div className="space-y-2">
             {rows.map((row) => (
               <div
-                key={row.query}
+                key={`${row.queryType ?? "unknown"}:${row.platform ?? "none"}:${row.label}`}
                 className="grid grid-cols-[1fr_auto_auto] gap-3 rounded-lg bg-[var(--ds-bg-elevated)] px-3 py-2 text-sm"
               >
-                <span className="min-w-0 truncate font-mono text-xs text-[var(--ds-text)]">{row.query}</span>
+                <span className="min-w-0 truncate text-[var(--ds-text)]">{formatSearchDescriptor(row, copy)}</span>
                 <span className="text-right tabular-nums text-[var(--ds-text)]">{formatNumber(row.searches)}</span>
                 <span className="text-right tabular-nums text-[var(--ds-text-subtle)]">
                   {formatNumber(row.clusters)} {copy.columns.clusters}
@@ -999,9 +1069,13 @@ function InteractionBreakdown({
           <div className="space-y-3">
             {sortedRows.map((row) => {
               const percentage = Math.round((row.count / maxCount) * 100);
+              const label = formatInteractionSummary(row, copy);
               return (
-                <div key={row.eventType} className="grid grid-cols-[1fr_auto] items-center gap-3 text-sm">
-                  <span className="min-w-0 truncate text-[var(--ds-text)]">{formatEventType(row.eventType, copy)}</span>
+                <div
+                  key={`${row.eventType}:${row.elementKey ?? row.surface ?? row.platform ?? row.label ?? "none"}`}
+                  className="grid grid-cols-[1fr_auto] items-center gap-3 text-sm"
+                >
+                  <span className="min-w-0 truncate text-[var(--ds-text)]">{label}</span>
                   <span className="text-right tabular-nums text-[var(--ds-text)]">{formatNumber(row.count)}</span>
                   <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-[var(--ds-section-header-bg)]">
                     <div className="h-full rounded-full bg-emerald-400" style={{ width: `${percentage}%` }} />

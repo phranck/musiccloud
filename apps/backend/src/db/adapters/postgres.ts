@@ -71,6 +71,7 @@ import type {
   WebsiteAnalyticsPathEvent,
   WebsiteAnalyticsRetentionPolicy,
   WebsiteAnalyticsRetentionResult,
+  WebsiteAnalyticsSearchDescriptor,
   WebsiteAnalyticsTrend,
 } from "../repository.js";
 
@@ -131,6 +132,30 @@ interface WebsiteAnalyticsPathEventRow {
   subject_title: string | null;
   subject_artist: string | null;
   subject_artwork_url: string | null;
+}
+
+interface WebsiteAnalyticsSearchDescriptorRow {
+  query_type: string | null;
+  platform: string | null;
+  label: string | null;
+  subject_type: "track" | "album" | "artist" | null;
+  subject_title: string | null;
+  subject_artist: string | null;
+  subject_artwork_url: string | null;
+}
+
+interface WebsiteAnalyticsSearchSummaryRow extends WebsiteAnalyticsSearchDescriptorRow {
+  searches: number | string | null;
+  clusters: number | string | null;
+}
+
+interface WebsiteAnalyticsInteractionSummaryRow {
+  event_type: string;
+  label: string | null;
+  surface: string | null;
+  element_key: string | null;
+  platform: string | null;
+  count: number | string | null;
 }
 
 interface WebsiteAnalyticsDeviceSummaryRow {
@@ -647,6 +672,18 @@ const WEBSITE_ANALYTICS_PATH_EVENT_SELECT = `e.id::text,
           NULLIF(e.route_template, ''),
           NULLIF(e.path, '')
         ) AS label`;
+
+const WEBSITE_ANALYTICS_SEARCH_DESCRIPTOR_SELECT = `COALESCE(NULLIF(e.event_data->>'query_type', ''), 'unknown') AS query_type,
+        COALESCE(NULLIF(e.platform, ''), NULLIF(e.event_data->>'provider', ''), NULLIF(e.event_data->>'service', '')) AS platform,
+        CASE
+          WHEN COALESCE(NULLIF(e.event_data->>'query_type', ''), 'unknown') = 'url'
+            THEN COALESCE(NULLIF(subject.subject_title, ''), 'streaming_url_submitted')
+          ELSE COALESCE(NULLIF(e.event_data->>'query_normalized', ''), 'unknown')
+        END AS label,
+        subject.subject_type,
+        subject.subject_title,
+        subject.subject_artist,
+        subject.subject_artwork_url`;
 
 // Convert Date to milliseconds for compatibility with sqlite.ts interface
 function dateToMs(date: Date | null | undefined): number {
@@ -4837,13 +4874,14 @@ async function getWebsiteAnalyticsOverview(
         ),
         cluster_queries AS (
           SELECT DISTINCT ON (network_cluster_key)
-            network_cluster_key,
-            event_data->>'query_normalized' AS top_query
-          FROM analytics_events
-          WHERE occurred_at >= $1
-            AND event_type = 'search_submitted'
-            AND NULLIF(event_data->>'query_normalized', '') IS NOT NULL
-          ORDER BY network_cluster_key, occurred_at DESC
+            e.network_cluster_key,
+            ${WEBSITE_ANALYTICS_SEARCH_DESCRIPTOR_SELECT}
+          FROM analytics_events e
+          ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
+          WHERE e.occurred_at >= $1
+            AND e.event_type = 'search_submitted'
+            AND NULLIF(e.event_data->>'query_normalized', '') IS NOT NULL
+          ORDER BY e.network_cluster_key, e.occurred_at DESC
         )
         SELECT
           cs.network_cluster_key,
@@ -4852,7 +4890,13 @@ async function getWebsiteAnalyticsOverview(
           COALESCE(cd.devices, 0)::int AS devices,
           cs.searches,
           ce.last_seen_at,
-          cq.top_query
+          cq.query_type AS top_query_type,
+          cq.platform AS top_query_platform,
+          cq.label AS top_query_label,
+          cq.subject_type AS top_query_subject_type,
+          cq.subject_title AS top_query_subject_title,
+          cq.subject_artist AS top_query_subject_artist,
+          cq.subject_artwork_url AS top_query_subject_artwork_url
         FROM cluster_summaries cs
         LEFT JOIN cluster_events ce ON ce.network_cluster_key = cs.network_cluster_key
         LEFT JOIN cluster_devices cd ON cd.network_cluster_key = cs.network_cluster_key
@@ -4889,29 +4933,60 @@ async function getWebsiteAnalyticsOverview(
        LIMIT 8`,
       [since],
     ),
-    pool.query(
-      `SELECT
-        event_type,
-        COUNT(*)::int AS count
-       FROM analytics_events
-       WHERE occurred_at >= $1
-         AND event_type = ANY($2::text[])
-       GROUP BY event_type
-       ORDER BY count DESC, event_type ASC
+    pool.query<WebsiteAnalyticsInteractionSummaryRow>(
+      `WITH interaction_events AS (
+        SELECT
+          event_type,
+          CASE
+            WHEN event_type = 'ui_click'
+              THEN COALESCE(NULLIF(element_key, ''), NULLIF(surface, ''), 'ui_click')
+            WHEN event_type = 'listen_on_clicked'
+              THEN COALESCE(
+                NULLIF(platform, ''),
+                NULLIF(event_data->>'service', ''),
+                NULLIF(event_data->>'label', ''),
+                'listen_on_clicked'
+              )
+            ELSE event_type
+          END AS label,
+          NULLIF(surface, '') AS surface,
+          NULLIF(element_key, '') AS element_key,
+          COALESCE(NULLIF(platform, ''), NULLIF(event_data->>'service', ''), NULLIF(event_data->>'provider', '')) AS platform
+        FROM analytics_events
+        WHERE occurred_at >= $1
+          AND event_type = ANY($2::text[])
+       )
+       SELECT event_type, label, surface, element_key, platform, COUNT(*)::int AS count
+       FROM interaction_events
+       GROUP BY event_type, label, surface, element_key, platform
+       ORDER BY count DESC, event_type ASC, label ASC
        LIMIT 12`,
       [since, WEBSITE_ANALYTICS_INTERACTION_EVENT_TYPES],
     ),
-    pool.query(
-      `SELECT
-        event_data->>'query_normalized' AS query,
+    pool.query<WebsiteAnalyticsSearchSummaryRow>(
+      `WITH search_events AS (
+        SELECT
+          e.network_cluster_key,
+          ${WEBSITE_ANALYTICS_SEARCH_DESCRIPTOR_SELECT}
+        FROM analytics_events e
+        ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
+        WHERE e.occurred_at >= $1
+          AND e.event_type = 'search_submitted'
+          AND NULLIF(e.event_data->>'query_normalized', '') IS NOT NULL
+       )
+       SELECT
+        query_type,
+        platform,
+        label,
+        subject_type,
+        subject_title,
+        subject_artist,
+        subject_artwork_url,
         COUNT(*)::int AS searches,
         COUNT(DISTINCT network_cluster_key)::int AS clusters
-       FROM analytics_events
-       WHERE occurred_at >= $1
-         AND event_type = 'search_submitted'
-         AND NULLIF(event_data->>'query_normalized', '') IS NOT NULL
-       GROUP BY event_data->>'query_normalized'
-       ORDER BY searches DESC, clusters DESC, query ASC
+       FROM search_events
+       GROUP BY query_type, platform, label, subject_type, subject_title, subject_artist, subject_artwork_url
+       ORDER BY searches DESC, clusters DESC, label ASC
        LIMIT 10`,
       [since],
     ),
@@ -4943,7 +5018,15 @@ async function getWebsiteAnalyticsOverview(
           : row.last_seen_at
             ? String(row.last_seen_at)
             : "",
-      topQuery: row.top_query,
+      topQuery: rowToWebsiteAnalyticsSearchDescriptor({
+        query_type: row.top_query_type,
+        platform: row.top_query_platform,
+        label: row.top_query_label,
+        subject_type: row.top_query_subject_type,
+        subject_title: row.top_query_subject_title,
+        subject_artist: row.top_query_subject_artist,
+        subject_artwork_url: row.top_query_subject_artwork_url,
+      }),
     })),
     referrers: referrers.rows.map((row) => ({
       referrerDomain: String(row.referrer_domain),
@@ -4956,12 +5039,27 @@ async function getWebsiteAnalyticsOverview(
       searches: Number(row.searches),
       clusters: Number(row.clusters),
     })),
-    interactions: interactions.rows.map((row) => ({ eventType: String(row.event_type), count: Number(row.count) })),
-    searches: searches.rows.map((row) => ({
-      query: String(row.query),
-      searches: Number(row.searches),
-      clusters: Number(row.clusters),
+    interactions: interactions.rows.map((row) => ({
+      eventType: String(row.event_type),
+      label: row.label,
+      surface: row.surface,
+      elementKey: row.element_key,
+      platform: row.platform,
+      count: Number(row.count),
     })),
+    searches: searches.rows.map((row) => {
+      const descriptor = rowToWebsiteAnalyticsSearchDescriptor(row) ?? {
+        label: "unknown",
+        platform: null,
+        queryType: null,
+        subject: null,
+      };
+      return {
+        ...descriptor,
+        searches: Number(row.searches),
+        clusters: Number(row.clusters),
+      };
+    }),
     recentEvents: recentEvents.rows.map(rowToWebsiteAnalyticsPathEvent),
   };
 }
@@ -4990,6 +5088,27 @@ function rowToWebsiteAnalyticsPathEvent(row: WebsiteAnalyticsPathEventRow): Webs
     elementKey: row.element_key,
     label: row.label,
     eventData: row.event_data,
+    subject:
+      row.subject_type && row.subject_title
+        ? {
+            type: row.subject_type,
+            title: row.subject_title,
+            artist: row.subject_artist,
+            artworkUrl: row.subject_artwork_url,
+          }
+        : null,
+  };
+}
+
+function rowToWebsiteAnalyticsSearchDescriptor(
+  row: WebsiteAnalyticsSearchDescriptorRow,
+): WebsiteAnalyticsSearchDescriptor | null {
+  const label = row.label?.trim();
+  if (!label) return null;
+  return {
+    label,
+    queryType: row.query_type,
+    platform: row.platform,
     subject:
       row.subject_type && row.subject_title
         ? {
