@@ -17,6 +17,7 @@ import {
   MicrophoneStageIcon,
   MusicNotesIcon,
   NotebookIcon,
+  MapTrifoldIcon,
   PlugsConnectedIcon,
   PlusCircleIcon,
   SquaresFourIcon,
@@ -606,6 +607,15 @@ function SidebarAnalyticsSection({ onItemClick, s }: { onItemClick?: () => void;
               <DashboardSection.Item
                 icon={<ChartLineIcon weight="duotone" className="w-4 h-4" />}
                 label={s.websiteAnalytics}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+          <NavLink to="/website-analytics/realtime" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<MapTrifoldIcon weight="duotone" className="w-4 h-4" />}
+                label={s.websiteAnalyticsRealtime}
                 active={isActive}
               />
             )}
