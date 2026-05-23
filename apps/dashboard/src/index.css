@@ -201,15 +201,9 @@ input:-webkit-autofill { animation: on-autofill 0.01s both; }
 /* KPI card: responsive layout via container query */
 .kpi-layout {
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-}
-@container (max-width: 180px) {
-  .kpi-layout {
-    flex-direction: column;
-    align-items: center;
-  }
 }
 @container (max-width: 130px) {
   .kpi-value { font-size: var(--ds-text-xl) !important; }
@@ -235,4 +229,3 @@ body {
   font-kerning: normal;
   text-rendering: optimizeLegibility;
 }
-

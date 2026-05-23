@@ -273,7 +273,7 @@ function WebsiteKpiCard({
 
   return (
     <div
-      className="min-w-0 rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface)] px-4 py-2.5 shadow-sm"
+      className="min-w-0 rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface)] px-4 py-3 shadow-sm"
       style={{ containerType: "inline-size" }}
     >
       <p className="mb-1 truncate text-sm text-[var(--ds-text-subtle)]">{label}</p>
@@ -456,7 +456,7 @@ function UsageOverview({
       />
       <DashboardSection.Body>
         {isLoading && <p className="text-sm text-[var(--ds-text-subtle)]">{copy.loading}</p>}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
           {kpis.map((kpi) => (
             <WebsiteKpiCard
               key={kpi.label}
