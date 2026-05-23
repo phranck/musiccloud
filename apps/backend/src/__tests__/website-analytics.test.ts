@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { type WebsiteAnalyticsRealtimeEvent, websiteAnalyticsRealtimeBroadcaster } from "../lib/event-broadcaster.js";
 import { deriveDeviceKey, deriveNetworkClusterKey } from "../services/website-analytics.js";
 
 const mocks = vi.hoisted(() => ({
@@ -157,6 +158,74 @@ describe(`POST ${ENDPOINT}`, () => {
       geoTimeZone: "Europe/Berlin",
     });
     expect(JSON.stringify(batch)).not.toContain("198.51.100.24");
+  });
+
+  it("emits realtime Geo-IP events for accepted geolocated analytics events", async () => {
+    const received: WebsiteAnalyticsRealtimeEvent[] = [];
+    const unsubscribe = websiteAnalyticsRealtimeBroadcaster.subscribe((event) => received.push(event));
+    lookupGeoIpMock.mockResolvedValueOnce({
+      accuracyRadiusKm: 8,
+      city: "Vienna",
+      countryCode: "AT",
+      databaseBuildAt: new Date("2026-05-20T00:00:00.000Z"),
+      latitude: 48.2082,
+      longitude: 16.3738,
+      provider: "maxmind",
+      regionCode: "9",
+      regionName: "Vienna",
+      timeZone: "Europe/Vienna",
+    });
+
+    try {
+      const res = await app.inject({
+        method: "POST",
+        url: ENDPOINT,
+        remoteAddress: "198.51.100.55",
+        payload: validBody({
+          events: [
+            {
+              id: EVENT_ID,
+              occurredAt: "2026-05-22T10:00:00.000Z",
+              eventType: "listen_on_clicked",
+              path: "/abc123",
+              routeTemplate: "/:shortId",
+              deviceClass: "desktop",
+              surface: "share_card",
+              elementKey: "listen_on.apple_music",
+            },
+          ],
+        }),
+      });
+
+      expect(res.statusCode).toBe(202);
+      expect(received).toEqual([
+        {
+          type: "website-analytics-geo-event",
+          data: {
+            accuracyRadiusKm: 8,
+            activity: "listen",
+            city: "Vienna",
+            countryCode: "AT",
+            deviceClass: "desktop",
+            elementKey: "listen_on.apple_music",
+            eventType: "listen_on_clicked",
+            id: EVENT_ID,
+            isBot: false,
+            latitude: 48.2082,
+            longitude: 16.3738,
+            occurredAt: "2026-05-22T10:00:00.000Z",
+            path: "/abc123",
+            regionCode: "9",
+            regionName: "Vienna",
+            routeTemplate: "/:shortId",
+            surface: "share_card",
+          },
+        },
+      ]);
+      expect(JSON.stringify(received)).not.toContain("198.51.100.55");
+    } finally {
+      unsubscribe();
+    }
   });
 
   it("resolves Android model codes from browser Client Hints before persistence", async () => {

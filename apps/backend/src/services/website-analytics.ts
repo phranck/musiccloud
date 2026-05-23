@@ -7,6 +7,10 @@ import type {
   WebsiteAnalyticsEventInput,
   WebsiteAnalyticsEventType,
 } from "../db/repository.js";
+import {
+  type WebsiteAnalyticsRealtimeActivity,
+  websiteAnalyticsRealtimeBroadcaster,
+} from "../lib/event-broadcaster.js";
 import { lookupGeoIp } from "./geo-ip.js";
 import { detectWebsiteAnalyticsDevice, type WebsiteAnalyticsHeaderMap } from "./website-analytics-device.js";
 
@@ -189,6 +193,44 @@ function toConfidence(deviceKey: string | null): WebsiteAnalyticsConfidence {
   return deviceKey ? "medium" : "low";
 }
 
+function realtimeActivity(event: WebsiteAnalyticsEventInput): WebsiteAnalyticsRealtimeActivity {
+  if (event.isBot) return "bot";
+  if (event.eventType === "page_view") return "page_view";
+  if (event.eventType === "search_submitted") return "search";
+  if (event.eventType.startsWith("resolve_")) return "resolve";
+  if (event.eventType === "listen_on_clicked") return "listen";
+  if (event.eventType.startsWith("player_")) return "player";
+  return "interaction";
+}
+
+function emitWebsiteAnalyticsRealtimeEvents(events: WebsiteAnalyticsEventInput[]): void {
+  for (const event of events) {
+    if (typeof event.geoLatitude !== "number" || typeof event.geoLongitude !== "number") continue;
+    websiteAnalyticsRealtimeBroadcaster.emit({
+      type: "website-analytics-geo-event",
+      data: {
+        id: event.id,
+        occurredAt: event.occurredAt.toISOString(),
+        eventType: event.eventType,
+        activity: realtimeActivity(event),
+        latitude: event.geoLatitude,
+        longitude: event.geoLongitude,
+        accuracyRadiusKm: event.geoAccuracyRadiusKm,
+        countryCode: event.geoCountryCode,
+        regionCode: event.geoRegionCode,
+        regionName: event.geoRegionName,
+        city: event.geoCity,
+        path: event.path,
+        routeTemplate: event.routeTemplate,
+        surface: event.surface,
+        elementKey: event.elementKey,
+        deviceClass: event.deviceClass,
+        isBot: event.isBot,
+      },
+    });
+  }
+}
+
 export async function ingestWebsiteAnalyticsBatch(
   payload: WebsiteAnalyticsBatchRequest,
   context: WebsiteAnalyticsRequestContext,
@@ -266,5 +308,6 @@ export async function ingestWebsiteAnalyticsBatch(
 
   const repo = await getRepository();
   const accepted = await repo.insertWebsiteAnalyticsBatch(batch);
+  if (accepted > 0) emitWebsiteAnalyticsRealtimeEvents(events);
   return { accepted };
 }

@@ -131,10 +131,10 @@ async function buildApp() {
     max: 300,
     timeWindow: "1 minute",
     allowList: (request) => {
-      // Admin SSE stream is long-lived and polled heavily by the dashboard;
-      // the event bus itself fans out to every connected client so a pure
-      // request counter would throttle legitimate multi-tab admins.
-      return request.url.startsWith("/api/admin/events");
+      // Admin SSE streams are long-lived and polled heavily by the dashboard;
+      // the event buses fan out to every connected client so a pure request
+      // counter would throttle legitimate multi-tab admins.
+      return request.url.startsWith("/api/admin/events") || request.url.startsWith("/api/admin/analytics/website/realtime");
     },
   });
 
