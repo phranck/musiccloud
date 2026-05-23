@@ -1,4 +1,6 @@
-import { stat } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import net from "node:net";
 import path from "node:path";
 import maxmind, { type CityResponse, type Reader } from "maxmind";
@@ -7,7 +9,7 @@ const DEFAULT_MAXMIND_DB_NAME = "GeoLite2-City.mmdb";
 const DEFAULT_MAX_AGE_DAYS = 14;
 const GEOIP_PROVIDER = "maxmind";
 
-export type GeoIpStatusState = "disabled" | "fresh" | "stale" | "missing" | "error";
+export type GeoIpStatusState = "disabled" | "fresh" | "stale" | "missing" | "updating" | "error";
 
 export interface GeoIpStatus {
   state: GeoIpStatusState;
@@ -34,10 +36,17 @@ export interface GeoIpLookupResult {
   databaseBuildAt: Date | null;
 }
 
+export interface GeoIpUpdateResult {
+  ok: boolean;
+  status: GeoIpStatus;
+  message: string;
+}
+
 let cachedReader: Reader<CityResponse> | null = null;
 let cachedPath: string | null = null;
 let cachedStatus: GeoIpStatus | null = null;
 let cachedOpenPromise: Promise<Reader<CityResponse> | null> | null = null;
+let updateInFlight: Promise<GeoIpUpdateResult> | null = null;
 
 function maxMindDbPath(): string {
   const explicitPath = process.env.MAXMIND_DB_PATH?.trim();
@@ -45,6 +54,10 @@ function maxMindDbPath(): string {
 
   const dbDir = process.env.MAXMIND_DB_DIR?.trim() || path.join(process.cwd(), "data", "geoip");
   return path.join(dbDir, DEFAULT_MAXMIND_DB_NAME);
+}
+
+function maxMindDbDir(): string {
+  return path.dirname(maxMindDbPath());
 }
 
 function maxAgeDays(): number {
@@ -170,6 +183,20 @@ async function openGeoIpReader(): Promise<Reader<CityResponse> | null> {
 }
 
 export async function getGeoIpStatus(): Promise<GeoIpStatus> {
+  if (updateInFlight) {
+    return {
+      state: "updating",
+      provider: GEOIP_PROVIDER,
+      databasePath: maxMindDbPath(),
+      databaseType: cachedStatus?.databaseType ?? null,
+      buildEpoch: cachedStatus?.buildEpoch ?? null,
+      lastModifiedAt: cachedStatus?.lastModifiedAt ?? null,
+      ageDays: cachedStatus?.ageDays ?? null,
+      maxAgeDays: maxAgeDays(),
+      message: "Geo-IP database update is currently running.",
+    };
+  }
+
   if (process.env.MAXMIND_ENABLED === "false") {
     return {
       state: "disabled",
@@ -189,6 +216,108 @@ export async function getGeoIpStatus(): Promise<GeoIpStatus> {
   }
 
   return cachedStatus ?? statusFromError(maxMindDbPath(), new Error("Geo-IP status is unavailable."));
+}
+
+function geoIpUpdateBinary(): string {
+  return process.env.MAXMIND_GEOIPUPDATE_BIN?.trim() || "geoipupdate";
+}
+
+async function geoIpUpdateConfigFile(): Promise<{ cleanup: () => Promise<void>; path: string | null }> {
+  const accountId = process.env.MAXMIND_ACCOUNT_ID?.trim();
+  const licenseKey = process.env.MAXMIND_LICENSE_KEY?.trim();
+  if (!accountId || !licenseKey) {
+    return { cleanup: async () => {}, path: null };
+  }
+
+  const tempDir = await mkdtemp(path.join(tmpdir(), "musiccloud-geoipupdate-"));
+  const configPath = path.join(tempDir, "GeoIP.conf");
+  const databaseDir = maxMindDbDir();
+  await mkdir(databaseDir, { recursive: true });
+  await writeFile(
+    configPath,
+    [
+      `AccountID ${accountId}`,
+      `LicenseKey ${licenseKey}`,
+      "EditionIDs GeoLite2-City",
+      `DatabaseDirectory ${databaseDir}`,
+      "",
+    ].join("\n"),
+    { mode: 0o600 },
+  );
+
+  return {
+    cleanup: () => rm(tempDir, { force: true, recursive: true }),
+    path: configPath,
+  };
+}
+
+function runGeoIpUpdateCommand(configPath: string | null): Promise<{ stderr: string; stdout: string }> {
+  return new Promise((resolve, reject) => {
+    const args = configPath ? ["-f", configPath] : [];
+    const child = spawn(geoIpUpdateBinary(), args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve({ stderr, stdout });
+        return;
+      }
+      reject(new Error(`geoipupdate exited with code ${code}: ${stderr || stdout || "no output"}`));
+    });
+  });
+}
+
+function resetGeoIpCache(): void {
+  cachedReader = null;
+  cachedStatus = null;
+  cachedOpenPromise = null;
+}
+
+export async function updateGeoIpDatabase(): Promise<GeoIpUpdateResult> {
+  if (process.env.MAXMIND_ENABLED === "false") {
+    const status = await getGeoIpStatus();
+    return { ok: false, status, message: "Geo-IP lookup is disabled." };
+  }
+
+  if (updateInFlight) return updateInFlight;
+
+  updateInFlight = (async () => {
+    const config = await geoIpUpdateConfigFile();
+    try {
+      await runGeoIpUpdateCommand(config.path);
+      resetGeoIpCache();
+      const status = await getGeoIpStatus();
+      return {
+        ok: status.state === "fresh",
+        status,
+        message:
+          status.state === "fresh"
+            ? "Geo-IP database updated successfully."
+            : "Geo-IP update completed, but the database is not fresh.",
+      };
+    } catch (error) {
+      resetGeoIpCache();
+      cachedStatus = statusFromError(maxMindDbPath(), error);
+      return {
+        ok: false,
+        status: cachedStatus,
+        message: error instanceof Error ? error.message : "Geo-IP database update failed.",
+      };
+    } finally {
+      await config.cleanup();
+      updateInFlight = null;
+    }
+  })();
+
+  return updateInFlight;
 }
 
 function preferredName(names: { en?: string; de?: string } | undefined): string | null {

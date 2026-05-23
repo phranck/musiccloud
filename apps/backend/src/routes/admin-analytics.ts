@@ -48,6 +48,7 @@ import {
   getManagedUmamiResolveTotal,
   getManagedUmamiStats,
 } from "../services/admin-umami.js";
+import { getGeoIpStatus, updateGeoIpDatabase } from "../services/geo-ip.js";
 
 function periodWindow(period: string | undefined): {
   comparison: { since: Date; until: Date };
@@ -191,5 +192,13 @@ export default async function adminAnalyticsRoutes(app: FastifyInstance) {
   app.post(ENDPOINTS.admin.analytics.website.retention, async () => {
     const repo = await getRepository();
     return repo.runWebsiteAnalyticsRetention(new Date());
+  });
+
+  app.get(ENDPOINTS.admin.analytics.website.geoIpStatus, async () => {
+    return getGeoIpStatus();
+  });
+
+  app.post(ENDPOINTS.admin.analytics.website.geoIpUpdate, async () => {
+    return updateGeoIpDatabase();
   });
 }

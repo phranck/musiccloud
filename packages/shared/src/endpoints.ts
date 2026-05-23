@@ -280,6 +280,10 @@ export const ENDPOINTS = {
         export: "/api/admin/analytics/website/export",
         /** GET/POST: retention policy and manual cleanup run. */
         retention: "/api/admin/analytics/website/retention",
+        /** GET: local MaxMind Geo-IP database status. */
+        geoIpStatus: "/api/admin/analytics/website/geoip/status",
+        /** POST: run a local MaxMind Geo-IP database update. */
+        geoIpUpdate: "/api/admin/analytics/website/geoip/update",
       },
     },
 
