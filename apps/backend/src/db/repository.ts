@@ -577,6 +577,16 @@ export interface WebsiteAnalyticsEventInput {
   isBot: boolean;
   botName: string | null;
   botCategory: string | null;
+  geoCountryCode: string | null;
+  geoRegionCode: string | null;
+  geoRegionName: string | null;
+  geoCity: string | null;
+  geoLatitude: number | null;
+  geoLongitude: number | null;
+  geoAccuracyRadiusKm: number | null;
+  geoTimeZone: string | null;
+  geoProvider: string | null;
+  geoDatabaseBuildAt: Date | null;
   platform: string | null;
   mediaType: string | null;
   shortId: string | null;

@@ -7,6 +7,7 @@ import type {
   WebsiteAnalyticsEventInput,
   WebsiteAnalyticsEventType,
 } from "../db/repository.js";
+import { lookupGeoIp } from "./geo-ip.js";
 import { detectWebsiteAnalyticsDevice, type WebsiteAnalyticsHeaderMap } from "./website-analytics-device.js";
 
 const MAX_EVENTS_PER_BATCH = 50;
@@ -142,7 +143,8 @@ function ipPrefix(rawIp: string): string {
  * browser fingerprinting signals such as canvas, fonts, plugins or audio
  * probes. Optional device and bot data is derived from standard User-Agent
  * and Client Hint headers inside the request only. Raw headers are never
- * persisted.
+ * persisted. Geo-IP data, when configured, is derived from the same
+ * request-scoped raw IP and only curated location fields are persisted.
  */
 export function deriveNetworkClusterKey(rawIp: string, occurredAt: Date, secret: string): string {
   return `wnc_${hmacKey(secret, "network-cluster", `${utcDay(occurredAt)}:${ipPrefix(rawIp)}`).slice(0, 40)}`;
@@ -198,6 +200,7 @@ export async function ingestWebsiteAnalyticsBatch(
   const secret = getAnalyticsSecret();
   const deviceKey = payload.visitorId ? deriveDeviceKey(payload.visitorId, secret) : null;
   const confidence = toConfidence(deviceKey);
+  const geo = await lookupGeoIp(context.ip);
   const events: WebsiteAnalyticsEventInput[] = payload.events.map((event) => {
     const occurredAt = parseOccurredAt(event.occurredAt);
     const detectedDevice = detectWebsiteAnalyticsDevice(context.headers ?? {}, event);
@@ -223,6 +226,16 @@ export async function ingestWebsiteAnalyticsBatch(
       isBot: detectedDevice.isBot,
       botName: trimText(detectedDevice.botName, 96),
       botCategory: trimText(detectedDevice.botCategory, 96),
+      geoCountryCode: trimText(geo?.countryCode, 2),
+      geoRegionCode: trimText(geo?.regionCode, 32),
+      geoRegionName: trimText(geo?.regionName, 128),
+      geoCity: trimText(geo?.city, 128),
+      geoLatitude: geo?.latitude ?? null,
+      geoLongitude: geo?.longitude ?? null,
+      geoAccuracyRadiusKm: geo?.accuracyRadiusKm ?? null,
+      geoTimeZone: trimText(geo?.timeZone, 128),
+      geoProvider: trimText(geo?.provider, 64),
+      geoDatabaseBuildAt: geo?.databaseBuildAt ?? null,
       platform: trimText(event.platform, 64),
       mediaType: trimText(event.mediaType, 32),
       shortId: trimText(event.shortId, 64),

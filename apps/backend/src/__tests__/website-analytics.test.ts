@@ -2,12 +2,22 @@ import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { deriveDeviceKey, deriveNetworkClusterKey } from "../services/website-analytics.js";
 
-const insertWebsiteAnalyticsBatchMock = vi.fn(async () => 1);
+const mocks = vi.hoisted(() => ({
+  insertWebsiteAnalyticsBatch: vi.fn(async () => 1),
+  lookupGeoIp: vi.fn(async () => null),
+}));
+
+const insertWebsiteAnalyticsBatchMock = mocks.insertWebsiteAnalyticsBatch;
+const lookupGeoIpMock = mocks.lookupGeoIp;
 
 vi.mock("../db/index.js", () => ({
   getRepository: vi.fn(async () => ({
-    insertWebsiteAnalyticsBatch: insertWebsiteAnalyticsBatchMock,
+    insertWebsiteAnalyticsBatch: mocks.insertWebsiteAnalyticsBatch,
   })),
+}));
+
+vi.mock("../services/geo-ip.js", () => ({
+  lookupGeoIp: mocks.lookupGeoIp,
 }));
 
 import { buildApp } from "../server.js";
@@ -64,6 +74,8 @@ beforeEach(() => {
   process.env.WEBSITE_ANALYTICS_HMAC_SECRET = "test-analytics-secret";
   insertWebsiteAnalyticsBatchMock.mockClear();
   insertWebsiteAnalyticsBatchMock.mockResolvedValue(1);
+  lookupGeoIpMock.mockClear();
+  lookupGeoIpMock.mockResolvedValue(null);
 });
 
 describe("website analytics privacy helpers", () => {
@@ -104,7 +116,47 @@ describe(`POST ${ENDPOINT}`, () => {
     expect(batch.session.networkClusterKey).toMatch(/^wnc_[a-f0-9]{40}$/);
     expect(batch.events[0].deviceModel).toBe("Pixel 9");
     expect(batch.events[0].isBot).toBe(false);
+    expect(batch.events[0].geoCountryCode).toBeNull();
     expect(batch.events[0].eventData).toEqual({ service: "spotify" });
+  });
+
+  it("persists derived Geo-IP fields without exposing the raw request IP", async () => {
+    lookupGeoIpMock.mockResolvedValueOnce({
+      accuracyRadiusKm: 20,
+      city: "Berlin",
+      countryCode: "DE",
+      databaseBuildAt: new Date("2026-05-20T00:00:00.000Z"),
+      latitude: 52.52,
+      longitude: 13.405,
+      provider: "maxmind",
+      regionCode: "BE",
+      regionName: "Berlin",
+      timeZone: "Europe/Berlin",
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINT,
+      remoteAddress: "198.51.100.24",
+      payload: validBody(),
+    });
+
+    expect(res.statusCode).toBe(202);
+    expect(lookupGeoIpMock).toHaveBeenCalledWith("198.51.100.24");
+
+    const [batch] = insertWebsiteAnalyticsBatchMock.mock.calls[0];
+    expect(batch.events[0]).toMatchObject({
+      geoAccuracyRadiusKm: 20,
+      geoCity: "Berlin",
+      geoCountryCode: "DE",
+      geoLatitude: 52.52,
+      geoLongitude: 13.405,
+      geoProvider: "maxmind",
+      geoRegionCode: "BE",
+      geoRegionName: "Berlin",
+      geoTimeZone: "Europe/Berlin",
+    });
+    expect(JSON.stringify(batch)).not.toContain("198.51.100.24");
   });
 
   it("resolves Android model codes from browser Client Hints before persistence", async () => {

@@ -4642,12 +4642,15 @@ async function insertWebsiteAnalyticsBatch(
            (id, occurred_at, event_type, session_id, device_key, network_cluster_key,
             confidence, path, route_template, referrer_domain, device_class, browser_family,
             browser_version, os_family, os_version, device_brand, device_model, device_model_code,
-            is_bot, bot_name, bot_category, platform, media_type, short_id, surface, element_key, x_pct, y_pct,
+            is_bot, bot_name, bot_category, geo_country_code, geo_region_code, geo_region_name,
+            geo_city, geo_latitude, geo_longitude, geo_accuracy_radius_km, geo_time_zone, geo_provider,
+            geo_database_build_at, platform, media_type, short_id, surface, element_key, x_pct, y_pct,
             viewport_bucket, event_data)
          VALUES
            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
             $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-            $25, $26, $27, $28, $29, $30)
+            $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36,
+            $37, $38, $39, $40)
          ON CONFLICT (id) DO NOTHING`,
         [
           event.id,
@@ -4671,6 +4674,16 @@ async function insertWebsiteAnalyticsBatch(
           event.isBot,
           event.botName,
           event.botCategory,
+          event.geoCountryCode,
+          event.geoRegionCode,
+          event.geoRegionName,
+          event.geoCity,
+          event.geoLatitude,
+          event.geoLongitude,
+          event.geoAccuracyRadiusKm,
+          event.geoTimeZone,
+          event.geoProvider,
+          event.geoDatabaseBuildAt,
           event.platform,
           event.mediaType,
           event.shortId,
