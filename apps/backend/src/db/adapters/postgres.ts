@@ -158,6 +158,11 @@ interface WebsiteAnalyticsInteractionSummaryRow {
   count: number | string | null;
 }
 
+interface WebsiteAnalyticsEnvironmentSummaryRow {
+  value: string | null;
+  visitors: number | string | null;
+}
+
 interface WebsiteAnalyticsDeviceSummaryRow {
   device_key: string | null;
   label: string;
@@ -4826,6 +4831,9 @@ async function getWebsiteAnalyticsOverview(
     totals,
     comparisonTotals,
     platforms,
+    environmentBrowsers,
+    environmentOs,
+    environmentDevices,
     clusters,
     referrers,
     searchIntents,
@@ -4845,6 +4853,44 @@ async function getWebsiteAnalyticsOverview(
        ORDER BY resolves DESC, platform ASC
        LIMIT 8`,
       [since, WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS],
+    ),
+    pool.query<WebsiteAnalyticsEnvironmentSummaryRow>(
+      `SELECT COALESCE(NULLIF(browser_family, ''), 'unknown') AS value,
+        COUNT(DISTINCT COALESCE(device_key, session_id::text))::int AS visitors
+       FROM analytics_events
+       WHERE occurred_at >= $1
+       GROUP BY COALESCE(NULLIF(browser_family, ''), 'unknown')
+       ORDER BY visitors DESC, value ASC
+       LIMIT 12`,
+      [since],
+    ),
+    pool.query<WebsiteAnalyticsEnvironmentSummaryRow>(
+      `SELECT COALESCE(NULLIF(os_family, ''), 'unknown') AS value,
+        COUNT(DISTINCT COALESCE(device_key, session_id::text))::int AS visitors
+       FROM analytics_events
+       WHERE occurred_at >= $1
+       GROUP BY COALESCE(NULLIF(os_family, ''), 'unknown')
+       ORDER BY visitors DESC, value ASC
+       LIMIT 12`,
+      [since],
+    ),
+    pool.query<WebsiteAnalyticsEnvironmentSummaryRow>(
+      `WITH device_values AS (
+        SELECT
+          CASE
+            WHEN LENGTH(TRIM(COALESCE(device_model, ''))) >= 3 THEN TRIM(device_model)
+            ELSE COALESCE(NULLIF(device_class, ''), 'unknown')
+          END AS value,
+          COALESCE(device_key, session_id::text) AS visitor_key
+        FROM analytics_events
+        WHERE occurred_at >= $1
+       )
+       SELECT value, COUNT(DISTINCT visitor_key)::int AS visitors
+       FROM device_values
+       GROUP BY value
+       ORDER BY visitors DESC, value ASC
+       LIMIT 12`,
+      [since],
     ),
     pool.query(
       `WITH cluster_summaries AS (
@@ -4939,13 +4985,38 @@ async function getWebsiteAnalyticsOverview(
           event_type,
           CASE
             WHEN event_type = 'ui_click'
-              THEN COALESCE(NULLIF(element_key, ''), NULLIF(surface, ''), 'ui_click')
+              THEN COALESCE(
+                NULLIF(event_data->>'label', ''),
+                NULLIF(element_key, ''),
+                NULLIF(surface, ''),
+                'ui_click'
+              )
             WHEN event_type = 'listen_on_clicked'
               THEN COALESCE(
                 NULLIF(platform, ''),
                 NULLIF(event_data->>'service', ''),
                 NULLIF(event_data->>'label', ''),
                 'listen_on_clicked'
+              )
+            WHEN event_type IN ('info_page_clicked', 'help_page_clicked')
+              THEN COALESCE(
+                NULLIF(event_data->>'label', ''),
+                NULLIF(event_data->>'slug', ''),
+                NULLIF(element_key, ''),
+                event_type
+              )
+            WHEN event_type IN ('popular_track_clicked', 'similar_artist_clicked')
+              THEN COALESCE(
+                NULLIF(event_data->>'label', ''),
+                NULLIF(event_data->>'track_title', ''),
+                NULLIF(event_data->>'artist_name', ''),
+                event_type
+              )
+            WHEN event_type = 'upcoming_event_clicked'
+              THEN COALESCE(
+                NULLIF(event_data->>'label', ''),
+                NULLIF(event_data->>'provider', ''),
+                event_type
               )
             ELSE event_type
           END AS label,
@@ -5005,6 +5076,20 @@ async function getWebsiteAnalyticsOverview(
   return {
     totals,
     trends: buildWebsiteAnalyticsTrends(totals, comparisonTotals),
+    environment: {
+      browsers: environmentBrowsers.rows.map((row) => ({
+        value: String(row.value ?? "unknown"),
+        visitors: Number(row.visitors),
+      })),
+      os: environmentOs.rows.map((row) => ({
+        value: String(row.value ?? "unknown"),
+        visitors: Number(row.visitors),
+      })),
+      devices: environmentDevices.rows.map((row) => ({
+        value: String(row.value ?? "unknown"),
+        visitors: Number(row.visitors),
+      })),
+    },
     platforms: platforms.rows.map((row) => ({ platform: String(row.platform), resolves: Number(row.resolves) })),
     clusters: clusters.rows.map((row) => ({
       clusterKey: String(row.network_cluster_key),

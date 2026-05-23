@@ -459,15 +459,6 @@ export function trackLayeredFooterClick() {
   });
 }
 
-export function trackOverlayPanelGesture(slug: string, gesture: "drag" | "resize") {
-  enqueue({
-    ...baseEvent("ui_click"),
-    surface: "overlay_panel",
-    elementKey: `overlay.${gesture}`,
-    eventData: { label: `overlay_${gesture}`, slug },
-  });
-}
-
 export function trackContentSegmentClick({
   label,
   pageKind,

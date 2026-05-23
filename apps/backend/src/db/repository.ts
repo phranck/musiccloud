@@ -599,6 +599,11 @@ export interface WebsiteAnalyticsOverview {
     interactions: number;
   };
   trends: Record<keyof WebsiteAnalyticsOverview["totals"], WebsiteAnalyticsTrend>;
+  environment: {
+    browsers: WebsiteAnalyticsEnvironmentSummary[];
+    os: WebsiteAnalyticsEnvironmentSummary[];
+    devices: WebsiteAnalyticsEnvironmentSummary[];
+  };
   platforms: Array<{ platform: string; resolves: number }>;
   clusters: Array<{
     clusterKey: string;
@@ -619,6 +624,11 @@ export interface WebsiteAnalyticsOverview {
   interactions: WebsiteAnalyticsInteractionSummary[];
   searches: WebsiteAnalyticsSearchSummary[];
   recentEvents: WebsiteAnalyticsPathEvent[];
+}
+
+export interface WebsiteAnalyticsEnvironmentSummary {
+  value: string;
+  visitors: number;
 }
 
 export interface WebsiteAnalyticsTrend {

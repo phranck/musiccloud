@@ -49,12 +49,28 @@ async function fetchOverlayPage(slug: string, signal: AbortSignal): Promise<Publ
   return res.ok ? ((await res.json()) as PublicContentPage) : null;
 }
 
-export function OverlayProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, {
-    page: null,
-    previousTitle: null,
-    previousUrl: null,
-  });
+function initialOverlayState(initialPage: PublicContentPage | null | undefined): OverlayState {
+  if (!initialPage || initialPage.displayMode === "fullscreen") {
+    return { page: null, previousTitle: null, previousUrl: null };
+  }
+  if (typeof window === "undefined") {
+    return { page: initialPage, previousTitle: null, previousUrl: null };
+  }
+  return {
+    page: initialPage,
+    previousTitle: document.title,
+    previousUrl: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+  };
+}
+
+export function OverlayProvider({
+  children,
+  initialPage = null,
+}: {
+  children: ReactNode;
+  initialPage?: PublicContentPage | null;
+}) {
+  const [state, dispatch] = useReducer(reducer, initialPage, initialOverlayState);
 
   const open = useCallback((page: PublicContentPage) => {
     if (typeof window === "undefined") {

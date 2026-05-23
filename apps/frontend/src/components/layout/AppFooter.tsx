@@ -47,8 +47,6 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
             target={item.target === "_blank" ? "_blank" : undefined}
             rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
             onClick={() => trackFooterNavItem(item)}
-            data-analytics-key={item.pageSlug ? `content.${item.pageSlug}` : undefined}
-            data-analytics-surface="footer_nav"
             className="hover:text-text-secondary transition-colors duration-150"
           >
             {navLabel(item)}

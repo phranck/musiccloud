@@ -60,8 +60,6 @@ export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
               target={item.target === "_blank" ? "_blank" : undefined}
               rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
               onClick={(e) => handleNavClick(e, item)}
-              data-analytics-key={item.pageSlug ? `content.${item.pageSlug}` : undefined}
-              data-analytics-surface="header_nav"
               className="text-text-primary/85 hover:text-text-primary transition-colors duration-150"
             >
               {navLabel(item)}

@@ -1,4 +1,6 @@
+import { DashboardButton } from "@musiccloud/dashboard-ui";
 import { ENDPOINTS } from "@musiccloud/shared";
+import { DownloadIcon, TrashIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useReducer } from "react";
 
@@ -11,13 +13,13 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { api } from "@/lib/api";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
 import {
-  type WebsiteAnalyticsDrilldown,
   type WebsiteAnalyticsExport,
   type WebsiteAnalyticsOverview,
   type WebsiteAnalyticsRetentionResult,
   WebsiteAnalyticsSection,
 } from "./WebsiteAnalyticsSection";
 import { buildWebsiteAnalyticsPeriodOptions, loadWebsiteAnalyticsPeriod } from "./websiteAnalyticsPeriod";
+import { getWebsiteAnalyticsCopy } from "./websiteAnalyticsText";
 
 const WEBSITE_ANALYTICS_POLLING_INTERVAL_MS = {
   today: 10_000,
@@ -26,18 +28,9 @@ const WEBSITE_ANALYTICS_POLLING_INTERVAL_MS = {
 
 interface WebsiteAnalyticsPageState {
   period: UmamiPeriod;
-  retentionResult: WebsiteAnalyticsRetentionResult | null;
-  selectedClusterKey: string | null;
-  selectedDeviceKey: string | null;
-  selectedSessionId: string | null;
 }
 
-type WebsiteAnalyticsPageAction =
-  | { type: "periodChanged"; period: UmamiPeriod }
-  | { type: "retentionCompleted"; result: WebsiteAnalyticsRetentionResult }
-  | { type: "selectedClusterChanged"; clusterKey: string | null }
-  | { type: "selectedDeviceChanged"; deviceKey: string | null }
-  | { type: "selectedSessionChanged"; sessionId: string | null };
+type WebsiteAnalyticsPageAction = { type: "periodChanged"; period: UmamiPeriod };
 
 function websiteAnalyticsPageReducer(
   state: WebsiteAnalyticsPageState,
@@ -48,23 +41,7 @@ function websiteAnalyticsPageReducer(
       return {
         ...state,
         period: action.period,
-        selectedClusterKey: null,
-        selectedDeviceKey: null,
-        selectedSessionId: null,
       };
-    case "retentionCompleted":
-      return { ...state, retentionResult: action.result };
-    case "selectedClusterChanged":
-      return {
-        ...state,
-        selectedClusterKey: action.clusterKey,
-        selectedDeviceKey: null,
-        selectedSessionId: null,
-      };
-    case "selectedDeviceChanged":
-      return { ...state, selectedDeviceKey: action.deviceKey, selectedSessionId: null };
-    case "selectedSessionChanged":
-      return { ...state, selectedSessionId: action.sessionId };
   }
 }
 
@@ -74,6 +51,47 @@ function websiteAnalyticsPollingInterval(period: UmamiPeriod) {
     : WEBSITE_ANALYTICS_POLLING_INTERVAL_MS.default;
 }
 
+function WebsiteAnalyticsHeaderActions({
+  exportLabel,
+  isExporting,
+  isRunningRetention,
+  onExport,
+  onRunRetention,
+  retentionLabel,
+}: {
+  exportLabel: string;
+  isExporting: boolean;
+  isRunningRetention: boolean;
+  onExport: () => void;
+  onRunRetention: () => void;
+  retentionLabel: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <DashboardButton
+        type="button"
+        onClick={onExport}
+        disabled={isExporting}
+        leadingIcon={<DownloadIcon weight="duotone" className="size-3.5" />}
+        size="action"
+        variant="neutral"
+      >
+        {exportLabel}
+      </DashboardButton>
+      <DashboardButton
+        type="button"
+        onClick={onRunRetention}
+        disabled={isRunningRetention}
+        leadingIcon={<TrashIcon weight="duotone" className="size-3.5" />}
+        size="action"
+        variant="neutral"
+      >
+        {retentionLabel}
+      </DashboardButton>
+    </div>
+  );
+}
+
 export function WebsiteAnalyticsPage() {
   const { user } = useAuth();
   const { locale, messages, formatNumber } = useI18n();
@@ -81,30 +99,14 @@ export function WebsiteAnalyticsPage() {
   const periodStorageKey = getSegmentedStorageKey(user?.id, "website-analytics:period");
   const [state, dispatch] = useReducer(websiteAnalyticsPageReducer, periodStorageKey, (storageKey) => ({
     period: loadWebsiteAnalyticsPeriod(storageKey),
-    retentionResult: null,
-    selectedClusterKey: null,
-    selectedDeviceKey: null,
-    selectedSessionId: null,
   }));
-  const { period, retentionResult, selectedClusterKey, selectedDeviceKey, selectedSessionId } = state;
+  const { period } = state;
   const pollingInterval = websiteAnalyticsPollingInterval(period);
   const m = messages.analytics;
-  const detailPath = useMemo(() => {
-    const params = new URLSearchParams({ period });
-    if (selectedClusterKey) params.set("clusterKey", selectedClusterKey);
-    if (selectedDeviceKey) params.set("deviceKey", selectedDeviceKey);
-    if (selectedSessionId) params.set("sessionId", selectedSessionId);
-    return `${ENDPOINTS.admin.analytics.website.detail}?${params.toString()}`;
-  }, [period, selectedClusterKey, selectedDeviceKey, selectedSessionId]);
+  const websiteCopy = getWebsiteAnalyticsCopy(locale);
   const overviewQuery = useQuery({
     queryKey: ["website-analytics-overview", period],
     queryFn: () => api.get<WebsiteAnalyticsOverview>(`${ENDPOINTS.admin.analytics.website.overview}?period=${period}`),
-    refetchInterval: pollingInterval,
-    refetchIntervalInBackground: false,
-  });
-  const detailQuery = useQuery({
-    queryKey: ["website-analytics-detail", period, selectedClusterKey, selectedDeviceKey, selectedSessionId],
-    queryFn: () => api.get<WebsiteAnalyticsDrilldown>(detailPath),
     refetchInterval: pollingInterval,
     refetchIntervalInBackground: false,
   });
@@ -118,32 +120,17 @@ export function WebsiteAnalyticsPage() {
       link.click();
       URL.revokeObjectURL(url);
       void queryClient.invalidateQueries({ queryKey: ["website-analytics-overview"] });
-      void queryClient.invalidateQueries({ queryKey: ["website-analytics-detail"] });
     },
   });
   const retentionMutation = useMutation({
     mutationFn: () => api.post<WebsiteAnalyticsRetentionResult>(ENDPOINTS.admin.analytics.website.retention),
-    onSuccess: (result) => {
-      dispatch({ type: "retentionCompleted", result });
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["website-analytics-overview"] });
-      void queryClient.invalidateQueries({ queryKey: ["website-analytics-detail"] });
     },
   });
 
   const handlePeriodChange = useCallback((nextPeriod: UmamiPeriod) => {
     dispatch({ type: "periodChanged", period: nextPeriod });
-  }, []);
-
-  const handleSelectCluster = useCallback((clusterKey: string | null) => {
-    dispatch({ type: "selectedClusterChanged", clusterKey });
-  }, []);
-
-  const handleSelectDevice = useCallback((deviceKey: string | null) => {
-    dispatch({ type: "selectedDeviceChanged", deviceKey });
-  }, []);
-
-  const handleSelectSession = useCallback((sessionId: string | null) => {
-    dispatch({ type: "selectedSessionChanged", sessionId });
   }, []);
 
   const periodOptions = useMemo<{ label: string; value: UmamiPeriod }[]>(
@@ -153,7 +140,16 @@ export function WebsiteAnalyticsPage() {
 
   return (
     <PageLayout>
-      <PageHeader title={messages.layout.sidebar.websiteAnalytics} />
+      <PageHeader title={messages.layout.sidebar.websiteAnalytics}>
+        <WebsiteAnalyticsHeaderActions
+          exportLabel={websiteCopy.exportJson}
+          isExporting={exportMutation.isPending}
+          isRunningRetention={retentionMutation.isPending}
+          onExport={() => exportMutation.mutate()}
+          onRunRetention={() => retentionMutation.mutate()}
+          retentionLabel={websiteCopy.retention}
+        />
+      </PageHeader>
       <PageBody className="overflow-y-auto -mx-3 -mt-3 px-3 pt-3 pb-3">
         <div className="flex justify-end pb-4">
           <SegmentedControl
@@ -165,21 +161,10 @@ export function WebsiteAnalyticsPage() {
         </div>
         <WebsiteAnalyticsSection
           data={overviewQuery.data}
-          detail={detailQuery.data}
+          environmentStorageKey={getSegmentedStorageKey(user?.id, "website-analytics:environment")}
           formatNumber={formatNumber}
-          isExporting={exportMutation.isPending}
-          isLoading={overviewQuery.isLoading || detailQuery.isLoading}
-          isRunningRetention={retentionMutation.isPending}
+          isLoading={overviewQuery.isLoading}
           locale={locale}
-          onExport={() => exportMutation.mutate()}
-          onRunRetention={() => retentionMutation.mutate()}
-          onSelectCluster={handleSelectCluster}
-          onSelectDevice={handleSelectDevice}
-          onSelectSession={handleSelectSession}
-          retentionResult={retentionResult}
-          selectedClusterKey={selectedClusterKey}
-          selectedDeviceKey={selectedDeviceKey}
-          selectedSessionId={selectedSessionId}
         />
       </PageBody>
     </PageLayout>

@@ -4,25 +4,21 @@ export interface WebsiteCopy {
   loading: string;
   noData: string;
   directTraffic: string;
-  topQuery: string;
-  lastSeen: string;
   exportJson: string;
   retention: string;
   retentionDone: string;
-  clearSelection: string;
-  selectEventsHint: string;
   trendNew: string;
-  scopeLabels: {
-    session: string;
-  };
-  inspectorLabels: {
-    event: string;
-    device: string;
-  };
   eventLabels: Record<string, string>;
   identifierLabels: Record<string, string>;
-  confidenceLabels: Record<string, string>;
   routeLabels: Record<string, string>;
+  environment: {
+    browser: string;
+    device: string;
+    devices: string;
+    os: string;
+    percentColumn: string;
+    visitors: string;
+  };
   kpis: {
     clusters: string;
     devices: string;
@@ -36,13 +32,10 @@ export interface WebsiteCopy {
   };
   sections: {
     overview: string;
+    environment: string;
     funnel: string;
     searchIntents: string;
-    households: string;
     referrers: string;
-    deviceDrilldown: string;
-    sessionDrilldown: string;
-    selectionEvents: string;
     interactions: string;
     searches: string;
   };
@@ -52,18 +45,9 @@ export interface WebsiteCopy {
     route: string;
     resolves: string;
     share: string;
-    household: string;
-    confidence: string;
-    devices: string;
     searches: string;
     clusters: string;
-    sessions: string;
-    events: string;
     pageviews: string;
-    detail: string;
-    entry: string;
-    exit: string;
-    occurredAt: string;
     sourceWebsite: string;
   };
 }
@@ -73,21 +57,10 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
     loading: "Lade Website-Analytics...",
     noData: "Noch keine Daten im gewählten Zeitraum.",
     directTraffic: "Direkt / keine Website",
-    topQuery: "Top-Suche",
-    lastSeen: "Zuletzt",
     exportJson: "JSON exportieren",
     retention: "Aufbewahrung bereinigen",
     retentionDone: "Aufbewahrung bereinigt",
-    clearSelection: "Auswahl löschen",
-    selectEventsHint: "Wähle einen Haushalt, ein Gerät oder eine Sitzung, um die zugehörigen Ereignisse zu sehen.",
     trendNew: "Neu",
-    scopeLabels: {
-      session: "Sitzung",
-    },
-    inspectorLabels: {
-      event: "Ereignis",
-      device: "Gerät",
-    },
     eventLabels: {
       page_view: "Seitenaufruf",
       browser_back_forward: "Browser-Historie",
@@ -96,8 +69,6 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       close: "Geschlossen",
       drag: "Verschoben",
       overlay_close: "Overlay geschlossen",
-      overlay_drag: "Overlay verschoben",
-      overlay_resize: "Overlay-Größe geändert",
       resize: "Größe geändert",
       segment: "Unterseite",
       segment_clicked: "Unterseite geklickt",
@@ -185,17 +156,20 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       unknown: "Unbekannt",
       windows: "Windows",
     },
-    confidenceLabels: {
-      low: "Niedrig",
-      medium: "Mittel",
-      high: "Hoch",
-    },
     routeLabels: {
       "/": "Landingpage",
       "/:shortId": "Share-Seite",
       "/content/:slug": "Info-/Hilfeseite",
       "/embed/:shortId": "Einbettung",
       "/link/:id": "Link-Weiterleitung",
+    },
+    environment: {
+      browser: "Browser",
+      device: "Gerät",
+      devices: "Geräte",
+      os: "OS",
+      percentColumn: "%",
+      visitors: "Besucher",
     },
     kpis: {
       clusters: "Haushalte",
@@ -210,13 +184,10 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
     },
     sections: {
       overview: "Nutzung im Zeitraum",
+      environment: "Umgebung",
       funnel: "Erfolgreiche Suchen nach Musikquelle",
       searchIntents: "Such-Intents",
-      households: "Geschätzte Haushalte",
       referrers: "Website-Quellen",
-      deviceDrilldown: "Geräte",
-      sessionDrilldown: "Sitzungen",
-      selectionEvents: "Ereignisse der Auswahl",
       interactions: "Interaktionen",
       searches: "Suchbegriffe",
     },
@@ -226,18 +197,9 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       route: "Seite",
       resolves: "Erfolgreiche Suchen",
       share: "Anteil",
-      household: "Haushalt",
-      confidence: "Sicherheit",
-      devices: "Geräte",
       searches: "Suchen",
       clusters: "Haushalte",
-      sessions: "Sitzungen",
-      events: "Ereignisse",
       pageviews: "Seitenaufrufe",
-      detail: "Detail",
-      entry: "Einstieg",
-      exit: "Ausstieg",
-      occurredAt: "Zeitpunkt",
       sourceWebsite: "Website",
     },
   },
@@ -245,21 +207,10 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
     loading: "Loading real website analytics...",
     noData: "No data in the selected period yet.",
     directTraffic: "Direct / no website",
-    topQuery: "Top query",
-    lastSeen: "Last seen",
     exportJson: "Export JSON",
     retention: "Run retention",
     retentionDone: "Retention completed",
-    clearSelection: "Clear selection",
-    selectEventsHint: "Select a household, device or session to inspect its related events.",
     trendNew: "New",
-    scopeLabels: {
-      session: "Session",
-    },
-    inspectorLabels: {
-      event: "Event",
-      device: "Device",
-    },
     eventLabels: {
       page_view: "Page View",
       browser_back_forward: "History Navigation",
@@ -268,8 +219,6 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       close: "Closed",
       drag: "Moved",
       overlay_close: "Overlay Closed",
-      overlay_drag: "Overlay Moved",
-      overlay_resize: "Overlay Resized",
       resize: "Resized",
       segment: "Subpage",
       segment_clicked: "Subpage Clicked",
@@ -357,17 +306,20 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       unknown: "Unknown",
       windows: "Windows",
     },
-    confidenceLabels: {
-      low: "Low",
-      medium: "Medium",
-      high: "High",
-    },
     routeLabels: {
       "/": "Landing Page",
       "/:shortId": "Share Page",
       "/content/:slug": "Info / Help Page",
       "/embed/:shortId": "Embed",
       "/link/:id": "Link Redirect",
+    },
+    environment: {
+      browser: "Browser",
+      device: "Device",
+      devices: "Devices",
+      os: "OS",
+      percentColumn: "%",
+      visitors: "Visitors",
     },
     kpis: {
       clusters: "Households",
@@ -382,13 +334,10 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
     },
     sections: {
       overview: "Usage in Period",
+      environment: "Environment",
       funnel: "Successful Lookups by Music Source",
       searchIntents: "Search Intents",
-      households: "Estimated Households",
       referrers: "Website Sources",
-      deviceDrilldown: "Devices",
-      sessionDrilldown: "Sessions",
-      selectionEvents: "Selection Events",
       interactions: "Interactions",
       searches: "Search Terms",
     },
@@ -398,18 +347,9 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       route: "Route",
       resolves: "Successful Lookups",
       share: "Share",
-      household: "Household",
-      confidence: "Confidence",
-      devices: "Devices",
       searches: "Searches",
       clusters: "Households",
-      sessions: "Sessions",
-      events: "Events",
       pageviews: "Pageviews",
-      detail: "Detail",
-      entry: "Entry",
-      exit: "Exit",
-      occurredAt: "Timestamp",
       sourceWebsite: "Website",
     },
   },

@@ -1,39 +1,35 @@
+import { ChartLineIcon, FunnelIcon, MagnifyingGlassIcon, PathIcon, PulseIcon } from "@phosphor-icons/react";
+import { type ReactNode, useMemo, useState } from "react";
+import type { IconType } from "react-icons";
 import {
-  ChartLineIcon,
-  ClockCounterClockwiseIcon,
-  DownloadIcon,
-  FunnelIcon,
-  ListBulletsIcon,
-  MagnifyingGlassIcon,
-  PathIcon,
-  PulseIcon,
-  TrashIcon,
-  UsersThreeIcon,
-} from "@phosphor-icons/react";
-import { type ReactNode, useMemo } from "react";
+  FaAndroid,
+  FaApple,
+  FaChrome,
+  FaDesktop,
+  FaEdge,
+  FaFirefoxBrowser,
+  FaGlobe,
+  FaLaptop,
+  FaLinux,
+  FaMobileScreenButton,
+  FaOpera,
+  FaSafari,
+  FaTabletScreenButton,
+  FaWindows,
+} from "react-icons/fa6";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import type { DashboardLocale } from "@/i18n/messages";
 import { formatNaturalText, getWebsiteAnalyticsCopy, type WebsiteCopy } from "./websiteAnalyticsText";
 
 interface WebsiteAnalyticsSectionProps {
   data: WebsiteAnalyticsOverview | undefined;
-  detail: WebsiteAnalyticsDrilldown | undefined;
+  environmentStorageKey: string;
   formatNumber: (value: number) => string;
-  isExporting: boolean;
   isLoading: boolean;
-  isRunningRetention: boolean;
   locale: DashboardLocale;
-  onExport: () => void;
-  onRunRetention: () => void;
-  onSelectCluster: (clusterKey: string | null) => void;
-  onSelectDevice: (deviceKey: string | null) => void;
-  onSelectSession: (sessionId: string | null) => void;
-  retentionResult: WebsiteAnalyticsRetentionResult | null;
-  selectedClusterKey: string | null;
-  selectedDeviceKey: string | null;
-  selectedSessionId: string | null;
 }
 
 export interface WebsiteAnalyticsPathEvent {
@@ -81,6 +77,8 @@ interface WebsiteAnalyticsSearchDescriptor {
   subject: WebsiteAnalyticsSubject | null;
 }
 
+type WebsiteAnalyticsEnvironmentType = "browser" | "os" | "device";
+
 export interface WebsiteAnalyticsOverview {
   totals: {
     clusters: number;
@@ -94,6 +92,11 @@ export interface WebsiteAnalyticsOverview {
     interactions: number;
   };
   trends: Record<keyof WebsiteAnalyticsOverview["totals"], WebsiteAnalyticsTrend>;
+  environment: {
+    browsers: WebsiteAnalyticsEnvironmentRow[];
+    os: WebsiteAnalyticsEnvironmentRow[];
+    devices: WebsiteAnalyticsEnvironmentRow[];
+  };
   platforms: Array<{ platform: string; resolves: number }>;
   clusters: Array<{
     clusterKey: string;
@@ -121,6 +124,11 @@ export interface WebsiteAnalyticsOverview {
   }>;
   searches: Array<WebsiteAnalyticsSearchDescriptor & { searches: number; clusters: number }>;
   recentEvents: WebsiteAnalyticsPathEvent[];
+}
+
+interface WebsiteAnalyticsEnvironmentRow {
+  value: string;
+  visitors: number;
 }
 
 interface WebsiteAnalyticsTrend {
@@ -182,30 +190,6 @@ export interface WebsiteAnalyticsExport {
   drilldown: WebsiteAnalyticsDrilldown;
 }
 
-const TIME_FORMATTERS: Record<DashboardLocale, Intl.DateTimeFormat> = {
-  de: new Intl.DateTimeFormat("de-DE", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }),
-  en: new Intl.DateTimeFormat("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }),
-};
-
-const DATE_TIME_FORMATTERS: Record<DashboardLocale, Intl.DateTimeFormat> = {
-  de: new Intl.DateTimeFormat("de-DE", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }),
-  en: new Intl.DateTimeFormat("en-US", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }),
-};
-
 const EMPTY_TOTALS: WebsiteAnalyticsOverview["totals"] = {
   clusters: 0,
   devices: 0,
@@ -228,6 +212,12 @@ const EMPTY_TRENDS: WebsiteAnalyticsOverview["trends"] = {
   listenOn: { change: null, status: "none" },
   playerStarts: { change: null, status: "none" },
   interactions: { change: null, status: "none" },
+};
+
+const EMPTY_ENVIRONMENT: WebsiteAnalyticsOverview["environment"] = {
+  browsers: [],
+  os: [],
+  devices: [],
 };
 
 function formatTrendValue(change: number): string {
@@ -298,47 +288,6 @@ function formatEventType(eventType: string, copy: WebsiteCopy) {
   return copy.eventLabels[eventType] ?? formatNaturalText(eventType, copy);
 }
 
-function formatTime(value: string, locale: DashboardLocale) {
-  return TIME_FORMATTERS[locale].format(new Date(value));
-}
-
-function formatDateTime(value: string, locale: DashboardLocale) {
-  return DATE_TIME_FORMATTERS[locale].format(new Date(value));
-}
-
-function formatConfidence(value: string, copy: WebsiteCopy) {
-  return copy.confidenceLabels[value] ?? formatNaturalText(value, copy);
-}
-
-function formatSessionId(sessionId: string) {
-  return sessionId.slice(0, 8);
-}
-
-function formatDeviceMeta(
-  fields: Array<string | null | undefined>,
-  copy: WebsiteCopy,
-  options: { fallback?: string } = {},
-) {
-  const formatted = fields.flatMap((field) => (field ? [formatNaturalText(field, copy)] : []));
-  return formatted.length > 0 ? formatted.join(" / ") : (options.fallback ?? "-");
-}
-
-function formatDeviceSummaryLabel(device: WebsiteAnalyticsDeviceSummary, copy: WebsiteCopy) {
-  return formatDeviceMeta([device.deviceModel, device.deviceClass, device.osFamily, device.browserFamily], copy, {
-    fallback: device.label,
-  });
-}
-
-function eventDataString(event: WebsiteAnalyticsPathEvent, key: string) {
-  const value = event.eventData?.[key];
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-function eventSubjectDetail(event: WebsiteAnalyticsPathEvent) {
-  if (!event.subject) return null;
-  return event.subject.artist ? `${event.subject.title} - ${event.subject.artist}` : event.subject.title;
-}
-
 function formatSubject(subject: WebsiteAnalyticsSubject) {
   return subject.artist ? `${subject.title} - ${subject.artist}` : subject.title;
 }
@@ -363,7 +312,10 @@ function formatInteractionSummary(row: WebsiteAnalyticsOverview["interactions"][
   const eventLabel = formatEventType(row.eventType, copy);
   if (row.eventType === "listen_on_clicked") {
     const service = extractListenOnService(row.platform ?? row.label);
-    return service ? `${formatNaturalText(service, copy)} · ${eventLabel}` : eventLabel;
+    return service ? `${eventLabel}: ${formatNaturalText(service, copy)}` : eventLabel;
+  }
+  if ((row.eventType === "help_page_clicked" || row.eventType === "info_page_clicked") && row.label) {
+    return `${eventLabel}: ${formatNaturalText(row.label, copy)}`;
   }
   if (row.label && row.label !== row.eventType) {
     return `${eventLabel} · ${formatNaturalText(row.label, copy)}`;
@@ -380,44 +332,6 @@ function extractListenOnService(value: string | null | undefined) {
   return cleaned;
 }
 
-function eventDetail(event: WebsiteAnalyticsPathEvent, copy: WebsiteCopy) {
-  if (event.eventType === "search_submitted") {
-    const queryType = eventDataString(event, "query_type");
-    if (queryType === "url") {
-      return formatSearchDescriptor(
-        {
-          label: eventDataString(event, "query_normalized") ?? "streaming_url_submitted",
-          platform: event.platform,
-          queryType,
-          subject: event.subject,
-        },
-        copy,
-      );
-    }
-    if (queryType === "genre") return eventDataString(event, "query_normalized") ?? formatNaturalText("genre", copy);
-    return eventDataString(event, "query_normalized") ?? "-";
-  }
-
-  const label = event.label && event.label !== event.shortId ? event.label : null;
-  if (event.eventType === "ui_click") {
-    const action = event.elementKey ?? event.surface ?? label;
-    return action ? formatNaturalText(action, copy) : formatEventType(event.eventType, copy);
-  }
-
-  if (
-    (event.eventType === "popular_track_clicked" || event.eventType === "similar_artist_clicked") &&
-    !label &&
-    !event.subject &&
-    !event.platform
-  ) {
-    return formatNaturalText("track_context_not_stored", copy);
-  }
-
-  const detail =
-    eventSubjectDetail(event) ?? label ?? event.platform ?? event.surface ?? event.routeTemplate ?? event.path;
-  return detail ? formatNaturalText(detail, copy) : formatEventType(event.eventType, copy);
-}
-
 function formatReferrer(value: string | null | undefined, copy: WebsiteCopy) {
   return value && value !== "direct" ? value : copy.directTraffic;
 }
@@ -432,6 +346,43 @@ function formatSearchIntent(value: string, copy: WebsiteCopy) {
   if (value === "text") return formatNaturalText("text_search_submitted", copy);
   if (value === "genre") return formatNaturalText("genre_search_submitted", copy);
   return formatNaturalText(value, copy);
+}
+
+function normalizeEnvironmentValue(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function getBrowserIcon(value: string): IconType {
+  const key = normalizeEnvironmentValue(value);
+  if (key.includes("firefox") || key.includes("fxios")) return FaFirefoxBrowser;
+  if (key.includes("chrome") || key.includes("crios") || key.includes("chromium")) return FaChrome;
+  if (key.includes("safari") || key === "ios") return FaSafari;
+  if (key.includes("edge")) return FaEdge;
+  if (key.includes("opera")) return FaOpera;
+  return FaGlobe;
+}
+
+function getOsIcon(value: string): IconType {
+  const key = normalizeEnvironmentValue(value);
+  if (key.includes("android")) return FaAndroid;
+  if (key.includes("ios") || key.includes("mac")) return FaApple;
+  if (key.includes("windows")) return FaWindows;
+  if (key.includes("linux")) return FaLinux;
+  return FaDesktop;
+}
+
+function getDeviceIcon(value: string): IconType {
+  const key = normalizeEnvironmentValue(value);
+  if (key.includes("mobile") || key.includes("phone")) return FaMobileScreenButton;
+  if (key.includes("tablet")) return FaTabletScreenButton;
+  if (key.includes("laptop") || key.includes("notebook")) return FaLaptop;
+  return FaDesktop;
+}
+
+function getEnvironmentIcon(type: WebsiteAnalyticsEnvironmentType, value: string): IconType {
+  if (type === "browser") return getBrowserIcon(value);
+  if (type === "os") return getOsIcon(value);
+  return getDeviceIcon(value);
 }
 
 function UsageOverview({
@@ -467,6 +418,80 @@ function UsageOverview({
             />
           ))}
         </div>
+      </DashboardSection.Body>
+    </DashboardSection>
+  );
+}
+
+function EnvironmentOverview({
+  copy,
+  environment,
+  formatNumber,
+  storageKey,
+}: {
+  copy: WebsiteCopy;
+  environment: WebsiteAnalyticsOverview["environment"];
+  formatNumber: (value: number) => string;
+  storageKey: string;
+}) {
+  const tabs = useMemo(
+    () =>
+      [
+        { label: copy.environment.browser, value: "browser", columnLabel: copy.environment.browser },
+        { label: copy.environment.os, value: "os", columnLabel: copy.environment.os },
+        { label: copy.environment.devices, value: "device", columnLabel: copy.environment.device },
+      ] as const,
+    [copy],
+  );
+  const [activeType, setActiveType] = useState<WebsiteAnalyticsEnvironmentType>("os");
+  const activeTab = tabs.find((tab) => tab.value === activeType) ?? tabs[1];
+  const rows =
+    activeType === "browser" ? environment.browsers : activeType === "os" ? environment.os : environment.devices;
+  const total = rows.reduce((sum, row) => sum + row.visitors, 0);
+  const tabOptions = useMemo(() => tabs.map((tab) => ({ value: tab.value, label: tab.label })), [tabs]);
+  const headerAddOn = useMemo(
+    () => <SegmentedControl value={activeType} onChange={setActiveType} storageKey={storageKey} options={tabOptions} />,
+    [activeType, storageKey, tabOptions],
+  );
+
+  return (
+    <DashboardSection>
+      <DashboardSection.Header
+        icon={<FaGlobe className="h-4 w-4" />}
+        title={copy.sections.environment}
+        addOn={headerAddOn}
+      />
+      <DashboardSection.Body>
+        <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-[var(--ds-border-subtle)] pb-2 text-sm font-medium text-[var(--ds-text-subtle)]">
+          <span>{activeTab.columnLabel}</span>
+          <span className="text-right">{copy.environment.visitors}</span>
+          <span className="text-right">{copy.environment.percentColumn}</span>
+        </div>
+
+        {rows.length === 0 ? (
+          <p className="py-6 text-center text-sm text-[var(--ds-text-subtle)]">{copy.noData}</p>
+        ) : (
+          <ul className="space-y-1.5 pt-2">
+            {rows.map((row) => {
+              const percentage = total > 0 ? Math.round((row.visitors / total) * 100) : 0;
+              const EnvironmentIcon = getEnvironmentIcon(activeType, row.value);
+              const label = formatNaturalText(row.value, copy);
+              return (
+                <li
+                  key={`${activeType}-${row.value}`}
+                  className="grid grid-cols-[1fr_auto_auto] gap-3 py-0.5 text-base"
+                >
+                  <span className="flex min-w-0 items-center gap-2 text-[var(--ds-text-muted)]" title={label}>
+                    <EnvironmentIcon className="h-3.5 w-3.5 shrink-0 opacity-80" />
+                    <span className="truncate">{label}</span>
+                  </span>
+                  <span className="text-right tabular-nums text-[var(--ds-text)]">{formatNumber(row.visitors)}</span>
+                  <span className="text-right tabular-nums text-[var(--ds-text-subtle)]">{percentage}%</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </DashboardSection.Body>
     </DashboardSection>
   );
@@ -597,90 +622,6 @@ function SearchIntentTable({
   );
 }
 
-function HouseholdTable({
-  copy,
-  formatNumber,
-  locale,
-  onSelectCluster,
-  rows,
-  selectedClusterKey,
-}: {
-  copy: WebsiteCopy;
-  formatNumber: (value: number) => string;
-  locale: DashboardLocale;
-  onSelectCluster: (clusterKey: string | null) => void;
-  rows: WebsiteAnalyticsOverview["clusters"];
-  selectedClusterKey: string | null;
-}) {
-  const columns = useMemo<ColumnDef<WebsiteAnalyticsOverview["clusters"][number]>[]>(
-    () => [
-      {
-        id: "household",
-        header: copy.columns.household,
-        cell: (row) => (
-          <button
-            type="button"
-            onClick={() => onSelectCluster(row.clusterKey === selectedClusterKey ? null : row.clusterKey)}
-            className="min-w-0 text-left"
-          >
-            <span className="block font-mono text-[var(--ds-text)]">{row.cluster}</span>
-            <span className="mt-0.5 block truncate text-xs text-[var(--ds-text-muted)]">
-              {copy.topQuery}: {formatSearchDescriptor(row.topQuery, copy)}
-            </span>
-            <span className="mt-0.5 block truncate text-xs text-[var(--ds-text-muted)]">
-              {copy.lastSeen}: {row.lastSeenAt ? formatDateTime(row.lastSeenAt, locale) : "-"}
-            </span>
-          </button>
-        ),
-        sortKey: (row) => row.cluster,
-      },
-      {
-        id: "confidence",
-        header: copy.columns.confidence,
-        cell: (row) => formatConfidence(row.confidence, copy),
-        sortKey: (row) => row.confidence,
-      },
-      {
-        id: "devices",
-        header: copy.columns.devices,
-        cell: (row) => <span className="tabular-nums">{formatNumber(row.devices)}</span>,
-        className: "text-right",
-        sortKey: (row) => row.devices,
-      },
-      {
-        id: "searches",
-        header: copy.columns.searches,
-        cell: (row) => <span className="tabular-nums">{formatNumber(row.searches)}</span>,
-        className: "text-right",
-        sortKey: (row) => row.searches,
-      },
-    ],
-    [copy, formatNumber, locale, onSelectCluster, selectedClusterKey],
-  );
-
-  return (
-    <DashboardSection>
-      <DashboardSection.Header
-        icon={<UsersThreeIcon weight="duotone" className="h-4 w-4" />}
-        title={copy.sections.households}
-      />
-      <DashboardSection.Body flush={rows.length > 0}>
-        {rows.length === 0 ? (
-          <EmptyState copy={copy} />
-        ) : (
-          <DataTable
-            columns={columns}
-            data={rows}
-            getRowClassName={(row) => (row.clusterKey === selectedClusterKey ? "bg-[var(--ds-nav-active-bg)]" : "")}
-            getRowKey={(row) => row.clusterKey}
-            defaultSort={{ id: "searches", dir: "desc" }}
-          />
-        )}
-      </DashboardSection.Body>
-    </DashboardSection>
-  );
-}
-
 function ReferrerTable({
   copy,
   formatNumber,
@@ -741,246 +682,6 @@ function ReferrerTable({
         )}
       </DashboardSection.Body>
     </DashboardSection>
-  );
-}
-
-function WebsiteActionButton({
-  children,
-  disabled,
-  icon,
-  onClick,
-}: {
-  children: string;
-  disabled?: boolean;
-  icon: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="inline-flex h-8 items-center gap-2 rounded-control bg-[var(--ds-bg-elevated)] px-3 text-xs font-medium text-[var(--ds-text-subtle)] hover:bg-[var(--ds-surface-hover)] hover:text-[var(--ds-text)] disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      {icon}
-      <span>{children}</span>
-    </button>
-  );
-}
-
-function MaintenanceActions({
-  copy,
-  isExporting,
-  isRunningRetention,
-  onExport,
-  onRunRetention,
-  retentionResult,
-}: {
-  copy: WebsiteCopy;
-  isExporting: boolean;
-  isRunningRetention: boolean;
-  onExport: () => void;
-  onRunRetention: () => void;
-  retentionResult: WebsiteAnalyticsRetentionResult | null;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <WebsiteActionButton
-        disabled={isExporting}
-        icon={<DownloadIcon weight="duotone" className="h-3.5 w-3.5" />}
-        onClick={onExport}
-      >
-        {copy.exportJson}
-      </WebsiteActionButton>
-      <WebsiteActionButton
-        disabled={isRunningRetention}
-        icon={<TrashIcon weight="duotone" className="h-3.5 w-3.5" />}
-        onClick={onRunRetention}
-      >
-        {copy.retention}
-      </WebsiteActionButton>
-      {retentionResult && (
-        <span className="text-xs text-[var(--ds-text-muted)]">
-          {copy.retentionDone}: {retentionResult.deletedEvents} / {retentionResult.deletedSessions} /{" "}
-          {retentionResult.deletedSummaries}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function DrilldownSection({
-  copy,
-  detail,
-  formatNumber,
-  locale,
-  onSelectCluster,
-  onSelectDevice,
-  onSelectSession,
-  selectedClusterKey,
-  selectedDeviceKey,
-  selectedSessionId,
-}: {
-  copy: WebsiteCopy;
-  detail: WebsiteAnalyticsDrilldown | undefined;
-  formatNumber: (value: number) => string;
-  locale: DashboardLocale;
-  onSelectCluster: (clusterKey: string | null) => void;
-  onSelectDevice: (deviceKey: string | null) => void;
-  onSelectSession: (sessionId: string | null) => void;
-  selectedClusterKey: string | null;
-  selectedDeviceKey: string | null;
-  selectedSessionId: string | null;
-}) {
-  const hasSelection = Boolean(selectedClusterKey || selectedDeviceKey || selectedSessionId);
-  const devices = detail?.devices ?? [];
-  const sessions = detail?.sessions ?? [];
-  const deviceColumns = useMemo<ColumnDef<WebsiteAnalyticsDeviceSummary>[]>(
-    () => [
-      {
-        id: "device",
-        header: copy.columns.devices,
-        cell: (device) => (
-          <button
-            type="button"
-            disabled={!device.deviceKey}
-            onClick={() => onSelectDevice(device.deviceKey === selectedDeviceKey ? null : device.deviceKey)}
-            className="min-w-0 text-left disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            <span className="block truncate text-sm font-medium text-[var(--ds-text)]">
-              {formatDeviceSummaryLabel(device, copy)}
-            </span>
-            <span className="mt-0.5 block text-xs text-[var(--ds-text-muted)]">
-              {copy.lastSeen}: {formatDateTime(device.lastSeenAt, locale)}
-            </span>
-          </button>
-        ),
-        sortKey: (device) => formatDeviceSummaryLabel(device, copy),
-      },
-      {
-        id: "sessions",
-        header: copy.columns.sessions,
-        cell: (device) => <span className="tabular-nums">{formatNumber(device.sessions)}</span>,
-        className: "text-right",
-        sortKey: (device) => device.sessions,
-      },
-      {
-        id: "events",
-        header: copy.columns.events,
-        cell: (device) => <span className="tabular-nums">{formatNumber(device.events)}</span>,
-        className: "text-right",
-        sortKey: (device) => device.events,
-      },
-    ],
-    [copy, formatNumber, locale, onSelectDevice, selectedDeviceKey],
-  );
-  const sessionColumns = useMemo<ColumnDef<WebsiteAnalyticsSessionSummary>[]>(
-    () => [
-      {
-        id: "session",
-        header: copy.columns.sessions,
-        cell: (session) => (
-          <button
-            type="button"
-            onClick={() => onSelectSession(session.sessionId === selectedSessionId ? null : session.sessionId)}
-            className="min-w-0 text-left"
-          >
-            <span className="block font-mono text-xs text-[var(--ds-text)]">
-              {copy.scopeLabels.session} {formatSessionId(session.sessionId)}
-            </span>
-            <span className="mt-0.5 block truncate text-xs text-[var(--ds-text-muted)]">
-              {copy.columns.entry}: {session.entryPath ?? "-"}
-            </span>
-            <span className="mt-0.5 block truncate text-xs text-[var(--ds-text-muted)]">
-              {copy.columns.exit}: {session.exitPath ?? "-"}
-            </span>
-            <span className="mt-0.5 block text-xs text-[var(--ds-text-muted)]">
-              {copy.lastSeen}: {formatDateTime(session.lastSeenAt, locale)}
-            </span>
-          </button>
-        ),
-        sortKey: (session) => session.sessionId,
-      },
-      {
-        id: "pageviews",
-        header: copy.columns.pageviews,
-        cell: (session) => <span className="tabular-nums">{formatNumber(session.pageviews)}</span>,
-        className: "text-right",
-        sortKey: (session) => session.pageviews,
-      },
-      {
-        id: "events",
-        header: copy.columns.events,
-        cell: (session) => <span className="tabular-nums">{formatNumber(session.events)}</span>,
-        className: "text-right",
-        sortKey: (session) => session.events,
-      },
-    ],
-    [copy, formatNumber, locale, onSelectSession, selectedSessionId],
-  );
-
-  const headerAddOn = useMemo(
-    () =>
-      hasSelection ? (
-        <button
-          type="button"
-          onClick={() => onSelectCluster(null)}
-          className="h-8 rounded-control bg-[var(--ds-bg-elevated)] px-3 text-xs font-medium text-[var(--ds-text-subtle)] hover:bg-[var(--ds-surface-hover)] hover:text-[var(--ds-text)]"
-        >
-          {copy.clearSelection}
-        </button>
-      ) : null,
-    [copy.clearSelection, hasSelection, onSelectCluster],
-  );
-
-  return (
-    <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
-      <DashboardSection>
-        <DashboardSection.Header
-          icon={<ListBulletsIcon weight="duotone" className="h-4 w-4" />}
-          title={copy.sections.deviceDrilldown}
-          addOn={headerAddOn}
-        />
-        <DashboardSection.Body flush={devices.length > 0}>
-          {devices.length === 0 ? (
-            <EmptyState copy={copy} />
-          ) : (
-            <DataTable
-              columns={deviceColumns}
-              data={devices}
-              getRowClassName={(device) =>
-                device.deviceKey && device.deviceKey === selectedDeviceKey ? "bg-[var(--ds-nav-active-bg)]" : ""
-              }
-              getRowKey={(device) => device.deviceKey ?? "unknown"}
-              defaultSort={{ id: "events", dir: "desc" }}
-            />
-          )}
-        </DashboardSection.Body>
-      </DashboardSection>
-
-      <DashboardSection>
-        <DashboardSection.Header
-          icon={<ListBulletsIcon weight="duotone" className="h-4 w-4" />}
-          title={copy.sections.sessionDrilldown}
-          addOn={headerAddOn}
-        />
-        <DashboardSection.Body flush={sessions.length > 0}>
-          {sessions.length === 0 ? (
-            <EmptyState copy={copy} />
-          ) : (
-            <DataTable
-              columns={sessionColumns}
-              data={sessions}
-              getRowClassName={(session) =>
-                session.sessionId === selectedSessionId ? "bg-[var(--ds-nav-active-bg)]" : ""
-              }
-              getRowKey={(session) => session.sessionId}
-              defaultSort={{ id: "events", dir: "desc" }}
-            />
-          )}
-        </DashboardSection.Body>
-      </DashboardSection>
-    </div>
   );
 }
 
@@ -1090,96 +791,17 @@ function InteractionBreakdown({
   );
 }
 
-function SelectionEventsTable({
-  copy,
-  events,
-  locale,
-  showHint,
-}: {
-  copy: WebsiteCopy;
-  events: WebsiteAnalyticsPathEvent[];
-  locale: DashboardLocale;
-  showHint: boolean;
-}) {
-  const columns = useMemo<ColumnDef<WebsiteAnalyticsPathEvent>[]>(
-    () => [
-      {
-        id: "occurredAt",
-        header: copy.columns.occurredAt,
-        cell: (event) => formatTime(event.occurredAt, locale),
-        sortKey: (event) => event.occurredAt,
-      },
-      {
-        id: "event",
-        header: copy.inspectorLabels.event,
-        cell: (event) => formatEventType(event.eventType, copy),
-        sortKey: (event) => formatEventType(event.eventType, copy),
-      },
-      {
-        id: "detail",
-        header: copy.columns.detail,
-        cell: (event) => eventDetail(event, copy),
-        sortKey: (event) => eventDetail(event, copy),
-      },
-      {
-        id: "household",
-        header: copy.columns.household,
-        cell: (event) => <span className="font-mono text-xs">{event.cluster}</span>,
-        sortKey: (event) => event.cluster,
-      },
-      {
-        id: "device",
-        header: copy.inspectorLabels.device,
-        cell: (event) =>
-          formatDeviceMeta([event.deviceModel, event.deviceClass, event.osFamily, event.browserFamily], copy),
-        sortKey: (event) =>
-          formatDeviceMeta([event.deviceModel, event.deviceClass, event.osFamily, event.browserFamily], copy),
-      },
-    ],
-    [copy, locale],
-  );
-
-  return (
-    <DashboardSection>
-      <DashboardSection.Header
-        icon={<ClockCounterClockwiseIcon weight="duotone" className="h-4 w-4" />}
-        title={copy.sections.selectionEvents}
-      />
-      <DashboardSection.Body flush={events.length > 0}>
-        {showHint ? (
-          <p className="text-sm text-[var(--ds-text-subtle)]">{copy.selectEventsHint}</p>
-        ) : events.length === 0 ? (
-          <EmptyState copy={copy} />
-        ) : (
-          <DataTable columns={columns} data={events} getRowKey={(event) => event.id} />
-        )}
-      </DashboardSection.Body>
-    </DashboardSection>
-  );
-}
-
 export function WebsiteAnalyticsSection({
   data,
-  detail,
+  environmentStorageKey,
   formatNumber,
-  isExporting,
   isLoading,
-  isRunningRetention,
   locale,
-  onExport,
-  onRunRetention,
-  onSelectCluster,
-  onSelectDevice,
-  onSelectSession,
-  retentionResult,
-  selectedClusterKey,
-  selectedDeviceKey,
-  selectedSessionId,
 }: WebsiteAnalyticsSectionProps) {
   const copy = getWebsiteAnalyticsCopy(locale);
   const totals = data?.totals ?? EMPTY_TOTALS;
   const trends = data?.trends ?? EMPTY_TRENDS;
-  const hasSelection = Boolean(selectedClusterKey || selectedDeviceKey || selectedSessionId);
+  const environment = data?.environment ?? EMPTY_ENVIRONMENT;
   const kpis = useMemo(
     () => [
       { label: copy.kpis.clusters, trend: trends.clusters, value: totals.clusters },
@@ -1194,28 +816,9 @@ export function WebsiteAnalyticsSection({
     ],
     [copy, totals, trends],
   );
-  const headerAddOn = useMemo(
-    () => (
-      <MaintenanceActions
-        copy={copy}
-        isExporting={isExporting}
-        isRunningRetention={isRunningRetention}
-        onExport={onExport}
-        onRunRetention={onRunRetention}
-        retentionResult={retentionResult}
-      />
-    ),
-    [copy, isExporting, isRunningRetention, onExport, onRunRetention, retentionResult],
-  );
   return (
     <div className="space-y-4">
-      <UsageOverview
-        copy={copy}
-        formatNumber={formatNumber}
-        headerAddOn={headerAddOn}
-        isLoading={isLoading}
-        kpis={kpis}
-      />
+      <UsageOverview copy={copy} formatNumber={formatNumber} headerAddOn={null} isLoading={isLoading} kpis={kpis} />
 
       <ReferrerTable copy={copy} formatNumber={formatNumber} rows={data?.referrers ?? []} />
 
@@ -1230,34 +833,13 @@ export function WebsiteAnalyticsSection({
       </div>
 
       <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
-        <HouseholdTable
+        <EnvironmentOverview
           copy={copy}
+          environment={environment}
           formatNumber={formatNumber}
-          locale={locale}
-          onSelectCluster={onSelectCluster}
-          rows={data?.clusters ?? []}
-          selectedClusterKey={selectedClusterKey}
-        />
-        <SelectionEventsTable
-          copy={copy}
-          events={hasSelection ? (detail?.events ?? []) : []}
-          locale={locale}
-          showHint={!hasSelection}
+          storageKey={environmentStorageKey}
         />
       </div>
-
-      <DrilldownSection
-        copy={copy}
-        detail={detail}
-        formatNumber={formatNumber}
-        locale={locale}
-        onSelectCluster={onSelectCluster}
-        onSelectDevice={onSelectDevice}
-        onSelectSession={onSelectSession}
-        selectedClusterKey={selectedClusterKey}
-        selectedDeviceKey={selectedDeviceKey}
-        selectedSessionId={selectedSessionId}
-      />
     </div>
   );
 }

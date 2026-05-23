@@ -16,7 +16,6 @@ import { OVERLAY_TRANSITION_MS, OverlayBackdrop } from "@/components/ui/OverlayB
 import { OverlayProvider, useOverlay } from "@/context/OverlayContext";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider } from "@/i18n/context";
-import { trackOverlayPanelGesture } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -132,15 +131,15 @@ function saveGeom(slug: string, g: Geom): void {
 export function PageOverlayIsland({ initialPage }: Props) {
   return (
     <LocaleProvider>
-      <OverlayProvider>
-        <OverlayShell initialPage={initialPage} />
+      <OverlayProvider initialPage={initialPage}>
+        <OverlayShell />
       </OverlayProvider>
     </LocaleProvider>
   );
 }
 
-function OverlayShell({ initialPage }: Props) {
-  const { page, open, close } = useOverlay();
+function OverlayShell() {
+  const { page, close } = useOverlay();
 
   // `mounted` stays true as long as we should render the overlay DOM.
   // `visible` drives the transition classes; flipped on one frame after
@@ -170,13 +169,6 @@ function OverlayShell({ initialPage }: Props) {
     const id = window.setTimeout(() => dispatchVisibility({ type: "unmount" }), OVERLAY_TRANSITION_MS);
     return () => window.clearTimeout(id);
   }, [page]);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only effect; inputs (initialPage + open) are stable for the lifetime of this island.
-  useEffect(() => {
-    if (initialPage && initialPage.displayMode !== "fullscreen") {
-      open(initialPage);
-    }
-  }, []);
 
   useOverlayEscape({ enabled: Boolean(page && page.displayMode !== "fullscreen"), onEscape: close });
 
@@ -285,7 +277,6 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
     const el = frameRef.current;
     if (el?.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
     gestureRef.current = null;
-    trackOverlayPanelGesture(slug, g.kind);
     setGeom((cur) => {
       if (cur) saveGeom(slug, cur);
       return cur;
