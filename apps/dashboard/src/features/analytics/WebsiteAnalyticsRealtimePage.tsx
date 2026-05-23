@@ -11,7 +11,7 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { geoGraticule, geoNaturalEarth1, geoPath } from "d3-geo";
+import { geoContains, geoGraticule, geoNaturalEarth1, geoPath } from "d3-geo";
 import type { Feature, FeatureCollection, Geometry, MultiLineString } from "geojson";
 import { memo, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { feature, mesh } from "topojson-client";
@@ -114,6 +114,7 @@ interface GeoIpUpdateResult {
 
 interface LivePoint extends GeoPoint {
   receivedAt: number;
+  persistent?: boolean;
 }
 
 interface ViewTransform {
@@ -139,8 +140,17 @@ interface WorldMapGeometry {
 
 interface CountryPath {
   d: string;
+  feature: Feature<Geometry, CountryProperties>;
   key: string;
   name: string;
+}
+
+interface HoveredCountry {
+  d: string;
+  key: string;
+  name: string;
+  x: number;
+  y: number;
 }
 
 type MapDetailLevel = "base" | "borders" | "labels";
@@ -148,9 +158,10 @@ type MapDetailLevel = "base" | "borders" | "labels";
 const MAP_WIDTH = 1400;
 const MAP_HEIGHT = 620;
 const MAX_POINTS = 320;
-const FLASH_MS = 1_800;
-const PULSE_MS = 60_000;
-const FADE_MS = 18_000;
+const FLASH_MS = 900;
+const PULSE_MS = 15_000;
+const PULSE_CYCLE_MS = 3_600;
+const FADE_MS = 10_000;
 const POINT_TTL_MS = FLASH_MS + PULSE_MS + FADE_MS;
 const MAP_PADDING_X = 34;
 const MAP_PADDING_Y = 28;
@@ -217,6 +228,7 @@ function pointAge(point: LivePoint, now: number) {
 }
 
 function pointOpacity(point: LivePoint, now: number) {
+  if (point.persistent) return 1;
   const age = pointAge(point, now);
   if (age <= FLASH_MS + PULSE_MS) return 1;
   return Math.max(0, 1 - (age - FLASH_MS - PULSE_MS) / FADE_MS);
@@ -224,6 +236,10 @@ function pointOpacity(point: LivePoint, now: number) {
 
 function activityLabel(activity: GeoActivity) {
   return ACTIVITY_META[activity]?.label ?? activity;
+}
+
+function cleanCountryText(value: string | null | undefined) {
+  return (value ?? "").replaceAll("\0", "").trim();
 }
 
 function mapDetailLevel(scale: number): MapDetailLevel {
@@ -270,6 +286,55 @@ function easeOutExpo(t: number) {
   return t >= 1 ? 1 : 1 - 2 ** (-10 * t);
 }
 
+function easeOutCubic(t: number) {
+  return 1 - (1 - t) ** 3;
+}
+
+function colorWithAlpha(color: string, alpha: number) {
+  const hex = color.startsWith("#") ? color.slice(1) : color;
+  if (hex.length !== 6) return `rgba(86, 216, 255, ${alpha})`;
+  const value = Number.parseInt(hex, 16);
+  if (!Number.isFinite(value)) return `rgba(86, 216, 255, ${alpha})`;
+  const red = (value >> 16) & 255;
+  const green = (value >> 8) & 255;
+  const blue = value & 255;
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+function drawPulseWave(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  color: string,
+  progress: number,
+  opacity: number,
+) {
+  const easedProgress = easeOutCubic(progress);
+  const radius = 24;
+  const bandRadius = 6 + easedProgress * 15;
+  const bandWidth = 4;
+  const innerFade = Math.max(0, (bandRadius - bandWidth) / radius);
+  const innerEdge = Math.max(0, (bandRadius - bandWidth * 0.42) / radius);
+  const outerEdge = Math.min(1, (bandRadius + bandWidth * 0.42) / radius);
+  const outerFade = Math.min(1, (bandRadius + bandWidth) / radius);
+  const travelFade = 1 - easedProgress;
+  const waveOpacity = (1 - progress) ** 1.35 * travelFade ** 0.9 * opacity;
+  const transparentColor = colorWithAlpha(color, 0);
+  const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
+  gradient.addColorStop(0, transparentColor);
+  gradient.addColorStop(innerFade, transparentColor);
+  gradient.addColorStop(innerEdge, color);
+  gradient.addColorStop(outerEdge, color);
+  gradient.addColorStop(outerFade, transparentColor);
+  gradient.addColorStop(1, transparentColor);
+
+  context.globalAlpha = waveOpacity * 0.92;
+  context.fillStyle = gradient;
+  context.beginPath();
+  context.arc(x, y, radius, 0, Math.PI * 2);
+  context.fill();
+}
+
 function interpolateMapView(from: ViewTransform, to: ViewTransform, progress: number): ViewTransform {
   return {
     scale: from.scale + (to.scale - from.scale) * progress,
@@ -302,6 +367,57 @@ function mergeLivePoints(previous: LivePoint[], incoming: GeoPoint[], now: numbe
   return Array.from(map.values())
     .sort((a, b) => b.receivedAt - a.receivedAt)
     .slice(0, MAX_POINTS);
+}
+
+function createDevLocationPoint(latitude: number, longitude: number, accuracyMeters?: number): GeoPoint {
+  return {
+    id: "dev-local-location",
+    occurredAt: new Date().toISOString(),
+    eventType: "dev_location",
+    activity: "page_view",
+    latitude,
+    longitude,
+    accuracyRadiusKm: typeof accuracyMeters === "number" ? Math.max(1, Math.round(accuracyMeters / 1000)) : null,
+    countryCode: null,
+    regionCode: null,
+    regionName: null,
+    city: "Local Dev",
+    path: null,
+    routeTemplate: null,
+    surface: "dashboard",
+    elementKey: "dev-location",
+    deviceClass: null,
+    isBot: false,
+  };
+}
+
+function useDevLocationPoint() {
+  const [point, setPoint] = useState<GeoPoint | null>(null);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || typeof navigator === "undefined" || !navigator.geolocation) return;
+
+    let active = true;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (!active) return;
+        setPoint(createDevLocationPoint(position.coords.latitude, position.coords.longitude, position.coords.accuracy));
+      },
+      () => {
+        if (!active) return;
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (timeZone === "Europe/Vienna") setPoint(createDevLocationPoint(48.2082, 16.3738));
+      },
+      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 3_000 },
+    );
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return point;
 }
 
 function useWebsiteAnalyticsRealtimeStream(onPoint: (point: GeoPoint) => void) {
@@ -405,6 +521,7 @@ const StaticWorldLayer = memo(function StaticWorldLayer({
   countryPaths,
   detailLevel,
   graticulePath,
+  hoveredCountry,
   loadError,
   isLoaded,
 }: {
@@ -412,6 +529,7 @@ const StaticWorldLayer = memo(function StaticWorldLayer({
   countryPaths: CountryPath[];
   detailLevel: MapDetailLevel;
   graticulePath: string;
+  hoveredCountry: HoveredCountry | null;
   loadError: string | null;
   isLoaded: boolean;
 }) {
@@ -468,6 +586,16 @@ const StaticWorldLayer = memo(function StaticWorldLayer({
           vectorEffect="non-scaling-stroke"
         />
       ))}
+      {hoveredCountry && (
+        <path
+          d={hoveredCountry.d}
+          fill="rgba(86, 216, 255, 0.16)"
+          stroke="#9beaff"
+          strokeOpacity="0.7"
+          strokeWidth="1"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
       {detailLevel !== "base" && borderPath && (
         <path
           d={borderPath}
@@ -507,9 +635,9 @@ const CityLayer = memo(function CityLayer({
         const [x, y] = projected;
         return (
           <g key={`${city.countryCode ?? "xx"}-${city.regionName ?? "region"}-${city.city ?? "city"}`}>
-            <circle cx={x} cy={y} r="2.4" fill="#2ad7ff" opacity={0.48} />
+            <circle cx={x} cy={y} r="1.8" fill="#2ad7ff" opacity={0.42} />
             {detailLevel === "labels" && (
-              <text x={x + 6} y={y - 4} fill="#83ddff" fontSize="10" opacity={0.72}>
+              <text x={x + 5} y={y - 4} fill="#83ddff" fontSize="8" opacity={0.62}>
                 {city.city ?? city.regionName ?? city.countryCode ?? "Unknown"}
               </text>
             )}
@@ -520,23 +648,151 @@ const CityLayer = memo(function CityLayer({
   );
 });
 
+function drawRealtimePoint(
+  context: CanvasRenderingContext2D,
+  point: LivePoint,
+  projection: ReturnType<typeof geoNaturalEarth1>,
+  view: ViewTransform,
+  canvasWidth: number,
+  canvasHeight: number,
+  now: number,
+) {
+  const projected = projection([point.longitude, point.latitude]);
+  if (!projected) return;
+
+  const [projectedX, projectedY] = projected;
+  const x = ((projectedX * view.scale + view.x) / MAP_WIDTH) * canvasWidth;
+  const y = ((projectedY * view.scale + view.y) / MAP_HEIGHT) * canvasHeight;
+  if (x < -32 || x > canvasWidth + 32 || y < -32 || y > canvasHeight + 32) return;
+
+  const meta = ACTIVITY_META[point.activity] ?? ACTIVITY_META.interaction;
+  const age = pointAge(point, now);
+  const opacity = pointOpacity(point, now);
+  const flashOpacity = Math.max(0, 1 - age / FLASH_MS);
+  const pulseActive = age <= FLASH_MS + PULSE_MS || point.persistent;
+  const pulseAge = point.persistent ? age : Math.max(0, age - FLASH_MS * 0.35);
+  const pulseRamp = Math.min(1, Math.max(0, pulseAge / 900));
+  const coreRadius = 4.7;
+
+  context.save();
+  context.globalCompositeOperation = "lighter";
+
+  if (flashOpacity > 0) {
+    context.globalAlpha = flashOpacity * 0.28 * opacity;
+    context.strokeStyle = meta.color;
+    context.lineWidth = 1;
+    context.beginPath();
+    context.arc(x, y, 9 + flashOpacity * 6, 0, Math.PI * 2);
+    context.stroke();
+  }
+
+  if (pulseActive && pulseRamp > 0) {
+    const progress = (pulseAge / PULSE_CYCLE_MS) % 1;
+    drawPulseWave(context, x, y, meta.color, progress, opacity * pulseRamp);
+  }
+
+  context.shadowBlur = 0;
+  context.globalAlpha = 0.3 * opacity;
+  context.fillStyle = meta.color;
+  context.beginPath();
+  context.arc(x, y, coreRadius, 0, Math.PI * 2);
+  context.fill();
+
+  context.globalAlpha = opacity;
+  context.strokeStyle = meta.color;
+  context.lineWidth = 1;
+  context.beginPath();
+  context.arc(x, y, coreRadius, 0, Math.PI * 2);
+  context.stroke();
+
+  context.restore();
+}
+
+const RealtimePointCanvas = memo(function RealtimePointCanvas({
+  points,
+  projection,
+  viewRef,
+}: {
+  points: LivePoint[];
+  projection: ReturnType<typeof geoNaturalEarth1> | null;
+  viewRef: { current: ViewTransform };
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pointsRef = useRef(points);
+  const projectionRef = useRef(projection);
+
+  useEffect(() => {
+    pointsRef.current = points;
+  }, [points]);
+
+  useEffect(() => {
+    projectionRef.current = projection;
+  }, [projection]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const context = canvas.getContext("2d", { alpha: true });
+    if (!context) return;
+
+    let animationFrame = 0;
+
+    const draw = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(1, Math.round(rect.width));
+      const height = Math.max(1, Math.round(rect.height));
+      const pixelWidth = Math.round(width * dpr);
+      const pixelHeight = Math.round(height * dpr);
+
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+      }
+
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      context.clearRect(0, 0, width, height);
+
+      const currentProjection = projectionRef.current;
+      if (currentProjection) {
+        const currentPoints = pointsRef.current;
+        const currentView = viewRef.current;
+        const currentNow = Date.now();
+        for (const point of currentPoints) {
+          drawRealtimePoint(context, point, currentProjection, currentView, width, height, currentNow);
+        }
+      }
+
+      animationFrame = window.requestAnimationFrame(draw);
+    };
+
+    animationFrame = window.requestAnimationFrame(draw);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [viewRef]);
+
+  return <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 size-full" />;
+});
+
 function RealtimeWorldMap({
   cities,
-  now,
   points,
   resetSignal,
 }: {
   cities: GeoLocationSummary[];
-  now: number;
   points: LivePoint[];
   resetSignal: number;
 }) {
   const initialViewRef = useRef<ViewTransform>(readPersistedMapView());
   const animationFrameRef = useRef<number | null>(null);
   const [detailLevel, setDetailLevel] = useState<MapDetailLevel>(() => mapDetailLevel(initialViewRef.current.scale));
+  const [hoveredCountry, setHoveredCountry] = useState<HoveredCountry | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const frameRef = useRef<number | null>(null);
   const hasResetSignalMountedRef = useRef(false);
+  const hoverFrameRef = useRef<number | null>(null);
+  const hoverPointerRef = useRef<{ clientX: number; clientY: number } | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapLayerRef = useRef<SVGGElement | null>(null);
   const persistTimerRef = useRef<number | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -559,10 +815,15 @@ function RealtimeWorldMap({
     return mapGeometry.countries.features
       .map((country: Feature<Geometry, CountryProperties>, index) => ({
         d: path(country),
-        key: country.properties.isoA3 || country.properties.isoA2 || country.properties.name || `country-${index}`,
-        name: country.properties.name,
+        feature: country,
+        key:
+          cleanCountryText(country.properties.isoA3) ||
+          cleanCountryText(country.properties.isoA2) ||
+          cleanCountryText(country.properties.name) ||
+          `country-${index}`,
+        name: cleanCountryText(country.properties.name),
       }))
-      .filter((country): country is { d: string; key: string; name: string } => typeof country.d === "string");
+      .filter((country): country is CountryPath => typeof country.d === "string");
   }, [mapGeometry, path]);
   const borderPath = useMemo(() => (mapGeometry && path ? (path(mapGeometry.borders) ?? "") : ""), [mapGeometry, path]);
   const graticulePaths = useMemo(() => {
@@ -615,6 +876,7 @@ function RealtimeWorldMap({
     () => () => {
       if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      if (hoverFrameRef.current !== null) window.cancelAnimationFrame(hoverFrameRef.current);
       if (persistTimerRef.current !== null) window.clearTimeout(persistTimerRef.current);
     },
     [],
@@ -623,6 +885,61 @@ function RealtimeWorldMap({
   useEffect(() => {
     applyTransform(viewRef.current);
   }, [applyTransform]);
+
+  const scheduleCountryHover = useCallback(
+    (event: PointerEvent<SVGSVGElement>) => {
+      if (!projection) return;
+      hoverPointerRef.current = { clientX: event.clientX, clientY: event.clientY };
+      if (hoverFrameRef.current !== null) return;
+
+      hoverFrameRef.current = window.requestAnimationFrame(() => {
+        hoverFrameRef.current = null;
+
+        const pointer = hoverPointerRef.current;
+        const svg = svgRef.current;
+        const container = mapContainerRef.current;
+        if (!pointer || !svg || !container || !projection.invert) return;
+
+        const svgRect = svg.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const rawX = ((pointer.clientX - svgRect.left) / svgRect.width) * MAP_WIDTH;
+        const rawY = ((pointer.clientY - svgRect.top) / svgRect.height) * MAP_HEIGHT;
+        const view = viewRef.current;
+        const mapX = (rawX - view.x) / view.scale;
+        const mapY = (rawY - view.y) / view.scale;
+        const coordinates = projection.invert([mapX, mapY]);
+
+        if (!coordinates) {
+          setHoveredCountry(null);
+          return;
+        }
+
+        const country = countryPaths.find((candidate) => geoContains(candidate.feature, coordinates));
+        if (!country) {
+          setHoveredCountry(null);
+          return;
+        }
+
+        setHoveredCountry({
+          d: country.d,
+          key: country.key,
+          name: country.name,
+          x: Math.min(Math.max(pointer.clientX - containerRect.left + 14, 8), Math.max(8, containerRect.width - 180)),
+          y: Math.min(Math.max(pointer.clientY - containerRect.top + 14, 8), Math.max(8, containerRect.height - 36)),
+        });
+      });
+    },
+    [countryPaths, projection],
+  );
+
+  const clearCountryHover = useCallback(() => {
+    hoverPointerRef.current = null;
+    if (hoverFrameRef.current !== null) {
+      window.cancelAnimationFrame(hoverFrameRef.current);
+      hoverFrameRef.current = null;
+    }
+    setHoveredCountry(null);
+  }, []);
 
   useEffect(() => {
     if (resetSignal === 0 && !hasResetSignalMountedRef.current) {
@@ -659,25 +976,32 @@ function RealtimeWorldMap({
     animationFrameRef.current = window.requestAnimationFrame(tick);
   }, [applyTransform, resetSignal]);
 
-  const handlePointerDown = useCallback((event: PointerEvent<SVGSVGElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const currentView = viewRef.current;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: currentView.x,
-      originY: currentView.y,
-      unitsPerPixelX: MAP_WIDTH / rect.width,
-      unitsPerPixelY: MAP_HEIGHT / rect.height,
-    };
-  }, []);
+  const handlePointerDown = useCallback(
+    (event: PointerEvent<SVGSVGElement>) => {
+      clearCountryHover();
+      const rect = event.currentTarget.getBoundingClientRect();
+      const currentView = viewRef.current;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: currentView.x,
+        originY: currentView.y,
+        unitsPerPixelX: MAP_WIDTH / rect.width,
+        unitsPerPixelY: MAP_HEIGHT / rect.height,
+      };
+    },
+    [clearCountryHover],
+  );
 
   const handlePointerMove = useCallback(
     (event: PointerEvent<SVGSVGElement>) => {
       const drag = dragRef.current;
-      if (!drag || drag.pointerId !== event.pointerId) return;
+      if (!drag || drag.pointerId !== event.pointerId) {
+        scheduleCountryHover(event);
+        return;
+      }
       const currentView = viewRef.current;
       scheduleTransformUpdate({
         ...currentView,
@@ -685,16 +1009,20 @@ function RealtimeWorldMap({
         y: drag.originY + (event.clientY - drag.startY) * drag.unitsPerPixelY,
       });
     },
-    [scheduleTransformUpdate],
+    [scheduleCountryHover, scheduleTransformUpdate],
   );
 
-  const handlePointerUp = useCallback((event: PointerEvent<SVGSVGElement>) => {
-    if (dragRef.current?.pointerId === event.pointerId) {
-      dragRef.current = null;
-      event.currentTarget.releasePointerCapture(event.pointerId);
-      persistMapView(viewRef.current);
-    }
-  }, []);
+  const handlePointerUp = useCallback(
+    (event: PointerEvent<SVGSVGElement>) => {
+      if (dragRef.current?.pointerId === event.pointerId) {
+        dragRef.current = null;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        persistMapView(viewRef.current);
+        scheduleCountryHover(event);
+      }
+    },
+    [scheduleCountryHover],
+  );
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -726,7 +1054,10 @@ function RealtimeWorldMap({
   }, [scheduleTransformUpdate]);
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-[#1e8cff66] bg-[#020a12] shadow-[0_0_36px_rgba(31,139,255,0.18)_inset]">
+    <div
+      ref={mapContainerRef}
+      className="relative overflow-hidden rounded-lg border border-[#1e8cff66] bg-[#020a12] shadow-[0_0_36px_rgba(31,139,255,0.18)_inset]"
+    >
       <svg
         ref={svgRef}
         viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
@@ -736,16 +1067,10 @@ function RealtimeWorldMap({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerCancel={handlePointerUp}
+        onPointerLeave={clearCountryHover}
         onPointerUp={handlePointerUp}
       >
         <defs>
-          <filter id="vfdGlow">
-            <feGaussianBlur stdDeviation="2.2" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
           <radialGradient id="mapVignette" cx="50%" cy="50%" r="68%">
             <stop offset="0%" stopColor="#05213a" stopOpacity="0.42" />
             <stop offset="70%" stopColor="#020a12" stopOpacity="0.24" />
@@ -759,60 +1084,11 @@ function RealtimeWorldMap({
             countryPaths={countryPaths}
             detailLevel={detailLevel}
             graticulePath={graticulePaths ? graticulePaths[detailLevel] : ""}
+            hoveredCountry={hoveredCountry}
             loadError={mapLoadError}
             isLoaded={Boolean(mapGeometry)}
           />
           <CityLayer cities={cities} detailLevel={detailLevel} projection={projection} />
-          {points.map((point) => {
-            if (!projection) return null;
-            const projected = projection([point.longitude, point.latitude]);
-            if (!projected) return null;
-            const [x, y] = projected;
-            const meta = ACTIVITY_META[point.activity] ?? ACTIVITY_META.interaction;
-            const age = pointAge(point, now);
-            const opacity = pointOpacity(point, now);
-            const flash = age <= FLASH_MS;
-            const pulse = age <= FLASH_MS + PULSE_MS;
-            const radius = flash ? 8 : pulse ? 4.8 + Math.sin(now / 280) * 1.4 : 3.5;
-            return (
-              <g key={point.id} opacity={opacity}>
-                {flash && (
-                  <circle
-                    cx={x}
-                    cy={y}
-                    r={18}
-                    fill="none"
-                    stroke={meta.color}
-                    strokeWidth={1.4}
-                    opacity={0.95}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                )}
-                {pulse && (
-                  <circle
-                    cx={x}
-                    cy={y}
-                    r={radius + 8}
-                    fill="none"
-                    stroke={meta.color}
-                    strokeWidth={0.8}
-                    opacity={0.36}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                )}
-                <circle
-                  cx={x}
-                  cy={y}
-                  r={radius}
-                  fill={meta.color}
-                  stroke="#dff8ff"
-                  strokeWidth={0.7}
-                  filter="url(#vfdGlow)"
-                  vectorEffect="non-scaling-stroke"
-                />
-              </g>
-            );
-          })}
         </g>
         <g opacity="0.78">
           <rect x="18" y="18" width="176" height="32" fill="rgba(2,10,18,0.72)" stroke="#1e8cff66" />
@@ -828,6 +1104,15 @@ function RealtimeWorldMap({
           </text>
         </g>
       </svg>
+      <RealtimePointCanvas points={points} projection={projection} viewRef={viewRef} />
+      {hoveredCountry && (
+        <div
+          className="pointer-events-none absolute z-10 rounded border border-[#56d8ff66] bg-[#03111bcc] px-2 py-1 font-mono text-[11px] text-[#aeefff] shadow-[0_0_18px_rgba(86,216,255,0.2)]"
+          style={{ left: hoveredCountry.x, top: hoveredCountry.y }}
+        >
+          {hoveredCountry.name}
+        </div>
+      )}
       <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(to_bottom,rgba(125,220,255,0.06)_0,rgba(125,220,255,0.06)_1px,transparent_1px,transparent_5px)] mix-blend-screen" />
     </div>
   );
@@ -973,6 +1258,8 @@ export function WebsiteAnalyticsRealtimePage() {
   const [points, setPoints] = useState<LivePoint[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [mapResetSignal, setMapResetSignal] = useState(0);
+  const devLocationPoint = useDevLocationPoint();
+  const devLocationReceivedAtRef = useRef(Date.now() - FLASH_MS);
   const geoQuery = useQuery({
     queryKey: ["website-analytics-geo-realtime"],
     queryFn: () =>
@@ -1010,7 +1297,11 @@ export function WebsiteAnalyticsRealtimePage() {
     }, []),
   );
 
-  const visiblePoints = useMemo(() => points.filter((point) => pointOpacity(point, now) > 0), [now, points]);
+  const visiblePoints = useMemo(() => {
+    const activePoints = points.filter((point) => pointOpacity(point, now) > 0);
+    if (!devLocationPoint) return activePoints;
+    return [{ ...devLocationPoint, persistent: true, receivedAt: devLocationReceivedAtRef.current }, ...activePoints];
+  }, [devLocationPoint, now, points]);
   const coverage = geoQuery.data?.coverage;
   const cities = geoQuery.data?.cities ?? [];
   const countries = geoQuery.data?.countries ?? [];
@@ -1043,7 +1334,7 @@ export function WebsiteAnalyticsRealtimePage() {
               }
             />
             <DashboardSection.Body className="gap-3">
-              <RealtimeWorldMap cities={cities} now={now} points={visiblePoints} resetSignal={mapResetSignal} />
+              <RealtimeWorldMap cities={cities} points={visiblePoints} resetSignal={mapResetSignal} />
               <ActivityLegend />
             </DashboardSection.Body>
           </DashboardSection>
