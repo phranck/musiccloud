@@ -377,22 +377,27 @@ function useWebsiteAnalyticsRealtimeStream(onPoint: (point: GeoPoint) => void) {
 
 function useWorldMapGeometry() {
   const [geometry, setGeometry] = useState<WorldMapGeometry | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     loadWorldMapGeometry()
       .then((loadedGeometry) => {
-        if (active) setGeometry(loadedGeometry);
+        if (!active) return;
+        setGeometry(loadedGeometry);
+        setError(null);
       })
-      .catch(() => {
-        if (active) setGeometry(null);
+      .catch((error: unknown) => {
+        if (!active) return;
+        setGeometry(null);
+        setError(error instanceof Error ? error.message : "Failed to load world map data");
       });
     return () => {
       active = false;
     };
   }, []);
 
-  return geometry;
+  return { error, geometry };
 }
 
 const StaticWorldLayer = memo(function StaticWorldLayer({
@@ -400,12 +405,14 @@ const StaticWorldLayer = memo(function StaticWorldLayer({
   countryPaths,
   detailLevel,
   graticulePath,
+  loadError,
   isLoaded,
 }: {
   borderPath: string;
   countryPaths: CountryPath[];
   detailLevel: MapDetailLevel;
   graticulePath: string;
+  loadError: string | null;
   isLoaded: boolean;
 }) {
   return (
@@ -418,7 +425,7 @@ const StaticWorldLayer = memo(function StaticWorldLayer({
         strokeWidth="0.7"
         vectorEffect="non-scaling-stroke"
       />
-      {!isLoaded && (
+      {!isLoaded && !loadError && (
         <text
           x={MAP_WIDTH / 2}
           y={MAP_HEIGHT / 2}
@@ -429,6 +436,22 @@ const StaticWorldLayer = memo(function StaticWorldLayer({
           textAnchor="middle"
         >
           LOADING MAP DATA
+        </text>
+      )}
+      {!isLoaded && loadError && (
+        <text
+          x={MAP_WIDTH / 2}
+          y={MAP_HEIGHT / 2}
+          fill="#fff177"
+          fontSize="14"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+          opacity="0.86"
+          textAnchor="middle"
+        >
+          <tspan x={MAP_WIDTH / 2}>MAP DATA UNAVAILABLE</tspan>
+          <tspan x={MAP_WIDTH / 2} dy="22" fontSize="11" opacity="0.72">
+            {loadError}
+          </tspan>
         </text>
       )}
       {countryPaths.map((country) => (
@@ -519,7 +542,7 @@ function RealtimeWorldMap({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const viewRef = useRef<ViewTransform>(initialViewRef.current);
   const zoomTextRef = useRef<SVGTextElement | null>(null);
-  const mapGeometry = useWorldMapGeometry();
+  const { error: mapLoadError, geometry: mapGeometry } = useWorldMapGeometry();
   const projection = useMemo(() => {
     if (!mapGeometry) return null;
     return geoNaturalEarth1().fitExtent(
@@ -736,6 +759,7 @@ function RealtimeWorldMap({
             countryPaths={countryPaths}
             detailLevel={detailLevel}
             graticulePath={graticulePaths ? graticulePaths[detailLevel] : ""}
+            loadError={mapLoadError}
             isLoaded={Boolean(mapGeometry)}
           />
           <CityLayer cities={cities} detailLevel={detailLevel} projection={projection} />

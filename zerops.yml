@@ -120,6 +120,7 @@ zerops:
         - fonts
         - icons
         - img
+        - map-data
         - favicon.ico
         - favicon.png
         - manifest.json
