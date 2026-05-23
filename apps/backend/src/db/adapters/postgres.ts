@@ -67,6 +67,9 @@ import type {
   WebsiteAnalyticsDrilldownParams,
   WebsiteAnalyticsEventInput,
   WebsiteAnalyticsExport,
+  WebsiteAnalyticsGeoActivity,
+  WebsiteAnalyticsGeoOverview,
+  WebsiteAnalyticsGeoParams,
   WebsiteAnalyticsOverview,
   WebsiteAnalyticsPathEvent,
   WebsiteAnalyticsRetentionPolicy,
@@ -139,6 +142,55 @@ interface WebsiteAnalyticsPathEventRow {
   subject_title: string | null;
   subject_artist: string | null;
   subject_artwork_url: string | null;
+}
+
+interface WebsiteAnalyticsGeoPointRow {
+  id: string;
+  occurred_at: Date | string;
+  event_type: string;
+  activity: WebsiteAnalyticsGeoActivity;
+  geo_latitude: number | string | null;
+  geo_longitude: number | string | null;
+  geo_accuracy_radius_km: number | string | null;
+  geo_country_code: string | null;
+  geo_region_code: string | null;
+  geo_region_name: string | null;
+  geo_city: string | null;
+  path: string | null;
+  route_template: string | null;
+  surface: string | null;
+  element_key: string | null;
+  device_class: string | null;
+  is_bot: boolean | null;
+}
+
+interface WebsiteAnalyticsGeoCountryRow {
+  country_code: string | null;
+  events: number | string | null;
+  clusters: number | string | null;
+  cities: number | string | null;
+  latitude: number | string | null;
+  longitude: number | string | null;
+  last_seen_at: Date | string;
+}
+
+interface WebsiteAnalyticsGeoLocationRow {
+  country_code: string | null;
+  region_code: string | null;
+  region_name: string | null;
+  city: string | null;
+  latitude: number | string | null;
+  longitude: number | string | null;
+  events: number | string | null;
+  clusters: number | string | null;
+  last_seen_at: Date | string;
+}
+
+interface WebsiteAnalyticsGeoCoverageRow {
+  total_events: number | string | null;
+  geolocated_events: number | string | null;
+  countries: number | string | null;
+  latest_database_build_at: Date | string | null;
 }
 
 interface WebsiteAnalyticsSearchDescriptorRow {
@@ -237,6 +289,16 @@ const WEBSITE_ANALYTICS_INTERACTION_EVENT_TYPES = [
   "layered_footer_clicked",
   "ui_click",
 ] as const;
+
+const WEBSITE_ANALYTICS_ACTIVITY_SQL = `CASE
+  WHEN COALESCE(e.is_bot, false) THEN 'bot'
+  WHEN e.event_type = 'page_view' THEN 'page_view'
+  WHEN e.event_type = 'search_submitted' THEN 'search'
+  WHEN e.event_type LIKE 'resolve_%' THEN 'resolve'
+  WHEN e.event_type = 'listen_on_clicked' THEN 'listen'
+  WHEN e.event_type LIKE 'player_%' THEN 'player'
+  ELSE 'interaction'
+END`;
 
 interface WebsiteAnalyticsSessionSummaryRow {
   session_id: string;
@@ -824,6 +886,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     comparison?: { since: Date; until: Date },
   ): Promise<WebsiteAnalyticsOverview> {
     return getWebsiteAnalyticsOverview(this.pool, since, comparison);
+  }
+
+  async getWebsiteAnalyticsGeo(params: WebsiteAnalyticsGeoParams): Promise<WebsiteAnalyticsGeoOverview> {
+    return getWebsiteAnalyticsGeo(this.pool, params);
   }
 
   async getWebsiteAnalyticsDrilldown(params: WebsiteAnalyticsDrilldownParams): Promise<WebsiteAnalyticsDrilldown> {
@@ -5297,6 +5363,156 @@ function rowToWebsiteAnalyticsSearchDescriptor(
 
 function dateToIso(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : String(value);
+}
+
+function nullableNumber(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function rowToWebsiteAnalyticsGeoPoint(row: WebsiteAnalyticsGeoPointRow) {
+  return {
+    id: row.id,
+    occurredAt: dateToIso(row.occurred_at),
+    eventType: row.event_type,
+    activity: row.activity,
+    latitude: Number(row.geo_latitude),
+    longitude: Number(row.geo_longitude),
+    accuracyRadiusKm: nullableNumber(row.geo_accuracy_radius_km),
+    countryCode: row.geo_country_code,
+    regionCode: row.geo_region_code,
+    regionName: row.geo_region_name,
+    city: row.geo_city,
+    path: row.path,
+    routeTemplate: row.route_template,
+    surface: row.surface,
+    elementKey: row.element_key,
+    deviceClass: row.device_class,
+    isBot: Boolean(row.is_bot),
+  };
+}
+
+async function getWebsiteAnalyticsGeo(
+  pool: InstanceType<typeof pgModule.default.Pool>,
+  params: WebsiteAnalyticsGeoParams,
+): Promise<WebsiteAnalyticsGeoOverview> {
+  const [coverage, countries, cities, recent] = await Promise.all([
+    pool.query<WebsiteAnalyticsGeoCoverageRow>(
+      `SELECT
+        COUNT(*)::int AS total_events,
+        COUNT(*) FILTER (WHERE geo_latitude IS NOT NULL AND geo_longitude IS NOT NULL)::int AS geolocated_events,
+        COUNT(DISTINCT geo_country_code) FILTER (WHERE geo_country_code IS NOT NULL)::int AS countries,
+        MAX(geo_database_build_at) AS latest_database_build_at
+       FROM analytics_events
+       WHERE occurred_at >= $1
+         AND COALESCE(is_bot, false) = false`,
+      [params.since],
+    ),
+    pool.query<WebsiteAnalyticsGeoCountryRow>(
+      `SELECT
+        geo_country_code AS country_code,
+        COUNT(*)::int AS events,
+        COUNT(DISTINCT network_cluster_key)::int AS clusters,
+        COUNT(DISTINCT COALESCE(NULLIF(geo_city, ''), NULLIF(geo_region_name, ''), geo_country_code))::int AS cities,
+        AVG(geo_latitude)::float8 AS latitude,
+        AVG(geo_longitude)::float8 AS longitude,
+        MAX(occurred_at) AS last_seen_at
+       FROM analytics_events
+       WHERE occurred_at >= $1
+         AND COALESCE(is_bot, false) = false
+         AND geo_latitude IS NOT NULL
+         AND geo_longitude IS NOT NULL
+       GROUP BY geo_country_code
+       ORDER BY events DESC, clusters DESC, country_code ASC NULLS LAST
+       LIMIT 20`,
+      [params.since],
+    ),
+    pool.query<WebsiteAnalyticsGeoLocationRow>(
+      `SELECT
+        geo_country_code AS country_code,
+        geo_region_code AS region_code,
+        geo_region_name AS region_name,
+        geo_city AS city,
+        AVG(geo_latitude)::float8 AS latitude,
+        AVG(geo_longitude)::float8 AS longitude,
+        COUNT(*)::int AS events,
+        COUNT(DISTINCT network_cluster_key)::int AS clusters,
+        MAX(occurred_at) AS last_seen_at
+       FROM analytics_events
+       WHERE occurred_at >= $1
+         AND COALESCE(is_bot, false) = false
+         AND geo_latitude IS NOT NULL
+         AND geo_longitude IS NOT NULL
+       GROUP BY geo_country_code, geo_region_code, geo_region_name, geo_city
+       ORDER BY events DESC, clusters DESC, last_seen_at DESC
+       LIMIT 80`,
+      [params.since],
+    ),
+    pool.query<WebsiteAnalyticsGeoPointRow>(
+      `SELECT
+        e.id::text,
+        e.occurred_at,
+        e.event_type,
+        ${WEBSITE_ANALYTICS_ACTIVITY_SQL} AS activity,
+        e.geo_latitude,
+        e.geo_longitude,
+        e.geo_accuracy_radius_km,
+        e.geo_country_code,
+        e.geo_region_code,
+        e.geo_region_name,
+        e.geo_city,
+        e.path,
+        e.route_template,
+        e.surface,
+        e.element_key,
+        e.device_class,
+        e.is_bot
+       FROM analytics_events e
+       WHERE e.occurred_at >= $1
+         AND e.occurred_at >= $2
+         AND COALESCE(e.is_bot, false) = false
+         AND e.geo_latitude IS NOT NULL
+         AND e.geo_longitude IS NOT NULL
+       ORDER BY e.occurred_at DESC
+       LIMIT $3::int`,
+      [params.since, params.realtimeSince, params.limit],
+    ),
+  ]);
+
+  const coverageRow = coverage.rows[0];
+  return {
+    generatedAt: new Date().toISOString(),
+    since: params.since.toISOString(),
+    realtimeSince: params.realtimeSince.toISOString(),
+    coverage: {
+      totalEvents: Number(coverageRow?.total_events ?? 0),
+      geolocatedEvents: Number(coverageRow?.geolocated_events ?? 0),
+      countries: Number(coverageRow?.countries ?? 0),
+      latestDatabaseBuildAt: coverageRow?.latest_database_build_at ? dateToIso(coverageRow.latest_database_build_at) : null,
+    },
+    countries: countries.rows.map((row) => ({
+      countryCode: row.country_code,
+      events: Number(row.events ?? 0),
+      clusters: Number(row.clusters ?? 0),
+      cities: Number(row.cities ?? 0),
+      latitude: nullableNumber(row.latitude),
+      longitude: nullableNumber(row.longitude),
+      lastSeenAt: dateToIso(row.last_seen_at),
+    })),
+    cities: cities.rows.map((row) => ({
+      countryCode: row.country_code,
+      regionCode: row.region_code,
+      regionName: row.region_name,
+      city: row.city,
+      latitude: Number(row.latitude),
+      longitude: Number(row.longitude),
+      events: Number(row.events ?? 0),
+      clusters: Number(row.clusters ?? 0),
+      lastSeenAt: dateToIso(row.last_seen_at),
+    })),
+    recent: recent.rows.map(rowToWebsiteAnalyticsGeoPoint),
+  };
 }
 
 function websiteAnalyticsFilterSql(

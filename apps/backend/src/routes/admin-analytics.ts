@@ -84,6 +84,12 @@ function periodSince(period: string | undefined): Date {
   return periodWindow(period).since;
 }
 
+function clampNumber(value: string | undefined, fallback: number, min: number, max: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(parsed)));
+}
+
 export default async function adminAnalyticsRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.analytics.stats, async (request) => {
     const q = request.query as { period?: string };
@@ -183,6 +189,17 @@ export default async function adminAnalyticsRoutes(app: FastifyInstance) {
     const payload = await repo.exportWebsiteAnalytics(periodSince(q.period));
     reply.header("Content-Disposition", `attachment; filename="website-analytics-${q.period ?? "7d"}.json"`);
     return payload;
+  });
+
+  app.get(ENDPOINTS.admin.analytics.website.geo, async (request) => {
+    const q = request.query as { period?: string; realtimeMinutes?: string; limit?: string };
+    const repo = await getRepository();
+    const realtimeMinutes = clampNumber(q.realtimeMinutes, 5, 1, 60);
+    return repo.getWebsiteAnalyticsGeo({
+      since: periodSince(q.period),
+      realtimeSince: new Date(Date.now() - realtimeMinutes * 60 * 1000),
+      limit: clampNumber(q.limit, 250, 10, 500),
+    });
   });
 
   app.get(ENDPOINTS.admin.analytics.website.retention, async () => ({

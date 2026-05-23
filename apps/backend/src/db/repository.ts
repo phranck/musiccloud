@@ -480,6 +480,7 @@ export interface TrackRepository {
     since: Date,
     comparison?: { since: Date; until: Date },
   ): Promise<WebsiteAnalyticsOverview>;
+  getWebsiteAnalyticsGeo(params: WebsiteAnalyticsGeoParams): Promise<WebsiteAnalyticsGeoOverview>;
   getWebsiteAnalyticsDrilldown(params: WebsiteAnalyticsDrilldownParams): Promise<WebsiteAnalyticsDrilldown>;
   exportWebsiteAnalytics(since: Date): Promise<WebsiteAnalyticsExport>;
   runWebsiteAnalyticsRetention(now: Date): Promise<WebsiteAnalyticsRetentionResult>;
@@ -720,6 +721,78 @@ export interface WebsiteAnalyticsPathEvent {
   label: string | null;
   eventData: Record<string, unknown> | null;
   subject: WebsiteAnalyticsEventSubject | null;
+}
+
+export type WebsiteAnalyticsGeoActivity =
+  | "page_view"
+  | "search"
+  | "resolve"
+  | "listen"
+  | "player"
+  | "interaction"
+  | "bot";
+
+export interface WebsiteAnalyticsGeoParams {
+  since: Date;
+  realtimeSince: Date;
+  limit: number;
+}
+
+export interface WebsiteAnalyticsGeoPoint {
+  id: string;
+  occurredAt: string;
+  eventType: string;
+  activity: WebsiteAnalyticsGeoActivity;
+  latitude: number;
+  longitude: number;
+  accuracyRadiusKm: number | null;
+  countryCode: string | null;
+  regionCode: string | null;
+  regionName: string | null;
+  city: string | null;
+  path: string | null;
+  routeTemplate: string | null;
+  surface: string | null;
+  elementKey: string | null;
+  deviceClass: string | null;
+  isBot: boolean;
+}
+
+export interface WebsiteAnalyticsGeoLocationSummary {
+  countryCode: string | null;
+  regionCode: string | null;
+  regionName: string | null;
+  city: string | null;
+  latitude: number;
+  longitude: number;
+  events: number;
+  clusters: number;
+  lastSeenAt: string;
+}
+
+export interface WebsiteAnalyticsGeoCountrySummary {
+  countryCode: string | null;
+  events: number;
+  clusters: number;
+  cities: number;
+  latitude: number | null;
+  longitude: number | null;
+  lastSeenAt: string;
+}
+
+export interface WebsiteAnalyticsGeoOverview {
+  generatedAt: string;
+  since: string;
+  realtimeSince: string;
+  coverage: {
+    totalEvents: number;
+    geolocatedEvents: number;
+    countries: number;
+    latestDatabaseBuildAt: string | null;
+  };
+  countries: WebsiteAnalyticsGeoCountrySummary[];
+  cities: WebsiteAnalyticsGeoLocationSummary[];
+  recent: WebsiteAnalyticsGeoPoint[];
 }
 
 export interface WebsiteAnalyticsDrilldownParams {

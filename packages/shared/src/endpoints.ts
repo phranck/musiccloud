@@ -278,6 +278,8 @@ export const ENDPOINTS = {
         detail: "/api/admin/analytics/website/detail",
         /** GET: JSON export for first-party website analytics. */
         export: "/api/admin/analytics/website/export",
+        /** GET: location summaries and recent Geo-IP points for first-party website analytics. */
+        geo: "/api/admin/analytics/website/geo",
         /** GET/POST: retention policy and manual cleanup run. */
         retention: "/api/admin/analytics/website/retention",
         /** GET: realtime SSE stream for first-party website Geo-IP events. */
