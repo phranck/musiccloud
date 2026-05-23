@@ -42,7 +42,10 @@ export interface WebsiteAnalyticsRealtimeEventData {
   isBot: boolean;
 }
 
-export type WebsiteAnalyticsRealtimeEvent = TypedEvent<"website-analytics-geo-event", WebsiteAnalyticsRealtimeEventData>;
+export type WebsiteAnalyticsRealtimeEvent = TypedEvent<
+  "website-analytics-geo-event",
+  WebsiteAnalyticsRealtimeEventData
+>;
 
 type Listener<TEvent> = (event: TEvent) => void;
 

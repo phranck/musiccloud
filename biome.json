@@ -42,6 +42,7 @@
       "!apps/Apple",
       "!apps/backend/src/db/migrations",
       "!apps/backend/src/scripts",
+      "!apps/dashboard/public/map-data",
       "!apps/frontend/src/styles",
       "!**/.pi",
       "!**/.pi-lens",

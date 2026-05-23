@@ -5489,7 +5489,9 @@ async function getWebsiteAnalyticsGeo(
       totalEvents: Number(coverageRow?.total_events ?? 0),
       geolocatedEvents: Number(coverageRow?.geolocated_events ?? 0),
       countries: Number(coverageRow?.countries ?? 0),
-      latestDatabaseBuildAt: coverageRow?.latest_database_build_at ? dateToIso(coverageRow.latest_database_build_at) : null,
+      latestDatabaseBuildAt: coverageRow?.latest_database_build_at
+        ? dateToIso(coverageRow.latest_database_build_at)
+        : null,
     },
     countries: countries.rows.map((row) => ({
       countryCode: row.country_code,

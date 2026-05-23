@@ -12,7 +12,11 @@
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { adminEventBroadcaster, type TypedEvent, websiteAnalyticsRealtimeBroadcaster } from "../lib/event-broadcaster.js";
+import {
+  adminEventBroadcaster,
+  type TypedEvent,
+  websiteAnalyticsRealtimeBroadcaster,
+} from "../lib/event-broadcaster.js";
 
 type SseBroadcaster<TEvent extends TypedEvent<string, object>> = {
   subscribe(fn: (event: TEvent) => void): () => void;
