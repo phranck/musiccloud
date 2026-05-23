@@ -47,6 +47,7 @@ export interface WebsiteAnalyticsEventRequest {
   deviceClass?: string | null;
   browserFamily?: string | null;
   osFamily?: string | null;
+  deviceModel?: string | null;
   platform?: string | null;
   mediaType?: string | null;
   shortId?: string | null;
@@ -137,7 +138,8 @@ function ipPrefix(rawIp: string): string {
  * prefix and a daily rotating period. This is pseudonymisation, not
  * anonymisation. Do not replace this with plain SHA hashing and do not add
  * browser fingerprinting signals such as canvas, fonts, plugins or audio
- * probes.
+ * probes. Optional device model data is accepted only from standard browser
+ * Client Hints and may be null when browsers withhold it.
  */
 export function deriveNetworkClusterKey(rawIp: string, occurredAt: Date, secret: string): string {
   return `wnc_${hmacKey(secret, "network-cluster", `${utcDay(occurredAt)}:${ipPrefix(rawIp)}`).slice(0, 40)}`;
@@ -209,6 +211,7 @@ export async function ingestWebsiteAnalyticsBatch(
       deviceClass: trimText(event.deviceClass, 32),
       browserFamily: trimText(event.browserFamily, 64),
       osFamily: trimText(event.osFamily, 64),
+      deviceModel: trimText(event.deviceModel, 96),
       platform: trimText(event.platform, 64),
       mediaType: trimText(event.mediaType, 32),
       shortId: trimText(event.shortId, 64),

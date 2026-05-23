@@ -33,6 +33,7 @@ interface WebsiteAnalyticsEvent {
   deviceClass?: string | null;
   browserFamily?: string | null;
   osFamily?: string | null;
+  deviceModel?: string | null;
   platform?: string | null;
   mediaType?: string | null;
   shortId?: string | null;
@@ -53,6 +54,33 @@ declare global {
   }
 }
 
+interface UserAgentBrand {
+  brand: string;
+  version: string;
+}
+
+interface UserAgentDataLike {
+  brands?: UserAgentBrand[];
+  mobile?: boolean;
+  platform?: string;
+  getHighEntropyValues?: (hints: string[]) => Promise<{
+    architecture?: string;
+    bitness?: string;
+    fullVersionList?: UserAgentBrand[];
+    mobile?: boolean;
+    model?: string;
+    platform?: string;
+    platformVersion?: string;
+  }>;
+}
+
+interface DeviceProfile {
+  browserFamily: string;
+  deviceClass: string;
+  deviceModel: string | null;
+  osFamily: string;
+}
+
 const SESSION_KEY = "mc:analytics:session";
 const VISITOR_KEY = "mc:analytics:visitor";
 const FLUSH_DELAY_MS = 1200;
@@ -60,6 +88,8 @@ const MAX_BATCH_SIZE = 20;
 
 let queue: WebsiteAnalyticsEvent[] = [];
 let flushTimer: number | null = null;
+let deviceProfile: DeviceProfile | null = null;
+let deviceProfilePromise: Promise<DeviceProfile> | null = null;
 
 function trackingEnabled(): boolean {
   return ((import.meta.env.TRACKING_ENABLED as string | undefined) ?? "true") === "true";
@@ -131,7 +161,25 @@ function viewportBucket(): ViewportBucket {
   return "desktop";
 }
 
-function browserFamily(): string {
+function userAgentData(): UserAgentDataLike | null {
+  return ((navigator as Navigator & { userAgentData?: UserAgentDataLike }).userAgentData ??
+    null) as UserAgentDataLike | null;
+}
+
+function brandBrowserFamily(brands: UserAgentBrand[] | undefined): string | null {
+  const brandNames = (brands ?? []).map((brand) => brand.brand.toLowerCase());
+  if (brandNames.some((brand) => brand.includes("edge"))) return "edge";
+  if (brandNames.some((brand) => brand.includes("chrome"))) return "chrome";
+  if (brandNames.some((brand) => brand.includes("chromium"))) return "chromium";
+  if (brandNames.some((brand) => brand.includes("safari"))) return "safari";
+  if (brandNames.some((brand) => brand.includes("firefox"))) return "firefox";
+  return null;
+}
+
+function browserFamily(brands?: UserAgentBrand[]): string {
+  const hinted = brandBrowserFamily(brands ?? userAgentData()?.brands);
+  if (hinted) return hinted;
+
   const ua = navigator.userAgent;
   if (/Edg\//.test(ua)) return "edge";
   if (/Chrome\//.test(ua) && !/Chromium\//.test(ua)) return "chrome";
@@ -140,9 +188,24 @@ function browserFamily(): string {
   return "unknown";
 }
 
-function osFamily(): string {
+function normalizePlatform(value: string | null | undefined): string | null {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "macos" || normalized === "mac os" || normalized === "macintel") return "macos";
+  if (normalized === "ios" || normalized === "iphone" || normalized === "ipad") return "ios";
+  if (normalized === "android") return "android";
+  if (normalized === "windows" || normalized === "win32" || normalized === "win64") return "windows";
+  if (normalized === "linux") return "linux";
+  return normalized.slice(0, 64);
+}
+
+function osFamily(platform?: string): string {
+  const hinted = normalizePlatform(platform ?? userAgentData()?.platform);
+  if (hinted) return hinted;
+
   const ua = navigator.userAgent;
   if (/iPhone|iPad|iPod/.test(ua)) return "ios";
+  if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return "ios";
   if (/Android/.test(ua)) return "android";
   if (/Mac OS X/.test(ua)) return "macos";
   if (/Windows/.test(ua)) return "windows";
@@ -150,16 +213,81 @@ function osFamily(): string {
   return "unknown";
 }
 
+function deviceClass(mobileHint?: boolean): string {
+  const ua = navigator.userAgent;
+  if (/iPad|Tablet/.test(ua)) return "tablet";
+  if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return "tablet";
+  if (/iPhone|iPod/.test(ua)) return "phone";
+  if (/Android/.test(ua) && !/Mobile/.test(ua)) return "tablet";
+  if (mobileHint === true || /Android.*Mobile/.test(ua)) return "phone";
+  return "desktop";
+}
+
+function normalizeDeviceModel(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed || /^unknown$/i.test(trimmed)) return null;
+  return trimmed.slice(0, 96);
+}
+
+function fallbackDeviceProfile(): DeviceProfile {
+  const uaData = userAgentData();
+  return {
+    browserFamily: browserFamily(),
+    deviceClass: deviceClass(uaData?.mobile),
+    deviceModel: null,
+    osFamily: osFamily(),
+  };
+}
+
+/**
+ * Best-effort device classification only. This deliberately uses browser-
+ * exposed UA data and Client Hints, not fingerprinting probes such as canvas,
+ * font, audio, plugin or WebGL entropy.
+ */
+function loadDeviceProfile(): Promise<DeviceProfile> {
+  if (deviceProfile) return Promise.resolve(deviceProfile);
+  if (deviceProfilePromise) return deviceProfilePromise;
+
+  const fallback = fallbackDeviceProfile();
+  const uaData = userAgentData();
+  deviceProfilePromise = uaData?.getHighEntropyValues
+    ? uaData
+        .getHighEntropyValues(["model", "platform", "fullVersionList"])
+        .then((hints) => ({
+          browserFamily: browserFamily(hints.fullVersionList),
+          deviceClass: deviceClass(hints.mobile ?? uaData.mobile),
+          deviceModel: normalizeDeviceModel(hints.model),
+          osFamily: osFamily(hints.platform),
+        }))
+        .catch(() => fallback)
+    : Promise.resolve(fallback);
+
+  return deviceProfilePromise.then((profile) => {
+    deviceProfile = profile;
+    return profile;
+  });
+}
+
+function currentDeviceProfile(): DeviceProfile {
+  return deviceProfile ?? fallbackDeviceProfile();
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 function baseEvent(eventType: WebsiteAnalyticsEventType): WebsiteAnalyticsEvent {
+  const profile = currentDeviceProfile();
   return {
     occurredAt: new Date().toISOString(),
     eventType,
     path: window.location.pathname,
     routeTemplate: routeTemplate(),
     referrerDomain: safeDomain(document.referrer),
-    deviceClass: viewportBucket(),
-    browserFamily: browserFamily(),
-    osFamily: osFamily(),
+    deviceClass: profile.deviceClass,
+    browserFamily: profile.browserFamily,
+    osFamily: profile.osFamily,
+    deviceModel: profile.deviceModel,
     shortId: currentShortId(),
     viewportBucket: viewportBucket(),
   };
@@ -228,7 +356,8 @@ function enqueue(event: WebsiteAnalyticsEvent) {
 export function initWebsiteAnalytics() {
   if (typeof window === "undefined" || window.__musiccloudAnalyticsInitialized) return;
   window.__musiccloudAnalyticsInitialized = true;
-  trackPageView();
+  void loadDeviceProfile();
+  void Promise.race([loadDeviceProfile(), delay(250)]).then(() => trackPageView());
   document.addEventListener("click", trackElementClick, { passive: true });
   window.addEventListener("pagehide", () => flush(true));
 }

@@ -54,6 +54,7 @@ export default async function websiteAnalyticsRoutes(app: FastifyInstance) {
                   deviceClass: { type: ["string", "null"], maxLength: 32 },
                   browserFamily: { type: ["string", "null"], maxLength: 64 },
                   osFamily: { type: ["string", "null"], maxLength: 64 },
+                  deviceModel: { type: ["string", "null"], maxLength: 96 },
                   platform: { type: ["string", "null"], maxLength: 64 },
                   mediaType: { type: ["string", "null"], maxLength: 32 },
                   shortId: { type: ["string", "null"], maxLength: 64 },

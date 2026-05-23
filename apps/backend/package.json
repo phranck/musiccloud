@@ -7,8 +7,8 @@
     "build": "tsup && node scripts/copy-jimp-fonts.mjs",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "test": "VITE_CJS_IGNORE_WARNING=true vitest",
+    "test:run": "VITE_CJS_IGNORE_WARNING=true vitest run",
     "crawler:tick": "node dist/scripts/crawler-heartbeat.js"
   },
   "dependencies": {

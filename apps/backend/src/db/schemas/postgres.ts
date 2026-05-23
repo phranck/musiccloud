@@ -987,6 +987,7 @@ export const analyticsEvents = pgTable(
     deviceClass: text("device_class"),
     browserFamily: text("browser_family"),
     osFamily: text("os_family"),
+    deviceModel: text("device_model"),
     platform: text("platform"),
     mediaType: text("media_type"),
     shortId: text("short_id"),

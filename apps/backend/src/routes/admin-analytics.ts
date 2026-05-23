@@ -49,10 +49,38 @@ import {
   getManagedUmamiStats,
 } from "../services/admin-umami.js";
 
-function periodSince(period: string | undefined): Date {
+function periodWindow(period: string | undefined): {
+  comparison: { since: Date; until: Date };
+  since: Date;
+} {
   const now = Date.now();
-  const days = period === "today" ? 1 : period === "30d" ? 30 : period === "60d" ? 60 : period === "90d" ? 90 : 7;
-  return new Date(now - days * 24 * 60 * 60 * 1000);
+  if (period === "today") {
+    const since = new Date(now);
+    since.setHours(0, 0, 0, 0);
+    const elapsed = Math.max(0, now - since.getTime());
+    const comparisonSince = new Date(since.getTime() - 24 * 60 * 60 * 1000);
+    return {
+      since,
+      comparison: {
+        since: comparisonSince,
+        until: new Date(comparisonSince.getTime() + elapsed),
+      },
+    };
+  }
+
+  const days = period === "30d" ? 30 : period === "60d" ? 60 : period === "90d" ? 90 : 7;
+  const since = new Date(now - days * 24 * 60 * 60 * 1000);
+  return {
+    since,
+    comparison: {
+      since: new Date(since.getTime() - days * 24 * 60 * 60 * 1000),
+      until: since,
+    },
+  };
+}
+
+function periodSince(period: string | undefined): Date {
+  return periodWindow(period).since;
 }
 
 export default async function adminAnalyticsRoutes(app: FastifyInstance) {
@@ -132,8 +160,9 @@ export default async function adminAnalyticsRoutes(app: FastifyInstance) {
 
   app.get(ENDPOINTS.admin.analytics.website.overview, async (request) => {
     const q = request.query as { period?: string };
+    const window = periodWindow(q.period);
     const repo = await getRepository();
-    return repo.getWebsiteAnalyticsOverview(periodSince(q.period));
+    return repo.getWebsiteAnalyticsOverview(window.since, window.comparison);
   });
 
   app.get(ENDPOINTS.admin.analytics.website.detail, async (request) => {

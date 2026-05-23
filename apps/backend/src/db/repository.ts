@@ -476,7 +476,10 @@ export interface TrackRepository {
 
   // Website behaviour analytics (public website, pseudonymous)
   insertWebsiteAnalyticsBatch(batch: WebsiteAnalyticsBatchInput): Promise<number>;
-  getWebsiteAnalyticsOverview(since: Date): Promise<WebsiteAnalyticsOverview>;
+  getWebsiteAnalyticsOverview(
+    since: Date,
+    comparison?: { since: Date; until: Date },
+  ): Promise<WebsiteAnalyticsOverview>;
   getWebsiteAnalyticsDrilldown(params: WebsiteAnalyticsDrilldownParams): Promise<WebsiteAnalyticsDrilldown>;
   exportWebsiteAnalytics(since: Date): Promise<WebsiteAnalyticsExport>;
   runWebsiteAnalyticsRetention(now: Date): Promise<WebsiteAnalyticsRetentionResult>;
@@ -566,6 +569,7 @@ export interface WebsiteAnalyticsEventInput {
   deviceClass: string | null;
   browserFamily: string | null;
   osFamily: string | null;
+  deviceModel: string | null;
   platform: string | null;
   mediaType: string | null;
   shortId: string | null;
@@ -594,6 +598,7 @@ export interface WebsiteAnalyticsOverview {
     playerStarts: number;
     interactions: number;
   };
+  trends: Record<keyof WebsiteAnalyticsOverview["totals"], WebsiteAnalyticsTrend>;
   platforms: Array<{ platform: string; resolves: number }>;
   clusters: Array<{
     clusterKey: string;
@@ -610,14 +615,15 @@ export interface WebsiteAnalyticsOverview {
     pageviews: number;
     clusters: number;
   }>;
+  searchIntents: Array<{ intent: string; searches: number; clusters: number }>;
   interactions: Array<{ eventType: string; count: number }>;
   searches: Array<{ query: string; searches: number; clusters: number }>;
   recentEvents: WebsiteAnalyticsPathEvent[];
-  clickpath: {
-    cluster: string | null;
-    confidence: string | null;
-    events: WebsiteAnalyticsPathEvent[];
-  };
+}
+
+export interface WebsiteAnalyticsTrend {
+  change: number | null;
+  status: "changed" | "new" | "none";
 }
 
 export interface WebsiteAnalyticsEventSubject {
@@ -642,6 +648,7 @@ export interface WebsiteAnalyticsPathEvent {
   deviceClass: string | null;
   browserFamily: string | null;
   osFamily: string | null;
+  deviceModel: string | null;
   surface: string | null;
   platform: string | null;
   mediaType: string | null;
@@ -668,6 +675,7 @@ export interface WebsiteAnalyticsDeviceSummary {
   deviceClass: string | null;
   browserFamily: string | null;
   osFamily: string | null;
+  deviceModel: string | null;
 }
 
 export interface WebsiteAnalyticsSessionSummary {

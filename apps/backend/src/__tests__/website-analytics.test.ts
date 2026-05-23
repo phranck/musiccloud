@@ -27,6 +27,10 @@ function validBody(overrides: Record<string, unknown> = {}) {
         eventType: "ui_click",
         path: "/abc123",
         routeTemplate: "/:shortId",
+        deviceClass: "phone",
+        browserFamily: "chrome",
+        osFamily: "android",
+        deviceModel: "Pixel 9",
         surface: "share_card",
         elementKey: "listen_on.spotify",
         xPct: 42.5,
@@ -98,6 +102,7 @@ describe(`POST ${ENDPOINT}`, () => {
     expect(batch.session.id).toBe(SESSION_ID);
     expect(batch.session.deviceKey).toMatch(/^wdev_[a-f0-9]{40}$/);
     expect(batch.session.networkClusterKey).toMatch(/^wnc_[a-f0-9]{40}$/);
+    expect(batch.events[0].deviceModel).toBe("Pixel 9");
     expect(batch.events[0].eventData).toEqual({ service: "spotify" });
   });
 

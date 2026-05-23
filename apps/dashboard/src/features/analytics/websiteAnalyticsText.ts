@@ -1,7 +1,6 @@
 import type { DashboardLocale } from "@/i18n/messages";
 
 export interface WebsiteCopy {
-  badge: string;
   loading: string;
   noData: string;
   directTraffic: string;
@@ -11,36 +10,14 @@ export interface WebsiteCopy {
   retention: string;
   retentionDone: string;
   clearSelection: string;
-  selectedScope: string;
-  flowLabels: {
-    automatic: string;
-    canvasLarge: string;
-    canvasMax: string;
-    canvasNormal: string;
-    household: string;
-    device: string;
-    session: string;
-    showFlow: string;
-  };
+  selectEventsHint: string;
+  trendNew: string;
   scopeLabels: {
-    overview: string;
-    cluster: string;
-    device: string;
     session: string;
   };
   inspectorLabels: {
     event: string;
-    cluster: string;
-    confidence: string;
-    session: string;
-    surface: string;
-    platform: string;
-    route: string;
-    referrer: string;
     device: string;
-    detail: string;
-    subject: string;
-    occurredAt: string;
   };
   eventLabels: Record<string, string>;
   identifierLabels: Record<string, string>;
@@ -58,19 +35,19 @@ export interface WebsiteCopy {
     playerStarts: string;
   };
   sections: {
+    overview: string;
     funnel: string;
+    searchIntents: string;
     households: string;
     referrers: string;
-    clickpath: string;
-    drilldown: string;
     deviceDrilldown: string;
     sessionDrilldown: string;
-    inspector: string;
+    selectionEvents: string;
     interactions: string;
     searches: string;
-    timeline: string;
   };
   columns: {
+    intent: string;
     platform: string;
     route: string;
     resolves: string;
@@ -79,146 +56,134 @@ export interface WebsiteCopy {
     confidence: string;
     devices: string;
     searches: string;
-    query: string;
-    event: string;
-    count: string;
     clusters: string;
     sessions: string;
     events: string;
     pageviews: string;
-    firstSeen: string;
+    detail: string;
     entry: string;
     exit: string;
+    occurredAt: string;
     sourceWebsite: string;
   };
-  pathHint: string;
 }
 
 const COPY: Record<DashboardLocale, WebsiteCopy> = {
   de: {
-    badge: "First-party Website Analytics",
-    loading: "Lade echte Website-Analytics...",
-    noData: "Noch keine Daten im gewaehlten Zeitraum.",
+    loading: "Lade Website-Analytics...",
+    noData: "Noch keine Daten im gewählten Zeitraum.",
     directTraffic: "Direkt / keine Website",
     topQuery: "Top-Suche",
     lastSeen: "Zuletzt",
     exportJson: "JSON exportieren",
-    retention: "Retention ausfuehren",
-    retentionDone: "Retention abgeschlossen",
-    clearSelection: "Auswahl loeschen",
-    selectedScope: "Aktive Auswahl",
-    flowLabels: {
-      automatic: "Automatisch: aktivster Haushalt",
-      canvasLarge: "Gross",
-      canvasMax: "Max",
-      canvasNormal: "Normal",
-      household: "Flow fuer Haushalt",
-      device: "Flow fuer Geraet",
-      session: "Flow fuer Session",
-      showFlow: "Flow anzeigen",
-    },
+    retention: "Aufbewahrung bereinigen",
+    retentionDone: "Aufbewahrung bereinigt",
+    clearSelection: "Auswahl löschen",
+    selectEventsHint: "Wähle einen Haushalt, ein Gerät oder eine Sitzung, um die zugehörigen Ereignisse zu sehen.",
+    trendNew: "Neu",
     scopeLabels: {
-      overview: "Uebersicht",
-      cluster: "Haushalt",
-      device: "Geraet",
-      session: "Session",
+      session: "Sitzung",
     },
     inspectorLabels: {
-      event: "Event",
-      cluster: "Haushalt",
-      confidence: "Sicherheit",
-      session: "Session",
-      surface: "Bereich",
-      platform: "Musikquelle",
-      route: "Route",
-      referrer: "Quelle",
-      device: "Geraet",
-      detail: "Detail",
-      subject: "Inhalt",
-      occurredAt: "Zeitpunkt",
+      event: "Ereignis",
+      device: "Gerät",
     },
     eventLabels: {
       page_view: "Seitenaufruf",
-      browser_back_forward: "History-Navigation",
-      browser_navigate: "Seite geoeffnet",
+      browser_back_forward: "Browser-Historie",
+      browser_navigate: "Seite geöffnet",
       browser_reload: "Seite neu geladen",
       close: "Geschlossen",
       drag: "Verschoben",
       overlay_close: "Overlay geschlossen",
       overlay_drag: "Overlay verschoben",
-      overlay_resize: "Overlay-Groesse geaendert",
-      resize: "Groesse geaendert",
+      overlay_resize: "Overlay-Größe geändert",
+      resize: "Größe geändert",
       segment: "Unterseite",
       segment_clicked: "Unterseite geklickt",
       search_submitted: "Suche gesendet",
       resolve_started: "Ergebnis gesucht",
       resolve_succeeded: "Ergebnis gefunden",
       resolve_failed: "Ergebnis nicht gefunden",
-      listen_on_clicked: "Listen-On geklickt",
-      similar_artist_clicked: "Aehnlicher Artist geklickt",
-      popular_track_clicked: "Popular Track geklickt",
-      upcoming_event_clicked: "Upcoming Event geklickt",
+      listen_on_clicked: "Streaming-Link geklickt",
+      similar_artist_clicked: "Ähnlicher Künstler geklickt",
+      popular_track_clicked: "Beliebter Track geklickt",
+      upcoming_event_clicked: "Anstehendes Ereignis geklickt",
       player_started: "Player gestartet",
       player_paused: "Player pausiert",
       player_resumed: "Player fortgesetzt",
       player_completed: "Player beendet",
-      player_unavailable: "Player nicht verfuegbar",
+      player_unavailable: "Player nicht verfügbar",
       info_page_clicked: "Info-Seite geklickt",
-      help_page_clicked: "Help-Seite geklickt",
+      help_page_clicked: "Hilfeseite geklickt",
       live_example_clicked: "Live-Beispiel geklickt",
-      layered_footer_clicked: "LAYERED-Footer geklickt",
+      layered_footer_clicked: "LAYERED-Fußzeile geklickt",
       ui_click: "UI-Klick",
     },
     identifierLabels: {
-      artist_panel: "Artist Panel",
-      content_body: "Content",
-      content_links: "Links / CTAs",
-      disambiguation_selected_candidate: "Suchergebnis ausgewaehlt",
-      embed_card: "Embed Card",
+      artist_panel: "Künstlerbereich",
+      content_body: "Inhalt",
+      content_links: "Links / Aktionen",
+      android: "Android",
+      chrome: "Chrome",
+      chromium: "Chromium",
+      desktop: "Desktop",
+      disambiguation_selected_candidate: "Suchergebnis ausgewählt",
+      edge: "Edge",
+      embed_card: "Einbettungskarte",
       fallback_action: "Fallback-Aktion",
       filters: "Filter",
-      footer: "Footer",
+      footer: "Fußzeile",
+      firefox: "Firefox",
       genre_columns: "Genre-Spalten",
       genre_query: "Genre-Suche",
       genre_results: "Genre-Ergebnisse",
-      header_nav: "Header Navigation",
-      help_page: "Help-Seite",
-      hero: "Hero",
+      header_nav: "Kopfnavigation",
+      help_page: "Hilfeseite",
+      hero: "Hero-Bereich",
       info_page: "Info-Seite",
+      ios: "iOS",
       landing: "Landingpage",
       landing_example: "Landing-Beispiel",
-      layered_footer: "LAYERED-Footer",
+      layered_footer: "LAYERED-Fußzeile",
+      linux: "Linux",
       live_example: "Live-Beispiel",
-      listen_on: "Listen-On",
+      listen_on: "Streaming-Links",
       logo: "Logo",
       logo_home: "Logo zur Startseite",
+      macos: "macOS",
       nav_link: "Navigation",
       overlay: "Overlay",
-      overlay_card: "Overlay Card",
-      overlay_content: "Overlay Content",
-      overlay_nav: "Overlay Navigation",
-      overlay_panel: "Overlay Panel",
-      media_card: "Media Card + Player",
+      overlay_card: "Overlay-Karte",
+      overlay_content: "Overlay-Inhalt",
+      overlay_nav: "Overlay-Navigation",
+      overlay_panel: "Overlay-Bedienfeld",
+      media_card: "Medienkarte + Player",
       page_title: "Seitentitel",
+      phone: "Smartphone",
       player: "Player",
-      popular_track: "Popular Track",
-      popular_tracks: "Popular Tracks",
-      redirect_status: "Redirect-Status",
+      popular_track: "Beliebter Track",
+      popular_tracks: "Beliebte Tracks",
+      redirect_status: "Weiterleitungsstatus",
       results: "Suchergebnis / Kandidaten",
       search_input: "Sucheingabe",
-      selected_candidate: "Suchergebnis ausgewaehlt",
-      share_card: "Share Card",
-      similar_artist: "Similar Artist",
-      similar_artists: "Similar Artists",
+      selected_candidate: "Suchergebnis ausgewählt",
+      share_card: "Teilen-Karte",
+      safari: "Safari",
+      similar_artist: "Ähnlicher Künstler",
+      similar_artists: "Ähnliche Künstler",
       genre_search_submitted: "Genre-Suche gesendet",
-      streaming_url_submitted: "Streaming URL gesendet",
+      text_search_submitted: "Freitextsuche gesendet",
+      streaming_url_submitted: "Streaming-URL gesendet",
       text_results: "Suchergebnisse",
       track_context_not_stored: "Track nicht gespeichert",
-      system_menu: "Systemmenue",
-      upcoming_event: "Upcoming Event",
-      upcoming_events: "Upcoming Events",
+      system_menu: "Systemmenü",
+      tablet: "Tablet",
+      upcoming_event: "Anstehendes Ereignis",
+      upcoming_events: "Anstehende Ereignisse",
       ui: "UI",
       unknown: "Unbekannt",
+      windows: "Windows",
     },
     confidenceLabels: {
       low: "Niedrig",
@@ -227,61 +192,56 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
     },
     routeLabels: {
       "/": "Landingpage",
-      "/:shortId": "Sharepage",
-      "/content/:slug": "Info-/Help-Seite",
-      "/embed/:shortId": "Embed",
-      "/link/:id": "Link-Redirect",
+      "/:shortId": "Share-Seite",
+      "/content/:slug": "Info-/Hilfeseite",
+      "/embed/:shortId": "Einbettung",
+      "/link/:id": "Link-Weiterleitung",
     },
     kpis: {
       clusters: "Haushalte",
-      devices: "Geraete",
-      sessions: "Sessions",
-      pageviews: "Pageviews",
+      devices: "Geräte",
+      sessions: "Sitzungen",
+      pageviews: "Seitenaufrufe",
       searches: "Suchen",
       resolves: "Erfolgreiche Suchen",
-      listenOn: "Listen-On Klicks",
+      listenOn: "Streaming-Link-Klicks",
       interactions: "Interaktionen",
-      playerStarts: "Player Starts",
+      playerStarts: "Player-Starts",
     },
     sections: {
+      overview: "Nutzung im Zeitraum",
       funnel: "Erfolgreiche Suchen nach Musikquelle",
-      households: "Geschaetzte Haushalte",
+      searchIntents: "Such-Intents",
+      households: "Geschätzte Haushalte",
       referrers: "Website-Quellen",
-      clickpath: "Clickpath Flow",
-      drilldown: "Auswahl",
-      deviceDrilldown: "Geraete",
-      sessionDrilldown: "Sessions",
-      inspector: "Node-Inspector",
+      deviceDrilldown: "Geräte",
+      sessionDrilldown: "Sitzungen",
+      selectionEvents: "Ereignisse der Auswahl",
       interactions: "Interaktionen",
       searches: "Suchbegriffe",
-      timeline: "Letzte Events",
     },
     columns: {
+      intent: "Intent",
       platform: "Musikquelle",
-      route: "Route",
+      route: "Seite",
       resolves: "Erfolgreiche Suchen",
       share: "Anteil",
       household: "Haushalt",
       confidence: "Sicherheit",
-      devices: "Geraete",
+      devices: "Geräte",
       searches: "Suchen",
-      query: "Suchbegriff",
-      event: "Event",
-      count: "Anzahl",
       clusters: "Haushalte",
-      sessions: "Sessions",
-      events: "Events",
-      pageviews: "Pageviews",
-      firstSeen: "Erster Besuch",
-      entry: "Entry",
-      exit: "Exit",
+      sessions: "Sitzungen",
+      events: "Ereignisse",
+      pageviews: "Seitenaufrufe",
+      detail: "Detail",
+      entry: "Einstieg",
+      exit: "Ausstieg",
+      occurredAt: "Zeitpunkt",
       sourceWebsite: "Website",
     },
-    pathHint:
-      "Zeilen in Haushalte, Geraete oder Sessions waehlen den Flow-Kontext. Ohne Auswahl wird der aktivste Haushalt im Zeitraum verwendet.",
   },
   en: {
-    badge: "First-party Website Analytics",
     loading: "Loading real website analytics...",
     noData: "No data in the selected period yet.",
     directTraffic: "Direct / no website",
@@ -291,36 +251,14 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
     retention: "Run retention",
     retentionDone: "Retention completed",
     clearSelection: "Clear selection",
-    selectedScope: "Active selection",
-    flowLabels: {
-      automatic: "Automatic: most active household",
-      canvasLarge: "Large",
-      canvasMax: "Max",
-      canvasNormal: "Normal",
-      household: "Flow for household",
-      device: "Flow for device",
-      session: "Flow for session",
-      showFlow: "Show flow",
-    },
+    selectEventsHint: "Select a household, device or session to inspect its related events.",
+    trendNew: "New",
     scopeLabels: {
-      overview: "Overview",
-      cluster: "Household",
-      device: "Device",
       session: "Session",
     },
     inspectorLabels: {
       event: "Event",
-      cluster: "Household",
-      confidence: "Confidence",
-      session: "Session",
-      surface: "Surface",
-      platform: "Music Source",
-      route: "Route",
-      referrer: "Source",
       device: "Device",
-      detail: "Detail",
-      subject: "Content",
-      occurredAt: "Timestamp",
     },
     eventLabels: {
       page_view: "Page View",
@@ -358,11 +296,17 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       artist_panel: "Artist Panel",
       content_body: "Content",
       content_links: "Links / CTAs",
+      android: "Android",
+      chrome: "Chrome",
+      chromium: "Chromium",
+      desktop: "Desktop",
       disambiguation_selected_candidate: "Search Result Selected",
+      edge: "Edge",
       embed_card: "Embed Card",
       fallback_action: "Fallback Action",
       filters: "Filters",
       footer: "Footer",
+      firefox: "Firefox",
       genre_columns: "Genre Columns",
       genre_query: "Genre Search",
       genre_results: "Genre Results",
@@ -370,13 +314,16 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       help_page: "Help Page",
       hero: "Hero",
       info_page: "Info Page",
+      ios: "iOS",
       landing: "Landing Page",
       landing_example: "Landing Example",
       layered_footer: "LAYERED Footer",
+      linux: "Linux",
       live_example: "Live Example",
       listen_on: "Listen-On",
       logo: "Logo",
       logo_home: "Logo to Home",
+      macos: "macOS",
       nav_link: "Navigation",
       overlay: "Overlay",
       overlay_card: "Overlay Card",
@@ -385,6 +332,7 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       overlay_panel: "Overlay Panel",
       media_card: "Media Card + Player",
       page_title: "Page Title",
+      phone: "Phone",
       player: "Player",
       popular_track: "Popular Track",
       popular_tracks: "Popular Tracks",
@@ -393,17 +341,21 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       search_input: "Search Input",
       selected_candidate: "Search Result Selected",
       share_card: "Share Card",
+      safari: "Safari",
       similar_artist: "Similar Artist",
       similar_artists: "Similar Artists",
       genre_search_submitted: "Genre Search Submitted",
+      text_search_submitted: "Text Search Submitted",
       streaming_url_submitted: "Streaming URL Submitted",
       text_results: "Search Results",
       track_context_not_stored: "Track not stored",
       system_menu: "System Menu",
+      tablet: "Tablet",
       upcoming_event: "Upcoming Event",
       upcoming_events: "Upcoming Events",
       ui: "UI",
       unknown: "Unknown",
+      windows: "Windows",
     },
     confidenceLabels: {
       low: "Low",
@@ -429,19 +381,19 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       playerStarts: "Player Starts",
     },
     sections: {
+      overview: "Usage in Period",
       funnel: "Successful Lookups by Music Source",
+      searchIntents: "Search Intents",
       households: "Estimated Households",
       referrers: "Website Sources",
-      clickpath: "Clickpath Flow",
-      drilldown: "Selection",
       deviceDrilldown: "Devices",
       sessionDrilldown: "Sessions",
-      inspector: "Node Inspector",
+      selectionEvents: "Selection Events",
       interactions: "Interactions",
       searches: "Search Terms",
-      timeline: "Recent Events",
     },
     columns: {
+      intent: "Intent",
       platform: "Music Source",
       route: "Route",
       resolves: "Successful Lookups",
@@ -450,20 +402,16 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       confidence: "Confidence",
       devices: "Devices",
       searches: "Searches",
-      query: "Query",
-      event: "Event",
-      count: "Count",
       clusters: "Households",
       sessions: "Sessions",
       events: "Events",
       pageviews: "Pageviews",
-      firstSeen: "First seen",
+      detail: "Detail",
       entry: "Entry",
       exit: "Exit",
+      occurredAt: "Timestamp",
       sourceWebsite: "Website",
     },
-    pathHint:
-      "Rows in households, devices or sessions select the flow context. Without a selection, the most active household in the period is used.",
   },
 };
 

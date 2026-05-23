@@ -1,11 +1,7 @@
-import { Background, Controls, type Edge, type Node, type NodeMouseHandler, Position, ReactFlow } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
-import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 import {
   ChartLineIcon,
   ClockCounterClockwiseIcon,
   DownloadIcon,
-  FlowArrowIcon,
   FunnelIcon,
   ListBulletsIcon,
   MagnifyingGlassIcon,
@@ -14,13 +10,11 @@ import {
   TrashIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
-import { type ReactNode, type PointerEvent as ReactPointerEvent, useCallback, useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import type { DashboardLocale } from "@/i18n/messages";
-import { PlatformIcon } from "@/shared/ui/PlatformIcon";
 import { formatNaturalText, getWebsiteAnalyticsCopy, type WebsiteCopy } from "./websiteAnalyticsText";
 
 interface WebsiteAnalyticsSectionProps {
@@ -57,6 +51,7 @@ export interface WebsiteAnalyticsPathEvent {
   deviceClass: string | null;
   browserFamily: string | null;
   osFamily: string | null;
+  deviceModel: string | null;
   surface: string | null;
   platform: string | null;
   mediaType: string | null;
@@ -84,6 +79,7 @@ export interface WebsiteAnalyticsOverview {
     playerStarts: number;
     interactions: number;
   };
+  trends: Record<keyof WebsiteAnalyticsOverview["totals"], WebsiteAnalyticsTrend>;
   platforms: Array<{ platform: string; resolves: number }>;
   clusters: Array<{
     clusterKey: string;
@@ -100,14 +96,15 @@ export interface WebsiteAnalyticsOverview {
     pageviews: number;
     clusters: number;
   }>;
+  searchIntents: Array<{ intent: string; searches: number; clusters: number }>;
   interactions: Array<{ eventType: string; count: number }>;
   searches: Array<{ query: string; searches: number; clusters: number }>;
   recentEvents: WebsiteAnalyticsPathEvent[];
-  clickpath: {
-    cluster: string | null;
-    confidence: string | null;
-    events: WebsiteAnalyticsPathEvent[];
-  };
+}
+
+interface WebsiteAnalyticsTrend {
+  change: number | null;
+  status: "changed" | "new" | "none";
 }
 
 export interface WebsiteAnalyticsDeviceSummary {
@@ -119,6 +116,7 @@ export interface WebsiteAnalyticsDeviceSummary {
   deviceClass: string | null;
   browserFamily: string | null;
   osFamily: string | null;
+  deviceModel: string | null;
 }
 
 export interface WebsiteAnalyticsSessionSummary {
@@ -163,43 +161,6 @@ export interface WebsiteAnalyticsExport {
   drilldown: WebsiteAnalyticsDrilldown;
 }
 
-type ClickpathCanvasSize = "normal" | "large" | "max";
-
-const CLICKPATH_CANVAS_SIZE_STORAGE_KEY = "website-analytics:clickpath-canvas-size";
-const CLICKPATH_CANVAS_HEIGHT_STORAGE_KEY = "website-analytics:clickpath-canvas-height";
-const CLICKPATH_CANVAS_HEIGHTS: Record<ClickpathCanvasSize, number> = {
-  normal: 640,
-  large: 880,
-  max: 1120,
-};
-const CLICKPATH_CANVAS_MIN_HEIGHT = 420;
-const CLICKPATH_CANVAS_MAX_HEIGHT = 1600;
-const FLOW_NODE_BASE_X = 380;
-const FLOW_NODE_WAVE_AMPLITUDE = 170;
-const FLOW_NODE_VERTICAL_GAP = 168;
-const CLICKPATH_INTERACTION_EVENT_TYPES = new Set([
-  "search_submitted",
-  "listen_on_clicked",
-  "similar_artist_clicked",
-  "popular_track_clicked",
-  "upcoming_event_clicked",
-  "player_started",
-  "player_paused",
-  "player_resumed",
-  "info_page_clicked",
-  "help_page_clicked",
-  "live_example_clicked",
-  "layered_footer_clicked",
-  "ui_click",
-]);
-
-interface ClickpathCanvasResizeState {
-  captureTarget: HTMLDivElement;
-  pointerId: number;
-  startHeight: number;
-  startY: number;
-}
-
 const TIME_FORMATTERS: Record<DashboardLocale, Intl.DateTimeFormat> = {
   de: new Intl.DateTimeFormat("de-DE", {
     hour: "2-digit",
@@ -234,11 +195,74 @@ const EMPTY_TOTALS: WebsiteAnalyticsOverview["totals"] = {
   interactions: 0,
 };
 
-function WebsiteKpiCard({ label, value }: { label: string; value: string }) {
+const EMPTY_TRENDS: WebsiteAnalyticsOverview["trends"] = {
+  clusters: { change: null, status: "none" },
+  devices: { change: null, status: "none" },
+  sessions: { change: null, status: "none" },
+  pageviews: { change: null, status: "none" },
+  searches: { change: null, status: "none" },
+  resolves: { change: null, status: "none" },
+  listenOn: { change: null, status: "none" },
+  playerStarts: { change: null, status: "none" },
+  interactions: { change: null, status: "none" },
+};
+
+function formatTrendValue(change: number): string {
+  const abs = Math.abs(change);
+  if (abs >= 100) return `${Math.round(abs)}%`;
+  if (abs >= 10) return `${abs.toFixed(1)}%`;
+  return `${abs.toFixed(2)}%`;
+}
+
+function WebsiteKpiCard({
+  copy,
+  label,
+  trend,
+  value,
+}: {
+  copy: WebsiteCopy;
+  label: string;
+  trend: WebsiteAnalyticsTrend;
+  value: string;
+}) {
+  const trendText =
+    trend.status === "new"
+      ? copy.trendNew
+      : trend.status === "changed" && trend.change !== null
+        ? formatTrendValue(trend.change)
+        : "—";
+  const trendArrow =
+    trend.status === "new"
+      ? "↑"
+      : trend.status === "changed" && trend.change !== null
+        ? trend.change >= 0
+          ? "↑"
+          : "↓"
+        : "→";
+  const trendIsPositive =
+    trend.status === "new" || (trend.status === "changed" && trend.change !== null && trend.change > 0);
+  const trendIsNegative = trend.status === "changed" && trend.change !== null && trend.change < 0;
+  const trendTone = trendIsPositive
+    ? "bg-[var(--ds-badge-success-bg)] text-[var(--ds-badge-success-text)]"
+    : trendIsNegative
+      ? "bg-[var(--ds-badge-danger-bg)] text-[var(--ds-badge-danger-text)]"
+      : "bg-[var(--ds-bg-elevated)] text-[var(--ds-text-subtle)]";
+
   return (
-    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface)] p-4 shadow-sm">
-      <p className="min-w-0 truncate text-sm text-[var(--ds-text-subtle)]">{label}</p>
-      <p className="text-right text-3xl font-semibold tabular-nums text-[var(--ds-text)]">{value}</p>
+    <div
+      className="min-w-0 rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface)] px-4 py-2.5 shadow-sm"
+      style={{ containerType: "inline-size" }}
+    >
+      <p className="mb-1 truncate text-sm text-[var(--ds-text-subtle)]">{label}</p>
+      <div className="kpi-layout">
+        <p className="kpi-value min-w-0 whitespace-nowrap text-2xl font-semibold text-[var(--ds-text)]">{value}</p>
+        <p
+          className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold tabular-nums ${trendTone}`}
+        >
+          <span aria-hidden="true">{trendArrow}</span>
+          <span>{trendText}</span>
+        </p>
+      </div>
     </div>
   );
 }
@@ -277,7 +301,7 @@ function formatDeviceMeta(
 }
 
 function formatDeviceSummaryLabel(device: WebsiteAnalyticsDeviceSummary, copy: WebsiteCopy) {
-  return formatDeviceMeta([device.deviceClass, device.osFamily, device.browserFamily], copy, {
+  return formatDeviceMeta([device.deviceModel, device.deviceClass, device.osFamily, device.browserFamily], copy, {
     fallback: device.label,
   });
 }
@@ -287,26 +311,20 @@ function eventDataString(event: WebsiteAnalyticsPathEvent, key: string) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function serviceId(value: string | null | undefined): ServiceId | null {
-  return value && value in PLATFORM_CONFIG ? (value as ServiceId) : null;
-}
-
-function searchEventTitle(event: WebsiteAnalyticsPathEvent, copy: WebsiteCopy) {
-  const queryType = eventDataString(event, "query_type");
-  if (queryType === "url") return formatNaturalText("streaming_url_submitted", copy);
-  if (queryType === "genre") return formatNaturalText("genre_search_submitted", copy);
-  return formatEventType(event.eventType, copy);
+function eventSubjectDetail(event: WebsiteAnalyticsPathEvent) {
+  if (!event.subject) return null;
+  return event.subject.artist ? `${event.subject.title} - ${event.subject.artist}` : event.subject.title;
 }
 
 function eventDetail(event: WebsiteAnalyticsPathEvent, copy: WebsiteCopy) {
-  if (shouldShowEventSubject(event)) {
-    const subject = event.subject;
-    return subject.artist ? `${subject.title} - ${subject.artist}` : subject.title;
-  }
-
   if (event.eventType === "search_submitted") {
     const queryType = eventDataString(event, "query_type");
-    if (queryType === "url") return event.platform ? formatNaturalText(event.platform, copy) : "-";
+    if (queryType === "url") {
+      return event.platform
+        ? `${formatNaturalText("streaming_url_submitted", copy)}: ${formatNaturalText(event.platform, copy)}`
+        : formatNaturalText("streaming_url_submitted", copy);
+    }
+    if (queryType === "genre") return eventDataString(event, "query_normalized") ?? formatNaturalText("genre", copy);
     return eventDataString(event, "query_normalized") ?? "-";
   }
 
@@ -319,30 +337,15 @@ function eventDetail(event: WebsiteAnalyticsPathEvent, copy: WebsiteCopy) {
   if (
     (event.eventType === "popular_track_clicked" || event.eventType === "similar_artist_clicked") &&
     !label &&
+    !event.subject &&
     !event.platform
   ) {
     return formatNaturalText("track_context_not_stored", copy);
   }
 
-  const detail = label ?? event.platform ?? event.surface ?? event.routeTemplate ?? event.path;
+  const detail =
+    eventSubjectDetail(event) ?? label ?? event.platform ?? event.surface ?? event.routeTemplate ?? event.path;
   return detail ? formatNaturalText(detail, copy) : formatEventType(event.eventType, copy);
-}
-
-function isDedicatedEventDuplicate(event: WebsiteAnalyticsPathEvent) {
-  if (event.eventType !== "ui_click") return false;
-  const elementKey = event.elementKey ?? "";
-  return (
-    elementKey.startsWith("listen_on.") ||
-    elementKey === "artist.popular_tracks" ||
-    elementKey === "artist.similar_artists" ||
-    elementKey === "artist.upcoming_event"
-  );
-}
-
-function eventSubjectLabel(event: WebsiteAnalyticsPathEvent, copy: WebsiteCopy) {
-  if (!shouldShowEventSubject(event)) return eventDetail(event, copy);
-  const subject = event.subject;
-  return subject.artist ? `${subject.title} - ${subject.artist}` : subject.title;
 }
 
 function formatReferrer(value: string | null | undefined, copy: WebsiteCopy) {
@@ -354,82 +357,49 @@ function formatRoute(value: string | null | undefined, copy: WebsiteCopy) {
   return copy.routeLabels[value] ?? formatNaturalText(value, copy);
 }
 
-function flowNodePosition(index: number) {
-  return {
-    x: FLOW_NODE_BASE_X + Math.round(Math.sin(index * 0.92) * FLOW_NODE_WAVE_AMPLITUDE),
-    y: index * FLOW_NODE_VERTICAL_GAP,
-  };
+function formatSearchIntent(value: string, copy: WebsiteCopy) {
+  if (value === "url") return formatNaturalText("streaming_url_submitted", copy);
+  if (value === "text") return formatNaturalText("text_search_submitted", copy);
+  if (value === "genre") return formatNaturalText("genre_search_submitted", copy);
+  return formatNaturalText(value, copy);
 }
 
-function isClickpathInteraction(event: WebsiteAnalyticsPathEvent) {
-  if (isDedicatedEventDuplicate(event)) return false;
-  return CLICKPATH_INTERACTION_EVENT_TYPES.has(event.eventType);
-}
-
-function shouldShowEventSubject(
-  event: WebsiteAnalyticsPathEvent,
-): event is WebsiteAnalyticsPathEvent & { subject: NonNullable<WebsiteAnalyticsPathEvent["subject"]> } {
-  if (!event.subject) return false;
-  return [
-    "search_submitted",
-    "player_started",
-    "player_paused",
-    "player_resumed",
-    "player_completed",
-    "player_unavailable",
-  ].includes(event.eventType);
-}
-
-function getCanvasSizeOptions(copy: WebsiteCopy) {
-  return [
-    { value: "normal" as const, label: copy.flowLabels.canvasNormal },
-    { value: "large" as const, label: copy.flowLabels.canvasLarge },
-    { value: "max" as const, label: copy.flowLabels.canvasMax },
-  ];
-}
-
-function clampCanvasHeight(value: number) {
-  return Math.max(CLICKPATH_CANVAS_MIN_HEIGHT, Math.min(CLICKPATH_CANVAS_MAX_HEIGHT, Math.round(value)));
-}
-
-function loadStoredCanvasHeight() {
-  if (typeof window === "undefined") return CLICKPATH_CANVAS_HEIGHTS.normal;
-  try {
-    const raw = window.localStorage.getItem(CLICKPATH_CANVAS_HEIGHT_STORAGE_KEY);
-    if (!raw) return CLICKPATH_CANVAS_HEIGHTS.normal;
-    const parsed: unknown = JSON.parse(raw);
-    return typeof parsed === "number" && Number.isFinite(parsed)
-      ? clampCanvasHeight(parsed)
-      : CLICKPATH_CANVAS_HEIGHTS.normal;
-  } catch {
-    return CLICKPATH_CANVAS_HEIGHTS.normal;
-  }
-}
-
-function loadStoredCanvasSize(): ClickpathCanvasSize {
-  if (typeof window === "undefined") return "normal";
-  try {
-    const raw = window.localStorage.getItem(CLICKPATH_CANVAS_SIZE_STORAGE_KEY);
-    return raw === "normal" || raw === "large" || raw === "max" ? raw : "normal";
-  } catch {
-    return "normal";
-  }
-}
-
-function persistCanvasHeight(value: number) {
-  try {
-    window.localStorage.setItem(CLICKPATH_CANVAS_HEIGHT_STORAGE_KEY, JSON.stringify(clampCanvasHeight(value)));
-  } catch {
-    // Persistence is optional; the canvas still works without storage access.
-  }
-}
-
-function persistCanvasSize(value: ClickpathCanvasSize) {
-  try {
-    window.localStorage.setItem(CLICKPATH_CANVAS_SIZE_STORAGE_KEY, value);
-  } catch {
-    // Persistence is optional; the canvas still works without storage access.
-  }
+function UsageOverview({
+  copy,
+  formatNumber,
+  isLoading,
+  kpis,
+  headerAddOn,
+}: {
+  copy: WebsiteCopy;
+  formatNumber: (value: number) => string;
+  headerAddOn: ReactNode;
+  isLoading: boolean;
+  kpis: Array<{ label: string; trend: WebsiteAnalyticsTrend; value: number }>;
+}) {
+  return (
+    <DashboardSection>
+      <DashboardSection.Header
+        icon={<ChartLineIcon weight="duotone" className="h-4 w-4" />}
+        title={copy.sections.overview}
+        addOn={headerAddOn}
+      />
+      <DashboardSection.Body>
+        {isLoading && <p className="text-sm text-[var(--ds-text-subtle)]">{copy.loading}</p>}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          {kpis.map((kpi) => (
+            <WebsiteKpiCard
+              key={kpi.label}
+              copy={copy}
+              label={kpi.label}
+              trend={kpi.trend}
+              value={formatNumber(kpi.value)}
+            />
+          ))}
+        </div>
+      </DashboardSection.Body>
+    </DashboardSection>
+  );
 }
 
 function PlatformFunnel({
@@ -500,6 +470,63 @@ function PlatformFunnel({
   );
 }
 
+function SearchIntentTable({
+  copy,
+  formatNumber,
+  rows,
+}: {
+  copy: WebsiteCopy;
+  formatNumber: (value: number) => string;
+  rows: WebsiteAnalyticsOverview["searchIntents"];
+}) {
+  const columns = useMemo<ColumnDef<WebsiteAnalyticsOverview["searchIntents"][number]>[]>(
+    () => [
+      {
+        id: "intent",
+        header: copy.columns.intent,
+        cell: (row) => formatSearchIntent(row.intent, copy),
+        sortKey: (row) => formatSearchIntent(row.intent, copy),
+      },
+      {
+        id: "searches",
+        header: copy.columns.searches,
+        cell: (row) => <span className="tabular-nums">{formatNumber(row.searches)}</span>,
+        className: "text-right",
+        sortKey: (row) => row.searches,
+      },
+      {
+        id: "clusters",
+        header: copy.columns.clusters,
+        cell: (row) => <span className="tabular-nums">{formatNumber(row.clusters)}</span>,
+        className: "text-right",
+        sortKey: (row) => row.clusters,
+      },
+    ],
+    [copy, formatNumber],
+  );
+
+  return (
+    <DashboardSection>
+      <DashboardSection.Header
+        icon={<MagnifyingGlassIcon weight="duotone" className="h-4 w-4" />}
+        title={copy.sections.searchIntents}
+      />
+      <DashboardSection.Body flush={rows.length > 0}>
+        {rows.length === 0 ? (
+          <EmptyState copy={copy} />
+        ) : (
+          <DataTable
+            columns={columns}
+            data={rows}
+            getRowKey={(row) => row.intent}
+            defaultSort={{ id: "searches", dir: "desc" }}
+          />
+        )}
+      </DashboardSection.Body>
+    </DashboardSection>
+  );
+}
+
 function HouseholdTable({
   copy,
   formatNumber,
@@ -533,7 +560,6 @@ function HouseholdTable({
             <span className="mt-0.5 block truncate text-xs text-[var(--ds-text-muted)]">
               {copy.lastSeen}: {row.lastSeenAt ? formatDateTime(row.lastSeenAt, locale) : "-"}
             </span>
-            <span className="mt-1 block text-xs font-medium text-cyan-300">{copy.flowLabels.showFlow}</span>
           </button>
         ),
         sortKey: (row) => row.cluster,
@@ -757,7 +783,6 @@ function DrilldownSection({
             <span className="mt-0.5 block text-xs text-[var(--ds-text-muted)]">
               {copy.lastSeen}: {formatDateTime(device.lastSeenAt, locale)}
             </span>
-            <span className="mt-1 block text-xs font-medium text-cyan-300">{copy.flowLabels.showFlow}</span>
           </button>
         ),
         sortKey: (device) => formatDeviceSummaryLabel(device, copy),
@@ -802,7 +827,6 @@ function DrilldownSection({
             <span className="mt-0.5 block text-xs text-[var(--ds-text-muted)]">
               {copy.lastSeen}: {formatDateTime(session.lastSeenAt, locale)}
             </span>
-            <span className="mt-1 block text-xs font-medium text-cyan-300">{copy.flowLabels.showFlow}</span>
           </button>
         ),
         sortKey: (session) => session.sessionId,
@@ -890,232 +914,6 @@ function DrilldownSection({
   );
 }
 
-function ClickpathNodeContent({
-  copy,
-  event,
-  selected,
-}: {
-  copy: WebsiteCopy;
-  event: WebsiteAnalyticsPathEvent;
-  selected: boolean;
-}) {
-  const subject = shouldShowEventSubject(event) ? event.subject : null;
-  const title =
-    event.eventType === "search_submitted" ? searchEventTitle(event, copy) : formatEventType(event.eventType, copy);
-  const platformId = serviceId(event.platform);
-  return (
-    <div
-      className={`min-w-[260px] max-w-[380px] rounded-2xl px-4 py-3 text-center shadow-sm ${
-        selected
-          ? "border border-cyan-300/80 bg-cyan-500/15 shadow-cyan-500/15"
-          : "border border-white/15 bg-[var(--ds-surface)]"
-      }`}
-    >
-      <div className="text-sm font-semibold leading-tight text-[var(--ds-text)]">{title}</div>
-      {subject ? (
-        <div className="mt-3 flex min-w-0 items-center gap-3 text-left">
-          {subject.artworkUrl ? (
-            <img
-              src={subject.artworkUrl}
-              alt=""
-              className="h-12 w-12 shrink-0 rounded-lg object-cover"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--ds-section-header-bg)] text-xs font-semibold text-[var(--ds-text-subtle)]">
-              {formatNaturalText(subject.type, copy).slice(0, 2).toUpperCase()}
-            </div>
-          )}
-          <div className="min-w-0">
-            <div className="break-words text-sm font-medium leading-snug text-[var(--ds-text)]">{subject.title}</div>
-            {subject.artist && (
-              <div className="mt-0.5 break-words text-xs leading-snug text-[var(--ds-text-subtle)]">
-                {subject.artist}
-              </div>
-            )}
-            {event.eventType === "search_submitted" && event.platform && (
-              <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-[var(--ds-text-muted)]">
-                {platformId && <PlatformIcon platform={platformId} colored className="h-4 w-4" />}
-                {formatNaturalText(event.platform, copy)}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="mt-1 break-words font-mono text-xs leading-snug text-[var(--ds-text-subtle)]">
-          {eventSubjectLabel(event, copy)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ClickpathFlow({
-  canvasSize,
-  canvasHeight,
-  copy,
-  events,
-  onCanvasHeightChange,
-  onSelectEvent,
-  onSelectCanvasSize,
-  scopeLabel,
-  selectedEventId,
-}: {
-  canvasSize: ClickpathCanvasSize;
-  canvasHeight: number;
-  copy: WebsiteCopy;
-  events: WebsiteAnalyticsPathEvent[];
-  onCanvasHeightChange: (value: number) => void;
-  onSelectEvent: (event: WebsiteAnalyticsPathEvent) => void;
-  onSelectCanvasSize: (value: ClickpathCanvasSize) => void;
-  scopeLabel: string;
-  selectedEventId: string | null;
-}) {
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const resizeStateRef = useRef<ClickpathCanvasResizeState | null>(null);
-  const canvasSizeOptions = useMemo(() => getCanvasSizeOptions(copy), [copy]);
-  const visibleEvents = useMemo(() => events.filter(isClickpathInteraction).slice(0, 28), [events]);
-  const headerAddOn = useMemo(
-    () => (
-      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-        <span className="max-w-[36rem] truncate rounded-control bg-[var(--ds-bg-elevated)] px-3 py-1 text-xs font-medium text-[var(--ds-text-subtle)]">
-          {scopeLabel}
-        </span>
-        <SegmentedControl value={canvasSize} onChange={onSelectCanvasSize} options={canvasSizeOptions} />
-      </div>
-    ),
-    [canvasSize, canvasSizeOptions, onSelectCanvasSize, scopeLabel],
-  );
-  const startCanvasResize = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const captureTarget = event.currentTarget;
-      captureTarget.setPointerCapture(event.pointerId);
-      resizeStateRef.current = {
-        captureTarget,
-        pointerId: event.pointerId,
-        startHeight: canvasHeight,
-        startY: event.clientY,
-      };
-    },
-    [canvasHeight],
-  );
-  const updateCanvasResize = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const state = resizeStateRef.current;
-      if (!state || state.pointerId !== event.pointerId) return;
-      event.preventDefault();
-      const nextHeight = clampCanvasHeight(state.startHeight + event.clientY - state.startY);
-      onCanvasHeightChange(nextHeight);
-    },
-    [onCanvasHeightChange],
-  );
-  const stopCanvasResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    const state = resizeStateRef.current;
-    if (!state || state.pointerId !== event.pointerId) return;
-    resizeStateRef.current = null;
-    if (state.captureTarget.hasPointerCapture(event.pointerId)) {
-      state.captureTarget.releasePointerCapture(event.pointerId);
-    }
-    persistCanvasHeight(clampCanvasHeight(state.startHeight + event.clientY - state.startY));
-  }, []);
-  const nodes = useMemo<Node[]>(
-    () =>
-      visibleEvents.map((event, index) => {
-        const selected = event.id === selectedEventId;
-        return {
-          id: event.id,
-          position: flowNodePosition(index),
-          sourcePosition: Position.Bottom,
-          targetPosition: Position.Top,
-          data: {
-            label: <ClickpathNodeContent copy={copy} event={event} selected={selected} />,
-          },
-          className: "!border-0 !bg-transparent !p-0",
-          style: {
-            background: "transparent",
-            color: "var(--ds-text)",
-            padding: 0,
-            width: "max-content",
-          },
-        };
-      }),
-    [copy, selectedEventId, visibleEvents],
-  );
-  const edges = useMemo<Edge[]>(
-    () =>
-      visibleEvents.slice(1).map((event, index) => ({
-        id: `${visibleEvents[index].id}-${event.id}`,
-        source: visibleEvents[index].id,
-        target: event.id,
-        type: "default",
-        animated: true,
-        style: { stroke: "rgb(34 211 238)", strokeWidth: 2 },
-      })),
-    [visibleEvents],
-  );
-  const handleNodeClick = useCallback<NodeMouseHandler>(
-    (_event, node) => {
-      const pathEvent = visibleEvents.find((candidate) => candidate.id === node.id);
-      if (pathEvent) onSelectEvent(pathEvent);
-    },
-    [onSelectEvent, visibleEvents],
-  );
-
-  return (
-    <DashboardSection>
-      <DashboardSection.Header
-        icon={<FlowArrowIcon weight="duotone" className="h-4 w-4" />}
-        title={copy.sections.clickpath}
-        addOn={headerAddOn}
-      />
-      <DashboardSection.Body flush={visibleEvents.length > 0}>
-        {visibleEvents.length === 0 ? (
-          <EmptyState copy={copy} />
-        ) : (
-          <div
-            ref={canvasRef}
-            className="relative overflow-hidden bg-[var(--ds-bg-elevated)]"
-            style={{
-              height: canvasHeight,
-              maxHeight: CLICKPATH_CANVAS_MAX_HEIGHT,
-              minHeight: CLICKPATH_CANVAS_MIN_HEIGHT,
-            }}
-          >
-            <ReactFlow
-              colorMode="dark"
-              defaultViewport={{ x: 70, y: 30, zoom: 0.95 }}
-              edges={edges}
-              maxZoom={1.15}
-              minZoom={0.25}
-              nodes={nodes}
-              nodesDraggable={false}
-              onNodeClick={handleNodeClick}
-              panOnScroll
-              proOptions={{ hideAttribution: true }}
-            >
-              <Background color="rgba(255,255,255,.12)" gap={24} />
-              <Controls showInteractive={false} />
-            </ReactFlow>
-            <div
-              aria-hidden="true"
-              className="absolute right-0 bottom-0 z-20 h-7 w-7 cursor-se-resize touch-none bg-[linear-gradient(135deg,transparent_0_50%,rgba(255,255,255,.18)_50%_58%,transparent_58%_66%,rgba(255,255,255,.18)_66%_74%,transparent_74%)]"
-              onPointerDown={startCanvasResize}
-              onPointerMove={updateCanvasResize}
-              onPointerUp={stopCanvasResize}
-              onPointerCancel={stopCanvasResize}
-            />
-          </div>
-        )}
-      </DashboardSection.Body>
-      {visibleEvents.length > 0 && <DashboardSection.Footer>{copy.pathHint}</DashboardSection.Footer>}
-    </DashboardSection>
-  );
-}
-
 function TopSearches({
   copy,
   formatNumber,
@@ -1164,7 +962,29 @@ function InteractionBreakdown({
   formatNumber: (value: number) => string;
   rows: WebsiteAnalyticsOverview["interactions"];
 }) {
-  const maxCount = Math.max(1, ...rows.map((row) => row.count));
+  const eventOrder = [
+    "live_example_clicked",
+    "layered_footer_clicked",
+    "info_page_clicked",
+    "help_page_clicked",
+    "listen_on_clicked",
+    "player_started",
+    "player_paused",
+    "player_resumed",
+    "player_completed",
+    "player_unavailable",
+    "popular_track_clicked",
+    "similar_artist_clicked",
+    "upcoming_event_clicked",
+    "ui_click",
+  ];
+  const sortedRows = rows.slice().sort((a, b) => {
+    const aIndex = eventOrder.indexOf(a.eventType);
+    const bIndex = eventOrder.indexOf(b.eventType);
+    if (aIndex !== -1 || bIndex !== -1) return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+    return b.count - a.count || a.eventType.localeCompare(b.eventType);
+  });
+  const maxCount = Math.max(1, ...sortedRows.map((row) => row.count));
 
   return (
     <DashboardSection>
@@ -1173,11 +993,11 @@ function InteractionBreakdown({
         title={copy.sections.interactions}
       />
       <DashboardSection.Body>
-        {rows.length === 0 ? (
+        {sortedRows.length === 0 ? (
           <EmptyState copy={copy} />
         ) : (
           <div className="space-y-3">
-            {rows.map((row) => {
+            {sortedRows.map((row) => {
               const percentage = Math.round((row.count / maxCount) * 100);
               return (
                 <div key={row.eventType} className="grid grid-cols-[1fr_auto] items-center gap-3 text-sm">
@@ -1196,97 +1016,68 @@ function InteractionBreakdown({
   );
 }
 
-function RecentEventTimeline({
+function SelectionEventsTable({
   copy,
   events,
   locale,
-  onSelectEvent,
+  showHint,
 }: {
   copy: WebsiteCopy;
   events: WebsiteAnalyticsPathEvent[];
   locale: DashboardLocale;
-  onSelectEvent: (event: WebsiteAnalyticsPathEvent) => void;
+  showHint: boolean;
 }) {
+  const columns = useMemo<ColumnDef<WebsiteAnalyticsPathEvent>[]>(
+    () => [
+      {
+        id: "occurredAt",
+        header: copy.columns.occurredAt,
+        cell: (event) => formatTime(event.occurredAt, locale),
+        sortKey: (event) => event.occurredAt,
+      },
+      {
+        id: "event",
+        header: copy.inspectorLabels.event,
+        cell: (event) => formatEventType(event.eventType, copy),
+        sortKey: (event) => formatEventType(event.eventType, copy),
+      },
+      {
+        id: "detail",
+        header: copy.columns.detail,
+        cell: (event) => eventDetail(event, copy),
+        sortKey: (event) => eventDetail(event, copy),
+      },
+      {
+        id: "household",
+        header: copy.columns.household,
+        cell: (event) => <span className="font-mono text-xs">{event.cluster}</span>,
+        sortKey: (event) => event.cluster,
+      },
+      {
+        id: "device",
+        header: copy.inspectorLabels.device,
+        cell: (event) =>
+          formatDeviceMeta([event.deviceModel, event.deviceClass, event.osFamily, event.browserFamily], copy),
+        sortKey: (event) =>
+          formatDeviceMeta([event.deviceModel, event.deviceClass, event.osFamily, event.browserFamily], copy),
+      },
+    ],
+    [copy, locale],
+  );
+
   return (
     <DashboardSection>
       <DashboardSection.Header
         icon={<ClockCounterClockwiseIcon weight="duotone" className="h-4 w-4" />}
-        title={copy.sections.timeline}
+        title={copy.sections.selectionEvents}
       />
-      <DashboardSection.Body>
-        {events.length === 0 ? (
+      <DashboardSection.Body flush={events.length > 0}>
+        {showHint ? (
+          <p className="text-sm text-[var(--ds-text-subtle)]">{copy.selectEventsHint}</p>
+        ) : events.length === 0 ? (
           <EmptyState copy={copy} />
         ) : (
-          <div className="space-y-2">
-            {events.map((event) => (
-              <button
-                type="button"
-                key={event.id}
-                onClick={() => onSelectEvent(event)}
-                className="grid w-full grid-cols-[74px_1fr_auto] gap-3 rounded-lg bg-[var(--ds-bg-elevated)] px-3 py-2 text-left text-sm hover:bg-[var(--ds-surface-hover)]"
-              >
-                <span className="tabular-nums text-[var(--ds-text-subtle)]">
-                  {formatTime(event.occurredAt, locale)}
-                </span>
-                <span className="min-w-0 truncate font-mono text-xs text-[var(--ds-text)]">
-                  {formatEventType(event.eventType, copy)}
-                </span>
-                <span className="font-mono text-xs text-[var(--ds-text-subtle)]">{event.cluster}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </DashboardSection.Body>
-    </DashboardSection>
-  );
-}
-
-function NodeInspector({
-  copy,
-  event,
-  locale,
-}: {
-  copy: WebsiteCopy;
-  event: WebsiteAnalyticsPathEvent | undefined;
-  locale: DashboardLocale;
-}) {
-  const rows = event
-    ? [
-        [copy.inspectorLabels.event, formatEventType(event.eventType, copy)],
-        [copy.inspectorLabels.cluster, event.cluster],
-        [copy.inspectorLabels.confidence, formatConfidence(event.confidence, copy)],
-        [copy.inspectorLabels.session, formatSessionId(event.sessionId)],
-        [copy.inspectorLabels.surface, formatNaturalText(event.surface, copy)],
-        [copy.inspectorLabels.platform, formatNaturalText(event.platform, copy)],
-        [copy.inspectorLabels.route, formatRoute(event.routeTemplate ?? event.path, copy)],
-        [copy.inspectorLabels.referrer, formatReferrer(event.referrerDomain, copy)],
-        [copy.inspectorLabels.device, formatDeviceMeta([event.deviceClass, event.osFamily, event.browserFamily], copy)],
-        [copy.inspectorLabels.subject, shouldShowEventSubject(event) ? eventSubjectLabel(event, copy) : "-"],
-        [copy.inspectorLabels.detail, eventDetail(event, copy)],
-        [copy.inspectorLabels.occurredAt, formatDateTime(event.occurredAt, locale)],
-      ]
-    : [];
-  return (
-    <DashboardSection>
-      <DashboardSection.Header
-        icon={<PathIcon weight="duotone" className="h-4 w-4" />}
-        title={copy.sections.inspector}
-      />
-      <DashboardSection.Body>
-        {rows.length === 0 ? (
-          <EmptyState copy={copy} />
-        ) : (
-          <div className="grid gap-2 text-sm lg:grid-cols-2">
-            {rows.map(([label, value]) => (
-              <div
-                key={label}
-                className="grid grid-cols-[130px_1fr] gap-3 rounded-lg bg-[var(--ds-bg-elevated)] px-3 py-2"
-              >
-                <span className="font-mono text-xs text-[var(--ds-text-subtle)]">{label}</span>
-                <span className="min-w-0 truncate font-mono text-xs text-[var(--ds-text)]">{value}</span>
-              </div>
-            ))}
-          </div>
+          <DataTable columns={columns} data={events} getRowKey={(event) => event.id} />
         )}
       </DashboardSection.Body>
     </DashboardSection>
@@ -1313,45 +1104,21 @@ export function WebsiteAnalyticsSection({
 }: WebsiteAnalyticsSectionProps) {
   const copy = getWebsiteAnalyticsCopy(locale);
   const totals = data?.totals ?? EMPTY_TOTALS;
-  const hasDrilldownSelection = Boolean(selectedClusterKey || selectedDeviceKey || selectedSessionId);
-  const clickpathEvents = useMemo(
-    () => (hasDrilldownSelection ? (detail?.events ?? []) : (data?.clickpath.events ?? [])),
-    [data?.clickpath.events, detail?.events, hasDrilldownSelection],
-  );
-  const initialEvent = clickpathEvents[0] ?? data?.recentEvents[0];
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [canvasSize, setCanvasSize] = useState<ClickpathCanvasSize>(loadStoredCanvasSize);
-  const [canvasHeight, setCanvasHeight] = useState(loadStoredCanvasHeight);
-  const selectedEvent = useMemo(() => {
-    const events = [...clickpathEvents, ...(data?.recentEvents ?? [])];
-    return events.find((event) => event.id === selectedEventId) ?? initialEvent;
-  }, [clickpathEvents, data, initialEvent, selectedEventId]);
-  const handleSelectEvent = useCallback((event: WebsiteAnalyticsPathEvent) => {
-    setSelectedEventId(event.id);
-  }, []);
-  const handleCanvasSizeChange = useCallback((next: ClickpathCanvasSize) => {
-    const nextHeight = CLICKPATH_CANVAS_HEIGHTS[next];
-    setCanvasSize(next);
-    setCanvasHeight(nextHeight);
-    persistCanvasSize(next);
-    persistCanvasHeight(nextHeight);
-  }, []);
-  const handleCanvasHeightChange = useCallback((next: number) => {
-    setCanvasHeight(clampCanvasHeight(next));
-  }, []);
+  const trends = data?.trends ?? EMPTY_TRENDS;
+  const hasSelection = Boolean(selectedClusterKey || selectedDeviceKey || selectedSessionId);
   const kpis = useMemo(
     () => [
-      { label: copy.kpis.clusters, value: totals.clusters },
-      { label: copy.kpis.devices, value: totals.devices },
-      { label: copy.kpis.sessions, value: totals.sessions },
-      { label: copy.kpis.pageviews, value: totals.pageviews },
-      { label: copy.kpis.searches, value: totals.searches },
-      { label: copy.kpis.resolves, value: totals.resolves },
-      { label: copy.kpis.listenOn, value: totals.listenOn },
-      { label: copy.kpis.interactions, value: totals.interactions },
-      { label: copy.kpis.playerStarts, value: totals.playerStarts },
+      { label: copy.kpis.clusters, trend: trends.clusters, value: totals.clusters },
+      { label: copy.kpis.devices, trend: trends.devices, value: totals.devices },
+      { label: copy.kpis.sessions, trend: trends.sessions, value: totals.sessions },
+      { label: copy.kpis.pageviews, trend: trends.pageviews, value: totals.pageviews },
+      { label: copy.kpis.searches, trend: trends.searches, value: totals.searches },
+      { label: copy.kpis.resolves, trend: trends.resolves, value: totals.resolves },
+      { label: copy.kpis.listenOn, trend: trends.listenOn, value: totals.listenOn },
+      { label: copy.kpis.interactions, trend: trends.interactions, value: totals.interactions },
+      { label: copy.kpis.playerStarts, trend: trends.playerStarts, value: totals.playerStarts },
     ],
-    [copy, totals],
+    [copy, totals, trends],
   );
   const headerAddOn = useMemo(
     () => (
@@ -1366,52 +1133,29 @@ export function WebsiteAnalyticsSection({
     ),
     [copy, isExporting, isRunningRetention, onExport, onRunRetention, retentionResult],
   );
-  const flowScopeLabel = useMemo(() => {
-    if (selectedSessionId) return `${copy.flowLabels.session} ${formatSessionId(selectedSessionId)}`;
-
-    if (selectedDeviceKey) {
-      const device = detail?.devices.find((candidate) => candidate.deviceKey === selectedDeviceKey);
-      return `${copy.flowLabels.device} ${device ? formatDeviceSummaryLabel(device, copy) : `#${selectedDeviceKey.slice(-6)}`}`;
-    }
-
-    if (selectedClusterKey) {
-      const cluster = data?.clusters.find((candidate) => candidate.clusterKey === selectedClusterKey);
-      return `${copy.flowLabels.household} ${cluster?.cluster ?? `#${selectedClusterKey.slice(-6)}`}`;
-    }
-
-    return data?.clickpath.cluster
-      ? `${copy.flowLabels.automatic} ${data.clickpath.cluster}`
-      : copy.flowLabels.automatic;
-  }, [
-    copy,
-    data?.clickpath.cluster,
-    data?.clusters,
-    detail?.devices,
-    selectedClusterKey,
-    selectedDeviceKey,
-    selectedSessionId,
-  ]);
-
   return (
     <div className="space-y-4">
-      <DashboardSection>
-        <DashboardSection.Header
-          icon={<ChartLineIcon weight="duotone" className="h-4 w-4" />}
-          title={copy.badge}
-          addOn={headerAddOn}
-        />
-        <DashboardSection.Body>
-          {isLoading && <p className="text-sm text-[var(--ds-text-subtle)]">{copy.loading}</p>}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            {kpis.map((kpi) => (
-              <WebsiteKpiCard key={kpi.label} label={kpi.label} value={formatNumber(kpi.value)} />
-            ))}
-          </div>
-        </DashboardSection.Body>
-      </DashboardSection>
+      <UsageOverview
+        copy={copy}
+        formatNumber={formatNumber}
+        headerAddOn={headerAddOn}
+        isLoading={isLoading}
+        kpis={kpis}
+      />
+
+      <ReferrerTable copy={copy} formatNumber={formatNumber} rows={data?.referrers ?? []} />
 
       <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
+        <SearchIntentTable copy={copy} formatNumber={formatNumber} rows={data?.searchIntents ?? []} />
         <PlatformFunnel copy={copy} formatNumber={formatNumber} rows={data?.platforms ?? []} />
+      </div>
+
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
+        <TopSearches copy={copy} formatNumber={formatNumber} rows={data?.searches ?? []} />
+        <InteractionBreakdown copy={copy} formatNumber={formatNumber} rows={data?.interactions ?? []} />
+      </div>
+
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
         <HouseholdTable
           copy={copy}
           formatNumber={formatNumber}
@@ -1420,9 +1164,13 @@ export function WebsiteAnalyticsSection({
           rows={data?.clusters ?? []}
           selectedClusterKey={selectedClusterKey}
         />
+        <SelectionEventsTable
+          copy={copy}
+          events={hasSelection ? (detail?.events ?? []) : []}
+          locale={locale}
+          showHint={!hasSelection}
+        />
       </div>
-
-      <ReferrerTable copy={copy} formatNumber={formatNumber} rows={data?.referrers ?? []} />
 
       <DrilldownSection
         copy={copy}
@@ -1436,33 +1184,6 @@ export function WebsiteAnalyticsSection({
         selectedDeviceKey={selectedDeviceKey}
         selectedSessionId={selectedSessionId}
       />
-
-      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
-        <TopSearches copy={copy} formatNumber={formatNumber} rows={data?.searches ?? []} />
-        <InteractionBreakdown copy={copy} formatNumber={formatNumber} rows={data?.interactions ?? []} />
-      </div>
-
-      <ClickpathFlow
-        canvasHeight={canvasHeight}
-        canvasSize={canvasSize}
-        copy={copy}
-        events={clickpathEvents}
-        onCanvasHeightChange={handleCanvasHeightChange}
-        onSelectEvent={handleSelectEvent}
-        onSelectCanvasSize={handleCanvasSizeChange}
-        scopeLabel={flowScopeLabel}
-        selectedEventId={selectedEvent?.id ?? null}
-      />
-
-      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-        <RecentEventTimeline
-          copy={copy}
-          events={data?.recentEvents ?? []}
-          locale={locale}
-          onSelectEvent={handleSelectEvent}
-        />
-        <NodeInspector copy={copy} event={selectedEvent} locale={locale} />
-      </div>
     </div>
   );
 }

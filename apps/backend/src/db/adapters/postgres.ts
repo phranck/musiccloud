@@ -71,6 +71,7 @@ import type {
   WebsiteAnalyticsPathEvent,
   WebsiteAnalyticsRetentionPolicy,
   WebsiteAnalyticsRetentionResult,
+  WebsiteAnalyticsTrend,
 } from "../repository.js";
 
 // ============================================================================
@@ -118,6 +119,7 @@ interface WebsiteAnalyticsPathEventRow {
   device_class: string | null;
   browser_family: string | null;
   os_family: string | null;
+  device_model: string | null;
   surface: string | null;
   platform: string | null;
   media_type: string | null;
@@ -140,6 +142,19 @@ interface WebsiteAnalyticsDeviceSummaryRow {
   device_class: string | null;
   browser_family: string | null;
   os_family: string | null;
+  device_model: string | null;
+}
+
+interface WebsiteAnalyticsTotalsRow {
+  clusters: number | string | null;
+  devices: number | string | null;
+  sessions: number | string | null;
+  pageviews: number | string | null;
+  searches: number | string | null;
+  resolves: number | string | null;
+  listen_on: number | string | null;
+  player_starts: number | string | null;
+  interactions: number | string | null;
 }
 
 const WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS = [
@@ -156,6 +171,23 @@ const WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS = [
   "tidal",
   "youtube",
   "youtube_music",
+] as const;
+
+const WEBSITE_ANALYTICS_INTERACTION_EVENT_TYPES = [
+  "listen_on_clicked",
+  "similar_artist_clicked",
+  "popular_track_clicked",
+  "upcoming_event_clicked",
+  "player_started",
+  "player_paused",
+  "player_resumed",
+  "player_completed",
+  "player_unavailable",
+  "info_page_clicked",
+  "help_page_clicked",
+  "live_example_clicked",
+  "layered_footer_clicked",
+  "ui_click",
 ] as const;
 
 interface WebsiteAnalyticsSessionSummaryRow {
@@ -593,6 +625,7 @@ const WEBSITE_ANALYTICS_PATH_EVENT_SELECT = `e.id::text,
         e.device_class,
         e.browser_family,
         e.os_family,
+        e.device_model,
         e.surface,
         e.platform,
         e.media_type,
@@ -719,8 +752,11 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return insertWebsiteAnalyticsBatch(this.pool, batch);
   }
 
-  async getWebsiteAnalyticsOverview(since: Date): Promise<WebsiteAnalyticsOverview> {
-    return getWebsiteAnalyticsOverview(this.pool, since);
+  async getWebsiteAnalyticsOverview(
+    since: Date,
+    comparison?: { since: Date; until: Date },
+  ): Promise<WebsiteAnalyticsOverview> {
+    return getWebsiteAnalyticsOverview(this.pool, since, comparison);
   }
 
   async getWebsiteAnalyticsDrilldown(params: WebsiteAnalyticsDrilldownParams): Promise<WebsiteAnalyticsDrilldown> {
@@ -4538,11 +4574,11 @@ async function insertWebsiteAnalyticsBatch(
         `INSERT INTO analytics_events
            (id, occurred_at, event_type, session_id, device_key, network_cluster_key,
             confidence, path, route_template, referrer_domain, device_class, browser_family,
-            os_family, platform, media_type, short_id, surface, element_key, x_pct, y_pct,
+            os_family, device_model, platform, media_type, short_id, surface, element_key, x_pct, y_pct,
             viewport_bucket, event_data)
          VALUES
            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-            $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+            $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
          ON CONFLICT (id) DO NOTHING`,
         [
           event.id,
@@ -4558,6 +4594,7 @@ async function insertWebsiteAnalyticsBatch(
           event.deviceClass,
           event.browserFamily,
           event.osFamily,
+          event.deviceModel,
           event.platform,
           event.mediaType,
           event.shortId,
@@ -4664,68 +4701,105 @@ async function refreshWebsiteAnalyticsDailySummaries(
   }
 }
 
+async function queryWebsiteAnalyticsTotals(
+  pool: InstanceType<typeof pgModule.default.Pool>,
+  since: Date,
+  until: Date | null = null,
+): Promise<WebsiteAnalyticsOverview["totals"]> {
+  const result = await pool.query<WebsiteAnalyticsTotalsRow>(
+    `SELECT
+      COUNT(DISTINCT network_cluster_key)::int AS clusters,
+      COUNT(DISTINCT device_key) FILTER (WHERE device_key IS NOT NULL)::int AS devices,
+      COUNT(DISTINCT session_id)::int AS sessions,
+      COUNT(*) FILTER (WHERE event_type = 'page_view')::int AS pageviews,
+      COUNT(*) FILTER (WHERE event_type = 'search_submitted')::int AS searches,
+      COUNT(*) FILTER (
+        WHERE event_type = 'resolve_succeeded'
+          AND (platform IS NULL OR platform = ANY($3::text[]))
+      )::int AS resolves,
+      COUNT(*) FILTER (WHERE event_type = 'listen_on_clicked')::int AS listen_on,
+      COUNT(*) FILTER (WHERE event_type = 'player_started')::int AS player_starts,
+      COUNT(*) FILTER (WHERE event_type = ANY($4::text[]))::int AS interactions
+    FROM analytics_events
+    WHERE occurred_at >= $1
+      AND ($2::timestamptz IS NULL OR occurred_at < $2)`,
+    [since, until, WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS, WEBSITE_ANALYTICS_INTERACTION_EVENT_TYPES],
+  );
+  const row = result.rows[0];
+  return {
+    clusters: Number(row?.clusters ?? 0),
+    devices: Number(row?.devices ?? 0),
+    sessions: Number(row?.sessions ?? 0),
+    pageviews: Number(row?.pageviews ?? 0),
+    searches: Number(row?.searches ?? 0),
+    resolves: Number(row?.resolves ?? 0),
+    listenOn: Number(row?.listen_on ?? 0),
+    playerStarts: Number(row?.player_starts ?? 0),
+    interactions: Number(row?.interactions ?? 0),
+  };
+}
+
+function websiteAnalyticsTrend(current: number, previous: number): WebsiteAnalyticsTrend {
+  if (previous === 0) {
+    return current > 0 ? { change: null, status: "new" } : { change: null, status: "none" };
+  }
+  return { change: ((current - previous) / previous) * 100, status: "changed" };
+}
+
+function buildWebsiteAnalyticsTrends(
+  current: WebsiteAnalyticsOverview["totals"],
+  previous: WebsiteAnalyticsOverview["totals"] | null,
+): WebsiteAnalyticsOverview["trends"] {
+  if (!previous) {
+    return {
+      clusters: { change: null, status: "none" },
+      devices: { change: null, status: "none" },
+      sessions: { change: null, status: "none" },
+      pageviews: { change: null, status: "none" },
+      searches: { change: null, status: "none" },
+      resolves: { change: null, status: "none" },
+      listenOn: { change: null, status: "none" },
+      playerStarts: { change: null, status: "none" },
+      interactions: { change: null, status: "none" },
+    };
+  }
+
+  return {
+    clusters: websiteAnalyticsTrend(current.clusters, previous.clusters),
+    devices: websiteAnalyticsTrend(current.devices, previous.devices),
+    sessions: websiteAnalyticsTrend(current.sessions, previous.sessions),
+    pageviews: websiteAnalyticsTrend(current.pageviews, previous.pageviews),
+    searches: websiteAnalyticsTrend(current.searches, previous.searches),
+    resolves: websiteAnalyticsTrend(current.resolves, previous.resolves),
+    listenOn: websiteAnalyticsTrend(current.listenOn, previous.listenOn),
+    playerStarts: websiteAnalyticsTrend(current.playerStarts, previous.playerStarts),
+    interactions: websiteAnalyticsTrend(current.interactions, previous.interactions),
+  };
+}
+
 async function getWebsiteAnalyticsOverview(
   pool: InstanceType<typeof pgModule.default.Pool>,
   since: Date,
+  comparison?: { since: Date; until: Date },
 ): Promise<WebsiteAnalyticsOverview> {
-  const [totals, platforms, clusters, referrers, interactions, searches, recentEvents, clickpathEvents] =
-    await Promise.all([
-      pool.query(
-        `WITH event_uniques AS (
-          SELECT
-            COUNT(DISTINCT network_cluster_key)::int AS clusters,
-            COUNT(DISTINCT device_key) FILTER (WHERE device_key IS NOT NULL)::int AS devices,
-            COUNT(DISTINCT session_id)::int AS sessions
-          FROM analytics_events
-          WHERE occurred_at >= $1
-        ),
-        summary_totals AS (
-          SELECT
-            COALESCE(SUM(pageview_count), 0)::int AS pageviews,
-            COALESCE(SUM(search_count), 0)::int AS searches,
-            COALESCE(SUM(resolve_count), 0)::int AS resolves,
-            COALESCE(SUM(listen_on_click_count), 0)::int AS listen_on,
-            COALESCE(SUM(player_start_count), 0)::int AS player_starts,
-            COALESCE(SUM(
-              listen_on_click_count +
-              similar_artist_click_count +
-              popular_track_click_count +
-              upcoming_event_click_count +
-              player_start_count +
-              info_page_click_count +
-              help_page_click_count +
-              ui_click_count
-            ), 0)::int AS interactions
-          FROM analytics_cluster_daily_summaries
-          WHERE day >= ($1::timestamptz AT TIME ZONE 'UTC')::date
-        ),
-        direct_interaction_totals AS (
-          SELECT
-            COUNT(*) FILTER (WHERE event_type = 'live_example_clicked')::int AS live_examples,
-            COUNT(*) FILTER (WHERE event_type = 'layered_footer_clicked')::int AS layered_footer_clicks
-          FROM analytics_events
-          WHERE occurred_at >= $1
-            AND event_type IN ('live_example_clicked', 'layered_footer_clicked')
-        )
-        SELECT
-          event_uniques.*,
-          summary_totals.pageviews,
-          summary_totals.searches,
-          summary_totals.resolves,
-          summary_totals.listen_on,
-          summary_totals.player_starts,
-          (
-            summary_totals.interactions +
-            direct_interaction_totals.live_examples +
-            direct_interaction_totals.layered_footer_clicks
-          )::int AS interactions
-        FROM event_uniques
-        CROSS JOIN summary_totals
-        CROSS JOIN direct_interaction_totals`,
-        [since],
-      ),
-      pool.query(
-        `SELECT COALESCE(platform, 'unknown') AS platform, COUNT(*)::int AS resolves
+  const comparisonTotalsPromise = comparison
+    ? queryWebsiteAnalyticsTotals(pool, comparison.since, comparison.until)
+    : Promise.resolve<WebsiteAnalyticsOverview["totals"] | null>(null);
+  const [
+    totals,
+    comparisonTotals,
+    platforms,
+    clusters,
+    referrers,
+    searchIntents,
+    interactions,
+    searches,
+    recentEvents,
+  ] = await Promise.all([
+    queryWebsiteAnalyticsTotals(pool, since),
+    comparisonTotalsPromise,
+    pool.query(
+      `SELECT COALESCE(platform, 'unknown') AS platform, COUNT(*)::int AS resolves
        FROM analytics_events
        WHERE occurred_at >= $1
          AND event_type = 'resolve_succeeded'
@@ -4733,10 +4807,10 @@ async function getWebsiteAnalyticsOverview(
        GROUP BY COALESCE(platform, 'unknown')
        ORDER BY resolves DESC, platform ASC
        LIMIT 8`,
-        [since, WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS],
-      ),
-      pool.query(
-        `WITH cluster_summaries AS (
+      [since, WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS],
+    ),
+    pool.query(
+      `WITH cluster_summaries AS (
           SELECT
             network_cluster_key,
             MAX(confidence) AS confidence,
@@ -4785,10 +4859,10 @@ async function getWebsiteAnalyticsOverview(
         LEFT JOIN cluster_queries cq ON cq.network_cluster_key = cs.network_cluster_key
         ORDER BY cs.searches DESC, COALESCE(cd.devices, 0) DESC, ce.last_seen_at DESC NULLS LAST
         LIMIT 8`,
-        [since],
-      ),
-      pool.query(
-        `SELECT
+      [since],
+    ),
+    pool.query(
+      `SELECT
         COALESCE(NULLIF(referrer_domain, ''), 'direct') AS referrer_domain,
         COALESCE(route_template, path, 'unknown') AS route_template,
         COUNT(*)::int AS pageviews,
@@ -4800,37 +4874,35 @@ async function getWebsiteAnalyticsOverview(
        GROUP BY COALESCE(NULLIF(referrer_domain, ''), 'direct'), COALESCE(route_template, path, 'unknown')
        ORDER BY pageviews DESC, referrer_domain ASC
        LIMIT 12`,
-        [since],
-      ),
-      pool.query(
-        `SELECT
+      [since],
+    ),
+    pool.query(
+      `SELECT
+        COALESCE(NULLIF(event_data->>'query_type', ''), 'unknown') AS intent,
+        COUNT(*)::int AS searches,
+        COUNT(DISTINCT network_cluster_key)::int AS clusters
+       FROM analytics_events
+       WHERE occurred_at >= $1
+         AND event_type = 'search_submitted'
+       GROUP BY COALESCE(NULLIF(event_data->>'query_type', ''), 'unknown')
+       ORDER BY searches DESC, clusters DESC, intent ASC
+       LIMIT 8`,
+      [since],
+    ),
+    pool.query(
+      `SELECT
         event_type,
         COUNT(*)::int AS count
        FROM analytics_events
        WHERE occurred_at >= $1
-         AND event_type IN (
-           'listen_on_clicked',
-           'similar_artist_clicked',
-           'popular_track_clicked',
-           'upcoming_event_clicked',
-           'player_started',
-           'player_paused',
-           'player_resumed',
-           'player_completed',
-           'player_unavailable',
-           'info_page_clicked',
-           'help_page_clicked',
-           'live_example_clicked',
-           'layered_footer_clicked',
-           'ui_click'
-         )
+         AND event_type = ANY($2::text[])
        GROUP BY event_type
        ORDER BY count DESC, event_type ASC
        LIMIT 12`,
-        [since],
-      ),
-      pool.query(
-        `SELECT
+      [since, WEBSITE_ANALYTICS_INTERACTION_EVENT_TYPES],
+    ),
+    pool.query(
+      `SELECT
         event_data->>'query_normalized' AS query,
         COUNT(*)::int AS searches,
         COUNT(DISTINCT network_cluster_key)::int AS clusters
@@ -4841,54 +4913,23 @@ async function getWebsiteAnalyticsOverview(
        GROUP BY event_data->>'query_normalized'
        ORDER BY searches DESC, clusters DESC, query ASC
        LIMIT 10`,
-        [since],
-      ),
-      pool.query<WebsiteAnalyticsPathEventRow>(
-        `SELECT
+      [since],
+    ),
+    pool.query<WebsiteAnalyticsPathEventRow>(
+      `SELECT
         ${WEBSITE_ANALYTICS_PATH_EVENT_SELECT}
        FROM analytics_events e
        ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
        WHERE e.occurred_at >= $1
        ORDER BY e.occurred_at DESC
        LIMIT 18`,
-        [since],
-      ),
-      pool.query<WebsiteAnalyticsPathEventRow>(
-        `WITH top_cluster AS (
-         SELECT network_cluster_key
-         FROM analytics_events
-         WHERE occurred_at >= $1
-         GROUP BY network_cluster_key
-         ORDER BY COUNT(*) DESC, MAX(occurred_at) DESC
-         LIMIT 1
-       )
-       SELECT
-        ${WEBSITE_ANALYTICS_PATH_EVENT_SELECT}
-       FROM analytics_events e
-       ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
-       WHERE e.occurred_at >= $1
-         AND e.network_cluster_key = (SELECT network_cluster_key FROM top_cluster)
-       ORDER BY e.occurred_at ASC
-       LIMIT 80`,
-        [since],
-      ),
-    ]);
+      [since],
+    ),
+  ]);
 
-  const totalsRow = totals.rows[0] ?? {};
-  const pathEvents = clickpathEvents.rows.map(rowToWebsiteAnalyticsPathEvent);
-  const clickpathFirstEvent = pathEvents[0];
   return {
-    totals: {
-      clusters: Number(totalsRow.clusters ?? 0),
-      devices: Number(totalsRow.devices ?? 0),
-      sessions: Number(totalsRow.sessions ?? 0),
-      pageviews: Number(totalsRow.pageviews ?? 0),
-      searches: Number(totalsRow.searches ?? 0),
-      resolves: Number(totalsRow.resolves ?? 0),
-      listenOn: Number(totalsRow.listen_on ?? 0),
-      playerStarts: Number(totalsRow.player_starts ?? 0),
-      interactions: Number(totalsRow.interactions ?? 0),
-    },
+    totals,
+    trends: buildWebsiteAnalyticsTrends(totals, comparisonTotals),
     platforms: platforms.rows.map((row) => ({ platform: String(row.platform), resolves: Number(row.resolves) })),
     clusters: clusters.rows.map((row) => ({
       clusterKey: String(row.network_cluster_key),
@@ -4910,6 +4951,11 @@ async function getWebsiteAnalyticsOverview(
       pageviews: Number(row.pageviews),
       clusters: Number(row.clusters),
     })),
+    searchIntents: searchIntents.rows.map((row) => ({
+      intent: String(row.intent),
+      searches: Number(row.searches),
+      clusters: Number(row.clusters),
+    })),
     interactions: interactions.rows.map((row) => ({ eventType: String(row.event_type), count: Number(row.count) })),
     searches: searches.rows.map((row) => ({
       query: String(row.query),
@@ -4917,11 +4963,6 @@ async function getWebsiteAnalyticsOverview(
       clusters: Number(row.clusters),
     })),
     recentEvents: recentEvents.rows.map(rowToWebsiteAnalyticsPathEvent),
-    clickpath: {
-      cluster: clickpathFirstEvent?.cluster ?? null,
-      confidence: clickpathFirstEvent?.confidence ?? null,
-      events: pathEvents,
-    },
   };
 }
 
@@ -4941,6 +4982,7 @@ function rowToWebsiteAnalyticsPathEvent(row: WebsiteAnalyticsPathEventRow): Webs
     deviceClass: row.device_class,
     browserFamily: row.browser_family,
     osFamily: row.os_family,
+    deviceModel: row.device_model,
     surface: row.surface,
     platform: row.platform,
     mediaType: row.media_type,
@@ -5007,7 +5049,8 @@ async function getWebsiteAnalyticsDrilldown(
         MAX(occurred_at) AS last_seen_at,
         MAX(device_class) AS device_class,
         MAX(browser_family) AS browser_family,
-        MAX(os_family) AS os_family
+        MAX(os_family) AS os_family,
+        MAX(device_model) AS device_model
        FROM analytics_events
        WHERE ${filter.where}
        GROUP BY device_key
@@ -5062,6 +5105,7 @@ async function getWebsiteAnalyticsDrilldown(
       deviceClass: row.device_class,
       browserFamily: row.browser_family,
       osFamily: row.os_family,
+      deviceModel: row.device_model,
     })),
     sessions: sessions.rows.map((row) => ({
       sessionId: row.session_id,
