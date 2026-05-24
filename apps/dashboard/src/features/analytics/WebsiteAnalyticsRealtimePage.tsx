@@ -278,6 +278,12 @@ function mapDetailLevel(scale: number): MapDetailLevel {
   return "base";
 }
 
+function visibleCitySummaries(cities: GeoLocationSummary[], detailLevel: MapDetailLevel) {
+  if (detailLevel === "labels") return cities.slice(0, 28);
+  if (detailLevel === "borders") return cities.slice(0, 18);
+  return cities.slice(0, 8);
+}
+
 function mapTransform({ scale, x, y }: ViewTransform) {
   return `translate(${x} ${y}) scale(${scale})`;
 }
@@ -373,14 +379,15 @@ function interpolateMapView(from: ViewTransform, to: ViewTransform, progress: nu
   };
 }
 
-function projectPointToScreen(
-  point: GeoPoint,
+function projectCoordinatesToScreen(
+  longitude: number,
+  latitude: number,
   projection: ReturnType<typeof geoNaturalEarth1>,
   view: ViewTransform,
   width: number,
   height: number,
 ) {
-  const projected = projection([point.longitude, point.latitude]);
+  const projected = projection([longitude, latitude]);
   if (!projected) return null;
 
   const [projectedX, projectedY] = projected;
@@ -388,6 +395,16 @@ function projectPointToScreen(
     x: ((projectedX * view.scale + view.x) / MAP_WIDTH) * width,
     y: ((projectedY * view.scale + view.y) / MAP_HEIGHT) * height,
   };
+}
+
+function projectPointToScreen(
+  point: GeoPoint,
+  projection: ReturnType<typeof geoNaturalEarth1>,
+  view: ViewTransform,
+  width: number,
+  height: number,
+) {
+  return projectCoordinatesToScreen(point.longitude, point.latitude, projection, view, width, height);
 }
 
 function geoIpStatusTone(state: GeoIpStatusState | undefined) {
@@ -653,38 +670,47 @@ const StaticWorldLayer = memo(function StaticWorldLayer({
   );
 });
 
-const CityLayer = memo(function CityLayer({
-  cities,
-  detailLevel,
-  projection,
-}: {
-  cities: GeoLocationSummary[];
-  detailLevel: MapDetailLevel;
-  projection: ReturnType<typeof geoNaturalEarth1> | null;
-}) {
-  const visibleCities =
-    detailLevel === "labels"
-      ? cities.slice(0, 28)
-      : detailLevel === "borders"
-        ? cities.slice(0, 18)
-        : cities.slice(0, 8);
-
-  return (
-    <>
-      {visibleCities.map((city) => {
-        if (!projection) return null;
-        const projected = projection([city.longitude, city.latitude]);
-        if (!projected) return null;
-        const [x, y] = projected;
-        return (
-          <g key={`${city.countryCode ?? "xx"}-${city.regionName ?? "region"}-${city.city ?? "city"}`}>
-            <circle cx={x} cy={y} r="1.8" fill="#2ad7ff" opacity={0.42} />
-          </g>
-        );
-      })}
-    </>
+function drawCitySummaryPoint(
+  context: CanvasRenderingContext2D,
+  city: GeoLocationSummary,
+  projection: ReturnType<typeof geoNaturalEarth1>,
+  view: ViewTransform,
+  canvasWidth: number,
+  canvasHeight: number,
+  now: number,
+) {
+  const screenPoint = projectCoordinatesToScreen(
+    city.longitude,
+    city.latitude,
+    projection,
+    view,
+    canvasWidth,
+    canvasHeight,
   );
-});
+  if (!screenPoint) return;
+  const { x, y } = screenPoint;
+  if (x < -24 || x > canvasWidth + 24 || y < -24 || y > canvasHeight + 24) return;
+
+  const breath = idlePointBreath(now);
+  const radius = IDLE_POINT_RADIUS + breath * 0.5;
+  const color = "#2ad7ff";
+
+  context.save();
+  context.globalCompositeOperation = "lighter";
+  context.globalAlpha = 0.16 + breath * 0.12;
+  context.fillStyle = color;
+  context.beginPath();
+  context.arc(x, y, radius, 0, Math.PI * 2);
+  context.fill();
+
+  context.globalAlpha = 0.38 + breath * 0.18;
+  context.strokeStyle = color;
+  context.lineWidth = 1;
+  context.beginPath();
+  context.arc(x, y, radius, 0, Math.PI * 2);
+  context.stroke();
+  context.restore();
+}
 
 function drawRealtimePoint(
   context: CanvasRenderingContext2D,
@@ -747,17 +773,31 @@ function drawRealtimePoint(
 }
 
 const RealtimePointCanvas = memo(function RealtimePointCanvas({
+  cities,
+  detailLevel,
   points,
   projection,
   viewRef,
 }: {
+  cities: GeoLocationSummary[];
+  detailLevel: MapDetailLevel;
   points: LivePoint[];
   projection: ReturnType<typeof geoNaturalEarth1> | null;
   viewRef: { current: ViewTransform };
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const citiesRef = useRef(cities);
+  const detailLevelRef = useRef(detailLevel);
   const pointsRef = useRef(points);
   const projectionRef = useRef(projection);
+
+  useEffect(() => {
+    citiesRef.current = cities;
+  }, [cities]);
+
+  useEffect(() => {
+    detailLevelRef.current = detailLevel;
+  }, [detailLevel]);
 
   useEffect(() => {
     pointsRef.current = points;
@@ -794,9 +834,14 @@ const RealtimePointCanvas = memo(function RealtimePointCanvas({
 
       const currentProjection = projectionRef.current;
       if (currentProjection) {
-        const currentPoints = pointsRef.current;
         const currentView = viewRef.current;
         const currentNow = Date.now();
+        const currentCities = visibleCitySummaries(citiesRef.current, detailLevelRef.current);
+        for (const city of currentCities) {
+          drawCitySummaryPoint(context, city, currentProjection, currentView, width, height, currentNow);
+        }
+
+        const currentPoints = pointsRef.current;
         for (const point of currentPoints) {
           drawRealtimePoint(context, point, currentProjection, currentView, width, height, currentNow);
         }
@@ -1162,7 +1207,6 @@ function RealtimeWorldMap({
             isLoaded={Boolean(mapGeometry)}
             outlinePath={outlinePath}
           />
-          <CityLayer cities={cities} detailLevel={detailLevel} projection={projection} />
         </g>
         <g opacity="0.78">
           <rect x="18" y="18" width="176" height="32" fill="rgba(2,10,18,0.72)" stroke="#1e8cff66" />
@@ -1178,7 +1222,13 @@ function RealtimeWorldMap({
           </text>
         </g>
       </svg>
-      <RealtimePointCanvas points={points} projection={projection} viewRef={viewRef} />
+      <RealtimePointCanvas
+        cities={cities}
+        detailLevel={detailLevel}
+        points={points}
+        projection={projection}
+        viewRef={viewRef}
+      />
       {hoveredPoint && (
         <div
           className="pointer-events-none absolute z-10 rounded border border-[#56d8ff66] bg-[#03111bcc] px-2 py-1 font-mono text-[11px] leading-snug text-[#aeefff] shadow-[0_0_18px_rgba(86,216,255,0.2)]"
