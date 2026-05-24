@@ -1,5 +1,5 @@
-import { type CSSProperties, createContext, type ReactNode, use } from "react";
-import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { type CSSProperties, createContext, type ReactNode, use, useLayoutEffect, useRef, useState } from "react";
+import { recessedControlInsetClassName, recessedControlSizeClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
@@ -44,12 +44,14 @@ interface PlayerTimeProps {
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
-const PLAYER_CONTROL_SIZE_CLASS = "size-[50px]";
+const PLAYER_DEFAULT_VFD_CELLS = 44;
 // Matches VfdDisplay's fixed 5-column glyph plus 1-column spacing at 1px dot/1px gap.
 const PLAYER_VFD_CELL_PITCH_PX = 12;
+const PLAYER_VFD_FIRST_CELL_WIDTH_PX = 9;
 const PLAYER_SPECTRUM_CELLS = 30;
 const PLAYER_STEREO_CHANNEL_CELLS = 12;
 const PLAYER_STEREO_CHANNEL_GAP_CELLS = 3;
+const PLAYER_TIME_SPACER_CELLS = 2;
 const PLAYER_SPECTRUM_LEVEL_GLYPHS = [
   VFD_GLYPHS.spectrumLevel0,
   VFD_GLYPHS.spectrumLevel1,
@@ -101,14 +103,60 @@ function renderBandContent(bands: readonly number[], cells: number): string {
   }).join("");
 }
 
-function renderSpectrumSections(bands: PlayerSpectrumBands, cells = PLAYER_SPECTRUM_CELLS): VfdDisplaySection[] {
+function playerVfdCellCountForContentWidth(availableWidth: number): number {
+  if (!Number.isFinite(availableWidth) || availableWidth <= 0) return 1;
+  if (availableWidth <= PLAYER_VFD_FIRST_CELL_WIDTH_PX) return 1;
+  return Math.max(
+    1,
+    Math.floor((Math.floor(availableWidth) - PLAYER_VFD_FIRST_CELL_WIDTH_PX) / PLAYER_VFD_CELL_PITCH_PX) + 1,
+  );
+}
+
+function elementContentWidth(element: HTMLElement): number {
+  const style = window.getComputedStyle(element);
+  const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
+  const paddingRight = Number.parseFloat(style.paddingRight) || 0;
+  return Math.max(0, Math.floor(element.getBoundingClientRect().width - paddingLeft - paddingRight));
+}
+
+function stereoChannelBandCells(displayCells: number, timeText: string): number {
+  const timeCells = Math.max(1, Array.from(timeText).length);
+  const analyzerCells = Math.max(0, displayCells - PLAYER_TIME_SPACER_CELLS - timeCells);
+  const fixedStereoCells = 2 + PLAYER_STEREO_CHANNEL_GAP_CELLS;
+  return Math.min(PLAYER_STEREO_CHANNEL_CELLS, Math.max(0, Math.floor((analyzerCells - fixedStereoCells) / 2)));
+}
+
+function renderSpectrumSections(
+  bands: PlayerSpectrumBands,
+  displayCells = PLAYER_DEFAULT_VFD_CELLS,
+  timeText = "",
+  cells = PLAYER_SPECTRUM_CELLS,
+): VfdDisplaySection[] {
   if (isStereoSpectrumBands(bands)) {
+    const channelCells = stereoChannelBandCells(displayCells, timeText);
+    const timeCells = Math.max(1, Array.from(timeText).length);
+    const analyzerCells = Math.max(0, displayCells - PLAYER_TIME_SPACER_CELLS - timeCells);
+    const gapCells = Math.min(PLAYER_STEREO_CHANNEL_GAP_CELLS, Math.max(0, analyzerCells - 2 - channelCells * 2));
+    const fillerCells = Math.max(0, analyzerCells - 2 - channelCells * 2 - gapCells);
+    const leftFillerCells = Math.floor(fillerCells / 2);
+    const rightFillerCells = fillerCells - leftFillerCells;
+
     return compactSections([
       sectionFor("L", "normal", 1, "spectrum-left-label"),
-      sectionFor(renderBandContent(bands.left, PLAYER_STEREO_CHANNEL_CELLS), "bright", "fill", "spectrum-left"),
-      sectionFor(" ".repeat(PLAYER_STEREO_CHANNEL_GAP_CELLS), "ghost", PLAYER_STEREO_CHANNEL_GAP_CELLS, "spectrum-gap"),
+      channelCells > 0
+        ? sectionFor(renderBandContent(bands.left, channelCells), "bright", channelCells, "spectrum-left")
+        : null,
+      leftFillerCells > 0
+        ? sectionFor(" ".repeat(leftFillerCells), "ghost", leftFillerCells, "spectrum-left-fill")
+        : null,
+      gapCells > 0 ? sectionFor(" ".repeat(gapCells), "ghost", gapCells, "spectrum-gap") : null,
       sectionFor("R", "normal", 1, "spectrum-right-label"),
-      sectionFor(renderBandContent(bands.right, PLAYER_STEREO_CHANNEL_CELLS), "bright", "fill", "spectrum-right"),
+      channelCells > 0
+        ? sectionFor(renderBandContent(bands.right, channelCells), "bright", channelCells, "spectrum-right")
+        : null,
+      rightFillerCells > 0
+        ? sectionFor(" ".repeat(rightFillerCells), "ghost", rightFillerCells, "spectrum-right-fill")
+        : null,
     ]);
   }
 
@@ -161,7 +209,7 @@ function PlayerButton({ className }: PlayerButtonProps) {
   const accentColor = isDisabled ? "rgba(255,255,255,0.2)" : "#7aebff";
 
   return (
-    <RecessedCard className={cn("flex-none", PLAYER_CONTROL_SIZE_CLASS, recessedControlInsetClassName, className)}>
+    <RecessedCard className={cn("flex-none", recessedControlSizeClassName, recessedControlInsetClassName, className)}>
       <RecessedCard.Body className="h-full">
         <EmbossedButton
           as="button"
@@ -198,14 +246,35 @@ function PlayerButton({ className }: PlayerButtonProps) {
 
 function PlayerProgress({ className, children }: PlayerProgressProps) {
   const { isDisabled, isPlaying, timeText, progressRatio, phosphorColor, spectrumBands } = usePlayerContext();
+  const progressRef = useRef<HTMLDivElement | null>(null);
+  const [displayCells, setDisplayCells] = useState(PLAYER_DEFAULT_VFD_CELLS);
   const isStereoAnalyzer =
     !children && spectrumBands !== null && spectrumBands !== undefined && isStereoSpectrumBands(spectrumBands);
-  const analyzerSections = renderSpectrumSections(spectrumBands ?? []);
+  const analyzerSections = renderSpectrumSections(spectrumBands ?? [], displayCells, timeText);
   const safeProgressRatio = Math.max(0, Math.min(1, progressRatio ?? 0));
   const progressStyle = {
     "--mc-player-progress": safeProgressRatio,
+    "--mc-player-progress-color": isDisabled ? "var(--mc-vfd-dim-color)" : "var(--mc-vfd-normal-color)",
     "--mc-player-progress-right": `${(Array.from(timeText).length + 2) * PLAYER_VFD_CELL_PITCH_PX}px`,
   } as CSSProperties;
+  useLayoutEffect(() => {
+    const root = progressRef.current;
+    const display = root?.querySelector<HTMLElement>(".mc-vfd");
+    if (!display || typeof ResizeObserver === "undefined") return;
+
+    const updateDisplayCells = () => {
+      const nextDisplayCells = playerVfdCellCountForContentWidth(elementContentWidth(display));
+      setDisplayCells((currentDisplayCells) =>
+        currentDisplayCells === nextDisplayCells ? currentDisplayCells : nextDisplayCells,
+      );
+    };
+
+    updateDisplayCells();
+    const observer = new ResizeObserver(updateDisplayCells);
+    observer.observe(display);
+    return () => observer.disconnect();
+  }, []);
+
   const progressSections = children
     ? [
         {
@@ -222,7 +291,7 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
       }));
 
   return (
-    <div className={cn("flex-1 min-w-0", className)} style={progressStyle}>
+    <div ref={progressRef} className={cn("flex-1 min-w-0", className)} style={progressStyle}>
       <VfdDisplay
         sizingMode="container"
         rows={1}

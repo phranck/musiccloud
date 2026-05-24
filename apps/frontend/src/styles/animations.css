@@ -187,22 +187,26 @@
   user-select: none;
 }
 
-.mc-player-progress-vfd .mc-vfd {
-  padding-bottom: calc(1rem + 3px);
-}
-
+.mc-player-progress-vfd .mc-vfd::before,
 .mc-player-progress-vfd .mc-vfd::after {
   content: "";
   position: absolute;
   left: calc((100% - var(--mc-vfd-row-width)) / 2);
-  bottom: 1rem;
+  top: calc(1rem + var(--mc-vfd-display-height) + 2px);
   inline-size: calc(var(--mc-vfd-row-width) - var(--mc-player-progress-right, 0px));
   block-size: 1px;
-  background: var(--mc-vfd-bright-color);
+  pointer-events: none;
+}
+
+.mc-player-progress-vfd .mc-vfd::before {
+  background: var(--mc-vfd-ghost-color);
+}
+
+.mc-player-progress-vfd .mc-vfd::after {
+  background: var(--mc-player-progress-color, var(--mc-vfd-normal-color));
   opacity: 0.95;
   transform: scaleX(var(--mc-player-progress, 0));
   transform-origin: left center;
-  pointer-events: none;
 }
 
 /* Card entrance - zoom from behind with fade */

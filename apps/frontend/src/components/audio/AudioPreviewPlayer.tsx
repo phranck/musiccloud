@@ -89,9 +89,22 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function quantizeProgressRatio(ratio: number): number {
+  const safeRatio = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
+  return Math.round(safeRatio * PLAYER_PROGRESS_PIXEL_STEPS) / PLAYER_PROGRESS_PIXEL_STEPS;
+}
+
+function resolveAudioProgressRatio(audio: HTMLAudioElement): number {
+  const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+  return quantizeProgressRatio(audio.currentTime / duration);
+}
+
 const SPECTRUM_CHANNEL_BAND_COUNT = 12;
 const SPECTRUM_LEVEL_COUNT = 7;
 const SPECTRUM_UPDATE_MS = 50;
+const SPECTRUM_FADE_FACTOR = 0.68;
+const SPECTRUM_FADE_MIN_LEVEL = 0.03;
+const PLAYER_PROGRESS_PIXEL_STEPS = 360;
 
 type BrowserAudioContextConstructor = typeof AudioContext;
 
@@ -137,6 +150,18 @@ function sameSpectrumBands(a: readonly number[] | null, b: readonly number[]): b
 
 function sameStereoSpectrumBands(a: StereoSpectrumBands | null, b: StereoSpectrumBands): boolean {
   return a !== null && sameSpectrumBands(a.left, b.left) && sameSpectrumBands(a.right, b.right);
+}
+
+function fadeSpectrumBands(bands: StereoSpectrumBands): StereoSpectrumBands {
+  const fadeBand = (band: number) => (band <= SPECTRUM_FADE_MIN_LEVEL ? 0 : band * SPECTRUM_FADE_FACTOR);
+  return {
+    left: bands.left.map(fadeBand),
+    right: bands.right.map(fadeBand),
+  };
+}
+
+function hasVisibleSpectrumBands(bands: StereoSpectrumBands): boolean {
+  return bands.left.some((band) => band > 0) || bands.right.some((band) => band > 0);
 }
 
 function resolveSpectrumBands(frequencyData: Uint8Array<ArrayBuffer>, bandCount: number): number[] {
@@ -186,8 +211,11 @@ export function AudioPreviewPlayer({
   const spectrumDataRef = useRef<StereoSpectrumData | null>(null);
   const spectrumLastUpdateRef = useRef(0);
   const spectrumBandsRef = useRef<StereoSpectrumBands | null>(null);
+  const progressFrameRef = useRef<number | null>(null);
+  const progressRatioRef = useRef(0);
   const hasStartedRef = useRef(false);
   const [spectrumBands, setSpectrumBands] = useState<StereoSpectrumBands | null>(null);
+  const [progressRatio, setProgressRatio] = useState(0);
 
   // Lazy fetch the preview URL when the component mounted without one.
   // Aborts on unmount so a slow Deezer call doesn't update a stale tree.
@@ -213,13 +241,64 @@ export function AudioPreviewPlayer({
     return () => controller.abort();
   }, [previewUrl, refreshShortId, shortId]);
 
-  const stopSpectrumLoop = useCallback(() => {
+  const stopSpectrumLoop = useCallback(({ clearBands = true }: { clearBands?: boolean } = {}) => {
     if (spectrumFrameRef.current !== null) cancelAnimationFrame(spectrumFrameRef.current);
     spectrumFrameRef.current = null;
     spectrumLastUpdateRef.current = 0;
+    if (!clearBands) return;
     spectrumBandsRef.current = null;
     setSpectrumBands(null);
   }, []);
+
+  const setQuantizedProgressRatio = useCallback((ratio: number) => {
+    const nextRatio = quantizeProgressRatio(ratio);
+    if (progressRatioRef.current === nextRatio) return;
+    progressRatioRef.current = nextRatio;
+    setProgressRatio(nextRatio);
+  }, []);
+
+  const stopProgressLoop = useCallback(
+    (audio?: HTMLAudioElement | null) => {
+      if (progressFrameRef.current !== null) cancelAnimationFrame(progressFrameRef.current);
+      progressFrameRef.current = null;
+      if (audio) setQuantizedProgressRatio(resolveAudioProgressRatio(audio));
+    },
+    [setQuantizedProgressRatio],
+  );
+
+  const startProgressLoop = useCallback(
+    (audio: HTMLAudioElement) => {
+      stopProgressLoop();
+      const tick = () => {
+        setQuantizedProgressRatio(resolveAudioProgressRatio(audio));
+        if (!audio.paused && !audio.ended) progressFrameRef.current = requestAnimationFrame(tick);
+      };
+      progressFrameRef.current = requestAnimationFrame(tick);
+    },
+    [setQuantizedProgressRatio, stopProgressLoop],
+  );
+
+  const startSpectrumFadeOut = useCallback(() => {
+    stopSpectrumLoop({ clearBands: false });
+    const currentBands = spectrumBandsRef.current;
+    if (!currentBands) return;
+
+    const tick = (now: number) => {
+      spectrumFrameRef.current = null;
+      if (now - spectrumLastUpdateRef.current < SPECTRUM_UPDATE_MS) {
+        spectrumFrameRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      spectrumLastUpdateRef.current = now;
+
+      const nextBands = fadeSpectrumBands(spectrumBandsRef.current ?? currentBands);
+      spectrumBandsRef.current = nextBands;
+      setSpectrumBands(nextBands);
+      if (hasVisibleSpectrumBands(nextBands)) spectrumFrameRef.current = requestAnimationFrame(tick);
+    };
+
+    spectrumFrameRef.current = requestAnimationFrame(tick);
+  }, [stopSpectrumLoop]);
 
   const teardownSpectrum = useCallback(() => {
     stopSpectrumLoop();
@@ -312,17 +391,22 @@ export function AudioPreviewPlayer({
     const handleLoadedMetadata = () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
       dispatch({ type: "METADATA_LOADED", duration: dur });
+      setQuantizedProgressRatio(resolveAudioProgressRatio(audio));
     };
     const handleTimeUpdate = () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
       dispatch({ type: "TIME_UPDATE", currentTime: audio.currentTime, duration: dur });
+      setQuantizedProgressRatio(resolveAudioProgressRatio(audio));
     };
     const handleEnded = () => {
+      stopProgressLoop();
+      setQuantizedProgressRatio(0);
       stopSpectrumLoop();
       trackPlayerEvent("player_completed", shortId ?? refreshShortId);
       dispatch({ type: "ENDED" });
     };
     const handleError = () => {
+      stopProgressLoop();
       trackPlayerEvent("player_unavailable", shortId ?? refreshShortId);
       dispatch({ type: "ERROR" });
     };
@@ -339,18 +423,28 @@ export function AudioPreviewPlayer({
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
+      stopProgressLoop();
       teardownSpectrum();
       audio.pause();
       audio.src = "";
       audioRef.current = null;
     };
-  }, [effectiveUrl, refreshShortId, shortId, stopSpectrumLoop, teardownSpectrum]);
+  }, [
+    effectiveUrl,
+    refreshShortId,
+    setQuantizedProgressRatio,
+    shortId,
+    stopProgressLoop,
+    stopSpectrumLoop,
+    teardownSpectrum,
+  ]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     if (state.phase === "idle" || state.phase === "paused") {
+      stopSpectrumLoop({ clearBands: false });
       void ensureSpectrumAnalyzer(audio)
         .then(() => {
           if (!audio.paused) startSpectrumLoop();
@@ -362,16 +456,28 @@ export function AudioPreviewPlayer({
           dispatch({ type: "PLAY" });
           trackPlayerEvent(hasStartedRef.current ? "player_resumed" : "player_started", shortId ?? refreshShortId);
           hasStartedRef.current = true;
+          startProgressLoop(audio);
           startSpectrumLoop();
         })
         .catch(() => dispatch({ type: "ERROR" }));
     } else if (state.phase === "playing") {
       audio.pause();
-      stopSpectrumLoop();
+      stopProgressLoop(audio);
+      startSpectrumFadeOut();
       trackPlayerEvent("player_paused", shortId ?? refreshShortId);
       dispatch({ type: "PAUSE" });
     }
-  }, [ensureSpectrumAnalyzer, refreshShortId, shortId, startSpectrumLoop, state.phase, stopSpectrumLoop]);
+  }, [
+    ensureSpectrumAnalyzer,
+    refreshShortId,
+    shortId,
+    startProgressLoop,
+    startSpectrumFadeOut,
+    startSpectrumLoop,
+    state.phase,
+    stopProgressLoop,
+    stopSpectrumLoop,
+  ]);
 
   const isLoading = state.phase === "loading";
   const isUnavailable = state.phase === "error" || state.phase === "unavailable";
@@ -399,7 +505,6 @@ export function AudioPreviewPlayer({
     : isUnavailable
       ? t("audio.previewUnavailable")
       : formatTime(state.phase === "idle" ? duration : currentTime);
-  const progressRatio = duration > 0 ? currentTime / duration : 0;
 
   const ariaLabel = isLoading
     ? t("audio.previewLoading")
