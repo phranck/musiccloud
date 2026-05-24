@@ -602,7 +602,7 @@ function SidebarAnalyticsSection({ onItemClick, s }: { onItemClick?: () => void;
               />
             )}
           </NavLink>
-          <NavLink to="/website-analytics" onClick={onItemClick} className="contents">
+          <NavLink to="/website-analytics" end onClick={onItemClick} className="contents">
             {({ isActive }) => (
               <DashboardSection.Item
                 icon={<ChartLineIcon weight="duotone" className="w-4 h-4" />}
@@ -611,7 +611,7 @@ function SidebarAnalyticsSection({ onItemClick, s }: { onItemClick?: () => void;
               />
             )}
           </NavLink>
-          <NavLink to="/website-analytics/realtime" onClick={onItemClick} className="contents">
+          <NavLink to="/website-analytics/realtime" end onClick={onItemClick} className="contents">
             {({ isActive }) => (
               <DashboardSection.Item
                 icon={<MapTrifoldIcon weight="duotone" className="w-4 h-4" />}
