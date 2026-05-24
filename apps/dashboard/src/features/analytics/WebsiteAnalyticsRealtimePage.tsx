@@ -284,6 +284,62 @@ function visibleCitySummaries(cities: GeoLocationSummary[], detailLevel: MapDeta
   return cities.slice(0, 8);
 }
 
+function summarizeRealtimeLocations(points: LivePoint[]): GeoLocationSummary[] {
+  const byLocation = new Map<
+    string,
+    {
+      countryCode: string | null;
+      regionCode: string | null;
+      regionName: string | null;
+      city: string | null;
+      events: number;
+      latitudeSum: number;
+      longitudeSum: number;
+      lastSeenAt: string;
+    }
+  >();
+
+  for (const point of points) {
+    if (!Number.isFinite(point.latitude) || !Number.isFinite(point.longitude)) continue;
+    const key = [point.countryCode ?? "", point.regionCode ?? "", point.regionName ?? "", point.city ?? ""].join("|");
+    const current = byLocation.get(key);
+    if (!current) {
+      byLocation.set(key, {
+        countryCode: point.countryCode,
+        regionCode: point.regionCode,
+        regionName: point.regionName,
+        city: point.city,
+        events: 1,
+        latitudeSum: point.latitude,
+        longitudeSum: point.longitude,
+        lastSeenAt: point.occurredAt,
+      });
+      continue;
+    }
+
+    current.events += 1;
+    current.latitudeSum += point.latitude;
+    current.longitudeSum += point.longitude;
+    if (new Date(point.occurredAt).getTime() > new Date(current.lastSeenAt).getTime()) {
+      current.lastSeenAt = point.occurredAt;
+    }
+  }
+
+  return Array.from(byLocation.values())
+    .map((location) => ({
+      countryCode: location.countryCode,
+      regionCode: location.regionCode,
+      regionName: location.regionName,
+      city: location.city,
+      latitude: location.latitudeSum / location.events,
+      longitude: location.longitudeSum / location.events,
+      events: location.events,
+      clusters: location.events,
+      lastSeenAt: location.lastSeenAt,
+    }))
+    .sort((a, b) => b.events - a.events || new Date(b.lastSeenAt).getTime() - new Date(a.lastSeenAt).getTime());
+}
+
 function mapTransform({ scale, x, y }: ViewTransform) {
   return `translate(${x} ${y}) scale(${scale})`;
 }
@@ -532,7 +588,9 @@ function useWebsiteAnalyticsRealtimeStream(onPoint: (point: GeoPoint) => void) {
             } else if (line === "" && eventType === "website-analytics-geo-event" && eventData) {
               try {
                 onPointRef.current(JSON.parse(eventData) as GeoPoint);
-              } catch {}
+              } catch {
+                // Ignore malformed SSE payloads and keep the realtime stream alive.
+              }
               eventType = "";
               eventData = "";
             }
@@ -1442,9 +1500,11 @@ export function WebsiteAnalyticsRealtimePage() {
     if (!devLocationPoint) return activePoints;
     return [{ ...devLocationPoint, persistent: true, receivedAt: devLocationReceivedAtRef.current }, ...activePoints];
   }, [devLocationPoint, now, points]);
+  const realtimeLocations = useMemo(() => summarizeRealtimeLocations(visiblePoints), [visiblePoints]);
   const coverage = geoQuery.data?.coverage;
   const cities = geoQuery.data?.cities ?? [];
   const countries = geoQuery.data?.countries ?? [];
+  const locationList = realtimeLocations.length > 0 ? realtimeLocations : cities;
 
   return (
     <PageLayout>
@@ -1483,7 +1543,7 @@ export function WebsiteAnalyticsRealtimePage() {
             <DashboardSection>
               <DashboardSection.Header icon={<MapPinIcon weight="duotone" className="size-4" />} title="Locations" />
               <DashboardSection.Body>
-                <TopLocationList cities={cities} />
+                <TopLocationList cities={locationList} />
               </DashboardSection.Body>
             </DashboardSection>
 
