@@ -16,7 +16,6 @@ export const prerender = false;
 import type { ServiceId } from "@musiccloud/shared";
 import { buildMetaLine, isValidServiceId } from "@musiccloud/shared";
 import { fetchPublicContentPage, fetchShareData } from "@/api/client";
-import GradientBackground from "@/components/background/GradientBackground.astro";
 import DeferredFooter from "@/components/layout/DeferredFooter.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import { MarkdownHtml, SegmentedPageFullscreen } from "@/components/layout/PageOverlayContent";
@@ -186,8 +185,6 @@ if (treatAsBot) {
   <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">
     {t("a11y.skipToContent")}
   </a>
-
-  <GradientBackground />
 
   <div class="min-h-dvh flex flex-col">
     {treatAsBot ? (

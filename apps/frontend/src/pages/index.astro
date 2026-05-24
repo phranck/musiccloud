@@ -2,7 +2,6 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import { fetchNavigation, fetchRandomExample } from "@/api/client";
 import { LandingPage } from "@/components/landing/LandingPage";
-import GradientBackground from "@/components/background/GradientBackground.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { getLocaleFromCookie } from "@/i18n/locales";
@@ -63,9 +62,6 @@ const exampleShortId = randomExample?.shortId ?? null;
       if (u) location.replace(redirectEndpoint + "?url=" + encodeURIComponent(u));
     })();
   </script>
-
-  <!-- Static ambient background: no JS, no hydration -->
-  <GradientBackground />
 
   <div class="min-h-dvh flex flex-col">
     <LandingPage client:idle footerNav={footerNav} exampleShortId={exampleShortId} />

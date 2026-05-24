@@ -1,14 +1,46 @@
 ---
 /**
- * Static ambient background.
+ * Ambient app background.
  *
- * Deliberately no JavaScript and no runtime animation: the soft radial fields
- * are painted once and then stay fixed so the share/player UI can keep the
- * main thread and compositor budget for interactive controls.
+ * The starfield intentionally matches the dashboard auth background exactly:
+ * same seeded positions, same opacity/size rules, same 300s rotation. It stays
+ * behind the soft radial fields so the blurry cloud layer remains in front.
  */
+function seededRandom(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s * 16807 + 0) % 2147483647;
+    return s / 2147483647;
+  };
+}
+
+function generateStarfield(): string {
+  const rand = seededRandom(42);
+  const stars: string[] = [];
+
+  for (let i = 0; i < 90; i++) {
+    const x = rand() * 100;
+    const y = rand() * 100;
+    const brightness = rand();
+    const opacity = brightness > 0.85 ? 0.2 + rand() * 0.15 : 0.04 + rand() * 0.1;
+    const size = brightness > 0.85 ? 1.5 : 1;
+    stars.push(`${x}vw ${y}dvh 0 ${size}px rgba(220, 235, 245, ${opacity})`);
+  }
+
+  return stars.join(", ");
+}
+
+const starfieldShadow = generateStarfield();
 ---
 
 <div class="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden="true">
+  <div
+    class="absolute inset-0 pointer-events-none animate-[spin_300s_linear_infinite]"
+    style="transform-origin: 50vw 50dvh;"
+  >
+    <div class="absolute w-px h-px top-0 left-0" style={`box-shadow: ${starfieldShadow};`}></div>
+  </div>
+
   <div
     class="absolute inset-0"
     style="background:
