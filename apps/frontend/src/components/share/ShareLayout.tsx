@@ -742,7 +742,7 @@ function MobileShareLayout({ animated, config, label, onOpenSheet, onPreviewStat
             } as CSSProperties
           }
         >
-          <MicrophoneStageIcon className="size-8 flex-shrink-0 max-[389px]:size-5" weight="duotone" />
+          <MicrophoneStageIcon className="size-6 flex-shrink-0 max-[389px]:size-5" weight="duotone" />
           <span className="truncate leading-none">{label}</span>
         </EmbossedButton>
       </div>

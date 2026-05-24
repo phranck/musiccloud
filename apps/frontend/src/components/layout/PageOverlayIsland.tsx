@@ -28,6 +28,7 @@ const DEFAULT_H = 600;
 const MIN_W = 320;
 const MIN_H = 240;
 const VIEWPORT_MARGIN = 8;
+const MOBILE_OVERLAY_QUERY = "(max-width: 767px), (pointer: coarse)";
 
 // Geometry is persisted per-page slug so the user's preferred size and
 // position for one page (e.g. "help") does not bleed over into another
@@ -128,6 +129,36 @@ function saveGeom(slug: string, g: Geom): void {
   }
 }
 
+function getMediaQueryMatch(query: string): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia(query).matches;
+}
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => getMediaQueryMatch(query));
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mediaQuery = window.matchMedia(query);
+    const update = () => setMatches(mediaQuery.matches);
+    update();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", update);
+      return () => mediaQuery.removeEventListener("change", update);
+    }
+
+    const legacyMediaQuery = mediaQuery as unknown as {
+      addListener?: (listener: () => void) => void;
+      removeListener?: (listener: () => void) => void;
+    };
+    legacyMediaQuery.addListener?.(update);
+    return () => legacyMediaQuery.removeListener?.(update);
+  }, [query]);
+
+  return matches;
+}
+
 export function PageOverlayIsland({ initialPage }: Props) {
   return (
     <LocaleProvider>
@@ -140,6 +171,7 @@ export function PageOverlayIsland({ initialPage }: Props) {
 
 function OverlayShell() {
   const { page, close } = useOverlay();
+  const isMobileOverlayViewport = useMediaQuery(MOBILE_OVERLAY_QUERY);
 
   // `mounted` stays true as long as we should render the overlay DOM.
   // `visible` drives the transition classes; flipped on one frame after
@@ -174,14 +206,16 @@ function OverlayShell() {
 
   if (!mounted || !page || page.displayMode === "fullscreen") return null;
 
+  const fullscreenFrame = page.pageType === "segmented" && isMobileOverlayViewport;
+
   return (
     <>
       <OverlayBackdrop open={visible} onClick={close} ariaLabel="Close overlay" placement="fixed" className="z-40" />
-      <OverlayFrame key={page.slug} visible={visible} slug={page.slug}>
+      <OverlayFrame key={page.slug} visible={visible} slug={page.slug} fullscreen={fullscreenFrame}>
         {page.displayMode === "translucent" ? (
-          <TranslucentOverlayContent page={page} onClose={close} />
+          <TranslucentOverlayContent page={page} onClose={close} frameInteractionsDisabled={fullscreenFrame} />
         ) : (
-          <EmbossedOverlayContent page={page} onClose={close} />
+          <EmbossedOverlayContent page={page} onClose={close} frameInteractionsDisabled={fullscreenFrame} />
         )}
       </OverlayFrame>
     </>
@@ -199,7 +233,17 @@ function OverlayShell() {
  * page) once per gesture (on `pointerup`) to avoid hammering the API
  * during drag.
  */
-function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: string; children: ReactNode }) {
+function OverlayFrame({
+  visible,
+  slug,
+  fullscreen,
+  children,
+}: {
+  visible: boolean;
+  slug: string;
+  fullscreen: boolean;
+  children: ReactNode;
+}) {
   const frameRef = useRef<HTMLDivElement>(null);
   const [geom, setGeom] = useState<Geom>(() => loadGeom(slug) ?? defaultGeom());
   const gestureRef = useRef<{
@@ -241,8 +285,12 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
     };
   }
 
+  useEffect(() => {
+    if (fullscreen) gestureRef.current = null;
+  }, [fullscreen]);
+
   function onFramePointerDown(e: PointerEvent<HTMLDivElement>): void {
-    if (!geom) return;
+    if (!geom || fullscreen) return;
     const target = e.target as HTMLElement;
     // Interactive chrome (close button, segmented tabs, links) always wins.
     if (target.closest("button, a, input, textarea, [role=tab]")) return;
@@ -252,7 +300,7 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
   }
 
   function onResizePointerDown(handle: ResizeHandle, e: PointerEvent<HTMLDivElement>): void {
-    if (!geom) return;
+    if (!geom || fullscreen) return;
     e.preventDefault();
     e.stopPropagation();
     beginGesture("resize", e, geom, handle);
@@ -283,29 +331,39 @@ function OverlayFrame({ visible, slug, children }: { visible: boolean; slug: str
     });
   }
 
-  const frameStyle: CSSProperties = {
-    left: `${geom.x}px`,
-    top: `${geom.y}px`,
-    width: `${geom.w}px`,
-    height: `${geom.h}px`,
-    transition: `opacity ${OVERLAY_TRANSITION_MS}ms ease-out, transform ${OVERLAY_TRANSITION_MS}ms ease-out`,
-  };
+  const frameStyle: CSSProperties = fullscreen
+    ? {
+        left: 0,
+        top: 0,
+        width: "100vw",
+        height: "100dvh",
+        transition: `opacity ${OVERLAY_TRANSITION_MS}ms ease-out, transform ${OVERLAY_TRANSITION_MS}ms ease-out`,
+      }
+    : {
+        left: `${geom.x}px`,
+        top: `${geom.y}px`,
+        width: `${geom.w}px`,
+        height: `${geom.h}px`,
+        transition: `opacity ${OVERLAY_TRANSITION_MS}ms ease-out, transform ${OVERLAY_TRANSITION_MS}ms ease-out`,
+      };
 
   return (
     <div
       ref={frameRef}
       className={cn(
         "pointer-events-auto fixed z-50 flex flex-col",
-        visible ? "opacity-100 scale-100" : "opacity-0 scale-[0.96]",
+        fullscreen ? "" : "rounded-2xl",
+        visible ? "opacity-100 scale-100" : fullscreen ? "opacity-0" : "opacity-0 scale-[0.96]",
       )}
+      data-overlay-frame-mode={fullscreen ? "fullscreen" : "windowed"}
       style={frameStyle}
-      onPointerDown={onFramePointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endGesture}
-      onPointerCancel={endGesture}
+      onPointerDown={fullscreen ? undefined : onFramePointerDown}
+      onPointerMove={fullscreen ? undefined : onPointerMove}
+      onPointerUp={fullscreen ? undefined : endGesture}
+      onPointerCancel={fullscreen ? undefined : endGesture}
     >
       {children}
-      <ResizeHandles onResizeStart={onResizePointerDown} />
+      {!fullscreen && <ResizeHandles onResizeStart={onResizePointerDown} />}
     </div>
   );
 }
@@ -322,6 +380,7 @@ function ResizeHandles({ onResizeStart }: ResizeHandlesProps) {
           key={handle}
           aria-hidden="true"
           className="absolute z-20 touch-none"
+          data-overlay-resize-handle={handle}
           style={getResizeHandleHitAreaStyle(handle) as CSSProperties}
           onPointerDown={(event) => onResizeStart(handle, event)}
         />

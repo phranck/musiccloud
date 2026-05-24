@@ -118,7 +118,7 @@ export function ArtistInfoCard({
         />
 
         {/* 2. Popular Tracks */}
-        <CollapsibleSection visible={showTracks} sectionClass="p-3">
+        <CollapsibleSection visible={showTracks} sectionClass="p-3" disableMobileCollapse>
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Header>
               <RecessedCard.Header.Title>{t("artist.popularTracks")}</RecessedCard.Header.Title>
@@ -140,7 +140,7 @@ export function ArtistInfoCard({
         </CollapsibleSection>
 
         {/* 3. Upcoming Events */}
-        <CollapsibleSection visible={showEvents} sectionClass="p-3">
+        <CollapsibleSection visible={showEvents} sectionClass="p-3" disableMobileCollapse>
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Header>
               <RecessedCard.Header.Title>{t("artist.upcomingEvents")}</RecessedCard.Header.Title>
@@ -161,7 +161,7 @@ export function ArtistInfoCard({
         </CollapsibleSection>
 
         {/* 4. Similar Artists */}
-        <CollapsibleSection visible={showSimilar} sectionClass="p-3">
+        <CollapsibleSection visible={showSimilar} sectionClass="p-3" disableMobileCollapse>
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Header>
               <RecessedCard.Header.Title>{t("artist.similarArtists")}</RecessedCard.Header.Title>

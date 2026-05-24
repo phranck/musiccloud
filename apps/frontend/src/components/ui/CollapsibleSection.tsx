@@ -8,15 +8,18 @@ import { cn } from "@/lib/utils";
 const COLLAPSE_DURATION_MS = 680;
 
 export function CollapsibleSection({
+  disableMobileCollapse = false,
   visible,
   sectionClass,
   children,
 }: {
+  disableMobileCollapse?: boolean;
   visible: boolean;
   sectionClass?: string;
   children: ReactNode;
 }) {
   const [renderedChildren, setRenderedChildren] = useState<ReactNode>(() => (visible ? children : null));
+  const shouldDisableMobileCollapse = disableMobileCollapse && renderedChildren !== null;
 
   useEffect(() => {
     if (visible) {
@@ -32,6 +35,7 @@ export function CollapsibleSection({
       className={cn(
         "grid transition-[grid-template-rows,opacity] duration-[680ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
         visible ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        shouldDisableMobileCollapse && "max-sm:grid-rows-[1fr] max-sm:opacity-100",
       )}
     >
       <div className="overflow-hidden">

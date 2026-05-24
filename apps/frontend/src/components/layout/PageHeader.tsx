@@ -45,12 +45,12 @@ function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): vo
 }
 
 /**
- * Fixed top-right header bar: optional admin-managed nav links + Language Switcher.
+ * Top-right header bar: optional admin-managed nav links + Language Switcher.
  * Must be rendered inside a LocaleProvider.
  */
 export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
   return (
-    <div className="fixed top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center gap-2 sm:top-4 sm:right-4 sm:gap-3">
+    <div className="absolute top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center gap-2 sm:fixed sm:top-4 sm:right-4 sm:gap-3">
       {navItems.length > 0 && (
         <nav aria-label="Header navigation" className="flex items-center gap-3 text-xs sm:gap-4 sm:mr-2 sm:text-sm">
           {navItems.map((item) => (

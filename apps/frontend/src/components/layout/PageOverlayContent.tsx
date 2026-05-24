@@ -157,9 +157,10 @@ function useSegmented(page: PublicContentPage): {
 interface OverlayContentProps {
   page: PublicContentPage;
   onClose: () => void;
+  frameInteractionsDisabled?: boolean;
 }
 
-export function TranslucentOverlayContent({ page, onClose }: OverlayContentProps) {
+export function TranslucentOverlayContent({ page, onClose, frameInteractionsDisabled = false }: OverlayContentProps) {
   const segmented = useSegmented(page);
   const isSegmented = page.pageType === "segmented" && page.segments.length > 0;
   const html = isSegmented ? segmented.currentHtml : page.contentHtml;
@@ -171,7 +172,12 @@ export function TranslucentOverlayContent({ page, onClose }: OverlayContentProps
 
   return (
     <TranslucentCard className="h-full">
-      <TranslucentCard.Header className="relative px-3 pb-3 overlay-drag-handle cursor-grab active:cursor-grabbing">
+      <TranslucentCard.Header
+        className={cn(
+          "relative px-3 pb-3",
+          frameInteractionsDisabled ? "cursor-default" : "overlay-drag-handle cursor-grab active:cursor-grabbing",
+        )}
+      >
         {showTitle && (
           <h2 className="text-xl font-semibold tracking-[-0.01em] text-white text-center truncate px-10">{title}</h2>
         )}
@@ -198,7 +204,7 @@ export function TranslucentOverlayContent({ page, onClose }: OverlayContentProps
   );
 }
 
-export function EmbossedOverlayContent({ page, onClose }: OverlayContentProps) {
+export function EmbossedOverlayContent({ page, onClose, frameInteractionsDisabled = false }: OverlayContentProps) {
   const segmented = useSegmented(page);
   const isSegmented = page.pageType === "segmented" && page.segments.length > 0;
   const html = isSegmented ? segmented.currentHtml : page.contentHtml;
@@ -208,7 +214,12 @@ export function EmbossedOverlayContent({ page, onClose }: OverlayContentProps) {
 
   return (
     <EmbossedCard className={cn("flex flex-col h-full")} style={embossedOverlayCardStyle}>
-      <EmbossedCard.Header className="p-2 overlay-drag-handle cursor-grab active:cursor-grabbing">
+      <EmbossedCard.Header
+        className={cn(
+          "p-2",
+          frameInteractionsDisabled ? "cursor-default" : "overlay-drag-handle cursor-grab active:cursor-grabbing",
+        )}
+      >
         {showTitle && <EmbossedCard.Header.Title align={page.titleAlignment}>{title}</EmbossedCard.Header.Title>}
         <EmbossedCard.Header.AddOn align="trailing">
           <EmbossedCloseButton onClick={onClose} />
