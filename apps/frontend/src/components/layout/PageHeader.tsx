@@ -52,7 +52,7 @@ export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
   return (
     <div className="absolute top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center gap-2 sm:fixed sm:top-4 sm:right-4 sm:gap-3">
       {navItems.length > 0 && (
-        <nav aria-label="Header navigation" className="flex items-center gap-3 text-xs sm:gap-4 sm:mr-2 sm:text-sm">
+        <nav aria-label="Header navigation" className="flex items-center gap-3 text-sm sm:gap-4 sm:mr-2">
           {navItems.map((item) => (
             <a
               key={item.id}
