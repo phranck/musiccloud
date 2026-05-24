@@ -1,5 +1,5 @@
-import { createContext, type ReactNode, use } from "react";
-import { recessedControlInsetClassName, recessedControlSizeClassName } from "@/components/cards/cardGeometry";
+import { type CSSProperties, createContext, type ReactNode, use } from "react";
+import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
@@ -9,6 +9,7 @@ interface PlayerContextValue {
   isPlaying: boolean;
   isDisabled: boolean;
   timeText: string;
+  progressRatio?: number;
   ariaLabel: string;
   title?: string;
   spectrumBands?: PlayerSpectrumBands | null;
@@ -43,6 +44,9 @@ interface PlayerTimeProps {
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
+const PLAYER_CONTROL_SIZE_CLASS = "size-[49px]";
+// Matches VfdDisplay's fixed 5-column glyph plus 1-column spacing at 1px dot/1px gap.
+const PLAYER_VFD_CELL_PITCH_PX = 12;
 const PLAYER_SPECTRUM_CELLS = 30;
 const PLAYER_STEREO_CHANNEL_CELLS = 12;
 const PLAYER_STEREO_CHANNEL_GAP_CELLS = 3;
@@ -119,6 +123,7 @@ function PlayerRoot({
   isPlaying,
   isDisabled,
   timeText,
+  progressRatio = 0,
   ariaLabel,
   title,
   spectrumBands,
@@ -129,6 +134,7 @@ function PlayerRoot({
     isPlaying,
     isDisabled,
     timeText,
+    progressRatio,
     ariaLabel,
     title,
     spectrumBands,
@@ -155,7 +161,7 @@ function PlayerButton({ className }: PlayerButtonProps) {
   const accentColor = isDisabled ? "rgba(255,255,255,0.2)" : "#7aebff";
 
   return (
-    <RecessedCard className={cn("flex-none", recessedControlSizeClassName, recessedControlInsetClassName, className)}>
+    <RecessedCard className={cn("flex-none", PLAYER_CONTROL_SIZE_CLASS, recessedControlInsetClassName, className)}>
       <RecessedCard.Body className="h-full">
         <EmbossedButton
           as="button"
@@ -191,10 +197,15 @@ function PlayerButton({ className }: PlayerButtonProps) {
 }
 
 function PlayerProgress({ className, children }: PlayerProgressProps) {
-  const { isDisabled, isPlaying, timeText, phosphorColor, spectrumBands } = usePlayerContext();
+  const { isDisabled, isPlaying, timeText, progressRatio, phosphorColor, spectrumBands } = usePlayerContext();
   const isStereoAnalyzer =
     !children && spectrumBands !== null && spectrumBands !== undefined && isStereoSpectrumBands(spectrumBands);
   const analyzerSections = renderSpectrumSections(spectrumBands ?? []);
+  const safeProgressRatio = Math.max(0, Math.min(1, progressRatio ?? 0));
+  const progressStyle = {
+    "--mc-player-progress": safeProgressRatio,
+    "--mc-player-progress-right": `${(Array.from(timeText).length + 2) * PLAYER_VFD_CELL_PITCH_PX}px`,
+  } as CSSProperties;
   const progressSections = children
     ? [
         {
@@ -211,11 +222,12 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
       }));
 
   return (
-    <div className={cn("flex-1 min-w-0", className)}>
+    <div className={cn("flex-1 min-w-0", className)} style={progressStyle}>
       <VfdDisplay
         sizingMode="container"
         rows={1}
         phosphorColor={phosphorColor}
+        className={cn(!children && "mc-player-progress-vfd")}
         ariaLabel={`Preview progress ${timeText}`}
         lines={[
           {

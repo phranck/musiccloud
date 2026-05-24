@@ -399,6 +399,7 @@ export function AudioPreviewPlayer({
     : isUnavailable
       ? t("audio.previewUnavailable")
       : formatTime(state.phase === "idle" ? duration : currentTime);
+  const progressRatio = duration > 0 ? currentTime / duration : 0;
 
   const ariaLabel = isLoading
     ? t("audio.previewLoading")
@@ -414,6 +415,7 @@ export function AudioPreviewPlayer({
         isPlaying={isPlaying}
         isDisabled={isDisabled}
         timeText={timeText}
+        progressRatio={progressRatio}
         ariaLabel={ariaLabel}
         title={isLoading ? t("audio.previewLoading") : isUnavailable ? t("audio.previewUnavailable") : undefined}
         spectrumBands={spectrumBands}
