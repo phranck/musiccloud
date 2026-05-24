@@ -189,7 +189,7 @@ function statusFromError(databasePath: string, error: unknown): GeoIpStatus {
     ...emptyStatus(
       state,
       state === "missing"
-        ? "DB-IP City Lite database is missing. Run an update from the dashboard or enable startup updates."
+        ? "DB-IP City Lite database is missing. Run an update from the dashboard."
         : "DB-IP City Lite database could not be opened.",
     ),
     databasePath,

@@ -174,6 +174,7 @@ const POINT_TTL_MS = FLASH_MS + PULSE_MS + FADE_MS;
 const MAP_PADDING_X = 34;
 const MAP_PADDING_Y = 28;
 const HOME_ANIMATION_MS = 820;
+const GEOIP_UPDATE_TIMEOUT_MS = 300_000;
 const MAX_MAP_SCALE = 10;
 const INITIAL_MAP_VIEW: ViewTransform = { scale: 1, x: 0, y: 0 };
 const MAP_VIEW_STORAGE_KEY = "musiccloud.analytics.realtime.mapView.v1";
@@ -1346,7 +1347,10 @@ export function WebsiteAnalyticsRealtimePage() {
     refetchIntervalInBackground: false,
   });
   const geoIpUpdateMutation = useMutation({
-    mutationFn: () => api.post<GeoIpUpdateResult>(ENDPOINTS.admin.analytics.website.geoIpUpdate),
+    mutationFn: () =>
+      api.post<GeoIpUpdateResult>(ENDPOINTS.admin.analytics.website.geoIpUpdate, undefined, {
+        timeoutMs: GEOIP_UPDATE_TIMEOUT_MS,
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["website-analytics-geoip-status"] });
       void queryClient.invalidateQueries({ queryKey: ["website-analytics-geo-realtime"] });

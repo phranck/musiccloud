@@ -4,6 +4,10 @@ const API_BASE = "/api";
 const FETCH_TIMEOUT_MS = 30_000;
 const ADMIN_STORAGE_KEY = "admin_token";
 
+interface ApiRequestOptions {
+  timeoutMs?: number;
+}
+
 /**
  * Resolve a caller-supplied path to a full URL.
  *
@@ -51,49 +55,73 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = FETC
 }
 
 export const api = {
-  get: <T>(path: string): Promise<T> =>
-    fetchWithTimeout(resolvePath(path), {
-      headers: { ...getAuthHeaders() },
-    }).then((r) => handleResponse<T>(r)),
-
-  post: <T>(path: string, body?: unknown): Promise<T> =>
-    fetchWithTimeout(resolvePath(path), {
-      method: "POST",
-      headers: {
-        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-        ...getAuthHeaders(),
+  get: <T>(path: string, options: ApiRequestOptions = {}): Promise<T> =>
+    fetchWithTimeout(
+      resolvePath(path),
+      {
+        headers: { ...getAuthHeaders() },
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    }).then((r) => handleResponse<T>(r)),
+      options.timeoutMs,
+    ).then((r) => handleResponse<T>(r)),
 
-  patch: <T>(path: string, body: unknown): Promise<T> =>
-    fetchWithTimeout(resolvePath(path), {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify(body),
-    }).then((r) => handleResponse<T>(r)),
-
-  put: <T>(path: string, body: unknown): Promise<T> =>
-    fetchWithTimeout(resolvePath(path), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify(body),
-    }).then((r) => handleResponse<T>(r)),
-
-  delete: <T>(path: string, body?: unknown): Promise<T> =>
-    fetchWithTimeout(resolvePath(path), {
-      method: "DELETE",
-      headers: {
-        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-        ...getAuthHeaders(),
+  post: <T>(path: string, body?: unknown, options: ApiRequestOptions = {}): Promise<T> =>
+    fetchWithTimeout(
+      resolvePath(path),
+      {
+        method: "POST",
+        headers: {
+          ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+          ...getAuthHeaders(),
+        },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    }).then((r) => handleResponse<T>(r)),
+      options.timeoutMs,
+    ).then((r) => handleResponse<T>(r)),
 
-  upload: <T>(path: string, formData: FormData): Promise<T> =>
-    fetchWithTimeout(resolvePath(path), {
-      method: "POST",
-      headers: { ...getAuthHeaders() },
-      body: formData,
-    }).then((r) => handleResponse<T>(r)),
+  patch: <T>(path: string, body: unknown, options: ApiRequestOptions = {}): Promise<T> =>
+    fetchWithTimeout(
+      resolvePath(path),
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(body),
+      },
+      options.timeoutMs,
+    ).then((r) => handleResponse<T>(r)),
+
+  put: <T>(path: string, body: unknown, options: ApiRequestOptions = {}): Promise<T> =>
+    fetchWithTimeout(
+      resolvePath(path),
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(body),
+      },
+      options.timeoutMs,
+    ).then((r) => handleResponse<T>(r)),
+
+  delete: <T>(path: string, body?: unknown, options: ApiRequestOptions = {}): Promise<T> =>
+    fetchWithTimeout(
+      resolvePath(path),
+      {
+        method: "DELETE",
+        headers: {
+          ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+          ...getAuthHeaders(),
+        },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      },
+      options.timeoutMs,
+    ).then((r) => handleResponse<T>(r)),
+
+  upload: <T>(path: string, formData: FormData, options: ApiRequestOptions = {}): Promise<T> =>
+    fetchWithTimeout(
+      resolvePath(path),
+      {
+        method: "POST",
+        headers: { ...getAuthHeaders() },
+        body: formData,
+      },
+      options.timeoutMs,
+    ).then((r) => handleResponse<T>(r)),
 };
