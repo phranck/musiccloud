@@ -181,7 +181,7 @@ export function HeroInput({
             className={cn(
               "flex items-center justify-center",
               compact && state !== "loading" ? "hidden" : "flex",
-              "w-8 h-8 md:w-10 md:h-10 mr-[5px] flex-shrink-0",
+              "w-8 h-8 md:w-10 md:h-10 mr-1 flex-shrink-0",
               "rounded-full",
               "transition-all duration-[250ms]",
               state === "loading"
