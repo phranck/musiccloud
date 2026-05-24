@@ -137,9 +137,8 @@
     inset -1px -1px 0 rgba(0, 0, 0, 0.48);
   transform: translate3d(0, 0, 0);
   transition:
-    background-color 180ms ease-out,
-    box-shadow 180ms ease-out,
-    transform 140ms ease-out;
+    background-color 50ms ease-out,
+    transform 60ms ease-out;
 }
 
 .mc-raised-control:not(:disabled):active,

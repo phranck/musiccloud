@@ -25,7 +25,8 @@ export function GenreRowButton({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={cn("w-full flex items-center gap-3 px-2 py-2 text-left rounded-lg", disabled && "cursor-default")}
+        noScale
+        className={cn("w-full flex items-center gap-3 px-2 py-2 text-left", disabled && "cursor-default")}
         aria-label={ariaLabel}
       >
         {children}
