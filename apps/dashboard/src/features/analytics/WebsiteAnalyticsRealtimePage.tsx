@@ -136,6 +136,7 @@ interface DragState {
 interface WorldMapGeometry {
   borders: MultiLineString;
   countries: FeatureCollection<Geometry, CountryProperties>;
+  outline: MultiLineString;
 }
 
 interface CountryPath {
@@ -201,6 +202,7 @@ function parseWorldMapTopology(rawTopology: unknown): WorldMapGeometry {
       Geometry,
       CountryProperties
     >,
+    outline: mesh(topology, topology.objects.countries, (a, b) => a === b) as MultiLineString,
   };
 }
 
@@ -561,6 +563,7 @@ const StaticWorldLayer = memo(function StaticWorldLayer({
   hoveredCountry,
   loadError,
   isLoaded,
+  outlinePath,
 }: {
   borderPath: string;
   countryPaths: CountryPath[];
@@ -569,6 +572,7 @@ const StaticWorldLayer = memo(function StaticWorldLayer({
   hoveredCountry: HoveredCountry | null;
   loadError: string | null;
   isLoaded: boolean;
+  outlinePath: string;
 }) {
   return (
     <>
@@ -610,36 +614,30 @@ const StaticWorldLayer = memo(function StaticWorldLayer({
         </text>
       )}
       {countryPaths.map((country) => (
+        <path key={country.key} d={country.d} aria-label={country.name} fill="rgba(17, 124, 210, 0.052)" />
+      ))}
+      {hoveredCountry && <path d={hoveredCountry.d} fill="rgba(86, 216, 255, 0.14)" />}
+      {outlinePath && (
         <path
-          key={country.key}
-          d={country.d}
-          aria-label={country.name}
-          fill="rgba(17, 124, 210, 0.052)"
+          d={outlinePath}
+          fill="none"
           stroke="#5ecbff"
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeOpacity={detailLevel === "base" ? 0.72 : 0.48}
-          strokeWidth={detailLevel === "base" ? 1.15 : 0.85}
-          vectorEffect="non-scaling-stroke"
-        />
-      ))}
-      {hoveredCountry && (
-        <path
-          d={hoveredCountry.d}
-          fill="rgba(86, 216, 255, 0.16)"
-          stroke="#9beaff"
-          strokeOpacity="0.7"
-          strokeWidth="1"
+          strokeOpacity={detailLevel === "base" ? 0.46 : 0.4}
+          strokeWidth={detailLevel === "base" ? 0.82 : 0.62}
           vectorEffect="non-scaling-stroke"
         />
       )}
-      {detailLevel !== "base" && borderPath && (
+      {borderPath && (
         <path
           d={borderPath}
           fill="none"
-          stroke="#77d8ff"
-          strokeOpacity={detailLevel === "labels" ? 0.46 : 0.28}
-          strokeWidth="0.55"
+          stroke="#5ecbff"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeOpacity={detailLevel === "base" ? 0.46 : 0.4}
+          strokeWidth={detailLevel === "base" ? 0.82 : 0.62}
           vectorEffect="non-scaling-stroke"
         />
       )}
@@ -856,6 +854,10 @@ function RealtimeWorldMap({
       .filter((country): country is CountryPath => typeof country.d === "string");
   }, [mapGeometry, path]);
   const borderPath = useMemo(() => (mapGeometry && path ? (path(mapGeometry.borders) ?? "") : ""), [mapGeometry, path]);
+  const outlinePath = useMemo(
+    () => (mapGeometry && path ? (path(mapGeometry.outline) ?? "") : ""),
+    [mapGeometry, path],
+  );
   const graticulePaths = useMemo(() => {
     if (!path) return "";
     return {
@@ -1147,6 +1149,7 @@ function RealtimeWorldMap({
             hoveredCountry={hoveredCountry}
             loadError={mapLoadError}
             isLoaded={Boolean(mapGeometry)}
+            outlinePath={outlinePath}
           />
           <CityLayer cities={cities} detailLevel={detailLevel} projection={projection} />
         </g>
