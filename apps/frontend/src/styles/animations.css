@@ -188,7 +188,7 @@
 }
 
 .mc-player-progress-vfd .mc-vfd {
-  padding-bottom: calc(1rem + 2px);
+  padding-bottom: calc(1rem + 3px);
 }
 
 .mc-player-progress-vfd .mc-vfd::after {

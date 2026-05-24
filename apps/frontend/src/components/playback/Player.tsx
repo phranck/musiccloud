@@ -44,7 +44,7 @@ interface PlayerTimeProps {
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
-const PLAYER_CONTROL_SIZE_CLASS = "size-[49px]";
+const PLAYER_CONTROL_SIZE_CLASS = "size-[50px]";
 // Matches VfdDisplay's fixed 5-column glyph plus 1-column spacing at 1px dot/1px gap.
 const PLAYER_VFD_CELL_PITCH_PX = 12;
 const PLAYER_SPECTRUM_CELLS = 30;
