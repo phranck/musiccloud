@@ -168,10 +168,13 @@ const MAP_WIDTH = 1400;
 const MAP_HEIGHT = 620;
 const MAX_POINTS = 320;
 const FLASH_MS = 900;
-const PULSE_MS = 15_000;
+const PULSE_MS = 30_000;
 const PULSE_CYCLE_MS = 3_600;
 const FADE_MS = 10_000;
 const POINT_TTL_MS = FLASH_MS + PULSE_MS + FADE_MS;
+const LIVE_POINT_RADIUS = 4.7;
+const IDLE_POINT_RADIUS = 4.2;
+const IDLE_POINT_BREATH_MS = 4_800;
 const MAP_PADDING_X = 34;
 const MAP_PADDING_Y = 28;
 const HOME_ANIMATION_MS = 820;
@@ -243,6 +246,11 @@ function pointOpacity(point: LivePoint, now: number) {
   const age = pointAge(point, now);
   if (age <= FLASH_MS + PULSE_MS) return 1;
   return Math.max(0, 1 - (age - FLASH_MS - PULSE_MS) / FADE_MS);
+}
+
+function idlePointBreath(now: number) {
+  const progress = (now % IDLE_POINT_BREATH_MS) / IDLE_POINT_BREATH_MS;
+  return 0.5 - Math.cos(progress * Math.PI * 2) / 2;
 }
 
 function activityLabel(activity: GeoActivity) {
@@ -699,7 +707,10 @@ function drawRealtimePoint(
   const pulseActive = !point.persistent && age <= FLASH_MS + PULSE_MS;
   const pulseAge = Math.max(0, age - FLASH_MS * 0.35);
   const pulseRamp = Math.min(1, Math.max(0, pulseAge / 900));
-  const coreRadius = 4.7;
+  const breath = pulseActive ? 0 : idlePointBreath(now);
+  const coreRadius = pulseActive ? LIVE_POINT_RADIUS : IDLE_POINT_RADIUS + breath * 0.5;
+  const fillOpacity = (pulseActive ? 0.3 : 0.18 + breath * 0.16) * opacity;
+  const strokeOpacity = (pulseActive ? 1 : 0.52 + breath * 0.26) * opacity;
 
   context.save();
   context.globalCompositeOperation = "lighter";
@@ -719,13 +730,13 @@ function drawRealtimePoint(
   }
 
   context.shadowBlur = 0;
-  context.globalAlpha = 0.3 * opacity;
+  context.globalAlpha = fillOpacity;
   context.fillStyle = meta.color;
   context.beginPath();
   context.arc(x, y, coreRadius, 0, Math.PI * 2);
   context.fill();
 
-  context.globalAlpha = opacity;
+  context.globalAlpha = strokeOpacity;
   context.strokeStyle = meta.color;
   context.lineWidth = 1;
   context.beginPath();
