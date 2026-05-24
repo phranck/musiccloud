@@ -773,6 +773,15 @@ function MobileArtistSheet({
   open,
   userRegion,
 }: MobileArtistSheetProps) {
+  const handleTrackResolve = useCallback<ArtistPanelTrackResolveHandler>(
+    async (track, options) => {
+      onClose();
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "smooth" }));
+      await onTrackResolve(track, options);
+    },
+    [onClose, onTrackResolve],
+  );
+
   return (
     <div>
       <div
@@ -807,7 +816,7 @@ function MobileArtistSheet({
               isLoading={isLoading}
               status={artistLoadStatus}
               userRegion={userRegion}
-              onTrackResolve={onTrackResolve}
+              onTrackResolve={handleTrackResolve}
               onResolveStart={onArtistResolveStart}
             />
           </div>

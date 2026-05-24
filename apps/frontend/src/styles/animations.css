@@ -193,16 +193,17 @@
   position: absolute;
   left: calc((100% - var(--mc-vfd-row-width)) / 2);
   top: calc(1rem + var(--mc-vfd-display-height) + 2px);
-  inline-size: calc(var(--mc-vfd-row-width) - var(--mc-player-progress-right, 0px));
   block-size: 1px;
   pointer-events: none;
 }
 
 .mc-player-progress-vfd .mc-vfd::before {
+  inline-size: var(--mc-vfd-row-width);
   background: var(--mc-vfd-ghost-color);
 }
 
 .mc-player-progress-vfd .mc-vfd::after {
+  inline-size: calc(var(--mc-vfd-row-width) - var(--mc-player-progress-right, 0px));
   background: var(--mc-player-progress-color, var(--mc-vfd-normal-color));
   opacity: 0.95;
   transform: scaleX(var(--mc-player-progress, 0));
