@@ -28,6 +28,12 @@ const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
   },
 });
 
+/**
+ * Canonical track records resolved from streaming-service inputs.
+ * Stores source metadata, stable lookup identifiers and admin sort timestamps;
+ * service fan-out lives in `serviceLinks` and artist credits live in
+ * `trackArtistCredits`.
+ */
 export const tracks = pgTable(
   "tracks",
   {
@@ -52,6 +58,11 @@ export const tracks = pgTable(
   ],
 );
 
+/**
+ * Per-track outbound links to streaming services.
+ * One row per `(track, service)` with confidence and match provenance used
+ * by share pages, cache hits and admin inspection.
+ */
 export const serviceLinks = pgTable(
   "service_links",
   {
@@ -78,6 +89,11 @@ export const serviceLinks = pgTable(
 // triple observed during cross-service resolves. Allows a single track to
 // carry many ISRCs (regional variants, re-releases) plus future ID classes
 // (MBID, ISWC, AcoustID) without further migrations.
+/**
+ * Multi-source external identifiers observed for tracks.
+ * Extends the canonical `tracks.isrc` lookup with every `(id_type, id_value,
+ * source_service)` tuple harvested during cross-service resolution.
+ */
 export const trackExternalIds = pgTable(
   "track_external_ids",
   {
@@ -110,6 +126,10 @@ export const trackExternalIds = pgTable(
 // UNIQUE(track_id, service) + ON CONFLICT REPLACE keeps one row per
 // emitter; refreshing a Deezer preview overwrites the URL in place
 // rather than appending a new row.
+/**
+ * Per-track preview audio URLs with optional expiry metadata.
+ * Keeps volatile CDN preview links separate from permanent track cache rows.
+ */
 export const trackPreviews = pgTable(
   "track_previews",
   {
@@ -128,6 +148,10 @@ export const trackPreviews = pgTable(
   ],
 );
 
+/**
+ * Public short-code mapping for track share pages.
+ * The unique `track_id` index enforces one canonical share URL per track.
+ */
 export const shortUrls = pgTable(
   "short_urls",
   {
@@ -145,6 +169,11 @@ export const shortUrls = pgTable(
   ],
 );
 
+/**
+ * Canonical album records resolved from streaming-service inputs.
+ * Stores source metadata, album-level identifiers and admin sort timestamps;
+ * links, previews, external ids and credits live in sibling tables.
+ */
 export const albums = pgTable(
   "albums",
   {
@@ -167,6 +196,10 @@ export const albums = pgTable(
   ],
 );
 
+/**
+ * Per-album outbound links to streaming services.
+ * Mirrors `serviceLinks` for album share pages and album cache lookups.
+ */
 export const albumServiceLinks = pgTable(
   "album_service_links",
   {
@@ -189,6 +222,10 @@ export const albumServiceLinks = pgTable(
 
 // Album-level counterpart to `track_external_ids`. Aggregates UPC/EAN/MBID
 // values observed across services for a given album.
+/**
+ * Multi-source external identifiers observed for albums.
+ * Aggregates UPC, EAN, MBID and future album-level identifiers per source.
+ */
 export const albumExternalIds = pgTable(
   "album_external_ids",
   {
@@ -210,6 +247,10 @@ export const albumExternalIds = pgTable(
 
 // Album-level mirror of `track_previews`. See header on track_previews
 // for design rationale.
+/**
+ * Per-album preview audio URLs with optional expiry metadata.
+ * Mirrors `trackPreviews` for album share-page playback.
+ */
 export const albumPreviews = pgTable(
   "album_previews",
   {
@@ -228,6 +269,10 @@ export const albumPreviews = pgTable(
   ],
 );
 
+/**
+ * Public short-code mapping for album share pages.
+ * The unique `album_id` index enforces one canonical share URL per album.
+ */
 export const albumShortUrls = pgTable(
   "album_short_urls",
   {
@@ -246,6 +291,11 @@ export const albumShortUrls = pgTable(
 
 // ─── Normalized Artist Identity Tables ───────────────────────────────────────
 
+/**
+ * Normalized artist identity root table.
+ * Represents people, groups, personas and unresolved candidates that tracks,
+ * albums, names, identifiers and memberships attach to.
+ */
 export const artistEntities = pgTable(
   "artist_entities",
   {
@@ -266,6 +316,11 @@ export const artistEntities = pgTable(
   ],
 );
 
+/**
+ * Provenance records for external artist identity sources.
+ * Tracks provider entity ids, source URLs, confidence and fetch time for
+ * normalized artist facts imported from third-party catalogues.
+ */
 export const artistSources = pgTable(
   "artist_sources",
   {
@@ -283,6 +338,11 @@ export const artistSources = pgTable(
   ],
 );
 
+/**
+ * Raw JSON payload archive for artist source records.
+ * Cascades with `artistSources` and keeps source-specific evidence out of
+ * the normalized identity tables.
+ */
 export const artistSourcePayloads = pgTable("artist_source_payloads", {
   sourceId: text("source_id")
     .primaryKey()
@@ -290,6 +350,11 @@ export const artistSourcePayloads = pgTable("artist_source_payloads", {
   rawPayload: jsonb("raw_payload").notNull(),
 });
 
+/**
+ * External identifiers attached to normalized artist entities.
+ * Enforces provider-level uniqueness while allowing each identifier to keep
+ * source provenance and optional canonical external URL.
+ */
 export const artistEntityIdentifiers = pgTable(
   "artist_entity_identifiers",
   {
@@ -314,6 +379,11 @@ export const artistEntityIdentifiers = pgTable(
   ],
 );
 
+/**
+ * Localized and typed names for artist entities.
+ * Stores canonical names, aliases, legal names, stage names, credit names and
+ * sort names used by resolver display and admin identity queries.
+ */
 export const artistEntityNames = pgTable(
   "artist_entity_names",
   {
@@ -337,6 +407,11 @@ export const artistEntityNames = pgTable(
   ],
 );
 
+/**
+ * Localized descriptive text snippets for artist entities.
+ * Holds biography-style text such as descriptions and short bios with source
+ * provenance and update timestamps.
+ */
 export const artistEntityTexts = pgTable(
   "artist_entity_texts",
   {
@@ -363,6 +438,11 @@ export const artistEntityTexts = pgTable(
   ],
 );
 
+/**
+ * Normalized geographical places referenced by artist identity events.
+ * Stores optional country and coordinates; localized names and external ids
+ * live in `placeNames` and `placeIdentifiers`.
+ */
 export const places = pgTable("places", {
   id: text("id").primaryKey(),
   countryCode: text("country_code"),
@@ -372,6 +452,11 @@ export const places = pgTable("places", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Localized display names for normalized places.
+ * Supports source-provenanced place labels used by artist birth, death and
+ * group-formation events.
+ */
 export const placeNames = pgTable(
   "place_names",
   {
@@ -390,6 +475,11 @@ export const placeNames = pgTable(
   ],
 );
 
+/**
+ * External identifiers attached to normalized places.
+ * Keeps provider ids and URLs for locations imported with artist identity
+ * facts.
+ */
 export const placeIdentifiers = pgTable(
   "place_identifiers",
   {
@@ -409,6 +499,11 @@ export const placeIdentifiers = pgTable(
   ],
 );
 
+/**
+ * Dated lifecycle events for artist entities.
+ * Stores births, deaths, group formations and disbandments with precision
+ * columns optimized for "on this day" queries.
+ */
 export const artistEntityEvents = pgTable(
   "artist_entity_events",
   {
@@ -443,6 +538,11 @@ export const artistEntityEvents = pgTable(
   ],
 );
 
+/**
+ * Membership edges between group artist entities and member entities.
+ * Captures date ranges, current-membership state, source provenance and
+ * confidence for group/person relationship queries.
+ */
 export const artistGroupMemberships = pgTable(
   "artist_group_memberships",
   {
@@ -501,6 +601,11 @@ export const artistGroupMemberships = pgTable(
   ],
 );
 
+/**
+ * Role labels attached to artist group memberships.
+ * Composite primary key allows multiple distinct roles per membership without
+ * duplicate role rows.
+ */
 export const artistGroupMembershipRoles = pgTable(
   "artist_group_membership_roles",
   {
@@ -512,6 +617,11 @@ export const artistGroupMembershipRoles = pgTable(
   (table) => [primaryKey({ name: "pk_artist_group_membership_roles", columns: [table.membershipId, table.role] })],
 );
 
+/**
+ * Ordered artist credits for tracks.
+ * Links track display credits to normalized artist entities while preserving
+ * the credit name, role, position and match provenance seen on the source.
+ */
 export const trackArtistCredits = pgTable(
   "track_artist_credits",
   {
@@ -546,6 +656,11 @@ export const trackArtistCredits = pgTable(
   ],
 );
 
+/**
+ * Ordered artist credits for albums.
+ * Album-side mirror of `trackArtistCredits` used by album share pages,
+ * lookups and admin catalogue rows.
+ */
 export const albumArtistCredits = pgTable(
   "album_artist_credits",
   {
@@ -582,6 +697,11 @@ export const albumArtistCredits = pgTable(
 
 // ─── Artist Profile / Share Tables ──────────────────────────────────────────
 
+/**
+ * Share-page profile records for normalized artists.
+ * Stores image, genres and source URL metadata for artist resolver results;
+ * identity facts stay in the normalized artist tables.
+ */
 export const artistProfiles = pgTable(
   "artist_profiles",
   {
@@ -603,6 +723,10 @@ export const artistProfiles = pgTable(
   ],
 );
 
+/**
+ * Per-artist outbound links to streaming and catalogue services.
+ * One row per `(artist entity, service)` with confidence and matching method.
+ */
 export const artistServiceLinks = pgTable(
   "artist_service_links",
   {
@@ -625,6 +749,11 @@ export const artistServiceLinks = pgTable(
 
 // Artist-level counterpart to `track_external_ids` / `album_external_ids`.
 // Aggregates MBID/Discogs/ISNI values observed across services.
+/**
+ * Multi-source external identifiers observed for artists.
+ * Aggregates MBID, Discogs, ISNI and future artist-level identifiers per
+ * normalized artist entity.
+ */
 export const artistExternalIds = pgTable(
   "artist_external_ids",
   {
@@ -649,6 +778,11 @@ export const artistExternalIds = pgTable(
   ],
 );
 
+/**
+ * Public short-code mapping for artist share pages.
+ * The unique `artist_entity_id` index enforces one canonical share URL per
+ * normalized artist entity.
+ */
 export const artistShortUrls = pgTable(
   "artist_short_urls",
   {
@@ -665,6 +799,11 @@ export const artistShortUrls = pgTable(
   ],
 );
 
+/**
+ * Dashboard administrator accounts and invite state.
+ * Stores authentication hashes, profile fields, locale, role and optional
+ * session timeout configuration for admin-only routes.
+ */
 export const adminUsers = pgTable("admin_users", {
   id: text("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -683,6 +822,11 @@ export const adminUsers = pgTable("admin_users", {
 });
 
 // Artist cache for caching artist info from external services
+/**
+ * Cached artist-info payloads from external enrichment services.
+ * Stores JSON profile, top-track and event payloads with independent freshness
+ * timestamps for lazy refreshes.
+ */
 export const artistCache = pgTable("artist_cache", {
   id: text("id").primaryKey(),
   artistName: text("artist_name").notNull(),
@@ -697,6 +841,10 @@ export const artistCache = pgTable("artist_cache", {
 });
 
 // Site-wide settings (key/value store)
+/**
+ * Site-wide key/value settings edited through the dashboard.
+ * The key is the natural primary key and values are stored as serialized text.
+ */
 export const siteSettings = pgTable("site_settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
@@ -706,6 +854,11 @@ export const siteSettings = pgTable("site_settings", {
 // Permanent cache for artist images (Spotify-backed). Used by genre-search
 // and artist-info to avoid redundant Spotify lookups. No TTL — images are
 // small URLs that don't change often enough to warrant expiry.
+/**
+ * Permanent cache of artist image URLs keyed by normalized artist name.
+ * Used by genre search and artist-info flows to avoid repeated upstream image
+ * lookups.
+ */
 export const artistImages = pgTable("artist_images", {
   nameKey: text("name_key").primaryKey(),
   displayName: text("display_name").notNull(),
@@ -717,6 +870,10 @@ export const artistImages = pgTable("artist_images", {
 // Permanent cache for track artwork URLs (typically album covers).
 // Key: normalized "artist|title" composite. Populated by Last.fm
 // track.getInfo during genre-search, reused on repeat queries.
+/**
+ * Permanent cache of track artwork URLs keyed by normalized artist/title.
+ * Populated by Last.fm genre-search lookups and reused across repeat queries.
+ */
 export const trackImages = pgTable("track_images", {
   lookupKey: text("lookup_key").primaryKey(),
   artistName: text("artist_name").notNull(),
@@ -728,6 +885,10 @@ export const trackImages = pgTable("track_images", {
 
 // Permanent cache for album artwork URLs. Key: normalized "artist|title"
 // composite. Populated directly from Last.fm tag.getTopAlbums responses.
+/**
+ * Permanent cache of album artwork URLs keyed by normalized artist/title.
+ * Populated from Last.fm tag album responses for genre artwork enrichment.
+ */
 export const albumImages = pgTable("album_images", {
   lookupKey: text("lookup_key").primaryKey(),
   artistName: text("artist_name").notNull(),
@@ -739,6 +900,10 @@ export const albumImages = pgTable("album_images", {
 
 // Per-plugin runtime state (enabled flag). Sparse: missing row = use
 // manifest.defaultEnabled. See services/plugins/registry.ts.
+/**
+ * Runtime enablement overrides for resolver plugins.
+ * Missing rows intentionally fall back to the plugin manifest's default state.
+ */
 export const servicePlugins = pgTable("service_plugins", {
   id: text("id").primaryKey(),
   enabled: boolean("enabled").notNull(),
@@ -749,6 +914,10 @@ export const servicePlugins = pgTable("service_plugins", {
 // unique JPEG per genre, with a dominant accent color derived from the
 // average color of the genre's top Last.fm album cover. First request
 // generates and stores; subsequent requests hit this cache.
+/**
+ * Procedurally generated JPEG artwork cache for genre grid tiles.
+ * Stores binary artwork, accent color and source-cover provenance per genre.
+ */
 export const genreArtworks = pgTable("genre_artworks", {
   genreKey: text("genre_key").primaryKey(),
   jpeg: bytea("jpeg").notNull(),
@@ -759,6 +928,11 @@ export const genreArtworks = pgTable("genre_artworks", {
 
 // Managed email templates. Created and edited via the dashboard email
 // template editor; rendered to HTML by services/email-renderer.ts.
+/**
+ * Managed email templates edited through the dashboard.
+ * Stores subject, banner, body and footer text plus a system-template flag for
+ * protected built-in templates.
+ */
 export const emailTemplates = pgTable("email_templates", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -779,6 +953,11 @@ export type EmailTemplateInsert = typeof emailTemplates.$inferInsert;
 // Managed content pages. Created and edited via the dashboard pages
 // editor; rendered server-side by the Astro frontend at `/:slug`.
 // `slug` is the natural primary key — it doubles as the public URL.
+/**
+ * Managed content pages rendered by the public Astro frontend.
+ * Uses `slug` as both primary key and public URL, with layout/display fields
+ * and audit pointers for dashboard edits.
+ */
 export const contentPages = pgTable("content_pages", {
   slug: text("slug").primaryKey(),
   title: text("title").notNull(),
@@ -804,6 +983,11 @@ export type ContentPageInsert = typeof contentPages.$inferInsert;
 // Ordered segment list for pages with `page_type = 'segmented'`.
 // Each segment references another content page (must be `page_type = 'default'`).
 // Validation of that invariant lives in the service layer.
+/**
+ * Ordered child-page references for segmented content pages.
+ * Each row connects an owner page to a target page with a tab label and
+ * position managed by the dashboard.
+ */
 export const pageSegments = pgTable(
   "page_segments",
   {
@@ -829,6 +1013,11 @@ export type PageSegmentInsert = typeof pageSegments.$inferInsert;
 // page (FK to `content_pages.slug`, cascades on delete) or carry an
 // arbitrary URL (relative path or external https://). `position` is
 // recomputed sequentially on every save.
+/**
+ * Header and footer navigation items managed by the dashboard.
+ * Rows are replaced atomically per nav id and can target either content pages
+ * or arbitrary URLs.
+ */
 export const navItems = pgTable(
   "nav_items",
   {
@@ -854,6 +1043,11 @@ export type NavItemInsert = typeof navItems.$inferInsert;
 // No foreign keys — entries must survive user/install churn so we can still
 // correlate historical issues. `install_id` is an opaque random UUID the
 // client keeps in its Keychain; it is not linked to any admin user.
+/**
+ * Native app telemetry events submitted by the Apple client.
+ * Keeps install-scoped diagnostics and resolve errors without foreign keys so
+ * historical entries survive account or install churn.
+ */
 export const appTelemetryEvents = pgTable(
   "app_telemetry_events",
   {
@@ -886,6 +1080,11 @@ export type AppTelemetryEventInsert = typeof appTelemetryEvents.$inferInsert;
 // Per-locale translations of a content page. Parent row in `content_pages`
 // holds the default-locale (en) source of truth + fallback. Missing rows
 // trigger fallback at render time.
+/**
+ * Per-locale translations for managed content pages.
+ * The parent `contentPages` row remains the default-locale source of truth and
+ * missing locales fall back at render time.
+ */
 export const contentPageTranslations = pgTable(
   "content_page_translations",
   {
@@ -906,6 +1105,10 @@ export type ContentPageTranslationRow = typeof contentPageTranslations.$inferSel
 export type ContentPageTranslationInsert = typeof contentPageTranslations.$inferInsert;
 
 // Per-locale translation of a page segment's tab label.
+/**
+ * Per-locale translations for segmented-page tab labels.
+ * Composite primary key keeps one translated label per segment and locale.
+ */
 export const pageSegmentTranslations = pgTable(
   "page_segment_translations",
   {
@@ -924,6 +1127,11 @@ export type PageSegmentTranslationRow = typeof pageSegmentTranslations.$inferSel
 export type PageSegmentTranslationInsert = typeof pageSegmentTranslations.$inferInsert;
 
 // Per-locale translation of a navigation item's custom label.
+/**
+ * Per-locale translations for navigation item labels.
+ * Composite primary key keeps one translated label per navigation item and
+ * locale.
+ */
 export const navItemTranslations = pgTable(
   "nav_item_translations",
   {
@@ -945,6 +1153,11 @@ export type NavItemTranslationInsert = typeof navItemTranslations.$inferInsert;
 // Umami: they store curated product events for the public website while
 // keeping raw IP addresses and browser fingerprinting signals out of
 // persistence. See architecture/adr/0001-website-analytics-privacy-boundary.md.
+/**
+ * First-party website analytics sessions.
+ * Stores privacy-preserving device and network cluster keys, entry/exit paths
+ * and denormalized counters without raw IP persistence.
+ */
 export const analyticsSessions = pgTable(
   "analytics_sessions",
   {
@@ -969,6 +1182,11 @@ export const analyticsSessions = pgTable(
   ],
 );
 
+/**
+ * First-party website behaviour analytics events.
+ * Stores curated product events, route/device/bot/Geo-IP dimensions and JSON
+ * event metadata for dashboard aggregations.
+ */
 export const analyticsEvents = pgTable(
   "analytics_events",
   {
@@ -1040,6 +1258,11 @@ export const analyticsEvents = pgTable(
   ],
 );
 
+/**
+ * Daily analytics rollups per network cluster.
+ * Maintained during event ingestion to accelerate dashboard overview queries
+ * and bounded by the analytics retention policy.
+ */
 export const analyticsClusterDailySummaries = pgTable(
   "analytics_cluster_daily_summaries",
   {
@@ -1105,6 +1328,11 @@ export type AnalyticsClusterDailySummaryInsert = typeof analyticsClusterDailySum
 // `nextRunAt`, `consecutiveErrors`, `lastError`) are written by the
 // heartbeat itself. Partial index on `nextRunAt WHERE enabled = true`
 // keeps the per-minute "is anything due?" probe O(log n_active).
+/**
+ * Mutable scheduler state for each registered crawler source.
+ * Seeded idempotently from the in-memory source registry and updated by the
+ * admin API and heartbeat runner.
+ */
 export const crawlState = pgTable(
   "crawl_state",
   {
@@ -1132,6 +1360,11 @@ export type CrawlStateInsert = typeof crawlState.$inferInsert;
 // only when a tick was actually attempted but lock acquisition failed —
 // purely-idle minutes write nothing). Counters get finalized in the same
 // transaction as the `crawl_state` update.
+/**
+ * Historical crawler heartbeat run records.
+ * Captures per-tick status, counters and notes for admin observability and
+ * debugging of background ingestion sources.
+ */
 export const crawlRuns = pgTable(
   "crawl_runs",
   {
