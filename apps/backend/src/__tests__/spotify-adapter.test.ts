@@ -53,6 +53,47 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("spotifyAdapter.searchTrack", () => {
+  it("tries generic artist variants and scores with the full artist list", async () => {
+    fetchWithTimeoutMock.mockImplementation(async (url: string) => {
+      const decoded = decodeURIComponent(url);
+      if (decoded.includes("artist:Faderhead x Paul Woida")) {
+        return jsonResponse({ tracks: { items: [] } });
+      }
+      if (decoded.includes("artist:Faderhead")) {
+        return jsonResponse({
+          tracks: {
+            items: [
+              {
+                id: "spotify-hit",
+                name: "Hungry Or A Liar - Cyberpunk Rework",
+                duration_ms: 228000,
+                artists: [{ name: "Faderhead" }, { name: "Paul Woida" }],
+                album: { name: "Hungry Or A Liar - Cyberpunk Rework", images: [] },
+                external_urls: { spotify: "https://open.spotify.com/track/spotify-hit" },
+                preview_url: null,
+                external_ids: {},
+                explicit: false,
+              },
+            ],
+          },
+        });
+      }
+      return jsonResponse({ tracks: { items: [] } });
+    });
+
+    const result = await spotifyAdapter.searchTrack({
+      title: "Hungry Or A Liar (Cyberpunk Rework)",
+      artist: "Faderhead x Paul Woida",
+      artists: ["Faderhead x Paul Woida"],
+      durationMs: 228000,
+    });
+
+    expect(result.found).toBe(true);
+    expect(result.track?.webUrl).toBe("https://open.spotify.com/track/spotify-hit");
+  });
+});
+
 describe("spotifyAdapter.getTrack", () => {
   it("returns the parsed track on 200", async () => {
     fetchWithTimeoutMock.mockResolvedValueOnce(jsonResponse(TRACK_OK));

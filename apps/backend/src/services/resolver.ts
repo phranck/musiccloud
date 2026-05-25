@@ -960,7 +960,9 @@ async function resolveViaSearch(adapter: ServiceAdapter, sourceTrack: Normalized
   const result: MatchResult = await adapter.searchTrack({
     title: sourceTrack.title,
     artist: sourceTrack.artists[0] ?? "",
+    artists: sourceTrack.artists,
     album: sourceTrack.albumName,
+    durationMs: sourceTrack.durationMs,
   });
 
   if (!result.found || !result.track) return null;

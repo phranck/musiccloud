@@ -242,7 +242,9 @@ export interface GenreBrowseResponse {
 export interface SearchQuery {
   title: string;
   artist: string;
+  artists?: string[];
   album?: string;
+  durationMs?: number;
 }
 
 export interface ResolveResponse {

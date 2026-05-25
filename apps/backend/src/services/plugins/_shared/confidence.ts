@@ -40,7 +40,11 @@ export function scoreSearchCandidate(query: SearchQuery, track: NormalizedTrack,
     return Math.max(0.4, 0.85 - index * 0.05);
   }
   return calculateConfidence(
-    { title: query.title, artists: [query.artist], durationMs: undefined },
+    {
+      title: query.title,
+      artists: query.artists?.length ? query.artists : [query.artist],
+      durationMs: query.durationMs,
+    },
     { title: track.title, artists: track.artists, durationMs: track.durationMs },
   );
 }

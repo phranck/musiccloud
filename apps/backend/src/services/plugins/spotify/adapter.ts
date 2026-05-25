@@ -71,6 +71,7 @@ import type {
   NormalizedAlbum,
   NormalizedArtist,
   NormalizedTrack,
+  SearchQuery,
   SearchResultWithCandidates,
   ServiceAdapter,
 } from "../../types.js";
@@ -183,6 +184,36 @@ const capabilities: AdapterCapabilities = {
   supportsArtwork: true,
 };
 
+function pushUnique(values: string[], value: string | undefined): void {
+  const normalized = value?.trim();
+  if (normalized && !values.some((v) => v.toLowerCase() === normalized.toLowerCase())) values.push(normalized);
+}
+
+function buildArtistSearchTerms(query: SearchQuery): string[] {
+  const artists: string[] = [];
+  for (const artist of query.artists?.length ? query.artists : [query.artist]) {
+    pushUnique(artists, artist);
+    for (const part of artist.split(/\s+(?:x|feat\.?|ft\.?)\s+|,|&/i)) pushUnique(artists, part);
+  }
+  pushUnique(artists, query.artist);
+  return artists;
+}
+
+function buildSpotifyTrackSearchQueries(query: SearchQuery): string[] {
+  if (query.title === query.artist) return [query.title];
+
+  const variants: string[] = [];
+  for (const artist of buildArtistSearchTerms(query)) {
+    const scoped = [`track:${query.title}`, `artist:${artist}`];
+    if (query.album) scoped.push(`album:${query.album}`);
+    pushUnique(variants, scoped.join(" "));
+    pushUnique(variants, `track:${query.title} artist:${artist}`);
+    pushUnique(variants, `${query.title} ${artist}`);
+  }
+  pushUnique(variants, query.album ? `${query.title} ${query.album}` : query.title);
+  return variants.slice(0, 6);
+}
+
 export const spotifyAdapter = {
   id: "spotify",
   displayName: "Spotify",
@@ -247,46 +278,39 @@ export const spotifyAdapter = {
     return mapTrack(items[0]);
   },
 
-  async searchTrack(query: { title: string; artist: string; album?: string }): Promise<MatchResult> {
-    const isFreeText = query.title === query.artist;
-    let q: string;
+  async searchTrack(query: SearchQuery): Promise<MatchResult> {
+    const itemsById = new Map<string, SpotifyTrackResponse>();
 
-    if (isFreeText) {
-      q = encodeURIComponent(query.title);
-    } else {
-      const parts: string[] = [];
-      parts.push(`track:${query.title}`);
-      parts.push(`artist:${query.artist}`);
-      if (query.album) {
-        parts.push(`album:${query.album}`);
+    for (const searchQuery of buildSpotifyTrackSearchQueries(query)) {
+      const q = encodeURIComponent(searchQuery);
+      const response = await spotifyFetch(`/search?type=track&q=${q}&limit=5`);
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      const items: SpotifyTrackResponse[] = data.tracks?.items ?? [];
+      for (const item of items) {
+        if (!itemsById.has(item.id)) itemsById.set(item.id, item);
       }
-      q = encodeURIComponent(parts.join(" "));
     }
 
-    const response = await spotifyFetch(`/search?type=track&q=${q}&limit=5`);
-
-    if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const data = await response.json();
-    const items: SpotifyTrackResponse[] = data.tracks?.items ?? [];
-
-    if (items.length === 0) {
+    if (itemsById.size === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
     // Score each result and pick the best match
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
+    let index = 0;
 
-    for (let i = 0; i < items.length; i++) {
-      const track = mapTrack(items[i]);
-      const confidence = scoreSearchCandidate(query, track, i);
+    for (const item of itemsById.values()) {
+      const track = mapTrack(item);
+      const confidence = scoreSearchCandidate(query, track, index);
       if (confidence > bestConfidence) {
         bestConfidence = confidence;
         bestMatch = track;
       }
+      index++;
     }
 
     if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
