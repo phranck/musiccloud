@@ -25,7 +25,7 @@ export interface PlatformConfig {
   label: string;
   color: string;
   /**
-   * Hidden from the public share/embed UI when `true`. Metadata-only
+   * Hidden from the public share UI when `true`. Metadata-only
    * sources (e.g. MusicBrainz) belong here: their cross-service link is
    * useful internally and for external aggregator consumers, but it has
    * no playable content for end users.

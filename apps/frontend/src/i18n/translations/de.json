@@ -72,17 +72,6 @@
   "artist.statusEmpty": "KÜNSTLERDATEN LEER",
   "artist.statusError": "KÜNSTLERDATEN FEHLER {code}",
   "artist.statusResolveError": "AUFLÖSUNG FEHLER",
-  "embed.button": "Track einbetten",
-  "embed.buttonAlbum": "Album einbetten",
-  "embed.title": "Track einbetten",
-  "embed.titleAlbum": "Album einbetten",
-  "embed.small": "Klein",
-  "embed.regular": "Normal",
-  "embed.large": "Gross",
-  "embed.code": "Einbettungscode",
-  "embed.copy": "Kopieren",
-  "embed.copied": "Kopiert!",
-  "embed.copyError": "Kopieren fehlgeschlagen",
   "genreBrowse.title": "Genres entdecken",
   "genreBrowse.subtitle": "Wähle ein Genre, um Tracks, Alben und Künstler zu entdecken"
 }

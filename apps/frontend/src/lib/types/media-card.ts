@@ -82,7 +82,7 @@ export interface ArtistContentConfiguration extends MediaCardContentConfiguratio
 export interface ShareContentConfiguration extends MediaCardContentConfiguration {
   type: "share";
   platformsLabelKey: string;
-  /** The short URL for this share (used for embed code generation) */
+  /** The short URL for this share page. */
   shortUrl: string;
 }
 
@@ -93,7 +93,7 @@ export function isShareableContent(
   return content.type === "song" || content.type === "album" || content.type === "artist";
 }
 
-/** Type guard: true for share page config (has shortUrl for embed) */
+/** Type guard: true for share page config (has shortUrl). */
 export function isSharePageContent(content: MediaCardContentConfiguration): content is ShareContentConfiguration {
   return content.type === "share";
 }

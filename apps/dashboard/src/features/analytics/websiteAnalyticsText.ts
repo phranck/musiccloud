@@ -108,7 +108,6 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       desktop: "Desktop",
       disambiguation_selected_candidate: "Suchergebnis ausgewählt",
       edge: "Edge",
-      embed_card: "Einbettungskarte",
       fallback_action: "Fallback-Aktion",
       filters: "Filter",
       footer: "Fußzeile",
@@ -167,7 +166,6 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       "/": "Landingpage",
       "/:shortId": "Share-Seite",
       "/content/:slug": "Info-/Hilfeseite",
-      "/embed/:shortId": "Einbettung",
       "/link/:id": "Link-Weiterleitung",
     },
     environment: {
@@ -265,7 +263,6 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       desktop: "Desktop",
       disambiguation_selected_candidate: "Search Result Selected",
       edge: "Edge",
-      embed_card: "Embed Card",
       fallback_action: "Fallback Action",
       filters: "Filters",
       footer: "Footer",
@@ -324,7 +321,6 @@ const COPY: Record<DashboardLocale, WebsiteCopy> = {
       "/": "Landing Page",
       "/:shortId": "Share Page",
       "/content/:slug": "Info / Help Page",
-      "/embed/:shortId": "Embed",
       "/link/:id": "Link Redirect",
     },
     environment: {

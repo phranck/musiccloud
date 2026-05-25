@@ -66,7 +66,7 @@ export const ENDPOINTS = {
     },
     services: {
       /** GET: list of currently enabled + available resolve plugins.
-       * Feeds the Marquee and resolve/embed pages at SSR time. */
+       * Feeds the Marquee and resolve pages at SSR time. */
       active: "/api/v1/services/active",
     },
     /** GET `/api/v1/nav/:navId`: public navigation items for header / footer. */

@@ -1,20 +1,11 @@
-import { CodeIcon } from "@phosphor-icons/react";
-import { useState } from "react";
 import { AudioPreviewPlayer, type AudioPreviewStatus } from "@/components/audio/AudioPreviewPlayer";
-import {
-  outerEmbossedCardClassName,
-  recessedControlHeightClassName,
-  recessedControlInsetClassName,
-} from "@/components/cards/cardGeometry";
+import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { AnimatedPlatformGrid } from "@/components/platform/AnimatedPlatformGrid";
-import { EmbedModal } from "@/components/share/EmbedModal";
 import { ShareButton } from "@/components/share/ShareButton";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { useT } from "@/i18n/context";
 import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
 import { solidEmbossedCardStyle } from "@/styles/neumorphic";
@@ -42,13 +33,10 @@ function mediaCardClassName(animated: boolean, className?: string) {
 }
 
 export function MediaCard({ content, className, animated = true, onPreviewStatusChange }: MediaCardProps) {
-  const t = useT();
   const shareable = isShareableContent(content) ? content : null;
   const shareUrl = shareable?.shareUrl;
   const srAnnouncement = shareable?.srAnnouncement;
   const sharePageContent = isSharePageContent(content) ? content : null;
-  const [embedOpen, setEmbedOpen] = useState(false);
-  const isAlbum = content.type === "album" || sharePageContent?.platformsLabelKey === "results.openAlbumOn";
   const audioPreviewKey = [content.shortId ?? "", content.previewUrl ?? "", content.title, content.artist].join("::");
   const showPreview = !!(content.previewUrl || (content.previewRefreshable && content.shortId));
   const showShareButton = !!shareUrl;
@@ -91,41 +79,7 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
 
       <CollapsibleSection visible={showSharePageActions} sectionClass="p-3">
         {sharePageContent && (
-          <>
-            <div className="flex flex-col gap-3">
-              <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
-              <RecessedCard
-                className={cn("hidden sm:block", recessedControlHeightClassName, recessedControlInsetClassName)}
-              >
-                <RecessedCard.Body className="h-full">
-                  <EmbossedButton
-                    as="button"
-                    type="button"
-                    onClick={() => setEmbedOpen(true)}
-                    className={cn(
-                      "flex h-full min-h-0 items-center justify-center gap-2 py-0",
-                      "w-full font-semibold text-[15px] tracking-[-0.01em]",
-                    )}
-                  >
-                    <CodeIcon size={20} weight="duotone" />
-                    {isAlbum ? t("embed.buttonAlbum") : t("embed.button")}
-                  </EmbossedButton>
-                </RecessedCard.Body>
-              </RecessedCard>
-            </div>
-            <EmbedModal
-              open={embedOpen}
-              onClose={() => setEmbedOpen(false)}
-              shortUrl={sharePageContent.shortUrl}
-              title={content.title}
-              artist={content.artist}
-              artworkUrl={content.artworkUrl}
-              metaLine={content.metaLine}
-              album={content.album}
-              isAlbum={isAlbum}
-              platforms={content.platforms}
-            />
-          </>
+          <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
         )}
       </CollapsibleSection>
 

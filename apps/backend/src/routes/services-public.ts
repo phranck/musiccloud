@@ -2,7 +2,7 @@
  * @file Unauthenticated endpoint that lists the currently active services.
  *
  * Consumed by the Astro frontend during SSR for the marquee and the
- * resolve/embed pages. The response intentionally exposes only `id`,
+ * resolve pages. The response intentionally exposes only `id`,
  * `displayName`, and `color`: the public site never needs adapter-level
  * detail such as `capabilities`, auth requirements, or rate limits, and
  * leaking that surface would be both noisy and a soft information leak

@@ -105,6 +105,7 @@ const SPECTRUM_UPDATE_MS = 50;
 const SPECTRUM_FADE_FACTOR = 0.68;
 const SPECTRUM_FADE_MIN_LEVEL = 0.03;
 const PLAYER_PROGRESS_PIXEL_STEPS = 360;
+const PLAYER_PROGRESS_REWIND_MS = 420;
 
 type BrowserAudioContextConstructor = typeof AudioContext;
 
@@ -212,6 +213,7 @@ export function AudioPreviewPlayer({
   const spectrumLastUpdateRef = useRef(0);
   const spectrumBandsRef = useRef<StereoSpectrumBands | null>(null);
   const progressFrameRef = useRef<number | null>(null);
+  const progressRewindFrameRef = useRef<number | null>(null);
   const progressRatioRef = useRef(0);
   const hasStartedRef = useRef(false);
   const [spectrumBands, setSpectrumBands] = useState<StereoSpectrumBands | null>(null);
@@ -257,6 +259,11 @@ export function AudioPreviewPlayer({
     setProgressRatio(nextRatio);
   }, []);
 
+  const stopProgressRewind = useCallback(() => {
+    if (progressRewindFrameRef.current !== null) cancelAnimationFrame(progressRewindFrameRef.current);
+    progressRewindFrameRef.current = null;
+  }, []);
+
   const stopProgressLoop = useCallback(
     (audio?: HTMLAudioElement | null) => {
       if (progressFrameRef.current !== null) cancelAnimationFrame(progressFrameRef.current);
@@ -265,6 +272,30 @@ export function AudioPreviewPlayer({
     },
     [setQuantizedProgressRatio],
   );
+
+  const startProgressRewind = useCallback(() => {
+    stopProgressRewind();
+    const startRatio = progressRatioRef.current;
+    if (startRatio <= 0) {
+      setQuantizedProgressRatio(0);
+      return;
+    }
+
+    let startedAt: number | null = null;
+    const tick = (now: number) => {
+      if (startedAt === null) startedAt = now;
+      const elapsedRatio = Math.min(1, (now - startedAt) / PLAYER_PROGRESS_REWIND_MS);
+      setQuantizedProgressRatio(startRatio * (1 - elapsedRatio));
+      if (elapsedRatio < 1) {
+        progressRewindFrameRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      progressRewindFrameRef.current = null;
+      setQuantizedProgressRatio(0);
+    };
+
+    progressRewindFrameRef.current = requestAnimationFrame(tick);
+  }, [setQuantizedProgressRatio, stopProgressRewind]);
 
   const startProgressLoop = useCallback(
     (audio: HTMLAudioElement) => {
@@ -294,7 +325,12 @@ export function AudioPreviewPlayer({
       const nextBands = fadeSpectrumBands(spectrumBandsRef.current ?? currentBands);
       spectrumBandsRef.current = nextBands;
       setSpectrumBands(nextBands);
-      if (hasVisibleSpectrumBands(nextBands)) spectrumFrameRef.current = requestAnimationFrame(tick);
+      if (hasVisibleSpectrumBands(nextBands)) {
+        spectrumFrameRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      spectrumBandsRef.current = null;
+      setSpectrumBands(null);
     };
 
     spectrumFrameRef.current = requestAnimationFrame(tick);
@@ -400,8 +436,9 @@ export function AudioPreviewPlayer({
     };
     const handleEnded = () => {
       stopProgressLoop();
-      setQuantizedProgressRatio(0);
-      stopSpectrumLoop();
+      setQuantizedProgressRatio(1);
+      startProgressRewind();
+      startSpectrumFadeOut();
       trackPlayerEvent("player_completed", shortId ?? refreshShortId);
       dispatch({ type: "ENDED" });
     };
@@ -424,6 +461,7 @@ export function AudioPreviewPlayer({
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
       stopProgressLoop();
+      stopProgressRewind();
       teardownSpectrum();
       audio.pause();
       audio.src = "";
@@ -434,8 +472,10 @@ export function AudioPreviewPlayer({
     refreshShortId,
     setQuantizedProgressRatio,
     shortId,
+    startProgressRewind,
+    startSpectrumFadeOut,
     stopProgressLoop,
-    stopSpectrumLoop,
+    stopProgressRewind,
     teardownSpectrum,
   ]);
 
@@ -444,6 +484,7 @@ export function AudioPreviewPlayer({
     if (!audio) return;
 
     if (state.phase === "idle" || state.phase === "paused") {
+      stopProgressRewind();
       stopSpectrumLoop({ clearBands: false });
       void ensureSpectrumAnalyzer(audio)
         .then(() => {
@@ -476,6 +517,7 @@ export function AudioPreviewPlayer({
     startSpectrumLoop,
     state.phase,
     stopProgressLoop,
+    stopProgressRewind,
     stopSpectrumLoop,
   ]);
 

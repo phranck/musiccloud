@@ -4,7 +4,7 @@
  * Lives in `@musiccloud/shared` (not in any one app) because backend SSR,
  * Astro pages, and React islands all render durations and years from the
  * same upstream data and must format them identically. Divergent formatters
- * produced inconsistent output across embed vs landing vs share pages in
+ * produced inconsistent output across landing vs share pages in
  * earlier iterations.
  */
 

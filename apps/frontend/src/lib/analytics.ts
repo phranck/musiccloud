@@ -144,7 +144,6 @@ function routeTemplate(pathname = window.location.pathname): string {
   if (pathname === "/") return "/";
   if (/^\/api\//.test(pathname)) return "/api/*";
   if (/^\/content\/[^/]+$/.test(pathname)) return "/content/:slug";
-  if (/^\/embed\/[^/]+$/.test(pathname)) return "/embed/:shortId";
   if (/^\/link\/[^/]+$/.test(pathname)) return "/link/:id";
   if (/^\/[^/]+$/.test(pathname)) return "/:shortId";
   return pathname;

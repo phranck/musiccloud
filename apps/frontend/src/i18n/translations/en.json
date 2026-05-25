@@ -72,17 +72,6 @@
   "artist.statusEmpty": "ARTIST DATA EMPTY",
   "artist.statusError": "ARTIST DATA ERROR {code}",
   "artist.statusResolveError": "RESOLVE ERROR",
-  "embed.button": "Embed Track",
-  "embed.buttonAlbum": "Embed Album",
-  "embed.title": "Embed Track",
-  "embed.titleAlbum": "Embed Album",
-  "embed.small": "Small",
-  "embed.regular": "Regular",
-  "embed.large": "Large",
-  "embed.code": "Embed Code",
-  "embed.copy": "Copy",
-  "embed.copied": "Copied!",
-  "embed.copyError": "Copy failed",
   "genreBrowse.title": "Explore Genres",
   "genreBrowse.subtitle": "Pick a genre to discover tracks, albums, and artists"
 }
