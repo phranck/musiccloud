@@ -1,5 +1,5 @@
 import { CheckIcon, LinkSimpleIcon, ShareNetworkIcon, WarningIcon } from "@phosphor-icons/react";
-import { type CSSProperties, useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import {
   recessedControlHeightClassName,
   recessedControlInsetClassName,
@@ -64,7 +64,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
               className="flex size-full min-h-0 items-center justify-center px-0 py-0"
               aria-label={songTitle ? t("share.nativeShare", { title: songTitle }) : t("share.shareLink")}
             >
-              <ShareNetworkIcon size={24} weight="duotone" className="text-text-primary" />
+              <ShareNetworkIcon size={24} weight="duotone" className="text-vfd-phosphor" />
             </EmbossedButton>
           </RecessedCard.Body>
         </RecessedCard>
@@ -80,16 +80,10 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
             className={cn(
               "flex h-full min-h-0 w-full items-center justify-center gap-2 py-0",
               "font-bold text-[15px] tracking-[-0.01em] text-text-primary",
+              state === "idle" && "text-vfd-phosphor",
               state === "copied" && "text-success",
               state === "error" && "text-error",
             )}
-            style={
-              state === "idle"
-                ? ({
-                    color: "#7aebff",
-                  } as CSSProperties)
-                : undefined
-            }
           >
             {state === "idle" && (
               <>

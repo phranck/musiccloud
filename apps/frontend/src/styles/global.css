@@ -19,6 +19,34 @@
   --color-error: #FF453A;
   --color-success: #30D158;
 
+  /* Hardware display palette */
+  --color-vfd-phosphor: #7aebff;
+  --color-vfd-phosphor-normal: #5fb7c7;
+  --color-vfd-phosphor-dim: #3f7a85;
+  --color-vfd-phosphor-ghost: #1b3438;
+  --color-vfd-glass-bg: rgba(5, 8, 10, 0.92);
+  --color-vfd-glass-tint: color-mix(in srgb, var(--color-vfd-phosphor) 7%, var(--color-vfd-glass-bg));
+  --color-vfd-glass-edge-light: color-mix(in srgb, var(--color-vfd-phosphor) 16%, rgba(255, 255, 255, 0.1));
+  --color-vfd-glass-edge-shade: color-mix(in srgb, var(--color-vfd-phosphor) 9%, rgba(0, 0, 0, 0.82));
+
+  /* Hardware/control surfaces */
+  --color-tft-background: #05070a;
+  --color-control-surface: #1f242f;
+  --color-control-surface-hover: #283040;
+  --color-player-control-disabled: rgba(255, 255, 255, 0.2);
+
+  /* CD spinner palette */
+  --color-cd-surface-highlight: #f4f6ff;
+  --color-cd-surface-mid: #a8afc4;
+  --color-cd-surface-sheen: #d7d9e8;
+  --color-cd-surface-shadow: #b7bccd;
+  --color-cd-iridescent-violet: rgba(176, 96, 255, 0.68);
+  --color-cd-iridescent-blue: rgba(48, 184, 255, 0.68);
+  --color-cd-iridescent-green: rgba(48, 255, 200, 0.68);
+  --color-cd-iridescent-yellow: rgba(255, 226, 48, 0.68);
+  --color-cd-iridescent-pink: rgba(255, 80, 144, 0.68);
+  --color-cd-highlight: rgba(255, 255, 255, 0.78);
+
   /* Platform brand colors */
   --color-spotify: #1DB954;
   --color-apple: #FC3C44;

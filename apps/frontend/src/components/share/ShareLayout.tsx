@@ -300,6 +300,16 @@ function shortIdFromShortUrl(shortUrl: string): string | undefined {
   return shortId || undefined;
 }
 
+function replaceBrowserUrlWithShortUrl(shortUrl: string): void {
+  if (typeof window === "undefined") return;
+  const nextPath = pathFromShortUrl(shortUrl);
+  const nextUrl = new URL(window.location.href);
+  nextUrl.pathname = nextPath;
+  nextUrl.search = "";
+  nextUrl.hash = "";
+  window.history.replaceState(window.history.state, "", nextUrl);
+}
+
 function artistInfoContextFromConfig(config: MediaCardContentConfiguration): ArtistInfoContext {
   return { shortId: config.shortId };
 }
@@ -571,6 +581,7 @@ function ShareLayoutInner({
         }
 
         const resolved = data as UnifiedResolveSuccessResponse;
+        replaceBrowserUrlWithShortUrl(resolved.shortUrl);
         if (currentConfig.type === "share") {
           const next = buildShareConfigFromResolved(resolved, t);
           const shouldFetchArtist =

@@ -37,7 +37,7 @@ export const PlatformIcon = memo(function PlatformIcon({
             className={`inline-flex items-center justify-center rounded-lg ${className}`}
             style={{ backgroundColor: PLATFORM_CONFIG["apple-music"].color }}
           >
-            <SiApplemusic className="size-[60%]" color="#fff" />
+            <SiApplemusic className="size-[60%]" color="var(--color-accent-contrast)" />
           </span>
         );
       return <SiApplemusic className={className} color={color} />;
@@ -48,7 +48,7 @@ export const PlatformIcon = memo(function PlatformIcon({
             className={`inline-flex items-center justify-center rounded-lg ${className}`}
             style={{ backgroundColor: PLATFORM_CONFIG.youtube.color }}
           >
-            <SiYoutube className="size-[60%]" color="#fff" />
+            <SiYoutube className="size-[60%]" color="var(--color-accent-contrast)" />
           </span>
         );
       return <SiYoutube className={className} color={color} />;
@@ -59,7 +59,7 @@ export const PlatformIcon = memo(function PlatformIcon({
             className={`inline-flex items-center justify-center rounded-lg ${className}`}
             style={{ backgroundColor: PLATFORM_CONFIG["youtube-music"].color }}
           >
-            <SiYoutubemusic className="size-[60%]" color="#fff" />
+            <SiYoutubemusic className="size-[60%]" color="var(--color-accent-contrast)" />
           </span>
         );
       return <SiYoutubemusic className={className} color={color} />;

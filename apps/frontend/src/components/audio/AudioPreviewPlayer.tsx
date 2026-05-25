@@ -566,7 +566,6 @@ export function AudioPreviewPlayer({
         ariaLabel={ariaLabel}
         title={isLoading ? t("audio.previewLoading") : isUnavailable ? t("audio.previewUnavailable") : undefined}
         spectrumBands={spectrumBands}
-        phosphorColor="#7aebff"
         onTogglePlay={togglePlay}
       />
     </section>

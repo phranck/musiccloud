@@ -123,12 +123,18 @@
    inline style for custom-contrast cases like the accent "Copy Share Link"
    button. Defaults match the original rgba(255,255,255,…) / rgba(0,0,0,…)
    stops below. */
+:root {
+  --neu-default-light: hsl(0 0% 100% / 0.18);
+  --neu-default-shadow: hsl(0 0% 0% / 0.35);
+  --neu-mask-alpha-color: #fff;
+}
+
 .embossed-gradient-border {
-  --neu-light: hsl(0 0% 100% / 0.18);
-  --neu-shadow: hsl(0 0% 0% / 0.35);
+  --neu-light: var(--neu-default-light);
+  --neu-shadow: var(--neu-default-shadow);
 }
 .recessed-gradient-border {
-  --neu-light: hsl(0 0% 100% / 0.18);
+  --neu-light: var(--neu-default-light);
   --neu-shadow: transparent;
 }
 
@@ -148,12 +154,12 @@
      Note: LightningCSS (Tailwind v4) sometimes collapses prefixed/standard
      pairs; the live CSS for this rule has been verified to retain both. */
   -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
+    linear-gradient(var(--neu-mask-alpha-color) 0 0) content-box,
+    linear-gradient(var(--neu-mask-alpha-color) 0 0);
   -webkit-mask-composite: xor;
   mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
+    linear-gradient(var(--neu-mask-alpha-color) 0 0) content-box,
+    linear-gradient(var(--neu-mask-alpha-color) 0 0);
   mask-composite: exclude;
   pointer-events: none;
   /* Keep the 1px gradient rim above flush children like album artwork.

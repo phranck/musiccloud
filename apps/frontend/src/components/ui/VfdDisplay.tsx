@@ -904,23 +904,28 @@ function drawVfdCanvas(
   return state.transitions.size > 0 || hasActiveMarquee;
 }
 
-function defaultCanvasColors(phosphorColor: string): VfdCanvasColors {
-  return {
-    bright: phosphorColor,
-    normal: "#5fb7c7",
-    dim: "#3f7a85",
-    ghost: "#1b3438",
-  };
+function resolveCssColor(element: HTMLElement, value: string, fallback: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  const probe = document.createElement("span");
+  probe.style.position = "absolute";
+  probe.style.pointerEvents = "none";
+  probe.style.opacity = "0";
+  probe.style.color = trimmed;
+  element.appendChild(probe);
+  const resolved = window.getComputedStyle(probe).color;
+  probe.remove();
+  return resolved || fallback;
 }
 
-function resolveCanvasColors(element: HTMLElement, phosphorColor: string): VfdCanvasColors {
+function resolveCanvasColors(element: HTMLElement): VfdCanvasColors {
   const computed = window.getComputedStyle(element);
-  const fallback = defaultCanvasColors(phosphorColor);
+  const fallback = computed.color || "currentColor";
   return {
-    bright: computed.getPropertyValue("--mc-vfd-bright-color").trim() || fallback.bright,
-    normal: computed.getPropertyValue("--mc-vfd-normal-color").trim() || fallback.normal,
-    dim: computed.getPropertyValue("--mc-vfd-dim-color").trim() || fallback.dim,
-    ghost: computed.getPropertyValue("--mc-vfd-ghost-color").trim() || fallback.ghost,
+    bright: resolveCssColor(element, computed.getPropertyValue("--mc-vfd-bright-color"), fallback),
+    normal: resolveCssColor(element, computed.getPropertyValue("--mc-vfd-normal-color"), fallback),
+    dim: resolveCssColor(element, computed.getPropertyValue("--mc-vfd-dim-color"), fallback),
+    ghost: resolveCssColor(element, computed.getPropertyValue("--mc-vfd-ghost-color"), fallback),
   };
 }
 
@@ -941,7 +946,7 @@ export function VfdDisplay({
   charsPerLine = DEFAULT_VFD_CELL_COUNT,
   className,
   ariaLabel,
-  phosphorColor = "#7aebff",
+  phosphorColor,
 }: VfdDisplayProps) {
   const configuredRowCount = normalizePositiveInteger(rows ?? lines.length, DEFAULT_VFD_ROWS);
   const requestedCellCount = normalizePositiveInteger(charsPerLine, DEFAULT_VFD_CELL_COUNT);
@@ -1028,7 +1033,7 @@ export function VfdDisplay({
     const draw = (now: number) => {
       frameRef.current = null;
       if (disposed) return;
-      const colors = resolveCanvasColors(element, phosphorColor);
+      const colors = resolveCanvasColors(element);
       const hasActiveAnimation = drawVfdCanvas(canvas, renderStateRef.current, colors, now);
       if (hasActiveAnimation) requestFrame();
     };
@@ -1046,14 +1051,18 @@ export function VfdDisplay({
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
     };
-  }, [phosphorColor]);
+  }, []);
 
   const canvasWidth = vfdRowWidth(cellCount);
   const canvasHeight = vfdDisplayHeight(rowCount);
   const style = {
-    "--mc-vfd-base-color": phosphorColor,
-    "--mc-vfd-color": phosphorColor,
-    "--mc-vfd-bright-color": phosphorColor,
+    ...(phosphorColor
+      ? {
+          "--mc-vfd-base-color": phosphorColor,
+          "--mc-vfd-color": phosphorColor,
+          "--mc-vfd-bright-color": phosphorColor,
+        }
+      : {}),
     "--mc-vfd-cells": cellCount,
     "--mc-vfd-row-height": `${VFD_BAND_HEIGHT}px`,
     "--mc-vfd-row-gap": `${VFD_ROW_GAP}px`,

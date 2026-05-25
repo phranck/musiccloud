@@ -91,10 +91,10 @@ export function PopularTrack({
       as="button"
       type="button"
       onClick={handleListen}
-      disabled={resolving}
       aria-busy={resolving}
+      aria-disabled={resolving}
       noScale
-      className="flex items-center gap-3 w-full p-2"
+      className="flex items-center gap-3 w-full py-2 pl-1 pr-2"
     >
       <SlideArtwork active={resolving} artworkUrl={track.artworkUrl ?? undefined} sizeClass="w-10 h-10" imgDim={40} />
       <div className="min-w-0 flex-1 text-left">

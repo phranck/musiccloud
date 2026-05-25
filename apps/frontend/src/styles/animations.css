@@ -93,7 +93,7 @@
 .mc-tft-screen {
   position: relative;
   border-radius: var(--neu-radius-inner);
-  background: #05070a;
+  background: var(--color-tft-background);
 }
 
 .mc-tft-screen-content {
@@ -143,19 +143,19 @@
 
 .mc-raised-control:not(:disabled):active,
 .mc-raised-control-pressed {
-  background: #1f242f;
+  background: var(--color-control-surface);
   box-shadow: none;
   transform: translate3d(0, 1px, 0);
 }
 
 /* Reusable VFD module. Canvas owns the fixed integer pixel matrix. */
 .mc-vfd {
-  --mc-vfd-base-color: #7aebff;
+  --mc-vfd-base-color: var(--color-vfd-phosphor);
   --mc-vfd-color: var(--mc-vfd-base-color);
-  --mc-vfd-bg: rgba(5, 8, 10, 0.92);
-  --mc-vfd-glass-tint: color-mix(in srgb, var(--mc-vfd-base-color) 7%, var(--mc-vfd-bg));
-  --mc-vfd-glass-edge-light: color-mix(in srgb, var(--mc-vfd-base-color) 16%, rgba(255, 255, 255, 0.1));
-  --mc-vfd-glass-edge-shade: color-mix(in srgb, var(--mc-vfd-base-color) 9%, rgba(0, 0, 0, 0.82));
+  --mc-vfd-bg: var(--color-vfd-glass-bg);
+  --mc-vfd-glass-tint: var(--color-vfd-glass-tint);
+  --mc-vfd-glass-edge-light: var(--color-vfd-glass-edge-light);
+  --mc-vfd-glass-edge-shade: var(--color-vfd-glass-edge-shade);
   position: relative;
   overflow: hidden;
   border-radius: var(--neu-radius-inner, 0.875rem);
@@ -165,10 +165,10 @@
     inset 1px 1px 0 var(--mc-vfd-glass-edge-light),
     inset -1px -1px 0 var(--mc-vfd-glass-edge-shade);
   color: var(--mc-vfd-color);
-  --mc-vfd-bright-color: #7aebff;
-  --mc-vfd-normal-color: #5fb7c7;
-  --mc-vfd-dim-color: #3f7a85;
-  --mc-vfd-ghost-color: #1b3438;
+  --mc-vfd-bright-color: var(--color-vfd-phosphor);
+  --mc-vfd-normal-color: var(--color-vfd-phosphor-normal);
+  --mc-vfd-dim-color: var(--color-vfd-phosphor-dim);
+  --mc-vfd-ghost-color: var(--color-vfd-phosphor-ghost);
   --mc-vfd-cells: 44;
   --mc-vfd-row-height: 13px;
   --mc-vfd-row-gap: 11px;

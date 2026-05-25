@@ -24,11 +24,17 @@ interface SlideArtworkProps {
  */
 export function SlideArtwork({ active, artworkUrl, kind = "square", sizeClass, imgDim = 56 }: SlideArtworkProps) {
   const FallbackIcon = kind === "round" ? UserIcon : MusicNoteIcon;
-  const borderRadius = kind === "round" ? "50%" : imgDim <= 40 ? "6px" : "8px";
-  // Scale inner shadow proportionally: 56px tile → 4/4/12, 40px tile → 3/3/8
+  const borderRadius = kind === "round" ? "50%" : imgDim <= 40 ? "4px" : "6px";
+  // Scale a tight top/left-only inner shadow proportionally. It should read
+  // as the recessed rim casting onto the artwork/CD, not as a dark overlay.
   const shadowOffset = Math.max(2, Math.round((imgDim / 56) * 4));
-  const shadowBlur = Math.max(4, Math.round((imgDim / 56) * 12));
-  const innerShadow = `inset ${shadowOffset}px ${shadowOffset}px ${shadowBlur}px rgba(0,0,0,0.9)`;
+  const shadowBlur = Math.max(4, Math.round((imgDim / 56) * 10));
+  const shadowSpread = Math.max(1, Math.round((imgDim / 56) * 3));
+  const shadowColor = "rgba(0,0,0,0.55)";
+  const innerShadow = [
+    `inset ${shadowOffset}px 0 ${shadowBlur}px -${shadowSpread}px ${shadowColor}`,
+    `inset 0 ${shadowOffset}px ${shadowBlur}px -${shadowSpread}px ${shadowColor}`,
+  ].join(", ");
 
   const [entered, setEntered] = useState(false);
   useEffect(() => {

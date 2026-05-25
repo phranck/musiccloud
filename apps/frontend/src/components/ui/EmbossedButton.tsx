@@ -15,13 +15,13 @@ const controlRadiusStyle = {
 } as React.CSSProperties;
 
 const baseClasses = [
-  "mc-raised-control bg-[#1f242f] px-5 py-2.5 overflow-hidden cursor-pointer transform-gpu",
+  "mc-raised-control bg-control-surface px-5 py-2.5 overflow-hidden cursor-pointer transform-gpu",
   "transition-[background-color,transform] duration-100",
   "disabled:cursor-not-allowed disabled:opacity-50",
   "focus-visible:outline-2 focus-visible:outline-white/40 focus-visible:outline-offset-2",
 ];
 
-const raisedHoverClasses = ["hover:bg-[#283040]", "focus-visible:bg-[#283040]"];
+const raisedHoverClasses = ["hover:bg-control-surface-hover", "focus-visible:bg-control-surface-hover"];
 
 const raisedScaleClasses = ["hover:scale-[1.015]", "focus-visible:scale-[1.015]", "active:scale-[0.985]"];
 

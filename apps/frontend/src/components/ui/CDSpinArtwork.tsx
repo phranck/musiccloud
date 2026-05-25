@@ -34,24 +34,25 @@ export function CDSpinArtwork({ className }: CDSpinArtworkProps) {
       <div
         className="absolute inset-0 rounded-full"
         style={{
-          background: "radial-gradient(circle at 50% 50%, #e8e8f0 0%, #a0a0b0 40%, #c8c8d0 70%, #b0b0b8 100%)",
+          background:
+            "radial-gradient(circle at 50% 50%, var(--color-cd-surface-highlight) 0%, var(--color-cd-surface-mid) 38%, var(--color-cd-surface-sheen) 68%, var(--color-cd-surface-shadow) 100%)",
         }}
       />
       <div
         className="absolute inset-0 rounded-full"
         style={{
           background:
-            "conic-gradient(from 30deg, rgba(160,96,255,0.45) 0%, rgba(64,176,255,0.45) 20%, rgba(64,255,192,0.45) 35%, rgba(255,224,64,0.45) 50%, rgba(255,96,144,0.45) 65%, rgba(160,96,255,0.45) 80%, transparent 95%)",
+            "conic-gradient(from 30deg, var(--color-cd-iridescent-violet) 0%, var(--color-cd-iridescent-blue) 20%, var(--color-cd-iridescent-green) 35%, var(--color-cd-iridescent-yellow) 50%, var(--color-cd-iridescent-pink) 65%, var(--color-cd-iridescent-violet) 80%, transparent 95%)",
         }}
       />
       <div
         className="absolute inset-0 rounded-full"
         style={{
-          background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0%, transparent 40%)",
+          background: "radial-gradient(circle at 35% 30%, var(--color-cd-highlight) 0%, transparent 38%)",
         }}
       />
       <div
-        className="absolute rounded-full bg-[#0a0a0c]"
+        className="absolute rounded-full bg-background"
         style={{ top: "38%", left: "38%", width: "24%", height: "24%" }}
       />
     </div>

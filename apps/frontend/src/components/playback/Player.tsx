@@ -13,7 +13,7 @@ interface PlayerContextValue {
   ariaLabel: string;
   title?: string;
   spectrumBands?: PlayerSpectrumBands | null;
-  phosphorColor: string;
+  phosphorColor?: string;
   onTogglePlay: () => void;
 }
 
@@ -206,7 +206,7 @@ function PlayerRoot({
 
 function PlayerButton({ className }: PlayerButtonProps) {
   const { isPlaying, isDisabled, onTogglePlay, ariaLabel, title } = usePlayerContext();
-  const accentColor = isDisabled ? "rgba(255,255,255,0.2)" : "#7aebff";
+  const accentColor = isDisabled ? "var(--color-player-control-disabled)" : "var(--color-vfd-phosphor)";
 
   return (
     <RecessedCard className={cn("flex-none", recessedControlSizeClassName, recessedControlInsetClassName, className)}>
