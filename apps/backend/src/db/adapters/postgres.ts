@@ -1,11 +1,9 @@
 import type { ContentCardStyle, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
 import type { PoolClient } from "pg";
 import * as pgModule from "pg";
-import { CACHE_TTL_MS } from "../../lib/config.js";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
-import { generateShortId } from "../../lib/short-id.js";
-import type { NormalizedArtist, NormalizedTrack, TrackSource } from "../../services/types.js";
+import type { NormalizedTrack } from "../../services/types.js";
 import type {
   AdminRepository,
   AdminUser,
@@ -91,21 +89,32 @@ import {
   upsertAlbumPreview as albumsUpsertAlbumPreview,
 } from "./postgres-albums.js";
 import {
+  type ArtistRow,
+  addArtistExternalIds as artistsAddArtistExternalIds,
+  addLinksToArtist as artistsAddLinksToArtist,
+  cleanupStaleCache as artistsCleanupStaleCache,
+  findArtistByName as artistsFindArtistByName,
+  findArtistByUrl as artistsFindArtistByUrl,
+  findArtistCache as artistsFindArtistCache,
+  findArtistEntityIdByIdentifier as artistsFindArtistEntityIdByIdentifier,
+  findArtistInfoAliasByShortId as artistsFindArtistInfoAliasByShortId,
+  listArtistGroupMembers as artistsListArtistGroupMembers,
+  listArtistIdentityEventsByDay as artistsListArtistIdentityEventsByDay,
+  listArtistMemberships as artistsListArtistMemberships,
+  loadArtistByShortId as artistsLoadArtistByShortId,
+  persistArtistWithLinks as artistsPersistArtistWithLinks,
+  saveArtistCache as artistsSaveArtistCache,
+} from "./postgres-artists.js";
+import {
   ALBUM_ARTIST_FIELDS_SELECT,
   ARTIST_NAME_LATERAL_JOIN,
   ARTIST_NAME_SELECT,
   type CountRow,
   dateToMs,
-  ensureArtistEntityExists,
-  ensureArtistEntityForName,
-  ensureArtistEntityName,
-  insertExternalIds,
-  msToDate,
   replaceTrackArtistCredits,
   type ServiceLinkRow,
   safeParseArray,
   safeParseArtistCredits,
-  safeParseJson,
   TRACK_ARTIST_FIELDS_SELECT,
 } from "./postgres-shared.js";
 import {
@@ -384,75 +393,6 @@ interface AlbumListRow {
   created_at: Date;
   short_id: string | null;
   link_count: string;
-}
-
-interface ArtistRow {
-  id: string;
-  artist_entity_id: string;
-  name: string;
-  image_url: string | null;
-  genres: string | null;
-  source_service: string | null;
-  source_url: string | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-interface ArtistWithLinkRow extends ArtistRow {
-  link_url: string | null;
-  service: string | null;
-  confidence: number | null;
-  match_method: string | null;
-  short_id: string | null;
-}
-
-interface ArtistCacheRow_DB {
-  artist_name: string;
-  top_tracks: string | null;
-  profile: string | null;
-  events: string | null;
-  tracks_updated_at: Date | null;
-  profile_updated_at: Date | null;
-  events_updated_at: Date | null;
-}
-
-interface ArtistIdentityEventSqlRow {
-  event_id: string;
-  artist_entity_id: string;
-  entity_type: ArtistIdentityEventRecord["entityType"];
-  verification_status: ArtistIdentityEventRecord["verificationStatus"];
-  display_name: string;
-  event_type: ArtistIdentityEventRecord["eventType"];
-  date_value: string | null;
-  date_precision: ArtistIdentityEventRecord["datePrecision"];
-  event_year: number | null;
-  event_month: number | null;
-  event_day: number | null;
-  place_name: string | null;
-  country_code: string | null;
-  source_provider: string | null;
-  source_url: string | null;
-  confidence: number | null;
-}
-
-interface ArtistGroupMembershipSqlRow {
-  membership_id: string;
-  group_artist_entity_id: string;
-  group_name: string;
-  member_artist_entity_id: string;
-  member_name: string;
-  member_name_credit: string | null;
-  roles: string[] | null;
-  begin_date: string | null;
-  begin_date_precision: ArtistGroupMembershipRecord["beginDatePrecision"];
-  begin_year: number | null;
-  end_date: string | null;
-  end_date_precision: ArtistGroupMembershipRecord["endDatePrecision"];
-  end_year: number | null;
-  is_current: boolean | null;
-  source_provider: string | null;
-  source_url: string | null;
-  confidence: number | null;
 }
 
 // ============================================================================
@@ -822,15 +762,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return albumsAddAlbumExternalIds(this.pool, albumId, records);
   }
 
-  async addArtistExternalIds(artistId: string, records: ExternalIdRecord[]): Promise<void> {
-    if (records.length === 0) return;
-    const client = await this.pool.connect();
-    try {
-      await ensureArtistEntityExists(client, artistId);
-      await insertExternalIds(this.pool, "artist_external_ids", "artist_entity_id", artistId, records);
-    } finally {
-      client.release();
-    }
+  addArtistExternalIds(artistId: string, records: ExternalIdRecord[]): Promise<void> {
+    return artistsAddArtistExternalIds(this.pool, artistId, records);
   }
 
   findTrackByExternalId(idType: string, idValue: string): Promise<CachedTrackResult | null> {
@@ -865,311 +798,42 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // ARTIST CACHE QUERIES (TrackRepository)
   // ============================================================================
 
-  async findArtistCache(artistName: string): Promise<ArtistCacheRow | null> {
-    const result = await this.pool.query(
-      `SELECT artist_name, profile, top_tracks, events,
-              profile_updated_at, tracks_updated_at, events_updated_at
-       FROM artist_cache WHERE artist_name = $1`,
-      [artistName],
-    );
-
-    if (result.rows.length === 0) return null;
-    const row = result.rows[0] as ArtistCacheRow_DB;
-
-    return {
-      artistName: row.artist_name,
-      profile: safeParseJson(row.profile, null),
-      topTracks: safeParseJson(row.top_tracks, []),
-      events: safeParseJson(row.events, []),
-      profileUpdatedAt: row.profile_updated_at ? dateToMs(row.profile_updated_at) : 0,
-      tracksUpdatedAt: row.tracks_updated_at ? dateToMs(row.tracks_updated_at) : 0,
-      eventsUpdatedAt: row.events_updated_at ? dateToMs(row.events_updated_at) : 0,
-    };
+  findArtistCache(artistName: string): Promise<ArtistCacheRow | null> {
+    return artistsFindArtistCache(this.pool, artistName);
   }
 
-  async findArtistInfoAliasByShortId(shortId: string, artistName: string): Promise<string | null> {
-    const requestedName = artistName.trim().toLowerCase();
-    if (!shortId || !requestedName) return null;
-
-    const result = await this.pool.query(
-      `WITH target_links AS (
-         SELECT sl.url
-         FROM short_urls su
-         JOIN service_links sl ON sl.track_id = su.track_id
-         WHERE su.id = $1 AND sl.url IS NOT NULL
-         UNION
-         SELECT asl.url
-         FROM album_short_urls asu
-         JOIN album_service_links asl ON asl.album_id = asu.album_id
-         WHERE asu.id = $1 AND asl.url IS NOT NULL
-       ),
-       matches AS (
-         SELECT DISTINCT ac.artist_name
-         FROM artist_cache ac
-         JOIN target_links tl ON ac.top_tracks ILIKE '%' || tl.url || '%'
-         WHERE ac.artist_name <> $2
-       )
-       SELECT artist_name
-       FROM matches
-       ORDER BY
-         CASE WHEN artist_name LIKE '%' || $2 || '%' THEN 0 ELSE 1 END,
-         length(artist_name) DESC
-       LIMIT 1`,
-      [shortId, requestedName],
-    );
-
-    const alias = result.rows[0]?.artist_name;
-    return typeof alias === "string" && alias.trim() ? alias : null;
+  findArtistInfoAliasByShortId(shortId: string, artistName: string): Promise<string | null> {
+    return artistsFindArtistInfoAliasByShortId(this.pool, shortId, artistName);
   }
 
-  async saveArtistCache(data: ArtistCacheData): Promise<void> {
-    const now = new Date();
-    const id = `artist-${data.artistName}`;
-    const hasProfile = Object.hasOwn(data, "profile");
-    const hasTopTracks = Object.hasOwn(data, "topTracks");
-    const hasEvents = Object.hasOwn(data, "events");
-
-    await this.pool.query(
-      `INSERT INTO artist_cache (
-        id, artist_name, profile, top_tracks, events,
-        profile_updated_at, tracks_updated_at, events_updated_at,
-        created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      ON CONFLICT (id) DO UPDATE SET
-        artist_name = EXCLUDED.artist_name,
-        profile = CASE WHEN $11 THEN EXCLUDED.profile ELSE artist_cache.profile END,
-        top_tracks = CASE WHEN $12 THEN EXCLUDED.top_tracks ELSE artist_cache.top_tracks END,
-        events = CASE WHEN $13 THEN EXCLUDED.events ELSE artist_cache.events END,
-        profile_updated_at = CASE WHEN $11 THEN EXCLUDED.profile_updated_at ELSE artist_cache.profile_updated_at END,
-        tracks_updated_at = CASE WHEN $12 THEN EXCLUDED.tracks_updated_at ELSE artist_cache.tracks_updated_at END,
-        events_updated_at = CASE WHEN $13 THEN EXCLUDED.events_updated_at ELSE artist_cache.events_updated_at END,
-        updated_at = EXCLUDED.updated_at`,
-      [
-        id,
-        data.artistName,
-        hasProfile && data.profile ? JSON.stringify(data.profile) : null,
-        hasTopTracks && data.topTracks ? JSON.stringify(data.topTracks) : null,
-        hasEvents && data.events ? JSON.stringify(data.events) : null,
-        data.profileUpdatedAt ? msToDate(data.profileUpdatedAt) : null,
-        data.tracksUpdatedAt ? msToDate(data.tracksUpdatedAt) : null,
-        data.eventsUpdatedAt ? msToDate(data.eventsUpdatedAt) : null,
-        now,
-        now,
-        hasProfile,
-        hasTopTracks,
-        hasEvents,
-      ],
-    );
+  saveArtistCache(data: ArtistCacheData): Promise<void> {
+    return artistsSaveArtistCache(this.pool, data);
   }
 
-  async listArtistIdentityEventsByDay(params: {
+  listArtistIdentityEventsByDay(params: {
     month: number;
     day: number;
     locale?: string;
     eventTypes?: ArtistIdentityEventType[];
     catalogOnly?: boolean;
   }): Promise<ArtistIdentityEventRecord[]> {
-    const eventTypes = params.eventTypes && params.eventTypes.length > 0 ? params.eventTypes : ["birth", "death"];
-    const locale = params.locale ?? null;
-    const catalogOnly = params.catalogOnly ?? false;
-
-    const result = await this.pool.query<ArtistIdentityEventSqlRow>(
-      `SELECT
-         ev.id AS event_id,
-         ae.id AS artist_entity_id,
-         ae.entity_type,
-         ae.verification_status,
-         COALESCE(entity_name.name, '[unnamed artist]') AS display_name,
-         ev.event_type,
-         ev.date_value::text AS date_value,
-         ev.date_precision,
-         ev.event_year,
-         ev.event_month,
-         ev.event_day,
-         place_name.name AS place_name,
-         p.country_code,
-         src.provider AS source_provider,
-         src.source_url,
-         ev.confidence
-       FROM artist_entity_events ev
-       JOIN artist_entities ae ON ae.id = ev.artist_entity_id
-       LEFT JOIN LATERAL (
-         SELECT n.name
-         FROM artist_entity_names n
-         WHERE n.artist_entity_id = ae.id
-         ORDER BY
-           CASE
-             WHEN n.locale = $5 AND n.name_type = 'canonical' THEN 0
-             WHEN n.locale IS NULL AND n.name_type = 'canonical' THEN 1
-             WHEN n.name_type = 'canonical' THEN 2
-             WHEN n.locale = $5 THEN 3
-             WHEN n.locale IS NULL THEN 4
-             ELSE 5
-           END,
-           n.created_at ASC
-         LIMIT 1
-       ) entity_name ON TRUE
-       LEFT JOIN places p ON p.id = ev.place_id
-       LEFT JOIN LATERAL (
-         SELECT pn.name
-         FROM place_names pn
-         WHERE pn.place_id = p.id
-         ORDER BY
-           CASE
-             WHEN pn.locale = $5 THEN 0
-             WHEN pn.locale IS NULL THEN 1
-             ELSE 2
-           END,
-           pn.created_at ASC
-         LIMIT 1
-       ) place_name ON TRUE
-       LEFT JOIN artist_sources src ON src.id = ev.source_id
-       WHERE ev.event_type = ANY($1::text[])
-         AND ev.date_precision = 'day'
-         AND ev.event_month = $2
-         AND ev.event_day = $3
-         AND (
-           (ev.event_type IN ('birth', 'death') AND ae.entity_type IN ('person', 'persona'))
-           OR (ev.event_type IN ('formed', 'disbanded') AND ae.entity_type = 'group')
-         )
-         AND (
-           $4::boolean = false
-           OR EXISTS (
-             SELECT 1 FROM track_artist_credits tac WHERE tac.artist_entity_id = ae.id
-           )
-           OR EXISTS (
-             SELECT 1 FROM album_artist_credits aac WHERE aac.artist_entity_id = ae.id
-           )
-           OR EXISTS (
-             SELECT 1
-             FROM artist_group_memberships agm
-             WHERE agm.member_artist_entity_id = ae.id
-               AND (
-                 EXISTS (
-                   SELECT 1 FROM track_artist_credits gtac WHERE gtac.artist_entity_id = agm.group_artist_entity_id
-                 )
-                 OR EXISTS (
-                   SELECT 1 FROM album_artist_credits gaac WHERE gaac.artist_entity_id = agm.group_artist_entity_id
-                 )
-               )
-           )
-         )
-       ORDER BY ev.event_type ASC, display_name ASC`,
-      [eventTypes, params.month, params.day, catalogOnly, locale],
-    );
-
-    return result.rows.map(rowToArtistIdentityEvent);
+    return artistsListArtistIdentityEventsByDay(this.pool, params);
   }
 
-  async listArtistGroupMembers(groupArtistEntityId: string, locale?: string): Promise<ArtistGroupMembershipRecord[]> {
-    return this.listArtistGroupMemberships("group", groupArtistEntityId, locale);
+  listArtistGroupMembers(groupArtistEntityId: string, locale?: string): Promise<ArtistGroupMembershipRecord[]> {
+    return artistsListArtistGroupMembers(this.pool, groupArtistEntityId, locale);
   }
 
-  async listArtistMemberships(memberArtistEntityId: string, locale?: string): Promise<ArtistGroupMembershipRecord[]> {
-    return this.listArtistGroupMemberships("member", memberArtistEntityId, locale);
+  listArtistMemberships(memberArtistEntityId: string, locale?: string): Promise<ArtistGroupMembershipRecord[]> {
+    return artistsListArtistMemberships(this.pool, memberArtistEntityId, locale);
   }
 
-  async findArtistEntityIdByIdentifier(provider: string, externalId: string): Promise<string | null> {
-    const result = await this.pool.query<{ artist_entity_id: string }>(
-      `SELECT artist_entity_id
-       FROM artist_entity_identifiers
-       WHERE provider = $1 AND external_id = $2
-       LIMIT 1`,
-      [provider, externalId],
-    );
-    return result.rows[0]?.artist_entity_id ?? null;
+  findArtistEntityIdByIdentifier(provider: string, externalId: string): Promise<string | null> {
+    return artistsFindArtistEntityIdByIdentifier(this.pool, provider, externalId);
   }
 
-  private async listArtistGroupMemberships(
-    direction: "group" | "member",
-    artistEntityId: string,
-    locale?: string,
-  ): Promise<ArtistGroupMembershipRecord[]> {
-    const whereColumn = direction === "group" ? "agm.group_artist_entity_id" : "agm.member_artist_entity_id";
-    const result = await this.pool.query<ArtistGroupMembershipSqlRow>(
-      `SELECT
-         agm.id AS membership_id,
-         agm.group_artist_entity_id,
-         COALESCE(group_name.name, '[unnamed group]') AS group_name,
-         agm.member_artist_entity_id,
-         COALESCE(member_name.name, agm.member_name_credit, '[unnamed member]') AS member_name,
-         agm.member_name_credit,
-         array_remove(array_agg(role.role ORDER BY role.role), NULL) AS roles,
-         agm.begin_date::text AS begin_date,
-         agm.begin_date_precision,
-         agm.begin_year,
-         agm.end_date::text AS end_date,
-         agm.end_date_precision,
-         agm.end_year,
-         agm.is_current,
-         src.provider AS source_provider,
-         src.source_url,
-         agm.confidence
-       FROM artist_group_memberships agm
-       JOIN artist_entities group_entity ON group_entity.id = agm.group_artist_entity_id
-       JOIN artist_entities member_entity ON member_entity.id = agm.member_artist_entity_id
-       LEFT JOIN LATERAL (
-         SELECT n.name
-         FROM artist_entity_names n
-         WHERE n.artist_entity_id = group_entity.id
-         ORDER BY
-           CASE
-             WHEN n.locale = $2 AND n.name_type = 'canonical' THEN 0
-             WHEN n.locale IS NULL AND n.name_type = 'canonical' THEN 1
-             WHEN n.name_type = 'canonical' THEN 2
-             WHEN n.locale = $2 THEN 3
-             WHEN n.locale IS NULL THEN 4
-             ELSE 5
-           END,
-           n.created_at ASC
-         LIMIT 1
-       ) group_name ON TRUE
-       LEFT JOIN LATERAL (
-         SELECT n.name
-         FROM artist_entity_names n
-         WHERE n.artist_entity_id = member_entity.id
-         ORDER BY
-           CASE
-             WHEN n.locale = $2 AND n.name_type = 'canonical' THEN 0
-             WHEN n.locale IS NULL AND n.name_type = 'canonical' THEN 1
-             WHEN n.name_type = 'canonical' THEN 2
-             WHEN n.locale = $2 THEN 3
-             WHEN n.locale IS NULL THEN 4
-             ELSE 5
-           END,
-           n.created_at ASC
-         LIMIT 1
-       ) member_name ON TRUE
-       LEFT JOIN artist_group_membership_roles role ON role.membership_id = agm.id
-       LEFT JOIN artist_sources src ON src.id = agm.source_id
-       WHERE ${whereColumn} = $1
-       GROUP BY
-         agm.id,
-         group_name.name,
-         member_name.name,
-         src.provider,
-         src.source_url
-       ORDER BY
-         COALESCE(agm.is_current, false) DESC,
-         agm.begin_year ASC NULLS LAST,
-         member_name ASC,
-         group_name ASC`,
-      [artistEntityId, locale ?? null],
-    );
-    return result.rows.map(rowToArtistGroupMembership);
-  }
-
-  async cleanupStaleCache(): Promise<number> {
-    const cutoff = new Date(Date.now() - CACHE_TTL_MS);
-
-    const result = await this.pool.query(
-      `DELETE FROM artist_cache
-       WHERE updated_at < $1
-       RETURNING id`,
-      [cutoff],
-    );
-
-    return result.rowCount ?? 0;
+  cleanupStaleCache(): Promise<number> {
+    return artistsCleanupStaleCache(this.pool);
   }
 
   async getRandomShortId(): Promise<string | null> {
@@ -1250,234 +914,30 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // ARTIST RESOLUTION QUERIES (TrackRepository)
   // ============================================================================
 
-  async findArtistByUrl(url: string): Promise<CachedArtistResult | null> {
-    const result = await this.pool.query(
-      `SELECT
-        ar.artist_entity_id AS id, ar.artist_entity_id, ${ARTIST_NAME_SELECT}, ar.image_url, ar.genres, ar.source_service, ar.source_url,
-        asl.url as link_url, asl.service, asl.confidence, asl.match_method,
-        asu.id as short_id, ar.created_at, ar.updated_at
-      FROM artist_profiles ar
-      ${ARTIST_NAME_LATERAL_JOIN}
-      LEFT JOIN artist_service_links asl ON ar.artist_entity_id = asl.artist_entity_id
-      LEFT JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
-      WHERE ar.source_url = $1
-      ORDER BY asl.created_at ASC`,
-      [url],
-    );
-
-    if (result.rows.length === 0) return null;
-    return this.buildCachedArtistResult(result.rows as ArtistWithLinkRow[]);
+  findArtistByUrl(url: string): Promise<CachedArtistResult | null> {
+    return artistsFindArtistByUrl(this.pool, url);
   }
 
-  async findArtistByName(name: string): Promise<CachedArtistResult | null> {
-    const result = await this.pool.query(
-      `SELECT
-        ar.artist_entity_id AS id, ar.artist_entity_id, ${ARTIST_NAME_SELECT}, ar.image_url, ar.genres, ar.source_service, ar.source_url,
-        asl.url as link_url, asl.service, asl.confidence, asl.match_method,
-        asu.id as short_id, ar.created_at, ar.updated_at
-      FROM artist_profiles ar
-      ${ARTIST_NAME_LATERAL_JOIN}
-      LEFT JOIN artist_service_links asl ON ar.artist_entity_id = asl.artist_entity_id
-      LEFT JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
-      WHERE EXISTS (
-        SELECT 1
-        FROM artist_entity_names n
-        WHERE n.artist_entity_id = ar.artist_entity_id AND LOWER(n.name) = LOWER($1)
-      )
-      ORDER BY asl.created_at ASC`,
-      [name],
-    );
-
-    if (result.rows.length === 0) return null;
-    return this.buildCachedArtistResult(result.rows as ArtistWithLinkRow[]);
+  findArtistByName(name: string): Promise<CachedArtistResult | null> {
+    return artistsFindArtistByName(this.pool, name);
   }
 
-  async loadArtistByShortId(shortId: string): Promise<SharePageArtistResult | null> {
-    const result = await this.pool.query(
-      `SELECT
-        ar.artist_entity_id AS id, ar.artist_entity_id, ${ARTIST_NAME_SELECT}, ar.image_url, ar.genres, ar.source_service, ar.source_url,
-        asl.url as link_url, asl.service,
-        asu.id as short_id
-      FROM artist_profiles ar
-      ${ARTIST_NAME_LATERAL_JOIN}
-      JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
-      LEFT JOIN artist_service_links asl ON ar.artist_entity_id = asl.artist_entity_id
-      WHERE asu.id = $1`,
-      [shortId],
-    );
-
-    if (result.rows.length === 0) return null;
-
-    const firstRow = result.rows[0] as ArtistWithLinkRow;
-
-    return {
-      artist: {
-        name: firstRow.name,
-        imageUrl: firstRow.image_url,
-        genres: safeParseArray(firstRow.genres ?? "[]"),
-      },
-      links: (result.rows as ArtistWithLinkRow[])
-        .filter((r) => r.link_url && r.service)
-        .map((r) => ({
-          service: r.service as string,
-          url: r.link_url as string,
-        })),
-      shortId,
-    };
+  loadArtistByShortId(shortId: string): Promise<SharePageArtistResult | null> {
+    return artistsLoadArtistByShortId(this.pool, shortId);
   }
 
-  async persistArtistWithLinks(data: PersistArtistData): Promise<{
+  persistArtistWithLinks(data: PersistArtistData): Promise<{
     artistId: string;
     shortId: string;
   }> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-
-      const now = new Date();
-
-      // Look up existing artist profile by source_url or name to prevent duplicates.
-      let existingShortId: string | null = null;
-      let existingArtistEntityId: string | null = null;
-
-      if (data.sourceArtist.sourceUrl) {
-        const found = await client.query<{ short_id: string | null; artist_entity_id: string }>(
-          `SELECT ar.artist_entity_id, asu.id as short_id FROM artist_profiles ar
-           LEFT JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
-           WHERE ar.source_url = $1 LIMIT 1`,
-          [data.sourceArtist.sourceUrl],
-        );
-        if (found.rows.length > 0) {
-          existingShortId = found.rows[0].short_id;
-          existingArtistEntityId = found.rows[0].artist_entity_id;
-        }
-      }
-
-      if (!existingArtistEntityId) {
-        const found = await client.query<{ short_id: string | null; artist_entity_id: string }>(
-          `SELECT ar.artist_entity_id, asu.id as short_id FROM artist_profiles ar
-           LEFT JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
-           WHERE EXISTS (
-             SELECT 1
-             FROM artist_entity_names n
-             WHERE n.artist_entity_id = ar.artist_entity_id AND LOWER(n.name) = LOWER($1)
-           )
-           LIMIT 1`,
-          [data.sourceArtist.name],
-        );
-        if (found.rows.length > 0) {
-          existingShortId = found.rows[0].short_id;
-          existingArtistEntityId = found.rows[0].artist_entity_id;
-        }
-      }
-
-      const shortId = existingShortId ?? generateShortId();
-      const artistEntityId =
-        existingArtistEntityId ?? (await ensureArtistEntityForName(client, data.sourceArtist.name, now));
-      await ensureArtistEntityName(client, artistEntityId, data.sourceArtist.name, now);
-
-      await client.query(
-        `INSERT INTO artist_profiles (
-          artist_entity_id, image_url, genres, source_service, source_url,
-          created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $6)
-        ON CONFLICT (artist_entity_id) DO UPDATE SET
-          image_url = EXCLUDED.image_url,
-          genres = EXCLUDED.genres,
-          source_service = COALESCE(EXCLUDED.source_service, artist_profiles.source_service),
-          source_url = COALESCE(EXCLUDED.source_url, artist_profiles.source_url),
-          updated_at = EXCLUDED.updated_at`,
-        [
-          artistEntityId,
-          data.sourceArtist.imageUrl ?? null,
-          data.sourceArtist.genres ? JSON.stringify(data.sourceArtist.genres) : null,
-          data.sourceArtist.sourceService ?? null,
-          data.sourceArtist.sourceUrl ?? null,
-          now,
-        ],
-      );
-
-      // Upsert service links
-      for (const link of data.links) {
-        await client.query(
-          `INSERT INTO artist_service_links (
-            id, artist_entity_id, service, external_id, url, confidence, match_method, created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (artist_entity_id, service) DO UPDATE SET
-            external_id = EXCLUDED.external_id,
-            url = EXCLUDED.url,
-            confidence = EXCLUDED.confidence`,
-          [
-            `${artistEntityId}-${link.service}`,
-            artistEntityId,
-            link.service,
-            link.externalId ?? null,
-            link.url,
-            link.confidence,
-            link.matchMethod,
-            now,
-          ],
-        );
-      }
-
-      // Insert short URL (only if new)
-      if (!existingShortId) {
-        await client.query(
-          `INSERT INTO artist_short_urls (id, artist_entity_id, created_at) VALUES ($1, $2, $3)
-           ON CONFLICT DO NOTHING`,
-          [shortId, artistEntityId, now],
-        );
-      }
-
-      await client.query("COMMIT");
-      return { artistId: artistEntityId, shortId };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+    return artistsPersistArtistWithLinks(this.pool, data);
   }
 
-  async addLinksToArtist(
+  addLinksToArtist(
     artistId: string,
     links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
   ): Promise<void> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const now = new Date();
-      await ensureArtistEntityExists(client, artistId);
-
-      for (const link of links) {
-        await client.query(
-          `INSERT INTO artist_service_links (
-            id, artist_entity_id, service, external_id, url, confidence, match_method, created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (artist_entity_id, service) DO UPDATE SET
-            external_id = EXCLUDED.external_id,
-            url = EXCLUDED.url,
-            confidence = EXCLUDED.confidence`,
-          [
-            `${artistId}-${link.service}`,
-            artistId,
-            link.service,
-            link.externalId ?? null,
-            link.url,
-            link.confidence,
-            link.matchMethod,
-            now,
-          ],
-        );
-      }
-
-      await client.query("COMMIT");
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+    return artistsAddLinksToArtist(this.pool, artistId, links);
   }
 
   // ============================================================================
@@ -2354,43 +1814,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   loadSharePageResult(shortId: string): Promise<SharePageDbResult | null> {
     return tracksLoadSharePageResult(this.pool, shortId);
-  }
-
-  private buildCachedArtistResult(rows: ArtistWithLinkRow[]): CachedArtistResult | null {
-    if (rows.length === 0) return null;
-
-    const firstRow = rows[0];
-    const artist: NormalizedArtist = {
-      sourceService: (firstRow.source_service as TrackSource) ?? "cached",
-      sourceId: firstRow.id,
-      name: firstRow.name,
-      imageUrl: firstRow.image_url ?? undefined,
-      genres: safeParseArray(firstRow.genres ?? "[]"),
-      webUrl: firstRow.source_url ?? "",
-    };
-
-    const links = [
-      ...new Map(
-        rows
-          .filter((r) => r.link_url && r.service)
-          .map((r) => [
-            r.service,
-            {
-              service: r.service!,
-              url: r.link_url!,
-              confidence: r.confidence ?? 0,
-              matchMethod: r.match_method ?? "cache",
-            },
-          ]),
-      ).values(),
-    ];
-
-    return {
-      artistId: firstRow.id,
-      artist,
-      links,
-      updatedAt: dateToMs(firstRow.updated_at),
-    };
   }
 
   // ============================================================================
@@ -4541,49 +3964,6 @@ function rowToNavItem(row: NavItemSqlRow): NavItemRow {
     pageType: row.page_type === null ? null : (row.page_type as PageType),
     pageDisplayMode: row.display_mode === null ? null : (row.display_mode as PageDisplayMode),
     pageOverlayWidth: row.overlay_width === null ? null : (row.overlay_width as OverlayWidth),
-  };
-}
-
-function rowToArtistIdentityEvent(row: ArtistIdentityEventSqlRow): ArtistIdentityEventRecord {
-  return {
-    eventId: row.event_id,
-    artistEntityId: row.artist_entity_id,
-    entityType: row.entity_type,
-    verificationStatus: row.verification_status,
-    displayName: row.display_name,
-    eventType: row.event_type,
-    dateValue: row.date_value,
-    datePrecision: row.date_precision,
-    eventYear: row.event_year,
-    eventMonth: row.event_month,
-    eventDay: row.event_day,
-    placeName: row.place_name,
-    countryCode: row.country_code,
-    sourceProvider: row.source_provider,
-    sourceUrl: row.source_url,
-    confidence: row.confidence,
-  };
-}
-
-function rowToArtistGroupMembership(row: ArtistGroupMembershipSqlRow): ArtistGroupMembershipRecord {
-  return {
-    membershipId: row.membership_id,
-    groupArtistEntityId: row.group_artist_entity_id,
-    groupName: row.group_name,
-    memberArtistEntityId: row.member_artist_entity_id,
-    memberName: row.member_name,
-    memberNameCredit: row.member_name_credit,
-    roles: row.roles ?? [],
-    beginDate: row.begin_date,
-    beginDatePrecision: row.begin_date_precision,
-    beginYear: row.begin_year,
-    endDate: row.end_date,
-    endDatePrecision: row.end_date_precision,
-    endYear: row.end_year,
-    isCurrent: row.is_current,
-    sourceProvider: row.source_provider,
-    sourceUrl: row.source_url,
-    confidence: row.confidence,
   };
 }
 
