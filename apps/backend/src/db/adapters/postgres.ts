@@ -1,4 +1,3 @@
-import type { ContentCardStyle, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
 import type { PoolClient } from "pg";
 import * as pgModule from "pg";
 import { log } from "../../lib/infra/logger.js";
@@ -16,7 +15,6 @@ import type {
   ContentPageSummaryRow,
   ContentPageTranslationRow,
   ContentPageTranslationUpsert,
-  ContentStatus,
   EmailTemplateRow,
   EmailTemplateWriteData,
   ListResult,
@@ -24,7 +22,6 @@ import type {
   NavItemReplaceInput,
   NavItemRow,
   NavItemTranslationRow,
-  NavTarget,
   PageSegmentInputRow,
   PageSegmentRow,
   PageSegmentTranslationRow,
@@ -137,6 +134,45 @@ import {
   persistArtistWithLinks as artistsPersistArtistWithLinks,
   saveArtistCache as artistsSaveArtistCache,
 } from "./postgres-artists.js";
+import {
+  deleteEmailTemplate as contentEmailDeleteEmailTemplate,
+  getEmailTemplateById as contentEmailGetEmailTemplateById,
+  getEmailTemplateByName as contentEmailGetEmailTemplateByName,
+  insertEmailTemplate as contentEmailInsertEmailTemplate,
+  listEmailTemplates as contentEmailListEmailTemplates,
+  updateEmailTemplate as contentEmailUpdateEmailTemplate,
+} from "./postgres-content-email.js";
+import {
+  listAdminNavItems as contentNavListAdminNavItems,
+  listNavTranslations as contentNavListNavTranslations,
+  replaceAdminNavItems as contentNavReplaceAdminNavItems,
+  replaceNavItemTranslations as contentNavReplaceNavItemTranslations,
+} from "./postgres-content-nav.js";
+import {
+  bulkUpdatePages as contentPagesBulkUpdatePages,
+  contentPageSlugExists as contentPagesContentPageSlugExists,
+  createContentPage as contentPagesCreateContentPage,
+  deleteContentPage as contentPagesDeleteContentPage,
+  deletePageTranslation as contentPagesDeletePageTranslation,
+  deleteSegmentsForOwner as contentPagesDeleteSegmentsForOwner,
+  getAdminUsernamesByIds as contentPagesGetAdminUsernamesByIds,
+  getContentPageBySlug as contentPagesGetContentPageBySlug,
+  getContentPagesBySlugs as contentPagesGetContentPagesBySlugs,
+  getPageTranslation as contentPagesGetPageTranslation,
+  getPublishedContentPageBySlug as contentPagesGetPublishedContentPageBySlug,
+  getPublishedContentPagesBySlugs as contentPagesGetPublishedContentPagesBySlugs,
+  listContentPageSummaries as contentPagesListContentPageSummaries,
+  listPageTranslations as contentPagesListPageTranslations,
+  listPublishedContentPages as contentPagesListPublishedContentPages,
+  listSegmentsForOwner as contentPagesListSegmentsForOwner,
+  listSegmentTranslationsForOwner as contentPagesListSegmentTranslationsForOwner,
+  replaceSegmentsForOwner as contentPagesReplaceSegmentsForOwner,
+  replaceSegmentTranslations as contentPagesReplaceSegmentTranslations,
+  setContentPageContentUpdatedAt as contentPagesSetContentPageContentUpdatedAt,
+  updateContentPageBody as contentPagesUpdateContentPageBody,
+  updateContentPageMeta as contentPagesUpdateContentPageMeta,
+  upsertPageTranslation as contentPagesUpsertPageTranslation,
+} from "./postgres-content-pages.js";
 import type { CountRow } from "./postgres-shared.js";
 import {
   addLinksToTrack as tracksAddLinksToTrack,
@@ -1091,728 +1127,150 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // EMAIL TEMPLATES (AdminRepository)
   // ============================================================================
 
-  async listEmailTemplates(): Promise<EmailTemplateRow[]> {
-    const result = await this.pool.query(
-      `SELECT id, name, subject, header_banner_url, header_text, body_text,
-              footer_banner_url, footer_text, is_system_template, created_at, updated_at
-       FROM email_templates
-       ORDER BY name ASC`,
-    );
-    return result.rows.map(rowToEmailTemplate);
+  listEmailTemplates(): Promise<EmailTemplateRow[]> {
+    return contentEmailListEmailTemplates(this.pool);
   }
 
-  async getEmailTemplateById(id: number): Promise<EmailTemplateRow | null> {
-    const result = await this.pool.query(
-      `SELECT id, name, subject, header_banner_url, header_text, body_text,
-              footer_banner_url, footer_text, is_system_template, created_at, updated_at
-       FROM email_templates
-       WHERE id = $1`,
-      [id],
-    );
-    return result.rows.length > 0 ? rowToEmailTemplate(result.rows[0]) : null;
+  getEmailTemplateById(id: number): Promise<EmailTemplateRow | null> {
+    return contentEmailGetEmailTemplateById(this.pool, id);
   }
 
-  async getEmailTemplateByName(name: string): Promise<EmailTemplateRow | null> {
-    const result = await this.pool.query(
-      `SELECT id, name, subject, header_banner_url, header_text, body_text,
-              footer_banner_url, footer_text, is_system_template, created_at, updated_at
-       FROM email_templates
-       WHERE name = $1`,
-      [name],
-    );
-    return result.rows.length > 0 ? rowToEmailTemplate(result.rows[0]) : null;
+  getEmailTemplateByName(name: string): Promise<EmailTemplateRow | null> {
+    return contentEmailGetEmailTemplateByName(this.pool, name);
   }
 
-  async insertEmailTemplate(data: EmailTemplateWriteData): Promise<EmailTemplateRow> {
-    const result = await this.pool.query(
-      `INSERT INTO email_templates
-         (name, subject, header_banner_url, header_text, body_text,
-          footer_banner_url, footer_text, is_system_template)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, name, subject, header_banner_url, header_text, body_text,
-                 footer_banner_url, footer_text, is_system_template, created_at, updated_at`,
-      [
-        data.name,
-        data.subject,
-        data.headerBannerUrl ?? null,
-        data.headerText ?? null,
-        data.bodyText,
-        data.footerBannerUrl ?? null,
-        data.footerText ?? null,
-        data.isSystemTemplate ?? false,
-      ],
-    );
-    return rowToEmailTemplate(result.rows[0]);
+  insertEmailTemplate(data: EmailTemplateWriteData): Promise<EmailTemplateRow> {
+    return contentEmailInsertEmailTemplate(this.pool, data);
   }
 
-  async updateEmailTemplate(id: number, data: Partial<EmailTemplateWriteData>): Promise<EmailTemplateRow | null> {
-    const columnMap: Record<keyof EmailTemplateWriteData, string> = {
-      name: "name",
-      subject: "subject",
-      headerBannerUrl: "header_banner_url",
-      headerText: "header_text",
-      bodyText: "body_text",
-      footerBannerUrl: "footer_banner_url",
-      footerText: "footer_text",
-      isSystemTemplate: "is_system_template",
-    };
-
-    const setClauses: string[] = [];
-    const values: unknown[] = [];
-    let paramIndex = 1;
-
-    for (const [key, value] of Object.entries(data)) {
-      const column = columnMap[key as keyof EmailTemplateWriteData];
-      if (column) {
-        setClauses.push(`${column} = $${paramIndex}`);
-        values.push(value ?? null);
-        paramIndex++;
-      }
-    }
-
-    if (setClauses.length === 0) {
-      return this.getEmailTemplateById(id);
-    }
-
-    setClauses.push(`updated_at = $${paramIndex}`);
-    values.push(new Date());
-    paramIndex++;
-
-    values.push(id);
-    const result = await this.pool.query(
-      `UPDATE email_templates SET ${setClauses.join(", ")}
-       WHERE id = $${paramIndex}
-       RETURNING id, name, subject, header_banner_url, header_text, body_text,
-                 footer_banner_url, footer_text, is_system_template, created_at, updated_at`,
-      values,
-    );
-
-    return result.rows.length > 0 ? rowToEmailTemplate(result.rows[0]) : null;
+  updateEmailTemplate(id: number, data: Partial<EmailTemplateWriteData>): Promise<EmailTemplateRow | null> {
+    return contentEmailUpdateEmailTemplate(this.pool, id, data);
   }
 
-  async deleteEmailTemplate(id: number): Promise<boolean> {
-    const result = await this.pool.query(`DELETE FROM email_templates WHERE id = $1 RETURNING id`, [id]);
-    return (result.rowCount ?? 0) > 0;
+  deleteEmailTemplate(id: number): Promise<boolean> {
+    return contentEmailDeleteEmailTemplate(this.pool, id);
   }
 
   // ============================================================================
-  // CONTENT PAGES (AdminRepository)
+  // CONTENT PAGES + PAGE TRANSLATIONS + SEGMENTS (AdminRepository)
   // ============================================================================
 
-  async listContentPageSummaries(): Promise<ContentPageSummaryRow[]> {
-    const result = await this.pool.query(
-      `SELECT ${CONTENT_SUMMARY_COLUMNS},
-              COALESCE(
-                json_agg(
-                  json_build_object('position', ps.position, 'label', ps.label, 'targetSlug', ps.target_slug)
-                  ORDER BY ps.position
-                ) FILTER (WHERE ps.id IS NOT NULL),
-                '[]'::json
-              ) AS segments
-       FROM content_pages
-       LEFT JOIN page_segments ps ON ps.owner_slug = content_pages.slug
-       GROUP BY content_pages.slug
-       ORDER BY content_pages.position ASC, content_pages.created_at DESC`,
-    );
-    return result.rows.map(rowToContentPageSummary);
+  listContentPageSummaries(): Promise<ContentPageSummaryRow[]> {
+    return contentPagesListContentPageSummaries(this.pool);
   }
 
-  async getContentPageBySlug(slug: string): Promise<ContentPageRow | null> {
-    const result = await this.pool.query(
-      `SELECT ${CONTENT_COLUMNS}
-       FROM content_pages
-       WHERE slug = $1`,
-      [slug],
-    );
-    return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+  getContentPageBySlug(slug: string): Promise<ContentPageRow | null> {
+    return contentPagesGetContentPageBySlug(this.pool, slug);
   }
 
-  async contentPageSlugExists(slug: string): Promise<boolean> {
-    const result = await this.pool.query(`SELECT 1 FROM content_pages WHERE slug = $1 LIMIT 1`, [slug]);
-    return result.rowCount !== null && result.rowCount > 0;
+  contentPageSlugExists(slug: string): Promise<boolean> {
+    return contentPagesContentPageSlugExists(this.pool, slug);
   }
 
-  async createContentPage(data: ContentPageCreateData): Promise<ContentPageRow> {
-    const result = await this.pool.query(
-      `INSERT INTO content_pages (slug, title, status, page_type, created_by)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING ${CONTENT_COLUMNS}`,
-      [data.slug, data.title, data.status ?? "draft", data.pageType ?? "default", data.createdBy],
-    );
-    return rowToContentPage(result.rows[0]);
+  createContentPage(data: ContentPageCreateData): Promise<ContentPageRow> {
+    return contentPagesCreateContentPage(this.pool, data);
   }
 
-  async updateContentPageMeta(slug: string, data: ContentPageMetaUpdate): Promise<ContentPageRow | null> {
-    const setClauses: string[] = [];
-    const values: unknown[] = [];
-    let paramIndex = 1;
-
-    if (data.title !== undefined) {
-      setClauses.push(`title = $${paramIndex++}`);
-      values.push(data.title);
-    }
-    if (data.slug !== undefined) {
-      setClauses.push(`slug = $${paramIndex++}`);
-      values.push(data.slug);
-    }
-    if (data.status !== undefined) {
-      setClauses.push(`status = $${paramIndex++}`);
-      values.push(data.status);
-    }
-    if (data.showTitle !== undefined) {
-      setClauses.push(`show_title = $${paramIndex++}`);
-      values.push(data.showTitle);
-    }
-    if (data.titleAlignment !== undefined) {
-      setClauses.push(`title_alignment = $${paramIndex++}`);
-      values.push(data.titleAlignment);
-    }
-    if (data.pageType !== undefined) {
-      setClauses.push(`page_type = $${paramIndex++}`);
-      values.push(data.pageType);
-    }
-    if (data.displayMode !== undefined) {
-      setClauses.push(`display_mode = $${paramIndex++}`);
-      values.push(data.displayMode);
-    }
-    if (data.overlayWidth !== undefined) {
-      setClauses.push(`overlay_width = $${paramIndex++}`);
-      values.push(data.overlayWidth);
-    }
-    if (data.contentCardStyle !== undefined) {
-      setClauses.push(`content_card_style = $${paramIndex++}`);
-      values.push(data.contentCardStyle);
-    }
-
-    if (setClauses.length === 0) {
-      return this.getContentPageBySlug(slug);
-    }
-
-    setClauses.push(`updated_at = $${paramIndex++}`);
-    values.push(new Date());
-    setClauses.push(`updated_by = $${paramIndex++}`);
-    values.push(data.updatedBy);
-
-    values.push(slug);
-    const result = await this.pool.query(
-      `UPDATE content_pages SET ${setClauses.join(", ")}
-       WHERE slug = $${paramIndex}
-       RETURNING ${CONTENT_COLUMNS}`,
-      values,
-    );
-    return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+  updateContentPageMeta(slug: string, data: ContentPageMetaUpdate): Promise<ContentPageRow | null> {
+    return contentPagesUpdateContentPageMeta(this.pool, slug, data);
   }
 
-  async updateContentPageBody(slug: string, content: string, updatedBy: string | null): Promise<ContentPageRow | null> {
-    const result = await this.pool.query(
-      `UPDATE content_pages
-       SET content = $1, updated_at = $2, updated_by = $3
-       WHERE slug = $4
-       RETURNING ${CONTENT_COLUMNS}`,
-      [content, new Date(), updatedBy, slug],
-    );
-    return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+  updateContentPageBody(slug: string, content: string, updatedBy: string | null): Promise<ContentPageRow | null> {
+    return contentPagesUpdateContentPageBody(this.pool, slug, content, updatedBy);
   }
 
-  async deleteContentPage(slug: string): Promise<boolean> {
-    const result = await this.pool.query(`DELETE FROM content_pages WHERE slug = $1 RETURNING slug`, [slug]);
-    return (result.rowCount ?? 0) > 0;
+  deleteContentPage(slug: string): Promise<boolean> {
+    return contentPagesDeleteContentPage(this.pool, slug);
   }
 
-  async getAdminUsernamesByIds(ids: string[]): Promise<Map<string, string>> {
-    const map = new Map<string, string>();
-    if (ids.length === 0) return map;
-    const unique = Array.from(new Set(ids));
-    const result = await this.pool.query<{ id: string; username: string }>(
-      `SELECT id, username FROM admin_users WHERE id = ANY($1)`,
-      [unique],
-    );
-    for (const row of result.rows) map.set(row.id, row.username);
-    return map;
+  getAdminUsernamesByIds(ids: string[]): Promise<Map<string, string>> {
+    return contentPagesGetAdminUsernamesByIds(this.pool, ids);
   }
 
-  // -- Public reads -----------------------------------------------------------
-
-  async listPublishedContentPages(): Promise<Array<{ slug: string; title: string }>> {
-    const result = await this.pool.query<{ slug: string; title: string }>(
-      `SELECT slug, title FROM content_pages WHERE status = 'published' ORDER BY title ASC`,
-    );
-    return result.rows;
+  listPublishedContentPages(): Promise<Array<{ slug: string; title: string }>> {
+    return contentPagesListPublishedContentPages(this.pool);
   }
 
-  async getPublishedContentPageBySlug(slug: string): Promise<ContentPageRow | null> {
-    const result = await this.pool.query(
-      `SELECT ${CONTENT_COLUMNS}
-       FROM content_pages
-       WHERE slug = $1 AND status = 'published'`,
-      [slug],
-    );
-    return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+  getPublishedContentPageBySlug(slug: string): Promise<ContentPageRow | null> {
+    return contentPagesGetPublishedContentPageBySlug(this.pool, slug);
   }
 
-  async getContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]> {
-    if (slugs.length === 0) return [];
-    const result = await this.pool.query(
-      `SELECT ${CONTENT_COLUMNS}
-       FROM content_pages
-       WHERE slug = ANY($1)`,
-      [slugs],
-    );
-    return result.rows.map(rowToContentPage);
+  getContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]> {
+    return contentPagesGetContentPagesBySlugs(this.pool, slugs);
   }
 
-  async getPublishedContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]> {
-    if (slugs.length === 0) return [];
-    const result = await this.pool.query(
-      `SELECT ${CONTENT_COLUMNS}
-       FROM content_pages
-       WHERE slug = ANY($1) AND status = 'published'`,
-      [slugs],
-    );
-    return result.rows.map(rowToContentPage);
+  getPublishedContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]> {
+    return contentPagesGetPublishedContentPagesBySlugs(this.pool, slugs);
   }
 
-  async bulkUpdatePages(payload: BulkUpdatePagesPayload): Promise<ContentPageSummaryRow[]> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-
-      // 1) pages.meta + pages.content
-      for (const p of payload.pages) {
-        if (p.meta) {
-          await this.applyMetaInTx(client, p.slug, p.meta);
-        }
-        if (p.content !== undefined) {
-          await client.query(
-            `UPDATE content_pages
-                SET content = $2,
-                    content_updated_at = NOW(),
-                    updated_at = NOW()
-              WHERE slug = $1`,
-            [resolveSlugAfterRename(p), p.content],
-          );
-        }
-      }
-
-      // 2) topLevelOrder → position
-      for (let i = 0; i < payload.topLevelOrder.length; i++) {
-        await client.query(`UPDATE content_pages SET position = $2 WHERE slug = $1`, [payload.topLevelOrder[i], i]);
-      }
-
-      // 3) segments per owner — DELETE + INSERT (+ translations UPSERT)
-      for (const entry of payload.segments) {
-        const preservedTranslationRows = await client.query<{
-          target_slug: string;
-          locale: string;
-          label: string;
-          source_updated_at: Date | null;
-        }>(
-          `SELECT ps.target_slug, pst.locale, pst.label, pst.source_updated_at
-             FROM page_segments ps
-             JOIN page_segment_translations pst ON pst.segment_id = ps.id
-            WHERE ps.owner_slug = $1`,
-          [entry.ownerSlug],
-        );
-        const preservedTranslations = new Map<
-          string,
-          { locale: string; label: string; sourceUpdatedAt: Date | null }[]
-        >();
-        for (const row of preservedTranslationRows.rows) {
-          const entries = preservedTranslations.get(row.target_slug) ?? [];
-          entries.push({ locale: row.locale, label: row.label, sourceUpdatedAt: row.source_updated_at });
-          preservedTranslations.set(row.target_slug, entries);
-        }
-
-        await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [entry.ownerSlug]);
-        const idRows: { rows: { id: number; label_updated_at: Date }[] } = { rows: [] };
-        for (const s of entry.segments) {
-          const inserted = await client.query<{ id: number; label_updated_at: Date }>(
-            `INSERT INTO page_segments (owner_slug, target_slug, position, label, label_updated_at)
-             VALUES ($1, $2, $3, $4, NOW())
-             RETURNING id, label_updated_at`,
-            [entry.ownerSlug, s.targetSlug, s.position, s.label],
-          );
-          idRows.rows.push(inserted.rows[0]);
-        }
-        for (let i = 0; i < entry.segments.length; i++) {
-          const persisted = idRows.rows[i];
-          const input = entry.segments[i];
-          const translations =
-            input.translations === undefined
-              ? (preservedTranslations.get(input.targetSlug) ?? [])
-              : Object.entries(input.translations)
-                  .filter(([, label]) => typeof label === "string" && label.length > 0)
-                  .map(([locale, label]) => ({
-                    locale,
-                    label,
-                    sourceUpdatedAt: persisted.label_updated_at,
-                  }));
-          for (const { locale, label, sourceUpdatedAt } of translations) {
-            if (typeof label !== "string" || label.length === 0) continue;
-            await client.query(
-              `INSERT INTO page_segment_translations (segment_id, locale, label, source_updated_at)
-               VALUES ($1, $2, $3, $4)
-               ON CONFLICT (segment_id, locale)
-               DO UPDATE SET label = EXCLUDED.label, source_updated_at = EXCLUDED.source_updated_at`,
-              [persisted.id, locale, label, sourceUpdatedAt],
-            );
-          }
-        }
-      }
-
-      // 4) page translations (UPSERT) — stamp updated_by + source_updated_at to
-      // match the per-resource upsertPageTranslation audit semantics.
-      for (const t of payload.pageTranslations) {
-        await client.query(
-          `INSERT INTO content_page_translations
-             (slug, locale, title, content, updated_at, updated_by, source_updated_at)
-           VALUES ($1, $2, $3, $4, NOW(), $5, NOW())
-           ON CONFLICT (slug, locale)
-           DO UPDATE SET title = EXCLUDED.title,
-                         content = EXCLUDED.content,
-                         updated_at = EXCLUDED.updated_at,
-                         updated_by = EXCLUDED.updated_by,
-                         source_updated_at = EXCLUDED.source_updated_at`,
-          [t.slug, t.locale, t.title ?? null, t.content ?? null, t.updatedBy ?? null],
-        );
-      }
-
-      await client.query("COMMIT");
-    } catch (e) {
-      await client.query("ROLLBACK");
-      throw e;
-    } finally {
-      client.release();
-    }
-
-    // Service layer maps DB rows to ContentPageSummary DTOs via
-    // getManagedContentPages(); adapter return is unused. Return [] to honor
-    // the interface signature without a redundant SELECT.
-    return [];
+  bulkUpdatePages(payload: BulkUpdatePagesPayload): Promise<ContentPageSummaryRow[]> {
+    return contentPagesBulkUpdatePages(this.pool, payload);
   }
 
-  private async applyMetaInTx(client: PoolClient, slug: string, meta: ContentPageMetaUpdate): Promise<void> {
-    const setClauses: string[] = [];
-    const values: unknown[] = [];
-    let p = 1;
-    if (meta.title !== undefined) {
-      setClauses.push(`title = $${p++}`);
-      values.push(meta.title);
-    }
-    if (meta.slug !== undefined && meta.slug !== slug) {
-      setClauses.push(`slug = $${p++}`);
-      values.push(meta.slug);
-    }
-    if (meta.status !== undefined) {
-      setClauses.push(`status = $${p++}`);
-      values.push(meta.status);
-    }
-    if (meta.showTitle !== undefined) {
-      setClauses.push(`show_title = $${p++}`);
-      values.push(meta.showTitle);
-    }
-    if (meta.titleAlignment !== undefined) {
-      setClauses.push(`title_alignment = $${p++}`);
-      values.push(meta.titleAlignment);
-    }
-    if (meta.pageType !== undefined) {
-      setClauses.push(`page_type = $${p++}`);
-      values.push(meta.pageType);
-    }
-    if (meta.displayMode !== undefined) {
-      setClauses.push(`display_mode = $${p++}`);
-      values.push(meta.displayMode);
-    }
-    if (meta.overlayWidth !== undefined) {
-      setClauses.push(`overlay_width = $${p++}`);
-      values.push(meta.overlayWidth);
-    }
-    if (meta.contentCardStyle !== undefined) {
-      setClauses.push(`content_card_style = $${p++}`);
-      values.push(meta.contentCardStyle);
-    }
-    if (meta.updatedBy !== undefined) {
-      setClauses.push(`updated_by = $${p++}`);
-      values.push(meta.updatedBy);
-    }
-    if (setClauses.length === 0) return;
-    setClauses.push(`updated_at = NOW()`);
-    values.push(slug);
-    await client.query(`UPDATE content_pages SET ${setClauses.join(", ")} WHERE slug = $${p}`, values);
-    // segmented → default transition: clear orphan segments (existing behaviour)
-    if (meta.pageType === "default") {
-      await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [meta.slug ?? slug]);
-    }
+  listPageTranslations(slug: string): Promise<ContentPageTranslationRow[]> {
+    return contentPagesListPageTranslations(this.pool, slug);
   }
 
-  // ============================================================================
-  // PAGE TRANSLATIONS (AdminRepository)
-  // ============================================================================
-
-  async listPageTranslations(slug: string): Promise<ContentPageTranslationRow[]> {
-    const result = await this.pool.query<ContentPageTranslationSqlRow>(
-      `SELECT slug, locale, title, content, source_updated_at, updated_at, updated_by
-       FROM content_page_translations
-       WHERE slug = $1
-       ORDER BY locale ASC`,
-      [slug],
-    );
-    return result.rows.map(rowToContentPageTranslation);
+  getPageTranslation(slug: string, locale: string): Promise<ContentPageTranslationRow | null> {
+    return contentPagesGetPageTranslation(this.pool, slug, locale);
   }
 
-  async getPageTranslation(slug: string, locale: string): Promise<ContentPageTranslationRow | null> {
-    const result = await this.pool.query<ContentPageTranslationSqlRow>(
-      `SELECT slug, locale, title, content, source_updated_at, updated_at, updated_by
-       FROM content_page_translations
-       WHERE slug = $1 AND locale = $2
-       LIMIT 1`,
-      [slug, locale],
-    );
-    return result.rows.length > 0 ? rowToContentPageTranslation(result.rows[0]) : null;
+  upsertPageTranslation(input: ContentPageTranslationUpsert): Promise<ContentPageTranslationRow> {
+    return contentPagesUpsertPageTranslation(this.pool, input);
   }
 
-  async upsertPageTranslation(input: ContentPageTranslationUpsert): Promise<ContentPageTranslationRow> {
-    const now = new Date();
-    const result = await this.pool.query<ContentPageTranslationSqlRow>(
-      `INSERT INTO content_page_translations
-         (slug, locale, title, content, source_updated_at, updated_at, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT ON CONSTRAINT pk_content_page_translations
-       DO UPDATE SET
-         title = EXCLUDED.title,
-         content = EXCLUDED.content,
-         source_updated_at = EXCLUDED.source_updated_at,
-         updated_at = EXCLUDED.updated_at,
-         updated_by = EXCLUDED.updated_by
-       RETURNING slug, locale, title, content, source_updated_at, updated_at, updated_by`,
-      [input.slug, input.locale, input.title, input.content, input.sourceUpdatedAt, now, input.updatedBy],
-    );
-    return rowToContentPageTranslation(result.rows[0]);
+  deletePageTranslation(slug: string, locale: string): Promise<boolean> {
+    return contentPagesDeletePageTranslation(this.pool, slug, locale);
   }
 
-  async deletePageTranslation(slug: string, locale: string): Promise<boolean> {
-    const result = await this.pool.query(
-      `DELETE FROM content_page_translations WHERE slug = $1 AND locale = $2 RETURNING slug`,
-      [slug, locale],
-    );
-    return (result.rowCount ?? 0) > 0;
+  setContentPageContentUpdatedAt(slug: string, when: Date): Promise<void> {
+    return contentPagesSetContentPageContentUpdatedAt(this.pool, slug, when);
   }
 
-  async setContentPageContentUpdatedAt(slug: string, when: Date): Promise<void> {
-    await this.pool.query(`UPDATE content_pages SET content_updated_at = $1, updated_at = $1 WHERE slug = $2`, [
-      when,
-      slug,
-    ]);
+  listSegmentsForOwner(ownerSlug: string): Promise<PageSegmentRow[]> {
+    return contentPagesListSegmentsForOwner(this.pool, ownerSlug);
   }
 
-  // ============================================================================
-  // PAGE SEGMENTS (AdminRepository)
-  // ============================================================================
-
-  async listSegmentsForOwner(ownerSlug: string): Promise<PageSegmentRow[]> {
-    const result = await this.pool.query<{
-      id: number;
-      owner_slug: string;
-      target_slug: string;
-      position: number;
-      label: string;
-      label_updated_at: Date;
-    }>(
-      `SELECT id, owner_slug, target_slug, position, label, label_updated_at
-       FROM page_segments
-       WHERE owner_slug = $1
-       ORDER BY position ASC`,
-      [ownerSlug],
-    );
-    return result.rows.map((r) => ({
-      id: r.id,
-      ownerSlug: r.owner_slug,
-      targetSlug: r.target_slug,
-      position: r.position,
-      label: r.label,
-      labelUpdatedAt: r.label_updated_at,
-    }));
+  deleteSegmentsForOwner(ownerSlug: string): Promise<void> {
+    return contentPagesDeleteSegmentsForOwner(this.pool, ownerSlug);
   }
 
-  async deleteSegmentsForOwner(ownerSlug: string): Promise<void> {
-    await this.pool.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [ownerSlug]);
+  replaceSegmentsForOwner(ownerSlug: string, segments: PageSegmentInputRow[]): Promise<PageSegmentRow[]> {
+    return contentPagesReplaceSegmentsForOwner(this.pool, ownerSlug, segments);
   }
 
-  async replaceSegmentsForOwner(ownerSlug: string, segments: PageSegmentInputRow[]): Promise<PageSegmentRow[]> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [ownerSlug]);
-      const rows: PageSegmentRow[] = [];
-      for (const s of segments) {
-        const r = await client.query<{ id: number; label_updated_at: Date }>(
-          `INSERT INTO page_segments (owner_slug, target_slug, position, label)
-           VALUES ($1, $2, $3, $4)
-           RETURNING id, label_updated_at`,
-          [ownerSlug, s.targetSlug, s.position, s.label],
-        );
-        rows.push({
-          id: r.rows[0].id,
-          ownerSlug,
-          targetSlug: s.targetSlug,
-          position: s.position,
-          label: s.label,
-          labelUpdatedAt: r.rows[0].label_updated_at,
-        });
-      }
-      await client.query("COMMIT");
-      return rows.sort((a, b) => a.position - b.position);
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
-    }
+  listSegmentTranslationsForOwner(ownerSlug: string): Promise<PageSegmentTranslationRow[]> {
+    return contentPagesListSegmentTranslationsForOwner(this.pool, ownerSlug);
   }
 
-  // ============================================================================
-  // NAVIGATION ITEMS (AdminRepository)
-  // ============================================================================
-
-  async listAdminNavItems(navId: NavId): Promise<NavItemRow[]> {
-    const result = await this.pool.query(
-      `SELECT n.id, n.nav_id, n.page_slug, n.url, n.target, n.position, n.label, n.label_updated_at,
-              p.title AS page_title,
-              p.page_type, p.display_mode, p.overlay_width
-       FROM nav_items n
-       LEFT JOIN content_pages p ON p.slug = n.page_slug
-       WHERE n.nav_id = $1
-       ORDER BY n.position ASC, n.id ASC`,
-      [navId],
-    );
-    return result.rows.map(rowToNavItem);
-  }
-
-  async replaceAdminNavItems(navId: NavId, items: NavItemReplaceInput[]): Promise<NavItemRow[]> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      await client.query(`DELETE FROM nav_items WHERE nav_id = $1`, [navId]);
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        await client.query(
-          `INSERT INTO nav_items (nav_id, page_slug, url, target, position, label)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [navId, item.pageSlug ?? null, item.url ?? null, item.target ?? "_self", i, item.label ?? null],
-        );
-      }
-      await client.query("COMMIT");
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
-    }
-    return this.listAdminNavItems(navId);
-  }
-
-  // ============================================================================
-  // SEGMENT TRANSLATIONS (AdminRepository)
-  // ============================================================================
-
-  async listSegmentTranslationsForOwner(ownerSlug: string): Promise<PageSegmentTranslationRow[]> {
-    const result = await this.pool.query<{
-      segment_id: number;
-      locale: string;
-      label: string;
-      source_updated_at: Date | null;
-      updated_at: Date;
-    }>(
-      `SELECT pst.segment_id, pst.locale, pst.label, pst.source_updated_at, pst.updated_at
-       FROM page_segment_translations pst
-       JOIN page_segments ps ON ps.id = pst.segment_id
-       WHERE ps.owner_slug = $1
-       ORDER BY pst.segment_id, pst.locale`,
-      [ownerSlug],
-    );
-    return result.rows.map((r) => ({
-      segmentId: r.segment_id,
-      locale: r.locale,
-      label: r.label,
-      sourceUpdatedAt: r.source_updated_at,
-      updatedAt: r.updated_at,
-    }));
-  }
-
-  async replaceSegmentTranslations(
+  replaceSegmentTranslations(
     segmentId: number,
     translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
   ): Promise<void> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      await client.query(`DELETE FROM page_segment_translations WHERE segment_id = $1`, [segmentId]);
-      for (const t of translations) {
-        await client.query(
-          `INSERT INTO page_segment_translations (segment_id, locale, label, source_updated_at)
-           VALUES ($1, $2, $3, $4)`,
-          [segmentId, t.locale, t.label, t.sourceUpdatedAt],
-        );
-      }
-      await client.query("COMMIT");
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
-    }
+    return contentPagesReplaceSegmentTranslations(this.pool, segmentId, translations);
   }
 
   // ============================================================================
-  // NAV ITEM TRANSLATIONS (AdminRepository)
+  // NAVIGATION ITEMS + NAV TRANSLATIONS (AdminRepository)
   // ============================================================================
 
-  async listNavTranslations(navId: NavId): Promise<NavItemTranslationRow[]> {
-    const result = await this.pool.query<{
-      nav_item_id: number;
-      locale: string;
-      label: string;
-      source_updated_at: Date | null;
-      updated_at: Date;
-    }>(
-      `SELECT nit.nav_item_id, nit.locale, nit.label, nit.source_updated_at, nit.updated_at
-       FROM nav_item_translations nit
-       JOIN nav_items ni ON ni.id = nit.nav_item_id
-       WHERE ni.nav_id = $1
-       ORDER BY nit.nav_item_id, nit.locale`,
-      [navId],
-    );
-    return result.rows.map((r) => ({
-      navItemId: r.nav_item_id,
-      locale: r.locale,
-      label: r.label,
-      sourceUpdatedAt: r.source_updated_at,
-      updatedAt: r.updated_at,
-    }));
+  listAdminNavItems(navId: NavId): Promise<NavItemRow[]> {
+    return contentNavListAdminNavItems(this.pool, navId);
   }
 
-  async replaceNavItemTranslations(
+  replaceAdminNavItems(navId: NavId, items: NavItemReplaceInput[]): Promise<NavItemRow[]> {
+    return contentNavReplaceAdminNavItems(this.pool, navId, items);
+  }
+
+  listNavTranslations(navId: NavId): Promise<NavItemTranslationRow[]> {
+    return contentNavListNavTranslations(this.pool, navId);
+  }
+
+  replaceNavItemTranslations(
     navItemId: number,
     translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
   ): Promise<void> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      await client.query(`DELETE FROM nav_item_translations WHERE nav_item_id = $1`, [navItemId]);
-      for (const t of translations) {
-        await client.query(
-          `INSERT INTO nav_item_translations (nav_item_id, locale, label, source_updated_at)
-           VALUES ($1, $2, $3, $4)`,
-          [navItemId, t.locale, t.label, t.sourceUpdatedAt],
-        );
-      }
-      await client.query("COMMIT");
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
-    }
+    return contentNavReplaceNavItemTranslations(this.pool, navItemId, translations);
   }
 
   // ============================================================================
@@ -2035,130 +1493,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
     return { items, total, page, limit };
   }
-}
-
-interface EmailTemplateSqlRow {
-  id: number;
-  name: string;
-  subject: string;
-  header_banner_url: string | null;
-  header_text: string | null;
-  body_text: string;
-  footer_banner_url: string | null;
-  footer_text: string | null;
-  is_system_template: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
-
-function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
-  return {
-    id: row.id,
-    name: row.name,
-    subject: row.subject,
-    headerBannerUrl: row.header_banner_url,
-    headerText: row.header_text,
-    bodyText: row.body_text,
-    footerBannerUrl: row.footer_banner_url,
-    footerText: row.footer_text,
-    isSystemTemplate: row.is_system_template,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-// Resolve the slug that subsequent UPDATEs in the same TX should target after
-// a slug rename: the meta UPDATE runs first, so `meta.slug` (when present)
-// is already the new key for the content/translation/segment rows.
-function resolveSlugAfterRename(p: { slug: string; meta?: ContentPageMetaUpdate }): string {
-  return p.meta?.slug ?? p.slug;
-}
-
-// Shared column lists so every SELECT / RETURNING stays in lockstep.
-const CONTENT_SUMMARY_COLUMNS =
-  "slug, title, status, show_title, title_alignment, page_type, display_mode, overlay_width, content_card_style, created_by, updated_by, created_at, updated_at";
-const CONTENT_COLUMNS = `slug, title, content, status, show_title, title_alignment, page_type, display_mode, overlay_width, content_card_style, created_by, updated_by, created_at, updated_at, content_updated_at`;
-
-interface ContentPageSummarySqlRow {
-  slug: string;
-  title: string;
-  status: string;
-  show_title: boolean;
-  title_alignment: string;
-  page_type: string;
-  display_mode: string;
-  overlay_width: string;
-  content_card_style: string;
-  created_by: string | null;
-  updated_by: string | null;
-  created_at: Date;
-  updated_at: Date | null;
-  segments?: { position: number; label: string; targetSlug: string }[];
-}
-
-interface ContentPageSqlRow extends ContentPageSummarySqlRow {
-  content: string;
-  content_updated_at: Date;
-}
-
-function rowToContentPageSummary(row: ContentPageSummarySqlRow): ContentPageSummaryRow {
-  return {
-    slug: row.slug,
-    title: row.title,
-    status: row.status as ContentStatus,
-    showTitle: row.show_title,
-    titleAlignment: row.title_alignment as PageTitleAlignment,
-    pageType: row.page_type as PageType,
-    displayMode: row.display_mode as PageDisplayMode,
-    overlayWidth: row.overlay_width as OverlayWidth,
-    contentCardStyle: row.content_card_style as ContentCardStyle,
-    createdBy: row.created_by,
-    updatedBy: row.updated_by,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    ...(row.segments !== undefined && { segments: row.segments }),
-  };
-}
-
-interface ContentPageTranslationSqlRow {
-  slug: string;
-  locale: string;
-  title: string;
-  content: string;
-  source_updated_at: Date | null;
-  updated_at: Date;
-  updated_by: string | null;
-}
-
-function rowToContentPageTranslation(row: ContentPageTranslationSqlRow): ContentPageTranslationRow {
-  return {
-    slug: row.slug,
-    locale: row.locale,
-    title: row.title,
-    content: row.content,
-    sourceUpdatedAt: row.source_updated_at,
-    updatedAt: row.updated_at,
-    updatedBy: row.updated_by,
-  };
-}
-
-function rowToContentPage(row: ContentPageSqlRow): ContentPageRow {
-  return { ...rowToContentPageSummary(row), content: row.content, contentUpdatedAt: row.content_updated_at };
-}
-
-interface NavItemSqlRow {
-  id: number;
-  nav_id: string;
-  page_slug: string | null;
-  url: string | null;
-  target: string;
-  position: number;
-  label: string | null;
-  label_updated_at: Date;
-  page_title: string | null;
-  page_type: string | null;
-  display_mode: string | null;
-  overlay_width: string | null;
 }
 
 async function insertAppTelemetryEvent(
@@ -3219,23 +2553,6 @@ async function runWebsiteAnalyticsRetention(
   } finally {
     client.release();
   }
-}
-
-function rowToNavItem(row: NavItemSqlRow): NavItemRow {
-  return {
-    id: row.id,
-    navId: row.nav_id as NavId,
-    pageSlug: row.page_slug,
-    pageTitle: row.page_title,
-    url: row.url,
-    target: row.target as NavTarget,
-    label: row.label,
-    position: row.position,
-    labelUpdatedAt: row.label_updated_at,
-    pageType: row.page_type === null ? null : (row.page_type as PageType),
-    pageDisplayMode: row.display_mode === null ? null : (row.display_mode as PageDisplayMode),
-    pageOverlayWidth: row.overlay_width === null ? null : (row.overlay_width as OverlayWidth),
-  };
 }
 
 interface CrawlStateSqlRow {
