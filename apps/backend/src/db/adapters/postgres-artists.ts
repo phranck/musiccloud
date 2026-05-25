@@ -493,8 +493,8 @@ export async function findArtistCache(pool: Pool, artistName: string): Promise<A
   const result = await pool.query(
     `SELECT artist_name, profile, top_tracks, events,
             profile_updated_at, tracks_updated_at, events_updated_at
-     FROM artist_cache WHERE artist_name = $1`,
-    [artistName],
+     FROM artist_cache WHERE id = $1`,
+    [`artist-${artistName}`],
   );
 
   if (result.rows.length === 0) return null;

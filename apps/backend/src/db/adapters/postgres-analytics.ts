@@ -218,7 +218,7 @@ const WEBSITE_ANALYTICS_INTERACTION_EVENT_TYPES = [
 ] as const;
 
 const WEBSITE_ANALYTICS_ACTIVITY_SQL = `CASE
-  WHEN COALESCE(e.is_bot, false) THEN 'bot'
+  WHEN e.is_bot THEN 'bot'
   WHEN e.event_type = 'page_view' THEN 'page_view'
   WHEN e.event_type = 'search_submitted' THEN 'search'
   WHEN e.event_type LIKE 'resolve_%' THEN 'resolve'
@@ -607,6 +607,9 @@ async function refreshWebsiteAnalyticsDailySummaries(
   }
 
   for (const { day, networkClusterKey } of affected.values()) {
+    const dayStart = new Date(`${day}T00:00:00.000Z`);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
     await client.query(
       `INSERT INTO analytics_cluster_daily_summaries
          (day, network_cluster_key, confidence, device_count, session_count,
@@ -615,7 +618,7 @@ async function refreshWebsiteAnalyticsDailySummaries(
           player_start_count, info_page_click_count, help_page_click_count, ui_click_count,
           updated_at)
        SELECT
-          (occurred_at AT TIME ZONE 'UTC')::date AS day,
+          $1::date AS day,
           network_cluster_key,
           MAX(confidence) AS confidence,
           COUNT(DISTINCT device_key)::int AS device_count,
@@ -625,7 +628,7 @@ async function refreshWebsiteAnalyticsDailySummaries(
           COUNT(*) FILTER (WHERE event_type = 'search_submitted')::int AS search_count,
           COUNT(*) FILTER (
             WHERE event_type = 'resolve_succeeded'
-              AND (platform IS NULL OR platform = ANY($3::text[]))
+              AND (platform IS NULL OR platform = ANY($5::text[]))
           )::int AS resolve_count,
           COUNT(*) FILTER (WHERE event_type = 'listen_on_clicked')::int AS listen_on_click_count,
           COUNT(*) FILTER (WHERE event_type = 'similar_artist_clicked')::int AS similar_artist_click_count,
@@ -637,10 +640,11 @@ async function refreshWebsiteAnalyticsDailySummaries(
           COUNT(*) FILTER (WHERE event_type = 'ui_click')::int AS ui_click_count,
           NOW() AS updated_at
        FROM analytics_events
-       WHERE (occurred_at AT TIME ZONE 'UTC')::date = $1::date
-         AND network_cluster_key = $2
-         AND COALESCE(is_bot, false) = false
-       GROUP BY (occurred_at AT TIME ZONE 'UTC')::date, network_cluster_key
+       WHERE occurred_at >= $2
+         AND occurred_at < $3
+         AND network_cluster_key = $4
+         AND is_bot = false
+       GROUP BY network_cluster_key
        ON CONFLICT (day, network_cluster_key) DO UPDATE SET
           confidence = EXCLUDED.confidence,
           device_count = EXCLUDED.device_count,
@@ -658,7 +662,7 @@ async function refreshWebsiteAnalyticsDailySummaries(
           help_page_click_count = EXCLUDED.help_page_click_count,
           ui_click_count = EXCLUDED.ui_click_count,
           updated_at = NOW()`,
-      [day, networkClusterKey, WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS],
+      [day, dayStart, dayEnd, networkClusterKey, WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS],
     );
   }
 }
@@ -685,7 +689,7 @@ async function queryWebsiteAnalyticsTotals(
     FROM analytics_events
     WHERE occurred_at >= $1
       AND ($2::timestamptz IS NULL OR occurred_at < $2)
-      AND COALESCE(is_bot, false) = false`,
+      AND is_bot = false`,
     [since, until, WEBSITE_ANALYTICS_MUSIC_SOURCE_PLATFORMS, WEBSITE_ANALYTICS_INTERACTION_EVENT_TYPES],
   );
   const row = result.rows[0];
@@ -781,7 +785,7 @@ export async function getWebsiteAnalyticsOverview(
       `SELECT COALESCE(platform, 'unknown') AS platform, COUNT(*)::int AS resolves
        FROM analytics_events
        WHERE occurred_at >= $1
-         AND COALESCE(is_bot, false) = false
+         AND is_bot = false
          AND event_type = 'resolve_succeeded'
          AND (platform IS NULL OR platform = ANY($2::text[]))
        GROUP BY COALESCE(platform, 'unknown')
@@ -794,7 +798,7 @@ export async function getWebsiteAnalyticsOverview(
         COUNT(DISTINCT COALESCE(device_key, session_id::text))::int AS visitors
        FROM analytics_events
        WHERE occurred_at >= $1
-         AND COALESCE(is_bot, false) = false
+         AND is_bot = false
        GROUP BY COALESCE(NULLIF(browser_family, ''), 'unknown')
        ORDER BY visitors DESC, value ASC
        LIMIT 12`,
@@ -805,7 +809,7 @@ export async function getWebsiteAnalyticsOverview(
         COUNT(DISTINCT COALESCE(device_key, session_id::text))::int AS visitors
        FROM analytics_events
        WHERE occurred_at >= $1
-         AND COALESCE(is_bot, false) = false
+         AND is_bot = false
        GROUP BY COALESCE(NULLIF(os_family, ''), 'unknown')
        ORDER BY visitors DESC, value ASC
        LIMIT 12`,
@@ -821,7 +825,7 @@ export async function getWebsiteAnalyticsOverview(
           COALESCE(device_key, session_id::text) AS visitor_key
         FROM analytics_events
         WHERE occurred_at >= $1
-          AND COALESCE(is_bot, false) = false
+          AND is_bot = false
        )
        SELECT value, COUNT(DISTINCT visitor_key)::int AS visitors
        FROM device_values
@@ -838,7 +842,7 @@ export async function getWebsiteAnalyticsOverview(
         COUNT(*) FILTER (WHERE event_type = 'page_view')::int AS pageviews
        FROM analytics_events
        WHERE occurred_at >= $1
-         AND COALESCE(is_bot, false) = true
+         AND is_bot = true
        GROUP BY COALESCE(NULLIF(bot_name, ''), 'Unknown bot'), NULLIF(bot_category, '')
        ORDER BY events DESC, pageviews DESC, bot ASC
        LIMIT 12`,
@@ -860,7 +864,7 @@ export async function getWebsiteAnalyticsOverview(
             occurred_at AS last_seen_at
           FROM analytics_events
           WHERE occurred_at >= $1
-            AND COALESCE(is_bot, false) = false
+            AND is_bot = false
           ORDER BY network_cluster_key, occurred_at DESC
         ),
         cluster_devices AS (
@@ -869,7 +873,7 @@ export async function getWebsiteAnalyticsOverview(
             COUNT(DISTINCT device_key) FILTER (WHERE device_key IS NOT NULL)::int AS devices
           FROM analytics_events
           WHERE occurred_at >= $1
-            AND COALESCE(is_bot, false) = false
+            AND is_bot = false
           GROUP BY network_cluster_key
         ),
         cluster_queries AS (
@@ -879,7 +883,7 @@ export async function getWebsiteAnalyticsOverview(
           FROM analytics_events e
           ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
           WHERE e.occurred_at >= $1
-            AND COALESCE(e.is_bot, false) = false
+            AND e.is_bot = false
             AND e.event_type = 'search_submitted'
             AND NULLIF(e.event_data->>'query_normalized', '') IS NOT NULL
           ORDER BY e.network_cluster_key, e.occurred_at DESC
@@ -914,7 +918,7 @@ export async function getWebsiteAnalyticsOverview(
         COUNT(DISTINCT network_cluster_key)::int AS clusters
        FROM analytics_events
        WHERE occurred_at >= $1
-         AND COALESCE(is_bot, false) = false
+         AND is_bot = false
          AND event_type = 'page_view'
          AND COALESCE(route_template, path) IN ('/', '/:shortId')
        GROUP BY COALESCE(NULLIF(referrer_domain, ''), 'direct'), COALESCE(route_template, path, 'unknown')
@@ -929,7 +933,7 @@ export async function getWebsiteAnalyticsOverview(
         COUNT(DISTINCT network_cluster_key)::int AS clusters
        FROM analytics_events
        WHERE occurred_at >= $1
-         AND COALESCE(is_bot, false) = false
+         AND is_bot = false
          AND event_type = 'search_submitted'
        GROUP BY COALESCE(NULLIF(event_data->>'query_type', ''), 'unknown')
        ORDER BY searches DESC, clusters DESC, intent ASC
@@ -982,7 +986,7 @@ export async function getWebsiteAnalyticsOverview(
           COALESCE(NULLIF(platform, ''), NULLIF(event_data->>'service', ''), NULLIF(event_data->>'provider', '')) AS platform
         FROM analytics_events
         WHERE occurred_at >= $1
-          AND COALESCE(is_bot, false) = false
+          AND is_bot = false
           AND event_type = ANY($2::text[])
        )
        SELECT event_type, label, surface, element_key, platform, COUNT(*)::int AS count
@@ -1000,7 +1004,7 @@ export async function getWebsiteAnalyticsOverview(
         FROM analytics_events e
         ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
         WHERE e.occurred_at >= $1
-          AND COALESCE(e.is_bot, false) = false
+          AND e.is_bot = false
           AND e.event_type = 'search_submitted'
           AND NULLIF(e.event_data->>'query_normalized', '') IS NOT NULL
        )
@@ -1026,7 +1030,7 @@ export async function getWebsiteAnalyticsOverview(
        FROM analytics_events e
        ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
        WHERE e.occurred_at >= $1
-         AND COALESCE(e.is_bot, false) = false
+         AND e.is_bot = false
        ORDER BY e.occurred_at DESC
        LIMIT 18`,
       [since],
@@ -1235,7 +1239,7 @@ export async function getWebsiteAnalyticsGeo(
         MAX(geo_database_build_at) AS latest_database_build_at
        FROM analytics_events
        WHERE occurred_at >= $1
-         AND COALESCE(is_bot, false) = false`,
+         AND is_bot = false`,
       [params.since],
     ),
     pool.query<WebsiteAnalyticsGeoCountryRow>(
@@ -1249,7 +1253,7 @@ export async function getWebsiteAnalyticsGeo(
         MAX(occurred_at) AS last_seen_at
        FROM analytics_events
        WHERE occurred_at >= $1
-         AND COALESCE(is_bot, false) = false
+         AND is_bot = false
          AND geo_latitude IS NOT NULL
          AND geo_longitude IS NOT NULL
        GROUP BY geo_country_code
@@ -1270,7 +1274,7 @@ export async function getWebsiteAnalyticsGeo(
         MAX(occurred_at) AS last_seen_at
        FROM analytics_events
        WHERE occurred_at >= $1
-         AND COALESCE(is_bot, false) = false
+         AND is_bot = false
          AND geo_latitude IS NOT NULL
          AND geo_longitude IS NOT NULL
        GROUP BY geo_country_code, geo_region_code, geo_region_name, geo_city
@@ -1300,7 +1304,7 @@ export async function getWebsiteAnalyticsGeo(
        FROM analytics_events e
        WHERE e.occurred_at >= $1
          AND e.occurred_at >= $2
-         AND COALESCE(e.is_bot, false) = false
+         AND e.is_bot = false
          AND e.geo_latitude IS NOT NULL
          AND e.geo_longitude IS NOT NULL
        ORDER BY e.occurred_at DESC

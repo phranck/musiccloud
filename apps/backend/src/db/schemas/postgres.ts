@@ -52,9 +52,13 @@ export const tracks = pgTable(
   },
   (table) => [
     index("idx_tracks_isrc").on(table.isrc),
+    index("idx_tracks_source_url").on(table.sourceUrl).where(sql`${table.sourceUrl} IS NOT NULL`),
     // Dashboard TracksPage default sort is `created_at DESC`; without this
     // index every page load does a top-N heapsort on the whole table.
     index("idx_tracks_created_at").on(table.createdAt.desc()),
+    index("idx_tracks_updated_at").on(table.updatedAt.desc()),
+    index("idx_tracks_title").on(table.title),
+    index("idx_tracks_title_trgm").using("gin", table.title.op("gin_trgm_ops")),
   ],
 );
 
@@ -191,8 +195,12 @@ export const albums = pgTable(
   },
   (table) => [
     index("idx_albums_upc").on(table.upc),
+    index("idx_albums_source_url").on(table.sourceUrl).where(sql`${table.sourceUrl} IS NOT NULL`),
     // Mirror of idx_tracks_created_at: AlbumsPage default sort.
     index("idx_albums_created_at").on(table.createdAt.desc()),
+    index("idx_albums_updated_at").on(table.updatedAt.desc()),
+    index("idx_albums_title").on(table.title),
+    index("idx_albums_title_trgm").using("gin", table.title.op("gin_trgm_ops")),
   ],
 );
 
@@ -400,6 +408,13 @@ export const artistEntityNames = pgTable(
   (table) => [
     index("idx_artist_entity_names_entity_locale_type").on(table.artistEntityId, table.locale, table.nameType),
     index("idx_artist_entity_names_name_type").on(table.nameType),
+    index("idx_artist_entity_names_lower_name").on(sql`lower(${table.name})`, table.artistEntityId),
+    index("idx_artist_entity_names_name_trgm").using("gin", table.name.op("gin_trgm_ops")),
+    index("idx_artist_entity_names_entity_lower_type").on(
+      table.artistEntityId,
+      sql`lower(${table.name})`,
+      table.nameType,
+    ),
     check(
       "chk_artist_entity_names_name_type",
       sql`${table.nameType} IN ('canonical', 'alias', 'legal', 'stage', 'credit', 'sort')`,
@@ -643,6 +658,7 @@ export const trackArtistCredits = pgTable(
   (table) => [
     index("idx_track_artist_credits_track").on(table.trackId, table.creditPosition),
     index("idx_track_artist_credits_entity").on(table.artistEntityId),
+    index("idx_track_artist_credits_credit_name_trgm").using("gin", table.creditName.op("gin_trgm_ops")),
     uniqueIndex("idx_track_artist_credits_unique").on(
       table.trackId,
       table.creditPosition,
@@ -682,6 +698,7 @@ export const albumArtistCredits = pgTable(
   (table) => [
     index("idx_album_artist_credits_album").on(table.albumId, table.creditPosition),
     index("idx_album_artist_credits_entity").on(table.artistEntityId),
+    index("idx_album_artist_credits_credit_name_trgm").using("gin", table.creditName.op("gin_trgm_ops")),
     uniqueIndex("idx_album_artist_credits_unique").on(
       table.albumId,
       table.creditPosition,
@@ -720,6 +737,7 @@ export const artistProfiles = pgTable(
     uniqueIndex("idx_artist_profiles_source_url").on(table.sourceUrl),
     // Mirror of idx_tracks_created_at: ArtistsPage default sort.
     index("idx_artist_profiles_created_at").on(table.createdAt.desc()),
+    index("idx_artist_profiles_updated_at").on(table.updatedAt.desc()),
   ],
 );
 
@@ -827,18 +845,22 @@ export const adminUsers = pgTable("admin_users", {
  * Stores JSON profile, top-track and event payloads with independent freshness
  * timestamps for lazy refreshes.
  */
-export const artistCache = pgTable("artist_cache", {
-  id: text("id").primaryKey(),
-  artistName: text("artist_name").notNull(),
-  profile: text("profile"), // JSON
-  topTracks: text("top_tracks"), // JSON
-  events: text("events"), // JSON
-  profileUpdatedAt: timestamp("profile_updated_at", { withTimezone: true }),
-  tracksUpdatedAt: timestamp("tracks_updated_at", { withTimezone: true }),
-  eventsUpdatedAt: timestamp("events_updated_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
-});
+export const artistCache = pgTable(
+  "artist_cache",
+  {
+    id: text("id").primaryKey(),
+    artistName: text("artist_name").notNull(),
+    profile: text("profile"), // JSON
+    topTracks: text("top_tracks"), // JSON
+    events: text("events"), // JSON
+    profileUpdatedAt: timestamp("profile_updated_at", { withTimezone: true }),
+    tracksUpdatedAt: timestamp("tracks_updated_at", { withTimezone: true }),
+    eventsUpdatedAt: timestamp("events_updated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("idx_artist_cache_updated_at").on(table.updatedAt)],
+);
 
 // Site-wide settings (key/value store)
 /**
@@ -958,24 +980,31 @@ export type EmailTemplateInsert = typeof emailTemplates.$inferInsert;
  * Uses `slug` as both primary key and public URL, with layout/display fields
  * and audit pointers for dashboard edits.
  */
-export const contentPages = pgTable("content_pages", {
-  slug: text("slug").primaryKey(),
-  title: text("title").notNull(),
-  content: text("content").notNull().default(""),
-  status: text("status").notNull().default("draft"),
-  showTitle: boolean("show_title").notNull().default(true),
-  titleAlignment: text("title_alignment").notNull().default("left"),
-  pageType: text("page_type").notNull().default("default"),
-  displayMode: text("display_mode").notNull().default("fullscreen"),
-  overlayWidth: text("overlay_width").notNull().default("regular"),
-  contentCardStyle: text("content_card_style").notNull().default("recessed"),
-  position: integer("position").notNull().default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  createdBy: text("created_by").references(() => adminUsers.id, { onDelete: "set null" }),
-  updatedAt: timestamp("updated_at", { withTimezone: true }),
-  updatedBy: text("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
-  contentUpdatedAt: timestamp("content_updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const contentPages = pgTable(
+  "content_pages",
+  {
+    slug: text("slug").primaryKey(),
+    title: text("title").notNull(),
+    content: text("content").notNull().default(""),
+    status: text("status").notNull().default("draft"),
+    showTitle: boolean("show_title").notNull().default(true),
+    titleAlignment: text("title_alignment").notNull().default("left"),
+    pageType: text("page_type").notNull().default("default"),
+    displayMode: text("display_mode").notNull().default("fullscreen"),
+    overlayWidth: text("overlay_width").notNull().default("regular"),
+    contentCardStyle: text("content_card_style").notNull().default("recessed"),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdBy: text("created_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }),
+    updatedBy: text("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    contentUpdatedAt: timestamp("content_updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_content_pages_status_title").on(table.status, table.title),
+    index("idx_content_pages_position_created").on(table.position, table.createdAt.desc()),
+  ],
+);
 
 export type ContentPageRow = typeof contentPages.$inferSelect;
 export type ContentPageInsert = typeof contentPages.$inferInsert;
@@ -1002,7 +1031,10 @@ export const pageSegments = pgTable(
     label: text("label").notNull(),
     labelUpdatedAt: timestamp("label_updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("idx_page_segments_owner").on(table.ownerSlug)],
+  (table) => [
+    index("idx_page_segments_owner").on(table.ownerSlug),
+    index("idx_page_segments_owner_position").on(table.ownerSlug, table.position),
+  ],
 );
 
 export type PageSegmentRow = typeof pageSegments.$inferSelect;
@@ -1033,7 +1065,10 @@ export const navItems = pgTable(
     label: text("label"),
     labelUpdatedAt: timestamp("label_updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("idx_nav_items_nav").on(table.navId)],
+  (table) => [
+    index("idx_nav_items_nav").on(table.navId),
+    index("idx_nav_items_nav_position").on(table.navId, table.position),
+  ],
 );
 
 export type NavItemRow = typeof navItems.$inferSelect;
@@ -1379,7 +1414,10 @@ export const crawlRuns = pgTable(
     errors: integer("errors").notNull().default(0),
     notes: text("notes"),
   },
-  (table) => [index("idx_crawl_runs_source_started").on(table.source, table.startedAt.desc())],
+  (table) => [
+    index("idx_crawl_runs_source_started").on(table.source, table.startedAt.desc()),
+    index("idx_crawl_runs_started_at").on(table.startedAt.desc()),
+  ],
 );
 
 export type CrawlRunRow = typeof crawlRuns.$inferSelect;

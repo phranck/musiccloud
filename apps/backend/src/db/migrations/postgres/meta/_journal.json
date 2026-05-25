@@ -288,6 +288,13 @@
       "when": 1779568863838,
       "tag": "0040_vengeful_luke_cage",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1779751450644,
+      "tag": "0041_dry_king_cobra",
+      "breakpoints": true
     }
   ]
 }
