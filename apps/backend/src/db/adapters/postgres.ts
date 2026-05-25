@@ -1,7 +1,6 @@
 import type { ContentCardStyle, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
 import type { PoolClient } from "pg";
 import * as pgModule from "pg";
-import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
 import type { NormalizedTrack } from "../../services/types.js";
 import type {
@@ -76,6 +75,40 @@ import type {
   WebsiteAnalyticsTrend,
 } from "../repository.js";
 import {
+  clearArtistCache as adminCatalogClearArtistCache,
+  countAllData as adminCatalogCountAllData,
+  deleteAlbums as adminCatalogDeleteAlbums,
+  deleteArtists as adminCatalogDeleteArtists,
+  deleteTracks as adminCatalogDeleteTracks,
+  findMissingTables as adminCatalogFindMissingTables,
+  getRandomShortId as adminCatalogGetRandomShortId,
+  getTrackById as adminCatalogGetTrackById,
+  invalidateAlbumCache as adminCatalogInvalidateAlbumCache,
+  invalidateAllCaches as adminCatalogInvalidateAllCaches,
+  invalidateArtistCache as adminCatalogInvalidateArtistCache,
+  invalidateTrackCache as adminCatalogInvalidateTrackCache,
+  listAlbums as adminCatalogListAlbums,
+  listArtistEntities as adminCatalogListArtistEntities,
+  listArtists as adminCatalogListArtists,
+  listTracks as adminCatalogListTracks,
+  resetAllData as adminCatalogResetAllData,
+  resolveShortIds as adminCatalogResolveShortIds,
+  updateTrack as adminCatalogUpdateTrack,
+  updateTrackTimestamp as adminCatalogUpdateTrackTimestamp,
+} from "./postgres-admin-catalog.js";
+import {
+  acceptInvite as adminUsersAcceptInvite,
+  countAdmins as adminUsersCountAdmins,
+  createAdminUser as adminUsersCreateAdminUser,
+  deleteAdminUser as adminUsersDeleteAdminUser,
+  findAdminById as adminUsersFindAdminById,
+  findAdminByUsername as adminUsersFindAdminByUsername,
+  listAdminUsers as adminUsersListAdminUsers,
+  listPendingInvites as adminUsersListPendingInvites,
+  updateAdminUser as adminUsersUpdateAdminUser,
+  updateLastLogin as adminUsersUpdateLastLogin,
+} from "./postgres-admin-users.js";
+import {
   addAlbumExternalIds as albumsAddAlbumExternalIds,
   addLinksToAlbum as albumsAddLinksToAlbum,
   findAlbumByExternalId as albumsFindAlbumByExternalId,
@@ -89,7 +122,6 @@ import {
   upsertAlbumPreview as albumsUpsertAlbumPreview,
 } from "./postgres-albums.js";
 import {
-  type ArtistRow,
   addArtistExternalIds as artistsAddArtistExternalIds,
   addLinksToArtist as artistsAddLinksToArtist,
   cleanupStaleCache as artistsCleanupStaleCache,
@@ -105,18 +137,7 @@ import {
   persistArtistWithLinks as artistsPersistArtistWithLinks,
   saveArtistCache as artistsSaveArtistCache,
 } from "./postgres-artists.js";
-import {
-  ALBUM_ARTIST_FIELDS_SELECT,
-  ARTIST_NAME_LATERAL_JOIN,
-  ARTIST_NAME_SELECT,
-  type CountRow,
-  dateToMs,
-  replaceTrackArtistCredits,
-  type ServiceLinkRow,
-  safeParseArray,
-  safeParseArtistCredits,
-  TRACK_ARTIST_FIELDS_SELECT,
-} from "./postgres-shared.js";
+import type { CountRow } from "./postgres-shared.js";
 import {
   addLinksToTrack as tracksAddLinksToTrack,
   addTrackExternalIds as tracksAddTrackExternalIds,
@@ -348,52 +369,6 @@ const WEBSITE_ANALYTICS_RETENTION_POLICY = {
   rawEventsDays: 180,
   summariesDays: 730,
 } as const satisfies WebsiteAnalyticsRetentionPolicy;
-
-interface AdminUserRow {
-  id: string;
-  username: string;
-  password_hash: string;
-  email: string | null;
-  role: string;
-  first_name: string | null;
-  last_name: string | null;
-  avatar_url: string | null;
-  locale: string;
-  invite_token_hash: string | null;
-  invite_expires_at: Date | null;
-  session_timeout_minutes: number | null;
-  created_at: Date;
-  last_login_at: Date | null;
-}
-
-interface TrackListRow {
-  id: string;
-  title: string;
-  artists: string;
-  artist_credits: string;
-  album_name: string | null;
-  isrc: string | null;
-  artwork_url: string | null;
-  source_service: string | null;
-  created_at: Date;
-  short_id: string | null;
-  link_count: string;
-}
-
-interface AlbumListRow {
-  id: string;
-  title: string;
-  artists: string;
-  artist_credits: string;
-  release_date: string | null;
-  total_tracks: number | null;
-  artwork_url: string | null;
-  upc: string | null;
-  source_service: string | null;
-  created_at: Date;
-  short_id: string | null;
-  link_count: string;
-}
 
 // ============================================================================
 // ANALYTICS-LOCAL SQL FRAGMENTS
@@ -836,39 +811,16 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return artistsCleanupStaleCache(this.pool);
   }
 
-  async getRandomShortId(): Promise<string | null> {
-    // Uniformly pick one short URL across BOTH track and album short URLs.
-    // Offset trick avoids `ORDER BY RANDOM()` full sort; UNION ALL is fine
-    // because track/album short_url ids share the same namespace by design.
-    const result = await this.pool.query(
-      `WITH all_urls AS (
-         SELECT id FROM short_urls
-         UNION ALL
-         SELECT id FROM album_short_urls
-       )
-       SELECT id FROM all_urls
-       OFFSET floor(random() * (SELECT COUNT(*) FROM all_urls))::int
-       LIMIT 1`,
-    );
-
-    if (result.rows.length === 0) return null;
-    return result.rows[0].id;
+  getRandomShortId(): Promise<string | null> {
+    return adminCatalogGetRandomShortId(this.pool);
   }
 
-  async updateTrackTimestamp(trackId: string): Promise<void> {
-    const now = new Date();
-    await this.pool.query(`UPDATE tracks SET updated_at = $1 WHERE id = $2`, [now, trackId]);
+  updateTrackTimestamp(trackId: string): Promise<void> {
+    return adminCatalogUpdateTrackTimestamp(this.pool, trackId);
   }
 
-  async findMissingTables(expected: string[]): Promise<string[]> {
-    if (expected.length === 0) return [];
-    const result = await this.pool.query<{ table_name: string }>(
-      `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = 'public' AND table_name = ANY($1::text[])`,
-      [expected],
-    );
-    const present = new Set(result.rows.map((r) => r.table_name));
-    return expected.filter((t) => !present.has(t));
+  findMissingTables(expected: string[]): Promise<string[]> {
+    return adminCatalogFindMissingTables(this.pool, expected);
   }
 
   // ============================================================================
@@ -941,53 +893,18 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   }
 
   // ============================================================================
-  // ADMIN QUERIES (AdminRepository)
+  // ADMIN USERS (AdminRepository)
   // ============================================================================
 
-  private rowToAdminUser(row: AdminUserRow): AdminUser {
-    return {
-      id: row.id,
-      username: row.username,
-      passwordHash: row.password_hash,
-      email: row.email,
-      role: row.role,
-      firstName: row.first_name,
-      lastName: row.last_name,
-      avatarUrl: row.avatar_url,
-      locale: row.locale,
-      sessionTimeoutMinutes: row.session_timeout_minutes,
-      createdAt: dateToMs(row.created_at),
-      lastLoginAt: row.last_login_at ? dateToMs(row.last_login_at) : null,
-    };
+  findAdminById(id: string): Promise<AdminUser | null> {
+    return adminUsersFindAdminById(this.pool, id);
   }
 
-  async findAdminById(id: string): Promise<AdminUser | null> {
-    const result = await this.pool.query(
-      `SELECT id, username, password_hash, email, role, first_name, last_name,
-              avatar_url, locale, invite_token_hash, invite_expires_at,
-              session_timeout_minutes, created_at, last_login_at
-       FROM admin_users WHERE id = $1`,
-      [id],
-    );
-
-    if (result.rows.length === 0) return null;
-    return this.rowToAdminUser(result.rows[0] as AdminUserRow);
+  findAdminByUsername(username: string): Promise<AdminUser | null> {
+    return adminUsersFindAdminByUsername(this.pool, username);
   }
 
-  async findAdminByUsername(username: string): Promise<AdminUser | null> {
-    const result = await this.pool.query(
-      `SELECT id, username, password_hash, email, role, first_name, last_name,
-              avatar_url, locale, invite_token_hash, invite_expires_at,
-              session_timeout_minutes, created_at, last_login_at
-       FROM admin_users WHERE username = $1`,
-      [username],
-    );
-
-    if (result.rows.length === 0) return null;
-    return this.rowToAdminUser(result.rows[0] as AdminUserRow);
-  }
-
-  async createAdminUser(data: {
+  createAdminUser(data: {
     id: string;
     username: string;
     passwordHash: string;
@@ -997,48 +914,22 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     inviteTokenHash?: string;
     inviteExpiresAt?: Date;
   }): Promise<void> {
-    const now = new Date();
-
-    await this.pool.query(
-      `INSERT INTO admin_users (id, username, password_hash, email, role, locale,
-                                invite_token_hash, invite_expires_at, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [
-        data.id,
-        data.username,
-        data.passwordHash,
-        data.email ?? null,
-        data.role ?? "admin",
-        data.locale ?? "de",
-        data.inviteTokenHash ?? null,
-        data.inviteExpiresAt ?? null,
-        now,
-      ],
-    );
+    return adminUsersCreateAdminUser(this.pool, data);
   }
 
-  async updateLastLogin(userId: string): Promise<void> {
-    const now = new Date();
-    await this.pool.query(`UPDATE admin_users SET last_login_at = $1 WHERE id = $2`, [now, userId]);
+  updateLastLogin(userId: string): Promise<void> {
+    return adminUsersUpdateLastLogin(this.pool, userId);
   }
 
-  async countAdmins(): Promise<number> {
-    const result = await this.pool.query(`SELECT COUNT(*) as count FROM admin_users`);
-    return result.rows[0]?.count ?? 0;
+  countAdmins(): Promise<number> {
+    return adminUsersCountAdmins(this.pool);
   }
 
-  async listAdminUsers(): Promise<AdminUser[]> {
-    const result = await this.pool.query(
-      `SELECT id, username, password_hash, email, role, first_name, last_name,
-              avatar_url, locale, invite_token_hash, invite_expires_at,
-              session_timeout_minutes, created_at, last_login_at
-       FROM admin_users
-       ORDER BY created_at ASC`,
-    );
-    return result.rows.map((row) => this.rowToAdminUser(row as AdminUserRow));
+  listAdminUsers(): Promise<AdminUser[]> {
+    return adminUsersListAdminUsers(this.pool);
   }
 
-  async updateAdminUser(
+  updateAdminUser(
     id: string,
     data: Partial<{
       username: string;
@@ -1052,52 +943,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       sessionTimeoutMinutes: number | null;
     }>,
   ): Promise<AdminUser | null> {
-    const columnMap: Record<string, string> = {
-      username: "username",
-      email: "email",
-      passwordHash: "password_hash",
-      firstName: "first_name",
-      lastName: "last_name",
-      avatarUrl: "avatar_url",
-      locale: "locale",
-      role: "role",
-      sessionTimeoutMinutes: "session_timeout_minutes",
-    };
-
-    const setClauses: string[] = [];
-    const values: unknown[] = [];
-    let paramIndex = 1;
-
-    for (const [key, value] of Object.entries(data)) {
-      const column = columnMap[key];
-      if (column) {
-        setClauses.push(`${column} = $${paramIndex}`);
-        values.push(value);
-        paramIndex++;
-      }
-    }
-
-    if (setClauses.length === 0) return null;
-
-    values.push(id);
-    const result = await this.pool.query(
-      `UPDATE admin_users SET ${setClauses.join(", ")}
-       WHERE id = $${paramIndex}
-       RETURNING id, username, password_hash, email, role, first_name, last_name,
-                 avatar_url, locale, invite_token_hash, invite_expires_at,
-                 session_timeout_minutes, created_at, last_login_at`,
-      values,
-    );
-
-    if (result.rows.length === 0) return null;
-    return this.rowToAdminUser(result.rows[0] as AdminUserRow);
+    return adminUsersUpdateAdminUser(this.pool, id, data);
   }
 
-  async deleteAdminUser(id: string): Promise<void> {
-    await this.pool.query(`DELETE FROM admin_users WHERE id = $1`, [id]);
+  deleteAdminUser(id: string): Promise<void> {
+    return adminUsersDeleteAdminUser(this.pool, id);
   }
 
-  async listPendingInvites(): Promise<
+  listPendingInvites(): Promise<
     Array<{
       id: string;
       username: string;
@@ -1106,82 +959,23 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       inviteExpiresAt: Date;
     }>
   > {
-    const result = await this.pool.query(
-      `SELECT id, username, email, invite_token_hash, invite_expires_at
-       FROM admin_users
-       WHERE invite_token_hash IS NOT NULL AND invite_expires_at > NOW()`,
-    );
-    return result.rows.map((r) => ({
-      id: r.id,
-      username: r.username,
-      email: r.email ?? null,
-      inviteTokenHash: r.invite_token_hash,
-      inviteExpiresAt: r.invite_expires_at,
-    }));
+    return adminUsersListPendingInvites(this.pool);
   }
 
-  async acceptInvite(id: string, passwordHash: string): Promise<AdminUser | null> {
-    const result = await this.pool.query(
-      `UPDATE admin_users
-       SET password_hash = $1,
-           invite_token_hash = NULL,
-           invite_expires_at = NULL
-       WHERE id = $2 AND invite_token_hash IS NOT NULL AND invite_expires_at > NOW()
-       RETURNING id, username, password_hash, email, role, first_name, last_name,
-                 avatar_url, locale, invite_token_hash, invite_expires_at,
-                 session_timeout_minutes, created_at, last_login_at`,
-      [passwordHash, id],
-    );
-    if (result.rows.length === 0) return null;
-    return this.rowToAdminUser(result.rows[0] as AdminUserRow);
+  acceptInvite(id: string, passwordHash: string): Promise<AdminUser | null> {
+    return adminUsersAcceptInvite(this.pool, id, passwordHash);
   }
 
   // ============================================================================
-  // SINGLE TRACK (AdminRepository)
+  // ADMIN CATALOG (AdminRepository) — single track / listings / deletion /
+  // cache invalidation / aggregate counts / reset / short-id resolve
   // ============================================================================
 
-  async getTrackById(id: string) {
-    const trackResult = await this.pool.query(
-      `SELECT t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit,
-        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-        t.source_service, t.source_url, t.created_at,
-        su.id as short_id
-      FROM tracks t
-      LEFT JOIN short_urls su ON t.id = su.track_id
-      WHERE t.id = $1
-      GROUP BY t.id, su.id`,
-      [id],
-    );
-    if (trackResult.rows.length === 0) return null;
-    const r = trackResult.rows[0];
-
-    const linksResult = await this.pool.query(
-      `SELECT service, url FROM service_links WHERE track_id = $1 ORDER BY service`,
-      [id],
-    );
-
-    return {
-      id: r.id,
-      title: r.title,
-      artists: safeParseArray(r.artists),
-      artistCredits: safeParseArtistCredits(r.artist_credits),
-      albumName: r.album_name ?? null,
-      isrc: r.isrc ?? null,
-      artworkUrl: r.artwork_url ?? null,
-      durationMs: r.duration_ms ?? null,
-      releaseDate: r.release_date ?? null,
-      isExplicit: Boolean(r.is_explicit),
-      previewUrl: r.preview_url ?? null,
-      sourceService: r.source_service ?? null,
-      sourceUrl: r.source_url ?? null,
-      shortId: r.short_id ?? null,
-      createdAt: dateToMs(r.created_at),
-      serviceLinks: (linksResult.rows as ServiceLinkRow[]).map((l) => ({ service: l.service, url: l.url })),
-    };
+  getTrackById(id: string) {
+    return adminCatalogGetTrackById(this.pool, id);
   }
 
-  async updateTrack(
+  updateTrack(
     id: string,
     data: {
       title?: string;
@@ -1191,621 +985,98 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       isrc?: string | null;
       artworkUrl?: string | null;
     },
-  ) {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const sets: string[] = [];
-      const values: (string | number | null | Date)[] = [];
-      let idx = 1;
-      const now = new Date();
-
-      if (data.title !== undefined) {
-        sets.push(`title = $${idx++}`);
-        values.push(data.title);
-      }
-      if (data.albumName !== undefined) {
-        sets.push(`album_name = $${idx++}`);
-        values.push(data.albumName);
-      }
-      if (data.isrc !== undefined) {
-        sets.push(`isrc = $${idx++}`);
-        values.push(data.isrc);
-      }
-      if (data.artworkUrl !== undefined) {
-        sets.push(`artwork_url = $${idx++}`);
-        values.push(data.artworkUrl);
-      }
-
-      if (sets.length > 0) {
-        sets.push(`updated_at = $${idx++}`);
-        values.push(now);
-        values.push(id);
-        await client.query(`UPDATE tracks SET ${sets.join(", ")} WHERE id = $${idx}`, values);
-      }
-
-      if (data.artists !== undefined || data.artistCredits !== undefined) {
-        await replaceTrackArtistCredits(client, id, data.artists ?? [], now, data.artistCredits);
-        if (sets.length === 0) {
-          await client.query(`UPDATE tracks SET updated_at = $1 WHERE id = $2`, [now, id]);
-        }
-      }
-
-      await client.query("COMMIT");
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+  ): Promise<void> {
+    return adminCatalogUpdateTrack(this.pool, id, data);
   }
 
-  // ============================================================================
-  // LISTING & PAGINATION (AdminRepository)
-  // ============================================================================
-
-  async listTracks(params: {
+  listTracks(params: {
     page: number;
     limit: number;
     q?: string;
     sortBy?: string;
     sortDir?: "asc" | "desc";
   }): Promise<ListResult<TrackListItem>> {
-    const { page = 1, limit = 50, q, sortBy = "created_at", sortDir = "desc" } = params;
-    const offset = (page - 1) * limit;
-    const ALLOWED = ["created_at", "updated_at", "title"];
-    const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
-    const dir = sortDir === "asc" ? "ASC" : "DESC";
-
-    // Build WHERE clause and data-query params once.
-    let whereClause = "";
-    const dataParams: (string | number)[] = [];
-    if (q) {
-      whereClause = `WHERE t.title ILIKE $1 OR EXISTS (SELECT 1 FROM track_artist_credits tac WHERE tac.track_id = t.id AND tac.credit_name ILIKE $1)`;
-      dataParams.push(`%${q}%`);
-    }
-
-    // Total row count is only meaningful for page 1 of an infinite-scroll
-    // session. The client caches the value and reuses it for subsequent
-    // pages, so re-running COUNT on every loadMore() is wasted work.
-    // Sentinel `-1` tells the frontend to keep its cached total.
-    let total: number | string = -1;
-    if (page === 1) {
-      const countResult = await this.pool.query<CountRow>(
-        `SELECT COUNT(*) as count FROM tracks t ${whereClause}`,
-        q ? dataParams : [],
-      );
-      total = countResult.rows[0]?.count ?? 0;
-    }
-
-    // link_count is computed via correlated subquery instead of
-    // LEFT JOIN service_links + GROUP BY. The old pattern scanned the
-    // entire service_links table on every page; this one evaluates the
-    // count only for the 50 tracks actually returned, hitting the
-    // (track_id, service) composite index for each.
-    dataParams.push(limit, offset);
-    const query = `SELECT
-      t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-      t.source_service, t.created_at,
-      su.id as short_id,
-      (SELECT COUNT(*) FROM service_links sl WHERE sl.track_id = t.id) as link_count
-    FROM tracks t
-    LEFT JOIN short_urls su ON t.id = su.track_id
-    ${whereClause}
-    ORDER BY t.${col} ${dir}
-    LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
-
-    const rows = await this.pool.query(query, dataParams);
-
-    const items = (rows.rows as TrackListRow[]).map((r) => ({
-      id: r.id,
-      title: r.title,
-      artists: safeParseArray(r.artists),
-      artistCredits: safeParseArtistCredits(r.artist_credits),
-      albumName: r.album_name ?? null,
-      isrc: r.isrc ?? null,
-      artworkUrl: r.artwork_url ?? null,
-      sourceService: r.source_service ?? null,
-      linkCount: parseInt(r.link_count, 10),
-      createdAt: dateToMs(r.created_at),
-      shortId: r.short_id ?? null,
-    }));
-
-    return { items, total, page, limit };
+    return adminCatalogListTracks(this.pool, params);
   }
 
-  async listAlbums(params: {
+  listAlbums(params: {
     page: number;
     limit: number;
     q?: string;
     sortBy?: string;
     sortDir?: "asc" | "desc";
   }): Promise<ListResult<AlbumListItem>> {
-    const { page = 1, limit = 50, q, sortBy = "created_at", sortDir = "desc" } = params;
-    const offset = (page - 1) * limit;
-    const ALLOWED = ["created_at", "updated_at", "title"];
-    const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
-    const dir = sortDir === "asc" ? "ASC" : "DESC";
-
-    // See listTracks for the rationale behind the query shape, the
-    // correlated link_count subquery, and the page-1-only COUNT.
-    let whereClause = "";
-    const dataParams: (string | number)[] = [];
-    if (q) {
-      whereClause = `WHERE a.title ILIKE $1 OR EXISTS (SELECT 1 FROM album_artist_credits aac WHERE aac.album_id = a.id AND aac.credit_name ILIKE $1)`;
-      dataParams.push(`%${q}%`);
-    }
-
-    let total: number | string = -1;
-    if (page === 1) {
-      const countResult = await this.pool.query<CountRow>(
-        `SELECT COUNT(*) as count FROM albums a ${whereClause}`,
-        q ? dataParams : [],
-      );
-      total = countResult.rows[0]?.count ?? 0;
-    }
-
-    dataParams.push(limit, offset);
-    const query = `SELECT
-      a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
-      a.artwork_url, a.upc, a.source_service, a.created_at,
-      asu.id as short_id,
-      (SELECT COUNT(*) FROM album_service_links asl WHERE asl.album_id = a.id) as link_count
-    FROM albums a
-    LEFT JOIN album_short_urls asu ON a.id = asu.album_id
-    ${whereClause}
-    ORDER BY a.${col} ${dir}
-    LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
-
-    const rows = await this.pool.query(query, dataParams);
-
-    const items = (rows.rows as AlbumListRow[]).map((r) => ({
-      id: r.id,
-      title: r.title,
-      artists: safeParseArray(r.artists),
-      artistCredits: safeParseArtistCredits(r.artist_credits),
-      releaseDate: r.release_date ?? null,
-      totalTracks: r.total_tracks ?? null,
-      artworkUrl: r.artwork_url ?? null,
-      upc: r.upc ?? null,
-      sourceService: r.source_service ?? null,
-      linkCount: parseInt(r.link_count, 10),
-      createdAt: dateToMs(r.created_at),
-      shortId: r.short_id ?? null,
-    }));
-
-    return { items, total, page, limit };
+    return adminCatalogListAlbums(this.pool, params);
   }
 
-  // ============================================================================
-  // DELETION & MANAGEMENT (AdminRepository)
-  // ============================================================================
-
-  async deleteTracks(ids: string[]): Promise<void> {
-    if (ids.length === 0) return;
-
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-
-      const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
-
-      // Delete associated records first (due to foreign keys)
-      await client.query(`DELETE FROM service_links WHERE track_id IN (${placeholders})`, ids);
-      await client.query(`DELETE FROM short_urls WHERE track_id IN (${placeholders})`, ids);
-
-      // Delete tracks
-      await client.query(`DELETE FROM tracks WHERE id IN (${placeholders}) RETURNING id`, ids);
-
-      await client.query("COMMIT");
-
-      adminEventBroadcaster.emit({
-        type: "tracks-deleted",
-        data: { count: ids.length, ids },
-      });
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
-  async deleteAlbums(ids: string[]): Promise<void> {
-    if (ids.length === 0) return;
-
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-
-      const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
-
-      // Delete associated records first
-      await client.query(`DELETE FROM album_service_links WHERE album_id IN (${placeholders})`, ids);
-      await client.query(`DELETE FROM album_short_urls WHERE album_id IN (${placeholders})`, ids);
-
-      // Delete albums
-      await client.query(`DELETE FROM albums WHERE id IN (${placeholders}) RETURNING id`, ids);
-
-      await client.query("COMMIT");
-
-      adminEventBroadcaster.emit({
-        type: "albums-deleted",
-        data: { count: ids.length, ids },
-      });
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
-  // ─── Cache invalidation ────────────────────────────────────────────────────
-  //
-  // Resolvers treat a row as fresh while (now - updated_at) < CACHE_TTL_MS
-  // (see lib/config.ts, tryCache / tryAlbumCache / tryArtistCache). Rewinding
-  // `updated_at` to the Unix epoch therefore guarantees the row is considered
-  // expired and the next resolve re-fetches from the source services. The
-  // share's short URL, user-facing links, and any cross-references stay intact
-  // because we don't touch short_urls / service_links.
-
-  async invalidateTrackCache(shortId: string): Promise<{ ok: true }> {
-    const result = await this.pool.query(
-      `UPDATE tracks SET updated_at = to_timestamp(0)
-       WHERE id = (SELECT track_id FROM short_urls WHERE id = $1)`,
-      [shortId],
-    );
-    if ((result.rowCount ?? 0) === 0) {
-      throw new Error(`Track short URL not found: ${shortId}`);
-    }
-    return { ok: true };
-  }
-
-  async invalidateAlbumCache(shortId: string): Promise<{ ok: true }> {
-    const result = await this.pool.query(
-      `UPDATE albums SET updated_at = to_timestamp(0)
-       WHERE id = (SELECT album_id FROM album_short_urls WHERE id = $1)`,
-      [shortId],
-    );
-    if ((result.rowCount ?? 0) === 0) {
-      throw new Error(`Album short URL not found: ${shortId}`);
-    }
-    return { ok: true };
-  }
-
-  async invalidateArtistCache(shortId: string): Promise<{ ok: true }> {
-    const result = await this.pool.query(
-      `UPDATE artist_profiles SET updated_at = to_timestamp(0)
-       WHERE artist_entity_id = (SELECT artist_entity_id FROM artist_short_urls WHERE id = $1)`,
-      [shortId],
-    );
-    if ((result.rowCount ?? 0) === 0) {
-      throw new Error(`Artist short URL not found: ${shortId}`);
-    }
-    return { ok: true };
-  }
-
-  async invalidateAllCaches(): Promise<{ tracks: number; albums: number; artists: number }> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const tracksResult = await client.query(`UPDATE tracks SET updated_at = to_timestamp(0)`);
-      const albumsResult = await client.query(`UPDATE albums SET updated_at = to_timestamp(0)`);
-      const artistsResult = await client.query(`UPDATE artist_profiles SET updated_at = to_timestamp(0)`);
-      await client.query("COMMIT");
-      return {
-        tracks: tracksResult.rowCount ?? 0,
-        albums: albumsResult.rowCount ?? 0,
-        artists: artistsResult.rowCount ?? 0,
-      };
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
-    }
-  }
-
-  async listArtists(params: {
+  listArtists(params: {
     page: number;
     limit: number;
     q?: string;
     sortBy?: string;
     sortDir?: "asc" | "desc";
   }): Promise<ListResult<ArtistListItem>> {
-    const { page = 1, limit = 50, q, sortBy = "created_at", sortDir = "desc" } = params;
-    const offset = (page - 1) * limit;
-    const ALLOWED = ["created_at", "updated_at", "name"];
-    const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
-    const orderExpr = col === "name" ? "name" : `a.${col}`;
-    const dir = sortDir === "asc" ? "ASC" : "DESC";
-
-    // See listTracks for the rationale behind the query shape, the
-    // correlated link_count subquery, and the page-1-only COUNT.
-    let whereClause = "";
-    const dataParams: (string | number)[] = [];
-    if (q) {
-      whereClause = `WHERE EXISTS (
-        SELECT 1
-        FROM artist_entity_names n
-        WHERE n.artist_entity_id = a.artist_entity_id AND n.name ILIKE $1
-      )`;
-      dataParams.push(`%${q}%`);
-    }
-
-    let total: number | string = -1;
-    if (page === 1) {
-      const countResult = await this.pool.query<CountRow>(
-        `SELECT COUNT(*) as count FROM artist_profiles a ${whereClause}`,
-        q ? dataParams : [],
-      );
-      total = countResult.rows[0]?.count ?? 0;
-    }
-
-    dataParams.push(limit, offset);
-    const query = `SELECT
-      a.artist_entity_id AS id, a.artist_entity_id, ${ARTIST_NAME_SELECT}, a.image_url, a.genres, a.source_service, a.created_at,
-      asu.id as short_id,
-      (SELECT COUNT(*) FROM artist_service_links asl WHERE asl.artist_entity_id = a.artist_entity_id) as link_count
-    FROM artist_profiles a
-    ${ARTIST_NAME_LATERAL_JOIN}
-    LEFT JOIN artist_short_urls asu ON a.artist_entity_id = asu.artist_entity_id
-    ${whereClause}
-    ORDER BY ${orderExpr} ${dir}
-    LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
-
-    const rows = await this.pool.query(query, dataParams);
-
-    interface ArtistListRow extends ArtistRow {
-      short_id: string | null;
-      link_count: string;
-    }
-
-    const items = (rows.rows as ArtistListRow[]).map((r) => ({
-      id: r.id,
-      name: r.name,
-      imageUrl: r.image_url ?? null,
-      genres: safeParseArray(r.genres ?? "[]"),
-      sourceService: r.source_service ?? null,
-      linkCount: parseInt(r.link_count, 10),
-      createdAt: dateToMs(r.created_at),
-      shortId: r.short_id ?? null,
-    }));
-
-    return { items, total, page, limit };
+    return adminCatalogListArtists(this.pool, params);
   }
 
-  async listArtistEntities(params: {
+  listArtistEntities(params: {
     page: number;
     limit: number;
     q?: string;
     sortBy?: string;
     sortDir?: "asc" | "desc";
   }): Promise<ListResult<ArtistEntityListItem>> {
-    const { page = 1, limit = 50, q, sortBy = "created_at", sortDir = "desc" } = params;
-    const offset = (page - 1) * limit;
-    const ALLOWED = ["created_at", "name", "entity_type", "verification_status"];
-    const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
-    const orderExpr = col === "name" ? "display_name" : `ae.${col}`;
-    const dir = sortDir === "asc" ? "ASC" : "DESC";
-
-    let whereClause = "";
-    const dataParams: (string | number)[] = [];
-    if (q) {
-      whereClause = `WHERE EXISTS (
-        SELECT 1
-        FROM artist_entity_names n
-        WHERE n.artist_entity_id = ae.id AND n.name ILIKE $1
-      )`;
-      dataParams.push(`%${q}%`);
-    }
-
-    let total: number | string = -1;
-    if (page === 1) {
-      const countResult = await this.pool.query<CountRow>(
-        `SELECT COUNT(*) as count FROM artist_entities ae ${whereClause}`,
-        q ? dataParams : [],
-      );
-      total = countResult.rows[0]?.count ?? 0;
-    }
-
-    dataParams.push(limit, offset);
-    const query = `SELECT
-      ae.id,
-      ae.entity_type,
-      ae.verification_status,
-      COALESCE(entity_name.name, '[unnamed artist]') AS display_name,
-      ae.created_at,
-      ap.artist_entity_id IS NOT NULL AS has_profile,
-      asu.id AS short_id,
-      (SELECT COUNT(*) FROM track_artist_credits tac WHERE tac.artist_entity_id = ae.id)::int AS track_credit_count,
-      (SELECT COUNT(*) FROM album_artist_credits aac WHERE aac.artist_entity_id = ae.id)::int AS album_credit_count
-    FROM artist_entities ae
-    LEFT JOIN LATERAL (
-      SELECT n.name
-      FROM artist_entity_names n
-      WHERE n.artist_entity_id = ae.id
-      ORDER BY
-        CASE
-          WHEN n.name_type = 'canonical' AND n.locale IS NULL THEN 0
-          WHEN n.name_type = 'canonical' THEN 1
-          WHEN n.name_type = 'credit' THEN 2
-          WHEN n.locale IS NULL THEN 3
-          ELSE 4
-        END,
-        n.created_at ASC
-      LIMIT 1
-    ) entity_name ON TRUE
-    LEFT JOIN artist_profiles ap ON ap.artist_entity_id = ae.id
-    LEFT JOIN artist_short_urls asu ON asu.artist_entity_id = ae.id
-    ${whereClause}
-    ORDER BY ${orderExpr} ${dir}
-    LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
-
-    const rows = await this.pool.query<{
-      id: string;
-      entity_type: string;
-      verification_status: string;
-      display_name: string;
-      created_at: Date;
-      has_profile: boolean;
-      short_id: string | null;
-      track_credit_count: number;
-      album_credit_count: number;
-    }>(query, dataParams);
-
-    return {
-      items: rows.rows.map((r) => ({
-        id: r.id,
-        name: r.display_name,
-        entityType: r.entity_type,
-        verificationStatus: r.verification_status,
-        trackCreditCount: r.track_credit_count,
-        albumCreditCount: r.album_credit_count,
-        hasProfile: r.has_profile,
-        shortId: r.short_id,
-        createdAt: dateToMs(r.created_at),
-      })),
-      total,
-      page,
-      limit,
-    };
+    return adminCatalogListArtistEntities(this.pool, params);
   }
 
-  async deleteArtists(ids: string[]): Promise<void> {
-    if (ids.length === 0) return;
-
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-
-      const entityPlaceholders = ids.map((_, i) => `$${i + 1}`).join(",");
-
-      // Delete associated records first
-      await client.query(`DELETE FROM artist_external_ids WHERE artist_entity_id IN (${entityPlaceholders})`, ids);
-      await client.query(`DELETE FROM artist_service_links WHERE artist_entity_id IN (${entityPlaceholders})`, ids);
-      await client.query(`DELETE FROM artist_short_urls WHERE artist_entity_id IN (${entityPlaceholders})`, ids);
-
-      // Delete artist profiles. Keep artist_entities because tracks/albums
-      // and identity data can still reference the canonical entity.
-      await client.query(
-        `DELETE FROM artist_profiles WHERE artist_entity_id IN (${entityPlaceholders}) RETURNING artist_entity_id`,
-        ids,
-      );
-
-      await client.query("COMMIT");
-
-      adminEventBroadcaster.emit({
-        type: "artists-deleted",
-        data: { count: ids.length, ids },
-      });
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+  deleteTracks(ids: string[]): Promise<void> {
+    return adminCatalogDeleteTracks(this.pool, ids);
   }
 
-  async clearArtistCache(): Promise<{ deleted: number }> {
-    const result = await this.pool.query(`DELETE FROM artist_cache RETURNING id`);
-    return { deleted: result.rowCount ?? 0 };
+  deleteAlbums(ids: string[]): Promise<void> {
+    return adminCatalogDeleteAlbums(this.pool, ids);
   }
 
-  async countAllData(): Promise<{
+  deleteArtists(ids: string[]): Promise<void> {
+    return adminCatalogDeleteArtists(this.pool, ids);
+  }
+
+  invalidateTrackCache(shortId: string): Promise<{ ok: true }> {
+    return adminCatalogInvalidateTrackCache(this.pool, shortId);
+  }
+
+  invalidateAlbumCache(shortId: string): Promise<{ ok: true }> {
+    return adminCatalogInvalidateAlbumCache(this.pool, shortId);
+  }
+
+  invalidateArtistCache(shortId: string): Promise<{ ok: true }> {
+    return adminCatalogInvalidateArtistCache(this.pool, shortId);
+  }
+
+  invalidateAllCaches(): Promise<{ tracks: number; albums: number; artists: number }> {
+    return adminCatalogInvalidateAllCaches(this.pool);
+  }
+
+  clearArtistCache(): Promise<{ deleted: number }> {
+    return adminCatalogClearArtistCache(this.pool);
+  }
+
+  countAllData(): Promise<{
     tracks: number;
     albums: number;
     artists: number;
     artistProfiles: number;
     artistEntities: number;
   }> {
-    const tracksResult = await this.pool.query(`SELECT COUNT(*) as count FROM tracks`);
-    const albumsResult = await this.pool.query(`SELECT COUNT(*) as count FROM albums`);
-    const artistsResult = await this.pool.query(`SELECT COUNT(*) as count FROM artist_profiles`);
-    const artistEntitiesResult = await this.pool.query(`SELECT COUNT(*) as count FROM artist_entities`);
-
-    return {
-      tracks: tracksResult.rows[0]?.count ?? 0,
-      albums: albumsResult.rows[0]?.count ?? 0,
-      artists: artistsResult.rows[0]?.count ?? 0,
-      artistProfiles: artistsResult.rows[0]?.count ?? 0,
-      artistEntities: artistEntitiesResult.rows[0]?.count ?? 0,
-    };
+    return adminCatalogCountAllData(this.pool);
   }
 
-  async resetAllData(): Promise<{ tracks: number; albums: number; artists: number }> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-
-      // Get counts before deletion
-      const tracksResult = await client.query(`SELECT COUNT(*) as count FROM tracks`);
-      const albumsResult = await client.query(`SELECT COUNT(*) as count FROM albums`);
-      const artistsResult = await client.query(`SELECT COUNT(*) as count FROM artist_profiles`);
-
-      const trackCount = tracksResult.rows[0]?.count ?? 0;
-      const albumCount = albumsResult.rows[0]?.count ?? 0;
-      const artistCount = artistsResult.rows[0]?.count ?? 0;
-
-      // Delete in reverse order of foreign key dependencies
-      await client.query("DELETE FROM artist_short_urls");
-      await client.query("DELETE FROM artist_external_ids");
-      await client.query("DELETE FROM artist_service_links");
-      await client.query("DELETE FROM artist_profiles");
-      await client.query("DELETE FROM album_short_urls");
-      await client.query("DELETE FROM album_service_links");
-      await client.query("DELETE FROM short_urls");
-      await client.query("DELETE FROM service_links");
-      await client.query("DELETE FROM albums");
-      await client.query("DELETE FROM tracks");
-      await client.query("DELETE FROM artist_cache");
-
-      await client.query("COMMIT");
-      log.debug("DB", "All data reset successfully");
-
-      return { tracks: trackCount, albums: albumCount, artists: artistCount };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+  resetAllData(): Promise<{ tracks: number; albums: number; artists: number }> {
+    return adminCatalogResetAllData(this.pool);
   }
 
-  async resolveShortIds(shortIds: string[]): Promise<Map<string, { title: string; artist: string }>> {
-    const result = new Map<string, { title: string; artist: string }>();
-    if (shortIds.length === 0) return result;
-
-    const placeholders = shortIds.map((_, i) => `$${i + 1}`).join(", ");
-
-    const trackRows = await this.pool.query(
-      `SELECT su.id AS short_id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}
-       FROM short_urls su JOIN tracks t ON su.track_id = t.id
-       WHERE su.id IN (${placeholders})`,
-      shortIds,
-    );
-    for (const row of trackRows.rows) {
-      const artists = safeParseArray(row.artists);
-      result.set(row.short_id, { title: row.title, artist: artists[0] ?? "Unknown" });
-    }
-
-    const remaining = shortIds.filter((id) => !result.has(id));
-    if (remaining.length > 0) {
-      const albumPlaceholders = remaining.map((_, i) => `$${i + 1}`).join(", ");
-      const albumRows = await this.pool.query(
-        `SELECT asu.id AS short_id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}
-         FROM album_short_urls asu JOIN albums a ON asu.album_id = a.id
-         WHERE asu.id IN (${albumPlaceholders})`,
-        remaining,
-      );
-      for (const row of albumRows.rows) {
-        const artists = safeParseArray(row.artists);
-        result.set(row.short_id, { title: row.title, artist: artists[0] ?? "Unknown" });
-      }
-    }
-
-    return result;
+  resolveShortIds(shortIds: string[]): Promise<Map<string, { title: string; artist: string }>> {
+    return adminCatalogResolveShortIds(this.pool, shortIds);
   }
 
   // ============================================================================
