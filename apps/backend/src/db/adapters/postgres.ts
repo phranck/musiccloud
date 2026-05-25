@@ -4,8 +4,8 @@ import * as pgModule from "pg";
 import { CACHE_TTL_MS } from "../../lib/config.js";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
-import { generateShortId, generateTrackId } from "../../lib/short-id.js";
-import type { NormalizedAlbum, NormalizedArtist, NormalizedTrack, TrackSource } from "../../services/types.js";
+import { generateShortId } from "../../lib/short-id.js";
+import type { NormalizedArtist, NormalizedTrack, TrackSource } from "../../services/types.js";
 import type {
   AdminRepository,
   AdminUser,
@@ -78,6 +78,19 @@ import type {
   WebsiteAnalyticsTrend,
 } from "../repository.js";
 import {
+  addAlbumExternalIds as albumsAddAlbumExternalIds,
+  addLinksToAlbum as albumsAddLinksToAlbum,
+  findAlbumByExternalId as albumsFindAlbumByExternalId,
+  findAlbumByUpc as albumsFindAlbumByUpc,
+  findAlbumByUrl as albumsFindAlbumByUrl,
+  findAlbumPreviews as albumsFindAlbumPreviews,
+  findExistingAlbumByUpc as albumsFindExistingAlbumByUpc,
+  findExistingAlbumByUpcSync as albumsFindExistingAlbumByUpcSync,
+  loadAlbumByShortId as albumsLoadAlbumByShortId,
+  persistAlbumWithLinks as albumsPersistAlbumWithLinks,
+  upsertAlbumPreview as albumsUpsertAlbumPreview,
+} from "./postgres-albums.js";
+import {
   ALBUM_ARTIST_FIELDS_SELECT,
   ARTIST_NAME_LATERAL_JOIN,
   ARTIST_NAME_SELECT,
@@ -88,7 +101,6 @@ import {
   ensureArtistEntityName,
   insertExternalIds,
   msToDate,
-  replaceAlbumArtistCredits,
   replaceTrackArtistCredits,
   type ServiceLinkRow,
   safeParseArray,
@@ -327,31 +339,6 @@ const WEBSITE_ANALYTICS_RETENTION_POLICY = {
   rawEventsDays: 180,
   summariesDays: 730,
 } as const satisfies WebsiteAnalyticsRetentionPolicy;
-
-interface AlbumRow {
-  id: string;
-  title: string;
-  artists: string;
-  artist_credits: string;
-  release_date: string | null;
-  total_tracks: number | null;
-  artwork_url: string | null;
-  label: string | null;
-  upc: string | null;
-  source_service: string | null;
-  source_url: string | null;
-  preview_url: string | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-interface AlbumWithLinkRow extends AlbumRow {
-  link_url: string | null;
-  service: string | null;
-  confidence: number | null;
-  match_method: string | null;
-  short_id: string | null;
-}
 
 interface AdminUserRow {
   id: string;
@@ -831,9 +818,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return tracksAddTrackExternalIds(this.pool, trackId, records);
   }
 
-  async addAlbumExternalIds(albumId: string, records: ExternalIdRecord[]): Promise<void> {
-    if (records.length === 0) return;
-    await insertExternalIds(this.pool, "album_external_ids", "album_id", albumId, records);
+  addAlbumExternalIds(albumId: string, records: ExternalIdRecord[]): Promise<void> {
+    return albumsAddAlbumExternalIds(this.pool, albumId, records);
   }
 
   async addArtistExternalIds(artistId: string, records: ExternalIdRecord[]): Promise<void> {
@@ -851,25 +837,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return tracksFindTrackByExternalId(this.pool, idType, idValue);
   }
 
-  async findAlbumByExternalId(idType: string, idValue: string): Promise<CachedAlbumResult | null> {
-    const result = await this.pool.query(
-      `SELECT
-        a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
-        a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
-        (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
-        asl.url as link_url, asl.service, asl.confidence, asl.match_method,
-        asu.id as short_id, a.created_at, a.updated_at
-      FROM albums a
-      JOIN album_external_ids x ON x.album_id = a.id
-      LEFT JOIN album_service_links asl ON a.id = asl.album_id
-      LEFT JOIN album_short_urls asu ON a.id = asu.album_id
-      WHERE x.id_type = $1 AND x.id_value = $2
-      ORDER BY asl.created_at ASC`,
-      [idType, idValue],
-    );
-
-    if (result.rows.length === 0) return null;
-    return this.buildCachedAlbumResult(result.rows as AlbumWithLinkRow[]);
+  findAlbumByExternalId(idType: string, idValue: string): Promise<CachedAlbumResult | null> {
+    return albumsFindAlbumByExternalId(this.pool, idType, idValue);
   }
 
   // ============================================================================
@@ -884,41 +853,12 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     return tracksUpsertTrackPreview(this.pool, trackId, observation);
   }
 
-  async findAlbumPreviews(albumId: string): Promise<PreviewRow[]> {
-    const result = await this.pool.query(
-      `SELECT service, url, expires_at, observed_at
-       FROM album_previews
-       WHERE album_id = $1`,
-      [albumId],
-    );
-    return (result.rows as Array<{ service: string; url: string; expires_at: Date | null; observed_at: Date }>).map(
-      (r) => ({
-        service: r.service,
-        url: r.url,
-        expiresAt: r.expires_at,
-        observedAt: r.observed_at,
-      }),
-    );
+  findAlbumPreviews(albumId: string): Promise<PreviewRow[]> {
+    return albumsFindAlbumPreviews(this.pool, albumId);
   }
 
-  async upsertAlbumPreview(albumId: string, observation: PreviewObservation): Promise<void> {
-    const now = new Date();
-    await this.pool.query(
-      `INSERT INTO album_previews (id, album_id, service, url, expires_at, observed_at)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (album_id, service) DO UPDATE SET
-         url = EXCLUDED.url,
-         expires_at = EXCLUDED.expires_at,
-         observed_at = EXCLUDED.observed_at`,
-      [
-        `${albumId}-${observation.service}`,
-        albumId,
-        observation.service,
-        observation.url,
-        observation.expiresAt ?? null,
-        now,
-      ],
-    );
+  upsertAlbumPreview(albumId: string, observation: PreviewObservation): Promise<void> {
+    return albumsUpsertAlbumPreview(this.pool, albumId, observation);
   }
 
   // ============================================================================
@@ -1271,281 +1211,39 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // ALBUM QUERIES (TrackRepository)
   // ============================================================================
 
-  async findAlbumByUrl(url: string): Promise<CachedAlbumResult | null> {
-    const result = await this.pool.query(
-      `SELECT
-        a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
-        a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
-        (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
-        asl.url as link_url, asl.service, asl.confidence, asl.match_method,
-        asu.id as short_id, a.created_at, a.updated_at
-      FROM albums a
-      LEFT JOIN album_service_links asl ON a.id = asl.album_id
-      LEFT JOIN album_short_urls asu ON a.id = asu.album_id
-      WHERE a.source_url = $1
-      ORDER BY asl.created_at ASC`,
-      [url],
-    );
-
-    if (result.rows.length === 0) return null;
-    return this.buildCachedAlbumResult(result.rows as AlbumWithLinkRow[]);
+  findAlbumByUrl(url: string): Promise<CachedAlbumResult | null> {
+    return albumsFindAlbumByUrl(this.pool, url);
   }
 
-  async findAlbumByUpc(upc: string): Promise<CachedAlbumResult | null> {
-    // Fast path: canonical column.
-    const result = await this.pool.query(
-      `SELECT
-        a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
-        a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
-        (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
-        asl.url as link_url, asl.service, asl.confidence, asl.match_method,
-        asu.id as short_id, a.created_at, a.updated_at
-      FROM albums a
-      LEFT JOIN album_service_links asl ON a.id = asl.album_id
-      LEFT JOIN album_short_urls asu ON a.id = asu.album_id
-      WHERE a.upc = $1
-      ORDER BY asl.created_at ASC`,
-      [upc],
-    );
-
-    if (result.rows.length > 0) {
-      return this.buildCachedAlbumResult(result.rows as AlbumWithLinkRow[]);
-    }
-
-    // Fallback: aggregation table. Catches alternate UPCs (regional
-    // re-issues) recorded by other services.
-    return this.findAlbumByExternalId("upc", upc);
+  findAlbumByUpc(upc: string): Promise<CachedAlbumResult | null> {
+    return albumsFindAlbumByUpc(this.pool, upc);
   }
 
-  async findExistingAlbumByUpc(upc: string): Promise<{ albumId: string; shortId: string } | null> {
-    const result = await this.pool.query(
-      `SELECT a.id, asu.id as short_id
-       FROM albums a
-       LEFT JOIN album_short_urls asu ON a.id = asu.album_id
-       WHERE a.upc = $1 LIMIT 1`,
-      [upc],
-    );
-
-    if (result.rows.length === 0) return null;
-    return {
-      albumId: result.rows[0].id,
-      shortId: result.rows[0].short_id,
-    };
+  findExistingAlbumByUpc(upc: string): Promise<{ albumId: string; shortId: string } | null> {
+    return albumsFindExistingAlbumByUpc(this.pool, upc);
   }
 
-  findExistingAlbumByUpcSync(_upc: string): { albumId: string; shortId: string } | null {
-    throw new Error("findExistingAlbumByUpcSync not available in PostgreSQL adapter");
+  findExistingAlbumByUpcSync(upc: string): { albumId: string; shortId: string } | null {
+    return albumsFindExistingAlbumByUpcSync(upc);
   }
 
-  async persistAlbumWithLinks(data: PersistAlbumData): Promise<{
+  persistAlbumWithLinks(data: PersistAlbumData): Promise<{
     albumId: string;
     shortId: string;
     artistCredits: ArtistCredit[];
   }> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-
-      const now = new Date();
-
-      // Look up existing album by UPC or source_url to prevent duplicates
-      let existingAlbumId: string | null = null;
-      let existingShortId: string | null = null;
-
-      if (data.sourceAlbum.upc) {
-        const found = await client.query(
-          `SELECT a.id, su.id as short_id FROM albums a
-           LEFT JOIN album_short_urls su ON a.id = su.album_id
-           WHERE a.upc = $1 LIMIT 1`,
-          [data.sourceAlbum.upc],
-        );
-        if (found.rows.length > 0) {
-          existingAlbumId = found.rows[0].id;
-          existingShortId = found.rows[0].short_id;
-        }
-      }
-
-      if (!existingAlbumId && data.sourceAlbum.sourceUrl) {
-        const found = await client.query(
-          `SELECT a.id, su.id as short_id FROM albums a
-           LEFT JOIN album_short_urls su ON a.id = su.album_id
-           WHERE a.source_url = $1 LIMIT 1`,
-          [data.sourceAlbum.sourceUrl],
-        );
-        if (found.rows.length > 0) {
-          existingAlbumId = found.rows[0].id;
-          existingShortId = found.rows[0].short_id;
-        }
-      }
-
-      const albumId = existingAlbumId ?? generateTrackId();
-      const shortId = existingShortId ?? generateShortId();
-
-      if (existingAlbumId) {
-        // Update existing album metadata
-        await client.query(
-          `UPDATE albums SET
-            title = $2, release_date = $3, total_tracks = $4,
-            artwork_url = $5, label = $6, updated_at = $7
-          WHERE id = $1`,
-          [
-            albumId,
-            data.sourceAlbum.title,
-            data.sourceAlbum.releaseDate ?? null,
-            data.sourceAlbum.totalTracks ?? null,
-            data.sourceAlbum.artworkUrl ?? null,
-            data.sourceAlbum.label ?? null,
-            now,
-          ],
-        );
-      } else {
-        // Insert new album
-        await client.query(
-          `INSERT INTO albums (
-            id, title, release_date, total_tracks, artwork_url,
-            label, upc, source_service, source_url,
-            created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-          [
-            albumId,
-            data.sourceAlbum.title,
-            data.sourceAlbum.releaseDate ?? null,
-            data.sourceAlbum.totalTracks ?? null,
-            data.sourceAlbum.artworkUrl ?? null,
-            data.sourceAlbum.label ?? null,
-            data.sourceAlbum.upc ?? null,
-            data.sourceAlbum.sourceService ?? null,
-            data.sourceAlbum.sourceUrl ?? null,
-            now,
-            now,
-          ],
-        );
-      }
-
-      const artistCredits = await replaceAlbumArtistCredits(
-        client,
-        albumId,
-        data.sourceAlbum.artists,
-        now,
-        data.sourceAlbum.artistCredits,
-      );
-
-      // Upsert service links
-      for (const link of data.links) {
-        await client.query(
-          `INSERT INTO album_service_links (
-            id, album_id, service, external_id, url, confidence, match_method, created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (album_id, service) DO UPDATE SET
-            external_id = EXCLUDED.external_id,
-            url = EXCLUDED.url,
-            confidence = EXCLUDED.confidence`,
-          [
-            `${albumId}-${link.service}`,
-            albumId,
-            link.service,
-            link.externalId ?? null,
-            link.url,
-            link.confidence,
-            link.matchMethod,
-            now,
-          ],
-        );
-      }
-
-      // Insert short URL (only if new)
-      if (!existingShortId) {
-        await client.query(
-          `INSERT INTO album_short_urls (id, album_id, created_at) VALUES ($1, $2, $3)
-           ON CONFLICT DO NOTHING`,
-          [shortId, albumId, now],
-        );
-      }
-
-      await client.query("COMMIT");
-      return { albumId, shortId, artistCredits };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+    return albumsPersistAlbumWithLinks(this.pool, data);
   }
 
-  async addLinksToAlbum(
+  addLinksToAlbum(
     albumId: string,
     links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
   ): Promise<void> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const now = new Date();
-
-      for (const link of links) {
-        await client.query(
-          `INSERT INTO album_service_links (
-            id, album_id, service, external_id, url, confidence, match_method, created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (album_id, service) DO UPDATE SET
-            external_id = EXCLUDED.external_id,
-            url = EXCLUDED.url,
-            confidence = EXCLUDED.confidence`,
-          [
-            `${albumId}-${link.service}`,
-            albumId,
-            link.service,
-            link.externalId ?? null,
-            link.url,
-            link.confidence,
-            link.matchMethod,
-            now,
-          ],
-        );
-      }
-
-      await client.query("COMMIT");
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+    return albumsAddLinksToAlbum(this.pool, albumId, links);
   }
 
-  async loadAlbumByShortId(shortId: string): Promise<SharePageAlbumResult | null> {
-    const result = await this.pool.query(
-      `SELECT
-        a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
-        a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
-        asl.url as link_url, asl.service,
-        asu.id as short_id
-      FROM albums a
-      JOIN album_short_urls asu ON a.id = asu.album_id
-      LEFT JOIN album_service_links asl ON a.id = asl.album_id
-      WHERE asu.id = $1`,
-      [shortId],
-    );
-
-    if (result.rows.length === 0) return null;
-
-    const firstRow = result.rows[0] as AlbumWithLinkRow;
-    const artists = safeParseArray(firstRow.artists);
-    const artistCredits = safeParseArtistCredits(firstRow.artist_credits);
-    const artistDisplay = artists.length > 0 ? artists[0] : "Unknown Artist";
-
-    return {
-      album: this.rowToAlbum(firstRow),
-      artists,
-      artistCredits,
-      links: (result.rows as AlbumWithLinkRow[])
-        .filter((r) => r.link_url && r.service)
-        .map((r) => ({
-          service: r.service as string,
-          url: r.link_url as string,
-        })),
-      shortId,
-      artistDisplay,
-    };
+  loadAlbumByShortId(shortId: string): Promise<SharePageAlbumResult | null> {
+    return albumsLoadAlbumByShortId(this.pool, shortId);
   }
 
   // ============================================================================
@@ -2656,65 +2354,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   loadSharePageResult(shortId: string): Promise<SharePageDbResult | null> {
     return tracksLoadSharePageResult(this.pool, shortId);
-  }
-
-  private buildCachedAlbumResult(rows: AlbumWithLinkRow[]): CachedAlbumResult | null {
-    if (rows.length === 0) return null;
-
-    const firstRow = rows[0];
-    const album = this.rowToNormalizedAlbum(firstRow);
-    const albumId = firstRow.id;
-
-    const links = [
-      ...new Map(
-        rows
-          .filter((r) => r.link_url && r.service)
-          .map((r) => [
-            r.service,
-            {
-              service: r.service!,
-              url: r.link_url!,
-              confidence: r.confidence ?? 0,
-              matchMethod: r.match_method ?? "cache",
-            },
-          ]),
-      ).values(),
-    ];
-
-    return {
-      albumId,
-      album,
-      links,
-      updatedAt: dateToMs(firstRow.updated_at),
-    };
-  }
-
-  private rowToAlbum(row: AlbumRow): SharePageAlbumResult["album"] {
-    return {
-      title: row.title,
-      artworkUrl: row.artwork_url,
-      releaseDate: row.release_date,
-      totalTracks: row.total_tracks,
-      label: row.label,
-      upc: row.upc,
-      previewUrl: row.preview_url ?? null,
-    };
-  }
-
-  private rowToNormalizedAlbum(row: AlbumRow): NormalizedAlbum {
-    return {
-      sourceService: (row.source_service as TrackSource) ?? "cached",
-      sourceId: row.id,
-      title: row.title,
-      artists: safeParseArray(row.artists),
-      artistCredits: safeParseArtistCredits(row.artist_credits),
-      releaseDate: row.release_date ?? undefined,
-      totalTracks: row.total_tracks ?? undefined,
-      artworkUrl: row.artwork_url ?? undefined,
-      label: row.label ?? undefined,
-      upc: row.upc ?? undefined,
-      webUrl: row.source_url ?? "",
-    };
   }
 
   private buildCachedArtistResult(rows: ArtistWithLinkRow[]): CachedArtistResult | null {
