@@ -40,7 +40,6 @@ import type {
   CachedTrackResult,
   CrawlRunFinalize,
   CrawlRunInsert,
-  CrawlRunRecord,
   CrawlRunsPage,
   CrawlStatePatch,
   CrawlStateRecord,
@@ -173,7 +172,18 @@ import {
   updateContentPageMeta as contentPagesUpdateContentPageMeta,
   upsertPageTranslation as contentPagesUpsertPageTranslation,
 } from "./postgres-content-pages.js";
-import type { CountRow } from "./postgres-shared.js";
+import {
+  acquireCrawlLock as crawlAcquireCrawlLock,
+  completeCrawlTick as crawlCompleteCrawlTick,
+  finalizeCrawlRun as crawlFinalizeCrawlRun,
+  findCrawlState as crawlFindCrawlState,
+  insertCrawlRun as crawlInsertCrawlRun,
+  listCrawlRuns as crawlListCrawlRuns,
+  listCrawlState as crawlListCrawlState,
+  listDueCrawlState as crawlListDueCrawlState,
+  seedCrawlState as crawlSeedCrawlState,
+  updateCrawlState as crawlUpdateCrawlState,
+} from "./postgres-crawl.js";
 import {
   addLinksToTrack as tracksAddLinksToTrack,
   addTrackExternalIds as tracksAddTrackExternalIds,
@@ -1277,221 +1287,44 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // CRAWLER STATE + RUNS (TrackRepository) — migration 0023
   // ============================================================================
 
-  async seedCrawlState(seed: CrawlStateSeed): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO crawl_state (source, display_name, enabled, interval_minutes, config)
-       VALUES ($1, $2, $3, $4, $5::jsonb)
-       ON CONFLICT (source) DO NOTHING`,
-      [
-        seed.source,
-        seed.displayName,
-        seed.defaultEnabled,
-        seed.defaultIntervalMinutes,
-        JSON.stringify(seed.defaultConfig),
-      ],
-    );
+  seedCrawlState(seed: CrawlStateSeed): Promise<void> {
+    return crawlSeedCrawlState(this.pool, seed);
   }
 
-  async findCrawlState(source: string): Promise<CrawlStateRecord | null> {
-    const result = await this.pool.query(
-      `SELECT source, display_name, enabled, interval_minutes, next_run_at, last_run_at,
-              cursor, config, running_since, error_count, last_error, consecutive_errors
-       FROM crawl_state WHERE source = $1`,
-      [source],
-    );
-    if (result.rows.length === 0) return null;
-    return rowToCrawlStateRecord(result.rows[0] as CrawlStateSqlRow);
+  findCrawlState(source: string): Promise<CrawlStateRecord | null> {
+    return crawlFindCrawlState(this.pool, source);
   }
 
-  async listCrawlState(): Promise<CrawlStateRecord[]> {
-    const result = await this.pool.query(
-      `SELECT source, display_name, enabled, interval_minutes, next_run_at, last_run_at,
-              cursor, config, running_since, error_count, last_error, consecutive_errors
-       FROM crawl_state
-       ORDER BY display_name ASC`,
-    );
-    return (result.rows as CrawlStateSqlRow[]).map(rowToCrawlStateRecord);
+  listCrawlState(): Promise<CrawlStateRecord[]> {
+    return crawlListCrawlState(this.pool);
   }
 
-  async listDueCrawlState(): Promise<CrawlStateRecord[]> {
-    const result = await this.pool.query(
-      `SELECT source, display_name, enabled, interval_minutes, next_run_at, last_run_at,
-              cursor, config, running_since, error_count, last_error, consecutive_errors
-       FROM crawl_state
-       WHERE enabled = true AND next_run_at <= NOW() AND running_since IS NULL
-       ORDER BY next_run_at ASC`,
-    );
-    return (result.rows as CrawlStateSqlRow[]).map(rowToCrawlStateRecord);
+  listDueCrawlState(): Promise<CrawlStateRecord[]> {
+    return crawlListDueCrawlState(this.pool);
   }
 
-  async updateCrawlState(source: string, patch: CrawlStatePatch): Promise<CrawlStateRecord | null> {
-    const sets: string[] = [];
-    const values: unknown[] = [];
-    let idx = 1;
-
-    if (patch.enabled !== undefined) {
-      sets.push(`enabled = $${idx++}`);
-      values.push(patch.enabled);
-    }
-    if (patch.intervalMinutes !== undefined) {
-      sets.push(`interval_minutes = $${idx++}`);
-      values.push(patch.intervalMinutes);
-    }
-    if (patch.config !== undefined) {
-      sets.push(`config = $${idx++}::jsonb`);
-      values.push(JSON.stringify(patch.config));
-    }
-    if (patch.cursor !== undefined) {
-      sets.push(`cursor = $${idx++}::jsonb`);
-      values.push(patch.cursor === null ? null : JSON.stringify(patch.cursor));
-    }
-    if (patch.nextRunAt !== undefined) {
-      sets.push(`next_run_at = $${idx++}`);
-      values.push(patch.nextRunAt);
-    }
-    if (patch.runningSince === null) {
-      sets.push(`running_since = NULL`);
-    }
-
-    if (sets.length === 0) {
-      return this.findCrawlState(source);
-    }
-
-    values.push(source);
-    const result = await this.pool.query(
-      `UPDATE crawl_state SET ${sets.join(", ")}
-       WHERE source = $${idx}
-       RETURNING source, display_name, enabled, interval_minutes, next_run_at, last_run_at,
-                 cursor, config, running_since, error_count, last_error, consecutive_errors`,
-      values,
-    );
-    if (result.rows.length === 0) return null;
-    return rowToCrawlStateRecord(result.rows[0] as CrawlStateSqlRow);
+  updateCrawlState(source: string, patch: CrawlStatePatch): Promise<CrawlStateRecord | null> {
+    return crawlUpdateCrawlState(this.pool, source, patch);
   }
 
-  async acquireCrawlLock(source: string, maxRunMs: number): Promise<boolean> {
-    // Stale-detection (`running_since < NOW() - $maxRunMs`) covers prior
-    // heartbeat crashes / mid-run kills that left a stuck `running_since`.
-    const result = await this.pool.query(
-      `UPDATE crawl_state
-         SET running_since = NOW()
-         WHERE source = $1
-           AND (running_since IS NULL OR running_since < NOW() - $2::bigint * INTERVAL '1 millisecond')
-         RETURNING source`,
-      [source, maxRunMs],
-    );
-    return result.rowCount === 1;
+  acquireCrawlLock(source: string, maxRunMs: number): Promise<boolean> {
+    return crawlAcquireCrawlLock(this.pool, source, maxRunMs);
   }
 
-  async completeCrawlTick(source: string, outcome: CrawlTickOutcome): Promise<void> {
-    const threshold = outcome.autoDisableThreshold ?? 5;
-    if (outcome.success) {
-      await this.pool.query(
-        `UPDATE crawl_state
-           SET running_since = NULL,
-               last_run_at = NOW(),
-               next_run_at = $1,
-               cursor = $2::jsonb,
-               consecutive_errors = 0,
-               last_error = NULL
-           WHERE source = $3`,
-        [outcome.nextRunAt, outcome.cursor === null ? null : JSON.stringify(outcome.cursor), source],
-      );
-    } else {
-      // Auto-disable on threshold breach. The CASE-WHEN reads the
-      // already-incremented value via the same row update, so the threshold
-      // check sees `consecutive_errors + 1` consistently.
-      await this.pool.query(
-        `UPDATE crawl_state
-           SET running_since = NULL,
-               last_run_at = NOW(),
-               next_run_at = $1,
-               error_count = error_count + 1,
-               consecutive_errors = consecutive_errors + 1,
-               last_error = $2,
-               enabled = CASE WHEN consecutive_errors + 1 >= $3 THEN false ELSE enabled END
-           WHERE source = $4`,
-        [outcome.nextRunAt, outcome.errorMessage ?? null, threshold, source],
-      );
-    }
+  completeCrawlTick(source: string, outcome: CrawlTickOutcome): Promise<void> {
+    return crawlCompleteCrawlTick(this.pool, source, outcome);
   }
 
-  async insertCrawlRun(run: CrawlRunInsert): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO crawl_runs (id, source, started_at, status)
-       VALUES ($1, $2, $3, $4)`,
-      [run.id, run.source, run.startedAt, run.status],
-    );
+  insertCrawlRun(run: CrawlRunInsert): Promise<void> {
+    return crawlInsertCrawlRun(this.pool, run);
   }
 
-  async finalizeCrawlRun(id: string, finalize: CrawlRunFinalize): Promise<void> {
-    await this.pool.query(
-      `UPDATE crawl_runs
-         SET status = $1,
-             finished_at = $2,
-             discovered = $3,
-             ingested = $4,
-             skipped = $5,
-             errors = $6,
-             notes = $7
-         WHERE id = $8`,
-      [
-        finalize.status,
-        finalize.finishedAt,
-        finalize.discovered,
-        finalize.ingested,
-        finalize.skipped,
-        finalize.errors,
-        finalize.notes ?? null,
-        id,
-      ],
-    );
+  finalizeCrawlRun(id: string, finalize: CrawlRunFinalize): Promise<void> {
+    return crawlFinalizeCrawlRun(this.pool, id, finalize);
   }
 
-  async listCrawlRuns(params: { source?: string; page: number; limit: number }): Promise<CrawlRunsPage> {
-    const { source, page, limit } = params;
-    const offset = (page - 1) * limit;
-
-    const whereParams: unknown[] = [];
-    let where = "";
-    if (source) {
-      where = `WHERE source = $1`;
-      whereParams.push(source);
-    }
-
-    const countResult = await this.pool.query<CountRow>(
-      `SELECT COUNT(*) as count FROM crawl_runs ${where}`,
-      whereParams,
-    );
-    const total = Number(countResult.rows[0]?.count ?? 0);
-
-    const dataParams: unknown[] = [...whereParams, limit, offset];
-    const limitIdx = whereParams.length + 1;
-    const offsetIdx = whereParams.length + 2;
-    const result = await this.pool.query(
-      `SELECT id, source, started_at, finished_at, status,
-              discovered, ingested, skipped, errors, notes
-       FROM crawl_runs
-       ${where}
-       ORDER BY started_at DESC
-       LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
-      dataParams,
-    );
-
-    const items: CrawlRunRecord[] = (result.rows as CrawlRunSqlRow[]).map((r) => ({
-      id: r.id,
-      source: r.source,
-      startedAt: r.started_at,
-      finishedAt: r.finished_at,
-      status: r.status,
-      discovered: r.discovered,
-      ingested: r.ingested,
-      skipped: r.skipped,
-      errors: r.errors,
-      notes: r.notes,
-    }));
-
-    return { items, total, page, limit };
+  listCrawlRuns(params: { source?: string; page: number; limit: number }): Promise<CrawlRunsPage> {
+    return crawlListCrawlRuns(this.pool, params);
   }
 }
 
@@ -2553,49 +2386,4 @@ async function runWebsiteAnalyticsRetention(
   } finally {
     client.release();
   }
-}
-
-interface CrawlStateSqlRow {
-  source: string;
-  display_name: string;
-  enabled: boolean;
-  interval_minutes: number;
-  next_run_at: Date;
-  last_run_at: Date | null;
-  cursor: unknown;
-  config: Record<string, unknown> | null;
-  running_since: Date | null;
-  error_count: number;
-  last_error: string | null;
-  consecutive_errors: number;
-}
-
-interface CrawlRunSqlRow {
-  id: string;
-  source: string;
-  started_at: Date;
-  finished_at: Date | null;
-  status: string;
-  discovered: number;
-  ingested: number;
-  skipped: number;
-  errors: number;
-  notes: string | null;
-}
-
-function rowToCrawlStateRecord(row: CrawlStateSqlRow): CrawlStateRecord {
-  return {
-    source: row.source,
-    displayName: row.display_name,
-    enabled: row.enabled,
-    intervalMinutes: row.interval_minutes,
-    nextRunAt: row.next_run_at,
-    lastRunAt: row.last_run_at,
-    cursor: row.cursor,
-    config: row.config ?? {},
-    runningSince: row.running_since,
-    errorCount: row.error_count,
-    lastError: row.last_error,
-    consecutiveErrors: row.consecutive_errors,
-  };
 }
