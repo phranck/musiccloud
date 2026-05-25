@@ -96,36 +96,27 @@ import {
   safeParseJson,
   TRACK_ARTIST_FIELDS_SELECT,
 } from "./postgres-shared.js";
+import {
+  addLinksToTrack as tracksAddLinksToTrack,
+  addTrackExternalIds as tracksAddTrackExternalIds,
+  findExistingByIsrc as tracksFindExistingByIsrc,
+  findExistingByIsrcSync as tracksFindExistingByIsrcSync,
+  findShortIdByTrackUrl as tracksFindShortIdByTrackUrl,
+  findTrackByExternalId as tracksFindTrackByExternalId,
+  findTrackByIsrc as tracksFindTrackByIsrc,
+  findTrackByUrl as tracksFindTrackByUrl,
+  findTrackPreviews as tracksFindTrackPreviews,
+  findTracksByTextSearch as tracksFindTracksByTextSearch,
+  loadByShortId as tracksLoadByShortId,
+  loadByTrackId as tracksLoadByTrackId,
+  loadSharePageResult as tracksLoadSharePageResult,
+  persistTrackWithLinks as tracksPersistTrackWithLinks,
+  upsertTrackPreview as tracksUpsertTrackPreview,
+} from "./postgres-tracks.js";
 
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
-
-interface TrackRow {
-  id: string;
-  title: string;
-  artists: string;
-  artist_credits: string;
-  album_name: string | null;
-  isrc: string | null;
-  artwork_url: string | null;
-  duration_ms: number | null;
-  release_date: string | null;
-  is_explicit: number | null;
-  preview_url: string | null;
-  source_service: string | null;
-  source_url: string | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-interface TrackWithLinkRow extends TrackRow {
-  url: string | null;
-  service: string | null;
-  confidence: number | null;
-  match_method: string | null;
-  short_id: string | null;
-}
 
 interface WebsiteAnalyticsPathEventRow {
   id: string;
@@ -785,367 +776,59 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // TRACK QUERIES (TrackRepository)
   // ============================================================================
 
-  async findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
-    const result = await this.pool.query(
-      `SELECT
-        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit,
-        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-        t.source_service, t.source_url,
-        sl.url, sl.service, sl.confidence, sl.match_method,
-        su.id as short_id, t.created_at, t.updated_at
-      FROM tracks t
-      LEFT JOIN service_links sl ON t.id = sl.track_id
-      LEFT JOIN short_urls su ON t.id = su.track_id
-      WHERE t.source_url = $1
-      ORDER BY sl.created_at ASC`,
-      [url],
-    );
-
-    if (result.rows.length === 0) return null;
-    return this.buildCachedResult(result.rows as TrackWithLinkRow[]);
+  findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
+    return tracksFindTrackByUrl(this.pool, url);
   }
 
-  async findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
-    // Fast path: canonical column. Single-column index `idx_tracks_isrc`
-    // takes the hit first because most tracks have their primary ISRC
-    // there from persistence-time.
-    const result = await this.pool.query(
-      `SELECT
-        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit,
-        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-        t.source_service, t.source_url,
-        sl.url, sl.service, sl.confidence, sl.match_method,
-        su.id as short_id, t.created_at, t.updated_at
-      FROM tracks t
-      LEFT JOIN service_links sl ON t.id = sl.track_id
-      LEFT JOIN short_urls su ON t.id = su.track_id
-      WHERE t.isrc = $1
-      ORDER BY sl.created_at ASC`,
-      [isrc],
-    );
-
-    if (result.rows.length > 0) {
-      return this.buildCachedResult(result.rows as TrackWithLinkRow[]);
-    }
-
-    // Fallback: aggregation table. Catches regional-variant ISRCs that
-    // a different service reported during a prior cross-service resolve
-    // but are not the canonical value persisted on `tracks.isrc`.
-    return this.findTrackByExternalId("isrc", isrc);
+  findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
+    return tracksFindTrackByIsrc(this.pool, isrc);
   }
 
-  async findTracksByTextSearch(query: string, maxResults: number = 10): Promise<NormalizedTrack[]> {
-    const results: NormalizedTrack[] = [];
-
-    try {
-      // Split query into words and search for any word match
-      const words = query
-        .trim()
-        .split(/\s+/)
-        .filter((w) => w.length > 0);
-
-      if (words.length === 0) {
-        return [];
-      }
-
-      // Build WHERE clause: each word must match either title or artists
-      const whereClauses = words
-        .map(
-          (_, i) =>
-            `(t.title ILIKE $${i + 1} OR EXISTS (SELECT 1 FROM track_artist_credits tac WHERE tac.track_id = t.id AND tac.credit_name ILIKE $${i + 1}))`,
-        )
-        .join(" OR ");
-      const params: (string | number)[] = words.map((w) => `%${w}%`);
-      params.push(maxResults);
-
-      const searchResult = await this.pool.query(
-        `SELECT
-          t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-          t.duration_ms, t.release_date, t.is_explicit,
-        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-          t.source_service, t.source_url,
-          t.created_at, t.updated_at
-        FROM tracks t
-        WHERE ${whereClauses}
-        ORDER BY t.updated_at DESC
-        LIMIT $${words.length + 1}`,
-        params,
-      );
-
-      const rows = searchResult.rows as TrackRow[];
-
-      for (const row of rows) {
-        results.push(this.rowToTrack(row));
-      }
-    } catch (error) {
-      log.error("PG", "Text search error:", error);
-    }
-
-    return results;
+  findTracksByTextSearch(query: string, maxResults: number = 10): Promise<NormalizedTrack[]> {
+    return tracksFindTracksByTextSearch(this.pool, query, maxResults);
   }
 
-  async findShortIdByTrackUrl(url: string): Promise<string | null> {
-    const result = await this.pool.query(
-      `SELECT su.id FROM short_urls su
-       JOIN tracks t ON su.track_id = t.id
-       WHERE t.source_url = $1 LIMIT 1`,
-      [url],
-    );
-    return result.rows[0]?.id ?? null;
+  findShortIdByTrackUrl(url: string): Promise<string | null> {
+    return tracksFindShortIdByTrackUrl(this.pool, url);
   }
 
-  async findExistingByIsrc(isrc: string): Promise<{ trackId: string; shortId: string } | null> {
-    const result = await this.pool.query(
-      `SELECT t.id, su.id as short_id
-       FROM tracks t
-       LEFT JOIN short_urls su ON t.id = su.track_id
-       WHERE t.isrc = $1 LIMIT 1`,
-      [isrc],
-    );
-
-    if (result.rows.length === 0) return null;
-    return {
-      trackId: result.rows[0].id,
-      shortId: result.rows[0].short_id,
-    };
+  findExistingByIsrc(isrc: string): Promise<{ trackId: string; shortId: string } | null> {
+    return tracksFindExistingByIsrc(this.pool, isrc);
   }
 
-  findExistingByIsrcSync(_isrc: string): { trackId: string; shortId: string } | null {
-    // Note: Synchronous method - must be called within a transaction context
-    // This is a wrapper that throws since pg is async-only
-    throw new Error("findExistingByIsrcSync not available in PostgreSQL adapter. Use findExistingByIsrc instead.");
+  findExistingByIsrcSync(isrc: string): { trackId: string; shortId: string } | null {
+    return tracksFindExistingByIsrcSync(isrc);
   }
 
-  async loadByShortId(shortId: string): Promise<SharePageDbResult | null> {
-    const result = await this.pool.query(
-      `SELECT
-        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit,
-        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-        t.source_service, t.source_url,
-        sl.url, sl.service, sl.confidence, sl.match_method,
-        su.id as short_id, t.created_at, t.updated_at
-      FROM tracks t
-      JOIN short_urls su ON t.id = su.track_id
-      LEFT JOIN service_links sl ON t.id = sl.track_id
-      WHERE su.id = $1
-      ORDER BY sl.created_at ASC`,
-      [shortId],
-    );
-
-    if (result.rows.length === 0) return null;
-    return this.buildSharePageResult(result.rows as TrackWithLinkRow[]);
+  loadByShortId(shortId: string): Promise<SharePageDbResult | null> {
+    return tracksLoadByShortId(this.pool, shortId);
   }
 
-  async loadByTrackId(trackId: string): Promise<SharePageDbResult | null> {
-    const result = await this.pool.query(
-      `SELECT
-        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit,
-        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-        t.source_service, t.source_url,
-        sl.url, sl.service, sl.confidence, sl.match_method,
-        su.id as short_id, t.created_at, t.updated_at
-      FROM tracks t
-      LEFT JOIN service_links sl ON t.id = sl.track_id
-      LEFT JOIN short_urls su ON t.id = su.track_id
-      WHERE t.id = $1
-      ORDER BY sl.created_at ASC`,
-      [trackId],
-    );
-
-    if (result.rows.length === 0) return null;
-    return this.buildSharePageResult(result.rows as TrackWithLinkRow[]);
+  loadByTrackId(trackId: string): Promise<SharePageDbResult | null> {
+    return tracksLoadByTrackId(this.pool, trackId);
   }
 
-  async persistTrackWithLinks(data: PersistTrackData): Promise<{
+  persistTrackWithLinks(data: PersistTrackData): Promise<{
     trackId: string;
     shortId: string;
     artistCredits: ArtistCredit[];
   }> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-
-      const now = new Date();
-
-      // Look up existing track by ISRC or source_url to prevent duplicates
-      let existingTrackId: string | null = null;
-      let existingShortId: string | null = null;
-
-      if (data.sourceTrack.isrc) {
-        const found = await client.query(
-          `SELECT t.id, su.id as short_id FROM tracks t
-           LEFT JOIN short_urls su ON t.id = su.track_id
-           WHERE t.isrc = $1 LIMIT 1`,
-          [data.sourceTrack.isrc],
-        );
-        if (found.rows.length > 0) {
-          existingTrackId = found.rows[0].id;
-          existingShortId = found.rows[0].short_id;
-        }
-      }
-
-      if (!existingTrackId && data.sourceTrack.sourceUrl) {
-        const found = await client.query(
-          `SELECT t.id, su.id as short_id FROM tracks t
-           LEFT JOIN short_urls su ON t.id = su.track_id
-           WHERE t.source_url = $1 LIMIT 1`,
-          [data.sourceTrack.sourceUrl],
-        );
-        if (found.rows.length > 0) {
-          existingTrackId = found.rows[0].id;
-          existingShortId = found.rows[0].short_id;
-        }
-      }
-
-      const trackId = existingTrackId ?? generateTrackId();
-      const shortId = existingShortId ?? generateShortId();
-
-      if (existingTrackId) {
-        // Update existing track metadata
-        await client.query(
-          `UPDATE tracks SET
-            title = $2, album_name = $3, artwork_url = $4,
-            duration_ms = $5, release_date = $6, is_explicit = $7,
-            updated_at = $8
-          WHERE id = $1`,
-          [
-            trackId,
-            data.sourceTrack.title,
-            data.sourceTrack.albumName ?? null,
-            data.sourceTrack.artworkUrl ?? null,
-            data.sourceTrack.durationMs ?? null,
-            data.sourceTrack.releaseDate ?? null,
-            data.sourceTrack.isExplicit ? 1 : 0,
-            now,
-          ],
-        );
-      } else {
-        // Insert new track
-        await client.query(
-          `INSERT INTO tracks (
-            id, title, album_name, isrc, artwork_url, duration_ms,
-            release_date, is_explicit, source_service, source_url,
-            created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-          [
-            trackId,
-            data.sourceTrack.title,
-            data.sourceTrack.albumName ?? null,
-            data.sourceTrack.isrc ?? null,
-            data.sourceTrack.artworkUrl ?? null,
-            data.sourceTrack.durationMs ?? null,
-            data.sourceTrack.releaseDate ?? null,
-            data.sourceTrack.isExplicit ? 1 : 0,
-            data.sourceTrack.sourceService ?? null,
-            data.sourceTrack.sourceUrl ?? null,
-            now,
-            now,
-          ],
-        );
-      }
-
-      const artistCredits = await replaceTrackArtistCredits(
-        client,
-        trackId,
-        data.sourceTrack.artists,
-        now,
-        data.sourceTrack.artistCredits,
-      );
-
-      // Upsert service links
-      for (const link of data.links) {
-        await client.query(
-          `INSERT INTO service_links (
-            id, track_id, service, external_id, url, confidence, match_method, created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (track_id, service) DO UPDATE SET
-            external_id = EXCLUDED.external_id,
-            url = EXCLUDED.url,
-            confidence = EXCLUDED.confidence,
-            match_method = EXCLUDED.match_method`,
-          [
-            `${trackId}-${link.service}`,
-            trackId,
-            link.service,
-            link.externalId ?? null,
-            link.url,
-            link.confidence,
-            link.matchMethod,
-            now,
-          ],
-        );
-      }
-
-      // Insert short URL (only if new)
-      if (!existingShortId) {
-        await client.query(
-          `INSERT INTO short_urls (id, track_id, created_at) VALUES ($1, $2, $3)
-           ON CONFLICT DO NOTHING`,
-          [shortId, trackId, now],
-        );
-      }
-
-      await client.query("COMMIT");
-      return { trackId, shortId, artistCredits };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+    return tracksPersistTrackWithLinks(this.pool, data);
   }
 
-  async addLinksToTrack(
+  addLinksToTrack(
     trackId: string,
     links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
   ): Promise<void> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const now = new Date();
-
-      for (const link of links) {
-        await client.query(
-          `INSERT INTO service_links (
-            id, track_id, service, external_id, url, confidence, match_method, created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (track_id, service) DO UPDATE SET
-            external_id = EXCLUDED.external_id,
-            url = EXCLUDED.url,
-            confidence = EXCLUDED.confidence`,
-          [
-            `${trackId}-${link.service}`,
-            trackId,
-            link.service,
-            link.externalId ?? null,
-            link.url,
-            link.confidence,
-            link.matchMethod,
-            now,
-          ],
-        );
-      }
-
-      await client.query("COMMIT");
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+    return tracksAddLinksToTrack(this.pool, trackId, links);
   }
 
   // ============================================================================
   // EXTERNAL-ID AGGREGATION (TrackRepository) — migration 0019
   // ============================================================================
 
-  async addTrackExternalIds(trackId: string, records: ExternalIdRecord[]): Promise<void> {
-    if (records.length === 0) return;
-    await insertExternalIds(this.pool, "track_external_ids", "track_id", trackId, records);
+  addTrackExternalIds(trackId: string, records: ExternalIdRecord[]): Promise<void> {
+    return tracksAddTrackExternalIds(this.pool, trackId, records);
   }
 
   async addAlbumExternalIds(albumId: string, records: ExternalIdRecord[]): Promise<void> {
@@ -1164,26 +847,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     }
   }
 
-  async findTrackByExternalId(idType: string, idValue: string): Promise<CachedTrackResult | null> {
-    const result = await this.pool.query(
-      `SELECT
-        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit,
-        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-        t.source_service, t.source_url,
-        sl.url, sl.service, sl.confidence, sl.match_method,
-        su.id as short_id, t.created_at, t.updated_at
-      FROM tracks t
-      JOIN track_external_ids x ON x.track_id = t.id
-      LEFT JOIN service_links sl ON t.id = sl.track_id
-      LEFT JOIN short_urls su ON t.id = su.track_id
-      WHERE x.id_type = $1 AND x.id_value = $2
-      ORDER BY sl.created_at ASC`,
-      [idType, idValue],
-    );
-
-    if (result.rows.length === 0) return null;
-    return this.buildCachedResult(result.rows as TrackWithLinkRow[]);
+  findTrackByExternalId(idType: string, idValue: string): Promise<CachedTrackResult | null> {
+    return tracksFindTrackByExternalId(this.pool, idType, idValue);
   }
 
   async findAlbumByExternalId(idType: string, idValue: string): Promise<CachedAlbumResult | null> {
@@ -1211,41 +876,12 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // PREVIEW URLS (TrackRepository) — migration 0021
   // ============================================================================
 
-  async findTrackPreviews(trackId: string): Promise<PreviewRow[]> {
-    const result = await this.pool.query(
-      `SELECT service, url, expires_at, observed_at
-       FROM track_previews
-       WHERE track_id = $1`,
-      [trackId],
-    );
-    return (result.rows as Array<{ service: string; url: string; expires_at: Date | null; observed_at: Date }>).map(
-      (r) => ({
-        service: r.service,
-        url: r.url,
-        expiresAt: r.expires_at,
-        observedAt: r.observed_at,
-      }),
-    );
+  findTrackPreviews(trackId: string): Promise<PreviewRow[]> {
+    return tracksFindTrackPreviews(this.pool, trackId);
   }
 
-  async upsertTrackPreview(trackId: string, observation: PreviewObservation): Promise<void> {
-    const now = new Date();
-    await this.pool.query(
-      `INSERT INTO track_previews (id, track_id, service, url, expires_at, observed_at)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (track_id, service) DO UPDATE SET
-         url = EXCLUDED.url,
-         expires_at = EXCLUDED.expires_at,
-         observed_at = EXCLUDED.observed_at`,
-      [
-        `${trackId}-${observation.service}`,
-        trackId,
-        observation.service,
-        observation.url,
-        observation.expiresAt ?? null,
-        now,
-      ],
-    );
+  upsertTrackPreview(trackId: string, observation: PreviewObservation): Promise<void> {
+    return tracksUpsertTrackPreview(this.pool, trackId, observation);
   }
 
   async findAlbumPreviews(albumId: string): Promise<PreviewRow[]> {
@@ -3018,74 +2654,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
   // SHARE PAGE LOADING (TrackRepository)
   // ============================================================================
 
-  async loadSharePageResult(shortId: string): Promise<SharePageDbResult | null> {
-    const result = await this.pool.query(
-      `SELECT
-        t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-        t.duration_ms, t.release_date, t.is_explicit,
-        (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-        t.source_service, t.source_url,
-        sl.url, sl.service,
-        su.id as short_id
-      FROM tracks t
-      JOIN short_urls su ON t.id = su.track_id
-      LEFT JOIN service_links sl ON t.id = sl.track_id
-      WHERE su.id = $1`,
-      [shortId],
-    );
-
-    if (result.rows.length === 0) return null;
-
-    const firstRow = result.rows[0] as TrackWithLinkRow;
-    const artists = safeParseArray(firstRow.artists);
-    const artistCredits = safeParseArtistCredits(firstRow.artist_credits);
-    const artistDisplay = artists.length > 0 ? artists[0] : "Unknown Artist";
-
-    return {
-      trackId: firstRow.id,
-      track: this.rowToSharePageTrack(firstRow),
-      artists,
-      artistCredits,
-      links: (result.rows as TrackWithLinkRow[])
-        .filter((r) => r.url && r.service)
-        .map((r) => ({
-          service: r.service as string,
-          url: r.url as string,
-        })),
-      shortId,
-      artistDisplay,
-    };
-  }
-
-  private buildCachedResult(rows: TrackWithLinkRow[]): CachedTrackResult | null {
-    if (rows.length === 0) return null;
-
-    const firstRow = rows[0];
-    const track = this.rowToTrack(firstRow);
-    const trackId = firstRow.id;
-
-    const links = [
-      ...new Map(
-        rows
-          .filter((r) => r.url && r.service)
-          .map((r) => [
-            r.service,
-            {
-              service: r.service!,
-              url: r.url!,
-              confidence: r.confidence ?? 0,
-              matchMethod: r.match_method ?? "cache",
-            },
-          ]),
-      ).values(),
-    ];
-
-    return {
-      trackId,
-      track,
-      links,
-      updatedAt: dateToMs(firstRow.updated_at),
-    };
+  loadSharePageResult(shortId: string): Promise<SharePageDbResult | null> {
+    return tracksLoadSharePageResult(this.pool, shortId);
   }
 
   private buildCachedAlbumResult(rows: AlbumWithLinkRow[]): CachedAlbumResult | null {
@@ -3116,62 +2686,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       album,
       links,
       updatedAt: dateToMs(firstRow.updated_at),
-    };
-  }
-
-  private buildSharePageResult(rows: TrackWithLinkRow[]): SharePageDbResult | null {
-    if (rows.length === 0) return null;
-
-    const firstRow = rows[0];
-    const artists = safeParseArray(firstRow.artists);
-    const artistCredits = safeParseArtistCredits(firstRow.artist_credits);
-    const artistDisplay = artists.length > 0 ? artists[0] : "Unknown Artist";
-
-    return {
-      trackId: firstRow.id,
-      track: this.rowToSharePageTrack(firstRow),
-      artists,
-      artistCredits,
-      links: rows
-        .filter((r) => r.url && r.service)
-        .map((r) => ({
-          service: r.service!,
-          url: r.url!,
-        })),
-      shortId: firstRow.short_id ?? "",
-      artistDisplay,
-    };
-  }
-
-  private rowToTrack(row: TrackRow): NormalizedTrack {
-    return {
-      sourceService: (row.source_service as TrackSource) ?? "cached",
-      sourceId: row.id,
-      title: row.title,
-      artists: safeParseArray(row.artists),
-      artistCredits: safeParseArtistCredits(row.artist_credits),
-      albumName: row.album_name ?? undefined,
-      isrc: row.isrc ?? undefined,
-      artworkUrl: row.artwork_url ?? undefined,
-      durationMs: row.duration_ms ?? undefined,
-      releaseDate: row.release_date ?? undefined,
-      isExplicit: !!row.is_explicit,
-      previewUrl: row.preview_url ?? undefined,
-      webUrl: row.source_url ?? "",
-    };
-  }
-
-  /** Convert a track row to the SharePageDbResult.track shape */
-  private rowToSharePageTrack(row: TrackRow): SharePageDbResult["track"] {
-    return {
-      title: row.title,
-      albumName: row.album_name,
-      artworkUrl: row.artwork_url,
-      durationMs: row.duration_ms,
-      isrc: row.isrc,
-      releaseDate: row.release_date,
-      isExplicit: !!row.is_explicit,
-      previewUrl: row.preview_url,
     };
   }
 
