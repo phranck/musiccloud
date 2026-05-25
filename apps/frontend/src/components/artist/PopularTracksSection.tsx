@@ -94,11 +94,13 @@ export function PopularTrack({
       aria-busy={resolving}
       aria-disabled={resolving}
       noScale
-      className="flex items-center gap-3 w-full py-2 pl-1 pr-2"
+      className="flex items-center gap-3 w-full py-1 pl-1 pr-2"
     >
-      <SlideArtwork active={resolving} artworkUrl={track.artworkUrl ?? undefined} sizeClass="w-10 h-10" imgDim={40} />
-      <div className="min-w-0 flex-1 text-left">
-        <p className="text-sm font-medium text-text-primary break-words">{track.title}</p>
+      <SlideArtwork active={resolving} artworkUrl={track.artworkUrl ?? undefined} sizeClass="w-12 h-12" imgDim={48} />
+      <div className="min-w-0 flex-1 overflow-hidden text-left">
+        <p className="max-w-full truncate text-sm font-medium text-text-primary" title={track.title}>
+          {track.title}
+        </p>
         {artistLabel && <p className="text-xs text-text-secondary mt-0.5 break-words">{artistLabel}</p>}
         {showAlbum && <p className="text-xs text-text-secondary mt-0.5 break-words">{track.albumName}</p>}
       </div>
