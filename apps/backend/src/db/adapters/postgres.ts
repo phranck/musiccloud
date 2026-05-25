@@ -77,6 +77,20 @@ import type {
   WebsiteAnalyticsSearchDescriptor,
   WebsiteAnalyticsTrend,
 } from "../repository.js";
+import {
+  ALBUM_ARTIST_FIELDS_SELECT,
+  ARTIST_NAME_LATERAL_JOIN,
+  ARTIST_NAME_SELECT,
+  type CountRow,
+  dateToMs,
+  msToDate,
+  normalizeArtistCreditInputs,
+  type ServiceLinkRow,
+  safeParseArray,
+  safeParseArtistCredits,
+  safeParseJson,
+  TRACK_ARTIST_FIELDS_SELECT,
+} from "./postgres-shared.js";
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -360,15 +374,6 @@ interface AdminUserRow {
   last_login_at: Date | null;
 }
 
-interface CountRow {
-  count: number;
-}
-
-interface ServiceLinkRow {
-  service: string;
-  url: string;
-}
-
 interface TrackListRow {
   id: string;
   title: string;
@@ -468,134 +473,11 @@ interface ArtistGroupMembershipSqlRow {
 }
 
 // ============================================================================
-// HELPER FUNCTIONS
+// ANALYTICS-LOCAL SQL FRAGMENTS
 // ============================================================================
-
-function safeParseArray(json: string, fallback: string[] = []): string[] {
-  try {
-    return JSON.parse(json);
-  } catch {
-    return fallback;
-  }
-}
-
-function safeParseArtistCredits(json: string, fallback: ArtistCredit[] = []): ArtistCredit[] {
-  try {
-    const parsed = JSON.parse(json) as unknown;
-    if (!Array.isArray(parsed)) return fallback;
-    return parsed.flatMap((credit) => {
-      if (!credit || typeof credit !== "object") return [];
-      const row = credit as Record<string, unknown>;
-      if (
-        typeof row.artistEntityId !== "string" ||
-        typeof row.name !== "string" ||
-        typeof row.role !== "string" ||
-        typeof row.position !== "number"
-      ) {
-        return [];
-      }
-      return [
-        {
-          artistEntityId: row.artistEntityId,
-          name: row.name,
-          role: row.role as ArtistCredit["role"],
-          position: row.position,
-        },
-      ];
-    });
-  } catch {
-    return fallback;
-  }
-}
-
-function normalizeArtistCreditInputs(
-  artistNames: string[],
-  structuredCredits: ArtistCredit[] | undefined,
-): Array<{ artistEntityId?: string; name: string }> {
-  if (structuredCredits && structuredCredits.length > 0) {
-    return structuredCredits.flatMap((credit) => {
-      const name = credit.name.trim();
-      if (!name) return [];
-      return [{ artistEntityId: credit.artistEntityId, name }];
-    });
-  }
-
-  return artistNames
-    .map((name) => name.trim())
-    .filter(Boolean)
-    .map((name) => ({ name }));
-}
-
-function safeParseJson<T>(json: string | null | undefined, fallback: T): T {
-  if (!json) return fallback;
-  try {
-    return JSON.parse(json) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-const TRACK_ARTISTS_SELECT = `COALESCE((
-  SELECT jsonb_agg(tac.credit_name ORDER BY tac.credit_position, tac.created_at)::text
-  FROM track_artist_credits tac
-  WHERE tac.track_id = t.id AND tac.credit_role = 'main'
-), '[]') AS artists`;
-
-const TRACK_ARTIST_CREDITS_SELECT = `COALESCE((
-  SELECT jsonb_agg(
-    jsonb_build_object(
-      'artistEntityId', tac.artist_entity_id,
-      'name', tac.credit_name,
-      'role', tac.credit_role,
-      'position', tac.credit_position
-    )
-    ORDER BY tac.credit_position, tac.created_at
-  )::text
-  FROM track_artist_credits tac
-  WHERE tac.track_id = t.id AND tac.credit_role = 'main'
-), '[]') AS artist_credits`;
-
-const TRACK_ARTIST_FIELDS_SELECT = `${TRACK_ARTISTS_SELECT}, ${TRACK_ARTIST_CREDITS_SELECT}`;
-
-const ALBUM_ARTISTS_SELECT = `COALESCE((
-  SELECT jsonb_agg(aac.credit_name ORDER BY aac.credit_position, aac.created_at)::text
-  FROM album_artist_credits aac
-  WHERE aac.album_id = a.id AND aac.credit_role = 'main'
-), '[]') AS artists`;
-
-const ALBUM_ARTIST_CREDITS_SELECT = `COALESCE((
-  SELECT jsonb_agg(
-    jsonb_build_object(
-      'artistEntityId', aac.artist_entity_id,
-      'name', aac.credit_name,
-      'role', aac.credit_role,
-      'position', aac.credit_position
-    )
-    ORDER BY aac.credit_position, aac.created_at
-  )::text
-  FROM album_artist_credits aac
-  WHERE aac.album_id = a.id AND aac.credit_role = 'main'
-), '[]') AS artist_credits`;
-
-const ALBUM_ARTIST_FIELDS_SELECT = `${ALBUM_ARTISTS_SELECT}, ${ALBUM_ARTIST_CREDITS_SELECT}`;
-
-const ARTIST_NAME_SELECT = `COALESCE(artist_name.name, '[unnamed artist]') AS name`;
-
-const ARTIST_NAME_LATERAL_JOIN = `LEFT JOIN LATERAL (
-  SELECT n.name
-  FROM artist_entity_names n
-  WHERE n.artist_entity_id = ar.artist_entity_id
-  ORDER BY
-    CASE
-      WHEN n.name_type = 'canonical' AND n.locale IS NULL THEN 0
-      WHEN n.name_type = 'canonical' THEN 1
-      WHEN n.name_type = 'credit' THEN 2
-      WHEN n.locale IS NULL THEN 3
-      ELSE 4
-    END,
-    n.created_at ASC
-  LIMIT 1
-) artist_name ON TRUE`;
+// Cross-domain helpers, SQL fragments and row types live in
+// `./postgres-shared.ts`. The fragments below are only used by the
+// website-analytics queries further down in this file.
 
 const WEBSITE_ANALYTICS_SUBJECT_JOIN = `LEFT JOIN LATERAL (
   SELECT
@@ -776,16 +658,6 @@ const WEBSITE_ANALYTICS_SEARCH_DESCRIPTOR_SELECT = `COALESCE(NULLIF(e.event_data
         subject.subject_title,
         subject.subject_artist,
         subject.subject_artwork_url`;
-
-// Convert Date to milliseconds for compatibility with sqlite.ts interface
-function dateToMs(date: Date | null | undefined): number {
-  return date ? date.getTime() : 0;
-}
-
-// Convert milliseconds to Date
-function msToDate(ms: number): Date {
-  return new Date(ms * 1000);
-}
 
 // ============================================================================
 // POSTGRES ADAPTER
