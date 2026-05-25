@@ -37,10 +37,10 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
   const shareUrl = shareable?.shareUrl;
   const srAnnouncement = shareable?.srAnnouncement;
   const sharePageContent = isSharePageContent(content) ? content : null;
+  const shareActionUrl = sharePageContent?.shortUrl ?? shareUrl;
   const audioPreviewKey = [content.shortId ?? "", content.previewUrl ?? "", content.title, content.artist].join("::");
   const showPreview = !!(content.previewUrl || (content.previewRefreshable && content.shortId));
-  const showShareButton = !!shareUrl;
-  const showSharePageActions = !!sharePageContent;
+  const showShareActions = !!shareActionUrl;
   const showPlatforms = content.platforms.length > 0;
   const showPlatformsInfoOnly = content.platforms.length === 0 && !!content.platformsInfo;
   return (
@@ -73,13 +73,9 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection visible={showShareButton} sectionClass="p-3">
-        {shareUrl && <ShareButton shareUrl={shareUrl} songTitle={content.title} artistName={content.artist} />}
-      </CollapsibleSection>
-
-      <CollapsibleSection visible={showSharePageActions} sectionClass="p-3">
-        {sharePageContent && (
-          <ShareButton shareUrl={sharePageContent.shortUrl} songTitle={content.title} artistName={content.artist} />
+      <CollapsibleSection visible={showShareActions} sectionClass="px-3 pt-0 pb-3">
+        {shareActionUrl && (
+          <ShareButton shareUrl={shareActionUrl} songTitle={content.title} artistName={content.artist} />
         )}
       </CollapsibleSection>
 

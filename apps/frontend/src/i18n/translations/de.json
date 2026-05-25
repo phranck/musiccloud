@@ -43,7 +43,6 @@
   "share.copied": "Kopiert!",
   "share.copyError": "Kopieren fehlgeschlagen",
   "share.nativeShare": "\"{title}\" teilen",
-  "share.title": "Teilen",
   "error.offline": "Du scheinst offline zu sein. Überprüfe deine Verbindung und versuche es erneut.",
   "error.timeout": "Das dauert länger als üblich. Bitte versuche es erneut.",
   "error.generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",

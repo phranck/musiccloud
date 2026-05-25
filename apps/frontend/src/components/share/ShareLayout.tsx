@@ -147,7 +147,6 @@ import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
 import { ServicesCard } from "@/components/cards/ServicesCard";
-import { ShareCard } from "@/components/cards/ShareCard";
 import { type AudioPreviewStatus, SharePageCard } from "@/components/share/SharePageCard";
 import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -693,7 +692,6 @@ function DesktopShareLayout({
     >
       <div className="flex flex-col gap-6" style={{ width: `${MEDIA_W}px` }}>
         <MediaSummaryCard content={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
-        <ShareCard content={config} animated={animated} />
         <ServicesCard content={config} animated={animated} />
       </div>
       <div className="flex flex-col gap-6" style={{ width: `${ARTIST_W}px` }}>

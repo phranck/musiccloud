@@ -54,6 +54,22 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
 
   return (
     <div className="flex items-center gap-3">
+      {supportsNativeShare && (
+        <RecessedCard className={cn(recessedControlInsetClassName, "flex-none", recessedControlSizeClassName)}>
+          <RecessedCard.Body className="h-full">
+            <EmbossedButton
+              as="button"
+              type="button"
+              onClick={handleNativeShare}
+              className="flex size-full min-h-0 items-center justify-center px-0 py-0"
+              aria-label={songTitle ? t("share.nativeShare", { title: songTitle }) : t("share.shareLink")}
+            >
+              <ShareNetworkIcon size={24} weight="duotone" className="text-text-primary" />
+            </EmbossedButton>
+          </RecessedCard.Body>
+        </RecessedCard>
+      )}
+
       <RecessedCard className={cn(recessedControlInsetClassName, "flex-1", recessedControlHeightClassName)}>
         <RecessedCard.Body className="h-full">
           <EmbossedButton
@@ -96,22 +112,6 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
           </EmbossedButton>
         </RecessedCard.Body>
       </RecessedCard>
-
-      {supportsNativeShare && (
-        <RecessedCard className={cn(recessedControlInsetClassName, "flex-none", recessedControlSizeClassName)}>
-          <RecessedCard.Body className="h-full">
-            <EmbossedButton
-              as="button"
-              type="button"
-              onClick={handleNativeShare}
-              className="flex size-full min-h-0 items-center justify-center px-0 py-0"
-              aria-label={songTitle ? t("share.nativeShare", { title: songTitle }) : t("share.shareLink")}
-            >
-              <ShareNetworkIcon size={24} weight="duotone" className="text-text-primary" />
-            </EmbossedButton>
-          </RecessedCard.Body>
-        </RecessedCard>
-      )}
     </div>
   );
 }
