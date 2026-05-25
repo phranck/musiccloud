@@ -315,7 +315,7 @@ export const deezerAdapter = {
   async searchTrackWithCandidates(query: SearchQuery): Promise<SearchResultWithCandidates> {
     const q = buildDeezerQ(query);
 
-    const response = await deezerFetch(`/search/track?q=${encodeURIComponent(q)}&limit=10`);
+    const response = await deezerFetch(`/search/track?q=${encodeURIComponent(q)}&limit=${MAX_CANDIDATES}`);
 
     if (!response.ok) {
       return {

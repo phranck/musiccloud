@@ -45,22 +45,17 @@ export const AUTO_SELECT_THRESHOLD = 0.9;
 export const CANDIDATE_MIN_CONFIDENCE = 0.4;
 
 /**
- * Hard cap on the disambiguation list length. Beyond this the list
- * stops being useful for a human to scan; the adapter returns more,
- * we just do not render them.
+ * Hard cap on the disambiguation candidate payload. The UI paginates
+ * this list so a search can offer more breadth than one visible page
+ * without turning the card into a long scroll trap.
  */
-export const MAX_CANDIDATES = 8;
+export const MAX_CANDIDATES = 24;
 
 /**
- * Hard cap from Spotify Web API /search (effective 2026-02-11).
- * MAX_CANDIDATES must stay <= this value or candidate lists will be
- * silently truncated upstream.
+ * Per-request cap from Spotify Web API /search (effective 2026-02-11).
+ * Adapters that need more disambiguation breadth must page with `offset`.
  */
 export const SPOTIFY_SEARCH_LIMIT_MAX = 10;
-
-if (MAX_CANDIDATES > SPOTIFY_SEARCH_LIMIT_MAX) {
-  throw new Error(`MAX_CANDIDATES (${MAX_CANDIDATES}) exceeds SPOTIFY_SEARCH_LIMIT_MAX (${SPOTIFY_SEARCH_LIMIT_MAX})`);
-}
 
 /**
  * Confidence for synthesised "search on X" fallback links (currently

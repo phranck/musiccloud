@@ -143,6 +143,7 @@ import type {
   NormalizedTrack,
   SearchCandidate,
   SearchQuery,
+  SearchResultWithCandidates,
   ServiceAdapter,
   ServiceId,
 } from "./types.js";
@@ -578,6 +579,48 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   });
 }
 
+type RankedSearchCandidate = SearchResultWithCandidates["candidates"][number];
+
+function normalizeCandidateKeyPart(value: string | undefined): string {
+  return (value ?? "").trim().toLocaleLowerCase().replace(/\s+/g, " ");
+}
+
+function candidateAlbumKey(candidate: RankedSearchCandidate): string {
+  const artistKey = candidate.track.artists.map((artist) => normalizeCandidateKeyPart(artist)).join(",");
+  const albumKey = normalizeCandidateKeyPart(candidate.track.albumName);
+  if (albumKey) return `album:${artistKey}:${albumKey}`;
+  if (candidate.track.artworkUrl) return `artwork:${candidate.track.artworkUrl}`;
+  return `track:${candidate.track.sourceService}:${candidate.track.sourceId}`;
+}
+
+function selectDiverseSearchCandidates(candidates: RankedSearchCandidate[], cap: number): RankedSearchCandidate[] {
+  const byTrack = new Map<string, RankedSearchCandidate>();
+  for (const candidate of candidates) {
+    const key = `${candidate.track.sourceService}:${candidate.track.sourceId}`;
+    if (!byTrack.has(key)) byTrack.set(key, candidate);
+  }
+
+  const pool = [...byTrack.values()].filter((c) => c.confidence >= CANDIDATE_MIN_CONFIDENCE);
+  const selected: RankedSearchCandidate[] = [];
+  const usedAlbums = new Set<string>();
+
+  for (const candidate of pool) {
+    if (selected.length >= cap) break;
+    const albumKey = candidateAlbumKey(candidate);
+    if (usedAlbums.has(albumKey)) continue;
+    selected.push(candidate);
+    usedAlbums.add(albumKey);
+  }
+
+  for (const candidate of pool) {
+    if (selected.length >= cap) break;
+    if (selected.includes(candidate)) continue;
+    selected.push(candidate);
+  }
+
+  return selected;
+}
+
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
   // Service search: try all active adapters
   const searchAdapters = await getActiveAdapters();
@@ -611,7 +654,9 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
           externalIds: collectTrackExternalIds(result.track, links),
         };
       }
-    } catch {}
+    } catch (error) {
+      log.debug("Resolver", `[${adapter.id}] text search failed:`, error instanceof Error ? error.message : error);
+    }
   }
 
   throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
@@ -695,18 +740,15 @@ export async function resolveTextSearchWithDisambiguation(
         // Return candidates for disambiguation
         const cap =
           candidateLimit !== undefined ? Math.min(MAX_CANDIDATES, Math.max(1, candidateLimit)) : MAX_CANDIDATES;
-        const candidates: SearchCandidate[] = searchResult.candidates
-          .filter((c) => c.confidence >= CANDIDATE_MIN_CONFIDENCE)
-          .slice(0, cap)
-          .map((c) => ({
-            id: `${c.track.sourceService}:${c.track.sourceId}`,
-            title: c.track.title,
-            artists: c.track.artists,
-            albumName: c.track.albumName,
-            artworkUrl: c.track.artworkUrl,
-            durationMs: c.track.durationMs,
-            confidence: c.confidence,
-          }));
+        const candidates: SearchCandidate[] = selectDiverseSearchCandidates(searchResult.candidates, cap).map((c) => ({
+          id: `${c.track.sourceService}:${c.track.sourceId}`,
+          title: c.track.title,
+          artists: c.track.artists,
+          albumName: c.track.albumName,
+          artworkUrl: c.track.artworkUrl,
+          durationMs: c.track.durationMs,
+          confidence: c.confidence,
+        }));
 
         return { kind: "disambiguation", candidates };
       }
@@ -745,7 +787,13 @@ export async function resolveTextSearchWithDisambiguation(
           },
         };
       }
-    } catch {}
+    } catch (error) {
+      log.debug(
+        "Resolver",
+        `[${adapter.id}] disambiguation search failed:`,
+        error instanceof Error ? error.message : error,
+      );
+    }
   }
 
   throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
@@ -1051,7 +1099,13 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
         bestAdapter = adapter;
         bestConfidence = result.confidence;
       }
-    } catch {}
+    } catch (error) {
+      log.debug(
+        "Resolver",
+        `[${adapter.id}] scrape fallback search failed:`,
+        error instanceof Error ? error.message : error,
+      );
+    }
   }
 
   if (!bestSourceTrack || !bestAdapter) {

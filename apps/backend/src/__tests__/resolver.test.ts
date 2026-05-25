@@ -447,9 +447,9 @@ describe("resolveTextSearchWithDisambiguation", () => {
     expect(result.candidates?.length).toBe(3);
   });
 
-  it("clamps candidateLimit to MAX_CANDIDATES (8) when caller asks for more", async () => {
-    const tracks = Array.from({ length: 12 }, (_, i) =>
-      createMockTrack({ sourceId: `t${i}`, title: `Track ${i}`, webUrl: `https://x/${i}` }),
+  it("clamps candidateLimit to MAX_CANDIDATES (24) when caller asks for more", async () => {
+    const tracks = Array.from({ length: 30 }, (_, i) =>
+      createMockTrack({ sourceId: `t${i}`, title: `Track ${i}`, albumName: `Album ${i}`, webUrl: `https://x/${i}` }),
     );
     const candidates = tracks.map((track) => ({ track, confidence: 0.6 }));
 
@@ -465,11 +465,39 @@ describe("resolveTextSearchWithDisambiguation", () => {
     const result = await resolveTextSearchWithDisambiguation(
       "title: foo",
       { title: "foo", artist: "" },
-      99, // ridiculous, must clamp to 8
+      99, // ridiculous, must clamp to 24
     );
 
     expect(result.kind).toBe("disambiguation");
-    expect(result.candidates?.length).toBe(8);
+    expect(result.candidates?.length).toBe(24);
+  });
+
+  it("diversifies disambiguation candidates by album before filling remaining slots", async () => {
+    const tracks = [
+      createMockTrack({ sourceId: "a1", title: "Same Album 1", albumName: "Same Album", webUrl: "https://x/a1" }),
+      createMockTrack({ sourceId: "a2", title: "Same Album 2", albumName: "Same Album", webUrl: "https://x/a2" }),
+      createMockTrack({ sourceId: "b1", title: "Other Album", albumName: "Other Album", webUrl: "https://x/b1" }),
+      createMockTrack({ sourceId: "c1", title: "Third Album", albumName: "Third Album", webUrl: "https://x/c1" }),
+    ];
+    const candidates = tracks.map((track) => ({ track, confidence: 0.6 }));
+
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      searchTrackWithCandidates: vi.fn().mockResolvedValue({
+        bestMatch: { found: true, track: tracks[0], confidence: 0.6, matchMethod: "search" },
+        candidates,
+      } satisfies SearchResultWithCandidates),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+
+    const result = await resolveTextSearchWithDisambiguation("title: foo", { title: "foo", artist: "" }, 3);
+
+    expect(result.kind).toBe("disambiguation");
+    expect(result.candidates?.map((candidate) => candidate.albumName)).toEqual([
+      "Same Album",
+      "Other Album",
+      "Third Album",
+    ]);
   });
 });
 

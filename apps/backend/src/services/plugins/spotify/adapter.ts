@@ -58,7 +58,7 @@ import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError } from "../../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE, SPOTIFY_SEARCH_LIMIT_MAX } from "../../constants.js";
+import { MATCH_MIN_CONFIDENCE, MAX_CANDIDATES, SPOTIFY_SEARCH_LIMIT_MAX } from "../../constants.js";
 import type {
   AdapterCapabilities,
   AlbumCapabilities,
@@ -324,21 +324,28 @@ export const spotifyAdapter = {
 
     log.debug("Spotify", "Search query string:", q);
 
-    const response = await spotifyFetch(`/search?type=track&q=${q}&limit=${SPOTIFY_SEARCH_LIMIT_MAX}`);
+    const items: SpotifyTrackResponse[] = [];
+    for (let offset = 0; offset < MAX_CANDIDATES; offset += SPOTIFY_SEARCH_LIMIT_MAX) {
+      const limit = Math.min(SPOTIFY_SEARCH_LIMIT_MAX, MAX_CANDIDATES - offset);
+      const response = await spotifyFetch(`/search?type=track&q=${q}&limit=${limit}&offset=${offset}`);
 
-    log.debug("Spotify", "API response status:", response.status, response.ok);
+      log.debug("Spotify", "API response status:", response.status, response.ok, "offset:", offset);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      log.error("Spotify", "Search failed:", response.status, errorText);
-      return {
-        bestMatch: { found: false, confidence: 0, matchMethod: "search" },
-        candidates: [],
-      };
+      if (!response.ok) {
+        const errorText = await response.text();
+        log.error("Spotify", "Search failed:", response.status, errorText);
+        if (items.length > 0) break;
+        return {
+          bestMatch: { found: false, confidence: 0, matchMethod: "search" },
+          candidates: [],
+        };
+      }
+
+      const data = await response.json();
+      const pageItems: SpotifyTrackResponse[] = data.tracks?.items ?? [];
+      items.push(...pageItems);
+      if (pageItems.length < limit) break;
     }
-
-    const data = await response.json();
-    const items: SpotifyTrackResponse[] = data.tracks?.items ?? [];
 
     if (items.length === 0) {
       return {

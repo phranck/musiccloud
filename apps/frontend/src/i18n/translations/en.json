@@ -3,6 +3,8 @@
   "disambiguation.title": "Did you mean?",
   "disambiguation.subtitle": "We found multiple matches. Pick the right one.",
   "disambiguation.cancel": "None of these? Try a different search.",
+  "disambiguation.previous": "Previous",
+  "disambiguation.next": "Next",
   "disambiguation.loading": "Loading selected track...",
   "disambiguation.found": "Found {count} possible matches. Please select the correct one.",
   "disambiguation.resolving.title": "Resolving",

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
@@ -18,6 +19,7 @@ interface DisambiguationPanelProps {
 
 const ANIM_MS = 520;
 const ANIM_EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
+const CANDIDATES_PER_PAGE = 8;
 
 export function DisambiguationPanel({
   candidates,
@@ -29,6 +31,16 @@ export function DisambiguationPanel({
   const t = useT();
 
   const [animatingId, setAnimatingId] = useState<string | null>(null);
+  const [pageIndex, setPageIndex] = useState(0);
+
+  const pageCount = Math.max(1, Math.ceil(candidates.length / CANDIDATES_PER_PAGE));
+  const safePageIndex = Math.min(pageIndex, pageCount - 1);
+  const visibleCandidates = candidates.slice(
+    safePageIndex * CANDIDATES_PER_PAGE,
+    safePageIndex * CANDIDATES_PER_PAGE + CANDIDATES_PER_PAGE,
+  );
+  const canGoPrevious = safePageIndex > 0;
+  const canGoNext = safePageIndex < pageCount - 1;
 
   const listRef = useRef<HTMLDivElement>(null);
   const resolveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -163,10 +175,10 @@ export function DisambiguationPanel({
         </EmbossedCard.Header>
 
         <EmbossedCard.Body>
-          <RecessedCard>
+          <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Body>
-              <div ref={listRef} className="flex flex-col gap-2">
-                {candidates.map((candidate, index) => {
+              <div ref={listRef} className="flex flex-col gap-0.5">
+                {visibleCandidates.map((candidate, index) => {
                   const isThisSelected =
                     (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
 
@@ -183,7 +195,7 @@ export function DisambiguationPanel({
                         onClick={() => handleClick(candidate)}
                         disabled={isAnimating || loading}
                         className={cn(
-                          "w-full flex items-center gap-4 px-3 py-3 text-left rounded-lg",
+                          "w-full flex items-center gap-3 py-1 pl-1 pr-2 text-left rounded-lg",
                           isThisSelected && "ring-1 ring-accent/20",
                           (isAnimating || loading) && "cursor-default",
                         )}
@@ -220,7 +232,29 @@ export function DisambiguationPanel({
 
         <EmbossedCard.Footer>
           {!isAnimating && !loading && (
-            <div className="text-center mt-4">
+            <div className="mt-4 flex flex-col gap-3">
+              {pageCount > 1 && (
+                <div className="grid grid-cols-2 gap-2">
+                  <EmbossedButton
+                    as="button"
+                    type="button"
+                    onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
+                    disabled={!canGoPrevious}
+                    className="flex min-h-10 items-center justify-center px-3 py-0 text-sm font-medium text-text-primary"
+                  >
+                    {t("disambiguation.previous")}
+                  </EmbossedButton>
+                  <EmbossedButton
+                    as="button"
+                    type="button"
+                    onClick={() => setPageIndex((current) => Math.min(pageCount - 1, current + 1))}
+                    disabled={!canGoNext}
+                    className="flex min-h-10 items-center justify-center px-3 py-0 text-sm font-medium text-text-primary"
+                  >
+                    {t("disambiguation.next")}
+                  </EmbossedButton>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={onCancel}
