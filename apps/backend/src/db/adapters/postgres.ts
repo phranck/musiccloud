@@ -83,8 +83,13 @@ import {
   ARTIST_NAME_SELECT,
   type CountRow,
   dateToMs,
+  ensureArtistEntityExists,
+  ensureArtistEntityForName,
+  ensureArtistEntityName,
+  insertExternalIds,
   msToDate,
-  normalizeArtistCreditInputs,
+  replaceAlbumArtistCredits,
+  replaceTrackArtistCredits,
   type ServiceLinkRow,
   safeParseArray,
   safeParseArtistCredits,
@@ -1043,7 +1048,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         );
       }
 
-      const artistCredits = await this.replaceTrackArtistCredits(
+      const artistCredits = await replaceTrackArtistCredits(
         client,
         trackId,
         data.sourceTrack.artists,
@@ -1140,63 +1145,20 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async addTrackExternalIds(trackId: string, records: ExternalIdRecord[]): Promise<void> {
     if (records.length === 0) return;
-    await this.insertExternalIds("track_external_ids", "track_id", trackId, records);
+    await insertExternalIds(this.pool, "track_external_ids", "track_id", trackId, records);
   }
 
   async addAlbumExternalIds(albumId: string, records: ExternalIdRecord[]): Promise<void> {
     if (records.length === 0) return;
-    await this.insertExternalIds("album_external_ids", "album_id", albumId, records);
+    await insertExternalIds(this.pool, "album_external_ids", "album_id", albumId, records);
   }
 
   async addArtistExternalIds(artistId: string, records: ExternalIdRecord[]): Promise<void> {
     if (records.length === 0) return;
     const client = await this.pool.connect();
     try {
-      await this.ensureArtistEntityExists(client, artistId);
-      await this.insertExternalIds("artist_external_ids", "artist_entity_id", artistId, records);
-    } finally {
-      client.release();
-    }
-  }
-
-  /**
-   * Idempotent multi-row insert helper. The unique index on the four
-   * (entity_id, id_type, id_value, source_service) columns makes
-   * `ON CONFLICT DO NOTHING` swallow duplicate observations cleanly,
-   * which is exactly what we want for re-resolves of the same track.
-   */
-  private async insertExternalIds(
-    table: "track_external_ids" | "album_external_ids" | "artist_external_ids",
-    fkColumn: "track_id" | "album_id" | "artist_entity_id",
-    entityId: string,
-    records: ExternalIdRecord[],
-  ): Promise<void> {
-    const now = new Date();
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      for (const r of records) {
-        // ON CONFLICT (cols) targets the unique index from migration 0019.
-        // ON CONFLICT ON CONSTRAINT requires a UNIQUE CONSTRAINT, which
-        // a UNIQUE INDEX is not — Postgres rejects the latter at runtime.
-        await client.query(
-          `INSERT INTO ${table} (id, ${fkColumn}, id_type, id_value, source_service, observed_at)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           ON CONFLICT (${fkColumn}, id_type, id_value, source_service) DO NOTHING`,
-          [
-            `${entityId}-${r.idType}-${r.sourceService}-${r.idValue.slice(-20)}`,
-            entityId,
-            r.idType,
-            r.idValue,
-            r.sourceService,
-            now,
-          ],
-        );
-      }
-      await client.query("COMMIT");
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
+      await ensureArtistEntityExists(client, artistId);
+      await insertExternalIds(this.pool, "artist_external_ids", "artist_entity_id", artistId, records);
     } finally {
       client.release();
     }
@@ -1824,7 +1786,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
         );
       }
 
-      const artistCredits = await this.replaceAlbumArtistCredits(
+      const artistCredits = await replaceAlbumArtistCredits(
         client,
         albumId,
         data.sourceAlbum.artists,
@@ -2077,8 +2039,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
       const shortId = existingShortId ?? generateShortId();
       const artistEntityId =
-        existingArtistEntityId ?? (await this.ensureArtistEntityForName(client, data.sourceArtist.name, now));
-      await this.ensureArtistEntityName(client, artistEntityId, data.sourceArtist.name, now);
+        existingArtistEntityId ?? (await ensureArtistEntityForName(client, data.sourceArtist.name, now));
+      await ensureArtistEntityName(client, artistEntityId, data.sourceArtist.name, now);
 
       await client.query(
         `INSERT INTO artist_profiles (
@@ -2151,7 +2113,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
     try {
       await client.query("BEGIN");
       const now = new Date();
-      await this.ensureArtistEntityExists(client, artistId);
+      await ensureArtistEntityExists(client, artistId);
 
       for (const link of links) {
         await client.query(
@@ -2469,7 +2431,7 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       }
 
       if (data.artists !== undefined || data.artistCredits !== undefined) {
-        await this.replaceTrackArtistCredits(client, id, data.artists ?? [], now, data.artistCredits);
+        await replaceTrackArtistCredits(client, id, data.artists ?? [], now, data.artistCredits);
         if (sets.length === 0) {
           await client.query(`UPDATE tracks SET updated_at = $1 WHERE id = $2`, [now, id]);
         }
@@ -3093,164 +3055,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
       shortId,
       artistDisplay,
     };
-  }
-
-  // ============================================================================
-  // HELPER METHODS
-  // ============================================================================
-
-  private async ensureArtistEntityExists(client: PoolClient, artistEntityId: string): Promise<void> {
-    const result = await client.query<{ id: string }>(`SELECT id FROM artist_entities WHERE id = $1`, [artistEntityId]);
-    if (!result.rows[0]?.id) {
-      throw new Error(`Artist entity not found: ${artistEntityId}`);
-    }
-  }
-
-  private async ensureExistingArtistEntityForCredit(
-    client: PoolClient,
-    artistEntityId: string,
-    creditName: string,
-    now: Date,
-  ): Promise<string> {
-    await this.ensureArtistEntityExists(client, artistEntityId);
-    await this.ensureArtistEntityName(client, artistEntityId, creditName, now, "credit");
-    return artistEntityId;
-  }
-
-  private async ensureArtistEntityForName(client: PoolClient, name: string, now: Date): Promise<string> {
-    const creditName = name.trim();
-    if (!creditName) {
-      return this.ensureArtistEntityForName(client, "Unknown Artist", now);
-    }
-
-    const existing = await client.query<{ artist_entity_id: string }>(
-      `SELECT artist_entity_id
-       FROM artist_entity_names
-       WHERE LOWER(name) = LOWER($1)
-       ORDER BY
-         CASE
-           WHEN name_type = 'canonical' AND locale IS NULL THEN 0
-           WHEN name_type = 'canonical' THEN 1
-           WHEN name_type = 'credit' THEN 2
-           WHEN locale IS NULL THEN 3
-           ELSE 4
-         END,
-         created_at ASC
-       LIMIT 1`,
-      [creditName],
-    );
-    if (existing.rows[0]?.artist_entity_id) {
-      return existing.rows[0].artist_entity_id;
-    }
-
-    const artistEntityId = generateTrackId();
-    await client.query(
-      `INSERT INTO artist_entities (id, entity_type, verification_status, confidence, created_at, updated_at)
-       VALUES ($1, 'unknown', 'candidate', NULL, $2, $2)`,
-      [artistEntityId, now],
-    );
-    await client.query(
-      `INSERT INTO artist_entity_names (id, artist_entity_id, locale, name, name_type, source_id, created_at)
-       VALUES ($1, $2, NULL, $3, 'canonical', NULL, $4)`,
-      [generateTrackId(), artistEntityId, creditName, now],
-    );
-    return artistEntityId;
-  }
-
-  private async ensureArtistEntityName(
-    client: PoolClient,
-    artistEntityId: string,
-    name: string,
-    now: Date,
-    nameType: "canonical" | "credit" = "canonical",
-  ): Promise<void> {
-    const creditName = name.trim();
-    if (!creditName) return;
-
-    const existing = await client.query<{ id: string }>(
-      `SELECT id
-       FROM artist_entity_names
-       WHERE artist_entity_id = $1 AND LOWER(name) = LOWER($2) AND name_type = $3
-       LIMIT 1`,
-      [artistEntityId, creditName, nameType],
-    );
-    if (existing.rows.length > 0) return;
-
-    await client.query(
-      `INSERT INTO artist_entity_names (id, artist_entity_id, locale, name, name_type, source_id, created_at)
-       VALUES ($1, $2, NULL, $3, $4, NULL, $5)`,
-      [generateTrackId(), artistEntityId, creditName, nameType, now],
-    );
-  }
-
-  private async replaceTrackArtistCredits(
-    client: PoolClient,
-    trackId: string,
-    artistNames: string[],
-    now: Date,
-    structuredCredits?: ArtistCredit[],
-  ): Promise<ArtistCredit[]> {
-    await client.query(`DELETE FROM track_artist_credits WHERE track_id = $1 AND credit_role = 'main'`, [trackId]);
-
-    const creditInputs = normalizeArtistCreditInputs(artistNames, structuredCredits);
-    const artistCredits: ArtistCredit[] = [];
-    for (const [index, creditInput] of creditInputs.entries()) {
-      const artistEntityId = creditInput.artistEntityId
-        ? await this.ensureExistingArtistEntityForCredit(client, creditInput.artistEntityId, creditInput.name, now)
-        : await this.ensureArtistEntityForName(client, creditInput.name, now);
-      await client.query(
-        `INSERT INTO track_artist_credits (
-          id, track_id, artist_entity_id, credit_name, credit_position, credit_role,
-          confidence, match_method, source_id, created_at
-        ) VALUES ($1, $2, $3, $4, $5, 'main', NULL, $6, NULL, $7)`,
-        [
-          generateTrackId(),
-          trackId,
-          artistEntityId,
-          creditInput.name,
-          index,
-          creditInput.artistEntityId ? "entity_ref" : "legacy_name",
-          now,
-        ],
-      );
-      artistCredits.push({ artistEntityId, name: creditInput.name, role: "main", position: index });
-    }
-    return artistCredits;
-  }
-
-  private async replaceAlbumArtistCredits(
-    client: PoolClient,
-    albumId: string,
-    artistNames: string[],
-    now: Date,
-    structuredCredits?: ArtistCredit[],
-  ): Promise<ArtistCredit[]> {
-    await client.query(`DELETE FROM album_artist_credits WHERE album_id = $1 AND credit_role = 'main'`, [albumId]);
-
-    const creditInputs = normalizeArtistCreditInputs(artistNames, structuredCredits);
-    const artistCredits: ArtistCredit[] = [];
-    for (const [index, creditInput] of creditInputs.entries()) {
-      const artistEntityId = creditInput.artistEntityId
-        ? await this.ensureExistingArtistEntityForCredit(client, creditInput.artistEntityId, creditInput.name, now)
-        : await this.ensureArtistEntityForName(client, creditInput.name, now);
-      await client.query(
-        `INSERT INTO album_artist_credits (
-          id, album_id, artist_entity_id, credit_name, credit_position, credit_role,
-          confidence, match_method, source_id, created_at
-        ) VALUES ($1, $2, $3, $4, $5, 'main', NULL, $6, NULL, $7)`,
-        [
-          generateTrackId(),
-          albumId,
-          artistEntityId,
-          creditInput.name,
-          index,
-          creditInput.artistEntityId ? "entity_ref" : "legacy_name",
-          now,
-        ],
-      );
-      artistCredits.push({ artistEntityId, name: creditInput.name, role: "main", position: index });
-    }
-    return artistCredits;
   }
 
   private buildCachedResult(rows: TrackWithLinkRow[]): CachedTrackResult | null {
