@@ -42,10 +42,46 @@ export interface WebsiteAnalyticsRealtimeEventData {
   isBot: boolean;
 }
 
-export type WebsiteAnalyticsRealtimeEvent = TypedEvent<
-  "website-analytics-geo-event",
-  WebsiteAnalyticsRealtimeEventData
->;
+export interface WebsiteAnalyticsRealtimeGeoLocationSummary {
+  countryCode: string | null;
+  regionCode: string | null;
+  regionName: string | null;
+  city: string | null;
+  latitude: number;
+  longitude: number;
+  events: number;
+  clusters: number;
+  lastSeenAt: string;
+}
+
+export interface WebsiteAnalyticsRealtimeGeoCountrySummary {
+  countryCode: string | null;
+  events: number;
+  clusters: number;
+  cities: number;
+  latitude: number | null;
+  longitude: number | null;
+  lastSeenAt: string;
+}
+
+export interface WebsiteAnalyticsRealtimeSnapshotData {
+  generatedAt: string;
+  since: string;
+  realtimeSince: string;
+  coverage: {
+    totalEvents: number;
+    geolocatedEvents: number;
+    countries: number;
+    latestDatabaseBuildAt: string | null;
+  };
+  countries: WebsiteAnalyticsRealtimeGeoCountrySummary[];
+  cities: WebsiteAnalyticsRealtimeGeoLocationSummary[];
+  points: WebsiteAnalyticsRealtimeEventData[];
+}
+
+export type WebsiteAnalyticsRealtimeEvent =
+  | TypedEvent<"website-analytics-geo-event", WebsiteAnalyticsRealtimeEventData>
+  | TypedEvent<"website-analytics-geo-snapshot", WebsiteAnalyticsRealtimeSnapshotData>;
 
 type Listener<TEvent> = (event: TEvent) => void;
 
@@ -61,7 +97,9 @@ class EventBroadcaster<TEvent extends TypedEvent<string, object>> {
     for (const fn of this.listeners) {
       try {
         fn(event);
-      } catch {}
+      } catch {
+        // A broken listener must not prevent delivery to other subscribers.
+      }
     }
   }
 

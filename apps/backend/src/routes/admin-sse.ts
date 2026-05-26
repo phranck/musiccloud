@@ -12,6 +12,7 @@
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { getRepository } from "../db/index.js";
 import {
   adminEventBroadcaster,
   type TypedEvent,
@@ -22,10 +23,22 @@ type SseBroadcaster<TEvent extends TypedEvent<string, object>> = {
   subscribe(fn: (event: TEvent) => void): () => void;
 };
 
+type SseWriter<TEvent extends TypedEvent<string, object>> = (event: TEvent) => void | Promise<void>;
+
+const REALTIME_SNAPSHOT_WINDOW_MS = 5 * 60 * 1000;
+const REALTIME_SNAPSHOT_LIMIT = 250;
+
+function todayStart(): Date {
+  const since = new Date();
+  since.setHours(0, 0, 0, 0);
+  return since;
+}
+
 async function streamSse<TEvent extends TypedEvent<string, object>>(
   request: FastifyRequest,
   reply: FastifyReply,
   broadcaster: SseBroadcaster<TEvent>,
+  onConnect?: (write: SseWriter<TEvent>) => Promise<void>,
 ) {
   // `reply.hijack()` tells Fastify to let go of this response. Without it,
   // Fastify's post-handler lifecycle would try to serialize a return value and
@@ -41,15 +54,25 @@ async function streamSse<TEvent extends TypedEvent<string, object>>(
     "X-Accel-Buffering": "no",
   });
 
-  // Lines starting with `:` are SSE comments. A comment on connect gives the
-  // client an immediate signal that the socket is live.
-  reply.raw.write(":connected\n\n");
-
-  const unsubscribe = broadcaster.subscribe((event) => {
+  const writeEvent: SseWriter<TEvent> = (event) => {
     // If the underlying socket has already been torn down, writing would throw.
     if (reply.raw.destroyed) return;
     reply.raw.write(`event: ${event.type}\n`);
     reply.raw.write(`data: ${JSON.stringify(event.data)}\n\n`);
+  };
+
+  // Lines starting with `:` are SSE comments. A comment on connect gives the
+  // client an immediate signal that the socket is live.
+  reply.raw.write(":connected\n\n");
+  try {
+    await onConnect?.(writeEvent);
+  } catch (err) {
+    request.log.warn({ err }, "SSE initial snapshot failed");
+    if (!reply.raw.destroyed) reply.raw.write(":snapshot-error\n\n");
+  }
+
+  const unsubscribe = broadcaster.subscribe((event) => {
+    writeEvent(event);
   });
 
   // Heartbeats every 25 s. Many proxies and NAT gateways close idle TCP
@@ -74,6 +97,26 @@ export default async function adminSseRoutes(app: FastifyInstance) {
   });
 
   app.get(ENDPOINTS.admin.analytics.website.realtime, async (request, reply) => {
-    await streamSse(request, reply, websiteAnalyticsRealtimeBroadcaster);
+    await streamSse(request, reply, websiteAnalyticsRealtimeBroadcaster, async (write) => {
+      const repo = await getRepository();
+      const generatedAt = new Date();
+      const snapshot = await repo.getWebsiteAnalyticsGeo({
+        since: todayStart(),
+        realtimeSince: new Date(generatedAt.getTime() - REALTIME_SNAPSHOT_WINDOW_MS),
+        limit: REALTIME_SNAPSHOT_LIMIT,
+      });
+      await write({
+        type: "website-analytics-geo-snapshot",
+        data: {
+          generatedAt: snapshot.generatedAt,
+          since: snapshot.since,
+          realtimeSince: snapshot.realtimeSince,
+          coverage: snapshot.coverage,
+          countries: snapshot.countries,
+          cities: snapshot.cities,
+          points: snapshot.recent,
+        },
+      });
+    });
   });
 }

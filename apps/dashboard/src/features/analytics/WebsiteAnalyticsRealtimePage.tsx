@@ -88,6 +88,16 @@ interface GeoOverview {
   recent: GeoPoint[];
 }
 
+interface GeoSnapshot {
+  generatedAt: string;
+  since: string;
+  realtimeSince: string;
+  coverage: GeoOverview["coverage"];
+  countries: GeoCountrySummary[];
+  cities: GeoLocationSummary[];
+  points: GeoPoint[];
+}
+
 type GeoIpStatusState = "disabled" | "fresh" | "stale" | "missing" | "updating" | "error";
 
 interface GeoIpStatus {
@@ -540,11 +550,19 @@ function useDevLocationPoint() {
   return point;
 }
 
-function useWebsiteAnalyticsRealtimeStream(onPoint: (point: GeoPoint) => void) {
+function useWebsiteAnalyticsRealtimeStream({
+  onPoint,
+  onSnapshot,
+}: {
+  onPoint: (point: GeoPoint) => void;
+  onSnapshot: (snapshot: GeoSnapshot) => void;
+}) {
   const onPointRef = useRef(onPoint);
+  const onSnapshotRef = useRef(onSnapshot);
 
   useEffect(() => {
     onPointRef.current = onPoint;
+    onSnapshotRef.current = onSnapshot;
   });
 
   useEffect(() => {
@@ -585,9 +603,13 @@ function useWebsiteAnalyticsRealtimeStream(onPoint: (point: GeoPoint) => void) {
               eventType = line.slice(7).trim();
             } else if (line.startsWith("data: ")) {
               eventData = line.slice(6).trim();
-            } else if (line === "" && eventType === "website-analytics-geo-event" && eventData) {
+            } else if (line === "" && eventType && eventData) {
               try {
-                onPointRef.current(JSON.parse(eventData) as GeoPoint);
+                if (eventType === "website-analytics-geo-event") {
+                  onPointRef.current(JSON.parse(eventData) as GeoPoint);
+                } else if (eventType === "website-analytics-geo-snapshot") {
+                  onSnapshotRef.current(JSON.parse(eventData) as GeoSnapshot);
+                }
               } catch {
                 // Ignore malformed SSE payloads and keep the realtime stream alive.
               }
@@ -1451,17 +1473,11 @@ export function WebsiteAnalyticsRealtimePage() {
   const { messages, formatNumber } = useI18n();
   const queryClient = useQueryClient();
   const [points, setPoints] = useState<LivePoint[]>([]);
+  const [geoSnapshot, setGeoSnapshot] = useState<GeoSnapshot | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [mapResetSignal, setMapResetSignal] = useState(0);
   const devLocationPoint = useDevLocationPoint();
   const devLocationReceivedAtRef = useRef(Date.now() - FLASH_MS);
-  const geoQuery = useQuery({
-    queryKey: ["website-analytics-geo-realtime"],
-    queryFn: () =>
-      api.get<GeoOverview>(`${ENDPOINTS.admin.analytics.website.geo}?period=today&realtimeMinutes=5&limit=250`),
-    refetchInterval: 30_000,
-    refetchIntervalInBackground: false,
-  });
   const geoIpStatusQuery = useQuery({
     queryKey: ["website-analytics-geoip-status"],
     queryFn: () => api.get<GeoIpStatus>(ENDPOINTS.admin.analytics.website.geoIpStatus),
@@ -1475,7 +1491,6 @@ export function WebsiteAnalyticsRealtimePage() {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["website-analytics-geoip-status"] });
-      void queryClient.invalidateQueries({ queryKey: ["website-analytics-geo-realtime"] });
     },
   });
 
@@ -1484,16 +1499,15 @@ export function WebsiteAnalyticsRealtimePage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    if (!geoQuery.data?.recent) return;
-    setPoints((previous) => mergeLivePoints(previous, geoQuery.data.recent, Date.now()));
-  }, [geoQuery.data?.recent]);
-
-  useWebsiteAnalyticsRealtimeStream(
-    useCallback((point) => {
+  useWebsiteAnalyticsRealtimeStream({
+    onPoint: useCallback((point) => {
       setPoints((previous) => mergeLivePoints(previous, [point], Date.now()));
     }, []),
-  );
+    onSnapshot: useCallback((snapshot) => {
+      setGeoSnapshot(snapshot);
+      setPoints((previous) => mergeLivePoints(previous, snapshot.points, Date.now()));
+    }, []),
+  });
 
   const visiblePoints = useMemo(() => {
     const activePoints = points.filter((point) => pointOpacity(point, now) > 0);
@@ -1501,9 +1515,31 @@ export function WebsiteAnalyticsRealtimePage() {
     return [{ ...devLocationPoint, persistent: true, receivedAt: devLocationReceivedAtRef.current }, ...activePoints];
   }, [devLocationPoint, now, points]);
   const realtimeLocations = useMemo(() => summarizeRealtimeLocations(visiblePoints), [visiblePoints]);
-  const coverage = geoQuery.data?.coverage;
-  const cities = geoQuery.data?.cities ?? [];
-  const countries = geoQuery.data?.countries ?? [];
+  const snapshotPointIds = useMemo(() => new Set(geoSnapshot?.points.map((point) => point.id) ?? []), [geoSnapshot]);
+  const livePointsAfterSnapshot = useMemo(
+    () => points.filter((point) => !snapshotPointIds.has(point.id)),
+    [points, snapshotPointIds],
+  );
+  const countries = geoSnapshot?.countries ?? [];
+  const cities = geoSnapshot?.cities ?? realtimeLocations;
+  const liveCountryCodes = useMemo(
+    () =>
+      new Set(
+        livePointsAfterSnapshot.map((point) => point.countryCode).filter((code): code is string => Boolean(code)),
+      ),
+    [livePointsAfterSnapshot],
+  );
+  const coverage = geoSnapshot
+    ? {
+        ...geoSnapshot.coverage,
+        totalEvents: geoSnapshot.coverage.totalEvents + livePointsAfterSnapshot.length,
+        geolocatedEvents: geoSnapshot.coverage.geolocatedEvents + livePointsAfterSnapshot.length,
+        countries: new Set([
+          ...countries.map((country) => country.countryCode).filter((code): code is string => Boolean(code)),
+          ...liveCountryCodes,
+        ]).size,
+      }
+    : null;
   const locationList = realtimeLocations.length > 0 ? realtimeLocations : cities;
 
   return (
@@ -1583,7 +1619,7 @@ export function WebsiteAnalyticsRealtimePage() {
                       <div className="truncate text-sm text-[var(--ds-text)]">
                         {coverage?.latestDatabaseBuildAt
                           ? new Date(coverage.latestDatabaseBuildAt).toLocaleDateString()
-                          : geoQuery.isLoading
+                          : !geoSnapshot
                             ? messages.common.loading
                             : "n/a"}
                       </div>
