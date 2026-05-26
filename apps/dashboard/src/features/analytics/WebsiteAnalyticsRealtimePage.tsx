@@ -103,6 +103,8 @@ type GeoIpStatusState = "disabled" | "fresh" | "stale" | "missing" | "updating" 
 interface GeoIpStatus {
   state: GeoIpStatusState;
   provider: string;
+  runtimeId?: string;
+  checkedAt?: string;
   databasePath: string;
   databaseType: string | null;
   buildEpoch: string | null;
@@ -189,6 +191,7 @@ const MAP_PADDING_X = 34;
 const MAP_PADDING_Y = 28;
 const HOME_ANIMATION_MS = 820;
 const GEOIP_UPDATE_TIMEOUT_MS = 300_000;
+const GEOIP_INSTANCE_STATUS_TTL_MS = 5 * 60 * 1000;
 const MAX_MAP_SCALE = 10;
 const INITIAL_MAP_VIEW: ViewTransform = { scale: 1, x: 0, y: 0 };
 const MAP_VIEW_STORAGE_KEY = "musiccloud.analytics.realtime.mapView.v1";
@@ -484,6 +487,16 @@ function formatStatusDate(value: string | null | undefined) {
   if (!value) return "n/a";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "n/a" : date.toLocaleString();
+}
+
+function formatRuntimeId(value: string | null | undefined) {
+  if (!value) return "runtime";
+  return value.replace(/^backend-runtime-/, "runtime-");
+}
+
+function geoIpStatusCheckedAt(status: GeoIpStatus) {
+  const checkedAt = new Date(status.checkedAt ?? 0).getTime();
+  return Number.isFinite(checkedAt) && checkedAt > 0 ? checkedAt : 0;
 }
 
 function mergeLivePoints(previous: LivePoint[], incoming: GeoPoint[], now: number) {
@@ -1372,12 +1385,14 @@ function TopLocationList({ cities }: { cities: GeoLocationSummary[] }) {
 }
 
 function DbIpControl({
+  instanceStatuses,
   isLoading,
   isUpdating,
   onUpdate,
   status,
   updateMessage,
 }: {
+  instanceStatuses: GeoIpStatus[];
   isLoading: boolean;
   isUpdating: boolean;
   onUpdate: () => void;
@@ -1386,7 +1401,13 @@ function DbIpControl({
 }) {
   const { messages } = useI18n();
   const state = status?.state;
-  const Icon = state === "fresh" ? CheckCircleIcon : WarningCircleIcon;
+  const instanceStates = new Set(instanceStatuses.map((instanceStatus) => instanceStatus.state));
+  const hasMixedInstances = instanceStates.size > 1;
+  const allInstancesFresh =
+    instanceStatuses.length > 0 && instanceStatuses.every((instanceStatus) => instanceStatus.state === "fresh");
+  const displayState = hasMixedInstances ? "mixed" : state;
+  const statusTone = displayState === "mixed" ? "text-[#fff177]" : geoIpStatusTone(state);
+  const Icon = allInstancesFresh || (!hasMixedInstances && state === "fresh") ? CheckCircleIcon : WarningCircleIcon;
   const age =
     status?.ageDays === null || status?.ageDays === undefined
       ? "n/a"
@@ -1395,7 +1416,7 @@ function DbIpControl({
   return (
     <DashboardSection>
       <DashboardSection.Header
-        icon={<Icon weight="duotone" className={`size-4 ${geoIpStatusTone(state)}`} />}
+        icon={<Icon weight="duotone" className={`size-4 ${statusTone}`} />}
         title="DB-IP"
         addOn={
           <DashboardButton
@@ -1418,8 +1439,8 @@ function DbIpControl({
         <div className="grid grid-cols-2 gap-3 text-sm xl:grid-cols-1">
           <div>
             <div className="text-xs text-[var(--ds-text-muted)]">Status</div>
-            <div className={`capitalize tabular-nums text-lg ${geoIpStatusTone(state)}`}>
-              {isLoading ? messages.common.loading : (state ?? "unknown")}
+            <div className={`capitalize tabular-nums text-lg ${statusTone}`}>
+              {isLoading ? messages.common.loading : (displayState ?? "unknown")}
             </div>
           </div>
           <div>
@@ -1451,6 +1472,26 @@ function DbIpControl({
             </div>
           </div>
         </div>
+        {instanceStatuses.length > 0 && (
+          <div className="rounded-md border border-[var(--ds-border)] bg-[var(--ds-surface-muted)] px-3 py-2 text-xs">
+            <div className="mb-2 text-[var(--ds-text-muted)]">Instances</div>
+            <div className="grid gap-1">
+              {instanceStatuses.map((instanceStatus) => (
+                <div
+                  key={instanceStatus.runtimeId ?? "runtime"}
+                  className="grid grid-cols-[1fr_auto] items-center gap-2"
+                >
+                  <span className="truncate text-[var(--ds-text-muted)]">
+                    {formatRuntimeId(instanceStatus.runtimeId)}
+                  </span>
+                  <span className={`capitalize tabular-nums ${geoIpStatusTone(instanceStatus.state)}`}>
+                    {instanceStatus.state}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <a
           href="https://db-ip.com"
           target="_blank"
@@ -1474,6 +1515,7 @@ export function WebsiteAnalyticsRealtimePage() {
   const queryClient = useQueryClient();
   const [points, setPoints] = useState<LivePoint[]>([]);
   const [geoSnapshot, setGeoSnapshot] = useState<GeoSnapshot | null>(null);
+  const [geoIpStatusesByRuntime, setGeoIpStatusesByRuntime] = useState<Record<string, GeoIpStatus>>({});
   const [now, setNow] = useState(() => Date.now());
   const [mapResetSignal, setMapResetSignal] = useState(0);
   const devLocationPoint = useDevLocationPoint();
@@ -1498,6 +1540,22 @@ export function WebsiteAnalyticsRealtimePage() {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const status = geoIpStatusQuery.data;
+    if (!status) return;
+    const runtimeId = status.runtimeId ?? "runtime";
+    const checkedAt = geoIpStatusCheckedAt(status) || Date.now();
+    setGeoIpStatusesByRuntime((previous) => {
+      const next: Record<string, GeoIpStatus> = { ...previous, [runtimeId]: status };
+      const minimumCheckedAt = checkedAt - GEOIP_INSTANCE_STATUS_TTL_MS;
+      for (const [key, value] of Object.entries(next)) {
+        const valueCheckedAt = geoIpStatusCheckedAt(value);
+        if (valueCheckedAt > 0 && valueCheckedAt < minimumCheckedAt) delete next[key];
+      }
+      return next;
+    });
+  }, [geoIpStatusQuery.data]);
 
   useWebsiteAnalyticsRealtimeStream({
     onPoint: useCallback((point) => {
@@ -1541,6 +1599,13 @@ export function WebsiteAnalyticsRealtimePage() {
       }
     : null;
   const locationList = realtimeLocations.length > 0 ? realtimeLocations : cities;
+  const geoIpInstanceStatuses = useMemo(
+    () =>
+      Object.values(geoIpStatusesByRuntime).sort((a, b) =>
+        formatRuntimeId(a.runtimeId).localeCompare(formatRuntimeId(b.runtimeId)),
+      ),
+    [geoIpStatusesByRuntime],
+  );
 
   return (
     <PageLayout>
@@ -1585,6 +1650,7 @@ export function WebsiteAnalyticsRealtimePage() {
 
             <div className="grid gap-3">
               <DbIpControl
+                instanceStatuses={geoIpInstanceStatuses}
                 isLoading={geoIpStatusQuery.isLoading}
                 isUpdating={geoIpUpdateMutation.isPending || geoIpStatusQuery.data?.state === "updating"}
                 onUpdate={() => geoIpUpdateMutation.mutate()}

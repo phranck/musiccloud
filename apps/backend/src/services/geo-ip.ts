@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import net from "node:net";
+import { hostname } from "node:os";
 import path from "node:path";
 import { gunzipSync } from "fflate";
 import { type CityResponse, Reader } from "mmdb-lib";
@@ -10,6 +11,7 @@ const DEFAULT_MAX_AGE_DAYS = 45;
 const GEOIP_PROVIDER = "db-ip";
 const DBIP_DOWNLOAD_PAGE_URL = "https://db-ip.com/db/download/ip-to-city-lite";
 const REMOTE_RELEASE_CACHE_MS = 30 * 60 * 1000;
+const GEOIP_RUNTIME_ID = process.env.ZEROPS_INSTANCE_ID?.trim() || process.env.HOSTNAME?.trim() || hostname();
 
 type LocalizedNames = { de?: string; en?: string };
 
@@ -37,6 +39,8 @@ export type GeoIpStatusState = "disabled" | "fresh" | "stale" | "missing" | "upd
 export interface GeoIpStatus {
   state: GeoIpStatusState;
   provider: string;
+  runtimeId: string;
+  checkedAt: string;
   databasePath: string;
   databaseType: string | null;
   buildEpoch: string | null;
@@ -168,6 +172,8 @@ function emptyStatus(state: GeoIpStatusState, message: string | null): GeoIpStat
   return {
     state,
     provider: GEOIP_PROVIDER,
+    runtimeId: GEOIP_RUNTIME_ID,
+    checkedAt: new Date().toISOString(),
     databasePath: geoIpDbPath(),
     databaseType: null,
     buildEpoch: null,
@@ -278,6 +284,8 @@ async function enrichStatusWithRelease(status: GeoIpStatus): Promise<GeoIpStatus
   const [sidecar, remote] = await Promise.all([readSidecarMetadata(), getDbIpRemoteRelease()]);
   return {
     ...status,
+    runtimeId: GEOIP_RUNTIME_ID,
+    checkedAt: new Date().toISOString(),
     latestRelease: remote?.release ?? sidecar?.release ?? null,
     latestReleaseAt: remote?.releaseAt ?? sidecar?.releaseAt ?? null,
     lastDownloadedAt: sidecar?.downloadedAt ?? null,
@@ -304,6 +312,8 @@ async function openGeoIpReader(): Promise<Reader<DbIpCityResponse> | null> {
       cachedStatus = {
         state,
         provider: GEOIP_PROVIDER,
+        runtimeId: GEOIP_RUNTIME_ID,
+        checkedAt: new Date().toISOString(),
         databasePath,
         databaseType: reader.metadata.databaseType,
         buildEpoch: isoDate(buildEpoch),
@@ -329,8 +339,12 @@ async function openGeoIpReader(): Promise<Reader<DbIpCityResponse> | null> {
   return cachedOpenPromise;
 }
 
+function shouldRefreshGeoIpStatus(status: GeoIpStatus | null): boolean {
+  return !status || cachedPath !== geoIpDbPath() || status.state === "missing" || status.state === "error";
+}
+
 async function readGeoIpStatus(): Promise<GeoIpStatus> {
-  if (!cachedStatus) {
+  if (shouldRefreshGeoIpStatus(cachedStatus)) {
     await openGeoIpReader();
   }
 
@@ -363,6 +377,7 @@ export async function getGeoIpStatus(): Promise<GeoIpStatus> {
 
 function resetGeoIpCache(): void {
   cachedReader = null;
+  cachedPath = null;
   cachedStatus = null;
   cachedOpenPromise = null;
 }
