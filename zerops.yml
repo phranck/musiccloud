@@ -1,7 +1,7 @@
 zerops:
   - setup: backend
     build:
-      base: nodejs@22
+      base: alpine/nodejs@22
       buildCommands:
         - corepack enable
         - corepack prepare pnpm@10.33.1 --activate
@@ -12,7 +12,7 @@ zerops:
         - apps/backend/dist
         - apps/backend/src/db/migrations
     run:
-      base: nodejs@22
+      base: alpine/nodejs@22
       ports:
         - port: 4000
           httpSupport: true
@@ -29,7 +29,7 @@ zerops:
         # Local DB-IP City Lite MMDB. The database is managed manually from
         # the dashboard update action. Backend startup/deploy must not
         # download, refresh, or block on the MMDB automatically.
-        DBIP_DB_DIR: /var/www/data/geoip
+        DBIP_DB_DIR: /mnt/geodb
         DBIP_UPDATE_ON_START: "false"
         DBIP_REQUIRE_READY: "false"
         DBIP_MAX_AGE_DAYS: "45"
@@ -75,7 +75,7 @@ zerops:
 
   - setup: frontend
     build:
-      base: nodejs@22
+      base: alpine/nodejs@22
       buildCommands:
         - corepack enable
         - corepack prepare pnpm@10.33.1 --activate
@@ -90,7 +90,7 @@ zerops:
         - packages/shared
         - package.json
     run:
-      base: nodejs@22
+      base: alpine/nodejs@22
       ports:
         - port: 3000
           httpSupport: true
@@ -104,7 +104,7 @@ zerops:
 
   - setup: dashboard
     build:
-      base: nodejs@22
+      base: alpine/nodejs@22
       buildCommands:
         - corepack enable
         - corepack prepare pnpm@10.33.1 --activate
@@ -125,7 +125,7 @@ zerops:
         - manifest.json
         - site_config.tmpl
     run:
-      base: nginx@1.22
+      base: alpine/nginx@1.22
       ports:
         - port: 80
           httpSupport: true
