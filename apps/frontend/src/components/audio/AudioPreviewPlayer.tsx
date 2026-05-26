@@ -346,6 +346,16 @@ export function AudioPreviewPlayer({
     channelSplitterRef.current = null;
     analysersRef.current = null;
     spectrumDataRef.current = null;
+
+    const audioContext = audioContextRef.current;
+    audioContextRef.current = null;
+    if (audioContext && audioContext.state !== "closed") {
+      audioContext.onstatechange = null;
+      void audioContext.close().catch(() => {
+        // Closing can fail in interrupted browser audio sessions. The audio
+        // element is disposed independently, so there is nothing else to do.
+      });
+    }
   }, [stopSpectrumLoop]);
 
   const startSpectrumLoop = useCallback(() => {
@@ -376,41 +386,67 @@ export function AudioPreviewPlayer({
     spectrumFrameRef.current = requestAnimationFrame(tick);
   }, []);
 
-  const ensureSpectrumAnalyzer = useCallback(async (audio: HTMLAudioElement) => {
-    if (analysersRef.current) {
-      if (audioContextRef.current?.state === "suspended") await audioContextRef.current.resume();
-      return;
-    }
+  const ensureSpectrumAnalyzer = useCallback(
+    async (audio: HTMLAudioElement) => {
+      if (analysersRef.current) {
+        if (audioContextRef.current?.state === "suspended") await audioContextRef.current.resume();
+        return audioContextRef.current?.state === "running";
+      }
 
-    const AudioContextConstructor = getAudioContextConstructor();
-    if (!AudioContextConstructor) return;
+      const AudioContextConstructor = getAudioContextConstructor();
+      if (!AudioContextConstructor) return false;
 
-    const audioContext = audioContextRef.current ?? new AudioContextConstructor();
-    audioContextRef.current = audioContext;
-    if (audioContext.state === "suspended") await audioContext.resume();
+      const audioContext = audioContextRef.current ?? new AudioContextConstructor();
+      audioContextRef.current = audioContext;
+      if (audioContext.state === "suspended") await audioContext.resume();
+      if (audioContext.state !== "running") return false;
 
-    const splitter = audioContext.createChannelSplitter(2);
-    const leftAnalyser = audioContext.createAnalyser();
-    const rightAnalyser = audioContext.createAnalyser();
-    for (const analyser of [leftAnalyser, rightAnalyser]) {
-      analyser.fftSize = 128;
-      analyser.smoothingTimeConstant = 0.74;
-    }
+      audioContext.onstatechange = () => {
+        if (audioContext.state === "running") return;
+        stopSpectrumLoop({ clearBands: false });
+        if (!audio.paused && audioContext.state === "suspended") {
+          void audioContext.resume().catch(() => setSpectrumBands(null));
+        }
+      };
 
-    const source = audioContext.createMediaElementSource(audio);
-    source.connect(audioContext.destination);
-    source.connect(splitter);
-    splitter.connect(leftAnalyser, 0);
-    splitter.connect(rightAnalyser, 1);
+      try {
+        const splitter = audioContext.createChannelSplitter(2);
+        const leftAnalyser = audioContext.createAnalyser();
+        const rightAnalyser = audioContext.createAnalyser();
+        for (const analyser of [leftAnalyser, rightAnalyser]) {
+          analyser.fftSize = 128;
+          analyser.smoothingTimeConstant = 0.74;
+        }
 
-    mediaSourceRef.current = source;
-    channelSplitterRef.current = splitter;
-    analysersRef.current = { left: leftAnalyser, right: rightAnalyser };
-    spectrumDataRef.current = {
-      left: new Uint8Array(leftAnalyser.frequencyBinCount),
-      right: new Uint8Array(rightAnalyser.frequencyBinCount),
-    };
-  }, []);
+        const source = audioContext.createMediaElementSource(audio);
+        source.connect(audioContext.destination);
+        source.connect(splitter);
+        splitter.connect(leftAnalyser, 0);
+        splitter.connect(rightAnalyser, 1);
+
+        mediaSourceRef.current = source;
+        channelSplitterRef.current = splitter;
+        analysersRef.current = { left: leftAnalyser, right: rightAnalyser };
+        spectrumDataRef.current = {
+          left: new Uint8Array(leftAnalyser.frequencyBinCount),
+          right: new Uint8Array(rightAnalyser.frequencyBinCount),
+        };
+        return true;
+      } catch {
+        mediaSourceRef.current?.disconnect();
+        channelSplitterRef.current?.disconnect();
+        analysersRef.current?.left.disconnect();
+        analysersRef.current?.right.disconnect();
+        mediaSourceRef.current = null;
+        channelSplitterRef.current = null;
+        analysersRef.current = null;
+        spectrumDataRef.current = null;
+        setSpectrumBands(null);
+        return false;
+      }
+    },
+    [stopSpectrumLoop],
+  );
 
   // Bind the <audio> element when a URL becomes available. The only
   // dependency is the URL itself — playback state transitions (play/pause)
@@ -422,6 +458,8 @@ export function AudioPreviewPlayer({
     const audio = new Audio();
     audio.crossOrigin = "anonymous";
     audio.preload = "metadata";
+    audio.muted = false;
+    audio.volume = 1;
     audio.src = effectiveUrl;
 
     const handleLoadedMetadata = () => {
@@ -486,11 +524,8 @@ export function AudioPreviewPlayer({
     if (state.phase === "idle" || state.phase === "paused") {
       stopProgressRewind();
       stopSpectrumLoop({ clearBands: false });
-      void ensureSpectrumAnalyzer(audio)
-        .then(() => {
-          if (!audio.paused) startSpectrumLoop();
-        })
-        .catch(() => setSpectrumBands(null));
+      audio.muted = false;
+      audio.volume = 1;
       audio
         .play()
         .then(() => {
@@ -498,7 +533,11 @@ export function AudioPreviewPlayer({
           trackPlayerEvent(hasStartedRef.current ? "player_resumed" : "player_started", shortId ?? refreshShortId);
           hasStartedRef.current = true;
           startProgressLoop(audio);
-          startSpectrumLoop();
+          void ensureSpectrumAnalyzer(audio)
+            .then((isAnalyzerReady) => {
+              if (isAnalyzerReady && !audio.paused) startSpectrumLoop();
+            })
+            .catch(() => setSpectrumBands(null));
         })
         .catch(() => dispatch({ type: "ERROR" }));
     } else if (state.phase === "playing") {
