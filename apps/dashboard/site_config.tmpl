@@ -42,8 +42,10 @@ server {
         proxy_send_timeout 300s;
     }
 
-    # Temporary auth proxy diagnostics: expose upstream timings so client-side probes
+    # Auth proxy diagnostics: expose upstream timings so client-side probes
     # can distinguish Nginx/backend connect delays from backend handler latency.
+    # Keep this scoped to auth endpoints; do not expose upstream internals on
+    # every public API response. See architecture/zerops-networking.md.
     location /api/admin/auth/ {
         proxy_pass http://backend:4000;
         proxy_http_version 1.1;

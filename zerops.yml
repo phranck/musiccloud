@@ -17,6 +17,10 @@ zerops:
         - port: 4000
           httpSupport: true
       envVariables:
+        # Bind to IPv6 as well as IPv4. Zerops internal service discovery can
+        # return IPv6 upstreams for `backend`; binding only to 0.0.0.0 caused
+        # dashboard nginx to hit IPv6 502 fallbacks before reaching IPv4.
+        # See architecture/zerops-networking.md before changing this.
         HOST: "::"
         PORT: "4000"
         NODE_ENV: production
