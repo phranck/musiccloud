@@ -17,7 +17,7 @@ zerops:
         - port: 4000
           httpSupport: true
       envVariables:
-        HOST: 0.0.0.0
+        HOST: "::"
         PORT: "4000"
         NODE_ENV: production
         ALLOWED_ORIGINS: "https://musiccloud.io,https://dashboard.musiccloud.io"
