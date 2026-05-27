@@ -29,7 +29,7 @@ export function appReducer({ screen, stack }: ReducerState, action: AppAction): 
       return { screen: loadingScreen, stack: [] };
     }
     case "RESOLVE_SUCCESS":
-      return { screen: { type: "result", active: action.active }, stack };
+      return { screen: { type: "result", active: action.active, resolved: action.resolved }, stack };
     case "DISAMBIGUATION":
       return { screen: { type: "disambiguation", candidates: action.candidates }, stack };
     case "SELECT_CANDIDATE":
@@ -58,7 +58,8 @@ export function appReducer({ screen, stack }: ReducerState, action: AppAction): 
     case "ERROR":
       return { screen: { type: "error", message: action.message }, stack: [] };
     case "CLEAR_START":
-      if (screen.type === "result") return { screen: { type: "clearing", active: screen.active }, stack: [] };
+      if (screen.type === "result")
+        return { screen: { type: "clearing", active: screen.active, resolved: screen.resolved }, stack: [] };
       return { screen: { type: "idle" }, stack: [] };
     case "CLEAR":
       return { screen: { type: "idle" }, stack: [] };

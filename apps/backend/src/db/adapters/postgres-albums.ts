@@ -518,6 +518,7 @@ export async function loadAlbumByShortId(pool: Pool, shortId: string): Promise<S
     `SELECT
       a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
       a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
+      (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
       asl.url as link_url, asl.service,
       asu.id as short_id
     FROM albums a

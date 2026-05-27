@@ -30,6 +30,7 @@ function queryType(query: string): string {
 interface UseAppStateResult {
   state: AppState;
   active: ActiveResult | null;
+  resolved: UnifiedResolveSuccessResponse | null;
   candidates: DisambiguationCandidate[] | null;
   selectedCandidateId: string | null;
   genreBrowseGenres: import("@musiccloud/shared").ApiGenreTile[] | null;
@@ -74,6 +75,12 @@ export function useAppState(): UseAppStateResult {
   const isGenreSearchLoading = screen.type === "genre-search_loading";
   const isGenreSearching = screen.type === "genre-search" || isGenreSearchLoading;
   const active = screen.type === "result" ? screen.active : screen.type === "clearing" ? screen.active : null;
+  const resolved =
+    screen.type === "result"
+      ? (screen.resolved ?? null)
+      : screen.type === "clearing"
+        ? (screen.resolved ?? null)
+        : null;
   const candidates = isDisambiguating ? screen.candidates : null;
   const selectedCandidateId = screen.type === "disambiguation_loading" ? screen.selectedId : null;
   const genreBrowseGenres = isGenreBrowsing ? screen.genres : null;
@@ -138,7 +145,7 @@ export function useAppState(): UseAppStateResult {
         return;
       }
       const resolved = data as UnifiedResolveSuccessResponse;
-      dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved) });
+      dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
       if (!options.suppressResolveAnalytics) trackResolve(sourcePlatform, surface);
     } catch (err) {
       if (!options.suppressResolveAnalytics) trackResolveFailed(sourcePlatform, surface, parseErrorKey(err));
@@ -164,7 +171,8 @@ export function useAppState(): UseAppStateResult {
         throw new Error(errorData.message || "error.generic");
       }
       const data = (await response.json()) as ResolveSuccessResponse;
-      dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data) });
+      const resolved: UnifiedResolveSuccessResponse = { ...data, type: "track" };
+      dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data), resolved });
     } catch (err) {
       dispatch({ type: "ERROR", message: parseErrorKey(err) });
     }
@@ -199,7 +207,7 @@ export function useAppState(): UseAppStateResult {
         throw new Error(errorData.message || "error.generic");
       }
       const data = (await response.json()) as UnifiedResolveSuccessResponse;
-      dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data) });
+      dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
       trackResolve(sourcePlatform, "genre_search_result");
     } catch (err) {
       trackResolveFailed(sourcePlatform, "genre_search_result", parseErrorKey(err));
@@ -218,6 +226,7 @@ export function useAppState(): UseAppStateResult {
   return {
     state: screen,
     active,
+    resolved,
     candidates,
     selectedCandidateId,
     genreBrowseGenres,

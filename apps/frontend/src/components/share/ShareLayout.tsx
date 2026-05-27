@@ -11,11 +11,8 @@
 import {
   type ArtistInfoResponse,
   type ArtistTopTrack,
-  buildMetaLine,
   ENDPOINTS,
-  isValidServiceId,
   type ResolveErrorResponse,
-  type ServiceId,
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { MicrophoneStageIcon, XIcon } from "@phosphor-icons/react";
@@ -158,6 +155,7 @@ import { LocaleProvider, useT } from "@/i18n/context";
 import { trackResolve, trackResolveFailed, trackResolveStarted } from "@/lib/analytics";
 import { detectServiceFromUrl } from "@/lib/platform/url";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
+import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import type { ActiveResult } from "@/lib/types/app";
 import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
@@ -294,12 +292,6 @@ function pathFromShortUrl(shortUrl: string): string {
   }
 }
 
-function shortIdFromShortUrl(shortUrl: string): string | undefined {
-  const path = pathFromShortUrl(shortUrl);
-  const shortId = path.replace(/^\/+/, "").split("/")[0];
-  return shortId || undefined;
-}
-
 function replaceBrowserUrlWithShortUrl(shortUrl: string): void {
   if (typeof window === "undefined") return;
   const nextPath = pathFromShortUrl(shortUrl);
@@ -314,14 +306,6 @@ function artistInfoContextFromConfig(config: MediaCardContentConfiguration): Art
   return { shortId: config.shortId };
 }
 
-function artistInfoContextFromResolved(data: UnifiedResolveSuccessResponse): ArtistInfoContext {
-  const shortId = shortIdFromShortUrl(data.shortUrl);
-  const credits =
-    data.type === "track" ? data.track.artistCredits : data.type === "album" ? data.album.artistCredits : undefined;
-  const mainCredit = credits?.find((credit) => credit.role === "main") ?? credits?.[0];
-  return { shortId, artistEntityId: mainCredit?.artistEntityId };
-}
-
 function sameArtistInfoContext(a: ArtistInfoContext, b: ArtistInfoContext): boolean {
   return (a.shortId ?? "") === (b.shortId ?? "") && (a.artistEntityId ?? "") === (b.artistEntityId ?? "");
 }
@@ -334,66 +318,6 @@ function configIdentity(config: MediaCardContentConfiguration): string {
 
 function resultArtistName(active: ActiveResult): string {
   return active.kind === "artist" ? active.name : active.artist;
-}
-
-function buildShareConfigFromResolved(
-  data: UnifiedResolveSuccessResponse,
-  t: (key: string, vars?: Record<string, string>) => string,
-): { config: ShareContentConfiguration; artistName: string; artistInfoContext: ArtistInfoContext; pageTitle: string } {
-  const isArtist = data.type === "artist";
-  const isAlbum = data.type === "album";
-  const track = data.type === "track" ? data.track : null;
-  const album = data.type === "album" ? data.album : null;
-  const artist = data.type === "artist" ? data.artist : null;
-  const artistDisplay = isArtist ? "" : isAlbum ? (album?.artists.join(", ") ?? "") : (track?.artists.join(", ") ?? "");
-  const displayTitle = isArtist ? (artist?.name ?? "") : isAlbum ? (album?.title ?? "") : (track?.title ?? "");
-  const artworkUrl = isArtist ? artist?.imageUrl : isAlbum ? album?.artworkUrl : track?.artworkUrl;
-  const trackMetaLine = track ? buildMetaLine({ durationMs: track.durationMs, releaseDate: track.releaseDate }) : null;
-  const albumYear = album?.releaseDate?.slice(0, 4);
-  const albumMetaLine = isAlbum
-    ? [album?.totalTracks ? t("results.albumTracks", { count: String(album.totalTracks) }) : null, albumYear]
-        .filter(Boolean)
-        .join(" \u00B7 ")
-    : null;
-  const artistMetaLine = isArtist ? artist?.genres?.join(", ") : null;
-  const platformsLabelKey = isArtist ? "results.viewArtistOn" : isAlbum ? "results.openAlbumOn" : "results.listenOn";
-  const platformLinks = data.links.reduce<ShareContentConfiguration["platforms"]>((links, link) => {
-    if (!link.url || !isValidServiceId(link.service)) return links;
-    links.push({
-      platform: link.service as ServiceId,
-      url: link.url,
-      displayName: link.displayName,
-      matchMethod: link.matchMethod,
-    });
-    return links;
-  }, []);
-  const config: ShareContentConfiguration = {
-    type: "share",
-    title: displayTitle,
-    artist: artistDisplay,
-    artworkUrl: artworkUrl ?? "",
-    album: isAlbum ? undefined : (track?.albumName ?? undefined),
-    isExplicit: !isAlbum && !isArtist && track?.isExplicit ? true : undefined,
-    previewUrl: isArtist ? undefined : isAlbum ? (album?.previewUrl ?? undefined) : (track?.previewUrl ?? undefined),
-    previewRefreshable: !isArtist && !isAlbum ? track?.previewRefreshable : undefined,
-    shortId: shortIdFromShortUrl(data.shortUrl),
-    metaLine: isArtist
-      ? artistMetaLine || undefined
-      : isAlbum
-        ? albumMetaLine || undefined
-        : trackMetaLine || undefined,
-    platforms: platformLinks,
-    platformsLabel: t(platformsLabelKey),
-    platformsLabelKey,
-    shortUrl: data.shortUrl,
-  };
-  const pageTitle = isArtist ? `${displayTitle} - musiccloud` : `${displayTitle} by ${artistDisplay} - musiccloud`;
-  return {
-    config,
-    artistName: isArtist ? displayTitle : artistDisplay,
-    artistInfoContext: artistInfoContextFromResolved(data),
-    pageTitle,
-  };
 }
 
 interface ShareLayoutProps {
@@ -583,7 +507,7 @@ function ShareLayoutInner({
         const resolved = data as UnifiedResolveSuccessResponse;
         replaceBrowserUrlWithShortUrl(resolved.shortUrl);
         if (currentConfig.type === "share") {
-          const next = buildShareConfigFromResolved(resolved, t);
+          const next = buildShareViewFromResolvedResponse(resolved, t);
           const shouldFetchArtist =
             normalizeArtistName(next.artistName) !== normalizeArtistName(currentArtistName) ||
             !sameArtistInfoContext(next.artistInfoContext, currentArtistContext);

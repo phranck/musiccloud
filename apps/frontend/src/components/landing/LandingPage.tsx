@@ -30,7 +30,9 @@ import {
   preloadResolveResultRuntime,
 } from "@/lib/preload/resultRuntime";
 import { buildShareConfigFromActive } from "@/lib/resolve/parsers";
+import { buildShareViewFromResolvedResponse, type ShareArtistInfoContext } from "@/lib/share/share-view";
 import type { InputState } from "@/lib/types/app";
+import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 // Lazy-loaded panels — only pulled into the bundle when the user needs them.
 // Fallback is `null` because each is only rendered behind a visibility flag anyway.
@@ -49,7 +51,8 @@ interface LandingPageProps {
 
 interface ActiveShareResultProps {
   activeArtistName: string;
-  activeShareConfig: ReturnType<typeof buildShareConfigFromActive>;
+  activeShareConfig: ShareContentConfiguration;
+  artistInfoContext?: ShareArtistInfoContext;
   backLabel?: string;
   canGoBack: boolean;
   handleBack: () => void;
@@ -62,6 +65,7 @@ interface ActiveShareResultProps {
 function ActiveShareResult({
   activeArtistName,
   activeShareConfig,
+  artistInfoContext,
   backLabel,
   canGoBack,
   handleBack,
@@ -95,6 +99,7 @@ function ActiveShareResult({
           <ShareLayout
             config={activeShareConfig}
             artistName={activeArtistName}
+            artistInfoContext={artistInfoContext}
             onBack={canGoBack ? handleBack : undefined}
             backLabel={canGoBack ? backLabel : undefined}
           />
@@ -170,6 +175,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
   const {
     state,
     active,
+    resolved,
     candidates,
     selectedCandidateId,
     genreBrowseGenres,
@@ -336,8 +342,10 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
     };
   });
 
-  const activeShareConfig = active ? buildShareConfigFromActive(active, t) : null;
-  const activeArtistName = active ? (active.kind === "artist" ? active.name : active.artist) : "";
+  const activeShareView = resolved ? buildShareViewFromResolvedResponse(resolved, t) : null;
+  const activeShareConfig = activeShareView?.config ?? (active ? buildShareConfigFromActive(active, t) : null);
+  const activeArtistName =
+    activeShareView?.artistName ?? (active ? (active.kind === "artist" ? active.name : active.artist) : "");
   const isSharePageView = !!(activeShareConfig && active);
 
   return (
@@ -352,6 +360,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
             <ActiveShareResult
               activeArtistName={activeArtistName}
               activeShareConfig={activeShareConfig}
+              artistInfoContext={activeShareView?.artistInfoContext}
               backLabel={t("genreSearch.backToResults")}
               canGoBack={canGoBack}
               handleBack={handleBack}

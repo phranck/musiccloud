@@ -3,6 +3,7 @@ import type {
   ApiGenreArtistCandidate,
   ApiGenreTile,
   ApiGenreTrackCandidate,
+  UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import type { DisambiguationCandidate } from "./disambiguation";
 import type { PlatformLink } from "./platform";
@@ -84,8 +85,8 @@ export type ActiveResult = SongResult | AlbumResult | ArtistResult;
 export type AppState =
   | { type: "idle" }
   | { type: "loading"; compact: boolean }
-  | { type: "result"; active: ActiveResult }
-  | { type: "clearing"; active: ActiveResult }
+  | { type: "result"; active: ActiveResult; resolved?: UnifiedResolveSuccessResponse }
+  | { type: "clearing"; active: ActiveResult; resolved?: UnifiedResolveSuccessResponse }
   | { type: "error"; message: string }
   | { type: "disambiguation"; candidates: DisambiguationCandidate[] }
   | { type: "disambiguation_loading"; candidates: DisambiguationCandidate[]; selectedId: string }
@@ -100,7 +101,7 @@ export interface ReducerState {
 
 export type AppAction =
   | { type: "SUBMIT" }
-  | { type: "RESOLVE_SUCCESS"; active: ActiveResult }
+  | { type: "RESOLVE_SUCCESS"; active: ActiveResult; resolved?: UnifiedResolveSuccessResponse }
   | { type: "DISAMBIGUATION"; candidates: DisambiguationCandidate[] }
   | { type: "SELECT_CANDIDATE"; selectedId: string }
   | { type: "GENRE_BROWSE"; genres: ApiGenreTile[] }
