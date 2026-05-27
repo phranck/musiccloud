@@ -42,6 +42,24 @@ server {
         proxy_send_timeout 300s;
     }
 
+    # Temporary auth proxy diagnostics: expose upstream timings so client-side probes
+    # can distinguish Nginx/backend connect delays from backend handler latency.
+    location /api/admin/auth/ {
+        proxy_pass http://backend:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        client_max_body_size 10m;
+        proxy_request_buffering off;
+        add_header X-MC-Request-Time $request_time always;
+        add_header X-MC-Upstream-Addr $upstream_addr always;
+        add_header X-MC-Upstream-Status $upstream_status always;
+        add_header X-MC-Upstream-Connect-Time $upstream_connect_time always;
+        add_header X-MC-Upstream-Header-Time $upstream_header_time always;
+        add_header X-MC-Upstream-Response-Time $upstream_response_time always;
+    }
+
     location /api/ {
         proxy_pass http://backend:4000;
         proxy_http_version 1.1;
