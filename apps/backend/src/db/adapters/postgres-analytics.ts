@@ -858,43 +858,76 @@ export async function getWebsiteAnalyticsOverview(
           WHERE day >= ($1::timestamptz AT TIME ZONE 'UTC')::date
           GROUP BY network_cluster_key
         ),
+        candidate_clusters AS (
+          SELECT network_cluster_key, confidence, searches
+          FROM cluster_summaries
+          ORDER BY searches DESC, network_cluster_key ASC
+          LIMIT 32
+        ),
         cluster_events AS (
-          SELECT DISTINCT ON (network_cluster_key)
-            network_cluster_key,
-            occurred_at AS last_seen_at
-          FROM analytics_events
-          WHERE occurred_at >= $1
-            AND is_bot = false
-          ORDER BY network_cluster_key, occurred_at DESC
+          SELECT DISTINCT ON (e.network_cluster_key)
+            e.network_cluster_key,
+            e.occurred_at AS last_seen_at
+          FROM analytics_events e
+          JOIN candidate_clusters cc ON cc.network_cluster_key = e.network_cluster_key
+          WHERE e.occurred_at >= $1
+            AND e.is_bot = false
+          ORDER BY e.network_cluster_key, e.occurred_at DESC
         ),
         cluster_devices AS (
           SELECT
-            network_cluster_key,
-            COUNT(DISTINCT device_key) FILTER (WHERE device_key IS NOT NULL)::int AS devices
-          FROM analytics_events
-          WHERE occurred_at >= $1
-            AND is_bot = false
-          GROUP BY network_cluster_key
-        ),
-        cluster_queries AS (
-          SELECT DISTINCT ON (network_cluster_key)
             e.network_cluster_key,
-            ${WEBSITE_ANALYTICS_SEARCH_DESCRIPTOR_SELECT}
+            COUNT(DISTINCT e.device_key) FILTER (WHERE e.device_key IS NOT NULL)::int AS devices
           FROM analytics_events e
-          ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
+          JOIN candidate_clusters cc ON cc.network_cluster_key = e.network_cluster_key
+          WHERE e.occurred_at >= $1
+            AND e.is_bot = false
+          GROUP BY e.network_cluster_key
+        ),
+        ranked_clusters AS (
+          SELECT
+            cc.network_cluster_key,
+            cc.confidence,
+            cc.searches,
+            COALESCE(cd.devices, 0)::int AS devices,
+            ce.last_seen_at
+          FROM candidate_clusters cc
+          LEFT JOIN cluster_events ce ON ce.network_cluster_key = cc.network_cluster_key
+          LEFT JOIN cluster_devices cd ON cd.network_cluster_key = cc.network_cluster_key
+          ORDER BY cc.searches DESC, COALESCE(cd.devices, 0) DESC, ce.last_seen_at DESC NULLS LAST
+          LIMIT 8
+        ),
+        cluster_latest_searches AS (
+          SELECT DISTINCT ON (e.network_cluster_key)
+            e.network_cluster_key,
+            e.short_id,
+            COALESCE(NULLIF(e.platform, ''), NULLIF(e.event_data->>'provider', ''), NULLIF(e.event_data->>'service', '')) AS platform,
+            jsonb_build_object(
+              'query_type', COALESCE(NULLIF(e.event_data->>'query_type', ''), 'unknown'),
+              'query_normalized', NULLIF(e.event_data->>'query_normalized', '')
+            ) AS event_data
+          FROM analytics_events e
+          JOIN ranked_clusters rc ON rc.network_cluster_key = e.network_cluster_key
           WHERE e.occurred_at >= $1
             AND e.is_bot = false
             AND e.event_type = 'search_submitted'
             AND NULLIF(e.event_data->>'query_normalized', '') IS NOT NULL
           ORDER BY e.network_cluster_key, e.occurred_at DESC
+        ),
+        cluster_queries AS (
+          SELECT
+            e.network_cluster_key,
+            ${WEBSITE_ANALYTICS_SEARCH_DESCRIPTOR_SELECT}
+          FROM cluster_latest_searches e
+          ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
         )
         SELECT
-          cs.network_cluster_key,
-          CONCAT('#', RIGHT(cs.network_cluster_key, 6)) AS cluster,
-          cs.confidence,
-          COALESCE(cd.devices, 0)::int AS devices,
-          cs.searches,
-          ce.last_seen_at,
+          rc.network_cluster_key,
+          CONCAT('#', RIGHT(rc.network_cluster_key, 6)) AS cluster,
+          rc.confidence,
+          rc.devices,
+          rc.searches,
+          rc.last_seen_at,
           cq.query_type AS top_query_type,
           cq.platform AS top_query_platform,
           cq.label AS top_query_label,
@@ -902,12 +935,9 @@ export async function getWebsiteAnalyticsOverview(
           cq.subject_title AS top_query_subject_title,
           cq.subject_artist AS top_query_subject_artist,
           cq.subject_artwork_url AS top_query_subject_artwork_url
-        FROM cluster_summaries cs
-        LEFT JOIN cluster_events ce ON ce.network_cluster_key = cs.network_cluster_key
-        LEFT JOIN cluster_devices cd ON cd.network_cluster_key = cs.network_cluster_key
-        LEFT JOIN cluster_queries cq ON cq.network_cluster_key = cs.network_cluster_key
-        ORDER BY cs.searches DESC, COALESCE(cd.devices, 0) DESC, ce.last_seen_at DESC NULLS LAST
-        LIMIT 8`,
+        FROM ranked_clusters rc
+        LEFT JOIN cluster_queries cq ON cq.network_cluster_key = rc.network_cluster_key
+        ORDER BY rc.searches DESC, rc.devices DESC, rc.last_seen_at DESC NULLS LAST`,
       [since],
     ),
     pool.query(
@@ -997,42 +1027,60 @@ export async function getWebsiteAnalyticsOverview(
       [since, WEBSITE_ANALYTICS_INTERACTION_EVENT_TYPES],
     ),
     pool.query<WebsiteAnalyticsSearchSummaryRow>(
-      `WITH search_events AS (
+      `WITH grouped_searches AS (
         SELECT
-          e.network_cluster_key,
-          ${WEBSITE_ANALYTICS_SEARCH_DESCRIPTOR_SELECT}
-        FROM analytics_events e
-        ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
-        WHERE e.occurred_at >= $1
-          AND e.is_bot = false
-          AND e.event_type = 'search_submitted'
-          AND NULLIF(e.event_data->>'query_normalized', '') IS NOT NULL
+          COALESCE(NULLIF(event_data->>'query_type', ''), 'unknown') AS query_type,
+          COALESCE(NULLIF(platform, ''), NULLIF(event_data->>'provider', ''), NULLIF(event_data->>'service', '')) AS platform,
+          NULLIF(event_data->>'query_normalized', '') AS query_normalized,
+          NULLIF(short_id, '') AS short_id,
+          COUNT(*)::int AS searches,
+          COUNT(DISTINCT network_cluster_key)::int AS clusters
+        FROM analytics_events
+        WHERE occurred_at >= $1
+          AND is_bot = false
+          AND event_type = 'search_submitted'
+          AND NULLIF(event_data->>'query_normalized', '') IS NOT NULL
+        GROUP BY
+          COALESCE(NULLIF(event_data->>'query_type', ''), 'unknown'),
+          COALESCE(NULLIF(platform, ''), NULLIF(event_data->>'provider', ''), NULLIF(event_data->>'service', '')),
+          NULLIF(event_data->>'query_normalized', ''),
+          NULLIF(short_id, '')
+        ORDER BY searches DESC, clusters DESC, query_normalized ASC NULLS LAST
+        LIMIT 10
+       ),
+       search_events AS (
+        SELECT
+          query_type,
+          platform,
+          short_id,
+          jsonb_build_object('query_type', query_type, 'query_normalized', query_normalized) AS event_data,
+          searches,
+          clusters
+        FROM grouped_searches
        )
        SELECT
-        query_type,
-        platform,
-        label,
-        subject_type,
-        subject_title,
-        subject_artist,
-        subject_artwork_url,
-        COUNT(*)::int AS searches,
-        COUNT(DISTINCT network_cluster_key)::int AS clusters
-       FROM search_events
-       GROUP BY query_type, platform, label, subject_type, subject_title, subject_artist, subject_artwork_url
-       ORDER BY searches DESC, clusters DESC, label ASC
-       LIMIT 10`,
+        ${WEBSITE_ANALYTICS_SEARCH_DESCRIPTOR_SELECT},
+        e.searches,
+        e.clusters
+       FROM search_events e
+       ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
+       ORDER BY e.searches DESC, e.clusters DESC, label ASC`,
       [since],
     ),
     pool.query<WebsiteAnalyticsPathEventRow>(
-      `SELECT
+      `WITH recent_events AS (
+        SELECT *
+        FROM analytics_events
+        WHERE occurred_at >= $1
+          AND is_bot = false
+        ORDER BY occurred_at DESC
+        LIMIT 18
+       )
+       SELECT
         ${WEBSITE_ANALYTICS_PATH_EVENT_SELECT}
-       FROM analytics_events e
+       FROM recent_events e
        ${WEBSITE_ANALYTICS_SUBJECT_JOIN}
-       WHERE e.occurred_at >= $1
-         AND e.is_bot = false
-       ORDER BY e.occurred_at DESC
-       LIMIT 18`,
+       ORDER BY e.occurred_at DESC`,
       [since],
     ),
   ]);
