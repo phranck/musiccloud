@@ -99,7 +99,11 @@ zerops:
         - port: 3000
           httpSupport: true
       envVariables:
-        HOST: 0.0.0.0
+        # Keep Node-based services dual-stack. Zerops public/internal routing can
+        # use IPv6 upstreams, so binding only to 0.0.0.0 can create intermittent
+        # ingress failures before IPv4 fallback.
+        # See architecture/zerops-networking.md before changing this.
+        HOST: "::"
         PORT: "3000"
         BACKEND_URL: http://backend:4000
         # Set in Zerops Secrets:
