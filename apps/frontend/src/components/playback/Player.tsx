@@ -150,13 +150,13 @@ function renderSpectrumSections(
         ? sectionFor(" ".repeat(leftFillerCells), "ghost", leftFillerCells, "spectrum-left-fill")
         : null,
       gapCells > 0 ? sectionFor(" ".repeat(gapCells), "ghost", gapCells, "spectrum-gap") : null,
-      sectionFor("R", "normal", 1, "spectrum-right-label"),
-      channelCells > 0
-        ? sectionFor(renderBandContent(bands.right, channelCells), "bright", channelCells, "spectrum-right")
-        : null,
       rightFillerCells > 0
         ? sectionFor(" ".repeat(rightFillerCells), "ghost", rightFillerCells, "spectrum-right-fill")
         : null,
+      channelCells > 0
+        ? sectionFor(renderBandContent(bands.right, channelCells), "bright", channelCells, "spectrum-right")
+        : null,
+      sectionFor("R", "normal", 1, "spectrum-right-label"),
     ]);
   }
 

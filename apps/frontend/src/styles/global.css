@@ -70,7 +70,8 @@
   --animate-slide-out-down: slide-out-down 0.4s cubic-bezier(0.42, 0, 1, 1) both;
   --animate-fade-in: fade-in 0.25s cubic-bezier(0, 0, 0.2, 1) both;
   --animate-spin: spin 1s linear infinite;
-  --animate-vinyl-spin: spin 0.7s linear infinite;
+  /* Approx. half of a normal 1x audio CD midpoint: 167 RPM = 360ms per revolution. */
+  --animate-vinyl-spin: spin 360ms linear infinite;
   /* cosmetic glow and shimmer animations removed to reduce paint work */
 }
 
