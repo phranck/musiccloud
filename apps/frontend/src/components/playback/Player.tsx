@@ -252,10 +252,17 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
     !children && spectrumBands !== null && spectrumBands !== undefined && isStereoSpectrumBands(spectrumBands);
   const analyzerSections = renderSpectrumSections(spectrumBands ?? [], displayCells, timeText);
   const safeProgressRatio = Math.max(0, Math.min(1, progressRatio ?? 0));
+  const rowWidthPx = PLAYER_VFD_FIRST_CELL_WIDTH_PX + Math.max(0, displayCells - 1) * PLAYER_VFD_CELL_PITCH_PX;
+  const progressRightPx = (Array.from(timeText).length + 2) * PLAYER_VFD_CELL_PITCH_PX;
+  const progressTrackWidthPx = Math.max(0, rowWidthPx - progressRightPx);
+  const progressWidthPx = Math.min(
+    progressTrackWidthPx,
+    Math.floor((progressTrackWidthPx * safeProgressRatio) / 2) * 2,
+  );
   const progressStyle = {
-    "--mc-player-progress": safeProgressRatio,
+    "--mc-player-progress-width": `${progressWidthPx}px`,
     "--mc-player-progress-color": isDisabled ? "var(--mc-vfd-dim-color)" : "var(--mc-vfd-normal-color)",
-    "--mc-player-progress-right": `${(Array.from(timeText).length + 2) * PLAYER_VFD_CELL_PITCH_PX}px`,
+    "--mc-player-progress-right": `${progressRightPx}px`,
   } as CSSProperties;
   useLayoutEffect(() => {
     const root = progressRef.current;

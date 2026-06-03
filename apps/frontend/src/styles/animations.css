@@ -199,15 +199,17 @@
 
 .mc-player-progress-vfd .mc-vfd::before {
   inline-size: var(--mc-vfd-row-width);
-  background: var(--mc-vfd-ghost-color);
+  background: repeating-linear-gradient(to right, var(--mc-vfd-ghost-color) 0 1px, transparent 1px 2px);
 }
 
 .mc-player-progress-vfd .mc-vfd::after {
-  inline-size: calc(var(--mc-vfd-row-width) - var(--mc-player-progress-right, 0px));
-  background: var(--mc-player-progress-color, var(--mc-vfd-normal-color));
+  inline-size: var(--mc-player-progress-width, 0px);
+  background: repeating-linear-gradient(
+    to right,
+    var(--mc-player-progress-color, var(--mc-vfd-normal-color)) 0 1px,
+    transparent 1px 2px
+  );
   opacity: 0.95;
-  transform: scaleX(var(--mc-player-progress, 0));
-  transform-origin: left center;
 }
 
 /* Card entrance - zoom from behind with fade */
