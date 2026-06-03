@@ -161,6 +161,8 @@ interface NormalizedVfdLine {
 interface VfdCanvasPixelColumn {
   mask: number;
   brightness: VfdBrightness;
+  secondaryMask?: number;
+  secondaryBrightness?: VfdBrightness;
 }
 
 interface VfdMarqueeRuntimeState {
@@ -226,6 +228,17 @@ export const VFD_GLYPHS = {
   spectrumLevel6: "\uE019",
   spectrumLevel7: "\uE01A",
 } as const;
+
+const SPECTRUM_GLYPH_LEVELS: Record<string, number> = {
+  [VFD_GLYPHS.spectrumLevel0]: 0,
+  [VFD_GLYPHS.spectrumLevel1]: 1,
+  [VFD_GLYPHS.spectrumLevel2]: 2,
+  [VFD_GLYPHS.spectrumLevel3]: 3,
+  [VFD_GLYPHS.spectrumLevel4]: 4,
+  [VFD_GLYPHS.spectrumLevel5]: 5,
+  [VFD_GLYPHS.spectrumLevel6]: 6,
+  [VFD_GLYPHS.spectrumLevel7]: 7,
+};
 
 const BLANK_GLYPH = ["00000", "00000", "00000", "00000", "00000", "00000", "00000"] as const;
 const FULL_GLYPH = ["11111", "11111", "11111", "11111", "11111", "11111", "11111"] as const;
@@ -643,10 +656,20 @@ function blankCanvasColumn(brightness: VfdBrightness): VfdCanvasPixelColumn {
 
 function glyphCanvasPixelColumns(glyph: string, brightness: VfdBrightness): VfdCanvasPixelColumn[] {
   const pattern = glyphPatternFor(glyph);
-  return Array.from({ length: VFD_GLYPH_COLUMNS }, (_, column) => ({
-    mask: patternColumnMask(pattern, column),
-    brightness,
-  }));
+  const spectrumLevel = SPECTRUM_GLYPH_LEVELS[glyph];
+  const highlightSpectrumCap = brightness === "bright" && spectrumLevel !== undefined && spectrumLevel > 0;
+  const capRowMask = highlightSpectrumCap ? 1 << (VFD_GLYPH_ROWS - spectrumLevel) : 0;
+
+  return Array.from({ length: VFD_GLYPH_COLUMNS }, (_, column) => {
+    const mask = patternColumnMask(pattern, column);
+    if (!highlightSpectrumCap) return { mask, brightness };
+    return {
+      mask: mask & capRowMask,
+      brightness,
+      secondaryMask: mask & ~capRowMask,
+      secondaryBrightness: "dim",
+    };
+  });
 }
 
 function glyphCellsToCanvasPixelColumns(cells: string[], brightness: VfdBrightness): VfdCanvasPixelColumn[] {
@@ -826,18 +849,25 @@ function drawCanvasPixelColumns(
 ) {
   let activeBrightness: VfdBrightness | null = null;
 
-  columns.forEach((column, columnIndex) => {
-    if (column.mask === 0) return;
-    if (activeBrightness !== column.brightness) {
-      activeBrightness = column.brightness;
-      ctx.fillStyle = colors[column.brightness];
+  const drawColumnMask = (columnIndex: number, mask: number, brightness: VfdBrightness) => {
+    if (mask === 0) return;
+    if (activeBrightness !== brightness) {
+      activeBrightness = brightness;
+      ctx.fillStyle = colors[brightness];
     }
 
     for (let row = 0; row < VFD_GLYPH_ROWS; row += 1) {
-      if (!((column.mask >> row) & 1)) continue;
+      if (!((mask >> row) & 1)) continue;
       const y = rowTop + (row + matrixRowOffset) * VFD_DOT_PITCH;
       ctx.fillRect(columnIndex * VFD_DOT_PITCH, y, VFD_PIXEL_SIZE, VFD_PIXEL_SIZE);
     }
+  };
+
+  columns.forEach((column, columnIndex) => {
+    if (column.secondaryMask !== undefined && column.secondaryBrightness) {
+      drawColumnMask(columnIndex, column.secondaryMask, column.secondaryBrightness);
+    }
+    drawColumnMask(columnIndex, column.mask, column.brightness);
   });
 }
 

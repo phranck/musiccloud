@@ -100,10 +100,10 @@ function resolveAudioProgressRatio(audio: HTMLAudioElement): number {
 }
 
 const SPECTRUM_CHANNEL_BAND_COUNT = 12;
-const SPECTRUM_LEVEL_COUNT = 7;
 const SPECTRUM_UPDATE_MS = 50;
 const SPECTRUM_FADE_FACTOR = 0.68;
 const SPECTRUM_FADE_MIN_LEVEL = 0.03;
+const SPECTRUM_LOW_BAND_COUNT = 4;
 const PLAYER_PROGRESS_PIXEL_STEPS = 360;
 const PLAYER_PROGRESS_REWIND_MS = 420;
 
@@ -177,16 +177,16 @@ function resolveSpectrumBands(frequencyData: Uint8Array<ArrayBuffer>, bandCount:
     }
 
     const position = bandCount <= 1 ? 1 : band / (bandCount - 1);
-    const lowFrequencyDamping = 0.48 + position * 0.72;
-    const normalized = Math.max(0, total / Math.max(1, count) / 255 - 0.035) / 0.965;
-    return normalized ** 1.18 * lowFrequencyDamping;
+    const lowBandRatio = Math.max(0, 1 - band / Math.max(1, SPECTRUM_LOW_BAND_COUNT));
+    const lowFrequencyDamping = 0.4 + position * 0.82;
+    const dynamicCurve = 1.12 + lowBandRatio * 0.38;
+    const normalized = Math.max(0, total / Math.max(1, count) / 255 - 0.04) / 0.96;
+    return normalized ** dynamicCurve * lowFrequencyDamping;
   });
 
   const framePeak = Math.max(...rawBands, 0);
-  const frameGain = framePeak > 0 ? Math.min(1.35, 0.82 / Math.max(framePeak, 0.38)) : 1;
-  return rawBands.map(
-    (band) => Math.round(Math.min(1, band * frameGain) * SPECTRUM_LEVEL_COUNT) / SPECTRUM_LEVEL_COUNT,
-  );
+  const frameGain = framePeak > 0 ? Math.min(1.45, 0.82 / Math.max(framePeak, 0.42)) : 1;
+  return rawBands.map((band) => Math.min(1, band * frameGain));
 }
 
 export function AudioPreviewPlayer({
@@ -415,7 +415,7 @@ export function AudioPreviewPlayer({
         const rightAnalyser = audioContext.createAnalyser();
         for (const analyser of [leftAnalyser, rightAnalyser]) {
           analyser.fftSize = 128;
-          analyser.smoothingTimeConstant = 0.74;
+          analyser.smoothingTimeConstant = 0.66;
         }
 
         const source = audioContext.createMediaElementSource(audio);
