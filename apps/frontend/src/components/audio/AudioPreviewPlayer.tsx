@@ -104,6 +104,7 @@ const SPECTRUM_UPDATE_MS = 50;
 const SPECTRUM_FADE_FACTOR = 0.68;
 const SPECTRUM_FADE_MIN_LEVEL = 0.03;
 const SPECTRUM_LOW_BAND_COUNT = 4;
+const SPECTRUM_RECOVERY_CHECK_MS = 700;
 const PLAYER_PROGRESS_PIXEL_STEPS = 360;
 const PLAYER_PROGRESS_REWIND_MS = 420;
 
@@ -212,6 +213,7 @@ export function AudioPreviewPlayer({
   const spectrumDataRef = useRef<StereoSpectrumData | null>(null);
   const spectrumLastUpdateRef = useRef(0);
   const spectrumBandsRef = useRef<StereoSpectrumBands | null>(null);
+  const spectrumRecoveryInFlightRef = useRef(false);
   const progressFrameRef = useRef<number | null>(null);
   const progressRewindFrameRef = useRef<number | null>(null);
   const progressRatioRef = useRef(0);
@@ -402,10 +404,18 @@ export function AudioPreviewPlayer({
       if (audioContext.state !== "running") return false;
 
       audioContext.onstatechange = () => {
-        if (audioContext.state === "running") return;
+        if (audioContext.state === "running") {
+          if (!audio.paused && !audio.ended) startSpectrumLoop();
+          return;
+        }
         stopSpectrumLoop({ clearBands: false });
-        if (!audio.paused && audioContext.state === "suspended") {
-          void audioContext.resume().catch(() => setSpectrumBands(null));
+        if (!audio.paused && !audio.ended && audioContext.state === "suspended") {
+          void audioContext
+            .resume()
+            .then(() => {
+              if (audioContext.state === "running" && !audio.paused && !audio.ended) startSpectrumLoop();
+            })
+            .catch(() => setSpectrumBands(null));
         }
       };
 
@@ -445,8 +455,36 @@ export function AudioPreviewPlayer({
         return false;
       }
     },
-    [stopSpectrumLoop],
+    [startSpectrumLoop, stopSpectrumLoop],
   );
+
+  useEffect(() => {
+    if (state.phase !== "playing") return;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const recoverSpectrum = () => {
+      if (spectrumRecoveryInFlightRef.current || audio.paused || audio.ended) return;
+      const audioContext = audioContextRef.current;
+      const needsRecovery =
+        !analysersRef.current || audioContext?.state !== "running" || spectrumFrameRef.current === null;
+      if (!needsRecovery) return;
+
+      spectrumRecoveryInFlightRef.current = true;
+      void ensureSpectrumAnalyzer(audio)
+        .then((isAnalyzerReady) => {
+          if (isAnalyzerReady && !audio.paused && !audio.ended) startSpectrumLoop();
+        })
+        .catch(() => setSpectrumBands(null))
+        .finally(() => {
+          spectrumRecoveryInFlightRef.current = false;
+        });
+    };
+
+    recoverSpectrum();
+    const recoveryTimer = window.setInterval(recoverSpectrum, SPECTRUM_RECOVERY_CHECK_MS);
+    return () => window.clearInterval(recoveryTimer);
+  }, [ensureSpectrumAnalyzer, startSpectrumLoop, state.phase]);
 
   // Bind the <audio> element when a URL becomes available. The only
   // dependency is the URL itself — playback state transitions (play/pause)
