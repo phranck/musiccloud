@@ -89,14 +89,10 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function quantizeProgressRatio(ratio: number): number {
-  const safeRatio = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
-  return Math.round(safeRatio * PLAYER_PROGRESS_PIXEL_STEPS) / PLAYER_PROGRESS_PIXEL_STEPS;
-}
-
 function resolveAudioProgressRatio(audio: HTMLAudioElement): number {
   const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
-  return quantizeProgressRatio(audio.currentTime / duration);
+  const ratio = audio.currentTime / duration;
+  return Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
 }
 
 const SPECTRUM_CHANNEL_BAND_COUNT = 12;
@@ -105,7 +101,6 @@ const SPECTRUM_FADE_FACTOR = 0.68;
 const SPECTRUM_FADE_MIN_LEVEL = 0.03;
 const SPECTRUM_LOW_BAND_COUNT = 4;
 const SPECTRUM_RECOVERY_CHECK_MS = 700;
-const PLAYER_PROGRESS_PIXEL_STEPS = 360;
 const PLAYER_PROGRESS_REWIND_MS = 420;
 
 type BrowserAudioContextConstructor = typeof AudioContext;
@@ -254,8 +249,8 @@ export function AudioPreviewPlayer({
     setSpectrumBands(null);
   }, []);
 
-  const setQuantizedProgressRatio = useCallback((ratio: number) => {
-    const nextRatio = quantizeProgressRatio(ratio);
+  const setProgressRatioValue = useCallback((ratio: number) => {
+    const nextRatio = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
     if (progressRatioRef.current === nextRatio) return;
     progressRatioRef.current = nextRatio;
     setProgressRatio(nextRatio);
@@ -270,16 +265,16 @@ export function AudioPreviewPlayer({
     (audio?: HTMLAudioElement | null) => {
       if (progressFrameRef.current !== null) cancelAnimationFrame(progressFrameRef.current);
       progressFrameRef.current = null;
-      if (audio) setQuantizedProgressRatio(resolveAudioProgressRatio(audio));
+      if (audio) setProgressRatioValue(resolveAudioProgressRatio(audio));
     },
-    [setQuantizedProgressRatio],
+    [setProgressRatioValue],
   );
 
   const startProgressRewind = useCallback(() => {
     stopProgressRewind();
     const startRatio = progressRatioRef.current;
     if (startRatio <= 0) {
-      setQuantizedProgressRatio(0);
+      setProgressRatioValue(0);
       return;
     }
 
@@ -287,28 +282,28 @@ export function AudioPreviewPlayer({
     const tick = (now: number) => {
       if (startedAt === null) startedAt = now;
       const elapsedRatio = Math.min(1, (now - startedAt) / PLAYER_PROGRESS_REWIND_MS);
-      setQuantizedProgressRatio(startRatio * (1 - elapsedRatio));
+      setProgressRatioValue(startRatio * (1 - elapsedRatio));
       if (elapsedRatio < 1) {
         progressRewindFrameRef.current = requestAnimationFrame(tick);
         return;
       }
       progressRewindFrameRef.current = null;
-      setQuantizedProgressRatio(0);
+      setProgressRatioValue(0);
     };
 
     progressRewindFrameRef.current = requestAnimationFrame(tick);
-  }, [setQuantizedProgressRatio, stopProgressRewind]);
+  }, [setProgressRatioValue, stopProgressRewind]);
 
   const startProgressLoop = useCallback(
     (audio: HTMLAudioElement) => {
       stopProgressLoop();
       const tick = () => {
-        setQuantizedProgressRatio(resolveAudioProgressRatio(audio));
+        setProgressRatioValue(resolveAudioProgressRatio(audio));
         if (!audio.paused && !audio.ended) progressFrameRef.current = requestAnimationFrame(tick);
       };
       progressFrameRef.current = requestAnimationFrame(tick);
     },
-    [setQuantizedProgressRatio, stopProgressLoop],
+    [setProgressRatioValue, stopProgressLoop],
   );
 
   const startSpectrumFadeOut = useCallback(() => {
@@ -503,16 +498,16 @@ export function AudioPreviewPlayer({
     const handleLoadedMetadata = () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
       dispatch({ type: "METADATA_LOADED", duration: dur });
-      setQuantizedProgressRatio(resolveAudioProgressRatio(audio));
+      setProgressRatioValue(resolveAudioProgressRatio(audio));
     };
     const handleTimeUpdate = () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
       dispatch({ type: "TIME_UPDATE", currentTime: audio.currentTime, duration: dur });
-      setQuantizedProgressRatio(resolveAudioProgressRatio(audio));
+      setProgressRatioValue(resolveAudioProgressRatio(audio));
     };
     const handleEnded = () => {
       stopProgressLoop();
-      setQuantizedProgressRatio(1);
+      setProgressRatioValue(1);
       startProgressRewind();
       startSpectrumFadeOut();
       trackPlayerEvent("player_completed", shortId ?? refreshShortId);
@@ -546,7 +541,7 @@ export function AudioPreviewPlayer({
   }, [
     effectiveUrl,
     refreshShortId,
-    setQuantizedProgressRatio,
+    setProgressRatioValue,
     shortId,
     startProgressRewind,
     startSpectrumFadeOut,
