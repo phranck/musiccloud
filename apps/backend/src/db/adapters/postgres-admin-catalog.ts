@@ -695,16 +695,18 @@ export async function deleteArtists(pool: Pool, ids: string[]): Promise<void> {
 // CACHE INVALIDATION
 // ============================================================================
 //
-// Resolvers treat a row as fresh while (now - updated_at) < CACHE_TTL_MS
-// (see lib/config.ts, tryCache / tryAlbumCache / tryArtistCache). Rewinding
-// `updated_at` to the Unix epoch therefore guarantees the row is considered
-// expired and the next resolve re-fetches from the source services. The
-// share's short URL, user-facing links, and any cross-references stay intact
-// because we don't touch short_urls / service_links.
+// Track and album resolver cache hits are permanently fresh after the
+// static/dynamic cache split; preview freshness lives in `track_previews` /
+// `album_previews`. Rewinding `updated_at` on tracks/albums is therefore an
+// admin catalogue marker only, not a resolver freshness trigger. Artist cache
+// still uses CACHE_TTL_MS through `tryArtistCache`.
 
 /**
- * Forces the next resolve for a track to re-fetch from upstream by
- * rewinding `tracks.updated_at` to the Unix epoch.
+ * Marks a track row as administratively stale by rewinding
+ * `tracks.updated_at` to the Unix epoch.
+ *
+ * Track resolves no longer use this timestamp as a freshness gate; use this
+ * only for admin/catalog state, not to force upstream re-resolution.
  *
  * @param pool - Postgres connection pool.
  * @param shortId - The public short URL id that identifies the track.
@@ -725,8 +727,11 @@ export async function invalidateTrackCache(pool: Pool, shortId: string): Promise
 }
 
 /**
- * Forces the next resolve for an album to re-fetch from upstream by
- * rewinding `albums.updated_at` to the Unix epoch.
+ * Marks an album row as administratively stale by rewinding
+ * `albums.updated_at` to the Unix epoch.
+ *
+ * Album resolves no longer use this timestamp as a freshness gate; use this
+ * only for admin/catalog state, not to force upstream re-resolution.
  *
  * @param pool - Postgres connection pool.
  * @param shortId - The public short URL id that identifies the album.
@@ -768,7 +773,11 @@ export async function invalidateArtistCache(pool: Pool, shortId: string): Promis
 
 /**
  * Rewinds `updated_at` on every track, album and artist row in one
- * transaction, forcing the next resolve to re-fetch each.
+ * transaction.
+ *
+ * Only artist resolves still use the timestamp as a TTL input. Track and album
+ * rows are marked for admin/catalog purposes; their resolver freshness is not
+ * affected.
  *
  * @param pool - Postgres connection pool.
  * @returns Per-domain row counts that were touched.

@@ -50,7 +50,7 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
           <p className="text-sm text-text-secondary">
             {profile.followers != null && (
               <>
-                {formatCount(profile.followers)} {t("artist.spotifyFollowers")}
+                {formatCount(profile.followers)} {t("artist.fanCount")}
               </>
             )}
             {profile.scrobbles != null && ` \u00B7 ${formatCount(profile.scrobbles)} ${t("artist.lastfmPlays")}`}

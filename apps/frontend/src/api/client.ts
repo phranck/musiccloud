@@ -216,7 +216,7 @@ export async function fetchPublicContentPage(
 }
 
 /**
- * Fetch artist-info aggregate (Spotify followers / Last.fm plays / similar
+ * Fetch artist-info aggregate (multi-source fan count / Last.fm plays / similar
  * artists). Returns the raw `Response` so the Astro proxy at
  * `pages/api/artist-info.ts` can stream the JSON body straight through
  * with the upstream status. The backend route is rate-limited by the

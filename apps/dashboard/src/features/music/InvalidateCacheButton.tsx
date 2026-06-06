@@ -22,8 +22,9 @@ interface InvalidateCacheButtonProps {
  * Per-row "refresh cache" action used in TracksPage / AlbumsPage / ArtistsPage.
  *
  * Posts to `/admin/{kind}/:shortId/invalidate-cache` which marks the underlying
- * row as stale (`updated_at = epoch`). The share URL keeps working — only the
- * cached resolved metadata is forced to re-fetch on the next access.
+ * row as administratively stale (`updated_at = epoch`). Track and album
+ * resolver hits no longer use that timestamp as a freshness gate; artist
+ * profiles still use it as a TTL input.
  *
  * Renders a small icon button. Briefly shows a checkmark on success.
  */

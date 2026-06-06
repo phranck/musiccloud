@@ -31,6 +31,8 @@ Manifest default: enabled. Runtime enablement is controlled by
 
 Spotify preview URLs can expire and should not be preferred over stable Deezer
 previews. Keep token handling centralized through the adapter helper.
+The February 2026 mitigation and live verification snippets are documented in
+`apps/backend/docs/spotify-runbook.md`.
 
 ## Troubleshooting
 

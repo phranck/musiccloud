@@ -144,9 +144,9 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return reply.send(result);
   });
 
-  // Per-share cache invalidation. Marks the underlying row as stale so the
-  // next resolve of its URL re-fetches. The short URL itself stays intact,
-  // so bookmarks and share links keep working through the re-fetch.
+  // Per-share cache invalidation. Tracks/albums are marked stale for the
+  // admin catalog only; resolver freshness now lives in static rows plus
+  // preview tables. Artist rows still use updated_at as a TTL input.
   app.post(ROUTE_TEMPLATES.admin.tracks.invalidateCache, async (request, reply) => {
     const { shortId } = request.params as { shortId: string };
     try {
