@@ -48,6 +48,9 @@ const API_BASE = "https://musicbrainz.org/ws/2";
 const COVER_ART_BASE = "https://coverartarchive.org/release";
 const TIMEOUT_MS = 10_000;
 const SEARCH_LIMIT = 10;
+const MAX_503_RETRIES = 1;
+const DEFAULT_503_RETRY_AFTER_MS = 1100;
+const MAX_503_RETRY_AFTER_MS = 5000;
 
 const MBID_REGEX_PART = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
@@ -66,13 +69,55 @@ function userAgent(): string {
   return `musiccloud/1.0 ( ${contact} )`;
 }
 
+function parseRetryAfterMs(value: string | null): number {
+  if (!value) return DEFAULT_503_RETRY_AFTER_MS;
+
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(seconds * 1000, MAX_503_RETRY_AFTER_MS);
+  }
+
+  const dateMs = Date.parse(value);
+  if (Number.isFinite(dateMs)) {
+    return Math.min(Math.max(0, dateMs - Date.now()), MAX_503_RETRY_AFTER_MS);
+  }
+
+  return DEFAULT_503_RETRY_AFTER_MS;
+}
+
+async function sleep(ms: number): Promise<void> {
+  if (ms <= 0) return;
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function mbFetch(endpoint: string): Promise<Response> {
-  await acquireMusicBrainzSlot();
-  return fetchWithTimeout(
-    `${API_BASE}${endpoint}`,
-    { headers: { "User-Agent": userAgent(), Accept: "application/json" } },
-    TIMEOUT_MS,
-  );
+  const url = `${API_BASE}${endpoint}`;
+
+  for (let attempt = 0; ; attempt += 1) {
+    await acquireMusicBrainzSlot();
+    const response = await fetchWithTimeout(
+      url,
+      { headers: { "User-Agent": userAgent(), Accept: "application/json" } },
+      TIMEOUT_MS,
+    );
+
+    if (response.status !== 503 || attempt >= MAX_503_RETRIES) {
+      return response;
+    }
+
+    const retryAfterMs = parseRetryAfterMs(response.headers.get("Retry-After"));
+    log.debug("MusicBrainz", "503 response, retrying:", endpoint, retryAfterMs);
+    await sleep(retryAfterMs);
+  }
+}
+
+async function parseMusicBrainzJson<T>(response: Response, context: string): Promise<T | null> {
+  try {
+    return (await response.json()) as T;
+  } catch (error) {
+    log.debug("MusicBrainz", "Malformed JSON response:", context, error instanceof Error ? error.message : error);
+    return null;
+  }
 }
 
 function escapeLucene(value: string): string {
@@ -129,6 +174,14 @@ interface MbReleaseDetail {
   "label-info"?: { label?: { name: string }; "catalog-number"?: string }[];
   media?: { tracks?: unknown[] }[];
   score?: number;
+}
+
+interface MbReleaseGroupDetail {
+  id: string;
+  title: string;
+  "first-release-date"?: string;
+  "artist-credit"?: MbArtistCredit[];
+  releases?: MbReleaseRef[];
 }
 
 interface MbReleaseSearchResponse {
@@ -205,6 +258,23 @@ function mapRelease(release: MbReleaseDetail): NormalizedAlbum {
   };
 }
 
+function mapReleaseGroup(releaseGroup: MbReleaseGroupDetail): NormalizedAlbum {
+  const release = releaseGroup.releases?.[0];
+  const releaseId = release?.id ?? releaseGroup.id;
+  return {
+    sourceService: "musicbrainz",
+    sourceId: releaseId,
+    title: release?.title ?? releaseGroup.title,
+    artists: (releaseGroup["artist-credit"] ?? []).map((c) => c.name),
+    releaseDate: release?.date ?? releaseGroup["first-release-date"],
+    artworkUrl: `${COVER_ART_BASE}/${releaseId}/front-500.jpg`,
+    mbid: releaseId,
+    webUrl: release
+      ? `https://musicbrainz.org/release/${releaseId}`
+      : `https://musicbrainz.org/release-group/${releaseGroup.id}`,
+  };
+}
+
 function mapArtist(artist: MbArtist): NormalizedArtist {
   return {
     sourceService: "musicbrainz",
@@ -256,7 +326,10 @@ export const musicbrainzAdapter = {
       throw serviceHttpError(SERVICE.MUSICBRAINZ, response.status, RESOURCE_KIND.TRACK, trackId);
     }
 
-    const data = (await response.json()) as MbRecording;
+    const data = await parseMusicBrainzJson<MbRecording>(response, `recording/${trackId}`);
+    if (!data) {
+      throw serviceHttpError(SERVICE.MUSICBRAINZ, 502, RESOURCE_KIND.TRACK, trackId);
+    }
     return mapRecording(data);
   },
 
@@ -268,7 +341,8 @@ export const musicbrainzAdapter = {
       return null;
     }
 
-    const data = (await response.json()) as MbIsrcResponse;
+    const data = await parseMusicBrainzJson<MbIsrcResponse>(response, `isrc/${isrc}`);
+    if (!data) return null;
     const recording = data.recordings?.[0];
     if (!recording) return null;
 
@@ -306,7 +380,13 @@ export const musicbrainzAdapter = {
       };
     }
 
-    const data = (await response.json()) as MbRecordingSearchResponse;
+    const data = await parseMusicBrainzJson<MbRecordingSearchResponse>(response, "recording search");
+    if (!data) {
+      return {
+        bestMatch: { found: false, confidence: 0, matchMethod: "search" },
+        candidates: [],
+      };
+    }
     const recordings = data.recordings ?? [];
 
     if (recordings.length === 0) {
@@ -349,13 +429,29 @@ export const musicbrainzAdapter = {
     const response = await mbFetch(`/release/${encodeURIComponent(albumId)}?inc=artists+labels+recordings&fmt=json`);
 
     if (response.status === 404) {
+      const releaseGroupResponse = await mbFetch(
+        `/release-group/${encodeURIComponent(albumId)}?inc=artists+releases&fmt=json`,
+      );
+      if (releaseGroupResponse.ok) {
+        const releaseGroup = await parseMusicBrainzJson<MbReleaseGroupDetail>(
+          releaseGroupResponse,
+          `release-group/${albumId}`,
+        );
+        if (releaseGroup) return mapReleaseGroup(releaseGroup);
+      }
+      if (releaseGroupResponse.status !== 404 && !releaseGroupResponse.ok) {
+        throw serviceHttpError(SERVICE.MUSICBRAINZ, releaseGroupResponse.status, RESOURCE_KIND.ALBUM, albumId);
+      }
       throw serviceNotFoundError(SERVICE.MUSICBRAINZ, RESOURCE_KIND.ALBUM, albumId);
     }
     if (!response.ok) {
       throw serviceHttpError(SERVICE.MUSICBRAINZ, response.status, RESOURCE_KIND.ALBUM, albumId);
     }
 
-    const data = (await response.json()) as MbReleaseDetail;
+    const data = await parseMusicBrainzJson<MbReleaseDetail>(response, `release/${albumId}`);
+    if (!data) {
+      throw serviceHttpError(SERVICE.MUSICBRAINZ, 502, RESOURCE_KIND.ALBUM, albumId);
+    }
     return mapRelease(data);
   },
 
@@ -368,7 +464,8 @@ export const musicbrainzAdapter = {
       return null;
     }
 
-    const data = (await response.json()) as MbReleaseSearchResponse;
+    const data = await parseMusicBrainzJson<MbReleaseSearchResponse>(response, `release barcode/${upc}`);
+    if (!data) return null;
     const release = data.releases?.[0];
     if (!release) return null;
 
@@ -391,7 +488,8 @@ export const musicbrainzAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    const data = (await response.json()) as MbReleaseSearchResponse;
+    const data = await parseMusicBrainzJson<MbReleaseSearchResponse>(response, "release search");
+    if (!data) return { found: false, confidence: 0, matchMethod: "search" };
     const release = data.releases?.[0];
     if (!release) {
       return { found: false, confidence: 0, matchMethod: "search" };
@@ -426,7 +524,10 @@ export const musicbrainzAdapter = {
       throw serviceHttpError(SERVICE.MUSICBRAINZ, response.status, RESOURCE_KIND.ARTIST, artistId);
     }
 
-    const data = (await response.json()) as MbArtist;
+    const data = await parseMusicBrainzJson<MbArtist>(response, `artist/${artistId}`);
+    if (!data) {
+      throw serviceHttpError(SERVICE.MUSICBRAINZ, 502, RESOURCE_KIND.ARTIST, artistId);
+    }
     return mapArtist(data);
   },
 
@@ -439,7 +540,8 @@ export const musicbrainzAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    const data = (await response.json()) as MbArtistSearchResponse;
+    const data = await parseMusicBrainzJson<MbArtistSearchResponse>(response, "artist search");
+    if (!data) return { found: false, confidence: 0, matchMethod: "search" };
     const artist = data.artists?.[0];
     if (!artist) {
       return { found: false, confidence: 0, matchMethod: "search" };

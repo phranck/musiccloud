@@ -1,5 +1,7 @@
+import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { musicbrainzAdapter } from "../adapter";
+import { musicbrainzPlugin } from "../index";
 import { _resetMusicBrainzGate } from "../rate-limit";
 
 const fetchMock = vi.fn();
@@ -15,6 +17,26 @@ function jsonResponse(body: unknown, status = 200): Response {
   } as unknown as Response;
 }
 
+function responseWithHeaders(body: unknown, status: number, headers: Record<string, string>): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(body),
+    text: () => Promise.resolve(typeof body === "string" ? body : JSON.stringify(body)),
+    headers: new Headers(headers),
+  } as unknown as Response;
+}
+
+function malformedJsonResponse(status = 200): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.reject(new SyntaxError("Unexpected token <")),
+    text: () => Promise.resolve("<html>not json</html>"),
+    headers: new Headers(),
+  } as unknown as Response;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   _resetMusicBrainzGate();
@@ -26,7 +48,15 @@ afterEach(() => {
 
 const RECORDING_MBID = "4d2dc6f4-1234-5678-90ab-cdef00112233";
 const RELEASE_MBID = "11111111-2222-3333-4444-555555555555";
+const RELEASE_GROUP_MBID = "99999999-2222-3333-4444-555555555555";
 const ARTIST_MBID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+
+describe("MusicBrainz: manifest", () => {
+  it("stays default-disabled and hidden from public platform links", () => {
+    expect(musicbrainzPlugin.manifest.defaultEnabled).toBe(false);
+    expect(PLATFORM_CONFIG.musicbrainz.hidden).toBe(true);
+  });
+});
 
 describe("MusicBrainz: detectUrl", () => {
   it("detects recording URL with MBID", () => {
@@ -96,6 +126,11 @@ describe("MusicBrainz: getTrack", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse("not found", 404));
     await expect(musicbrainzAdapter.getTrack(RECORDING_MBID)).rejects.toThrow();
   });
+
+  it("throws controlled service error when MusicBrainz returns malformed JSON", async () => {
+    fetchMock.mockResolvedValueOnce(malformedJsonResponse());
+    await expect(musicbrainzAdapter.getTrack(RECORDING_MBID)).rejects.toThrow(/MusicBrainz track fetch failed: 502/);
+  });
 });
 
 describe("MusicBrainz: findByIsrc", () => {
@@ -126,6 +161,11 @@ describe("MusicBrainz: findByIsrc", () => {
 
   it("returns null on HTTP error", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse("server error", 500));
+    expect(await musicbrainzAdapter.findByIsrc("XX")).toBeNull();
+  });
+
+  it("returns null when the ISRC response has malformed JSON", async () => {
+    fetchMock.mockResolvedValueOnce(malformedJsonResponse());
     expect(await musicbrainzAdapter.findByIsrc("XX")).toBeNull();
   });
 });
@@ -164,6 +204,16 @@ describe("MusicBrainz: searchTrackWithCandidates", () => {
 
   it("returns found:false when no recordings", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ recordings: [] }));
+    const result = await musicbrainzAdapter.searchTrackWithCandidates({
+      title: "Nothing",
+      artist: "Nobody",
+    });
+    expect(result.bestMatch.found).toBe(false);
+    expect(result.candidates).toEqual([]);
+  });
+
+  it("returns found:false when search returns malformed JSON", async () => {
+    fetchMock.mockResolvedValueOnce(malformedJsonResponse());
     const result = await musicbrainzAdapter.searchTrackWithCandidates({
       title: "Nothing",
       artist: "Nobody",
@@ -211,8 +261,32 @@ describe("MusicBrainz: findAlbumByUpc + getAlbum", () => {
   });
 
   it("getAlbum throws on 404", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse("not found", 404));
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse("not found", 404))
+      .mockResolvedValueOnce(jsonResponse("not found", 404));
     await expect(musicbrainzAdapter.getAlbum(RELEASE_MBID)).rejects.toThrow();
+  });
+
+  it("falls back to release-group lookup when a detected album URL carries a release-group MBID", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockResolvedValueOnce(jsonResponse("not found", 404)).mockResolvedValueOnce(
+      jsonResponse({
+        id: RELEASE_GROUP_MBID,
+        title: "Discovery",
+        "first-release-date": "2001-03-12",
+        "artist-credit": [{ name: "Daft Punk", artist: { id: ARTIST_MBID, name: "Daft Punk" } }],
+        releases: [{ id: RELEASE_MBID, title: "Discovery", date: "2001-03-12" }],
+      }),
+    );
+
+    const albumPromise = musicbrainzAdapter.getAlbum(RELEASE_GROUP_MBID);
+    await vi.advanceTimersByTimeAsync(1200);
+    const album = await albumPromise;
+
+    expect(album.mbid).toBe(RELEASE_MBID);
+    expect(album.sourceId).toBe(RELEASE_MBID);
+    expect(album.title).toBe("Discovery");
+    expect(album.webUrl).toBe(`https://musicbrainz.org/release/${RELEASE_MBID}`);
   });
 });
 
@@ -260,6 +334,34 @@ describe("MusicBrainz: searchArtist + getArtist", () => {
 });
 
 describe("MusicBrainz: rate-limit gate", () => {
+  it("retries one transient 503 response before returning a successful lookup", async () => {
+    vi.useFakeTimers();
+    fetchMock
+      .mockResolvedValueOnce(responseWithHeaders("temporarily unavailable", 503, { "Retry-After": "0" }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          recordings: [
+            {
+              id: RECORDING_MBID,
+              title: "One More Time",
+              score: 100,
+              "artist-credit": [{ name: "Daft Punk", artist: { id: ARTIST_MBID, name: "Daft Punk" } }],
+            },
+          ],
+        }),
+      );
+
+    const searchPromise = musicbrainzAdapter.searchTrackWithCandidates({
+      title: "One More Time",
+      artist: "Daft Punk",
+    });
+    await vi.advanceTimersByTimeAsync(1200);
+    const result = await searchPromise;
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.bestMatch.found).toBe(true);
+  });
+
   it("serialises concurrent calls 1100ms apart", async () => {
     vi.useFakeTimers();
     fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ recordings: [] })));

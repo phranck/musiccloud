@@ -30,6 +30,12 @@ describe("validateMusicUrl", () => {
     it("should accept SoundCloud short URL (on.soundcloud.com)", () => {
       expect(validateMusicUrl("https://on.soundcloud.com/BOT0GlrIxJ3iGawWmK")).toEqual({ valid: true });
     });
+
+    it("should accept MusicBrainz recording URL for adapter-based resolution", () => {
+      expect(validateMusicUrl("https://musicbrainz.org/recording/69c62fec-0694-4279-b73e-0d83ae3ae09c")).toEqual({
+        valid: true,
+      });
+    });
   });
 
   describe("unsupported content types", () => {

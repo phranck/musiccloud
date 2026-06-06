@@ -142,6 +142,10 @@ const ALLOWED_HOSTS = [
   // Beatport
   "beatport.com",
   "www.beatport.com",
+  // MusicBrainz metadata URLs are resolved by the adapter, not by the
+  // shared streaming-pattern maps above.
+  "musicbrainz.org",
+  "www.musicbrainz.org",
 ];
 
 // Patterns for unsupported content types (specific error messages)
