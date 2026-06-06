@@ -1,43 +1,50 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-type Theme = "light" | "dark" | "system";
+export const ThemeName = {
+  Light: "light",
+  Dark: "dark",
+  System: "system",
+} as const;
+
+type Theme = (typeof ThemeName)[keyof typeof ThemeName];
 
 interface ThemeContextValue {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  effectiveTheme: "light" | "dark";
+  effectiveTheme: typeof ThemeName.Light | typeof ThemeName.Dark;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const STORAGE_KEY = "dashboard-theme";
 
-function getSystemTheme(): "light" | "dark" {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+function getSystemTheme(): typeof ThemeName.Light | typeof ThemeName.Dark {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? ThemeName.Dark : ThemeName.Light;
 }
 
 function loadTheme(): Theme {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved === "light" || saved === "dark" || saved === "system") return saved;
-  return "system";
+  if (saved === ThemeName.Light || saved === ThemeName.Dark || saved === ThemeName.System) return saved;
+  return ThemeName.System;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(loadTheme);
-  const [systemTheme, setSystemTheme] = useState<"light" | "dark">(getSystemTheme);
+  const [systemTheme, setSystemTheme] = useState<typeof ThemeName.Light | typeof ThemeName.Dark>(getSystemTheme);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? "dark" : "light");
+    const handler = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? ThemeName.Dark : ThemeName.Light);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  const effectiveTheme: "light" | "dark" = theme === "system" ? systemTheme : theme;
+  const effectiveTheme: typeof ThemeName.Light | typeof ThemeName.Dark =
+    theme === ThemeName.System ? systemTheme : theme;
 
   useEffect(() => {
     const root = document.documentElement;
-    if (effectiveTheme === "dark") {
+    if (effectiveTheme === ThemeName.Dark) {
       root.classList.add("dark");
     } else {
       root.classList.remove("dark");

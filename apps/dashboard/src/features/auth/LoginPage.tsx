@@ -1,4 +1,10 @@
-import { DashboardActionButton, DashboardInput } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+  DashboardInput,
+} from "@musiccloud/dashboard-ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -135,15 +141,15 @@ export function LoginPage() {
 
           <div className="bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border-subtle)] px-5 py-4 flex justify-end">
             <DashboardActionButton
-              action="approve"
+              action={DashboardActionId.Approve}
               busyLabel={loginMessages.submitLoading}
               disabled={!username || !password}
               label={loginMessages.submit}
               onClick={handleLogin}
               size="control"
-              status={loading ? "busy" : "idle"}
+              status={loading ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
               type="button"
-              variant="primary"
+              variant={DashboardButtonVariant.Primary}
             />
           </div>
         </div>

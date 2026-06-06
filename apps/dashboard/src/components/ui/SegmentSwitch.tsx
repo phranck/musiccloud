@@ -1,4 +1,8 @@
-import { DashboardSegmentedControl, SegmentedControlPrimitiveVariant } from "@musiccloud/dashboard-ui";
+import {
+  DashboardSegmentedControl,
+  SegmentedControlPrimitiveSize,
+  SegmentedControlPrimitiveVariant,
+} from "@musiccloud/dashboard-ui";
 import type { ReactNode } from "react";
 
 interface SegmentSwitchOption<T extends string> {
@@ -17,10 +21,15 @@ interface SegmentSwitchProps<T extends string> {
   value: T;
 }
 
-const sizeMap = {
-  sm: "compact",
-  md: "large",
+const SegmentSwitchSize = {
+  Sm: "sm",
+  Md: "md",
 } as const;
+
+const sizeMap: Record<NonNullable<SegmentSwitchProps<string>["size"]>, SegmentedControlPrimitiveSize> = {
+  [SegmentSwitchSize.Sm]: SegmentedControlPrimitiveSize.Compact,
+  [SegmentSwitchSize.Md]: SegmentedControlPrimitiveSize.Large,
+};
 
 export function SegmentSwitch<T extends string>({
   "aria-label": ariaLabel,

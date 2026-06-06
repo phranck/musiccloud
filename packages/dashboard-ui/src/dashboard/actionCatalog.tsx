@@ -17,7 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import type { ComponentType } from "react";
 
-import { type DashboardButtonSize, DashboardButtonVariant } from "./DashboardButton.js";
+import { type DashboardButtonSize, DashboardButtonVariant } from "./DashboardButtonTypes.js";
 
 export const DashboardActionId = {
   Save: "save",

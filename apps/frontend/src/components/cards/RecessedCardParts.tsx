@@ -30,7 +30,7 @@ interface TitleProps {
   className?: string;
 }
 
-function Title({ children, className }: TitleProps) {
+export function Title({ children, className }: TitleProps) {
   return (
     <p
       className={cn("text-sm uppercase tracking-widest text-text-secondary font-bold", className)}
@@ -47,7 +47,7 @@ interface AddOnProps {
   className?: string;
 }
 
-function AddOn({ children, className }: AddOnProps) {
+export function AddOn({ children, className }: AddOnProps) {
   return <div className={cn("flex items-center gap-2", className)}>{children}</div>;
 }
 (AddOn as unknown as Record<symbol, boolean>)[ADDON_TAG] = true;
@@ -57,7 +57,7 @@ interface HeaderProps {
   className?: string;
 }
 
-function Header({ children, className }: HeaderProps) {
+export function Header({ children, className }: HeaderProps) {
   const ctx = use(RecessedContext);
   const scrolled = ctx?.scrolled ?? false;
   return (
@@ -86,7 +86,7 @@ interface BodyProps {
   scrollable?: boolean;
 }
 
-function Body({ children, className, scrollable = false }: BodyProps) {
+export function Body({ children, className, scrollable = false }: BodyProps) {
   const ctx = use(RecessedContext);
   const handleScroll = scrollable
     ? (e: React.UIEvent<HTMLDivElement>) => ctx?.setScrolled(e.currentTarget.scrollTop > 0)
@@ -208,7 +208,7 @@ function paddingFromClassName(className: string | undefined): string | undefined
  * classes — the component needs to align the gradient-border arc
  * with the corner.
  */
-function RecessedCardRoot({ children, className, ref, style, borderWidth, radius, padding }: RecessedCardProps) {
+export function RecessedCardRoot({ children, className, ref, style, borderWidth, radius, padding }: RecessedCardProps) {
   const childArray = Children.toArray(children);
   const hasCompoundChild = childArray.some((c) => hasTag(c, HEADER_TAG) || hasTag(c, BODY_TAG));
 
@@ -264,8 +264,3 @@ function RecessedCardRoot({ children, className, ref, style, borderWidth, radius
     </div>
   );
 }
-
-export const RecessedCard = Object.assign(RecessedCardRoot, {
-  Header: Header as typeof Header & { Title: typeof Title; AddOn: typeof AddOn },
-  Body,
-});

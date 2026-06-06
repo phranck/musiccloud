@@ -2,7 +2,8 @@ import { type CSSProperties, createContext, type ReactNode, use, useLayoutEffect
 import { recessedControlInsetClassName, recessedControlSizeClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { VFD_GLYPHS, VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
+import { VfdDisplay, type VfdDisplaySection } from "@/components/ui/VfdDisplay";
+import { VfdGlyph } from "@/components/ui/VfdGlyphs";
 import { cn } from "@/lib/utils";
 
 interface PlayerContextValue {
@@ -53,14 +54,14 @@ const PLAYER_STEREO_CHANNEL_CELLS = 12;
 const PLAYER_STEREO_CHANNEL_GAP_CELLS = 3;
 const PLAYER_TIME_SPACER_CELLS = 2;
 const PLAYER_SPECTRUM_LEVEL_GLYPHS = [
-  VFD_GLYPHS.spectrumLevel0,
-  VFD_GLYPHS.spectrumLevel1,
-  VFD_GLYPHS.spectrumLevel2,
-  VFD_GLYPHS.spectrumLevel3,
-  VFD_GLYPHS.spectrumLevel4,
-  VFD_GLYPHS.spectrumLevel5,
-  VFD_GLYPHS.spectrumLevel6,
-  VFD_GLYPHS.spectrumLevel7,
+  VfdGlyph.SpectrumLevel0,
+  VfdGlyph.SpectrumLevel1,
+  VfdGlyph.SpectrumLevel2,
+  VfdGlyph.SpectrumLevel3,
+  VfdGlyph.SpectrumLevel4,
+  VfdGlyph.SpectrumLevel5,
+  VfdGlyph.SpectrumLevel6,
+  VfdGlyph.SpectrumLevel7,
 ] as const;
 
 function usePlayerContext(): PlayerContextValue {
@@ -85,7 +86,7 @@ function compactSections(sections: Array<VfdDisplaySection | null>): VfdDisplayS
 
 function spectrumGlyphForLevel(level: number): string {
   const safeLevel = Math.max(0, Math.min(PLAYER_SPECTRUM_LEVEL_GLYPHS.length - 1, level));
-  return PLAYER_SPECTRUM_LEVEL_GLYPHS[safeLevel] ?? VFD_GLYPHS.spectrumLevel0;
+  return PLAYER_SPECTRUM_LEVEL_GLYPHS[safeLevel] ?? VfdGlyph.SpectrumLevel0;
 }
 
 function isStereoSpectrumBands(bands: PlayerSpectrumBands): bands is StereoSpectrumBands {
@@ -165,7 +166,7 @@ function renderSpectrumSections(
   return compactSections([sectionFor(content, "bright")]);
 }
 
-function PlayerRoot({
+export function PlayerRoot({
   children,
   className,
   isPlaying,
@@ -204,7 +205,7 @@ function PlayerRoot({
   );
 }
 
-function PlayerButton({ className }: PlayerButtonProps) {
+export function PlayerButton({ className }: PlayerButtonProps) {
   const { isPlaying, isDisabled, onTogglePlay, ariaLabel, title } = usePlayerContext();
   const accentColor = isDisabled ? "var(--color-player-control-disabled)" : "var(--color-vfd-phosphor)";
 
@@ -244,7 +245,7 @@ function PlayerButton({ className }: PlayerButtonProps) {
   );
 }
 
-function PlayerProgress({ className, children }: PlayerProgressProps) {
+export function PlayerProgress({ className, children }: PlayerProgressProps) {
   const { isDisabled, isPlaying, timeText, progressRatio, phosphorColor, spectrumBands } = usePlayerContext();
   const progressRef = useRef<HTMLDivElement | null>(null);
   const [displayCells, setDisplayCells] = useState(PLAYER_DEFAULT_VFD_CELLS);
@@ -344,13 +345,7 @@ function PlayerProgress({ className, children }: PlayerProgressProps) {
   );
 }
 
-function PlayerTime({ className }: PlayerTimeProps) {
+export function PlayerTime({ className }: PlayerTimeProps) {
   const { timeText } = usePlayerContext();
   return <span className={className}>{timeText}</span>;
 }
-
-export const Player = Object.assign(PlayerRoot, {
-  Button: PlayerButton,
-  Progress: PlayerProgress,
-  Time: PlayerTime,
-});

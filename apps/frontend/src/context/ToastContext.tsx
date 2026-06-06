@@ -1,13 +1,14 @@
 import { createContext, type ReactNode, use, useCallback, useMemo, useState } from "react";
-import { Toast, type ToastVariant } from "@/components/ui/Toast";
+import { Toast } from "@/components/ui/Toast";
+import { ToastVariant, type ToastVariant as ToastVariantType } from "@/components/ui/ToastTypes";
 
 interface ToastAPI {
-  show: (message: string, variant?: ToastVariant) => void;
+  show: (message: string, variant?: ToastVariantType) => void;
 }
 
 interface ToastState {
   message: string;
-  variant: ToastVariant;
+  variant: ToastVariantType;
   visible: boolean;
 }
 
@@ -24,7 +25,7 @@ const INITIAL: ToastState = { message: "", variant: "info", visible: false };
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ToastState>(INITIAL);
 
-  const show = useCallback((message: string, variant: ToastVariant = "info") => {
+  const show = useCallback((message: string, variant: ToastVariantType = ToastVariant.Info) => {
     setState({ message, variant, visible: true });
   }, []);
 

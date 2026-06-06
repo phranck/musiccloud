@@ -1,4 +1,11 @@
-import { DashboardActionButton, DashboardButton, DashboardInput } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButton,
+  DashboardButtonVariant,
+  DashboardInput,
+} from "@musiccloud/dashboard-ui";
 import { ENDPOINTS } from "@musiccloud/shared";
 import {
   MagnifyingGlass as MagnifyingGlassIcon,
@@ -18,6 +25,7 @@ import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
+import { AdminMusicItemKind } from "@/features/music/adminMusicKind";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
 import { InvalidateCacheButton } from "@/features/music/InvalidateCacheButton";
 import { Checkbox } from "@/shared/ui/Checkbox";
@@ -75,7 +83,7 @@ export function TracksPage() {
       {
         id: "invalidate-cache",
         className: "w-10",
-        cell: (track) => <InvalidateCacheButton shortId={track.shortId} kind="tracks" />,
+        cell: (track) => <InvalidateCacheButton shortId={track.shortId} kind={AdminMusicItemKind.Tracks} />,
       },
       {
         id: "artwork",
@@ -219,7 +227,7 @@ export function TracksPage() {
       />
       {table.searchInput && (
         <DashboardActionButton
-          action="close"
+          action={DashboardActionId.Close}
           icon={<XCircleIcon weight="duotone" className="size-3.5" />}
           iconOnly
           label={messages.common.close}
@@ -242,7 +250,7 @@ export function TracksPage() {
       <div className="ml-auto flex items-center gap-2">
         {table.editMode && table.selectedCount > 0 && (
           <DashboardActionButton
-            action="delete"
+            action={DashboardActionId.Delete}
             icon={<TrashIcon weight="duotone" className="size-3.5" />}
             label={m.deleteButton.replace("{count}", String(table.selectedCount))}
             onClick={() => {
@@ -264,7 +272,7 @@ export function TracksPage() {
             )
           }
           size="action"
-          variant={table.editMode ? "primary" : "neutral"}
+          variant={table.editMode ? DashboardButtonVariant.Primary : DashboardButtonVariant.Neutral}
         >
           {m.editButton}
         </DashboardButton>
@@ -342,21 +350,21 @@ export function TracksPage() {
         </div>
         <Dialog.Footer>
           <DashboardActionButton
-            action="cancel"
+            action={DashboardActionId.Cancel}
             disabled={deleting}
             icon={false}
             label={m.deleteConfirmCancel}
             onClick={() => setConfirmOpen(false)}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
           <DashboardActionButton
-            action="delete"
+            action={DashboardActionId.Delete}
             busyLabel="\u2026"
             icon={false}
             label={m.deleteConfirmAction}
             onClick={handleConfirmDelete}
-            status={deleting ? "busy" : "idle"}
+            status={deleting ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
             type="button"
           />
         </Dialog.Footer>

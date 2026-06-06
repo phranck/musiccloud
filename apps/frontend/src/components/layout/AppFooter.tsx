@@ -1,4 +1,4 @@
-import type { NavItem } from "@musiccloud/shared";
+import { type NavItem, NavTarget } from "@musiccloud/shared";
 
 import { useT } from "@/i18n/context";
 import { navHref, navLabel } from "@/lib/nav";
@@ -33,8 +33,8 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
           <a
             key={item.id}
             href={navHref(item)}
-            target={item.target === "_blank" ? "_blank" : undefined}
-            rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+            target={item.target === NavTarget.Blank ? NavTarget.Blank : undefined}
+            rel={item.target === NavTarget.Blank ? "noopener noreferrer" : undefined}
             className="hover:text-text-secondary transition-colors duration-150"
           >
             {navLabel(item)}

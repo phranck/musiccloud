@@ -5,6 +5,7 @@ import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { GenreColumn } from "@/components/ui/GenreColumn";
 import { GenreRowButton } from "@/components/ui/GenreRowButton";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
+import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
 import { useLocale, useT } from "@/i18n/context";
 import type { Locale } from "@/i18n/locales";
 import type { GenreSearchPayload, GenreSearchResults as GenreSearchResultsData } from "@/lib/types/app";
@@ -217,7 +218,7 @@ export function GenreSearchResults({
                             <SlideArtwork
                               active={isSelected}
                               artworkUrl={artist.imageUrl}
-                              kind="round"
+                              kind={SlideArtworkKind.Round}
                               sizeClass={COMPACT_ART_SIZE}
                             />
                           }

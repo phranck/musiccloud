@@ -1,4 +1,4 @@
-import type { PublicContentPage } from "@musiccloud/shared";
+import { PageDisplayMode, type PublicContentPage } from "@musiccloud/shared";
 import { createContext, type ReactNode, use, useCallback, useEffect, useMemo, useReducer } from "react";
 
 interface OverlayState {
@@ -7,9 +7,14 @@ interface OverlayState {
   previousUrl: string | null;
 }
 
+const OverlayActionType = {
+  Open: "open",
+  Close: "close",
+} as const;
+
 type OverlayAction =
-  | { type: "open"; page: PublicContentPage; previousTitle: string; previousUrl: string }
-  | { type: "close" };
+  | { type: typeof OverlayActionType.Open; page: PublicContentPage; previousTitle: string; previousUrl: string }
+  | { type: typeof OverlayActionType.Close };
 
 interface OverlayAPI {
   page: PublicContentPage | null;
@@ -20,7 +25,7 @@ interface OverlayAPI {
 const OverlayCtx = createContext<OverlayAPI | null>(null);
 
 function reducer(_state: OverlayState, action: OverlayAction): OverlayState {
-  if (action.type === "open") {
+  if (action.type === OverlayActionType.Open) {
     return {
       page: action.page,
       previousTitle: action.previousTitle,
@@ -50,7 +55,7 @@ async function fetchOverlayPage(slug: string, signal: AbortSignal): Promise<Publ
 }
 
 function initialOverlayState(initialPage: PublicContentPage | null | undefined): OverlayState {
-  if (!initialPage || initialPage.displayMode === "fullscreen") {
+  if (!initialPage || initialPage.displayMode === PageDisplayMode.Fullscreen) {
     return { page: null, previousTitle: null, previousUrl: null };
   }
   if (typeof window === "undefined") {
@@ -74,11 +79,11 @@ export function OverlayProvider({
 
   const open = useCallback((page: PublicContentPage) => {
     if (typeof window === "undefined") {
-      dispatch({ type: "open", page, previousTitle: "", previousUrl: "" });
+      dispatch({ type: OverlayActionType.Open, page, previousTitle: "", previousUrl: "" });
       return;
     }
     dispatch({
-      type: "open",
+      type: OverlayActionType.Open,
       page,
       previousTitle: document.title,
       previousUrl: `${window.location.pathname}${window.location.search}${window.location.hash}`,
@@ -94,7 +99,7 @@ export function OverlayProvider({
       window.history.pushState({}, "", state.previousUrl);
       if (state.previousTitle) document.title = state.previousTitle;
     }
-    dispatch({ type: "close" });
+    dispatch({ type: OverlayActionType.Close });
   }, [state.previousTitle, state.previousUrl]);
 
   // Back-button support: when the overlay is open and user hits Back,
@@ -102,7 +107,7 @@ export function OverlayProvider({
   useEffect(() => {
     if (!state.page || typeof window === "undefined") return;
     function onPop() {
-      dispatch({ type: "close" });
+      dispatch({ type: OverlayActionType.Close });
     }
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);

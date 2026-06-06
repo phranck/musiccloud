@@ -4,34 +4,21 @@ import { cx } from "../classNames.js";
 import {
   ButtonPrimitive,
   type ButtonPrimitiveProps,
-  type ButtonPrimitiveSize,
-  type ButtonPrimitiveVariant,
   IconButtonPrimitive,
   type IconButtonPrimitiveProps,
 } from "../primitives/ButtonPrimitive.js";
+import {
+  DashboardButtonVariant,
+  type DashboardButtonVariant as DashboardButtonVariantType,
+} from "./DashboardButtonTypes.js";
 import { dashboardReviewVariantClass, resolveDashboardPrimitiveVariant } from "./dashboardButtonClasses.js";
 
-export const DashboardButtonVariant = {
-  Neutral: "neutral",
-  Primary: "primary",
-  Success: "success",
-  Warning: "warning",
-  Danger: "danger",
-  Filled: "filled",
-  Accent: "accent",
-  Ghost: "ghost",
-  Review: "review",
-} as const;
-
-export type DashboardButtonVariant = ButtonPrimitiveVariant | "review";
-export type DashboardButtonSize = ButtonPrimitiveSize;
-
 export interface DashboardButtonProps extends Omit<ButtonPrimitiveProps, "variant"> {
-  variant?: DashboardButtonVariant;
+  variant?: DashboardButtonVariantType;
 }
 
 export interface DashboardIconButtonProps extends Omit<IconButtonPrimitiveProps, "variant"> {
-  variant?: DashboardButtonVariant;
+  variant?: DashboardButtonVariantType;
 }
 
 export function DashboardButton({

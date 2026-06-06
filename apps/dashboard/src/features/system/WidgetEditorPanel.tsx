@@ -1,7 +1,7 @@
-import { DashboardActionButton, DashboardInput, TextareaPrimitive } from "@musiccloud/dashboard-ui";
+import { DashboardActionButton, DashboardActionId, DashboardInput, TextareaPrimitive } from "@musiccloud/dashboard-ui";
 import { TrashIcon } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/Card";
-import type { MarkdownWidget } from "@/features/system/hooks/useMarkdownWidgets";
+import { type MarkdownWidget, MarkdownWidgetType } from "@/features/system/hooks/useMarkdownWidgets";
 
 const fieldLabelClass = "px-1 text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-subtle)]";
 const fieldHintClass = "px-1 text-xs leading-5 text-[var(--ds-text-subtle)]";
@@ -87,7 +87,7 @@ export function WidgetEditorPanel({
             </p>
           </div>
           <DashboardActionButton
-            action="delete"
+            action={DashboardActionId.Delete}
             icon={<TrashIcon weight="duotone" className="size-3.5" />}
             label={messages.deleteWidget}
             onClick={() => onDelete(selectedWidgetId)}
@@ -113,7 +113,7 @@ export function WidgetEditorPanel({
 
           <Field label={messages.typeLabel} hint={messages.typeHint}>
             <select
-              value={draft.type ?? "html"}
+              value={draft.type ?? MarkdownWidgetType.Html}
               onChange={(event) =>
                 onUpdateDraft((d) => ({
                   ...d,
@@ -169,7 +169,7 @@ export function WidgetEditorPanel({
             {widgetTypeOptions.find((option) => option.value === draft.type)?.description}
           </p>
 
-          {draft.type === "html" ? (
+          {draft.type === MarkdownWidgetType.Html ? (
             <Field label={messages.types.html.snippetLabel} hint={messages.types.html.snippetHint}>
               <TextareaPrimitive
                 rows={14}

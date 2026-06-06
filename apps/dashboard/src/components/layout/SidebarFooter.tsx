@@ -1,4 +1,9 @@
-import { DashboardActionButton, DashboardIconButton } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardButtonVariant,
+  DashboardIconButton,
+} from "@musiccloud/dashboard-ui";
 import { SignOutIcon, UserCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useI18n } from "@/context/I18nContext";
@@ -69,7 +74,7 @@ export function FooterUserInfo({
             aria-label={s.editProfile}
             className={iconButtonClass}
             onClick={onEditProfile}
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           >
             <UserCircleIcon weight="duotone" className="w-3.5 h-3.5" />
           </DashboardIconButton>
@@ -78,7 +83,7 @@ export function FooterUserInfo({
           aria-label={s.logout}
           className={iconButtonClass}
           onClick={handleLogoutClick}
-          variant="neutral"
+          variant={DashboardButtonVariant.Neutral}
         >
           <SignOutIcon weight="duotone" className="w-3.5 h-3.5" />
         </DashboardIconButton>
@@ -104,20 +109,20 @@ export function FooterUserInfo({
         </div>
         <Dialog.Footer>
           <DashboardActionButton
-            action="cancel"
+            action={DashboardActionId.Cancel}
             icon={false}
             label={messages.common.cancel}
             onClick={() => setConfirmOpen(false)}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
           <DashboardActionButton
-            action="approve"
+            action={DashboardActionId.Approve}
             icon={false}
             label={s.logoutConfirmAction}
             onClick={handleConfirm}
             type="button"
-            variant="primary"
+            variant={DashboardButtonVariant.Primary}
           />
         </Dialog.Footer>
       </Dialog>

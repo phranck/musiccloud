@@ -2,6 +2,12 @@ import type { KeyboardEvent, ReactNode } from "react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import { cx } from "../classNames.js";
+import {
+  SegmentedControlPrimitiveSize,
+  type SegmentedControlPrimitiveSize as SegmentedControlPrimitiveSizeType,
+  SegmentedControlPrimitiveVariant,
+  type SegmentedControlPrimitiveVariant as SegmentedControlPrimitiveVariantType,
+} from "./SegmentedControlPrimitiveTypes.js";
 
 export interface SegmentedControlPrimitiveOption<T extends string = string> {
   badge?: ReactNode;
@@ -11,29 +17,15 @@ export interface SegmentedControlPrimitiveOption<T extends string = string> {
   value: T;
 }
 
-export const SegmentedControlPrimitiveSize = {
-  Compact: "compact",
-  Default: "default",
-  Large: "large",
-} as const;
-
-export const SegmentedControlPrimitiveVariant = {
-  Filled: "filled",
-  Outline: "outline",
-} as const;
-
-export type SegmentedControlPrimitiveSize = "compact" | "default" | "large";
-export type SegmentedControlPrimitiveVariant = "filled" | "outline";
-
 export interface SegmentedControlPrimitiveProps<T extends string = string> {
   "aria-label"?: string;
   className?: string;
   itemClassName?: string;
   onValueChange: (value: T) => void;
   options: readonly SegmentedControlPrimitiveOption<T>[];
-  size?: SegmentedControlPrimitiveSize;
+  size?: SegmentedControlPrimitiveSizeType;
   value: T;
-  variant?: SegmentedControlPrimitiveVariant;
+  variant?: SegmentedControlPrimitiveVariantType;
 }
 
 interface SegmentPill {
@@ -42,13 +34,13 @@ interface SegmentPill {
   width: number;
 }
 
-const sizeClass: Record<SegmentedControlPrimitiveSize, string> = {
+const sizeClass: Record<SegmentedControlPrimitiveSizeType, string> = {
   [SegmentedControlPrimitiveSize.Compact]: "h-[calc(var(--ds-control-h-field)_-_0.25rem)] px-2.5 text-sm",
   [SegmentedControlPrimitiveSize.Default]: "h-[calc(var(--ds-control-h-field)_-_0.25rem)] px-3 text-sm",
   [SegmentedControlPrimitiveSize.Large]: "h-[calc(var(--ds-control-h-field-large)_-_0.25rem)] px-4 text-sm",
 };
 
-const iconOnlySizeClass: Record<SegmentedControlPrimitiveSize, string> = {
+const iconOnlySizeClass: Record<SegmentedControlPrimitiveSizeType, string> = {
   [SegmentedControlPrimitiveSize.Compact]:
     "h-[calc(var(--ds-control-h-field)_-_0.25rem)] w-[calc(var(--ds-control-h-field)_-_0.25rem)] text-sm",
   [SegmentedControlPrimitiveSize.Default]:
@@ -57,7 +49,7 @@ const iconOnlySizeClass: Record<SegmentedControlPrimitiveSize, string> = {
     "h-[calc(var(--ds-control-h-field-large)_-_0.25rem)] w-[calc(var(--ds-control-h-field-large)_-_0.25rem)] text-sm",
 };
 
-const containerSizeClass: Record<SegmentedControlPrimitiveSize, string> = {
+const containerSizeClass: Record<SegmentedControlPrimitiveSizeType, string> = {
   [SegmentedControlPrimitiveSize.Compact]: "h-[var(--ds-control-h-field)]",
   [SegmentedControlPrimitiveSize.Default]: "h-[var(--ds-control-h-field)]",
   [SegmentedControlPrimitiveSize.Large]: "h-[var(--ds-control-h-field-large)]",

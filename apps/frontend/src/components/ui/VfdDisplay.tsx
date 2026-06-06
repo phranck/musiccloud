@@ -1,6 +1,7 @@
 import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { VfdGlyph } from "@/components/ui/VfdGlyphs";
 import { cn } from "@/lib/utils";
 
 /** Phosphor intensity for one VFD row or section. */
@@ -202,42 +203,20 @@ const VFD_MARQUEE_EDGE_HOLD_STEPS = 4;
 const DEFAULT_VFD_ROWS = 4;
 const DEFAULT_VFD_CELL_COUNT = 44;
 const EMPTY_CELL = "\u00A0";
-
-export const VFD_GLYPHS = {
-  ghost: "\uE000",
-  progressEmpty: "\uE002",
-  progressBlock1: "\uE009",
-  progressBlock2: "\uE00A",
-  progressBlock3: "\uE00B",
-  progressBlock4: "\uE00C",
-  progressBlock: "\uE008",
-  progressRailEmpty: "\uE004",
-  progressMarker: "\uE005",
-  progressMarkerStart: "\uE00D",
-  progressMarkerRight: "\uE012",
-  progressMarkerEnd2: "\uE00E",
-  progressMarkerEnd1: "\uE00F",
-  progressMarkerNext1: "\uE010",
-  progressMarkerNext2: "\uE011",
-  spectrumLevel0: "\uE013",
-  spectrumLevel1: "\uE014",
-  spectrumLevel2: "\uE015",
-  spectrumLevel3: "\uE016",
-  spectrumLevel4: "\uE017",
-  spectrumLevel5: "\uE018",
-  spectrumLevel6: "\uE019",
-  spectrumLevel7: "\uE01A",
+const MarqueeDirection = {
+  Forward: 1,
+  Backward: -1,
 } as const;
 
 const SPECTRUM_GLYPH_LEVELS: Record<string, number> = {
-  [VFD_GLYPHS.spectrumLevel0]: 0,
-  [VFD_GLYPHS.spectrumLevel1]: 1,
-  [VFD_GLYPHS.spectrumLevel2]: 2,
-  [VFD_GLYPHS.spectrumLevel3]: 3,
-  [VFD_GLYPHS.spectrumLevel4]: 4,
-  [VFD_GLYPHS.spectrumLevel5]: 5,
-  [VFD_GLYPHS.spectrumLevel6]: 6,
-  [VFD_GLYPHS.spectrumLevel7]: 7,
+  [VfdGlyph.SpectrumLevel0]: 0,
+  [VfdGlyph.SpectrumLevel1]: 1,
+  [VfdGlyph.SpectrumLevel2]: 2,
+  [VfdGlyph.SpectrumLevel3]: 3,
+  [VfdGlyph.SpectrumLevel4]: 4,
+  [VfdGlyph.SpectrumLevel5]: 5,
+  [VfdGlyph.SpectrumLevel6]: 6,
+  [VfdGlyph.SpectrumLevel7]: 7,
 };
 
 const BLANK_GLYPH = ["00000", "00000", "00000", "00000", "00000", "00000", "00000"] as const;
@@ -378,29 +357,29 @@ const VFD_GLYPH_PATTERNS: Record<string, readonly string[]> = {
   ø: ["00000", "00001", "01110", "10011", "10101", "11001", "01110"],
   Æ: ["01111", "10100", "10100", "11110", "10100", "10100", "10111"],
   æ: ["00000", "00000", "11010", "00101", "01111", "10100", "01011"],
-  [VFD_GLYPHS.ghost]: FULL_GLYPH,
-  [VFD_GLYPHS.progressEmpty]: BLANK_GLYPH,
-  [VFD_GLYPHS.progressBlock1]: ["00000", "10000", "10000", "10000", "10000", "10000", "00000"],
-  [VFD_GLYPHS.progressBlock2]: ["00000", "11000", "11000", "11000", "11000", "11000", "00000"],
-  [VFD_GLYPHS.progressBlock3]: ["00000", "11100", "11100", "11100", "11100", "11100", "00000"],
-  [VFD_GLYPHS.progressBlock4]: ["00000", "11110", "11110", "11110", "11110", "11110", "00000"],
-  [VFD_GLYPHS.progressBlock]: ["00000", "11111", "11111", "11111", "11111", "11111", "00000"],
-  [VFD_GLYPHS.progressRailEmpty]: ["00000", "00000", "00000", "00000", "00000", "11111", "11111"],
-  [VFD_GLYPHS.progressMarker]: ["01100", "01100", "01100", "01100", "01100", "11100", "11100"],
-  [VFD_GLYPHS.progressMarkerStart]: ["11000", "11000", "11000", "11000", "11000", "11000", "11000"],
-  [VFD_GLYPHS.progressMarkerRight]: ["00110", "00110", "00110", "00110", "00110", "11110", "11110"],
-  [VFD_GLYPHS.progressMarkerEnd2]: ["00011", "00011", "00011", "00011", "00011", "11111", "11111"],
-  [VFD_GLYPHS.progressMarkerEnd1]: ["00001", "00001", "00001", "00001", "00001", "11111", "11111"],
-  [VFD_GLYPHS.progressMarkerNext1]: ["10000", "10000", "10000", "10000", "10000", "10000", "10000"],
-  [VFD_GLYPHS.progressMarkerNext2]: ["11000", "11000", "11000", "11000", "11000", "11000", "11000"],
-  [VFD_GLYPHS.spectrumLevel0]: BLANK_GLYPH,
-  [VFD_GLYPHS.spectrumLevel1]: ["00000", "00000", "00000", "00000", "00000", "00000", "11111"],
-  [VFD_GLYPHS.spectrumLevel2]: ["00000", "00000", "00000", "00000", "00000", "11111", "11111"],
-  [VFD_GLYPHS.spectrumLevel3]: ["00000", "00000", "00000", "00000", "11111", "11111", "11111"],
-  [VFD_GLYPHS.spectrumLevel4]: ["00000", "00000", "00000", "11111", "11111", "11111", "11111"],
-  [VFD_GLYPHS.spectrumLevel5]: ["00000", "00000", "11111", "11111", "11111", "11111", "11111"],
-  [VFD_GLYPHS.spectrumLevel6]: ["00000", "11111", "11111", "11111", "11111", "11111", "11111"],
-  [VFD_GLYPHS.spectrumLevel7]: FULL_GLYPH,
+  [VfdGlyph.Ghost]: FULL_GLYPH,
+  [VfdGlyph.ProgressEmpty]: BLANK_GLYPH,
+  [VfdGlyph.ProgressBlock1]: ["00000", "10000", "10000", "10000", "10000", "10000", "00000"],
+  [VfdGlyph.ProgressBlock2]: ["00000", "11000", "11000", "11000", "11000", "11000", "00000"],
+  [VfdGlyph.ProgressBlock3]: ["00000", "11100", "11100", "11100", "11100", "11100", "00000"],
+  [VfdGlyph.ProgressBlock4]: ["00000", "11110", "11110", "11110", "11110", "11110", "00000"],
+  [VfdGlyph.ProgressBlock]: ["00000", "11111", "11111", "11111", "11111", "11111", "00000"],
+  [VfdGlyph.ProgressRailEmpty]: ["00000", "00000", "00000", "00000", "00000", "11111", "11111"],
+  [VfdGlyph.ProgressMarker]: ["01100", "01100", "01100", "01100", "01100", "11100", "11100"],
+  [VfdGlyph.ProgressMarkerStart]: ["11000", "11000", "11000", "11000", "11000", "11000", "11000"],
+  [VfdGlyph.ProgressMarkerRight]: ["00110", "00110", "00110", "00110", "00110", "11110", "11110"],
+  [VfdGlyph.ProgressMarkerEnd2]: ["00011", "00011", "00011", "00011", "00011", "11111", "11111"],
+  [VfdGlyph.ProgressMarkerEnd1]: ["00001", "00001", "00001", "00001", "00001", "11111", "11111"],
+  [VfdGlyph.ProgressMarkerNext1]: ["10000", "10000", "10000", "10000", "10000", "10000", "10000"],
+  [VfdGlyph.ProgressMarkerNext2]: ["11000", "11000", "11000", "11000", "11000", "11000", "11000"],
+  [VfdGlyph.SpectrumLevel0]: BLANK_GLYPH,
+  [VfdGlyph.SpectrumLevel1]: ["00000", "00000", "00000", "00000", "00000", "00000", "11111"],
+  [VfdGlyph.SpectrumLevel2]: ["00000", "00000", "00000", "00000", "00000", "11111", "11111"],
+  [VfdGlyph.SpectrumLevel3]: ["00000", "00000", "00000", "00000", "11111", "11111", "11111"],
+  [VfdGlyph.SpectrumLevel4]: ["00000", "00000", "00000", "11111", "11111", "11111", "11111"],
+  [VfdGlyph.SpectrumLevel5]: ["00000", "00000", "11111", "11111", "11111", "11111", "11111"],
+  [VfdGlyph.SpectrumLevel6]: ["00000", "11111", "11111", "11111", "11111", "11111", "11111"],
+  [VfdGlyph.SpectrumLevel7]: FULL_GLYPH,
 };
 
 /**
@@ -560,7 +539,8 @@ function normalizeLine(index: number, line: VfdDisplayLine | undefined): Normali
 
 function sameSections(a: NormalizedVfdSection[] | undefined, b: NormalizedVfdSection[] | undefined): boolean {
   if (a === b) return true;
-  if (!a || !b || a.length !== b.length) return false;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
   return a.every((section, index) => {
     const other = b[index];
     return (
@@ -642,10 +622,10 @@ function nextMarqueeState(
 
   const nextOffset = state.offset + state.direction;
   if (nextOffset >= overflowColumns) {
-    return { offset: overflowColumns, direction: -1, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS };
+    return { offset: overflowColumns, direction: MarqueeDirection.Backward, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS };
   }
   if (nextOffset <= 0) {
-    return { offset: 0, direction: 1, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS };
+    return { offset: 0, direction: MarqueeDirection.Forward, holdSteps: VFD_MARQUEE_EDGE_HOLD_STEPS };
   }
   return { offset: nextOffset, direction: state.direction, holdSteps: 0 };
 }

@@ -291,8 +291,17 @@ interface HelpWindowLayout {
   height: number;
 }
 
+const HelpWindowInteractionType = {
+  Move: "move",
+  Resize: "resize",
+} as const;
+
+const HelpWindowResizeHandle = {
+  Southeast: "se",
+} as const;
+
 interface HelpWindowPointerState {
-  type: "move" | "resize";
+  type: (typeof HelpWindowInteractionType)[keyof typeof HelpWindowInteractionType];
   handle?: ResizeHandle;
   pointerId: number;
   startX: number;
@@ -475,9 +484,15 @@ function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; 
       const deltaY = event.clientY - state.startY;
       const startRect = helpLayoutToRect(state.startLayout);
       const next =
-        state.type === "move"
+        state.type === HelpWindowInteractionType.Move
           ? moveViewportRect(startRect, deltaX, deltaY, getHelpWindowConstraints())
-          : resizeViewportRect(startRect, state.handle ?? "se", deltaX, deltaY, getHelpWindowConstraints());
+          : resizeViewportRect(
+              startRect,
+              state.handle ?? HelpWindowResizeHandle.Southeast,
+              deltaX,
+              deltaY,
+              getHelpWindowConstraints(),
+            );
 
       applyLayout(rectToHelpLayout(next));
     },
@@ -497,14 +512,14 @@ function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; 
 
   const startMove = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      startInteraction("move", event);
+      startInteraction(HelpWindowInteractionType.Move, event);
     },
     [startInteraction],
   );
 
   const startResize = React.useCallback(
     (handle: ResizeHandle, event: React.PointerEvent<HTMLDivElement>) => {
-      startInteraction("resize", event, handle);
+      startInteraction(HelpWindowInteractionType.Resize, event, handle);
     },
     [startInteraction],
   );

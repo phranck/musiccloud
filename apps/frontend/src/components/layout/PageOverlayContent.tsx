@@ -72,11 +72,15 @@ const OVERLAY_SEGMENTED_CONTENT_X = "px-3";
 const FULLSCREEN_CONTENT_X = "px-6";
 const FULLSCREEN_SEGMENTED_CONTENT_X = "px-4 sm:px-5";
 
+const DomNodeType = {
+  Tag: "tag",
+} as const;
+
 const parserOptions: HTMLReactParserOptions = {
   replace(domNode) {
     // Use duck-typing instead of instanceof — ESM/CJS dual-module issue causes
     // instanceof Element checks to fail depending on the import path.
-    if (domNode.type !== "tag") return undefined;
+    if (domNode.type !== DomNodeType.Tag) return undefined;
     const el = domNode as Element;
     if (el.name !== "pre") return undefined;
     const cardStyle = el.attribs["data-card-style"];

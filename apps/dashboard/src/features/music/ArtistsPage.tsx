@@ -1,4 +1,11 @@
-import { DashboardActionButton, DashboardButton, DashboardInput } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButton,
+  DashboardButtonVariant,
+  DashboardInput,
+} from "@musiccloud/dashboard-ui";
 import { ENDPOINTS } from "@musiccloud/shared";
 import {
   MagnifyingGlass as MagnifyingGlassIcon,
@@ -16,6 +23,7 @@ import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
+import { AdminMusicItemKind } from "@/features/music/adminMusicKind";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
 import { InvalidateCacheButton } from "@/features/music/InvalidateCacheButton";
 import { Checkbox } from "@/shared/ui/Checkbox";
@@ -70,7 +78,7 @@ export function ArtistsPage() {
       {
         id: "invalidate-cache",
         className: "w-10",
-        cell: (artist) => <InvalidateCacheButton shortId={artist.shortId} kind="artists" />,
+        cell: (artist) => <InvalidateCacheButton shortId={artist.shortId} kind={AdminMusicItemKind.Artists} />,
       },
       {
         id: "image",
@@ -195,7 +203,7 @@ export function ArtistsPage() {
       />
       {table.searchInput && (
         <DashboardActionButton
-          action="close"
+          action={DashboardActionId.Close}
           icon={<XCircleIcon weight="duotone" className="size-3.5" />}
           iconOnly
           label={messages.common.close}
@@ -218,7 +226,7 @@ export function ArtistsPage() {
       <div className="ml-auto flex items-center gap-2">
         {table.editMode && table.selectedCount > 0 && (
           <DashboardActionButton
-            action="delete"
+            action={DashboardActionId.Delete}
             icon={<TrashIcon weight="duotone" className="size-3.5" />}
             label={ma.deleteButton.replace("{count}", String(table.selectedCount))}
             onClick={() => {
@@ -240,7 +248,7 @@ export function ArtistsPage() {
             )
           }
           size="action"
-          variant={table.editMode ? "primary" : "neutral"}
+          variant={table.editMode ? DashboardButtonVariant.Primary : DashboardButtonVariant.Neutral}
         >
           {m.editButton}
         </DashboardButton>
@@ -318,21 +326,21 @@ export function ArtistsPage() {
         </div>
         <Dialog.Footer>
           <DashboardActionButton
-            action="cancel"
+            action={DashboardActionId.Cancel}
             disabled={deleting}
             icon={false}
             label={m.deleteConfirmCancel}
             onClick={() => setConfirmOpen(false)}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
           <DashboardActionButton
-            action="delete"
+            action={DashboardActionId.Delete}
             busyLabel="\u2026"
             icon={false}
             label={ma.deleteConfirmAction}
             onClick={handleConfirmDelete}
-            status={deleting ? "busy" : "idle"}
+            status={deleting ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
             type="button"
           />
         </Dialog.Footer>

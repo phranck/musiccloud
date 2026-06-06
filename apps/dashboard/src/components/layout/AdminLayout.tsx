@@ -16,6 +16,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { PagesEditorProvider, usePagesEditor } from "@/features/content/state/PagesEditorContext";
+import { SegmentsActionType } from "@/features/content/state/slices/segmentsSlice";
 import { UnsavedGuard } from "@/features/content/state/UnsavedGuard";
 import { useGlobalPagesSave } from "@/features/content/state/useGlobalPagesSave";
 import { UserEditCard } from "@/features/system/UserEditCard";
@@ -265,7 +266,7 @@ function PagesSlicesHydrate() {
     if (segmented.length === 0) return;
     hydratedRef.current = true;
     editor.dispatch.segments({
-      type: "hydrate",
+      type: SegmentsActionType.Hydrate,
       entries: segmented.map((parent) => ({
         ownerSlug: parent.slug,
         segments: (parent.segments ?? []).map((seg) => ({

@@ -1,4 +1,5 @@
-import { AudioPreviewPlayer, type AudioPreviewStatus } from "@/components/audio/AudioPreviewPlayer";
+import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
+import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { outerEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { SongInfo } from "@/components/cards/SongInfo";

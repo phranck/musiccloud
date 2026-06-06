@@ -1,4 +1,4 @@
-import { DashboardButton } from "@musiccloud/dashboard-ui";
+import { DashboardButton, DashboardButtonVariant } from "@musiccloud/dashboard-ui";
 import { CaretLeftIcon } from "@phosphor-icons/react";
 import type { ButtonHTMLAttributes } from "react";
 
@@ -14,7 +14,7 @@ export function HeaderBackButton({ className, label, type = "button", ...props }
       leadingIcon={<CaretLeftIcon weight="duotone" className="w-3.5 h-3.5 shrink-0" />}
       size="action"
       type={type}
-      variant="ghost"
+      variant={DashboardButtonVariant.Ghost}
     >
       <span>{label}</span>
     </DashboardButton>

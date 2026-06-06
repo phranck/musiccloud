@@ -3,19 +3,21 @@ import { ArrowsClockwise as ArrowsClockwiseIcon, Check as CheckIcon } from "@pho
 import { useState } from "react";
 
 import { useI18n } from "@/context/I18nContext";
+import {
+  type AdminMusicItemKind,
+  AdminMusicItemKind as AdminMusicItemKindValue,
+} from "@/features/music/adminMusicKind";
 import { api } from "@/lib/api";
 
-type Kind = "tracks" | "albums" | "artists";
-
-const INVALIDATE_CACHE_ENDPOINT: Record<Kind, (shortId: string) => string> = {
-  tracks: ENDPOINTS.admin.tracks.invalidateCache,
-  albums: ENDPOINTS.admin.albums.invalidateCache,
-  artists: ENDPOINTS.admin.artists.invalidateCache,
+const INVALIDATE_CACHE_ENDPOINT: Record<AdminMusicItemKind, (shortId: string) => string> = {
+  [AdminMusicItemKindValue.Tracks]: ENDPOINTS.admin.tracks.invalidateCache,
+  [AdminMusicItemKindValue.Albums]: ENDPOINTS.admin.albums.invalidateCache,
+  [AdminMusicItemKindValue.Artists]: ENDPOINTS.admin.artists.invalidateCache,
 };
 
 interface InvalidateCacheButtonProps {
   shortId: string | null;
-  kind: Kind;
+  kind: AdminMusicItemKind;
 }
 
 /**

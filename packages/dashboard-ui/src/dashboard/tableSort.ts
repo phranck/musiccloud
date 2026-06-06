@@ -1,7 +1,12 @@
-export type TableSortDirection = "asc" | "desc" | null;
+export const TableSortDirectionValue = {
+  Asc: "asc",
+  Desc: "desc",
+} as const;
+
+export type TableSortDirection = (typeof TableSortDirectionValue)[keyof typeof TableSortDirectionValue] | null;
 
 export function getTableSortAriaSort(direction: TableSortDirection) {
-  if (direction === "asc") return "ascending";
-  if (direction === "desc") return "descending";
+  if (direction === TableSortDirectionValue.Asc) return "ascending";
+  if (direction === TableSortDirectionValue.Desc) return "descending";
   return "none";
 }

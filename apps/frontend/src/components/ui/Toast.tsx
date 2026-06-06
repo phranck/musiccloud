@@ -1,27 +1,26 @@
 import { CheckCircleIcon, type Icon, InfoIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useEffect } from "react";
+import { ToastVariant, type ToastVariant as ToastVariantType } from "@/components/ui/ToastTypes";
 import { cn } from "@/lib/utils";
-
-export type ToastVariant = "success" | "error" | "info";
 
 interface ToastProps {
   message: string;
-  variant: ToastVariant;
+  variant: ToastVariantType;
   visible: boolean;
   onDismiss: () => void;
   duration?: number;
 }
 
-const variantStyles: Record<ToastVariant, string> = {
-  success: "border-green-400/30",
-  error: "border-red-400/30",
-  info: "border-blue-400/30",
+const variantStyles: Record<ToastVariantType, string> = {
+  [ToastVariant.Success]: "border-green-400/30",
+  [ToastVariant.Error]: "border-red-400/30",
+  [ToastVariant.Info]: "border-blue-400/30",
 };
 
-const variantIcons: Record<ToastVariant, Icon> = {
-  success: CheckCircleIcon,
-  error: XCircleIcon,
-  info: InfoIcon,
+const variantIcons: Record<ToastVariantType, Icon> = {
+  [ToastVariant.Success]: CheckCircleIcon,
+  [ToastVariant.Error]: XCircleIcon,
+  [ToastVariant.Info]: InfoIcon,
 };
 
 export function Toast({ message, variant, visible, onDismiss, duration = 3000 }: ToastProps) {
@@ -34,7 +33,7 @@ export function Toast({ message, variant, visible, onDismiss, duration = 3000 }:
   return (
     <div
       role="alert"
-      aria-live={variant === "error" ? "assertive" : "polite"}
+      aria-live={variant === ToastVariant.Error ? "assertive" : "polite"}
       className={cn(
         "fixed bottom-6 left-1/2 -translate-x-1/2 z-50",
         "px-5 py-3 rounded-xl",

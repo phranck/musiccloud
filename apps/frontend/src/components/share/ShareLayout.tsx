@@ -184,7 +184,7 @@ import { EventsCard } from "@/components/artist/EventsCard";
 import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
-import { AudioPreviewStatus } from "@/components/audio/AudioPreviewPlayer";
+import { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
 import { ServicesCard } from "@/components/cards/ServicesCard";

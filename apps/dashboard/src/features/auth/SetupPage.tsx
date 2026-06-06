@@ -1,4 +1,9 @@
-import { DashboardActionButton, DashboardInput } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardInput,
+} from "@musiccloud/dashboard-ui";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useState } from "react";
 import { useNavigate } from "react-router";
@@ -96,13 +101,13 @@ export function SetupPage() {
 
           <div className="bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border-subtle)] px-5 py-4 flex justify-end">
             <DashboardActionButton
-              action="create"
+              action={DashboardActionId.Create}
               busyLabel={setupMessages.submitLoading}
               disabled={loading}
               form="setup-form"
               label={setupMessages.submit}
               size="control"
-              status={loading ? "busy" : "idle"}
+              status={loading ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
               type="submit"
             />
           </div>

@@ -1,4 +1,4 @@
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
+import { DashboardActionButton, DashboardActionId, DashboardButtonVariant } from "@musiccloud/dashboard-ui";
 import {
   Info as InfoIcon,
   SealWarning as SealWarningIcon,
@@ -8,12 +8,22 @@ import type { ReactNode } from "react";
 
 import { Dialog, dialogHeaderIconClass } from "./Dialog";
 
-type AlertVariant = "info" | "warning" | "error";
+const AlertVariant = {
+  Info: "info",
+  Warning: "warning",
+  Error: "error",
+} as const;
+
+type AlertVariant = (typeof AlertVariant)[keyof typeof AlertVariant];
 
 const variantIcons: Record<AlertVariant, ReactNode> = {
-  info: <InfoIcon weight="duotone" className={dialogHeaderIconClass} />,
-  warning: <SealWarningIcon weight="duotone" className={`${dialogHeaderIconClass} !text-[var(--ds-warning-text)]`} />,
-  error: <WarningCircleIcon weight="duotone" className={`${dialogHeaderIconClass} !text-[var(--ds-danger-text)]`} />,
+  [AlertVariant.Info]: <InfoIcon weight="duotone" className={dialogHeaderIconClass} />,
+  [AlertVariant.Warning]: (
+    <SealWarningIcon weight="duotone" className={`${dialogHeaderIconClass} !text-[var(--ds-warning-text)]`} />
+  ),
+  [AlertVariant.Error]: (
+    <WarningCircleIcon weight="duotone" className={`${dialogHeaderIconClass} !text-[var(--ds-danger-text)]`} />
+  ),
 };
 
 interface AlertDialogProps {
@@ -29,7 +39,7 @@ export function AlertDialog({
   open,
   title,
   onClose,
-  variant = "info",
+  variant = AlertVariant.Info,
   buttonLabel = "OK",
   children,
 }: AlertDialogProps) {
@@ -37,7 +47,13 @@ export function AlertDialog({
     <Dialog open={open} title={title} titleIcon={variantIcons[variant]} onClose={onClose}>
       <div className="px-6 py-4 text-sm text-[var(--ds-text)]">{children}</div>
       <Dialog.Footer>
-        <DashboardActionButton action="approve" icon={false} label={buttonLabel} onClick={onClose} variant="primary" />
+        <DashboardActionButton
+          action={DashboardActionId.Approve}
+          icon={false}
+          label={buttonLabel}
+          onClick={onClose}
+          variant={DashboardButtonVariant.Primary}
+        />
       </Dialog.Footer>
     </Dialog>
   );

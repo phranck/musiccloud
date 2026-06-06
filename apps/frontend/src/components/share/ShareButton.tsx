@@ -14,6 +14,12 @@ import { cn } from "@/lib/utils";
 
 const subscribe = () => () => {};
 
+const ShareButtonState = {
+  Idle: "idle",
+  Copied: "copied",
+  Error: "error",
+} as const;
+
 interface ShareButtonProps {
   shareUrl: string;
   songTitle?: string;
@@ -21,11 +27,11 @@ interface ShareButtonProps {
   contentType?: MediaCardContentType;
 }
 
-type ShareState = "idle" | "copied" | "error";
+type ShareState = (typeof ShareButtonState)[keyof typeof ShareButtonState];
 
 export function ShareButton({ shareUrl, songTitle, artistName, contentType }: ShareButtonProps) {
   const t = useT();
-  const [state, setState] = useState<ShareState>("idle");
+  const [state, setState] = useState<ShareState>(ShareButtonState.Idle);
 
   const handleCopy = useCallback(async () => {
     try {
@@ -35,16 +41,16 @@ export function ShareButton({ shareUrl, songTitle, artistName, contentType }: Sh
         method: "clipboard",
         content_type: contentType,
       });
-      setState("copied");
+      setState(ShareButtonState.Copied);
     } catch {
       sendMusicSignal("music_share_interaction", {
         action: "copy_error",
         method: "clipboard",
         content_type: contentType,
       });
-      setState("error");
+      setState(ShareButtonState.Error);
     }
-    setTimeout(() => setState("idle"), 2000);
+    setTimeout(() => setState(ShareButtonState.Idle), 2000);
   }, [contentType, shareUrl]);
 
   const handleNativeShare = useCallback(async () => {
@@ -102,24 +108,24 @@ export function ShareButton({ shareUrl, songTitle, artistName, contentType }: Sh
             className={cn(
               "flex h-full min-h-0 w-full items-center justify-center gap-2 py-0",
               "font-bold text-[15px] tracking-[-0.01em] text-text-primary",
-              state === "idle" && "text-vfd-phosphor",
-              state === "copied" && "text-success",
-              state === "error" && "text-error",
+              state === ShareButtonState.Idle && "text-vfd-phosphor",
+              state === ShareButtonState.Copied && "text-success",
+              state === ShareButtonState.Error && "text-error",
             )}
           >
-            {state === "idle" && (
+            {state === ShareButtonState.Idle && (
               <>
                 <LinkSimpleIcon size={20} weight="duotone" />
                 {t("share.shareLink")}
               </>
             )}
-            {state === "copied" && (
+            {state === ShareButtonState.Copied && (
               <>
                 <CheckIcon size={16} weight="duotone" />
                 {t("share.copied")}
               </>
             )}
-            {state === "error" && (
+            {state === ShareButtonState.Error && (
               <>
                 <WarningIcon size={16} weight="duotone" />
                 {t("share.copyError")}

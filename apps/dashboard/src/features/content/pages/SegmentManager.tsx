@@ -6,7 +6,7 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { NumberCircleIcon } from "@/components/ui/NumberCircleIcon";
 import { useI18n } from "@/context/I18nContext";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
-import { normalizeSegmentEntry } from "@/features/content/state/slices/segmentsSlice";
+import { normalizeSegmentEntry, SegmentsActionType } from "@/features/content/state/slices/segmentsSlice";
 
 interface Props {
   page: ContentPage;
@@ -59,7 +59,7 @@ export function SegmentManager({ page, activeLocale }: Props) {
                   value={getLocalizedText(segment.label, activeLocale, DEFAULT_LOCALE).value}
                   onChange={(e) =>
                     editor.dispatch.segments({
-                      type: "set-label",
+                      type: SegmentsActionType.SetLabel,
                       owner: page.slug,
                       target: segment.targetSlug,
                       locale: activeLocale,

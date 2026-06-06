@@ -1,4 +1,4 @@
-import { DashboardButton } from "@musiccloud/dashboard-ui";
+import { DashboardButton, DashboardButtonVariant } from "@musiccloud/dashboard-ui";
 import { PLATFORM_CONFIG, type PluginInfo } from "@musiccloud/shared";
 
 import { useI18n } from "@/context/I18nContext";
@@ -9,13 +9,22 @@ interface PluginCardProps {
   disabled?: boolean;
 }
 
-function Badge({ label, tone }: { label: string; tone: "neutral" | "accent" | "warn" | "muted" }) {
+const BadgeTone = {
+  Neutral: "neutral",
+  Accent: "accent",
+  Warn: "warn",
+  Muted: "muted",
+} as const;
+
+type BadgeTone = (typeof BadgeTone)[keyof typeof BadgeTone];
+
+function Badge({ label, tone }: { label: string; tone: BadgeTone }) {
   const toneClass =
-    tone === "accent"
+    tone === BadgeTone.Accent
       ? "border-green-500/30 text-green-500 bg-green-500/5"
-      : tone === "warn"
+      : tone === BadgeTone.Warn
         ? "border-amber-500/30 text-amber-500 bg-amber-500/5"
-        : tone === "muted"
+        : tone === BadgeTone.Muted
           ? "border-[var(--ds-border)] text-[var(--ds-text-muted)]"
           : "border-[var(--ds-border)] text-[var(--ds-text)]";
   return (
@@ -47,7 +56,7 @@ export function PluginCard({ plugin, onToggle, disabled }: PluginCardProps) {
           <p className="font-medium text-sm text-[var(--ds-text)]">{plugin.displayName}</p>
           <Badge
             label={plugin.available ? s.availableLabel : s.credentialsMissingLabel}
-            tone={plugin.available ? "accent" : "warn"}
+            tone={plugin.available ? BadgeTone.Accent : BadgeTone.Warn}
           />
         </div>
         <p className="text-xs text-[var(--ds-text-muted)] mt-0.5">{plugin.description}</p>
@@ -60,7 +69,7 @@ export function PluginCard({ plugin, onToggle, disabled }: PluginCardProps) {
           {capabilityBadges
             .filter((b) => b.active)
             .map((b) => (
-              <Badge key={b.label} label={b.label} tone="muted" />
+              <Badge key={b.label} label={b.label} tone={BadgeTone.Muted} />
             ))}
         </div>
       </div>
@@ -70,7 +79,7 @@ export function PluginCard({ plugin, onToggle, disabled }: PluginCardProps) {
         disabled={disabled}
         aria-label={s.toggleAction}
         className="flex-none"
-        variant={plugin.enabled ? "success" : "neutral"}
+        variant={plugin.enabled ? DashboardButtonVariant.Success : DashboardButtonVariant.Neutral}
       >
         {plugin.enabled ? s.enabled : s.disabled}
       </DashboardButton>

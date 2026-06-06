@@ -7,3 +7,4 @@ export * from "./ListboxOption.js";
 export * from "./ListboxPopover.js";
 export * from "./ListboxPrimitives.js";
 export * from "./SegmentedControlPrimitive.js";
+export * from "./SegmentedControlPrimitiveTypes.js";

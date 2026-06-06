@@ -1,20 +1,13 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import {
+  AudioPreviewStatus,
+  type AudioPreviewStatus as AudioPreviewStatusType,
+} from "@/components/audio/AudioPreviewStatus";
 import { Player } from "@/components/playback/Player";
 import { useT } from "@/i18n/context";
 import { sendMusicSignal } from "@/lib/analytics/umami";
 import type { MediaCardContentType } from "@/lib/types/media-card";
-
-export const AudioPreviewStatus = {
-  Loading: "loading",
-  Ready: "ready",
-  Playing: "playing",
-  Paused: "paused",
-  Ended: "ended",
-  Unavailable: "unavailable",
-} as const;
-
-export type AudioPreviewStatus = (typeof AudioPreviewStatus)[keyof typeof AudioPreviewStatus];
 
 interface AudioPreviewPlayerProps {
   /** Immediately-playable preview URL. Optional when `refreshShortId` is set. */
@@ -25,7 +18,7 @@ interface AudioPreviewPlayerProps {
   refreshShortId?: string;
   trackTitle: string;
   contentType?: MediaCardContentType;
-  onStatusChange?: (status: AudioPreviewStatus) => void;
+  onStatusChange?: (status: AudioPreviewStatusType) => void;
 }
 
 /**
@@ -677,7 +670,7 @@ export function AudioPreviewPlayer({
   const isPlaying = state.phase === PlayerPhase.Playing;
 
   useEffect(() => {
-    const status: AudioPreviewStatus = isLoading
+    const status: AudioPreviewStatusType = isLoading
       ? AudioPreviewStatus.Loading
       : isUnavailable
         ? AudioPreviewStatus.Unavailable

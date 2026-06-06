@@ -1,4 +1,10 @@
-import { DashboardButton, DashboardInput, SaveActionButton } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionStatus,
+  DashboardButton,
+  DashboardButtonVariant,
+  DashboardInput,
+  SaveActionButton,
+} from "@musiccloud/dashboard-ui";
 import {
   ArticleIcon,
   CheckCircleIcon,
@@ -30,6 +36,17 @@ const MarkdownEditor = lazy(() =>
 );
 
 const FLUSH_MARKDOWN_EDITOR_CLASS = "rounded-none border-x-0 border-b-0";
+
+const EmailTestFeedbackType = {
+  Ok: "ok",
+  Error: "err",
+} as const;
+
+const HttpStatus = {
+  Conflict: 409,
+} as const;
+
+type EmailTestFeedbackType = (typeof EmailTestFeedbackType)[keyof typeof EmailTestFeedbackType];
 
 interface TemplateFormFields {
   name: string;
@@ -86,7 +103,7 @@ export function EmailTemplateEditPage() {
   const createMutation = useCreateEmailTemplate();
   const updateMutation = useUpdateEmailTemplate(numId);
   const sendTestMutation = useSendTestEmail();
-  const [testFeedback, setTestFeedback] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [testFeedback, setTestFeedback] = useState<{ type: EmailTestFeedbackType; text: string } | null>(null);
 
   const [form, setForm] = useState<TemplateFormFields>({
     name: "",
@@ -144,7 +161,7 @@ export function EmailTemplateEditPage() {
         },
         onError: (err: unknown) => {
           const status = err && typeof err === "object" && "status" in err ? (err as { status: number }).status : 0;
-          setError(status === 409 ? m.nameConflict : m.saveError);
+          setError(status === HttpStatus.Conflict ? m.nameConflict : m.saveError);
         },
       });
     } else {
@@ -168,11 +185,11 @@ export function EmailTemplateEditPage() {
     setTestFeedback(null);
     sendTestMutation.mutate(numId, {
       onSuccess: (result) => {
-        setTestFeedback({ type: "ok", text: m.testSent.replace("{email}", result.to) });
+        setTestFeedback({ type: EmailTestFeedbackType.Ok, text: m.testSent.replace("{email}", result.to) });
         setTimeout(() => setTestFeedback(null), 3000);
       },
       onError: () => {
-        setTestFeedback({ type: "err", text: m.testFailed });
+        setTestFeedback({ type: EmailTestFeedbackType.Error, text: m.testFailed });
         setTimeout(() => setTestFeedback(null), 3000);
       },
     });
@@ -232,7 +249,7 @@ export function EmailTemplateEditPage() {
 
 interface EmailTemplateHeaderActionsProps {
   savedIndicator: boolean;
-  testFeedback: { type: "ok" | "err"; text: string } | null;
+  testFeedback: { type: EmailTestFeedbackType; text: string } | null;
   error: string | null;
   isPending: boolean;
   showSendTest: boolean;
@@ -273,7 +290,7 @@ function EmailTemplateHeaderActions({
       )}
       {testFeedback && (
         <span
-          className={`text-xs ${testFeedback.type === "ok" ? "text-green-600 dark:text-green-400" : "text-red-500"}`}
+          className={`text-xs ${testFeedback.type === EmailTestFeedbackType.Ok ? "text-green-600 dark:text-green-400" : "text-red-500"}`}
         >
           {testFeedback.text}
         </span>
@@ -286,7 +303,7 @@ function EmailTemplateHeaderActions({
           onClick={onSendTest}
           size="action"
           type="button"
-          variant="neutral"
+          variant={DashboardButtonVariant.Neutral}
         >
           {isSendingTest ? sendingTestLabel : sendTestLabel}
         </DashboardButton>
@@ -297,7 +314,7 @@ function EmailTemplateHeaderActions({
         disabled={isPending}
         busyLabel={savingLabel}
         label={saveLabel}
-        status={isPending ? "busy" : "idle"}
+        status={isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
       />
     </div>
   );

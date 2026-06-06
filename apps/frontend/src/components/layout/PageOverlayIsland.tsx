@@ -14,7 +14,8 @@ import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { useEffect, useReducer, useRef, useState } from "react";
 
 import { EmbossedOverlayContent, TranslucentOverlayContent } from "@/components/layout/PageOverlayContent";
-import { OVERLAY_TRANSITION_MS, OverlayBackdrop, OverlayBackdropPlacement } from "@/components/ui/OverlayBackdrop";
+import { OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
+import { OVERLAY_TRANSITION_MS, OverlayBackdropPlacement } from "@/components/ui/OverlayBackdropTypes";
 import { OverlayProvider, useOverlay } from "@/context/OverlayContext";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider } from "@/i18n/context";

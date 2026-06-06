@@ -26,8 +26,14 @@ const STATUS_DEFS: Record<string, StatusDef> = {
   },
 };
 
+const PageStatus = {
+  Published: "published",
+  Hidden: "hidden",
+  Draft: "draft",
+} as const;
+
 function defOf(status: string): StatusDef {
-  return STATUS_DEFS[status] ?? STATUS_DEFS.draft;
+  return STATUS_DEFS[status] ?? STATUS_DEFS[PageStatus.Draft];
 }
 
 export function PageStatusIcon({ status }: { status: string }) {
@@ -41,7 +47,8 @@ export function PageStatusBadge({ status }: { status: string }) {
   const StatusIcon = def.icon;
   const { messages } = useI18n();
   const labels = messages.content.pages.status;
-  const label = status === "published" ? labels.published : status === "hidden" ? labels.hidden : labels.draft;
+  const label =
+    status === PageStatus.Published ? labels.published : status === PageStatus.Hidden ? labels.hidden : labels.draft;
   return (
     <span className={`inline-flex items-center gap-1 text-xs ${def.badgeClass}`}>
       <StatusIcon weight="duotone" className="w-3.5 h-3.5" />

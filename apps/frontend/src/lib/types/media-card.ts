@@ -6,7 +6,14 @@ export type { PlatformLink };
 // Content configuration protocol
 // ---------------------------------------------------------------------------
 
-export type MediaCardContentType = "song" | "album" | "artist" | "share";
+export const MediaCardContentTypeValue = {
+  Song: "song",
+  Album: "album",
+  Artist: "artist",
+  Share: "share",
+} as const;
+
+export type MediaCardContentType = (typeof MediaCardContentTypeValue)[keyof typeof MediaCardContentTypeValue];
 
 /**
  * Base configuration shared by all three content types.
@@ -46,7 +53,7 @@ export interface MediaCardContentConfiguration {
  * Shows ShareButton and sr-announcement.
  */
 export interface SongContentConfiguration extends MediaCardContentConfiguration {
-  type: "song";
+  type: typeof MediaCardContentTypeValue.Song;
   shareUrl: string;
   srAnnouncement?: string;
 }
@@ -56,7 +63,7 @@ export interface SongContentConfiguration extends MediaCardContentConfiguration 
  * Shows ShareButton and sr-announcement.
  */
 export interface AlbumContentConfiguration extends MediaCardContentConfiguration {
-  type: "album";
+  type: typeof MediaCardContentTypeValue.Album;
   shareUrl: string;
   srAnnouncement?: string;
 }
@@ -66,7 +73,7 @@ export interface AlbumContentConfiguration extends MediaCardContentConfiguration
  * Shows ShareButton and sr-announcement.
  */
 export interface ArtistContentConfiguration extends MediaCardContentConfiguration {
-  type: "artist";
+  type: typeof MediaCardContentTypeValue.Artist;
   shareUrl: string;
   srAnnouncement?: string;
 }
@@ -80,7 +87,7 @@ export interface ArtistContentConfiguration extends MediaCardContentConfiguratio
  * `platformsLabel` (from base) serves as SSR-rendered fallback to avoid flash.
  */
 export interface ShareContentConfiguration extends MediaCardContentConfiguration {
-  type: "share";
+  type: typeof MediaCardContentTypeValue.Share;
   platformsLabelKey: string;
   /** The short URL for this share page. */
   shortUrl: string;
@@ -90,10 +97,14 @@ export interface ShareContentConfiguration extends MediaCardContentConfiguration
 export function isShareableContent(
   content: MediaCardContentConfiguration,
 ): content is SongContentConfiguration | AlbumContentConfiguration | ArtistContentConfiguration {
-  return content.type === "song" || content.type === "album" || content.type === "artist";
+  return (
+    content.type === MediaCardContentTypeValue.Song ||
+    content.type === MediaCardContentTypeValue.Album ||
+    content.type === MediaCardContentTypeValue.Artist
+  );
 }
 
 /** Type guard: true for share page config (has shortUrl). */
 export function isSharePageContent(content: MediaCardContentConfiguration): content is ShareContentConfiguration {
-  return content.type === "share";
+  return content.type === MediaCardContentTypeValue.Share;
 }

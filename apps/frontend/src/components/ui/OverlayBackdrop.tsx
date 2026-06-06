@@ -1,24 +1,19 @@
 import type { CSSProperties } from "react";
 
+import {
+  OverlayBackdropPlacement,
+  type OverlayBackdropPlacement as OverlayBackdropPlacementType,
+} from "@/components/ui/OverlayBackdropTypes";
 import { cn } from "@/lib/utils";
-
-export const OVERLAY_TRANSITION_MS = 300;
 
 const OVERLAY_BACKDROP_OPEN_CLASS = "bg-black/70";
 const OVERLAY_BACKDROP_CLOSED_CLASS = "bg-black/0";
-
-export const OverlayBackdropPlacement = {
-  Absolute: "absolute",
-  Fixed: "fixed",
-} as const;
-
-type OverlayBackdropPlacement = (typeof OverlayBackdropPlacement)[keyof typeof OverlayBackdropPlacement];
 
 interface OverlayBackdropProps {
   open: boolean;
   onClick: () => void;
   ariaLabel: string;
-  placement?: OverlayBackdropPlacement;
+  placement?: OverlayBackdropPlacementType;
   className?: string;
   style?: CSSProperties;
 }

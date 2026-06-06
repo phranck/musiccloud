@@ -1,5 +1,10 @@
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
-import type { ContentPage, PageType } from "@musiccloud/shared";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+} from "@musiccloud/dashboard-ui";
+import { type ContentPage, PageType } from "@musiccloud/shared";
 import { PlusCircleIcon } from "@phosphor-icons/react";
 import { useReducer } from "react";
 
@@ -25,7 +30,7 @@ interface State {
   error: string | null;
 }
 
-const INITIAL: State = { title: "", slug: "", slugManual: false, pageType: "default", error: null };
+const INITIAL: State = { title: "", slug: "", slugManual: false, pageType: PageType.Default, error: null };
 
 function slugify(str: string): string {
   return str
@@ -74,7 +79,7 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
       const page = await createPage.mutateAsync({
         slug,
         title,
-        pageType: lockDefaultType ? "default" : pageType,
+        pageType: lockDefaultType ? PageType.Default : pageType,
       });
       reset();
       onClose();
@@ -132,8 +137,8 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
                 onChange={(v) => dispatch({ pageType: v })}
                 options={
                   [
-                    { value: "default", label: text.pageTypeDefault },
-                    { value: "segmented", label: text.pageTypeSegmented },
+                    { value: PageType.Default, label: text.pageTypeDefault },
+                    { value: PageType.Segmented, label: text.pageTypeSegmented },
                   ] satisfies DropdownOption<PageType>[]
                 }
               />
@@ -143,21 +148,21 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
         </div>
         <Dialog.Footer>
           <DashboardActionButton
-            action="cancel"
+            action={DashboardActionId.Cancel}
             disabled={createPage.isPending}
             icon={false}
             label={common.cancel}
             onClick={handleClose}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
           <DashboardActionButton
-            action="create"
+            action={DashboardActionId.Create}
             busyLabel={text.creating}
             disabled={!slug || !title}
             icon={false}
             label={text.create}
-            status={createPage.isPending ? "busy" : "idle"}
+            status={createPage.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
             type="submit"
           />
         </Dialog.Footer>

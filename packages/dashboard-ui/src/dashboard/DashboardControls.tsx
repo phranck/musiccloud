@@ -12,7 +12,7 @@ import {
 } from "../primitives/FieldPrimitives.js";
 import type { SegmentedControlPrimitiveProps } from "../primitives/SegmentedControlPrimitive.js";
 import { SegmentedControlPrimitive } from "../primitives/SegmentedControlPrimitive.js";
-import type { TableSortDirection } from "./tableSort.js";
+import { type TableSortDirection, TableSortDirectionValue } from "./tableSort.js";
 
 export type DashboardFieldProps = FieldShellProps;
 
@@ -115,7 +115,12 @@ export function TableSortHeader({
 }
 
 function TableSortIcon({ direction }: { direction: TableSortDirection }) {
-  const Icon = direction === "asc" ? CaretUpIcon : direction === "desc" ? CaretDownIcon : CaretUpDownIcon;
+  const Icon =
+    direction === TableSortDirectionValue.Asc
+      ? CaretUpIcon
+      : direction === TableSortDirectionValue.Desc
+        ? CaretDownIcon
+        : CaretUpDownIcon;
 
   return <Icon weight="duotone" className={cx("w-3 h-3 shrink-0", direction === null && "opacity-40")} />;
 }

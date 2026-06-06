@@ -15,16 +15,24 @@ interface Props {
 
 const FLAG: Record<Locale, string> = { en: "🇬🇧", de: "🇩🇪" };
 
+const TranslationState = {
+  Ready: "ready",
+  Stale: "stale",
+  Missing: "missing",
+} as const;
+
 function StatusIcons({ locale, state }: { locale: Locale; state: LanguageTabState }) {
   const isDefault = locale === DEFAULT_LOCALE;
 
   return (
     <span className="inline-flex items-center gap-0.5">
-      {!isDefault && state.status === "ready" && (
+      {!isDefault && state.status === TranslationState.Ready && (
         <CheckCircleIcon size={14} weight="duotone" className="text-emerald-500" />
       )}
-      {!isDefault && state.status === "stale" && <WarningIcon size={14} weight="duotone" className="text-amber-500" />}
-      {!isDefault && state.status === "missing" && (
+      {!isDefault && state.status === TranslationState.Stale && (
+        <WarningIcon size={14} weight="duotone" className="text-amber-500" />
+      )}
+      {!isDefault && state.status === TranslationState.Missing && (
         <QuestionIcon size={14} weight="duotone" className="text-[var(--ds-text-muted)] opacity-60" />
       )}
       {state.dirty && <WarningCircleIcon size={14} weight="duotone" className="text-[var(--color-primary)]" />}

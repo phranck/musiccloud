@@ -25,9 +25,10 @@ import {
 import { Fragment, type ReactNode, useEffect, useMemo, useState } from "react";
 import { NavLink, useMatch, useNavigate } from "react-router";
 
-import { CollapsibleSidebarGroup, sidebarGroupItemClass } from "@/components/layout/CollapsibleSidebarGroup";
+import { CollapsibleSidebarGroup } from "@/components/layout/CollapsibleSidebarGroup";
 import { SidebarFooter } from "@/components/layout/SidebarFooter";
 import { SidebarHeader } from "@/components/layout/SidebarHeader";
+import { sidebarGroupItemClass } from "@/components/layout/sidebarGroupItemClass";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { useI18n } from "@/context/I18nContext";
 import { groupPagesByHierarchy } from "@/features/content/hierarchy";
@@ -37,6 +38,7 @@ import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import { isContentDirty } from "@/features/content/state/slices/contentSlice";
 import { isMetaDirty } from "@/features/content/state/slices/metaSlice";
+import { SegmentsActionType } from "@/features/content/state/slices/segmentsSlice";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import type { DashboardMessages } from "@/i18n/messages";
@@ -274,7 +276,7 @@ function PagesGroup({
       // Insert the new page as the last child of the current parent.
       const siblings = editor.segments.byOwner[parentSlug]?.current ?? [];
       editor.dispatch.segments({
-        type: "add",
+        type: SegmentsActionType.Add,
         owner: parentSlug,
         target: page.slug,
         position: siblings.length,

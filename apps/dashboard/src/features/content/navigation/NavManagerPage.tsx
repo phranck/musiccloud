@@ -18,6 +18,9 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   ControlTrigger,
   DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
   DashboardIconButton,
   DashboardInput,
   ListboxOption,
@@ -113,12 +116,34 @@ const NAV_TEXT = {
 
 type NavText = (typeof NAV_TEXT)[keyof typeof NAV_TEXT];
 
+const NavTarget = {
+  SameTab: "_self",
+  NewTab: "_blank",
+} as const;
+
+type NavTarget = (typeof NavTarget)[keyof typeof NavTarget];
+
+const NavAddType = {
+  Page: "page",
+  Url: "url",
+  Form: "form",
+} as const;
+
+type NavAddType = (typeof NavAddType)[keyof typeof NavAddType];
+
+const PageType = {
+  Segmented: "segmented",
+  Default: "default",
+} as const;
+
+type PageType = (typeof PageType)[keyof typeof PageType];
+
 interface NavItemState {
   id: number;
   pageSlug: string | null;
   pageTitle: string | null;
   url: string | null;
-  target: "_self" | "_blank";
+  target: NavTarget;
   label: string;
   translations: Partial<Record<Locale, string>>;
 }
@@ -172,7 +197,7 @@ function SortableNavItem({
         className="touch-none cursor-grab active:cursor-grabbing"
         title={text.dragTitle}
         aria-label={text.dragTitle}
-        variant="ghost"
+        variant={DashboardButtonVariant.Ghost}
       >
         <ListIcon weight="bold" className="size-4" />
       </DashboardIconButton>
@@ -192,7 +217,7 @@ function SortableNavItem({
       />
 
       <DashboardActionButton
-        action="remove"
+        action={DashboardActionId.Remove}
         icon={<XCircleIcon weight="duotone" className="size-3.5" />}
         iconOnly
         label={text.remove}
@@ -259,11 +284,11 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
     items: NavItemState[];
     dirty: boolean;
     saveError: string | null;
-    addType: "page" | "url" | "form";
+    addType: NavAddType;
     addPageSlug: string;
     addUrl: string;
     addLabel: string;
-    addTarget: "_self" | "_blank";
+    addTarget: NavTarget;
   }
 
   const [state, dispatch] = useReducer(
@@ -272,11 +297,11 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
       items: [],
       dirty: false,
       saveError: null,
-      addType: "page",
+      addType: NavAddType.Page,
       addPageSlug: "",
       addUrl: "",
       addLabel: "",
-      addTarget: "_self",
+      addTarget: NavTarget.SameTab,
     },
   );
   const { items, dirty, saveError, addType, addPageSlug, addUrl, addLabel, addTarget } = state;
@@ -302,7 +327,7 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
         pageSlug: si.pageSlug ?? null,
         pageTitle: si.pageTitle ?? null,
         url: si.url ?? null,
-        target: (si.target as "_self" | "_blank") ?? "_self",
+        target: (si.target as NavTarget) ?? NavTarget.SameTab,
         label: si.label ?? "",
         translations: si.translations ?? {},
       })),
@@ -372,7 +397,7 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
           pageSlug: null,
           pageTitle: form.name,
           url,
-          target: "_self",
+          target: NavTarget.SameTab,
           label: "",
           translations: {},
         },
@@ -391,7 +416,7 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
         pageSlug: page.slug,
         pageTitle: page.title,
         url: null,
-        target: "_self",
+        target: NavTarget.SameTab,
         label: "",
         translations: {},
       },
@@ -420,7 +445,7 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
         translations: {},
       },
     ]);
-    dispatch({ addUrl: "", addLabel: "", addTarget: "_self" });
+    dispatch({ addUrl: "", addLabel: "", addTarget: NavTarget.SameTab });
     setDirty(true);
   }
 
@@ -433,7 +458,7 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
         pageSlug: null,
         pageTitle: route.label,
         url: route.url,
-        target: "_self",
+        target: NavTarget.SameTab,
         label: "",
         translations: {},
       },
@@ -552,7 +577,7 @@ interface PagesGrouped {
 }
 
 interface NavColumnAddSectionProps {
-  addType: "page" | "url" | "form";
+  addType: NavAddType;
   addPageSlug: string;
   addUrl: string;
   addLabel: string;
@@ -560,7 +585,7 @@ interface NavColumnAddSectionProps {
   availableForms: { name: string; slug: string | null }[];
   availableStatics: { label: string; url: string }[];
   text: NavText;
-  onTypeChange: (type: "page" | "url" | "form") => void;
+  onTypeChange: (type: NavAddType) => void;
   onPageSlugChange: (slug: string) => void;
   onUrlChange: (url: string) => void;
   onLabelChange: (label: string) => void;
@@ -590,16 +615,16 @@ function NavColumnAddSection({
     <div className="border-t border-[var(--ds-border)] pt-3 space-y-3">
       <SegmentSwitch
         aria-label={text.choosePageOrForm}
-        value={addType === "form" ? "page" : addType}
-        onChange={(value) => onTypeChange(value)}
+        value={addType === NavAddType.Form ? NavAddType.Page : addType}
+        onChange={(value) => onTypeChange(value as NavAddType)}
         options={[
-          { value: "page", label: text.typePage },
-          { value: "url", label: text.typeUrl },
+          { value: NavAddType.Page, label: text.typePage },
+          { value: NavAddType.Url, label: text.typeUrl },
         ]}
         size="sm"
       />
 
-      {addType === "page" ? (
+      {addType === NavAddType.Page ? (
         <div className="flex items-center gap-2">
           <HierarchicalPagePicker
             value={addPageSlug}
@@ -610,7 +635,7 @@ function NavColumnAddSection({
             formsLabel={text.forms}
           />
           <DashboardActionButton
-            action="create"
+            action={DashboardActionId.Create}
             disabled={!addPageSlug}
             icon={<PlusCircleIcon weight="duotone" className="size-4" />}
             iconOnly
@@ -654,7 +679,7 @@ function NavColumnAddSection({
               className="w-24 text-xs"
             />
             <DashboardActionButton
-              action="create"
+              action={DashboardActionId.Create}
               disabled={!addUrl.trim()}
               icon={<PlusCircleIcon weight="duotone" className="size-4" />}
               iconOnly
@@ -683,14 +708,14 @@ interface HierarchicalPagePickerProps {
 interface PageRowProps {
   depth: 0 | 1;
   onPick: (value: string) => void;
-  pageType: "segmented" | "default";
+  pageType: PageType;
   selected: boolean;
   slug: string;
   title: string;
 }
 
 function PageRow({ depth, onPick, pageType, selected, slug, title }: PageRowProps) {
-  const Icon = pageType === "segmented" ? FileDashedIcon : FileMdIcon;
+  const Icon = pageType === PageType.Segmented ? FileDashedIcon : FileMdIcon;
   return (
     <ListboxOption
       onClick={() => onPick(slug)}
@@ -775,7 +800,7 @@ function HierarchicalPagePicker({
               slug={p.slug}
               title={p.title}
               depth={0}
-              pageType="default"
+              pageType={PageType.Default}
               selected={value === p.slug}
               onPick={pick}
             />
@@ -786,7 +811,7 @@ function HierarchicalPagePicker({
                 slug={b.parent.slug}
                 title={b.parent.title}
                 depth={0}
-                pageType="segmented"
+                pageType={PageType.Segmented}
                 selected={value === b.parent.slug}
                 onPick={pick}
               />
@@ -796,7 +821,7 @@ function HierarchicalPagePicker({
                   slug={c.slug}
                   title={c.title}
                   depth={1}
-                  pageType="default"
+                  pageType={PageType.Default}
                   selected={value === c.slug}
                   onPick={pick}
                 />
@@ -869,7 +894,7 @@ export function NavManagerPage() {
           disabled={!isDirty || isSaving}
           busyLabel={common.saving}
           label={common.save}
-          status={isSaving ? "busy" : "idle"}
+          status={isSaving ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
         />
       </PageHeader>
 

@@ -6,7 +6,12 @@
 import type { Locale } from "./locales.js";
 
 export type NavId = "header" | "footer";
-export type NavTarget = "_self" | "_blank";
+export const NavTarget = {
+  Self: "_self",
+  Blank: "_blank",
+} as const;
+
+export type NavTarget = (typeof NavTarget)[keyof typeof NavTarget];
 
 export type ContentStatus = "draft" | "published" | "hidden";
 export const PageType = {

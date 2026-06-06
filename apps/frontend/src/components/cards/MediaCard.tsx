@@ -1,4 +1,5 @@
-import { AudioPreviewPlayer, type AudioPreviewStatus } from "@/components/audio/AudioPreviewPlayer";
+import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
+import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -10,7 +11,7 @@ import { isShareableContent, isSharePageContent, type MediaCardContentConfigurat
 import { cn } from "@/lib/utils";
 import { solidEmbossedCardStyle } from "@/styles/neumorphic";
 
-export type { AudioPreviewStatus } from "@/components/audio/AudioPreviewPlayer";
+export type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 
 export type {
   AlbumContentConfiguration,

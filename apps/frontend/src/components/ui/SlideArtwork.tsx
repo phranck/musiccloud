@@ -2,6 +2,7 @@ import { MusicNoteIcon, UserIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
+import { SlideArtworkKind, type SlideArtworkKind as SlideArtworkKindType } from "@/components/ui/SlideArtworkTypes";
 import { cn } from "@/lib/utils";
 
 interface SlideArtworkProps {
@@ -9,7 +10,7 @@ interface SlideArtworkProps {
   active: boolean;
   artworkUrl?: string;
   /** "round" for artists, "square" for tracks/albums. */
-  kind?: "square" | "round";
+  kind?: SlideArtworkKindType;
   /** Size classes applied to the outer container. */
   sizeClass: string;
   /** Pixel dimension for the img width/height attributes. */
@@ -22,9 +23,15 @@ interface SlideArtworkProps {
  * in from above, pushing the cover image out downward. The RecessedCard
  * border and inner shadow stay fixed on top of both layers.
  */
-export function SlideArtwork({ active, artworkUrl, kind = "square", sizeClass, imgDim = 56 }: SlideArtworkProps) {
-  const FallbackIcon = kind === "round" ? UserIcon : MusicNoteIcon;
-  const borderRadius = kind === "round" ? "50%" : imgDim <= 40 ? "4px" : "6px";
+export function SlideArtwork({
+  active,
+  artworkUrl,
+  kind = SlideArtworkKind.Square,
+  sizeClass,
+  imgDim = 56,
+}: SlideArtworkProps) {
+  const FallbackIcon = kind === SlideArtworkKind.Round ? UserIcon : MusicNoteIcon;
+  const borderRadius = kind === SlideArtworkKind.Round ? "50%" : imgDim <= 40 ? "4px" : "6px";
   // Scale a tight top/left-only inner shadow proportionally. It should read
   // as the recessed rim casting onto the artwork/CD, not as a dark overlay.
   const shadowOffset = Math.max(2, Math.round((imgDim / 56) * 4));

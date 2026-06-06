@@ -1,4 +1,4 @@
-import type { NavItem } from "@musiccloud/shared";
+import { type NavItem, NavTarget, PageDisplayMode } from "@musiccloud/shared";
 import type { MouseEvent } from "react";
 
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
@@ -12,8 +12,12 @@ interface PageHeaderProps {
 
 const EMPTY_NAV_ITEMS: NavItem[] = [];
 
+const OverlaySource = {
+  Header: "header",
+} as const;
+
 function isOverlayModeItem(item: NavItem): boolean {
-  return item.pageSlug !== null && item.pageDisplayMode !== null && item.pageDisplayMode !== "fullscreen";
+  return item.pageSlug !== null && item.pageDisplayMode !== null && item.pageDisplayMode !== PageDisplayMode.Fullscreen;
 }
 
 function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): void {
@@ -23,12 +27,12 @@ function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): vo
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
     return;
   }
-  if (item.target === "_blank") return;
+  if (item.target === NavTarget.Blank) return;
   if (!isOverlayModeItem(item)) return;
   if (!isOverlayActive()) return; // no island mounted → fall back to full navigation
   event.preventDefault();
   window.dispatchEvent(
-    new CustomEvent(OVERLAY_OPEN_EVENT, { detail: { slug: item.pageSlug as string, source: "header" } }),
+    new CustomEvent(OVERLAY_OPEN_EVENT, { detail: { slug: item.pageSlug as string, source: OverlaySource.Header } }),
   );
 }
 
@@ -45,8 +49,8 @@ export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
             <a
               key={item.id}
               href={navHref(item)}
-              target={item.target === "_blank" ? "_blank" : undefined}
-              rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+              target={item.target === NavTarget.Blank ? NavTarget.Blank : undefined}
+              rel={item.target === NavTarget.Blank ? "noopener noreferrer" : undefined}
               onClick={(e) => handleNavClick(e, item)}
               className="text-text-primary/85 hover:text-text-primary transition-colors duration-150"
             >

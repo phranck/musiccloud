@@ -7,11 +7,18 @@ interface PageHeaderState {
   actionsEl: HTMLDivElement | null;
 }
 
+const PageHeaderActionType = {
+  SetTitle: "setTitle",
+  ClearTitle: "clearTitle",
+  SetLeadingEl: "setLeadingEl",
+  SetActionsEl: "setActionsEl",
+} as const;
+
 type PageHeaderAction =
-  | { type: "setTitle"; title: string; titleContent: ReactNode | null }
-  | { type: "clearTitle" }
-  | { type: "setLeadingEl"; el: HTMLDivElement | null }
-  | { type: "setActionsEl"; el: HTMLDivElement | null };
+  | { type: typeof PageHeaderActionType.SetTitle; title: string; titleContent: ReactNode | null }
+  | { type: typeof PageHeaderActionType.ClearTitle }
+  | { type: typeof PageHeaderActionType.SetLeadingEl; el: HTMLDivElement | null }
+  | { type: typeof PageHeaderActionType.SetActionsEl; el: HTMLDivElement | null };
 
 const initialState: PageHeaderState = {
   title: "",
@@ -22,13 +29,13 @@ const initialState: PageHeaderState = {
 
 function reducer(state: PageHeaderState, action: PageHeaderAction): PageHeaderState {
   switch (action.type) {
-    case "setTitle":
+    case PageHeaderActionType.SetTitle:
       return { ...state, title: action.title, titleContent: action.titleContent };
-    case "clearTitle":
+    case PageHeaderActionType.ClearTitle:
       return { ...state, title: "", titleContent: null };
-    case "setLeadingEl":
+    case PageHeaderActionType.SetLeadingEl:
       return { ...state, leadingEl: action.el };
-    case "setActionsEl":
+    case PageHeaderActionType.SetActionsEl:
       return { ...state, actionsEl: action.el };
   }
 }
@@ -69,12 +76,19 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
   // stable by React's contract; swapping them out for a reducer requires
   // manually preserving that guarantee.
   const setTitle = useCallback(
-    (title: string, titleContent: ReactNode | null) => dispatch({ type: "setTitle", title, titleContent }),
+    (title: string, titleContent: ReactNode | null) =>
+      dispatch({ type: PageHeaderActionType.SetTitle, title, titleContent }),
     [],
   );
-  const clearTitle = useCallback(() => dispatch({ type: "clearTitle" }), []);
-  const setLeadingEl = useCallback((el: HTMLDivElement | null) => dispatch({ type: "setLeadingEl", el }), []);
-  const setActionsEl = useCallback((el: HTMLDivElement | null) => dispatch({ type: "setActionsEl", el }), []);
+  const clearTitle = useCallback(() => dispatch({ type: PageHeaderActionType.ClearTitle }), []);
+  const setLeadingEl = useCallback(
+    (el: HTMLDivElement | null) => dispatch({ type: PageHeaderActionType.SetLeadingEl, el }),
+    [],
+  );
+  const setActionsEl = useCallback(
+    (el: HTMLDivElement | null) => dispatch({ type: PageHeaderActionType.SetActionsEl, el }),
+    [],
+  );
 
   const value = useMemo<PageHeaderContextValue>(
     () => ({ ...state, setTitle, clearTitle, setLeadingEl, setActionsEl }),

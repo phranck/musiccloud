@@ -10,7 +10,11 @@
 
 import { type AudioPreviewStatus, MediaCard } from "@/components/cards/MediaCard";
 import { useT } from "@/i18n/context";
-import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
+import {
+  type MediaCardContentConfiguration,
+  MediaCardContentTypeValue,
+  type ShareContentConfiguration,
+} from "@/lib/types/media-card";
 
 export type { AudioPreviewStatus } from "@/components/cards/MediaCard";
 
@@ -23,7 +27,9 @@ interface SharePageCardProps {
 export function SharePageCard({ config, animated = false, onPreviewStatusChange }: SharePageCardProps) {
   const t = useT();
   const platformsLabel =
-    config.type === "share" ? t((config as ShareContentConfiguration).platformsLabelKey) : config.platformsLabel;
+    config.type === MediaCardContentTypeValue.Share
+      ? t((config as ShareContentConfiguration).platformsLabelKey)
+      : config.platformsLabel;
   return (
     <MediaCard
       content={{ ...config, platformsLabel }}
