@@ -3,7 +3,6 @@ import type { MouseEvent } from "react";
 
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
 import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/OverlayContext";
-import { trackContentPageClick } from "@/lib/analytics";
 import { navHref, navLabel } from "@/lib/nav";
 
 interface PageHeaderProps {
@@ -17,18 +16,7 @@ function isOverlayModeItem(item: NavItem): boolean {
   return item.pageSlug !== null && item.pageDisplayMode !== null && item.pageDisplayMode !== "fullscreen";
 }
 
-function trackNavItem(item: NavItem): void {
-  if (!item.pageSlug) return;
-  trackContentPageClick({
-    slug: item.pageSlug,
-    label: navLabel(item),
-    surface: "header_nav",
-    openMode: item.target === "_blank" ? "external" : isOverlayModeItem(item) ? "overlay" : "fullscreen",
-  });
-}
-
 function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): void {
-  trackNavItem(item);
   // Only intercept primary-button clicks without modifier keys — anything else
   // (middle-click, ctrl+click, cmd+click, shift+click) keeps the default
   // browser behaviour so new-tab / copy-link continue to work.

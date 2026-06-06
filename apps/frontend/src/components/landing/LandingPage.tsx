@@ -20,7 +20,6 @@ import { useAppState } from "@/hooks/useAppState";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
 import { useToast } from "@/hooks/useToast";
 import { LocaleProvider, useT } from "@/i18n/context";
-import { trackLiveExampleClick } from "@/lib/analytics";
 import {
   loadDisambiguationPanel,
   loadGenreBrowseGrid,
@@ -82,15 +81,7 @@ function ActiveShareResult({
       onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
     >
       <div className="mb-4 text-center sm:mb-6">
-        <a
-          href="/"
-          aria-label="Go to musiccloud home"
-          className="inline-block"
-          onClick={handleShareLogoClick}
-          data-analytics-key="logo.home"
-          data-analytics-label="logo_home"
-          data-analytics-surface="logo"
-        >
+        <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleShareLogoClick}>
           <LogoView className="w-56 sm:w-64 h-auto" />
         </a>
       </div>
@@ -113,21 +104,15 @@ function LiveExampleTeaser({
   exampleShortId,
   label,
   teaser,
-  onClick,
 }: {
   exampleShortId: string;
   label: string;
   teaser: string;
-  onClick: () => void;
 }) {
   return (
     <p className="mt-4 text-sm text-text-secondary text-center">
       {teaser}{" "}
-      <a
-        href={`/${exampleShortId}`}
-        className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
-        onClick={onClick}
-      >
+      <a href={`/${exampleShortId}`} className="text-accent hover:text-[var(--color-accent-hover)] transition-colors">
         {label}
       </a>
     </p>
@@ -266,11 +251,6 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
     [beginShareExit],
   );
 
-  const handleLiveExampleClick = useCallback(() => {
-    if (!exampleShortId) return;
-    trackLiveExampleClick(exampleShortId);
-  }, [exampleShortId]);
-
   const handleEscapeKey = useEffectEvent((e: KeyboardEvent) => {
     if (e.key !== "Escape" || !showCompact) return;
     e.preventDefault();
@@ -399,7 +379,6 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                     exampleShortId={exampleShortId}
                     label={t("landing.exampleLink")}
                     teaser={t("landing.exampleTeaser")}
-                    onClick={handleLiveExampleClick}
                   />
                 )}
 

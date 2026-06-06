@@ -81,10 +81,6 @@ export const ENDPOINTS = {
       /** POST: ingest an app-side error event from the Apple client (Testflight). */
       appError: "/api/v1/telemetry/app-error",
     },
-    analytics: {
-      /** POST: ingest first-party website behaviour analytics batches. */
-      websiteEvents: "/api/v1/analytics/website-events",
-    },
   },
 
   /** `/api/auth/...`: public auth endpoints (machine-to-machine token issuance). */
@@ -118,10 +114,6 @@ export const ENDPOINTS = {
     redirect: "/api/redirect",
     /** Umami analytics proxy prefix (script.js + event endpoint live beneath). */
     umami: "/api/mc",
-    analytics: {
-      /** POST: first-party website behaviour analytics batch. */
-      websiteEvents: "/api/analytics/website-events",
-    },
   },
 
   /** `/api/admin/...`: admin dashboard endpoints (JWT-protected). */
@@ -259,36 +251,6 @@ export const ENDPOINTS = {
       active: "/api/admin/analytics/active",
       /** GET: realtime active visitors + top pages. */
       realtime: "/api/admin/analytics/realtime",
-      events: {
-        /** GET: track-resolve events (timeline). */
-        resolves: "/api/admin/analytics/events/resolves",
-        /** GET: track-resolve events (total count). */
-        resolvesTotal: "/api/admin/analytics/events/resolves/total",
-        /** GET: service-link-click events (timeline). */
-        linkClicks: "/api/admin/analytics/events/link-clicks",
-        /** GET: service-link-click events (total count). */
-        linkClicksTotal: "/api/admin/analytics/events/link-clicks/total",
-        /** GET: interactions (total count). */
-        interactionsTotal: "/api/admin/analytics/events/interactions/total",
-      },
-      website: {
-        /** GET: first-party website analytics overview. */
-        overview: "/api/admin/analytics/website/overview",
-        /** GET: cluster/device/session drilldown for first-party website analytics. */
-        detail: "/api/admin/analytics/website/detail",
-        /** GET: JSON export for first-party website analytics. */
-        export: "/api/admin/analytics/website/export",
-        /** GET: location summaries and recent Geo-IP points for first-party website analytics. */
-        geo: "/api/admin/analytics/website/geo",
-        /** GET/POST: retention policy and manual cleanup run. */
-        retention: "/api/admin/analytics/website/retention",
-        /** GET: realtime SSE stream for first-party website Geo-IP events. */
-        realtime: "/api/admin/analytics/website/realtime",
-        /** GET: local DB-IP Geo-IP database status. */
-        geoIpStatus: "/api/admin/analytics/website/geoip/status",
-        /** POST: run a local DB-IP Geo-IP database update. */
-        geoIpUpdate: "/api/admin/analytics/website/geoip/update",
-      },
     },
 
     crawler: {

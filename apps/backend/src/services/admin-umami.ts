@@ -12,29 +12,6 @@
  * render a "no data" state instead of propagating errors to the client
  * when Umami is down or deliberately unconfigured (e.g. local dev).
  *
- * ## Two kinds of custom-event queries
- *
- * Musiccloud emits two custom events into Umami: `track-resolve` (fired
- * every time a track resolves) and `service-link-click` (fired when a
- * user opens a resolved service link). Two Umami endpoints cover them:
- *
- * - `/event-data/values` returns the *values* of one property for one
- *   event, sorted by frequency, capped to `EVENT_REPORT_LIMIT`. We use
- *   it for the "top N services by resolves / clicks" bars.
- * - `/event-data/events` returns aggregated totals per property for one
- *   event. We use it for the single "total resolves / clicks / all
- *   interactions" KPIs.
- *
- * ## Legacy response-shape tolerance
- *
- * Older Umami versions return event-data rows as `{ x, y }`, newer
- * versions as `{ value, total }`. `normalizeEventValueRows` accepts
- * either and yields `UmamiEventValueRow` with canonical field names.
- *
- * ## `EVENT_REPORT_LIMIT`
- *
- * Capped at 10 because the dashboard bar cards only render the top 10
- * entries. Querying more would waste Umami's DB budget.
  */
 import { log } from "../lib/infra/logger.js";
 import {
@@ -48,65 +25,6 @@ import {
 } from "./umami.js";
 
 const DEFAULT_PERIOD: UmamiPeriod = "7d";
-const EVENT_REPORT_LIMIT = 10;
-
-type ManagedUmamiEventName = "track-resolve" | "service-link-click";
-
-interface UmamiEventValueRow {
-  value: string;
-  total: number;
-}
-
-interface UmamiEventTotal {
-  total: number;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function toNumber(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  return 0;
-}
-
-function toText(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (value === null || value === undefined) return "";
-  return String(value);
-}
-
-function normalizeEventValueRows(raw: unknown): UmamiEventValueRow[] {
-  if (!Array.isArray(raw)) return [];
-
-  return raw
-    .map((entry) => {
-      if (!isRecord(entry)) return null;
-
-      const value = toText(entry.x ?? entry.value).trim();
-      const total = toNumber(entry.y ?? entry.total);
-      if (value === "" || total <= 0) return null;
-
-      return { value, total };
-    })
-    .filter((row): row is UmamiEventValueRow => row !== null);
-}
-
-function extractEventPropertyTotal(raw: unknown, propertyName: string): number {
-  if (!Array.isArray(raw)) return 0;
-
-  for (const entry of raw) {
-    if (!isRecord(entry)) continue;
-    if (toText(entry.propertyName) !== propertyName) continue;
-    return toNumber(entry.total);
-  }
-
-  return 0;
-}
 
 /**
  * Whitelists the incoming query-string period to a known `UmamiPeriod`.
@@ -127,64 +45,6 @@ export function normalizePeriod(period: string | undefined): UmamiPeriod {
       return period;
     default:
       return DEFAULT_PERIOD;
-  }
-}
-
-function buildEventValuePath(eventName: ManagedUmamiEventName, propertyName: string, period: UmamiPeriod) {
-  const { startAt, endAt } = periodToRange(period);
-  const params = new URLSearchParams({
-    startAt: String(startAt),
-    endAt: String(endAt),
-    event: eventName,
-    propertyName,
-    limit: String(EVENT_REPORT_LIMIT),
-  });
-  return `/websites/${UMAMI_WEBSITE_ID}/event-data/values?${params.toString()}`;
-}
-
-function buildEventPropertiesPath(eventName: ManagedUmamiEventName, period: UmamiPeriod) {
-  const { startAt, endAt } = periodToRange(period);
-  const params = new URLSearchParams({
-    startAt: String(startAt),
-    endAt: String(endAt),
-    event: eventName,
-  });
-  return `/websites/${UMAMI_WEBSITE_ID}/event-data/events?${params.toString()}`;
-}
-
-async function getManagedUmamiEventValues(
-  eventName: ManagedUmamiEventName,
-  propertyName: string,
-  periodRaw: string | undefined,
-) {
-  if (!umamiConfigured) return null;
-
-  const period = normalizePeriod(periodRaw);
-
-  try {
-    const rawData = await umamiGet(buildEventValuePath(eventName, propertyName, period));
-    return normalizeEventValueRows(rawData);
-  } catch (error) {
-    log.error("Umami", `event values request failed: ${error instanceof Error ? error.message : "unknown"}`);
-    return null;
-  }
-}
-
-async function getManagedUmamiEventTotal(
-  eventName: ManagedUmamiEventName,
-  propertyName: string,
-  periodRaw: string | undefined,
-): Promise<UmamiEventTotal | null> {
-  if (!umamiConfigured) return null;
-
-  const period = normalizePeriod(periodRaw);
-
-  try {
-    const rawData = await umamiGet(buildEventPropertiesPath(eventName, period));
-    return { total: extractEventPropertyTotal(rawData, propertyName) };
-  } catch (error) {
-    log.error("Umami", `event total request failed: ${error instanceof Error ? error.message : "unknown"}`);
-    return null;
   }
 }
 
@@ -253,52 +113,6 @@ export async function getManagedUmamiRealtime() {
     return await umamiGet(`/realtime/${UMAMI_WEBSITE_ID}`);
   } catch (error) {
     log.error("Umami", `realtime request failed: ${error instanceof Error ? error.message : "unknown"}`);
-    return null;
-  }
-}
-
-// --- musiccloud-specific event queries ---
-
-export async function getManagedUmamiResolvesByService(periodRaw: string | undefined) {
-  return getManagedUmamiEventValues("track-resolve", "service", periodRaw);
-}
-
-export async function getManagedUmamiResolveTotal(periodRaw: string | undefined) {
-  return getManagedUmamiEventTotal("track-resolve", "service", periodRaw);
-}
-
-export async function getManagedUmamiLinkClicksByService(periodRaw: string | undefined) {
-  return getManagedUmamiEventValues("service-link-click", "service", periodRaw);
-}
-
-export async function getManagedUmamiLinkClickTotal(periodRaw: string | undefined) {
-  return getManagedUmamiEventTotal("service-link-click", "service", periodRaw);
-}
-
-/**
- * Sums `track-resolve` and `service-link-click` totals into a single
- * "interactions" KPI for the dashboard overview. Each underlying call
- * can independently return `null` on failure; a `null` contributes `0`
- * rather than failing the whole KPI so one degraded event source does
- * not blank the combined card.
- *
- * @param periodRaw - raw period query param
- * @returns `{ total }` or `null` if Umami is unconfigured / unreachable
- */
-export async function getManagedUmamiInteractionTotal(periodRaw: string | undefined) {
-  if (!umamiConfigured) return null;
-
-  try {
-    const [resolves, linkClicks] = await Promise.all([
-      getManagedUmamiEventTotal("track-resolve", "service", periodRaw),
-      getManagedUmamiEventTotal("service-link-click", "service", periodRaw),
-    ]);
-
-    return {
-      total: (resolves?.total ?? 0) + (linkClicks?.total ?? 0),
-    };
-  } catch (error) {
-    log.error("Umami", `interaction total request failed: ${error instanceof Error ? error.message : "unknown"}`);
     return null;
   }
 }

@@ -27,15 +27,6 @@ export interface UmamiMetricRow {
   artist?: string;
 }
 
-export interface UmamiEventValueRow {
-  value: string;
-  total: number;
-}
-
-export interface UmamiEventTotal {
-  total: number;
-}
-
 interface UmamiPageviewSeries {
   pageviews: { x: string; y: number }[];
   sessions: { x: string; y: number }[];
@@ -89,42 +80,5 @@ export function useUmamiRealtime() {
     queryKey: ["umami-realtime"],
     queryFn: () => api.get<UmamiRealtimeData>(ENDPOINTS.admin.analytics.realtime),
     refetchInterval: 30_000,
-  });
-}
-
-// --- musiccloud-specific event hooks ---
-
-export function useUmamiResolvesByService(period: UmamiPeriod) {
-  return useQuery({
-    queryKey: ["umami-resolves", period],
-    queryFn: () => api.get<UmamiEventValueRow[]>(`${ENDPOINTS.admin.analytics.events.resolves}?period=${period}`),
-  });
-}
-
-export function useUmamiResolveTotal(period: UmamiPeriod) {
-  return useQuery({
-    queryKey: ["umami-resolves-total", period],
-    queryFn: () => api.get<UmamiEventTotal>(`${ENDPOINTS.admin.analytics.events.resolvesTotal}?period=${period}`),
-  });
-}
-
-export function useUmamiLinkClicksByService(period: UmamiPeriod) {
-  return useQuery({
-    queryKey: ["umami-link-clicks", period],
-    queryFn: () => api.get<UmamiEventValueRow[]>(`${ENDPOINTS.admin.analytics.events.linkClicks}?period=${period}`),
-  });
-}
-
-export function useUmamiLinkClickTotal(period: UmamiPeriod) {
-  return useQuery({
-    queryKey: ["umami-link-clicks-total", period],
-    queryFn: () => api.get<UmamiEventTotal>(`${ENDPOINTS.admin.analytics.events.linkClicksTotal}?period=${period}`),
-  });
-}
-
-export function useUmamiInteractionTotal(period: UmamiPeriod) {
-  return useQuery({
-    queryKey: ["umami-interactions-total", period],
-    queryFn: () => api.get<UmamiEventTotal>(`${ENDPOINTS.admin.analytics.events.interactionsTotal}?period=${period}`),
   });
 }

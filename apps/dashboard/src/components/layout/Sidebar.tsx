@@ -4,7 +4,6 @@ import {
   CaretCircleDoubleUpIcon,
   CaretDownIcon,
   ChartBarIcon,
-  ChartLineIcon,
   CopyIcon,
   EnvelopeOpenIcon,
   FileDashedIcon,
@@ -13,7 +12,6 @@ import {
   GearIcon,
   HouseSimpleIcon,
   ListIcon,
-  MapTrifoldIcon,
   MarkdownLogoIcon,
   MicrophoneStageIcon,
   MusicNotesIcon,
@@ -598,24 +596,6 @@ function SidebarAnalyticsSection({ onItemClick, s }: { onItemClick?: () => void;
               <DashboardSection.Item
                 icon={<ChartBarIcon weight="duotone" className="w-4 h-4" />}
                 label={s.analytics}
-                active={isActive}
-              />
-            )}
-          </NavLink>
-          <NavLink to="/website-analytics" end onClick={onItemClick} className="contents">
-            {({ isActive }) => (
-              <DashboardSection.Item
-                icon={<ChartLineIcon weight="duotone" className="w-4 h-4" />}
-                label={s.websiteAnalytics}
-                active={isActive}
-              />
-            )}
-          </NavLink>
-          <NavLink to="/website-analytics/realtime" end onClick={onItemClick} className="contents">
-            {({ isActive }) => (
-              <DashboardSection.Item
-                icon={<MapTrifoldIcon weight="duotone" className="w-4 h-4" />}
-                label={s.websiteAnalyticsRealtime}
                 active={isActive}
               />
             )}

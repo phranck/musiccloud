@@ -54,14 +54,6 @@ import type {
   SharePageArtistResult,
   SharePageDbResult,
   TrackRepository,
-  WebsiteAnalyticsBatchInput,
-  WebsiteAnalyticsDrilldown,
-  WebsiteAnalyticsDrilldownParams,
-  WebsiteAnalyticsExport,
-  WebsiteAnalyticsGeoOverview,
-  WebsiteAnalyticsGeoParams,
-  WebsiteAnalyticsOverview,
-  WebsiteAnalyticsRetentionResult,
 } from "../repository.js";
 import {
   clearArtistCache as adminCatalogClearArtistCache,
@@ -110,15 +102,6 @@ import {
   persistAlbumWithLinks as albumsPersistAlbumWithLinks,
   upsertAlbumPreview as albumsUpsertAlbumPreview,
 } from "./postgres-albums.js";
-import {
-  exportWebsiteAnalytics,
-  getWebsiteAnalyticsDrilldown,
-  getWebsiteAnalyticsGeo,
-  getWebsiteAnalyticsOverview,
-  insertAppTelemetryEvent,
-  insertWebsiteAnalyticsBatch,
-  runWebsiteAnalyticsRetention,
-} from "./postgres-analytics.js";
 import {
   addArtistExternalIds as artistsAddArtistExternalIds,
   addLinksToArtist as artistsAddLinksToArtist,
@@ -186,6 +169,7 @@ import {
   seedCrawlState as crawlSeedCrawlState,
   updateCrawlState as crawlUpdateCrawlState,
 } from "./postgres-crawl.js";
+import { insertAppTelemetryEvent } from "./postgres-telemetry.js";
 import {
   addLinksToTrack as tracksAddLinksToTrack,
   addTrackExternalIds as tracksAddTrackExternalIds,
@@ -292,33 +276,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   async insertAppTelemetryEvent(row: AppTelemetryEventInput): Promise<void> {
     await insertAppTelemetryEvent(this.pool, row);
-  }
-
-  async insertWebsiteAnalyticsBatch(batch: WebsiteAnalyticsBatchInput): Promise<number> {
-    return insertWebsiteAnalyticsBatch(this.pool, batch);
-  }
-
-  async getWebsiteAnalyticsOverview(
-    since: Date,
-    comparison?: { since: Date; until: Date },
-  ): Promise<WebsiteAnalyticsOverview> {
-    return getWebsiteAnalyticsOverview(this.pool, since, comparison);
-  }
-
-  async getWebsiteAnalyticsGeo(params: WebsiteAnalyticsGeoParams): Promise<WebsiteAnalyticsGeoOverview> {
-    return getWebsiteAnalyticsGeo(this.pool, params);
-  }
-
-  async getWebsiteAnalyticsDrilldown(params: WebsiteAnalyticsDrilldownParams): Promise<WebsiteAnalyticsDrilldown> {
-    return getWebsiteAnalyticsDrilldown(this.pool, params);
-  }
-
-  async exportWebsiteAnalytics(since: Date): Promise<WebsiteAnalyticsExport> {
-    return exportWebsiteAnalytics(this.pool, since);
-  }
-
-  async runWebsiteAnalyticsRetention(now: Date): Promise<WebsiteAnalyticsRetentionResult> {
-    return runWebsiteAnalyticsRetention(this.pool, now);
   }
 
   // ============================================================================

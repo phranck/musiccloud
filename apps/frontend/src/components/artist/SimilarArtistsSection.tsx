@@ -1,6 +1,5 @@
 import type { SimilarArtistTrack } from "@musiccloud/shared";
 import { type ArtistPanelTrackResolveHandler, PopularTrack } from "@/components/artist/PopularTracksSection";
-import { trackSimilarArtistClick } from "@/lib/analytics";
 
 interface SimilarArtistsSectionProps {
   similarArtistTracks: SimilarArtistTrack[];
@@ -28,18 +27,13 @@ export function SimilarArtistsSection({
 
   return (
     <div className="flex flex-col gap-0.5">
-      {withTrack.map(({ artistName, track }, index) => (
+      {withTrack.map(({ artistName, track }) => (
         <PopularTrack
           key={artistName}
           track={track}
           artistLabel={artistName}
-          position={index}
-          surface="similar_artists"
           onTrackResolve={onTrackResolve}
-          onResolveStart={() => {
-            trackSimilarArtistClick(index, track.title, artistName);
-            onResolveStart?.();
-          }}
+          onResolveStart={onResolveStart}
         />
       ))}
     </div>

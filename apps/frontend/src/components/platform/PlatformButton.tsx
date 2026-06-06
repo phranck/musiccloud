@@ -2,7 +2,6 @@ import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 import { type CSSProperties, memo } from "react";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { trackServiceLinkClick } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 type PlatformButtonSize = "sm" | "md" | "lg";
@@ -68,7 +67,6 @@ export const PlatformButton = memo(function PlatformButton({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Open ${songTitle} on ${label} (opens in new window)`}
-      onClick={() => trackServiceLinkClick(platform, label)}
       className={cn(
         "flex w-full items-center px-3 no-underline max-[389px]:px-2",
         "hover:shadow-[0_0_8px_var(--embossed-glow)] focus-visible:shadow-[0_0_8px_var(--embossed-glow)]",

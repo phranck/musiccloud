@@ -9,23 +9,9 @@ import {
 } from "@musiccloud/shared";
 import { useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
-import {
-  trackResolve,
-  trackResolveFailed,
-  trackResolveStarted,
-  trackSearchSubmitted,
-  trackSelectedCandidateClick,
-} from "@/lib/analytics";
-import { detectServiceFromUrl } from "@/lib/platform/url";
 import { appReducer, parseErrorKey, parseResolveResponse, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import type { ActiveResult, AppState, GenreSearchPayload, ReducerState } from "@/lib/types/app";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
-
-function queryType(query: string): string {
-  if (/^genre\s*:/i.test(query)) return "genre";
-  if (/^https?:\/\//i.test(query)) return "url";
-  return "text";
-}
 
 interface UseAppStateResult {
   state: AppState;
@@ -44,20 +30,11 @@ interface UseAppStateResult {
   isGenreBrowsing: boolean;
   isGenreSearching: boolean;
   isGenreSearchLoading: boolean;
-  handleSubmit: (url: string, options?: ResolveAnalyticsOptions) => Promise<void>;
+  handleSubmit: (url: string) => Promise<void>;
   handleSelectCandidate: (candidate: DisambiguationCandidate) => Promise<void>;
   handleSelectGenreResult: (webUrl: string, id: string) => Promise<void>;
   handleBack: () => void;
   handleClear: () => void;
-}
-
-interface ResolveAnalyticsOptions {
-  /**
-   * Demo/example flows may reuse the resolve endpoint to render a real result,
-   * but they must not pollute user-intent search and resolve analytics.
-   */
-  suppressResolveAnalytics?: boolean;
-  surface?: string;
 }
 
 /**
@@ -96,14 +73,8 @@ export function useAppState(): UseAppStateResult {
     genreSearchPayload
   );
 
-  const handleSubmit = useCallback(async (url: string, options: ResolveAnalyticsOptions = {}) => {
+  const handleSubmit = useCallback(async (url: string) => {
     dispatch({ type: "SUBMIT" });
-    const sourcePlatform = detectServiceFromUrl(url);
-    const surface = options.surface ?? "landing_search";
-    if (!options.suppressResolveAnalytics) {
-      trackSearchSubmitted(url, queryType(url), sourcePlatform);
-      trackResolveStarted(sourcePlatform, surface);
-    }
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
@@ -146,16 +117,13 @@ export function useAppState(): UseAppStateResult {
       }
       const resolved = data as UnifiedResolveSuccessResponse;
       dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
-      if (!options.suppressResolveAnalytics) trackResolve(sourcePlatform, surface);
     } catch (err) {
-      if (!options.suppressResolveAnalytics) trackResolveFailed(sourcePlatform, surface, parseErrorKey(err));
       dispatch({ type: "ERROR", message: parseErrorKey(err) });
     }
   }, []);
 
   const handleSelectCandidate = useCallback(async (candidate: DisambiguationCandidate) => {
     dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
-    trackSelectedCandidateClick(candidate.id);
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
@@ -190,8 +158,6 @@ export function useAppState(): UseAppStateResult {
    */
   const handleSelectGenreResult = useCallback(async (webUrl: string, id: string) => {
     dispatch({ type: "SELECT_GENRE_RESULT", selectedId: id });
-    const sourcePlatform = detectServiceFromUrl(webUrl);
-    trackResolveStarted(sourcePlatform, "genre_search_result");
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
@@ -208,9 +174,7 @@ export function useAppState(): UseAppStateResult {
       }
       const data = (await response.json()) as UnifiedResolveSuccessResponse;
       dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
-      trackResolve(sourcePlatform, "genre_search_result");
     } catch (err) {
-      trackResolveFailed(sourcePlatform, "genre_search_result", parseErrorKey(err));
       dispatch({ type: "ERROR", message: parseErrorKey(err) });
     }
   }, []);

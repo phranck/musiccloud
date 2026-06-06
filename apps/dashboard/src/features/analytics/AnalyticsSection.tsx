@@ -33,18 +33,13 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useI18n } from "@/context/I18nContext";
 import { useTheme } from "@/context/ThemeContext";
 import {
-  type UmamiEventValueRow,
   type UmamiMetricRow,
   type UmamiMetricType,
   type UmamiPeriod,
   useUmamiActive,
-  useUmamiInteractionTotal,
-  useUmamiLinkClicksByService,
   useUmamiMetrics,
   useUmamiPageviews,
   useUmamiRealtime,
-  useUmamiResolvesByService,
-  useUmamiResolveTotal,
   useUmamiStats,
 } from "@/features/analytics/hooks/useUmamiStats";
 import { useAuth } from "@/features/auth/AuthContext";
@@ -680,79 +675,6 @@ function MetricList({ title, type, period, renderLabel }: MetricListProps) {
 }
 
 // ---------------------------------------------------------------------------
-// EventListCard
-// ---------------------------------------------------------------------------
-
-interface EventListCardProps {
-  title: string;
-  rows: UmamiEventValueRow[];
-  isLoading: boolean;
-}
-
-interface EventListRowsProps {
-  listRows: UmamiEventValueRow[];
-  titleKey: string;
-  max: number;
-  formatNumber: (n: number) => string;
-}
-
-function EventListRows({ listRows, titleKey, max, formatNumber }: EventListRowsProps) {
-  return (
-    <ul className="space-y-2">
-      {listRows.map((row) => (
-        <li key={`${titleKey}-${row.value}`} className="flex items-center gap-2 text-sm">
-          <span className="flex-1 truncate text-[var(--ds-text-muted)]" title={row.value}>
-            {row.value}
-          </span>
-          <div className="w-20 h-1.5 bg-[var(--ds-bg-elevated)] rounded-full overflow-hidden">
-            <div
-              className="h-full bg-amber-400 rounded-full"
-              style={{ width: `${Math.round((row.total / max) * 100)}%` }}
-            />
-          </div>
-          <span className="shrink-0 w-10 text-right text-sm text-[var(--ds-text-muted)]">
-            {formatNumber(row.total)}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function EventListCard({ title, rows, isLoading }: EventListCardProps) {
-  const { messages, formatNumber } = useI18n();
-  const m = messages.analytics;
-  const max = rows[0]?.total ?? 1;
-  const collapsedRows = rows.slice(0, COLLAPSIBLE_ROW_LIMIT);
-  const canCollapse = rows.length > COLLAPSIBLE_ROW_LIMIT;
-
-  return (
-    <DashboardSection>
-      <DashboardSection.Header icon={<FaGlobe className="w-4 h-4" />} title={title} />
-      <DashboardSection.Body>
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 5 }, (_, i) => `event-sk-${title}-${i}`).map((k) => (
-              <div key={k} className="h-7 bg-[var(--ds-bg-elevated)] rounded animate-pulse" />
-            ))}
-          </div>
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-[var(--ds-text-subtle)] py-4 text-center">{m.noData}</p>
-        ) : (
-          <CollapsibleList
-            canCollapse={canCollapse}
-            collapsedContent={
-              <EventListRows listRows={collapsedRows} titleKey={title} max={max} formatNumber={formatNumber} />
-            }
-            expandedContent={<EventListRows listRows={rows} titleKey={title} max={max} formatNumber={formatNumber} />}
-          />
-        )}
-      </DashboardSection.Body>
-    </DashboardSection>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // TabbedMetricCard
 // ---------------------------------------------------------------------------
 
@@ -926,10 +848,6 @@ export function AnalyticsSection() {
 
   const { data: stats, isLoading: statsLoading } = useUmamiStats(period);
   const { data: pageviews, isLoading: pvLoading } = useUmamiPageviews(period);
-  const { data: resolvesByService, isLoading: resolvesLoading } = useUmamiResolvesByService(period);
-  const { data: resolveTotal, isLoading: resolveTotalLoading } = useUmamiResolveTotal(period);
-  const { data: linkClicks, isLoading: linkClicksLoading } = useUmamiLinkClicksByService(period);
-  const { data: interactionTotal, isLoading: interactionTotalLoading } = useUmamiInteractionTotal(period);
 
   const chartData = useMemo(
     () =>
@@ -979,9 +897,9 @@ export function AnalyticsSection() {
         />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
         {statsLoading ? (
-          Array.from({ length: 6 }, (_, i) => `kpi-${i}`).map((k) => (
+          Array.from({ length: 4 }, (_, i) => `kpi-${i}`).map((k) => (
             <div key={k} className="h-16 bg-[var(--ds-bg-elevated)] rounded-xl animate-pulse" />
           ))
         ) : hasStats ? (
@@ -1007,19 +925,9 @@ export function AnalyticsSection() {
               value={avgDuration}
               trend={relativeChange(avgDurationSeconds, previousAvgDuration)}
             />
-            <KpiCard
-              label={m.resolves}
-              value={resolveTotalLoading ? "\u2013" : resolveTotal ? formatNumber(resolveTotal.total) : "\u2013"}
-            />
-            <KpiCard
-              label={m.interactions}
-              value={
-                interactionTotalLoading ? "\u2013" : interactionTotal ? formatNumber(interactionTotal.total) : "\u2013"
-              }
-            />
           </>
         ) : (
-          <div className="col-span-6 text-sm text-[var(--ds-text-subtle)] py-2">{m.umamiNotConfigured}</div>
+          <div className="col-span-4 text-sm text-[var(--ds-text-subtle)] py-2">{m.umamiNotConfigured}</div>
         )}
       </div>
 
@@ -1062,11 +970,6 @@ export function AnalyticsSection() {
           </DashboardSection>
         </div>
       )}
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
-        <EventListCard title={m.topResolvesByService} rows={resolvesByService ?? []} isLoading={resolvesLoading} />
-        <EventListCard title={m.topLinkClicksByService} rows={linkClicks ?? []} isLoading={linkClicksLoading} />
-      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         <MetricList title={m.topPages} type="url" period={period} renderLabel={(x) => (x === "/" ? m.home : x)} />

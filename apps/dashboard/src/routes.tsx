@@ -75,18 +75,6 @@ const AnalyticsPage = lazy(() =>
   })),
 );
 
-const WebsiteAnalyticsPage = lazy(() =>
-  import("@/features/analytics/WebsiteAnalyticsPage").then((m) => ({
-    default: m.WebsiteAnalyticsPage,
-  })),
-);
-
-const WebsiteAnalyticsRealtimePage = lazy(() =>
-  import("@/features/analytics/WebsiteAnalyticsRealtimePage").then((m) => ({
-    default: m.WebsiteAnalyticsRealtimePage,
-  })),
-);
-
 const PagesListPage = lazy(() =>
   import("@/features/content/pages/PagesListPage").then((m) => ({
     default: m.PagesListPage,
@@ -173,8 +161,6 @@ export const routes = createRoutesFromElements(
 
         <Route element={<RequireNonModerator />}>
           <Route path="analytics" element={lazyFallback(<AnalyticsPage />)} />
-          <Route path="website-analytics" element={lazyFallback(<WebsiteAnalyticsPage />)} />
-          <Route path="website-analytics/realtime" element={lazyFallback(<WebsiteAnalyticsRealtimePage />)} />
           <Route path="forms" element={lazyFallback(<FormBuilderListPage />)} />
           <Route path="forms/:name" element={lazyFallback(<EditorStubPage />)} />
           <Route path="email-templates" element={lazyFallback(<EmailTemplateListPage />)} />

@@ -13,8 +13,7 @@
  *     domains (e.g. count and service-link rows).
  *
  * Single-domain SQL fragments, constants and row types live next to
- * their consumer module — see `postgres-analytics.ts` for the
- * `WEBSITE_ANALYTICS_*` family.
+ * their consumer module.
  */
 
 import type { PoolClient } from "pg";

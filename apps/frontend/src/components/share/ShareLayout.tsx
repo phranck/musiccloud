@@ -136,10 +136,7 @@ import { ArtistInfoCard } from "@/components/artist/ArtistInfoCard";
 import { ArtistProfileDesktopCard } from "@/components/artist/ArtistProfileDesktopCard";
 import { EventsCard } from "@/components/artist/EventsCard";
 import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
-import type {
-  ArtistPanelTrackResolveHandler,
-  ArtistPanelTrackResolveOptions,
-} from "@/components/artist/PopularTracksSection";
+import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
@@ -152,8 +149,6 @@ import { ToastProvider } from "@/context/ToastContext";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider, useT } from "@/i18n/context";
-import { trackResolve, trackResolveFailed, trackResolveStarted } from "@/lib/analytics";
-import { detectServiceFromUrl } from "@/lib/platform/url";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import type { ActiveResult } from "@/lib/types/app";
@@ -477,15 +472,10 @@ function ShareLayoutInner({
   }, []);
 
   const handleTrackResolve = useCallback(
-    async (track: ArtistTopTrack, options: ArtistPanelTrackResolveOptions) => {
+    async (track: ArtistTopTrack) => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
       let keepResolveLoadingForArtistFetch = false;
-      const sourcePlatform = detectServiceFromUrl(track.deezerUrl);
-      // Popular Tracks and Similar Artists are secondary navigation clicks.
-      // Count the click itself, but do not treat the follow-up resolve request
-      // as a user-intent resolve in Website Analytics or Umami.
-      if (!options.suppressResolveAnalytics) trackResolveStarted(sourcePlatform, options.surface);
       try {
         const response = await fetch(ENDPOINTS.frontend.resolve, {
           method: "POST",
@@ -519,7 +509,6 @@ function ShareLayoutInner({
             config: next.config,
           });
           document.title = next.pageTitle;
-          if (!options.suppressResolveAnalytics) trackResolve(sourcePlatform, options.surface);
           return;
         }
 
@@ -532,12 +521,8 @@ function ShareLayoutInner({
           artistName: shouldFetchArtist ? nextArtistName : undefined,
           config: buildActiveConfig(active, t),
         });
-        if (!options.suppressResolveAnalytics) trackResolve(sourcePlatform, options.surface);
       } catch (err) {
         dispatchUi({ type: "resolveErrorVisible" });
-        if (!options.suppressResolveAnalytics) {
-          trackResolveFailed(sourcePlatform, options.surface, err instanceof Error ? err.message : "error.generic");
-        }
         throw err;
       } finally {
         if (!keepResolveLoadingForArtistFetch) dispatchUi({ type: "artistFetchFinished" });
@@ -707,10 +692,10 @@ function MobileArtistSheet({
   userRegion,
 }: MobileArtistSheetProps) {
   const handleTrackResolve = useCallback<ArtistPanelTrackResolveHandler>(
-    async (track, options) => {
+    async (track) => {
       onClose();
       window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "smooth" }));
-      await onTrackResolve(track, options);
+      await onTrackResolve(track);
     },
     [onClose, onTrackResolve],
   );

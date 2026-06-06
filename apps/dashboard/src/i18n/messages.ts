@@ -29,8 +29,6 @@ export interface DashboardMessages {
       sectionTemplates: string;
       sectionAnalytics: string;
       analytics: string;
-      websiteAnalytics: string;
-      websiteAnalyticsRealtime: string;
       sectionSystem: string;
       overview: string;
       tracks: string;
@@ -703,10 +701,6 @@ export interface DashboardMessages {
     pageviews: string;
     bounceRate: string;
     averageDuration: string;
-    resolves: string;
-    interactions: string;
-    topResolvesByService: string;
-    topLinkClicksByService: string;
     showAllRows: string;
     showLessRows: string;
     realtime: {
@@ -792,8 +786,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         sectionTemplates: "Vorlagen",
         sectionAnalytics: "Analyse",
         analytics: "Statistiken",
-        websiteAnalytics: "Website Analytics",
-        websiteAnalyticsRealtime: "Realtime",
         sectionSystem: "System",
         overview: "\u00dcbersicht",
         tracks: "Tracks",
@@ -1443,10 +1435,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       pageviews: "Seitenaufrufe",
       bounceRate: "Absprungrate",
       averageDuration: "\u00d8 Verweildauer",
-      resolves: "Resolves",
-      interactions: "Interaktionen",
-      topResolvesByService: "Top Resolves nach Service",
-      topLinkClicksByService: "Top Link-Klicks nach Service",
       showAllRows: "Alle anzeigen",
       showLessRows: "Weniger anzeigen",
       realtime: {
@@ -1530,8 +1518,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         sectionTemplates: "Templates",
         sectionAnalytics: "Analytics",
         analytics: "Statistics",
-        websiteAnalytics: "Website Analytics",
-        websiteAnalyticsRealtime: "Realtime",
         sectionSystem: "System",
         overview: "Overview",
         tracks: "Tracks",
@@ -2181,10 +2167,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       pageviews: "Pageviews",
       bounceRate: "Bounce Rate",
       averageDuration: "Avg. Duration",
-      resolves: "Resolves",
-      interactions: "Interactions",
-      topResolvesByService: "Top Resolves by Service",
-      topLinkClicksByService: "Top Link Clicks by Service",
       showAllRows: "Show all",
       showLessRows: "Show less",
       realtime: {

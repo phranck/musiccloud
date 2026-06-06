@@ -1,7 +1,6 @@
 import type { NavItem } from "@musiccloud/shared";
 
 import { useT } from "@/i18n/context";
-import { trackContentPageClick, trackLayeredFooterClick } from "@/lib/analytics";
 import { navHref, navLabel } from "@/lib/nav";
 
 const START_YEAR = 2026;
@@ -12,16 +11,6 @@ interface AppFooterProps {
 }
 
 const EMPTY_NAV_ITEMS: NavItem[] = [];
-
-function trackFooterNavItem(item: NavItem): void {
-  if (!item.pageSlug) return;
-  trackContentPageClick({
-    slug: item.pageSlug,
-    label: navLabel(item),
-    surface: "footer_nav",
-    openMode: item.target === "_blank" ? "external" : item.pageDisplayMode === "fullscreen" ? "fullscreen" : "overlay",
-  });
-}
 
 /**
  * Application footer: copyright + admin-managed centre nav + "made by LAYERED" link.
@@ -46,7 +35,6 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
             href={navHref(item)}
             target={item.target === "_blank" ? "_blank" : undefined}
             rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
-            onClick={() => trackFooterNavItem(item)}
             className="hover:text-text-secondary transition-colors duration-150"
           >
             {navLabel(item)}
@@ -59,7 +47,6 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
           href="https://layered.work"
           target="_blank"
           rel="noopener noreferrer"
-          onClick={trackLayeredFooterClick}
           className="hover:text-text-secondary transition-colors duration-150 ml-1"
         >
           LAYERED

@@ -295,6 +295,13 @@
       "when": 1779751450644,
       "tag": "0041_dry_king_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1780770590804,
+      "tag": "0042_worthless_sue_storm",
+      "breakpoints": true
     }
   ]
 }

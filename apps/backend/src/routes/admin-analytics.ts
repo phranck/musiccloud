@@ -25,70 +25,17 @@
  * match pass through untouched, which keeps non-track pages (e.g. `/about`)
  * still visible.
  *
- * ## Custom vs Umami-native endpoints
- *
- * The section marked "musiccloud-specific event endpoints" queries custom
- * Umami events (`track-resolve`, `service-link-click`) that are emitted
- * from the frontend. They are grouped separately because they rely on the
- * events pipeline being configured, whereas the upper block (stats,
- * pageviews, metrics) works with any default Umami install.
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
-import { getAdminRepository, getRepository } from "../db/index.js";
+import { getAdminRepository } from "../db/index.js";
 import {
   getManagedUmamiActive,
-  getManagedUmamiInteractionTotal,
-  getManagedUmamiLinkClicksByService,
-  getManagedUmamiLinkClickTotal,
   getManagedUmamiMetrics,
   getManagedUmamiPageviews,
   getManagedUmamiRealtime,
-  getManagedUmamiResolvesByService,
-  getManagedUmamiResolveTotal,
   getManagedUmamiStats,
 } from "../services/admin-umami.js";
-import { getGeoIpStatus, updateGeoIpDatabase } from "../services/geo-ip.js";
-
-function periodWindow(period: string | undefined): {
-  comparison: { since: Date; until: Date };
-  since: Date;
-} {
-  const now = Date.now();
-  if (period === "today") {
-    const since = new Date(now);
-    since.setHours(0, 0, 0, 0);
-    const elapsed = Math.max(0, now - since.getTime());
-    const comparisonSince = new Date(since.getTime() - 24 * 60 * 60 * 1000);
-    return {
-      since,
-      comparison: {
-        since: comparisonSince,
-        until: new Date(comparisonSince.getTime() + elapsed),
-      },
-    };
-  }
-
-  const days = period === "30d" ? 30 : period === "60d" ? 60 : period === "90d" ? 90 : 7;
-  const since = new Date(now - days * 24 * 60 * 60 * 1000);
-  return {
-    since,
-    comparison: {
-      since: new Date(since.getTime() - days * 24 * 60 * 60 * 1000),
-      until: since,
-    },
-  };
-}
-
-function periodSince(period: string | undefined): Date {
-  return periodWindow(period).since;
-}
-
-function clampNumber(value: string | undefined, fallback: number, min: number, max: number): number {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.min(max, Math.max(min, Math.round(parsed)));
-}
 
 export default async function adminAnalyticsRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.analytics.stats, async (request) => {
@@ -136,86 +83,5 @@ export default async function adminAnalyticsRoutes(app: FastifyInstance) {
 
   app.get(ENDPOINTS.admin.analytics.realtime, async () => {
     return (await getManagedUmamiRealtime()) ?? {};
-  });
-
-  // --- musiccloud-specific event endpoints ---
-
-  app.get(ENDPOINTS.admin.analytics.events.resolves, async (request) => {
-    const q = request.query as { period?: string };
-    return (await getManagedUmamiResolvesByService(q.period)) ?? [];
-  });
-
-  app.get(ENDPOINTS.admin.analytics.events.resolvesTotal, async (request) => {
-    const q = request.query as { period?: string };
-    return (await getManagedUmamiResolveTotal(q.period)) ?? { total: 0 };
-  });
-
-  app.get(ENDPOINTS.admin.analytics.events.linkClicks, async (request) => {
-    const q = request.query as { period?: string };
-    return (await getManagedUmamiLinkClicksByService(q.period)) ?? [];
-  });
-
-  app.get(ENDPOINTS.admin.analytics.events.linkClicksTotal, async (request) => {
-    const q = request.query as { period?: string };
-    return (await getManagedUmamiLinkClickTotal(q.period)) ?? { total: 0 };
-  });
-
-  app.get(ENDPOINTS.admin.analytics.events.interactionsTotal, async (request) => {
-    const q = request.query as { period?: string };
-    return (await getManagedUmamiInteractionTotal(q.period)) ?? { total: 0 };
-  });
-
-  app.get(ENDPOINTS.admin.analytics.website.overview, async (request) => {
-    const q = request.query as { period?: string };
-    const window = periodWindow(q.period);
-    const repo = await getRepository();
-    return repo.getWebsiteAnalyticsOverview(window.since, window.comparison);
-  });
-
-  app.get(ENDPOINTS.admin.analytics.website.detail, async (request) => {
-    const q = request.query as { period?: string; clusterKey?: string; deviceKey?: string; sessionId?: string };
-    const repo = await getRepository();
-    return repo.getWebsiteAnalyticsDrilldown({
-      since: periodSince(q.period),
-      clusterKey: q.clusterKey,
-      deviceKey: q.deviceKey,
-      sessionId: q.sessionId,
-    });
-  });
-
-  app.get(ENDPOINTS.admin.analytics.website.export, async (request, reply) => {
-    const q = request.query as { period?: string };
-    const repo = await getRepository();
-    const payload = await repo.exportWebsiteAnalytics(periodSince(q.period));
-    reply.header("Content-Disposition", `attachment; filename="website-analytics-${q.period ?? "7d"}.json"`);
-    return payload;
-  });
-
-  app.get(ENDPOINTS.admin.analytics.website.geo, async (request) => {
-    const q = request.query as { period?: string; realtimeMinutes?: string; limit?: string };
-    const repo = await getRepository();
-    const realtimeMinutes = clampNumber(q.realtimeMinutes, 5, 1, 60);
-    return repo.getWebsiteAnalyticsGeo({
-      since: periodSince(q.period),
-      realtimeSince: new Date(Date.now() - realtimeMinutes * 60 * 1000),
-      limit: clampNumber(q.limit, 250, 10, 500),
-    });
-  });
-
-  app.get(ENDPOINTS.admin.analytics.website.retention, async () => ({
-    policy: { rawEventsDays: 180, summariesDays: 730 },
-  }));
-
-  app.post(ENDPOINTS.admin.analytics.website.retention, async () => {
-    const repo = await getRepository();
-    return repo.runWebsiteAnalyticsRetention(new Date());
-  });
-
-  app.get(ENDPOINTS.admin.analytics.website.geoIpStatus, async () => {
-    return getGeoIpStatus();
-  });
-
-  app.post(ENDPOINTS.admin.analytics.website.geoIpUpdate, async () => {
-    return updateGeoIpDatabase();
   });
 }

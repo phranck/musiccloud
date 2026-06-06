@@ -12,27 +12,13 @@
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { getRepository } from "../db/index.js";
-import {
-  adminEventBroadcaster,
-  type TypedEvent,
-  websiteAnalyticsRealtimeBroadcaster,
-} from "../lib/event-broadcaster.js";
+import { adminEventBroadcaster, type TypedEvent } from "../lib/event-broadcaster.js";
 
 type SseBroadcaster<TEvent extends TypedEvent<string, object>> = {
   subscribe(fn: (event: TEvent) => void): () => void;
 };
 
 type SseWriter<TEvent extends TypedEvent<string, object>> = (event: TEvent) => void | Promise<void>;
-
-const REALTIME_SNAPSHOT_WINDOW_MS = 5 * 60 * 1000;
-const REALTIME_SNAPSHOT_LIMIT = 250;
-
-function todayStart(): Date {
-  const since = new Date();
-  since.setHours(0, 0, 0, 0);
-  return since;
-}
 
 async function streamSse<TEvent extends TypedEvent<string, object>>(
   request: FastifyRequest,
@@ -94,29 +80,5 @@ async function streamSse<TEvent extends TypedEvent<string, object>>(
 export default async function adminSseRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.events, async (request, reply) => {
     await streamSse(request, reply, adminEventBroadcaster);
-  });
-
-  app.get(ENDPOINTS.admin.analytics.website.realtime, async (request, reply) => {
-    await streamSse(request, reply, websiteAnalyticsRealtimeBroadcaster, async (write) => {
-      const repo = await getRepository();
-      const generatedAt = new Date();
-      const snapshot = await repo.getWebsiteAnalyticsGeo({
-        since: todayStart(),
-        realtimeSince: new Date(generatedAt.getTime() - REALTIME_SNAPSHOT_WINDOW_MS),
-        limit: REALTIME_SNAPSHOT_LIMIT,
-      });
-      await write({
-        type: "website-analytics-geo-snapshot",
-        data: {
-          generatedAt: snapshot.generatedAt,
-          since: snapshot.since,
-          realtimeSince: snapshot.realtimeSince,
-          coverage: snapshot.coverage,
-          countries: snapshot.countries,
-          cities: snapshot.cities,
-          points: snapshot.recent,
-        },
-      });
-    });
   });
 }

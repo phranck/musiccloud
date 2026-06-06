@@ -4,7 +4,6 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useToastSafe } from "@/context/ToastContext";
 import { useT } from "@/i18n/context";
-import { trackPopularTrackClick } from "@/lib/analytics";
 
 interface PopularTracksSectionProps {
   tracks: ArtistTopTrack[];
@@ -12,27 +11,15 @@ interface PopularTracksSectionProps {
   onResolveStart?: () => void;
 }
 
-export type ArtistPanelResolveSurface = "popular_tracks" | "similar_artists";
-
-export interface ArtistPanelTrackResolveOptions {
-  surface: ArtistPanelResolveSurface;
-  suppressResolveAnalytics: boolean;
-}
-
-export type ArtistPanelTrackResolveHandler = (
-  track: ArtistTopTrack,
-  options: ArtistPanelTrackResolveOptions,
-) => Promise<void>;
+export type ArtistPanelTrackResolveHandler = (track: ArtistTopTrack) => Promise<void>;
 
 export function PopularTracksSection({ tracks, onTrackResolve, onResolveStart }: PopularTracksSectionProps) {
   return (
     <div className="flex flex-col gap-0.5">
-      {tracks.map((track, index) => (
+      {tracks.map((track) => (
         <PopularTrack
           key={track.deezerUrl}
           track={track}
-          position={index}
-          surface="popular_tracks"
           onTrackResolve={onTrackResolve}
           onResolveStart={onResolveStart}
         />
@@ -44,15 +31,11 @@ export function PopularTracksSection({ tracks, onTrackResolve, onResolveStart }:
 export function PopularTrack({
   track,
   artistLabel,
-  position,
-  surface = "popular_tracks",
   onTrackResolve,
   onResolveStart,
 }: {
   track: ArtistTopTrack;
   artistLabel?: string;
-  position?: number;
-  surface?: ArtistPanelResolveSurface;
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
 }) {
@@ -68,14 +51,13 @@ export function PopularTrack({
       if (resolving) return;
 
       setResolving(true);
-      if (surface === "popular_tracks") trackPopularTrackClick(position, track.title, track.artists.join(", "));
       onResolveStart?.();
       try {
         if (!onTrackResolve) {
           throw new Error("missing in-place resolve handler");
         }
 
-        await onTrackResolve(track, { surface, suppressResolveAnalytics: true });
+        await onTrackResolve(track);
         setResolving(false);
       } catch (err) {
         setResolving(false);
@@ -83,7 +65,7 @@ export function PopularTrack({
         toast?.show(t("error.generic"), "error");
       }
     },
-    [onResolveStart, onTrackResolve, position, resolving, surface, track, toast, t],
+    [onResolveStart, onTrackResolve, resolving, track, toast, t],
   );
 
   return (

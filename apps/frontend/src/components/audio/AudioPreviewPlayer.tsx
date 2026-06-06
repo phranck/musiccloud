@@ -2,7 +2,6 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { Player } from "@/components/playback/Player";
 import { useT } from "@/i18n/context";
-import { trackPlayerEvent } from "@/lib/analytics";
 
 export type AudioPreviewStatus = "loading" | "ready" | "playing" | "paused" | "ended" | "unavailable";
 
@@ -13,7 +12,6 @@ interface AudioPreviewPlayerProps {
    *  `/api/share-preview/:shortId` proxy. When set without `previewUrl`, the
    *  player mounts in a loading state and fetches on mount. */
   refreshShortId?: string;
-  shortId?: string;
   trackTitle: string;
   onStatusChange?: (status: AudioPreviewStatus) => void;
 }
@@ -188,7 +186,6 @@ function resolveSpectrumBands(frequencyData: Uint8Array<ArrayBuffer>, bandCount:
 export function AudioPreviewPlayer({
   previewUrl,
   refreshShortId,
-  shortId,
   trackTitle,
   onStatusChange,
 }: AudioPreviewPlayerProps) {
@@ -228,17 +225,15 @@ export function AudioPreviewPlayer({
           setEffectiveUrl(nextPreviewUrl);
           dispatch({ type: "URL_READY" });
         } else {
-          trackPlayerEvent("player_unavailable", shortId ?? refreshShortId);
           dispatch({ type: "URL_UNAVAILABLE" });
         }
       } catch (err) {
         if ((err as { name?: string })?.name === "AbortError") return;
-        trackPlayerEvent("player_unavailable", shortId ?? refreshShortId);
         dispatch({ type: "URL_UNAVAILABLE" });
       }
     })();
     return () => controller.abort();
-  }, [previewUrl, refreshShortId, shortId]);
+  }, [previewUrl, refreshShortId]);
 
   const stopSpectrumLoop = useCallback(({ clearBands = true }: { clearBands?: boolean } = {}) => {
     if (spectrumFrameRef.current !== null) cancelAnimationFrame(spectrumFrameRef.current);
@@ -510,12 +505,10 @@ export function AudioPreviewPlayer({
       setProgressRatioValue(1);
       startProgressRewind();
       startSpectrumFadeOut();
-      trackPlayerEvent("player_completed", shortId ?? refreshShortId);
       dispatch({ type: "ENDED" });
     };
     const handleError = () => {
       stopProgressLoop();
-      trackPlayerEvent("player_unavailable", shortId ?? refreshShortId);
       dispatch({ type: "ERROR" });
     };
 
@@ -540,9 +533,7 @@ export function AudioPreviewPlayer({
     };
   }, [
     effectiveUrl,
-    refreshShortId,
     setProgressRatioValue,
-    shortId,
     startProgressRewind,
     startSpectrumFadeOut,
     stopProgressLoop,
@@ -563,7 +554,6 @@ export function AudioPreviewPlayer({
         .play()
         .then(() => {
           dispatch({ type: "PLAY" });
-          trackPlayerEvent(hasStartedRef.current ? "player_resumed" : "player_started", shortId ?? refreshShortId);
           hasStartedRef.current = true;
           startProgressLoop(audio);
           void ensureSpectrumAnalyzer(audio)
@@ -577,13 +567,10 @@ export function AudioPreviewPlayer({
       audio.pause();
       stopProgressLoop(audio);
       startSpectrumFadeOut();
-      trackPlayerEvent("player_paused", shortId ?? refreshShortId);
       dispatch({ type: "PAUSE" });
     }
   }, [
     ensureSpectrumAnalyzer,
-    refreshShortId,
-    shortId,
     startProgressLoop,
     startSpectrumFadeOut,
     startSpectrumLoop,

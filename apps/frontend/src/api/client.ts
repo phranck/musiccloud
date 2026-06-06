@@ -240,20 +240,3 @@ export async function fetchArtistInfo(
     10000,
   );
 }
-
-/** Forward first-party website analytics events to the backend. */
-export async function sendWebsiteAnalyticsBatch(
-  body: unknown,
-  clientIp?: string,
-  analyticsHeaders?: Record<string, string>,
-): Promise<Response> {
-  return fetchWithTimeout(
-    backendUrl(ENDPOINTS.v1.analytics.websiteEvents),
-    {
-      method: "POST",
-      headers: internalHeaders({ ...forwardedForExtra(clientIp), ...analyticsHeaders }),
-      body: typeof body === "string" ? body : JSON.stringify(body),
-    },
-    5000,
-  );
-}
