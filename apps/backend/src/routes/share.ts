@@ -27,6 +27,14 @@
  * Local dev leaves `origin` undefined and lets the loader fall back to
  * its own default.
  *
+ * ## Apple Music storefront guard
+ *
+ * Apple Music catalogue links are storefront-scoped. A cached `/us/` URL can
+ * be valid for a US Apple Music account but fail in the native app for an AT
+ * account. The loaders receive the request storefront and omit Apple Music
+ * links whose URL storefront does not match. Other cached service links remain
+ * globally renderable.
+ *
  * ## Hardcoded `confidence: 1`, `matchMethod: "cache"`
  *
  * These fields are required by `SharePageResponse` but meaningless on a
@@ -37,6 +45,7 @@
 import { ROUTE_TEMPLATES, type SharePageResponse } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
+import { resolveAppleMusicStorefrontFromHeaders } from "../lib/platform/apple-music-storefront.js";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 
@@ -96,6 +105,7 @@ export default async function shareRoutes(app: FastifyInstance) {
       const { shortId } = request.params;
 
       const origin = request.headers["x-forwarded-host"] ? `https://${request.headers["x-forwarded-host"]}` : undefined;
+      const appleMusicStorefront = resolveAppleMusicStorefrontFromHeaders(request.headers);
 
       // Short IDs are unique across all three entity tables, so we fire
       // every loader in parallel and pick whichever hits. This replaces a
@@ -103,9 +113,9 @@ export default async function shareRoutes(app: FastifyInstance) {
       // round-trips for artist-type IDs. Cost: up to two extra queries
       // that return null fast — cheap on indexed shortId lookups.
       const [trackData, albumData, artistData] = await Promise.all([
-        loadByShortId(shortId, origin),
-        loadAlbumByShortId(shortId, origin),
-        loadArtistByShortId(shortId, origin),
+        loadByShortId(shortId, origin, appleMusicStorefront),
+        loadAlbumByShortId(shortId, origin, appleMusicStorefront),
+        loadArtistByShortId(shortId, origin, appleMusicStorefront),
       ]);
 
       if (trackData) {

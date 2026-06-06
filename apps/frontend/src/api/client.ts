@@ -52,6 +52,51 @@ function forwardedForExtra(clientIp: string | undefined): Record<string, string>
   return clientIp ? { "X-Forwarded-For": clientIp } : undefined;
 }
 
+const APPLE_MUSIC_STOREFRONT_FORWARD_HEADERS = [
+  "cf-ipcountry",
+  "x-vercel-ip-country",
+  "cloudfront-viewer-country",
+  "x-country-code",
+  "x-geo-country",
+] as const;
+
+/**
+ * Forward only the region signals needed for Apple Music storefront filtering.
+ *
+ * The backend share route cannot infer the viewer's Apple Music region from
+ * an internal Astro SSR request unless the BFF forwards it. We intentionally
+ * keep this allow-list tiny: Accept-Language helps local/dev and direct
+ * browser traffic (`de-AT` -> `at`), while the country headers cover common
+ * CDN/proxy deployments. Cookies, auth headers and arbitrary browser headers
+ * must not be copied into backend-internal calls.
+ */
+function appleMusicStorefrontExtra(requestHeaders?: Headers): Record<string, string> | undefined {
+  if (!requestHeaders) return undefined;
+
+  const out: Record<string, string> = {};
+  const acceptLanguage = requestHeaders.get("accept-language");
+  if (acceptLanguage) out["Accept-Language"] = acceptLanguage;
+
+  for (const name of APPLE_MUSIC_STOREFRONT_FORWARD_HEADERS) {
+    const value = requestHeaders.get(name);
+    if (value) out[name] = value;
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function shareRequestExtra(
+  clientIp: string | undefined,
+  requestHeaders: Headers | undefined,
+): Record<string, string> | undefined {
+  const out = {
+    ...(forwardedForExtra(clientIp) ?? {}),
+    ...(appleMusicStorefrontExtra(requestHeaders) ?? {}),
+  };
+
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 /** Refresh an expired Deezer preview URL for a share. Returns `{ previewUrl: null }`
  *  if no preview can be produced; returns `null` on transport failure so the
  *  client can distinguish "no preview" from "refresh failed, try again later". */
@@ -73,11 +118,15 @@ export async function fetchSharePreview(
 }
 
 /** Fetch share page data (track or album) by shortId from the backend. */
-export async function fetchShareData(shortId: string, clientIp?: string): Promise<SharePageResponse | null> {
+export async function fetchShareData(
+  shortId: string,
+  clientIp?: string,
+  requestHeaders?: Headers,
+): Promise<SharePageResponse | null> {
   try {
     const res = await fetchWithTimeout(
       backendUrl(ENDPOINTS.v1.share(shortId)),
-      { headers: internalHeaders(forwardedForExtra(clientIp)), cache: "no-store" },
+      { headers: internalHeaders(shareRequestExtra(clientIp, requestHeaders)), cache: "no-store" },
       5000,
     );
     if (!res.ok) return null;

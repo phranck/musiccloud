@@ -66,7 +66,7 @@ if (treatAsBot) {
   const clientIp = Astro.clientAddress;
   const [cp, sd] = await Promise.all([
     fetchPublicContentPage(shortId, locale, clientIp),
-    fetchShareData(shortId, clientIp),
+    fetchShareData(shortId, clientIp, Astro.request.headers),
   ]);
   contentPage = cp;
   data = cp ? null : sd;

@@ -36,7 +36,7 @@ const t = makeT(translations);
 const clientIp = Astro.clientAddress;
 const [contentPage, shareData] = await Promise.all([
   fetchPublicContentPage(shortId, locale, clientIp),
-  fetchShareData(shortId, clientIp),
+  fetchShareData(shortId, clientIp, Astro.request.headers),
 ]);
 const data = contentPage ? null : shareData;
 const notFound = !contentPage && !data;
