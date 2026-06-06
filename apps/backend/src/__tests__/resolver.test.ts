@@ -670,6 +670,107 @@ describe("resolveQuery: gap fill for cached tracks", () => {
     expect(deezerRefreshCalls).toBeGreaterThan(0);
     expect(deezerRefreshCalls).toBeLessThanOrEqual(2);
   });
+
+  it("does not refresh Deezer when a cached track has a fresh preview row", async () => {
+    const cachedTrack = createMockTrack();
+    const freshTimestamp = Date.now() - 5000;
+
+    vi.mocked(mockRepo.findTrackByUrl).mockResolvedValue({
+      trackId: "tid1",
+      updatedAt: freshTimestamp,
+      track: cachedTrack,
+      links: [
+        { service: "spotify", url: "https://open.spotify.com/track/track123", confidence: 1.0, matchMethod: "isrc" },
+        { service: "deezer", url: "https://www.deezer.com/track/456", confidence: 0.9, matchMethod: "search" },
+      ],
+    } satisfies CachedTrackResult);
+    vi.mocked(mockRepo.findTrackPreviews).mockResolvedValue([
+      {
+        service: "deezer",
+        url: "https://cdnt-preview.dzcdn.net/api/1/1/foo.mp3?hdnea=exp=4102444800~hmac=abc",
+        expiresAt: new Date("2100-01-01T00:00:00Z"),
+        observedAt: new Date(),
+      },
+    ]);
+
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      displayName: "Spotify",
+      detectUrl: vi.fn(() => "track123"),
+    });
+
+    const deezerAdapter = createMockAdapter({
+      id: "deezer",
+      displayName: "Deezer",
+      findByIsrc: vi.fn(),
+      searchTrack: vi.fn(),
+    });
+
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
+
+    await resolveQuery("https://open.spotify.com/track/track123");
+
+    expect(mockRepo.findTrackPreviews).toHaveBeenCalledWith("tid1");
+    expect(deezerAdapter.findByIsrc).not.toHaveBeenCalled();
+    expect(deezerAdapter.searchTrack).not.toHaveBeenCalled();
+  });
+
+  it("refreshes and persists Deezer preview when the cached preview row is expired", async () => {
+    const cachedTrack = createMockTrack();
+    const freshTimestamp = Date.now() - 5000;
+    const freshPreviewUrl = "https://cdnt-preview.dzcdn.net/api/1/1/fresh.mp3?hdnea=exp=4102444800~hmac=abc";
+
+    vi.mocked(mockRepo.findTrackByUrl).mockResolvedValue({
+      trackId: "tid1",
+      updatedAt: freshTimestamp,
+      track: cachedTrack,
+      links: [
+        { service: "spotify", url: "https://open.spotify.com/track/track123", confidence: 1.0, matchMethod: "isrc" },
+        { service: "deezer", url: "https://www.deezer.com/track/456", confidence: 0.9, matchMethod: "search" },
+      ],
+    } satisfies CachedTrackResult);
+    vi.mocked(mockRepo.findTrackPreviews).mockResolvedValue([
+      {
+        service: "deezer",
+        url: "https://cdnt-preview.dzcdn.net/api/1/1/old.mp3?hdnea=exp=946684800~hmac=abc",
+        expiresAt: new Date("2000-01-01T00:00:00Z"),
+        observedAt: new Date("1999-12-31T00:00:00Z"),
+      },
+    ]);
+
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      displayName: "Spotify",
+      detectUrl: vi.fn(() => "track123"),
+    });
+
+    const deezerAdapter = createMockAdapter({
+      id: "deezer",
+      displayName: "Deezer",
+      capabilities: { supportsIsrc: true, supportsPreview: true, supportsArtwork: true },
+      findByIsrc: vi.fn().mockResolvedValue(
+        createMockTrack({
+          sourceService: "deezer",
+          sourceId: "456",
+          webUrl: "https://www.deezer.com/track/456",
+          previewUrl: freshPreviewUrl,
+        }),
+      ),
+    });
+
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
+
+    const result = await resolveQuery("https://open.spotify.com/track/track123");
+
+    expect(deezerAdapter.findByIsrc).toHaveBeenCalledWith("GBUM71029604");
+    expect(mockRepo.upsertTrackPreview).toHaveBeenCalledWith(
+      "tid1",
+      expect.objectContaining({ service: "deezer", url: freshPreviewUrl }),
+    );
+    expect(result.sourceTrack.previewUrl).toBe(freshPreviewUrl);
+  });
 });
 
 // =============================================================================

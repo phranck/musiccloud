@@ -74,6 +74,7 @@ import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
+import { getPreviewExpiry } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { collectAlbumExternalIds } from "./external-ids.js";
 import { filterDisabledLinks, getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
@@ -182,11 +183,29 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
     (a) => Boolean(a.albumCapabilities) && !coveredServices.has(a.id) && a.id !== cached.sourceAlbum.sourceService,
   );
 
-  if (missingAdapters.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
+  const needsPreview = await isAlbumPreviewRefreshNeeded(cached);
+  const deezerAdapter = needsPreview
+    ? active.find(
+        (a) =>
+          a.id === "deezer" &&
+          Boolean(a.albumCapabilities) &&
+          a.id !== cached.sourceAlbum.sourceService &&
+          !missingAdapters.some((m) => m.id === "deezer"),
+      )
+    : undefined;
 
-  log.debug("AlbumResolver", `Gap-filling ${missingAdapters.length} new services for cached album`);
+  const adaptersToFetch = deezerAdapter ? [...missingAdapters, deezerAdapter] : missingAdapters;
 
-  const results = await Promise.allSettled(missingAdapters.map((a) => resolveAlbumOnService(a, cached.sourceAlbum)));
+  if (adaptersToFetch.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
+
+  log.debug(
+    "AlbumResolver",
+    `Gap-filling ${adaptersToFetch.length} new services for cached album${
+      deezerAdapter ? " (incl. Deezer for preview)" : ""
+    }`,
+  );
+
+  const results = await Promise.allSettled(adaptersToFetch.map((a) => resolveAlbumOnService(a, cached.sourceAlbum)));
 
   const newLinks: ResolvedAlbumLink[] = [];
   for (const result of results) {
@@ -197,12 +216,14 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
 
   if (newLinks.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
-  if (cached.albumId) {
+  const genuinelyNewLinks = newLinks.filter((l) => !coveredServices.has(l.service));
+
+  if (cached.albumId && genuinelyNewLinks.length > 0) {
     try {
       const repo = await getRepository();
       await repo.addLinksToAlbum(
         cached.albumId,
-        newLinks.map((l) => ({
+        genuinelyNewLinks.map((l) => ({
           service: l.service,
           url: l.url,
           confidence: l.confidence,
@@ -215,7 +236,7 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
     }
   }
 
-  const allLinks = [...cached.links, ...newLinks].sort((a, b) => b.confidence - a.confidence);
+  const allLinks = [...cached.links, ...genuinelyNewLinks].sort((a, b) => b.confidence - a.confidence);
 
   // Fill missing artwork from newly resolved links
   let { sourceAlbum } = cached;
@@ -234,12 +255,56 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
     if (label) sourceAlbum = { ...sourceAlbum, label };
   }
 
+  const previewLink =
+    newLinks.find((l) => l.service === "deezer" && l.topTrackPreviewUrl) ?? newLinks.find((l) => l.topTrackPreviewUrl);
+  if (previewLink?.topTrackPreviewUrl) {
+    sourceAlbum = { ...sourceAlbum, topTrackPreviewUrl: previewLink.topTrackPreviewUrl };
+  }
+
+  if (cached.albumId) {
+    try {
+      const repo = await getRepository();
+      for (const link of newLinks) {
+        if (!link.topTrackPreviewUrl) continue;
+        const expiresAtMs = getPreviewExpiry(link.topTrackPreviewUrl, link.service);
+        await repo.upsertAlbumPreview(cached.albumId, {
+          service: link.service,
+          url: link.topTrackPreviewUrl,
+          expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
+        });
+      }
+    } catch (error) {
+      log.error(
+        "AlbumResolver",
+        `Failed to persist album preview rows: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
+
   return {
     sourceAlbum,
     links: await filterDisabledLinks(allLinks),
     albumId: cached.albumId,
     externalIds: collectAlbumExternalIds(sourceAlbum, newLinks),
   };
+}
+
+async function isAlbumPreviewRefreshNeeded(cached: AlbumResolutionResult): Promise<boolean> {
+  if (!cached.albumId) return !cached.sourceAlbum.topTrackPreviewUrl;
+  try {
+    const repo = await getRepository();
+    const previews = await repo.findAlbumPreviews(cached.albumId);
+    if (previews.length === 0) return true;
+    const now = Date.now();
+    const fresh = previews.find((p) => p.expiresAt === null || p.expiresAt.getTime() > now);
+    return !fresh;
+  } catch (error) {
+    log.debug(
+      "AlbumResolver",
+      `Album preview-refresh check failed, defaulting to refresh: ${error instanceof Error ? error.message : error}`,
+    );
+    return true;
+  }
 }
 
 // ─── ISRC-based album inference ───────────────────────────────────────────────

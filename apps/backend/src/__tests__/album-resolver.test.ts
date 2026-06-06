@@ -139,6 +139,7 @@ describe("AlbumResolver: resolveAlbumUrl", () => {
     vi.clearAllMocks();
     mockRepo.findAlbumByUrl.mockResolvedValue(null);
     mockRepo.findAlbumByUpc.mockResolvedValue(null);
+    mockRepo.findAlbumPreviews.mockResolvedValue([]);
     mockSpotifyAdapter.getAlbum.mockResolvedValue(MOCK_SOURCE_ALBUM);
     mockSpotifyAdapter.findAlbumByUpc.mockResolvedValue(null);
     mockDeezerAdapter.findAlbumByUpc.mockResolvedValue(MOCK_DEEZER_ALBUM);
@@ -199,7 +200,7 @@ describe("AlbumResolver: resolveAlbumUrl", () => {
       album: MOCK_SOURCE_ALBUM,
       albumId: "cached-id",
       links: [{ service: "deezer", url: "https://www.deezer.com/album/302127", confidence: 1.0, matchMethod: "upc" }],
-      updatedAt: Date.now() - 1000, // 1 second old, well within TTL
+      updatedAt: Date.now() - 1000,
     };
     mockRepo.findAlbumByUrl.mockResolvedValue(cachedAlbum);
 
@@ -207,6 +208,82 @@ describe("AlbumResolver: resolveAlbumUrl", () => {
 
     expect(result.albumId).toBe("cached-id");
     expect(mockSpotifyAdapter.getAlbum).not.toHaveBeenCalled();
+  });
+
+  it("does not refresh Deezer when a cached album has a fresh preview row", async () => {
+    const cachedAlbum = {
+      album: MOCK_SOURCE_ALBUM,
+      albumId: "cached-id",
+      links: [
+        {
+          service: "spotify",
+          url: "https://open.spotify.com/album/6dVIqQ8qmQ5GBnJ9shOYGE",
+          confidence: 1.0,
+          matchMethod: "upc",
+        },
+        { service: "deezer", url: "https://www.deezer.com/album/302127", confidence: 1.0, matchMethod: "upc" },
+        { service: "tidal", url: "https://tidal.com/browse/album/123456", confidence: 0.9, matchMethod: "search" },
+      ],
+      updatedAt: Date.now() - 365 * 24 * 60 * 60 * 1000,
+    };
+    mockRepo.findAlbumByUrl.mockResolvedValue(cachedAlbum);
+    mockRepo.findAlbumPreviews.mockResolvedValue([
+      {
+        service: "deezer",
+        url: "https://cdnt-preview.dzcdn.net/api/1/1/foo.mp3?hdnea=exp=4102444800~hmac=abc",
+        expiresAt: new Date("2100-01-01T00:00:00Z"),
+        observedAt: new Date(),
+      },
+    ]);
+
+    await resolveAlbumUrl("https://open.spotify.com/album/6dVIqQ8qmQ5GBnJ9shOYGE");
+
+    expect(mockRepo.findAlbumPreviews).toHaveBeenCalledWith("cached-id");
+    expect(mockDeezerAdapter.findAlbumByUpc).not.toHaveBeenCalled();
+    expect(mockDeezerAdapter.searchAlbum).not.toHaveBeenCalled();
+    expect(mockRepo.upsertAlbumPreview).not.toHaveBeenCalled();
+  });
+
+  it("refreshes and persists Deezer preview when the cached album preview row is expired", async () => {
+    const freshPreviewUrl = "https://cdnt-preview.dzcdn.net/api/1/1/fresh.mp3?hdnea=exp=4102444800~hmac=abc";
+    const cachedAlbum = {
+      album: MOCK_SOURCE_ALBUM,
+      albumId: "cached-id",
+      links: [
+        {
+          service: "spotify",
+          url: "https://open.spotify.com/album/6dVIqQ8qmQ5GBnJ9shOYGE",
+          confidence: 1.0,
+          matchMethod: "upc",
+        },
+        { service: "deezer", url: "https://www.deezer.com/album/302127", confidence: 1.0, matchMethod: "upc" },
+        { service: "tidal", url: "https://tidal.com/browse/album/123456", confidence: 0.9, matchMethod: "search" },
+      ],
+      updatedAt: Date.now() - 365 * 24 * 60 * 60 * 1000,
+    };
+    mockRepo.findAlbumByUrl.mockResolvedValue(cachedAlbum);
+    mockRepo.findAlbumPreviews.mockResolvedValue([
+      {
+        service: "deezer",
+        url: "https://cdnt-preview.dzcdn.net/api/1/1/old.mp3?hdnea=exp=946684800~hmac=abc",
+        expiresAt: new Date("2000-01-01T00:00:00Z"),
+        observedAt: new Date("1999-12-31T00:00:00Z"),
+      },
+    ]);
+    mockDeezerAdapter.findAlbumByUpc.mockResolvedValue({
+      ...MOCK_DEEZER_ALBUM,
+      topTrackPreviewUrl: freshPreviewUrl,
+    });
+
+    const result = await resolveAlbumUrl("https://open.spotify.com/album/6dVIqQ8qmQ5GBnJ9shOYGE");
+
+    expect(mockDeezerAdapter.findAlbumByUpc).toHaveBeenCalledWith("094638246428");
+    expect(mockRepo.addLinksToAlbum).not.toHaveBeenCalled();
+    expect(mockRepo.upsertAlbumPreview).toHaveBeenCalledWith(
+      "cached-id",
+      expect.objectContaining({ service: "deezer", url: freshPreviewUrl }),
+    );
+    expect(result.sourceAlbum.topTrackPreviewUrl).toBe(freshPreviewUrl);
   });
 
   it("should throw NOT_MUSIC_LINK for unrecognized album URL", async () => {
