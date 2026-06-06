@@ -88,4 +88,13 @@ describe("OpenAPI docs", () => {
     expect(queryParameter).toBeDefined();
     expect(JSON.stringify(queryParameter)).toContain("structured search query");
   });
+
+  it("uses real service ids in generated OpenAPI examples", async () => {
+    const res = await app.inject({ method: "GET", url: "/docs/json" });
+    const docJson = res.body;
+
+    expect(res.statusCode).toBe(200);
+    expect(docJson).not.toContain("appleMusic");
+    expect(docJson).toContain("apple-music");
+  });
 });

@@ -34,6 +34,7 @@ import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
+import { toApiLinks } from "../lib/server/api-links.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
 import type { ResolutionResult } from "../services/resolver.js";
@@ -355,12 +356,6 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
       isExplicit: result.sourceTrack.isExplicit,
       previewUrl,
     },
-    links: result.links.map((l) => ({
-      service: l.service,
-      displayName: l.displayName,
-      url: stripTrackingParams(l.url),
-      confidence: l.confidence,
-      matchMethod: l.matchMethod,
-    })),
+    links: toApiLinks(result.links, { stripTracking: true }),
   };
 }

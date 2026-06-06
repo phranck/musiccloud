@@ -17,7 +17,7 @@
  * whose `PLATFORM_CONFIG` entry has not yet shipped: it stays visible in
  * the marquee with a neutral default instead of crashing the SSR render.
  */
-import { type ActiveService, ENDPOINTS, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { type ActiveService, ENDPOINTS, getPlatformLabel, PLATFORM_CONFIG } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { getActiveAdapters } from "../services/plugins/registry.js";
@@ -43,7 +43,7 @@ export default async function servicesPublicRoutes(app: FastifyInstance) {
             items: { $ref: "ActiveService#" },
             example: [
               { id: "spotify", displayName: "Spotify", color: "#1db954" },
-              { id: "appleMusic", displayName: "Apple Music", color: "#fc3c44" },
+              { id: "apple-music", displayName: "Apple Music", color: "#fc3c44" },
               { id: "deezer", displayName: "Deezer", color: "#ef5466" },
               { id: "youtube", displayName: "YouTube", color: "#ff0000" },
               { id: "tidal", displayName: "Tidal", color: "#000000" },
@@ -56,7 +56,7 @@ export default async function servicesPublicRoutes(app: FastifyInstance) {
       const adapters = await getActiveAdapters();
       const services: ActiveService[] = adapters.map((a) => ({
         id: a.id,
-        displayName: a.displayName,
+        displayName: getPlatformLabel(a.id),
         color: PLATFORM_CONFIG[a.id]?.color ?? "#ffffff",
       }));
       reply.header("Cache-Control", "public, max-age=30");

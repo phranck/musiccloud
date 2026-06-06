@@ -1,10 +1,5 @@
-import {
-  buildMetaLine,
-  isValidServiceId,
-  type ServiceId,
-  type SharePageResponse,
-  type UnifiedResolveSuccessResponse,
-} from "@musiccloud/shared";
+import { buildMetaLine, type SharePageResponse, type UnifiedResolveSuccessResponse } from "@musiccloud/shared";
+import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 type TFunc = (key: string, vars?: Record<string, string>) => string;
@@ -33,19 +28,6 @@ function shortIdFromShortUrl(shortUrl: string): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-function platformLinksFromApiLinks(links: SharePageResponse["links"]): ShareContentConfiguration["platforms"] {
-  return links.reduce<ShareContentConfiguration["platforms"]>((platforms, link) => {
-    if (!link.url || !isValidServiceId(link.service)) return platforms;
-    platforms.push({
-      platform: link.service as ServiceId,
-      url: link.url,
-      displayName: link.displayName,
-      matchMethod: link.matchMethod,
-    });
-    return platforms;
-  }, []);
 }
 
 function resolvePlatformsLabelKey(isArtist: boolean, isAlbum: boolean): string {
@@ -106,7 +88,7 @@ export function buildShareViewFromSharePageResponse(
         : track
           ? buildMetaLine({ durationMs: track.durationMs, releaseDate: track.releaseDate }) || undefined
           : undefined,
-    platforms: platformLinksFromApiLinks(data.links),
+    platforms: apiLinksToPlatformLinks(data.links),
     platformsLabel: t(platformsLabelKey),
     platformsLabelKey,
     shortUrl: data.shortUrl,

@@ -142,7 +142,7 @@ export const PlatformLinkSchema = {
   required: ["service", "displayName", "url", "confidence", "matchMethod"],
   additionalProperties: false,
   properties: {
-    service: { type: "string", description: "Service id (e.g. 'spotify', 'appleMusic', 'deezer')." },
+    service: { type: "string", description: "Service id (e.g. 'spotify', 'apple-music', 'deezer')." },
     displayName: { type: "string", description: "Human-friendly service name." },
     url: { type: "string", format: "uri", description: "Deep-link that opens the item on that service." },
     confidence: {
@@ -211,7 +211,7 @@ const RESOLVE_SUCCESS_EXAMPLE = {
       matchMethod: "isrc",
     },
     {
-      service: "appleMusic",
+      service: "apple-music",
       displayName: "Apple Music",
       url: "https://music.apple.com/us/album/take-on-me/1433036073?i=1433036081",
       confidence: 1,
@@ -315,7 +315,7 @@ export const AlbumResolveSuccessSchema = {
         matchMethod: "upc",
       },
       {
-        service: "appleMusic",
+        service: "apple-music",
         displayName: "Apple Music",
         url: "https://music.apple.com/us/album/hunting-high-and-low/1433036073",
         confidence: 1,
@@ -356,7 +356,7 @@ export const ArtistResolveSuccessSchema = {
         matchMethod: "search",
       },
       {
-        service: "appleMusic",
+        service: "apple-music",
         displayName: "Apple Music",
         url: "https://music.apple.com/us/artist/a-ha/266892",
         confidence: 1,
@@ -451,7 +451,7 @@ export const SharePageSchema = {
         matchMethod: "cache",
       },
       {
-        service: "appleMusic",
+        service: "apple-music",
         displayName: "Apple Music",
         url: "https://music.apple.com/us/album/take-on-me/1433036073?i=1433036081",
         confidence: 1,

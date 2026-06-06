@@ -4,7 +4,8 @@ import type {
   ResolveSuccessResponse,
   UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
-import { buildMetaLine, isValidServiceId, PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
+import { buildMetaLine, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
 import type { ActiveResult, AlbumResult, AppAction, ArtistResult, ReducerState, SongResult } from "@/lib/types/app";
 import type {
   AlbumContentConfiguration,
@@ -70,27 +71,8 @@ export function appReducer({ screen, stack }: ReducerState, action: AppAction): 
 // Response parsers
 // ---------------------------------------------------------------------------
 
-type PlatformSourceLink =
-  | ResolveSuccessResponse["links"][number]
-  | AlbumResolveSuccessResponse["links"][number]
-  | ArtistResolveSuccessResponse["links"][number];
-
-function parsePlatformLinks(links: readonly PlatformSourceLink[]): PlatformLink[] {
-  const platforms: PlatformLink[] = [];
-  for (const link of links) {
-    if (!link.url || !isValidServiceId(link.service)) continue;
-    platforms.push({
-      platform: link.service as ServiceId,
-      url: link.url,
-      displayName: link.displayName,
-      matchMethod: link.matchMethod,
-    });
-  }
-  return platforms;
-}
-
 export function parseResolveResponse(data: ResolveSuccessResponse): SongResult {
-  const platforms = parsePlatformLinks(data.links);
+  const platforms = apiLinksToPlatformLinks(data.links);
   return {
     kind: "song",
     title: data.track.title,
@@ -108,7 +90,7 @@ export function parseResolveResponse(data: ResolveSuccessResponse): SongResult {
 }
 
 export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): AlbumResult {
-  const platforms = parsePlatformLinks(data.links);
+  const platforms = apiLinksToPlatformLinks(data.links);
   return {
     kind: "album",
     title: data.album.title,
@@ -125,7 +107,7 @@ export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): Al
 }
 
 export function parseArtistResolveResponse(data: ArtistResolveSuccessResponse): ArtistResult {
-  const platforms = parsePlatformLinks(data.links);
+  const platforms = apiLinksToPlatformLinks(data.links);
   return {
     kind: "artist",
     name: data.artist.name,

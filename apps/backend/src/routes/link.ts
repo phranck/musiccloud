@@ -14,11 +14,11 @@
  * hold an ID (e.g. an iOS share extension opening a previously saved track)
  * use this to render the row without re-running the resolver.
  *
- * The response is deliberately slimmer than the resolve payload:
- * `confidence`, `matchMethod`, and `displayName` are omitted because they
- * are artefacts of the resolve decision and irrelevant once the track is
- * stored. Consumers that render the chips locally keep their own display
- * name map.
+ * The endpoint is a DB read, but its links still use the same public
+ * `PlatformLink` contract as resolve/share responses. Cache-backed link
+ * reads therefore hydrate canonical display names centrally and report
+ * `confidence: 1`, `matchMethod: "cache"` rather than leaking the original
+ * resolver metadata stored with the row.
  *
  * `Cache-Control: public, max-age=3600`: track links are effectively
  * immutable after resolve (preview URL refresh is the only moving part,
@@ -29,6 +29,7 @@ import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
+import { toCachedApiLinks } from "../lib/server/api-links.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 
 export default async function linkRoutes(app: FastifyInstance) {
@@ -44,7 +45,7 @@ export default async function linkRoutes(app: FastifyInstance) {
           auth: "bearer",
         }),
         description:
-          "Slim, cache-friendly read against an already-persisted track. No external adapter calls. Use this when you already hold the track id (e.g. from a prior resolve) and just want the service links for rendering.",
+          "Cache-friendly read against an already-persisted track. No external adapter calls. Use this when you already hold the track id (e.g. from a prior resolve) and want the track metadata plus public service links for rendering.",
         security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
         params: {
           type: "object",
@@ -107,10 +108,7 @@ export default async function linkRoutes(app: FastifyInstance) {
           albumName: data.track.albumName,
           artworkUrl: data.track.artworkUrl,
         },
-        links: data.links.map((l) => ({
-          service: l.service,
-          url: l.url,
-        })),
+        links: toCachedApiLinks(data.links),
       });
     },
   );

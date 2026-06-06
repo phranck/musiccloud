@@ -66,6 +66,7 @@ import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
+import { toApiLinks } from "../lib/server/api-links.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import type { AlbumResolutionResult } from "../services/album-resolver.js";
 import { resolveAlbumUrl } from "../services/album-resolver.js";
@@ -409,13 +410,7 @@ async function persistTrackAndRespond(
       isExplicit: result.sourceTrack.isExplicit,
       previewUrl: refreshedPreviewUrl,
     },
-    links: result.links.map((l) => ({
-      service: l.service,
-      displayName: l.displayName,
-      url: stripTrackingParams(l.url),
-      confidence: l.confidence,
-      matchMethod: l.matchMethod,
-    })),
+    links: toApiLinks(result.links, { stripTracking: true }),
   };
 }
 
@@ -511,13 +506,7 @@ async function persistAlbumAndRespond(
       upc: result.sourceAlbum.upc,
       previewUrl,
     },
-    links: result.links.map((l) => ({
-      service: l.service,
-      displayName: l.displayName,
-      url: stripTrackingParams(l.url),
-      confidence: l.confidence,
-      matchMethod: l.matchMethod,
-    })),
+    links: toApiLinks(result.links, { stripTracking: true }),
   };
 }
 
@@ -571,12 +560,6 @@ async function persistArtistAndRespond(
       imageUrl: result.sourceArtist.imageUrl,
       genres: result.sourceArtist.genres,
     },
-    links: result.links.map((l) => ({
-      service: l.service,
-      displayName: l.displayName,
-      url: stripTrackingParams(l.url),
-      confidence: l.confidence,
-      matchMethod: l.matchMethod,
-    })),
+    links: toApiLinks(result.links, { stripTracking: true }),
   };
 }

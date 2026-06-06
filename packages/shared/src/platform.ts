@@ -86,6 +86,16 @@ export const SERVICE_DISPLAY_ORDER: readonly string[] = [
   "jiosaavn",
 ];
 
+/** Return the canonical user-facing platform label for a validated service id. */
+export function getPlatformLabel(service: ServiceId): string {
+  return PLATFORM_CONFIG[service].label;
+}
+
+/** Return the canonical brand color for a validated service id. */
+export function getPlatformColor(service: ServiceId): string {
+  return PLATFORM_CONFIG[service].color;
+}
+
 /** Compare function to sort platforms by display order. */
 export function compareByDisplayOrder(a: string, b: string): number {
   const ai = SERVICE_DISPLAY_ORDER.indexOf(a);

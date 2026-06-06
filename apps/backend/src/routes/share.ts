@@ -35,17 +35,17 @@
  * links whose URL storefront does not match. Other cached service links remain
  * globally renderable.
  *
- * ## Hardcoded `confidence: 1`, `matchMethod: "cache"`
+ * ## Cached API links
  *
- * These fields are required by `SharePageResponse` but meaningless on a
- * cache read: the links were already scored during the original resolve,
- * and a share page has no per-link confidence to show. They are set to
- * the sentinel values the schema treats as "trusted cache entry".
+ * `toCachedApiLinks` hydrates public labels from shared platform metadata
+ * and sets `confidence: 1`, `matchMethod: "cache"`. Original resolver match
+ * metadata is meaningful for fresh resolves, not for a trusted cache read.
  */
 import { ROUTE_TEMPLATES, type SharePageResponse } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { resolveAppleMusicStorefrontFromHeaders } from "../lib/platform/apple-music-storefront.js";
+import { toCachedApiLinks } from "../lib/server/api-links.js";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 
@@ -140,13 +140,7 @@ export default async function shareRoutes(app: FastifyInstance) {
             previewUrl: trackData.track.previewUrl ?? undefined,
             previewRefreshable: trackData.previewRefreshable || undefined,
           },
-          links: trackData.links.map((l) => ({
-            service: l.service,
-            displayName: l.service,
-            url: l.url,
-            confidence: 1,
-            matchMethod: "cache" as const,
-          })),
+          links: toCachedApiLinks(trackData.links),
           shortUrl: trackData.og.ogUrl,
         };
 
@@ -174,13 +168,7 @@ export default async function shareRoutes(app: FastifyInstance) {
             upc: albumData.album.upc ?? undefined,
             previewUrl: albumData.album.previewUrl ?? undefined,
           },
-          links: albumData.links.map((l) => ({
-            service: l.service,
-            displayName: l.service,
-            url: l.url,
-            confidence: 1,
-            matchMethod: "cache" as const,
-          })),
+          links: toCachedApiLinks(albumData.links),
           shortUrl: albumData.og.ogUrl,
         };
 
@@ -202,13 +190,7 @@ export default async function shareRoutes(app: FastifyInstance) {
             imageUrl: artistData.artist.imageUrl ?? undefined,
             genres: artistData.artist.genres,
           },
-          links: artistData.links.map((l) => ({
-            service: l.service,
-            displayName: l.service,
-            url: l.url,
-            confidence: 1,
-            matchMethod: "cache" as const,
-          })),
+          links: toCachedApiLinks(artistData.links),
           shortUrl: artistData.og.ogUrl,
         };
 
