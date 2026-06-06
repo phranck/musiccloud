@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "../server.js";
@@ -83,6 +85,10 @@ describe("OpenAPI docs", () => {
 
     expect(postResolve.description).toContain("Send the chosen candidate id back as `selectedCandidate`");
     expect(getResolve.description).toContain("Ambiguous structured searches therefore return 400");
+    expect(combinedDescriptions).toContain("docs/resolve-flow/de/resolve-flow.pdf");
+    expect(combinedDescriptions).toContain("docs/resolve-flow/en/resolve-flow.pdf");
+    expect(existsSync(path.resolve(process.cwd(), "../..", "docs/resolve-flow/de/resolve-flow.pdf"))).toBe(true);
+    expect(existsSync(path.resolve(process.cwd(), "../..", "docs/resolve-flow/en/resolve-flow.pdf"))).toBe(true);
 
     const queryParameter = getResolve.parameters.find((parameter) => parameter.name === "query");
     expect(queryParameter).toBeDefined();
@@ -96,5 +102,7 @@ describe("OpenAPI docs", () => {
     expect(res.statusCode).toBe(200);
     expect(docJson).not.toContain("appleMusic");
     expect(docJson).toContain("apple-music");
+    expect(docJson).toContain("spotify:2WfaOiMkCvy7F5fcp2zZ8L");
+    expect(docJson).not.toContain("spotify:track:2WfaOiMkCvy7F5fcp2zZ8L");
   });
 });

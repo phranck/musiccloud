@@ -1,0 +1,161 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=24mm]{geometry}
+\usepackage{fontspec}
+\usepackage[ngerman]{babel}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+
+\setmainfont{Helvetica Neue}
+\emergencystretch=3em
+\sloppy
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  pdftitle={musiccloud Resolver Flow},
+  pdfauthor={musiccloud}
+}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\versionstamp}{Version DOC\_VERSION, DOC\_DATE}
+
+\title{musiccloud Resolver Flow}
+\author{musiccloud}
+\date{\versionstamp}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Überblick}
+
+Der Resolver nimmt einen Link oder eine Suchanfrage entgegen und erzeugt daraus eine einheitliche musiccloud-Antwort. Die Antwort ist entweder ein fertiger Track-, Album- oder Artist-Resolve, eine Auswahlliste für mehrdeutige Track-Suchen, ein Genre-Discovery-Ergebnis oder ein Fehler mit einem stabilen Fehlercode.
+
+Dieser Text beschreibt die öffentlichen Query-Formen aus Anwendersicht. Implementierungsdetails wie aktivierte Plugins, Admin-Schalter oder interne Cache-Tabellen sind bewusst nicht Voraussetzung, um die API zu benutzen.
+
+\section{Endpoints}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.24\linewidth}>{\raggedright\arraybackslash}p{0.68\linewidth}}
+\textbf{Endpoint} & \textbf{Verwendung} \\
+\hline
+\code{POST /api/v1/resolve} & Voller Resolve-Endpoint für API-Clients mit \code{X-API-Key} oder Bearer-Token. Unterstützt URLs, Free Text, Genre-Discovery, Structured Search und den \code{selectedCandidate}-Follow-up. \\
+\code{GET /api/v1/resolve} & Unauthentifizierter Scripting-Endpoint für eine einzelne Track-Auflösung. Unterstützt URLs, Free Text und Structured Search. Mehrdeutige Suchanfragen liefern hier \code{400}, weil der Follow-up-Zustand nicht mitgeführt wird. \\
+\end{longtable}
+
+\section{Query-Formen}
+
+\subsection{Streaming-Service-URL}
+
+Nutze diese Form, wenn bereits ein Link zu einem Track, Album oder Artist vorhanden ist.
+
+\begingroup\small\begin{verbatim}
+https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L
+https://music.apple.com/de/album/example/123456789
+\end{verbatim}\endgroup
+
+Der Resolver erkennt den Service, liest die Quell-Metadaten und sucht passende Links auf weiteren Plattformen. Tracking-Parameter werden vor Persistenz und Antwort entfernt.
+
+\subsection{Free-Text Query}
+
+Free Text ist jede Eingabe, die keine URL ist und nicht mit einem reservierten Query-Prefix beginnt.
+
+\begingroup\small\begin{verbatim}
+bohemian rhapsody queen
+radiohead karma police ok computer
+\end{verbatim}\endgroup
+
+Diese Form ist sinnvoll, wenn der Nutzer nur ungefähr weiß, wonach gesucht wird. Bei hoher Confidence wird direkt aufgelöst. Bei mehreren plausiblen Treffern liefert \code{POST /api/v1/resolve} eine Auswahlliste.
+
+\subsection{Genre-Discovery Query}
+
+Genre-Discovery beginnt immer mit \code{genre:}. Sie ist zum Stöbern gedacht, nicht zur konkreten Track-Suche.
+
+\begingroup\small\begin{verbatim}
+genre:?
+genre: jazz, tracks: 20, vibe: mixed
+genre: jazz|r&b, count: 5
+\end{verbatim}\endgroup
+
+\code{genre:?} öffnet eine Browse-Grid-Antwort. \code{genre: <name>} liefert Listen für Tracks, Alben und Artists. Unterstützte Modifier sind \code{tracks}, \code{albums}, \code{artists}, \code{count} und \code{vibe}. Wer einen konkreten Track sucht, sollte stattdessen Structured Search verwenden.
+
+\section{Structured Search}
+
+Structured Search beginnt mit \code{title:}, \code{artist:} oder \code{album:}. Sie ist für konkrete Track-Suchen gedacht, bei denen einzelne Felder bekannt sind.
+
+\subsection{Wofür}
+
+Structured Search ist präziser als Free Text, weil Titel, Artist und optional Album getrennt an Adapter übergeben werden können. Services mit Feldoperatoren, etwa Spotify, Deezer oder MusicBrainz, können dadurch gezielter suchen. Andere Services erhalten die Felder als kombinierte Suchbegriffe.
+
+\subsection{Syntax}
+
+\begingroup\small\begin{verbatim}
+title: The Killing Moon, artist: Echo & The Bunnymen
+artist: Radiohead
+title: Karma Police, artist: Radiohead, album: OK Computer, count: 5
+\end{verbatim}\endgroup
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.18\linewidth}>{\raggedright\arraybackslash}p{0.72\linewidth}}
+\textbf{Feld} & \textbf{Bedeutung} \\
+\hline
+\code{title} & Track-Titel. Mindestens \code{title} oder \code{artist} ist erforderlich. \\
+\code{artist} & Artist-Name. Mindestens \code{title} oder \code{artist} ist erforderlich. \\
+\code{album} & Optionaler Album-Titel zur Verfeinerung. \code{album} allein wird abgelehnt. \\
+\code{count} & Optionaler Integer von 1 bis 10. Begrenzt die Auswahlliste bei mehrdeutigen Treffern. \\
+\end{longtable}
+
+Feldnamen sind case-insensitive. Werte behalten ihre Schreibweise. Felder werden mit Kommas getrennt. Ein fehlendes Komma vor dem nächsten bekannten Feld wird toleriert, zum Beispiel \code{title: foo artist: bar}. Kommas innerhalb eines Werts sind nicht escaped und gelten als Feldtrenner.
+
+\subsection{Validierung}
+
+Leere Werte, doppelte Felder, unbekannte Felder und \code{count} außerhalb von 1 bis 10 liefern \code{400}. Genre-Modifier wie \code{tracks}, \code{albums}, \code{artists} und \code{vibe} werden in Structured Search bewusst abgelehnt und gehören in \code{genre:}-Queries.
+
+\subsection{Antwort}
+
+Bei hoher Confidence liefert der Resolver direkt eine Track-Antwort. Bei mehreren plausiblen Treffern liefert \code{POST /api/v1/resolve} eine Auswahlliste mit Kandidaten. \code{count} begrenzt diese Liste zusätzlich zur serverseitigen Obergrenze. \code{GET /api/v1/resolve} kann keine Auswahlliste fortsetzen und gibt bei Mehrdeutigkeit \code{400} zurück.
+
+\section{selectedCandidate-Follow-up}
+
+Wenn eine Suche mehrdeutig ist, sendet \code{POST /api/v1/resolve} eine Antwort mit \code{status: "disambiguation"} und Kandidaten. Jeder Kandidat enthält eine opaque \code{id}. Diese \code{id} wird unverändert zurückgesendet:
+
+\begingroup\small\begin{verbatim}
+{
+  "selectedCandidate": "spotify:2WfaOiMkCvy7F5fcp2zZ8L"
+}
+\end{verbatim}\endgroup
+
+Clients sollen die ID nicht selbst bauen. Das Format ist intern und kann je nach Service variieren.
+
+\section{Fehlerfälle}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.18\linewidth}>{\raggedright\arraybackslash}p{0.72\linewidth}}
+\textbf{Status} & \textbf{Typische Ursache} \\
+\hline
+\code{400} & Malformed Query, unbekanntes Feld, leere Structured-Search-Werte, mehrdeutige GET-Suche oder ungültiger \code{selectedCandidate}. \\
+\code{401} & Fehlende oder ungültige Credentials auf geschützten Endpoints. \\
+\code{404} & Die Anfrage ist gültig, aber kein passender Track, Album oder Artist wurde gefunden. \\
+\code{408} & Ein Upstream-Service hat nicht rechtzeitig geantwortet. \\
+\code{429} & Rate Limit überschritten. \\
+\code{503} & Erforderlicher Upstream-Service ist temporär nicht verfügbar. \\
+\end{longtable}
+
+\section{Praxisbeispiele}
+
+\begingroup\small\begin{verbatim}
+POST /api/v1/resolve
+{ "query": "title: Karma Police, artist: Radiohead, count: 3" }
+
+POST /api/v1/resolve
+{ "query": "genre: jazz, tracks: 10, albums: 5" }
+
+POST /api/v1/resolve
+{ "selectedCandidate": "deezer:3135556" }
+
+GET /api/v1/resolve
+?query=title:%20Bohemian%20Rhapsody,%20artist:%20Queen
+\end{verbatim}\endgroup
+
+\end{document}

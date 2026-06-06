@@ -180,7 +180,7 @@ export const DisambiguationCandidateSchema = {
     artworkUrl: { type: "string", format: "uri" },
   },
   example: {
-    id: "spotify:track:2WfaOiMkCvy7F5fcp2zZ8L",
+    id: "spotify:2WfaOiMkCvy7F5fcp2zZ8L",
     title: "Take on Me",
     artists: ["a-ha"],
     albumName: "Hunting High and Low",
@@ -263,14 +263,14 @@ export const ResolveDisambiguationSchema = {
     status: "disambiguation",
     candidates: [
       {
-        id: "spotify:track:2WfaOiMkCvy7F5fcp2zZ8L",
+        id: "spotify:2WfaOiMkCvy7F5fcp2zZ8L",
         title: "Take on Me",
         artists: ["a-ha"],
         albumName: "Hunting High and Low",
         artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
       },
       {
-        id: "spotify:track:4VqPOruhp5EdPBeR92t6lQ",
+        id: "spotify:4VqPOruhp5EdPBeR92t6lQ",
         title: "Take on Me (MTV Unplugged)",
         artists: ["a-ha"],
         albumName: "MTV Unplugged — Summer Solstice",

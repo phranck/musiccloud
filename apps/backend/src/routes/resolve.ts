@@ -108,7 +108,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
     {
       schema: {
         tags: ["Resolve"],
-        summary: "Resolve a music URL, free-text query, or genre-discovery query",
+        summary: "Resolve a music URL, free-text query, genre-discovery query, or structured search query",
         "x-codeSamples": buildCodeSamples({
           method: "POST",
           path: "/api/v1/resolve",
@@ -150,7 +150,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
               minLength: 1,
               maxLength: 200,
               description: "Identifier of a candidate returned by a previous disambiguation response.",
-              example: "spotify:track:2WfaOiMkCvy7F5fcp2zZ8L",
+              example: "spotify:2WfaOiMkCvy7F5fcp2zZ8L",
             },
           },
           anyOf: [{ required: ["query"] }, { required: ["selectedCandidate"] }],
@@ -158,7 +158,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
           examples: [
             { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" },
             { query: "title: Karma Police, artist: Radiohead, album: OK Computer, count: 5" },
-            { selectedCandidate: "spotify:track:2WfaOiMkCvy7F5fcp2zZ8L" },
+            { selectedCandidate: "spotify:2WfaOiMkCvy7F5fcp2zZ8L" },
           ],
         },
         response: {
@@ -175,7 +175,10 @@ export default async function resolveRoutes(app: FastifyInstance) {
               },
             ],
           },
-          400: { description: "Invalid URL, invalid genre query, or malformed body.", $ref: "ErrorResponse#" },
+          400: {
+            description: "Invalid URL, invalid genre query, invalid structured search query, or malformed body.",
+            $ref: "ErrorResponse#",
+          },
           401: { description: "Missing or invalid API key / bearer token.", $ref: "ErrorResponse#" },
           404: { description: "URL is valid but the track/album/artist could not be found.", $ref: "ErrorResponse#" },
           408: { description: "Upstream service timed out before a match could be confirmed.", $ref: "ErrorResponse#" },

@@ -1,0 +1,161 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=24mm]{geometry}
+\usepackage{fontspec}
+\usepackage[english]{babel}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+
+\setmainfont{Helvetica Neue}
+\emergencystretch=3em
+\sloppy
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  pdftitle={musiccloud Resolver Flow},
+  pdfauthor={musiccloud}
+}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\versionstamp}{Version DOC\_VERSION, DOC\_DATE}
+
+\title{musiccloud Resolver Flow}
+\author{musiccloud}
+\date{\versionstamp}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Overview}
+
+The resolver accepts a link or search query and turns it into a unified musiccloud response. The response is either a resolved track, album, or artist, a candidate list for an ambiguous track search, a genre-discovery result, or an error with a stable error code.
+
+This document describes the public query shapes from a user's perspective. Implementation details such as enabled plugins, admin toggles, or internal cache tables are not required to use the API.
+
+\section{Endpoints}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.24\linewidth}>{\raggedright\arraybackslash}p{0.68\linewidth}}
+\textbf{Endpoint} & \textbf{Use} \\
+\hline
+\code{POST /api/v1/resolve} & Full resolve endpoint for API clients with an \code{X-API-Key} or bearer token. Supports URLs, free text, genre discovery, structured search, and the \code{selectedCandidate} follow-up. \\
+\code{GET /api/v1/resolve} & Unauthenticated scripting endpoint for one-shot track resolves. Supports URLs, free text, and structured search. Ambiguous searches return \code{400} because the follow-up state is not carried. \\
+\end{longtable}
+
+\section{Query Shapes}
+
+\subsection{Streaming-Service URL}
+
+Use this shape when you already have a track, album, or artist link.
+
+\begingroup\small\begin{verbatim}
+https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L
+https://music.apple.com/de/album/example/123456789
+\end{verbatim}\endgroup
+
+The resolver detects the service, reads the source metadata, and searches for matching links on other platforms. Tracking parameters are removed before persistence and before the response is returned.
+
+\subsection{Free-Text Query}
+
+Free text is any input that is not a URL and does not start with a reserved query prefix.
+
+\begingroup\small\begin{verbatim}
+bohemian rhapsody queen
+radiohead karma police ok computer
+\end{verbatim}\endgroup
+
+This shape is useful when the user only roughly knows what they want. A high-confidence match resolves directly. If there are multiple plausible matches, \code{POST /api/v1/resolve} returns a candidate list.
+
+\subsection{Genre-Discovery Query}
+
+Genre discovery always starts with \code{genre:}. It is meant for browsing, not for finding one specific track.
+
+\begingroup\small\begin{verbatim}
+genre:?
+genre: jazz, tracks: 20, vibe: mixed
+genre: jazz|r&b, count: 5
+\end{verbatim}\endgroup
+
+\code{genre:?} returns a browse-grid response. \code{genre: <name>} returns lists for tracks, albums, and artists. Supported modifiers are \code{tracks}, \code{albums}, \code{artists}, \code{count}, and \code{vibe}. Use structured search instead when you are looking for a specific track.
+
+\section{Structured Search}
+
+Structured search starts with \code{title:}, \code{artist:}, or \code{album:}. It is meant for concrete track searches where individual fields are known.
+
+\subsection{Purpose}
+
+Structured search is more precise than free text because title, artist, and optional album can be passed to adapters separately. Services with field operators, such as Spotify, Deezer, or MusicBrainz, can search more narrowly. Other services receive the fields as combined search terms.
+
+\subsection{Syntax}
+
+\begingroup\small\begin{verbatim}
+title: The Killing Moon, artist: Echo & The Bunnymen
+artist: Radiohead
+title: Karma Police, artist: Radiohead, album: OK Computer, count: 5
+\end{verbatim}\endgroup
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.18\linewidth}>{\raggedright\arraybackslash}p{0.72\linewidth}}
+\textbf{Field} & \textbf{Meaning} \\
+\hline
+\code{title} & Track title. At least one of \code{title} or \code{artist} is required. \\
+\code{artist} & Artist name. At least one of \code{title} or \code{artist} is required. \\
+\code{album} & Optional album title for refinement. \code{album} alone is rejected. \\
+\code{count} & Optional integer from 1 to 10. Caps the candidate list when the search is ambiguous. \\
+\end{longtable}
+
+Field names are case-insensitive. Values preserve their original casing. Fields are separated by commas. A missing comma before the next known field is tolerated, for example \code{title: foo artist: bar}. Commas inside values are not escaped and act as field separators.
+
+\subsection{Validation}
+
+Empty values, duplicate fields, unknown fields, and \code{count} outside 1 to 10 return \code{400}. Genre modifiers such as \code{tracks}, \code{albums}, \code{artists}, and \code{vibe} are intentionally rejected in structured search and belong in \code{genre:} queries.
+
+\subsection{Response}
+
+With high confidence, the resolver returns a track response directly. With multiple plausible matches, \code{POST /api/v1/resolve} returns a candidate list. \code{count} caps this list in addition to the server-side maximum. \code{GET /api/v1/resolve} cannot continue a candidate selection and returns \code{400} when the query is ambiguous.
+
+\section{selectedCandidate Follow-Up}
+
+When a search is ambiguous, \code{POST /api/v1/resolve} returns a response with \code{status: "disambiguation"} and candidates. Each candidate contains an opaque \code{id}. Send that \code{id} back unchanged:
+
+\begingroup\small\begin{verbatim}
+{
+  "selectedCandidate": "spotify:2WfaOiMkCvy7F5fcp2zZ8L"
+}
+\end{verbatim}\endgroup
+
+Clients should not construct the ID themselves. The format is internal and may vary by service.
+
+\section{Error Cases}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.18\linewidth}>{\raggedright\arraybackslash}p{0.72\linewidth}}
+\textbf{Status} & \textbf{Typical Cause} \\
+\hline
+\code{400} & Malformed query, unknown field, empty structured-search values, ambiguous GET search, or invalid \code{selectedCandidate}. \\
+\code{401} & Missing or invalid credentials on protected endpoints. \\
+\code{404} & The query is valid, but no matching track, album, or artist was found. \\
+\code{408} & An upstream service did not answer in time. \\
+\code{429} & Rate limit exceeded. \\
+\code{503} & Required upstream service is temporarily unavailable. \\
+\end{longtable}
+
+\section{Practical Examples}
+
+\begingroup\small\begin{verbatim}
+POST /api/v1/resolve
+{ "query": "title: Karma Police, artist: Radiohead, count: 3" }
+
+POST /api/v1/resolve
+{ "query": "genre: jazz, tracks: 10, albums: 5" }
+
+POST /api/v1/resolve
+{ "selectedCandidate": "deezer:3135556" }
+
+GET /api/v1/resolve
+?query=title:%20Bohemian%20Rhapsody,%20artist:%20Queen
+\end{verbatim}\endgroup
+
+\end{document}

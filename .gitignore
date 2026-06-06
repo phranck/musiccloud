@@ -25,7 +25,6 @@ apps/backend/data/
 .agents/
 .claude/
 .codex/
-docs/
 .pi/
 .pi-lens/
 .remember/
