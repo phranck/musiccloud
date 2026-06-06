@@ -24,40 +24,81 @@ export interface ArtistInfoContext {
   shortId?: string;
   artistEntityId?: string;
 }
+
+const ArtistLoadStatus = {
+  Loading: "loading",
+  Ready: "ready",
+  Empty: "empty",
+  Error: "error",
+} as const;
+
+const ArtistActionType = {
+  Loading: "loading",
+  Done: "done",
+  Error: "error",
+} as const;
+
+const ShareUiActionType = {
+  ArtistFetchFinished: "artistFetchFinished",
+  ArtistReadyHidden: "artistReadyHidden",
+  ArtistReadyVisible: "artistReadyVisible",
+  CloseSheet: "closeSheet",
+  OpenSheet: "openSheet",
+  PreviewStatusChanged: "previewStatusChanged",
+  PropsChanged: "propsChanged",
+  ResolveErrorHidden: "resolveErrorHidden",
+  ResolveErrorVisible: "resolveErrorVisible",
+  ResolveStarted: "resolveStarted",
+  Resolved: "resolved",
+} as const;
+
+const ResolveResultKind = {
+  Artist: "artist",
+} as const;
+
+const ShareConfigType = {
+  Share: "share",
+} as const;
+
 type ArtistState = { status: ArtistLoadStatus; artistData: ArtistInfoResponse | null; errorCode?: string };
 type ArtistAction =
-  | { type: "loading" }
-  | { type: "done"; data: ArtistInfoResponse | null }
-  | { type: "error"; code: string };
+  | { type: typeof ArtistActionType.Loading }
+  | { type: typeof ArtistActionType.Done; data: ArtistInfoResponse | null }
+  | { type: typeof ArtistActionType.Error; code: string };
 interface ShareUiState {
-  artistReadyVisible: boolean;
+  ArtistReadyVisible: boolean;
   currentArtistContext: ArtistInfoContext;
   currentArtistName: string;
   currentConfig: MediaCardContentConfiguration;
   lastPropsConfigKey: string;
   previewStatus: AudioPreviewStatus | null;
-  resolveErrorVisible: boolean;
+  ResolveErrorVisible: boolean;
   resolveTriggeredArtistLoad: boolean;
   sheetOpen: boolean;
 }
 type ShareUiAction =
-  | { type: "artistFetchFinished" }
-  | { type: "artistReadyHidden" }
-  | { type: "artistReadyVisible" }
-  | { type: "closeSheet" }
-  | { type: "openSheet" }
-  | { type: "previewStatusChanged"; status: AudioPreviewStatus | null }
+  | { type: typeof ShareUiActionType.ArtistFetchFinished }
+  | { type: typeof ShareUiActionType.ArtistReadyHidden }
+  | { type: typeof ShareUiActionType.ArtistReadyVisible }
+  | { type: typeof ShareUiActionType.CloseSheet }
+  | { type: typeof ShareUiActionType.OpenSheet }
+  | { type: typeof ShareUiActionType.PreviewStatusChanged; status: AudioPreviewStatus | null }
   | {
-      type: "propsChanged";
+      type: typeof ShareUiActionType.PropsChanged;
       artistContext: ArtistInfoContext;
       artistName: string;
       config: MediaCardContentConfiguration;
       configKey: string;
     }
-  | { type: "resolveErrorHidden" }
-  | { type: "resolveErrorVisible" }
-  | { type: "resolveStarted" }
-  | { type: "resolved"; artistContext?: ArtistInfoContext; artistName?: string; config: MediaCardContentConfiguration };
+  | { type: typeof ShareUiActionType.ResolveErrorHidden }
+  | { type: typeof ShareUiActionType.ResolveErrorVisible }
+  | { type: typeof ShareUiActionType.ResolveStarted }
+  | {
+      type: typeof ShareUiActionType.Resolved;
+      artistContext?: ArtistInfoContext;
+      artistName?: string;
+      config: MediaCardContentConfiguration;
+    };
 
 function hasArtistInfoContent(data: ArtistInfoResponse | null): boolean {
   return Boolean(
@@ -70,26 +111,31 @@ function hasArtistInfoContent(data: ArtistInfoResponse | null): boolean {
 }
 
 function artistReducer(state: ArtistState, action: ArtistAction): ArtistState {
-  if (action.type === "loading") return { status: "loading", artistData: state.artistData };
-  if (action.type === "error") return { status: "error", artistData: null, errorCode: action.code };
-  return { status: hasArtistInfoContent(action.data) ? "ready" : "empty", artistData: action.data };
+  if (action.type === ArtistActionType.Loading)
+    return { status: ArtistLoadStatus.Loading, artistData: state.artistData };
+  if (action.type === ArtistActionType.Error)
+    return { status: ArtistLoadStatus.Error, artistData: null, errorCode: action.code };
+  return {
+    status: hasArtistInfoContent(action.data) ? ArtistLoadStatus.Ready : ArtistLoadStatus.Empty,
+    artistData: action.data,
+  };
 }
 
 function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiState {
   switch (action.type) {
-    case "artistFetchFinished":
+    case ShareUiActionType.ArtistFetchFinished:
       return { ...state, resolveTriggeredArtistLoad: false };
-    case "artistReadyHidden":
+    case ShareUiActionType.ArtistReadyHidden:
       return { ...state, artistReadyVisible: false };
-    case "artistReadyVisible":
+    case ShareUiActionType.ArtistReadyVisible:
       return { ...state, artistReadyVisible: true };
-    case "closeSheet":
+    case ShareUiActionType.CloseSheet:
       return { ...state, sheetOpen: false };
-    case "openSheet":
+    case ShareUiActionType.OpenSheet:
       return { ...state, sheetOpen: true };
-    case "previewStatusChanged":
+    case ShareUiActionType.PreviewStatusChanged:
       return { ...state, previewStatus: action.status };
-    case "propsChanged":
+    case ShareUiActionType.PropsChanged:
       if (state.lastPropsConfigKey === action.configKey) return state;
       return {
         ...state,
@@ -98,13 +144,13 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
         currentConfig: action.config,
         lastPropsConfigKey: action.configKey,
       };
-    case "resolveErrorHidden":
+    case ShareUiActionType.ResolveErrorHidden:
       return { ...state, resolveErrorVisible: false };
-    case "resolveErrorVisible":
+    case ShareUiActionType.ResolveErrorVisible:
       return { ...state, resolveErrorVisible: true };
-    case "resolveStarted":
+    case ShareUiActionType.ResolveStarted:
       return { ...state, resolveErrorVisible: false, resolveTriggeredArtistLoad: true };
-    case "resolved":
+    case ShareUiActionType.Resolved:
       return {
         ...state,
         currentArtistContext: action.artistContext ?? state.currentArtistContext,
@@ -120,13 +166,13 @@ function initialShareUiState({
   config,
 }: Pick<ShareLayoutProps, "artistInfoContext" | "artistName" | "config">): ShareUiState {
   return {
-    artistReadyVisible: false,
+    ArtistReadyVisible: false,
     currentArtistContext: artistInfoContext ?? artistInfoContextFromConfig(config),
     currentArtistName: artistName,
     currentConfig: config,
     lastPropsConfigKey: configIdentity(config),
     previewStatus: null,
-    resolveErrorVisible: false,
+    ResolveErrorVisible: false,
     resolveTriggeredArtistLoad: false,
     sheetOpen: false,
   };
@@ -138,10 +184,11 @@ import { EventsCard } from "@/components/artist/EventsCard";
 import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
+import { AudioPreviewStatus } from "@/components/audio/AudioPreviewPlayer";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
 import { ServicesCard } from "@/components/cards/ServicesCard";
-import { type AudioPreviewStatus, SharePageCard } from "@/components/share/SharePageCard";
+import { SharePageCard } from "@/components/share/SharePageCard";
 import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
@@ -312,7 +359,7 @@ function configIdentity(config: MediaCardContentConfiguration): string {
 }
 
 function resultArtistName(active: ActiveResult): string {
-  return active.kind === "artist" ? active.name : active.artist;
+  return active.kind === ResolveResultKind.Artist ? active.name : active.artist;
 }
 
 interface ShareLayoutProps {
@@ -353,11 +400,11 @@ function ShareLayoutInner({
   const t = useT();
   const userRegion = useMemo(detectRegion, []);
   const [artistState, dispatch] = useReducer(artistReducer, {
-    status: "loading",
+    status: ArtistLoadStatus.Loading,
     artistData: null,
   });
   const { status: artistLoadStatus, artistData, errorCode: artistErrorCode } = artistState;
-  const isLoading = artistLoadStatus === "loading";
+  const isLoading = artistLoadStatus === ArtistLoadStatus.Loading;
   const [shareUiState, dispatchUi] = useReducer(
     shareUiReducer,
     { artistInfoContext, artistName, config },
@@ -377,7 +424,7 @@ function ShareLayoutInner({
 
   useEffect(() => {
     dispatchUi({
-      type: "propsChanged",
+      type: ShareUiActionType.PropsChanged,
       artistContext: artistInfoContext ?? artistInfoContextFromConfig(config),
       artistName,
       config,
@@ -387,19 +434,19 @@ function ShareLayoutInner({
 
   const artistStatusLoading = isLoading || resolveTriggeredArtistLoad;
   useEffect(() => {
-    if (artistStatusLoading || artistLoadStatus !== "ready") {
-      dispatchUi({ type: "artistReadyHidden" });
+    if (artistStatusLoading || artistLoadStatus !== ArtistLoadStatus.Ready) {
+      dispatchUi({ type: ShareUiActionType.ArtistReadyHidden });
       return;
     }
 
-    dispatchUi({ type: "artistReadyVisible" });
-    const timeout = setTimeout(() => dispatchUi({ type: "artistReadyHidden" }), 6000);
+    dispatchUi({ type: ShareUiActionType.ArtistReadyVisible });
+    const timeout = setTimeout(() => dispatchUi({ type: ShareUiActionType.ArtistReadyHidden }), 6000);
     return () => clearTimeout(timeout);
   }, [artistLoadStatus, artistStatusLoading]);
 
   useEffect(() => {
     if (!resolveErrorVisible) return;
-    const timeout = setTimeout(() => dispatchUi({ type: "resolveErrorHidden" }), 6000);
+    const timeout = setTimeout(() => dispatchUi({ type: ShareUiActionType.ResolveErrorHidden }), 6000);
     return () => clearTimeout(timeout);
   }, [resolveErrorVisible]);
 
@@ -407,11 +454,11 @@ function ShareLayoutInner({
     ? t("artist.statusLoading")
     : resolveErrorVisible
       ? t("artist.statusResolveError")
-      : artistLoadStatus === "error"
+      : artistLoadStatus === ArtistLoadStatus.Error
         ? t("artist.statusError", { code: artistErrorCode ?? "ERR" })
-        : artistLoadStatus === "empty"
+        : artistLoadStatus === ArtistLoadStatus.Empty
           ? t("artist.statusEmpty")
-          : previewStatus === "playing"
+          : previewStatus === AudioPreviewStatus.Playing
             ? t("audio.statusPlaying")
             : artistReadyVisible
               ? t("artist.statusReady")
@@ -434,18 +481,18 @@ function ShareLayoutInner({
   // Fetch artist data immediately (SSR already rendered the share card)
   useEffect(() => {
     let cancelled = false;
-    dispatch({ type: "loading" });
+    dispatch({ type: ArtistActionType.Loading });
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
     fetchArtistInfo(currentArtistName, userRegion, currentArtistContext, controller.signal)
       .then((data) => {
-        if (!cancelled) dispatch({ type: "done", data });
+        if (!cancelled) dispatch({ type: ArtistActionType.Done, data });
       })
       .catch((err) => {
-        if (!cancelled) dispatch({ type: "error", code: artistFetchErrorCode(err) });
+        if (!cancelled) dispatch({ type: ArtistActionType.Error, code: artistFetchErrorCode(err) });
       })
       .finally(() => {
-        if (!cancelled) dispatchUi({ type: "artistFetchFinished" });
+        if (!cancelled) dispatchUi({ type: ShareUiActionType.ArtistFetchFinished });
         clearTimeout(timeout);
       });
     return () => {
@@ -455,10 +502,10 @@ function ShareLayoutInner({
     };
   }, [currentArtistContext, currentArtistName, userRegion]);
 
-  const openSheet = useCallback(() => dispatchUi({ type: "openSheet" }), []);
-  const closeSheet = useCallback(() => dispatchUi({ type: "closeSheet" }), []);
+  const openSheet = useCallback(() => dispatchUi({ type: ShareUiActionType.OpenSheet }), []);
+  const closeSheet = useCallback(() => dispatchUi({ type: ShareUiActionType.CloseSheet }), []);
   const handlePreviewStatusChange = useCallback(
-    (status: AudioPreviewStatus | null) => dispatchUi({ type: "previewStatusChanged", status }),
+    (status: AudioPreviewStatus | null) => dispatchUi({ type: ShareUiActionType.PreviewStatusChanged, status }),
     [],
   );
   useOverlayEscape({ enabled: sheetOpen, onEscape: closeSheet });
@@ -468,7 +515,7 @@ function ShareLayoutInner({
     // before the resolve request returns and before artist-info loading starts.
     // Lift that moment into ShareLayout so the VFD flips to loading in sync
     // with the visible spinning-disc affordance.
-    dispatchUi({ type: "resolveStarted" });
+    dispatchUi({ type: ShareUiActionType.ResolveStarted });
   }, []);
 
   const handleTrackResolve = useCallback(
@@ -496,14 +543,14 @@ function ShareLayoutInner({
 
         const resolved = data as UnifiedResolveSuccessResponse;
         replaceBrowserUrlWithShortUrl(resolved.shortUrl);
-        if (currentConfig.type === "share") {
+        if (currentConfig.type === ShareConfigType.Share) {
           const next = buildShareViewFromResolvedResponse(resolved, t);
           const shouldFetchArtist =
             normalizeArtistName(next.artistName) !== normalizeArtistName(currentArtistName) ||
             !sameArtistInfoContext(next.artistInfoContext, currentArtistContext);
           keepResolveLoadingForArtistFetch = shouldFetchArtist;
           dispatchUi({
-            type: "resolved",
+            type: ShareUiActionType.Resolved,
             artistContext: next.artistInfoContext,
             artistName: shouldFetchArtist ? next.artistName : undefined,
             config: next.config,
@@ -517,15 +564,15 @@ function ShareLayoutInner({
         const shouldFetchArtist = normalizeArtistName(nextArtistName) !== normalizeArtistName(currentArtistName);
         keepResolveLoadingForArtistFetch = shouldFetchArtist;
         dispatchUi({
-          type: "resolved",
+          type: ShareUiActionType.Resolved,
           artistName: shouldFetchArtist ? nextArtistName : undefined,
           config: buildActiveConfig(active, t),
         });
       } catch (err) {
-        dispatchUi({ type: "resolveErrorVisible" });
+        dispatchUi({ type: ShareUiActionType.ResolveErrorVisible });
         throw err;
       } finally {
-        if (!keepResolveLoadingForArtistFetch) dispatchUi({ type: "artistFetchFinished" });
+        if (!keepResolveLoadingForArtistFetch) dispatchUi({ type: ShareUiActionType.ArtistFetchFinished });
         clearTimeout(timeout);
       }
     },

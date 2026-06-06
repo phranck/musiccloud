@@ -46,7 +46,7 @@
  * prefers `cover_xl` with `cover_big` as fallback to keep the share
  * page rendering sharp at retina resolutions.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
@@ -225,13 +225,13 @@ export const deezerAdapter = {
     const response = await deezerFetch(`/track/${encodeURIComponent(trackId)}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.DEEZER, response.status, RESOURCE_KIND.TRACK, trackId);
+      throw serviceHttpError(Service.Deezer, response.status, ResourceKind.Track, trackId);
     }
 
     const data = await response.json();
 
     if (isDeezerError(data)) {
-      throw serviceNotFoundError(SERVICE.DEEZER, RESOURCE_KIND.TRACK, trackId, data.error.message);
+      throw serviceNotFoundError(Service.Deezer, ResourceKind.Track, trackId, data.error.message);
     }
 
     return mapTrack(data as DeezerTrackResponse);
@@ -378,15 +378,15 @@ export const deezerAdapter = {
     const response = await deezerFetch(`/album/${encodeURIComponent(albumId)}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.DEEZER, response.status, RESOURCE_KIND.ALBUM, albumId);
+      throw serviceHttpError(Service.Deezer, response.status, ResourceKind.Album, albumId);
     }
 
     const data = await response.json();
 
     if (isDeezerError(data)) {
       throw serviceNotFoundError(
-        SERVICE.DEEZER,
-        RESOURCE_KIND.ALBUM,
+        Service.Deezer,
+        ResourceKind.Album,
         albumId,
         (data as DeezerErrorResponse).error.message,
       );
@@ -471,13 +471,13 @@ export const deezerAdapter = {
     const response = await deezerFetch(`/artist/${encodeURIComponent(artistId)}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.DEEZER, response.status, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceHttpError(Service.Deezer, response.status, ResourceKind.Artist, artistId);
     }
 
     const data = await response.json();
 
     if (isDeezerError(data)) {
-      throw serviceNotFoundError(SERVICE.DEEZER, RESOURCE_KIND.ARTIST, artistId, data.error.message);
+      throw serviceNotFoundError(Service.Deezer, ResourceKind.Artist, artistId, data.error.message);
     }
 
     return {

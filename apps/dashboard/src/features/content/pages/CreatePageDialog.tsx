@@ -97,6 +97,7 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
             <FormLabel htmlFor="create-page-dialog-title">{text.fieldTitle}</FormLabel>
             <input
               id="create-page-dialog-title"
+              aria-label={text.fieldTitle}
               type="text"
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
@@ -112,6 +113,7 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
               <span className="text-xs text-[var(--ds-text-muted)] shrink-0">/</span>
               <input
                 id="create-page-dialog-slug"
+                aria-label={text.fieldSlug}
                 type="text"
                 value={slug}
                 onChange={(e) => handleSlugChange(e.target.value)}

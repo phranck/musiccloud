@@ -1,10 +1,10 @@
-import { SERVICE } from "@musiccloud/shared";
+import { Service } from "@musiccloud/shared";
 import type { ServicePlugin } from "../manifest.js";
 import { appleMusicAdapter } from "./adapter.js";
 
 export const appleMusicPlugin: ServicePlugin = {
   manifest: {
-    id: SERVICE.APPLE_MUSIC,
+    id: Service.AppleMusic,
     displayName: "Apple Music",
     description: "Resolves Apple Music track, album and artist URLs via the Apple Music API (JWT signed).",
     defaultEnabled: true,

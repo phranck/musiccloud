@@ -1,5 +1,18 @@
-import { DashboardActionButton, DashboardButton, DashboardIconButton, DashboardInput } from "@musiccloud/dashboard-ui";
-import type { ContentPage, Locale, PageTitleAlignment as PageTitleAlignmentValue } from "@musiccloud/shared";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButton,
+  DashboardButtonVariant,
+  DashboardIconButton,
+  DashboardInput,
+} from "@musiccloud/dashboard-ui";
+import type {
+  ContentPage,
+  ContentStatus,
+  Locale,
+  PageTitleAlignment as PageTitleAlignmentValue,
+} from "@musiccloud/shared";
 import { DEFAULT_LOCALE, getLocalizedText, LOCALES } from "@musiccloud/shared";
 import { EyeIcon, MarkdownLogoIcon, MinusCircleIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { lazy, Suspense, useCallback, useEffect, useReducer, useState } from "react";
@@ -66,14 +79,54 @@ interface EditorState {
   patchError: string | null;
 }
 
+const EditorActionType = {
+  ResetForSlug: "resetForSlug",
+  SetSaved: "setSaved",
+  SetConfirmDelete: "setConfirmDelete",
+  SetSourceFontSize: "setSourceFontSize",
+  SetEditingSlug: "setEditingSlug",
+  SetEditSlugValue: "setEditSlugValue",
+  SetPatchError: "setPatchError",
+} as const;
+
+const ContentMetaActionType = {
+  Hydrate: "hydrate",
+  SetField: "set-field",
+} as const;
+
+const ContentBodyActionType = {
+  Hydrate: "hydrate",
+  Set: "set",
+} as const;
+
+const ContentTranslationsActionType = {
+  Hydrate: "hydrate",
+  SetField: "set-field",
+  AddLocale: "add-locale",
+} as const;
+
+const ContentSegmentsActionType = {
+  HydrateOwner: "hydrate-owner",
+} as const;
+
+const ContentEditorPageStatus = {
+  Draft: "draft",
+  Published: "published",
+  Hidden: "hidden",
+} as const satisfies Record<string, ContentStatus>;
+
+const TranslationStatus = {
+  Missing: "missing",
+} as const;
+
 type EditorAction =
-  | { type: "resetForSlug" }
-  | { type: "setSaved"; value: boolean }
-  | { type: "setConfirmDelete"; value: boolean }
-  | { type: "setSourceFontSize"; value: number }
-  | { type: "setEditingSlug"; value: boolean }
-  | { type: "setEditSlugValue"; value: string }
-  | { type: "setPatchError"; value: string | null };
+  | { type: typeof EditorActionType.ResetForSlug }
+  | { type: typeof EditorActionType.SetSaved; value: boolean }
+  | { type: typeof EditorActionType.SetConfirmDelete; value: boolean }
+  | { type: typeof EditorActionType.SetSourceFontSize; value: number }
+  | { type: typeof EditorActionType.SetEditingSlug; value: boolean }
+  | { type: typeof EditorActionType.SetEditSlugValue; value: string }
+  | { type: typeof EditorActionType.SetPatchError; value: string | null };
 
 function createInitialEditorState(): EditorState {
   return {
@@ -88,7 +141,7 @@ function createInitialEditorState(): EditorState {
 
 function editorReducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
-    case "resetForSlug":
+    case EditorActionType.ResetForSlug:
       return {
         ...state,
         saved: false,
@@ -96,17 +149,17 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         editingSlug: false,
         patchError: null,
       };
-    case "setSaved":
+    case EditorActionType.SetSaved:
       return { ...state, saved: action.value };
-    case "setConfirmDelete":
+    case EditorActionType.SetConfirmDelete:
       return { ...state, confirmDelete: action.value };
-    case "setSourceFontSize":
+    case EditorActionType.SetSourceFontSize:
       return { ...state, sourceFontSize: action.value };
-    case "setEditingSlug":
+    case EditorActionType.SetEditingSlug:
       return { ...state, editingSlug: action.value };
-    case "setEditSlugValue":
+    case EditorActionType.SetEditSlugValue:
       return { ...state, editSlugValue: action.value };
-    case "setPatchError":
+    case EditorActionType.SetPatchError:
       return { ...state, patchError: action.value };
     default:
       return state;
@@ -118,10 +171,13 @@ type PageEditorDispatch = ReturnType<typeof usePagesEditor>["dispatch"];
 function useHydratePageEditor(page: ContentPage | undefined, editorDispatch: PageEditorDispatch) {
   useEffect(() => {
     if (!page) return;
-    editorDispatch.meta({ type: "hydrate", entries: [{ slug: page.slug, meta: page }] });
-    editorDispatch.content({ type: "hydrate", entries: [{ slug: page.slug, content: page.content }] });
+    editorDispatch.meta({ type: ContentMetaActionType.Hydrate, entries: [{ slug: page.slug, meta: page }] });
+    editorDispatch.content({
+      type: ContentBodyActionType.Hydrate,
+      entries: [{ slug: page.slug, content: page.content }],
+    });
     editorDispatch.translations({
-      type: "hydrate",
+      type: ContentTranslationsActionType.Hydrate,
       entries: (page.translations ?? []).map((translation) => ({
         slug: page.slug,
         locale: translation.locale,
@@ -131,7 +187,7 @@ function useHydratePageEditor(page: ContentPage | undefined, editorDispatch: Pag
     });
     if (page.pageType === "segmented") {
       editorDispatch.segments({
-        type: "hydrate-owner",
+        type: ContentSegmentsActionType.HydrateOwner,
         ownerSlug: page.slug,
         segments: page.segments.map((segment) => ({
           position: segment.position,
@@ -185,7 +241,7 @@ function EditorHeaderActions({
           size="action"
           title={editorMessages.decreaseFontSize}
           type="button"
-          variant="ghost"
+          variant={DashboardButtonVariant.Ghost}
           aria-label={editorMessages.decreaseFontSize}
         >
           <MinusCircleIcon weight="duotone" className="size-3.5" />
@@ -200,7 +256,7 @@ function EditorHeaderActions({
           size="action"
           title={editorMessages.increaseFontSize}
           type="button"
-          variant="ghost"
+          variant={DashboardButtonVariant.Ghost}
           aria-label={editorMessages.increaseFontSize}
         >
           <PlusCircleIcon weight="duotone" className="size-3.5" />
@@ -208,17 +264,17 @@ function EditorHeaderActions({
       </div>
 
       <DashboardActionButton
-        action="copy"
+        action={DashboardActionId.Copy}
         icon={<EyeIcon weight="duotone" className="size-3.5" />}
         label={editorMessages.preview}
         onClick={onPreview}
         size="action"
         type="button"
-        variant="neutral"
+        variant={DashboardButtonVariant.Neutral}
       />
 
       <DashboardActionButton
-        action="delete"
+        action={DashboardActionId.Delete}
         icon={<TrashIcon weight="duotone" className="size-3.5" />}
         iconOnly
         label={editorMessages.deletePage}
@@ -312,7 +368,7 @@ function formatDateTime(iso: string | null, locale: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString(locale === "de" ? "de-DE" : "en-US", {
+  return d.toLocaleString(locale === DEFAULT_LOCALE ? "en-US" : "de-DE", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -356,17 +412,17 @@ function EditorMetadataBar({
               pattern="[a-z0-9-]+"
               className="w-40 font-mono text-xs"
             />
-            <DashboardButton type="button" onClick={onSaveSlug} size="action" variant="primary">
+            <DashboardButton type="button" onClick={onSaveSlug} size="action" variant={DashboardButtonVariant.Primary}>
               {editorMessages.ok}
             </DashboardButton>
             <DashboardActionButton
-              action="cancel"
+              action={DashboardActionId.Cancel}
               icon={false}
               label={common.cancel}
               onClick={onCancelSlug}
               size="action"
               type="button"
-              variant="neutral"
+              variant={DashboardButtonVariant.Neutral}
             />
           </div>
         ) : (
@@ -383,9 +439,9 @@ function EditorMetadataBar({
           onChange={(e) => onStatusChange(e.target.value)}
           className="text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded px-1.5 py-0.5 text-[var(--ds-text)] focus:outline-none cursor-pointer"
         >
-          <option value="draft">{editorMessages.statusDraft}</option>
-          <option value="published">{editorMessages.statusPublished}</option>
-          <option value="hidden">{editorMessages.statusHidden}</option>
+          <option value={ContentEditorPageStatus.Draft}>{editorMessages.statusDraft}</option>
+          <option value={ContentEditorPageStatus.Published}>{editorMessages.statusPublished}</option>
+          <option value={ContentEditorPageStatus.Hidden}>{editorMessages.statusHidden}</option>
         </select>
       </div>
 
@@ -467,7 +523,7 @@ function PageTitleLocalizationField({
           />
           {showDeleteTranslation && onDeleteTranslation && (
             <DashboardActionButton
-              action="delete"
+              action={DashboardActionId.Delete}
               disabled={deletePending}
               iconClassName="size-3"
               label="Delete translation"
@@ -537,7 +593,7 @@ function EditorContentSurface({
           <div className="flex flex-col items-center justify-center h-48 gap-3">
             <p className="text-sm text-[var(--ds-text-muted)]">No {activeLocale.toUpperCase()} translation yet.</p>
             <DashboardActionButton
-              action="create"
+              action={DashboardActionId.Create}
               label={`Create translation from ${DEFAULT_LOCALE.toUpperCase()}`}
               onClick={onCreateTranslation}
               size="control"
@@ -590,21 +646,21 @@ function DeletePageDialog({ open, title, pending, messages, common, onClose, onD
       </div>
       <Dialog.Footer>
         <DashboardActionButton
-          action="cancel"
+          action={DashboardActionId.Cancel}
           disabled={pending}
           icon={false}
           label={common.cancel}
           onClick={onClose}
           type="button"
-          variant="neutral"
+          variant={DashboardButtonVariant.Neutral}
         />
         <DashboardActionButton
-          action="delete"
+          action={DashboardActionId.Delete}
           busyLabel="…"
           icon={false}
           label={common.delete}
           onClick={onDelete}
-          status={pending ? "busy" : "idle"}
+          status={pending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
           type="button"
         />
       </Dialog.Footer>
@@ -642,7 +698,7 @@ export function ContentEditorPage() {
   // Reset transient UI state and locale tab when navigating to a different slug.
   useEffect(() => {
     void slug;
-    dispatch({ type: "resetForSlug" });
+    dispatch({ type: EditorActionType.ResetForSlug });
     setActiveLocale(DEFAULT_LOCALE);
   }, [slug]);
 
@@ -660,7 +716,7 @@ export function ContentEditorPage() {
   const setMeta = useCallback(
     <K extends keyof MetaFields>(field: K, value: MetaFields[K]) => {
       if (!page) return;
-      editor.dispatch.meta({ type: "set-field", slug: page.slug, field, value });
+      editor.dispatch.meta({ type: ContentMetaActionType.SetField, slug: page.slug, field, value });
     },
     [page, editor.dispatch],
   );
@@ -669,10 +725,10 @@ export function ContentEditorPage() {
     (markdown: string) => {
       if (!page) return;
       if (activeLocale === DEFAULT_LOCALE) {
-        editor.dispatch.content({ type: "set", slug: page.slug, value: markdown });
+        editor.dispatch.content({ type: ContentBodyActionType.Set, slug: page.slug, value: markdown });
       } else {
         editor.dispatch.translations({
-          type: "set-field",
+          type: ContentTranslationsActionType.SetField,
           slug: page.slug,
           locale: activeLocale,
           field: "content",
@@ -689,7 +745,7 @@ export function ContentEditorPage() {
   const changeFontSize = (delta: number) => {
     const next = Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, state.sourceFontSize + delta));
     localStorage.setItem(FONT_SIZE_KEY, String(next));
-    dispatch({ type: "setSourceFontSize", value: next });
+    dispatch({ type: EditorActionType.SetSourceFontSize, value: next });
   };
 
   function handleTitleChange(value: string) {
@@ -698,7 +754,7 @@ export function ContentEditorPage() {
       setMeta("title", value);
     } else if (translationCurrent(activeLocale) !== undefined) {
       editor.dispatch.translations({
-        type: "set-field",
+        type: ContentTranslationsActionType.SetField,
         slug: page.slug,
         locale: activeLocale,
         field: "title",
@@ -706,7 +762,7 @@ export function ContentEditorPage() {
       });
     } else {
       editor.dispatch.translations({
-        type: "add-locale",
+        type: ContentTranslationsActionType.AddLocale,
         slug: page.slug,
         locale: activeLocale,
         fields: createPageTitleTranslationDraft({
@@ -720,7 +776,7 @@ export function ContentEditorPage() {
 
   function handleSlugSave() {
     setMeta("slug", state.editSlugValue);
-    dispatch({ type: "setEditingSlug", value: false });
+    dispatch({ type: EditorActionType.SetEditingSlug, value: false });
     // Note: the URL still reflects the old slug until the bulk save persists
     // the rename and triggers a refetch. URL redirect after save lives in a
     // later task (see plan T22 drift-note about useGlobalPagesSave).
@@ -736,7 +792,7 @@ export function ContentEditorPage() {
     LOCALES.map((loc) => [
       loc,
       {
-        status: statuses[loc] ?? "missing",
+        status: statuses[loc] ?? TranslationStatus.Missing,
         dirty: page
           ? loc === DEFAULT_LOCALE
             ? isMetaFieldDirty(editor.meta, page.slug, "title") || isContentDirty(editor.content, page.slug)
@@ -749,7 +805,7 @@ export function ContentEditorPage() {
   function handleCreateTranslation() {
     if (!page) return;
     editor.dispatch.translations({
-      type: "add-locale",
+      type: ContentTranslationsActionType.AddLocale,
       slug: page.slug,
       locale: activeLocale,
       fields: createPageTitleTranslationDraft({
@@ -800,7 +856,7 @@ export function ContentEditorPage() {
         onBack={() => navigate("/pages")}
         onDecreaseFont={() => changeFontSize(-1)}
         onIncreaseFont={() => changeFontSize(+1)}
-        onOpenDelete={() => dispatch({ type: "setConfirmDelete", value: true })}
+        onOpenDelete={() => dispatch({ type: EditorActionType.SetConfirmDelete, value: true })}
         onPreview={() => {
           window.open(`${FRONTEND_PREVIEW_BASE_URL}/${slug}`, "_blank");
         }}
@@ -816,14 +872,14 @@ export function ContentEditorPage() {
           locale={locale}
           common={common}
           onStartEditSlug={() => {
-            dispatch({ type: "setEditSlugValue", value: metaCurrent.slug });
-            dispatch({ type: "setEditingSlug", value: true });
+            dispatch({ type: EditorActionType.SetEditSlugValue, value: metaCurrent.slug });
+            dispatch({ type: EditorActionType.SetEditingSlug, value: true });
           }}
-          onSlugValueChange={(value) => dispatch({ type: "setEditSlugValue", value })}
-          onSlugBlur={(value) => dispatch({ type: "setEditSlugValue", value: slugify(value) })}
+          onSlugValueChange={(value) => dispatch({ type: EditorActionType.SetEditSlugValue, value })}
+          onSlugBlur={(value) => dispatch({ type: EditorActionType.SetEditSlugValue, value: slugify(value) })}
           onSaveSlug={handleSlugSave}
-          onCancelSlug={() => dispatch({ type: "setEditingSlug", value: false })}
-          onStatusChange={(value) => setMeta("status", value as "draft" | "published" | "hidden")}
+          onCancelSlug={() => dispatch({ type: EditorActionType.SetEditingSlug, value: false })}
+          onStatusChange={(value) => setMeta("status", value as ContentStatus)}
           onShowTitleChange={(value) => setMeta("showTitle", value)}
           onTitleAlignmentChange={(value) => setMeta("titleAlignment", value)}
         />
@@ -885,7 +941,7 @@ export function ContentEditorPage() {
         pending={deletePage.isPending}
         messages={pageMessages}
         common={common}
-        onClose={() => dispatch({ type: "setConfirmDelete", value: false })}
+        onClose={() => dispatch({ type: EditorActionType.SetConfirmDelete, value: false })}
         onDelete={() => {
           deletePage.mutate(slug, { onSuccess: () => navigate("/pages") });
         }}

@@ -1,4 +1,4 @@
-import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
+import { PLATFORM_CONFIG, Service, type ServiceId } from "@musiccloud/shared";
 import { memo } from "react";
 import { FaBug, FaCompactDisc, FaMusic, FaRadio, FaRecordVinyl } from "react-icons/fa6";
 import {
@@ -28,54 +28,54 @@ export const PlatformIcon = memo(function PlatformIcon({
   const color = colored ? PLATFORM_CONFIG[platform].color : "currentColor";
 
   switch (platform) {
-    case "spotify":
+    case Service.Spotify:
       return <img src="/icons/spotify.svg" alt="Spotify" className={className} />;
-    case "apple-music":
+    case Service.AppleMusic:
       if (colored)
         return (
           <span
             className={`inline-flex items-center justify-center rounded-lg ${className}`}
-            style={{ backgroundColor: PLATFORM_CONFIG["apple-music"].color }}
+            style={{ backgroundColor: PLATFORM_CONFIG[Service.AppleMusic].color }}
           >
             <SiApplemusic className="size-[60%]" color="var(--color-accent-contrast)" />
           </span>
         );
       return <SiApplemusic className={className} color={color} />;
-    case "youtube":
+    case Service.YouTube:
       if (colored)
         return (
           <span
             className={`inline-flex items-center justify-center rounded-lg ${className}`}
-            style={{ backgroundColor: PLATFORM_CONFIG.youtube.color }}
+            style={{ backgroundColor: PLATFORM_CONFIG[Service.YouTube].color }}
           >
             <SiYoutube className="size-[60%]" color="var(--color-accent-contrast)" />
           </span>
         );
       return <SiYoutube className={className} color={color} />;
-    case "youtube-music":
+    case Service.YouTubeMusic:
       if (colored)
         return (
           <span
             className={`inline-flex items-center justify-center rounded-lg ${className}`}
-            style={{ backgroundColor: PLATFORM_CONFIG["youtube-music"].color }}
+            style={{ backgroundColor: PLATFORM_CONFIG[Service.YouTubeMusic].color }}
           >
             <SiYoutubemusic className="size-[60%]" color="var(--color-accent-contrast)" />
           </span>
         );
       return <SiYoutubemusic className={className} color={color} />;
-    case "soundcloud":
+    case Service.SoundCloud:
       return <img src="/icons/soundcloud.svg" alt="SoundCloud" className={className} />;
-    case "tidal":
+    case Service.Tidal:
       return <SiTidal className={className} color={color} />;
-    case "deezer":
+    case Service.Deezer:
       return <img src="/icons/deezer.svg" alt="Deezer" className={className} />;
-    case "audius":
+    case Service.Audius:
       return <FaMusic className={className} color={color} />;
-    case "napster":
+    case Service.Napster:
       return <SiNapster className={className} color={color} />;
-    case "pandora":
+    case Service.Pandora:
       return <SiPandora className={className} color={color} />;
-    case "qobuz":
+    case Service.Qobuz:
       if (colored)
         return (
           <span className={`inline-flex items-center justify-center rounded-lg bg-black ${className}`}>
@@ -83,25 +83,25 @@ export const PlatformIcon = memo(function PlatformIcon({
           </span>
         );
       return <img src="/icons/qobuz.svg" alt="Qobuz" className={className} />;
-    case "boomplay":
+    case Service.Boomplay:
       return <img src="/icons/boomplay.png" alt="Boomplay" className={`${className} rounded-full`} />;
-    case "kkbox":
+    case Service.KKBox:
       return <FaCompactDisc className={className} color={color} />;
-    case "bandcamp":
+    case Service.BandCamp:
       return <SiBandcamp className={className} color={color} />;
-    case "audiomack":
+    case Service.AudioMack:
       return <SiAudiomack className={className} color={color} />;
-    case "netease":
+    case Service.NetEase:
       return <img src="/icons/netease.png" alt="NetEase Cloud Music" className={`${className} rounded-lg`} />;
-    case "qqmusic":
+    case Service.QQMusic:
       return <SiQq className={className} color={color} />;
-    case "melon":
+    case Service.Melon:
       return <FaRecordVinyl className={className} color={color} />;
-    case "bugs":
+    case Service.Bugs:
       return <FaBug className={className} color={color} />;
-    case "jiosaavn":
+    case Service.JioSaavn:
       return <FaRadio className={className} color={color} />;
-    case "beatport":
+    case Service.Beatport:
       return <SiBeatport className={className} color={color} />;
   }
 });

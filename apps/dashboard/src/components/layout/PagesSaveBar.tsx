@@ -1,7 +1,12 @@
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+} from "@musiccloud/dashboard-ui";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
-import { useGlobalPagesSave } from "@/features/content/state/useGlobalPagesSave";
+import { GlobalPagesSaveStatus, useGlobalPagesSave } from "@/features/content/state/useGlobalPagesSave";
 import { Dialog } from "@/shared/ui/Dialog";
 
 export function PagesSaveBar() {
@@ -15,25 +20,25 @@ export function PagesSaveBar() {
 
   if (dirtyCount === 0) return null;
 
-  const isSaving = status === "saving";
+  const isSaving = status === GlobalPagesSaveStatus.Saving;
 
   return (
     <div className="flex items-center gap-2">
       <DashboardActionButton
-        action="save"
+        action={DashboardActionId.Save}
         busyLabel="Speichert…"
         label={`Speichern (${dirtyCount})`}
         onClick={() => void save()}
-        status={isSaving ? "busy" : "idle"}
+        status={isSaving ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
         type="button"
-        variant="accent"
+        variant={DashboardButtonVariant.Accent}
       />
       <DashboardActionButton
-        action="restore"
+        action={DashboardActionId.Restore}
         label="Verwerfen"
         onClick={() => setConfirmDiscardOpen(true)}
         type="button"
-        variant="ghost"
+        variant={DashboardButtonVariant.Ghost}
       />
       {errorDetails && errorDetails.length > 0 && (
         <span className="text-xs text-[var(--ds-danger-text)]">
@@ -48,15 +53,15 @@ export function PagesSaveBar() {
         </div>
         <Dialog.Footer>
           <DashboardActionButton
-            action="cancel"
+            action={DashboardActionId.Cancel}
             icon={false}
             label="Abbrechen"
             onClick={() => setConfirmDiscardOpen(false)}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
           <DashboardActionButton
-            action="delete"
+            action={DashboardActionId.Delete}
             icon={false}
             label="Verwerfen"
             onClick={() => {

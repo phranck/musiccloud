@@ -31,7 +31,7 @@
  * yields `undefined` rather than zero so the downstream display can
  * distinguish "no duration data" from "zero-length track".
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
@@ -219,7 +219,7 @@ export const boomplayAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await fetchTrackById(trackId);
     if (!track) {
-      throw serviceNotFoundError(SERVICE.BOOMPLAY, RESOURCE_KIND.TRACK, trackId);
+      throw serviceNotFoundError(Service.Boomplay, ResourceKind.Track, trackId);
     }
     return track;
   },
@@ -317,7 +317,7 @@ export const boomplayAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchAlbumById(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.BOOMPLAY, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.Boomplay, ResourceKind.Album, albumId);
     return album;
   },
 

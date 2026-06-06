@@ -7,11 +7,18 @@ export const OVERLAY_TRANSITION_MS = 300;
 const OVERLAY_BACKDROP_OPEN_CLASS = "bg-black/70";
 const OVERLAY_BACKDROP_CLOSED_CLASS = "bg-black/0";
 
+export const OverlayBackdropPlacement = {
+  Absolute: "absolute",
+  Fixed: "fixed",
+} as const;
+
+type OverlayBackdropPlacement = (typeof OverlayBackdropPlacement)[keyof typeof OverlayBackdropPlacement];
+
 interface OverlayBackdropProps {
   open: boolean;
   onClick: () => void;
   ariaLabel: string;
-  placement?: "absolute" | "fixed";
+  placement?: OverlayBackdropPlacement;
   className?: string;
   style?: CSSProperties;
 }
@@ -20,7 +27,7 @@ export function OverlayBackdrop({
   open,
   onClick,
   ariaLabel,
-  placement = "absolute",
+  placement = OverlayBackdropPlacement.Absolute,
   className,
   style,
 }: OverlayBackdropProps) {

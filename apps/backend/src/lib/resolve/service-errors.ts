@@ -20,8 +20,7 @@
  * mirrors `packages/shared/src/error-codes.ts` and must stay in sync.
  */
 
-import type { Operation, ResourceKind, ServiceId } from "@musiccloud/shared";
-import { OPERATION } from "@musiccloud/shared";
+import { Operation, type ResourceKind, type ServiceId } from "@musiccloud/shared";
 import { ResolveError } from "./errors.js";
 
 /**
@@ -113,15 +112,15 @@ function buildSuffix(prefix: string, statusToken: string): string {
  * rate-limited us. (MC-API-3429)") instead of a generic
  * "Looks like you're offline".
  *
- * `op` defaults to `OPERATION.FETCH` (canonical "look up by id"). Pass
- * `OPERATION.ISRC_LOOKUP`, `OPERATION.UPC_LOOKUP`, etc. for alternate paths.
+ * `op` defaults to `Operation.Fetch` (canonical "look up by id"). Pass
+ * `Operation.IsrcLookup`, `Operation.UpcLookup`, etc. for alternate paths.
  */
 export function serviceHttpError(
   serviceId: ServiceId,
   status: number,
   kind: ResourceKind,
   id: string,
-  op: Operation = OPERATION.FETCH,
+  op: Operation = Operation.Fetch,
 ): ResolveError {
   const prefix = ADAPTER_PREFIX[serviceId];
   const label = ADAPTER_LABEL[serviceId] ?? serviceId;

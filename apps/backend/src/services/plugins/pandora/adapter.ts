@@ -1,4 +1,4 @@
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
@@ -471,7 +471,7 @@ export const pandoraAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchAlbumByPath(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.PANDORA, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.Pandora, ResourceKind.Album, albumId);
     return album;
   },
 

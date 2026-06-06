@@ -34,8 +34,8 @@ import { useI18n } from "@/context/I18nContext";
 import { useTheme } from "@/context/ThemeContext";
 import {
   type UmamiMetricRow,
-  type UmamiMetricType,
-  type UmamiPeriod,
+  UmamiMetricType,
+  UmamiPeriod,
   useUmamiActive,
   useUmamiMetrics,
   useUmamiPageviews,
@@ -53,9 +53,19 @@ const TrafficAreaChart = lazy(() =>
   import("./AnalyticsCharts").then((module) => ({ default: module.TrafficAreaChart })),
 );
 
-const PERIOD_VALUES: UmamiPeriod[] = ["today", "7d", "30d", "60d", "90d"];
+const PERIOD_VALUES: UmamiPeriod[] = [
+  UmamiPeriod.Today,
+  UmamiPeriod.Last7Days,
+  UmamiPeriod.Last30Days,
+  UmamiPeriod.Last60Days,
+  UmamiPeriod.Last90Days,
+];
 const COLLAPSIBLE_ROW_LIMIT = 10;
 const COLLAPSIBLE_ANIMATION_MS = 280;
+
+const IntlDisplayNamesType = {
+  Region: "region",
+} as const;
 
 interface MetricTabConfig {
   label: string;
@@ -243,7 +253,7 @@ function getRegionNames(locale: DashboardLocale): Intl.DisplayNames | null {
   if (regionNameCache.has(locale)) return regionNameCache.get(locale) ?? null;
   let resolved: Intl.DisplayNames | null = null;
   try {
-    resolved = new Intl.DisplayNames([locale], { type: "region" });
+    resolved = new Intl.DisplayNames([locale], { type: IntlDisplayNamesType.Region });
   } catch {
     resolved = null;
   }
@@ -283,9 +293,9 @@ function parseLocationDisplay(
   const flag = code ? countryFlag(code) : null;
   const countryLabel = getCountryDisplayName(countryPart, locale, unknownLabel);
 
-  if (type === "country") return { label: countryLabel, flag };
+  if (type === UmamiMetricType.Country) return { label: countryLabel, flag };
 
-  if (type === "city") {
+  if (type === UmamiMetricType.City) {
     if (isUnknownValue(regionPart)) return { label: countryLabel, flag };
     if (parts.length >= 2) return { label: `${regionPart}, ${countryLabel}`, flag };
     return { label: regionPart || unknownLabel, flag };
@@ -336,16 +346,16 @@ function getDeviceIcon(value: string): IconType {
 }
 
 function getEnvironmentIcon(type: UmamiMetricType, value: string): IconType | null {
-  if (type === "browser") return getBrowserIcon(value);
-  if (type === "os") return getOsIcon(value);
-  if (type === "device") return getDeviceIcon(value);
+  if (type === UmamiMetricType.Browser) return getBrowserIcon(value);
+  if (type === UmamiMetricType.Os) return getOsIcon(value);
+  if (type === UmamiMetricType.Device) return getDeviceIcon(value);
   return null;
 }
 
 function loadPeriod(storageKey: string): UmamiPeriod {
   const saved = localStorage.getItem(storageKey);
   if (saved && PERIOD_VALUES.some((p) => p === saved)) return saved as UmamiPeriod;
-  return "7d";
+  return UmamiPeriod.Last7Days;
 }
 
 function formatDuration(seconds: number, units: { secondsShort: string; minutesShort: string }): string {
@@ -357,7 +367,7 @@ function formatDuration(seconds: number, units: { secondsShort: string; minutesS
 
 function formatLabel(x: string, period: UmamiPeriod, locale: DashboardLocale): string {
   const date = new Date(x);
-  if (period === "today") {
+  if (period === UmamiPeriod.Today) {
     return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
   }
   return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit" }).format(date);
@@ -604,7 +614,7 @@ function MetricListRows({ listRows, type, max, unknownLabel, renderLabel, format
     <ul className="space-y-2">
       {listRows.map((row) => {
         const rowText = toMetricText(row.x);
-        const hasTrackInfo = type === "url" && row.title;
+        const hasTrackInfo = type === UmamiMetricType.Url && row.title;
         const rowLabel = hasTrackInfo
           ? `${row.title} – ${row.artist}`
           : renderLabel
@@ -613,7 +623,7 @@ function MetricListRows({ listRows, type, max, unknownLabel, renderLabel, format
         return (
           <li key={`${type}-${rowText}`} className="flex items-center gap-2 text-sm">
             <span className="shrink-0 w-5 text-base leading-none">
-              {type === "country" && rowText ? countryFlag(rowText) : null}
+              {type === UmamiMetricType.Country && rowText ? countryFlag(rowText) : null}
             </span>
             {hasTrackInfo ? (
               <span className="flex-1 min-w-0 flex flex-col" title={`${row.title} – ${row.artist} (${rowText})`}>
@@ -713,7 +723,11 @@ function TabbedMetricRows({
         const EnvironmentIcon = getEnvironmentIcon(activeType, rowText);
         let leadingVisual: ReactNode = null;
 
-        if (activeType === "country" || activeType === "region" || activeType === "city") {
+        if (
+          activeType === UmamiMetricType.Country ||
+          activeType === UmamiMetricType.Region ||
+          activeType === UmamiMetricType.City
+        ) {
           const parsed = parseLocationDisplay(activeType, rowText, locale, unknownLabel);
           label = parsed.label;
           leadingVisual = parsed.flag ? (
@@ -743,7 +757,7 @@ function TabbedMetricRows({
 function TabbedMetricCard({ title, tabs, period, storageKey }: TabbedMetricCardProps) {
   const { locale, messages, formatNumber } = useI18n();
   const m = messages.analytics;
-  const [activeType, setActiveType] = useState<UmamiMetricType>(tabs[0]?.value ?? "country");
+  const [activeType, setActiveType] = useState<UmamiMetricType>(tabs[0]?.value ?? UmamiMetricType.Country);
   const activeTab = tabs.find((tab) => tab.value === activeType) ?? tabs[0];
   const { data, isLoading } = useUmamiMetrics(activeTab.value, period);
   const rows = data ?? [];
@@ -819,29 +833,29 @@ export function AnalyticsSection() {
 
   const periodOptions = useMemo<{ label: string; value: UmamiPeriod }[]>(
     () => [
-      { value: "today", label: m.periods.today },
-      { value: "7d", label: m.periods.d7 },
-      { value: "30d", label: m.periods.d30 },
-      { value: "60d", label: m.periods.d60 },
-      { value: "90d", label: m.periods.d90 },
+      { value: UmamiPeriod.Today, label: m.periods.today },
+      { value: UmamiPeriod.Last7Days, label: m.periods.d7 },
+      { value: UmamiPeriod.Last30Days, label: m.periods.d30 },
+      { value: UmamiPeriod.Last60Days, label: m.periods.d60 },
+      { value: UmamiPeriod.Last90Days, label: m.periods.d90 },
     ],
     [m],
   );
 
   const environmentTabs = useMemo<readonly MetricTabConfig[]>(
     () => [
-      { label: m.browser, value: "browser", columnLabel: m.browser },
-      { label: m.os, value: "os", columnLabel: m.os },
-      { label: m.devices, value: "device", columnLabel: m.device },
+      { label: m.browser, value: UmamiMetricType.Browser, columnLabel: m.browser },
+      { label: m.os, value: UmamiMetricType.Os, columnLabel: m.os },
+      { label: m.devices, value: UmamiMetricType.Device, columnLabel: m.device },
     ],
     [m],
   );
 
   const locationTabs = useMemo<readonly MetricTabConfig[]>(
     () => [
-      { label: m.countries, value: "country", columnLabel: m.country },
-      { label: m.regions, value: "region", columnLabel: m.region },
-      { label: m.cities, value: "city", columnLabel: m.city },
+      { label: m.countries, value: UmamiMetricType.Country, columnLabel: m.country },
+      { label: m.regions, value: UmamiMetricType.Region, columnLabel: m.region },
+      { label: m.cities, value: UmamiMetricType.City, columnLabel: m.city },
     ],
     [m],
   );
@@ -972,8 +986,18 @@ export function AnalyticsSection() {
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-        <MetricList title={m.topPages} type="url" period={period} renderLabel={(x) => (x === "/" ? m.home : x)} />
-        <MetricList title={m.sources} type="referrer" period={period} renderLabel={(x) => x || m.direct} />
+        <MetricList
+          title={m.topPages}
+          type={UmamiMetricType.Url}
+          period={period}
+          renderLabel={(x) => (x === "/" ? m.home : x)}
+        />
+        <MetricList
+          title={m.sources}
+          type={UmamiMetricType.Referrer}
+          period={period}
+          renderLabel={(x) => x || m.direct}
+        />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3">

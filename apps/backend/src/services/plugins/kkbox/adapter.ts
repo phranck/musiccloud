@@ -38,7 +38,7 @@
  * fallback); the album still resolves but without per-track ISRCs,
  * so downstream ISRC-based inference skips it.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
@@ -265,7 +265,7 @@ export const kkboxAdapter = {
     const response = await kkboxFetch(`/tracks/${encodeURIComponent(trackId)}?territory=${territory}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.KKBOX, response.status, RESOURCE_KIND.TRACK, trackId);
+      throw serviceHttpError(Service.KKBox, response.status, ResourceKind.Track, trackId);
     }
 
     const data: KkboxTrackResponse = await response.json();
@@ -365,7 +365,7 @@ export const kkboxAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await getAlbumById(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.KKBOX, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.KKBox, ResourceKind.Album, albumId);
     return album;
   },
 
@@ -435,7 +435,7 @@ export const kkboxAdapter = {
     const response = await kkboxFetch(`/artists/${encodeURIComponent(artistId)}?territory=${territory}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.KKBOX, response.status, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceHttpError(Service.KKBox, response.status, ResourceKind.Artist, artistId);
     }
 
     const data: KkboxArtistResponse = await response.json();

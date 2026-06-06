@@ -1,4 +1,10 @@
-import { DashboardActionButton, DashboardButton } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButton,
+  DashboardButtonVariant,
+} from "@musiccloud/dashboard-ui";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useEffect, useState } from "react";
 
@@ -9,7 +15,14 @@ interface ClearResult {
   deleted: number;
 }
 
-type ActionState = "idle" | "loading" | "success" | "error";
+const ActionState = {
+  Idle: "idle",
+  Loading: "loading",
+  Success: "success",
+  Error: "error",
+} as const;
+
+type ActionState = (typeof ActionState)[keyof typeof ActionState];
 
 function CacheAction<T = ClearResult>({
   label,
@@ -26,15 +39,15 @@ function CacheAction<T = ClearResult>({
   formatSuccess?: (result: T) => string;
 }) {
   const { messages } = useI18n();
-  const [state, setState] = useState<ActionState>("idle");
+  const [state, setState] = useState<ActionState>(ActionState.Idle);
   const [message, setMessage] = useState("");
 
   async function handleClick() {
-    setState("loading");
+    setState(ActionState.Loading);
     setMessage("");
     try {
       const result = await api.post<T>(endpoint);
-      setState("success");
+      setState(ActionState.Success);
       if (formatSuccess) {
         setMessage(formatSuccess(result));
       } else {
@@ -42,7 +55,7 @@ function CacheAction<T = ClearResult>({
         setMessage(messages.system.entriesDeleted.replace("{count}", String(deleted)));
       }
     } catch (err) {
-      setState("error");
+      setState(ActionState.Error);
       setMessage(err instanceof Error ? err.message : messages.common.unknownError);
     }
   }
@@ -53,7 +66,9 @@ function CacheAction<T = ClearResult>({
         <p className="font-medium text-sm text-[var(--ds-text)]">{label}</p>
         <p className="text-xs text-[var(--ds-text-muted)] mt-0.5">{description}</p>
         {message && (
-          <p className={`text-xs mt-1 ${state === "error" ? "text-[var(--ds-danger-text)]" : "text-green-500"}`}>
+          <p
+            className={`text-xs mt-1 ${state === ActionState.Error ? "text-[var(--ds-danger-text)]" : "text-green-500"}`}
+          >
             {message}
           </p>
         )}
@@ -61,12 +76,12 @@ function CacheAction<T = ClearResult>({
       <DashboardButton
         type="button"
         onClick={handleClick}
-        disabled={state === "loading"}
+        disabled={state === ActionState.Loading}
         className="flex-none"
         size="action"
-        variant="neutral"
+        variant={DashboardButtonVariant.Neutral}
       >
-        {state === "loading" ? "…" : buttonLabel}
+        {state === ActionState.Loading ? "…" : buttonLabel}
       </DashboardButton>
     </div>
   );
@@ -117,7 +132,7 @@ function TrackingToggle() {
         disabled={saving}
         className="flex-none"
         size="action"
-        variant={enabled ? "success" : "neutral"}
+        variant={enabled ? DashboardButtonVariant.Success : DashboardButtonVariant.Neutral}
       >
         {enabled ? m.trackingEnabled : m.trackingDisabled}
       </DashboardButton>
@@ -129,12 +144,21 @@ function TrackingToggle() {
 // Danger Zone
 // ---------------------------------------------------------------------------
 
-type DangerPhase = "idle" | "fetching" | "confirm" | "resetting" | "done" | "error";
+const DangerPhase = {
+  Idle: "idle",
+  Fetching: "fetching",
+  Confirm: "confirm",
+  Resetting: "resetting",
+  Done: "done",
+  Error: "error",
+} as const;
+
+type DangerPhase = (typeof DangerPhase)[keyof typeof DangerPhase];
 
 function DangerZone() {
   const { messages } = useI18n();
   const m = messages.system;
-  const [phase, setPhase] = useState<DangerPhase>("idle");
+  const [phase, setPhase] = useState<DangerPhase>(DangerPhase.Idle);
   const [counts, setCounts] = useState<{ tracks: number; albums: number } | null>(null);
   const [error, setError] = useState("");
 
@@ -163,32 +187,32 @@ function DangerZone() {
   }
 
   async function handleInitiate() {
-    setPhase("fetching");
+    setPhase(DangerPhase.Fetching);
     setError("");
     try {
       const data = await api.get<{ tracks: number; albums: number }>(ENDPOINTS.admin.dataCounts);
       setCounts(data);
-      setPhase("confirm");
+      setPhase(DangerPhase.Confirm);
     } catch (err) {
       setError(err instanceof Error ? err.message : messages.common.unknownError);
-      setPhase("error");
+      setPhase(DangerPhase.Error);
     }
   }
 
   async function handleConfirm() {
-    setPhase("resetting");
+    setPhase(DangerPhase.Resetting);
     try {
       const result = await api.post<{ tracks: number; albums: number }>(ENDPOINTS.admin.resetAll);
       setCounts(result);
-      setPhase("done");
+      setPhase(DangerPhase.Done);
     } catch (err) {
       setError(err instanceof Error ? err.message : messages.common.unknownError);
-      setPhase("error");
+      setPhase(DangerPhase.Error);
     }
   }
 
   function handleCancel() {
-    setPhase("idle");
+    setPhase(DangerPhase.Idle);
     setCounts(null);
   }
 
@@ -200,10 +224,10 @@ function DangerZone() {
           <div className="min-w-0">
             <p className="font-medium text-sm text-[var(--ds-text)]">{m.deleteAllLabel}</p>
             <p className="text-xs text-[var(--ds-text-muted)] mt-0.5">{formatDescription()}</p>
-            {phase === "confirm" && (
+            {phase === DangerPhase.Confirm && (
               <p className="text-xs text-[var(--ds-danger-text)] mt-2 font-medium">{m.deleteAllIrreversible}</p>
             )}
-            {phase === "done" && counts && (
+            {phase === DangerPhase.Done && counts && (
               <p className="text-xs text-green-500 mt-1">
                 {m.deleteAllSuccess
                   .replace("{tracks}", String(counts.tracks))
@@ -212,34 +236,40 @@ function DangerZone() {
                   .replace("{albumsLabel}", albumsLabel(counts.albums))}
               </p>
             )}
-            {phase === "error" && <p className="text-xs text-[var(--ds-danger-text)] mt-1">{error}</p>}
+            {phase === DangerPhase.Error && <p className="text-xs text-[var(--ds-danger-text)] mt-1">{error}</p>}
           </div>
 
           <div className="flex items-center gap-2 flex-none mt-0.5">
-            {(phase === "idle" || phase === "error") && (
+            {(phase === DangerPhase.Idle || phase === DangerPhase.Error) && (
               <DashboardActionButton
-                action="delete"
+                action={DashboardActionId.Delete}
                 icon={false}
                 label={m.deleteAllButton}
                 onClick={handleInitiate}
                 type="button"
               />
             )}
-            {phase === "fetching" && (
-              <DashboardActionButton action="delete" busyLabel="…" icon={false} status="busy" type="button" />
+            {phase === DangerPhase.Fetching && (
+              <DashboardActionButton
+                action={DashboardActionId.Delete}
+                busyLabel="…"
+                icon={false}
+                status={DashboardActionStatus.Busy}
+                type="button"
+              />
             )}
-            {phase === "confirm" && (
+            {phase === DangerPhase.Confirm && (
               <>
                 <DashboardActionButton
-                  action="cancel"
+                  action={DashboardActionId.Cancel}
                   icon={false}
                   label={m.deleteAllCancel}
                   onClick={handleCancel}
                   type="button"
-                  variant="neutral"
+                  variant={DashboardButtonVariant.Neutral}
                 />
                 <DashboardActionButton
-                  action="delete"
+                  action={DashboardActionId.Delete}
                   icon={false}
                   label={m.deleteAllConfirm}
                   onClick={handleConfirm}
@@ -247,11 +277,22 @@ function DangerZone() {
                 />
               </>
             )}
-            {phase === "resetting" && (
-              <DashboardActionButton action="delete" busyLabel="…" icon={false} status="busy" type="button" />
+            {phase === DangerPhase.Resetting && (
+              <DashboardActionButton
+                action={DashboardActionId.Delete}
+                busyLabel="…"
+                icon={false}
+                status={DashboardActionStatus.Busy}
+                type="button"
+              />
             )}
-            {phase === "done" && (
-              <DashboardButton type="button" onClick={() => setPhase("idle")} size="action" variant="neutral">
+            {phase === DangerPhase.Done && (
+              <DashboardButton
+                type="button"
+                onClick={() => setPhase(DangerPhase.Idle)}
+                size="action"
+                variant={DashboardButtonVariant.Neutral}
+              >
                 OK
               </DashboardButton>
             )}

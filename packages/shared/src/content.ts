@@ -9,8 +9,19 @@ export type NavId = "header" | "footer";
 export type NavTarget = "_self" | "_blank";
 
 export type ContentStatus = "draft" | "published" | "hidden";
-export type PageType = "default" | "segmented";
-export type PageDisplayMode = "fullscreen" | "embossed" | "translucent";
+export const PageType = {
+  Default: "default",
+  Segmented: "segmented",
+} as const;
+
+export type PageType = (typeof PageType)[keyof typeof PageType];
+export const PageDisplayMode = {
+  Fullscreen: "fullscreen",
+  Embossed: "embossed",
+  Translucent: "translucent",
+} as const;
+
+export type PageDisplayMode = (typeof PageDisplayMode)[keyof typeof PageDisplayMode];
 export type OverlayWidth = "small" | "regular" | "big";
 export type PageTitleAlignment = "left" | "center" | "right";
 
@@ -26,8 +37,12 @@ export interface PageTranslation {
 }
 
 export const PAGE_TITLE_ALIGNMENTS: readonly PageTitleAlignment[] = ["left", "center", "right"] as const;
-export const PAGE_TYPES: readonly PageType[] = ["default", "segmented"] as const;
-export const PAGE_DISPLAY_MODES: readonly PageDisplayMode[] = ["fullscreen", "embossed", "translucent"] as const;
+export const PAGE_TYPES: readonly PageType[] = [PageType.Default, PageType.Segmented] as const;
+export const PAGE_DISPLAY_MODES: readonly PageDisplayMode[] = [
+  PageDisplayMode.Fullscreen,
+  PageDisplayMode.Embossed,
+  PageDisplayMode.Translucent,
+] as const;
 export const OVERLAY_WIDTHS: readonly OverlayWidth[] = ["small", "regular", "big"] as const;
 
 export type ContentCardStyle = "default" | "recessed";

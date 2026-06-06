@@ -2,11 +2,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
+export const MarkdownWidgetType = {
+  Html: "html",
+  Iframe: "iframe",
+} as const;
+
+export type MarkdownWidgetType = (typeof MarkdownWidgetType)[keyof typeof MarkdownWidgetType];
+
 export interface MarkdownWidget {
   id: number;
   key: string;
   name: string;
-  type: "html" | "iframe";
+  type: MarkdownWidgetType;
   enabled: boolean;
   description: string;
   defaultHeight: number;

@@ -1,8 +1,10 @@
-import type { PublicContentPage } from "@musiccloud/shared";
 import {
   clampViewportRect,
   getResizeHandleHitAreaStyle,
   moveViewportRect,
+  PageDisplayMode,
+  PageType,
+  type PublicContentPage,
   RESIZE_HANDLES,
   type ResizeHandle,
   resizeViewportRect,
@@ -12,7 +14,7 @@ import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { useEffect, useReducer, useRef, useState } from "react";
 
 import { EmbossedOverlayContent, TranslucentOverlayContent } from "@/components/layout/PageOverlayContent";
-import { OVERLAY_TRANSITION_MS, OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
+import { OVERLAY_TRANSITION_MS, OverlayBackdrop, OverlayBackdropPlacement } from "@/components/ui/OverlayBackdrop";
 import { OverlayProvider, useOverlay } from "@/context/OverlayContext";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider } from "@/i18n/context";
@@ -36,20 +38,38 @@ const MOBILE_OVERLAY_QUERY = "(max-width: 767px), (pointer: coarse)";
 const GEOM_KEY_PREFIX = "mc:overlay-geom:";
 
 type OverlayVisibility = { mounted: boolean; visible: boolean };
-type OverlayVisibilityAction = { type: "mount" } | { type: "show" } | { type: "hide" } | { type: "unmount" };
+const OverlayVisibilityActionType = {
+  Mount: "mount",
+  Show: "show",
+  Hide: "hide",
+  Unmount: "unmount",
+} as const;
+
+type OverlayVisibilityAction =
+  | { type: typeof OverlayVisibilityActionType.Mount }
+  | { type: typeof OverlayVisibilityActionType.Show }
+  | { type: typeof OverlayVisibilityActionType.Hide }
+  | { type: typeof OverlayVisibilityActionType.Unmount };
 
 function overlayVisibilityReducer(state: OverlayVisibility, action: OverlayVisibilityAction): OverlayVisibility {
   switch (action.type) {
-    case "mount":
+    case OverlayVisibilityActionType.Mount:
       return { mounted: true, visible: false };
-    case "show":
+    case OverlayVisibilityActionType.Show:
       return state.mounted ? { mounted: true, visible: true } : state;
-    case "hide":
+    case OverlayVisibilityActionType.Hide:
       return { ...state, visible: false };
-    case "unmount":
+    case OverlayVisibilityActionType.Unmount:
       return { mounted: false, visible: false };
   }
 }
+
+const OverlayGestureKind = {
+  Drag: "drag",
+  Resize: "resize",
+} as const;
+
+type OverlayGestureKind = (typeof OverlayGestureKind)[keyof typeof OverlayGestureKind];
 
 function geomKey(slug: string): string {
   return `${GEOM_KEY_PREFIX}${slug}`;
@@ -189,30 +209,39 @@ function OverlayShell() {
   }, [mounted]);
 
   useEffect(() => {
-    if (page && page.displayMode !== "fullscreen") {
-      dispatchVisibility({ type: "mount" });
+    if (page && page.displayMode !== PageDisplayMode.Fullscreen) {
+      dispatchVisibility({ type: OverlayVisibilityActionType.Mount });
       // Paint the hidden state first, then toggle visible on the next
       // frame so the transition engages.
-      const id = requestAnimationFrame(() => dispatchVisibility({ type: "show" }));
+      const id = requestAnimationFrame(() => dispatchVisibility({ type: OverlayVisibilityActionType.Show }));
       return () => cancelAnimationFrame(id);
     }
-    dispatchVisibility({ type: "hide" });
+    dispatchVisibility({ type: OverlayVisibilityActionType.Hide });
     if (!mountedRef.current) return;
-    const id = window.setTimeout(() => dispatchVisibility({ type: "unmount" }), OVERLAY_TRANSITION_MS);
+    const id = window.setTimeout(
+      () => dispatchVisibility({ type: OverlayVisibilityActionType.Unmount }),
+      OVERLAY_TRANSITION_MS,
+    );
     return () => window.clearTimeout(id);
   }, [page]);
 
-  useOverlayEscape({ enabled: Boolean(page && page.displayMode !== "fullscreen"), onEscape: close });
+  useOverlayEscape({ enabled: Boolean(page && page.displayMode !== PageDisplayMode.Fullscreen), onEscape: close });
 
-  if (!mounted || !page || page.displayMode === "fullscreen") return null;
+  if (!mounted || !page || page.displayMode === PageDisplayMode.Fullscreen) return null;
 
-  const fullscreenFrame = page.pageType === "segmented" && isMobileOverlayViewport;
+  const fullscreenFrame = page.pageType === PageType.Segmented && isMobileOverlayViewport;
 
   return (
     <>
-      <OverlayBackdrop open={visible} onClick={close} ariaLabel="Close overlay" placement="fixed" className="z-40" />
+      <OverlayBackdrop
+        open={visible}
+        onClick={close}
+        ariaLabel="Close overlay"
+        placement={OverlayBackdropPlacement.Fixed}
+        className="z-40"
+      />
       <OverlayFrame key={page.slug} visible={visible} slug={page.slug} fullscreen={fullscreenFrame}>
-        {page.displayMode === "translucent" ? (
+        {page.displayMode === PageDisplayMode.Translucent ? (
           <TranslucentOverlayContent page={page} onClose={close} frameInteractionsDisabled={fullscreenFrame} />
         ) : (
           <EmbossedOverlayContent page={page} onClose={close} frameInteractionsDisabled={fullscreenFrame} />
@@ -247,7 +276,7 @@ function OverlayFrame({
   const frameRef = useRef<HTMLDivElement>(null);
   const [geom, setGeom] = useState<Geom>(() => loadGeom(slug) ?? defaultGeom());
   const gestureRef = useRef<{
-    kind: "drag" | "resize";
+    kind: OverlayGestureKind;
     handle?: ResizeHandle;
     pointerId: number;
     startX: number;
@@ -267,7 +296,7 @@ function OverlayFrame({
   }, []);
 
   function beginGesture(
-    kind: "drag" | "resize",
+    kind: OverlayGestureKind,
     e: PointerEvent<HTMLDivElement>,
     origin: Geom,
     handle?: ResizeHandle,
@@ -296,14 +325,14 @@ function OverlayFrame({
     if (target.closest("button, a, input, textarea, [role=tab]")) return;
     if (!target.closest(".overlay-drag-handle")) return;
     e.preventDefault();
-    beginGesture("drag", e, geom);
+    beginGesture(OverlayGestureKind.Drag, e, geom);
   }
 
   function onResizePointerDown(handle: ResizeHandle, e: PointerEvent<HTMLDivElement>): void {
     if (!geom || fullscreen) return;
     e.preventDefault();
     e.stopPropagation();
-    beginGesture("resize", e, geom, handle);
+    beginGesture(OverlayGestureKind.Resize, e, geom, handle);
   }
 
   function onPointerMove(e: PointerEvent<HTMLDivElement>): void {
@@ -312,7 +341,7 @@ function OverlayFrame({
     const dx = e.clientX - g.startX;
     const dy = e.clientY - g.startY;
     const originRect = geomToRect(g.origin);
-    if (g.kind === "drag") {
+    if (g.kind === OverlayGestureKind.Drag) {
       setGeom(rectToGeom(moveViewportRect(originRect, dx, dy, getViewportConstraints())));
     } else {
       setGeom(rectToGeom(resizeViewportRect(originRect, g.handle ?? "se", dx, dy, getViewportConstraints())));

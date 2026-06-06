@@ -4,5 +4,5 @@ export interface PlatformLink {
   platform: ServiceId;
   url: string;
   displayName?: string;
-  matchMethod?: "isrc" | "search" | "odesli" | "cache" | "upc" | "isrc-inference";
+  matchMethod?: "isrc" | "search" | "cache" | "upc" | "isrc-inference";
 }

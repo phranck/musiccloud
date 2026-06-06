@@ -26,7 +26,7 @@
  * `splitArtistNames` from `_shared`) because Audiomack is the only
  * adapter that also needs to split on `feat.`.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
@@ -247,7 +247,7 @@ export const audiomackAdapter: ServiceAdapter = {
     }
     const track = await fetchTrackPage(parts[0], parts[1]);
     if (!track) {
-      throw serviceNotFoundError(SERVICE.AUDIOMACK, RESOURCE_KIND.TRACK, trackId);
+      throw serviceNotFoundError(Service.AudioMack, ResourceKind.Track, trackId);
     }
     return track;
   },
@@ -322,7 +322,7 @@ export const audiomackAdapter: ServiceAdapter = {
     const parts = albumId.split("/");
     if (parts.length !== 2) throw new Error(`Audiomack: Invalid album ID: ${albumId}`);
     const album = await fetchAlbumPage(parts[0], parts[1]);
-    if (!album) throw serviceNotFoundError(SERVICE.AUDIOMACK, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.AudioMack, ResourceKind.Album, albumId);
     return album;
   },
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { cx } from "../classNames.js";
-import { DASHBOARD_ACTIONS, type DashboardActionId, type DashboardActionStatus } from "./actionCatalog.js";
+import { DashboardActionId, DashboardActionStatus, DashboardActions } from "./actionCatalog.js";
 import { DashboardButton, type DashboardButtonProps } from "./DashboardButton.js";
 
 export interface DashboardActionButtonProps
@@ -33,14 +33,14 @@ export function DashboardActionButton({
   label,
   showIcon = true,
   size,
-  status = "idle",
+  status = DashboardActionStatus.Idle,
   variant,
   ...buttonProps
 }: DashboardActionButtonProps) {
-  const definition = DASHBOARD_ACTIONS[action];
+  const definition = DashboardActions[action];
   const Icon = definition.icon;
   const displayLabel = toDisplayLabel(label, definition.labelKey);
-  const isBusy = status === "busy";
+  const isBusy = status === DashboardActionStatus.Busy;
   const resolvedIconOnly = iconOnly ?? definition.ariaBehavior === "icon-only-label";
   const renderedIcon =
     icon === false ? null : (icon ?? <Icon className={cx("size-3.5", iconClassName)} weight="duotone" />);
@@ -64,17 +64,17 @@ export function DashboardActionButton({
 type SpecificDashboardActionButtonProps = Omit<DashboardActionButtonProps, "action">;
 
 export function SaveActionButton(props: SpecificDashboardActionButtonProps) {
-  return <DashboardActionButton {...props} action="save" />;
+  return <DashboardActionButton {...props} action={DashboardActionId.Save} />;
 }
 
 export function DeleteActionButton(props: SpecificDashboardActionButtonProps) {
-  return <DashboardActionButton {...props} action="delete" />;
+  return <DashboardActionButton {...props} action={DashboardActionId.Delete} />;
 }
 
 export function CancelActionButton(props: SpecificDashboardActionButtonProps) {
-  return <DashboardActionButton {...props} action="cancel" />;
+  return <DashboardActionButton {...props} action={DashboardActionId.Cancel} />;
 }
 
 export function CloseActionButton(props: SpecificDashboardActionButtonProps) {
-  return <DashboardActionButton {...props} action="close" iconOnly />;
+  return <DashboardActionButton {...props} action={DashboardActionId.Close} iconOnly />;
 }

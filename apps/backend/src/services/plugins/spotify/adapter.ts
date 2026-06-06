@@ -52,7 +52,7 @@
  * inserted by the web player in localized regions. The regexes allow
  * both the base and the intl-prefixed forms.
  */
-import { OPERATION, RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
@@ -245,7 +245,7 @@ export const spotifyAdapter = {
       const embed = await fetchSpotifyOEmbed(`https://open.spotify.com/track/${trackId}`);
       if (embed) {
         return {
-          sourceService: SERVICE.SPOTIFY,
+          sourceService: Service.Spotify,
           sourceId: trackId,
           title: embed.title,
           artists: embed.artists,
@@ -255,7 +255,7 @@ export const spotifyAdapter = {
     }
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.SPOTIFY, response.status, RESOURCE_KIND.TRACK, trackId);
+      throw serviceHttpError(Service.Spotify, response.status, ResourceKind.Track, trackId);
     }
 
     const data: SpotifyTrackResponse = await response.json();
@@ -267,7 +267,7 @@ export const spotifyAdapter = {
     const response = await spotifyFetch(`/search?type=track&q=${query}&limit=1`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.SPOTIFY, response.status, RESOURCE_KIND.TRACK, isrc, OPERATION.ISRC_LOOKUP);
+      throw serviceHttpError(Service.Spotify, response.status, ResourceKind.Track, isrc, Operation.IsrcLookup);
     }
 
     const data = await response.json();
@@ -416,7 +416,7 @@ export const spotifyAdapter = {
     const response = await spotifyFetch(`/albums/${encodeURIComponent(albumId)}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.SPOTIFY, response.status, RESOURCE_KIND.ALBUM, albumId);
+      throw serviceHttpError(Service.Spotify, response.status, ResourceKind.Album, albumId);
     }
 
     const data: SpotifyAlbumResponse = await response.json();
@@ -491,7 +491,7 @@ export const spotifyAdapter = {
     const response = await spotifyFetch(`/artists/${encodeURIComponent(artistId)}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.SPOTIFY, response.status, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceHttpError(Service.Spotify, response.status, ResourceKind.Artist, artistId);
     }
 
     const data = await response.json();

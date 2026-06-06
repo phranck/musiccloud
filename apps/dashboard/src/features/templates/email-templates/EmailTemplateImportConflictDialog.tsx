@@ -1,4 +1,4 @@
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
+import { DashboardActionButton, DashboardActionId, DashboardButtonVariant } from "@musiccloud/dashboard-ui";
 import { DownloadIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
@@ -57,7 +57,7 @@ export function EmailTemplateImportConflictDialog({
 
       <Dialog.Footer className="flex flex-col gap-2">
         <DashboardActionButton
-          action="overwrite"
+          action={DashboardActionId.Overwrite}
           icon={false}
           label={m.importOverwrite}
           onClick={onOverwrite}
@@ -65,31 +65,31 @@ export function EmailTemplateImportConflictDialog({
         />
         {showRename ? (
           <DashboardActionButton
-            action="import"
+            action={DashboardActionId.Import}
             disabled={!newName.trim()}
             icon={false}
             label={m.importRename}
             onClick={() => onRename(newName.trim())}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
         ) : (
           <DashboardActionButton
-            action="import"
+            action={DashboardActionId.Import}
             icon={false}
             label={m.importRename}
             onClick={() => setShowRename(true)}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
         )}
         <DashboardActionButton
-          action="skip"
+          action={DashboardActionId.Skip}
           icon={false}
           label={m.importSkip}
           onClick={onCancel}
           type="button"
-          variant="neutral"
+          variant={DashboardButtonVariant.Neutral}
         />
       </Dialog.Footer>
     </Dialog>

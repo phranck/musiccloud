@@ -1,4 +1,10 @@
-import { DashboardActionButton, DashboardInput } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+  DashboardInput,
+} from "@musiccloud/dashboard-ui";
 import { CopyIcon, PersonIcon, PlusCircleIcon, UserCheckIcon, UserPlusIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
@@ -6,6 +12,7 @@ import { useI18n } from "@/context/I18nContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
+import { AdminRole } from "@/shared/constants/domain";
 import type { AdminUserInvite } from "@/shared/types/admin";
 import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
 import { FormLabel, FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
@@ -25,17 +32,17 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
   const usersMessages = messages.users;
   const roleOptions = [
     {
-      value: "admin" as const,
+      value: AdminRole.Admin,
       label: usersMessages.role.admin,
       icon: <PersonIcon weight="duotone" className="w-3.5 h-3.5" />,
     },
     {
-      value: "moderator" as const,
+      value: AdminRole.Moderator,
       label: usersMessages.role.moderator,
       icon: <UserCheckIcon weight="duotone" className="w-3.5 h-3.5" />,
     },
   ] as const;
-  const [form, setForm] = useState<CreateUserFormData>({ ...EMPTY_CREATE_USER_FORM, role: "admin" });
+  const [form, setForm] = useState<CreateUserFormData>({ ...EMPTY_CREATE_USER_FORM, role: AdminRole.Admin });
   const [inviteResult, setInviteResult] = useState<AdminUserInvite | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -102,7 +109,7 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
             <div>
               <FormLabelText className="mb-2">{usersMessages.createCard.role}</FormLabelText>
               <SegmentedControl
-                value={form.role ?? "admin"}
+                value={form.role ?? AdminRole.Admin}
                 onChange={(role) => setForm((f) => ({ ...f, role }))}
                 storageKey={getSegmentedStorageKey(user?.id, "users:create:role")}
                 options={roleOptions}
@@ -177,17 +184,17 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
 
       <OverlayCard.Footer className="flex justify-end gap-2">
         <DashboardActionButton
-          action="cancel"
+          action={DashboardActionId.Cancel}
           icon={false}
           label={common.cancel}
           onClick={onClose}
           size="control"
           type="button"
-          variant="neutral"
+          variant={DashboardButtonVariant.Neutral}
         />
         {inviteResult ? (
           <DashboardActionButton
-            action="copy"
+            action={DashboardActionId.Copy}
             icon={<CopyIcon weight="duotone" className="size-3.5" />}
             label={copied ? usersMessages.createCard.inviteCopied : usersMessages.createCard.copyInvite}
             onClick={handleCopyInviteLink}
@@ -196,14 +203,14 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
           />
         ) : (
           <DashboardActionButton
-            action="create"
+            action={DashboardActionId.Create}
             busyLabel={usersMessages.createCard.creating}
             disabled={!canSubmit}
             icon={<PlusCircleIcon weight="duotone" className="size-3.5" />}
             label={usersMessages.createCard.create}
             onClick={handleSubmit}
             size="control"
-            status={createMutation.isPending ? "busy" : "idle"}
+            status={createMutation.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
             type="button"
           />
         )}

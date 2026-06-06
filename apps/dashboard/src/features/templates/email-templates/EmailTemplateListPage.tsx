@@ -1,4 +1,9 @@
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+} from "@musiccloud/dashboard-ui";
 import {
   DownloadIcon,
   EnvelopeOpenIcon,
@@ -150,7 +155,7 @@ export function EmailTemplateListPage() {
               label={common.edit}
             />
             <TableActionButton
-              variant="danger"
+              variant={DashboardButtonVariant.Danger}
               onClick={() => setDeleteTarget({ id: tpl.id, name: tpl.name })}
               disabled={deleteMutation.isPending || tpl.isSystemTemplate}
               icon={<TrashIcon weight="duotone" className="w-3.5 h-3.5" />}
@@ -167,26 +172,26 @@ export function EmailTemplateListPage() {
     <PageLayout>
       <PageHeader title={m.listTitle}>
         <DashboardActionButton
-          action="import"
+          action={DashboardActionId.Import}
           icon={<DownloadIcon weight="duotone" className="w-3.5 h-3.5" />}
           label={m.importTemplate}
           onClick={() => fileInputRef.current?.click()}
           size="control"
           type="button"
-          variant="neutral"
+          variant={DashboardButtonVariant.Neutral}
         />
         <DashboardActionButton
-          action="export"
+          action={DashboardActionId.Export}
           disabled={templates.length === 0}
           icon={<UploadIcon weight="duotone" className="w-3.5 h-3.5" />}
           label={m.exportAll}
           onClick={() => void exportEmailTemplateAll()}
           size="control"
           type="button"
-          variant="neutral"
+          variant={DashboardButtonVariant.Neutral}
         />
         <DashboardActionButton
-          action="create"
+          action={DashboardActionId.Create}
           icon={<PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />}
           label={m.newTemplate}
           onClick={() => navigate("/email-templates/new")}
@@ -219,7 +224,15 @@ export function EmailTemplateListPage() {
       </PageBody>
 
       {/* Hidden file input for import */}
-      <input ref={fileInputRef} type="file" accept=".json" multiple className="hidden" onChange={handleFileChange} />
+      <input
+        ref={fileInputRef}
+        aria-label={m.importTemplate}
+        type="file"
+        accept=".json"
+        multiple
+        className="hidden"
+        onChange={handleFileChange}
+      />
 
       {/* Delete confirmation dialog */}
       {deleteTarget !== null && (
@@ -234,19 +247,19 @@ export function EmailTemplateListPage() {
           </div>
           <Dialog.Footer>
             <DashboardActionButton
-              action="cancel"
+              action={DashboardActionId.Cancel}
               icon={false}
               label={common.cancel}
               onClick={() => setDeleteTarget(null)}
               type="button"
-              variant="neutral"
+              variant={DashboardButtonVariant.Neutral}
             />
             <DashboardActionButton
-              action="delete"
+              action={DashboardActionId.Delete}
               busyLabel="…"
               label={common.delete}
               onClick={handleDeleteConfirm}
-              status={deleteMutation.isPending ? "busy" : "idle"}
+              status={deleteMutation.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
               type="button"
             />
           </Dialog.Footer>
@@ -262,12 +275,12 @@ export function EmailTemplateListPage() {
       >
         <Dialog.Footer>
           <DashboardActionButton
-            action="close"
+            action={DashboardActionId.Close}
             icon={false}
             label={common.close}
             onClick={() => importQueue.setAlertMessage(null)}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
         </Dialog.Footer>
       </Dialog>

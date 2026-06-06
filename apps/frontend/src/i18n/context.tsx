@@ -1,4 +1,4 @@
-import { createContext, use, useCallback, useEffect, useState } from "react";
+import { createContext, use, useCallback, useEffect, useMemo, useState } from "react";
 import { detectLocale, LOCALE_STORAGE_KEY, type Locale } from "./locales";
 import deTranslations from "./translations/de.json";
 import enTranslations from "./translations/en.json";
@@ -35,22 +35,15 @@ export function LocaleProvider({
   children: React.ReactNode;
   initialLocale?: Locale;
 }) {
-  // SSR-safe initial state: "en" everywhere. After hydration, detect from
-  // localStorage/cookie/navigator and flip to the real locale. An older
-  // useSyncExternalStore + noopSubscribe pattern silently stuck at "en" on
-  // reload because the noop never retriggered the snapshot post-hydration,
-  // and the mount effect then wrote "en" over the user's saved choice.
-  const [locale, setLocaleState] = useState<Locale>(initialLocaleProp ?? "en");
+  const [locale, setLocaleState] = useState<Locale>(() => initialLocaleProp ?? detectLocale());
   const translations = TRANSLATIONS_BY_LOCALE[locale] ?? TRANSLATIONS_BY_LOCALE.en;
 
   useEffect(() => {
     if (initialLocaleProp) return;
-    const detected = detectLocale();
-    setLocaleState(detected);
     // Persist so SSR pages can read it without an explicit switch
-    localStorage.setItem(LOCALE_STORAGE_KEY, detected);
-    document.cookie = `${LOCALE_STORAGE_KEY}=${detected}; max-age=31536000; path=/; SameSite=Lax`;
-  }, [initialLocaleProp]);
+    localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    document.cookie = `${LOCALE_STORAGE_KEY}=${locale}; max-age=31536000; path=/; SameSite=Lax`;
+  }, [initialLocaleProp, locale]);
 
   // Sync with other islands on the same page via custom window event
   useEffect(() => {
@@ -74,8 +67,9 @@ export function LocaleProvider({
     (key: string, vars?: Record<string, string>) => interpolate(translations[key] ?? key, vars),
     [translations],
   );
+  const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
 
-  return <LocaleContext.Provider value={{ locale, setLocale, t }}>{children}</LocaleContext.Provider>;
+  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
 
 export function useLocale() {

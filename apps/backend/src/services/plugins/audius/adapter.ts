@@ -34,7 +34,7 @@
  * both the structured and the free-text query branches uniformly across
  * every adapter. See that file for the scoring rationale.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
@@ -204,7 +204,7 @@ export const audiusAdapter = {
     const response = await audiusFetch(`/tracks/${encodeURIComponent(trackId)}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.AUDIUS, response.status, RESOURCE_KIND.TRACK, trackId);
+      throw serviceHttpError(Service.Audius, response.status, ResourceKind.Track, trackId);
     }
 
     const data = (await response.json()) as AudiusTrackDetailResponse;
@@ -270,7 +270,7 @@ export const audiusAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchAlbumById(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.AUDIUS, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.Audius, ResourceKind.Album, albumId);
     return album;
   },
 

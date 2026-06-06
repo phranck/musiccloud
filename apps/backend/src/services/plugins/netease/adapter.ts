@@ -34,7 +34,7 @@
  * Public NetEase endpoints surface neither. `findByIsrc` returns
  * null; cross-service resolves go through text search.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
@@ -330,7 +330,7 @@ export const neteaseAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await getTrackById(trackId);
     if (!track) {
-      throw serviceNotFoundError(SERVICE.NETEASE, RESOURCE_KIND.TRACK, trackId);
+      throw serviceNotFoundError(Service.NetEase, ResourceKind.Track, trackId);
     }
     return track;
   },
@@ -402,7 +402,7 @@ export const neteaseAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await getAlbumById(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.NETEASE, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.NetEase, ResourceKind.Album, albumId);
     return album;
   },
 
@@ -462,7 +462,7 @@ export const neteaseAdapter: ServiceAdapter = {
 
   async getArtist(artistId: string): Promise<NormalizedArtist> {
     const artist = await getArtistById(artistId);
-    if (!artist) throw serviceNotFoundError(SERVICE.NETEASE, RESOURCE_KIND.ARTIST, artistId);
+    if (!artist) throw serviceNotFoundError(Service.NetEase, ResourceKind.Artist, artistId);
     return artist;
   },
 

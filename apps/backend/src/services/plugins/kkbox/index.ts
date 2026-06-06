@@ -1,10 +1,10 @@
-import { SERVICE } from "@musiccloud/shared";
+import { Service } from "@musiccloud/shared";
 import type { ServicePlugin } from "../manifest.js";
 import { kkboxAdapter } from "./adapter.js";
 
 export const kkboxPlugin: ServicePlugin = {
   manifest: {
-    id: SERVICE.KKBOX,
+    id: Service.KKBox,
     displayName: "KKBOX",
     description: "Resolves KKBOX track, album and artist URLs via the KKBOX Open API.",
     defaultEnabled: true,

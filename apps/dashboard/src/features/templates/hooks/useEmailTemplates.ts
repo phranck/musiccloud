@@ -57,8 +57,12 @@ export function useDeleteEmailTemplate() {
 }
 
 export function useSendTestEmail() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api.post<{ sent: true; to: string }>(ENDPOINTS.admin.emailTemplates.test(id), {}),
+    onSuccess: (_result, id) => {
+      void qc.invalidateQueries({ queryKey: ["email-template", id] });
+    },
   });
 }
 

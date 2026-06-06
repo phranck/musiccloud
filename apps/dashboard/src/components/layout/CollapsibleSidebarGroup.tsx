@@ -1,5 +1,5 @@
 import { CaretDownIcon } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMatch } from "react-router";
 
 function SidebarBadge({ count }: { count: number }) {
@@ -44,27 +44,31 @@ export function CollapsibleSidebarGroup({
     const stored = localStorage.getItem(storageKey) === "true";
     return isGroupActive || stored;
   });
+  const updateOpen = useCallback(
+    (next: boolean) => {
+      setLocalOpen(next);
+      localStorage.setItem(storageKey, String(next));
+      onOpenChange?.(next);
+    },
+    [onOpenChange, storageKey],
+  );
 
   useEffect(() => {
     if (!isGroupActive) return;
-    setLocalOpen(true);
-  }, [isGroupActive]);
+    updateOpen(true);
+  }, [isGroupActive, updateOpen]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: globalOpenVersion is an intentional trigger to re-run the effect even when globalOpenState has not changed (e.g. repeated "collapse all" clicks).
   useEffect(() => {
     if (globalOpenState === null) return;
-    setLocalOpen(globalOpenState);
-    localStorage.setItem(storageKey, String(globalOpenState));
-  }, [globalOpenState, globalOpenVersion, storageKey]);
-
-  useEffect(() => {
-    onOpenChange?.(localOpen);
-  }, [localOpen, onOpenChange]);
+    updateOpen(globalOpenState);
+  }, [globalOpenState, globalOpenVersion, updateOpen]);
 
   function toggleOpen() {
     setLocalOpen((current) => {
       const next = !current;
       localStorage.setItem(storageKey, String(next));
+      onOpenChange?.(next);
       return next;
     });
   }

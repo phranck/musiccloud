@@ -34,7 +34,7 @@
  * handles Unicode fine) but produce downstream noise when logs mix
  * scripts. The preference hint does not change the schema content.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
@@ -287,7 +287,7 @@ export const melonAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await fetchTrackById(trackId);
     if (!track) {
-      throw serviceNotFoundError(SERVICE.MELON, RESOURCE_KIND.TRACK, trackId);
+      throw serviceNotFoundError(Service.Melon, ResourceKind.Track, trackId);
     }
     return track;
   },
@@ -362,7 +362,7 @@ export const melonAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchAlbumById(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.MELON, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.Melon, ResourceKind.Album, albumId);
     return album;
   },
 

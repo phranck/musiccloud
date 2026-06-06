@@ -37,7 +37,7 @@
  * shape; no numeric-ID fallback exists. Downstream consumers should
  * treat the sourceId as opaque.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
@@ -439,7 +439,7 @@ export const bandcampAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await fetchTrackByUrl(trackId);
     if (!track) {
-      throw serviceNotFoundError(SERVICE.BANDCAMP, RESOURCE_KIND.TRACK, trackId);
+      throw serviceNotFoundError(Service.BandCamp, ResourceKind.Track, trackId);
     }
     return track;
   },
@@ -488,7 +488,7 @@ export const bandcampAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchAlbumByUrl(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.BANDCAMP, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.BandCamp, ResourceKind.Album, albumId);
     return album;
   },
 

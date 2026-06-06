@@ -1,6 +1,13 @@
-import { DashboardActionButton, DashboardField, DashboardInput } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+  DashboardField,
+  DashboardInput,
+} from "@musiccloud/dashboard-ui";
 import { CheckCircleIcon, CircleIcon, FileIcon, FileTextIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
@@ -23,6 +30,10 @@ function deriveSlug(name: string): string {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
 }
+
+const ApiStatusCode = {
+  Conflict: 409,
+} as const;
 
 function ActiveBadge({
   isActive,
@@ -66,12 +77,7 @@ function NewFormDialog({
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!slugEdited) {
-      setSlug(deriveSlug(name));
-    }
-  }, [name, slugEdited]);
+  const currentSlug = slugEdited ? slug : deriveSlug(name);
 
   function handleSlugChange(value: string) {
     setSlugEdited(true);
@@ -80,18 +86,18 @@ function NewFormDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !slug.trim()) return;
+    if (!name.trim() || !currentSlug.trim()) return;
     setError(null);
 
     createMutation.mutate(
-      { name: name.trim(), slug: slug.trim() },
+      { name: name.trim(), slug: currentSlug.trim() },
       {
         onSuccess: () => {
           onCreated(name.trim());
         },
         onError: (err: unknown) => {
           const status = err && typeof err === "object" && "status" in err ? (err as { status: number }).status : 0;
-          if (status === 409) {
+          if (status === ApiStatusCode.Conflict) {
             const msg =
               err && typeof err === "object" && "responseMessage" in err
                 ? String((err as { responseMessage: string }).responseMessage)
@@ -136,7 +142,7 @@ function NewFormDialog({
               <DashboardInput
                 id="new-form-slug"
                 type="text"
-                value={slug}
+                value={currentSlug}
                 onChange={(e) => handleSlugChange(e.target.value)}
                 placeholder={m.slugPlaceholder}
                 className="flex-1 font-mono"
@@ -147,19 +153,19 @@ function NewFormDialog({
         </div>
         <Dialog.Footer>
           <DashboardActionButton
-            action="cancel"
+            action={DashboardActionId.Cancel}
             icon={false}
             label={messages.common.cancel}
             onClick={onClose}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
           <DashboardActionButton
-            action="create"
+            action={DashboardActionId.Create}
             busyLabel={messages.common.saving}
-            disabled={!slug || !name}
+            disabled={!currentSlug || !name}
             label={m.create}
-            status={createMutation.isPending ? "busy" : "idle"}
+            status={createMutation.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
             type="submit"
           />
         </Dialog.Footer>
@@ -197,7 +203,7 @@ export function FormBuilderListPage() {
     <>
       <PageHeader title={m.listTitle}>
         <DashboardActionButton
-          action="create"
+          action={DashboardActionId.Create}
           icon={<PlusCircleIcon weight="duotone" className="size-3.5" />}
           label={m.newForm}
           onClick={() => setShowDialog(true)}
@@ -230,7 +236,9 @@ export function FormBuilderListPage() {
                   <th className="text-left px-4 py-3">{m.tableColumns.name}</th>
                   <th className="text-left px-4 py-3">{m.slugLabel}</th>
                   <th className="text-left px-4 py-3">{m.tableColumns.status}</th>
-                  <th className="px-4 py-3" />
+                  <th className="px-4 py-3 text-right" scope="col">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -274,7 +282,7 @@ export function FormBuilderListPage() {
                           label={m.editButton}
                         />
                         <TableActionButton
-                          variant="danger"
+                          variant={DashboardButtonVariant.Danger}
                           onClick={() => handleDelete(form.name)}
                           disabled={deleteForm.isPending}
                           icon={<TrashIcon weight="duotone" className="size-3.5" />}
@@ -303,19 +311,19 @@ export function FormBuilderListPage() {
         </div>
         <Dialog.Footer>
           <DashboardActionButton
-            action="cancel"
+            action={DashboardActionId.Cancel}
             icon={false}
             label={messages.common.cancel}
             onClick={() => setDeleteTarget(null)}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
           <DashboardActionButton
-            action="delete"
+            action={DashboardActionId.Delete}
             busyLabel="…"
             label={messages.common.delete}
             onClick={() => void confirmDelete()}
-            status={deleteForm.isPending ? "busy" : "idle"}
+            status={deleteForm.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
             type="button"
           />
         </Dialog.Footer>

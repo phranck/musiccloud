@@ -14,7 +14,7 @@ function getObjectValue(payload: unknown, key: string): unknown {
   return key in payload ? (payload as Record<string, unknown>)[key] : undefined;
 }
 
-export function extractApiErrorMessage(payload: unknown): string | null {
+function extractApiErrorMessage(payload: unknown): string | null {
   const error = getObjectValue(payload, "error");
   const directMessage = getObjectValue(error, "message");
   if (typeof directMessage === "string") {
@@ -34,7 +34,7 @@ export function extractApiErrorMessage(payload: unknown): string | null {
   return typeof fallbackMessage === "string" ? fallbackMessage : null;
 }
 
-export function extractApiErrorDetails(payload: unknown): unknown[] | null {
+function extractApiErrorDetails(payload: unknown): unknown[] | null {
   const direct = getObjectValue(payload, "details");
   if (Array.isArray(direct)) return direct;
   const error = getObjectValue(payload, "error");

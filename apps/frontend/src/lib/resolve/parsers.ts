@@ -89,7 +89,7 @@ export function parseResolveResponse(data: ResolveSuccessResponse): SongResult {
   };
 }
 
-export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): AlbumResult {
+function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): AlbumResult {
   const platforms = apiLinksToPlatformLinks(data.links);
   return {
     kind: "album",
@@ -106,7 +106,7 @@ export function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): Al
   };
 }
 
-export function parseArtistResolveResponse(data: ArtistResolveSuccessResponse): ArtistResult {
+function parseArtistResolveResponse(data: ArtistResolveSuccessResponse): ArtistResult {
   const platforms = apiLinksToPlatformLinks(data.links);
   return {
     kind: "artist",
@@ -148,7 +148,7 @@ function shortIdFromShortUrl(shortUrl: string): string | undefined {
   }
 }
 
-export function getPlatformsInfo(platforms: PlatformLink[], t: TFunc): string | undefined {
+function getPlatformsInfo(platforms: PlatformLink[], t: TFunc): string | undefined {
   const count = platforms.length;
   if (count === 0) return t("results.notFound");
   if (count === 2) return t("results.foundOn2");

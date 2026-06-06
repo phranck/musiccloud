@@ -9,6 +9,7 @@ import {
 } from "@musiccloud/shared";
 import { useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
+import { classifySearchInput, searchInputLengthBucket, sendMusicSignal } from "@/lib/analytics/umami";
 import { appReducer, parseErrorKey, parseResolveResponse, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import type { ActiveResult, AppState, GenreSearchPayload, ReducerState } from "@/lib/types/app";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
@@ -74,6 +75,10 @@ export function useAppState(): UseAppStateResult {
   );
 
   const handleSubmit = useCallback(async (url: string) => {
+    sendMusicSignal("music_search_submitted", {
+      input_kind: classifySearchInput(url),
+      input_length: searchInputLengthBucket(url),
+    });
     dispatch({ type: "SUBMIT" });
     try {
       const controller = new AbortController();
@@ -95,15 +100,28 @@ export function useAppState(): UseAppStateResult {
         | ResolveGenreBrowseResponse
         | ResolveGenreSearchResponse;
       if ("status" in data && data.status === "disambiguation") {
+        sendMusicSignal("music_source_search_success", {
+          result_kind: "disambiguation",
+          candidate_count: data.candidates.length,
+        });
         dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
         return;
       }
       if ("status" in data && data.status === "genre-browse") {
         const browseData = data as ResolveGenreBrowseResponse;
+        sendMusicSignal("music_source_search_success", {
+          result_kind: "genre_browse",
+          result_count: browseData.genres.length,
+        });
         dispatch({ type: "GENRE_BROWSE", genres: browseData.genres });
         return;
       }
       if ("status" in data && data.status === "genre-search") {
+        sendMusicSignal("music_source_search_success", {
+          result_kind: "genre_search",
+          result_count: data.results.length,
+          warning_count: data.warnings.length,
+        });
         dispatch({
           type: "GENRE_SEARCH",
           payload: {
@@ -116,6 +134,11 @@ export function useAppState(): UseAppStateResult {
         return;
       }
       const resolved = data as UnifiedResolveSuccessResponse;
+      sendMusicSignal("music_source_search_success", {
+        result_kind: "resolved",
+        content_type: resolved.type,
+        service_count: resolved.links.length,
+      });
       dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
     } catch (err) {
       dispatch({ type: "ERROR", message: parseErrorKey(err) });
@@ -123,6 +146,10 @@ export function useAppState(): UseAppStateResult {
   }, []);
 
   const handleSelectCandidate = useCallback(async (candidate: DisambiguationCandidate) => {
+    sendMusicSignal("music_interaction", {
+      action: "disambiguation_candidate_selected",
+      surface: "landing",
+    });
     dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
     try {
       const controller = new AbortController();
@@ -140,6 +167,11 @@ export function useAppState(): UseAppStateResult {
       }
       const data = (await response.json()) as ResolveSuccessResponse;
       const resolved: UnifiedResolveSuccessResponse = { ...data, type: "track" };
+      sendMusicSignal("music_source_search_success", {
+        result_kind: "candidate_resolved",
+        content_type: resolved.type,
+        service_count: resolved.links.length,
+      });
       dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data), resolved });
     } catch (err) {
       dispatch({ type: "ERROR", message: parseErrorKey(err) });
@@ -157,6 +189,10 @@ export function useAppState(): UseAppStateResult {
    * cross-service resolution.
    */
   const handleSelectGenreResult = useCallback(async (webUrl: string, id: string) => {
+    sendMusicSignal("music_interaction", {
+      action: "genre_result_selected",
+      surface: "landing",
+    });
     dispatch({ type: "SELECT_GENRE_RESULT", selectedId: id });
     try {
       const controller = new AbortController();
@@ -173,6 +209,11 @@ export function useAppState(): UseAppStateResult {
         throw new Error(errorData.message || "error.generic");
       }
       const data = (await response.json()) as UnifiedResolveSuccessResponse;
+      sendMusicSignal("music_source_search_success", {
+        result_kind: "genre_result_resolved",
+        content_type: data.type,
+        service_count: data.links.length,
+      });
       dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
     } catch (err) {
       dispatch({ type: "ERROR", message: parseErrorKey(err) });

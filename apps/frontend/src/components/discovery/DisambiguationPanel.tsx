@@ -45,15 +45,20 @@ export function DisambiguationPanel({
   const listRef = useRef<HTMLDivElement>(null);
   const resolveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (resolveTimer.current !== null) clearTimeout(resolveTimer.current);
-    };
+  const clearResolveTimer = useCallback(() => {
+    if (resolveTimer.current === null) return;
+    clearTimeout(resolveTimer.current);
+    resolveTimer.current = null;
   }, []);
+
+  useEffect(() => {
+    return clearResolveTimer;
+  }, [clearResolveTimer]);
 
   const handleClick = useCallback(
     (candidate: DisambiguationCandidate) => {
       if (animatingId || loading) return;
+      clearResolveTimer();
 
       const listEl = listRef.current;
       if (!listEl) return;
@@ -144,10 +149,11 @@ export function DisambiguationPanel({
 
       // Fire resolve only after the animation finishes
       resolveTimer.current = setTimeout(() => {
+        resolveTimer.current = null;
         onSelect(candidate);
       }, ANIM_MS + 30);
     },
-    [animatingId, loading, onSelect],
+    [animatingId, clearResolveTimer, loading, onSelect],
   );
 
   const isAnimating = animatingId !== null;

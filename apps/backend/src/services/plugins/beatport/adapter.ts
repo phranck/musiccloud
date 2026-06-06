@@ -40,7 +40,7 @@
  * regex strips down to artist + track. This path has no ISRC or
  * duration data but at least yields a valid track row.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
@@ -357,7 +357,7 @@ export const beatportAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await fetchTrackById(trackId);
     if (!track) {
-      throw serviceNotFoundError(SERVICE.BEATPORT, RESOURCE_KIND.TRACK, trackId);
+      throw serviceNotFoundError(Service.Beatport, ResourceKind.Track, trackId);
     }
     return track;
   },
@@ -461,7 +461,7 @@ export const beatportAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchReleaseById(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.BEATPORT, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.Beatport, ResourceKind.Album, albumId);
     return album;
   },
 

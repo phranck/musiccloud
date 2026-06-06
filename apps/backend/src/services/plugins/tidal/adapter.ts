@@ -41,7 +41,7 @@
  *
  * The regexes accept all three via optional segments.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
@@ -294,7 +294,7 @@ export const tidalAdapter = {
     const response = await tidalFetch(`/tracks/${encodeURIComponent(trackId)}?countryCode=US&include=artists,albums`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.TIDAL, response.status, RESOURCE_KIND.TRACK, trackId);
+      throw serviceHttpError(Service.Tidal, response.status, ResourceKind.Track, trackId);
     }
 
     const data: TidalTrackResponse = await response.json();
@@ -379,7 +379,7 @@ export const tidalAdapter = {
     const response = await tidalFetch(`/albums/${encodeURIComponent(albumId)}?countryCode=US&include=artists,items`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.TIDAL, response.status, RESOURCE_KIND.ALBUM, albumId);
+      throw serviceHttpError(Service.Tidal, response.status, ResourceKind.Album, albumId);
     }
 
     const data: TidalAlbumResponse = await response.json();
@@ -461,7 +461,7 @@ export const tidalAdapter = {
     const response = await tidalFetch(`/artists/${encodeURIComponent(artistId)}?countryCode=US`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.TIDAL, response.status, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceHttpError(Service.Tidal, response.status, ResourceKind.Artist, artistId);
     }
 
     const data = await response.json();

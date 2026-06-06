@@ -1,4 +1,4 @@
-import { DashboardSegmentedControl } from "@musiccloud/dashboard-ui";
+import { DashboardSegmentedControl, SegmentedControlPrimitiveVariant } from "@musiccloud/dashboard-ui";
 import type { ReactNode } from "react";
 
 interface SegmentSwitchOption<T extends string> {
@@ -38,7 +38,7 @@ export function SegmentSwitch<T extends string>({
       options={options}
       size={sizeMap[size]}
       value={value}
-      variant="outline"
+      variant={SegmentedControlPrimitiveVariant.Outline}
     />
   );
 }

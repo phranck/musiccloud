@@ -1,4 +1,4 @@
-import { Children, createContext, isValidElement, type ReactNode, type Ref, use, useState } from "react";
+import { Children, createContext, isValidElement, type ReactNode, type Ref, use, useMemo, useState } from "react";
 import {
   embossedCardContentInset,
   embossedCardOuterRadius,
@@ -246,9 +246,10 @@ function RecessedCardRoot({ children, className, ref, style, borderWidth, radius
   } as React.CSSProperties;
 
   const [scrolled, setScrolled] = useState(false);
+  const contextValue = useMemo(() => ({ scrolled, setScrolled }), [scrolled]);
 
   const content = hasCompoundChild ? (
-    <RecessedContext.Provider value={{ scrolled, setScrolled }}>{children}</RecessedContext.Provider>
+    <RecessedContext.Provider value={contextValue}>{children}</RecessedContext.Provider>
   ) : (
     children
   );

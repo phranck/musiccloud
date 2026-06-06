@@ -1,4 +1,10 @@
-import { DashboardActionButton, DashboardInput } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+  DashboardInput,
+} from "@musiccloud/dashboard-ui";
 import { DownloadIcon, TrashIcon, TrayArrowUpIcon, UserCircleIcon } from "@phosphor-icons/react";
 import md5 from "blueimp-md5";
 import { type ChangeEvent, type Reducer, type RefObject, useEffect, useReducer, useRef } from "react";
@@ -8,6 +14,7 @@ import { useI18n } from "@/context/I18nContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import type { DashboardMessages } from "@/i18n/messages";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
+import { AdminRole, type EditableAdminRole } from "@/shared/constants/domain";
 import type { AdminLocale, AdminUser } from "@/shared/types/admin";
 import { AlertDialog } from "@/shared/ui/AlertDialog";
 import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
@@ -28,7 +35,7 @@ interface UserEditCardProps {
   onSaved: () => void;
 }
 
-type EditableRole = "admin" | "moderator";
+type EditableRole = EditableAdminRole;
 
 interface AvatarState {
   previewUrl: string | null;
@@ -52,12 +59,20 @@ interface UserEditDraftState {
 
 type UserEditField = "username" | "email" | "password" | "firstName" | "lastName" | "sessionTimeoutMinutes";
 
+const UserEditDraftActionType = {
+  SetField: "setField",
+  SetLocale: "setLocale",
+  SetRole: "setRole",
+  SetLogoutConfirm: "setLogoutConfirm",
+  SetAvatar: "setAvatar",
+} as const;
+
 type UserEditDraftAction =
-  | { type: "setField"; field: UserEditField; value: string }
-  | { type: "setLocale"; value: AdminLocale }
-  | { type: "setRole"; value: EditableRole }
-  | { type: "setLogoutConfirm"; value: boolean }
-  | { type: "setAvatar"; value: AvatarState };
+  | { type: typeof UserEditDraftActionType.SetField; field: UserEditField; value: string }
+  | { type: typeof UserEditDraftActionType.SetLocale; value: AdminLocale }
+  | { type: typeof UserEditDraftActionType.SetRole; value: EditableRole }
+  | { type: typeof UserEditDraftActionType.SetLogoutConfirm; value: boolean }
+  | { type: typeof UserEditDraftActionType.SetAvatar; value: AvatarState };
 
 interface UserEditCardFormProps {
   common: DashboardMessages["common"];
@@ -81,15 +96,15 @@ const EMPTY_AVATAR_STATE: AvatarState = {
 
 const userEditDraftReducer: Reducer<UserEditDraftState, UserEditDraftAction> = (state, action) => {
   switch (action.type) {
-    case "setField":
+    case UserEditDraftActionType.SetField:
       return { ...state, [action.field]: action.value };
-    case "setLocale":
+    case UserEditDraftActionType.SetLocale:
       return { ...state, locale: action.value };
-    case "setRole":
+    case UserEditDraftActionType.SetRole:
       return { ...state, role: action.value };
-    case "setLogoutConfirm":
+    case UserEditDraftActionType.SetLogoutConfirm:
       return { ...state, logoutConfirm: action.value };
-    case "setAvatar":
+    case UserEditDraftActionType.SetAvatar:
       return { ...state, avatar: action.value };
     default:
       return state;
@@ -104,7 +119,7 @@ function createInitialDraft(user: AdminUser): UserEditDraftState {
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
     locale: user.locale,
-    role: user.role === "moderator" ? "moderator" : "admin",
+    role: user.role === AdminRole.Moderator ? AdminRole.Moderator : AdminRole.Admin,
     logoutConfirm: localStorage.getItem("logout-skip-confirm") !== "true",
     sessionTimeoutMinutes: user.sessionTimeoutMinutes != null ? String(user.sessionTimeoutMinutes) : "",
     avatar: { ...EMPTY_AVATAR_STATE, previewUrl: user.avatarUrl ?? null },
@@ -151,24 +166,24 @@ function UserAvatarEditor({
 
       <div className="flex flex-col gap-1.5 w-full">
         <DashboardActionButton
-          action="import"
+          action={DashboardActionId.Import}
           icon={<TrayArrowUpIcon weight="duotone" className="size-3.5 shrink-0" />}
           label={usersMessages.editCard.uploadImage}
           onClick={() => fileInputRef.current?.click()}
           type="button"
-          variant="neutral"
+          variant={DashboardButtonVariant.Neutral}
         />
         <DashboardActionButton
-          action="copy"
+          action={DashboardActionId.Copy}
           icon={<UserCircleIcon weight="duotone" className="size-3.5 shrink-0" />}
           label={usersMessages.editCard.useGravatar}
           onClick={onUseGravatar}
           type="button"
-          variant="neutral"
+          variant={DashboardButtonVariant.Neutral}
         />
         {currentAvatarUrl && (
           <DashboardActionButton
-            action="delete"
+            action={DashboardActionId.Delete}
             icon={<TrashIcon weight="duotone" className="size-3.5 shrink-0" />}
             label={usersMessages.editCard.removeAvatar}
             onClick={onRemoveAvatar}
@@ -179,6 +194,7 @@ function UserAvatarEditor({
 
       <input
         ref={fileInputRef}
+        aria-label={usersMessages.editCard.uploadImage}
         type="file"
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
@@ -258,8 +274,8 @@ function UserProfileFields({
             onChange={(e) => onRoleChange(e.target.value as EditableRole)}
             className={formInputClass}
           >
-            <option value="admin">{usersMessages.editCard.roleAdmin}</option>
-            <option value="moderator">{usersMessages.editCard.roleModerator}</option>
+            <option value={AdminRole.Admin}>{usersMessages.editCard.roleAdmin}</option>
+            <option value={AdminRole.Moderator}>{usersMessages.editCard.roleModerator}</option>
           </select>
         </div>
       )}
@@ -334,8 +350,9 @@ function UserEditCardForm({
   const isError = updateUser.isError || saveAvatar.isError || setGravatar.isError || deleteAvatar.isError;
   const error = updateUser.error ?? saveAvatar.error ?? setGravatar.error ?? deleteAvatar.error;
 
-  const canChangeRole = Boolean(me?.isOwner) && user.id !== me?.id && user.role !== "owner";
-  const roleChanged = canChangeRole && draft.role !== (user.role === "moderator" ? "moderator" : "admin");
+  const canChangeRole = Boolean(me?.isOwner) && user.id !== me?.id && user.role !== AdminRole.Owner;
+  const roleChanged =
+    canChangeRole && draft.role !== (user.role === AdminRole.Moderator ? AdminRole.Moderator : AdminRole.Admin);
   const savedSessionTimeout = user.sessionTimeoutMinutes != null ? String(user.sessionTimeoutMinutes) : "";
   const hasChanges =
     draft.username !== user.username ||
@@ -363,7 +380,7 @@ function UserEditCardForm({
     if (next.previewUrl?.startsWith("blob:")) {
       previewObjectUrlRef.current = next.previewUrl;
     }
-    dispatch({ type: "setAvatar", value: next });
+    dispatch({ type: UserEditDraftActionType.SetAvatar, value: next });
   }
 
   useEffect(
@@ -465,10 +482,10 @@ function UserEditCardForm({
             draft={draft}
             logoutConfirmLabel={logoutConfirmLabel}
             me={me}
-            onFieldChange={(field, value) => dispatch({ type: "setField", field, value })}
-            onLocaleChange={(value) => dispatch({ type: "setLocale", value })}
-            onLogoutConfirmChange={(value) => dispatch({ type: "setLogoutConfirm", value })}
-            onRoleChange={(value) => dispatch({ type: "setRole", value })}
+            onFieldChange={(field, value) => dispatch({ type: UserEditDraftActionType.SetField, field, value })}
+            onLocaleChange={(value) => dispatch({ type: UserEditDraftActionType.SetLocale, value })}
+            onLogoutConfirmChange={(value) => dispatch({ type: UserEditDraftActionType.SetLogoutConfirm, value })}
+            onRoleChange={(value) => dispatch({ type: UserEditDraftActionType.SetRole, value })}
             userId={user.id}
             usersMessages={usersMessages}
           />
@@ -477,23 +494,23 @@ function UserEditCardForm({
 
       <OverlayCard.Footer className="flex justify-end gap-2">
         <DashboardActionButton
-          action="cancel"
+          action={DashboardActionId.Cancel}
           icon={false}
           label={common.cancel}
           onClick={onClose}
           size="control"
           type="button"
-          variant="neutral"
+          variant={DashboardButtonVariant.Neutral}
         />
         <DashboardActionButton
-          action="save"
+          action={DashboardActionId.Save}
           busyLabel={common.saving}
           disabled={!canSave}
           icon={<DownloadIcon weight="duotone" className="size-3.5" />}
           label={common.save}
           onClick={() => void handleSave()}
           size="control"
-          status={isPending ? "busy" : "idle"}
+          status={isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
           type="button"
         />
       </OverlayCard.Footer>

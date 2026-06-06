@@ -11,8 +11,13 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
-import { DEFAULT_LOCALE, LOCALES, type TranslationStatus } from "@musiccloud/shared";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+} from "@musiccloud/dashboard-ui";
+import { DEFAULT_LOCALE, LOCALES, PageType, type TranslationStatus } from "@musiccloud/shared";
 import type { Icon } from "@phosphor-icons/react";
 import {
   CheckCircleIcon,
@@ -44,6 +49,8 @@ import {
 import { PageStatusBadge } from "@/features/content/PageStatus";
 import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
+import { SegmentsActionType } from "@/features/content/state/slices/segmentsSlice";
+import { SidebarActionType } from "@/features/content/state/slices/sidebarSlice";
 
 const TRANSLATION_ICON: Record<TranslationStatus, Icon> = {
   ready: CheckCircleIcon,
@@ -57,6 +64,11 @@ const TRANSLATION_COLOR: Record<TranslationStatus, string> = {
   missing: "text-[var(--ds-text-muted)] opacity-60",
 };
 
+const DATE_LOCALE_BY_APP_LOCALE: Partial<Record<string, string>> = {
+  [DEFAULT_LOCALE]: "en-US",
+  [LOCALES[1]]: "de-DE",
+};
+
 type ContentPage = ContentPageSummary;
 
 interface HierarchicalPage extends ContentPage {
@@ -67,7 +79,7 @@ interface HierarchicalPage extends ContentPage {
 
 function sortableIdFor(row: HierarchicalPage): string {
   if (row.depth === 1 && row.parentSlug) return `child:${row.parentSlug}:${row.slug}`;
-  if (row.pageType === "segmented") return `top:${row.slug}`;
+  if (row.pageType === PageType.Segmented) return `top:${row.slug}`;
   return `orphan:${row.slug}`;
 }
 
@@ -152,7 +164,8 @@ function formatDate(isoDate: string | null, locale: string): string {
   if (!isoDate) return "—";
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString(locale === "de" ? "de-DE" : "en-US", {
+  const dateLocale = DATE_LOCALE_BY_APP_LOCALE[locale] ?? DATE_LOCALE_BY_APP_LOCALE[DEFAULT_LOCALE];
+  return date.toLocaleDateString(dateLocale, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -254,7 +267,7 @@ export function PagesListPage() {
     if (!over) {
       if (activeId.startsWith("child:")) {
         const [, owner, target] = activeId.split(":");
-        if (owner && target) editor.dispatch.segments({ type: "remove", owner, target });
+        if (owner && target) editor.dispatch.segments({ type: SegmentsActionType.Remove, owner, target });
       }
       return;
     }
@@ -277,9 +290,9 @@ export function PagesListPage() {
       const to = from < intended ? intended - 1 : intended;
       if (to < 0 || from === to) return;
       if (editor.sidebar.current.length === 0) {
-        editor.dispatch.sidebar({ type: "hydrate", topLevelOrder: order });
+        editor.dispatch.sidebar({ type: SidebarActionType.Hydrate, topLevelOrder: order });
       }
-      editor.dispatch.sidebar({ type: "reorder-top-level", from, to });
+      editor.dispatch.sidebar({ type: SidebarActionType.ReorderTopLevel, from, to });
       return;
     }
 
@@ -294,11 +307,11 @@ export function PagesListPage() {
         const intended = intendedDropIndex(e, items, overTarget);
         const to = from < intended ? intended - 1 : intended;
         if (to < 0 || from === to) return;
-        editor.dispatch.segments({ type: "reorder", owner: fromOwner, from, to });
+        editor.dispatch.segments({ type: SegmentsActionType.Reorder, owner: fromOwner, from, to });
       } else {
         const targetList = editor.segments.byOwner[toOwner]?.current ?? [];
         editor.dispatch.segments({
-          type: "move",
+          type: SegmentsActionType.Move,
           target,
           from: fromOwner,
           to: toOwner,
@@ -311,7 +324,7 @@ export function PagesListPage() {
     if (activeId.startsWith("child:") && overId.startsWith("orphan:")) {
       const [, owner, target] = activeId.split(":");
       if (!owner || !target) return;
-      editor.dispatch.segments({ type: "remove", owner, target });
+      editor.dispatch.segments({ type: SegmentsActionType.Remove, owner, target });
       return;
     }
 
@@ -322,7 +335,7 @@ export function PagesListPage() {
       const list = editor.segments.byOwner[toOwner]?.current ?? [];
       const promoted = bySlug.get(target);
       editor.dispatch.segments({
-        type: "add",
+        type: SegmentsActionType.Add,
         owner: toOwner,
         target,
         position: intendedDropIndex(e, list, overTarget),
@@ -341,7 +354,7 @@ export function PagesListPage() {
       const list = editor.segments.byOwner[toOwner]?.current ?? [];
       const promoted = bySlug.get(target);
       editor.dispatch.segments({
-        type: "add",
+        type: SegmentsActionType.Add,
         owner: toOwner,
         target,
         position: list.length,
@@ -359,7 +372,7 @@ export function PagesListPage() {
       if (fromOwner === toOwner) return;
       const targetList = editor.segments.byOwner[toOwner]?.current ?? [];
       editor.dispatch.segments({
-        type: "move",
+        type: SegmentsActionType.Move,
         target,
         from: fromOwner,
         to: toOwner,
@@ -376,7 +389,7 @@ export function PagesListPage() {
         id: "title",
         header: text.table.title,
         cell: (page) => {
-          const Icon = page.pageType === "segmented" ? FileDashedIcon : FileMdIcon;
+          const Icon = page.pageType === PageType.Segmented ? FileDashedIcon : FileMdIcon;
           return (
             <div className="flex items-center gap-2" style={{ paddingLeft: page.depth * 24 }}>
               <Icon weight="duotone" className="size-4 shrink-0 text-[var(--ds-text-muted)]" />
@@ -401,7 +414,7 @@ export function PagesListPage() {
         header: text.table.type,
         cell: (page) => (
           <span className="text-xs text-[var(--ds-text-muted)]">
-            {page.pageType === "segmented" ? text.pageTypeSegmented : text.pageTypeDefault}
+            {page.pageType === PageType.Segmented ? text.pageTypeSegmented : text.pageTypeDefault}
           </span>
         ),
       },
@@ -457,7 +470,7 @@ export function PagesListPage() {
               label={common.edit}
             />
             <TableActionButton
-              variant="danger"
+              variant={DashboardButtonVariant.Danger}
               onClick={() => handleDeleteRequest(page.slug, page.title)}
               disabled={deletePage.isPending}
               icon={<TrashIcon weight="duotone" className="size-3.5" />}
@@ -475,7 +488,7 @@ export function PagesListPage() {
       <PageHeader title={text.title}>
         {!showCreate && (
           <DashboardActionButton
-            action="create"
+            action={DashboardActionId.Create}
             icon={<PlusCircleIcon weight="duotone" className="size-3.5" />}
             label={text.newPage}
             onClick={() => dispatch({ showCreate: true })}
@@ -536,21 +549,21 @@ export function PagesListPage() {
         </div>
         <Dialog.Footer>
           <DashboardActionButton
-            action="cancel"
+            action={DashboardActionId.Cancel}
             disabled={deletePage.isPending}
             icon={false}
             label={common.cancel}
             onClick={() => dispatch({ deleteTarget: null })}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
           <DashboardActionButton
-            action="delete"
+            action={DashboardActionId.Delete}
             busyLabel="…"
             icon={false}
             label={common.delete}
             onClick={handleDeleteConfirm}
-            status={deletePage.isPending ? "busy" : "idle"}
+            status={deletePage.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
             type="button"
           />
         </Dialog.Footer>

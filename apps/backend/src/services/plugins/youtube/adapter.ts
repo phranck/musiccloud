@@ -40,7 +40,7 @@
  * YouTube exposes neither. `findByIsrc` returns null; the preview
  * player falls back to other services.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { ResolveError } from "../../../lib/resolve/errors";
 import { calculateConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
@@ -207,14 +207,14 @@ export const youtubeAdapter: ServiceAdapter = {
     const response = await youtubeFetch(`/videos?part=snippet,contentDetails&id=${encodeURIComponent(videoId)}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.YOUTUBE, response.status, RESOURCE_KIND.TRACK, videoId);
+      throw serviceHttpError(Service.YouTube, response.status, ResourceKind.Track, videoId);
     }
 
     const data = await response.json();
     const items: YouTubeVideoResource[] = data.items ?? [];
 
     if (items.length === 0) {
-      throw serviceNotFoundError(SERVICE.YOUTUBE, RESOURCE_KIND.TRACK, videoId);
+      throw serviceNotFoundError(Service.YouTube, ResourceKind.Track, videoId);
     }
 
     return mapVideoToTrack(items[0]);
@@ -302,14 +302,14 @@ export const youtubeAdapter: ServiceAdapter = {
     const response = await youtubeFetch(endpoint);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.YOUTUBE, response.status, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceHttpError(Service.YouTube, response.status, ResourceKind.Artist, artistId);
     }
 
     const data = await response.json();
     const channels: YouTubeChannelResource[] = data.items ?? [];
 
     if (channels.length === 0) {
-      throw serviceNotFoundError(SERVICE.YOUTUBE, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceNotFoundError(Service.YouTube, ResourceKind.Artist, artistId);
     }
 
     return mapChannelToArtist(channels[0]);

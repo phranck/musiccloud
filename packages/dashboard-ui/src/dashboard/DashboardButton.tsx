@@ -11,6 +11,18 @@ import {
 } from "../primitives/ButtonPrimitive.js";
 import { dashboardReviewVariantClass, resolveDashboardPrimitiveVariant } from "./dashboardButtonClasses.js";
 
+export const DashboardButtonVariant = {
+  Neutral: "neutral",
+  Primary: "primary",
+  Success: "success",
+  Warning: "warning",
+  Danger: "danger",
+  Filled: "filled",
+  Accent: "accent",
+  Ghost: "ghost",
+  Review: "review",
+} as const;
+
 export type DashboardButtonVariant = ButtonPrimitiveVariant | "review";
 export type DashboardButtonSize = ButtonPrimitiveSize;
 
@@ -25,7 +37,7 @@ export interface DashboardIconButtonProps extends Omit<IconButtonPrimitiveProps,
 export function DashboardButton({
   className,
   size = "action",
-  variant = "neutral",
+  variant = DashboardButtonVariant.Neutral,
   ...buttonProps
 }: DashboardButtonProps) {
   return (
@@ -33,7 +45,7 @@ export function DashboardButton({
       {...buttonProps}
       size={size}
       variant={resolveDashboardPrimitiveVariant(variant)}
-      className={cx(variant === "review" && dashboardReviewVariantClass, className)}
+      className={cx(variant === DashboardButtonVariant.Review && dashboardReviewVariantClass, className)}
     />
   );
 }
@@ -41,7 +53,7 @@ export function DashboardButton({
 export function DashboardIconButton({
   className,
   size = "action",
-  variant = "ghost",
+  variant = DashboardButtonVariant.Ghost,
   ...buttonProps
 }: DashboardIconButtonProps) {
   return (
@@ -49,7 +61,7 @@ export function DashboardIconButton({
       {...buttonProps}
       size={size}
       variant={resolveDashboardPrimitiveVariant(variant)}
-      className={cx(variant === "review" && dashboardReviewVariantClass, className)}
+      className={cx(variant === DashboardButtonVariant.Review && dashboardReviewVariantClass, className)}
     />
   );
 }

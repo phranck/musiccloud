@@ -54,6 +54,7 @@ export function SegmentManager({ page, activeLocale }: Props) {
                   <NumberCircleIcon number={index + 1} className="w-5 h-5" />
                 </span>
                 <input
+                  aria-label={text.labelPlaceholder}
                   type="text"
                   value={getLocalizedText(segment.label, activeLocale, DEFAULT_LOCALE).value}
                   onChange={(e) =>

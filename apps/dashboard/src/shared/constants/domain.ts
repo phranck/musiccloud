@@ -1,3 +1,8 @@
-export const ADMIN_ROLES = ["owner", "admin", "moderator"] as const;
+export const AdminRole = {
+  Owner: "owner",
+  Admin: "admin",
+  Moderator: "moderator",
+} as const;
 
-export type AdminRole = (typeof ADMIN_ROLES)[number];
+export type AdminRole = (typeof AdminRole)[keyof typeof AdminRole];
+export type EditableAdminRole = typeof AdminRole.Admin | typeof AdminRole.Moderator;

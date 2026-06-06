@@ -1,9 +1,9 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
-import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
+import { embossedCardStyle } from "@/styles/neumorphic";
 
 interface Segment<T extends string> {
   key: T;
@@ -66,7 +66,15 @@ export function EmbossedSegmentedControl<T extends string>({
               left: "0.25rem",
             }}
           >
-            <EmbossedCard className="size-full p-0 bg-zinc-700/[0.65]" radius={raisedControlRadius} />
+            <div
+              className="embossed-gradient-border size-full bg-zinc-700/[0.65]"
+              style={{
+                ...embossedCardStyle,
+                "--neu-radius-base": raisedControlRadius,
+                "--neu-radius-sm": raisedControlRadius,
+                borderRadius: "var(--neu-radius)",
+              }}
+            />
           </div>
         )}
         {segments.map(({ key, label }) => (

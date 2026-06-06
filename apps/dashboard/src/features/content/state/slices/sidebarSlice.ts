@@ -5,18 +5,24 @@ export interface SidebarState {
   current: string[];
 }
 
+export const SidebarActionType = {
+  Hydrate: "hydrate",
+  ReorderTopLevel: "reorder-top-level",
+  Reset: "reset",
+} as const;
+
 export type SidebarAction =
-  | { type: "hydrate"; topLevelOrder: string[] }
-  | { type: "reorder-top-level"; from: number; to: number }
-  | { type: "reset" };
+  | { type: typeof SidebarActionType.Hydrate; topLevelOrder: string[] }
+  | { type: typeof SidebarActionType.ReorderTopLevel; from: number; to: number }
+  | { type: typeof SidebarActionType.Reset };
 
 export function sidebarReducer(state: SidebarState, action: SidebarAction): SidebarState {
   switch (action.type) {
-    case "hydrate":
+    case SidebarActionType.Hydrate:
       return { initial: action.topLevelOrder, current: action.topLevelOrder };
-    case "reorder-top-level":
+    case SidebarActionType.ReorderTopLevel:
       return { ...state, current: arrayMove(state.current, action.from, action.to) };
-    case "reset":
+    case SidebarActionType.Reset:
       return { ...state, current: state.initial };
     default:
       return state;

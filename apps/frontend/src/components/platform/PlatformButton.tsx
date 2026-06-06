@@ -2,6 +2,8 @@ import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 import { type CSSProperties, memo } from "react";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { sendMusicSignal } from "@/lib/analytics/umami";
+import type { MediaCardContentType } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
 
 type PlatformButtonSize = "sm" | "md" | "lg";
@@ -11,7 +13,8 @@ interface PlatformButtonProps {
   url: string;
   songTitle: string;
   displayName?: string;
-  matchMethod?: "isrc" | "search" | "odesli" | "cache" | "upc" | "isrc-inference";
+  matchMethod?: "isrc" | "search" | "cache" | "upc" | "isrc-inference";
+  contentType?: MediaCardContentType;
   size?: PlatformButtonSize;
   className?: string;
   style?: CSSProperties;
@@ -37,6 +40,7 @@ export const PlatformButton = memo(function PlatformButton({
   songTitle,
   displayName,
   matchMethod,
+  contentType,
   size = "lg",
   className,
   style,
@@ -47,19 +51,17 @@ export const PlatformButton = memo(function PlatformButton({
   const s = sizeConfig[size];
 
   const sourceLabel =
-    matchMethod === "odesli"
-      ? "via Odesli"
-      : matchMethod === "isrc"
-        ? "direct (ISRC)"
-        : matchMethod === "upc"
-          ? "direct (UPC)"
-          : matchMethod === "isrc-inference"
-            ? "via track ISRCs"
-            : matchMethod === "search"
-              ? "via search"
-              : matchMethod === "cache"
-                ? "cached"
-                : null;
+    matchMethod === "isrc"
+      ? "direct (ISRC)"
+      : matchMethod === "upc"
+        ? "direct (UPC)"
+        : matchMethod === "isrc-inference"
+          ? "via track ISRCs"
+          : matchMethod === "search"
+            ? "via search"
+            : matchMethod === "cache"
+              ? "cached"
+              : null;
 
   return (
     <EmbossedButton
@@ -67,6 +69,13 @@ export const PlatformButton = memo(function PlatformButton({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Open ${songTitle} on ${label} (opens in new window)`}
+      onClick={() =>
+        sendMusicSignal("music_service_link_click", {
+          service: platform,
+          content_type: contentType,
+          match_method: matchMethod,
+        })
+      }
       className={cn(
         "flex w-full items-center px-3 no-underline max-[389px]:px-2",
         "hover:shadow-[0_0_8px_var(--embossed-glow)] focus-visible:shadow-[0_0_8px_var(--embossed-glow)]",

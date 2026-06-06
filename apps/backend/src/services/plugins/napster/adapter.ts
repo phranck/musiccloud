@@ -42,7 +42,7 @@
  * holds for artist images.
  *
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateConfidence } from "../../../lib/resolve/normalize";
@@ -201,7 +201,7 @@ export const napsterAdapter = {
     const response = await napsterFetch(endpoint);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.NAPSTER, response.status, RESOURCE_KIND.TRACK, trackId);
+      throw serviceHttpError(Service.Napster, response.status, ResourceKind.Track, trackId);
     }
 
     const data = (await response.json()) as NapsterTracksResponse;
@@ -299,7 +299,7 @@ export const napsterAdapter = {
     const response = await napsterFetch(endpoint);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.NAPSTER, response.status, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceHttpError(Service.Napster, response.status, ResourceKind.Artist, artistId);
     }
 
     const data = (await response.json()) as NapsterArtistsResponse;

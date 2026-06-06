@@ -14,7 +14,13 @@ import type { ApiRequestError } from "@/shared/utils/api-error";
 import { buildBulkPayload } from "./diff";
 import { usePagesEditor } from "./PagesEditorContext";
 
-type SaveStatus = "idle" | "saving" | "error";
+export const GlobalPagesSaveStatus = {
+  Idle: "idle",
+  Saving: "saving",
+  Error: "error",
+} as const;
+
+type SaveStatus = (typeof GlobalPagesSaveStatus)[keyof typeof GlobalPagesSaveStatus];
 
 export interface UseGlobalPagesSaveResult {
   save: () => Promise<void>;
@@ -27,12 +33,12 @@ export interface UseGlobalPagesSaveResult {
 export function useGlobalPagesSave(): UseGlobalPagesSaveResult {
   const editor = usePagesEditor();
   const qc = useQueryClient();
-  const [status, setStatus] = useState<SaveStatus>("idle");
+  const [status, setStatus] = useState<SaveStatus>(GlobalPagesSaveStatus.Idle);
   const [errorDetails, setErrorDetails] = useState<PagesBulkErrorDetail[] | null>(null);
 
   const save = useCallback(async () => {
     if (editor.dirty.size() === 0) return;
-    setStatus("saving");
+    setStatus(GlobalPagesSaveStatus.Saving);
     setErrorDetails(null);
     const body: PagesBulkRequest = buildBulkPayload({
       meta: editor.meta,
@@ -63,12 +69,12 @@ export function useGlobalPagesSave(): UseGlobalPagesSaveResult {
           .map((p) => p.slug),
       });
       qc.invalidateQueries({ queryKey: ["content-pages"] });
-      setStatus("idle");
+      setStatus(GlobalPagesSaveStatus.Idle);
     } catch (e) {
       const apiErr = e as ApiRequestError;
       const details = (apiErr.details ?? null) as PagesBulkErrorDetail[] | null;
       setErrorDetails(details);
-      setStatus("error");
+      setStatus(GlobalPagesSaveStatus.Error);
     }
   }, [editor, qc]);
 

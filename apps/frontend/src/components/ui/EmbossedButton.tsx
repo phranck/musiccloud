@@ -64,9 +64,9 @@ export function EmbossedButton({
   const mergedStyle: React.CSSProperties = { ...controlRadiusStyle, ...style };
 
   if ("as" in props && props.as === "button") {
-    const { as: _, ...buttonProps } = props as ButtonProps;
+    const { as: _, type = "button", ...buttonProps } = props as ButtonProps;
     return (
-      <button className={mergedClassName} style={mergedStyle} {...buttonProps}>
+      <button className={mergedClassName} style={mergedStyle} type={type} {...buttonProps}>
         {children}
       </button>
     );

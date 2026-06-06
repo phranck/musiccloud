@@ -29,7 +29,7 @@
  * `confidence below threshold` to tell fetch-failure from
  * parse-failure.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
@@ -199,7 +199,7 @@ export const bugsAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await fetchTrackById(trackId);
     if (!track) {
-      throw serviceNotFoundError(SERVICE.BUGS, RESOURCE_KIND.TRACK, trackId);
+      throw serviceNotFoundError(Service.Bugs, ResourceKind.Track, trackId);
     }
     return track;
   },
@@ -274,7 +274,7 @@ export const bugsAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchAlbumById(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.BUGS, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.Bugs, ResourceKind.Album, albumId);
     return album;
   },
 

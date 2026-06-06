@@ -3,9 +3,28 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
-export type UmamiPeriod = "today" | "7d" | "30d" | "60d" | "90d";
+export const UmamiPeriod = {
+  Today: "today",
+  Last7Days: "7d",
+  Last30Days: "30d",
+  Last60Days: "60d",
+  Last90Days: "90d",
+} as const;
 
-export type UmamiMetricType = "url" | "referrer" | "country" | "region" | "city" | "browser" | "os" | "device";
+export type UmamiPeriod = (typeof UmamiPeriod)[keyof typeof UmamiPeriod];
+
+export const UmamiMetricType = {
+  Url: "url",
+  Referrer: "referrer",
+  Country: "country",
+  Region: "region",
+  City: "city",
+  Browser: "browser",
+  Os: "os",
+  Device: "device",
+} as const;
+
+export type UmamiMetricType = (typeof UmamiMetricType)[keyof typeof UmamiMetricType];
 
 export interface UmamiKpiMetric {
   value: number;

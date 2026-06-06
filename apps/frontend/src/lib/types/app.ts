@@ -40,12 +40,39 @@ export interface GenreSearchPayload {
   warnings: string[];
 }
 
-export type InputState = "idle" | "focused" | "loading" | "success" | "error";
+export const InputState = {
+  Idle: "idle",
+  Focused: "focused",
+  Loading: "loading",
+  Success: "success",
+  Error: "error",
+} as const;
+
+export type InputState = (typeof InputState)[keyof typeof InputState];
+
+export const ActiveResultKind = {
+  Song: "song",
+  Album: "album",
+  Artist: "artist",
+} as const;
+
+export const AppStateType = {
+  Idle: "idle",
+  Loading: "loading",
+  Result: "result",
+  Clearing: "clearing",
+  Error: "error",
+  Disambiguation: "disambiguation",
+  DisambiguationLoading: "disambiguation_loading",
+  GenreBrowse: "genre-browse",
+  GenreSearch: "genre-search",
+  GenreSearchLoading: "genre-search_loading",
+} as const;
 
 export interface SongResult {
-  kind: "song";
+  kind: typeof ActiveResultKind.Song;
   title: string;
-  artist: string;
+  Artist: string;
   album?: string;
   releaseDate?: string;
   durationMs?: number;
@@ -58,9 +85,9 @@ export interface SongResult {
 }
 
 export interface AlbumResult {
-  kind: "album";
+  kind: typeof ActiveResultKind.Album;
   title: string;
-  artist: string;
+  Artist: string;
   releaseDate?: string;
   totalTracks?: number;
   label?: string;
@@ -72,7 +99,7 @@ export interface AlbumResult {
 }
 
 export interface ArtistResult {
-  kind: "artist";
+  kind: typeof ActiveResultKind.Artist;
   name: string;
   imageUrl: string;
   genres?: string[];
@@ -83,16 +110,16 @@ export interface ArtistResult {
 export type ActiveResult = SongResult | AlbumResult | ArtistResult;
 
 export type AppState =
-  | { type: "idle" }
-  | { type: "loading"; compact: boolean }
-  | { type: "result"; active: ActiveResult; resolved?: UnifiedResolveSuccessResponse }
-  | { type: "clearing"; active: ActiveResult; resolved?: UnifiedResolveSuccessResponse }
-  | { type: "error"; message: string }
-  | { type: "disambiguation"; candidates: DisambiguationCandidate[] }
-  | { type: "disambiguation_loading"; candidates: DisambiguationCandidate[]; selectedId: string }
-  | { type: "genre-browse"; genres: ApiGenreTile[] }
-  | { type: "genre-search"; payload: GenreSearchPayload }
-  | { type: "genre-search_loading"; payload: GenreSearchPayload; selectedId: string };
+  | { type: typeof AppStateType.Idle }
+  | { type: typeof AppStateType.Loading; compact: boolean }
+  | { type: typeof AppStateType.Result; active: ActiveResult; resolved?: UnifiedResolveSuccessResponse }
+  | { type: typeof AppStateType.Clearing; active: ActiveResult; resolved?: UnifiedResolveSuccessResponse }
+  | { type: typeof AppStateType.Error; message: string }
+  | { type: typeof AppStateType.Disambiguation; candidates: DisambiguationCandidate[] }
+  | { type: typeof AppStateType.DisambiguationLoading; candidates: DisambiguationCandidate[]; selectedId: string }
+  | { type: typeof AppStateType.GenreBrowse; genres: ApiGenreTile[] }
+  | { type: typeof AppStateType.GenreSearch; payload: GenreSearchPayload }
+  | { type: typeof AppStateType.GenreSearchLoading; payload: GenreSearchPayload; selectedId: string };
 
 export interface ReducerState {
   screen: AppState;

@@ -30,7 +30,7 @@ import {
 } from "@/lib/preload/resultRuntime";
 import { buildShareConfigFromActive } from "@/lib/resolve/parsers";
 import { buildShareViewFromResolvedResponse, type ShareArtistInfoContext } from "@/lib/share/share-view";
-import type { InputState } from "@/lib/types/app";
+import { ActiveResultKind, AppStateType, InputState } from "@/lib/types/app";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 // Lazy-loaded panels — only pulled into the bundle when the user needs them.
@@ -190,24 +190,24 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
 
   const baseInputState: InputState =
     isDisambiguating || isClearing || isGenreBrowsing || isGenreSearching
-      ? "idle"
-      : state.type === "result"
-        ? "success"
+      ? InputState.Idle
+      : state.type === AppStateType.Result
+        ? InputState.Success
         : (state.type as InputState);
-  const inputState = baseInputState === "idle" && isFocused ? "focused" : baseInputState;
+  const inputState = baseInputState === InputState.Idle && isFocused ? InputState.Focused : baseInputState;
 
   // Sync input value when back-navigation restores a previous screen.
   useEffect(() => {
-    if (state.type === "genre-search" || state.type === "genre-search_loading") {
+    if (state.type === AppStateType.GenreSearch || state.type === AppStateType.GenreSearchLoading) {
       setInputValue(state.payload.query);
-    } else if (state.type === "genre-browse") {
+    } else if (state.type === AppStateType.GenreBrowse) {
       setInputValue("genre:?");
     }
   }, [state]);
 
-  const focusActive = state.type === "result" ? state.active : null;
-  const focusCandidates = state.type === "disambiguation" ? state.candidates : null;
-  const focusGenreResults = state.type === "genre-search" ? state.payload : null;
+  const focusActive = state.type === AppStateType.Result ? state.active : null;
+  const focusCandidates = state.type === AppStateType.Disambiguation ? state.candidates : null;
+  const focusGenreResults = state.type === AppStateType.GenreSearch ? state.payload : null;
   const genreSearchRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (focusActive) resultsPanelRef.current?.focus();
@@ -271,7 +271,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
   }, []);
 
   useEffect(() => {
-    if (state.type !== "loading") return;
+    if (state.type !== AppStateType.Loading) return;
 
     const frame = window.requestAnimationFrame(() => {
       preloadResolveResultRuntime();
@@ -325,7 +325,8 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
   const activeShareView = resolved ? buildShareViewFromResolvedResponse(resolved, t) : null;
   const activeShareConfig = activeShareView?.config ?? (active ? buildShareConfigFromActive(active, t) : null);
   const activeArtistName =
-    activeShareView?.artistName ?? (active ? (active.kind === "artist" ? active.name : active.artist) : "");
+    activeShareView?.artistName ??
+    (active ? (active.kind === ActiveResultKind.Artist ? active.name : active.artist) : "");
   const isSharePageView = !!(activeShareConfig && active);
 
   return (
@@ -370,7 +371,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                 />
               </div>
 
-              {state.type !== "loading" &&
+              {state.type !== AppStateType.Loading &&
                 !candidates &&
                 !genreBrowseGenres &&
                 !genreSearchPayload &&
@@ -390,7 +391,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                       onSelect={handleSelectCandidate}
                       onCancel={handleClear}
                       selectedId={selectedCandidateId}
-                      loading={state.type === "disambiguation_loading"}
+                      loading={state.type === AppStateType.DisambiguationLoading}
                     />
                   </Suspense>
                 </div>
@@ -425,7 +426,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                 </Suspense>
               )}
 
-              {state.type === "loading" && showCompact && (
+              {state.type === AppStateType.Loading && showCompact && (
                 <div className="mt-6 sm:mt-8 w-full">
                   <ShareResultPlaceholder />
                 </div>

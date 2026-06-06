@@ -1,4 +1,4 @@
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
@@ -347,12 +347,12 @@ export const qobuzAdapter = {
     const response = await qobuzApiFetch(`/track/get?track_id=${trackId}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.QOBUZ, response.status, RESOURCE_KIND.TRACK, trackId);
+      throw serviceHttpError(Service.Qobuz, response.status, ResourceKind.Track, trackId);
     }
 
     const data = (await response.json()) as QobuzTrack;
     if (!data.title) {
-      throw serviceNotFoundError(SERVICE.QOBUZ, RESOURCE_KIND.TRACK, trackId);
+      throw serviceNotFoundError(Service.Qobuz, ResourceKind.Track, trackId);
     }
 
     return mapTrack(data);
@@ -452,12 +452,12 @@ export const qobuzAdapter = {
     const response = await qobuzApiFetch(`/album/get?album_id=${encodeURIComponent(albumId)}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.QOBUZ, response.status, RESOURCE_KIND.ALBUM, albumId);
+      throw serviceHttpError(Service.Qobuz, response.status, ResourceKind.Album, albumId);
     }
 
     const data = (await response.json()) as QobuzAlbum;
     if (!data.title) {
-      throw serviceNotFoundError(SERVICE.QOBUZ, RESOURCE_KIND.ALBUM, albumId);
+      throw serviceNotFoundError(Service.Qobuz, ResourceKind.Album, albumId);
     }
 
     return mapAlbum(data);
@@ -551,12 +551,12 @@ export const qobuzAdapter = {
     const response = await qobuzApiFetch(`/artist/get?artist_id=${encodeURIComponent(artistId)}`);
 
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.QOBUZ, response.status, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceHttpError(Service.Qobuz, response.status, ResourceKind.Artist, artistId);
     }
 
     const data = (await response.json()) as QobuzArtist;
     if (!data.name) {
-      throw serviceNotFoundError(SERVICE.QOBUZ, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceNotFoundError(Service.Qobuz, ResourceKind.Artist, artistId);
     }
 
     const id = String(data.id ?? artistId);

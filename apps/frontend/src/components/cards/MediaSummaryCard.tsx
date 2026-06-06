@@ -51,6 +51,7 @@ export function MediaSummaryCard({
             previewUrl={content.previewUrl}
             refreshShortId={content.previewRefreshable ? content.shortId : undefined}
             trackTitle={content.title}
+            contentType={content.type}
             onStatusChange={onPreviewStatusChange}
           />
         )}
@@ -58,7 +59,12 @@ export function MediaSummaryCard({
 
       <CollapsibleSection visible={showShareActions} sectionClass="px-3 pt-0 pb-3">
         {shareActionUrl && (
-          <ShareButton shareUrl={shareActionUrl} songTitle={content.title} artistName={content.artist} />
+          <ShareButton
+            shareUrl={shareActionUrl}
+            songTitle={content.title}
+            artistName={content.artist}
+            contentType={content.type}
+          />
         )}
       </CollapsibleSection>
     </EmbossedCard>

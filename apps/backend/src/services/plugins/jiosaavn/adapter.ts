@@ -34,7 +34,7 @@
  * number. Every code path parses with `parseInt(..., 10)` and
  * multiplies by 1000.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
@@ -349,7 +349,7 @@ export const jiosaavnAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await getTrackById(trackId);
     if (!track) {
-      throw serviceNotFoundError(SERVICE.JIOSAAVN, RESOURCE_KIND.TRACK, trackId);
+      throw serviceNotFoundError(Service.JioSaavn, ResourceKind.Track, trackId);
     }
     return track;
   },
@@ -421,7 +421,7 @@ export const jiosaavnAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await getAlbumById(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.JIOSAAVN, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.JioSaavn, ResourceKind.Album, albumId);
     return album;
   },
 
@@ -478,7 +478,7 @@ export const jiosaavnAdapter: ServiceAdapter = {
   async getArtist(artistId: string): Promise<NormalizedArtist> {
     const artist = await getArtistById(artistId);
     if (!artist) {
-      throw serviceNotFoundError(SERVICE.JIOSAAVN, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceNotFoundError(Service.JioSaavn, ResourceKind.Artist, artistId);
     }
     return artist;
   },

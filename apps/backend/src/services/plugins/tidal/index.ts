@@ -1,10 +1,10 @@
-import { SERVICE } from "@musiccloud/shared";
+import { Service } from "@musiccloud/shared";
 import type { ServicePlugin } from "../manifest.js";
 import { tidalAdapter } from "./adapter.js";
 
 export const tidalPlugin: ServicePlugin = {
   manifest: {
-    id: SERVICE.TIDAL,
+    id: Service.Tidal,
     displayName: "Tidal",
     description: "Resolves Tidal track, album and artist URLs via the Tidal OpenAPI v2.",
     defaultEnabled: true,

@@ -22,12 +22,21 @@
     "docs:landingpage": "node scripts/generate-landingpage-structure.mjs",
     "db:generate": "drizzle-kit generate --config=drizzle.config.postgres.ts",
     "db:migrate": "node scripts/migrate.mjs",
-    "db:studio": "drizzle-kit studio --config=drizzle.config.postgres.ts"
+    "db:studio": "drizzle-kit studio --config=drizzle.config.postgres.ts",
+    "doctor": "pnpm exec react-doctor . --verbose --no-score --yes --no-color",
+    "doctor:diff": "pnpm exec react-doctor . --diff --verbose --no-score --yes --no-color --blocking warning",
+    "doctor:staged": "pnpm exec react-doctor . --staged --verbose --no-score --yes --no-color --blocking warning",
+    "doctor:rules": "pnpm exec react-doctor rules list",
+    "doctor:rules:json": "pnpm exec react-doctor rules list --json",
+    "doctor:lsp": "pnpm exec react-doctor experimental-lsp"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
     "concurrently": "^9.1.0",
     "drizzle-kit": "^0.31.10",
+    "react-doctor-config-strict": "workspace:*",
+    "react-doctor-plugin-domain-literals": "workspace:*",
+    "react-doctor": "^0.4.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vitest": "^1.6.1"

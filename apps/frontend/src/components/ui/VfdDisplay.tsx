@@ -611,15 +611,22 @@ function defaultMarqueeMode(content: ReactNode, marquee: VfdMarqueeMode | undefi
   return typeof content === "string" ? "overflow" : undefined;
 }
 
+function readPrefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
 function usePrefersReducedMotion(): boolean {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(readPrefersReducedMotion);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
 
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches);
-    updatePreference();
     mediaQuery.addEventListener("change", updatePreference);
     return () => mediaQuery.removeEventListener("change", updatePreference);
   }, []);

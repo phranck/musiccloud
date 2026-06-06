@@ -53,7 +53,7 @@
  * `buildArtworkUrl` does this substitution at a fixed 1000x1000 so
  * the share page gets a large enough image for retina rendering.
  */
-import { RESOURCE_KIND, type ResourceKind, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { importPKCS8, SignJWT } from "jose";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { ResolveError } from "../../../lib/resolve/errors";
@@ -305,7 +305,7 @@ export async function appleMusicFetch(endpoint: string): Promise<Response> {
  * diagnostic detail).
  */
 function appleMusicHttpError(status: number, kind: ResourceKind, id: string, storefront: string): ResolveError {
-  const err = serviceHttpError(SERVICE.APPLE_MUSIC, status, kind, id);
+  const err = serviceHttpError(Service.AppleMusic, status, kind, id);
   if (err.context) (err.context as Record<string, string | number>).storefront = storefront;
   return err;
 }
@@ -541,14 +541,14 @@ export const appleMusicAdapter: ServiceAdapter = {
     const response = await appleMusicFetch(`/catalog/${storefront}/songs/${encodeURIComponent(id)}`);
 
     if (!response.ok) {
-      throw appleMusicHttpError(response.status, RESOURCE_KIND.TRACK, id, storefront);
+      throw appleMusicHttpError(response.status, ResourceKind.Track, id, storefront);
     }
 
     const data = await response.json();
     const song: AppleMusicSongResource = data.data[0];
 
     if (!song) {
-      const err = serviceNotFoundError(SERVICE.APPLE_MUSIC, RESOURCE_KIND.TRACK, id, `storefront=${storefront}`);
+      const err = serviceNotFoundError(Service.AppleMusic, ResourceKind.Track, id, `storefront=${storefront}`);
       if (err.context) (err.context as Record<string, string | number>).storefront = storefront;
       throw err;
     }
@@ -636,14 +636,14 @@ export const appleMusicAdapter: ServiceAdapter = {
     const response = await appleMusicFetch(`/catalog/${storefront}/albums/${encodeURIComponent(id)}?include=tracks`);
 
     if (!response.ok) {
-      throw appleMusicHttpError(response.status, RESOURCE_KIND.ALBUM, id, storefront);
+      throw appleMusicHttpError(response.status, ResourceKind.Album, id, storefront);
     }
 
     const data = await response.json();
     const album: AppleMusicAlbumResource = data.data[0];
 
     if (!album) {
-      const err = serviceNotFoundError(SERVICE.APPLE_MUSIC, RESOURCE_KIND.ALBUM, id, `storefront=${storefront}`);
+      const err = serviceNotFoundError(Service.AppleMusic, ResourceKind.Album, id, `storefront=${storefront}`);
       if (err.context) (err.context as Record<string, string | number>).storefront = storefront;
       throw err;
     }
@@ -713,14 +713,14 @@ export const appleMusicAdapter: ServiceAdapter = {
     const response = await appleMusicFetch(`/catalog/${storefront}/artists/${encodeURIComponent(id)}`);
 
     if (!response.ok) {
-      throw appleMusicHttpError(response.status, RESOURCE_KIND.ARTIST, id, storefront);
+      throw appleMusicHttpError(response.status, ResourceKind.Artist, id, storefront);
     }
 
     const data = await response.json();
     const artist: AppleMusicArtistResource = data.data[0];
 
     if (!artist) {
-      const err = serviceNotFoundError(SERVICE.APPLE_MUSIC, RESOURCE_KIND.ARTIST, id, `storefront=${storefront}`);
+      const err = serviceNotFoundError(Service.AppleMusic, ResourceKind.Artist, id, `storefront=${storefront}`);
       if (err.context) (err.context as Record<string, string | number>).storefront = storefront;
       throw err;
     }

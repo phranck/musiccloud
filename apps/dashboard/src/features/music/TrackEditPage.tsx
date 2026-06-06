@@ -1,4 +1,4 @@
-import { DashboardInput, getDashboardIconButtonClassName } from "@musiccloud/dashboard-ui";
+import { DashboardButtonVariant, DashboardInput, getDashboardIconButtonClassName } from "@musiccloud/dashboard-ui";
 import type { ServiceId } from "@musiccloud/shared";
 import { ENDPOINTS, isValidServiceId, PLATFORM_CONFIG, SERVICE_DISPLAY_ORDER } from "@musiccloud/shared";
 import {
@@ -46,20 +46,35 @@ interface ArtistCredit {
 
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
+const LoadPhase = {
+  Loading: "loading",
+  Loaded: "loaded",
+  NotFound: "notFound",
+} as const;
+
+const LoadActionType = {
+  Loaded: "loaded",
+  NotFound: "notFound",
+  Reload: "reload",
+} as const;
+
 interface LoadState {
-  phase: "loading" | "loaded" | "notFound";
+  phase: (typeof LoadPhase)[keyof typeof LoadPhase];
   track: TrackDetail | null;
 }
-type LoadAction = { type: "loaded"; track: TrackDetail } | { type: "notFound" } | { type: "reload" };
+type LoadAction =
+  | { type: typeof LoadActionType.Loaded; track: TrackDetail }
+  | { type: typeof LoadActionType.NotFound }
+  | { type: typeof LoadActionType.Reload };
 
 function loadReducer(_state: LoadState, action: LoadAction): LoadState {
   switch (action.type) {
-    case "loaded":
-      return { phase: "loaded", track: action.track };
-    case "notFound":
-      return { phase: "notFound", track: null };
-    case "reload":
-      return { phase: "loading", track: null };
+    case LoadActionType.Loaded:
+      return { phase: LoadPhase.Loaded, track: action.track };
+    case LoadActionType.NotFound:
+      return { phase: LoadPhase.NotFound, track: null };
+    case LoadActionType.Reload:
+      return { phase: LoadPhase.Loading, track: null };
   }
 }
 
@@ -71,13 +86,21 @@ interface FormState {
   isrc: string;
   artworkUrl: string;
 }
-type FormAction = { type: "set"; field: keyof FormState; value: string } | { type: "hydrate"; form: FormState };
+
+const FormActionType = {
+  Set: "set",
+  Hydrate: "hydrate",
+} as const;
+
+type FormAction =
+  | { type: typeof FormActionType.Set; field: keyof FormState; value: string }
+  | { type: typeof FormActionType.Hydrate; form: FormState };
 
 function formReducer(state: FormState, action: FormAction): FormState {
   switch (action.type) {
-    case "set":
+    case FormActionType.Set:
       return { ...state, [action.field]: action.value };
-    case "hydrate":
+    case FormActionType.Hydrate:
       return action.form;
   }
 }
@@ -109,17 +132,29 @@ interface SaveState {
   saved: boolean;
   error: string | null;
 }
-type SaveAction = { type: "start" } | { type: "success" } | { type: "clearSaved" } | { type: "error"; error: string };
+
+const SaveActionType = {
+  Start: "start",
+  Success: "success",
+  ClearSaved: "clearSaved",
+  Error: "error",
+} as const;
+
+type SaveAction =
+  | { type: typeof SaveActionType.Start }
+  | { type: typeof SaveActionType.Success }
+  | { type: typeof SaveActionType.ClearSaved }
+  | { type: typeof SaveActionType.Error; error: string };
 
 function saveReducer(state: SaveState, action: SaveAction): SaveState {
   switch (action.type) {
-    case "start":
+    case SaveActionType.Start:
       return { saving: true, saved: false, error: null };
-    case "success":
+    case SaveActionType.Success:
       return { saving: false, saved: true, error: null };
-    case "clearSaved":
+    case SaveActionType.ClearSaved:
       return { ...state, saved: false };
-    case "error":
+    case SaveActionType.Error:
       return { saving: false, saved: false, error: action.error };
   }
 }
@@ -131,19 +166,19 @@ export function TrackEditPage() {
   const m = messages.music.trackEdit;
   const common = messages.common;
 
-  const [load, loadDispatch] = useReducer(loadReducer, { phase: "loading", track: null });
+  const [load, loadDispatch] = useReducer(loadReducer, { phase: LoadPhase.Loading, track: null });
   const [form, formDispatch] = useReducer(formReducer, emptyForm);
   const [save, saveDispatch] = useReducer(saveReducer, { saving: false, saved: false, error: null });
 
   useEffect(() => {
     if (!id) return;
-    loadDispatch({ type: "reload" });
+    loadDispatch({ type: LoadActionType.Reload });
     api
       .get<TrackDetail>(ENDPOINTS.admin.tracks.detail(id))
       .then((data) => {
-        loadDispatch({ type: "loaded", track: data });
+        loadDispatch({ type: LoadActionType.Loaded, track: data });
         formDispatch({
-          type: "hydrate",
+          type: FormActionType.Hydrate,
           form: {
             title: data.title,
             artists: data.artists.join(", "),
@@ -154,12 +189,12 @@ export function TrackEditPage() {
           },
         });
       })
-      .catch(() => loadDispatch({ type: "notFound" }));
+      .catch(() => loadDispatch({ type: LoadActionType.NotFound }));
   }, [id]);
 
   const handleSave = useCallback(async () => {
     if (!id || save.saving) return;
-    saveDispatch({ type: "start" });
+    saveDispatch({ type: SaveActionType.Start });
     try {
       const artistCredits = buildArtistCreditsForSave(form);
       await api.patch(ENDPOINTS.admin.tracks.detail(id), {
@@ -170,10 +205,10 @@ export function TrackEditPage() {
         isrc: form.isrc || null,
         artworkUrl: form.artworkUrl || null,
       });
-      saveDispatch({ type: "success" });
-      setTimeout(() => saveDispatch({ type: "clearSaved" }), 2000);
+      saveDispatch({ type: SaveActionType.Success });
+      setTimeout(() => saveDispatch({ type: SaveActionType.ClearSaved }), 2000);
     } catch {
-      saveDispatch({ type: "error", error: m.saveError });
+      saveDispatch({ type: SaveActionType.Error, error: m.saveError });
     }
   }, [id, save.saving, form, m.saveError]);
 
@@ -183,7 +218,7 @@ export function TrackEditPage() {
     navigate("/tracks");
   }
 
-  if (load.phase === "loading") {
+  if (load.phase === LoadPhase.Loading) {
     return (
       <EditorPageShell title="" backLabel={m.backLabel} onBack={handleCancel}>
         <div className="flex items-center justify-center py-12">
@@ -193,7 +228,7 @@ export function TrackEditPage() {
     );
   }
 
-  if (load.phase === "notFound" || !load.track) {
+  if (load.phase === LoadPhase.NotFound || !load.track) {
     return (
       <EditorPageShell title="" backLabel={m.backLabel} onBack={handleCancel}>
         <p className="text-sm text-[var(--ds-text-muted)] text-center py-12">{m.notFound}</p>
@@ -215,14 +250,14 @@ export function TrackEditPage() {
       )}
       {save.error && <p className="text-xs text-red-500">{save.error}</p>}
       <EditorToolbarButton
-        variant="neutral"
+        variant={DashboardButtonVariant.Neutral}
         icon={<XCircleIcon weight="duotone" className="w-3.5 h-3.5" />}
         onClick={handleCancel}
       >
         {common.cancel}
       </EditorToolbarButton>
       <EditorToolbarButton
-        variant="primary"
+        variant={DashboardButtonVariant.Primary}
         icon={<FloppyDiskIcon weight="duotone" className="w-3.5 h-3.5" />}
         onClick={handleSave}
         disabled={save.saving}
@@ -293,7 +328,7 @@ export function TrackEditPage() {
                 id="track-title"
                 type="text"
                 value={form.title}
-                onChange={(e) => formDispatch({ type: "set", field: "title", value: e.target.value })}
+                onChange={(e) => formDispatch({ type: FormActionType.Set, field: "title", value: e.target.value })}
               />
             </div>
             <div>
@@ -304,7 +339,7 @@ export function TrackEditPage() {
                 id="track-artists"
                 type="text"
                 value={form.artists}
-                onChange={(e) => formDispatch({ type: "set", field: "artists", value: e.target.value })}
+                onChange={(e) => formDispatch({ type: FormActionType.Set, field: "artists", value: e.target.value })}
                 placeholder={m.artistsHint}
               />
               {activeArtistCredits.length > 0 ? (
@@ -329,7 +364,7 @@ export function TrackEditPage() {
                 id="track-album"
                 type="text"
                 value={form.albumName}
-                onChange={(e) => formDispatch({ type: "set", field: "albumName", value: e.target.value })}
+                onChange={(e) => formDispatch({ type: FormActionType.Set, field: "albumName", value: e.target.value })}
               />
             </div>
             <div>
@@ -340,7 +375,7 @@ export function TrackEditPage() {
                 id="track-isrc"
                 type="text"
                 value={form.isrc}
-                onChange={(e) => formDispatch({ type: "set", field: "isrc", value: e.target.value })}
+                onChange={(e) => formDispatch({ type: FormActionType.Set, field: "isrc", value: e.target.value })}
               />
             </div>
           </div>
@@ -354,7 +389,7 @@ export function TrackEditPage() {
               id="track-artwork-url"
               type="text"
               value={form.artworkUrl}
-              onChange={(e) => formDispatch({ type: "set", field: "artworkUrl", value: e.target.value })}
+              onChange={(e) => formDispatch({ type: FormActionType.Set, field: "artworkUrl", value: e.target.value })}
             />
           </div>
 
@@ -393,7 +428,7 @@ export function TrackEditPage() {
                             className={getDashboardIconButtonClassName({
                               className: "shrink-0",
                               size: "control",
-                              variant: "neutral",
+                              variant: DashboardButtonVariant.Neutral,
                             })}
                             title={label}
                           >
@@ -404,7 +439,7 @@ export function TrackEditPage() {
                             className={getDashboardIconButtonClassName({
                               className: "shrink-0 opacity-40 cursor-default",
                               size: "control",
-                              variant: "neutral",
+                              variant: DashboardButtonVariant.Neutral,
                             })}
                           >
                             <ArrowSquareOutIcon weight="duotone" className="w-4 h-4" />

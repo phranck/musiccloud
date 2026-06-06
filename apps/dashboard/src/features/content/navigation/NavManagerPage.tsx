@@ -680,6 +680,33 @@ interface HierarchicalPagePickerProps {
   formsLabel: string;
 }
 
+interface PageRowProps {
+  depth: 0 | 1;
+  onPick: (value: string) => void;
+  pageType: "segmented" | "default";
+  selected: boolean;
+  slug: string;
+  title: string;
+}
+
+function PageRow({ depth, onPick, pageType, selected, slug, title }: PageRowProps) {
+  const Icon = pageType === "segmented" ? FileDashedIcon : FileMdIcon;
+  return (
+    <ListboxOption
+      onClick={() => onPick(slug)}
+      selected={selected}
+      className="text-xs"
+      controlSize="compact"
+      style={{ paddingLeft: 8 + depth * 20, paddingRight: 8 }}
+    >
+      <Icon weight="duotone" className="w-4 h-4 shrink-0 text-[var(--ds-text-muted)]" />
+      <span className="truncate">
+        {title} <span className="text-[var(--ds-text-muted)] font-mono">/{slug}</span>
+      </span>
+    </ListboxOption>
+  );
+}
+
 // Custom dropdown that visually indents segmented children via real CSS
 // padding (native <select> ignores leading whitespace and has no built-in
 // way to mark hierarchy). Every item is selectable.
@@ -734,34 +761,6 @@ function HierarchicalPagePicker({
     setOpen(false);
   }
 
-  function PageRow({
-    slug,
-    title,
-    depth,
-    pageType,
-  }: {
-    slug: string;
-    title: string;
-    depth: 0 | 1;
-    pageType: "segmented" | "default";
-  }) {
-    const Icon = pageType === "segmented" ? FileDashedIcon : FileMdIcon;
-    return (
-      <ListboxOption
-        onClick={() => pick(slug)}
-        selected={value === slug}
-        className="text-xs"
-        controlSize="compact"
-        style={{ paddingLeft: 8 + depth * 20, paddingRight: 8 }}
-      >
-        <Icon weight="duotone" className="w-4 h-4 shrink-0 text-[var(--ds-text-muted)]" />
-        <span className="truncate">
-          {title} <span className="text-[var(--ds-text-muted)] font-mono">/{slug}</span>
-        </span>
-      </ListboxOption>
-    );
-  }
-
   return (
     <div ref={ref} className="relative flex-1">
       <ControlTrigger controlSize="compact" open={open} onClick={() => setOpen((o) => !o)} className="justify-between">
@@ -771,13 +770,36 @@ function HierarchicalPagePicker({
       {open && (
         <div className="absolute z-20 mt-1 w-full bg-[var(--ds-bg-elevated,var(--ds-surface))] border border-[var(--ds-border)] rounded-control shadow-lg max-h-80 overflow-auto py-1">
           {pagesGrouped.orphans.map((p) => (
-            <PageRow key={p.slug} slug={p.slug} title={p.title} depth={0} pageType="default" />
+            <PageRow
+              key={p.slug}
+              slug={p.slug}
+              title={p.title}
+              depth={0}
+              pageType="default"
+              selected={value === p.slug}
+              onPick={pick}
+            />
           ))}
           {pagesGrouped.blocks.map((b) => (
             <Fragment key={b.parent.slug}>
-              <PageRow slug={b.parent.slug} title={b.parent.title} depth={0} pageType="segmented" />
+              <PageRow
+                slug={b.parent.slug}
+                title={b.parent.title}
+                depth={0}
+                pageType="segmented"
+                selected={value === b.parent.slug}
+                onPick={pick}
+              />
               {b.children.map((c) => (
-                <PageRow key={c.slug} slug={c.slug} title={c.title} depth={1} pageType="default" />
+                <PageRow
+                  key={c.slug}
+                  slug={c.slug}
+                  title={c.title}
+                  depth={1}
+                  pageType="default"
+                  selected={value === c.slug}
+                  onPick={pick}
+                />
               ))}
             </Fragment>
           ))}

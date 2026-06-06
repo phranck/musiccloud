@@ -8,6 +8,8 @@ import {
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
+import { sendMusicSignal } from "@/lib/analytics/umami";
+import type { MediaCardContentType } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
 
 const subscribe = () => () => {};
@@ -16,23 +18,34 @@ interface ShareButtonProps {
   shareUrl: string;
   songTitle?: string;
   artistName?: string;
+  contentType?: MediaCardContentType;
 }
 
 type ShareState = "idle" | "copied" | "error";
 
-export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProps) {
+export function ShareButton({ shareUrl, songTitle, artistName, contentType }: ShareButtonProps) {
   const t = useT();
   const [state, setState] = useState<ShareState>("idle");
 
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
+      sendMusicSignal("music_share_interaction", {
+        action: "copy_success",
+        method: "clipboard",
+        content_type: contentType,
+      });
       setState("copied");
     } catch {
+      sendMusicSignal("music_share_interaction", {
+        action: "copy_error",
+        method: "clipboard",
+        content_type: contentType,
+      });
       setState("error");
     }
     setTimeout(() => setState("idle"), 2000);
-  }, [shareUrl]);
+  }, [contentType, shareUrl]);
 
   const handleNativeShare = useCallback(async () => {
     if (!navigator.share) return;
@@ -41,10 +54,19 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
         title: songTitle ? `${songTitle}${artistName ? ` - ${artistName}` : ""}` : "Check out this song",
         url: shareUrl,
       });
+      sendMusicSignal("music_share_interaction", {
+        action: "share_success",
+        method: "native",
+        content_type: contentType,
+      });
     } catch {
-      // User cancelled share
+      sendMusicSignal("music_share_interaction", {
+        action: "share_cancelled",
+        method: "native",
+        content_type: contentType,
+      });
     }
-  }, [shareUrl, songTitle, artistName]);
+  }, [contentType, shareUrl, songTitle, artistName]);
 
   const supportsNativeShare = useSyncExternalStore(
     subscribe,

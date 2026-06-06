@@ -1,4 +1,9 @@
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+} from "@musiccloud/dashboard-ui";
 import { useEffect, useState } from "react";
 import { useBlocker } from "react-router";
 
@@ -6,7 +11,11 @@ import { Dialog } from "@/components/ui/Dialog";
 import { useI18n } from "@/context/I18nContext";
 
 import { usePagesEditor } from "./PagesEditorContext";
-import { useGlobalPagesSave } from "./useGlobalPagesSave";
+import { GlobalPagesSaveStatus, useGlobalPagesSave } from "./useGlobalPagesSave";
+
+const BlockerState = {
+  Blocked: "blocked",
+} as const;
 
 /**
  * Two-layer guard for unsaved page edits:
@@ -38,15 +47,15 @@ export function UnsavedGuard() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [editor.dirty]);
 
-  const open = blocker.state === "blocked";
+  const open = blocker.state === BlockerState.Blocked;
 
   function handleCancel() {
-    if (blocker.state === "blocked") blocker.reset();
+    if (blocker.state === BlockerState.Blocked) blocker.reset();
   }
 
   function handleDiscard() {
     editor.resetAll();
-    if (blocker.state === "blocked") blocker.proceed();
+    if (blocker.state === BlockerState.Blocked) blocker.proceed();
   }
 
   async function handleSave() {
@@ -54,8 +63,8 @@ export function UnsavedGuard() {
     try {
       await save();
       if (editor.dirty.size() === 0) {
-        if (blocker.state === "blocked") blocker.proceed();
-      } else if (blocker.state === "blocked") {
+        if (blocker.state === BlockerState.Blocked) blocker.proceed();
+      } else if (blocker.state === BlockerState.Blocked) {
         blocker.reset();
       }
     } finally {
@@ -63,23 +72,23 @@ export function UnsavedGuard() {
     }
   }
 
-  const isSaving = savingViaModal || status === "saving";
+  const isSaving = savingViaModal || status === GlobalPagesSaveStatus.Saving;
 
   return (
     <Dialog open={open} title={t.title} onClose={handleCancel}>
       <div className="px-6 py-4 text-sm text-[var(--ds-text)]">{t.description}</div>
       <Dialog.Footer>
         <DashboardActionButton
-          action="cancel"
+          action={DashboardActionId.Cancel}
           disabled={isSaving}
           icon={false}
           label={t.cancel}
           onClick={handleCancel}
           type="button"
-          variant="neutral"
+          variant={DashboardButtonVariant.Neutral}
         />
         <DashboardActionButton
-          action="delete"
+          action={DashboardActionId.Delete}
           disabled={isSaving}
           icon={false}
           label={t.discard}
@@ -87,12 +96,12 @@ export function UnsavedGuard() {
           type="button"
         />
         <DashboardActionButton
-          action="save"
+          action={DashboardActionId.Save}
           busyLabel={t.saving}
           icon={false}
           label={t.save}
           onClick={handleSave}
-          status={isSaving ? "busy" : "idle"}
+          status={isSaving ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
           type="button"
         />
       </Dialog.Footer>

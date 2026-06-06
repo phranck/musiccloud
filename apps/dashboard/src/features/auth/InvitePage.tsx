@@ -1,4 +1,10 @@
-import { DashboardActionButton, DashboardInput } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+  DashboardInput,
+} from "@musiccloud/dashboard-ui";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams } from "react-router";
@@ -10,32 +16,48 @@ import { api } from "@/lib/api";
 import type { AdminInviteState, AdminUser } from "@/shared/types/admin";
 
 interface UiState {
-  phase: "loading" | "loaded" | "error";
+  phase: InvitePhase;
   data: AdminInviteState | null;
   error: string;
   submitting: boolean;
 }
 
-type Action =
-  | { type: "loadSuccess"; data: AdminInviteState }
-  | { type: "loadError"; error: string }
-  | { type: "setError"; error: string }
-  | { type: "submitStart" }
-  | { type: "submitError"; error: string };
+const InvitePhase = {
+  Loading: "loading",
+  Loaded: "loaded",
+  Error: "error",
+} as const;
 
-const initialState: UiState = { phase: "loading", data: null, error: "", submitting: false };
+type InvitePhase = (typeof InvitePhase)[keyof typeof InvitePhase];
+
+const InviteActionType = {
+  LoadSuccess: "loadSuccess",
+  LoadError: "loadError",
+  SetError: "setError",
+  SubmitStart: "submitStart",
+  SubmitError: "submitError",
+} as const;
+
+type Action =
+  | { type: typeof InviteActionType.LoadSuccess; data: AdminInviteState }
+  | { type: typeof InviteActionType.LoadError; error: string }
+  | { type: typeof InviteActionType.SetError; error: string }
+  | { type: typeof InviteActionType.SubmitStart }
+  | { type: typeof InviteActionType.SubmitError; error: string };
+
+const initialState: UiState = { phase: InvitePhase.Loading, data: null, error: "", submitting: false };
 
 function reducer(state: UiState, action: Action): UiState {
   switch (action.type) {
-    case "loadSuccess":
-      return { phase: "loaded", data: action.data, error: "", submitting: false };
-    case "loadError":
-      return { phase: "error", data: null, error: action.error, submitting: false };
-    case "setError":
+    case InviteActionType.LoadSuccess:
+      return { phase: InvitePhase.Loaded, data: action.data, error: "", submitting: false };
+    case InviteActionType.LoadError:
+      return { phase: InvitePhase.Error, data: null, error: action.error, submitting: false };
+    case InviteActionType.SetError:
       return { ...state, error: action.error };
-    case "submitStart":
+    case InviteActionType.SubmitStart:
       return { ...state, error: "", submitting: true };
-    case "submitError":
+    case InviteActionType.SubmitError:
       return { ...state, error: action.error, submitting: false };
   }
 }
@@ -57,17 +79,17 @@ export function InvitePage() {
 
     async function loadInvite() {
       if (!token) {
-        dispatch({ type: "loadError", error: inviteMessages.invalidLink });
+        dispatch({ type: InviteActionType.LoadError, error: inviteMessages.invalidLink });
         return;
       }
 
       try {
         const state = await api.get<AdminInviteState>(ENDPOINTS.admin.invite.state(token));
-        if (!cancelled) dispatch({ type: "loadSuccess", data: state });
+        if (!cancelled) dispatch({ type: InviteActionType.LoadSuccess, data: state });
       } catch (err) {
         if (!cancelled) {
           dispatch({
-            type: "loadError",
+            type: InviteActionType.LoadError,
             error: err instanceof Error ? err.message : inviteMessages.invalidLink,
           });
         }
@@ -83,18 +105,18 @@ export function InvitePage() {
   async function handleSubmit() {
     if (!token || password.length < 8) return;
     if (password !== confirmPassword) {
-      dispatch({ type: "setError", error: inviteMessages.passwordMismatch });
+      dispatch({ type: InviteActionType.SetError, error: inviteMessages.passwordMismatch });
       return;
     }
 
-    dispatch({ type: "submitStart" });
+    dispatch({ type: InviteActionType.SubmitStart });
     try {
       await api.post<AdminUser>(ENDPOINTS.admin.invite.accept, { token, password });
       await refresh();
       navigate("/");
     } catch (err) {
       dispatch({
-        type: "submitError",
+        type: InviteActionType.SubmitError,
         error: err instanceof Error ? err.message : common.unknownError,
       });
     }
@@ -113,7 +135,7 @@ export function InvitePage() {
           </div>
 
           <div className="px-5 py-4 flex flex-col gap-4">
-            {ui.phase === "loading" ? (
+            {ui.phase === InvitePhase.Loading ? (
               <p className="text-sm text-[var(--ds-text-muted)]">{common.loading}</p>
             ) : ui.data ? (
               <>
@@ -162,25 +184,25 @@ export function InvitePage() {
 
           <div className="bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border-subtle)] px-5 py-4 flex justify-end gap-2">
             <DashboardActionButton
-              action="cancel"
+              action={DashboardActionId.Cancel}
               icon={false}
               label={inviteMessages.toLogin}
               onClick={() => navigate("/login")}
               size="control"
               type="button"
-              variant="neutral"
+              variant={DashboardButtonVariant.Neutral}
             />
             {ui.data && (
               <DashboardActionButton
-                action="approve"
+                action={DashboardActionId.Approve}
                 busyLabel={inviteMessages.submitLoading}
                 disabled={password.length < 8 || confirmPassword.length < 8}
                 label={inviteMessages.submit}
                 onClick={handleSubmit}
                 size="control"
-                status={ui.submitting ? "busy" : "idle"}
+                status={ui.submitting ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
                 type="button"
-                variant="primary"
+                variant={DashboardButtonVariant.Primary}
               />
             )}
           </div>

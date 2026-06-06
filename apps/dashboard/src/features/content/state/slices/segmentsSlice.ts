@@ -25,15 +25,26 @@ export interface SegmentEntryInput {
   translations?: Partial<Record<string, string>>;
 }
 
+export const SegmentsActionType = {
+  Hydrate: "hydrate",
+  HydrateOwner: "hydrate-owner",
+  Reorder: "reorder",
+  Move: "move",
+  Add: "add",
+  Remove: "remove",
+  SetLabel: "set-label",
+  Reset: "reset",
+} as const;
+
 export type SegmentsAction =
-  | { type: "hydrate"; entries: Array<{ ownerSlug: string; segments: SegmentEntryInput[] }> }
-  | { type: "hydrate-owner"; ownerSlug: string; segments: SegmentEntryInput[] }
-  | { type: "reorder"; owner: string; from: number; to: number }
-  | { type: "move"; target: string; from: string; to: string; position: number }
-  | { type: "add"; owner: string; target: string; position: number; label?: string }
-  | { type: "remove"; owner: string; target: string }
-  | { type: "set-label"; owner: string; target: string; locale: Locale; label: string }
-  | { type: "reset" };
+  | { type: typeof SegmentsActionType.Hydrate; entries: Array<{ ownerSlug: string; segments: SegmentEntryInput[] }> }
+  | { type: typeof SegmentsActionType.HydrateOwner; ownerSlug: string; segments: SegmentEntryInput[] }
+  | { type: typeof SegmentsActionType.Reorder; owner: string; from: number; to: number }
+  | { type: typeof SegmentsActionType.Move; target: string; from: string; to: string; position: number }
+  | { type: typeof SegmentsActionType.Add; owner: string; target: string; position: number; label?: string }
+  | { type: typeof SegmentsActionType.Remove; owner: string; target: string }
+  | { type: typeof SegmentsActionType.SetLabel; owner: string; target: string; locale: Locale; label: string }
+  | { type: typeof SegmentsActionType.Reset };
 
 function reposition(arr: SegmentEntry[]): SegmentEntry[] {
   return arr.map((s, i) => ({ ...s, position: i }));
@@ -49,7 +60,7 @@ export function normalizeSegmentEntry(entry: SegmentEntryInput): SegmentEntry {
 
 export function segmentsReducer(state: SegmentsState, action: SegmentsAction): SegmentsState {
   switch (action.type) {
-    case "hydrate": {
+    case SegmentsActionType.Hydrate: {
       const byOwner: SegmentsState["byOwner"] = {};
       for (const e of action.entries) {
         const segments = e.segments.map(normalizeSegmentEntry);
@@ -57,7 +68,7 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
       }
       return { byOwner };
     }
-    case "hydrate-owner": {
+    case SegmentsActionType.HydrateOwner: {
       const segments = action.segments.map(normalizeSegmentEntry);
       return {
         byOwner: {
@@ -66,7 +77,7 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
         },
       };
     }
-    case "reorder": {
+    case SegmentsActionType.Reorder: {
       const entry = state.byOwner[action.owner];
       if (!entry) return state;
       const next = entry.current.slice();
@@ -75,7 +86,7 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
       next.splice(action.to, 0, moved);
       return { byOwner: { ...state.byOwner, [action.owner]: { ...entry, current: reposition(next) } } };
     }
-    case "move": {
+    case SegmentsActionType.Move: {
       const fromEntry = state.byOwner[action.from];
       const toEntry = state.byOwner[action.to];
       if (!fromEntry || !toEntry) return state;
@@ -92,7 +103,7 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
         },
       };
     }
-    case "add": {
+    case SegmentsActionType.Add: {
       const entry = state.byOwner[action.owner];
       if (!entry) return state;
       const next = entry.current.slice();
@@ -103,7 +114,7 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
       });
       return { byOwner: { ...state.byOwner, [action.owner]: { ...entry, current: reposition(next) } } };
     }
-    case "remove": {
+    case SegmentsActionType.Remove: {
       const entry = state.byOwner[action.owner];
       if (!entry) return state;
       return {
@@ -116,7 +127,7 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
         },
       };
     }
-    case "set-label": {
+    case SegmentsActionType.SetLabel: {
       const entry = state.byOwner[action.owner];
       if (!entry) return state;
       return {
@@ -133,7 +144,7 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
         },
       };
     }
-    case "reset":
+    case SegmentsActionType.Reset:
       return {
         byOwner: Object.fromEntries(Object.entries(state.byOwner).map(([k, v]) => [k, { ...v, current: v.initial }])),
       };

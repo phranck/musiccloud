@@ -24,7 +24,7 @@
  * in and pulls cover art from another adapter.
  */
 
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -297,7 +297,7 @@ function combinedConfidence(mbScore: number | undefined, projectScore: number): 
 }
 
 export const musicbrainzAdapter = {
-  id: SERVICE.MUSICBRAINZ,
+  id: Service.MusicBrainz,
   displayName: "MusicBrainz",
   capabilities: {
     supportsIsrc: true,
@@ -320,15 +320,15 @@ export const musicbrainzAdapter = {
     );
 
     if (response.status === 404) {
-      throw serviceNotFoundError(SERVICE.MUSICBRAINZ, RESOURCE_KIND.TRACK, trackId);
+      throw serviceNotFoundError(Service.MusicBrainz, ResourceKind.Track, trackId);
     }
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.MUSICBRAINZ, response.status, RESOURCE_KIND.TRACK, trackId);
+      throw serviceHttpError(Service.MusicBrainz, response.status, ResourceKind.Track, trackId);
     }
 
     const data = await parseMusicBrainzJson<MbRecording>(response, `recording/${trackId}`);
     if (!data) {
-      throw serviceHttpError(SERVICE.MUSICBRAINZ, 502, RESOURCE_KIND.TRACK, trackId);
+      throw serviceHttpError(Service.MusicBrainz, 502, ResourceKind.Track, trackId);
     }
     return mapRecording(data);
   },
@@ -440,17 +440,17 @@ export const musicbrainzAdapter = {
         if (releaseGroup) return mapReleaseGroup(releaseGroup);
       }
       if (releaseGroupResponse.status !== 404 && !releaseGroupResponse.ok) {
-        throw serviceHttpError(SERVICE.MUSICBRAINZ, releaseGroupResponse.status, RESOURCE_KIND.ALBUM, albumId);
+        throw serviceHttpError(Service.MusicBrainz, releaseGroupResponse.status, ResourceKind.Album, albumId);
       }
-      throw serviceNotFoundError(SERVICE.MUSICBRAINZ, RESOURCE_KIND.ALBUM, albumId);
+      throw serviceNotFoundError(Service.MusicBrainz, ResourceKind.Album, albumId);
     }
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.MUSICBRAINZ, response.status, RESOURCE_KIND.ALBUM, albumId);
+      throw serviceHttpError(Service.MusicBrainz, response.status, ResourceKind.Album, albumId);
     }
 
     const data = await parseMusicBrainzJson<MbReleaseDetail>(response, `release/${albumId}`);
     if (!data) {
-      throw serviceHttpError(SERVICE.MUSICBRAINZ, 502, RESOURCE_KIND.ALBUM, albumId);
+      throw serviceHttpError(Service.MusicBrainz, 502, ResourceKind.Album, albumId);
     }
     return mapRelease(data);
   },
@@ -518,15 +518,15 @@ export const musicbrainzAdapter = {
     const response = await mbFetch(`/artist/${encodeURIComponent(artistId)}?inc=tags&fmt=json`);
 
     if (response.status === 404) {
-      throw serviceNotFoundError(SERVICE.MUSICBRAINZ, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceNotFoundError(Service.MusicBrainz, ResourceKind.Artist, artistId);
     }
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.MUSICBRAINZ, response.status, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceHttpError(Service.MusicBrainz, response.status, ResourceKind.Artist, artistId);
     }
 
     const data = await parseMusicBrainzJson<MbArtist>(response, `artist/${artistId}`);
     if (!data) {
-      throw serviceHttpError(SERVICE.MUSICBRAINZ, 502, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceHttpError(Service.MusicBrainz, 502, ResourceKind.Artist, artistId);
     }
     return mapArtist(data);
   },

@@ -2,8 +2,19 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { Player } from "@/components/playback/Player";
 import { useT } from "@/i18n/context";
+import { sendMusicSignal } from "@/lib/analytics/umami";
+import type { MediaCardContentType } from "@/lib/types/media-card";
 
-export type AudioPreviewStatus = "loading" | "ready" | "playing" | "paused" | "ended" | "unavailable";
+export const AudioPreviewStatus = {
+  Loading: "loading",
+  Ready: "ready",
+  Playing: "playing",
+  Paused: "paused",
+  Ended: "ended",
+  Unavailable: "unavailable",
+} as const;
+
+export type AudioPreviewStatus = (typeof AudioPreviewStatus)[keyof typeof AudioPreviewStatus];
 
 interface AudioPreviewPlayerProps {
   /** Immediately-playable preview URL. Optional when `refreshShortId` is set. */
@@ -13,6 +24,7 @@ interface AudioPreviewPlayerProps {
    *  player mounts in a loading state and fetches on mount. */
   refreshShortId?: string;
   trackTitle: string;
+  contentType?: MediaCardContentType;
   onStatusChange?: (status: AudioPreviewStatus) => void;
 }
 
@@ -30,52 +42,93 @@ interface AudioPreviewPlayerProps {
  *   error    — Audio URL unplayable. Component renders unavailable state.
  *   unavailable — Backend confirmed no preview can be produced for this track.
  */
+const PlayerPhase = {
+  Loading: "loading",
+  Idle: "idle",
+  Playing: "playing",
+  Paused: "paused",
+  Error: "error",
+  Unavailable: "unavailable",
+} as const;
+
+const PlayerActionType = {
+  UrlReady: "URL_READY",
+  UrlUnavailable: "URL_UNAVAILABLE",
+  MetadataLoaded: "METADATA_LOADED",
+  Play: "PLAY",
+  Pause: "PAUSE",
+  TimeUpdate: "TIME_UPDATE",
+  Ended: "ENDED",
+  Error: "ERROR",
+} as const;
+
+const PreviewAnalyticsAction = {
+  Unavailable: "unavailable",
+  Ended: "ended",
+  Error: "error",
+  Resume: "resume",
+  Play: "play",
+  Pause: "pause",
+} as const;
+
+const PreviewAnalyticsSource = {
+  Refresh: "refresh",
+} as const;
+
+const AudioContextState = {
+  Closed: "closed",
+  Running: "running",
+  Suspended: "suspended",
+} as const;
+
 type PlayerState =
-  | { phase: "loading" }
-  | { phase: "idle"; duration: number }
-  | { phase: "playing"; currentTime: number; duration: number }
-  | { phase: "paused"; currentTime: number; duration: number }
-  | { phase: "error" }
-  | { phase: "unavailable" };
+  | { phase: typeof PlayerPhase.Loading }
+  | { phase: typeof PlayerPhase.Idle; duration: number }
+  | { phase: typeof PlayerPhase.Playing; currentTime: number; duration: number }
+  | { phase: typeof PlayerPhase.Paused; currentTime: number; duration: number }
+  | { phase: typeof PlayerPhase.Error }
+  | { phase: typeof PlayerPhase.Unavailable };
 
 type PlayerAction =
-  | { type: "URL_READY" }
-  | { type: "URL_UNAVAILABLE" }
-  | { type: "METADATA_LOADED"; duration: number }
-  | { type: "PLAY" }
-  | { type: "PAUSE" }
-  | { type: "TIME_UPDATE"; currentTime: number; duration: number }
-  | { type: "ENDED" }
-  | { type: "ERROR" };
+  | { type: typeof PlayerActionType.UrlReady }
+  | { type: typeof PlayerActionType.UrlUnavailable }
+  | { type: typeof PlayerActionType.MetadataLoaded; duration: number }
+  | { type: typeof PlayerActionType.Play }
+  | { type: typeof PlayerActionType.Pause }
+  | { type: typeof PlayerActionType.TimeUpdate; currentTime: number; duration: number }
+  | { type: typeof PlayerActionType.Ended }
+  | { type: typeof PlayerActionType.Error };
 
 function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
   switch (action.type) {
-    case "URL_READY":
-      if (state.phase === "loading") return { phase: "idle", duration: 30 };
+    case PlayerActionType.UrlReady:
+      if (state.phase === PlayerPhase.Loading) return { phase: PlayerPhase.Idle, duration: 30 };
       return state;
-    case "URL_UNAVAILABLE":
-      if (state.phase === "loading") return { phase: "unavailable" };
+    case PlayerActionType.UrlUnavailable:
+      if (state.phase === PlayerPhase.Loading) return { phase: PlayerPhase.Unavailable };
       return state;
-    case "METADATA_LOADED":
-      if (state.phase === "idle") return { ...state, duration: action.duration };
-      if (state.phase === "playing" || state.phase === "paused") return { ...state, duration: action.duration };
+    case PlayerActionType.MetadataLoaded:
+      if (state.phase === PlayerPhase.Idle) return { ...state, duration: action.duration };
+      if (state.phase === PlayerPhase.Playing || state.phase === PlayerPhase.Paused)
+        return { ...state, duration: action.duration };
       return state;
-    case "PLAY":
-      if (state.phase === "idle") return { phase: "playing", currentTime: 0, duration: state.duration };
-      if (state.phase === "paused") return { ...state, phase: "playing" };
+    case PlayerActionType.Play:
+      if (state.phase === PlayerPhase.Idle)
+        return { phase: PlayerPhase.Playing, currentTime: 0, duration: state.duration };
+      if (state.phase === PlayerPhase.Paused) return { ...state, phase: PlayerPhase.Playing };
       return state;
-    case "PAUSE":
-      if (state.phase === "playing") return { ...state, phase: "paused" };
+    case PlayerActionType.Pause:
+      if (state.phase === PlayerPhase.Playing) return { ...state, phase: PlayerPhase.Paused };
       return state;
-    case "TIME_UPDATE":
-      if (state.phase === "playing" || state.phase === "paused")
+    case PlayerActionType.TimeUpdate:
+      if (state.phase === PlayerPhase.Playing || state.phase === PlayerPhase.Paused)
         return { ...state, currentTime: action.currentTime, duration: action.duration };
       return state;
-    case "ENDED":
-      if (state.phase === "playing") return { phase: "idle", duration: state.duration };
+    case PlayerActionType.Ended:
+      if (state.phase === PlayerPhase.Playing) return { phase: PlayerPhase.Idle, duration: state.duration };
       return state;
-    case "ERROR":
-      return { phase: "error" };
+    case PlayerActionType.Error:
+      return { phase: PlayerPhase.Error };
     default:
       return state;
   }
@@ -187,10 +240,13 @@ export function AudioPreviewPlayer({
   previewUrl,
   refreshShortId,
   trackTitle,
+  contentType,
   onStatusChange,
 }: AudioPreviewPlayerProps) {
   const t = useT();
-  const initialPhase: PlayerState = previewUrl ? { phase: "idle", duration: 30 } : { phase: "loading" };
+  const initialPhase: PlayerState = previewUrl
+    ? { phase: PlayerPhase.Idle, duration: 30 }
+    : { phase: PlayerPhase.Loading };
   const [state, dispatch] = useReducer(playerReducer, initialPhase);
   const [effectiveUrl, setEffectiveUrl] = useReducer(
     (_: string | null, next: string | null) => next,
@@ -223,17 +279,27 @@ export function AudioPreviewPlayer({
         const nextPreviewUrl = await fetchPreviewUrl(refreshShortId, controller.signal);
         if (nextPreviewUrl) {
           setEffectiveUrl(nextPreviewUrl);
-          dispatch({ type: "URL_READY" });
+          dispatch({ type: PlayerActionType.UrlReady });
         } else {
-          dispatch({ type: "URL_UNAVAILABLE" });
+          sendMusicSignal("music_preview_interaction", {
+            action: PreviewAnalyticsAction.Unavailable,
+            content_type: contentType,
+            source: PreviewAnalyticsSource.Refresh,
+          });
+          dispatch({ type: PlayerActionType.UrlUnavailable });
         }
       } catch (err) {
         if ((err as { name?: string })?.name === "AbortError") return;
-        dispatch({ type: "URL_UNAVAILABLE" });
+        sendMusicSignal("music_preview_interaction", {
+          action: PreviewAnalyticsAction.Unavailable,
+          content_type: contentType,
+          source: PreviewAnalyticsSource.Refresh,
+        });
+        dispatch({ type: PlayerActionType.UrlUnavailable });
       }
     })();
     return () => controller.abort();
-  }, [previewUrl, refreshShortId]);
+  }, [contentType, previewUrl, refreshShortId]);
 
   const stopSpectrumLoop = useCallback(({ clearBands = true }: { clearBands?: boolean } = {}) => {
     if (spectrumFrameRef.current !== null) cancelAnimationFrame(spectrumFrameRef.current);
@@ -341,7 +407,7 @@ export function AudioPreviewPlayer({
 
     const audioContext = audioContextRef.current;
     audioContextRef.current = null;
-    if (audioContext && audioContext.state !== "closed") {
+    if (audioContext && audioContext.state !== AudioContextState.Closed) {
       audioContext.onstatechange = null;
       void audioContext.close().catch(() => {
         // Closing can fail in interrupted browser audio sessions. The audio
@@ -381,8 +447,8 @@ export function AudioPreviewPlayer({
   const ensureSpectrumAnalyzer = useCallback(
     async (audio: HTMLAudioElement) => {
       if (analysersRef.current) {
-        if (audioContextRef.current?.state === "suspended") await audioContextRef.current.resume();
-        return audioContextRef.current?.state === "running";
+        if (audioContextRef.current?.state === AudioContextState.Suspended) await audioContextRef.current.resume();
+        return audioContextRef.current?.state === AudioContextState.Running;
       }
 
       const AudioContextConstructor = getAudioContextConstructor();
@@ -390,20 +456,21 @@ export function AudioPreviewPlayer({
 
       const audioContext = audioContextRef.current ?? new AudioContextConstructor();
       audioContextRef.current = audioContext;
-      if (audioContext.state === "suspended") await audioContext.resume();
-      if (audioContext.state !== "running") return false;
+      if (audioContext.state === AudioContextState.Suspended) await audioContext.resume();
+      if (audioContext.state !== AudioContextState.Running) return false;
 
       audioContext.onstatechange = () => {
-        if (audioContext.state === "running") {
+        if (audioContext.state === AudioContextState.Running) {
           if (!audio.paused && !audio.ended) startSpectrumLoop();
           return;
         }
         stopSpectrumLoop({ clearBands: false });
-        if (!audio.paused && !audio.ended && audioContext.state === "suspended") {
+        if (!audio.paused && !audio.ended && audioContext.state === AudioContextState.Suspended) {
           void audioContext
             .resume()
             .then(() => {
-              if (audioContext.state === "running" && !audio.paused && !audio.ended) startSpectrumLoop();
+              if (audioContext.state === AudioContextState.Running && !audio.paused && !audio.ended)
+                startSpectrumLoop();
             })
             .catch(() => setSpectrumBands(null));
         }
@@ -449,7 +516,7 @@ export function AudioPreviewPlayer({
   );
 
   useEffect(() => {
-    if (state.phase !== "playing") return;
+    if (state.phase !== PlayerPhase.Playing) return;
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -457,7 +524,7 @@ export function AudioPreviewPlayer({
       if (spectrumRecoveryInFlightRef.current || audio.paused || audio.ended) return;
       const audioContext = audioContextRef.current;
       const needsRecovery =
-        !analysersRef.current || audioContext?.state !== "running" || spectrumFrameRef.current === null;
+        !analysersRef.current || audioContext?.state !== AudioContextState.Running || spectrumFrameRef.current === null;
       if (!needsRecovery) return;
 
       spectrumRecoveryInFlightRef.current = true;
@@ -492,12 +559,12 @@ export function AudioPreviewPlayer({
 
     const handleLoadedMetadata = () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
-      dispatch({ type: "METADATA_LOADED", duration: dur });
+      dispatch({ type: PlayerActionType.MetadataLoaded, duration: dur });
       setProgressRatioValue(resolveAudioProgressRatio(audio));
     };
     const handleTimeUpdate = () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
-      dispatch({ type: "TIME_UPDATE", currentTime: audio.currentTime, duration: dur });
+      dispatch({ type: PlayerActionType.TimeUpdate, currentTime: audio.currentTime, duration: dur });
       setProgressRatioValue(resolveAudioProgressRatio(audio));
     };
     const handleEnded = () => {
@@ -505,11 +572,19 @@ export function AudioPreviewPlayer({
       setProgressRatioValue(1);
       startProgressRewind();
       startSpectrumFadeOut();
-      dispatch({ type: "ENDED" });
+      sendMusicSignal("music_preview_interaction", {
+        action: PreviewAnalyticsAction.Ended,
+        content_type: contentType,
+      });
+      dispatch({ type: PlayerActionType.Ended });
     };
     const handleError = () => {
       stopProgressLoop();
-      dispatch({ type: "ERROR" });
+      sendMusicSignal("music_preview_interaction", {
+        action: PreviewAnalyticsAction.Error,
+        content_type: contentType,
+      });
+      dispatch({ type: PlayerActionType.Error });
     };
 
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
@@ -533,6 +608,7 @@ export function AudioPreviewPlayer({
     };
   }, [
     effectiveUrl,
+    contentType,
     setProgressRatioValue,
     startProgressRewind,
     startSpectrumFadeOut,
@@ -545,7 +621,7 @@ export function AudioPreviewPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (state.phase === "idle" || state.phase === "paused") {
+    if (state.phase === PlayerPhase.Idle || state.phase === PlayerPhase.Paused) {
       stopProgressRewind();
       stopSpectrumLoop({ clearBands: false });
       audio.muted = false;
@@ -553,7 +629,11 @@ export function AudioPreviewPlayer({
       audio
         .play()
         .then(() => {
-          dispatch({ type: "PLAY" });
+          sendMusicSignal("music_preview_interaction", {
+            action: hasStartedRef.current ? PreviewAnalyticsAction.Resume : PreviewAnalyticsAction.Play,
+            content_type: contentType,
+          });
+          dispatch({ type: PlayerActionType.Play });
           hasStartedRef.current = true;
           startProgressLoop(audio);
           void ensureSpectrumAnalyzer(audio)
@@ -562,14 +642,25 @@ export function AudioPreviewPlayer({
             })
             .catch(() => setSpectrumBands(null));
         })
-        .catch(() => dispatch({ type: "ERROR" }));
-    } else if (state.phase === "playing") {
+        .catch(() => {
+          sendMusicSignal("music_preview_interaction", {
+            action: PreviewAnalyticsAction.Error,
+            content_type: contentType,
+          });
+          dispatch({ type: PlayerActionType.Error });
+        });
+    } else if (state.phase === PlayerPhase.Playing) {
       audio.pause();
       stopProgressLoop(audio);
       startSpectrumFadeOut();
-      dispatch({ type: "PAUSE" });
+      sendMusicSignal("music_preview_interaction", {
+        action: PreviewAnalyticsAction.Pause,
+        content_type: contentType,
+      });
+      dispatch({ type: PlayerActionType.Pause });
     }
   }, [
+    contentType,
     ensureSpectrumAnalyzer,
     startProgressLoop,
     startSpectrumFadeOut,
@@ -580,32 +671,34 @@ export function AudioPreviewPlayer({
     stopSpectrumLoop,
   ]);
 
-  const isLoading = state.phase === "loading";
-  const isUnavailable = state.phase === "error" || state.phase === "unavailable";
+  const isLoading = state.phase === PlayerPhase.Loading;
+  const isUnavailable = state.phase === PlayerPhase.Error || state.phase === PlayerPhase.Unavailable;
   const isDisabled = isLoading || isUnavailable;
-  const isPlaying = state.phase === "playing";
+  const isPlaying = state.phase === PlayerPhase.Playing;
 
   useEffect(() => {
     const status: AudioPreviewStatus = isLoading
-      ? "loading"
+      ? AudioPreviewStatus.Loading
       : isUnavailable
-        ? "unavailable"
-        : state.phase === "playing"
-          ? "playing"
-          : state.phase === "paused"
-            ? "paused"
-            : "ready";
+        ? AudioPreviewStatus.Unavailable
+        : state.phase === PlayerPhase.Playing
+          ? AudioPreviewStatus.Playing
+          : state.phase === PlayerPhase.Paused
+            ? AudioPreviewStatus.Paused
+            : AudioPreviewStatus.Ready;
     onStatusChange?.(status);
   }, [isLoading, isUnavailable, onStatusChange, state.phase]);
-  const currentTime = state.phase === "playing" || state.phase === "paused" ? state.currentTime : 0;
+  const currentTime = state.phase === PlayerPhase.Playing || state.phase === PlayerPhase.Paused ? state.currentTime : 0;
   const duration =
-    state.phase === "idle" || state.phase === "playing" || state.phase === "paused" ? state.duration : 30;
+    state.phase === PlayerPhase.Idle || state.phase === PlayerPhase.Playing || state.phase === PlayerPhase.Paused
+      ? state.duration
+      : 30;
 
   const timeText = isLoading
     ? t("audio.previewLoading")
     : isUnavailable
       ? t("audio.previewUnavailable")
-      : formatTime(state.phase === "idle" ? duration : currentTime);
+      : formatTime(state.phase === PlayerPhase.Idle ? duration : currentTime);
 
   const ariaLabel = isLoading
     ? t("audio.previewLoading")

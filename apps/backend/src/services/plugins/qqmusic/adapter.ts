@@ -30,7 +30,7 @@
  * The publicly-reachable endpoint surfaces neither. `findByIsrc`
  * returns null; cross-service resolves go through text search.
  */
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
@@ -300,7 +300,7 @@ export const qqmusicAdapter: ServiceAdapter = {
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const track = await getTrackByMid(trackId);
     if (!track) {
-      throw serviceNotFoundError(SERVICE.QQMUSIC, RESOURCE_KIND.TRACK, trackId);
+      throw serviceNotFoundError(Service.QQMusic, ResourceKind.Track, trackId);
     }
     return track;
   },
@@ -372,7 +372,7 @@ export const qqmusicAdapter: ServiceAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await getAlbumByMid(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.QQMUSIC, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.QQMusic, ResourceKind.Album, albumId);
     return album;
   },
 

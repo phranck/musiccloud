@@ -1,4 +1,9 @@
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+} from "@musiccloud/dashboard-ui";
 import { FileTextIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
@@ -8,6 +13,7 @@ import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { useI18n } from "@/context/I18nContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAdminUsers, useDeleteUser } from "@/features/system/hooks/useAdminUsers";
+import { AdminRole } from "@/shared/constants/domain";
 import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 import { UserAvatar } from "./UserAvatar";
@@ -32,7 +38,7 @@ export function UsersPage() {
     <PageLayout>
       <PageHeader title={usersMessages.title}>
         <DashboardActionButton
-          action="create"
+          action={DashboardActionId.Create}
           icon={<PlusCircleIcon weight="duotone" className="w-3.5 h-3.5" />}
           label={usersMessages.inviteUser}
           onClick={() => setShowCreate(true)}
@@ -59,16 +65,16 @@ export function UsersPage() {
                   <p className="font-medium text-[var(--ds-text)]">{user.username}</p>
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      user.role === "owner"
+                      user.role === AdminRole.Owner
                         ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                        : user.role === "admin"
+                        : user.role === AdminRole.Admin
                           ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
                           : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
                     }`}
                   >
-                    {user.role === "owner"
+                    {user.role === AdminRole.Owner
                       ? usersMessages.role.owner
-                      : user.role === "admin"
+                      : user.role === AdminRole.Admin
                         ? usersMessages.role.admin
                         : usersMessages.role.moderator}
                   </span>
@@ -83,7 +89,7 @@ export function UsersPage() {
               <div className="flex items-center gap-2 shrink-0">
                 {(me?.isOwner || user.id === me?.id) && (
                   <DashboardActionButton
-                    action="edit"
+                    action={DashboardActionId.Edit}
                     icon={<FileTextIcon weight="duotone" className="w-3.5 h-3.5" />}
                     label={usersMessages.editCard.editTooltip}
                     onClick={() => setEditingUserId(user.id)}
@@ -93,7 +99,7 @@ export function UsersPage() {
                 )}
                 {me?.isOwner && user.id !== me?.id && (
                   <DashboardActionButton
-                    action="delete"
+                    action={DashboardActionId.Delete}
                     icon={<TrashIcon weight="duotone" className="w-3.5 h-3.5" />}
                     label={usersMessages.remove}
                     onClick={() => setDeleteId(user.id)}
@@ -120,22 +126,22 @@ export function UsersPage() {
         </div>
         <Dialog.Footer>
           <DashboardActionButton
-            action="cancel"
+            action={DashboardActionId.Cancel}
             icon={false}
             label={common.cancel}
             onClick={() => setDeleteId(null)}
             type="button"
-            variant="neutral"
+            variant={DashboardButtonVariant.Neutral}
           />
           <DashboardActionButton
-            action="delete"
+            action={DashboardActionId.Delete}
             busyLabel="\u2026"
             icon={false}
             label={common.remove}
             onClick={() => {
               if (deleteId !== null) deleteMutation.mutate(deleteId, { onSuccess: () => setDeleteId(null) });
             }}
-            status={deleteMutation.isPending ? "busy" : "idle"}
+            status={deleteMutation.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
             type="button"
           />
         </Dialog.Footer>

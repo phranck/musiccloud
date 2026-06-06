@@ -1,12 +1,18 @@
-import { DashboardActionButton } from "@musiccloud/dashboard-ui";
+import {
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardActionStatus,
+  DashboardButtonVariant,
+} from "@musiccloud/dashboard-ui";
 import { DownloadIcon, PlusCircleIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useReducer } from "react";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout, PageSplitAside, PageSplitLayout, PageSplitMain } from "@/components/ui/PageLayout";
 import { useI18n } from "@/context/I18nContext";
-import type { MarkdownWidget } from "@/features/system/hooks/useMarkdownWidgets";
 import {
+  type MarkdownWidget,
+  MarkdownWidgetType,
   useCreateMarkdownWidget,
   useDeleteMarkdownWidget,
   useMarkdownWidgets,
@@ -16,6 +22,13 @@ import { WidgetEditorPanel } from "@/features/system/WidgetEditorPanel";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 
 type DraftPatch = Partial<MarkdownWidget>;
+
+const EditorActionType = {
+  Select: "select",
+  ClearSelection: "clearSelection",
+  UpdateDraft: "updateDraft",
+  MarkSaved: "markSaved",
+} as const;
 
 function draftFromWidget(widget: MarkdownWidget): DraftPatch {
   return {
@@ -37,23 +50,23 @@ interface EditorState {
 }
 
 type EditorAction =
-  | { type: "select"; widget: MarkdownWidget }
-  | { type: "clearSelection" }
-  | { type: "updateDraft"; updater: (d: DraftPatch) => DraftPatch }
-  | { type: "markSaved" };
+  | { type: typeof EditorActionType.Select; widget: MarkdownWidget }
+  | { type: typeof EditorActionType.ClearSelection }
+  | { type: typeof EditorActionType.UpdateDraft; updater: (d: DraftPatch) => DraftPatch }
+  | { type: typeof EditorActionType.MarkSaved };
 
 const editorInitial: EditorState = { selectedId: null, draft: null, savedOk: false };
 
 function editorReducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
-    case "select":
+    case EditorActionType.Select:
       return { selectedId: action.widget.id, draft: draftFromWidget(action.widget), savedOk: false };
-    case "clearSelection":
+    case EditorActionType.ClearSelection:
       return editorInitial;
-    case "updateDraft":
+    case EditorActionType.UpdateDraft:
       if (!state.draft) return state;
       return { ...state, draft: action.updater(state.draft), savedOk: false };
-    case "markSaved":
+    case EditorActionType.MarkSaved:
       return { ...state, savedOk: true };
   }
 }
@@ -73,7 +86,7 @@ export function MarkdownWidgetsPage() {
   // Auto-select first widget on initial load only.
   useEffect(() => {
     if (selectedId === null && widgets.length > 0) {
-      dispatch({ type: "select", widget: widgets[0] });
+      dispatch({ type: EditorActionType.Select, widget: widgets[0] });
     }
   }, [widgets, selectedId]);
 
@@ -82,12 +95,12 @@ export function MarkdownWidgetsPage() {
   const widgetTypeOptions = useMemo(
     () => [
       {
-        value: "html" as const,
+        value: MarkdownWidgetType.Html,
         label: widgetMessages.types.html.label,
         description: widgetMessages.types.html.description,
       },
       {
-        value: "iframe" as const,
+        value: MarkdownWidgetType.Iframe,
         label: widgetMessages.types.iframe.label,
         description: widgetMessages.types.iframe.description,
       },
@@ -96,7 +109,7 @@ export function MarkdownWidgetsPage() {
   );
 
   function updateDraft(updater: (d: DraftPatch) => DraftPatch) {
-    dispatch({ type: "updateDraft", updater });
+    dispatch({ type: EditorActionType.UpdateDraft, updater });
   }
 
   function handleAddWidget() {
@@ -104,12 +117,12 @@ export function MarkdownWidgetsPage() {
       {
         key: `widget-${widgets.length + 1}`,
         name: `Widget ${widgets.length + 1}`,
-        type: "html",
+        type: MarkdownWidgetType.Html,
         enabled: true,
         defaultHeight: 320,
       },
       {
-        onSuccess: (created) => dispatch({ type: "select", widget: created }),
+        onSuccess: (created) => dispatch({ type: EditorActionType.Select, widget: created }),
       },
     );
   }
@@ -119,8 +132,8 @@ export function MarkdownWidgetsPage() {
       onSuccess: () => {
         if (selectedId !== id) return;
         const next = widgets.find((w) => w.id !== id);
-        if (next) dispatch({ type: "select", widget: next });
-        else dispatch({ type: "clearSelection" });
+        if (next) dispatch({ type: EditorActionType.Select, widget: next });
+        else dispatch({ type: EditorActionType.ClearSelection });
       },
     });
   }
@@ -130,7 +143,7 @@ export function MarkdownWidgetsPage() {
     saveWidget.mutate(
       { id: selectedId, data: draft },
       {
-        onSuccess: () => dispatch({ type: "markSaved" }),
+        onSuccess: () => dispatch({ type: EditorActionType.MarkSaved }),
       },
     );
   }
@@ -141,13 +154,13 @@ export function MarkdownWidgetsPage() {
     <PageLayout>
       <PageHeader title={widgetMessages.title}>
         <DashboardActionButton
-          action="save"
+          action={DashboardActionId.Save}
           busyLabel={common.saving}
           disabled={!draft}
           icon={<DownloadIcon weight="duotone" className="size-3.5" />}
           label={savedOk ? common.saved : common.save}
           onClick={handleSave}
-          status={saveWidget.isPending ? "busy" : "idle"}
+          status={saveWidget.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
           type="button"
         />
       </PageHeader>
@@ -167,12 +180,12 @@ export function MarkdownWidgetsPage() {
                     <p className="text-xs text-[var(--ds-text-muted)]">{widgetMessages.widgetsHint}</p>
                   </div>
                   <DashboardActionButton
-                    action="create"
+                    action={DashboardActionId.Create}
                     icon={<PlusCircleIcon weight="duotone" className="size-3.5" />}
                     label={widgetMessages.newWidget}
                     onClick={handleAddWidget}
                     type="button"
-                    variant="neutral"
+                    variant={DashboardButtonVariant.Neutral}
                   />
                 </div>
 
@@ -189,7 +202,7 @@ export function MarkdownWidgetsPage() {
                         <button
                           key={widget.id}
                           type="button"
-                          onClick={() => dispatch({ type: "select", widget })}
+                          onClick={() => dispatch({ type: EditorActionType.Select, widget })}
                           className={`w-full rounded-card border px-3 py-3 text-left transition-colors ${
                             isSelected
                               ? "border-[var(--color-primary)] bg-[var(--ds-bg-elevated)]"

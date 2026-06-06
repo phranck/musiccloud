@@ -1,4 +1,4 @@
-import { RESOURCE_KIND, SERVICE } from "@musiccloud/shared";
+import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
@@ -440,7 +440,7 @@ export const soundcloudAdapter = {
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const album = await fetchAlbumByPath(albumId);
-    if (!album) throw serviceNotFoundError(SERVICE.SOUNDCLOUD, RESOURCE_KIND.ALBUM, albumId);
+    if (!album) throw serviceNotFoundError(Service.SoundCloud, ResourceKind.Album, albumId);
     return album;
   },
 
@@ -500,7 +500,7 @@ export const soundcloudAdapter = {
 
     const response = await scApiFetch(`/resolve?url=${encodeURIComponent(pageUrl)}`);
     if (!response.ok) {
-      throw serviceHttpError(SERVICE.SOUNDCLOUD, response.status, RESOURCE_KIND.ARTIST, artistId);
+      throw serviceHttpError(Service.SoundCloud, response.status, ResourceKind.Artist, artistId);
     }
 
     const data = (await response.json()) as ScUserData;

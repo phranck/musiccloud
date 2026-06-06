@@ -1,10 +1,10 @@
-import { SERVICE } from "@musiccloud/shared";
+import { Service } from "@musiccloud/shared";
 import type { ServicePlugin } from "../manifest.js";
 import { youtubeAdapter } from "./adapter.js";
 
 export const youtubePlugin: ServicePlugin = {
   manifest: {
-    id: SERVICE.YOUTUBE,
+    id: Service.YouTube,
     displayName: "YouTube",
     description: "Resolves YouTube video URLs via the YouTube Data API v3.",
     defaultEnabled: true,

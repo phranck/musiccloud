@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { useT } from "@/i18n/context";
 import { isMusicUrl } from "@/lib/platform/url";
-import type { InputState } from "@/lib/types/app";
+import { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
 export type { InputState };
@@ -107,18 +107,20 @@ export function HeroInput({
   );
 
   const handleSubmitClick = useCallback(() => {
-    if (value.trim() && state !== "loading") {
+    if (value.trim() && state !== InputState.Loading) {
       onSubmit(value.trim());
     }
   }, [value, state, onSubmit]);
 
-  const displayValue = state === "success" && songName ? songName : value;
+  const displayValue = state === InputState.Success && songName ? songName : value;
 
   return (
     <div
       className={cn(
         "relative w-full transition-all duration-500",
-        state === "success" || compact ? "max-w-full sm:max-w-[480px]" : "max-w-full sm:max-w-[520px] md:max-w-[640px]",
+        state === InputState.Success || compact
+          ? "max-w-full sm:max-w-[480px]"
+          : "max-w-full sm:max-w-[520px] md:max-w-[640px]",
       )}
     >
       <div className="relative">
@@ -128,12 +130,12 @@ export function HeroInput({
             "bg-surface",
             "border",
             "transition-all duration-[250ms]",
-            state === "idle" && (compact ? "border-[var(--color-accent)]/25" : "border-white/15"),
-            state === "focused" &&
+            state === InputState.Idle && (compact ? "border-[var(--color-accent)]/25" : "border-white/15"),
+            state === InputState.Focused &&
               (compact ? ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"] : "border-white/10"),
-            state === "loading" && "border-accent",
-            state === "success" && ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"],
-            state === "error" && ["border-error", "shadow-[0_0_12px_rgba(255,69,58,0.25)]"],
+            state === InputState.Loading && "border-accent",
+            state === InputState.Success && ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"],
+            state === InputState.Error && ["border-error", "shadow-[0_0_12px_rgba(255,69,58,0.25)]"],
           )}
         >
           <input
@@ -147,19 +149,19 @@ export function HeroInput({
             onFocus={() => onFocus?.()}
             onBlur={() => onBlur?.()}
             placeholder={t("hero.placeholder")}
-            readOnly={state === "loading" || state === "success"}
+            readOnly={state === InputState.Loading || state === InputState.Success}
             className={cn(
               "flex-1 bg-transparent border-0 px-6 text-lg font-medium text-text-primary tracking-[-0.01em]",
               "placeholder:text-text-muted placeholder:text-base placeholder:tracking-normal outline-none",
               "h-[40px] md:h-[48px]",
-              state === "loading" && "opacity-50",
+              state === InputState.Loading && "opacity-50",
             )}
             style={{ touchAction: "manipulation" }}
             aria-label="Search for music by link or name"
             autoComplete="off"
           />
 
-          {(value || state === "success") && state !== "loading" && (
+          {(value || state === InputState.Success) && state !== InputState.Loading && (
             <button
               type="button"
               onClick={handleClear}
@@ -177,16 +179,16 @@ export function HeroInput({
           <button
             type="button"
             onClick={handleSubmitClick}
-            disabled={state === "loading" || !value.trim()}
+            disabled={state === InputState.Loading || !value.trim()}
             className={cn(
               "flex items-center justify-center",
-              compact && state !== "loading" ? "hidden" : "flex",
+              compact && state !== InputState.Loading ? "hidden" : "flex",
               "w-8 h-8 md:w-10 md:h-10 mr-1 flex-shrink-0",
               "rounded-full",
               "transition-all duration-[250ms]",
-              state === "loading"
+              state === InputState.Loading
                 ? "bg-transparent cursor-wait"
-                : state === "success"
+                : state === InputState.Success
                   ? "bg-accent"
                   : [
                       "bg-accent text-[var(--color-accent-contrast)]",
@@ -195,11 +197,11 @@ export function HeroInput({
                       "disabled:opacity-30 disabled:hover:scale-100 disabled:hover:shadow-none",
                     ],
             )}
-            aria-label={state === "loading" ? "Searching..." : "Search"}
+            aria-label={state === InputState.Loading ? "Searching..." : "Search"}
           >
-            {state === "loading" ? (
+            {state === InputState.Loading ? (
               <CDSpinArtwork className="w-8 h-8 md:w-10 md:h-10" />
-            ) : state === "success" ? (
+            ) : state === InputState.Success ? (
               <CheckIcon size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
             ) : (
               <ArrowRightIcon size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
@@ -208,7 +210,7 @@ export function HeroInput({
         </div>
       </div>
 
-      {state === "error" && errorMessage && (
+      {state === InputState.Error && errorMessage && (
         <p className="mt-3 text-sm text-error text-center animate-fade-in" role="alert">
           {errorMessage}
         </p>

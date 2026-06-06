@@ -11,6 +11,17 @@ export interface SegmentedControlPrimitiveOption<T extends string = string> {
   value: T;
 }
 
+export const SegmentedControlPrimitiveSize = {
+  Compact: "compact",
+  Default: "default",
+  Large: "large",
+} as const;
+
+export const SegmentedControlPrimitiveVariant = {
+  Filled: "filled",
+  Outline: "outline",
+} as const;
+
 export type SegmentedControlPrimitiveSize = "compact" | "default" | "large";
 export type SegmentedControlPrimitiveVariant = "filled" | "outline";
 
@@ -32,22 +43,24 @@ interface SegmentPill {
 }
 
 const sizeClass: Record<SegmentedControlPrimitiveSize, string> = {
-  compact: "h-[calc(var(--ds-control-h-field)_-_0.25rem)] px-2.5 text-sm",
-  default: "h-[calc(var(--ds-control-h-field)_-_0.25rem)] px-3 text-sm",
-  large: "h-[calc(var(--ds-control-h-field-large)_-_0.25rem)] px-4 text-sm",
+  [SegmentedControlPrimitiveSize.Compact]: "h-[calc(var(--ds-control-h-field)_-_0.25rem)] px-2.5 text-sm",
+  [SegmentedControlPrimitiveSize.Default]: "h-[calc(var(--ds-control-h-field)_-_0.25rem)] px-3 text-sm",
+  [SegmentedControlPrimitiveSize.Large]: "h-[calc(var(--ds-control-h-field-large)_-_0.25rem)] px-4 text-sm",
 };
 
 const iconOnlySizeClass: Record<SegmentedControlPrimitiveSize, string> = {
-  compact: "h-[calc(var(--ds-control-h-field)_-_0.25rem)] w-[calc(var(--ds-control-h-field)_-_0.25rem)] text-sm",
-  default: "h-[calc(var(--ds-control-h-field)_-_0.25rem)] w-[calc(var(--ds-control-h-field)_-_0.25rem)] text-sm",
-  large:
+  [SegmentedControlPrimitiveSize.Compact]:
+    "h-[calc(var(--ds-control-h-field)_-_0.25rem)] w-[calc(var(--ds-control-h-field)_-_0.25rem)] text-sm",
+  [SegmentedControlPrimitiveSize.Default]:
+    "h-[calc(var(--ds-control-h-field)_-_0.25rem)] w-[calc(var(--ds-control-h-field)_-_0.25rem)] text-sm",
+  [SegmentedControlPrimitiveSize.Large]:
     "h-[calc(var(--ds-control-h-field-large)_-_0.25rem)] w-[calc(var(--ds-control-h-field-large)_-_0.25rem)] text-sm",
 };
 
 const containerSizeClass: Record<SegmentedControlPrimitiveSize, string> = {
-  compact: "h-[var(--ds-control-h-field)]",
-  default: "h-[var(--ds-control-h-field)]",
-  large: "h-[var(--ds-control-h-field-large)]",
+  [SegmentedControlPrimitiveSize.Compact]: "h-[var(--ds-control-h-field)]",
+  [SegmentedControlPrimitiveSize.Default]: "h-[var(--ds-control-h-field)]",
+  [SegmentedControlPrimitiveSize.Large]: "h-[var(--ds-control-h-field-large)]",
 };
 
 export function SegmentedControlPrimitive<T extends string = string>({
@@ -56,9 +69,9 @@ export function SegmentedControlPrimitive<T extends string = string>({
   itemClassName,
   onValueChange,
   options,
-  size = "default",
+  size = SegmentedControlPrimitiveSize.Default,
   value,
-  variant = "filled",
+  variant = SegmentedControlPrimitiveVariant.Filled,
 }: SegmentedControlPrimitiveProps<T>) {
   const activeIndex = options.findIndex((option) => option.value === value);
   const hasIcons = options.some((option) => Boolean(option.icon));
@@ -177,7 +190,7 @@ export function SegmentedControlPrimitive<T extends string = string>({
       className={cx(
         "relative m-0 flex w-fit min-w-0 items-center rounded-control border-0 p-[1px]",
         containerSizeClass[size],
-        variant === "outline"
+        variant === SegmentedControlPrimitiveVariant.Outline
           ? "border border-[var(--ds-border)] bg-[var(--ds-form-control-bg)]"
           : "border border-transparent bg-[var(--ds-segment-bg)]",
         className,
