@@ -158,6 +158,14 @@ const STEREO_LEVEL_SMOOTHING = 0.4;
 // analyser cannot deliver samples, so the bars ease back to zero instead
 // of snapping off.
 const STEREO_LEVEL_DECAY = 0.5;
+// Time the per-channel peak indicator stays pinned at its last maximum
+// before it starts decaying back toward zero. Classic VU/peak-meter feel:
+// about a second of stand-still so the eye can latch onto transients.
+const STEREO_PEAK_HOLD_MS = 900;
+// Linear decay applied to the held peak (0..1 scale) per spectrum tick
+// once the hold window has elapsed. At a 50ms tick that yields ~0.5/sec,
+// so a full-scale hold falls back to zero in roughly two seconds.
+const STEREO_PEAK_HOLD_DECAY_PER_TICK = 0.025;
 // Sample-accurate gain ramp applied on the very first play of a fresh
 // audio source so the audio fades in from silence to unity. The ramp
 // hides the startup transient that MP3 decoders and freshly engaged
@@ -210,6 +218,23 @@ interface StereoSpectrumAnalysers {
  * RMS. Drives the horizontal VU bars in the stereo-VU display mode.
  */
 interface StereoLevels {
+  left: number;
+  right: number;
+}
+
+/**
+ * Per-channel peak hold level (0..1) and the timestamp at which it was
+ * last refreshed. The hold value latches at the most recent maximum of
+ * `StereoLevels`, stays put for `STEREO_PEAK_HOLD_MS`, then decays back to
+ * zero. Drives the standalone "stuck" peak pixel column in the stereo-VU
+ * display mode.
+ */
+interface StereoPeakHoldState {
+  level: number;
+  setAt: number;
+}
+
+interface StereoPeakHold {
   left: number;
   right: number;
 }
@@ -287,6 +312,34 @@ function sameStereoLevels(a: StereoLevels | null, b: StereoLevels | null): boole
   return a.left === b.left && a.right === b.right;
 }
 
+function sameStereoPeakHold(a: StereoPeakHold | null, b: StereoPeakHold | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.left === b.left && a.right === b.right;
+}
+
+/**
+ * Advances one channel's peak hold state for the current spectrum tick.
+ * The latch snaps to the new level whenever the live signal pushes higher
+ * than the held value; otherwise the level stays put until the hold window
+ * has elapsed, then decays linearly toward zero.
+ */
+function advancePeakHold(state: StereoPeakHoldState, currentLevel: number, now: number): StereoPeakHoldState {
+  if (currentLevel >= state.level) {
+    return { level: currentLevel, setAt: now };
+  }
+  if (now - state.setAt < STEREO_PEAK_HOLD_MS) {
+    return state;
+  }
+  const decayed = Math.max(currentLevel, state.level - STEREO_PEAK_HOLD_DECAY_PER_TICK);
+  return { level: decayed, setAt: state.setAt };
+}
+
+function decayPeakHoldChannel(state: StereoPeakHoldState): StereoPeakHoldState {
+  const next = state.level * STEREO_LEVEL_DECAY;
+  return { level: next < 0.005 ? 0 : next, setAt: state.setAt };
+}
+
 function resolveSpectrumBands(frequencyData: Uint8Array<ArrayBuffer>, bandCount: number): number[] {
   const usableBins = Math.max(1, frequencyData.length - 2);
   const rawBands = Array.from({ length: bandCount }, (_, band) => {
@@ -338,12 +391,16 @@ function useAudioPreviewController({
   const spectrumLastUpdateRef = useRef(0);
   const spectrumBandsRef = useRef<StereoSpectrumBands | null>(null);
   const stereoLevelsRef = useRef<StereoLevels | null>(null);
+  const peakHoldLeftRef = useRef<StereoPeakHoldState>({ level: 0, setAt: 0 });
+  const peakHoldRightRef = useRef<StereoPeakHoldState>({ level: 0, setAt: 0 });
+  const stereoPeakHoldRef = useRef<StereoPeakHold | null>(null);
   const progressFrameRef = useRef<number | null>(null);
   const progressRewindFrameRef = useRef<number | null>(null);
   const progressRatioRef = useRef(0);
   const hasStartedRef = useRef(false);
   const [spectrumBands, setSpectrumBands] = useState<StereoSpectrumBands | null>(null);
   const [stereoLevels, setStereoLevels] = useState<StereoLevels | null>(null);
+  const [stereoPeakHold, setStereoPeakHold] = useState<StereoPeakHold | null>(null);
   const [progressRatio, setProgressRatio] = useState(0);
 
   // Lazy fetch the preview URL when the component mounted without one.
@@ -386,6 +443,18 @@ function useAudioPreviewController({
     setStereoLevels(next);
   }, []);
 
+  const updateStereoPeakHold = useCallback((next: StereoPeakHold | null) => {
+    if (sameStereoPeakHold(stereoPeakHoldRef.current, next)) return;
+    stereoPeakHoldRef.current = next;
+    setStereoPeakHold(next);
+  }, []);
+
+  const resetPeakHold = useCallback(() => {
+    peakHoldLeftRef.current = { level: 0, setAt: 0 };
+    peakHoldRightRef.current = { level: 0, setAt: 0 };
+    updateStereoPeakHold(null);
+  }, [updateStereoPeakHold]);
+
   const stopSpectrumLoop = useCallback(
     ({ clearBands = true }: { clearBands?: boolean } = {}) => {
       if (spectrumFrameRef.current !== null) cancelAnimationFrame(spectrumFrameRef.current);
@@ -395,8 +464,9 @@ function useAudioPreviewController({
       spectrumBandsRef.current = null;
       setSpectrumBands(null);
       updateStereoLevels(null);
+      resetPeakHold();
     },
-    [updateStereoLevels],
+    [resetPeakHold, updateStereoLevels],
   );
 
   const setProgressRatioValue = useCallback((ratio: number) => {
@@ -478,22 +548,29 @@ function useAudioPreviewController({
       const nextLevels: StereoLevels | null = fadingLevels
         ? { left: decayStereoLevel(fadingLevels.left), right: decayStereoLevel(fadingLevels.right) }
         : null;
+      const nextLeftHold = decayPeakHoldChannel(peakHoldLeftRef.current);
+      const nextRightHold = decayPeakHoldChannel(peakHoldRightRef.current);
+      peakHoldLeftRef.current = nextLeftHold;
+      peakHoldRightRef.current = nextRightHold;
       spectrumBandsRef.current = nextBands;
       setSpectrumBands(nextBands);
       updateStereoLevels(nextLevels && (nextLevels.left > 0 || nextLevels.right > 0) ? nextLevels : null);
+      const peakHoldStillVisible = nextLeftHold.level > 0 || nextRightHold.level > 0;
+      updateStereoPeakHold(peakHoldStillVisible ? { left: nextLeftHold.level, right: nextRightHold.level } : null);
       const bandsStillVisible = nextBands ? hasVisibleSpectrumBands(nextBands) : false;
       const levelsStillVisible = nextLevels ? nextLevels.left > 0 || nextLevels.right > 0 : false;
-      if (bandsStillVisible || levelsStillVisible) {
+      if (bandsStillVisible || levelsStillVisible || peakHoldStillVisible) {
         spectrumFrameRef.current = requestAnimationFrame(tick);
         return;
       }
       spectrumBandsRef.current = null;
       setSpectrumBands(null);
       updateStereoLevels(null);
+      resetPeakHold();
     };
 
     spectrumFrameRef.current = requestAnimationFrame(tick);
-  }, [stopSpectrumLoop, updateStereoLevels]);
+  }, [resetPeakHold, stopSpectrumLoop, updateStereoLevels, updateStereoPeakHold]);
   const startSpectrumFadeOutFromEvent = useEffectEvent(startSpectrumFadeOut);
   const notifyStatusChange = useCallback(
     (status: AudioPreviewStatusType) => {
@@ -561,10 +638,16 @@ function useAudioPreviewController({
         right: resolveStereoLevel(resolveTimeDomainRms(data.rightTime), previousLevels.right),
       };
       updateStereoLevels(nextLevels);
+
+      const nextLeftHold = advancePeakHold(peakHoldLeftRef.current, nextLevels.left, now);
+      const nextRightHold = advancePeakHold(peakHoldRightRef.current, nextLevels.right, now);
+      peakHoldLeftRef.current = nextLeftHold;
+      peakHoldRightRef.current = nextRightHold;
+      updateStereoPeakHold({ left: nextLeftHold.level, right: nextRightHold.level });
     };
 
     spectrumFrameRef.current = requestAnimationFrame(tick);
-  }, [updateStereoLevels]);
+  }, [updateStereoLevels, updateStereoPeakHold]);
 
   /**
    * Wires up (or reuses) the Web Audio spectrum pipeline for the given audio
@@ -649,6 +732,7 @@ function useAudioPreviewController({
             .catch(() => {
               setSpectrumBands(null);
               updateStereoLevels(null);
+              resetPeakHold();
             });
         }
       };
@@ -707,6 +791,7 @@ function useAudioPreviewController({
         spectrumDataRef.current = null;
         setSpectrumBands(null);
         updateStereoLevels(null);
+        resetPeakHold();
         return Promise.resolve(false);
       }
 
@@ -720,7 +805,7 @@ function useAudioPreviewController({
         .then(() => audioContext.state === AudioContextState.Running)
         .catch(() => false);
     },
-    [startSpectrumLoop, stopSpectrumLoop, updateStereoLevels],
+    [resetPeakHold, startSpectrumLoop, stopSpectrumLoop, updateStereoLevels],
   );
 
   // Watchdog for the spectrum render loop while playback is active. The
@@ -951,6 +1036,7 @@ function useAudioPreviewController({
             .catch(() => {
               setSpectrumBands(null);
               updateStereoLevels(null);
+              resetPeakHold();
             });
         })
         .catch(() => {
@@ -975,6 +1061,7 @@ function useAudioPreviewController({
   }, [
     contentType,
     ensureSpectrumAnalyzer,
+    resetPeakHold,
     startProgressLoop,
     startSpectrumFadeOut,
     startSpectrumLoop,
@@ -1020,6 +1107,7 @@ function useAudioPreviewController({
     progressRatio,
     spectrumBands,
     stereoLevels,
+    stereoPeakHold,
     timeText,
     title: isLoading ? t("audio.previewLoading") : isUnavailable ? t("audio.previewUnavailable") : undefined,
     togglePlay,
@@ -1041,6 +1129,7 @@ export function AudioPreviewPlayer(props: AudioPreviewPlayerProps) {
         title={player.title}
         spectrumBands={player.spectrumBands}
         stereoLevels={player.stereoLevels}
+        stereoPeakHold={player.stereoPeakHold}
         onTogglePlay={player.togglePlay}
       />
     </section>

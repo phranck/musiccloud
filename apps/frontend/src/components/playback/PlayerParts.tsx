@@ -23,6 +23,11 @@ interface PlayerStereoLevels {
   right: number;
 }
 
+interface PlayerStereoPeakHold {
+  left: number;
+  right: number;
+}
+
 interface PlayerContextValue {
   isPlaying: boolean;
   isDisabled: boolean;
@@ -32,6 +37,7 @@ interface PlayerContextValue {
   title?: string;
   spectrumBands?: PlayerSpectrumBands | null;
   stereoLevels?: PlayerStereoLevels | null;
+  stereoPeakHold?: PlayerStereoPeakHold | null;
   phosphorColor?: string;
   onTogglePlay: () => void;
 }
@@ -169,9 +175,16 @@ function playerVfdColumnCountForCells(cellCount: number): number {
  * (when the available track width is not evenly divisible) is added to the
  * right channel so the bar pair remains symmetric to the eye on every
  * common display width.
+ *
+ * When a peak hold level is supplied, each channel additionally renders a
+ * single bright pixel column at the peak hold position — but only if that
+ * column sits beyond the live bar's leading edge. Otherwise the bar's own
+ * peak column already covers it and the extra segment would visually fight
+ * with it.
  */
 function renderStereoVuSections(
   levels: PlayerStereoLevels | null,
+  peakHold: PlayerStereoPeakHold | null,
   displayCells: number,
   timeText: string,
 ): VfdDisplaySection[] {
@@ -187,6 +200,8 @@ function renderStereoVuSections(
   const safeLevel = (value: number) => Math.max(0, Math.min(1, value));
   const leftFill = levels ? Math.round(safeLevel(levels.left) * leftTrackColumns) : 0;
   const rightFill = levels ? Math.round(safeLevel(levels.right) * rightTrackColumns) : 0;
+  const leftHoldCols = peakHold ? Math.round(safeLevel(peakHold.left) * leftTrackColumns) : 0;
+  const rightHoldCols = peakHold ? Math.round(safeLevel(peakHold.right) * rightTrackColumns) : 0;
 
   const leftEnd = leftTrackColumns - 1;
   const rightStart = leftTrackColumns + gapColumns;
@@ -202,6 +217,21 @@ function renderStereoVuSections(
       trailBrightness: "dim",
       peakBrightness: "bright",
     });
+    if (leftHoldCols > leftFill) {
+      // Peak hold sits one column past the live bar's outer edge. The left
+      // channel grows leftward, so the hold pixel is `leftHoldCols - 1`
+      // columns into the track measured from the right (centre-facing)
+      // edge. Single-column segment, bright, no trail.
+      const holdColumn = leftEnd - (leftHoldCols - 1);
+      pixelBars.push({
+        startColumn: holdColumn,
+        endColumn: holdColumn,
+        fillColumns: 1,
+        anchor: "left",
+        trailBrightness: "bright",
+        peakBrightness: "bright",
+      });
+    }
   }
   if (rightTrackColumns > 0) {
     pixelBars.push({
@@ -212,6 +242,17 @@ function renderStereoVuSections(
       trailBrightness: "dim",
       peakBrightness: "bright",
     });
+    if (rightHoldCols > rightFill) {
+      const holdColumn = rightStart + (rightHoldCols - 1);
+      pixelBars.push({
+        startColumn: holdColumn,
+        endColumn: holdColumn,
+        fillColumns: 1,
+        anchor: "left",
+        trailBrightness: "bright",
+        peakBrightness: "bright",
+      });
+    }
   }
 
   return [
@@ -275,6 +316,7 @@ export function PlayerRoot({
   title,
   spectrumBands,
   stereoLevels,
+  stereoPeakHold,
   phosphorColor,
   onTogglePlay,
 }: PlayerProps) {
@@ -287,6 +329,7 @@ export function PlayerRoot({
     title,
     spectrumBands,
     stereoLevels,
+    stereoPeakHold,
     phosphorColor,
     onTogglePlay,
   };
@@ -346,8 +389,17 @@ export function PlayerButton({ className }: PlayerButtonProps) {
 }
 
 export function PlayerProgress({ className, children }: PlayerProgressProps) {
-  const { isDisabled, isPlaying, timeText, progressRatio, phosphorColor, spectrumBands, stereoLevels, title } =
-    usePlayerContext();
+  const {
+    isDisabled,
+    isPlaying,
+    timeText,
+    progressRatio,
+    phosphorColor,
+    spectrumBands,
+    stereoLevels,
+    stereoPeakHold,
+    title,
+  } = usePlayerContext();
   const t = useT();
   const analyzerMode = useAnalyzerMode();
   const progressRef = useRef<HTMLElement | null>(null);
@@ -361,7 +413,7 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
     spectrumBands !== undefined &&
     isStereoSpectrumBands(spectrumBands);
   const analyzerSections = isStereoVuMode
-    ? renderStereoVuSections(stereoLevels ?? null, displayCells, timeText)
+    ? renderStereoVuSections(stereoLevels ?? null, stereoPeakHold ?? null, displayCells, timeText)
     : renderSpectrumSections(spectrumBands ?? [], displayCells, timeText);
   const safeProgressRatio = Math.max(0, Math.min(1, progressRatio ?? 0));
   const rowWidthPx = PLAYER_VFD_FIRST_CELL_WIDTH_PX + Math.max(0, displayCells - 1) * PLAYER_VFD_CELL_PITCH_PX;
