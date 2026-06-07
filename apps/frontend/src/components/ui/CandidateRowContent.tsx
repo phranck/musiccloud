@@ -85,25 +85,25 @@ export function CandidateRowContent({
             imgDim={imgDim}
           />
         ) : (
-        <div className={artworkClasses}>
-          {artworkUrl ? (
-            <img
-              src={artworkUrl}
-              alt=""
-              className="w-full h-full object-cover"
-              width={imgDim}
-              height={imgDim}
-              loading="lazy"
-              onError={(e) => {
-                e.currentTarget.src = "/og/default.jpg";
-              }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
-              <FallbackIcon size={iconSize} weight="duotone" className="text-text-muted" />
-            </div>
-          )}
-        </div>
+          <div className={artworkClasses}>
+            {artworkUrl ? (
+              <img
+                src={artworkUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                width={imgDim}
+                height={imgDim}
+                loading="lazy"
+                onError={(e) => {
+                  e.currentTarget.src = "/og/default.jpg";
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
+                <FallbackIcon size={iconSize} weight="duotone" className="text-text-muted" />
+              </div>
+            )}
+          </div>
         ))}
 
       <div className="flex-1 min-w-0">

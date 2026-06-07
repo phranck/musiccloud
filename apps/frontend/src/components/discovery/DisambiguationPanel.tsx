@@ -4,7 +4,6 @@ import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useT } from "@/i18n/context";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 import { cn } from "@/lib/utils";

@@ -6,7 +6,15 @@ import type {
 } from "@musiccloud/shared";
 import { buildMetaLine, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
-import type { ActiveResult, AlbumResult, AppAction, ArtistResult, ReducerState, SongResult } from "@/lib/types/app";
+import type {
+  ActiveResult,
+  AlbumResult,
+  AppAction,
+  ArtistResult,
+  ReducerState,
+  ResolveUiError,
+  SongResult,
+} from "@/lib/types/app";
 import type {
   AlbumContentConfiguration,
   ArtistContentConfiguration,
@@ -57,7 +65,7 @@ export function appReducer({ screen, stack }: ReducerState, action: AppAction): 
       return { screen: restored, stack: stack.slice(0, -1) };
     }
     case "ERROR":
-      return { screen: { type: "error", message: action.message }, stack: [] };
+      return { screen: { type: "error", error: action.error }, stack: [] };
     case "CLEAR_START":
       if (screen.type === "result")
         return { screen: { type: "clearing", active: screen.active, resolved: screen.resolved }, stack: [] };
@@ -124,13 +132,43 @@ export function parseUnifiedResolveResponse(data: UnifiedResolveSuccessResponse)
   return parseResolveResponse(data);
 }
 
-export function parseErrorKey(err: unknown): string {
-  if (err instanceof TypeError && err.message.includes("Failed to fetch")) return "error.offline";
-  if (err instanceof Error && err.name === "AbortError") return "error.timeout";
-  // Pass through backend error messages directly (they are already user-friendly from USER_MESSAGES).
-  // t() returns the string as-is when no translation key matches.
-  if (err instanceof Error && err.message && !err.message.startsWith("error.")) return err.message;
-  return "error.generic";
+export class ResolveApiError extends Error {
+  readonly code: string;
+  readonly context?: Record<string, string>;
+
+  constructor(payload: { error?: string; message?: string; context?: Record<string, string | number> }) {
+    super(payload.message || payload.error || "Resolve request failed");
+    this.name = "ResolveApiError";
+    this.code = payload.error || "error.generic";
+    this.context = payload.context
+      ? Object.fromEntries(Object.entries(payload.context).map(([key, value]) => [key, String(value)]))
+      : undefined;
+  }
+}
+
+export function parseResolveError(err: unknown): ResolveUiError {
+  if (err instanceof TypeError && err.message.includes("Failed to fetch")) return { key: "error.offline" };
+  if (err instanceof Error && err.name === "AbortError") return { key: "error.timeout" };
+  if (err instanceof ResolveApiError) {
+    return {
+      key: `errorCodes.${err.code}`,
+      code: err.code,
+      context: err.context,
+    };
+  }
+  if (err instanceof Error && err.message.startsWith("error.")) return { key: err.message };
+  return { key: "error.generic" };
+}
+
+export function formatResolveErrorMessage(
+  t: (key: string, vars?: Record<string, string>) => string,
+  error: ResolveUiError,
+): string {
+  const vars = { ...(error.context ?? {}), ...(error.code ? { code: error.code } : {}) };
+  const localized = t(error.key, vars);
+  if (localized !== error.key) return localized;
+  if (error.code) return t("error.genericWithCode", { code: error.code });
+  return t("error.generic");
 }
 
 // ---------------------------------------------------------------------------

@@ -66,13 +66,13 @@ type ArtistAction =
   | { type: typeof ArtistActionType.Done; data: ArtistInfoResponse | null }
   | { type: typeof ArtistActionType.Error; code: string };
 interface ShareUiState {
-  ArtistReadyVisible: boolean;
+  artistReadyVisible: boolean;
   currentArtistContext: ArtistInfoContext;
   currentArtistName: string;
   currentConfig: MediaCardContentConfiguration;
   lastPropsConfigKey: string;
   previewStatus: AudioPreviewStatus | null;
-  ResolveErrorVisible: boolean;
+  resolveErrorVisible: boolean;
   resolveTriggeredArtistLoad: boolean;
   sheetOpen: boolean;
 }
@@ -166,13 +166,13 @@ function initialShareUiState({
   config,
 }: Pick<ShareLayoutProps, "artistInfoContext" | "artistName" | "config">): ShareUiState {
   return {
-    ArtistReadyVisible: false,
+    artistReadyVisible: false,
     currentArtistContext: artistInfoContext ?? artistInfoContextFromConfig(config),
     currentArtistName: artistName,
     currentConfig: config,
     lastPropsConfigKey: configIdentity(config),
     previewStatus: null,
-    ResolveErrorVisible: false,
+    resolveErrorVisible: false,
     resolveTriggeredArtistLoad: false,
     sheetOpen: false,
   };

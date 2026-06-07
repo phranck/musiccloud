@@ -254,6 +254,7 @@ function jsonError(
   return {
     error: entry.code,
     message: formatUserMessage(entry.code, context, overrideMessage),
+    ...(context ? { context } : {}),
   };
 }
 

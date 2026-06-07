@@ -47,11 +47,6 @@ export function NumberCircleIcon({
     return <Icon weight={weight} className={className} aria-label={ariaLabel ?? String(number)} />;
   }
   return (
-    <span
-      aria-label={ariaLabel ?? String(number)}
-      className={`inline-flex items-center justify-center text-[10px] font-mono ${className ?? ""}`}
-    >
-      {number}
-    </span>
+    <span className={`inline-flex items-center justify-center text-[10px] font-mono ${className ?? ""}`}>{number}</span>
   );
 }

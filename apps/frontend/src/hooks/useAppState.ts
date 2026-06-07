@@ -7,11 +7,18 @@ import {
   type ResolveSuccessResponse,
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
-import { useCallback, useReducer } from "react";
+import { type Dispatch, useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
 import { classifySearchInput, searchInputLengthBucket, sendMusicSignal } from "@/lib/analytics/umami";
-import { appReducer, parseErrorKey, parseResolveResponse, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
-import type { ActiveResult, AppState, GenreSearchPayload, ReducerState } from "@/lib/types/app";
+import {
+  appReducer,
+  formatResolveErrorMessage,
+  parseResolveError,
+  parseResolveResponse,
+  parseUnifiedResolveResponse,
+  ResolveApiError,
+} from "@/lib/resolve/parsers";
+import type { ActiveResult, AppState, GenreSearchPayload, ReducerState, ResolveUiError } from "@/lib/types/app";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 
 interface UseAppStateResult {
@@ -65,7 +72,7 @@ export function useAppState(): UseAppStateResult {
   const genreSearchPayload = isGenreSearching ? screen.payload : null;
   const selectedGenreResultId = screen.type === "genre-search_loading" ? screen.selectedId : null;
   const canGoBack = stack.length > 0;
-  const errorMessage = screen.type === "error" ? t(screen.message) : undefined;
+  const errorMessage = screen.type === "error" ? formatResolveErrorMessage(t, screen.error) : undefined;
   const showCompact = !!(
     (screen.type === "loading" && screen.compact) ||
     active ||
@@ -92,7 +99,7 @@ export function useAppState(): UseAppStateResult {
       clearTimeout(timeout);
       if (!response.ok) {
         const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-        throw new Error(errorData.message || "error.generic");
+        throw new ResolveApiError(errorData);
       }
       const data = (await response.json()) as
         | UnifiedResolveSuccessResponse
@@ -117,9 +124,10 @@ export function useAppState(): UseAppStateResult {
         return;
       }
       if ("status" in data && data.status === "genre-search") {
+        const resultCount = Object.values(data.results).reduce((sum, list) => sum + (list?.length ?? 0), 0);
         sendMusicSignal("music_source_search_success", {
           result_kind: "genre_search",
-          result_count: data.results.length,
+          result_count: resultCount,
           warning_count: data.warnings.length,
         });
         dispatch({
@@ -141,7 +149,7 @@ export function useAppState(): UseAppStateResult {
       });
       dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
     } catch (err) {
-      dispatch({ type: "ERROR", message: parseErrorKey(err) });
+      dispatchResolveError(dispatch, err);
     }
   }, []);
 
@@ -163,7 +171,7 @@ export function useAppState(): UseAppStateResult {
       clearTimeout(timeout);
       if (!response.ok) {
         const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-        throw new Error(errorData.message || "error.generic");
+        throw new ResolveApiError(errorData);
       }
       const data = (await response.json()) as ResolveSuccessResponse;
       const resolved: UnifiedResolveSuccessResponse = { ...data, type: "track" };
@@ -174,7 +182,7 @@ export function useAppState(): UseAppStateResult {
       });
       dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data), resolved });
     } catch (err) {
-      dispatch({ type: "ERROR", message: parseErrorKey(err) });
+      dispatchResolveError(dispatch, err);
     }
   }, []);
 
@@ -206,7 +214,7 @@ export function useAppState(): UseAppStateResult {
       clearTimeout(timeout);
       if (!response.ok) {
         const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-        throw new Error(errorData.message || "error.generic");
+        throw new ResolveApiError(errorData);
       }
       const data = (await response.json()) as UnifiedResolveSuccessResponse;
       sendMusicSignal("music_source_search_success", {
@@ -216,7 +224,7 @@ export function useAppState(): UseAppStateResult {
       });
       dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
     } catch (err) {
-      dispatch({ type: "ERROR", message: parseErrorKey(err) });
+      dispatchResolveError(dispatch, err);
     }
   }, []);
 
@@ -251,4 +259,8 @@ export function useAppState(): UseAppStateResult {
     handleBack,
     handleClear,
   };
+}
+
+function dispatchResolveError(dispatch: Dispatch<{ type: "ERROR"; error: ResolveUiError }>, err: unknown): void {
+  dispatch({ type: "ERROR", error: parseResolveError(err) });
 }

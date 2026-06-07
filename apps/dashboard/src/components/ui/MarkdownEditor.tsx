@@ -699,9 +699,7 @@ function HintsBar() {
   const [helpOpen, setHelpOpen] = React.useState(false);
 
   return (
-    <div
-      className="flex items-center justify-between gap-3 px-2.5 py-1.5 border-t border-[var(--ds-border)] bg-[var(--ds-section-header-bg,var(--ds-bg-elevated))] text-[0.625rem]"
-    >
+    <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 border-t border-[var(--ds-border)] bg-[var(--ds-section-header-bg,var(--ds-bg-elevated))] text-[0.625rem]">
       <div className="hidden min-[420px]:flex items-center gap-2.5">
         {SHORTCUT_HINTS.map((hint) => (
           <Hint key={hint.label} keys={hint.keys} label={hint.label} />

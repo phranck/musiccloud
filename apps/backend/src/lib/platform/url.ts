@@ -173,14 +173,18 @@ export const ARTIST_URL_PATTERNS: RegExp[] = [
 ];
 
 export function validateMusicUrl(input: string): UrlValidationResult {
-  // Check if it looks like a URL at all
-  let url: URL;
-  try {
-    // Prepend https:// if no protocol
-    const withProtocol = input.match(/^https?:\/\//) ? input : `https://${input}`;
-    url = new URL(withProtocol);
-  } catch {
-    // Not a URL - could be a text search query
+  const explicitUrl = hasExplicitHttpScheme(input);
+  const url = explicitUrl ? parseExplicitHttpUrl(input) : parseKnownSchemelessMusicUrl(input);
+
+  if (!url) {
+    if (explicitUrl) {
+      return {
+        valid: false,
+        code: "INVALID_URL",
+        message: "That URL looks malformed. Please paste the full link from the streaming service.",
+      };
+    }
+    // Not a supported schemaless music URL candidate - treat as text search.
     return { valid: true };
   }
 
@@ -299,5 +303,52 @@ export function stripTrackingParams(url: string): string {
 }
 
 export function isUrl(input: string): boolean {
-  return /^https?:\/\//.test(input) || /^[\w-]+\.[\w-]+/.test(input);
+  const trimmed = input.trim();
+  if (!trimmed) return false;
+  if (hasExplicitHttpScheme(trimmed)) return true;
+  return parseKnownSchemelessMusicUrl(trimmed) !== null;
+}
+
+function hasExplicitHttpScheme(input: string): boolean {
+  return /^https?:\/\//i.test(input.trim());
+}
+
+function parseExplicitHttpUrl(input: string): URL | null {
+  try {
+    const url = new URL(input.trim());
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+function parseKnownSchemelessMusicUrl(input: string): URL | null {
+  const trimmed = input.trim();
+  if (!trimmed || /\s/.test(trimmed) || trimmed.endsWith(".")) return null;
+
+  let url: URL;
+  try {
+    url = new URL(`https://${trimmed}`);
+  } catch {
+    return null;
+  }
+
+  if (!hasValidHostShape(url.hostname)) return null;
+  if (!isAllowedMusicHost(url.hostname)) return null;
+  return url;
+}
+
+function hasValidHostShape(hostname: string): boolean {
+  if (!hostname || hostname.endsWith(".")) return false;
+  const labels = hostname.toLowerCase().split(".");
+  if (labels.length < 2) return false;
+  if (labels[labels.length - 1].length < 2 || labels[labels.length - 2].length < 2) return false;
+  return labels.every((label) => /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label));
+}
+
+function isAllowedMusicHost(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  const isBandcamp = normalized.endsWith(".bandcamp.com") || normalized === "bandcamp.com";
+  return isBandcamp || ALLOWED_HOSTS.includes(normalized);
 }

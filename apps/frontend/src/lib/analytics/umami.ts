@@ -25,7 +25,7 @@ function cleanProperties(properties: MusicSignalProperties | undefined): UmamiPr
   if (!properties) return undefined;
 
   const entries = Object.entries(properties).filter(
-    ([, value]) => value !== undefined && value !== null && value !== "",
+    (entry): entry is [string, UmamiPropertyValue] => entry[1] !== undefined && entry[1] !== null && entry[1] !== "",
   );
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }

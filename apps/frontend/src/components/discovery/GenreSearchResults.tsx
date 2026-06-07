@@ -42,11 +42,6 @@ interface GenreSearchResultsProps {
   ref?: Ref<HTMLDivElement>;
 }
 
-// Size classes for the spinning CD that replaces a row's artwork while the
-// clicked candidate is being resolved. Must match the compact artwork tile
-// dimensions in `CandidateRowContent` so there is no layout shift.
-const COMPACT_ART_SIZE = "w-12 h-12 md:w-14 md:h-14";
-
 /**
  * Three-column (desktop) / stacked (mobile) rendering of a genre-search
  * result. Each list is only rendered when the user actually requested

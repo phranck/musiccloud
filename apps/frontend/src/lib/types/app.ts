@@ -40,6 +40,12 @@ export interface GenreSearchPayload {
   warnings: string[];
 }
 
+export interface ResolveUiError {
+  key: string;
+  code?: string;
+  context?: Record<string, string>;
+}
+
 export const InputState = {
   Idle: "idle",
   Focused: "focused",
@@ -72,7 +78,7 @@ export const AppStateType = {
 export interface SongResult {
   kind: typeof ActiveResultKind.Song;
   title: string;
-  Artist: string;
+  artist: string;
   album?: string;
   releaseDate?: string;
   durationMs?: number;
@@ -87,7 +93,7 @@ export interface SongResult {
 export interface AlbumResult {
   kind: typeof ActiveResultKind.Album;
   title: string;
-  Artist: string;
+  artist: string;
   releaseDate?: string;
   totalTracks?: number;
   label?: string;
@@ -114,7 +120,7 @@ export type AppState =
   | { type: typeof AppStateType.Loading; compact: boolean }
   | { type: typeof AppStateType.Result; active: ActiveResult; resolved?: UnifiedResolveSuccessResponse }
   | { type: typeof AppStateType.Clearing; active: ActiveResult; resolved?: UnifiedResolveSuccessResponse }
-  | { type: typeof AppStateType.Error; message: string }
+  | { type: typeof AppStateType.Error; error: ResolveUiError }
   | { type: typeof AppStateType.Disambiguation; candidates: DisambiguationCandidate[] }
   | { type: typeof AppStateType.DisambiguationLoading; candidates: DisambiguationCandidate[]; selectedId: string }
   | { type: typeof AppStateType.GenreBrowse; genres: ApiGenreTile[] }
@@ -135,6 +141,6 @@ export type AppAction =
   | { type: "GENRE_SEARCH"; payload: GenreSearchPayload }
   | { type: "SELECT_GENRE_RESULT"; selectedId: string }
   | { type: "NAV_BACK" }
-  | { type: "ERROR"; message: string }
+  | { type: "ERROR"; error: ResolveUiError }
   | { type: "CLEAR_START" }
   | { type: "CLEAR" };

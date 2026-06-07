@@ -406,51 +406,51 @@ export function TrackEditPage() {
             </h3>
             <div className="space-y-3">
               {sortServiceDisplayOrder(SERVICE_DISPLAY_ORDER).map((service) => {
-                  const platform = service as ServiceId;
-                  const label = PLATFORM_CONFIG[platform].label;
-                  const url = linksByService.get(service);
-                  return (
-                    <div key={service}>
-                      <label htmlFor={`service-url-${service}`} className={labelClass}>
-                        {label}
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <DashboardInput
-                          id={`service-url-${service}`}
-                          type="text"
-                          readOnly
-                          value={url ?? ""}
-                          className="bg-[var(--ds-surface-raised)] text-[var(--ds-text-muted)] cursor-default"
-                        />
-                        {url ? (
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={getDashboardIconButtonClassName({
-                              className: "shrink-0",
-                              size: "control",
-                              variant: DashboardButtonVariant.Neutral,
-                            })}
-                            title={label}
-                          >
-                            <ArrowSquareOutIcon weight="duotone" className="w-4 h-4" />
-                          </a>
-                        ) : (
-                          <span
-                            className={getDashboardIconButtonClassName({
-                              className: "shrink-0 opacity-40 cursor-default",
-                              size: "control",
-                              variant: DashboardButtonVariant.Neutral,
-                            })}
-                          >
-                            <ArrowSquareOutIcon weight="duotone" className="w-4 h-4" />
-                          </span>
-                        )}
-                      </div>
+                const platform = service as ServiceId;
+                const label = PLATFORM_CONFIG[platform].label;
+                const url = linksByService.get(service);
+                return (
+                  <div key={service}>
+                    <label htmlFor={`service-url-${service}`} className={labelClass}>
+                      {label}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <DashboardInput
+                        id={`service-url-${service}`}
+                        type="text"
+                        readOnly
+                        value={url ?? ""}
+                        className="bg-[var(--ds-surface-raised)] text-[var(--ds-text-muted)] cursor-default"
+                      />
+                      {url ? (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={getDashboardIconButtonClassName({
+                            className: "shrink-0",
+                            size: "control",
+                            variant: DashboardButtonVariant.Neutral,
+                          })}
+                          title={label}
+                        >
+                          <ArrowSquareOutIcon weight="duotone" className="w-4 h-4" />
+                        </a>
+                      ) : (
+                        <span
+                          className={getDashboardIconButtonClassName({
+                            className: "shrink-0 opacity-40 cursor-default",
+                            size: "control",
+                            variant: DashboardButtonVariant.Neutral,
+                          })}
+                        >
+                          <ArrowSquareOutIcon weight="duotone" className="w-4 h-4" />
+                        </span>
+                      )}
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

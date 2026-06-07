@@ -82,6 +82,12 @@ export interface ResolveErrorResponse {
    * (MC-RES-0001)".
    */
   message: string;
+  /**
+   * Optional structured values for localized clients. The backend still
+   * renders `message` in English for public API callers; first-party UIs
+   * should map `error` plus this context to localized copy.
+   */
+  context?: Record<string, string | number>;
 }
 
 export type ResolveResponse =

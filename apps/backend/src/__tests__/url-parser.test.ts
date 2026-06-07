@@ -23,6 +23,11 @@ describe("validateMusicUrl", () => {
       expect(validateMusicUrl("Bohemian Rhapsody Queen")).toEqual({ valid: true });
     });
 
+    it("should accept dotted song titles as plain text", () => {
+      expect(validateMusicUrl("I.G.Y.")).toEqual({ valid: true });
+      expect(validateMusicUrl("P.Y.T.")).toEqual({ valid: true });
+    });
+
     it("should accept Apple Music album URL with ?i= track param", () => {
       expect(validateMusicUrl("https://music.apple.com/us/album/name/123?i=456")).toEqual({ valid: true });
     });
@@ -106,6 +111,14 @@ describe("validateMusicUrl", () => {
         expect(result.code).toBe("UNSUPPORTED_SERVICE");
       }
     });
+
+    it("should reject malformed explicit URLs", () => {
+      const result = validateMusicUrl("https://bad url");
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.code).toBe("INVALID_URL");
+      }
+    });
   });
 });
 
@@ -151,8 +164,31 @@ describe("isUrl", () => {
     expect(isUrl("http://example.com")).toBe(true);
   });
 
-  it("should detect domain-like string without protocol", () => {
+  it("should detect known music service hosts without protocol", () => {
     expect(isUrl("open.spotify.com")).toBe(true);
+  });
+
+  it("should detect known music short links without protocol", () => {
+    expect(isUrl("link.deezer.com/s/abc123")).toBe(true);
+    expect(isUrl("on.soundcloud.com/abc123")).toBe(true);
+  });
+
+  it("should detect known music marketplace subdomains without protocol", () => {
+    expect(isUrl("artist.bandcamp.com/track/song-title")).toBe(true);
+  });
+
+  it("should reject unsupported domains without protocol", () => {
+    expect(isUrl("example.com/foo")).toBe(false);
+  });
+
+  it("should detect explicit unsupported URLs", () => {
+    expect(isUrl("https://example.com/foo")).toBe(true);
+  });
+
+  it("should reject dotted song titles", () => {
+    expect(isUrl("I.G.Y.")).toBe(false);
+    expect(isUrl("A.B.")).toBe(false);
+    expect(isUrl("P.Y.T.")).toBe(false);
   });
 
   it("should reject plain text", () => {

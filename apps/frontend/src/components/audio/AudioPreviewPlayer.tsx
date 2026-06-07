@@ -391,9 +391,12 @@ function useAudioPreviewController({
     spectrumFrameRef.current = requestAnimationFrame(tick);
   }, [stopSpectrumLoop]);
   const startSpectrumFadeOutFromEvent = useEffectEvent(startSpectrumFadeOut);
-  const notifyStatusChange = useCallback((status: AudioPreviewStatusType) => {
-    onStatusChange?.(status);
-  }, [onStatusChange]);
+  const notifyStatusChange = useCallback(
+    (status: AudioPreviewStatusType) => {
+      onStatusChange?.(status);
+    },
+    [onStatusChange],
+  );
   const notifyStatusChangeFromEvent = useEffectEvent(notifyStatusChange);
 
   const teardownSpectrum = useCallback(() => {
@@ -609,13 +612,7 @@ function useAudioPreviewController({
       audio.src = "";
       audioRef.current = null;
     };
-  }, [
-    effectiveUrl,
-    contentType,
-    stopProgressLoop,
-    stopProgressRewind,
-    teardownSpectrum,
-  ]);
+  }, [effectiveUrl, contentType, stopProgressLoop, stopProgressRewind, teardownSpectrum]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;

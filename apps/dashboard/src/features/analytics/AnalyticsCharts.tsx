@@ -72,13 +72,7 @@ export function RealtimeBarsChart({
     <ResponsiveContainer width="100%" height={160}>
       <BarChart data={data} margin={CHART_MARGIN} barSize={5}>
         <CartesianGrid strokeDasharray="3 3" stroke={theme.gridColor} vertical={true} />
-        <XAxis
-          dataKey="time"
-          tick={xAxisTick}
-          axisLine={false}
-          tickLine={false}
-          interval={1}
-        />
+        <XAxis dataKey="time" tick={xAxisTick} axisLine={false} tickLine={false} interval={1} />
         <YAxis
           tick={yAxisTick}
           axisLine={false}
@@ -87,11 +81,7 @@ export function RealtimeBarsChart({
           domain={yAxisDomain}
           ticks={ticks}
         />
-        <Tooltip
-          contentStyle={tooltipContentStyle}
-          formatter={tooltipFormatter}
-          cursor={cursor}
-        />
+        <Tooltip contentStyle={tooltipContentStyle} formatter={tooltipFormatter} cursor={cursor} />
         <Bar dataKey="visitors" fill="#f59e0b" radius={BAR_RADIUS} />
         <Bar dataKey="pageviews" fill="#a8a29e" radius={BAR_RADIUS} />
       </BarChart>

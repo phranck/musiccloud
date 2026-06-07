@@ -163,6 +163,11 @@ async function buildApp() {
         description: "Machine-readable error code (e.g. INVALID_URL, RATE_LIMITED, SERVICE_DOWN).",
       },
       message: { type: "string", description: "Human-readable error detail." },
+      context: {
+        type: "object",
+        additionalProperties: { anyOf: [{ type: "string" }, { type: "number" }] },
+        description: "Optional structured values for clients that localize errors themselves.",
+      },
     },
     example: {
       error: "NOT_FOUND",

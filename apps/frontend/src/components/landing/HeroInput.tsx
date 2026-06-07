@@ -1,5 +1,6 @@
 import { ArrowRightIcon, CheckIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef } from "react";
+import { AlertDialog } from "@/components/ui/AlertDialog";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { useT } from "@/i18n/context";
 import { isMusicUrl } from "@/lib/platform/url";
@@ -210,11 +211,13 @@ export function HeroInput({
         </div>
       </div>
 
-      {state === InputState.Error && errorMessage && (
-        <p className="mt-3 text-sm text-error text-center animate-fade-in" role="alert">
-          {errorMessage}
-        </p>
-      )}
+      <AlertDialog
+        open={state === InputState.Error && !!errorMessage}
+        title={t("error.dialogTitle")}
+        message={errorMessage ?? ""}
+        closeLabel={t("error.dismiss")}
+        onClose={handleClear}
+      />
     </div>
   );
 }

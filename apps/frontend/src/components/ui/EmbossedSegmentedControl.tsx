@@ -69,12 +69,14 @@ export function EmbossedSegmentedControl<T extends string>({
           >
             <div
               className="embossed-gradient-border size-full bg-zinc-700/[0.65]"
-              style={{
-                ...embossedCardStyle,
-                "--neu-radius-base": raisedControlRadius,
-                "--neu-radius-sm": raisedControlRadius,
-                borderRadius: "var(--neu-radius)",
-              }}
+              style={
+                {
+                  ...embossedCardStyle,
+                  "--neu-radius-base": raisedControlRadius,
+                  "--neu-radius-sm": raisedControlRadius,
+                  borderRadius: "var(--neu-radius)",
+                } as React.CSSProperties
+              }
             />
           </div>
         )}
