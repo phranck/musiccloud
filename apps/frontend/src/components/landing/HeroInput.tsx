@@ -1,6 +1,5 @@
 import { ArrowRightIcon, CheckIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef } from "react";
-import { AlertDialog } from "@/components/ui/AlertDialog";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { useT } from "@/i18n/context";
 import { isMusicUrl } from "@/lib/platform/url";
@@ -21,7 +20,6 @@ interface HeroInputProps {
   state: InputState;
   compact?: boolean;
   songName?: string;
-  errorMessage?: string;
 }
 
 export function HeroInput({
@@ -34,7 +32,6 @@ export function HeroInput({
   state,
   compact = false,
   songName,
-  errorMessage,
 }: HeroInputProps) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -210,14 +207,6 @@ export function HeroInput({
           </button>
         </div>
       </div>
-
-      <AlertDialog
-        open={state === InputState.Error && !!errorMessage}
-        title={t("error.dialogTitle")}
-        message={errorMessage ?? ""}
-        closeLabel={t("error.dismiss")}
-        onClose={handleClear}
-      />
     </div>
   );
 }

@@ -62,7 +62,7 @@
   "errorCodes.MC-RES-0002": "We couldn't find this on other services. It may be exclusive to the source. ({code})",
   "errorCodes.MC-API-0001": "One of the services is temporarily unavailable. Please try again. ({code})",
   "errorCodes.MC-API-0002": "All services are currently unreachable. Please try again in a few minutes. ({code})",
-  "errorCodes.MC-API-0003": "Too many requests. Please wait a moment and try again. ({code})",
+  "errorCodes.MC-API-0003": "Too many requests. You can make {limit} requests per {windowSeconds} seconds. Please try again in {retryAfterSeconds} seconds. ({code})",
   "errorCodes.MC-API-0004": "Something went wrong talking to a service. Please try again. ({code})",
   "errorCodes.MC-API-0005": "This is taking longer than usual. Please try again. ({code})",
   "a11y.skipToContent": "Skip to content",

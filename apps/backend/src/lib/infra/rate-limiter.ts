@@ -19,6 +19,14 @@
  */
 import type { FastifyRequest } from "fastify";
 
+export interface RateLimitCheck {
+  limited: boolean;
+  limit: number;
+  remaining: number;
+  retryAfterSeconds: number;
+  windowSeconds: number;
+}
+
 export class RateLimiter {
   private windows: Map<string, number[]> = new Map();
 
@@ -27,8 +35,17 @@ export class RateLimiter {
     private readonly windowMs: number,
   ) {}
 
-  isLimited(key: string): boolean {
-    if (isRateLimitDisabled()) return false;
+  check(key: string): RateLimitCheck {
+    const windowSeconds = Math.ceil(this.windowMs / 1000);
+    if (isRateLimitDisabled()) {
+      return {
+        limited: false,
+        limit: this.maxRequests,
+        remaining: this.maxRequests,
+        retryAfterSeconds: 0,
+        windowSeconds,
+      };
+    }
 
     const now = Date.now();
     const windowStart = now - this.windowMs;
@@ -38,12 +55,30 @@ export class RateLimiter {
 
     if (timestamps.length >= this.maxRequests) {
       this.windows.set(key, timestamps);
-      return true;
+      const oldestTimestamp = timestamps[0] ?? now;
+      const retryAfterMs = Math.max(0, oldestTimestamp + this.windowMs - now);
+      return {
+        limited: true,
+        limit: this.maxRequests,
+        remaining: 0,
+        retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)),
+        windowSeconds,
+      };
     }
 
     timestamps.push(now);
     this.windows.set(key, timestamps);
-    return false;
+    return {
+      limited: false,
+      limit: this.maxRequests,
+      remaining: Math.max(0, this.maxRequests - timestamps.length),
+      retryAfterSeconds: 0,
+      windowSeconds,
+    };
+  }
+
+  isLimited(key: string): boolean {
+    return this.check(key).limited;
   }
 
   cleanup(): void {
@@ -83,9 +118,9 @@ export class RateLimiter {
 // seconds" after only 2-3 searches, or as silent 302 -> /404 redirects
 // on the share-page SSR path).
 //
-// BFF bypass: even after both pre-conditions hold, 10/min proved too
-// tight for normal browsing because each share-page render consumes
-// 3-4 sub-requests (share + share-preview x2 + artist-info). Internal
+// BFF bypass: even after both pre-conditions hold, 10 requests per 60
+// seconds proved too tight for normal browsing because each share-page
+// render consumes 3-4 sub-requests (share + share-preview x2 + artist-info). Internal
 // SSR calls therefore SKIP the limiter when their X-API-Key matches
 // INTERNAL_API_KEY (see `isInternalRequest` below). The global
 // @fastify/rate-limit at 300/min still applies as a safety net against

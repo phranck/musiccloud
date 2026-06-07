@@ -26,6 +26,35 @@ describe("RateLimiter", () => {
     expect(limiter.isLimited("client-1")).toBe(true); // 3 -> blocked
   });
 
+  it("should return rate limit metadata while blocking", () => {
+    const limiter = new RateLimiter(2, 60_000);
+    expect(limiter.check("client-1")).toMatchObject({
+      limited: false,
+      limit: 2,
+      remaining: 1,
+      retryAfterSeconds: 0,
+      windowSeconds: 60,
+    });
+    vi.advanceTimersByTime(10_000);
+    expect(limiter.check("client-1")).toMatchObject({
+      limited: false,
+      limit: 2,
+      remaining: 0,
+      retryAfterSeconds: 0,
+      windowSeconds: 60,
+    });
+
+    vi.advanceTimersByTime(5_000);
+
+    expect(limiter.check("client-1")).toMatchObject({
+      limited: true,
+      limit: 2,
+      remaining: 0,
+      retryAfterSeconds: 45,
+      windowSeconds: 60,
+    });
+  });
+
   it("should track keys independently", () => {
     const limiter = new RateLimiter(1, 60_000);
     expect(limiter.isLimited("client-1")).toBe(false);

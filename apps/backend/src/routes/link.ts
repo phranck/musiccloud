@@ -28,6 +28,7 @@
 import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
+import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { toCachedApiLinks } from "../lib/server/api-links.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
@@ -74,17 +75,18 @@ export default async function linkRoutes(app: FastifyInstance) {
           },
           401: { description: "Missing or invalid API key / bearer token.", $ref: "ErrorResponse#" },
           404: { description: "No track exists for this id.", $ref: "ErrorResponse#" },
-          429: { description: "Rate limit exceeded for this client IP (10/min).", $ref: "ErrorResponse#" },
+          429: {
+            description: "Rate limit exceeded for this client IP (10 requests per 60 seconds).",
+            $ref: "ErrorResponse#",
+          },
         },
       },
     },
     async (request, reply) => {
       const clientIp = request.ip;
-      if (apiRateLimiter.isLimited(clientIp)) {
-        return reply.status(429).send({
-          error: "RATE_LIMITED",
-          message: "Too many requests. Please try again later.",
-        });
+      const rateLimit = apiRateLimiter.check(clientIp);
+      if (rateLimit.limited) {
+        return sendRateLimitError(reply, rateLimit);
       }
 
       const { id } = request.params;

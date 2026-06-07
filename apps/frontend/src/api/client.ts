@@ -43,9 +43,9 @@ function internalHeaders(extra?: Record<string, string>): Record<string, string>
 /**
  * Build X-Forwarded-For extras for backend calls that hit per-IP rate
  * limits. Without this header the backend `apiRateLimiter` buckets by the
- * frontend pod IP, so all SSR-driven calls share one 10/min bucket
- * globally — see `apps/backend/src/lib/infra/rate-limiter.ts:67-72`. Pass
- * `Astro.clientAddress` (or the equivalent in API endpoints) so the
+ * frontend pod IP, so all SSR-driven calls share one 10 requests per
+ * 60 seconds bucket globally — see `apps/backend/src/lib/infra/rate-limiter.ts:67-72`.
+ * Pass `Astro.clientAddress` (or the equivalent in API endpoints) so the
  * backend buckets per real user.
  */
 function forwardedForExtra(clientIp: string | undefined): Record<string, string> | undefined {

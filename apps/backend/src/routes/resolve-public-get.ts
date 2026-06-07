@@ -30,6 +30,7 @@ import { getRepository } from "../db/index.js";
 import { STRUCTURED_SEARCH_GET_OPENAPI_NOTE, STRUCTURED_SEARCH_OPENAPI_SECTION } from "../docs/resolve-openapi.js";
 import { requireEnvList } from "../lib/env.js";
 import { log } from "../lib/infra/logger.js";
+import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
@@ -112,7 +113,10 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           400: { description: "Missing, malformed, or ambiguous query.", $ref: "ErrorResponse#" },
           404: { description: "Query is valid but no track could be found.", $ref: "ErrorResponse#" },
           408: { description: "Upstream service timed out.", $ref: "ErrorResponse#" },
-          429: { description: "Rate limit exceeded for this client IP (10/min).", $ref: "ErrorResponse#" },
+          429: {
+            description: "Rate limit exceeded for this client IP (10 requests per 60 seconds).",
+            $ref: "ErrorResponse#",
+          },
           500: { description: "Unexpected server error.", $ref: "ErrorResponse#" },
           503: { description: "Required upstream service is unavailable.", $ref: "ErrorResponse#" },
         },
@@ -128,8 +132,9 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
       // clients behind the proxy share one bucket and 2-3 legitimate
       // requests trip the per-IP 30/60s limit for everyone.
       const clientIp = request.ip;
-      if (apiRateLimiter.isLimited(clientIp)) {
-        return reply.status(429).send(jsonError("RATE_LIMITED"));
+      const rateLimit = apiRateLimiter.check(clientIp);
+      if (rateLimit.limited) {
+        return sendRateLimitError(reply, rateLimit);
       }
 
       // Schema guarantees presence, type, and length caps of the query string

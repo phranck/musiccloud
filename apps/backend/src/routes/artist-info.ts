@@ -60,6 +60,7 @@ import { type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@mu
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
+import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { stripYouTubeTopicSuffix } from "../lib/youtube-topic.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
@@ -129,16 +130,19 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
             $ref: "ArtistInfo#",
           },
           400: { description: "Missing or empty `name` query parameter.", $ref: "ErrorResponse#" },
-          429: { description: "Rate limit exceeded for this client IP (10/min).", $ref: "ErrorResponse#" },
+          429: {
+            description: "Rate limit exceeded for this client IP (10 requests per 60 seconds).",
+            $ref: "ErrorResponse#",
+          },
         },
       },
     },
     async (request, reply) => {
-      if (!isInternalRequest(request) && apiRateLimiter.isLimited(request.ip)) {
-        return reply.status(429).send({
-          error: "RATE_LIMITED",
-          message: "Too many requests. Please try again later.",
-        });
+      if (!isInternalRequest(request)) {
+        const rateLimit = apiRateLimiter.check(request.ip);
+        if (rateLimit.limited) {
+          return sendRateLimitError(reply, rateLimit);
+        }
       }
 
       const query = request.query as {

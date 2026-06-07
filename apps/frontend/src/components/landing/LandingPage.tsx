@@ -13,9 +13,11 @@ import {
   useState,
 } from "react";
 import { HeroInput } from "@/components/landing/HeroInput";
+import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { LogoView } from "@/components/ui/LogoView";
+import { DialogProvider } from "@/context/DialogContext";
 import { useAppState } from "@/hooks/useAppState";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
 import { useToast } from "@/hooks/useToast";
@@ -104,13 +106,20 @@ function LiveExampleTeaser({
   exampleShortId,
   label,
   teaser,
+  visible,
 }: {
   exampleShortId: string;
   label: string;
   teaser: string;
+  visible: boolean;
 }) {
   return (
-    <p className="mt-4 text-sm text-text-secondary text-center">
+    <p
+      className={`mt-4 min-h-5 text-sm text-text-secondary text-center transition-opacity duration-200 ${
+        visible ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
+      aria-hidden={!visible}
+    >
       {teaser}{" "}
       <a href={`/${exampleShortId}`} className="text-accent hover:text-[var(--color-accent-hover)] transition-colors">
         {label}
@@ -320,7 +329,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
       Object.assign(el.style, { transform: "", transition: "" });
       el.removeEventListener("transitionend", transitionEndCleanup);
     };
-  });
+  }, [isReturning, showCompact]);
 
   const activeShareView = resolved ? buildShareViewFromResolvedResponse(resolved, t) : null;
   const activeShareConfig = activeShareView?.config ?? (active ? buildShareConfigFromActive(active, t) : null);
@@ -331,6 +340,8 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
 
   return (
     <>
+      <LandingPageErrorAlert message={errorMessage} onDismiss={handleClear} />
+
       <div className="flex-1 flex flex-col items-center px-4 transition-colors duration-700 relative">
         <div
           className={`flex-1 flex flex-col items-center w-full ${
@@ -367,21 +378,19 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                   onBlur={() => setIsFocused(false)}
                   state={inputState}
                   compact={showCompact}
-                  errorMessage={errorMessage}
                 />
               </div>
 
-              {state.type !== AppStateType.Loading &&
-                !candidates &&
-                !genreBrowseGenres &&
-                !genreSearchPayload &&
-                exampleShortId && (
-                  <LiveExampleTeaser
-                    exampleShortId={exampleShortId}
-                    label={t("landing.exampleLink")}
-                    teaser={t("landing.exampleTeaser")}
-                  />
-                )}
+              {exampleShortId && (
+                <LiveExampleTeaser
+                  exampleShortId={exampleShortId}
+                  label={t("landing.exampleLink")}
+                  teaser={t("landing.exampleTeaser")}
+                  visible={
+                    state.type !== AppStateType.Loading && !candidates && !genreBrowseGenres && !genreSearchPayload
+                  }
+                />
+              )}
 
               {candidates && candidates.length > 0 && (
                 <div ref={disambiguationRef} tabIndex={-1} className="outline-none w-full">
@@ -454,7 +463,9 @@ export function LandingPage({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS
   return (
     <ErrorBoundary>
       <LocaleProvider>
-        <LandingPageInner exampleShortId={exampleShortId} footerNav={footerNav} />
+        <DialogProvider>
+          <LandingPageInner exampleShortId={exampleShortId} footerNav={footerNav} />
+        </DialogProvider>
       </LocaleProvider>
     </ErrorBoundary>
   );

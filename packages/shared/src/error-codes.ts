@@ -206,7 +206,8 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
   "MC-API-0003": {
     code: "MC-API-0003",
     httpStatus: 429,
-    userMessage: "Too many requests. Please wait a moment and try again.",
+    userMessage:
+      "Too many requests. You can make {limit} requests per {windowSeconds} seconds. Please try again in {retryAfterSeconds} seconds.",
     internalNote: "Rate limiter tripped. See apps/backend/src/lib/infra/rate-limiter.ts.",
     source: "apps/backend/src/routes/resolve.ts apiRateLimiter",
   },

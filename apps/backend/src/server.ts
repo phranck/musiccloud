@@ -160,18 +160,39 @@ async function buildApp() {
     properties: {
       error: {
         type: "string",
-        description: "Machine-readable error code (e.g. INVALID_URL, RATE_LIMITED, SERVICE_DOWN).",
+        description: "Machine-readable canonical MC error code (e.g. MC-URL-0003, MC-API-0003, MC-RES-0001).",
       },
       message: { type: "string", description: "Human-readable error detail." },
       context: {
         type: "object",
         additionalProperties: { anyOf: [{ type: "string" }, { type: "number" }] },
-        description: "Optional structured values for clients that localize errors themselves.",
+        description:
+          "Optional structured values for clients that localize errors themselves. For `MC-API-0003` rate-limit responses this currently contains `limit`, `windowSeconds`, and `retryAfterSeconds`.",
+        properties: {
+          limit: {
+            type: "number",
+            description: "Maximum number of allowed requests in the active rate-limit window. Current value: 10.",
+          },
+          windowSeconds: {
+            type: "number",
+            description: "Length of the active rate-limit window in seconds. Current value: 60.",
+          },
+          retryAfterSeconds: {
+            type: "number",
+            description: "Seconds until the client can retry after a `429 Too Many Requests` response.",
+          },
+        },
       },
     },
     example: {
-      error: "NOT_FOUND",
-      message: "Short ID not found. (MC-RES-0001)",
+      error: "MC-API-0003",
+      message:
+        "Too many requests. You can make 10 requests per 60 seconds. Please try again in 42 seconds. (MC-API-0003)",
+      context: {
+        limit: 10,
+        retryAfterSeconds: 42,
+        windowSeconds: 60,
+      },
     },
   });
 
@@ -205,8 +226,8 @@ async function buildApp() {
           "4. Refresh by re-issuing the token call when it expires; there is no refresh-token flow.\n\n" +
           "Without valid credentials, protected endpoints return `401 Unauthorized` and the client never reaches the resolver.\n\n" +
           "## Rate limiting\n\n" +
-          "All public endpoints (Resolve, Share, Auth, Link, Artist) are limited to **10 requests per minute per client IP**. " +
-          "Exceeding the quota returns `429 Too Many Requests` with `error: RATE_LIMITED`. " +
+          "All public endpoints (Resolve, Share, Auth, Link, Artist) are limited to **10 requests per 60 seconds per client IP**. " +
+          "Exceeding the quota returns `429 Too Many Requests` with `error: MC-API-0003`, an English `message`, structured `context`, and a `Retry-After` header. " +
           "The asset endpoint `GET /api/v1/genre-artwork/:genreKey` is exempt from this per-IP quota because the frontend loads artwork tiles in parallel; " +
           "it is still bounded by a global 300 requests/minute ceiling shared with all routes.",
         version: "2.0.0",

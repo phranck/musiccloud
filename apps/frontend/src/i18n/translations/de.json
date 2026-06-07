@@ -62,7 +62,7 @@
   "errorCodes.MC-RES-0002": "Wir konnten das auf anderen Diensten nicht finden. Es ist möglicherweise exklusiv beim Quelldienst. ({code})",
   "errorCodes.MC-API-0001": "Einer der Dienste ist vorübergehend nicht erreichbar. Bitte versuche es erneut. ({code})",
   "errorCodes.MC-API-0002": "Aktuell sind alle Dienste nicht erreichbar. Bitte versuche es in ein paar Minuten erneut. ({code})",
-  "errorCodes.MC-API-0003": "Zu viele Anfragen. Bitte warte kurz und versuche es erneut. ({code})",
+  "errorCodes.MC-API-0003": "Zu viele Anfragen. Du kannst {limit} Anfragen pro {windowSeconds} Sekunden senden. Bitte versuche es in {retryAfterSeconds} Sekunden erneut. ({code})",
   "errorCodes.MC-API-0004": "Bei der Kommunikation mit einem Dienst ist etwas schiefgelaufen. Bitte versuche es erneut. ({code})",
   "errorCodes.MC-API-0005": "Das dauert länger als üblich. Bitte versuche es erneut. ({code})",
   "a11y.skipToContent": "Zum Inhalt springen",

@@ -31,6 +31,7 @@
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 
@@ -97,7 +98,10 @@ export default async function authRoutes(app: FastifyInstance) {
           },
           400: { description: "Missing or malformed body field.", $ref: "ErrorResponse#" },
           401: { description: "Invalid `client_id` or `client_secret`.", $ref: "ErrorResponse#" },
-          429: { description: "Rate limit exceeded for this client IP (10/min).", $ref: "ErrorResponse#" },
+          429: {
+            description: "Rate limit exceeded for this client IP (10 requests per 60 seconds).",
+            $ref: "ErrorResponse#",
+          },
           500: {
             description: "Server-side misconfiguration (API_CLIENT_ID / API_CLIENT_SECRET env vars not set).",
             $ref: "ErrorResponse#",
@@ -106,11 +110,9 @@ export default async function authRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      if (apiRateLimiter.isLimited(request.ip)) {
-        return reply.status(429).send({
-          error: "RATE_LIMITED",
-          message: "Rate limit exceeded. Please try again in a minute.",
-        });
+      const rateLimit = apiRateLimiter.check(request.ip);
+      if (rateLimit.limited) {
+        return sendRateLimitError(reply, rateLimit);
       }
 
       // Schema guarantees grant_type === "client_credentials" and that both

@@ -62,6 +62,7 @@ import { getRepository } from "../db/index.js";
 import { STRUCTURED_SEARCH_OPENAPI_SECTION, STRUCTURED_SEARCH_POST_OPENAPI_NOTE } from "../docs/resolve-openapi.js";
 import { requireEnvList } from "../lib/env.js";
 import { log } from "../lib/infra/logger.js";
+import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
@@ -182,7 +183,10 @@ export default async function resolveRoutes(app: FastifyInstance) {
           401: { description: "Missing or invalid API key / bearer token.", $ref: "ErrorResponse#" },
           404: { description: "URL is valid but the track/album/artist could not be found.", $ref: "ErrorResponse#" },
           408: { description: "Upstream service timed out before a match could be confirmed.", $ref: "ErrorResponse#" },
-          429: { description: "Rate limit exceeded for this client IP (10/min).", $ref: "ErrorResponse#" },
+          429: {
+            description: "Rate limit exceeded for this client IP (10 requests per 60 seconds).",
+            $ref: "ErrorResponse#",
+          },
           500: { description: "Unexpected server error.", $ref: "ErrorResponse#" },
           503: {
             description: "Required upstream service (e.g. the Deezer genre adapter) is unavailable.",
@@ -194,8 +198,9 @@ export default async function resolveRoutes(app: FastifyInstance) {
     async (request, reply) => {
       // Rate limiting
       const clientIp = request.ip;
-      if (apiRateLimiter.isLimited(clientIp)) {
-        return reply.status(429).send(jsonError("RATE_LIMITED"));
+      const rateLimit = apiRateLimiter.check(clientIp);
+      if (rateLimit.limited) {
+        return sendRateLimitError(reply, rateLimit);
       }
 
       // Schema guarantees the object shape and length caps; we still trim

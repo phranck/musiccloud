@@ -8,8 +8,8 @@ export const prerender = false;
  * Proxy GET /api/artist-info?name=&region= → backend /api/v1/artist-info.
  *
  * Forwards the user's IP via `X-Forwarded-For` so the backend's per-IP
- * rate limiter (`apiRateLimiter`, shared 10/min bucket) buckets per real
- * user instead of the frontend pod. See
+ * rate limiter (`apiRateLimiter`, shared 10 requests per 60 seconds bucket)
+ * buckets per real user instead of the frontend pod. See
  * `apps/backend/src/lib/infra/rate-limiter.ts:67-72` for the rationale.
  */
 export const GET: APIRoute = async ({ url, clientAddress }) => {
