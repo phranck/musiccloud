@@ -139,7 +139,7 @@ function resolveAudioProgressRatio(audio: HTMLAudioElement): number {
   return Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
 }
 
-const SPECTRUM_CHANNEL_BAND_COUNT = 12;
+const SPECTRUM_CHANNEL_BAND_COUNT = 13;
 const SPECTRUM_UPDATE_MS = 50;
 const SPECTRUM_FADE_FACTOR = 0.68;
 const SPECTRUM_FADE_MIN_LEVEL = 0.03;

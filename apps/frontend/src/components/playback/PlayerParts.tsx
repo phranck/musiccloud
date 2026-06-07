@@ -50,7 +50,7 @@ const PLAYER_DEFAULT_VFD_CELLS = 44;
 const PLAYER_VFD_CELL_PITCH_PX = 12;
 const PLAYER_VFD_FIRST_CELL_WIDTH_PX = 9;
 const PLAYER_SPECTRUM_CELLS = 30;
-const PLAYER_STEREO_CHANNEL_CELLS = 12;
+const PLAYER_STEREO_CHANNEL_CELLS = 13;
 const PLAYER_STEREO_CHANNEL_GAP_CELLS = 3;
 const PLAYER_TIME_SPACER_CELLS = 2;
 const PLAYER_SPECTRUM_LEVEL_GLYPHS = [
@@ -123,7 +123,7 @@ function elementContentWidth(element: HTMLElement): number {
 function stereoChannelBandCells(displayCells: number, timeText: string): number {
   const timeCells = Math.max(1, Array.from(timeText).length);
   const analyzerCells = Math.max(0, displayCells - PLAYER_TIME_SPACER_CELLS - timeCells);
-  const fixedStereoCells = 2 + PLAYER_STEREO_CHANNEL_GAP_CELLS;
+  const fixedStereoCells = PLAYER_STEREO_CHANNEL_GAP_CELLS;
   return Math.min(PLAYER_STEREO_CHANNEL_CELLS, Math.max(0, Math.floor((analyzerCells - fixedStereoCells) / 2)));
 }
 
@@ -137,13 +137,12 @@ function renderSpectrumSections(
     const channelCells = stereoChannelBandCells(displayCells, timeText);
     const timeCells = Math.max(1, Array.from(timeText).length);
     const analyzerCells = Math.max(0, displayCells - PLAYER_TIME_SPACER_CELLS - timeCells);
-    const gapCells = Math.min(PLAYER_STEREO_CHANNEL_GAP_CELLS, Math.max(0, analyzerCells - 2 - channelCells * 2));
-    const fillerCells = Math.max(0, analyzerCells - 2 - channelCells * 2 - gapCells);
+    const gapCells = Math.min(PLAYER_STEREO_CHANNEL_GAP_CELLS, Math.max(0, analyzerCells - channelCells * 2));
+    const fillerCells = Math.max(0, analyzerCells - channelCells * 2 - gapCells);
     const leftFillerCells = Math.floor(fillerCells / 2);
     const rightFillerCells = fillerCells - leftFillerCells;
 
     return compactSections([
-      sectionFor("L", "normal", 1, "spectrum-left-label"),
       channelCells > 0
         ? sectionFor(renderBandContent(bands.left, channelCells), "bright", channelCells, "spectrum-left")
         : null,
@@ -157,7 +156,6 @@ function renderSpectrumSections(
       channelCells > 0
         ? sectionFor(renderBandContent(bands.right, channelCells), "bright", channelCells, "spectrum-right")
         : null,
-      sectionFor("R", "normal", 1, "spectrum-right-label"),
     ]);
   }
 
