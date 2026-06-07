@@ -4,8 +4,16 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useToastSafe } from "@/context/ToastContext";
 import { useT } from "@/i18n/context";
+import {
+  MusicInteractionAction,
+  MusicInteractionSurface,
+  MusicResolveFailureKind,
+  MusicResolveFlow,
+  sendMusicSignal,
+} from "@/lib/analytics/umami";
 
 interface PopularTracksSectionProps {
+  interactionAction?: (typeof MusicInteractionAction)[keyof typeof MusicInteractionAction];
   tracks: ArtistTopTrack[];
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
@@ -13,12 +21,18 @@ interface PopularTracksSectionProps {
 
 export type ArtistPanelTrackResolveHandler = (track: ArtistTopTrack) => Promise<void>;
 
-export function PopularTracksSection({ tracks, onTrackResolve, onResolveStart }: PopularTracksSectionProps) {
+export function PopularTracksSection({
+  interactionAction = MusicInteractionAction.PopularTrackClicked,
+  tracks,
+  onTrackResolve,
+  onResolveStart,
+}: PopularTracksSectionProps) {
   return (
     <div className="flex flex-col gap-0.5">
       {tracks.map((track) => (
         <PopularTrack
           key={track.deezerUrl}
+          interactionAction={interactionAction}
           track={track}
           onTrackResolve={onTrackResolve}
           onResolveStart={onResolveStart}
@@ -31,11 +45,13 @@ export function PopularTracksSection({ tracks, onTrackResolve, onResolveStart }:
 export function PopularTrack({
   track,
   artistLabel,
+  interactionAction = MusicInteractionAction.PopularTrackClicked,
   onTrackResolve,
   onResolveStart,
 }: {
   track: ArtistTopTrack;
   artistLabel?: string;
+  interactionAction?: (typeof MusicInteractionAction)[keyof typeof MusicInteractionAction];
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
 }) {
@@ -50,6 +66,14 @@ export function PopularTrack({
       event.stopPropagation();
       if (resolving) return;
 
+      sendMusicSignal("music_interaction", {
+        action: interactionAction,
+        surface: MusicInteractionSurface.ArtistCard,
+      });
+      sendMusicSignal("music_resolve_started", {
+        flow: MusicResolveFlow.ArtistPanelTrack,
+        surface: MusicInteractionSurface.ArtistCard,
+      });
       setResolving(true);
       onResolveStart?.();
       try {
@@ -60,12 +84,17 @@ export function PopularTrack({
         await onTrackResolve(track);
         setResolving(false);
       } catch (err) {
+        sendMusicSignal("music_resolve_failed", {
+          error_kind: err instanceof Error ? MusicResolveFailureKind.ClientError : MusicResolveFailureKind.UnknownError,
+          flow: MusicResolveFlow.ArtistPanelTrack,
+          surface: MusicInteractionSurface.ArtistCard,
+        });
         setResolving(false);
         if (import.meta.env.DEV) console.warn("[PopularTrack] resolve failed:", err);
         toast?.show(t("error.generic"), "error");
       }
     },
-    [onResolveStart, onTrackResolve, resolving, track, toast, t],
+    [interactionAction, onResolveStart, onTrackResolve, resolving, track, toast, t],
   );
 
   return (

@@ -1,6 +1,9 @@
 import { type NavItem, NavTarget } from "@musiccloud/shared";
+import type { MouseEvent } from "react";
 
 import { useT } from "@/i18n/context";
+import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
+import { MusicInteractionAction, MusicInteractionSurface, sendMusicSignal } from "@/lib/analytics/umami";
 import { navHref, navLabel } from "@/lib/nav";
 
 const START_YEAR = 2026;
@@ -11,6 +14,13 @@ interface AppFooterProps {
 }
 
 const EMPTY_NAV_ITEMS: NavItem[] = [];
+
+function handleFooterNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): void {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+    return;
+  }
+  sendNavInteractionSignal(item, MusicInteractionSurface.Footer);
+}
 
 /**
  * Application footer: copyright + admin-managed centre nav + "made by LAYERED" link.
@@ -35,6 +45,7 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
             href={navHref(item)}
             target={item.target === NavTarget.Blank ? NavTarget.Blank : undefined}
             rel={item.target === NavTarget.Blank ? "noopener noreferrer" : undefined}
+            onClick={(e) => handleFooterNavClick(e, item)}
             className="hover:text-text-secondary transition-colors duration-150"
           >
             {navLabel(item)}
@@ -47,6 +58,12 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
           href="https://layered.work"
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() =>
+            sendMusicSignal("music_interaction", {
+              action: MusicInteractionAction.LayeredFooterClicked,
+              surface: MusicInteractionSurface.Footer,
+            })
+          }
           className="hover:text-text-secondary transition-colors duration-150 ml-1"
         >
           LAYERED

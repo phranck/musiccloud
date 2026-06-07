@@ -385,6 +385,10 @@ function formatLabel(x: string, period: UmamiPeriod, locale: DashboardLocale): s
   return dayMonthFormatters[locale].format(date);
 }
 
+function formatEventMetricLabel(value: string): string {
+  return value.replace(/^music_/, "").replaceAll("_", " ");
+}
+
 interface KpiCardProps {
   label: string;
   value: string | number;
@@ -1005,6 +1009,15 @@ export function AnalyticsSection() {
           type={UmamiMetricType.Referrer}
           period={period}
           renderLabel={(x) => x || m.direct}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3">
+        <MetricList
+          title={m.events}
+          type={UmamiMetricType.Event}
+          period={period}
+          renderLabel={formatEventMetricLabel}
         />
       </div>
 

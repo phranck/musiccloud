@@ -1,5 +1,6 @@
 import type { SimilarArtistTrack } from "@musiccloud/shared";
 import { type ArtistPanelTrackResolveHandler, PopularTrack } from "@/components/artist/PopularTracksSection";
+import { MusicInteractionAction } from "@/lib/analytics/umami";
 
 interface SimilarArtistsSectionProps {
   similarArtistTracks: SimilarArtistTrack[];
@@ -30,6 +31,7 @@ export function SimilarArtistsSection({
       {withTrack.map(({ artistName, track }) => (
         <PopularTrack
           key={artistName}
+          interactionAction={MusicInteractionAction.SimilarArtistClicked}
           track={track}
           artistLabel={artistName}
           onTrackResolve={onTrackResolve}

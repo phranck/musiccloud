@@ -6,6 +6,8 @@ type UmamiClient = {
 };
 
 type MusicSignalEvent =
+  | "music_resolve_failed"
+  | "music_resolve_started"
   | "music_source_search_success"
   | "music_search_submitted"
   | "music_interaction"
@@ -14,6 +16,40 @@ type MusicSignalEvent =
   | "music_share_interaction";
 
 type MusicSignalProperties = Record<string, UmamiPropertyValue | null | undefined>;
+
+export const MusicInteractionAction = {
+  ContentPageClicked: "content_page_clicked",
+  DisambiguationCandidateSelected: "disambiguation_candidate_selected",
+  ExternalNavClicked: "external_nav_clicked",
+  GenreResultSelected: "genre_result_selected",
+  HelpPageClicked: "help_page_clicked",
+  InfoPageClicked: "info_page_clicked",
+  LayeredFooterClicked: "layered_footer_clicked",
+  LiveExampleClicked: "live_example_clicked",
+  PopularTrackClicked: "popular_track_clicked",
+  SimilarArtistClicked: "similar_artist_clicked",
+  UpcomingEventClicked: "upcoming_event_clicked",
+} as const;
+
+export const MusicInteractionSurface = {
+  ArtistCard: "artist_card",
+  Footer: "footer",
+  Header: "header",
+  Landing: "landing",
+  SharePage: "share_page",
+} as const;
+
+export const MusicResolveFlow = {
+  ArtistPanelTrack: "artist_panel_track",
+  DisambiguationCandidate: "disambiguation_candidate",
+  GenreResult: "genre_result",
+  LandingSearch: "landing_search",
+} as const;
+
+export const MusicResolveFailureKind = {
+  ClientError: "client_error",
+  UnknownError: "unknown_error",
+} as const;
 
 declare global {
   interface Window {

@@ -22,6 +22,7 @@ import { useAppState } from "@/hooks/useAppState";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
 import { useToast } from "@/hooks/useToast";
 import { LocaleProvider, useT } from "@/i18n/context";
+import { MusicInteractionAction, MusicInteractionSurface, sendMusicSignal } from "@/lib/analytics/umami";
 import {
   loadDisambiguationPanel,
   loadGenreBrowseGrid,
@@ -121,7 +122,16 @@ function LiveExampleTeaser({
       aria-hidden={!visible}
     >
       {teaser}{" "}
-      <a href={`/${exampleShortId}`} className="text-accent hover:text-[var(--color-accent-hover)] transition-colors">
+      <a
+        href={`/${exampleShortId}`}
+        onClick={() =>
+          sendMusicSignal("music_interaction", {
+            action: MusicInteractionAction.LiveExampleClicked,
+            surface: MusicInteractionSurface.Landing,
+          })
+        }
+        className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
+      >
         {label}
       </a>
     </p>

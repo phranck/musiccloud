@@ -9,7 +9,14 @@ import {
 } from "@musiccloud/shared";
 import { type Dispatch, useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
-import { classifySearchInput, searchInputLengthBucket, sendMusicSignal } from "@/lib/analytics/umami";
+import {
+  classifySearchInput,
+  MusicInteractionAction,
+  MusicInteractionSurface,
+  MusicResolveFlow,
+  searchInputLengthBucket,
+  sendMusicSignal,
+} from "@/lib/analytics/umami";
 import {
   appReducer,
   formatResolveErrorMessage,
@@ -82,9 +89,17 @@ export function useAppState(): UseAppStateResult {
   );
 
   const handleSubmit = useCallback(async (url: string) => {
+    const inputKind = classifySearchInput(url);
+    const inputLength = searchInputLengthBucket(url);
     sendMusicSignal("music_search_submitted", {
-      input_kind: classifySearchInput(url),
-      input_length: searchInputLengthBucket(url),
+      input_kind: inputKind,
+      input_length: inputLength,
+    });
+    sendMusicSignal("music_resolve_started", {
+      flow: MusicResolveFlow.LandingSearch,
+      input_kind: inputKind,
+      input_length: inputLength,
+      surface: MusicInteractionSurface.Landing,
     });
     dispatch({ type: "SUBMIT" });
     try {
@@ -149,14 +164,24 @@ export function useAppState(): UseAppStateResult {
       });
       dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
     } catch (err) {
+      sendResolveFailedSignal(err, {
+        flow: MusicResolveFlow.LandingSearch,
+        input_kind: inputKind,
+        input_length: inputLength,
+        surface: MusicInteractionSurface.Landing,
+      });
       dispatchResolveError(dispatch, err);
     }
   }, []);
 
   const handleSelectCandidate = useCallback(async (candidate: DisambiguationCandidate) => {
     sendMusicSignal("music_interaction", {
-      action: "disambiguation_candidate_selected",
-      surface: "landing",
+      action: MusicInteractionAction.DisambiguationCandidateSelected,
+      surface: MusicInteractionSurface.Landing,
+    });
+    sendMusicSignal("music_resolve_started", {
+      flow: MusicResolveFlow.DisambiguationCandidate,
+      surface: MusicInteractionSurface.Landing,
     });
     dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
     try {
@@ -182,6 +207,10 @@ export function useAppState(): UseAppStateResult {
       });
       dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data), resolved });
     } catch (err) {
+      sendResolveFailedSignal(err, {
+        flow: MusicResolveFlow.DisambiguationCandidate,
+        surface: MusicInteractionSurface.Landing,
+      });
       dispatchResolveError(dispatch, err);
     }
   }, []);
@@ -198,8 +227,12 @@ export function useAppState(): UseAppStateResult {
    */
   const handleSelectGenreResult = useCallback(async (webUrl: string, id: string) => {
     sendMusicSignal("music_interaction", {
-      action: "genre_result_selected",
-      surface: "landing",
+      action: MusicInteractionAction.GenreResultSelected,
+      surface: MusicInteractionSurface.Landing,
+    });
+    sendMusicSignal("music_resolve_started", {
+      flow: MusicResolveFlow.GenreResult,
+      surface: MusicInteractionSurface.Landing,
     });
     dispatch({ type: "SELECT_GENRE_RESULT", selectedId: id });
     try {
@@ -224,6 +257,10 @@ export function useAppState(): UseAppStateResult {
       });
       dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
     } catch (err) {
+      sendResolveFailedSignal(err, {
+        flow: MusicResolveFlow.GenreResult,
+        surface: MusicInteractionSurface.Landing,
+      });
       dispatchResolveError(dispatch, err);
     }
   }, []);
@@ -263,4 +300,16 @@ export function useAppState(): UseAppStateResult {
 
 function dispatchResolveError(dispatch: Dispatch<{ type: "ERROR"; error: ResolveUiError }>, err: unknown): void {
   dispatch({ type: "ERROR", error: parseResolveError(err) });
+}
+
+function sendResolveFailedSignal(
+  err: unknown,
+  properties: Record<string, string | number | boolean | null | undefined>,
+): void {
+  const parsed = parseResolveError(err);
+  sendMusicSignal("music_resolve_failed", {
+    ...properties,
+    error_code: parsed.code,
+    error_kind: parsed.key.replace(/^errorCodes\./, ""),
+  });
 }

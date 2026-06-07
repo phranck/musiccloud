@@ -15,6 +15,7 @@ export type UmamiPeriod = (typeof UmamiPeriod)[keyof typeof UmamiPeriod];
 
 export const UmamiMetricType = {
   Url: "url",
+  Event: "event",
   Referrer: "referrer",
   Country: "country",
   Region: "region",

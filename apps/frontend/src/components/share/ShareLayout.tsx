@@ -196,6 +196,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider, useT } from "@/i18n/context";
+import { MusicInteractionAction, MusicInteractionSurface, sendMusicSignal } from "@/lib/analytics/umami";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import type { ActiveResult } from "@/lib/types/app";
@@ -502,7 +503,13 @@ function ShareLayoutInner({
     };
   }, [currentArtistContext, currentArtistName, userRegion]);
 
-  const openSheet = useCallback(() => dispatchUi({ type: ShareUiActionType.OpenSheet }), []);
+  const openSheet = useCallback(() => {
+    sendMusicSignal("music_interaction", {
+      action: MusicInteractionAction.InfoPageClicked,
+      surface: MusicInteractionSurface.SharePage,
+    });
+    dispatchUi({ type: ShareUiActionType.OpenSheet });
+  }, []);
   const closeSheet = useCallback(() => dispatchUi({ type: ShareUiActionType.CloseSheet }), []);
   const handlePreviewStatusChange = useCallback(
     (status: AudioPreviewStatus | null) => dispatchUi({ type: ShareUiActionType.PreviewStatusChanged, status }),

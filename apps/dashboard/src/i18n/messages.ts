@@ -711,6 +711,7 @@ export interface DashboardMessages {
     };
     traffic: string;
     topPages: string;
+    events: string;
     sources: string;
     environment: string;
     location: string;
@@ -1445,6 +1446,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       },
       traffic: "Traffic",
       topPages: "Top Seiten",
+      events: "Events",
       sources: "Quellen",
       environment: "Environment",
       location: "Location",
@@ -2177,6 +2179,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       },
       traffic: "Traffic",
       topPages: "Top Pages",
+      events: "Events",
       sources: "Sources",
       environment: "Environment",
       location: "Location",
