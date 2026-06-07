@@ -107,7 +107,6 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
               required
-              autoFocus
               placeholder={text.titlePlaceholder}
               className={formInputClass}
             />

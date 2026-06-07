@@ -1,5 +1,5 @@
 import { ENDPOINTS } from "@musiccloud/shared";
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 import {
   AudioPreviewStatus,
   type AudioPreviewStatus as AudioPreviewStatusType,
@@ -229,7 +229,7 @@ function resolveSpectrumBands(frequencyData: Uint8Array<ArrayBuffer>, bandCount:
   return rawBands.map((band) => Math.min(1, band * frameGain));
 }
 
-export function AudioPreviewPlayer({
+function useAudioPreviewController({
   previewUrl,
   refreshShortId,
   trackTitle,
@@ -279,6 +279,7 @@ export function AudioPreviewPlayer({
             content_type: contentType,
             source: PreviewAnalyticsSource.Refresh,
           });
+          notifyStatusChangeFromEvent(AudioPreviewStatus.Unavailable);
           dispatch({ type: PlayerActionType.UrlUnavailable });
         }
       } catch (err) {
@@ -288,6 +289,7 @@ export function AudioPreviewPlayer({
           content_type: contentType,
           source: PreviewAnalyticsSource.Refresh,
         });
+        notifyStatusChangeFromEvent(AudioPreviewStatus.Unavailable);
         dispatch({ type: PlayerActionType.UrlUnavailable });
       }
     })();
@@ -309,6 +311,7 @@ export function AudioPreviewPlayer({
     progressRatioRef.current = nextRatio;
     setProgressRatio(nextRatio);
   }, []);
+  const setProgressRatioFromEvent = useEffectEvent(setProgressRatioValue);
 
   const stopProgressRewind = useCallback(() => {
     if (progressRewindFrameRef.current !== null) cancelAnimationFrame(progressRewindFrameRef.current);
@@ -347,6 +350,7 @@ export function AudioPreviewPlayer({
 
     progressRewindFrameRef.current = requestAnimationFrame(tick);
   }, [setProgressRatioValue, stopProgressRewind]);
+  const startProgressRewindFromEvent = useEffectEvent(startProgressRewind);
 
   const startProgressLoop = useCallback(
     (audio: HTMLAudioElement) => {
@@ -386,6 +390,11 @@ export function AudioPreviewPlayer({
 
     spectrumFrameRef.current = requestAnimationFrame(tick);
   }, [stopSpectrumLoop]);
+  const startSpectrumFadeOutFromEvent = useEffectEvent(startSpectrumFadeOut);
+  const notifyStatusChange = useCallback((status: AudioPreviewStatusType) => {
+    onStatusChange?.(status);
+  }, [onStatusChange]);
+  const notifyStatusChangeFromEvent = useEffectEvent(notifyStatusChange);
 
   const teardownSpectrum = useCallback(() => {
     stopSpectrumLoop();
@@ -525,13 +534,12 @@ export function AudioPreviewPlayer({
         .then((isAnalyzerReady) => {
           if (isAnalyzerReady && !audio.paused && !audio.ended) startSpectrumLoop();
         })
-        .catch(() => setSpectrumBands(null))
+        .catch(() => undefined)
         .finally(() => {
           spectrumRecoveryInFlightRef.current = false;
         });
     };
 
-    recoverSpectrum();
     const recoveryTimer = window.setInterval(recoverSpectrum, SPECTRUM_RECOVERY_CHECK_MS);
     return () => window.clearInterval(recoveryTimer);
   }, [ensureSpectrumAnalyzer, startSpectrumLoop, state.phase]);
@@ -553,22 +561,23 @@ export function AudioPreviewPlayer({
     const handleLoadedMetadata = () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
       dispatch({ type: PlayerActionType.MetadataLoaded, duration: dur });
-      setProgressRatioValue(resolveAudioProgressRatio(audio));
+      setProgressRatioFromEvent(resolveAudioProgressRatio(audio));
     };
     const handleTimeUpdate = () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
       dispatch({ type: PlayerActionType.TimeUpdate, currentTime: audio.currentTime, duration: dur });
-      setProgressRatioValue(resolveAudioProgressRatio(audio));
+      setProgressRatioFromEvent(resolveAudioProgressRatio(audio));
     };
     const handleEnded = () => {
       stopProgressLoop();
-      setProgressRatioValue(1);
-      startProgressRewind();
-      startSpectrumFadeOut();
+      setProgressRatioFromEvent(1);
+      startProgressRewindFromEvent();
+      startSpectrumFadeOutFromEvent();
       sendMusicSignal("music_preview_interaction", {
         action: PreviewAnalyticsAction.Ended,
         content_type: contentType,
       });
+      notifyStatusChangeFromEvent(AudioPreviewStatus.Ready);
       dispatch({ type: PlayerActionType.Ended });
     };
     const handleError = () => {
@@ -577,6 +586,7 @@ export function AudioPreviewPlayer({
         action: PreviewAnalyticsAction.Error,
         content_type: contentType,
       });
+      notifyStatusChangeFromEvent(AudioPreviewStatus.Unavailable);
       dispatch({ type: PlayerActionType.Error });
     };
 
@@ -602,9 +612,6 @@ export function AudioPreviewPlayer({
   }, [
     effectiveUrl,
     contentType,
-    setProgressRatioValue,
-    startProgressRewind,
-    startSpectrumFadeOut,
     stopProgressLoop,
     stopProgressRewind,
     teardownSpectrum,
@@ -627,6 +634,7 @@ export function AudioPreviewPlayer({
             content_type: contentType,
           });
           dispatch({ type: PlayerActionType.Play });
+          notifyStatusChange(AudioPreviewStatus.Playing);
           hasStartedRef.current = true;
           startProgressLoop(audio);
           void ensureSpectrumAnalyzer(audio)
@@ -640,6 +648,7 @@ export function AudioPreviewPlayer({
             action: PreviewAnalyticsAction.Error,
             content_type: contentType,
           });
+          notifyStatusChange(AudioPreviewStatus.Unavailable);
           dispatch({ type: PlayerActionType.Error });
         });
     } else if (state.phase === PlayerPhase.Playing) {
@@ -650,6 +659,7 @@ export function AudioPreviewPlayer({
         action: PreviewAnalyticsAction.Pause,
         content_type: contentType,
       });
+      notifyStatusChange(AudioPreviewStatus.Paused);
       dispatch({ type: PlayerActionType.Pause });
     }
   }, [
@@ -662,6 +672,7 @@ export function AudioPreviewPlayer({
     stopProgressLoop,
     stopProgressRewind,
     stopSpectrumLoop,
+    notifyStatusChange,
   ]);
 
   const isLoading = state.phase === PlayerPhase.Loading;
@@ -669,18 +680,6 @@ export function AudioPreviewPlayer({
   const isDisabled = isLoading || isUnavailable;
   const isPlaying = state.phase === PlayerPhase.Playing;
 
-  useEffect(() => {
-    const status: AudioPreviewStatusType = isLoading
-      ? AudioPreviewStatus.Loading
-      : isUnavailable
-        ? AudioPreviewStatus.Unavailable
-        : state.phase === PlayerPhase.Playing
-          ? AudioPreviewStatus.Playing
-          : state.phase === PlayerPhase.Paused
-            ? AudioPreviewStatus.Paused
-            : AudioPreviewStatus.Ready;
-    onStatusChange?.(status);
-  }, [isLoading, isUnavailable, onStatusChange, state.phase]);
   const currentTime = state.phase === PlayerPhase.Playing || state.phase === PlayerPhase.Paused ? state.currentTime : 0;
   const duration =
     state.phase === PlayerPhase.Idle || state.phase === PlayerPhase.Playing || state.phase === PlayerPhase.Paused
@@ -701,17 +700,35 @@ export function AudioPreviewPlayer({
         ? "Pause preview"
         : "Play preview";
 
+  return {
+    ariaLabel,
+    isDisabled,
+    isLoading,
+    isPlaying,
+    isUnavailable,
+    progressRatio,
+    spectrumBands,
+    timeText,
+    title: isLoading ? t("audio.previewLoading") : isUnavailable ? t("audio.previewUnavailable") : undefined,
+    togglePlay,
+    trackTitle,
+  };
+}
+
+export function AudioPreviewPlayer(props: AudioPreviewPlayerProps) {
+  const player = useAudioPreviewController(props);
+
   return (
-    <section aria-label={`Preview: ${trackTitle}`}>
+    <section aria-label={`Preview: ${player.trackTitle}`}>
       <Player
-        isPlaying={isPlaying}
-        isDisabled={isDisabled}
-        timeText={timeText}
-        progressRatio={progressRatio}
-        ariaLabel={ariaLabel}
-        title={isLoading ? t("audio.previewLoading") : isUnavailable ? t("audio.previewUnavailable") : undefined}
-        spectrumBands={spectrumBands}
-        onTogglePlay={togglePlay}
+        isPlaying={player.isPlaying}
+        isDisabled={player.isDisabled}
+        timeText={player.timeText}
+        progressRatio={player.progressRatio}
+        ariaLabel={player.ariaLabel}
+        title={player.title}
+        spectrumBands={player.spectrumBands}
+        onTogglePlay={player.togglePlay}
       />
     </section>
   );

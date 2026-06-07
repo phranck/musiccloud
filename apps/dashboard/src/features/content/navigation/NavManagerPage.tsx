@@ -499,7 +499,10 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
     [dirty, handleSave],
   );
 
-  const usedUrls = new Set(items.filter((i) => i.url).map((i) => i.url));
+  const usedUrls = new Set<string>();
+  for (const item of items) {
+    if (item.url) usedUrls.add(item.url);
+  }
   const availableStatics = staticRoutes.filter((r) => !usedUrls.has(r.url));
   const availableForms = allForms.filter((f) => f.slug && !usedUrls.has(`/${f.slug}`));
   // Group all pages by segmented hierarchy so the dropdown mirrors the

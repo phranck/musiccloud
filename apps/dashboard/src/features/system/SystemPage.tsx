@@ -155,6 +155,14 @@ const DangerPhase = {
 
 type DangerPhase = (typeof DangerPhase)[keyof typeof DangerPhase];
 
+function tracksLabel(n: number) {
+  return n === 1 ? "Track" : "Tracks";
+}
+
+function albumsLabel(n: number) {
+  return n === 1 ? "Album" : "Alben";
+}
+
 function DangerZone() {
   const { messages } = useI18n();
   const m = messages.system;
@@ -168,14 +176,6 @@ function DangerZone() {
       .then(setCounts)
       .catch(() => {});
   }, []);
-
-  function tracksLabel(n: number) {
-    return n === 1 ? "Track" : "Tracks";
-  }
-
-  function albumsLabel(n: number) {
-    return n === 1 ? "Album" : "Alben";
-  }
 
   function formatDescription() {
     if (!counts) return m.deleteAllDescriptionGeneric;

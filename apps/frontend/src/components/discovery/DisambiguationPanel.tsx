@@ -212,17 +212,9 @@ export function DisambiguationPanel({
                         }
                       >
                         <CandidateRowContent
-                          artwork={
-                            isThisSelected ? (
-                              <SlideArtwork
-                                active
-                                artworkUrl={candidate.artworkUrl}
-                                sizeClass="size-14 md:size-16"
-                                imgDim={64}
-                              />
-                            ) : undefined
-                          }
                           artworkUrl={candidate.artworkUrl}
+                          slideArtwork={isThisSelected}
+                          slideArtworkActive={isThisSelected}
                           primary={candidate.title}
                           secondary={candidate.artists.join(", ")}
                           tertiary={candidate.albumName}

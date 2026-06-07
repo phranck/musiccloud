@@ -1,5 +1,7 @@
 import { MusicNoteIcon, UserIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
+import { SlideArtwork } from "@/components/ui/SlideArtwork";
+import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
 import { cn } from "@/lib/utils";
 
 export type ArtworkKind = "square" | "round";
@@ -13,6 +15,8 @@ export interface CandidateRowContentProps {
    * the vinyl-spin loading animation.
    */
   artwork?: ReactNode;
+  slideArtwork?: boolean;
+  slideArtworkActive?: boolean;
   /** Tile shape: `round` for artists, `square` for tracks and albums. */
   artworkKind?: ArtworkKind;
   /** Primary display string (title / name). Always visible. */
@@ -49,6 +53,8 @@ export interface CandidateRowContentProps {
 export function CandidateRowContent({
   artworkUrl,
   artwork,
+  slideArtwork = false,
+  slideArtworkActive = false,
   artworkKind = "square",
   primary,
   secondary,
@@ -61,6 +67,7 @@ export function CandidateRowContent({
   const imgDim = compact ? 56 : 64;
   const FallbackIcon = artworkKind === "round" ? UserIcon : MusicNoteIcon;
   const iconSize = compact ? 20 : 24;
+  const slideKind = artworkKind === "round" ? SlideArtworkKind.Round : SlideArtworkKind.Square;
 
   const primaryClass = compact ? "text-sm" : "text-base";
   const secondaryClass = compact ? "text-xs" : "text-sm";
@@ -68,7 +75,16 @@ export function CandidateRowContent({
 
   return (
     <>
-      {artwork ?? (
+      {artwork ??
+        (slideArtwork ? (
+          <SlideArtwork
+            active={slideArtworkActive}
+            artworkUrl={artworkUrl}
+            kind={slideKind}
+            sizeClass={artworkSize}
+            imgDim={imgDim}
+          />
+        ) : (
         <div className={artworkClasses}>
           {artworkUrl ? (
             <img
@@ -88,7 +104,7 @@ export function CandidateRowContent({
             </div>
           )}
         </div>
-      )}
+        ))}
 
       <div className="flex-1 min-w-0">
         <p className={cn(primaryClass, "font-medium tracking-[-0.01em] text-text-primary truncate")}>{primary}</p>

@@ -7,6 +7,12 @@ import { useI18n } from "@/context/I18nContext";
 import { usePlugins, useTogglePlugin } from "@/features/services/hooks/usePlugins";
 import { PluginCard } from "@/features/services/PluginCard";
 
+function sortPluginsByDisplayName(plugins: readonly PluginInfo[]) {
+  const sorted = Array.from(plugins);
+  sorted.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  return sorted;
+}
+
 export function ServicesPage() {
   const { messages } = useI18n();
   const s = messages.services;
@@ -16,7 +22,7 @@ export function ServicesPage() {
 
   const sortedPlugins = useMemo<PluginInfo[]>(() => {
     if (!data) return [];
-    return [...data].sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return sortPluginsByDisplayName(data);
   }, [data]);
 
   const enabledCount = useMemo(() => sortedPlugins.filter((p) => p.enabled && p.available).length, [sortedPlugins]);

@@ -1,5 +1,4 @@
 import { CaretDownIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useState } from "react";
 import { useMatch } from "react-router";
 
 function SidebarBadge({ count }: { count: number }) {
@@ -18,8 +17,7 @@ interface CollapsibleSidebarGroupProps {
   label: string;
   badge?: number;
   children: React.ReactNode;
-  globalOpenState?: boolean | null;
-  globalOpenVersion?: number;
+  open: boolean;
   onOpenChange?: (open: boolean) => void;
   noRail?: boolean;
   /** Optional trailing element rendered next to the header (e.g. quick-action button). Sits outside the toggle button to avoid nested-button HTML. */
@@ -33,44 +31,18 @@ export function CollapsibleSidebarGroup({
   label,
   badge,
   children,
-  globalOpenState = null,
-  globalOpenVersion = 0,
+  open,
   onOpenChange,
   noRail = false,
   trailingAction,
 }: CollapsibleSidebarGroupProps) {
   const isGroupActive = !!useMatch(routeMatch);
-  const [localOpen, setLocalOpen] = useState(() => {
-    const stored = localStorage.getItem(storageKey) === "true";
-    return isGroupActive || stored;
-  });
-  const updateOpen = useCallback(
-    (next: boolean) => {
-      setLocalOpen(next);
-      localStorage.setItem(storageKey, String(next));
-      onOpenChange?.(next);
-    },
-    [onOpenChange, storageKey],
-  );
-
-  useEffect(() => {
-    if (!isGroupActive) return;
-    updateOpen(true);
-  }, [isGroupActive, updateOpen]);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: globalOpenVersion is an intentional trigger to re-run the effect even when globalOpenState has not changed (e.g. repeated "collapse all" clicks).
-  useEffect(() => {
-    if (globalOpenState === null) return;
-    updateOpen(globalOpenState);
-  }, [globalOpenState, globalOpenVersion, updateOpen]);
+  const actualOpen = isGroupActive || open;
 
   function toggleOpen() {
-    setLocalOpen((current) => {
-      const next = !current;
-      localStorage.setItem(storageKey, String(next));
-      onOpenChange?.(next);
-      return next;
-    });
+    const next = !actualOpen;
+    localStorage.setItem(storageKey, String(next));
+    onOpenChange?.(next);
   }
 
   return (
@@ -79,7 +51,7 @@ export function CollapsibleSidebarGroup({
         <button
           type="button"
           onClick={toggleOpen}
-          aria-expanded={localOpen}
+          aria-expanded={actualOpen}
           className="flex flex-1 items-center gap-3 px-3 py-2 rounded-control text-sm font-medium text-left select-none text-[var(--ds-nav-text)] hover:bg-[var(--ds-nav-hover-bg)] hover:text-[var(--ds-nav-hover-text)] transition-colors"
         >
           <span className="shrink-0 opacity-70">{icon}</span>
@@ -87,14 +59,14 @@ export function CollapsibleSidebarGroup({
           {badge !== undefined && <SidebarBadge count={badge} />}
           <CaretDownIcon
             weight="duotone"
-            className={`w-3.5 h-3.5 opacity-50 transition-transform duration-200 ease-out ${localOpen ? "rotate-180" : ""}`}
+            className={`w-3.5 h-3.5 opacity-50 transition-transform duration-200 ease-out ${actualOpen ? "rotate-180" : ""}`}
           />
         </button>
         {trailingAction && <div className="flex items-center pl-1">{trailingAction}</div>}
       </div>
       <div
         className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
-          localOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-70"
+          actualOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-70"
         }`}
       >
         <div className="overflow-hidden">

@@ -23,6 +23,7 @@ export interface DashboardSectionHeaderProps {
   title: ReactNode;
   /** Optional right-aligned content (e.g. a toggle switch). */
   addOn?: ReactNode;
+  renderAddOn?: () => ReactNode;
   className?: string;
 }
 
@@ -63,8 +64,9 @@ export function DashboardSection({ children, expanded = true, className = "" }: 
 
 /* ---- DashboardSection.Header -------------------------------------- */
 
-function DashboardSectionHeader({ icon, title, addOn, className = "" }: DashboardSectionHeaderProps) {
+function DashboardSectionHeader({ icon, title, addOn, renderAddOn, className = "" }: DashboardSectionHeaderProps) {
   const { expanded } = use(DashboardSectionContext);
+  const addOnContent = renderAddOn ? renderAddOn() : addOn;
 
   return (
     <div
@@ -76,7 +78,7 @@ function DashboardSectionHeader({ icon, title, addOn, className = "" }: Dashboar
       <span className="min-w-0 flex-1">
         <span className="block text-lg font-medium font-serif text-[var(--ds-text)]">{title}</span>
       </span>
-      {addOn && <span className="ml-auto flex shrink-0 items-center gap-2">{addOn}</span>}
+      {addOnContent && <span className="ml-auto flex shrink-0 items-center gap-2">{addOnContent}</span>}
     </div>
   );
 }

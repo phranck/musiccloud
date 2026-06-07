@@ -14,8 +14,8 @@ const GRID_ANIMATION_MS = 620;
 const GRID_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
 export function AnimatedPlatformGrid({ platforms, songTitle, contentType }: AnimatedPlatformGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
-  const itemRefs = useRef(new Map<ServiceId, HTMLDivElement>());
-  const previousRects = useRef(new Map<ServiceId, DOMRect>());
+  const itemRefMap = useMemo(() => new Map<ServiceId, HTMLDivElement>(), []);
+  const previousRectMap = useMemo(() => new Map<ServiceId, DOMRect>(), []);
   const previousGridHeight = useRef<number | null>(null);
   const heightResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -31,7 +31,7 @@ export function AnimatedPlatformGrid({ platforms, songTitle, contentType }: Anim
     const nextRects = new Map<ServiceId, DOMRect>();
 
     for (const platform of visiblePlatforms) {
-      const el = itemRefs.current.get(platform.platform);
+      const el = itemRefMap.get(platform.platform);
       if (!el) continue;
       nextRects.set(platform.platform, el.getBoundingClientRect());
     }
@@ -59,11 +59,11 @@ export function AnimatedPlatformGrid({ platforms, songTitle, contentType }: Anim
 
     const frames: number[] = [];
     for (const platform of visiblePlatforms) {
-      const el = itemRefs.current.get(platform.platform);
+      const el = itemRefMap.get(platform.platform);
       const next = nextRects.get(platform.platform);
       if (!el || !next) continue;
 
-      const previous = previousRects.current.get(platform.platform);
+      const previous = previousRectMap.get(platform.platform);
       Object.assign(el.style, {
         transition: "none",
         willChange: "transform, opacity",
@@ -76,8 +76,10 @@ export function AnimatedPlatformGrid({ platforms, songTitle, contentType }: Anim
           el.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
         }
       } else {
-        el.style.transform = "translate3d(0, -10px, 0) scale3d(0.97, 0.97, 1)";
-        el.style.opacity = "0";
+        Object.assign(el.style, {
+          transform: "translate3d(0, -10px, 0) scale3d(0.97, 0.97, 1)",
+          opacity: "0",
+        });
       }
 
       const frame = requestAnimationFrame(() => {
@@ -90,13 +92,16 @@ export function AnimatedPlatformGrid({ platforms, songTitle, contentType }: Anim
       frames.push(frame);
     }
 
-    previousRects.current = nextRects;
+    previousRectMap.clear();
+    for (const [service, rect] of nextRects) {
+      previousRectMap.set(service, rect);
+    }
 
     return () => {
       for (const frame of frames) cancelAnimationFrame(frame);
       if (heightResetTimer.current) clearTimeout(heightResetTimer.current);
     };
-  }, [visiblePlatforms]);
+  }, [visiblePlatforms, itemRefMap, previousRectMap]);
 
   return (
     <div ref={gridRef} className="grid grid-cols-2 gap-0.5">
@@ -104,8 +109,8 @@ export function AnimatedPlatformGrid({ platforms, songTitle, contentType }: Anim
         <div
           key={platform.platform}
           ref={(el) => {
-            if (el) itemRefs.current.set(platform.platform, el);
-            else itemRefs.current.delete(platform.platform);
+            if (el) itemRefMap.set(platform.platform, el);
+            else itemRefMap.delete(platform.platform);
           }}
           className="transform-gpu"
         >

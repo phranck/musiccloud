@@ -541,17 +541,22 @@ function sameSections(a: NormalizedVfdSection[] | undefined, b: NormalizedVfdSec
   if (a === b) return true;
   if (!a || !b) return false;
   if (a.length !== b.length) return false;
-  return a.every((section, index) => {
+  for (let index = 0; index < a.length; index += 1) {
+    const section = a[index];
     const other = b[index];
-    return (
+    if (
       section.key === other.key &&
       section.cells === other.cells &&
       section.align === other.align &&
       section.marquee === other.marquee &&
       section.brightness === other.brightness &&
       section.className === other.className
-    );
-  });
+    ) {
+      continue;
+    }
+    return false;
+  }
+  return true;
 }
 
 function sameLinePresentation(a: NormalizedVfdLine, b: NormalizedVfdLine): boolean {

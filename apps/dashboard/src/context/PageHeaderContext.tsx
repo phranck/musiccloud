@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useCallback, useContext, useMemo, useReducer } from "react";
+import { createContext, type ReactNode, use, useCallback, useMemo, useReducer } from "react";
 
 interface PageHeaderState {
   title: string;
@@ -99,5 +99,5 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
 }
 
 export function usePageHeaderContext() {
-  return useContext(PageHeaderContext);
+  return use(PageHeaderContext);
 }

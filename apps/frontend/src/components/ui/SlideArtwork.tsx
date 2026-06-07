@@ -1,5 +1,4 @@
 import { MusicNoteIcon, UserIcon } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { SlideArtworkKind, type SlideArtworkKind as SlideArtworkKindType } from "@/components/ui/SlideArtworkTypes";
@@ -43,15 +42,6 @@ export function SlideArtwork({
     `inset 0 ${shadowOffset}px ${shadowBlur}px -${shadowSpread}px ${shadowColor}`,
   ].join(", ");
 
-  const [entered, setEntered] = useState(false);
-  useEffect(() => {
-    if (active) {
-      const raf = requestAnimationFrame(() => setEntered(true));
-      return () => cancelAnimationFrame(raf);
-    }
-    setEntered(false);
-  }, [active]);
-
   return (
     <RecessedCard
       className={cn(sizeClass, "p-0 flex-shrink-0 relative overflow-hidden [&::before]:z-10")}
@@ -65,7 +55,7 @@ export function SlideArtwork({
           <div
             className={cn(
               "absolute inset-0 z-0 transition-transform duration-[420ms] ease-in-out",
-              entered ? "translate-y-0" : "-translate-y-full",
+              active ? "translate-y-0" : "-translate-y-full",
             )}
           >
             <CDSpinArtwork className="w-full h-full" />
@@ -76,7 +66,7 @@ export function SlideArtwork({
         <div
           className={cn(
             "relative z-0 transition-transform duration-[420ms] ease-in-out w-full h-full bg-surface",
-            active && entered ? "translate-y-full" : "translate-y-0",
+            active ? "translate-y-full" : "translate-y-0",
           )}
         >
           {artworkUrl ? (

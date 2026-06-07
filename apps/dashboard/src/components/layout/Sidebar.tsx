@@ -178,13 +178,11 @@ function PageTreeContent({ page, icon }: { page: { slug: string; title: string; 
 
 function PagesGroup({
   onItemClick,
-  globalOpenState,
-  globalOpenVersion,
+  open,
   onOpenChange,
 }: {
   onItemClick?: () => void;
-  globalOpenState?: boolean | null;
-  globalOpenVersion?: number;
+  open: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
   const { messages } = useI18n();
@@ -294,8 +292,7 @@ function PagesGroup({
         icon={<FilesIcon weight="duotone" className="w-4 h-4" />}
         label={s.pages}
         badge={list.length}
-        globalOpenState={globalOpenState}
-        globalOpenVersion={globalOpenVersion}
+        open={open}
         onOpenChange={onOpenChange}
         noRail
         trailingAction={
@@ -396,13 +393,11 @@ function PagesGroup({
 
 function FormsGroup({
   onItemClick,
-  globalOpenState,
-  globalOpenVersion,
+  open,
   onOpenChange,
 }: {
   onItemClick?: () => void;
-  globalOpenState?: boolean | null;
-  globalOpenVersion?: number;
+  open: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
   const { messages } = useI18n();
@@ -414,8 +409,7 @@ function FormsGroup({
       storageKey="sidebar-forms-open"
       icon={<NotebookIcon weight="duotone" className="w-4 h-4" />}
       label={s.formBuilder}
-      globalOpenState={globalOpenState}
-      globalOpenVersion={globalOpenVersion}
+      open={open}
       onOpenChange={onOpenChange}
     >
       <NavLink to="/forms" end onClick={onItemClick} className={sidebarGroupItemClass}>
@@ -427,13 +421,11 @@ function FormsGroup({
 
 function EmailTemplatesGroup({
   onItemClick,
-  globalOpenState,
-  globalOpenVersion,
+  open,
   onOpenChange,
 }: {
   onItemClick?: () => void;
-  globalOpenState?: boolean | null;
-  globalOpenVersion?: number;
+  open: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
   const { messages } = useI18n();
@@ -450,8 +442,7 @@ function EmailTemplatesGroup({
       icon={<EnvelopeOpenIcon weight="duotone" className="w-4 h-4" />}
       label={s.emailTemplates}
       badge={templates?.length ?? 0}
-      globalOpenState={globalOpenState}
-      globalOpenVersion={globalOpenVersion}
+      open={open}
       onOpenChange={onOpenChange}
     >
       <NavLink to="/email-templates" end onClick={onItemClick} className={sidebarGroupItemClass}>
@@ -624,8 +615,6 @@ export function Sidebar({
   const isAdmin = role !== undefined && ROLE_RANK[role] >= ROLE_RANK.admin;
   const { data: stats } = useAdminStats();
 
-  const [groupOpenVersion, setGroupOpenVersion] = useState(0);
-  const [groupOpenState, setGroupOpenState] = useState<boolean | null>(null);
   const [groupStatus, setGroupStatus] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(SIDEBAR_GROUP_STORAGE_KEYS.map((key) => [key, localStorage.getItem(key) === "true"])),
   );
@@ -634,8 +623,6 @@ export function Sidebar({
   function handleToggleAllGroups(next: boolean) {
     SIDEBAR_GROUP_STORAGE_KEYS.forEach((key) => localStorage.setItem(key, String(next)));
     setGroupStatus(Object.fromEntries(SIDEBAR_GROUP_STORAGE_KEYS.map((key) => [key, next])));
-    setGroupOpenState(next);
-    setGroupOpenVersion((version) => version + 1);
   }
 
   function handleGroupOpenChange(storageKey: (typeof SIDEBAR_GROUP_STORAGE_KEYS)[number], open: boolean) {
@@ -711,8 +698,7 @@ export function Sidebar({
               <DashboardSection.Body className="!gap-0.5 !p-2">
                 <PagesGroup
                   onItemClick={onItemClick}
-                  globalOpenState={groupOpenState}
-                  globalOpenVersion={groupOpenVersion}
+                  open={groupStatus["sidebar-pages-open"] ?? false}
                   onOpenChange={(open) => handleGroupOpenChange("sidebar-pages-open", open)}
                 />
                 <NavLink to="/navigation" onClick={onItemClick} className="contents">
@@ -740,14 +726,12 @@ export function Sidebar({
               <DashboardSection.Body className="!gap-0.5 !p-2">
                 <FormsGroup
                   onItemClick={onItemClick}
-                  globalOpenState={groupOpenState}
-                  globalOpenVersion={groupOpenVersion}
+                  open={groupStatus["sidebar-forms-open"] ?? false}
                   onOpenChange={(open) => handleGroupOpenChange("sidebar-forms-open", open)}
                 />
                 <EmailTemplatesGroup
                   onItemClick={onItemClick}
-                  globalOpenState={groupOpenState}
-                  globalOpenVersion={groupOpenVersion}
+                  open={groupStatus["sidebar-email-templates-open"] ?? false}
                   onOpenChange={(open) => handleGroupOpenChange("sidebar-email-templates-open", open)}
                 />
               </DashboardSection.Body>

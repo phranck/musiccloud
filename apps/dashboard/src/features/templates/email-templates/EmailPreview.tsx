@@ -65,7 +65,7 @@ export function EmailPreview({
       <DashboardSection.Header
         icon={<EyeIcon weight="duotone" className="size-4" />}
         title={m.previewTitle}
-        addOn={
+        renderAddOn={() => (
           <ThemeSegmentedControl
             value={colorScheme}
             onChange={(value) => {
@@ -75,7 +75,7 @@ export function EmailPreview({
             }}
             options={["light", "dark"]}
           />
-        }
+        )}
       />
       <DashboardSection.Body className="min-h-0 flex-1 !gap-0 !p-0">
         <iframe srcDoc={srcDoc} className="w-full h-full border-0" title={m.previewTitle} sandbox="allow-same-origin" />

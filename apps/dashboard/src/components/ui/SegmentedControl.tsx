@@ -1,6 +1,5 @@
 import { DashboardSegmentedControl } from "@musiccloud/dashboard-ui";
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
 
 interface SegmentOption<T extends string> {
   badge?: ReactNode;
@@ -24,46 +23,16 @@ interface SegmentedControlProps<T extends string> {
  * @returns Segmented toggle component.
  */
 export function SegmentedControl<T extends string>({ onChange, options, storageKey, value }: SegmentedControlProps<T>) {
-  const restoredRef = useRef(false);
-
-  useEffect(() => {
-    if (restoredRef.current || !storageKey || typeof window === "undefined") {
-      return;
-    }
-    restoredRef.current = true;
+  function handleValueChange(nextValue: T) {
     try {
-      const stored = window.localStorage.getItem(storageKey);
-      if (!stored) {
-        return;
-      }
-      const hasStoredValue = options.some((option) => option.value === stored);
-      if (!hasStoredValue) {
-        window.localStorage.removeItem(storageKey);
-        return;
-      }
-      if (stored !== value) {
-        onChange(stored as T);
+      if (storageKey && typeof window !== "undefined") {
+        window.localStorage.setItem(storageKey, nextValue);
       }
     } catch (error) {
       void error;
     }
-  }, [onChange, options, storageKey, value]);
+    onChange(nextValue);
+  }
 
-  useEffect(() => {
-    if (!storageKey || typeof window === "undefined") {
-      return;
-    }
-    try {
-      const hasValue = options.some((option) => option.value === value);
-      if (!hasValue) {
-        window.localStorage.removeItem(storageKey);
-        return;
-      }
-      window.localStorage.setItem(storageKey, value);
-    } catch (error) {
-      void error;
-    }
-  }, [options, storageKey, value]);
-
-  return <DashboardSegmentedControl onValueChange={onChange} options={options} value={value} />;
+  return <DashboardSegmentedControl onValueChange={handleValueChange} options={options} value={value} />;
 }

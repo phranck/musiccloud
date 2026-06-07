@@ -315,9 +315,7 @@ function OverlayFrame({
     };
   }
 
-  useEffect(() => {
-    if (fullscreen) gestureRef.current = null;
-  }, [fullscreen]);
+  if (fullscreen && gestureRef.current) gestureRef.current = null;
 
   function onFramePointerDown(e: PointerEvent<HTMLDivElement>): void {
     if (!geom || fullscreen) return;

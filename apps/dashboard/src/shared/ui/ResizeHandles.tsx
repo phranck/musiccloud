@@ -2,7 +2,7 @@ import { getResizeHandleHitAreaStyle, RESIZE_HANDLES, type ResizeHandle } from "
 import type { CSSProperties, PointerEvent } from "react";
 
 interface ResizeHandlesProps {
-  onResizeStart: (handle: ResizeHandle, event: PointerEvent<HTMLDivElement>) => void;
+  onResizeStart: (handle: ResizeHandle, event: PointerEvent<HTMLElement>) => void;
 }
 
 export function ResizeHandles({ onResizeStart }: ResizeHandlesProps) {

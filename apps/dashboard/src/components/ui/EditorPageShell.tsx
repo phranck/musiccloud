@@ -38,7 +38,7 @@ export function EditorPageShell({
       <PageHeader
         title={title}
         titleContent={titleContent}
-        leading={<HeaderBackButton label={backLabel} onClick={onBack} />}
+        renderLeading={() => <HeaderBackButton label={backLabel} onClick={onBack} />}
       >
         {headerContent}
       </PageHeader>

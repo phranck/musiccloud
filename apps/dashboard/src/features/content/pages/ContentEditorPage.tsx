@@ -166,40 +166,6 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
   }
 }
 
-type PageEditorDispatch = ReturnType<typeof usePagesEditor>["dispatch"];
-
-function useHydratePageEditor(page: ContentPage | undefined, editorDispatch: PageEditorDispatch) {
-  useEffect(() => {
-    if (!page) return;
-    editorDispatch.meta({ type: ContentMetaActionType.Hydrate, entries: [{ slug: page.slug, meta: page }] });
-    editorDispatch.content({
-      type: ContentBodyActionType.Hydrate,
-      entries: [{ slug: page.slug, content: page.content }],
-    });
-    editorDispatch.translations({
-      type: ContentTranslationsActionType.Hydrate,
-      entries: (page.translations ?? []).map((translation) => ({
-        slug: page.slug,
-        locale: translation.locale,
-        title: translation.title,
-        content: translation.content,
-      })),
-    });
-    if (page.pageType === "segmented") {
-      editorDispatch.segments({
-        type: ContentSegmentsActionType.HydrateOwner,
-        ownerSlug: page.slug,
-        segments: page.segments.map((segment) => ({
-          position: segment.position,
-          label: segment.label,
-          targetSlug: segment.targetSlug,
-          translations: segment.translations,
-        })),
-      });
-    }
-  }, [page, editorDispatch]);
-}
-
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -317,7 +283,7 @@ function ContentEditorHeader({
   onPreview,
 }: ContentEditorHeaderProps) {
   return (
-    <PageHeader title={title} leading={<HeaderBackButton label={backLabel} onClick={onBack} />}>
+    <PageHeader title={title} renderLeading={() => <HeaderBackButton label={backLabel} onClick={onBack} />}>
       <SaveNotification phase={savedPhase} label={savedLabel} />
       <EditorHeaderActions
         sourceFontSize={sourceFontSize}
@@ -702,7 +668,35 @@ export function ContentEditorPage() {
     setActiveLocale(DEFAULT_LOCALE);
   }, [slug]);
 
-  useHydratePageEditor(page, editor.dispatch);
+  useEffect(() => {
+    if (!page) return;
+    editor.dispatch.meta({ type: ContentMetaActionType.Hydrate, entries: [{ slug: page.slug, meta: page }] });
+    editor.dispatch.content({
+      type: ContentBodyActionType.Hydrate,
+      entries: [{ slug: page.slug, content: page.content }],
+    });
+    editor.dispatch.translations({
+      type: ContentTranslationsActionType.Hydrate,
+      entries: (page.translations ?? []).map((translation) => ({
+        slug: page.slug,
+        locale: translation.locale,
+        title: translation.title,
+        content: translation.content,
+      })),
+    });
+    if (page.pageType === "segmented") {
+      editor.dispatch.segments({
+        type: ContentSegmentsActionType.HydrateOwner,
+        ownerSlug: page.slug,
+        segments: page.segments.map((segment) => ({
+          position: segment.position,
+          label: segment.label,
+          targetSlug: segment.targetSlug,
+          translations: segment.translations,
+        })),
+      });
+    }
+  }, [page, editor.dispatch]);
 
   // ---------------------------------------------------------------------------
   // Slice readers — reflect live edits, fall back to server data on first paint.

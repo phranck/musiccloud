@@ -182,7 +182,7 @@ const initialState: PagesListState = {
   deleteTarget: null,
 };
 
-export function PagesListPage() {
+function usePagesListPage() {
   const { locale, messages } = useI18n();
   const text = messages.content.pages;
   const common = messages.common;
@@ -570,4 +570,8 @@ export function PagesListPage() {
       </Dialog>
     </PageLayout>
   );
+}
+
+export function PagesListPage() {
+  return usePagesListPage();
 }

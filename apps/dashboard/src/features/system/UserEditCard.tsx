@@ -53,6 +53,7 @@ interface UserEditDraftState {
   locale: AdminLocale;
   role: EditableRole;
   logoutConfirm: boolean;
+  initialLogoutConfirm: boolean;
   sessionTimeoutMinutes: string;
   avatar: AvatarState;
 }
@@ -112,6 +113,7 @@ const userEditDraftReducer: Reducer<UserEditDraftState, UserEditDraftAction> = (
 };
 
 function createInitialDraft(user: AdminUser): UserEditDraftState {
+  const logoutConfirm = localStorage.getItem("logout-skip-confirm") !== "true";
   return {
     username: user.username,
     email: user.email ?? "",
@@ -120,7 +122,8 @@ function createInitialDraft(user: AdminUser): UserEditDraftState {
     lastName: user.lastName ?? "",
     locale: user.locale,
     role: user.role === AdminRole.Moderator ? AdminRole.Moderator : AdminRole.Admin,
-    logoutConfirm: localStorage.getItem("logout-skip-confirm") !== "true",
+    logoutConfirm,
+    initialLogoutConfirm: logoutConfirm,
     sessionTimeoutMinutes: user.sessionTimeoutMinutes != null ? String(user.sessionTimeoutMinutes) : "",
     avatar: { ...EMPTY_AVATAR_STATE, previewUrl: user.avatarUrl ?? null },
   };
@@ -336,7 +339,6 @@ function UserEditCardForm({
   user,
   usersMessages,
 }: UserEditCardFormProps) {
-  const savedLogoutConfirm = localStorage.getItem("logout-skip-confirm") !== "true";
   const [draft, dispatch] = useReducer(userEditDraftReducer, user, createInitialDraft);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewObjectUrlRef = useRef<string | null>(null);
@@ -366,7 +368,7 @@ function UserEditCardForm({
     draft.avatar.pendingGravatarUrl !== null ||
     draft.avatar.deleted ||
     (me?.id === user.id &&
-      (draft.logoutConfirm !== savedLogoutConfirm || draft.sessionTimeoutMinutes !== savedSessionTimeout));
+      (draft.logoutConfirm !== draft.initialLogoutConfirm || draft.sessionTimeoutMinutes !== savedSessionTimeout));
 
   const canSave = hasChanges && draft.username.trim() !== "" && draft.email.trim() !== "" && !isPending;
   const currentAvatarUrl = draft.avatar.previewUrl;

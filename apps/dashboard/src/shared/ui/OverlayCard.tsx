@@ -215,7 +215,7 @@ export function OverlayCard({
   children,
 }: OverlayCardProps) {
   const overlayId = useId();
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const closingRef = useRef(false);
   const resizeStateRef = useRef<{
@@ -226,7 +226,7 @@ export function OverlayCard({
     origin: ViewportRect;
     captureTarget: HTMLElement;
   } | null>(null);
-  const [closing, setClosing] = useState(false);
+  const [closingState, setClosingState] = useState({ open, closing: false });
   const [resizableRect, setResizableRect] = useState<ViewportRect | null>(null);
   const overlayIds = useSyncExternalStore(subscribeOverlayStack, getOverlayStackSnapshot, getOverlayStackSnapshot);
   const stackIndex = overlayIds.indexOf(overlayId);
@@ -245,21 +245,12 @@ export function OverlayCard({
 
   const startClose = useCallback(() => {
     closingRef.current = true;
-    setClosing((current) => (current ? current : true));
-  }, []);
+    setClosingState((current) => (current.open === open && current.closing ? current : { open, closing: true }));
+  }, [open]);
 
   useEffect(() => {
     ensureStyles();
   }, []);
-
-  useEffect(() => {
-    if (!open) {
-      closingRef.current = false;
-      resizeStateRef.current = null;
-      setClosing(false);
-      setResizableRect(null);
-    }
-  }, [open]);
 
   useLayoutEffect(() => {
     if (!open || !resizableStorageKey) return;
@@ -321,7 +312,7 @@ export function OverlayCard({
   }, [open, resizableMinHeight, resizableMinWidth, resizableStorageKey]);
 
   const startResize = useCallback(
-    (handle: ResizeHandle, event: PointerEvent<HTMLDivElement>) => {
+    (handle: ResizeHandle, event: PointerEvent<HTMLElement>) => {
       if (!resizableRect) return;
       event.preventDefault();
       event.stopPropagation();
@@ -340,7 +331,7 @@ export function OverlayCard({
   );
 
   const updateResize = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
+    (event: PointerEvent<HTMLElement>) => {
       const state = resizeStateRef.current;
       if (!state || state.pointerId !== event.pointerId) return;
       event.preventDefault();
@@ -358,7 +349,7 @@ export function OverlayCard({
   );
 
   const stopResize = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
+    (event: PointerEvent<HTMLElement>) => {
       const state = resizeStateRef.current;
       if (!state || state.pointerId !== event.pointerId) return;
       resizeStateRef.current = null;
@@ -376,11 +367,13 @@ export function OverlayCard({
   );
 
   if (!open) return null;
+  const closing = closingState.open === open && closingState.closing;
 
   const handleBackdropAnimationEnd = (e: React.AnimationEvent) => {
     if (closing && e.target === e.currentTarget) {
       closingRef.current = false;
-      setClosing(false);
+      resizeStateRef.current = null;
+      setClosingState({ open, closing: false });
       onClose();
     }
   };
@@ -423,7 +416,8 @@ export function OverlayCard({
         onClick={handleBackdropClick}
         onAnimationEnd={handleBackdropAnimationEnd}
       />
-      <div
+      <dialog
+        open
         ref={dialogRef}
         className={[
           `${isResizable ? "fixed flex flex-col" : "relative w-full"} bg-[var(--ds-surface)] border border-[rgba(255,255,255,0.06)] rounded-2xl shadow-xl overflow-hidden ${fixedMaxWidth}`,
@@ -432,7 +426,6 @@ export function OverlayCard({
           .filter(Boolean)
           .join(" ")}
         style={cardStyle}
-        role="dialog"
         aria-modal={true}
         aria-label={ariaLabel}
         onPointerMove={isResizable ? updateResize : undefined}
@@ -441,7 +434,7 @@ export function OverlayCard({
       >
         {children}
         {isResizable && <ResizeHandles onResizeStart={startResize} />}
-      </div>
+      </dialog>
     </div>
   );
 }

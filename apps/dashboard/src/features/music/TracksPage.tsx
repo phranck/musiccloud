@@ -50,23 +50,17 @@ function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { dateStyle: "medium" });
 }
 
-export function TracksPage() {
-  const navigate = useNavigate();
-  const { messages } = useI18n();
-  const mt = messages.music.tracks;
-  const m = messages.music.table;
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+type TrackTable = ReturnType<typeof useInfiniteAdminTable<TrackListItem>>;
+type TrackMessages = ReturnType<typeof useI18n>["messages"]["music"]["tracks"];
+type CommonMessages = ReturnType<typeof useI18n>["messages"]["common"];
 
-  const table = useInfiniteAdminTable<TrackListItem>({
-    endpoint: ENDPOINTS.admin.tracks.list,
-    deleteEndpoint: ENDPOINTS.admin.tracks.list,
-    sseEventType: "track-added",
-    sseToItem: (data) => data as unknown as TrackListItem,
-  });
-
-  const columns = useMemo<ColumnDef<TrackListItem>[]>(
+function useTrackColumns(
+  table: TrackTable,
+  mt: TrackMessages,
+  common: CommonMessages,
+  navigate: ReturnType<typeof useNavigate>,
+): ColumnDef<TrackListItem>[] {
+  return useMemo<ColumnDef<TrackListItem>[]>(
     () => [
       ...(table.editMode
         ? [
@@ -181,23 +175,33 @@ export function TracksPage() {
             <TableActionButton
               onClick={() => navigate(`/tracks/${track.id}`)}
               icon={<PencilSimpleIcon weight="duotone" className="size-3" />}
-              label={messages.common.edit}
+              label={common.edit}
             />
           </div>
         ),
       },
     ],
-    [
-      mt,
-      messages.common,
-      navigate,
-      table.editMode,
-      table.allSelected,
-      table.selectedIds,
-      table.toggleAll,
-      table.toggleRow,
-    ],
+    [mt, common, navigate, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
   );
+}
+
+export function TracksPage() {
+  const navigate = useNavigate();
+  const { messages } = useI18n();
+  const mt = messages.music.tracks;
+  const m = messages.music.table;
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const table = useInfiniteAdminTable<TrackListItem>({
+    endpoint: ENDPOINTS.admin.tracks.list,
+    deleteEndpoint: ENDPOINTS.admin.tracks.list,
+    sseEventType: "track-added",
+    sseToItem: (data) => data as unknown as TrackListItem,
+  });
+
+  const columns = useTrackColumns(table, mt, messages.common, navigate);
 
   async function handleConfirmDelete() {
     setDeleting(true);

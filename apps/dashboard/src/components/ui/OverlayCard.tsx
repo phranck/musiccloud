@@ -138,10 +138,10 @@ export function OverlayCard({
   children,
 }: OverlayCardProps) {
   const overlayId = useId();
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const closingRef = useRef(false);
-  const [closing, setClosing] = useState(false);
+  const [closingState, setClosingState] = useState({ open, closing: false });
   const overlayIds = useSyncExternalStore(subscribeOverlayStack, getOverlayStackSnapshot, getOverlayStackSnapshot);
   const stackIndex = overlayIds.indexOf(overlayId);
   const isRegistered = stackIndex !== -1;
@@ -150,19 +150,12 @@ export function OverlayCard({
 
   const startClose = useCallback(() => {
     closingRef.current = true;
-    setClosing((current) => (current ? current : true));
-  }, []);
+    setClosingState((current) => (current.open === open && current.closing ? current : { open, closing: true }));
+  }, [open]);
 
   useEffect(() => {
     ensureStyles();
   }, []);
-
-  useEffect(() => {
-    if (!open) {
-      closingRef.current = false;
-      setClosing(false);
-    }
-  }, [open]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -200,11 +193,12 @@ export function OverlayCard({
   }, [open, isTopMost]);
 
   if (!open) return null;
+  const closing = closingState.open === open && closingState.closing;
 
   const handleBackdropAnimationEnd = (e: React.AnimationEvent) => {
     if (closing && e.target === e.currentTarget) {
       closingRef.current = false;
-      setClosing(false);
+      setClosingState({ open, closing: false });
       onClose();
     }
   };
@@ -231,7 +225,8 @@ export function OverlayCard({
         onClick={handleBackdropClick}
         onAnimationEnd={handleBackdropAnimationEnd}
       />
-      <div
+      <dialog
+        open
         ref={dialogRef}
         className={[
           `relative bg-[var(--ds-surface)] border border-[rgba(255,255,255,0.06)] rounded-2xl shadow-xl overflow-hidden w-full ${fixedMaxWidth}`,
@@ -240,12 +235,11 @@ export function OverlayCard({
           .filter(Boolean)
           .join(" ")}
         style={{ animation: cardAnim, ...style }}
-        role="dialog"
         aria-modal={true}
         aria-label={ariaLabel}
       >
         {children}
-      </div>
+      </dialog>
     </div>
   );
 }

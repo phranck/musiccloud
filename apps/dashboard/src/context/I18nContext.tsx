@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, use, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/features/auth/AuthContext";
 import { DASHBOARD_MESSAGES, type DashboardLocale, type DashboardMessages } from "@/i18n/messages";
@@ -31,21 +31,21 @@ export function resolveInitialLocale(): DashboardLocale {
 export function I18nProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [localeState, setLocaleState] = useState<DashboardLocale>(resolveInitialLocale);
+  const locale = user?.locale ?? localeState;
 
   useEffect(() => {
-    if (!user?.locale || user.locale === localeState) return;
-    setLocaleState(user.locale);
+    if (!user?.locale) return;
     try {
       localStorage.setItem(DASHBOARD_LOCALE_STORAGE_KEY, user.locale);
     } catch {}
-  }, [localeState, user?.locale]);
+  }, [user?.locale]);
 
   const value = useMemo<I18nContextValue>(() => {
-    const messages = DASHBOARD_MESSAGES[localeState];
-    const numberFormatter = new Intl.NumberFormat(localeState);
+    const messages = DASHBOARD_MESSAGES[locale];
+    const numberFormatter = new Intl.NumberFormat(locale);
 
     return {
-      locale: localeState,
+      locale,
       setLocale: (next) => {
         setLocaleState(next);
         try {
@@ -55,13 +55,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       messages,
       formatNumber: (value) => numberFormatter.format(value),
     };
-  }, [localeState]);
+  }, [locale]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 export function useI18n() {
-  const context = useContext(I18nContext);
+  const context = use(I18nContext);
   if (!context) {
     throw new Error("useI18n must be used within I18nProvider");
   }

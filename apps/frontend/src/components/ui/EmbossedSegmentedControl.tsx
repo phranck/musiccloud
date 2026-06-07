@@ -30,13 +30,14 @@ export function EmbossedSegmentedControl<T extends string>({
   className,
 }: EmbossedSegmentedControlProps<T>) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const buttonRefs = useRef<Map<T, HTMLButtonElement>>(new Map());
+  const buttonRefs = useRef<Map<T, HTMLButtonElement> | null>(null);
+  const buttonRefMap = buttonRefs.current ?? (buttonRefs.current = new Map());
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-run when segments change so newly mounted buttons are observed
   useLayoutEffect(() => {
     const container = containerRef.current;
-    const active = buttonRefs.current.get(value);
+    const active = buttonRefMap.get(value);
     if (!container || !active) return;
 
     const update = () => {
@@ -49,10 +50,10 @@ export function EmbossedSegmentedControl<T extends string>({
 
     const resizeObserver = new ResizeObserver(update);
     resizeObserver.observe(container);
-    for (const btn of buttonRefs.current.values()) resizeObserver.observe(btn);
+    for (const btn of buttonRefMap.values()) resizeObserver.observe(btn);
 
     return () => resizeObserver.disconnect();
-  }, [value, segments]);
+  }, [value, segments, buttonRefMap]);
 
   return (
     <RecessedCard ref={containerRef} className={cn("relative flex p-1", className)} radius={recessedSurfaceRadius}>
@@ -81,8 +82,8 @@ export function EmbossedSegmentedControl<T extends string>({
           <button
             key={key}
             ref={(el) => {
-              if (el) buttonRefs.current.set(key, el);
-              else buttonRefs.current.delete(key);
+              if (el) buttonRefMap.set(key, el);
+              else buttonRefMap.delete(key);
             }}
             type="button"
             onClick={() => onChange(key)}

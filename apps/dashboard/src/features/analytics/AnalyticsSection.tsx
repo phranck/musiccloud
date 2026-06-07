@@ -67,6 +67,21 @@ const IntlDisplayNamesType = {
   Region: "region",
 } as const;
 
+const regionNamesByLocale: Record<DashboardLocale, Intl.DisplayNames> = {
+  de: new Intl.DisplayNames(["de"], { type: IntlDisplayNamesType.Region }),
+  en: new Intl.DisplayNames(["en"], { type: IntlDisplayNamesType.Region }),
+};
+
+const hourMinuteFormatters: Record<DashboardLocale, Intl.DateTimeFormat> = {
+  de: new Intl.DateTimeFormat("de", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
+  en: new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
+};
+
+const dayMonthFormatters: Record<DashboardLocale, Intl.DateTimeFormat> = {
+  de: new Intl.DateTimeFormat("de", { day: "2-digit", month: "2-digit" }),
+  en: new Intl.DateTimeFormat("en", { day: "2-digit", month: "2-digit" }),
+};
+
 interface MetricTabConfig {
   label: string;
   value: UmamiMetricType;
@@ -80,6 +95,15 @@ interface CollapsibleListProps {
   canCollapse: boolean;
 }
 
+function LiveIcon() {
+  return (
+    <span className="relative flex h-2 w-2">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+    </span>
+  );
+}
+
 function CollapsibleList({ collapsedContent, expandedContent, canCollapse }: CollapsibleListProps) {
   const { messages } = useI18n();
   const m = messages.analytics;
@@ -88,13 +112,13 @@ function CollapsibleList({ collapsedContent, expandedContent, canCollapse }: Col
   const collapsedMeasureRef = useRef<HTMLDivElement>(null);
   const expandedMeasureRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<number | null>(null);
-  const [collapsedHeight, setCollapsedHeight] = useState(0);
-  const [expandedHeight, setExpandedHeight] = useState(0);
+  const collapsedHeightRef = useRef(0);
+  const expandedHeightRef = useRef(0);
 
   useLayoutEffect(() => {
-    setCollapsedHeight(collapsedMeasureRef.current?.getBoundingClientRect().height ?? 0);
-    setExpandedHeight(expandedMeasureRef.current?.getBoundingClientRect().height ?? 0);
-  }, []);
+    collapsedHeightRef.current = collapsedMeasureRef.current?.getBoundingClientRect().height ?? 0;
+    expandedHeightRef.current = expandedMeasureRef.current?.getBoundingClientRect().height ?? 0;
+  });
 
   useEffect(
     () => () => {
@@ -103,19 +127,17 @@ function CollapsibleList({ collapsedContent, expandedContent, canCollapse }: Col
     [],
   );
 
-  useEffect(() => {
-    if (!canCollapse) {
-      setExpanded(false);
-      setAnimatedHeight(null);
-    }
-  }, [canCollapse]);
+  if (!canCollapse && (expanded || animatedHeight !== null)) {
+    setExpanded(false);
+    setAnimatedHeight(null);
+  }
 
   function toggleExpanded() {
     if (!canCollapse) return;
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
 
-    const from = expanded ? expandedHeight : collapsedHeight;
-    const to = expanded ? collapsedHeight : expandedHeight;
+    const from = expanded ? expandedHeightRef.current : collapsedHeightRef.current;
+    const to = expanded ? collapsedHeightRef.current : expandedHeightRef.current;
     setAnimatedHeight(from);
     setExpanded((current) => !current);
 
@@ -226,8 +248,6 @@ const DE_REGION_CODE_TO_NAME: Record<DashboardLocale, Record<string, string>> = 
   },
 };
 
-const regionNameCache = new Map<DashboardLocale, Intl.DisplayNames | null>();
-
 function normalizeName(value: string): string {
   return value.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 }
@@ -250,15 +270,7 @@ function getCountryCodeFromName(value: string): string | null {
 }
 
 function getRegionNames(locale: DashboardLocale): Intl.DisplayNames | null {
-  if (regionNameCache.has(locale)) return regionNameCache.get(locale) ?? null;
-  let resolved: Intl.DisplayNames | null = null;
-  try {
-    resolved = new Intl.DisplayNames([locale], { type: IntlDisplayNamesType.Region });
-  } catch {
-    resolved = null;
-  }
-  regionNameCache.set(locale, resolved);
-  return resolved;
+  return regionNamesByLocale[locale] ?? null;
 }
 
 function getCountryDisplayName(value: string, locale: DashboardLocale, unknownLabel: string): string {
@@ -368,9 +380,9 @@ function formatDuration(seconds: number, units: { secondsShort: string; minutesS
 function formatLabel(x: string, period: UmamiPeriod, locale: DashboardLocale): string {
   const date = new Date(x);
   if (period === UmamiPeriod.Today) {
-    return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
+    return hourMinuteFormatters[locale].format(date);
   }
-  return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit" }).format(date);
+  return dayMonthFormatters[locale].format(date);
 }
 
 interface KpiCardProps {
@@ -432,7 +444,7 @@ function relativeChange(current: number, previous: number | null): number | null
 }
 
 function formatMinute(ts: number, locale: DashboardLocale): string {
-  return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(ts));
+  return hourMinuteFormatters[locale].format(new Date(ts));
 }
 
 function intTicks(max: number): number[] {
@@ -474,15 +486,16 @@ function RealtimeCard() {
     if (realtime?.series) {
       const viewSeries = realtime.series.pageviews ?? realtime.series.views ?? [];
       const toMs = (x: number | string) => (typeof x === "string" ? new Date(x).getTime() : x > 1e12 ? x : x * 1000);
+      const slotsByTimestamp = new Map(slots.map((slot) => [slot.ts, slot]));
 
       for (const v of realtime.series.visitors ?? []) {
         const rounded = Math.floor(toMs(v.x) / 60_000) * 60_000;
-        const slot = slots.find((s) => s.ts === rounded);
+        const slot = slotsByTimestamp.get(rounded);
         if (slot) slot.visitors = v.y;
       }
       for (const v of viewSeries) {
         const rounded = Math.floor(toMs(v.x) / 60_000) * 60_000;
-        const slot = slots.find((s) => s.ts === rounded);
+        const slot = slotsByTimestamp.get(rounded);
         if (slot) slot.pageviews = v.y;
       }
     }
@@ -497,41 +510,36 @@ function RealtimeCard() {
     : [];
   const rtMaxVal = Math.max(...chartData.map((d) => Math.max(d.visitors, d.pageviews)), 1);
 
-  const liveIcon = (
-    <span className="relative flex h-2 w-2">
-      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-    </span>
-  );
-
-  const headerAddOn = (
-    <div className="flex items-center gap-5">
-      {realtime && (
-        <>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-bold text-[var(--ds-text)]">
-              {formatNumber(active?.visitors ?? realtime.totals?.visitors ?? 0)}
-            </span>
-            <span className="text-sm text-[var(--ds-text-subtle)]">
-              {active?.visitors != null ? m.realtime.active5m : m.visitors}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-bold text-[var(--ds-text)]">
-              {formatNumber(realtime.totals?.pageviews ?? realtime.totals?.views ?? 0)}
-            </span>
-            <span className="text-sm text-[var(--ds-text-subtle)]">{m.realtime.pageviews30m}</span>
-          </div>
-        </>
-      )}
-      <span className="text-sm text-[var(--ds-text-subtle)]">{m.realtime.updatedEvery30s}</span>
-    </div>
-  );
-
   return (
     <div className="mb-4">
       <DashboardSection>
-        <DashboardSection.Header icon={liveIcon} title={m.realtime.title} addOn={headerAddOn} />
+        <DashboardSection.Header
+          icon={<LiveIcon />}
+          title={m.realtime.title}
+          renderAddOn={() => (
+            <div className="flex items-center gap-5">
+              {realtime && (
+                <>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold text-[var(--ds-text)]">
+                      {formatNumber(active?.visitors ?? realtime.totals?.visitors ?? 0)}
+                    </span>
+                    <span className="text-sm text-[var(--ds-text-subtle)]">
+                      {active?.visitors != null ? m.realtime.active5m : m.visitors}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold text-[var(--ds-text)]">
+                      {formatNumber(realtime.totals?.pageviews ?? realtime.totals?.views ?? 0)}
+                    </span>
+                    <span className="text-sm text-[var(--ds-text-subtle)]">{m.realtime.pageviews30m}</span>
+                  </div>
+                </>
+              )}
+              <span className="text-sm text-[var(--ds-text-subtle)]">{m.realtime.updatedEvery30s}</span>
+            </div>
+          )}
+        />
         <DashboardSection.Body>
           {rtLoading ? (
             <div className="h-24 bg-[var(--ds-bg-elevated)] rounded-lg animate-pulse" />
@@ -772,14 +780,14 @@ function TabbedMetricCard({ title, tabs, period, storageKey }: TabbedMetricCardP
       <DashboardSection.Header
         icon={<FaGlobe className="w-4 h-4" />}
         title={title}
-        addOn={
+        renderAddOn={() => (
           <SegmentedControl
             value={activeType}
             onChange={setActiveType}
             storageKey={storageKey}
             options={tabs.map((tab) => ({ value: tab.value, label: tab.label }))}
           />
-        }
+        )}
       />
       <DashboardSection.Body>
         <div className="grid grid-cols-[1fr_auto_auto] gap-3 pb-2 border-b border-[var(--ds-border-subtle)] text-sm font-medium text-[var(--ds-text-subtle)]">
@@ -951,7 +959,7 @@ export function AnalyticsSection() {
             <DashboardSection.Header
               icon={<ChartLineIcon weight="duotone" className="w-4 h-4" />}
               title={m.traffic}
-              addOn={
+              renderAddOn={() => (
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-1.5 text-sm text-[var(--ds-text-muted)]">
                     <span className="w-3 h-0.5 rounded-full bg-amber-400 inline-block" />
@@ -962,7 +970,7 @@ export function AnalyticsSection() {
                     {m.pageviews}
                   </span>
                 </div>
-              }
+              )}
             />
             <DashboardSection.Body>
               {pvLoading ? (

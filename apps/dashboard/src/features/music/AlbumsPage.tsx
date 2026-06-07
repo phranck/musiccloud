@@ -54,22 +54,11 @@ function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { dateStyle: "medium" });
 }
 
-export function AlbumsPage() {
-  const { messages } = useI18n();
-  const ma = messages.music.albums;
-  const m = messages.music.table;
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+type AlbumTable = ReturnType<typeof useInfiniteAdminTable<AlbumListItem>>;
+type AlbumMessages = ReturnType<typeof useI18n>["messages"]["music"]["albums"];
 
-  const table = useInfiniteAdminTable<AlbumListItem>({
-    endpoint: ENDPOINTS.admin.albums.list,
-    deleteEndpoint: ENDPOINTS.admin.albums.list,
-    sseEventType: "album-added",
-    sseToItem: (data) => data as unknown as AlbumListItem,
-  });
-
-  const columns = useMemo<ColumnDef<AlbumListItem>[]>(
+function useAlbumColumns(table: AlbumTable, ma: AlbumMessages): ColumnDef<AlbumListItem>[] {
+  return useMemo<ColumnDef<AlbumListItem>[]>(
     () => [
       ...(table.editMode
         ? [
@@ -190,6 +179,24 @@ export function AlbumsPage() {
     ],
     [ma, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
   );
+}
+
+export function AlbumsPage() {
+  const { messages } = useI18n();
+  const ma = messages.music.albums;
+  const m = messages.music.table;
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const table = useInfiniteAdminTable<AlbumListItem>({
+    endpoint: ENDPOINTS.admin.albums.list,
+    deleteEndpoint: ENDPOINTS.admin.albums.list,
+    sseEventType: "album-added",
+    sseToItem: (data) => data as unknown as AlbumListItem,
+  });
+
+  const columns = useAlbumColumns(table, ma);
 
   async function handleConfirmDelete() {
     setDeleting(true);

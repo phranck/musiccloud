@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { createContext, type ReactNode, use, useCallback, useEffect, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
 import type { AdminUser } from "@/shared/types/admin";
 
@@ -34,7 +34,8 @@ const authSetupQueryKey = ["auth", "setup"] as const;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const lastActivityRef = useRef<number>(Date.now());
+  const lastActivityRef = useRef(0);
+  if (lastActivityRef.current === 0) lastActivityRef.current = Date.now();
   const inactivityTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -140,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
+  const ctx = use(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }

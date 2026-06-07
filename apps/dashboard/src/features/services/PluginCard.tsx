@@ -1,5 +1,6 @@
 import { DashboardButton, DashboardButtonVariant } from "@musiccloud/dashboard-ui";
 import { PLATFORM_CONFIG, type PluginInfo } from "@musiccloud/shared";
+import type { ReactNode } from "react";
 
 import { useI18n } from "@/context/I18nContext";
 
@@ -66,11 +67,10 @@ export function PluginCard({ plugin, onToggle, disabled }: PluginCardProps) {
           </p>
         )}
         <div className="flex flex-wrap gap-1 mt-2">
-          {capabilityBadges
-            .filter((b) => b.active)
-            .map((b) => (
-              <Badge key={b.label} label={b.label} tone={BadgeTone.Muted} />
-            ))}
+          {capabilityBadges.reduce<ReactNode[]>((badges, badge) => {
+            if (badge.active) badges.push(<Badge key={badge.label} label={badge.label} tone={BadgeTone.Muted} />);
+            return badges;
+          }, [])}
         </div>
       </div>
       <DashboardButton

@@ -44,6 +44,12 @@ interface ArtistCredit {
   position: number;
 }
 
+function sortServiceDisplayOrder(services: readonly string[]) {
+  const sorted = Array.from(services);
+  sorted.sort((a, b) => PLATFORM_CONFIG[a as ServiceId].label.localeCompare(PLATFORM_CONFIG[b as ServiceId].label));
+  return sorted;
+}
+
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 const LoadPhase = {
@@ -399,11 +405,7 @@ export function TrackEditPage() {
               {m.serviceUrls}
             </h3>
             <div className="space-y-3">
-              {[...SERVICE_DISPLAY_ORDER]
-                .sort((a, b) =>
-                  PLATFORM_CONFIG[a as ServiceId].label.localeCompare(PLATFORM_CONFIG[b as ServiceId].label),
-                )
-                .map((service) => {
+              {sortServiceDisplayOrder(SERVICE_DISPLAY_ORDER).map((service) => {
                   const platform = service as ServiceId;
                   const label = PLATFORM_CONFIG[platform].label;
                   const url = linksByService.get(service);

@@ -209,18 +209,20 @@ export function EmailTemplateEditPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title={name || m.newTemplate}
-        leading={
+        renderLeading={() => (
           <HeaderBackButton label={messages.emailTemplates.listTitle} onClick={() => navigate("/email-templates")} />
-        }
+        )}
       >
         <EmailTemplateHeaderActions
           savedIndicator={savedIndicator}
           testFeedback={testFeedback}
           error={error}
-          isPending={isPending}
-          showSendTest={!isNew}
-          canSendTest={canSendTest}
-          isSendingTest={sendTestMutation.isPending}
+          status={{
+            isPending,
+            showSendTest: !isNew,
+            canSendTest,
+            isSendingTest: sendTestMutation.isPending,
+          }}
           savedLabel={m.saved}
           sendingTestLabel={m.sendingTest}
           sendTestLabel={m.sendTest}
@@ -251,10 +253,12 @@ interface EmailTemplateHeaderActionsProps {
   savedIndicator: boolean;
   testFeedback: { type: EmailTestFeedbackType; text: string } | null;
   error: string | null;
-  isPending: boolean;
-  showSendTest: boolean;
-  canSendTest: boolean;
-  isSendingTest: boolean;
+  status: {
+    isPending: boolean;
+    showSendTest: boolean;
+    canSendTest: boolean;
+    isSendingTest: boolean;
+  };
   savedLabel: string;
   sendingTestLabel: string;
   sendTestLabel: string;
@@ -268,10 +272,7 @@ function EmailTemplateHeaderActions({
   savedIndicator,
   testFeedback,
   error,
-  isPending,
-  showSendTest,
-  canSendTest,
-  isSendingTest,
+  status,
   savedLabel,
   sendingTestLabel,
   sendTestLabel,
@@ -296,25 +297,25 @@ function EmailTemplateHeaderActions({
         </span>
       )}
       {error && <p className="text-xs text-red-500">{error}</p>}
-      {showSendTest && (
+      {status.showSendTest && (
         <DashboardButton
-          disabled={!canSendTest}
+          disabled={!status.canSendTest}
           leadingIcon={<PaperPlaneTiltIcon weight="duotone" className="size-3.5" />}
           onClick={onSendTest}
           size="action"
           type="button"
           variant={DashboardButtonVariant.Neutral}
         >
-          {isSendingTest ? sendingTestLabel : sendTestLabel}
+          {status.isSendingTest ? sendingTestLabel : sendTestLabel}
         </DashboardButton>
       )}
       <SaveActionButton
         type="button"
         onClick={onSave}
-        disabled={isPending}
+        disabled={status.isPending}
         busyLabel={savingLabel}
         label={saveLabel}
-        status={isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
+        status={status.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
       />
     </div>
   );

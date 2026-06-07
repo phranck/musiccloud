@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
+import { createContext, type ReactNode, use, useMemo, useState } from "react";
 
 interface PageFooterContextValue {
   actionsEl: HTMLDivElement | null;
@@ -19,5 +19,5 @@ export function PageFooterProvider({ children }: { children: ReactNode }) {
 }
 
 export function usePageFooterContext() {
-  return useContext(PageFooterContext);
+  return use(PageFooterContext);
 }

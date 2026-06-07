@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
+import { createContext, type ReactNode, use, useCallback, useEffect, useMemo, useReducer } from "react";
 
 import { createDirtyRegistry, type DirtyRegistry, type SliceKey } from "./dirtyRegistry";
 import {
@@ -42,17 +42,16 @@ export function PagesEditorProvider({ children }: { children: ReactNode }) {
   const [segments, dispatchSegments] = useReducer(segmentsReducer, { byOwner: {} });
   const [translations, dispatchTranslations] = useReducer(translationsReducer, { byPage: {} });
   const [sidebar, dispatchSidebar] = useReducer(sidebarReducer, { initial: [], current: [] });
-  const dirtyRef = useRef<DirtyRegistry>(createDirtyRegistry());
+  const dirty = useMemo(() => createDirtyRegistry(), []);
 
   useEffect(() => {
-    const reg = dirtyRef.current;
-    reg.clear();
-    if (sidebarDirty(sidebar)) reg.add("sidebar");
-    for (const s of metaDirtySlugs(meta)) reg.add(`meta:${s}` as SliceKey);
-    for (const s of contentDirtySlugs(content)) reg.add(`content:${s}` as SliceKey);
-    for (const o of dirtyOwners(segments)) reg.add(`segments:${o}` as SliceKey);
-    for (const { slug } of dirtyEntries(translations)) reg.add(`translations:${slug}` as SliceKey);
-  }, [meta, content, segments, translations, sidebar]);
+    dirty.clear();
+    if (sidebarDirty(sidebar)) dirty.add("sidebar");
+    for (const s of metaDirtySlugs(meta)) dirty.add(`meta:${s}` as SliceKey);
+    for (const s of contentDirtySlugs(content)) dirty.add(`content:${s}` as SliceKey);
+    for (const o of dirtyOwners(segments)) dirty.add(`segments:${o}` as SliceKey);
+    for (const { slug } of dirtyEntries(translations)) dirty.add(`translations:${slug}` as SliceKey);
+  }, [dirty, meta, content, segments, translations, sidebar]);
 
   const resetAll = useCallback(() => {
     dispatchMeta({ type: "reset" });
@@ -85,17 +84,17 @@ export function PagesEditorProvider({ children }: { children: ReactNode }) {
       translations,
       sidebar,
       dispatch: dispatchBag,
-      dirty: dirtyRef.current,
+      dirty,
       resetAll,
     }),
-    [meta, content, segments, translations, sidebar, resetAll, dispatchBag],
+    [meta, content, segments, translations, sidebar, resetAll, dispatchBag, dirty],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function usePagesEditor(): PagesEditorContextValue {
-  const v = useContext(Ctx);
+  const v = use(Ctx);
   if (!v) throw new Error("usePagesEditor must be used within PagesEditorProvider");
   return v;
 }

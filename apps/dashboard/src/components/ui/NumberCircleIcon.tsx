@@ -48,7 +48,6 @@ export function NumberCircleIcon({
   }
   return (
     <span
-      role="img"
       aria-label={ariaLabel ?? String(number)}
       className={`inline-flex items-center justify-center text-[10px] font-mono ${className ?? ""}`}
     >

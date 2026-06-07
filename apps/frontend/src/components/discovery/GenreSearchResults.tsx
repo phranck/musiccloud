@@ -4,7 +4,6 @@ import { NavigationBackButton } from "@/components/navigation/NavigationBackButt
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { GenreColumn } from "@/components/ui/GenreColumn";
 import { GenreRowButton } from "@/components/ui/GenreRowButton";
-import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
 import { useLocale, useT } from "@/i18n/context";
 import type { Locale } from "@/i18n/locales";
@@ -149,13 +148,9 @@ export function GenreSearchResults({
                       >
                         <CandidateRowContent
                           compact
-                          artwork={
-                            <SlideArtwork
-                              active={isSelected}
-                              artworkUrl={track.artworkUrl}
-                              sizeClass={COMPACT_ART_SIZE}
-                            />
-                          }
+                          artworkUrl={track.artworkUrl}
+                          slideArtwork
+                          slideArtworkActive={isSelected}
                           primary={track.title}
                           secondary={track.artists.join(", ")}
                           tertiary={track.albumName}
@@ -184,13 +179,9 @@ export function GenreSearchResults({
                       >
                         <CandidateRowContent
                           compact
-                          artwork={
-                            <SlideArtwork
-                              active={isSelected}
-                              artworkUrl={album.artworkUrl}
-                              sizeClass={COMPACT_ART_SIZE}
-                            />
-                          }
+                          artworkUrl={album.artworkUrl}
+                          slideArtwork
+                          slideArtworkActive={isSelected}
                           primary={album.title}
                           secondary={album.artists.join(", ")}
                         />
@@ -214,15 +205,10 @@ export function GenreSearchResults({
                       >
                         <CandidateRowContent
                           compact
-                          artwork={
-                            <SlideArtwork
-                              active={isSelected}
-                              artworkUrl={artist.imageUrl}
-                              kind={SlideArtworkKind.Round}
-                              sizeClass={COMPACT_ART_SIZE}
-                            />
-                          }
-                          artworkKind="round"
+                          artworkUrl={artist.imageUrl}
+                          artworkKind={SlideArtworkKind.Round}
+                          slideArtwork
+                          slideArtworkActive={isSelected}
                           primary={artist.name}
                         />
                       </GenreRowButton>
