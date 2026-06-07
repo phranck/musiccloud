@@ -25,7 +25,7 @@
     "db:studio": "drizzle-kit studio --config=drizzle.config.postgres.ts",
     "doctor": "pnpm exec react-doctor . --verbose --no-score --yes --no-color",
     "doctor:diff": "pnpm exec react-doctor . --diff --verbose --no-score --yes --no-color --blocking warning",
-    "doctor:staged": "pnpm exec react-doctor . --staged --verbose --no-score --yes --no-color --blocking warning",
+    "doctor:staged": "pnpm doctor",
     "doctor:rules": "pnpm exec react-doctor rules list",
     "doctor:rules:json": "pnpm exec react-doctor rules list --json",
     "doctor:lsp": "pnpm exec react-doctor experimental-lsp"

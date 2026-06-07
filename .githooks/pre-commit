@@ -1,36 +1,32 @@
 #!/usr/bin/env bash
 
 # react-doctor hook start
-react_doctor_scan_staged_files() {
+react_doctor_scan_repository() {
   if [ -x "./node_modules/.bin/react-doctor" ]; then
-    "./node_modules/.bin/react-doctor" --staged --blocking warning
+    "./node_modules/.bin/react-doctor" . --verbose --no-score --yes --no-color
     return
   fi
 
   if command -v react-doctor >/dev/null 2>&1; then
-    react-doctor --staged --blocking warning
+    react-doctor . --verbose --no-score --yes --no-color
     return
   fi
 
   if command -v pnpm >/dev/null 2>&1; then
-    pnpm dlx react-doctor@latest --staged --blocking warning
+    pnpm exec react-doctor . --verbose --no-score --yes --no-color
     return
   fi
 
-  if command -v npx >/dev/null 2>&1; then
-    npx --yes react-doctor@latest --staged --blocking warning
-    return
-  fi
-
-  printf '%s\n' "react-doctor: command not found; skipping staged scan."
+  printf '%s\n' "react-doctor: command not found; skipping repository scan."
 }
 
 react_doctor_output=$(mktemp "${TMPDIR:-/tmp}/react-doctor-hook.XXXXXX")
-if react_doctor_scan_staged_files > "$react_doctor_output" 2>&1; then
+if react_doctor_scan_repository > "$react_doctor_output" 2>&1; then
   rm -f "$react_doctor_output"
 else
+  cat "$react_doctor_output" >&2
   rm -f "$react_doctor_output"
-  printf '%s\n' "React Doctor found staged regressions." "Run react-doctor --staged --blocking warning to inspect." "Want them fixed? Ask your agent to run that command and resolve the findings." >&2
+  printf '%s\n' "React Doctor found repository regressions." "Run pnpm doctor to inspect and resolve the findings." >&2
   exit 1
 fi
 # react-doctor hook end

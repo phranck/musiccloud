@@ -47,7 +47,7 @@ Use this after a coherent edit chunk, not only at the end. It scans changed file
 For commit preparation:
 
 ```bash
-pnpm doctor:staged
+pnpm doctor
 ```
 
 For editor integration experiments:
