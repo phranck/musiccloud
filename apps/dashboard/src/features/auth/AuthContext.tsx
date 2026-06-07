@@ -39,22 +39,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const inactivityTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const meQuery = useQuery<AdminUser | null>({
+  const {
+    data: meData,
+    isError: meIsError,
+    isLoading: meIsLoading,
+  } = useQuery<AdminUser | null>({
     queryKey: authMeQueryKey,
     queryFn: () => api.get<AdminUser>(ENDPOINTS.admin.auth.me),
     retry: false,
   });
 
-  const setupQuery = useQuery({
+  const { data: setupData, isLoading: setupIsLoading } = useQuery({
     queryKey: authSetupQueryKey,
     queryFn: () => api.get<{ needsSetup: boolean }>(ENDPOINTS.admin.auth.setupStatus),
-    enabled: meQuery.isError,
+    enabled: meIsError,
     retry: false,
   });
 
-  const user = meQuery.data ?? null;
-  const isLoading = meQuery.isLoading || (meQuery.isError && setupQuery.isLoading);
-  const needsSetup = !user && meQuery.isError ? (setupQuery.data?.needsSetup ?? false) : false;
+  const user = meData ?? null;
+  const isLoading = meIsLoading || (meIsError && setupIsLoading);
+  const needsSetup = !user && meIsError ? (setupData?.needsSetup ?? false) : false;
 
   const refresh = useCallback(async () => {
     await Promise.all([

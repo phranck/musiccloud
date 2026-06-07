@@ -4,6 +4,7 @@
   "version": "1.3.6",
   "private": true,
   "scripts": {
+    "check": "astro check",
     "dev": "node --env-file=.env.local ./node_modules/astro/astro.js dev",
     "build": "astro build",
     "preview": "astro preview",

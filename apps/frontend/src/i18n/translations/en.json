@@ -51,7 +51,7 @@
   "error.timeout": "This is taking longer than usual. Please try again.",
   "error.generic": "Something went wrong. Please try again.",
   "error.genericWithCode": "Something went wrong. Please try again. ({code})",
-  "errorCodes.MC-URL-0001": "This URL isn't supported yet. Try a link from Spotify, Apple Music, YouTube, Tidal, Deezer, SoundCloud, or another supported service. ({code})",
+  "errorCodes.MC-URL-0001": "This URL isn't supported. Try a link from Spotify, Apple Music, YouTube, Tidal, Deezer, SoundCloud, or another supported service. ({code})",
   "errorCodes.MC-URL-0002": "This doesn't look like a music link. Try pasting a link from a supported service. ({code})",
   "errorCodes.MC-URL-0003": "That URL looks malformed. Please paste the full link from the streaming service. ({code})",
   "errorCodes.MC-URL-0004": "Playlists aren't supported yet. Paste a link to a single track or album instead. ({code})",

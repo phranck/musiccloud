@@ -25,10 +25,13 @@ apps/backend/data/
 .agents/
 .claude/
 .codex/
+.continue/
+.kiro/
 .pi/
 .pi-lens/
 .remember/
 .serena/
+.vibe/
 openspec/
 papers/
 WHATS-NEXT.md

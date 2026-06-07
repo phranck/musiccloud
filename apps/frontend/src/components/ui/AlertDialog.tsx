@@ -1,5 +1,6 @@
 import { SealWarningIcon } from "@phosphor-icons/react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
 import { OverlayBackdropPlacement } from "@/components/ui/OverlayBackdropTypes";
@@ -35,26 +36,26 @@ export function AlertDialog({ open, title, message, closeLabel, onClose }: Alert
       >
         <EmbossedCard style={solidEmbossedCardStyle} radius="24px" padding="14px">
           <EmbossedCard.Header className="px-3 pt-2">
-            <h2 id="mc-alert-title" className="text-lg font-semibold leading-tight text-text-primary">
-              {title}
-            </h2>
+            <div className="flex items-center gap-3">
+              <SealWarningIcon size={32} weight="duotone" className="shrink-0 text-error" />
+              <h2 id="mc-alert-title" className="min-w-0 text-lg font-semibold leading-tight text-text-primary">
+                {title}
+              </h2>
+            </div>
           </EmbossedCard.Header>
 
           <EmbossedCard.Body className="px-3 pt-4">
-            <div className="flex items-start gap-4">
-              <div className="mt-1 flex size-10 shrink-0 items-center justify-center rounded-full border border-red-400/40 bg-red-500/15 text-error">
-                <SealWarningIcon size={22} weight="duotone" />
-              </div>
-              <p id="mc-alert-message" className="min-w-0 text-sm leading-6 text-text-secondary">
-                {message}
-              </p>
-            </div>
+            <p id="mc-alert-message" className="text-[1.0625rem] leading-7 text-text-secondary">
+              {message}
+            </p>
           </EmbossedCard.Body>
 
           <EmbossedCard.Footer className="flex justify-end px-3 pt-5 pb-2">
-            <EmbossedButton as="button" onClick={onClose} className="min-w-24 text-sm font-semibold" noScale>
-              {closeLabel}
-            </EmbossedButton>
+            <RecessedCard padding="2px">
+              <EmbossedButton as="button" onClick={onClose} className="min-w-24 py-2 text-sm font-semibold" noScale>
+                {closeLabel}
+              </EmbossedButton>
+            </RecessedCard>
           </EmbossedCard.Footer>
         </EmbossedCard>
       </dialog>

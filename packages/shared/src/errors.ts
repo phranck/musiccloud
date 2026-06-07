@@ -50,7 +50,7 @@ export const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
 };
 
 export const USER_MESSAGES: Record<ErrorCode, string> = {
-  UNSUPPORTED_SERVICE: "This platform isn't supported yet. Try a link from Spotify, Apple Music, or YouTube.",
+  UNSUPPORTED_SERVICE: "This platform isn't supported. Try a link from Spotify, Apple Music, or YouTube.",
   NOT_MUSIC_LINK: "This doesn't look like a music link. Try pasting a link from Spotify, Apple Music, or YouTube.",
   INVALID_URL: "Hmm, that doesn't look right. Try pasting a link from a streaming service.",
   PLAYLIST_NOT_SUPPORTED: "We support single tracks right now. Try pasting a link to a specific song.",

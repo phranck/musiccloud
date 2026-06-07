@@ -213,7 +213,7 @@ export function validateMusicUrl(input: string): UrlValidationResult {
       valid: false,
       code: "UNSUPPORTED_SERVICE",
       message:
-        "This platform isn't supported yet. Try a link from Spotify, YouTube, Tidal, Deezer, SoundCloud, or another supported service.",
+        "This platform isn't supported. Try a link from Spotify, YouTube, Tidal, Deezer, SoundCloud, or another supported service.",
     };
   }
 

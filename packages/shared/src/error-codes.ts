@@ -124,7 +124,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
   "MC-URL-0001": {
     code: "MC-URL-0001",
     httpStatus: 400,
-    userMessage: "This platform isn't supported yet. Try a link from Spotify, Apple Music, or YouTube.",
+    userMessage: "This platform isn't supported. Try a link from Spotify, Apple Music, or YouTube.",
     internalNote: "No adapter matched the URL. Either the host is unknown or the URL shape is off.",
     source: "apps/backend/src/lib/platform/url.ts validateMusicUrl",
   },
