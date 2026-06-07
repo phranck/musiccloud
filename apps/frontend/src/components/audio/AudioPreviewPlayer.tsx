@@ -146,6 +146,32 @@ const SPECTRUM_FADE_MIN_LEVEL = 0.03;
 const SPECTRUM_LOW_BAND_COUNT = 4;
 const SPECTRUM_RECOVERY_CHECK_MS = 700;
 const PLAYER_PROGRESS_REWIND_MS = 420;
+// Sample-accurate gain ramp applied on the very first play of a fresh
+// audio source so the audio fades in from silence to unity. The ramp
+// hides the startup transient that MP3 decoders and freshly engaged
+// MediaElementSource → destination routing produce together: even a
+// brief, low-amplitude burst at the moment the audio output device
+// re-engages is audible as a click against the prior silence. The ramp
+// is only scheduled on the first play of each fresh audio element
+// (tracked via hasStartedRef) — resuming a previously-played, paused
+// track does not need it because the audio path is already warm.
+const STARTUP_FADE_MS = 30;
+// Sample-accurate gain ramp applied on teardown when the audio is still
+// playing at unmount. Required because the share-page Top-Tracks button
+// triggers an SPA navigation while the current preview is mid-playback:
+// the old MediaCard unmounts, audio.pause() + AudioContext.close() fire
+// in immediate succession, and the OS audio session disengages
+// mid-stream. The DAC silencing at a non-zero waveform sample produces
+// an audible speaker click. User-initiated pauses do NOT exhibit this
+// because the context stays alive after audio.pause() — the click is
+// specifically about close() racing the audio path. The ramp drives the
+// gain to zero before the deferred pause + teardown run, so the close
+// sees silence at the destination.
+const TEARDOWN_FADE_MS = 30;
+// Safety margin added on top of TEARDOWN_FADE_MS before the deferred
+// pause + context close fires, so the scheduled gain ramp has fully
+// settled at the audio graph before the destination is destroyed.
+const TEARDOWN_FADE_GUARD_MS = 10;
 
 type BrowserAudioContextConstructor = typeof AudioContext;
 
@@ -250,11 +276,11 @@ function useAudioPreviewController({
   const analysersRef = useRef<StereoSpectrumAnalysers | null>(null);
   const channelSplitterRef = useRef<ChannelSplitterNode | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
   const spectrumFrameRef = useRef<number | null>(null);
   const spectrumDataRef = useRef<StereoSpectrumData | null>(null);
   const spectrumLastUpdateRef = useRef(0);
   const spectrumBandsRef = useRef<StereoSpectrumBands | null>(null);
-  const spectrumRecoveryInFlightRef = useRef(false);
   const progressFrameRef = useRef<number | null>(null);
   const progressRewindFrameRef = useRef<number | null>(null);
   const progressRatioRef = useRef(0);
@@ -405,9 +431,11 @@ function useAudioPreviewController({
     channelSplitterRef.current?.disconnect();
     analysersRef.current?.left.disconnect();
     analysersRef.current?.right.disconnect();
+    gainNodeRef.current?.disconnect();
     mediaSourceRef.current = null;
     channelSplitterRef.current = null;
     analysersRef.current = null;
+    gainNodeRef.current = null;
     spectrumDataRef.current = null;
 
     const audioContext = audioContextRef.current;
@@ -449,21 +477,68 @@ function useAudioPreviewController({
     spectrumFrameRef.current = requestAnimationFrame(tick);
   }, []);
 
+  /**
+   * Wires up (or reuses) the Web Audio spectrum pipeline for the given audio
+   * element and returns a promise that resolves to `true` once the
+   * AudioContext is in the `running` state.
+   *
+   * **Critical timing contract:** callers MUST invoke this from inside a
+   * user-gesture synchronous stack (e.g. a click handler), and BEFORE
+   * `audio.play()`. Two browser policies enforce this:
+   *
+   *   1. `new AudioContext()` and `audioContext.resume()` both consume
+   *      transient user activation. If `resume()` first runs in a microtask
+   *      scheduled after `audio.play()` has resolved, the activation may
+   *      already be consumed or expired — particularly on Safari, and on
+   *      Chrome with a cold HTTP cache or a slow CDN. The browser then
+   *      silently leaves the context `suspended`. Audio still plays because
+   *      `play()` captured its own activation earlier, but the analyser
+   *      receives no samples and the watchdog interval cannot lift the
+   *      suspension without a fresh gesture. This is the exact failure mode
+   *      where preview playback works but the VFD spectrum stays dark and
+   *      a page reload "fixes" it (warm cache → fast play() → activation
+   *      still alive when resume() runs).
+   *
+   *   2. `createMediaElementSource(audio)` should run before `audio.play()`
+   *      so the element streams through the AudioContext from the first
+   *      sample. Wiring up an already-playing element is supported but
+   *      prone to brief routing glitches.
+   *
+   * To honour both, this function performs ALL synchronous work — context
+   * construction, source/splitter/analyser creation, connections — before
+   * yielding, and only returns a promise for the `resume()` round trip.
+   * Callers that await the returned promise from a `.then()` chain after
+   * `audio.play()` are fine because the `resume()` call itself was issued
+   * synchronously while the gesture was still alive.
+   */
   const ensureSpectrumAnalyzer = useCallback(
-    async (audio: HTMLAudioElement) => {
+    (audio: HTMLAudioElement): Promise<boolean> => {
+      // Fast path: pipeline already wired. Reuse and only nudge the context
+      // if it has slipped back to `suspended`. resume() is fired synchronously
+      // (not awaited) so the caller's gesture window is preserved.
       if (analysersRef.current) {
-        if (audioContextRef.current?.state === AudioContextState.Suspended) await audioContextRef.current.resume();
-        return audioContextRef.current?.state === AudioContextState.Running;
+        const existingContext = audioContextRef.current;
+        if (!existingContext) return Promise.resolve(false);
+        if (existingContext.state === AudioContextState.Running) return Promise.resolve(true);
+        if (existingContext.state === AudioContextState.Suspended) {
+          return existingContext
+            .resume()
+            .then(() => existingContext.state === AudioContextState.Running)
+            .catch(() => false);
+        }
+        return Promise.resolve(false);
       }
 
       const AudioContextConstructor = getAudioContextConstructor();
-      if (!AudioContextConstructor) return false;
+      if (!AudioContextConstructor) return Promise.resolve(false);
 
       const audioContext = audioContextRef.current ?? new AudioContextConstructor();
       audioContextRef.current = audioContext;
-      if (audioContext.state === AudioContextState.Suspended) await audioContext.resume();
-      if (audioContext.state !== AudioContextState.Running) return false;
 
+      // Install the state-change handler before connections so a context
+      // that flips back to `running` after an interruption (route change,
+      // audio focus loss, system audio session pause) re-kicks the spectrum
+      // loop without waiting for the watchdog interval.
       audioContext.onstatechange = () => {
         if (audioContext.state === AudioContextState.Running) {
           if (!audio.paused && !audio.ended) startSpectrumLoop();
@@ -471,6 +546,11 @@ function useAudioPreviewController({
         }
         stopSpectrumLoop({ clearBands: false });
         if (!audio.paused && !audio.ended && audioContext.state === AudioContextState.Suspended) {
+          // resume() in a state-change callback has no fresh user gesture.
+          // It succeeds when the browser itself interrupted the session
+          // (e.g. after a tab refocus), and fails silently when the autoplay
+          // policy demands a new gesture. In the latter case the analyser
+          // stays dark until the user clicks play/pause again.
           void audioContext
             .resume()
             .then(() => {
@@ -481,6 +561,12 @@ function useAudioPreviewController({
         }
       };
 
+      // Wire splitter + analysers + media source SYNCHRONOUSLY. The fragile
+      // call is `createMediaElementSource(audio)`: it can only be invoked
+      // once per HTMLAudioElement (subsequent calls throw InvalidStateError)
+      // and it taints the analyser to zeros if the audio source is not
+      // CORS-clean. The catch tears the partial pipeline down so playback
+      // still proceeds when the analyser branch is unavailable.
       try {
         const splitter = audioContext.createChannelSplitter(2);
         const leftAnalyser = audioContext.createAnalyser();
@@ -490,12 +576,23 @@ function useAudioPreviewController({
           analyser.smoothingTimeConstant = 0.66;
         }
 
+        // The GainNode sits between the media source and the destination
+        // so the teardown path can ramp the signal down before the audio
+        // element is paused and the context is closed. The splitter that
+        // feeds the analysers is connected AFTER the gain node, so the
+        // VFD visualisation matches what is heard at all times — during
+        // the teardown fade the spectrum dims along with the audio.
+        const gain = audioContext.createGain();
+        gain.gain.value = 1;
+
         const source = audioContext.createMediaElementSource(audio);
-        source.connect(audioContext.destination);
-        source.connect(splitter);
+        source.connect(gain);
+        gain.connect(audioContext.destination);
+        gain.connect(splitter);
         splitter.connect(leftAnalyser, 0);
         splitter.connect(rightAnalyser, 1);
 
+        gainNodeRef.current = gain;
         mediaSourceRef.current = source;
         channelSplitterRef.current = splitter;
         analysersRef.current = { left: leftAnalyser, right: rightAnalyser };
@@ -503,49 +600,66 @@ function useAudioPreviewController({
           left: new Uint8Array(leftAnalyser.frequencyBinCount),
           right: new Uint8Array(rightAnalyser.frequencyBinCount),
         };
-        return true;
       } catch {
         mediaSourceRef.current?.disconnect();
         channelSplitterRef.current?.disconnect();
         analysersRef.current?.left.disconnect();
         analysersRef.current?.right.disconnect();
+        gainNodeRef.current?.disconnect();
         mediaSourceRef.current = null;
         channelSplitterRef.current = null;
         analysersRef.current = null;
+        gainNodeRef.current = null;
         spectrumDataRef.current = null;
         setSpectrumBands(null);
-        return false;
+        return Promise.resolve(false);
       }
+
+      // Kick resume() while the gesture is still alive on this synchronous
+      // tick. Returning the promise (instead of awaiting) keeps the caller's
+      // surrounding control flow synchronous up to the .then() chain — and
+      // that is exactly how the surrounding gesture activation survives.
+      if (audioContext.state === AudioContextState.Running) return Promise.resolve(true);
+      return audioContext
+        .resume()
+        .then(() => audioContext.state === AudioContextState.Running)
+        .catch(() => false);
     },
     [startSpectrumLoop, stopSpectrumLoop],
   );
 
+  // Watchdog for the spectrum render loop while playback is active. The
+  // initial wire-up happens synchronously inside togglePlay (so the user
+  // gesture window is honoured), and the AudioContext's `onstatechange`
+  // handler restarts the loop whenever the context flips back to `running`.
+  // This watchdog only covers the narrower case where the rAF loop stopped
+  // without a matching state-change event — e.g. after `stopSpectrumLoop`
+  // was invoked while the player is still in the `playing` phase. Calling
+  // `ensureSpectrumAnalyzer` from here would not help: at this point we are
+  // far outside the original user gesture, so `audioContext.resume()` would
+  // silently leave a suspended context untouched.
   useEffect(() => {
     if (state.phase !== PlayerPhase.Playing) return;
     const audio = audioRef.current;
     if (!audio) return;
 
     const recoverSpectrum = () => {
-      if (spectrumRecoveryInFlightRef.current || audio.paused || audio.ended) return;
-      const audioContext = audioContextRef.current;
-      const needsRecovery =
-        !analysersRef.current || audioContext?.state !== AudioContextState.Running || spectrumFrameRef.current === null;
-      if (!needsRecovery) return;
-
-      spectrumRecoveryInFlightRef.current = true;
-      void ensureSpectrumAnalyzer(audio)
-        .then((isAnalyzerReady) => {
-          if (isAnalyzerReady && !audio.paused && !audio.ended) startSpectrumLoop();
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          spectrumRecoveryInFlightRef.current = false;
-        });
+      if (audio.paused || audio.ended) return;
+      if (!analysersRef.current) return;
+      if (audioContextRef.current?.state !== AudioContextState.Running) return;
+      if (spectrumFrameRef.current !== null) return;
+      startSpectrumLoop();
     };
 
+    // No immediate call: the spectrum loop is started directly from
+    // togglePlay after the user click, before this effect runs. The
+    // watchdog only needs to cover after-the-fact rAF stalls, which is
+    // exactly what the periodic interval handles. (Triggering a state-
+    // mutating helper here at mount also trips React Doctor's
+    // no-adjust-state-on-prop-change rule.)
     const recoveryTimer = window.setInterval(recoverSpectrum, SPECTRUM_RECOVERY_CHECK_MS);
     return () => window.clearInterval(recoveryTimer);
-  }, [ensureSpectrumAnalyzer, startSpectrumLoop, state.phase]);
+  }, [startSpectrumLoop, state.phase]);
 
   // Bind the <audio> element when a URL becomes available. The only
   // dependency is the URL itself — playback state transitions (play/pause)
@@ -607,10 +721,57 @@ function useAudioPreviewController({
       audio.removeEventListener("error", handleError);
       stopProgressLoop();
       stopProgressRewind();
-      teardownSpectrum();
+      audioRef.current = null;
+
+      // Teardown fade-OUT path. When the user switches tracks via the
+      // share-page Top-Tracks selector WHILE the current preview is
+      // still playing, this unmount happens in mid-playback. Without a
+      // fade, the immediate audio.pause() + AudioContext.close() cuts
+      // the OS audio session at a non-zero waveform sample, producing
+      // an audible speaker click. User-initiated pauses don't show
+      // this symptom because the context stays alive after pause.
+      //
+      // The audio element is intentionally left running for the fade
+      // window so the WebAudio graph has real samples to ramp. The
+      // actual audio.pause() + audio.src clear + teardownSpectrum() are
+      // deferred via setTimeout so they execute AFTER the sample-
+      // accurate gain ramp has settled at zero. Because Astro View
+      // Transitions keep the window/JS heap across share-page
+      // navigations, the deferred timer survives the SPA swap.
+      const audioContext = audioContextRef.current;
+      const gainNode = gainNodeRef.current;
+      const canFade =
+        audioContext !== null &&
+        audioContext.state === AudioContextState.Running &&
+        gainNode !== null &&
+        !audio.paused &&
+        !audio.ended;
+
+      if (canFade) {
+        const fadeStartTime = audioContext.currentTime;
+        try {
+          gainNode.gain.cancelScheduledValues(fadeStartTime);
+          gainNode.gain.setValueAtTime(gainNode.gain.value, fadeStartTime);
+          gainNode.gain.linearRampToValueAtTime(0, fadeStartTime + TEARDOWN_FADE_MS / 1000);
+        } catch {
+          // If scheduling throws because the context flipped to closed
+          // between the canFade check and the ramp call, the fallback
+          // below will still finish the teardown cleanly.
+        }
+        window.setTimeout(() => {
+          audio.pause();
+          audio.src = "";
+          teardownSpectrum();
+        }, TEARDOWN_FADE_MS + TEARDOWN_FADE_GUARD_MS);
+        return;
+      }
+
+      // No-fade fallback (already paused/ended or no gain pipeline).
+      // Pause first so the audio element stops feeding samples before
+      // AudioContext.close() disengages the destination.
       audio.pause();
       audio.src = "";
-      audioRef.current = null;
+      teardownSpectrum();
     };
   }, [effectiveUrl, contentType, stopProgressLoop, stopProgressRewind, teardownSpectrum]);
 
@@ -623,6 +784,47 @@ function useAudioPreviewController({
       stopSpectrumLoop({ clearBands: false });
       audio.muted = false;
       audio.volume = 1;
+
+      // Order is load-bearing. `ensureSpectrumAnalyzer` performs all
+      // AudioContext setup synchronously — constructor, source, splitter,
+      // analyser connections — and fires `resume()` on the same tick. This
+      // must happen BEFORE `audio.play()` so the AudioContext operations
+      // share the user-gesture activation that the click on the play button
+      // provides. Doing it inside the play().then() callback (the previous
+      // behaviour) makes resume() race with audio.play()'s own resolution:
+      // when play() takes longer than a few hundred ms (cold HTTP cache,
+      // slow Deezer CDN, decode latency) the activation expires, resume()
+      // resolves but leaves the context suspended, and the analyser stays
+      // dark while playback continues. The promise itself is awaited inside
+      // play().then() — that part is fine because the gesture-bound call
+      // already happened on this synchronous tick.
+      const spectrumReadyPromise = ensureSpectrumAnalyzer(audio);
+
+      // Mute the WebAudio gain synchronously BEFORE audio.play() so the
+      // very first decoded samples hit the speaker at zero amplitude.
+      // The corresponding ramp back to unity is scheduled below, after
+      // audio.play() resolves, so that the audio fades in over the
+      // startup window instead of slamming on at full level.
+      //
+      // This eliminates the startup click users hear when a brand-new
+      // track begins playing — observed when switching from a paused
+      // (silent) state to a freshly mounted preview. The transient
+      // arises from the MP3 decoder warming up and the
+      // MediaElementSource → destination route engaging the audio
+      // output device for the first time; both produce a brief
+      // amplitude spike that the human ear perceives as a click against
+      // the prior silence. Resuming a paused track is left untouched
+      // (hasStartedRef gate) because the audio path is already warm
+      // and the click does not occur there.
+      const isFirstPlay = !hasStartedRef.current;
+      const startupGainNode = gainNodeRef.current;
+      const startupAudioContext = audioContextRef.current;
+      if (isFirstPlay && startupGainNode && startupAudioContext) {
+        const muteAt = startupAudioContext.currentTime;
+        startupGainNode.gain.cancelScheduledValues(muteAt);
+        startupGainNode.gain.setValueAtTime(0, muteAt);
+      }
+
       audio
         .play()
         .then(() => {
@@ -634,7 +836,20 @@ function useAudioPreviewController({
           notifyStatusChange(AudioPreviewStatus.Playing);
           hasStartedRef.current = true;
           startProgressLoop(audio);
-          void ensureSpectrumAnalyzer(audio)
+
+          // Sample-accurate ramp back up to unity. Re-read the refs in
+          // case `ensureSpectrumAnalyzer` had to rebuild the pipeline
+          // between the synchronous mute above and this resolution.
+          const rampGainNode = gainNodeRef.current;
+          const rampAudioContext = audioContextRef.current;
+          if (isFirstPlay && rampGainNode && rampAudioContext) {
+            const rampStart = rampAudioContext.currentTime;
+            rampGainNode.gain.cancelScheduledValues(rampStart);
+            rampGainNode.gain.setValueAtTime(0, rampStart);
+            rampGainNode.gain.linearRampToValueAtTime(1, rampStart + STARTUP_FADE_MS / 1000);
+          }
+
+          void spectrumReadyPromise
             .then((isAnalyzerReady) => {
               if (isAnalyzerReady && !audio.paused) startSpectrumLoop();
             })
