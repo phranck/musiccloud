@@ -523,10 +523,7 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
       <button
         ref={setProgressRef}
         type="button"
-        className={cn(
-          "flex-1 min-w-0 cursor-pointer appearance-none border-0 bg-transparent p-0 text-left",
-          className,
-        )}
+        className={cn("flex-1 min-w-0 cursor-pointer appearance-none border-0 bg-transparent p-0 text-left", className)}
         style={progressStyle}
         aria-pressed={isStereoVuMode}
         aria-label={wrapperTitle}
