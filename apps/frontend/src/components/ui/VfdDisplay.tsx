@@ -41,6 +41,36 @@ export type VfdContentTransition = "slide" | "none";
 export type VfdSizingMode = "matrix" | "container";
 
 /**
+ * One filled pixel bar segment drawn into a section's allocated column range.
+ *
+ * Coordinates are pixel columns in the section's local space, spanning the
+ * full column count returned by `vfdColumnCountForCells(section.cells)`.
+ * Unlike glyph rendering, the bar fills its column range CONTIGUOUSLY,
+ * ignoring the inter-glyph spacing columns inside the section. This lets the
+ * caller draw analog-style level meters that flow across cell boundaries.
+ *
+ * The leading "peak" column at the active edge of the fill receives
+ * `peakBrightness`; the columns behind it down to the anchor receive
+ * `trailBrightness`.
+ */
+export interface VfdPixelBarSegment {
+  /** First column of the segment's track inside the section (inclusive, 0-based). */
+  startColumn: number;
+  /** Last column of the segment's track inside the section (inclusive). */
+  endColumn: number;
+  /** Filled length in columns. Clamped to the track range; 0 disables drawing. */
+  fillColumns: number;
+  /** Edge of the track that the fill is anchored at. `"left"` grows rightward (peak at the right end); `"right"` grows leftward (peak at the left end). */
+  anchor: "left" | "right";
+  /** Trail (non-peak filled) column brightness. Defaults to `"dim"`. */
+  trailBrightness?: VfdBrightness;
+  /** Peak (leading filled) column brightness. Defaults to `"bright"`. */
+  peakBrightness?: VfdBrightness;
+  /** Row mask `(1 << row)` selecting which of the 7 pixel rows the bar fills. Defaults to all rows (full glyph height). */
+  rowMask?: number;
+}
+
+/**
  * One logical section inside a VFD row.
  *
  * The display remains hardware-generic and deliberately dumb: sections know
@@ -50,10 +80,16 @@ export type VfdSizingMode = "matrix" | "container";
  * renders the given content into pixel columns. Callers must describe the
  * desired layout explicitly, e.g. by giving one section `fill` when another
  * section should stay right-pinned.
+ *
+ * A section can either render glyph content (`content`) or a list of pixel
+ * bar segments (`pixelBars`). When `pixelBars` is supplied, glyph content is
+ * ignored for that section.
  */
 export interface VfdDisplaySection {
   /** Text or inline content for this fixed-width section inside a VFD row. */
   content: ReactNode;
+  /** Optional pixel-precise bar segments rendered into the section instead of glyph content. Use for VU meters, level bars, or other column-aligned graphics. */
+  pixelBars?: VfdPixelBarSegment[];
   /** Fixed integer cells, content-sized cells, or remaining available cells. Defaults to fill for the first section. */
   cells?: VfdSectionCells;
   /** Horizontal placement inside this section's own allocated integer cell grid. */
@@ -145,6 +181,7 @@ interface NormalizedVfdSection extends Required<Pick<VfdDisplaySection, "content
   marquee?: VfdMarqueeMode;
   brightness?: VfdBrightness;
   className?: string;
+  pixelBars?: VfdPixelBarSegment[];
 }
 
 interface NormalizedVfdLine {
@@ -471,6 +508,7 @@ function normalizeSections(sections: VfdDisplaySection[] | undefined): Normalize
     marquee: section.marquee,
     brightness: section.brightness,
     className: section.className,
+    pixelBars: section.pixelBars,
   }));
 }
 
@@ -694,6 +732,44 @@ function layoutStringCanvasPixelColumns(
   return glyphCellsToCanvasPixelColumns(cells, brightness);
 }
 
+/**
+ * Renders one or more pixel bar segments into a fresh column buffer of length
+ * `totalColumns`. Trail columns get `trailBrightness`, the leading peak
+ * column gets `peakBrightness`. Coordinates are local to the section and
+ * include inter-cell spacing columns so the bar can flow across cell
+ * boundaries without visible glyph gaps. Out-of-range bars are clamped or
+ * skipped silently.
+ */
+function pixelBarsToCanvasColumns(
+  bars: VfdPixelBarSegment[],
+  totalColumns: number,
+  fallbackBrightness: VfdBrightness,
+): VfdCanvasPixelColumn[] {
+  const columns: VfdCanvasPixelColumn[] = Array.from({ length: Math.max(1, totalColumns) }, () =>
+    blankCanvasColumn(fallbackBrightness),
+  );
+  for (const bar of bars) {
+    const trailBrightness = bar.trailBrightness ?? "dim";
+    const peakBrightness = bar.peakBrightness ?? "bright";
+    const rowMask = bar.rowMask ?? VFD_FULL_COLUMN_MASK;
+    if (rowMask === 0) continue;
+    const start = Math.max(0, Math.min(columns.length - 1, bar.startColumn));
+    const end = Math.max(start, Math.min(columns.length - 1, bar.endColumn));
+    const trackSize = end - start + 1;
+    const fill = Math.max(0, Math.min(trackSize, Math.floor(bar.fillColumns)));
+    if (fill <= 0) continue;
+
+    const peakColumn = bar.anchor === "left" ? start + fill - 1 : end - fill + 1;
+    const trailStart = bar.anchor === "left" ? start : end - fill + 2;
+    const trailEnd = bar.anchor === "left" ? start + fill - 2 : end;
+    for (let column = trailStart; column <= trailEnd; column += 1) {
+      columns[column] = { mask: rowMask, brightness: trailBrightness };
+    }
+    columns[peakColumn] = { mask: rowMask, brightness: peakBrightness };
+  }
+  return columns;
+}
+
 function scrolledCanvasPixelColumns(
   content: string,
   brightness: VfdBrightness,
@@ -815,17 +891,21 @@ function lineCanvasColumns(
     if (cells <= 0) return;
     const brightness = section.brightness ?? line.brightness;
     const startColumn = cellCursor * VFD_CELL_COLUMNS;
-    writeColumns(
-      startColumn,
-      sectionColumns(
-        section.content,
-        cells,
-        section.align,
-        section.marquee,
-        brightness,
-        `row:${rowIndex}:section:${section.key}:${typeof section.content === "string" ? section.content : sectionIndex}`,
-      ),
-    );
+    if (section.pixelBars && section.pixelBars.length > 0) {
+      writeColumns(startColumn, pixelBarsToCanvasColumns(section.pixelBars, vfdColumnCountForCells(cells), brightness));
+    } else {
+      writeColumns(
+        startColumn,
+        sectionColumns(
+          section.content,
+          cells,
+          section.align,
+          section.marquee,
+          brightness,
+          `row:${rowIndex}:section:${section.key}:${typeof section.content === "string" ? section.content : sectionIndex}`,
+        ),
+      );
+    }
     cellCursor += cells;
   });
 

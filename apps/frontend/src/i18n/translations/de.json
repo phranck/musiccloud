@@ -81,6 +81,7 @@
   "artist.eventsProvidedBy": "Eventdaten bereitgestellt von Bandsintown & Ticketmaster",
   "audio.previewUnavailable": "Vorschau nicht verfügbar",
   "audio.previewLoading": "Laden...",
+  "audio.previewAnalyzerToggleTooltip": "Analyzer umschalten (D) oder Klick aufs Display",
   "audio.statusPlaying": "♫ VORSCHAU LÄUFT",
   "artist.profileProvidedBy": "Künstlerdaten bereitgestellt von Spotify, Deezer & Last.fm",
   "artist.empty": "Keine Künstlerdetails verfügbar.",
