@@ -8,8 +8,7 @@ import {
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
-import { sendMusicSignal } from "@/lib/analytics/umami";
-import type { MediaCardContentType } from "@/lib/types/media-card";
+import { ShareSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { cn } from "@/lib/utils";
 
 const subscribe = () => () => {};
@@ -24,55 +23,39 @@ interface ShareButtonProps {
   shareUrl: string;
   songTitle?: string;
   artistName?: string;
-  contentType?: MediaCardContentType;
 }
 
 type ShareState = (typeof ShareButtonState)[keyof typeof ShareButtonState];
 
-export function ShareButton({ shareUrl, songTitle, artistName, contentType }: ShareButtonProps) {
+export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProps) {
   const t = useT();
   const [state, setState] = useState<ShareState>(ShareButtonState.Idle);
 
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      sendMusicSignal("music_share_interaction", {
-        action: "copy_success",
-        method: "clipboard",
-        content_type: contentType,
-      });
+      sendMusicSignal(ShareSignal.LinkCopied);
       setState(ShareButtonState.Copied);
     } catch {
-      sendMusicSignal("music_share_interaction", {
-        action: "copy_error",
-        method: "clipboard",
-        content_type: contentType,
-      });
+      sendMusicSignal(ShareSignal.LinkCopyFailed);
       setState(ShareButtonState.Error);
     }
     setTimeout(() => setState(ShareButtonState.Idle), 2000);
-  }, [contentType, shareUrl]);
+  }, [shareUrl]);
 
   const handleNativeShare = useCallback(async () => {
     if (!navigator.share) return;
+    sendMusicSignal(ShareSignal.NativeButton);
     try {
       await navigator.share({
         title: songTitle ? `${songTitle}${artistName ? ` - ${artistName}` : ""}` : "Check out this song",
         url: shareUrl,
       });
-      sendMusicSignal("music_share_interaction", {
-        action: "share_success",
-        method: "native",
-        content_type: contentType,
-      });
+      sendMusicSignal(ShareSignal.NativeCompleted);
     } catch {
-      sendMusicSignal("music_share_interaction", {
-        action: "share_cancelled",
-        method: "native",
-        content_type: contentType,
-      });
+      sendMusicSignal(ShareSignal.NativeCancelled);
     }
-  }, [contentType, shareUrl, songTitle, artistName]);
+  }, [shareUrl, songTitle, artistName]);
 
   const supportsNativeShare = useSyncExternalStore(
     subscribe,

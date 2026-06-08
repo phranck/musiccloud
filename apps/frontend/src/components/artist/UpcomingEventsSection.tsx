@@ -1,7 +1,7 @@
 import type { ArtistEvent } from "@musiccloud/shared";
 import { TicketIcon } from "@phosphor-icons/react";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { MusicInteractionAction, MusicInteractionSurface, sendMusicSignal } from "@/lib/analytics/umami";
+import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 
 interface UpcomingEventsSectionProps {
   events: ArtistEvent[];
@@ -22,17 +22,7 @@ export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEv
             key={`${event.date}-${event.venueName || event.city}`}
             noScale
             className="flex items-center gap-3 w-full px-3 py-2 no-underline"
-            onClick={
-              event.ticketUrl
-                ? () =>
-                    sendMusicSignal("music_interaction", {
-                      action: MusicInteractionAction.UpcomingEventClicked,
-                      event_country: event.country,
-                      is_local: Boolean(isLocal),
-                      surface: MusicInteractionSurface.ArtistCard,
-                    })
-                : undefined
-            }
+            onClick={event.ticketUrl ? () => sendMusicSignal(CardSignal.UpcomingEvent) : undefined}
             {...linkProps}
           >
             <div className="min-w-0 flex-1">

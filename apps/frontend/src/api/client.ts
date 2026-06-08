@@ -156,12 +156,6 @@ export async function resolveTrack(
   );
 }
 
-/** Check if website tracking (Umami) is enabled via environment variable. */
-export function isTrackingEnabled(): boolean {
-  const val = (import.meta.env.TRACKING_ENABLED as string | undefined) ?? process.env.TRACKING_ENABLED ?? "true";
-  return val === "true";
-}
-
 /**
  * Fetch a procedurally generated genre artwork from the backend. Returns
  * the raw `Response` so the Astro proxy can stream the JPEG body straight

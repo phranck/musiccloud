@@ -24,4 +24,4 @@ Reads from `.env.local` (and process env):
 
 - `BACKEND_URL` — internal backend base URL (default `http://localhost:4000`)
 - `INTERNAL_API_KEY` — shared secret for backend calls
-- `TRACKING_ENABLED` — `true`/`false` (Umami analytics)
+- `PUBLIC_TRACKING_ENABLED` — `true`/`false` (Umami analytics; missing = `true`)

@@ -6,8 +6,7 @@ import {
 } from "@/components/audio/AudioPreviewStatus";
 import { Player } from "@/components/playback/Player";
 import { useT } from "@/i18n/context";
-import { sendMusicSignal } from "@/lib/analytics/umami";
-import type { MediaCardContentType } from "@/lib/types/media-card";
+import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
 
 interface AudioPreviewPlayerProps {
   /** Immediately-playable preview URL. Optional when `refreshShortId` is set. */
@@ -17,7 +16,6 @@ interface AudioPreviewPlayerProps {
    *  player mounts in a loading state and fetches on mount. */
   refreshShortId?: string;
   trackTitle: string;
-  contentType?: MediaCardContentType;
   onStatusChange?: (status: AudioPreviewStatusType) => void;
 }
 
@@ -53,19 +51,6 @@ const PlayerActionType = {
   TimeUpdate: "TIME_UPDATE",
   Ended: "ENDED",
   Error: "ERROR",
-} as const;
-
-const PreviewAnalyticsAction = {
-  Unavailable: "unavailable",
-  Ended: "ended",
-  Error: "error",
-  Resume: "resume",
-  Play: "play",
-  Pause: "pause",
-} as const;
-
-const PreviewAnalyticsSource = {
-  Refresh: "refresh",
 } as const;
 
 const AudioContextState = {
@@ -452,7 +437,6 @@ function useAudioPreviewController({
   previewUrl,
   refreshShortId,
   trackTitle,
-  contentType,
   onStatusChange,
 }: AudioPreviewPlayerProps) {
   const t = useT();
@@ -499,27 +483,19 @@ function useAudioPreviewController({
           setEffectiveUrl(nextPreviewUrl);
           dispatch({ type: PlayerActionType.UrlReady });
         } else {
-          sendMusicSignal("music_preview_interaction", {
-            action: PreviewAnalyticsAction.Unavailable,
-            content_type: contentType,
-            source: PreviewAnalyticsSource.Refresh,
-          });
+          sendMusicSignal(PreviewSignal.Unavailable);
           notifyStatusChangeFromEvent(AudioPreviewStatus.Unavailable);
           dispatch({ type: PlayerActionType.UrlUnavailable });
         }
       } catch (err) {
         if ((err as { name?: string })?.name === "AbortError") return;
-        sendMusicSignal("music_preview_interaction", {
-          action: PreviewAnalyticsAction.Unavailable,
-          content_type: contentType,
-          source: PreviewAnalyticsSource.Refresh,
-        });
+        sendMusicSignal(PreviewSignal.Unavailable);
         notifyStatusChangeFromEvent(AudioPreviewStatus.Unavailable);
         dispatch({ type: PlayerActionType.UrlUnavailable });
       }
     })();
     return () => controller.abort();
-  }, [contentType, previewUrl, refreshShortId]);
+  }, [previewUrl, refreshShortId]);
 
   const updateStereoLevels = useCallback((next: StereoLevels | null) => {
     if (sameStereoLevels(stereoLevelsRef.current, next)) return;
@@ -954,19 +930,13 @@ function useAudioPreviewController({
       setProgressRatioFromEvent(1);
       startProgressRewindFromEvent();
       startSpectrumFadeOutFromEvent();
-      sendMusicSignal("music_preview_interaction", {
-        action: PreviewAnalyticsAction.Ended,
-        content_type: contentType,
-      });
+      sendMusicSignal(PreviewSignal.Finished);
       notifyStatusChangeFromEvent(AudioPreviewStatus.Ready);
       dispatch({ type: PlayerActionType.Ended });
     };
     const handleError = () => {
       stopProgressLoop();
-      sendMusicSignal("music_preview_interaction", {
-        action: PreviewAnalyticsAction.Error,
-        content_type: contentType,
-      });
+      sendMusicSignal(PreviewSignal.Error);
       notifyStatusChangeFromEvent(AudioPreviewStatus.Unavailable);
       dispatch({ type: PlayerActionType.Error });
     };
@@ -1037,7 +1007,7 @@ function useAudioPreviewController({
       audio.src = "";
       teardownSpectrum();
     };
-  }, [effectiveUrl, contentType, stopProgressLoop, stopProgressRewind, teardownSpectrum]);
+  }, [effectiveUrl, stopProgressLoop, stopProgressRewind, teardownSpectrum]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
@@ -1092,10 +1062,7 @@ function useAudioPreviewController({
       audio
         .play()
         .then(() => {
-          sendMusicSignal("music_preview_interaction", {
-            action: hasStartedRef.current ? PreviewAnalyticsAction.Resume : PreviewAnalyticsAction.Play,
-            content_type: contentType,
-          });
+          sendMusicSignal(hasStartedRef.current ? PreviewSignal.Resumed : PreviewSignal.Started);
           dispatch({ type: PlayerActionType.Play });
           notifyStatusChange(AudioPreviewStatus.Playing);
           hasStartedRef.current = true;
@@ -1124,10 +1091,7 @@ function useAudioPreviewController({
             });
         })
         .catch(() => {
-          sendMusicSignal("music_preview_interaction", {
-            action: PreviewAnalyticsAction.Error,
-            content_type: contentType,
-          });
+          sendMusicSignal(PreviewSignal.Error);
           notifyStatusChange(AudioPreviewStatus.Unavailable);
           dispatch({ type: PlayerActionType.Error });
         });
@@ -1135,15 +1099,11 @@ function useAudioPreviewController({
       audio.pause();
       stopProgressLoop(audio);
       startSpectrumFadeOut();
-      sendMusicSignal("music_preview_interaction", {
-        action: PreviewAnalyticsAction.Pause,
-        content_type: contentType,
-      });
+      sendMusicSignal(PreviewSignal.Paused);
       notifyStatusChange(AudioPreviewStatus.Paused);
       dispatch({ type: PlayerActionType.Pause });
     }
   }, [
-    contentType,
     ensureSpectrumAnalyzer,
     resetPeakHold,
     startProgressLoop,

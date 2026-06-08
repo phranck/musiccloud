@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
 import { useLocale } from "@/i18n/context";
 import { LOCALE_META, LOCALES } from "@/i18n/locales";
+import { languageSignal, sendMusicSignal } from "@/lib/analytics/umami";
 
 export function LanguageSwitcher() {
   const { locale, setLocale } = useLocale();
@@ -35,6 +36,7 @@ export function LanguageSwitcher() {
                 key={code}
                 type="button"
                 onClick={() => {
+                  if (code !== locale) sendMusicSignal(languageSignal(code));
                   setLocale(code);
                   setIsOpen(false);
                 }}

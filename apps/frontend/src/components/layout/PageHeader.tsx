@@ -4,7 +4,6 @@ import type { MouseEvent } from "react";
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
 import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/OverlayContext";
 import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
-import { MusicInteractionSurface } from "@/lib/analytics/umami";
 import { navHref, navLabel } from "@/lib/nav";
 
 interface PageHeaderProps {
@@ -29,7 +28,7 @@ function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): vo
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
     return;
   }
-  sendNavInteractionSignal(item, MusicInteractionSurface.Header);
+  sendNavInteractionSignal(item);
   if (item.target === NavTarget.Blank) return;
   if (!isOverlayModeItem(item)) return;
   if (!isOverlayActive()) return; // no island mounted → fall back to full navigation

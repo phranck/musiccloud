@@ -9,14 +9,7 @@ import {
 } from "@musiccloud/shared";
 import { type Dispatch, useCallback, useReducer } from "react";
 import { useT } from "@/i18n/context";
-import {
-  classifySearchInput,
-  MusicInteractionAction,
-  MusicInteractionSurface,
-  MusicResolveFlow,
-  searchInputLengthBucket,
-  sendMusicSignal,
-} from "@/lib/analytics/umami";
+import { CardSignal, GenreSignal, ResolveSignal, SearchSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import {
   appReducer,
   formatResolveErrorMessage,
@@ -89,18 +82,7 @@ export function useAppState(): UseAppStateResult {
   );
 
   const handleSubmit = useCallback(async (url: string) => {
-    const inputKind = classifySearchInput(url);
-    const inputLength = searchInputLengthBucket(url);
-    sendMusicSignal("music_search_submitted", {
-      input_kind: inputKind,
-      input_length: inputLength,
-    });
-    sendMusicSignal("music_resolve_started", {
-      flow: MusicResolveFlow.LandingSearch,
-      input_kind: inputKind,
-      input_length: inputLength,
-      surface: MusicInteractionSurface.Landing,
-    });
+    sendMusicSignal(SearchSignal.Submitted);
     dispatch({ type: "SUBMIT" });
     try {
       const controller = new AbortController();
@@ -122,29 +104,18 @@ export function useAppState(): UseAppStateResult {
         | ResolveGenreBrowseResponse
         | ResolveGenreSearchResponse;
       if ("status" in data && data.status === "disambiguation") {
-        sendMusicSignal("music_source_search_success", {
-          result_kind: "disambiguation",
-          candidate_count: data.candidates.length,
-        });
+        sendMusicSignal(ResolveSignal.Completed);
         dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
         return;
       }
       if ("status" in data && data.status === "genre-browse") {
         const browseData = data as ResolveGenreBrowseResponse;
-        sendMusicSignal("music_source_search_success", {
-          result_kind: "genre_browse",
-          result_count: browseData.genres.length,
-        });
+        sendMusicSignal(GenreSignal.Overview);
         dispatch({ type: "GENRE_BROWSE", genres: browseData.genres });
         return;
       }
       if ("status" in data && data.status === "genre-search") {
-        const resultCount = Object.values(data.results).reduce((sum, list) => sum + (list?.length ?? 0), 0);
-        sendMusicSignal("music_source_search_success", {
-          result_kind: "genre_search",
-          result_count: resultCount,
-          warning_count: data.warnings.length,
-        });
+        sendMusicSignal(ResolveSignal.Completed);
         dispatch({
           type: "GENRE_SEARCH",
           payload: {
@@ -157,32 +128,16 @@ export function useAppState(): UseAppStateResult {
         return;
       }
       const resolved = data as UnifiedResolveSuccessResponse;
-      sendMusicSignal("music_source_search_success", {
-        result_kind: "resolved",
-        content_type: resolved.type,
-        service_count: resolved.links.length,
-      });
+      sendMusicSignal(ResolveSignal.Completed);
       dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
     } catch (err) {
-      sendResolveFailedSignal(err, {
-        flow: MusicResolveFlow.LandingSearch,
-        input_kind: inputKind,
-        input_length: inputLength,
-        surface: MusicInteractionSurface.Landing,
-      });
+      sendResolveFailedSignal(err);
       dispatchResolveError(dispatch, err);
     }
   }, []);
 
   const handleSelectCandidate = useCallback(async (candidate: DisambiguationCandidate) => {
-    sendMusicSignal("music_interaction", {
-      action: MusicInteractionAction.DisambiguationCandidateSelected,
-      surface: MusicInteractionSurface.Landing,
-    });
-    sendMusicSignal("music_resolve_started", {
-      flow: MusicResolveFlow.DisambiguationCandidate,
-      surface: MusicInteractionSurface.Landing,
-    });
+    sendMusicSignal(CardSignal.DisambiguationCandidate);
     dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
     try {
       const controller = new AbortController();
@@ -200,17 +155,10 @@ export function useAppState(): UseAppStateResult {
       }
       const data = (await response.json()) as ResolveSuccessResponse;
       const resolved: UnifiedResolveSuccessResponse = { ...data, type: "track" };
-      sendMusicSignal("music_source_search_success", {
-        result_kind: "candidate_resolved",
-        content_type: resolved.type,
-        service_count: resolved.links.length,
-      });
+      sendMusicSignal(ResolveSignal.Completed);
       dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data), resolved });
     } catch (err) {
-      sendResolveFailedSignal(err, {
-        flow: MusicResolveFlow.DisambiguationCandidate,
-        surface: MusicInteractionSurface.Landing,
-      });
+      sendResolveFailedSignal(err);
       dispatchResolveError(dispatch, err);
     }
   }, []);
@@ -226,14 +174,6 @@ export function useAppState(): UseAppStateResult {
    * cross-service resolution.
    */
   const handleSelectGenreResult = useCallback(async (webUrl: string, id: string) => {
-    sendMusicSignal("music_interaction", {
-      action: MusicInteractionAction.GenreResultSelected,
-      surface: MusicInteractionSurface.Landing,
-    });
-    sendMusicSignal("music_resolve_started", {
-      flow: MusicResolveFlow.GenreResult,
-      surface: MusicInteractionSurface.Landing,
-    });
     dispatch({ type: "SELECT_GENRE_RESULT", selectedId: id });
     try {
       const controller = new AbortController();
@@ -250,17 +190,10 @@ export function useAppState(): UseAppStateResult {
         throw new ResolveApiError(errorData);
       }
       const data = (await response.json()) as UnifiedResolveSuccessResponse;
-      sendMusicSignal("music_source_search_success", {
-        result_kind: "genre_result_resolved",
-        content_type: data.type,
-        service_count: data.links.length,
-      });
+      sendMusicSignal(ResolveSignal.Completed);
       dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
     } catch (err) {
-      sendResolveFailedSignal(err, {
-        flow: MusicResolveFlow.GenreResult,
-        surface: MusicInteractionSurface.Landing,
-      });
+      sendResolveFailedSignal(err);
       dispatchResolveError(dispatch, err);
     }
   }, []);
@@ -302,14 +235,6 @@ function dispatchResolveError(dispatch: Dispatch<{ type: "ERROR"; error: Resolve
   dispatch({ type: "ERROR", error: parseResolveError(err) });
 }
 
-function sendResolveFailedSignal(
-  err: unknown,
-  properties: Record<string, string | number | boolean | null | undefined>,
-): void {
-  const parsed = parseResolveError(err);
-  sendMusicSignal("music_resolve_failed", {
-    ...properties,
-    error_code: parsed.code,
-    error_kind: parsed.key.replace(/^errorCodes\./, ""),
-  });
+function sendResolveFailedSignal(err: unknown): void {
+  sendMusicSignal(err instanceof Error ? ResolveSignal.FailedClient : ResolveSignal.FailedUnknown);
 }

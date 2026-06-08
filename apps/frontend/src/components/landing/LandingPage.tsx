@@ -22,7 +22,7 @@ import { useAppState } from "@/hooks/useAppState";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
 import { useToast } from "@/hooks/useToast";
 import { LocaleProvider, useT } from "@/i18n/context";
-import { MusicInteractionAction, MusicInteractionSurface, sendMusicSignal } from "@/lib/analytics/umami";
+import { CardSignal, genreSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import {
   loadDisambiguationPanel,
   loadGenreBrowseGrid,
@@ -124,12 +124,7 @@ function LiveExampleTeaser({
       {teaser}{" "}
       <a
         href={`/${exampleShortId}`}
-        onClick={() =>
-          sendMusicSignal("music_interaction", {
-            action: MusicInteractionAction.LiveExampleClicked,
-            surface: MusicInteractionSurface.Landing,
-          })
-        }
+        onClick={() => sendMusicSignal(CardSignal.LiveExample)}
         className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
       >
         {label}
@@ -167,6 +162,18 @@ function ShareResultPlaceholder() {
       <div className="min-[1080px]:hidden h-[520px]" />
     </div>
   );
+}
+
+function selectGenreTile(
+  name: string,
+  genres: import("@musiccloud/shared").ApiGenreTile[],
+  setInputValue: (next: string) => void,
+  handleSubmit: (query: string) => Promise<void>,
+): void {
+  sendMusicSignal(genreSignal(name, genres.find((g) => g.name === name)?.displayName));
+  const query = `genre: ${name}`;
+  setInputValue(query);
+  void handleSubmit(query);
 }
 
 function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }: LandingPageProps) {
@@ -420,11 +427,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                 <Suspense fallback={null}>
                   <GenreBrowseGrid
                     genres={genreBrowseGenres}
-                    onSelect={(name) => {
-                      const query = `genre: ${name}`;
-                      setInputValue(query);
-                      handleSubmit(query);
-                    }}
+                    onSelect={(name) => selectGenreTile(name, genreBrowseGenres, setInputValue, handleSubmit)}
                   />
                 </Suspense>
               )}

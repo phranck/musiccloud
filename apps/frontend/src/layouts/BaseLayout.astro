@@ -9,10 +9,11 @@
 import "../styles/fonts.css";
 import "../styles/global.css";
 import { ENDPOINTS } from "@musiccloud/shared";
-import { fetchNavigation, isTrackingEnabled } from "@/api/client";
+import { fetchNavigation } from "@/api/client";
 import GradientBackground from "@/components/background/GradientBackground.astro";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
 import { getLocaleFromCookie } from "@/i18n/locales";
+import { isTrackingEnabled } from "@/lib/analytics/trackingConfig";
 
 const trackingEnabled = isTrackingEnabled();
 

@@ -69,7 +69,6 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
             previewUrl={content.previewUrl}
             refreshShortId={content.previewRefreshable ? content.shortId : undefined}
             trackTitle={content.title}
-            contentType={content.type}
             onStatusChange={onPreviewStatusChange}
           />
         )}
@@ -77,12 +76,7 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
 
       <CollapsibleSection visible={showShareActions} sectionClass="px-3 pt-0 pb-3">
         {shareActionUrl && (
-          <ShareButton
-            shareUrl={shareActionUrl}
-            songTitle={content.title}
-            artistName={content.artist}
-            contentType={content.type}
-          />
+          <ShareButton shareUrl={shareActionUrl} songTitle={content.title} artistName={content.artist} />
         )}
       </CollapsibleSection>
 
@@ -94,11 +88,7 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
                 <RecessedCard.Header.Title>{content.platformsLabel}</RecessedCard.Header.Title>
               </RecessedCard.Header>
               <RecessedCard.Body>
-                <AnimatedPlatformGrid
-                  platforms={content.platforms}
-                  songTitle={content.title}
-                  contentType={content.type}
-                />
+                <AnimatedPlatformGrid platforms={content.platforms} songTitle={content.title} />
               </RecessedCard.Body>
             </RecessedCard>
             {content.platformsInfo && (

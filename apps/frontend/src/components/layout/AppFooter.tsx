@@ -3,7 +3,7 @@ import type { MouseEvent } from "react";
 
 import { useT } from "@/i18n/context";
 import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
-import { MusicInteractionAction, MusicInteractionSurface, sendMusicSignal } from "@/lib/analytics/umami";
+import { FooterSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { navHref, navLabel } from "@/lib/nav";
 
 const START_YEAR = 2026;
@@ -19,7 +19,7 @@ function handleFooterNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavIte
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
     return;
   }
-  sendNavInteractionSignal(item, MusicInteractionSurface.Footer);
+  sendNavInteractionSignal(item);
 }
 
 /**
@@ -58,12 +58,7 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
           href="https://layered.work"
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() =>
-            sendMusicSignal("music_interaction", {
-              action: MusicInteractionAction.LayeredFooterClicked,
-              surface: MusicInteractionSurface.Footer,
-            })
-          }
+          onClick={() => sendMusicSignal(FooterSignal.LayeredLogo)}
           className="hover:text-text-secondary transition-colors duration-150 ml-1"
         >
           LAYERED

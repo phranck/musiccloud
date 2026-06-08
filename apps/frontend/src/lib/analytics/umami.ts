@@ -1,55 +1,8 @@
-type UmamiPropertyValue = string | number | boolean;
-type UmamiProperties = Record<string, UmamiPropertyValue>;
+import { isTrackingEnabled } from "@/lib/analytics/trackingConfig";
 
 type UmamiClient = {
-  track: (eventName: string, properties?: UmamiProperties) => void | Promise<void>;
+  track: (eventName: string) => void | Promise<void>;
 };
-
-type MusicSignalEvent =
-  | "music_resolve_failed"
-  | "music_resolve_started"
-  | "music_source_search_success"
-  | "music_search_submitted"
-  | "music_interaction"
-  | "music_service_link_click"
-  | "music_preview_interaction"
-  | "music_share_interaction";
-
-type MusicSignalProperties = Record<string, UmamiPropertyValue | null | undefined>;
-
-export const MusicInteractionAction = {
-  ContentPageClicked: "content_page_clicked",
-  DisambiguationCandidateSelected: "disambiguation_candidate_selected",
-  ExternalNavClicked: "external_nav_clicked",
-  GenreResultSelected: "genre_result_selected",
-  HelpPageClicked: "help_page_clicked",
-  InfoPageClicked: "info_page_clicked",
-  LayeredFooterClicked: "layered_footer_clicked",
-  LiveExampleClicked: "live_example_clicked",
-  PopularTrackClicked: "popular_track_clicked",
-  SimilarArtistClicked: "similar_artist_clicked",
-  UpcomingEventClicked: "upcoming_event_clicked",
-} as const;
-
-export const MusicInteractionSurface = {
-  ArtistCard: "artist_card",
-  Footer: "footer",
-  Header: "header",
-  Landing: "landing",
-  SharePage: "share_page",
-} as const;
-
-export const MusicResolveFlow = {
-  ArtistPanelTrack: "artist_panel_track",
-  DisambiguationCandidate: "disambiguation_candidate",
-  GenreResult: "genre_result",
-  LandingSearch: "landing_search",
-} as const;
-
-export const MusicResolveFailureKind = {
-  ClientError: "client_error",
-  UnknownError: "unknown_error",
-} as const;
 
 declare global {
   interface Window {
@@ -57,40 +10,141 @@ declare global {
   }
 }
 
-function cleanProperties(properties: MusicSignalProperties | undefined): UmamiProperties | undefined {
-  if (!properties) return undefined;
-
-  const entries = Object.entries(properties).filter(
-    (entry): entry is [string, UmamiPropertyValue] => entry[1] !== undefined && entry[1] !== null && entry[1] !== "",
-  );
-  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
-}
-
-export function sendMusicSignal(eventName: MusicSignalEvent, properties?: MusicSignalProperties): void {
+/**
+ * Sends a single natural-language event name to Umami.
+ *
+ * Format convention: `Group: Detail` in Title Case. Each UI action gets its
+ * own fully-qualified name (no `properties` payload), so the Umami events
+ * list reads as plain English without a property drilldown.
+ *
+ * Suppression: gated by `isTrackingEnabled()` BEFORE touching `window.umami`.
+ * In addition the script-inject in `BaseLayout.astro` is gated by the same
+ * helper, so a misconfigured environment fails closed on both layers.
+ */
+export function sendMusicSignal(name: string): void {
+  if (!isTrackingEnabled()) return;
   if (typeof window === "undefined") return;
   const umami = window.umami;
   if (!umami || typeof umami.track !== "function") return;
-
   try {
-    void umami.track(eventName, cleanProperties(properties));
+    void umami.track(name);
   } catch {
     // Analytics must never affect the product flow.
   }
 }
 
-export function classifySearchInput(input: string): "genre" | "url" | "text" | "empty" {
-  const value = input.trim();
-  if (!value) return "empty";
-  if (/^genre\s*:/i.test(value)) return "genre";
-  if (/^https?:\/\//i.test(value)) return "url";
-  return "text";
+/**
+ * Audio-preview lifecycle. The five terminal states (Paused, Finished,
+ * Error, Unavailable) plus the two entry states (Started, Resumed) cover the
+ * full transport state machine of `AudioPreviewPlayer`.
+ */
+export const PreviewSignal = {
+  Started: "Preview: Started",
+  Resumed: "Preview: Resumed",
+  Paused: "Preview: Paused",
+  Finished: "Preview: Finished",
+  Error: "Preview: Error",
+  Unavailable: "Preview: Unavailable",
+} as const;
+
+/**
+ * Share-button states. `NativeButton` is the open click (web-share modal
+ * shown), the other four are the four post-action outcomes.
+ */
+export const ShareSignal = {
+  NativeButton: "Share: Native Button",
+  LinkCopied: "Share: Link Copied",
+  LinkCopyFailed: "Share: Link Copy Failed",
+  NativeCompleted: "Share: Native Completed",
+  NativeCancelled: "Share: Native Cancelled",
+} as const;
+
+/** Analyzer display mode toggle (keyboard "D" or future click affordance). */
+export const DisplaySignal = {
+  Analyzer: "Display: Analyzer",
+  VuMeter: "Display: VU Meter",
+} as const;
+
+/** Search-funnel entry: the user submitted the search box. */
+export const SearchSignal = {
+  Submitted: "Search: Submitted",
+} as const;
+
+/** Search-funnel terminal states: backend resolve outcome. */
+export const ResolveSignal = {
+  Completed: "Resolve: Completed",
+  FailedClient: "Resolve: Failed (Client)",
+  FailedUnknown: "Resolve: Failed (Unknown)",
+} as const;
+
+/** Clickable UI cards. One event name per card type, irrespective of source. */
+export const CardSignal = {
+  PopularTrack: "Card: Popular Track",
+  SimilarArtist: "Card: Similar Artist",
+  UpcomingEvent: "Card: Upcoming Event",
+  DisambiguationCandidate: "Card: Disambiguation Candidate",
+  LiveExample: "Card: Live Example",
+  ArtistInfo: "Card: Artist Info",
+} as const;
+
+/** Footer interactions. */
+export const FooterSignal = {
+  LayeredLogo: "Footer: Layered Logo",
+} as const;
+
+/** Generic navigation. Per-link splitting was decided against to keep the
+ *  Umami events list bounded when admins add new external nav entries. */
+export const NavSignal = {
+  External: "Nav: External",
+} as const;
+
+/** Genre overview entry point (user input `genre:?`). */
+export const GenreSignal = {
+  Overview: "Genre: Overview",
+} as const;
+
+const LocaleLabel: Record<string, string> = {
+  en: "English",
+  de: "German",
+};
+
+/**
+ * Title-cases an underscore- or hyphen-separated key. Used by every dynamic
+ * generator that turns a backend slug (`acid_house`, `apple_music`) into a
+ * human-readable event detail (`Acid House`, `Apple Music`).
+ */
+function humanizeKey(key: string): string {
+  return key
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
 }
 
-export function searchInputLengthBucket(input: string): "0" | "1-20" | "21-60" | "61-120" | "121+" {
-  const length = input.trim().length;
-  if (length === 0) return "0";
-  if (length <= 20) return "1-20";
-  if (length <= 60) return "21-60";
-  if (length <= 120) return "61-120";
-  return "121+";
+/** `serviceSignal("apple_music")` → `"Service: Apple Music"`. */
+export function serviceSignal(serviceKey: string): string {
+  return `Service: ${humanizeKey(serviceKey)}`;
+}
+
+/**
+ * `languageSignal("de")` → `"Language: German"`. Locales not in the small
+ * known map fall back to humanized form so a future locale addition does
+ * not silently break tracking.
+ */
+export function languageSignal(locale: string): string {
+  return `Language: ${LocaleLabel[locale] ?? humanizeKey(locale)}`;
+}
+
+/**
+ * `genreSignal({ name: "ambient", displayName: "Ambient" })` →
+ * `"Genre: Ambient"`. Prefers the backend-provided display name when
+ * available, falls back to humanizing the slug.
+ */
+export function genreSignal(name: string, displayName?: string): string {
+  return `Genre: ${displayName ?? humanizeKey(name)}`;
+}
+
+/** `infoPageSignal("imprint")` → `"Info: Imprint"`. */
+export function infoPageSignal(pageSlug: string): string {
+  return `Info: ${humanizeKey(pageSlug)}`;
 }

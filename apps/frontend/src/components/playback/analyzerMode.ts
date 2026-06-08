@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DisplaySignal, sendMusicSignal } from "@/lib/analytics/umami";
 
 /**
  * Two display modes for the audio preview's spectrum/level indicator.
@@ -67,6 +68,7 @@ export function toggleAnalyzerMode(): void {
   ensureClientInit();
   currentMode = currentMode === AnalyzerMode.MultiBand ? AnalyzerMode.StereoVu : AnalyzerMode.MultiBand;
   writeStoredMode(currentMode);
+  sendMusicSignal(currentMode === AnalyzerMode.StereoVu ? DisplaySignal.VuMeter : DisplaySignal.Analyzer);
   notifySubscribers();
 }
 

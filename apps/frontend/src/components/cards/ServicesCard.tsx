@@ -35,11 +35,7 @@ export function ServicesCard({ content, className, animated = false }: ServicesC
           <div className="p-3">
             <RecessedCard className={recessedControlInsetClassName}>
               <RecessedCard.Body>
-                <AnimatedPlatformGrid
-                  platforms={content.platforms}
-                  songTitle={content.title}
-                  contentType={content.type}
-                />
+                <AnimatedPlatformGrid platforms={content.platforms} songTitle={content.title} />
               </RecessedCard.Body>
             </RecessedCard>
             {content.platformsInfo && (
