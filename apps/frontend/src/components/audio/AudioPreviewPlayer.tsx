@@ -74,6 +74,17 @@ const AudioContextState = {
   Suspended: "suspended",
 } as const;
 
+const MediaSessionAction = {
+  Play: "play",
+  Pause: "pause",
+} as const;
+
+const MediaSessionPlaybackState = {
+  Playing: "playing",
+  Paused: "paused",
+  None: "none",
+} as const;
+
 type PlayerState =
   | { phase: typeof PlayerPhase.Loading }
   | { phase: typeof PlayerPhase.Idle; duration: number }
@@ -237,6 +248,79 @@ interface StereoPeakHoldState {
 interface StereoPeakHold {
   left: number;
   right: number;
+}
+
+/**
+ * Tab-wide registry of mounted `AudioPreviewPlayer` instances. Used by the
+ * single shared window-keydown listener to route the spacebar to a player
+ * when no input element holds focus. Set iteration is insertion-order,
+ * which on the share page corresponds to "hero card first, then top tracks"
+ * — so the fallback target is the most prominent preview on the page.
+ */
+interface AudioPreviewSpacebarHandle {
+  /** Forwards to the player's `togglePlay`. Stable across renders. */
+  togglePlay: () => void;
+  /** True while the player is in `Playing` or `Paused` phase, false otherwise. */
+  isActive: () => boolean;
+}
+
+const audioPreviewRegistry = new Set<AudioPreviewSpacebarHandle>();
+let audioPreviewListenerRefCount = 0;
+
+/**
+ * Returns true if the spacebar should fall through to the default browser
+ * behaviour (form input, button activation, link follow, contentEditable
+ * typing) rather than triggering preview playback. Keeps the global handler
+ * from hijacking focus-driven keyboard a11y.
+ */
+function shouldIgnoreSpacebarTarget(event: KeyboardEvent): boolean {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return false;
+  if (target instanceof HTMLInputElement) return true;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLSelectElement) return true;
+  if (target instanceof HTMLButtonElement) return true;
+  if (target instanceof HTMLAnchorElement) return true;
+  if (target.isContentEditable) return true;
+  return false;
+}
+
+function resolveSpacebarTarget(): AudioPreviewSpacebarHandle | null {
+  for (const player of audioPreviewRegistry) {
+    if (player.isActive()) return player;
+  }
+  return audioPreviewRegistry.values().next().value ?? null;
+}
+
+function handleAudioPreviewSpacebar(event: KeyboardEvent): void {
+  if (event.code !== "Space") return;
+  if (event.repeat) return;
+  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+  if (shouldIgnoreSpacebarTarget(event)) return;
+  const target = resolveSpacebarTarget();
+  if (!target) return;
+  event.preventDefault();
+  target.togglePlay();
+}
+
+/**
+ * Adds a player handle to the tab-wide registry and (de)activates the shared
+ * window-keydown listener via refcount. Returns the cleanup function to be
+ * used directly inside a React effect cleanup.
+ */
+function registerAudioPreviewForSpacebar(handle: AudioPreviewSpacebarHandle): () => void {
+  audioPreviewRegistry.add(handle);
+  if (audioPreviewListenerRefCount === 0) {
+    window.addEventListener("keydown", handleAudioPreviewSpacebar);
+  }
+  audioPreviewListenerRefCount += 1;
+  return () => {
+    audioPreviewRegistry.delete(handle);
+    audioPreviewListenerRefCount -= 1;
+    if (audioPreviewListenerRefCount === 0) {
+      window.removeEventListener("keydown", handleAudioPreviewSpacebar);
+    }
+  };
 }
 
 async function fetchPreviewUrl(refreshShortId: string, signal: AbortSignal): Promise<string | null> {
@@ -1072,6 +1156,77 @@ function useAudioPreviewController({
     notifyStatusChange,
     updateStereoLevels,
   ]);
+
+  const togglePlayFromEvent = useEffectEvent(togglePlay);
+
+  /**
+   * Wires up the global MediaSession so the OS can route Media Keys, Bluetooth
+   * headset buttons, macOS Touch-Bar / Now-Playing controls and similar
+   * transport inputs to the preview player while the tab is the active media
+   * source.
+   *
+   * Only registered while the player is in `Playing` or `Paused` phase: in
+   * `Loading`, `Error`, `Unavailable` and `Idle` there is no audio to control
+   * yet, so claiming the OS media slot would be misleading. On cleanup the
+   * action handlers, metadata and `playbackState` are cleared so the Now-
+   * Playing UI does not show a stale entry once the preview is gone.
+   *
+   * Multiple parallel `AudioPreviewPlayer` instances on the same page share
+   * the single tab-wide MediaSession: whichever player most recently entered
+   * Playing/Paused owns the OS controls. That matches user intuition (the
+   * media key controls the preview you last interacted with) and avoids
+   * extra coordination machinery.
+   */
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    if (state.phase !== PlayerPhase.Playing && state.phase !== PlayerPhase.Paused) return;
+
+    const mediaSession = navigator.mediaSession;
+    mediaSession.metadata = new window.MediaMetadata({ title: trackTitle });
+    mediaSession.playbackState =
+      state.phase === PlayerPhase.Playing ? MediaSessionPlaybackState.Playing : MediaSessionPlaybackState.Paused;
+
+    const handler = () => togglePlayFromEvent();
+    try {
+      mediaSession.setActionHandler(MediaSessionAction.Play, handler);
+      mediaSession.setActionHandler(MediaSessionAction.Pause, handler);
+    } catch {
+      // Older browsers throw on unsupported actions. Whatever did register
+      // stays active until cleanup runs.
+    }
+
+    return () => {
+      try {
+        mediaSession.setActionHandler(MediaSessionAction.Play, null);
+        mediaSession.setActionHandler(MediaSessionAction.Pause, null);
+      } catch {
+        // ignored — see above
+      }
+      mediaSession.metadata = null;
+      mediaSession.playbackState = MediaSessionPlaybackState.None;
+    };
+  }, [state.phase, trackTitle]);
+
+  const isPlayerActive = state.phase === PlayerPhase.Playing || state.phase === PlayerPhase.Paused;
+  const isPlayerActiveRef = useRef(isPlayerActive);
+  useEffect(() => {
+    isPlayerActiveRef.current = isPlayerActive;
+  }, [isPlayerActive]);
+
+  /**
+   * Registers this player with the tab-wide spacebar router so the global
+   * keydown listener can start or toggle playback without the play button
+   * being focused. Resolves the autoplay-policy gap left by MediaSession:
+   * the OS media keys can only take over once playback has started at
+   * least once, whereas spacebar in the focused tab counts as a real user
+   * gesture and is therefore allowed to kick off the very first play.
+   */
+  useEffect(() => {
+    return registerAudioPreviewForSpacebar({
+      togglePlay: () => togglePlayFromEvent(),
+      isActive: () => isPlayerActiveRef.current,
+    });
+  }, []);
 
   const isLoading = state.phase === PlayerPhase.Loading;
   const isUnavailable = state.phase === PlayerPhase.Error || state.phase === PlayerPhase.Unavailable;
