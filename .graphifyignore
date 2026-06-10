@@ -1,0 +1,116 @@
+# .graphifyignore — gitignore-syntax (https://git-scm.com/docs/gitignore)
+#
+# graphify prefers this file over .gitignore in the same directory. Because of
+# that the relevant .gitignore-only excludes are mirrored below, otherwise they
+# would no longer be skipped by graphify.
+
+# --- Database migrations (auto-generated Drizzle snapshots, no graph value) ---
+migrations/
+
+# --- Images (brand icons, favicons, app assets — not knowledge-graph content) ---
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
+*.bmp
+*.ico
+*.tif
+*.tiff
+*.heic
+*.avif
+
+# --- Video / audio (notification sounds, media assets) ---
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.m4v
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.flac
+*.ogg
+*.opus
+
+# --- Mirrored from .gitignore (local-only, not hard-skipped by graphify) ---
+.astro/
+.vercel/
+/.app/
+data/
+apps/backend/data/
+papers/
+openspec/
+WHATS-NEXT.md
+.agents/
+.claude/
+.codex/
+.continue/
+.kiro/
+.pi/
+.pi-lens/
+.remember/
+.serena/
+.vibe/
+
+# Xcode artefacts
+xcuserdata/
+DerivedData/
+*.xcuserstate
+*.dSYM
+*.dSYM.zip
+*.ipa
+*.hmap
+
+# Build/cache leftovers (most already hard-skipped, kept for completeness)
+*.tsbuildinfo
+
+# --- Fonts (assets, no code-graph value) ---
+*.woff
+*.woff2
+*.ttf
+*.otf
+*.eot
+
+# --- Build artefacts: source maps & minified bundles (generated, not source) ---
+*.map
+*.min.js
+*.min.css
+
+# --- Test snapshots (generated fixtures) ---
+*.snap
+
+# --- LaTeX / Pandoc temp (docs PDF build leftovers) ---
+*.aux
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.log
+
+# --- Archives & compiled binaries (never source) ---
+*.zip
+*.tar
+*.gz
+*.tgz
+*.7z
+*.rar
+*.wasm
+
+# --- Binary design / media source files ---
+# NOTE: *.pdf is intentionally NOT ignored — docs/resolve-flow/*.pdf are
+# relevant architecture docs. Academic PDFs live under papers/ (excluded above).
+*.psd
+*.ai
+*.sketch
+*.fig
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~

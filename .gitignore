@@ -8,6 +8,9 @@ build/
 vite.config.js
 vite.config.d.ts
 
+# graphify knowledge-graph output (generated, reproducible via /graphify)
+graphify-out/
+
 # Astro
 .astro/
 
