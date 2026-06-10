@@ -1,3 +1,4 @@
+import { navigate } from "astro:transitions/client";
 import { type MouseEvent, useCallback, useRef } from "react";
 import { type ArtistInfoContext, ShareLayout } from "@/components/share/ShareLayout";
 import { LogoView } from "@/components/ui/LogoView";
@@ -22,7 +23,7 @@ export function SharePageShell({ config, artistName, artistInfoContext, initialL
     } catch {
       // sessionStorage can be unavailable in private or locked-down contexts.
     }
-    window.location.assign("/");
+    navigate("/");
   }, []);
 
   useOverlayEscape({ enabled: true, onEscape: navigateHome });

@@ -1,3 +1,4 @@
+import { navigate } from "astro:transitions/client";
 import { PageDisplayMode, type PublicContentPage } from "@musiccloud/shared";
 import { createContext, type ReactNode, use, useCallback, useEffect, useMemo, useReducer } from "react";
 
@@ -135,12 +136,12 @@ export function OverlayProvider({
       try {
         const page = await fetchOverlayPage(detail.slug, controller.signal);
         if (!page) {
-          window.location.href = `/${detail.slug}`;
+          navigate(`/${detail.slug}`);
           return;
         }
         open(page);
       } catch {
-        window.location.href = `/${detail.slug}`;
+        navigate(`/${detail.slug}`);
       } finally {
         clearTimeout(timeout);
       }
