@@ -1,40 +1,87 @@
 import type { ReactNode } from "react";
 
 /** Phosphor intensity for one VFD row or section. */
-export type VfdBrightness = "bright" | "normal" | "dim" | "ghost";
+export const VfdBrightness = {
+  Bright: "bright",
+  Normal: "normal",
+  Dim: "dim",
+  Ghost: "ghost",
+} as const;
+export type VfdBrightness = (typeof VfdBrightness)[keyof typeof VfdBrightness];
 
 /** Horizontal alignment inside an already allocated integer glyph-cell range. */
-export type VfdSectionAlign = "left" | "center" | "right";
+export const VfdSectionAlign = {
+  Left: "left",
+  Center: "center",
+  Right: "right",
+} as const;
+export type VfdSectionAlign = (typeof VfdSectionAlign)[keyof typeof VfdSectionAlign];
+
+/**
+ * Cell allocation modes for a row section.
+ *
+ * `Auto` uses the section's text length as its cell count, `Fill` claims any
+ * remaining integer glyph cells after fixed and auto sections have been
+ * allocated. The cell field on a section also accepts a `number` for a
+ * fixed integer glyph-cell count.
+ */
+export const VfdSectionCells = {
+  Auto: "auto",
+  Fill: "fill",
+} as const;
+export type VfdSectionCellsMode = (typeof VfdSectionCells)[keyof typeof VfdSectionCells];
 
 /**
  * Cell allocation for a row section.
  *
- * `number` is a fixed integer glyph-cell count, `auto` uses the text length, and
- * `fill` receives remaining integer glyph cells after fixed and auto sections.
- * Alignment is applied after this allocation. A right-aligned auto section has
- * no spare cells by design, but it still stays right-pinned when previous
- * sections absorb row-width changes or overflow pressure.
+ * `number` is a fixed integer glyph-cell count, {@link VfdSectionCells.Auto}
+ * uses the text length, and {@link VfdSectionCells.Fill} receives remaining
+ * integer glyph cells after fixed and auto sections. Alignment is applied
+ * after this allocation. A right-aligned auto section has no spare cells by
+ * design, but it still stays right-pinned when previous sections absorb
+ * row-width changes or overflow pressure.
  */
-export type VfdSectionCells = number | "auto" | "fill";
+export type VfdSectionCells = number | VfdSectionCellsMode;
+
+/** Marquee mode literal — toggle via `boolean`, force overflow scrolling via this string. */
+export const VfdMarqueeMode = {
+  Overflow: "overflow",
+} as const;
+export type VfdMarqueeModeLiteral = (typeof VfdMarqueeMode)[keyof typeof VfdMarqueeMode];
 
 /** Enables VFD marquee rendering for strings wider than their allocated glyph-cell range. */
-export type VfdMarqueeMode = boolean | "overflow";
+export type VfdMarqueeMode = boolean | VfdMarqueeModeLiteral;
 
 /** Row content replacement animation mode. */
-export type VfdContentTransition = "slide" | "none";
+export const VfdContentTransition = {
+  Slide: "slide",
+  None: "none",
+} as const;
+export type VfdContentTransition = (typeof VfdContentTransition)[keyof typeof VfdContentTransition];
 
 /**
  * Hardware sizing mode for the VFD module.
  *
- * - `matrix`: caller provides the physical matrix via `rows` and
+ * - `Matrix`: caller provides the physical matrix via `rows` and
  *   `charsPerLine`; the component renders exactly that many rows and glyph cells.
- * - `container`: caller provides the outer CSS size; the component derives the
+ * - `Container`: caller provides the outer CSS size; the component derives the
  *   maximum whole-number rows and whole-number glyph cells per row that fit.
  *
  * Both modes keep the pixel geometry unchanged. Container sizing never scales a
  * pixel. It only decides how many complete glyph cells fit.
  */
-export type VfdSizingMode = "matrix" | "container";
+export const VfdSizingMode = {
+  Matrix: "matrix",
+  Container: "container",
+} as const;
+export type VfdSizingMode = (typeof VfdSizingMode)[keyof typeof VfdSizingMode];
+
+/** Edge of a pixel-bar's track that the fill grows away from. */
+export const VfdBarAnchor = {
+  Left: "left",
+  Right: "right",
+} as const;
+export type VfdBarAnchor = (typeof VfdBarAnchor)[keyof typeof VfdBarAnchor];
 
 /**
  * One filled pixel bar segment drawn into a section's allocated column range.
@@ -56,8 +103,8 @@ export interface VfdPixelBarSegment {
   endColumn: number;
   /** Filled length in columns. Clamped to the track range; 0 disables drawing. */
   fillColumns: number;
-  /** Edge of the track that the fill is anchored at. `"left"` grows rightward (peak at the right end); `"right"` grows leftward (peak at the left end). */
-  anchor: "left" | "right";
+  /** Edge of the track that the fill is anchored at. {@link VfdBarAnchor.Left} grows rightward (peak at the right end); {@link VfdBarAnchor.Right} grows leftward (peak at the left end). */
+  anchor: VfdBarAnchor;
   /** Trail (non-peak filled) column brightness. Defaults to `"dim"`. */
   trailBrightness?: VfdBrightness;
   /** Peak (leading filled) column brightness. Defaults to `"bright"`. */

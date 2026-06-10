@@ -1,9 +1,13 @@
 import type { ReactNode } from "react";
-import type {
-  NormalizedVfdLine,
-  NormalizedVfdSection,
-  VfdDisplayLine,
-  VfdDisplaySection,
+import {
+  type NormalizedVfdLine,
+  type NormalizedVfdSection,
+  VfdBrightness,
+  VfdContentTransition,
+  type VfdDisplayLine,
+  type VfdDisplaySection,
+  VfdSectionAlign,
+  VfdSectionCells,
 } from "@/components/ui/VfdDisplayTypes";
 import { EMPTY_CELL } from "@/components/ui/VfdGlyphPatterns";
 import { normalizePositiveInteger } from "@/components/ui/vfdDisplayGeometry";
@@ -48,8 +52,8 @@ function normalizeSections(sections: VfdDisplaySection[] | undefined): Normalize
   return sections.map((section, index) => ({
     content: section.content || EMPTY_CELL,
     key: sectionKeyFor(index, section),
-    cells: section.cells ?? (index === 0 ? "fill" : "auto"),
-    align: section.align ?? (index === 0 ? "left" : "right"),
+    cells: section.cells ?? (index === 0 ? VfdSectionCells.Fill : VfdSectionCells.Auto),
+    align: section.align ?? (index === 0 ? VfdSectionAlign.Left : VfdSectionAlign.Right),
     marquee: section.marquee,
     brightness: section.brightness,
     className: section.className,
@@ -78,7 +82,7 @@ function normalizeSections(sections: VfdDisplaySection[] | undefined): Normalize
 export function resolveSectionCells(sections: NormalizedVfdSection[], totalCells: number): number[] {
   const desired: Array<number | null> = sections.map((section) => {
     if (typeof section.cells === "number") return normalizePositiveInteger(section.cells, 1);
-    if (section.cells === "fill") return null;
+    if (section.cells === VfdSectionCells.Fill) return null;
     return Math.max(1, stringLength(section.content));
   });
 
@@ -142,7 +146,7 @@ function lineKeyFor(index: number, line: VfdDisplayLine): string {
  * row count.
  */
 export function normalizeLine(index: number, line: VfdDisplayLine | undefined): NormalizedVfdLine {
-  const safeLine = line ?? { content: EMPTY_CELL, brightness: "dim" };
+  const safeLine = line ?? { content: EMPTY_CELL, brightness: VfdBrightness.Dim };
   const content = safeLine.content || EMPTY_CELL;
   const sections = normalizeSections(safeLine.sections);
   return {
@@ -150,10 +154,10 @@ export function normalizeLine(index: number, line: VfdDisplayLine | undefined): 
     content,
     sections,
     contentKey: lineKeyFor(index, { ...safeLine, content }),
-    brightness: safeLine.brightness ?? "normal",
-    align: safeLine.align ?? "left",
+    brightness: safeLine.brightness ?? VfdBrightness.Normal,
+    align: safeLine.align ?? VfdSectionAlign.Left,
     marquee: safeLine.marquee,
-    transition: safeLine.transition ?? "slide",
+    transition: safeLine.transition ?? VfdContentTransition.Slide,
     className: safeLine.className,
   };
 }

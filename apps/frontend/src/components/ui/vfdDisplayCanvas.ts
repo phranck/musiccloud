@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
-import type {
-  NormalizedVfdLine,
+import {
+  type NormalizedVfdLine,
+  VfdBarAnchor,
   VfdBrightness,
-  VfdCanvasColors,
-  VfdCanvasPixelColumn,
-  VfdCanvasRenderState,
-  VfdMarqueeMode,
-  VfdPixelBarSegment,
+  type VfdCanvasColors,
+  type VfdCanvasPixelColumn,
+  type VfdCanvasRenderState,
+  type VfdMarqueeMode,
+  type VfdPixelBarSegment,
   VfdSectionAlign,
 } from "@/components/ui/VfdDisplayTypes";
 import { EMPTY_CELL, glyphPatternFor, SPECTRUM_GLYPH_LEVELS } from "@/components/ui/VfdGlyphPatterns";
@@ -59,7 +60,7 @@ function blankCanvasColumn(brightness: VfdBrightness): VfdCanvasPixelColumn {
 function glyphCanvasPixelColumns(glyph: string, brightness: VfdBrightness): VfdCanvasPixelColumn[] {
   const pattern = glyphPatternFor(glyph);
   const spectrumLevel = SPECTRUM_GLYPH_LEVELS[glyph];
-  const highlightSpectrumCap = brightness === "bright" && spectrumLevel !== undefined && spectrumLevel > 0;
+  const highlightSpectrumCap = brightness === VfdBrightness.Bright && spectrumLevel !== undefined && spectrumLevel > 0;
   const capRowMask = highlightSpectrumCap ? 1 << (VFD_GLYPH_ROWS - spectrumLevel) : 0;
 
   return Array.from({ length: VFD_GLYPH_COLUMNS }, (_, column) => {
@@ -69,7 +70,7 @@ function glyphCanvasPixelColumns(glyph: string, brightness: VfdBrightness): VfdC
       mask: mask & capRowMask,
       brightness,
       secondaryMask: mask & ~capRowMask,
-      secondaryBrightness: "dim",
+      secondaryBrightness: VfdBrightness.Dim,
     };
   });
 }
@@ -114,9 +115,9 @@ function layoutStringCanvasPixelColumns(
 ): VfdCanvasPixelColumn[] {
   const chars = content === EMPTY_CELL ? [] : Array.from(content).slice(0, visibleCells);
   const startIndex =
-    align === "center"
+    align === VfdSectionAlign.Center
       ? Math.max(0, Math.floor((visibleCells - chars.length) / 2))
-      : align === "right"
+      : align === VfdSectionAlign.Right
         ? Math.max(0, visibleCells - chars.length)
         : 0;
   const cells = Array.from({ length: visibleCells }, (_, index) => chars[index - startIndex] ?? EMPTY_CELL);
@@ -140,8 +141,8 @@ function pixelBarsToCanvasColumns(
     blankCanvasColumn(fallbackBrightness),
   );
   for (const bar of bars) {
-    const trailBrightness = bar.trailBrightness ?? "dim";
-    const peakBrightness = bar.peakBrightness ?? "bright";
+    const trailBrightness = bar.trailBrightness ?? VfdBrightness.Dim;
+    const peakBrightness = bar.peakBrightness ?? VfdBrightness.Bright;
     const rowMask = bar.rowMask ?? VFD_FULL_COLUMN_MASK;
     if (rowMask === 0) continue;
     const start = Math.max(0, Math.min(columns.length - 1, bar.startColumn));
@@ -150,9 +151,9 @@ function pixelBarsToCanvasColumns(
     const fill = Math.max(0, Math.min(trackSize, Math.floor(bar.fillColumns)));
     if (fill <= 0) continue;
 
-    const peakColumn = bar.anchor === "left" ? start + fill - 1 : end - fill + 1;
-    const trailStart = bar.anchor === "left" ? start : end - fill + 2;
-    const trailEnd = bar.anchor === "left" ? start + fill - 2 : end;
+    const peakColumn = bar.anchor === VfdBarAnchor.Left ? start + fill - 1 : end - fill + 1;
+    const trailStart = bar.anchor === VfdBarAnchor.Left ? start : end - fill + 2;
+    const trailEnd = bar.anchor === VfdBarAnchor.Left ? start + fill - 2 : end;
     for (let column = trailStart; column <= trailEnd; column += 1) {
       columns[column] = { mask: rowMask, brightness: trailBrightness };
     }
@@ -370,7 +371,7 @@ export function drawVfdCanvas(
   let hasActiveMarquee = false;
   const ghostColumns = Array.from({ length: vfdColumnCountForCells(state.cellCount) }, () => ({
     mask: VFD_FULL_COLUMN_MASK,
-    brightness: "ghost" as const,
+    brightness: VfdBrightness.Ghost,
   }));
 
   for (let rowIndex = 0; rowIndex < state.rowCount; rowIndex += 1) {

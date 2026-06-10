@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
-import type { VfdCanvasRenderState, VfdMarqueeMode, VfdMarqueeRuntimeState } from "@/components/ui/VfdDisplayTypes";
+import {
+  type VfdCanvasRenderState,
+  VfdMarqueeMode,
+  type VfdMarqueeRuntimeState,
+} from "@/components/ui/VfdDisplayTypes";
 import { stringLength } from "@/components/ui/vfdDisplayNormalize";
 
 /** Milliseconds between marquee column-step advances. */
@@ -46,7 +50,7 @@ export function defaultMarqueeMode(
   marquee: VfdMarqueeMode | undefined,
 ): VfdMarqueeMode | undefined {
   if (marquee !== undefined) return marquee;
-  return typeof content === "string" ? "overflow" : undefined;
+  return typeof content === "string" ? VfdMarqueeMode.Overflow : undefined;
 }
 
 /**

@@ -2,7 +2,14 @@ import { buildMetaLine } from "@musiccloud/shared";
 import { memo, useEffect, useRef, useState } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { TftScreen } from "@/components/ui/TftScreen";
-import { VfdDisplay } from "@/components/ui/VfdDisplay";
+import {
+  VfdBrightness,
+  VfdDisplay,
+  VfdMarqueeMode,
+  VfdSectionAlign,
+  VfdSectionCells,
+  VfdSizingMode,
+} from "@/components/ui/VfdDisplay";
 
 interface SongInfoProps {
   title: string;
@@ -127,28 +134,45 @@ export const SongInfo = memo(function SongInfo({
             Weight hierarchy is modeled as phosphor intensity in VfdDisplay,
             not font-weight. */}
         <VfdDisplay
-          sizingMode="container"
+          sizingMode={VfdSizingMode.Container}
           ariaLabel={`Track information: ${title} ${artist} ${detailLine} ${statusLine}`}
           lines={[
             {
-              brightness: "bright",
+              brightness: VfdBrightness.Bright,
               sections: metaLine
                 ? [
-                    { content: title, cells: "fill", align: "left", marquee: "overflow" },
+                    {
+                      content: title,
+                      cells: VfdSectionCells.Fill,
+                      align: VfdSectionAlign.Left,
+                      marquee: VfdMarqueeMode.Overflow,
+                    },
                     // Keep duration/year pinned on the right while the
                     // title gets the remaining cells and scrolls only if
                     // it overflows. VfdDisplay stays generic: it only
                     // knows section sizing/alignment, not song metadata.
-                    { content: ` ${metaLine}`, cells: "auto", align: "right", brightness: "normal" },
+                    {
+                      content: ` ${metaLine}`,
+                      cells: VfdSectionCells.Auto,
+                      align: VfdSectionAlign.Right,
+                      brightness: VfdBrightness.Normal,
+                    },
                   ]
-                : [{ content: title, cells: "fill", align: "left", marquee: "overflow" }],
+                : [
+                    {
+                      content: title,
+                      cells: VfdSectionCells.Fill,
+                      align: VfdSectionAlign.Left,
+                      marquee: VfdMarqueeMode.Overflow,
+                    },
+                  ],
             },
-            { content: artist, brightness: "normal" },
-            { content: detailLine, brightness: "dim" },
+            { content: artist, brightness: VfdBrightness.Normal },
+            { content: detailLine, brightness: VfdBrightness.Dim },
             {
               content: statusLine,
-              brightness: "normal",
-              align: "center",
+              brightness: VfdBrightness.Normal,
+              align: VfdSectionAlign.Center,
               marquee: shouldMarqueeStatus,
             },
           ]}

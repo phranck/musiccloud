@@ -13,7 +13,17 @@ import { recessedControlInsetClassName, recessedControlSizeClassName } from "@/c
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { AnalyzerMode, toggleAnalyzerMode, useAnalyzerMode } from "@/components/playback/analyzerMode";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { VfdDisplay, type VfdDisplaySection, type VfdPixelBarSegment } from "@/components/ui/VfdDisplay";
+import {
+  VfdBarAnchor,
+  VfdBrightness,
+  VfdContentTransition,
+  VfdDisplay,
+  type VfdDisplaySection,
+  type VfdPixelBarSegment,
+  VfdSectionAlign,
+  VfdSectionCells,
+  VfdSizingMode,
+} from "@/components/ui/VfdDisplay";
 import { VfdGlyph } from "@/components/ui/VfdGlyphs";
 import { useT } from "@/i18n/context";
 import { cn } from "@/lib/utils";
@@ -107,7 +117,7 @@ function sectionFor(
   key?: string,
 ): VfdDisplaySection | null {
   if (!content) return null;
-  return { content, cells, align: "left", brightness, key };
+  return { content, cells, align: VfdSectionAlign.Left, brightness, key };
 }
 
 function compactSections(sections: Array<VfdDisplaySection | null>): VfdDisplaySection[] {
@@ -213,9 +223,9 @@ function renderStereoVuSections(
       startColumn: 0,
       endColumn: leftEnd,
       fillColumns: leftFill,
-      anchor: "right",
-      trailBrightness: "dim",
-      peakBrightness: "bright",
+      anchor: VfdBarAnchor.Right,
+      trailBrightness: VfdBrightness.Dim,
+      peakBrightness: VfdBrightness.Bright,
     });
     if (leftHoldCols > leftFill) {
       // Peak hold sits one column past the live bar's outer edge. The left
@@ -227,9 +237,9 @@ function renderStereoVuSections(
         startColumn: holdColumn,
         endColumn: holdColumn,
         fillColumns: 1,
-        anchor: "left",
-        trailBrightness: "bright",
-        peakBrightness: "bright",
+        anchor: VfdBarAnchor.Left,
+        trailBrightness: VfdBrightness.Bright,
+        peakBrightness: VfdBrightness.Bright,
       });
     }
   }
@@ -238,9 +248,9 @@ function renderStereoVuSections(
       startColumn: rightStart,
       endColumn: rightEnd,
       fillColumns: rightFill,
-      anchor: "left",
-      trailBrightness: "dim",
-      peakBrightness: "bright",
+      anchor: VfdBarAnchor.Left,
+      trailBrightness: VfdBrightness.Dim,
+      peakBrightness: VfdBrightness.Bright,
     });
     if (rightHoldCols > rightFill) {
       const holdColumn = rightStart + (rightHoldCols - 1);
@@ -248,9 +258,9 @@ function renderStereoVuSections(
         startColumn: holdColumn,
         endColumn: holdColumn,
         fillColumns: 1,
-        anchor: "left",
-        trailBrightness: "bright",
-        peakBrightness: "bright",
+        anchor: VfdBarAnchor.Left,
+        trailBrightness: VfdBrightness.Bright,
+        peakBrightness: VfdBrightness.Bright,
       });
     }
   }
@@ -259,8 +269,8 @@ function renderStereoVuSections(
     {
       content: "",
       cells: analyzerCells,
-      align: "left",
-      brightness: "bright",
+      align: VfdSectionAlign.Left,
+      brightness: VfdBrightness.Bright,
       key: "stereo-vu",
       marquee: false,
       pixelBars,
@@ -285,24 +295,24 @@ function renderSpectrumSections(
 
     return compactSections([
       channelCells > 0
-        ? sectionFor(renderBandContent(bands.left, channelCells), "bright", channelCells, "spectrum-left")
+        ? sectionFor(renderBandContent(bands.left, channelCells), VfdBrightness.Bright, channelCells, "spectrum-left")
         : null,
       leftFillerCells > 0
-        ? sectionFor(" ".repeat(leftFillerCells), "ghost", leftFillerCells, "spectrum-left-fill")
+        ? sectionFor(" ".repeat(leftFillerCells), VfdBrightness.Ghost, leftFillerCells, "spectrum-left-fill")
         : null,
-      gapCells > 0 ? sectionFor(" ".repeat(gapCells), "ghost", gapCells, "spectrum-gap") : null,
+      gapCells > 0 ? sectionFor(" ".repeat(gapCells), VfdBrightness.Ghost, gapCells, "spectrum-gap") : null,
       rightFillerCells > 0
-        ? sectionFor(" ".repeat(rightFillerCells), "ghost", rightFillerCells, "spectrum-right-fill")
+        ? sectionFor(" ".repeat(rightFillerCells), VfdBrightness.Ghost, rightFillerCells, "spectrum-right-fill")
         : null,
       channelCells > 0
-        ? sectionFor(renderBandContent(bands.right, channelCells), "bright", channelCells, "spectrum-right")
+        ? sectionFor(renderBandContent(bands.right, channelCells), VfdBrightness.Bright, channelCells, "spectrum-right")
         : null,
     ]);
   }
 
   const content = renderBandContent(bands, cells);
 
-  return compactSections([sectionFor(content, "bright")]);
+  return compactSections([sectionFor(content, VfdBrightness.Bright)]);
 }
 
 export function PlayerRoot({
@@ -450,15 +460,15 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
     ? [
         {
           content: children,
-          cells: "fill",
-          align: "left",
-          brightness: isDisabled ? "dim" : "bright",
+          cells: VfdSectionCells.Fill,
+          align: VfdSectionAlign.Left,
+          brightness: isDisabled ? VfdBrightness.Dim : VfdBrightness.Bright,
         } satisfies VfdDisplaySection,
       ]
     : analyzerSections.map((section) => ({
         ...section,
         marquee: false,
-        brightness: isDisabled ? "dim" : section.brightness,
+        brightness: isDisabled ? VfdBrightness.Dim : section.brightness,
       }));
 
   const wrapperTitle = title ?? (hasAnalyzer ? t("audio.previewAnalyzerToggleTooltip") : undefined);
@@ -476,15 +486,15 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
 
   const vfd = (
     <VfdDisplay
-      sizingMode="container"
+      sizingMode={VfdSizingMode.Container}
       rows={1}
       phosphorColor={phosphorColor}
       className={cn(!children && "mc-player-progress-vfd")}
       ariaLabel={`Preview progress ${timeText}`}
       lines={[
         {
-          brightness: isDisabled ? "dim" : "normal",
-          transition: "none",
+          brightness: isDisabled ? VfdBrightness.Dim : VfdBrightness.Normal,
+          transition: VfdContentTransition.None,
           sections: [
             // VfdDisplay is a dumb hardware renderer. The Player owns this
             // layout contract: analyzer cells keep their own brightness, mono
@@ -497,20 +507,26 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
               : [
                   {
                     content: "",
-                    cells: "fill",
-                    align: "left",
-                    brightness: "ghost",
+                    cells: VfdSectionCells.Fill,
+                    align: VfdSectionAlign.Left,
+                    brightness: VfdBrightness.Ghost,
                     marquee: false,
                     key: "progress-fill",
                   } satisfies VfdDisplaySection,
                 ]),
-            { content: "  ", cells: 2, align: "left", brightness: "dim", marquee: false },
+            {
+              content: "  ",
+              cells: 2,
+              align: VfdSectionAlign.Left,
+              brightness: VfdBrightness.Dim,
+              marquee: false,
+            },
             {
               content: timeText,
-              cells: "auto",
-              align: "right",
+              cells: VfdSectionCells.Auto,
+              align: VfdSectionAlign.Right,
               marquee: false,
-              brightness: isPlaying && !isDisabled ? "bright" : "dim",
+              brightness: isPlaying && !isDisabled ? VfdBrightness.Bright : VfdBrightness.Dim,
             },
           ],
         },

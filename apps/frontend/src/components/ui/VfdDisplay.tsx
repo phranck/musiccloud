@@ -2,7 +2,12 @@ import { type CSSProperties, useLayoutEffect, useMemo, useRef, useState } from "
 import { recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { usePrefersReducedMotion } from "@/components/ui/usePrefersReducedMotion";
-import type { VfdCanvasRenderState, VfdDisplayProps } from "@/components/ui/VfdDisplayTypes";
+import {
+  type VfdCanvasRenderState,
+  VfdContentTransition,
+  type VfdDisplayProps,
+  VfdSizingMode,
+} from "@/components/ui/VfdDisplayTypes";
 import { drawVfdCanvas } from "@/components/ui/vfdDisplayCanvas";
 import { resolveCanvasColors } from "@/components/ui/vfdDisplayColors";
 import {
@@ -19,13 +24,18 @@ import { normalizeLine, sameLinePresentation } from "@/components/ui/vfdDisplayN
 import { cn } from "@/lib/utils";
 
 export type {
-  VfdBrightness,
-  VfdContentTransition,
   VfdDisplayLine,
   VfdDisplayProps,
   VfdDisplaySection,
-  VfdMarqueeMode,
+  VfdMarqueeModeLiteral,
   VfdPixelBarSegment,
+  VfdSectionCellsMode,
+} from "@/components/ui/VfdDisplayTypes";
+export {
+  VfdBarAnchor,
+  VfdBrightness,
+  VfdContentTransition,
+  VfdMarqueeMode,
   VfdSectionAlign,
   VfdSectionCells,
   VfdSizingMode,
@@ -55,7 +65,7 @@ const DEFAULT_VFD_CELL_COUNT = 44;
  */
 export function VfdDisplay({
   lines,
-  sizingMode = "matrix",
+  sizingMode = VfdSizingMode.Matrix,
   rows,
   charsPerLine = DEFAULT_VFD_CELL_COUNT,
   className,
@@ -64,7 +74,7 @@ export function VfdDisplay({
 }: VfdDisplayProps) {
   const configuredRowCount = normalizePositiveInteger(rows ?? lines.length, DEFAULT_VFD_ROWS);
   const requestedCellCount = normalizePositiveInteger(charsPerLine, DEFAULT_VFD_CELL_COUNT);
-  const fallbackCellCount = sizingMode === "container" ? 1 : requestedCellCount;
+  const fallbackCellCount = sizingMode === VfdSizingMode.Container ? 1 : requestedCellCount;
   const [layout, setLayout] = useState(() => ({
     cellCount: fallbackCellCount,
     rowCount: configuredRowCount,
@@ -96,7 +106,11 @@ export function VfdDisplay({
     normalizedLines.forEach((line, index) => {
       const previousLine = state.lines[index];
       if (!previousLine || sameLinePresentation(previousLine, line)) return;
-      if (previousLine.contentKey !== line.contentKey && line.transition !== "none" && !prefersReducedMotion) {
+      if (
+        previousLine.contentKey !== line.contentKey &&
+        line.transition !== VfdContentTransition.None &&
+        !prefersReducedMotion
+      ) {
         state.transitions.set(index, { previous: previousLine, startedAt: now, durationMs: VFD_LINE_SWAP_MS });
       } else {
         state.transitions.delete(index);
@@ -120,9 +134,12 @@ export function VfdDisplay({
     }
 
     const updateLayout = ({ width, height }: { width: number; height: number }) => {
-      const nextCellCount = sizingMode === "container" ? vfdCellCountForContentWidth(width) : requestedCellCount;
+      const nextCellCount =
+        sizingMode === VfdSizingMode.Container ? vfdCellCountForContentWidth(width) : requestedCellCount;
       const nextRowCount =
-        sizingMode === "container" ? vfdRowCountForContentHeight(height, configuredRowCount) : configuredRowCount;
+        sizingMode === VfdSizingMode.Container
+          ? vfdRowCountForContentHeight(height, configuredRowCount)
+          : configuredRowCount;
       setLayout((currentLayout) =>
         currentLayout.cellCount === nextCellCount && currentLayout.rowCount === nextRowCount
           ? currentLayout
