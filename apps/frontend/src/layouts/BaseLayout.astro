@@ -8,6 +8,7 @@
  */
 import "../styles/fonts.css";
 import "../styles/global.css";
+import { ClientRouter } from "astro:transitions";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { fetchNavigation } from "@/api/client";
 import GradientBackground from "@/components/background/GradientBackground.astro";
@@ -45,6 +46,8 @@ const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+
+    <ClientRouter />
 
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
