@@ -19,7 +19,7 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { LogoView } from "@/components/ui/LogoView";
 import { DialogProvider } from "@/context/DialogContext";
 import { useAppState } from "@/hooks/useAppState";
-import { useFlipAnimation } from "@/hooks/useFlipAnimation";
+import { useSearchFieldReturn } from "@/hooks/useSearchFieldReturn";
 import { useToast } from "@/hooks/useToast";
 import { LocaleProvider, useT } from "@/i18n/context";
 import { CardSignal, genreSignal, sendMusicSignal } from "@/lib/analytics/umami";
@@ -206,10 +206,12 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
     handleBack,
     handleClear,
   } = useAppState();
-  const { isReturning, capturePosition, triggerReturn } = useFlipAnimation(searchFieldRef);
 
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const resetInputValue = useCallback(() => setInputValue(""), []);
+  const { isReturning, isFieldReturnStaging, armFieldReturn, handleCancelWithReturn, handleClearAnimationEnd } =
+    useSearchFieldReturn(searchFieldRef, { showCompact, onClear: handleClear, onResetInput: resetInputValue });
   const previousSearchTop = useRef<number | null>(null);
   const previousShowCompact = useRef(showCompact);
   const toast = useToast();
@@ -245,19 +247,6 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
     if (focusGenreResults) genreSearchRef.current?.focus();
   }, [focusGenreResults]);
 
-  const handleClearAnimationEnd = useCallback(
-    (event: AnimationEvent<HTMLDivElement>) => {
-      if (event.currentTarget !== event.target) return;
-      if (searchFieldRef.current) {
-        capturePosition();
-        triggerReturn();
-      }
-      setInputValue("");
-      handleClear();
-    },
-    [capturePosition, triggerReturn, handleClear],
-  );
-
   const beginShareExit = useCallback(() => {
     try {
       window.sessionStorage.setItem("mc:focusHero", "1");
@@ -284,6 +273,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
       beginShareExit();
       return;
     }
+    armFieldReturn();
     setInputValue("");
     handleClear();
   });
@@ -365,7 +355,10 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
             isSharePageView ? "justify-start pt-20 sm:pt-12 md:pt-14 pb-12" : "justify-center"
           }`}
         >
-          {activeShareConfig && active ? (
+          {/* During return-flip staging the (invisible, pre-paint) idle branch
+              must render so the field's compact position is measurable — see
+              the staging layout effect. */}
+          {activeShareConfig && active && !isFieldReturnStaging ? (
             <ActiveShareResult
               activeArtistName={activeArtistName}
               activeShareConfig={activeShareConfig}
@@ -388,6 +381,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                   onChange={setInputValue}
                   onSubmit={handleSubmit}
                   onClear={() => {
+                    armFieldReturn();
                     setInputValue("");
                     handleClear();
                   }}
@@ -415,7 +409,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                     <DisambiguationPanel
                       candidates={candidates}
                       onSelect={handleSelectCandidate}
-                      onCancel={handleClear}
+                      onCancel={handleCancelWithReturn}
                       selectedId={selectedCandidateId}
                       loading={state.type === AppStateType.DisambiguationLoading}
                     />
@@ -440,7 +434,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                     queryDetails={genreSearchPayload.queryDetails}
                     warnings={genreSearchPayload.warnings}
                     onSelect={handleSelectGenreResult}
-                    onCancel={handleClear}
+                    onCancel={handleCancelWithReturn}
                     onBack={canGoBack ? handleBack : undefined}
                     selectedId={selectedGenreResultId}
                     loading={isGenreSearchLoading}
