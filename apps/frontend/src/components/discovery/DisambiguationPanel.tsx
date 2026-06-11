@@ -1,10 +1,13 @@
+import { useGSAP } from "@gsap/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { useT } from "@/i18n/context";
+import { animateSlideUp, killEntranceTweens } from "@/lib/motion/entrances";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +22,13 @@ interface DisambiguationPanelProps {
 const ANIM_MS = 520;
 const ANIM_EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
 const CANDIDATES_PER_PAGE = 8;
+
+/**
+ * Per-index stagger step of the candidate-card entrance in seconds (was the
+ * CSS `animation-delay: index * 50ms` on the `animate-slide-up` class).
+ * Uncapped: a page holds at most {@link CANDIDATES_PER_PAGE} cards.
+ */
+const CARD_ENTRANCE_STAGGER_SECONDS = 0.05;
 
 export function DisambiguationPanel({
   candidates,
@@ -53,6 +63,17 @@ export function DisambiguationPanel({
   useEffect(() => {
     return clearResolveTimer;
   }, [clearResolveTimer]);
+
+  // Staggered card entrance (GSAP port of the removed `animate-slide-up`
+  // class): one batch over the freshly mounted page slice, replayed when the
+  // user pages (the slice's cards remount via their candidate keys).
+  useGSAP(() => {
+    const listEl = listRef.current;
+    if (!listEl) return;
+    animateSlideUp(listEl.querySelectorAll("[data-disambiguation-card]"), {
+      staggerEachSeconds: CARD_ENTRANCE_STAGGER_SECONDS,
+    });
+  }, [candidates, safePageIndex]);
 
   const handleClick = useCallback(
     (candidate: DisambiguationCandidate) => {
@@ -92,14 +113,16 @@ export function DisambiguationPanel({
         transition: "none",
       });
 
+      // Stop in-flight entrance tweens — they would keep writing
+      // transform/opacity per frame and fight this manual choreography (the
+      // CSS-era equivalent was `animation: "none"`). The inline values below
+      // overwrite any residue the kill leaves behind.
+      killEntranceTweens(allCardEls);
       allCardEls.forEach((el) => {
         const id = el.dataset.disambiguationCard!;
         const pos = positions.get(id);
         if (!pos) return;
-        // Cancel the slide-up animation fill — CSS animations outrank inline styles in the
-        // cascade, so without this, transform and opacity would be locked at their "to" values.
         Object.assign(el.style, {
-          animation: "none",
           left: "0",
           margin: "0",
           opacity: "1",
@@ -159,16 +182,16 @@ export function DisambiguationPanel({
   const isLoadingSelected = loading && !!selectedId;
 
   return (
-    <div className="w-full max-w-full sm:max-w-[480px] mx-auto mt-8 animate-fade-in">
+    <FadeInOnMount className="w-full max-w-full sm:max-w-[480px] mx-auto mt-8">
       <EmbossedCard>
         <EmbossedCard.Header className="text-center mb-4">
           {isAnimating || isLoadingSelected ? (
-            <div className="animate-fade-in">
+            <FadeInOnMount>
               <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
                 {t("disambiguation.resolving.title")}
               </h2>
               <p className="text-sm text-text-secondary mt-1">{t("disambiguation.resolving.subtitle")}</p>
-            </div>
+            </FadeInOnMount>
           ) : (
             <>
               <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
@@ -183,17 +206,12 @@ export function DisambiguationPanel({
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Body>
               <div ref={listRef} className="flex flex-col gap-0.5">
-                {visibleCandidates.map((candidate, index) => {
+                {visibleCandidates.map((candidate) => {
                   const isThisSelected =
                     (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
 
                   return (
-                    <div
-                      key={candidate.id}
-                      data-disambiguation-card={candidate.id}
-                      className="animate-slide-up"
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
+                    <div key={candidate.id} data-disambiguation-card={candidate.id}>
                       <EmbossedButton
                         as="button"
                         type="button"
@@ -273,6 +291,6 @@ export function DisambiguationPanel({
           </p>
         </EmbossedCard.Footer>
       </EmbossedCard>
-    </div>
+    </FadeInOnMount>
   );
 }

@@ -2,6 +2,7 @@ import type { Ref } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { NavigationBackButton } from "@/components/navigation/NavigationBackButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
+import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { GenreColumn } from "@/components/ui/GenreColumn";
 import { GenreRowButton } from "@/components/ui/GenreRowButton";
 import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
@@ -80,7 +81,7 @@ export function GenreSearchResults({
     (results.artists && results.artists.length > 0 ? 1 : 0);
 
   return (
-    <div
+    <FadeInOnMount
       ref={ref}
       tabIndex={-1}
       // `max-h-[calc(100vh-16rem)]` reserves vertical space for the stack that
@@ -97,7 +98,7 @@ export function GenreSearchResults({
       // on each Column, this keeps the card inside the viewport and lets
       // overflow scroll *within* each column instead of scrolling the page.
       className={cn(
-        "w-full max-w-full mx-auto mt-8 mb-8 animate-fade-in focus:outline-none",
+        "w-full max-w-full mx-auto mt-8 mb-8 focus:outline-none",
         columnCount === 1 && "md:max-w-sm",
         columnCount === 2 && "md:max-w-2xl",
         columnCount >= 3 && "md:max-w-5xl",
@@ -246,7 +247,7 @@ export function GenreSearchResults({
           </EmbossedCard.Footer>
         )}
       </EmbossedCard>
-    </div>
+    </FadeInOnMount>
   );
 }
 

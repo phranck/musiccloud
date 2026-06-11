@@ -10,9 +10,15 @@ import { LandingPage } from "@/components/landing/LandingPage";
  * be asserted visually — `useFlipAnimation.test.ts` and `lib/motion/flip.test.ts`
  * cover the animation mechanics. What CAN be asserted here is the page-level
  * wiring: every clear path that re-centers the field must arm the return flip,
- * which the page projects as the `animate-fade-in` class on the large logo
- * block while `isReturning` is `true` (the logo fades back in while the field
- * travels). The class is therefore the observable proxy for "the flip runs".
+ * which the page projects as a GSAP fade tween on the large logo block while
+ * `isReturning` is `true` (the logo fades back in while the field travels).
+ * An active tween on that block (`gsap.getTweensOf`) is therefore the
+ * observable proxy for "the flip runs" — it replaced the former
+ * `animate-fade-in` class assert when the entrance moved from CSS to GSAP.
+ *
+ * The clearing slide-out is GSAP-driven too: tests complete its tween on the
+ * results panel via `totalProgress(1)` (deterministic, no ticker time) where
+ * they previously dispatched a synthetic `animationend`.
  */
 
 // The lazy result-time panels pull heavy share/audio UI into jsdom; the page
@@ -96,20 +102,25 @@ async function submitQuery(query: string): Promise<void> {
   fireEvent.keyDown(input, { key: "Enter" });
 }
 
+/** The armed flip projects as an in-flight GSAP fade tween on the large logo block. */
 function expectReturnFlipArmed(): void {
   const logoBlock = document.querySelector(BIG_LOGO_SELECTOR);
   expect(logoBlock).not.toBeNull();
-  expect(logoBlock).toHaveClass("animate-fade-in");
+  expect(gsap.getTweensOf(logoBlock as Element).length).toBeGreaterThan(0);
 }
 
-/** Completes the in-flight flip timeline and asserts the flag released. */
-async function finishReturnFlip(): Promise<void> {
-  await vi.waitFor(() => {
-    act(() => {
-      gsap.ticker.tick();
-    });
-    expect(document.querySelector(BIG_LOGO_SELECTOR)).not.toHaveClass("animate-fade-in");
+/**
+ * Drives every in-flight GSAP animation (logo fade, return flip, entrance
+ * fades) to completion, firing their onComplete handlers inside `act` so the
+ * flip releases `isReturning` and no tween leaks into the next test.
+ * Deterministic: jumps to the end state instead of ticking real time.
+ */
+function settleAllAnimations(): void {
+  act(() => {
+    gsap.globalTimeline.getChildren(true, true, true).forEach((animation) => animation.totalProgress(1));
   });
+  const logoBlock = document.querySelector(BIG_LOGO_SELECTOR);
+  if (logoBlock) expect(gsap.getTweensOf(logoBlock).length).toBe(0);
 }
 
 beforeEach(() => {
@@ -118,6 +129,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Kill any animation a failing assertion may have left behind before RTL
+  // unmounts the tree (idempotent next to the useGSAP unmount reverts).
+  gsap.globalTimeline.getChildren(true, true, true).forEach((animation) => animation.kill());
   window.matchMedia = originalMatchMedia;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -134,16 +148,21 @@ describe("LandingPage search-field return flip wiring", () => {
     const homeLink = await screen.findByLabelText("Go to musiccloud home");
     expect(screen.queryByLabelText(HERO_INPUT_LABEL)).toBeNull();
 
-    // Logo click starts the clearing slide-out; its animationend hands over
-    // to the field-return choreography.
+    // Logo click starts the clearing slide-out tween on the results panel;
+    // completing it fires the timeline's onComplete, which hands over to the
+    // field-return choreography (the GSAP replacement of `animationend`).
     fireEvent.click(homeLink);
     const resultsPanel = homeLink.closest('div[tabindex="-1"]');
     expect(resultsPanel).not.toBeNull();
-    fireEvent.animationEnd(resultsPanel as Element);
+    const slideOutTweens = gsap.getTweensOf(resultsPanel as Element);
+    expect(slideOutTweens.length).toBeGreaterThan(0);
+    act(() => {
+      slideOutTweens.forEach((tween) => tween.totalProgress(1));
+    });
 
-    expect(await screen.findByLabelText(HERO_INPUT_LABEL)).toBeInTheDocument();
+    expect(screen.getByLabelText(HERO_INPUT_LABEL)).toBeInTheDocument();
     expectReturnFlipArmed();
-    await finishReturnFlip();
+    settleAllAnimations();
   });
 
   it("arms the return flip when disambiguation is cancelled", async () => {
@@ -155,7 +174,7 @@ describe("LandingPage search-field return flip wiring", () => {
 
     expect(screen.getByLabelText(HERO_INPUT_LABEL)).toBeInTheDocument();
     expectReturnFlipArmed();
-    await finishReturnFlip();
+    settleAllAnimations();
   });
 
   it("arms the return flip when the compact field is cleared via its clear button", async () => {
@@ -168,7 +187,7 @@ describe("LandingPage search-field return flip wiring", () => {
     fireEvent.click(screen.getByLabelText("Clear search"));
 
     expectReturnFlipArmed();
-    await finishReturnFlip();
+    settleAllAnimations();
   });
 
   it("does not arm the return flip when clearing from the centered idle layout", () => {
@@ -178,6 +197,8 @@ describe("LandingPage search-field return flip wiring", () => {
     fireEvent.change(screen.getByLabelText(HERO_INPUT_LABEL), { target: { value: "some text" } });
     fireEvent.click(screen.getByLabelText("Clear search"));
 
-    expect(document.querySelector(BIG_LOGO_SELECTOR)).not.toHaveClass("animate-fade-in");
+    const logoBlock = document.querySelector(BIG_LOGO_SELECTOR);
+    expect(logoBlock).not.toBeNull();
+    expect(gsap.getTweensOf(logoBlock as Element)).toHaveLength(0);
   });
 });

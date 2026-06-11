@@ -13,6 +13,20 @@ import { MotionEase } from "./constants";
 const MC_OUT_BEZIER = "0.16, 1, 0.3, 1";
 
 /**
+ * Control points of the CSS `ease-in` keyword, `cubic-bezier(0.42, 0, 1, 1)`.
+ * Registered under {@link MotionEase.McIn} for exits that accelerate away
+ * (exact port of the retired `slide-out-down` keyframe's timing function).
+ */
+const MC_IN_BEZIER = "0.42, 0, 1, 1";
+
+/**
+ * Control points of the gentle deceleration curve `cubic-bezier(0, 0, 0.2, 1)`
+ * the retired `fade-in` CSS animation used. Registered under
+ * {@link MotionEase.McFade}.
+ */
+const MC_FADE_BEZIER = "0, 0, 0.2, 1";
+
+/**
  * Lag-smoothing thresholds for `gsap.ticker`. When a single frame exceeds
  * `LAG_THRESHOLD_MS` (e.g. the tab was backgrounded or the main thread stalled),
  * GSAP clamps the reported delta to `LAG_ADJUSTED_MS` so in-flight tweens resume
@@ -49,7 +63,8 @@ let isMotionSetup = false;
  *
  * Side effects (first call only):
  * - registers the `Flip` and `CustomEase` plugins on the global `gsap` instance
- * - creates the `mcOut` CustomEase so `gsap.parseEase("mcOut")` resolves
+ * - creates the `mcOut`, `mcIn` and `mcFade` CustomEases so
+ *   `gsap.parseEase("mcOut")` (etc.) resolves
  * - sets `gsap.ticker.lagSmoothing` to avoid post-stall animation jumps
  *
  * **Consumer contract (tree-shaking safety):** any module that uses a GSAP
@@ -68,10 +83,12 @@ export function setupMotion(): void {
   if (isMotionSetup) return;
   isMotionSetup = true;
 
-  // Register plugins before creating the CustomEase so the named ease is added
-  // to GSAP's global ease map and resolvable via gsap.parseEase / "mcOut".
+  // Register plugins before creating the CustomEases so the named eases are
+  // added to GSAP's global ease map and resolvable via gsap.parseEase.
   gsap.registerPlugin(Flip, CustomEase);
   CustomEase.create(MotionEase.McOut, MC_OUT_BEZIER);
+  CustomEase.create(MotionEase.McIn, MC_IN_BEZIER);
+  CustomEase.create(MotionEase.McFade, MC_FADE_BEZIER);
   gsap.ticker.lagSmoothing(LAG_THRESHOLD_MS, LAG_ADJUSTED_MS);
 }
 

@@ -1,4 +1,23 @@
-/* Core animations - deliberate, Apple-inspired */
+/* Core animations - deliberate, Apple-inspired.
+
+   GSAP (lib/motion/) is the animation foundation for everything that fires
+   post-hydration on a user interaction (plan MC-029, Task 2.5). The keyframes
+   below intentionally stay CSS — they all paint in the SSR/bot/no-JS path or
+   before an island hydrates, where a JS-driven entrance would either never
+   play or start with a visible delay:
+
+   - slide-up:       Astro server-island templates (DeferredShareContent) —
+                     streamed HTML without hydration.
+   - fade-in:        SharePageShell's share enter — a client:load island
+                     inside the server:defer stream; CSS plays from parse,
+                     before hydration.
+   - zoom-in:        Media/Services cards rendered in the share SSR stream
+                     (bot-visible enter; transform+opacity only).
+   - slide-down-in:  PageHeader enter — the island is client:idle, the SSR
+                     markup animates from parse.
+   - slide-up-in:    DeferredFooter server island, same reasoning as slide-up.
+   - spin:           trivial endless compositor-only spinners (loading
+                     indicator, CD artwork) — no JS needed. */
 
 /* 1. Row entrance - gentle reveal with subtle scale */
 @keyframes slide-up {
@@ -27,36 +46,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-@keyframes mc-cover-slide-in {
-  from {
-    transform: translate3d(0, -100%, 0);
-  }
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes mc-cover-slide-out {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(0, 100%, 0);
-  }
-}
-
-.mc-cover-slide-in {
-  animation: mc-cover-slide-in 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  backface-visibility: hidden;
-  transform: translate3d(0, 0, 0);
-}
-
-.mc-cover-slide-out {
-  animation: mc-cover-slide-out 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  backface-visibility: hidden;
-  transform: translate3d(0, 0, 0);
 }
 
 .mc-tft-screen {
@@ -214,18 +203,6 @@
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-/* Card exit - slide down with fade (ease-in: accelerates away) */
-@keyframes slide-out-down {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(40px) scale(0.95);
   }
 }
 

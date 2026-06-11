@@ -29,6 +29,11 @@ interface MediaCardProps {
   onPreviewStatusChange?: (status: AudioPreviewStatus) => void;
 }
 
+// `animate-zoom-in` stays CSS deliberately (MC-029 Task 2.5 exception): the
+// same card renders in the share page's SSR stream (bot-visible enter, no
+// hydration), and a split mechanism (GSAP on the landing flow, CSS on share)
+// would duplicate the motion definition. The keyframe is transform+opacity
+// only, so it complies with the compositor-only policy as-is.
 function mediaCardClassName(animated: boolean, className?: string) {
   return cn(outerEmbossedCardClassName, animated && "animate-zoom-in", className);
 }

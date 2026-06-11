@@ -13,6 +13,9 @@ interface ServicesCardProps {
   animated?: boolean;
 }
 
+// `animate-zoom-in` stays CSS deliberately (MC-029 Task 2.5 exception): the
+// card renders in the share page's SSR stream (bot-visible enter, no
+// hydration) — see the matching note in MediaCard.tsx.
 function mediaCardClassName(animated: boolean, className?: string) {
   return cn(outerEmbossedCardClassName, animated && "animate-zoom-in", className);
 }

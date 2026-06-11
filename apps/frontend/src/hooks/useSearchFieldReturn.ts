@@ -1,4 +1,4 @@
-import { type AnimationEvent, type RefObject, useCallback, useLayoutEffect, useState } from "react";
+import { type RefObject, useCallback, useLayoutEffect, useState } from "react";
 import { useFlipAnimation } from "@/hooks/useFlipAnimation";
 
 interface UseSearchFieldReturnOptions {
@@ -42,11 +42,14 @@ interface UseSearchFieldReturnResult {
    */
   handleCancelWithReturn: () => void;
   /**
-   * `onAnimationEnd` handler for the clearing slide-out of the results
-   * panel; hands over to the staging commit described in the module-level
-   * mechanism notes.
+   * Completion callback for the clearing slide-out of the results panel
+   * (wired to the GSAP timeline's `onComplete`, which fires exactly once per
+   * timeline — no event bubbling to guard against); hands over to the
+   * staging commit described in the module-level mechanism notes. On the
+   * reduced-motion path no timeline exists and the page calls this
+   * synchronously — the clear flow must not depend on an animation playing.
    */
-  handleClearAnimationEnd: (event: AnimationEvent<HTMLDivElement>) => void;
+  handleClearSlideOutComplete: () => void;
 }
 
 /**
@@ -63,7 +66,7 @@ interface UseSearchFieldReturnResult {
  * 2. Result → clear: the hero field is NOT mounted in the result layout
  *    (commit 719a656 removed it for share-page parity), so when the clearing
  *    slide-out ends there is no live geometry to capture. The
- *    {@link UseSearchFieldReturnResult.handleClearAnimationEnd} handler
+ *    {@link UseSearchFieldReturnResult.handleClearSlideOutComplete} callback
  *    therefore sets a staging flag that re-renders the idle branch in
  *    compact form while the app state is still `clearing` (the still-set
  *    active result keeps the share container's top-anchored layout). The
@@ -98,14 +101,10 @@ export function useSearchFieldReturn(
     onClear();
   }, [armFieldReturn, onClear]);
 
-  const handleClearAnimationEnd = useCallback(
-    (event: AnimationEvent<HTMLDivElement>) => {
-      if (event.currentTarget !== event.target) return;
-      onResetInput();
-      setIsFieldReturnStaging(true);
-    },
-    [onResetInput],
-  );
+  const handleClearSlideOutComplete = useCallback(() => {
+    onResetInput();
+    setIsFieldReturnStaging(true);
+  }, [onResetInput]);
 
   // Staging commit for the result → clear flow (mechanism 2 above). The
   // consumer's compact-direction layout effect does not interfere: its
@@ -119,5 +118,5 @@ export function useSearchFieldReturn(
     onClear();
   }, [isFieldReturnStaging, capturePosition, triggerReturn, onClear]);
 
-  return { isReturning, isFieldReturnStaging, armFieldReturn, handleCancelWithReturn, handleClearAnimationEnd };
+  return { isReturning, isFieldReturnStaging, armFieldReturn, handleCancelWithReturn, handleClearSlideOutComplete };
 }
