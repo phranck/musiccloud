@@ -9,8 +9,10 @@ import { buildResizeTimeline, buildSwapTimeline, DEFAULT_SWAP_DURATION_MS } from
  * `animations.css` only covers CSS animations — these factories are the only
  * guard for the JS tweens), the ms→s duration conversion at the GSAP
  * boundary, the keyframe-parity slide values, the counter-scale invariant
- * (wrapperScaleY * bufferScaleY == 1 on every frame), and the
- * cleanup/settle contract on completion.
+ * (wrapperScaleY * bufferScaleY == 1 on every frame), the cleanup/settle
+ * contract on completion, and the interrupt contract (building on a wrapper
+ * kills its in-flight predecessor — swap or resize — without firing the
+ * superseded settle).
  */
 
 /** Old wrapper height (px) used by the height-stubbed swap fixtures. */
@@ -39,6 +41,14 @@ function stubHeight(el: HTMLElement, height: number): void {
     ({ x: 0, y: 0, width: 0, height, top: 0, right: 0, bottom: height, left: 0, toJSON: () => ({}) }) as DOMRect;
 }
 
+/** Creates a fresh height-stubbed buffer inside the wrapper — mirrors React's per-generation buffer remount (fresh, untransformed node). */
+function appendBuffer(wrapper: HTMLElement, height: number): HTMLDivElement {
+  const buffer = document.createElement("div");
+  stubHeight(buffer, height);
+  wrapper.appendChild(buffer);
+  return buffer;
+}
+
 /** Builds the SmoothSwap DOM shape: wrapper with an absolute previous buffer and an in-flow current buffer. */
 function buildSwapDom(
   fromHeight: number,
@@ -49,12 +59,9 @@ function buildSwapDom(
   current: HTMLDivElement;
 } {
   const wrapper = document.createElement("div");
-  const previous = document.createElement("div");
-  const current = document.createElement("div");
-  stubHeight(previous, fromHeight);
-  stubHeight(current, toHeight);
-  wrapper.append(previous, current);
   document.body.appendChild(wrapper);
+  const previous = appendBuffer(wrapper, fromHeight);
+  const current = appendBuffer(wrapper, toHeight);
   return { wrapper, previous, current };
 }
 
@@ -162,6 +169,73 @@ describe("buildSwapTimeline", () => {
     expect(readNumber(current, "yPercent")).toBeCloseTo(SLIDE_IN_FROM_Y_PERCENT);
     expect(timeline?.duration()).toBeCloseTo(DEFAULT_SWAP_DURATION_MS / 1000);
     timeline?.kill();
+  });
+
+  it("kills the in-flight predecessor swap on the same wrapper without firing its settle (interrupt)", () => {
+    stubPrefersReducedMotion(false);
+    const { wrapper, previous, current } = buildSwapDom(FROM_HEIGHT_PX, TO_HEIGHT_PX);
+    const supersededSettle = vi.fn();
+    const first = buildSwapTimeline({
+      wrapper,
+      current,
+      previous,
+      durationMs: DEFAULT_SWAP_DURATION_MS,
+      onSettle: supersededSettle,
+    });
+    first?.progress(0.5, false);
+
+    // React remounts both buffers per generation; only the wrapper persists.
+    previous.remove();
+    current.remove();
+    const nextPrevious = appendBuffer(wrapper, TO_HEIGHT_PX);
+    const nextCurrent = appendBuffer(wrapper, FROM_HEIGHT_PX);
+    const second = buildSwapTimeline({
+      wrapper,
+      current: nextCurrent,
+      previous: nextPrevious,
+      durationMs: DEFAULT_SWAP_DURATION_MS,
+      onSettle: vi.fn(),
+    });
+
+    // Exactly one live tween drives the wrapper — the predecessor is dead,
+    // not fighting the successor for scaleY (gsap defaults to overwrite:false;
+    // killed timelines still report isActive()=true, so count tweens instead).
+    expect(first).not.toBeNull();
+    expect(gsap.getTweensOf(wrapper)).toHaveLength(1);
+    // The successor's counter-scale invariant holds right away.
+    second?.progress(0.5, false);
+    expect(readNumber(wrapper, "scaleY") * readNumber(nextCurrent, "scaleY")).toBeCloseTo(1, 6);
+    // Kill suppresses the superseded onComplete: its settle must never fire.
+    second?.progress(1, false);
+    expect(supersededSettle).not.toHaveBeenCalled();
+  });
+
+  it("kills an in-flight resize timeline when a swap starts on the same wrapper", () => {
+    stubPrefersReducedMotion(false);
+    const { wrapper, previous, current } = buildSwapDom(FROM_HEIGHT_PX, TO_HEIGHT_PX);
+    const resize = buildResizeTimeline({
+      wrapper,
+      current,
+      fromHeight: FROM_HEIGHT_PX,
+      toHeight: TO_HEIGHT_PX,
+      durationMs: DEFAULT_SWAP_DURATION_MS,
+    });
+    resize?.progress(0.5, false);
+
+    const swap = buildSwapTimeline({
+      wrapper,
+      current,
+      previous,
+      durationMs: DEFAULT_SWAP_DURATION_MS,
+      onSettle: vi.fn(),
+    });
+
+    // Only the swap's tween remains on the wrapper; the resize predecessor
+    // is killed by the factory (its useEffect-owned kill in SmoothSwap only
+    // runs after paint — too late for the pre-paint swap build).
+    expect(resize).not.toBeNull();
+    expect(gsap.getTweensOf(wrapper)).toHaveLength(1);
+    swap?.kill();
   });
 });
 

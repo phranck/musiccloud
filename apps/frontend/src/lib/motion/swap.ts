@@ -51,6 +51,15 @@ import { prefersReducedMotion, setupMotion } from "./setup";
  * The previous buffer intentionally keeps its final transform (slid below the
  * clip) until React unmounts it — clearing it earlier would flash the old
  * content over the new one for a frame.
+ *
+ * Interrupt contract: building a timeline first kills the wrapper's
+ * registered in-flight predecessor — swap or resize, see
+ * {@link activeTimelines} — and strips its transform residue. Kill, not
+ * revert: the predecessor's `onComplete` (and with it its `clearProps`/settle
+ * work) must never fire into the successor's run, and the wrapper is
+ * stripped and re-measured fresh anyway. `useGSAP` cannot do this: with a
+ * dependency array it defers its context revert to unmount, so it never
+ * cleans up between effect runs.
  */
 
 /** Milliseconds per second — converts the public `durationMs` prop (SmoothSwap API) into GSAP seconds at this boundary. */
@@ -93,6 +102,29 @@ const TOP_ANCHORED_ORIGIN = "50% 0";
  * so GSAP's internal transform cache is reset alongside the DOM.
  */
 const TRANSFORM_CLEAR_PROPS = "transform,transformOrigin";
+
+/**
+ * Live timeline per wrapper, so the next build on the same wrapper can kill
+ * its in-flight predecessor (interrupt contract). Spans BOTH factories: a new
+ * swap may interrupt a running swap or a running in-place resize — the
+ * resize timeline is owned by a `useEffect` in `SmoothSwap` whose teardown
+ * kill only runs after paint, too late for the pre-paint layout effect that
+ * builds the next swap. A WeakMap keeps unmounted wrappers and their
+ * timelines GC-eligible.
+ */
+const activeTimelines = new WeakMap<HTMLElement, gsap.core.Timeline>();
+
+/**
+ * Kills (not reverts) the wrapper's registered in-flight timeline, if any.
+ * Kill suppresses the predecessor's `onComplete`, so its `clearProps`/settle
+ * can never fire mid-flight into the successor's run; the predecessor's
+ * last-frame inline styles stay put and are stripped by the caller's
+ * `clearProps` pass right after.
+ */
+function killActiveTimeline(wrapper: HTMLElement): void {
+  activeTimelines.get(wrapper)?.kill();
+  activeTimelines.delete(wrapper);
+}
 
 /**
  * Minimum height in px for the scale FLIP to engage. Guards the
@@ -199,9 +231,9 @@ function addHeightScaleTweens(
  * at-commit layout the performance policy allows): the previous buffer still
  * renders the old content at the unchanged wrapper width, so its height is
  * the old wrapper height; the current buffer's height is the new natural
- * wrapper height. Before measuring, transform residue a killed/interrupted
- * predecessor may have left on the (persistent) wrapper is stripped — the
- * buffers themselves are always fresh-mounted and start clean.
+ * wrapper height. Before measuring, the wrapper's in-flight predecessor
+ * timeline (swap or resize) is killed and its transform residue stripped —
+ * the buffers themselves are always fresh-mounted and start clean.
  *
  * @param options - Elements, duration and settle callback (see {@link SwapTimelineOptions}).
  * @returns The running timeline, or `null` when the user prefers reduced
@@ -211,10 +243,14 @@ function addHeightScaleTweens(
 export function buildSwapTimeline(options: SwapTimelineOptions): gsap.core.Timeline | null {
   setupMotion();
   const { wrapper, current, previous, durationMs, onSettle } = options;
+  killActiveTimeline(wrapper);
   gsap.set(wrapper, { clearProps: TRANSFORM_CLEAR_PROPS });
   if (prefersReducedMotion()) return null;
 
   const durationSeconds = durationMs / MS_PER_SECOND;
+  // Rect heights are transform-affected, but both buffers are fresh-mounted
+  // and untransformed at this point (predecessor killed + wrapper residue
+  // stripped above), so these reads ARE the natural layout heights.
   const fromHeight = previous.getBoundingClientRect().height;
   const toHeight = current.getBoundingClientRect().height;
 
@@ -239,8 +275,10 @@ export function buildSwapTimeline(options: SwapTimelineOptions): gsap.core.Timel
     // sits below the clip and unmounts in onSettle; clearing it first would
     // flash the old content over the new one for a frame.
     gsap.set([wrapper, current], { clearProps: TRANSFORM_CLEAR_PROPS });
+    activeTimelines.delete(wrapper);
     onSettle();
   });
+  activeTimelines.set(wrapper, timeline);
   return timeline;
 }
 
@@ -252,9 +290,10 @@ export function buildSwapTimeline(options: SwapTimelineOptions): gsap.core.Timel
  *
  * Heights are passed in (not measured): the "from" height is the caller's
  * settled-height bookkeeping — by the time a ResizeObserver reports, the old
- * layout is gone and only the caller still knows it. Unlike the swap buffers,
- * `current` persists across resize events, so residue cleanup before building
- * covers both elements here.
+ * layout is gone and only the caller still knows it. The wrapper's in-flight
+ * predecessor timeline is killed first (same interrupt contract as the swap
+ * path); unlike the swap buffers, `current` persists across resize events, so
+ * residue cleanup before building covers both elements here.
  *
  * @param options - Elements, both heights and the duration (see {@link ResizeTimelineOptions}).
  * @returns The running timeline, or `null` when the user prefers reduced
@@ -263,6 +302,7 @@ export function buildSwapTimeline(options: SwapTimelineOptions): gsap.core.Timel
 export function buildResizeTimeline(options: ResizeTimelineOptions): gsap.core.Timeline | null {
   setupMotion();
   const { wrapper, current, fromHeight, toHeight, durationMs } = options;
+  killActiveTimeline(wrapper);
   gsap.set([wrapper, current], { clearProps: TRANSFORM_CLEAR_PROPS });
   if (prefersReducedMotion()) return null;
 
@@ -270,6 +310,8 @@ export function buildResizeTimeline(options: ResizeTimelineOptions): gsap.core.T
   addHeightScaleTweens(timeline, wrapper, [current], fromHeight, toHeight, durationMs / MS_PER_SECOND);
   timeline.eventCallback("onComplete", () => {
     gsap.set([wrapper, current], { clearProps: TRANSFORM_CLEAR_PROPS });
+    activeTimelines.delete(wrapper);
   });
+  activeTimelines.set(wrapper, timeline);
   return timeline;
 }

@@ -6,7 +6,11 @@ import { cn } from "@/lib/utils";
 /**
  * Sub-pixel noise threshold for the in-place ResizeObserver path: content
  * height changes below this are rounding artifacts (fractional layout vs.
- * integer `offsetHeight`), not real resizes worth animating.
+ * integer `offsetHeight`), not real resizes worth animating. Distinct from
+ * the factory-internal `MIN_SCALE_HEIGHT_PX` (a division guard on the scale
+ * ratio): this gate keeps `lastSettledHeight` from chasing sub-pixel drift,
+ * so consecutive sub-pixel steps still accumulate into one real, animatable
+ * change instead of being swallowed one by one.
  */
 const RESIZE_EPSILON_PX = 1;
 
@@ -59,12 +63,14 @@ interface SwapState {
  * previous buffer; the wrapper is back at untouched auto height.
  *
  * Interruption: a new swapKey mid-flight bumps `generation`, which remounts
- * both buffers (fresh, untransformed nodes) and re-runs the `useGSAP` effect;
- * its context cleanup kills the in-flight timeline and the factory strips any
- * transform residue from the persistent wrapper before re-measuring. The
- * superseded content restarts as the new outgoing buffer — same restart
- * semantics the CSS keyframes had (they also re-ran from their start values
- * on remount).
+ * both buffers (fresh, untransformed nodes) and re-runs the `useGSAP` effect.
+ * `useGSAP` does NOT clean up between runs (with a dependency array it defers
+ * its context revert to unmount); instead the factory itself kills the
+ * wrapper's in-flight timeline — swap or in-place resize — and strips its
+ * transform residue before re-measuring (interrupt contract in
+ * `lib/motion/swap.ts`). The superseded content restarts as the new outgoing
+ * buffer — same restart semantics the CSS keyframes had (they also re-ran
+ * from their start values on remount).
  *
  * In-place resizes (no key change, e.g. an image finishing to load inside the
  * active content) are detected by a ResizeObserver between swaps and play the
@@ -140,7 +146,8 @@ export function SmoothSwap({ swapKey, children, className, durationMs = DEFAULT_
       const nextHeight = entry?.contentRect.height;
       if (!nextHeight || Math.abs(nextHeight - lastSettledHeight) < RESIZE_EPSILON_PX) return;
 
-      timeline?.kill();
+      // No pre-build kill needed: the factory kills the wrapper's in-flight
+      // predecessor itself (interrupt contract in lib/motion/swap.ts).
       timeline = buildResizeTimeline({
         wrapper,
         current,
@@ -154,6 +161,7 @@ export function SmoothSwap({ swapKey, children, className, durationMs = DEFAULT_
     observer.observe(current);
     return () => {
       observer.disconnect();
+      // Teardown (unmount or swap start) has no successor build to kill it.
       timeline?.kill();
     };
   }, [durationMs, state.previous]);
