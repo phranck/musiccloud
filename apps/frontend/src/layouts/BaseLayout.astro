@@ -61,8 +61,17 @@ const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [
     {trackingEnabled && <script is:inline defer src={`${ENDPOINTS.frontend.umami}/script.js`} data-website-id="3826f51b-34e0-4c61-a89d-a7de016fe712" data-host-url={ENDPOINTS.frontend.umami}></script>}
   </head>
   <body class="bg-background text-text-primary antialiased">
-    <GradientBackground />
-    {showHeader && <PageHeaderIsland client:idle navItems={headerNav} />}
+    {/* Persisted so the background survives ClientRouter swaps without re-mount —
+        prep for the Phase 4 WebGL background, which must not be torn down/re-created
+        (would flicker + leak the WebGL context) on navigation. */}
+    <div transition:persist="mc-background">
+      <GradientBackground />
+    </div>
+    {/* transition:persist keeps the hydrated header (locale + overlay state) across
+        ClientRouter navigations — it is NOT re-rendered on nav, so navItems are
+        frozen to the first mount. Safe only while every page serves the same header
+        nav. If a page needs different items, drop persist or use transition:persist-props. */}
+    {showHeader && <PageHeaderIsland client:idle navItems={headerNav} transition:persist="mc-header" />}
     <slot />
   </body>
 </html>
