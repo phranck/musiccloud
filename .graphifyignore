@@ -101,12 +101,25 @@ DerivedData/
 *.wasm
 
 # --- Binary design / media source files ---
-# NOTE: *.pdf is intentionally NOT ignored — docs/resolve-flow/*.pdf are
-# relevant architecture docs. Academic PDFs live under papers/ (excluded above).
 *.psd
 *.ai
 *.sketch
 *.fig
+
+# --- Docs, prose & infra config (code-only graph) ---
+# The knowledge graph is restricted to SOURCE CODE — only what defines the
+# system's structure (modules, functions, classes, imports). Markdown docs,
+# PDFs, prose, infra/CI config and HTML shells carry no code structure and are
+# excluded. (Reversed the earlier "keep PDFs" policy per project decision
+# 2026-06-11: docs/plans/images do not belong in the graph.)
+*.md
+*.mdx
+*.rst
+*.txt
+*.pdf
+*.yml
+*.yaml
+*.html
 
 # --- OS / editor cruft ---
 .DS_Store
