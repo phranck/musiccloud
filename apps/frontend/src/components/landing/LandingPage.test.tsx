@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import gsap from "gsap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LandingPage } from "@/components/landing/LandingPage";
+import { createLocalStorageMock } from "@/test/localStorageMock";
 
 /**
  * Wiring contract of the hero search-field return flip (`useFlipAnimation`).
@@ -58,20 +59,6 @@ const HERO_INPUT_LABEL = "Search for music by link or name";
 const BIG_LOGO_SELECTOR = ".flex.justify-center.mb-10";
 
 const originalMatchMedia = window.matchMedia;
-
-function createLocalStorageMock(): Storage {
-  const store = new Map<string, string>();
-  return {
-    get length() {
-      return store.size;
-    },
-    clear: vi.fn(() => store.clear()),
-    getItem: vi.fn((key: string) => store.get(key) ?? null),
-    key: vi.fn((index: number) => Array.from(store.keys())[index] ?? null),
-    removeItem: vi.fn((key: string) => store.delete(key)),
-    setItem: vi.fn((key: string, value: string) => store.set(key, value)),
-  };
-}
 
 /**
  * `matches: false` everywhere is load-bearing twice: `(prefers-reduced-motion)`
