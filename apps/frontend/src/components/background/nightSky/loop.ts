@@ -120,6 +120,24 @@ export class NightSkyDriver {
     this.needsRedraw = true;
   }
 
+  /**
+   * Runtime switch of the local-clock automatic (plan MC-030). Enabling
+   * fades to whatever the wall clock dictates right now — the fade guard in
+   * {@link tickAutoClock} pauses the clock until the blend settles, then the
+   * clock takes over seamlessly. Under reduced motion the value snaps (the
+   * fade is an animation). Disabling only clears the flag and leaves
+   * `dayness` untouched: the follow-up target is the bridge's separate
+   * `setDayness` call, so the two transitions never fight.
+   *
+   * @param enabled - Whether the day blend should follow the local clock.
+   */
+  setAutoDayNight(enabled: boolean): void {
+    this.settings.autoDayNight = enabled ? 1 : 0;
+    if (!enabled) return;
+    const target = this.clockDayness();
+    if (target !== this.settings.dayness) this.setDayness(target, { animated: true });
+  }
+
   /** Reduced-motion preference: cancels fades and pins the scene to one static frame. */
   setReducedMotion(reduced: boolean): void {
     this.reducedMotion = reduced;
@@ -157,10 +175,19 @@ export class NightSkyDriver {
   /** Follows the local clock while the opt-in automatic is on (no fade running). */
   private tickAutoClock(): void {
     if (this.settings.autoDayNight !== 1 || this.fade) return;
-    const target = Math.round(daynessForLocalTime(new Date(), this.settings) * 100) / 100;
+    const target = this.clockDayness();
     if (target !== this.settings.dayness) {
       this.settings.dayness = target;
       this.needsRedraw = true;
     }
+  }
+
+  /**
+   * Day amount the local wall clock dictates right now, in 2-decimal steps —
+   * the shared quantisation of the clock follower and the enable fade, so
+   * the fade target and the first clock step never differ by a sub-step.
+   */
+  private clockDayness(): number {
+    return Math.round(daynessForLocalTime(new Date(), this.settings) * 100) / 100;
   }
 }

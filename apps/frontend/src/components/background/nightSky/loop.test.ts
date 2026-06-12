@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NightSkyDriver } from "./loop";
 import { DAY_FADE_FPS, NIGHT_SKY_DEFAULTS } from "./settings";
 
@@ -95,5 +95,72 @@ describe("NightSkyDriver", () => {
     driver.setVisible(true);
     driver.tick(400);
     expect(scene.draw).toHaveBeenCalledTimes(1);
+  });
+
+  // setAutoDayNight (plan MC-030 Task 1): the runtime switch of the local-clock
+  // automatic. The clock reads `new Date()`, so these tests pin the wall clock
+  // with fake timers; tick timestamps stay manual scheduler time as above.
+  // Default twilight config: sunrise 6.5, sunset 20.5, twilight 1.5 → noon
+  // maps to dayness 1, 23:00 to dayness 0.
+  describe("setAutoDayNight", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("fades to the current clock value when enabled, then follows the clock", () => {
+      vi.setSystemTime(new Date(2026, 5, 13, 12, 0, 0)); // noon → clock dayness 1
+      const { driver } = makeDriver({ fpsCap: 10, dayTransition: 1, dayness: 0 });
+      driver.tick(0);
+
+      driver.setAutoDayNight(true);
+      expect(driver.settings.autoDayNight).toBe(1);
+
+      // The transition is ANIMATED: it anchors on the first tick and sits
+      // between the endpoints halfway through (a snap would already be 1).
+      driver.tick(100); // fade anchors here
+      driver.tick(600); // t = 0.5
+      expect(driver.settings.dayness).toBeGreaterThan(0);
+      expect(driver.settings.dayness).toBeLessThan(1);
+
+      // After the 1 s transition the clock value is reached…
+      driver.tick(1200);
+      expect(driver.settings.dayness).toBe(1);
+
+      // …and from then on the clock keeps stepping the blend.
+      vi.setSystemTime(new Date(2026, 5, 13, 23, 0, 0)); // night → clock dayness 0
+      driver.tick(1400);
+      expect(driver.settings.dayness).toBe(0);
+    });
+
+    it("snaps to the clock value under reduced motion", () => {
+      vi.setSystemTime(new Date(2026, 5, 13, 12, 0, 0));
+      const { driver } = makeDriver({ dayness: 0 });
+      driver.setReducedMotion(true);
+      driver.setAutoDayNight(true);
+      expect(driver.settings.dayness).toBe(1);
+    });
+
+    it("stops following the clock when disabled and leaves dayness untouched", () => {
+      vi.setSystemTime(new Date(2026, 5, 13, 12, 0, 0));
+      const { driver } = makeDriver({ fpsCap: 10, dayTransition: 1, dayness: 0 });
+      driver.tick(0);
+      driver.setAutoDayNight(true);
+      driver.tick(100);
+      driver.tick(1200); // fade settled → dayness 1
+      expect(driver.settings.dayness).toBe(1);
+
+      driver.setAutoDayNight(false);
+      expect(driver.settings.autoDayNight).toBe(0);
+
+      // The clock says night now, but the automatic is off → no stepping;
+      // the follow-up target is the bridge's separate SetDayness call.
+      vi.setSystemTime(new Date(2026, 5, 13, 23, 0, 0));
+      driver.tick(1400);
+      expect(driver.settings.dayness).toBe(1);
+    });
   });
 });

@@ -22,6 +22,8 @@ export const NightSkyMessageType = {
   SetDayness: "setDayness",
   /** Master animation switch (off = still image, zero GPU work). */
   SetAnimate: "setAnimate",
+  /** Runtime switch of the local-clock automatic (plan MC-030). */
+  SetAutoDayNight: "setAutoDayNight",
 } as const;
 
 /** Discriminants of every worker→bridge message. */
@@ -76,6 +78,16 @@ export interface SetAnimateMessage {
   animate: boolean;
 }
 
+/**
+ * Local-clock automatic on/off. No hour payload: `sunriseHour`,
+ * `sunsetHour` and `twilightHours` already live in the worker's settings
+ * object since {@link InitMessage}.
+ */
+export interface SetAutoDayNightMessage {
+  type: typeof NightSkyMessageType.SetAutoDayNight;
+  enabled: boolean;
+}
+
 /** Union of every message the worker consumes. */
 export type NightSkyMessage =
   | InitMessage
@@ -83,7 +95,8 @@ export type NightSkyMessage =
   | VisibilityMessage
   | ReducedMotionMessage
   | SetDaynessMessage
-  | SetAnimateMessage;
+  | SetAnimateMessage
+  | SetAutoDayNightMessage;
 
 /** Union of every event the worker emits back to the bridge. */
 export interface NightSkyWorkerEventMessage {
