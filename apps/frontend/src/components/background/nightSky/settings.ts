@@ -201,15 +201,6 @@ export const NIGHT_SKY_RANGES: Record<
  */
 export const DAY_FADE_FPS = 30;
 
-/**
- * Frame rate the scene renders at while an audio preview is playing (plan
- * MC-029 Task 5.2). The audio-reactive star/sky modulation is continuous —
- * at the 10 fps idle cap it would read as 100 ms brightness steps (the same
- * steppiness the fade boost exists for). Lifted only while the spectrum
- * store reports an active frame; back at `fpsCap` the moment audio stops.
- */
-export const AUDIO_BOOST_FPS = 30;
-
 /** Clamped smoothstep on 0..1 (the twilight ramp shape, ported from the prototype). */
 function smooth01(t: number): number {
   const c = Math.max(0, Math.min(1, t));

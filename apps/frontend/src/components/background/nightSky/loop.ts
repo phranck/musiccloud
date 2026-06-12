@@ -1,21 +1,13 @@
-import { AUDIO_BOOST_FPS, DAY_FADE_FPS, daynessForLocalTime, type NightSkySettings } from "./settings";
+import { DAY_FADE_FPS, daynessForLocalTime, type NightSkySettings } from "./settings";
 
 /**
  * The slice of the scene the driver needs — kept minimal so tests can pass
  * a plain mock and the GL implementation stays swappable (worker + fallback).
  */
 export interface DrawableScene {
-  /** Renders one frame at the given animation time (seconds) and audio level (0..1). */
-  draw(simTimeSeconds: number, audioLevel?: number): void;
+  /** Renders one frame at the given animation time (seconds). */
+  draw(simTimeSeconds: number): void;
 }
-
-/**
- * Per-update EMA factor smoothing the incoming audio level (20 Hz store
- * ticks → ~200 ms time constant). The VU source is already smoothed for
- * meter feel; this second stage slows it further so the sky breathes with
- * the music instead of strobing (plan: "subtle, no stroboscope").
- */
-const AUDIO_LEVEL_SMOOTHING = 0.25;
 
 /** Running manual day/night fade; `startMs` anchors on the first tick after start. */
 interface DayFade {
@@ -68,8 +60,6 @@ export class NightSkyDriver {
   private needsRedraw = true; // the very first frame always draws
   private reducedMotion = false;
   private visible = true;
-  private audioLevel = 0; // EMA-smoothed, fed to scene.draw
-  private audioActive = false; // lifts the fps cap while a preview plays
 
   /**
    * @param scene - Render sink (the GL scene, or a mock in tests).
@@ -95,42 +85,15 @@ export class NightSkyDriver {
     const animating = this.settings.animate === 1 && !this.reducedMotion;
     if (animating) this.simTime += dtMs / 1000;
 
-    // Manual fade and active audio temporarily lift the cap so the blend /
-    // the audio modulation stay smooth (both are continuous movements that
-    // would read as steps at the 10 fps idle cap).
-    const boost = this.fade !== null || (this.audioActive && animating);
-    const effectiveFps = boost ? Math.max(this.settings.fpsCap, DAY_FADE_FPS, AUDIO_BOOST_FPS) : this.settings.fpsCap;
+    // Manual fade temporarily lifts the cap so the blend stays smooth.
+    const effectiveFps = this.fade ? Math.max(this.settings.fpsCap, DAY_FADE_FPS) : this.settings.fpsCap;
     const intervalMs = 1000 / effectiveFps;
     if (this.lastDrawMs != null && nowMs - this.lastDrawMs < intervalMs - 1) return;
     if (!animating && !this.needsRedraw && !this.fade) return;
 
     this.needsRedraw = false;
     this.lastDrawMs = nowMs;
-    this.scene.draw(this.simTime, this.audioLevel);
-  }
-
-  /**
-   * Feeds the aggregated audio level of the playing preview (plan MC-029
-   * Task 5.2). The level is EMA-smoothed before it reaches the shader;
-   * `active` lifts the fps cap to {@link AUDIO_BOOST_FPS} for the duration
-   * of the preview. Ignored entirely while the scene is a still image
-   * (`animate` off) or under reduced motion — the sky must not pulse then.
-   *
-   * @param level - Aggregated channel level, clamped to [0, 1].
-   * @param active - True while a preview is playing/fading out.
-   */
-  setAudioLevel(level: number, active: boolean): void {
-    if (this.settings.animate !== 1 || this.reducedMotion) return;
-    if (!active) {
-      // Settle frame: render once more without any audio glow.
-      if (this.audioActive || this.audioLevel > 0) this.needsRedraw = true;
-      this.audioActive = false;
-      this.audioLevel = 0;
-      return;
-    }
-    const clamped = Math.max(0, Math.min(1, level));
-    this.audioLevel += (clamped - this.audioLevel) * AUDIO_LEVEL_SMOOTHING;
-    this.audioActive = true;
+    this.scene.draw(this.simTime);
   }
 
   /**
@@ -154,27 +117,17 @@ export class NightSkyDriver {
   /** Master animation switch; turning it back on resumes from the frozen moment. */
   setAnimate(on: boolean): void {
     this.settings.animate = on ? 1 : 0;
-    if (!on) this.resetAudio(); // a still image must freeze glow-free
     this.needsRedraw = true;
   }
 
   /** Reduced-motion preference: cancels fades and pins the scene to one static frame. */
   setReducedMotion(reduced: boolean): void {
     this.reducedMotion = reduced;
-    if (reduced) {
-      if (this.fade) {
-        this.settings.dayness = this.fade.to;
-        this.fade = null;
-      }
-      this.resetAudio(); // audio reactivity counts as motion
+    if (reduced && this.fade) {
+      this.settings.dayness = this.fade.to;
+      this.fade = null;
     }
     this.needsRedraw = true;
-  }
-
-  /** Drops the audio modulation to silence (still image / reduced motion). */
-  private resetAudio(): void {
-    this.audioLevel = 0;
-    this.audioActive = false;
   }
 
   /** Tab visibility: hidden skips all work; returning repaints once immediately. */

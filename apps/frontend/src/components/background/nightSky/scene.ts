@@ -27,25 +27,13 @@ export type RenderCanvas = HTMLCanvasElement | OffscreenCanvas;
 
 /** Public surface of the night-sky scene. */
 export interface NightSkyScene {
-  /** Renders one frame at the given animation time (seconds) and audio level (0..1, default 0). */
-  draw(simTimeSeconds: number, audioLevel?: number): void;
+  /** Renders one frame at the given animation time (seconds). */
+  draw(simTimeSeconds: number): void;
   /** Resizes the drawing buffer (CSS size × pixelScale) and the viewport. */
   resize(cssWidth: number, cssHeight: number, pixelScale: number): void;
   /** Releases the GL context and buffers (unmount/terminate). */
   dispose(): void;
 }
-
-/* ── Audio reactivity (plan MC-029 Task 5.2) ────────────────────────────────
-   The driver feeds an EMA-smoothed preview level (0..1) into `u_audioLevel`.
-   Modulation is deliberately subtle and additive-only: stars breathe a bit
-   brighter, the sky gradient lifts barely perceptibly. Clouds stay untouched
-   (pulsing cloud banks read as unnatural). Constants are baked into the
-   shaders — they are part of the approved look, not user tuning knobs. */
-
-/** Star brightness gain at full audio level (fill + catalog stars). */
-const AUDIO_STAR_GAIN = 0.35;
-/** Sky gradient brightness gain at full audio level. */
-const AUDIO_SKY_GAIN = 0.05;
 
 /** Optional hooks of {@link createNightSkyScene}. */
 export interface NightSkySceneOptions {
@@ -163,7 +151,6 @@ uniform float u_starSize;
 uniform float u_starBrightness;
 uniform float u_twinkleAmount;
 uniform float u_twinkleSpeed;
-uniform float u_audioLevel;
 
 #define TAU 6.28318530718
 ${GLSL_HASH}
@@ -193,8 +180,6 @@ void main() {
   vec3 night = mix(u_skyBottom, u_skyTop, smoothstep(0.0, 1.0, uv.y));
   vec3 day   = mix(u_skyBottomDay, u_skyTopDay, smoothstep(0.0, 1.0, uv.y));
   vec3 col = mix(night, day, u_dayness);
-  // Audio reactivity: the gradient lifts barely perceptibly with the music.
-  col *= 1.0 + u_audioLevel * ${AUDIO_SKY_GAIN};
 
   // Daylight washes the stars out EARLY in the transition (like real dawn).
   float starVis = 1.0 - smoothstep(0.05, 0.45, u_dayness);
@@ -202,7 +187,7 @@ void main() {
   float stars = 0.0;
   stars += starLayer(suv,        u_starDensity,        u_starSize,       1.0);
   stars += starLayer(suv + 31.7, u_starDensity * 0.35, u_starSize * 1.5, 1.4);
-  stars *= u_starBrightness * starVis * (1.0 + u_audioLevel * ${AUDIO_STAR_GAIN});
+  stars *= u_starBrightness * starVis;
   col += vec3(0.85, 0.92, 1.0) * stars;
 
   col *= vignetteAt(cuv);
@@ -227,7 +212,6 @@ uniform float u_twinkleSpeed;
 uniform float u_starOcclusion;
 uniform float u_sizeScale;
 uniform float u_dayness;
-uniform float u_audioLevel;
 
 out float v_alpha;
 out vec3  v_color;
@@ -253,7 +237,6 @@ void main() {
   float seed = fract(a_star.y * 13.37 + a_star.x * 7.7);
   float tw = 1.0 + u_twinkleAmount * 0.6 * sin(u_time * u_twinkleSpeed * (0.6 + seed * 1.8) + seed * TAU);
   float bright = clamp(0.18 + (4.2 - m) * 0.26, 0.0, 1.3) * u_catalogBrightness * tw;
-  bright *= 1.0 + u_audioLevel * ${AUDIO_STAR_GAIN};
 
   // One cloud-field sample per star: bright stars fade behind the banks
   // even though the cloud layer itself is translucent.
@@ -439,7 +422,6 @@ export function createNightSkyScene(
     "u_twinkleAmount",
     "u_twinkleSpeed",
     "u_vignette",
-    "u_audioLevel",
   ]);
 
   const progStar = link(gl, STAR_VERT, STAR_FRAG);
@@ -457,7 +439,6 @@ export function createNightSkyScene(
     "u_sizeScale",
     "u_vignette",
     "u_dayness",
-    "u_audioLevel",
     ...CLOUD_FIELD_UNIFORMS,
   ]);
 
@@ -513,7 +494,7 @@ export function createNightSkyScene(
   }
 
   return {
-    draw(simTimeSeconds: number, audioLevel = 0): void {
+    draw(simTimeSeconds: number): void {
       const width = canvas.width;
       const height = canvas.height;
       const aspect = width / height;
@@ -541,7 +522,6 @@ export function createNightSkyScene(
       gl.uniform1f(locSky.u_twinkleAmount, settings.twinkleAmount);
       gl.uniform1f(locSky.u_twinkleSpeed, settings.twinkleSpeed);
       gl.uniform1f(locSky.u_vignette, settings.vignette);
-      gl.uniform1f(locSky.u_audioLevel, audioLevel);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
 
       // Pass B — catalog stars, additive.
@@ -562,7 +542,6 @@ export function createNightSkyScene(
       gl.uniform1f(locStar.u_sizeScale, pixelScale);
       gl.uniform1f(locStar.u_vignette, settings.vignette);
       gl.uniform1f(locStar.u_dayness, settings.dayness);
-      gl.uniform1f(locStar.u_audioLevel, audioLevel);
       setCloudFieldUniforms(locStar);
       gl.bindVertexArray(starVao);
       gl.drawArrays(gl.POINTS, 0, STAR_CATALOG.length);

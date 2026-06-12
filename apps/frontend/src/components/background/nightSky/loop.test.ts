@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { NightSkyDriver } from "./loop";
-import { AUDIO_BOOST_FPS, DAY_FADE_FPS, NIGHT_SKY_DEFAULTS } from "./settings";
+import { DAY_FADE_FPS, NIGHT_SKY_DEFAULTS } from "./settings";
 
 /**
  * Contract of the shared frame driver (plan MC-029 Phase 4) — the ONE piece
@@ -95,49 +95,5 @@ describe("NightSkyDriver", () => {
     driver.setVisible(true);
     driver.tick(400);
     expect(scene.draw).toHaveBeenCalledTimes(1);
-  });
-
-  it("lifts the cap to AUDIO_BOOST_FPS while audio is active and passes the level to draw", () => {
-    const { scene, driver } = makeDriver({ fpsCap: 10 });
-    driver.tick(0); // baseline draw
-    driver.setAudioLevel(1, true);
-    const boostInterval = 1000 / AUDIO_BOOST_FPS;
-
-    // Two ticks one boost-interval apart must BOTH draw (10 fps would gate them).
-    driver.tick(100);
-    driver.tick(100 + boostInterval + 1);
-    expect(scene.draw).toHaveBeenCalledTimes(3);
-    // The smoothed level rides along as the second draw argument (> 0).
-    const lastCall = scene.draw.mock.calls.at(-1) as unknown as [number, number];
-    expect(lastCall[1]).toBeGreaterThan(0);
-
-    // Audio ends: cap back at 10 fps, one settle frame renders level 0.
-    driver.setAudioLevel(0, false);
-    scene.draw.mockClear();
-    driver.tick(300);
-    driver.tick(300 + boostInterval + 1);
-    expect(scene.draw).toHaveBeenCalledTimes(1);
-    const settleCall = scene.draw.mock.calls.at(-1) as unknown as [number, number];
-    expect(settleCall[1]).toBe(0);
-  });
-
-  it("ignores audio entirely while animate is off (still image stays still)", () => {
-    const { scene, driver } = makeDriver({ animate: 0, fpsCap: 10 });
-    driver.tick(0); // initial still frame
-    scene.draw.mockClear();
-    driver.setAudioLevel(1, true);
-    driver.tick(100);
-    driver.tick(200);
-    expect(scene.draw).not.toHaveBeenCalled();
-  });
-
-  it("silences the audio modulation when reduced motion turns on", () => {
-    const { scene, driver } = makeDriver({ fpsCap: 10 });
-    driver.setAudioLevel(1, true);
-    driver.setReducedMotion(true);
-    driver.tick(0); // the single reduced-motion frame
-    expect(scene.draw).toHaveBeenCalledTimes(1);
-    const call = scene.draw.mock.calls.at(-1) as unknown as [number, number];
-    expect(call[1]).toBe(0);
   });
 });

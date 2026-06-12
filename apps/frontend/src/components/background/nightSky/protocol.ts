@@ -22,8 +22,6 @@ export const NightSkyMessageType = {
   SetDayness: "setDayness",
   /** Master animation switch (off = still image, zero GPU work). */
   SetAnimate: "setAnimate",
-  /** Aggregated audio level of the playing preview (throttled to the 50 ms spectrum tick). */
-  SetAudioLevel: "setAudioLevel",
 } as const;
 
 /** Discriminants of every worker→bridge message. */
@@ -78,20 +76,6 @@ export interface SetAnimateMessage {
   animate: boolean;
 }
 
-/**
- * Audio level of the playing preview (plan MC-029 Task 5.2). Sent by the
- * bridge on every spectrum-store publish (20 Hz max — the store's own 50 ms
- * producer gate is the throttle) and once with `{level: 0, active: false}`
- * when the store clears.
- */
-export interface SetAudioLevelMessage {
-  type: typeof NightSkyMessageType.SetAudioLevel;
-  /** Aggregated level (RMS of both channels), 0..1. */
-  level: number;
-  /** True while a preview is playing/fading out, false once the store cleared. */
-  active: boolean;
-}
-
 /** Union of every message the worker consumes. */
 export type NightSkyMessage =
   | InitMessage
@@ -99,8 +83,7 @@ export type NightSkyMessage =
   | VisibilityMessage
   | ReducedMotionMessage
   | SetDaynessMessage
-  | SetAnimateMessage
-  | SetAudioLevelMessage;
+  | SetAnimateMessage;
 
 /** Union of every event the worker emits back to the bridge. */
 export interface NightSkyWorkerEventMessage {

@@ -1,6 +1,5 @@
 import gsap from "gsap";
 import { useEffect, useRef } from "react";
-import { getSpectrumFrame, isSpectrumActive, subscribeSpectrum } from "@/components/audio/spectrumStore";
 import { NightSkyDriver } from "@/components/background/nightSky/loop";
 import {
   type NightSkyMessage,
@@ -145,32 +144,6 @@ export function BackgroundScene() {
       }
     };
 
-    /**
-     * Audio reactivity (plan MC-029 Task 5.2): forwards the preview's
-     * aggregated level (RMS of both channels) on every spectrum-store
-     * publish/clear. The store's 50 ms producer gate IS the throttle (20 Hz
-     * max, primitives only — policy 6); silence costs nothing because the
-     * store never publishes without a playing preview. Reduced motion drops
-     * the forwarding entirely — the driver additionally silences itself.
-     */
-    const handleSpectrumFrame = () => {
-      if (reducedMotionQuery?.matches) return;
-      const frame = getSpectrumFrame();
-      const left = frame.levels[0] ?? 0;
-      const right = frame.levels[1] ?? 0;
-      const level = Math.sqrt((left * left + right * right) / 2);
-      const active = isSpectrumActive();
-      if (worker) {
-        worker.postMessage({
-          type: NightSkyMessageType.SetAudioLevel,
-          level,
-          active,
-        } satisfies NightSkyMessage);
-      } else {
-        fallbackDriver?.setAudioLevel(level, active);
-      }
-    };
-
     const handleApiEvent = (event: Event) => {
       const detail = (event as CustomEvent<NightSkyEventDetail>).detail;
       if (!detail) return;
@@ -236,8 +209,6 @@ export function BackgroundScene() {
       revealCanvas();
     };
 
-    let unsubscribeSpectrum: (() => void) | null = null;
-
     const cancelIdle = scheduleIdle(() => {
       if (disposed) return;
       if (typeof canvas.transferControlToOffscreen === "function" && typeof Worker === "function") {
@@ -252,7 +223,6 @@ export function BackgroundScene() {
       document.addEventListener("visibilitychange", handleVisibility);
       reducedMotionQuery?.addEventListener?.("change", handleReducedMotion);
       window.addEventListener(NIGHT_SKY_EVENT, handleApiEvent);
-      unsubscribeSpectrum = subscribeSpectrum(handleSpectrumFrame);
     });
 
     return () => {
@@ -262,7 +232,6 @@ export function BackgroundScene() {
       document.removeEventListener("visibilitychange", handleVisibility);
       reducedMotionQuery?.removeEventListener?.("change", handleReducedMotion);
       window.removeEventListener(NIGHT_SKY_EVENT, handleApiEvent);
-      unsubscribeSpectrum?.();
       if (fallbackTick) gsap.ticker.remove(fallbackTick);
       fallbackScene?.dispose();
       worker?.terminate();
