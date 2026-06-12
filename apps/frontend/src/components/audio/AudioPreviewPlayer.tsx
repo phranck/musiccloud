@@ -1,4 +1,5 @@
 import { ENDPOINTS } from "@musiccloud/shared";
+import gsap from "gsap";
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 import {
   AudioPreviewStatus,
@@ -15,6 +16,7 @@ import {
 import { Player } from "@/components/playback/Player";
 import { useT } from "@/i18n/context";
 import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
+import { setupMotion } from "@/lib/motion/setup";
 
 interface AudioPreviewPlayerProps {
   /** Immediately-playable preview URL. Optional when `refreshShortId` is set. */
@@ -431,7 +433,10 @@ function useAudioPreviewController({
   const channelSplitterRef = useRef<ChannelSplitterNode | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
-  const spectrumFrameRef = useRef<number | null>(null);
+  // Frame loops run on the shared gsap.ticker (plan MC-029 Task 5.3, policy 3 —
+  // no private requestAnimationFrame source). Each ref holds the registered
+  // ticker callback so the matching stop can remove it; null means "not running".
+  const spectrumTickRef = useRef<(() => void) | null>(null);
   const spectrumDataRef = useRef<StereoSpectrumData | null>(null);
   const spectrumLastUpdateRef = useRef(0);
   // Peak-hold timing state stays local (the store only carries the resulting
@@ -439,11 +444,16 @@ function useAudioPreviewController({
   // live in the spectrum store and are written in place each tick (Task 5.1).
   const peakHoldLeftRef = useRef<StereoPeakHoldState>({ level: 0, setAt: 0 });
   const peakHoldRightRef = useRef<StereoPeakHoldState>({ level: 0, setAt: 0 });
-  const progressFrameRef = useRef<number | null>(null);
-  const progressRewindFrameRef = useRef<number | null>(null);
+  const progressTickRef = useRef<(() => void) | null>(null);
+  const progressRewindTickRef = useRef<(() => void) | null>(null);
   const progressRatioRef = useRef(0);
   const hasStartedRef = useRef(false);
   const [progressRatio, setProgressRatio] = useState(0);
+
+  // Tune the shared ticker once on mount (lagSmoothing); idempotent.
+  useEffect(() => {
+    setupMotion();
+  }, []);
 
   // Lazy fetch the preview URL when the component mounted without one.
   // Aborts on unmount so a slow Deezer call doesn't update a stale tree.
@@ -478,8 +488,8 @@ function useAudioPreviewController({
 
   const stopSpectrumLoop = useCallback(
     ({ clearBands = true }: { clearBands?: boolean } = {}) => {
-      if (spectrumFrameRef.current !== null) cancelAnimationFrame(spectrumFrameRef.current);
-      spectrumFrameRef.current = null;
+      if (spectrumTickRef.current) gsap.ticker.remove(spectrumTickRef.current);
+      spectrumTickRef.current = null;
       spectrumLastUpdateRef.current = 0;
       if (!clearBands) return;
       clearSpectrumFrame();
@@ -497,14 +507,14 @@ function useAudioPreviewController({
   const setProgressRatioFromEvent = useEffectEvent(setProgressRatioValue);
 
   const stopProgressRewind = useCallback(() => {
-    if (progressRewindFrameRef.current !== null) cancelAnimationFrame(progressRewindFrameRef.current);
-    progressRewindFrameRef.current = null;
+    if (progressRewindTickRef.current) gsap.ticker.remove(progressRewindTickRef.current);
+    progressRewindTickRef.current = null;
   }, []);
 
   const stopProgressLoop = useCallback(
     (audio?: HTMLAudioElement | null) => {
-      if (progressFrameRef.current !== null) cancelAnimationFrame(progressFrameRef.current);
-      progressFrameRef.current = null;
+      if (progressTickRef.current) gsap.ticker.remove(progressTickRef.current);
+      progressTickRef.current = null;
       if (audio) setProgressRatioValue(resolveAudioProgressRatio(audio));
     },
     [setProgressRatioValue],
@@ -519,19 +529,19 @@ function useAudioPreviewController({
     }
 
     let startedAt: number | null = null;
-    const tick = (now: number) => {
+    const tick = () => {
+      const now = performance.now();
       if (startedAt === null) startedAt = now;
       const elapsedRatio = Math.min(1, (now - startedAt) / PLAYER_PROGRESS_REWIND_MS);
       setProgressRatioValue(startRatio * (1 - elapsedRatio));
-      if (elapsedRatio < 1) {
-        progressRewindFrameRef.current = requestAnimationFrame(tick);
-        return;
-      }
-      progressRewindFrameRef.current = null;
+      if (elapsedRatio < 1) return;
+      gsap.ticker.remove(tick);
+      progressRewindTickRef.current = null;
       setProgressRatioValue(0);
     };
 
-    progressRewindFrameRef.current = requestAnimationFrame(tick);
+    progressRewindTickRef.current = tick;
+    gsap.ticker.add(tick);
   }, [setProgressRatioValue, stopProgressRewind]);
   const startProgressRewindFromEvent = useEffectEvent(startProgressRewind);
 
@@ -540,9 +550,13 @@ function useAudioPreviewController({
       stopProgressLoop();
       const tick = () => {
         setProgressRatioValue(resolveAudioProgressRatio(audio));
-        if (!audio.paused && !audio.ended) progressFrameRef.current = requestAnimationFrame(tick);
+        if (audio.paused || audio.ended) {
+          gsap.ticker.remove(tick);
+          progressTickRef.current = null;
+        }
       };
-      progressFrameRef.current = requestAnimationFrame(tick);
+      progressTickRef.current = tick;
+      gsap.ticker.add(tick);
     },
     [setProgressRatioValue, stopProgressLoop],
   );
@@ -552,12 +566,9 @@ function useAudioPreviewController({
     if (!isSpectrumActive()) return;
     const frame = getSpectrumFrame();
 
-    const tick = (now: number) => {
-      spectrumFrameRef.current = null;
-      if (now - spectrumLastUpdateRef.current < SPECTRUM_UPDATE_MS) {
-        spectrumFrameRef.current = requestAnimationFrame(tick);
-        return;
-      }
+    const tick = () => {
+      const now = performance.now();
+      if (now - spectrumLastUpdateRef.current < SPECTRUM_UPDATE_MS) return;
       spectrumLastUpdateRef.current = now;
 
       // Decay every band toward zero in place (no allocation per fade tick).
@@ -581,15 +592,15 @@ function useAudioPreviewController({
 
       const levelsStillVisible = nextLeftLevel > 0 || nextRightLevel > 0;
       const peakHoldStillVisible = nextLeftHold.level > 0 || nextRightHold.level > 0;
-      if (bandsStillVisible || levelsStillVisible || peakHoldStillVisible) {
-        spectrumFrameRef.current = requestAnimationFrame(tick);
-        return;
-      }
+      if (bandsStillVisible || levelsStillVisible || peakHoldStillVisible) return;
+      gsap.ticker.remove(tick);
+      spectrumTickRef.current = null;
       clearSpectrumFrame();
       resetPeakHold();
     };
 
-    spectrumFrameRef.current = requestAnimationFrame(tick);
+    spectrumTickRef.current = tick;
+    gsap.ticker.add(tick);
   }, [resetPeakHold, stopSpectrumLoop]);
   const startSpectrumFadeOutFromEvent = useEffectEvent(startSpectrumFadeOut);
   const notifyStatusChange = useCallback(
@@ -626,7 +637,7 @@ function useAudioPreviewController({
 
   const startSpectrumLoop = useCallback(() => {
     const analysers = analysersRef.current;
-    if (!analysers || spectrumFrameRef.current !== null) return;
+    if (!analysers || spectrumTickRef.current !== null) return;
 
     const data: StereoSpectrumData = spectrumDataRef.current ?? {
       left: new Uint8Array(analysers.left.frequencyBinCount),
@@ -637,8 +648,8 @@ function useAudioPreviewController({
     spectrumDataRef.current = data;
     const frame = getSpectrumFrame();
 
-    const tick = (now: number) => {
-      spectrumFrameRef.current = requestAnimationFrame(tick);
+    const tick = () => {
+      const now = performance.now();
       if (now - spectrumLastUpdateRef.current < SPECTRUM_UPDATE_MS) return;
       spectrumLastUpdateRef.current = now;
       analysers.left.getByteFrequencyData(data.left);
@@ -661,7 +672,8 @@ function useAudioPreviewController({
       publishSpectrumFrame();
     };
 
-    spectrumFrameRef.current = requestAnimationFrame(tick);
+    spectrumTickRef.current = tick;
+    gsap.ticker.add(tick);
   }, []);
 
   /**
@@ -840,7 +852,7 @@ function useAudioPreviewController({
       if (audio.paused || audio.ended) return;
       if (!analysersRef.current) return;
       if (audioContextRef.current?.state !== AudioContextState.Running) return;
-      if (spectrumFrameRef.current !== null) return;
+      if (spectrumTickRef.current !== null) return;
       startSpectrumLoop();
     };
 
