@@ -60,7 +60,10 @@ const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [
 
     {trackingEnabled && <script is:inline defer src={`${ENDPOINTS.frontend.umami}/script.js`} data-website-id="3826f51b-34e0-4c61-a89d-a7de016fe712" data-host-url={ENDPOINTS.frontend.umami}></script>}
   </head>
-  <body class="bg-background text-text-primary antialiased">
+  <body class="bg-background text-text-primary antialiased" transition:animate="none">
+    {/* transition:animate="none" on the body disables Astro's default
+        view-transition fade — the GSAP lifecycle listeners below own the
+        page out/in motion (MC-029 Task 3.1). */}
     {/* Persisted so the background survives ClientRouter swaps without re-mount —
         prep for the Phase 4 WebGL background, which must not be torn down/re-created
         (would flicker + leak the WebGL context) on navigation. */}
@@ -72,6 +75,17 @@ const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [
         frozen to the first mount. Safe only while every page serves the same header
         nav. If a page needs different items, drop persist or use transition:persist-props. */}
     {showHeader && <PageHeaderIsland client:idle navItems={headerNav} transition:persist="mc-header" />}
-    <slot />
+    {/* Animatable page wrapper: the GSAP page transitions target exactly this
+        element (see PAGE_CONTENT_SELECTOR), so the persistent siblings above
+        never move. Plain block element — layout-neutral. */}
+    <div data-mc-page>
+      <slot />
+    </div>
+    <script>
+      import { initPageTransitions } from "@/lib/motion/pageTransitions";
+      // Module scripts run once per real page load and are NOT re-executed on
+      // ClientRouter swaps; the document-level listeners survive navigations.
+      initPageTransitions();
+    </script>
   </body>
 </html>
