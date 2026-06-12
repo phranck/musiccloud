@@ -1,0 +1,1419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>musiccloud — night-sky background prototype</title>
+<style>
+  /* ── Prototype chrome (not part of the future production background) ── */
+  :root {
+    --panel-bg: rgba(13, 17, 23, 0.92);
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --text: #d4dae2;
+    --text-dim: #8b95a3;
+    --accent: #4aa3ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  body { font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); }
+
+  /* The shader canvas IS the page background. */
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* ── Sidebar ── */
+  #panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 320px;
+    background: var(--panel-bg); border-left: 1px solid var(--panel-border);
+    backdrop-filter: blur(12px); overflow-y: auto; padding: 14px 16px 24px;
+    transition: transform 0.25s ease;
+  }
+  #panel.hidden { transform: translateX(100%); }
+  #panel h1 { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
+  #panel .sub { color: var(--text-dim); font-size: 11px; margin-bottom: 12px; }
+
+  .group { border-top: 1px solid var(--panel-border); padding-top: 10px; margin-top: 12px; }
+  .group h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 0 0 8px; }
+
+  .row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .row label { flex: 0 0 118px; font-size: 12px; color: var(--text); }
+  .row input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
+  .row input[type="checkbox"] { flex: 0 0 auto; accent-color: var(--accent); cursor: pointer; }
+  .row input[type="color"] { flex: 0 0 36px; height: 22px; border: none; background: none; padding: 0; cursor: pointer; }
+  .row .val { flex: 0 0 52px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-dim); font-size: 11px; }
+
+  .btnrow { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+  button {
+    background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--panel-border);
+    border-radius: 7px; padding: 6px 11px; font-size: 12px; cursor: pointer;
+  }
+  button:hover { background: rgba(255,255,255,0.12); }
+  button.primary { background: var(--accent); border-color: transparent; color: #06121f; font-weight: 600; }
+
+  /* FPS + toggle, always visible */
+  #hud {
+    position: fixed; top: 12px; left: 12px; display: flex; gap: 8px; align-items: center;
+    background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 9px;
+    padding: 6px 10px; font-size: 12px; color: var(--text-dim);
+  }
+  #hud b { color: var(--text); font-variant-numeric: tabular-nums; }
+  #toggle { position: fixed; top: 12px; right: 12px; z-index: 10; }
+  #copied { color: var(--accent); font-size: 11px; opacity: 0; transition: opacity 0.3s; }
+  #copied.show { opacity: 1; }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="hud"><span>fps</span> <b id="fps">–</b> <span id="res"></span></div>
+<button id="toggle">⚙︎ Panel</button>
+
+<aside id="panel">
+  <h1>Night-sky background</h1>
+  <div class="sub">musiccloud prototype — real northern sky, Polaris at the pivot. Tune, then “Copy settings”.</div>
+  <div class="btnrow">
+    <button class="primary" id="copy">Copy settings</button>
+    <button id="paste">Paste settings</button>
+    <button id="reset">Reset</button>
+    <button id="pause">Pause</button>
+    <button id="daynight">☀︎ Day</button>
+    <button id="langtoggle" title="Sprache wechseln / switch language">DE</button>
+    <span id="copied">copied ✓</span>
+  </div>
+  <div id="controls"></div>
+</aside>
+
+<script>
+"use strict";
+
+/* ════════════════════════════════════════════════════════════════════════
+   Real star catalog — brightest stars of the northern circumpolar sky
+   (the view toward Polaris from Central Europe).
+
+   Each entry: [RA in decimal hours, Dec in degrees, V magnitude, colorClass]
+   colorClass: 0 = blue-white (B/early A), 1 = white/yellow-white (A/F),
+               2 = warm (G/K/M).
+   Positions are J2000 to ~0.1°, which is far below a screen pixel here.
+   Polaris (first entry) sits 0.74° from the celestial pole, so it
+   automatically becomes the (slightly wobbling, like in reality) pivot.
+   The faint background stars stay procedural — the eye recognises
+   constellations only by the bright members.
+   ════════════════════════════════════════════════════════════════════════ */
+const STAR_CATALOG = [
+  // Ursa Minor — the Little Dipper, incl. Polaris (complete, low-mag members too)
+  [ 2.530, 89.264, 1.98, 1],  // Polaris
+  [14.845, 74.156, 2.08, 2],  // Kochab
+  [15.345, 71.834, 3.05, 1],  // Pherkad
+  [16.766, 82.037, 4.21, 2],  // ε UMi
+  [15.734, 77.795, 4.32, 1],  // ζ UMi
+  [17.537, 86.586, 4.35, 1],  // δ UMi
+  [16.292, 75.755, 4.95, 1],  // η UMi
+
+  // Ursa Major — the Big Dipper plus surrounding members
+  [11.062, 61.751, 1.79, 2],  // Dubhe
+  [11.031, 56.382, 2.37, 1],  // Merak
+  [11.897, 53.695, 2.44, 1],  // Phecda
+  [12.257, 57.033, 3.31, 1],  // Megrez
+  [12.900, 55.960, 1.77, 1],  // Alioth
+  [13.399, 54.925, 2.27, 1],  // Mizar
+  [13.792, 49.313, 1.86, 0],  // Alkaid
+  [ 8.504, 60.718, 3.36, 2],  // Muscida
+  [ 9.548, 51.677, 3.18, 1],  // θ UMa
+  [10.372, 41.499, 3.06, 2],  // μ UMa
+  [10.285, 42.914, 3.45, 1],  // λ UMa
+  [11.161, 44.499, 3.01, 2],  // ψ UMa
+  [ 9.525, 63.062, 3.67, 1],  // h UMa
+
+  // Cassiopeia — the W (complete)
+  [ 0.153, 59.150, 2.27, 1],  // Caph
+  [ 0.675, 56.537, 2.24, 2],  // Schedar
+  [ 0.945, 60.717, 2.47, 0],  // γ Cas
+  [ 1.430, 60.235, 2.68, 1],  // Ruchbah
+  [ 1.907, 63.670, 3.38, 0],  // Segin
+
+  // Cepheus
+  [21.310, 62.585, 2.46, 1],  // Alderamin
+  [21.478, 70.561, 3.23, 0],  // Alfirk
+  [23.656, 77.632, 3.21, 2],  // Errai
+  [22.181, 58.201, 3.35, 2],  // ζ Cep
+  [20.754, 61.839, 3.43, 2],  // η Cep
+  [22.828, 66.201, 3.52, 2],  // ι Cep
+
+  // Draco — winds between the dippers
+  [17.943, 51.489, 2.23, 2],  // Eltanin
+  [17.507, 52.301, 2.79, 2],  // Rastaban
+  [16.400, 61.514, 2.74, 2],  // η Dra
+  [17.146, 65.715, 3.17, 0],  // ζ Dra
+  [19.209, 67.661, 3.07, 2],  // Altais
+  [15.415, 58.966, 3.29, 2],  // Edasich
+  [14.073, 64.376, 3.65, 1],  // Thuban
+  [18.351, 72.733, 3.57, 1],  // χ Dra
+  [12.558, 69.788, 3.87, 0],  // κ Dra
+  [11.523, 69.331, 3.84, 2],  // Giausar
+  [19.802, 70.268, 3.83, 2],  // ε Dra
+  [17.892, 56.873, 3.75, 2],  // Grumium
+
+  // Lyra / Cygnus — summer triangle's northern members
+  [18.616, 38.784, 0.03, 0],  // Vega
+  [20.690, 45.280, 1.25, 1],  // Deneb
+  [20.371, 40.257, 2.23, 1],  // Sadr
+  [19.749, 45.131, 2.87, 0],  // δ Cyg
+  [20.770, 33.970, 2.46, 2],  // ε Cyg
+  [19.285, 53.368, 3.77, 2],  // κ Cyg
+
+  // Auriga
+  [ 5.278, 45.998, 0.08, 2],  // Capella (golden!)
+  [ 5.992, 44.947, 1.90, 1],  // Menkalinan
+  [ 5.995, 37.213, 2.65, 1],  // θ Aur
+  [ 5.032, 43.823, 2.99, 1],  // ε Aur
+  [ 5.108, 41.234, 3.18, 0],  // η Aur
+  [ 5.041, 41.076, 3.75, 2],  // ζ Aur
+  [ 5.992, 54.285, 3.72, 2],  // δ Aur
+
+  // Perseus
+  [ 3.405, 49.861, 1.79, 1],  // Mirfak
+  [ 3.136, 40.956, 2.09, 0],  // Algol
+  [ 3.080, 53.506, 2.93, 2],  // γ Per
+  [ 3.715, 47.788, 3.01, 0],  // δ Per
+  [ 2.845, 55.895, 3.77, 2],  // η Per
+
+  // Andromeda (northern members) / Canes Venatici / Boötes (northern) / Lynx
+  [ 2.065, 42.330, 2.26, 2],  // Almach
+  [ 1.162, 35.620, 2.05, 2],  // Mirach
+  [12.934, 38.318, 2.90, 1],  // Cor Caroli
+  [14.535, 38.308, 3.03, 1],  // Seginus
+  [15.032, 40.391, 3.50, 2],  // Nekkar
+  [ 9.351, 34.393, 3.13, 2],  // α Lyn
+];
+
+/* ════════════════════════════════════════════════════════════════════════
+   Parameter model — every entry is a live shader uniform. The production
+   build takes the copied JSON verbatim.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/** Slider definitions: key, label, group, min/max/step, default. */
+const PARAMS = [
+  // ── Sky ──
+  { key: "dayness",        label: "Day amount",        group: "Sky",    min: 0,    max: 1,    step: 0.01,  def: 0 },
+  { key: "dayTransition",  label: "Day/night fade (s)",group: "Sky",    min: 0.2,  max: 10,   step: 0.2,   def: 1 },
+  { key: "autoDayNight",   label: "Auto (local time)", group: "Sky",    min: 0,    max: 1,    step: 1,     def: 0, bool: true },
+  { key: "sunriseHour",    label: "Sunrise (h)",       group: "Sky",    min: 0,    max: 12,   step: 0.25,  def: 6.5 },
+  { key: "sunsetHour",     label: "Sunset (h)",        group: "Sky",    min: 12,   max: 24,   step: 0.25,  def: 20.5 },
+  { key: "twilightHours",  label: "Twilight (h)",      group: "Sky",    min: 0.25, max: 4,    step: 0.25,  def: 1.5 },
+  { key: "vignette",       label: "Vignette",          group: "Sky",    min: 0,    max: 1,    step: 0.01,  def: 0.25 },
+
+  // ── Stars ──
+  { key: "skyFov",         label: "Sky window °",      group: "Stars",  min: 30,   max: 120,  step: 5,     def: 110 },
+  { key: "polarisX",       label: "Polaris X",         group: "Stars",  min: 0,    max: 1,    step: 0.01,  def: 0.5 },
+  { key: "polarisY",       label: "Polaris Y",         group: "Stars",  min: 0,    max: 1,    step: 0.01,  def: 0.66 },
+  { key: "rotationPeriod", label: "Rotation (s/rev)",  group: "Stars",  min: 120,  max: 3600, step: 30,    def: 1200 },
+  { key: "catalogSize",    label: "Bright star size",  group: "Stars",  min: 0.5,  max: 4,    step: 0.05,  def: 1.7 },
+  { key: "catalogBrightness", label: "Bright star glow", group: "Stars", min: 0,   max: 2,    step: 0.05,  def: 1.1 },
+  { key: "starDensity",    label: "Fill density",      group: "Stars",  min: 20,   max: 400,  step: 5,     def: 100 },
+  { key: "starSize",       label: "Fill size",         group: "Stars",  min: 0.5,  max: 4,    step: 0.05,  def: 1.5 },
+  { key: "starBrightness", label: "Fill brightness",   group: "Stars",  min: 0,    max: 2,    step: 0.05,  def: 0.95 },
+  { key: "twinkleAmount",  label: "Twinkle amount",    group: "Stars",  min: 0,    max: 1,    step: 0.01,  def: 0.7 },
+  { key: "twinkleSpeed",   label: "Twinkle speed",     group: "Stars",  min: 0,    max: 3,    step: 0.05,  def: 1.7 },
+
+  // ── Clouds ──
+  { key: "cloudScale",     label: "Formation size",    group: "Clouds", min: 0.5,  max: 8,    step: 0.1,   def: 8 },
+  { key: "cloudCoverage",  label: "Coverage",          group: "Clouds", min: 0,    max: 1,    step: 0.01,  def: 0.3 },
+  { key: "cloudSoftness",  label: "Softness",          group: "Clouds", min: 0.02, max: 0.8,  step: 0.01,  def: 0.34 },
+  { key: "cloudOpacity",   label: "Opacity",           group: "Clouds", min: 0,    max: 1,    step: 0.01,  def: 1 },
+  { key: "cloudDetail",    label: "Detail (octaves)",  group: "Clouds", min: 2,    max: 7,    step: 1,     def: 7 },
+  { key: "clearZones",     label: "Clear-sky zones",   group: "Clouds", min: 0,    max: 1,    step: 0.01,  def: 0.4 },
+  { key: "warpStrength",   label: "Warp (raggedness)", group: "Clouds", min: 0,    max: 2,    step: 0.05,  def: 0.35 },
+  { key: "windSpeed",      label: "Wind speed",        group: "Clouds", min: 0,    max: 0.05, step: 0.001, def: 0.03 },
+  { key: "windAngle",      label: "Wind direction °",  group: "Clouds", min: 0,    max: 360,  step: 5,     def: 180 },
+  { key: "evolveSpeed",    label: "Shape evolution",   group: "Clouds", min: 0,    max: 0.2,  step: 0.005, def: 0.05 },
+  { key: "moonIntensity",  label: "Moonlight",         group: "Clouds", min: 0,    max: 2,    step: 0.05,  def: 0.15 },
+  { key: "moonAngle",      label: "Moon direction °",  group: "Clouds", min: 0,    max: 360,  step: 5,     def: 265 },
+  { key: "sunIntensity",   label: "Sunlight (day)",    group: "Clouds", min: 0,    max: 2,    step: 0.05,  def: 0.85 },
+  { key: "sunAngle",       label: "Sun direction °",   group: "Clouds", min: 0,    max: 360,  step: 5,     def: 230 },
+  { key: "starOcclusion",  label: "Star occlusion",    group: "Clouds", min: 0,    max: 3,    step: 0.05,  def: 1.2 },
+
+  // ── Performance ──
+  { key: "animate",        label: "Animation",         group: "Performance", min: 0,    max: 1,  step: 1,    def: 1, bool: true },
+  { key: "renderScale",    label: "Render scale",      group: "Performance", min: 0.25, max: 1,  step: 0.05, def: 0.7 },
+  { key: "fpsCap",         label: "FPS cap",           group: "Performance", min: 10,   max: 60, step: 2,    def: 10 },
+];
+
+/** Color definitions (hex inputs → vec3 uniforms). */
+const COLORS = [
+  { key: "skyTop",        label: "Night sky (top)",    group: "Sky",    def: "#03070d" },
+  { key: "skyBottom",     label: "Night sky (bottom)", group: "Sky",    def: "#0b1923" },
+  { key: "skyTopDay",     label: "Day sky (top)",      group: "Sky",    def: "#2d6fb5" },
+  { key: "skyBottomDay",  label: "Day sky (bottom)",   group: "Sky",    def: "#aee5fe" },
+  { key: "cloudColor",    label: "Cloud base (night)", group: "Clouds", def: "#2c3b47" },
+  { key: "cloudColorDay", label: "Cloud base (day)",   group: "Clouds", def: "#e6edf3" },
+];
+
+/** Hover tooltips: what each control actually does (shown via title=). */
+const TIPS = {
+  // Sky
+  dayness:        "Blend between night (0) and day (1). Moving this manually turns auto mode off.",
+  dayTransition:  "Duration in seconds of the animated fade when using the Day/Night button. The fade itself temporarily renders at 30 FPS, so it stays smooth even with a low FPS cap.",
+  autoDayNight:   "Follow the viewer's local clock: stars at night, blue sky at day, real-time twilight in between. Any manual change switches this off.",
+  sunriseHour:    "Local hour the morning twilight is centred on (auto mode).",
+  sunsetHour:     "Local hour the evening twilight is centred on (auto mode).",
+  twilightHours:  "Length of the dawn/dusk transition window in hours (auto mode).",
+  vignette:       "Darkens the screen corners for a photographic look.",
+  skyTop:         "Night sky color at the top of the screen.",
+  skyBottom:      "Night sky color at the horizon (bottom edge).",
+  skyTopDay:      "Day sky color at the top of the screen.",
+  skyBottomDay:   "Day sky color at the horizon (bottom edge).",
+
+  // Stars
+  skyFov:         "Degrees of sky mapped onto the screen height — smaller zooms in on the pole, larger shows more constellations.",
+  polarisX:       "Horizontal screen position of Polaris, the rotation pivot (0 = left, 1 = right).",
+  polarisY:       "Vertical screen position of Polaris (0 = bottom, 1 = top).",
+  rotationPeriod: "Seconds for one full revolution of the sky around Polaris (the real sky takes ~86,164 s).",
+  catalogSize:    "Dot size of the real catalog stars (Big Dipper, Cassiopeia, Vega, Capella …).",
+  catalogBrightness: "Glow strength of the catalog stars.",
+  starDensity:    "Amount of faint procedural background stars filling the sky.",
+  starSize:       "Dot size of the background fill stars.",
+  starBrightness: "Brightness of the background fill stars.",
+  twinkleAmount:  "How strongly the stars flicker.",
+  twinkleSpeed:   "How fast the stars flicker.",
+
+  // Clouds
+  cloudColor:     "Base color of the cloud banks at night.",
+  cloudColorDay:  "Base color of the cloud banks at day.",
+  cloudScale:     "Spatial frequency of the cloud field: higher = more and smaller formations, lower = few large banks.",
+  cloudCoverage:  "How much of the sky the clouds cover.",
+  cloudSoftness:  "Edge softness: low = crisp bank edges, high = hazy gradients.",
+  cloudOpacity:   "How strongly the cloud layer covers sky and stars.",
+  cloudDetail:    "Noise octaves: more = finer inner detail, slightly higher GPU cost.",
+  clearZones:     "Carves large clear-sky windows between the banks (0 = one uniform field).",
+  warpStrength:   "Domain warp: bends and frays the bank edges for an organic, ragged look.",
+  windSpeed:      "Drift speed of the whole cloud field.",
+  windAngle:      "Drift direction in degrees (0 = right, 90 = up).",
+  evolveSpeed:    "How fast the banks change their SHAPE while drifting (time as a third noise dimension).",
+  moonIntensity:  "Strength of the cool rim light on cloud edges at night.",
+  moonAngle:      "Direction the moonlight comes from, in degrees.",
+  sunIntensity:   "Strength of the warm rim light on cloud edges at day.",
+  sunAngle:       "Direction the sunlight comes from, in degrees.",
+  starOcclusion:  "How strongly clouds hide the stars behind them.",
+
+  // Performance
+  animate:        "Master switch: off freezes the whole scene as a still image — the GPU stops rendering entirely (slider changes still repaint once).",
+  renderScale:    "Internal render resolution relative to the screen — lower is faster; the soft clouds hide the difference.",
+  fpsCap:         "Maximum frames per second the background renders at.",
+};
+
+/* ════════════════════════════════════════════════════════════════════════
+   i18n — English lives in the definitions above (PARAMS.label / TIPS);
+   German overlays them. One file, no drifting copies.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/** Static UI strings per language. */
+const UI = {
+  en: {
+    title: "Night-sky background",
+    sub: "musiccloud prototype — real northern sky, Polaris at the pivot. Tune, then “Copy settings”.",
+    copy: "Copy settings", paste: "Paste settings", reset: "Reset",
+    pause: "Pause", resume: "Resume", day: "☀︎ Day", night: "☾ Night",
+    copied: "copied ✓", appliedFmt: "applied {n} ✓", invalid: "invalid JSON ✗",
+    pastePrompt: "Paste the settings JSON:",
+    noWebgl: "WebGL2 not available in this browser.",
+    gpuLabel: "GPU load",
+    gpuNA: "n/a",
+    gpuBench: "Measure",
+    gpuBenchSuffix: " (benchmark)",
+    gpuTip: "GPU render time per frame; busy % = time × FPS — the closest browser proxy for energy use (real wattage is not exposed to websites). Live via EXT_disjoint_timer_query where available; Safari and Chrome on macOS block that extension, so the Measure button runs a 30-frame gl.finish() benchmark instead — treat its result as a slight upper bound.",
+    groups: { Sky: "Sky", Stars: "Stars", Clouds: "Clouds", Performance: "Performance" },
+  },
+  de: {
+    title: "Nachthimmel-Hintergrund",
+    sub: "musiccloud-Prototyp — echter Nordhimmel, Polarstern als Drehpunkt. Einstellen, dann „Settings kopieren“.",
+    copy: "Settings kopieren", paste: "Settings einfügen", reset: "Zurücksetzen",
+    pause: "Pause", resume: "Weiter", day: "☀︎ Tag", night: "☾ Nacht",
+    copied: "kopiert ✓", appliedFmt: "{n} übernommen ✓", invalid: "ungültiges JSON ✗",
+    pastePrompt: "Settings-JSON hier einfügen:",
+    noWebgl: "WebGL2 ist in diesem Browser nicht verfügbar.",
+    gpuLabel: "GPU-Last",
+    gpuNA: "n/a",
+    gpuBench: "Messen",
+    gpuBenchSuffix: " (Benchmark)",
+    gpuTip: "GPU-Renderzeit pro Frame; Busy-% = Zeit × FPS — der beste Browser-Näherungswert für den Energieverbrauch (echte Watt geben Browser nicht preis). Live via EXT_disjoint_timer_query, wo verfügbar; Safari und Chrome auf macOS blockieren die Extension, daher misst der Messen-Button stattdessen 30 Frames mit gl.finish() — das Ergebnis ist eine leichte Obergrenze.",
+    groups: { Sky: "Himmel", Stars: "Sterne", Clouds: "Wolken", Performance: "Performance" },
+  },
+};
+
+/** German control labels (English fallback = PARAMS/COLORS.label). */
+const LABELS_DE = {
+  dayness: "Tag-Anteil", dayTransition: "Tag/Nacht-Blende (s)", autoDayNight: "Automatik (Ortszeit)",
+  sunriseHour: "Sonnenaufgang (h)", sunsetHour: "Sonnenuntergang (h)", twilightHours: "Dämmerung (h)",
+  vignette: "Vignette",
+  skyTop: "Nachthimmel (oben)", skyBottom: "Nachthimmel (unten)",
+  skyTopDay: "Taghimmel (oben)", skyBottomDay: "Taghimmel (unten)",
+  skyFov: "Himmelsausschnitt °", polarisX: "Polarstern X", polarisY: "Polarstern Y",
+  rotationPeriod: "Rotation (s/Umdr.)", catalogSize: "Größe helle Sterne", catalogBrightness: "Leuchten helle Sterne",
+  starDensity: "Dichte Füllsterne", starSize: "Größe Füllsterne", starBrightness: "Helligkeit Füllsterne",
+  twinkleAmount: "Funkeln (Stärke)", twinkleSpeed: "Funkeln (Tempo)",
+  cloudColor: "Wolkenfarbe (Nacht)", cloudColorDay: "Wolkenfarbe (Tag)",
+  cloudScale: "Formationsgröße", cloudCoverage: "Bedeckungsgrad", cloudSoftness: "Weichheit",
+  cloudOpacity: "Deckkraft", cloudDetail: "Detail (Oktaven)", clearZones: "Klarhimmel-Zonen",
+  warpStrength: "Verwirbelung", windSpeed: "Windgeschwindigkeit", windAngle: "Windrichtung °",
+  evolveSpeed: "Formveränderung", moonIntensity: "Mondlicht", moonAngle: "Mondrichtung °",
+  sunIntensity: "Sonnenlicht (Tag)", sunAngle: "Sonnenrichtung °", starOcclusion: "Sternverdeckung",
+  animate: "Animation", renderScale: "Render-Auflösung", fpsCap: "FPS-Limit",
+};
+
+/** German tooltips (English fallback = TIPS). */
+const TIPS_DE = {
+  dayness:        "Mischung zwischen Nacht (0) und Tag (1). Manuelles Verstellen schaltet die Automatik ab.",
+  dayTransition:  "Dauer der animierten Blende in Sekunden beim Tag/Nacht-Button. Die Blende selbst rendert vorübergehend mit 30 FPS und bleibt so auch bei niedrigem FPS-Limit flüssig.",
+  autoDayNight:   "Folgt der Ortszeit des Betrachters: nachts Sterne, tagsüber blauer Himmel, dazwischen Echtzeit-Dämmerung. Jede manuelle Änderung schaltet die Automatik ab.",
+  sunriseHour:    "Ortszeit-Stunde, auf der die Morgendämmerung zentriert ist (Automatik).",
+  sunsetHour:     "Ortszeit-Stunde, auf der die Abenddämmerung zentriert ist (Automatik).",
+  twilightHours:  "Länge des Dämmerungsfensters in Stunden (Automatik).",
+  vignette:       "Dunkelt die Bildecken fotografisch ab.",
+  skyTop:         "Farbe des Nachthimmels am oberen Bildrand.",
+  skyBottom:      "Farbe des Nachthimmels am Horizont (unten).",
+  skyTopDay:      "Farbe des Taghimmels am oberen Bildrand.",
+  skyBottomDay:   "Farbe des Taghimmels am Horizont (unten).",
+  skyFov:         "Grad Himmel auf der Bildhöhe — kleiner zoomt auf den Pol, größer zeigt mehr Sternbilder.",
+  polarisX:       "Horizontale Bildposition des Polarsterns, des Drehpunkts (0 = links, 1 = rechts).",
+  polarisY:       "Vertikale Bildposition des Polarsterns (0 = unten, 1 = oben).",
+  rotationPeriod: "Sekunden für eine volle Himmelsumdrehung um den Polarstern (echter Himmel: ~86.164 s).",
+  catalogSize:    "Punktgröße der echten Katalogsterne (Großer Wagen, Kassiopeia, Wega, Capella …).",
+  catalogBrightness: "Leuchtstärke der Katalogsterne.",
+  starDensity:    "Menge der schwachen prozeduralen Füllsterne.",
+  starSize:       "Punktgröße der Füllsterne.",
+  starBrightness: "Helligkeit der Füllsterne.",
+  twinkleAmount:  "Wie stark die Sterne funkeln.",
+  twinkleSpeed:   "Wie schnell die Sterne funkeln.",
+  cloudColor:     "Grundfarbe der Wolkenbänke bei Nacht.",
+  cloudColorDay:  "Grundfarbe der Wolkenbänke bei Tag.",
+  cloudScale:     "Räumliche Frequenz des Wolkenfelds: höher = mehr und kleinere Formationen, niedriger = wenige große Bänke.",
+  cloudCoverage:  "Wie viel des Himmels die Wolken bedecken.",
+  cloudSoftness:  "Kantenweichheit: niedrig = klare Ränder, hoch = dunstige Verläufe.",
+  cloudOpacity:   "Wie stark die Wolkenschicht Himmel und Sterne überdeckt.",
+  cloudDetail:    "Noise-Oktaven: mehr = feinere Binnenstruktur, etwas höhere GPU-Last.",
+  clearZones:     "Schneidet große Klarhimmel-Fenster zwischen die Bänke (0 = ein gleichmäßiges Feld).",
+  warpStrength:   "Domain-Warp: verbiegt und franst die Bankränder organisch aus.",
+  windSpeed:      "Driftgeschwindigkeit des gesamten Wolkenfelds.",
+  windAngle:      "Driftrichtung in Grad (0 = rechts, 90 = oben).",
+  evolveSpeed:    "Wie schnell die Bänke beim Driften ihre FORM verändern (Zeit als dritte Noise-Dimension).",
+  moonIntensity:  "Stärke des kühlen Kantenlichts an Wolkenrändern bei Nacht.",
+  moonAngle:      "Richtung, aus der das Mondlicht kommt (Grad).",
+  sunIntensity:   "Stärke des warmen Kantenlichts an Wolkenrändern bei Tag.",
+  sunAngle:       "Richtung, aus der das Sonnenlicht kommt (Grad).",
+  starOcclusion:  "Wie stark Wolken die Sterne dahinter verdecken.",
+  animate:        "Hauptschalter: aus friert die Szene als Standbild ein — die GPU rendert dann gar nicht mehr (Regler-Änderungen zeichnen einmalig neu).",
+  renderScale:    "Interne Render-Auflösung relativ zum Bildschirm — niedriger ist schneller; weiche Wolken kaschieren den Unterschied.",
+  fpsCap:         "Maximale Bilder pro Sekunde für den Hintergrund.",
+};
+
+const LANG_KEY = "mc-bg-prototype-lang";
+
+/** Active UI language; German browsers start in German, everyone else in English. */
+let lang = (() => {
+  try {
+    const stored = localStorage.getItem(LANG_KEY);
+    if (stored === "de" || stored === "en") return stored;
+  } catch { /* private mode */ }
+  return (navigator.language || "").toLowerCase().startsWith("de") ? "de" : "en";
+})();
+
+/** Resolved control label for the active language. */
+function labelFor(def) {
+  return lang === "de" ? (LABELS_DE[def.key] ?? def.label) : def.label;
+}
+
+/** Resolved tooltip for the active language. */
+function tipFor(key) {
+  return lang === "de" ? (TIPS_DE[key] ?? TIPS[key]) : TIPS[key];
+}
+
+const STORE_KEY = "mc-bg-prototype-v1";
+
+/** Current state = defaults overlaid with whatever the user saved last time. */
+const defaults = {};
+for (const p of PARAMS) defaults[p.key] = p.def;
+for (const c of COLORS) defaults[c.key] = c.def;
+let state = { ...defaults, ...(loadStore() || {}) };
+
+/**
+ * One-shot repaint request for the frozen state (`animate` off): the scene
+ * stops rendering entirely, but tuning changes still repaint a single frame.
+ * Starts true so the very first frame always draws.
+ */
+let needsRedraw = true;
+
+function loadStore() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; }
+}
+function saveStore() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* private mode */ }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Sidebar UI — built with plain DOM methods from the definitions above
+   ════════════════════════════════════════════════════════════════════════ */
+
+const controls = document.getElementById("controls");
+const groups = {};
+
+/** Returns (and lazily creates) the titled container for a control group. */
+function groupEl(name) {
+  if (!groups[name]) {
+    const g = document.createElement("div");
+    g.className = "group";
+    const h = document.createElement("h2");
+    h.textContent = UI[lang].groups[name] ?? name;
+    g.appendChild(h);
+    controls.appendChild(g);
+    groups[name] = g;
+  }
+  return groups[name];
+}
+
+/** Builds one labelled slider/checkbox/color row and wires its input → state. */
+function buildRow(def, type) {
+  const row = document.createElement("div");
+  row.className = "row";
+  // Hover tooltip on the whole row (label, control and value all answer).
+  if (tipFor(def.key)) row.title = tipFor(def.key);
+
+  const label = document.createElement("label");
+  label.textContent = labelFor(def);
+  row.appendChild(label);
+
+  const input = document.createElement("input");
+  input.type = type;
+  input.id = "in-" + def.key;
+  if (type === "range") {
+    input.min = def.min;
+    input.max = def.max;
+    input.step = def.step;
+  }
+  if (type === "checkbox") input.checked = !!state[def.key];
+  else input.value = state[def.key];
+  row.appendChild(input);
+
+  const val = document.createElement("span");
+  val.className = "val";
+  val.id = "val-" + def.key;
+  val.textContent = type === "checkbox" ? (state[def.key] ? "on" : "off") : state[def.key];
+  row.appendChild(val);
+
+  input.addEventListener("input", (e) => {
+    if (type === "checkbox") {
+      state[def.key] = e.target.checked ? 1 : 0;
+      val.textContent = e.target.checked ? "on" : "off";
+    } else {
+      state[def.key] = type === "range" ? parseFloat(e.target.value) : e.target.value;
+      val.textContent = e.target.value;
+    }
+    if (def.key === "renderScale") resize();
+    // Manually moving the day slider is an explicit override → auto mode off.
+    if (def.key === "dayness" && state.autoDayNight) setAutoDayNight(false);
+    // Switching auto ON adopts the local-time value immediately.
+    if (def.key === "autoDayNight") setAutoDayNight(!!state.autoDayNight);
+    needsRedraw = true; // frozen scene still reflects tuning changes once
+    saveStore();
+  });
+
+  groupEl(def.group).appendChild(row);
+}
+
+/** (Re)builds the whole control list — called on init and on language switch. */
+function rebuildControls() {
+  for (const key of Object.keys(groups)) delete groups[key];
+  controls.replaceChildren();
+  for (const c of COLORS) buildRow(c, "color");
+  for (const p of PARAMS) buildRow(p, p.bool ? "checkbox" : "range");
+
+  // GPU monitor row at the end of the Performance group: live timer where
+  // the extension exists, otherwise a one-shot gl.finish() benchmark button
+  // (see UI.gpuTip — best available energy proxy either way). The button's
+  // visibility is decided after GL setup by updateGpuRowMode().
+  const row = document.createElement("div");
+  row.className = "row";
+  row.title = UI[lang].gpuTip;
+  const label = document.createElement("label");
+  label.textContent = UI[lang].gpuLabel;
+  row.appendChild(label);
+  const bench = document.createElement("button");
+  bench.id = "gpu-bench";
+  bench.type = "button";
+  bench.textContent = UI[lang].gpuBench;
+  bench.style.display = "none";
+  row.appendChild(bench);
+  const val = document.createElement("span");
+  val.className = "val";
+  val.id = "gpu-val";
+  val.style.flex = "1";
+  val.textContent = "–";
+  row.appendChild(val);
+  groupEl("Performance").appendChild(row);
+}
+rebuildControls();
+
+/** Applies the static chrome texts (title, buttons, document metadata) for the active language. */
+function applyStaticTexts() {
+  const t = UI[lang];
+  document.documentElement.lang = lang;
+  document.querySelector("#panel h1").textContent = t.title;
+  document.querySelector("#panel .sub").textContent = t.sub;
+  document.getElementById("copy").textContent = t.copy;
+  document.getElementById("paste").textContent = t.paste;
+  document.getElementById("reset").textContent = t.reset;
+  document.getElementById("pause").textContent = paused ? t.resume : t.pause;
+  document.getElementById("langtoggle").textContent = lang === "de" ? "EN" : "DE";
+}
+
+/** Pushes the current state into every slider/checkbox/color input and value label. */
+function syncInputs() {
+  for (const d of [...PARAMS, ...COLORS]) {
+    const input = document.getElementById("in-" + d.key);
+    if (d.bool) {
+      input.checked = !!state[d.key];
+      document.getElementById("val-" + d.key).textContent = state[d.key] ? "on" : "off";
+    } else {
+      input.value = state[d.key];
+      document.getElementById("val-" + d.key).textContent = state[d.key];
+    }
+  }
+}
+
+/** Briefly shows a status note next to the buttons (copied/applied/error). */
+function flashFeedback(text) {
+  const tag = document.getElementById("copied");
+  tag.textContent = text;
+  tag.classList.add("show");
+  setTimeout(() => tag.classList.remove("show"), 1800);
+}
+
+/**
+ * Applies a parsed settings object onto the state. Unknown keys are ignored,
+ * numbers are clamped to their slider range, colors must be #rrggbb — so a
+ * pasted JSON from another window (or an older prototype version) can never
+ * break the shader.
+ *
+ * @returns Number of accepted keys (0 = nothing usable in the object).
+ */
+function applySettings(obj) {
+  if (!obj || typeof obj !== "object") return 0;
+  let accepted = 0;
+  for (const p of PARAMS) {
+    const v = Number(obj[p.key]);
+    if (Number.isFinite(v)) {
+      state[p.key] = Math.min(p.max, Math.max(p.min, v));
+      accepted++;
+    }
+  }
+  for (const c of COLORS) {
+    const v = obj[c.key];
+    if (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) {
+      state[c.key] = v.toLowerCase();
+      accepted++;
+    }
+  }
+  if (accepted > 0) {
+    dayAnim = null;          // a running day/night fade must not fight the paste
+    // Boolean params arrive as numbers; snap them to 0/1.
+    for (const p of PARAMS) if (p.bool) state[p.key] = state[p.key] >= 0.5 ? 1 : 0;
+    // Re-applying auto mode adopts the pasted clock settings immediately
+    // (and syncs every input, the toggle label and the store).
+    setAutoDayNight(!!state.autoDayNight);
+    resize();
+    needsRedraw = true;
+  }
+  return accepted;
+}
+
+document.getElementById("copy").addEventListener("click", async () => {
+  const json = JSON.stringify(state, null, 2);
+  try { await navigator.clipboard.writeText(json); } catch { /* clipboard may need user gesture context */ }
+  console.log("settings:", json);
+  flashFeedback(UI[lang].copied);
+});
+
+document.getElementById("paste").addEventListener("click", async () => {
+  // Clipboard read needs a permission grant (and may be unavailable on
+  // file://) — fall back to a manual paste prompt so the transfer always works.
+  let text = null;
+  try { text = await navigator.clipboard.readText(); } catch { /* fall through */ }
+  if (!text || !text.trim()) {
+    text = window.prompt(UI[lang].pastePrompt);
+  }
+  if (!text) return;
+  let parsed = null;
+  try { parsed = JSON.parse(text); } catch { /* reported below */ }
+  const accepted = parsed ? applySettings(parsed) : 0;
+  flashFeedback(accepted > 0 ? UI[lang].appliedFmt.replace("{n}", accepted) : UI[lang].invalid);
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  dayAnim = null;
+  state = { ...defaults };
+  saveStore();
+  syncInputs();
+  syncDayButton();
+  resize();
+  needsRedraw = true;
+});
+
+let paused = false;
+document.getElementById("pause").addEventListener("click", (e) => {
+  paused = !paused;
+  e.target.textContent = paused ? UI[lang].resume : UI[lang].pause;
+});
+
+/**
+ * Day/night toggle: animates `state.dayness` to 0 or 1 over
+ * `state.dayTransition` seconds (smoothstepped). The slider is the single
+ * source of truth — the animation just drives it, so manual mixing and the
+ * toggle never fight. `null` = no transition running.
+ */
+let dayAnim = null;
+const dayBtn = document.getElementById("daynight");
+
+/**
+ * Frame rate the manual day/night fade renders at (user decision 2026-06-12):
+ * the scene itself idles at a low FPS cap, but the one-second fade would look
+ * steppy there — so while `dayAnim` runs, the cap is temporarily raised to
+ * this value and falls back right after.
+ */
+const DAY_FADE_FPS = 30;
+
+/** Clamped smoothstep on 0..1 (shared by the fade and the twilight ramps). */
+function smooth01(t) {
+  t = Math.max(0, Math.min(1, t));
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Maps the viewer's local clock to a day amount: 0 at night, 1 at day, with
+ * a smooth twilight ramp of `twilightHours` centred on sunrise/sunset. The
+ * curve is continuous, so with auto mode left on, dawn and dusk play out in
+ * REAL TIME while the page is open (a deliberate "setzung", not a switch).
+ */
+function daynessForLocalTime(date = new Date()) {
+  const h = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+  const half = state.twilightHours / 2;
+  const up = smooth01((h - (state.sunriseHour - half)) / state.twilightHours);
+  const down = 1 - smooth01((h - (state.sunsetHour - half)) / state.twilightHours);
+  return up * down;
+}
+
+/** Reflects the current dayness target on the toggle button label. */
+function syncDayButton() {
+  dayBtn.textContent = state.dayness < 0.5 ? UI[lang].day : UI[lang].night;
+}
+syncDayButton();
+
+/**
+ * Turns auto mode on/off, keeping checkbox + stored state in sync. Turning
+ * it ON adopts the local-time value immediately (and cancels a running
+ * manual fade); turning it OFF freezes the current value for manual control.
+ */
+function setAutoDayNight(on) {
+  state.autoDayNight = on ? 1 : 0;
+  if (on) {
+    dayAnim = null;
+    state.dayness = Math.round(daynessForLocalTime() * 100) / 100;
+    needsRedraw = true;
+  }
+  syncInputs();
+  syncDayButton();
+  saveStore();
+}
+
+dayBtn.addEventListener("click", () => {
+  // Manual toggle is an explicit override → auto mode off, then fade.
+  if (state.autoDayNight) setAutoDayNight(false);
+  const to = state.dayness < 0.5 ? 1 : 0;
+  dayAnim = { from: state.dayness, to, t0: performance.now() };
+});
+
+/**
+ * Follows the local clock while auto mode is on (called once per frame).
+ * Slider/label only update when the rounded value actually changes — at a
+ * 1.5 h twilight that is roughly once every 54 s, the rest is uniform-only.
+ */
+function tickAutoDayNight() {
+  if (!state.autoDayNight || dayAnim) return;
+  const target = daynessForLocalTime();
+  const rounded = Math.round(target * 100) / 100;
+  if (rounded !== state.dayness) {
+    state.dayness = rounded;
+    document.getElementById("in-dayness").value = rounded;
+    document.getElementById("val-dayness").textContent = rounded;
+    syncDayButton();
+    // Auto mode keeps following the clock even with Animation off — the
+    // frozen scene then repaints roughly once a minute during twilight.
+    needsRedraw = true;
+  }
+}
+
+// A stored auto mode takes effect right on load (the "Setzung" on arrival).
+if (state.autoDayNight) setAutoDayNight(true);
+
+document.getElementById("langtoggle").addEventListener("click", () => {
+  lang = lang === "de" ? "en" : "de";
+  try { localStorage.setItem(LANG_KEY, lang); } catch { /* private mode */ }
+  applyStaticTexts();
+  rebuildControls();
+  syncDayButton();
+  updateGpuRowMode(); // the rebuilt monitor row needs its mode + listener again
+});
+
+// Apply the detected/stored language to the static chrome on load.
+applyStaticTexts();
+
+/** Advances the running day/night transition (called once per frame). */
+function tickDayAnim(now) {
+  if (!dayAnim) return;
+  const t = Math.min(1, (now - dayAnim.t0) / (state.dayTransition * 1000));
+  const eased = t * t * (3 - 2 * t); // smoothstep
+  state.dayness = dayAnim.from + (dayAnim.to - dayAnim.from) * eased;
+  const rounded = Math.round(state.dayness * 100) / 100;
+  document.getElementById("in-dayness").value = rounded;
+  document.getElementById("val-dayness").textContent = rounded;
+  if (t >= 1) {
+    state.dayness = dayAnim.to;
+    dayAnim = null;
+    saveStore();
+    syncDayButton();
+  }
+}
+document.getElementById("toggle").addEventListener("click", () => {
+  document.getElementById("panel").classList.toggle("hidden");
+});
+
+/* ════════════════════════════════════════════════════════════════════════
+   WebGL2 — three passes:
+     A) fullscreen quad: sky gradient + procedural faint star fill
+     B) point sprites:   the real catalog stars (rotating around Polaris)
+     C) fullscreen quad: clouds, alpha-blended over everything
+   Vignette is multiplied into each pass (same factor) so the composite
+   matches a single-pass result; dithering happens on the two large quads.
+   ════════════════════════════════════════════════════════════════════════ */
+
+const canvas = document.getElementById("scene");
+const gl = canvas.getContext("webgl2", { antialias: false, alpha: false, powerPreference: "low-power" });
+if (!gl) {
+  const msg = document.createElement("p");
+  msg.style.padding = "2rem";
+  msg.textContent = UI[lang].noWebgl;
+  document.body.replaceChildren(msg);
+  throw new Error("no webgl2");
+}
+
+/* ── Shared GLSL chunks (single source for both quad + point shaders) ──── */
+
+const GLSL_HASH = `
+float hash21(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+float hash13(vec3 p) {
+  p = fract(p * 0.1031);
+  p += dot(p, p.zyx + 31.32);
+  return fract((p.x + p.y) * p.z);
+}`;
+
+/* 3D value noise (xy = position, z = time) + fbm with runtime octave count. */
+const GLSL_NOISE = `
+float vnoise(vec3 p) {
+  vec3 i = floor(p), f = fract(p);
+  vec3 u = f * f * (3.0 - 2.0 * f);
+  float n000 = hash13(i);
+  float n100 = hash13(i + vec3(1, 0, 0));
+  float n010 = hash13(i + vec3(0, 1, 0));
+  float n110 = hash13(i + vec3(1, 1, 0));
+  float n001 = hash13(i + vec3(0, 0, 1));
+  float n101 = hash13(i + vec3(1, 0, 1));
+  float n011 = hash13(i + vec3(0, 1, 1));
+  float n111 = hash13(i + vec3(1, 1, 1));
+  return mix(
+    mix(mix(n000, n100, u.x), mix(n010, n110, u.x), u.y),
+    mix(mix(n001, n101, u.x), mix(n011, n111, u.x), u.y),
+    u.z);
+}
+float fbm(vec3 p, float octaves) {
+  float v = 0.0, amp = 0.5;
+  for (int i = 0; i < 7; i++) {
+    if (float(i) >= octaves) break;
+    v += amp * vnoise(p);
+    p = p * 2.03 + vec3(11.7, 5.3, 0.0);
+    amp *= 0.5;
+  }
+  return v;
+}`;
+
+/* Cloud field: identical math in the cloud quad (per pixel) and the star
+   pass (per vertex, for occlusion). Returns coverage-mapped cloud alpha. */
+const GLSL_CLOUD_FIELD = `
+uniform float u_cloudScale;
+uniform float u_cloudCoverage;
+uniform float u_cloudSoftness;
+uniform float u_cloudDetail;
+uniform float u_clearZones;
+uniform float u_warpStrength;
+uniform float u_windSpeed;
+uniform float u_windAngle;
+uniform float u_evolveSpeed;
+
+float cloudRaw(vec2 cuv, float t, out vec3 cpOut, out vec2 p2Out, out float tzOut) {
+  float wa = radians(u_windAngle);
+  vec2 wind = vec2(cos(wa), sin(wa)) * u_windSpeed * t;
+  vec2 p2 = cuv * u_cloudScale + wind;
+  float tz = t * u_evolveSpeed;
+  vec2 warp = vec2(
+    fbm(vec3(p2 * 0.9 + 13.1, tz * 0.7), 3.0),
+    fbm(vec3(p2 * 0.9 + 41.7, tz * 0.7), 3.0)
+  ) - 0.5;
+  cpOut = vec3(p2 + warp * u_warpStrength, tz);
+  p2Out = p2;
+  tzOut = tz;
+  return fbm(cpOut, u_cloudDetail);
+}
+float cloudMask(float n, vec2 p2, float tz) {
+  float cloud = smoothstep(1.0 - u_cloudCoverage - u_cloudSoftness,
+                           1.0 - u_cloudCoverage + u_cloudSoftness, n);
+  // Macro zones carve CLEAR sky windows between the banks. Sampled on the
+  // UNWARPED domain at 0.3× the formation frequency (large smooth regions).
+  float macroN = fbm(vec3(p2 * 0.3 + 71.3, tz * 0.4), 3.0);
+  return cloud * mix(1.0, smoothstep(0.36, 0.6, macroN), u_clearZones);
+}`;
+
+const GLSL_VIGNETTE = `
+uniform float u_vignette;
+float vignetteAt(vec2 cuv) {
+  return 1.0 - u_vignette * smoothstep(0.45, 1.25, length(cuv) * 1.15);
+}`;
+
+/* ── Pass A: sky gradient + procedural fill stars ─────────────────────── */
+
+const QUAD_VERT = `#version 300 es
+void main() {
+  vec2 p = vec2((gl_VertexID == 1) ? 3.0 : -1.0, (gl_VertexID == 2) ? 3.0 : -1.0);
+  gl_Position = vec4(p, 0.0, 1.0);
+}`;
+
+const SKY_FRAG = `#version 300 es
+precision highp float;
+out vec4 outColor;
+
+uniform vec2  u_resolution;
+uniform float u_time;
+uniform vec3  u_skyTop;
+uniform vec3  u_skyBottom;
+uniform vec3  u_skyTopDay;
+uniform vec3  u_skyBottomDay;
+uniform float u_dayness;        // 0 = night, 1 = summer day
+uniform vec2  u_polaris;        // rotation pivot in centered/aspect coords
+uniform float u_theta;          // current sky rotation angle (radians)
+uniform float u_starDensity;
+uniform float u_starSize;
+uniform float u_starBrightness;
+uniform float u_twinkleAmount;
+uniform float u_twinkleSpeed;
+
+#define TAU 6.28318530718
+${GLSL_HASH}
+${GLSL_VIGNETTE}
+
+mat2 rot2(float a) { return mat2(cos(a), -sin(a), sin(a), cos(a)); }
+
+float starLayer(vec2 uv, float density, float sizePx, float brightMul) {
+  vec2 g = uv * density;
+  vec2 id = floor(g);
+  vec2 f = fract(g);
+  float h = hash21(id);
+  float present = step(h, 0.22);
+  vec2 pos = vec2(hash21(id + 7.1), hash21(id + 3.7)) * 0.6 + 0.2;
+  float distPx = length(f - pos) * (u_resolution.y / density);
+  float star = smoothstep(sizePx, sizePx * 0.15, distPx);
+  float mag = pow(hash21(id + 13.3), 3.0);
+  float tw = 1.0 + u_twinkleAmount * sin(u_time * u_twinkleSpeed * (0.5 + h * 2.0) + h * TAU);
+  return star * present * mag * brightMul * tw;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  float aspect = u_resolution.x / u_resolution.y;
+  vec2 cuv = (uv - 0.5) * vec2(aspect, 1.0);
+
+  vec3 night = mix(u_skyBottom, u_skyTop, smoothstep(0.0, 1.0, uv.y));
+  vec3 day   = mix(u_skyBottomDay, u_skyTopDay, smoothstep(0.0, 1.0, uv.y));
+  vec3 col = mix(night, day, u_dayness);
+
+  // Fill stars rotate around the SAME pivot as the catalog stars (Polaris).
+  // Daylight washes them out EARLY in the transition (like the real dawn).
+  float starVis = 1.0 - smoothstep(0.05, 0.45, u_dayness);
+  vec2 suv = rot2(u_theta) * (cuv - u_polaris);
+  float stars = 0.0;
+  stars += starLayer(suv,        u_starDensity,        u_starSize,       1.0);
+  stars += starLayer(suv + 31.7, u_starDensity * 0.35, u_starSize * 1.5, 1.4);
+  stars *= u_starBrightness * starVis;
+  col += vec3(0.85, 0.92, 1.0) * stars;
+
+  col *= vignetteAt(cuv);
+  col += (hash21(gl_FragCoord.xy + fract(u_time)) - 0.5) / 255.0;
+  outColor = vec4(col, 1.0);
+}`;
+
+/* ── Pass B: catalog stars as point sprites ──────────────────────────────
+   Vertex input per star: angular distance from the pole (deg), base angle
+   (rad, chirality-correct: angle = -RA so constellations are NOT mirrored
+   when looking north from the inside of the sky sphere), magnitude, color.
+   The vertex shader also samples the cloud field once per star, so bright
+   stars fade behind banks even though clouds are a translucent layer. */
+
+const STAR_VERT = `#version 300 es
+precision highp float;
+in vec4 a_star;                  // x: polar dist (deg), y: -RA (rad), z: Vmag, w: colorClass
+
+uniform vec2  u_resolution;
+uniform float u_time;
+uniform vec2  u_polaris;
+uniform float u_theta;
+uniform float u_skyFov;          // degrees of sky mapped onto screen height
+uniform float u_catalogSize;
+uniform float u_catalogBrightness;
+uniform float u_twinkleAmount;
+uniform float u_twinkleSpeed;
+uniform float u_starOcclusion;
+uniform float u_sizeScale;       // CSS px → drawing-buffer px
+uniform float u_dayness;         // 0 = night, 1 = day (stars wash out early)
+
+out float v_alpha;
+out vec3  v_color;
+
+#define TAU 6.28318530718
+${GLSL_HASH}
+${GLSL_NOISE}
+${GLSL_CLOUD_FIELD}
+${GLSL_VIGNETTE}
+
+void main() {
+  float aspect = u_resolution.x / u_resolution.y;
+  float angle = a_star.y + u_theta;
+  // Screen-space radius: angular distance scaled by the visible sky window.
+  float r = a_star.x / u_skyFov;
+  vec2 cuv = u_polaris + vec2(cos(angle), sin(angle)) * r;
+
+  // centered/aspect coords → NDC
+  gl_Position = vec4(cuv.x * 2.0 / aspect, cuv.y * 2.0, 0.0, 1.0);
+
+  // Magnitude → size and brightness (visual, not photometric — tuned to read
+  // like the reference photo: a handful of clear leaders, many modest dots).
+  float m = a_star.z;
+  float sizeCss = u_catalogSize * (0.9 + (4.2 - m) * 0.55);
+  gl_PointSize = max(sizeCss * u_sizeScale, 1.0);
+
+  float seed = fract(a_star.y * 13.37 + a_star.x * 7.7);
+  float tw = 1.0 + u_twinkleAmount * 0.6 * sin(u_time * u_twinkleSpeed * (0.6 + seed * 1.8) + seed * TAU);
+  float bright = clamp(0.18 + (4.2 - m) * 0.26, 0.0, 1.3) * u_catalogBrightness * tw;
+
+  // Cloud occlusion: one field sample per star (cheap — ~60 vertices).
+  vec3 cp; vec2 p2; float tz;
+  float n = cloudRaw(cuv, u_time, cp, p2, tz);
+  float cloud = cloudMask(n, p2, tz);
+  bright *= 1.0 - clamp(cloud * u_starOcclusion, 0.0, 1.0);
+  // Same dawn washout curve as the fill stars in the sky pass.
+  bright *= 1.0 - smoothstep(0.05, 0.45, u_dayness);
+
+  v_alpha = bright * vignetteAt(cuv);
+
+  // colorClass: 0 blue-white, 1 white, 2 warm.
+  vec3 blueWhite = vec3(0.72, 0.82, 1.00);
+  vec3 white     = vec3(0.95, 0.97, 1.00);
+  vec3 warm      = vec3(1.00, 0.86, 0.68);
+  v_color = (a_star.w < 0.5) ? blueWhite : (a_star.w < 1.5) ? white : warm;
+}`;
+
+const STAR_FRAG = `#version 300 es
+precision highp float;
+in float v_alpha;
+in vec3  v_color;
+out vec4 outColor;
+
+void main() {
+  // Soft round core + faint halo inside the point sprite.
+  float d = length(gl_PointCoord - 0.5) * 2.0;
+  float core = smoothstep(1.0, 0.15, d);
+  float halo = smoothstep(1.0, 0.0, d) * 0.25;
+  // Additive blending: output IS the light added to the scene.
+  outColor = vec4(v_color * v_alpha * (core + halo), 1.0);
+}`;
+
+/* ── Pass C: clouds (alpha-blended on top) ──────────────────────────────── */
+
+const CLOUD_FRAG = `#version 300 es
+precision highp float;
+out vec4 outColor;
+
+uniform vec2  u_resolution;
+uniform float u_time;
+uniform vec3  u_cloudColor;
+uniform vec3  u_cloudColorDay;
+uniform float u_cloudOpacity;
+uniform float u_moonIntensity;
+uniform float u_moonAngle;
+uniform float u_sunIntensity;
+uniform float u_sunAngle;
+uniform float u_dayness;
+
+${GLSL_HASH}
+${GLSL_NOISE}
+${GLSL_CLOUD_FIELD}
+${GLSL_VIGNETTE}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  float aspect = u_resolution.x / u_resolution.y;
+  vec2 cuv = (uv - 0.5) * vec2(aspect, 1.0);
+
+  vec3 cp; vec2 p2; float tz;
+  float n = cloudRaw(cuv, u_time, cp, p2, tz);
+  float cloud = cloudMask(n, p2, tz);
+
+  // Lit rims: re-sample a small step toward the active light source
+  // (moon by night, sun by day — direction blends through the transition).
+  float laM = radians(u_moonAngle);
+  float laS = radians(u_sunAngle);
+  vec2 ldir = normalize(mix(vec2(cos(laM), sin(laM)), vec2(cos(laS), sin(laS)), u_dayness));
+  float nL = fbm(vec3(cp.xy + ldir * 0.18, cp.z), min(u_cloudDetail, 4.0));
+  float rim = clamp((n - nL) * 4.5, 0.0, 1.0) * cloud;
+
+  float coreShade = smoothstep(0.4, 1.0, n) * cloud;
+
+  // Night: dark blue-grey banks, faint cool moonlight, deep cores.
+  vec3 nightCol = u_cloudColor + u_moonIntensity * rim * vec3(0.50, 0.56, 0.62);
+  nightCol *= 1.0 - 0.42 * coreShade;
+
+  // Day: bright white banks, warm sunlight, soft blue-grey shadow cores.
+  vec3 dayCol = u_cloudColorDay + u_sunIntensity * rim * vec3(1.00, 0.97, 0.88);
+  dayCol = mix(dayCol, dayCol * vec3(0.72, 0.78, 0.86), coreShade * 0.55);
+
+  vec3 cloudCol = mix(nightCol, dayCol, u_dayness);
+  cloudCol *= vignetteAt(cuv);
+  cloudCol += (hash21(gl_FragCoord.xy + fract(u_time)) - 0.5) / 255.0;
+
+  outColor = vec4(cloudCol, cloud * u_cloudOpacity);
+}`;
+
+/* ── Program/buffer setup ───────────────────────────────────────────────── */
+
+/** Compiles a shader stage and throws with the info log on failure. */
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    throw new Error(gl.getShaderInfoLog(s) || "shader compile failed");
+  }
+  return s;
+}
+
+/** Links a program from two sources and throws with the log on failure. */
+function link(vertSrc, fragSrc) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, vertSrc));
+  gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fragSrc));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(p) || "link failed");
+  }
+  return p;
+}
+
+/** Collects the uniform locations a program actually uses (null entries are fine). */
+function locations(prog, names) {
+  const out = {};
+  for (const n of names) out[n] = gl.getUniformLocation(prog, n);
+  return out;
+}
+
+const CLOUD_FIELD_UNIFORMS = [
+  "u_cloudScale", "u_cloudCoverage", "u_cloudSoftness", "u_cloudDetail",
+  "u_clearZones", "u_warpStrength", "u_windSpeed", "u_windAngle", "u_evolveSpeed",
+];
+
+const progSky = link(QUAD_VERT, SKY_FRAG);
+const locSky = locations(progSky, [
+  "u_resolution", "u_time", "u_skyTop", "u_skyBottom", "u_skyTopDay", "u_skyBottomDay", "u_dayness",
+  "u_polaris", "u_theta",
+  "u_starDensity", "u_starSize", "u_starBrightness", "u_twinkleAmount", "u_twinkleSpeed", "u_vignette",
+]);
+
+const progStar = link(STAR_VERT, STAR_FRAG);
+const locStar = locations(progStar, [
+  "u_resolution", "u_time", "u_polaris", "u_theta", "u_skyFov",
+  "u_catalogSize", "u_catalogBrightness", "u_twinkleAmount", "u_twinkleSpeed",
+  "u_starOcclusion", "u_sizeScale", "u_vignette", "u_dayness", ...CLOUD_FIELD_UNIFORMS,
+]);
+
+const progCloud = link(QUAD_VERT, CLOUD_FRAG);
+const locCloud = locations(progCloud, [
+  "u_resolution", "u_time", "u_cloudColor", "u_cloudColorDay", "u_cloudOpacity",
+  "u_moonIntensity", "u_moonAngle", "u_sunIntensity", "u_sunAngle", "u_dayness",
+  "u_vignette", ...CLOUD_FIELD_UNIFORMS,
+]);
+
+/* Star attribute buffer: vec4(angular dist from pole °, -RA rad, mag, color). */
+const starData = new Float32Array(STAR_CATALOG.length * 4);
+STAR_CATALOG.forEach(([raHours, decDeg, mag, colorClass], i) => {
+  starData[i * 4 + 0] = 90.0 - decDeg;                       // polar distance
+  starData[i * 4 + 1] = -(raHours / 24.0) * Math.PI * 2.0;    // chirality: see STAR_VERT
+  starData[i * 4 + 2] = mag;
+  starData[i * 4 + 3] = colorClass;
+});
+const starVao = gl.createVertexArray();
+gl.bindVertexArray(starVao);
+const starBuf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, starBuf);
+gl.bufferData(gl.ARRAY_BUFFER, starData, gl.STATIC_DRAW);
+const aStar = gl.getAttribLocation(progStar, "a_star");
+gl.enableVertexAttribArray(aStar);
+gl.vertexAttribPointer(aStar, 4, gl.FLOAT, false, 0, 0);
+gl.bindVertexArray(null);
+
+/* ── GPU monitor: measured render time per frame ─────────────────────────
+   EXT_disjoint_timer_query_webgl2 (Chrome) reports how long the GPU was
+   actually busy with our draws. Browsers expose no real power numbers, so
+   busy-% (time × FPS) is the closest available energy proxy. Results arrive
+   asynchronously a few frames later; an EMA smooths them. */
+const gpuExt = gl.getExtension("EXT_disjoint_timer_query_webgl2");
+const gpuQueries = [];
+let gpuMsEma = 0;
+let lastGpuUi = 0;
+
+/** Starts a per-frame GPU timer query (null when unsupported or pool full). */
+function beginGpuTimer() {
+  if (!gpuExt || gpuQueries.length >= 8) return null;
+  const q = gl.createQuery();
+  gl.beginQuery(gpuExt.TIME_ELAPSED_EXT, q);
+  return q;
+}
+
+/** Ends the running query and queues it for asynchronous collection. */
+function endGpuTimer(q) {
+  if (!q) return;
+  gl.endQuery(gpuExt.TIME_ELAPSED_EXT);
+  gpuQueries.push(q);
+}
+
+/** Collects finished queries into the EMA (drops everything on a disjoint event). */
+function pollGpuTimers() {
+  if (!gpuExt || gpuQueries.length === 0) return;
+  if (gl.getParameter(gpuExt.GPU_DISJOINT_EXT)) {
+    for (const q of gpuQueries) gl.deleteQuery(q);
+    gpuQueries.length = 0;
+    return;
+  }
+  while (gpuQueries.length && gl.getQueryParameter(gpuQueries[0], gl.QUERY_RESULT_AVAILABLE)) {
+    const q = gpuQueries.shift();
+    const ms = gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6;
+    gl.deleteQuery(q);
+    gpuMsEma = gpuMsEma ? gpuMsEma * 0.85 + ms * 0.15 : ms;
+  }
+}
+
+/** Refreshes the live sidebar monitor (throttled; no-op in benchmark mode). */
+function updateGpuUi(now) {
+  if (!gpuExt) return; // benchmark mode: the Measure button owns the value
+  if (now - lastGpuUi < 500) return;
+  lastGpuUi = now;
+  const el = document.getElementById("gpu-val");
+  if (!el) return;
+  if (!gpuMsEma) { el.textContent = "–"; return; }
+  const busy = state.animate ? Math.min(100, (gpuMsEma * fpsEma) / 10) : 0;
+  el.textContent = gpuMsEma.toFixed(2) + " ms/frame · ~" + busy.toFixed(1) + "% busy";
+}
+
+/**
+ * Fallback measurement for browsers without the timer extension (notably
+ * Chrome on macOS, where ANGLE-on-Metal blocks it): render 30 frames with a
+ * hard CPU↔GPU sync and average the wall time. The sync overhead makes this
+ * a slight UPPER bound of the real per-frame GPU cost — good enough to judge
+ * what each slider costs. Blocks the main thread for ~30× the frame time,
+ * which is fine for an explicit, user-triggered measurement.
+ */
+function runGpuBenchmark() {
+  drawScene();
+  gl.finish(); // warm-up + drain the pipeline so we measure steady state
+  const FRAMES = 30;
+  const t0 = performance.now();
+  for (let i = 0; i < FRAMES; i++) {
+    drawScene();
+    gl.finish();
+  }
+  return (performance.now() - t0) / FRAMES;
+}
+
+/**
+ * Switches the monitor row into live or benchmark mode (called after GL
+ * setup and after every language rebuild). Fresh button element per rebuild,
+ * so re-adding the listener cannot stack.
+ */
+function updateGpuRowMode() {
+  const bench = document.getElementById("gpu-bench");
+  const val = document.getElementById("gpu-val");
+  if (!bench || !val) return;
+  if (gpuExt) return; // live mode: button stays hidden, frame loop updates the value
+  bench.style.display = "";
+  val.textContent = UI[lang].gpuNA;
+  bench.addEventListener("click", () => {
+    const ms = runGpuBenchmark();
+    const busy = Math.min(100, (ms * state.fpsCap) / 10);
+    val.textContent = ms.toFixed(2) + " ms/frame · ~" + busy.toFixed(1) + "% busy" + UI[lang].gpuBenchSuffix;
+  });
+}
+updateGpuRowMode();
+
+/** '#rrggbb' → [r,g,b] in 0..1. */
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+
+/** Sizes the drawing buffer to CSS size × renderScale × DPR (clamped to 2). */
+function resize() {
+  const scale = state.renderScale * Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.max(1, Math.round(canvas.clientWidth * scale));
+  canvas.height = Math.max(1, Math.round(canvas.clientHeight * scale));
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  document.getElementById("res").textContent = "· " + canvas.width + "×" + canvas.height;
+  needsRedraw = true; // a frozen scene must repaint at the new size
+}
+window.addEventListener("resize", resize);
+resize();
+
+/** Sets the cloud-field uniforms shared by the star and cloud programs. */
+function setCloudFieldUniforms(loc) {
+  gl.uniform1f(loc.u_cloudScale, state.cloudScale);
+  gl.uniform1f(loc.u_cloudCoverage, state.cloudCoverage);
+  gl.uniform1f(loc.u_cloudSoftness, state.cloudSoftness);
+  gl.uniform1f(loc.u_cloudDetail, state.cloudDetail);
+  gl.uniform1f(loc.u_clearZones, state.clearZones);
+  gl.uniform1f(loc.u_warpStrength, state.warpStrength);
+  gl.uniform1f(loc.u_windSpeed, state.windSpeed);
+  gl.uniform1f(loc.u_windAngle, state.windAngle);
+  gl.uniform1f(loc.u_evolveSpeed, state.evolveSpeed);
+}
+
+/* ── Render loop with FPS cap + pause-aware clock ───────────────────── */
+let last = performance.now();
+let simTime = 0;          // seconds of animation time (excludes paused spans)
+let fpsEma = 0;
+let lastDraw = 0;
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dtMs = now - last;
+  last = now;
+  if (paused) return;
+  tickDayAnim(now);
+  tickAutoDayNight();
+  updateGpuUi(now);
+
+  const animating = !!state.animate;
+  if (animating) simTime += dtMs / 1000; // frozen scene keeps its moment in time
+
+  // Manual day/night fade temporarily lifts the cap so the blend stays smooth.
+  const effectiveFps = dayAnim ? Math.max(state.fpsCap, DAY_FADE_FPS) : state.fpsCap;
+  const interval = 1000 / effectiveFps;
+  if (now - lastDraw < interval - 1) return;
+  // Animation off: skip ALL GPU work unless something asked for a repaint
+  // (tuning change, resize, day/night fade, auto-clock step).
+  if (!animating && !needsRedraw && !dayAnim) {
+    const fpsEl = document.getElementById("fps");
+    if (fpsEl.textContent !== "–") fpsEl.textContent = "–";
+    return;
+  }
+  needsRedraw = false;
+  const drawDt = now - lastDraw;
+  lastDraw = now;
+
+  if (animating) {
+    fpsEma = fpsEma ? fpsEma * 0.9 + (1000 / drawDt) * 0.1 : 1000 / drawDt;
+    document.getElementById("fps").textContent = fpsEma.toFixed(0);
+  }
+
+  const gpuQuery = beginGpuTimer();
+  drawScene();
+  endGpuTimer(gpuQuery);
+  pollGpuTimers();
+}
+
+/** Renders the full three-pass scene once from the current state/simTime. */
+function drawScene() {
+  const aspect = canvas.width / canvas.height;
+  // Rotation pivot in centered/aspect coords (matches cuv in the shaders).
+  const polX = (state.polarisX - 0.5) * aspect;
+  const polY = state.polarisY - 0.5;
+  // Counter-clockwise, like the real northern sky.
+  const theta = (simTime / state.rotationPeriod) * Math.PI * 2.0;
+  const sizeScale = state.renderScale * Math.min(window.devicePixelRatio || 1, 2);
+
+  // Pass A — sky + fill stars (opaque base).
+  gl.disable(gl.BLEND);
+  gl.useProgram(progSky);
+  gl.uniform2f(locSky.u_resolution, canvas.width, canvas.height);
+  gl.uniform1f(locSky.u_time, simTime);
+  gl.uniform3fv(locSky.u_skyTop, hexToRgb(state.skyTop));
+  gl.uniform3fv(locSky.u_skyBottom, hexToRgb(state.skyBottom));
+  gl.uniform3fv(locSky.u_skyTopDay, hexToRgb(state.skyTopDay));
+  gl.uniform3fv(locSky.u_skyBottomDay, hexToRgb(state.skyBottomDay));
+  gl.uniform1f(locSky.u_dayness, state.dayness);
+  gl.uniform2f(locSky.u_polaris, polX, polY);
+  gl.uniform1f(locSky.u_theta, theta);
+  gl.uniform1f(locSky.u_starDensity, state.starDensity);
+  gl.uniform1f(locSky.u_starSize, state.starSize * sizeScale);
+  gl.uniform1f(locSky.u_starBrightness, state.starBrightness);
+  gl.uniform1f(locSky.u_twinkleAmount, state.twinkleAmount);
+  gl.uniform1f(locSky.u_twinkleSpeed, state.twinkleSpeed);
+  gl.uniform1f(locSky.u_vignette, state.vignette);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  // Pass B — catalog stars, additive.
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE);
+  gl.useProgram(progStar);
+  gl.uniform2f(locStar.u_resolution, canvas.width, canvas.height);
+  gl.uniform1f(locStar.u_time, simTime);
+  gl.uniform2f(locStar.u_polaris, polX, polY);
+  gl.uniform1f(locStar.u_theta, theta);
+  gl.uniform1f(locStar.u_skyFov, state.skyFov);
+  gl.uniform1f(locStar.u_catalogSize, state.catalogSize);
+  gl.uniform1f(locStar.u_catalogBrightness, state.catalogBrightness);
+  gl.uniform1f(locStar.u_twinkleAmount, state.twinkleAmount);
+  gl.uniform1f(locStar.u_twinkleSpeed, state.twinkleSpeed);
+  gl.uniform1f(locStar.u_starOcclusion, state.starOcclusion);
+  gl.uniform1f(locStar.u_sizeScale, sizeScale);
+  gl.uniform1f(locStar.u_vignette, state.vignette);
+  gl.uniform1f(locStar.u_dayness, state.dayness);
+  setCloudFieldUniforms(locStar);
+  gl.bindVertexArray(starVao);
+  gl.drawArrays(gl.POINTS, 0, STAR_CATALOG.length);
+  gl.bindVertexArray(null);
+
+  // Pass C — clouds over everything.
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.useProgram(progCloud);
+  gl.uniform2f(locCloud.u_resolution, canvas.width, canvas.height);
+  gl.uniform1f(locCloud.u_time, simTime);
+  gl.uniform3fv(locCloud.u_cloudColor, hexToRgb(state.cloudColor));
+  gl.uniform3fv(locCloud.u_cloudColorDay, hexToRgb(state.cloudColorDay));
+  gl.uniform1f(locCloud.u_cloudOpacity, state.cloudOpacity);
+  gl.uniform1f(locCloud.u_moonIntensity, state.moonIntensity);
+  gl.uniform1f(locCloud.u_moonAngle, state.moonAngle);
+  gl.uniform1f(locCloud.u_sunIntensity, state.sunIntensity);
+  gl.uniform1f(locCloud.u_sunAngle, state.sunAngle);
+  gl.uniform1f(locCloud.u_dayness, state.dayness);
+  gl.uniform1f(locCloud.u_vignette, state.vignette);
+  setCloudFieldUniforms(locCloud);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
