@@ -1,8 +1,9 @@
-import { type CSSProperties, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { usePrefersReducedMotion } from "@/components/ui/usePrefersReducedMotion";
 import {
+  type NormalizedVfdLine,
   type VfdCanvasRenderState,
   VfdContentTransition,
   type VfdDisplayProps,
@@ -23,7 +24,56 @@ import {
 import { normalizeLine, sameLinePresentation } from "@/components/ui/vfdDisplayNormalize";
 import { cn } from "@/lib/utils";
 
+/**
+ * Syncs a fresh set of normalized lines into the mutable canvas render state,
+ * arming a swap transition for any row whose content changed (unless reduced
+ * motion or `transition: none`). Shared by the React `lines` effect and the
+ * imperative {@link VfdDisplayHandle.setLines} path so both behave identically.
+ *
+ * @param state - The mutable render snapshot the canvas reads each frame.
+ * @param normalizedLines - The new line set to install.
+ * @param cellCount - Current glyph-cell count.
+ * @param rowCount - Current row count.
+ * @param prefersReducedMotion - Whether content swaps animate.
+ * @param now - Timestamp used as the transition start.
+ */
+function syncRenderStateLines(
+  state: VfdCanvasRenderState,
+  normalizedLines: NormalizedVfdLine[],
+  cellCount: number,
+  rowCount: number,
+  prefersReducedMotion: boolean,
+  now: number,
+): void {
+  normalizedLines.forEach((line, index) => {
+    const previousLine = state.lines[index];
+    if (!previousLine || sameLinePresentation(previousLine, line)) return;
+    if (
+      previousLine.contentKey !== line.contentKey &&
+      line.transition !== VfdContentTransition.None &&
+      !prefersReducedMotion
+    ) {
+      state.transitions.set(index, { previous: previousLine, startedAt: now, durationMs: VFD_LINE_SWAP_MS });
+    } else {
+      state.transitions.delete(index);
+    }
+  });
+  for (const rowIndex of Array.from(state.transitions.keys())) {
+    if (rowIndex >= rowCount) state.transitions.delete(rowIndex);
+  }
+  state.lines = normalizedLines;
+  state.cellCount = cellCount;
+  state.rowCount = rowCount;
+  state.prefersReducedMotion = prefersReducedMotion;
+}
+
+/** Monotonic-ish frame timestamp with a Date fallback for non-DOM environments. */
+function frameNow(): number {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+
 export type {
+  VfdDisplayHandle,
   VfdDisplayLine,
   VfdDisplayProps,
   VfdDisplaySection,
@@ -71,6 +121,7 @@ export function VfdDisplay({
   className,
   ariaLabel,
   phosphorColor,
+  controllerRef,
 }: VfdDisplayProps) {
   const configuredRowCount = normalizePositiveInteger(rows ?? lines.length, DEFAULT_VFD_ROWS);
   const requestedCellCount = normalizePositiveInteger(charsPerLine, DEFAULT_VFD_CELL_COUNT);
@@ -101,30 +152,34 @@ export function VfdDisplay({
   });
 
   useLayoutEffect(() => {
-    const state = renderStateRef.current;
-    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-    normalizedLines.forEach((line, index) => {
-      const previousLine = state.lines[index];
-      if (!previousLine || sameLinePresentation(previousLine, line)) return;
-      if (
-        previousLine.contentKey !== line.contentKey &&
-        line.transition !== VfdContentTransition.None &&
-        !prefersReducedMotion
-      ) {
-        state.transitions.set(index, { previous: previousLine, startedAt: now, durationMs: VFD_LINE_SWAP_MS });
-      } else {
-        state.transitions.delete(index);
-      }
-    });
-    for (const rowIndex of Array.from(state.transitions.keys())) {
-      if (rowIndex >= rowCount) state.transitions.delete(rowIndex);
-    }
-    state.lines = normalizedLines;
-    state.cellCount = cellCount;
-    state.rowCount = rowCount;
-    state.prefersReducedMotion = prefersReducedMotion;
+    syncRenderStateLines(
+      renderStateRef.current,
+      normalizedLines,
+      cellCount,
+      rowCount,
+      prefersReducedMotion,
+      frameNow(),
+    );
     requestDrawRef.current?.();
   }, [cellCount, normalizedLines, prefersReducedMotion, rowCount]);
+
+  // Imperative escape hatch for high-frequency consumers (the audio analyzer
+  // at 20 Hz). The consumer rebuilds the same line model and pushes it straight
+  // onto the canvas render state, so the spectrum repaints without a React
+  // commit. The React `lines` effect above still owns the initial frame and
+  // low-frequency changes (resize, playtime, mode), and both paths funnel
+  // through the same sync helper to stay consistent.
+  useImperativeHandle(
+    controllerRef,
+    () => ({
+      setLines: (nextLines) => {
+        const normalized = Array.from({ length: rowCount }, (_, index) => normalizeLine(index, nextLines[index]));
+        syncRenderStateLines(renderStateRef.current, normalized, cellCount, rowCount, prefersReducedMotion, frameNow());
+        requestDrawRef.current?.();
+      },
+    }),
+    [cellCount, rowCount, prefersReducedMotion],
+  );
 
   useLayoutEffect(() => {
     const element = vfdRef.current;

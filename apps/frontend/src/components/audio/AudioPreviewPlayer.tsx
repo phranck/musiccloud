@@ -4,6 +4,14 @@ import {
   AudioPreviewStatus,
   type AudioPreviewStatus as AudioPreviewStatusType,
 } from "@/components/audio/AudioPreviewStatus";
+import {
+  clearSpectrumFrame,
+  getSpectrumFrame,
+  isSpectrumActive,
+  publishSpectrumFrame,
+  writeSpectrumLevels,
+  writeSpectrumPeakHold,
+} from "@/components/audio/spectrumStore";
 import { Player } from "@/components/playback/Player";
 import { useT } from "@/i18n/context";
 import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
@@ -191,11 +199,6 @@ const TEARDOWN_FADE_GUARD_MS = 10;
 
 type BrowserAudioContextConstructor = typeof AudioContext;
 
-interface StereoSpectrumBands {
-  left: number[];
-  right: number[];
-}
-
 interface StereoSpectrumData {
   left: Uint8Array<ArrayBuffer>;
   right: Uint8Array<ArrayBuffer>;
@@ -210,29 +213,15 @@ interface StereoSpectrumAnalysers {
 }
 
 /**
- * Smoothed per-channel level (0..1) derived from the analyser's time-domain
- * RMS. Drives the horizontal VU bars in the stereo-VU display mode.
- */
-interface StereoLevels {
-  left: number;
-  right: number;
-}
-
-/**
- * Per-channel peak hold level (0..1) and the timestamp at which it was
- * last refreshed. The hold value latches at the most recent maximum of
- * `StereoLevels`, stays put for `STEREO_PEAK_HOLD_MS`, then decays back to
+ * Per-channel peak hold level (0..1) and the timestamp at which it was last
+ * refreshed. The hold value latches at the most recent maximum of the
+ * smoothed VU level, stays put for `STEREO_PEAK_HOLD_MS`, then decays back to
  * zero. Drives the standalone "stuck" peak pixel column in the stereo-VU
  * display mode.
  */
 interface StereoPeakHoldState {
   level: number;
   setAt: number;
-}
-
-interface StereoPeakHold {
-  left: number;
-  right: number;
 }
 
 /**
@@ -329,26 +318,6 @@ function resolveSpectrumBandRange(band: number, bandCount: number, usableBins: n
   return [start, Math.max(start + 1, end)];
 }
 
-function sameSpectrumBands(a: readonly number[] | null, b: readonly number[]): boolean {
-  return a !== null && a.length === b.length && a.every((value, index) => value === b[index]);
-}
-
-function sameStereoSpectrumBands(a: StereoSpectrumBands | null, b: StereoSpectrumBands): boolean {
-  return a !== null && sameSpectrumBands(a.left, b.left) && sameSpectrumBands(a.right, b.right);
-}
-
-function fadeSpectrumBands(bands: StereoSpectrumBands): StereoSpectrumBands {
-  const fadeBand = (band: number) => (band <= SPECTRUM_FADE_MIN_LEVEL ? 0 : band * SPECTRUM_FADE_FACTOR);
-  return {
-    left: bands.left.map(fadeBand),
-    right: bands.right.map(fadeBand),
-  };
-}
-
-function hasVisibleSpectrumBands(bands: StereoSpectrumBands): boolean {
-  return bands.left.some((band) => band > 0) || bands.right.some((band) => band > 0);
-}
-
 /**
  * RMS over a time-domain byte buffer (each byte centred at 128 for silence).
  * The result is normalised so a fully silent buffer returns 0 and a
@@ -375,18 +344,6 @@ function decayStereoLevel(previousLevel: number): number {
   return next < 0.005 ? 0 : next;
 }
 
-function sameStereoLevels(a: StereoLevels | null, b: StereoLevels | null): boolean {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  return a.left === b.left && a.right === b.right;
-}
-
-function sameStereoPeakHold(a: StereoPeakHold | null, b: StereoPeakHold | null): boolean {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  return a.left === b.left && a.right === b.right;
-}
-
 /**
  * Advances one channel's peak hold state for the current spectrum tick.
  * The latch snaps to the new level whenever the live signal pushes higher
@@ -409,9 +366,21 @@ function decayPeakHoldChannel(state: StereoPeakHoldState): StereoPeakHoldState {
   return { level: next < 0.005 ? 0 : next, setAt: state.setAt };
 }
 
-function resolveSpectrumBands(frequencyData: Uint8Array<ArrayBuffer>, bandCount: number): number[] {
+/**
+ * Resolves the per-band levels from raw FFT bytes and writes them in place
+ * into `dest` — zero allocation per tick (policy 7; the former
+ * `resolveSpectrumBands` allocated two fresh arrays every 50 ms). Two passes:
+ * fill the raw band levels, then normalise by the frame peak so quiet
+ * passages still deflect. The math is identical to the previous version.
+ *
+ * @param frequencyData - Raw byte FFT magnitudes for one channel.
+ * @param bandCount - Number of bands to fill (must not exceed `dest.length`).
+ * @param dest - Pre-allocated band buffer, written in place.
+ */
+function resolveSpectrumBandsInto(frequencyData: Uint8Array<ArrayBuffer>, bandCount: number, dest: Float32Array): void {
   const usableBins = Math.max(1, frequencyData.length - 2);
-  const rawBands = Array.from({ length: bandCount }, (_, band) => {
+  let framePeak = 0;
+  for (let band = 0; band < bandCount; band += 1) {
     const [start, end] = resolveSpectrumBandRange(band, bandCount, usableBins);
     let total = 0;
     let count = 0;
@@ -425,12 +394,20 @@ function resolveSpectrumBands(frequencyData: Uint8Array<ArrayBuffer>, bandCount:
     const lowFrequencyDamping = 0.4 + position * 0.82;
     const dynamicCurve = 1.12 + lowBandRatio * 0.38;
     const normalized = Math.max(0, total / Math.max(1, count) / 255 - 0.04) / 0.96;
-    return normalized ** dynamicCurve * lowFrequencyDamping;
-  });
+    const value = normalized ** dynamicCurve * lowFrequencyDamping;
+    dest[band] = value;
+    if (value > framePeak) framePeak = value;
+  }
 
-  const framePeak = Math.max(...rawBands, 0);
   const frameGain = framePeak > 0 ? Math.min(1.45, 0.82 / Math.max(framePeak, 0.42)) : 1;
-  return rawBands.map((band) => Math.min(1, band * frameGain));
+  for (let band = 0; band < bandCount; band += 1) {
+    dest[band] = Math.min(1, (dest[band] ?? 0) * frameGain);
+  }
+}
+
+/** One band's fade-out step (mirrors the former `fadeSpectrumBands` map). */
+function fadeBandValue(band: number): number {
+  return band <= SPECTRUM_FADE_MIN_LEVEL ? 0 : band * SPECTRUM_FADE_FACTOR;
 }
 
 function useAudioPreviewController({
@@ -457,18 +434,15 @@ function useAudioPreviewController({
   const spectrumFrameRef = useRef<number | null>(null);
   const spectrumDataRef = useRef<StereoSpectrumData | null>(null);
   const spectrumLastUpdateRef = useRef(0);
-  const spectrumBandsRef = useRef<StereoSpectrumBands | null>(null);
-  const stereoLevelsRef = useRef<StereoLevels | null>(null);
+  // Peak-hold timing state stays local (the store only carries the resulting
+  // level, not the per-channel hold timestamp). Bands/levels/peak-hold levels
+  // live in the spectrum store and are written in place each tick (Task 5.1).
   const peakHoldLeftRef = useRef<StereoPeakHoldState>({ level: 0, setAt: 0 });
   const peakHoldRightRef = useRef<StereoPeakHoldState>({ level: 0, setAt: 0 });
-  const stereoPeakHoldRef = useRef<StereoPeakHold | null>(null);
   const progressFrameRef = useRef<number | null>(null);
   const progressRewindFrameRef = useRef<number | null>(null);
   const progressRatioRef = useRef(0);
   const hasStartedRef = useRef(false);
-  const [spectrumBands, setSpectrumBands] = useState<StereoSpectrumBands | null>(null);
-  const [stereoLevels, setStereoLevels] = useState<StereoLevels | null>(null);
-  const [stereoPeakHold, setStereoPeakHold] = useState<StereoPeakHold | null>(null);
   const [progressRatio, setProgressRatio] = useState(0);
 
   // Lazy fetch the preview URL when the component mounted without one.
@@ -497,23 +471,10 @@ function useAudioPreviewController({
     return () => controller.abort();
   }, [previewUrl, refreshShortId]);
 
-  const updateStereoLevels = useCallback((next: StereoLevels | null) => {
-    if (sameStereoLevels(stereoLevelsRef.current, next)) return;
-    stereoLevelsRef.current = next;
-    setStereoLevels(next);
-  }, []);
-
-  const updateStereoPeakHold = useCallback((next: StereoPeakHold | null) => {
-    if (sameStereoPeakHold(stereoPeakHoldRef.current, next)) return;
-    stereoPeakHoldRef.current = next;
-    setStereoPeakHold(next);
-  }, []);
-
   const resetPeakHold = useCallback(() => {
     peakHoldLeftRef.current = { level: 0, setAt: 0 };
     peakHoldRightRef.current = { level: 0, setAt: 0 };
-    updateStereoPeakHold(null);
-  }, [updateStereoPeakHold]);
+  }, []);
 
   const stopSpectrumLoop = useCallback(
     ({ clearBands = true }: { clearBands?: boolean } = {}) => {
@@ -521,12 +482,10 @@ function useAudioPreviewController({
       spectrumFrameRef.current = null;
       spectrumLastUpdateRef.current = 0;
       if (!clearBands) return;
-      spectrumBandsRef.current = null;
-      setSpectrumBands(null);
-      updateStereoLevels(null);
+      clearSpectrumFrame();
       resetPeakHold();
     },
-    [resetPeakHold, updateStereoLevels],
+    [resetPeakHold],
   );
 
   const setProgressRatioValue = useCallback((ratio: number) => {
@@ -590,9 +549,8 @@ function useAudioPreviewController({
 
   const startSpectrumFadeOut = useCallback(() => {
     stopSpectrumLoop({ clearBands: false });
-    const currentBands = spectrumBandsRef.current;
-    const currentLevels = stereoLevelsRef.current;
-    if (!currentBands && !currentLevels) return;
+    if (!isSpectrumActive()) return;
+    const frame = getSpectrumFrame();
 
     const tick = (now: number) => {
       spectrumFrameRef.current = null;
@@ -602,35 +560,37 @@ function useAudioPreviewController({
       }
       spectrumLastUpdateRef.current = now;
 
-      const fadingBands = spectrumBandsRef.current ?? currentBands;
-      const fadingLevels = stereoLevelsRef.current ?? currentLevels;
-      const nextBands = fadingBands ? fadeSpectrumBands(fadingBands) : null;
-      const nextLevels: StereoLevels | null = fadingLevels
-        ? { left: decayStereoLevel(fadingLevels.left), right: decayStereoLevel(fadingLevels.right) }
-        : null;
+      // Decay every band toward zero in place (no allocation per fade tick).
+      let bandsStillVisible = false;
+      for (let band = 0; band < frame.leftBands.length; band += 1) {
+        const left = fadeBandValue(frame.leftBands[band] ?? 0);
+        const right = fadeBandValue(frame.rightBands[band] ?? 0);
+        frame.leftBands[band] = left;
+        frame.rightBands[band] = right;
+        if (left > 0 || right > 0) bandsStillVisible = true;
+      }
+      const nextLeftLevel = decayStereoLevel(frame.levels[0] ?? 0);
+      const nextRightLevel = decayStereoLevel(frame.levels[1] ?? 0);
+      writeSpectrumLevels(nextLeftLevel, nextRightLevel);
       const nextLeftHold = decayPeakHoldChannel(peakHoldLeftRef.current);
       const nextRightHold = decayPeakHoldChannel(peakHoldRightRef.current);
       peakHoldLeftRef.current = nextLeftHold;
       peakHoldRightRef.current = nextRightHold;
-      spectrumBandsRef.current = nextBands;
-      setSpectrumBands(nextBands);
-      updateStereoLevels(nextLevels && (nextLevels.left > 0 || nextLevels.right > 0) ? nextLevels : null);
+      writeSpectrumPeakHold(nextLeftHold.level, nextRightHold.level);
+      publishSpectrumFrame();
+
+      const levelsStillVisible = nextLeftLevel > 0 || nextRightLevel > 0;
       const peakHoldStillVisible = nextLeftHold.level > 0 || nextRightHold.level > 0;
-      updateStereoPeakHold(peakHoldStillVisible ? { left: nextLeftHold.level, right: nextRightHold.level } : null);
-      const bandsStillVisible = nextBands ? hasVisibleSpectrumBands(nextBands) : false;
-      const levelsStillVisible = nextLevels ? nextLevels.left > 0 || nextLevels.right > 0 : false;
       if (bandsStillVisible || levelsStillVisible || peakHoldStillVisible) {
         spectrumFrameRef.current = requestAnimationFrame(tick);
         return;
       }
-      spectrumBandsRef.current = null;
-      setSpectrumBands(null);
-      updateStereoLevels(null);
+      clearSpectrumFrame();
       resetPeakHold();
     };
 
     spectrumFrameRef.current = requestAnimationFrame(tick);
-  }, [resetPeakHold, stopSpectrumLoop, updateStereoLevels, updateStereoPeakHold]);
+  }, [resetPeakHold, stopSpectrumLoop]);
   const startSpectrumFadeOutFromEvent = useEffectEvent(startSpectrumFadeOut);
   const notifyStatusChange = useCallback(
     (status: AudioPreviewStatusType) => {
@@ -675,6 +635,7 @@ function useAudioPreviewController({
       rightTime: new Uint8Array(analysers.right.fftSize),
     };
     spectrumDataRef.current = data;
+    const frame = getSpectrumFrame();
 
     const tick = (now: number) => {
       spectrumFrameRef.current = requestAnimationFrame(tick);
@@ -684,30 +645,24 @@ function useAudioPreviewController({
       analysers.right.getByteFrequencyData(data.right);
       analysers.left.getByteTimeDomainData(data.leftTime);
       analysers.right.getByteTimeDomainData(data.rightTime);
-      const nextBands: StereoSpectrumBands = {
-        left: resolveSpectrumBands(data.left, SPECTRUM_CHANNEL_BAND_COUNT),
-        right: resolveSpectrumBands(data.right, SPECTRUM_CHANNEL_BAND_COUNT),
-      };
-      if (!sameStereoSpectrumBands(spectrumBandsRef.current, nextBands)) {
-        spectrumBandsRef.current = nextBands;
-        setSpectrumBands(nextBands);
-      }
-      const previousLevels = stereoLevelsRef.current ?? { left: 0, right: 0 };
-      const nextLevels: StereoLevels = {
-        left: resolveStereoLevel(resolveTimeDomainRms(data.leftTime), previousLevels.left),
-        right: resolveStereoLevel(resolveTimeDomainRms(data.rightTime), previousLevels.right),
-      };
-      updateStereoLevels(nextLevels);
+      // Bands straight into the store buffers (zero allocation per tick).
+      resolveSpectrumBandsInto(data.left, SPECTRUM_CHANNEL_BAND_COUNT, frame.leftBands);
+      resolveSpectrumBandsInto(data.right, SPECTRUM_CHANNEL_BAND_COUNT, frame.rightBands);
+      // Smoothed levels — the previous value is the store's last write.
+      const nextLeftLevel = resolveStereoLevel(resolveTimeDomainRms(data.leftTime), frame.levels[0] ?? 0);
+      const nextRightLevel = resolveStereoLevel(resolveTimeDomainRms(data.rightTime), frame.levels[1] ?? 0);
+      writeSpectrumLevels(nextLeftLevel, nextRightLevel);
 
-      const nextLeftHold = advancePeakHold(peakHoldLeftRef.current, nextLevels.left, now);
-      const nextRightHold = advancePeakHold(peakHoldRightRef.current, nextLevels.right, now);
+      const nextLeftHold = advancePeakHold(peakHoldLeftRef.current, nextLeftLevel, now);
+      const nextRightHold = advancePeakHold(peakHoldRightRef.current, nextRightLevel, now);
       peakHoldLeftRef.current = nextLeftHold;
       peakHoldRightRef.current = nextRightHold;
-      updateStereoPeakHold({ left: nextLeftHold.level, right: nextRightHold.level });
+      writeSpectrumPeakHold(nextLeftHold.level, nextRightHold.level);
+      publishSpectrumFrame();
     };
 
     spectrumFrameRef.current = requestAnimationFrame(tick);
-  }, [updateStereoLevels, updateStereoPeakHold]);
+  }, []);
 
   /**
    * Wires up (or reuses) the Web Audio spectrum pipeline for the given audio
@@ -790,8 +745,7 @@ function useAudioPreviewController({
                 startSpectrumLoop();
             })
             .catch(() => {
-              setSpectrumBands(null);
-              updateStereoLevels(null);
+              clearSpectrumFrame();
               resetPeakHold();
             });
         }
@@ -849,8 +803,7 @@ function useAudioPreviewController({
         analysersRef.current = null;
         gainNodeRef.current = null;
         spectrumDataRef.current = null;
-        setSpectrumBands(null);
-        updateStereoLevels(null);
+        clearSpectrumFrame();
         resetPeakHold();
         return Promise.resolve(false);
       }
@@ -865,7 +818,7 @@ function useAudioPreviewController({
         .then(() => audioContext.state === AudioContextState.Running)
         .catch(() => false);
     },
-    [resetPeakHold, startSpectrumLoop, stopSpectrumLoop, updateStereoLevels],
+    [resetPeakHold, startSpectrumLoop, stopSpectrumLoop],
   );
 
   // Watchdog for the spectrum render loop while playback is active. The
@@ -1085,8 +1038,7 @@ function useAudioPreviewController({
               if (isAnalyzerReady && !audio.paused) startSpectrumLoop();
             })
             .catch(() => {
-              setSpectrumBands(null);
-              updateStereoLevels(null);
+              clearSpectrumFrame();
               resetPeakHold();
             });
         })
@@ -1114,7 +1066,6 @@ function useAudioPreviewController({
     stopProgressRewind,
     stopSpectrumLoop,
     notifyStatusChange,
-    updateStereoLevels,
   ]);
 
   const togglePlayFromEvent = useEffectEvent(togglePlay);
@@ -1220,9 +1171,6 @@ function useAudioPreviewController({
     isPlaying,
     isUnavailable,
     progressRatio,
-    spectrumBands,
-    stereoLevels,
-    stereoPeakHold,
     timeText,
     title: isLoading ? t("audio.previewLoading") : isUnavailable ? t("audio.previewUnavailable") : undefined,
     togglePlay,
@@ -1242,9 +1190,6 @@ export function AudioPreviewPlayer(props: AudioPreviewPlayerProps) {
         progressRatio={player.progressRatio}
         ariaLabel={player.ariaLabel}
         title={player.title}
-        spectrumBands={player.spectrumBands}
-        stereoLevels={player.stereoLevels}
-        stereoPeakHold={player.stereoPeakHold}
         onTogglePlay={player.togglePlay}
       />
     </section>

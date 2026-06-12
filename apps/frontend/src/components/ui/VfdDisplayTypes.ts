@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 /** Phosphor intensity for one VFD row or section. */
 export const VfdBrightness = {
@@ -216,6 +216,34 @@ export interface VfdDisplayProps {
   phosphorColor?: string;
   /** Faint inactive-cell matrix behind every row. Defaults to a custom 5x7 cell, not a font glyph. */
   ghostPattern?: string;
+  /**
+   * Optional handle for imperative, off-React line updates. A consumer with a
+   * high-frequency data source (e.g. the audio analyzer at 20 Hz) can call
+   * {@link VfdDisplayHandle.setLines} from a store subscription to repaint the
+   * canvas WITHOUT triggering a React re-render of the whole subtree. The
+   * `lines` prop still seeds the initial/SSR frame and any low-frequency
+   * React-driven changes; the two paths stay consistent because the consumer
+   * rebuilds the SAME line model in both.
+   */
+  controllerRef?: Ref<VfdDisplayHandle>;
+}
+
+/**
+ * Imperative control surface of a {@link VfdDisplay}, exposed via
+ * `controllerRef`. Lets a consumer push new lines straight onto the canvas
+ * render state outside the React commit path — the escape hatch for
+ * frame-rate content like a live spectrum analyzer.
+ */
+export interface VfdDisplayHandle {
+  /**
+   * Replaces the rendered lines and repaints immediately, bypassing React.
+   * The lines are normalized and synced into the canvas render state exactly
+   * as the React `lines` prop would be (same transition handling), then a
+   * draw is requested.
+   *
+   * @param lines - The full line set to render (same shape as the `lines` prop).
+   */
+  setLines: (lines: VfdDisplayLine[]) => void;
 }
 
 /**
