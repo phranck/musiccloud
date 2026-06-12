@@ -1,6 +1,7 @@
 import { act, render } from "@testing-library/react";
 import gsap from "gsap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearSpectrumFrame, publishSpectrumFrame, writeSpectrumLevels } from "@/components/audio/spectrumStore";
 import { BackgroundScene } from "@/components/background/BackgroundScene";
 import { NightSkyMessageType, NightSkyWorkerEvent } from "@/components/background/nightSky/protocol";
 import { createNightSkyScene } from "@/components/background/nightSky/scene";
@@ -87,6 +88,7 @@ afterEach(() => {
   gsap.globalTimeline.getChildren(true, true, true).forEach((animation) => animation.kill());
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  clearSpectrumFrame(); // module singleton — do not leak frames between tests
   // @ts-expect-error cleanup of the prototype stub
   delete HTMLCanvasElement.prototype.transferControlToOffscreen;
 });
@@ -144,6 +146,53 @@ describe("BackgroundScene bridge", () => {
     const { unmount } = bootIsland();
     unmount();
     expect(workerInstances[0].terminated).toBe(true);
+  });
+
+  it("forwards spectrum publishes as throttled audio-level messages (RMS of both channels)", () => {
+    bootIsland();
+    const worker = workerInstances[0];
+    act(() => {
+      writeSpectrumLevels(0.6, 0.8);
+      publishSpectrumFrame();
+    });
+    const audioMessages = worker.posted
+      .map((p) => p.message as { type: string; level?: number; active?: boolean })
+      .filter((m) => m.type === NightSkyMessageType.SetAudioLevel);
+    expect(audioMessages).toHaveLength(1);
+    // RMS of (0.6, 0.8) = sqrt((0.36 + 0.64) / 2) ≈ 0.7071
+    expect(audioMessages[0].level).toBeCloseTo(Math.SQRT1_2, 3);
+    expect(audioMessages[0].active).toBe(true);
+
+    act(() => {
+      clearSpectrumFrame();
+    });
+    const afterClear = worker.posted
+      .map((p) => p.message as { type: string; level?: number; active?: boolean })
+      .filter((m) => m.type === NightSkyMessageType.SetAudioLevel);
+    expect(afterClear).toHaveLength(2);
+    expect(afterClear[1].level).toBe(0);
+    expect(afterClear[1].active).toBe(false);
+  });
+
+  it("does not forward audio levels under reduced motion", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({
+        matches: true, // prefers-reduced-motion: reduce
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as MediaQueryList),
+    );
+    bootIsland();
+    const worker = workerInstances[0];
+    act(() => {
+      writeSpectrumLevels(0.9, 0.9);
+      publishSpectrumFrame();
+    });
+    const audioMessages = worker.posted
+      .map((p) => p.message as { type: string })
+      .filter((m) => m.type === NightSkyMessageType.SetAudioLevel);
+    expect(audioMessages).toHaveLength(0);
   });
 });
 

@@ -78,5 +78,9 @@ workerSelf.onmessage = (event: MessageEvent<NightSkyMessage>) => {
       driver?.setAnimate(message.animate);
       break;
     }
+    case NightSkyMessageType.SetAudioLevel: {
+      driver?.setAudioLevel(message.level, message.active);
+      break;
+    }
   }
 };
