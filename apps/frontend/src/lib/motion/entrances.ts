@@ -61,16 +61,14 @@ interface SlideUpOptions {
   /**
    * Per-element stagger in seconds when `targets` is a collection — element
    * `i` starts at `i * staggerEachSeconds` (the GSAP equivalent of the
-   * per-element `animation-delay` the CSS consumers used).
+   * per-element `animation-delay` the CSS consumers used). Suited for SMALL
+   * collections only (the disambiguation panel animates ≤ 8 cards): tween
+   * init reads computed styles per target, which forced-reflows when many
+   * targets mount in one commit — large batches (the ~250-tile genre grid)
+   * stay on the CSS `animate-slide-up` entrance instead (MC-029 Phase-2-gate
+   * finding).
    */
   staggerEachSeconds?: number;
-  /**
-   * Upper bound in seconds for the staggered start delay (ports the
-   * `Math.min(index * step, cap)` pattern of the CSS consumers, so very long
-   * lists do not trickle in forever). Only meaningful together with
-   * {@link SlideUpOptions.staggerEachSeconds}.
-   */
-  staggerCapSeconds?: number;
 }
 
 /** Options for {@link animateSlideOutDown}. */
@@ -129,11 +127,7 @@ export function animateSlideUp(targets: gsap.DOMTarget, options: SlideUpOptions 
   setupMotion();
   if (prefersReducedMotion()) return null;
   if (gsap.utils.toArray(targets).length === 0) return null;
-  const { delaySeconds = 0, staggerEachSeconds, staggerCapSeconds } = options;
-  const stagger =
-    staggerEachSeconds === undefined
-      ? 0
-      : (index: number) => Math.min(index * staggerEachSeconds, staggerCapSeconds ?? Number.POSITIVE_INFINITY);
+  const { delaySeconds = 0, staggerEachSeconds = 0 } = options;
   return gsap.fromTo(targets, SLIDE_UP_FROM_VARS, {
     opacity: 1,
     y: 0,
@@ -141,7 +135,7 @@ export function animateSlideUp(targets: gsap.DOMTarget, options: SlideUpOptions 
     duration: MotionDuration.SlideUp,
     ease: MotionEase.McOut,
     delay: delaySeconds,
-    stagger,
+    stagger: staggerEachSeconds,
     clearProps: "opacity,transform",
   });
 }

@@ -8,15 +8,13 @@ import { animateFadeIn, animateSlideOutDown, animateSlideUp, killEntranceTweens 
  * contracts on real GSAP tweens: the reduced-motion gate (the CSS rule in
  * `animations.css` only covers CSS animations — these factories are the only
  * guard for the JS tweens), keyframe-parity start/end values, the delay and
- * capped-stagger knobs, the completion-callback contract of the exit, and the
+ * stagger knobs, the completion-callback contract of the exit, and the
  * cleanup conventions (entrances clear inline styles, the exit keeps its
  * hidden end state).
  */
 
-/** Stagger step (s) used by the capped-stagger assertions. */
+/** Stagger step (s) used by the batch-stagger assertions. */
 const STAGGER_EACH_SECONDS = 0.05;
-/** Stagger cap (s) chosen so the third element in a batch is clamped. */
-const STAGGER_CAP_SECONDS = 0.08;
 /** Fixed per-element delay (s) for the single-element delay assertion. */
 const DELAY_SECONDS = 0.3;
 
@@ -103,17 +101,13 @@ describe("animateSlideUp", () => {
     expect(tween?.delay()).toBeCloseTo(DELAY_SECONDS);
   });
 
-  it("staggers batch targets per index and clamps at the cap", () => {
+  it("staggers batch targets per index", () => {
     stubPrefersReducedMotion(false);
     const elements = buildElements(3);
-    const tween = animateSlideUp(elements, {
-      staggerEachSeconds: STAGGER_EACH_SECONDS,
-      staggerCapSeconds: STAGGER_CAP_SECONDS,
-    });
+    const tween = animateSlideUp(elements, { staggerEachSeconds: STAGGER_EACH_SECONDS });
     expect(tween).not.toBeNull();
-    // Total runtime = capped max delay + per-element duration. Without the cap
-    // the third element would start at 2 * each = 0.1s; the cap clamps it.
-    expect(tween?.totalDuration()).toBeCloseTo(STAGGER_CAP_SECONDS + MotionDuration.SlideUp);
+    // Total runtime = last element's indexed delay + per-element duration.
+    expect(tween?.totalDuration()).toBeCloseTo((elements.length - 1) * STAGGER_EACH_SECONDS + MotionDuration.SlideUp);
     // All targets snap to the hidden start state immediately — staggered
     // elements must not flash visible before their turn (CSS `both` parity).
     for (const el of elements) {

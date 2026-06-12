@@ -7,7 +7,12 @@
    play or start with a visible delay:
 
    - slide-up:       Astro server-island templates (DeferredShareContent) —
-                     streamed HTML without hydration.
+                     streamed HTML without hydration. ALSO the genre browse
+                     grid's tile entrance (GenreBrowseGrid) — a performance
+                     exception: ~250 tiles mount in one commit, and a GSAP
+                     tween init reads computed styles per target (200+ ms
+                     forced reflow, >50 ms long tasks, MC-029 Phase-2 gate);
+                     the native CSS animation scales with zero JS per tile.
    - fade-in:        SharePageShell's share enter — a client:load island
                      inside the server:defer stream; CSS plays from parse,
                      before hydration.
