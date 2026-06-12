@@ -1,9 +1,11 @@
+import gsap from "gsap";
 import { type CSSProperties, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { usePrefersReducedMotion } from "@/components/ui/usePrefersReducedMotion";
 import {
   type NormalizedVfdLine,
+  type VfdCanvasColors,
   type VfdCanvasRenderState,
   VfdContentTransition,
   type VfdDisplayProps,
@@ -22,6 +24,7 @@ import {
   vfdRowWidth,
 } from "@/components/ui/vfdDisplayGeometry";
 import { normalizeLine, sameLinePresentation } from "@/components/ui/vfdDisplayNormalize";
+import { setupMotion } from "@/lib/motion/setup";
 import { cn } from "@/lib/utils";
 
 /**
@@ -133,8 +136,12 @@ export function VfdDisplay({
   const { cellCount, rowCount } = layout;
   const vfdRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const frameRef = useRef<number | null>(null);
   const requestDrawRef = useRef<(() => void) | null>(null);
+  // Phosphor colors resolved OUT of the per-frame path. Re-resolving them each
+  // frame appended four probe spans to the DOM every tick — the documented
+  // ~60-layouts/s marquee stream. They only change with `phosphorColor` (the
+  // CSS vars below) or the theme, so we cache them and refresh on those events.
+  const colorsRef = useRef<VfdCanvasColors | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
 
   const normalizedLines = useMemo(
@@ -210,22 +217,47 @@ export function VfdDisplay({
     return () => observer.disconnect();
   }, [configuredRowCount, fallbackCellCount, requestedCellCount, sizingMode]);
 
+  // Resolve the phosphor colors once per mount and whenever `phosphorColor`
+  // changes — never inside the frame loop. The element carries the CSS vars by
+  // the time this layout effect runs, so getComputedStyle sees the right theme.
+  // phosphorColor is the re-run trigger, not a value read in the body: it sets
+  // the --mc-vfd-*-color CSS vars that resolveCanvasColors reads off the DOM,
+  // so the cache must refresh when it changes even though the body never reads it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: phosphorColor is a CSS-var re-run trigger, not read in the body
+  useLayoutEffect(() => {
+    const element = vfdRef.current;
+    if (element) colorsRef.current = resolveCanvasColors(element);
+  }, [phosphorColor]);
+
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const element = vfdRef.current;
     if (!canvas || !element) return;
 
+    setupMotion(); // tune the shared ticker (lagSmoothing); idempotent
+
     let disposed = false;
-    const draw = (now: number) => {
-      frameRef.current = null;
+    let scheduled = false;
+
+    // The draw runs on the SHARED gsap.ticker (policy 3 — no private rAF
+    // source). The ticker runs continuously, so we register on demand and
+    // self-deregister the instant a frame reports no active animation; a
+    // marquee/line-swap keeps it registered. gsap.ticker's own time is in
+    // seconds from ticker start, but the marquee/transition math is stamped
+    // with performance.now(), so the callback reads frameNow() itself.
+    const tick = () => {
       if (disposed) return;
-      const colors = resolveCanvasColors(element);
-      const hasActiveAnimation = drawVfdCanvas(canvas, renderStateRef.current, colors, now);
-      if (hasActiveAnimation) requestFrame();
+      const colors = colorsRef.current ?? resolveCanvasColors(element);
+      const hasActiveAnimation = drawVfdCanvas(canvas, renderStateRef.current, colors, frameNow());
+      if (!hasActiveAnimation) {
+        scheduled = false;
+        gsap.ticker.remove(tick);
+      }
     };
     const requestFrame = () => {
-      if (frameRef.current !== null || disposed) return;
-      frameRef.current = window.requestAnimationFrame(draw);
+      if (scheduled || disposed) return;
+      scheduled = true;
+      gsap.ticker.add(tick);
     };
 
     requestDrawRef.current = requestFrame;
@@ -234,8 +266,7 @@ export function VfdDisplay({
     return () => {
       disposed = true;
       requestDrawRef.current = null;
-      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
+      gsap.ticker.remove(tick);
     };
   }, []);
 
