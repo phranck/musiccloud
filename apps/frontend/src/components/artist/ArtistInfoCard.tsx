@@ -7,6 +7,7 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { XIcon } from "@phosphor-icons/react";
 import { useEffect, useReducer } from "react";
+import type { ArtistInfoStatus } from "@/components/artist/ArtistCardParts";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
 import { type ArtistPanelTrackResolveHandler, PopularTracksSection } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
@@ -18,8 +19,6 @@ import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useLocale, useT } from "@/i18n/context";
 import { solidEmbossedCardStyle } from "@/styles/neumorphic";
-
-type ArtistInfoStatus = "loading" | "ready" | "empty" | "error";
 
 interface ArtistInfoCardProps {
   data: ArtistInfoResponse | null;

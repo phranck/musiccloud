@@ -19,18 +19,20 @@ import { MicrophoneStageIcon, XIcon } from "@phosphor-icons/react";
 import { type CSSProperties, useCallback, useEffect, useMemo, useReducer } from "react";
 import { createPortal } from "react-dom";
 
-type ArtistLoadStatus = "loading" | "ready" | "empty" | "error";
 export interface ArtistInfoContext {
   shortId?: string;
   artistEntityId?: string;
 }
 
+// Value namespace for domain-literal comparisons; `satisfies` pins every
+// member to the canonical `ArtistInfoStatus` union (ArtistCardParts), so the
+// two can never drift apart silently.
 const ArtistLoadStatus = {
   Loading: "loading",
   Ready: "ready",
   Empty: "empty",
   Error: "error",
-} as const;
+} as const satisfies Record<string, ArtistInfoStatus>;
 
 const ArtistActionType = {
   Loading: "loading",
@@ -60,7 +62,7 @@ const ShareConfigType = {
   Share: "share",
 } as const;
 
-type ArtistState = { status: ArtistLoadStatus; artistData: ArtistInfoResponse | null; errorCode?: string };
+type ArtistState = { status: ArtistInfoStatus; artistData: ArtistInfoResponse | null; errorCode?: string };
 type ArtistAction =
   | { type: typeof ArtistActionType.Loading }
   | { type: typeof ArtistActionType.Done; data: ArtistInfoResponse | null }
@@ -178,6 +180,7 @@ function initialShareUiState({
   };
 }
 
+import type { ArtistInfoStatus } from "@/components/artist/ArtistCardParts";
 import { ArtistInfoCard } from "@/components/artist/ArtistInfoCard";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
 import { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
@@ -633,7 +636,7 @@ function ShareBackLink({ label, onBack }: { label?: string; onBack?: () => void 
 interface DesktopShareLayoutProps {
   animated: boolean;
   artistData: ArtistInfoResponse | null;
-  artistLoadStatus: ArtistLoadStatus;
+  artistLoadStatus: ArtistInfoStatus;
   config: MediaCardContentConfiguration;
   isLoading: boolean;
   onArtistResolveStart: () => void;
@@ -711,7 +714,7 @@ function MobileShareLayout({ animated, config, label, onOpenSheet, onPreviewStat
 
 interface MobileArtistSheetProps {
   artistData: ArtistInfoResponse | null;
-  artistLoadStatus: ArtistLoadStatus;
+  artistLoadStatus: ArtistInfoStatus;
   closeLabel: string;
   isLoading: boolean;
   onArtistResolveStart: () => void;
