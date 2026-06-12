@@ -179,15 +179,12 @@ function initialShareUiState({
 }
 
 import { ArtistInfoCard } from "@/components/artist/ArtistInfoCard";
-import { ArtistProfileDesktopCard } from "@/components/artist/ArtistProfileDesktopCard";
-import { EventsCard } from "@/components/artist/EventsCard";
-import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
-import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
 import { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
 import { ServicesCard } from "@/components/cards/ServicesCard";
+import { AnimatedArtistColumn } from "@/components/share/AnimatedArtistColumn";
 import { SharePageCard } from "@/components/share/SharePageCard";
 import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -665,22 +662,15 @@ function DesktopShareLayout({
         <MediaSummaryCard content={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
         <ServicesCard content={config} animated={animated} />
       </div>
-      <div className="flex flex-col gap-6" style={{ width: `${ARTIST_W}px` }}>
-        <ArtistProfileDesktopCard data={artistData} isLoading={isLoading} status={artistLoadStatus} />
-        <PopularTracksCard
-          data={artistData}
-          isLoading={isLoading}
-          onTrackResolve={onTrackResolve}
-          onResolveStart={onArtistResolveStart}
-        />
-        <EventsCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
-        <SimilarArtistsCard
-          data={artistData}
-          isLoading={isLoading}
-          onTrackResolve={onTrackResolve}
-          onResolveStart={onArtistResolveStart}
-        />
-      </div>
+      <AnimatedArtistColumn
+        artistData={artistData}
+        artistLoadStatus={artistLoadStatus}
+        isLoading={isLoading}
+        onArtistResolveStart={onArtistResolveStart}
+        onTrackResolve={onTrackResolve}
+        userRegion={userRegion}
+        widthPx={ARTIST_W}
+      />
     </div>
   );
 }
