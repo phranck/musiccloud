@@ -1,8 +1,10 @@
 /**
  * Production settings of the night-sky WebGL background (plan MC-029,
- * Phase 4). The values are the user-approved prototype JSON — fourth
- * iteration, production sign-off 2026-06-12 — and must stay in lockstep
- * with `background-prototype.html` (the tuning tool that produced them).
+ * Phase 4). The values are the user-approved prototype JSON — fifth
+ * iteration, re-tuned 2026-06-13 for the static sky plane (MC-031: star
+ * density/size, twinkle, wind, occlusion, day horizon color) — and must
+ * stay in lockstep with `background-prototype.html` (the tuning tool that
+ * produced them).
  *
  * Default behaviour encoded here: fixed NIGHT start (`dayness: 0`,
  * `autoDayNight: 0`); the day mode and the local-time automatic remain
@@ -111,7 +113,7 @@ export interface NightSkySettings {
   cloudColorDay: string;
 }
 
-/** User-approved production defaults (prototype sign-off 2026-06-12). */
+/** User-approved production defaults (prototype sign-off 2026-06-13, static-plane re-tune). */
 export const NIGHT_SKY_DEFAULTS: NightSkySettings = {
   dayness: 0,
   dayTransition: 1,
@@ -128,33 +130,33 @@ export const NIGHT_SKY_DEFAULTS: NightSkySettings = {
   rotationPeriod: 1200,
   catalogSize: 1.7,
   catalogBrightness: 1.1,
-  starDensity: 100,
-  starSize: 1.5,
+  starDensity: 170,
+  starSize: 1.1,
   starBrightness: 0.95,
-  twinkleAmount: 0.7,
-  twinkleSpeed: 1.7,
+  twinkleAmount: 0.86,
+  twinkleSpeed: 2.3,
   cloudScale: 8,
-  cloudCoverage: 0.3,
+  cloudCoverage: 0.31,
   cloudSoftness: 0.34,
   cloudOpacity: 1,
   cloudDetail: 7,
   clearZones: 0.4,
   warpStrength: 0.35,
-  windSpeed: 0.03,
+  windSpeed: 0.01,
   windAngle: 180,
-  evolveSpeed: 0.05,
+  evolveSpeed: 0.06,
   moonIntensity: 0.15,
   moonAngle: 265,
   sunIntensity: 0.85,
   sunAngle: 230,
-  starOcclusion: 1.2,
+  starOcclusion: 0.1,
   animate: 1,
   renderScale: 0.7,
   fpsCap: 10,
   skyTop: "#03070d",
   skyBottom: "#0b1923",
   skyTopDay: "#2d6fb5",
-  skyBottomDay: "#aee5fe",
+  skyBottomDay: "#9fd4eb",
   cloudColor: "#2c3b47",
   cloudColorDay: "#e6edf3",
 };
