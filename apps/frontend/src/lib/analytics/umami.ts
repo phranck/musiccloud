@@ -65,6 +65,14 @@ export const DisplaySignal = {
   VuMeter: "Display: VU Meter",
 } as const;
 
+/** Sky background mode switcher (the four day-night modes, plan MC-030). */
+export const SkySignal = {
+  Day: "Sky: Day",
+  Night: "Sky: Night",
+  System: "Sky: System",
+  Automatic: "Sky: Automatic",
+} as const;
+
 /** Search-funnel entry: the user submitted the search box. */
 export const SearchSignal = {
   Submitted: "Search: Submitted",
