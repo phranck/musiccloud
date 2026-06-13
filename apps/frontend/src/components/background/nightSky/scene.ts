@@ -17,6 +17,17 @@ import type { NightSkySettings } from "./settings";
  * `NightSkyDriver` and renders the current values each draw; runs unchanged
  * in the worker (OffscreenCanvas) and in the main-thread fallback.
  *
+ * Static plane crop (plan MC-031): the sky content lives on a FIXED virtual
+ * plane of `skyWidth × skyHeight` CSS px (> native 5K). The viewport only
+ * crops it — resizing the window changes WHICH part is visible, never the
+ * content's size. The crop is anchored at Polaris: `skyOffset = polaris01 ×
+ * (skySize − viewportCss)` puts Polaris at exactly (polarisX, polarisY) of
+ * the window for every size and DPR (the sizes cancel; math independently
+ * verified). Only the vignette stays window-relative. Oversized windows
+ * (viewport > plane) degrade gracefully — gradient clamps to its edge
+ * colors, the procedural fields extrapolate seamlessly; do NOT clamp the
+ * offset, that would break the Polaris anchor.
+ *
  * Zero-allocation contract (policy 7): `draw()` writes uniforms from cached
  * primitives and pre-parsed color arrays — no allocations per frame. Colors
  * are parsed once at creation (production settings are immutable at runtime).
@@ -132,6 +143,27 @@ void main() {
   gl_Position = vec4(p, 0.0, 1.0);
 }`;
 
+/**
+ * Shared plane-crop mapping (plan MC-031): the sky is a FIXED virtual plane
+ * of `u_skySize` CSS px; the window only shows the crop starting at
+ * `u_skyOffset` (CSS px, y-up like gl_FragCoord). All scene content (gradient,
+ * star fields, clouds, Polaris) lives in plane coordinates — resizing the
+ * window changes WHICH part is visible, never the content's size. Only the
+ * vignette stays a window effect (photographic corner darkening of the crop).
+ */
+const GLSL_PLANE = `
+uniform vec2  u_skySize;
+uniform vec2  u_skyOffset;
+uniform float u_pixelScale;
+
+vec2 planeUv(vec2 fragPx) {
+  return (fragPx / u_pixelScale + u_skyOffset) / u_skySize;
+}
+float planeAspect() { return u_skySize.x / u_skySize.y; }
+vec2 windowCuv(vec2 fragPx, vec2 resolution) {
+  return (fragPx / resolution - 0.5) * vec2(resolution.x / resolution.y, 1.0);
+}`;
+
 /** Pass A: sky gradient (night↔day) + procedural fill stars. */
 const SKY_FRAG = `#version 300 es
 precision highp float;
@@ -155,6 +187,7 @@ uniform float u_twinkleSpeed;
 #define TAU 6.28318530718
 ${GLSL_HASH}
 ${GLSL_VIGNETTE}
+${GLSL_PLANE}
 
 mat2 rot2(float a) { return mat2(cos(a), -sin(a), sin(a), cos(a)); }
 
@@ -165,7 +198,10 @@ float starLayer(vec2 uv, float density, float sizePx, float brightMul) {
   float h = hash21(id);
   float present = step(h, 0.22);
   vec2 pos = vec2(hash21(id + 7.1), hash21(id + 3.7)) * 0.6 + 0.2;
-  float distPx = length(f - pos) * (u_resolution.y / density);
+  // Cell size is fixed on the PLANE (virtual height / density), converted to
+  // buffer px for the smoothstep against sizePx — stars keep their pixel
+  // size at every window size instead of scaling with the viewport.
+  float distPx = length(f - pos) * (u_skySize.y * u_pixelScale / density);
   float star = smoothstep(sizePx, sizePx * 0.15, distPx);
   float mag = pow(hash21(id + 13.3), 3.0);
   float tw = 1.0 + u_twinkleAmount * sin(u_time * u_twinkleSpeed * (0.5 + h * 2.0) + h * TAU);
@@ -173,10 +209,11 @@ float starLayer(vec2 uv, float density, float sizePx, float brightMul) {
 }
 
 void main() {
-  vec2 uv = gl_FragCoord.xy / u_resolution;
-  float aspect = u_resolution.x / u_resolution.y;
-  vec2 cuv = (uv - 0.5) * vec2(aspect, 1.0);
+  vec2 uv = planeUv(gl_FragCoord.xy);
+  vec2 cuv = (uv - 0.5) * vec2(planeAspect(), 1.0);
 
+  // The gradient runs over the VIRTUAL height; outside the plane smoothstep
+  // clamps to the edge colors (oversized windows degrade gracefully).
   vec3 night = mix(u_skyBottom, u_skyTop, smoothstep(0.0, 1.0, uv.y));
   vec3 day   = mix(u_skyBottomDay, u_skyTopDay, smoothstep(0.0, 1.0, uv.y));
   vec3 col = mix(night, day, u_dayness);
@@ -190,7 +227,7 @@ void main() {
   stars *= u_starBrightness * starVis;
   col += vec3(0.85, 0.92, 1.0) * stars;
 
-  col *= vignetteAt(cuv);
+  col *= vignetteAt(windowCuv(gl_FragCoord.xy, u_resolution));
   col += (hash21(gl_FragCoord.xy + fract(u_time)) - 0.5) / 255.0;
   outColor = vec4(col, 1.0);
 }`;
@@ -221,14 +258,22 @@ ${GLSL_HASH}
 ${GLSL_NOISE}
 ${GLSL_CLOUD_FIELD}
 ${GLSL_VIGNETTE}
+${GLSL_PLANE}
 
 void main() {
-  float aspect = u_resolution.x / u_resolution.y;
+  float aspect = planeAspect();
   float angle = a_star.y + u_theta;
   float r = a_star.x / u_skyFov;
-  vec2 cuv = u_polaris + vec2(cos(angle), sin(angle)) * r;
+  // Star position in PLANE cuv (unit = virtual height) — same space as the
+  // fragment passes, so occlusion and the fill stars share one sky.
+  vec2 virtCuv = u_polaris + vec2(cos(angle), sin(angle)) * r;
 
-  gl_Position = vec4(cuv.x * 2.0 / aspect, cuv.y * 2.0, 0.0, 1.0);
+  // Plane cuv → plane CSS px (inverse of the fragment mapping) → window CSS
+  // px → NDC. Stars outside the crop clip away naturally.
+  vec2 skyPx = (virtCuv / vec2(aspect, 1.0) + 0.5) * u_skySize;
+  vec2 winCss = skyPx - u_skyOffset;
+  vec2 viewportCss = u_resolution / u_pixelScale;
+  gl_Position = vec4(winCss / viewportCss * 2.0 - 1.0, 0.0, 1.0);
 
   float m = a_star.z;
   float sizeCss = u_catalogSize * (0.9 + (4.2 - m) * 0.55);
@@ -239,14 +284,19 @@ void main() {
   float bright = clamp(0.18 + (4.2 - m) * 0.26, 0.0, 1.3) * u_catalogBrightness * tw;
 
   // One cloud-field sample per star: bright stars fade behind the banks
-  // even though the cloud layer itself is translucent.
+  // even though the cloud layer itself is translucent. PLANE domain — the
+  // same coordinates the cloud pass shades with.
   vec3 cp; vec2 p2; float tz;
-  float n = cloudRaw(cuv, u_time, cp, p2, tz);
+  float n = cloudRaw(virtCuv, u_time, cp, p2, tz);
   float cloud = cloudMask(n, p2, tz);
   bright *= 1.0 - clamp(cloud * u_starOcclusion, 0.0, 1.0);
   bright *= 1.0 - smoothstep(0.05, 0.45, u_dayness);
 
-  v_alpha = bright * vignetteAt(cuv);
+  // Vignette is a WINDOW effect — evaluate it at the star's window position,
+  // not its plane position (a plane-space vignette would brighten/darken by
+  // crop offset; verified-math note, plan MC-031).
+  vec2 winCuvStar = (winCss / viewportCss - 0.5) * vec2(u_resolution.x / u_resolution.y, 1.0);
+  v_alpha = bright * vignetteAt(winCuvStar);
 
   vec3 blueWhite = vec3(0.72, 0.82, 1.00);
   vec3 white     = vec3(0.95, 0.97, 1.00);
@@ -288,11 +338,11 @@ ${GLSL_HASH}
 ${GLSL_NOISE}
 ${GLSL_CLOUD_FIELD}
 ${GLSL_VIGNETTE}
+${GLSL_PLANE}
 
 void main() {
-  vec2 uv = gl_FragCoord.xy / u_resolution;
-  float aspect = u_resolution.x / u_resolution.y;
-  vec2 cuv = (uv - 0.5) * vec2(aspect, 1.0);
+  vec2 uv = planeUv(gl_FragCoord.xy);
+  vec2 cuv = (uv - 0.5) * vec2(planeAspect(), 1.0);
 
   vec3 cp; vec2 p2; float tz;
   float n = cloudRaw(cuv, u_time, cp, p2, tz);
@@ -315,7 +365,7 @@ void main() {
   dayCol = mix(dayCol, dayCol * vec3(0.72, 0.78, 0.86), coreShade * 0.55);
 
   vec3 cloudCol = mix(nightCol, dayCol, u_dayness);
-  cloudCol *= vignetteAt(cuv);
+  cloudCol *= vignetteAt(windowCuv(gl_FragCoord.xy, u_resolution));
   cloudCol += (hash21(gl_FragCoord.xy + fract(u_time)) - 0.5) / 255.0;
 
   outColor = vec4(cloudCol, cloud * u_cloudOpacity);
@@ -333,6 +383,14 @@ const CLOUD_FIELD_UNIFORMS = [
   "u_windAngle",
   "u_evolveSpeed",
 ] as const;
+
+/**
+ * Uniform names of the shared plane-crop chunk — set on ALL THREE programs.
+ * Missing one would silently leave that pass on window-relative mapping and
+ * its content would drift against the others on resize (verified-math note,
+ * plan MC-031).
+ */
+const PLANE_UNIFORMS = ["u_skySize", "u_skyOffset", "u_pixelScale"] as const;
 
 /** Compiles one shader stage; throws with the info log on failure. */
 function compile(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
@@ -422,6 +480,7 @@ export function createNightSkyScene(
     "u_twinkleAmount",
     "u_twinkleSpeed",
     "u_vignette",
+    ...PLANE_UNIFORMS,
   ]);
 
   const progStar = link(gl, STAR_VERT, STAR_FRAG);
@@ -440,6 +499,7 @@ export function createNightSkyScene(
     "u_vignette",
     "u_dayness",
     ...CLOUD_FIELD_UNIFORMS,
+    ...PLANE_UNIFORMS,
   ]);
 
   const progCloud = link(gl, QUAD_VERT, CLOUD_FRAG);
@@ -456,6 +516,7 @@ export function createNightSkyScene(
     "u_dayness",
     "u_vignette",
     ...CLOUD_FIELD_UNIFORMS,
+    ...PLANE_UNIFORMS,
   ]);
 
   // Star attribute buffer (static — the catalog never changes).
@@ -478,6 +539,11 @@ export function createNightSkyScene(
   const colCloudDay = hexToRgb(settings.cloudColorDay);
 
   let pixelScale = 1;
+  // UN-rounded window CSS size, persisted by resize(). The crop offset must
+  // not be reconstructed from canvas.width / pixelScale: the buffer round()
+  // would shift the absolute crop sub-pixel (verified-math note, MC-031).
+  let cssWidth = 1;
+  let cssHeight = 1;
 
   /** Sets the cloud-field uniforms shared by the star and cloud programs. */
   function setCloudFieldUniforms(loc: Record<string, WebGLUniformLocation | null>): void {
@@ -493,12 +559,33 @@ export function createNightSkyScene(
     gl.uniform1f(loc.u_evolveSpeed, settings.evolveSpeed);
   }
 
+  /**
+   * Sets the plane-crop uniforms (u_skySize / u_skyOffset / u_pixelScale) on
+   * one program. The offset anchors the crop at Polaris: with
+   * `offset = polaris01 × (skySize − viewportCss)` Polaris lands at exactly
+   * (polarisX, polarisY) of the window for EVERY window size and DPR — the
+   * sizes cancel algebraically (verified, plan MC-031).
+   */
+  function setPlaneUniforms(loc: Record<string, WebGLUniformLocation | null>): void {
+    if (!gl) return;
+    gl.uniform2f(loc.u_skySize, settings.skyWidth, settings.skyHeight);
+    gl.uniform2f(
+      loc.u_skyOffset,
+      settings.polarisX * (settings.skyWidth - cssWidth),
+      settings.polarisY * (settings.skyHeight - cssHeight),
+    );
+    gl.uniform1f(loc.u_pixelScale, pixelScale);
+  }
+
   return {
     draw(simTimeSeconds: number): void {
       const width = canvas.width;
       const height = canvas.height;
-      const aspect = width / height;
-      const polX = (settings.polarisX - 0.5) * aspect;
+      // Polaris in PLANE cuv — the unit is the virtual plane height, so the
+      // pivot (and with it the whole star field) no longer scales with the
+      // window (plan MC-031).
+      const planeAspect = settings.skyWidth / settings.skyHeight;
+      const polX = (settings.polarisX - 0.5) * planeAspect;
       const polY = settings.polarisY - 0.5;
       // Counter-clockwise, like the real northern sky seen from inside.
       const theta = (simTimeSeconds / settings.rotationPeriod) * TAU;
@@ -522,6 +609,7 @@ export function createNightSkyScene(
       gl.uniform1f(locSky.u_twinkleAmount, settings.twinkleAmount);
       gl.uniform1f(locSky.u_twinkleSpeed, settings.twinkleSpeed);
       gl.uniform1f(locSky.u_vignette, settings.vignette);
+      setPlaneUniforms(locSky);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
 
       // Pass B — catalog stars, additive.
@@ -543,6 +631,7 @@ export function createNightSkyScene(
       gl.uniform1f(locStar.u_vignette, settings.vignette);
       gl.uniform1f(locStar.u_dayness, settings.dayness);
       setCloudFieldUniforms(locStar);
+      setPlaneUniforms(locStar);
       gl.bindVertexArray(starVao);
       gl.drawArrays(gl.POINTS, 0, STAR_CATALOG.length);
       gl.bindVertexArray(null);
@@ -563,13 +652,16 @@ export function createNightSkyScene(
       gl.uniform1f(locCloud.u_dayness, settings.dayness);
       gl.uniform1f(locCloud.u_vignette, settings.vignette);
       setCloudFieldUniforms(locCloud);
+      setPlaneUniforms(locCloud);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     },
 
-    resize(cssWidth: number, cssHeight: number, scale: number): void {
+    resize(nextCssWidth: number, nextCssHeight: number, scale: number): void {
       pixelScale = scale;
-      canvas.width = Math.max(1, Math.round(cssWidth * scale));
-      canvas.height = Math.max(1, Math.round(cssHeight * scale));
+      cssWidth = nextCssWidth;
+      cssHeight = nextCssHeight;
+      canvas.width = Math.max(1, Math.round(nextCssWidth * scale));
+      canvas.height = Math.max(1, Math.round(nextCssHeight * scale));
       gl.viewport(0, 0, canvas.width, canvas.height);
     },
 
