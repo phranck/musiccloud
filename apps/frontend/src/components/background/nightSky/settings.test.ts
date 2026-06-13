@@ -10,7 +10,7 @@ import { DAY_FADE_FPS, daynessForLocalTime, NIGHT_SKY_DEFAULTS, NIGHT_SKY_RANGES
  * twilight ramps exactly.
  */
 
-/** The 42 keys of the approved settings JSON (36 numeric + 6 colors). */
+/** The 44 keys of the approved settings JSON (38 numeric + 6 colors). */
 const EXPECTED_KEYS = [
   "dayness",
   "dayTransition",
@@ -19,6 +19,8 @@ const EXPECTED_KEYS = [
   "sunsetHour",
   "twilightHours",
   "vignette",
+  "skyWidth",
+  "skyHeight",
   "skyFov",
   "polarisX",
   "polarisY",
@@ -69,8 +71,15 @@ const PINNED_VALUES: Partial<Record<(typeof EXPECTED_KEYS)[number], number | str
 };
 
 describe("NIGHT_SKY_DEFAULTS", () => {
-  it("contains exactly the 42 approved settings keys", () => {
+  it("contains exactly the 44 approved settings keys", () => {
     expect(Object.keys(NIGHT_SKY_DEFAULTS).sort()).toEqual([...EXPECTED_KEYS].sort());
+  });
+
+  it("spans a virtual sky larger than native 5K (5120x2880) — plan MC-031", () => {
+    // The sky is a FIXED plane the window only crops; it must exceed native 5K
+    // so even a 5K display shows a partial view rather than the whole backdrop.
+    expect(NIGHT_SKY_DEFAULTS.skyWidth, "skyWidth > 5120").toBeGreaterThan(5120);
+    expect(NIGHT_SKY_DEFAULTS.skyHeight, "skyHeight > 2880").toBeGreaterThan(2880);
   });
 
   it("pins the user-approved production values", () => {

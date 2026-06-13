@@ -25,11 +25,25 @@ export interface NightSkySettings {
   twilightHours: number;
   /** Corner darkening, 0..1. */
   vignette: number;
-  /** Degrees of sky mapped onto the screen height. */
+  /**
+   * Width of the FIXED virtual sky plane in CSS pixels (plan MC-031). The
+   * sky is a static backdrop the viewport only crops — resizing the window
+   * shows more or less of this plane instead of squashing it. Larger than
+   * native 5K (5120) so even a 5K display sees a partial view.
+   */
+  skyWidth: number;
+  /** Height of the fixed virtual sky plane in CSS pixels (> 2880, see {@link skyWidth}). */
+  skyHeight: number;
+  /** Degrees of sky mapped onto the VIRTUAL plane height (not the window). */
   skyFov: number;
-  /** Horizontal screen position of Polaris (0 = left, 1 = right). */
+  /**
+   * Horizontal position of Polaris (0 = left, 1 = right). Dual role since
+   * MC-031: it is where Polaris appears in the WINDOW *and* the anchor of
+   * the crop within the virtual plane (`offset = polarisX × (skyWidth −
+   * viewportWidth)`), so Polaris sits here for every window size.
+   */
   polarisX: number;
-  /** Vertical screen position of Polaris (0 = bottom, 1 = top). */
+  /** Vertical position of Polaris (0 = bottom, 1 = top); same dual role as {@link polarisX}. */
   polarisY: number;
   /** Seconds per full sky revolution around Polaris (real sky: ~86164 s). */
   rotationPeriod: number;
@@ -106,6 +120,8 @@ export const NIGHT_SKY_DEFAULTS: NightSkySettings = {
   sunsetHour: 20.5,
   twilightHours: 1.5,
   vignette: 0.25,
+  skyWidth: 5632,
+  skyHeight: 3168,
   skyFov: 110,
   polarisX: 0.5,
   polarisY: 0.66,
@@ -162,6 +178,8 @@ export const NIGHT_SKY_RANGES: Record<
   sunsetHour: { min: 12, max: 24 },
   twilightHours: { min: 0.25, max: 4 },
   vignette: { min: 0, max: 1 },
+  skyWidth: { min: 1280, max: 16384 },
+  skyHeight: { min: 720, max: 9216 },
   skyFov: { min: 30, max: 120 },
   polarisX: { min: 0, max: 1 },
   polarisY: { min: 0, max: 1 },
