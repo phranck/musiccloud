@@ -1,5 +1,7 @@
 import gsap from "gsap";
 import { useEffect, useRef } from "react";
+import { DayNightMode, getDayNightMode, subscribeDayNightMode } from "@/components/background/dayNightMode";
+import { daynessForMode } from "@/components/background/dayNightPolicy";
 import { NightSkyDriver } from "@/components/background/nightSky/loop";
 import {
   type NightSkyMessage,
@@ -17,6 +19,9 @@ const CANVAS_FADE_IN_SECONDS = 1.2;
 
 /** Boot delay fallback for browsers without requestIdleCallback (Safari < 18). */
 const IDLE_FALLBACK_MS = 200;
+
+/** Media query the System day-night mode follows (dark = night sky). */
+const DARK_SCHEME_QUERY = "(prefers-color-scheme: dark)";
 
 /** window event name of the opt-in runtime API (day/night toggle, animation switch). */
 const NIGHT_SKY_EVENT = "mc:night-sky";
@@ -62,6 +67,13 @@ function scheduleIdle(callback: () => void): () => void {
  * with a {@link NightSkyEventDetail} to drive the opt-in day/night blend or
  * the animation master switch from anywhere (no island prop drilling).
  *
+ * Day-night mode (plan MC-030): the island consumes the shared
+ * `dayNightMode` store — the boot settings reflect the stored mode so the
+ * very first frame is correct, and later store changes translate into
+ * `SetAutoDayNight`/`SetDayness` messages (worker) or the equivalent driver
+ * calls (fallback). In System mode a `prefers-color-scheme` listener plays
+ * live OS theme flips as animated fades.
+ *
  * Default behaviour per the approved settings: fixed night start, 10 fps
  * idle loop, 30 fps lift during the manual day/night fade.
  */
@@ -84,6 +96,23 @@ export function BackgroundScene() {
 
     const reducedMotionQuery =
       typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+    const darkSchemeQuery = typeof window.matchMedia === "function" ? window.matchMedia(DARK_SCHEME_QUERY) : null;
+
+    /** Live OS dark preference (the System mode's input). */
+    const prefersDark = () => darkSchemeQuery?.matches ?? false;
+
+    /**
+     * Boot settings reflecting the STORED mode, so the very first rendered
+     * frame already matches it (no visible catch-up fade after the reveal).
+     */
+    const initialModeSettings = (): NightSkySettings => {
+      const mode = getDayNightMode();
+      return {
+        ...NIGHT_SKY_DEFAULTS,
+        autoDayNight: mode === DayNightMode.Automatic ? 1 : 0,
+        dayness: daynessForMode(mode, { prefersDark: prefersDark(), date: new Date() }),
+      };
+    };
 
     /** Fades the ready canvas in over the CSS layer (instant under reduced motion). */
     const revealCanvas = () => {
@@ -144,6 +173,43 @@ export function BackgroundScene() {
       }
     };
 
+    /**
+     * Translates a mode change into scene updates. Fixed modes disable the
+     * automatic FIRST, then play the animated fade to their target — in this
+     * order the driver never runs a clock step against the outgoing fade.
+     * Automatic only enables the clock: the driver fades to the current
+     * clock value itself (see NightSkyDriver.setAutoDayNight).
+     */
+    const applyMode = (mode: DayNightMode) => {
+      if (mode === DayNightMode.Automatic) {
+        if (worker) {
+          worker.postMessage({ type: NightSkyMessageType.SetAutoDayNight, enabled: true } satisfies NightSkyMessage);
+        } else {
+          fallbackDriver?.setAutoDayNight(true);
+        }
+        return;
+      }
+      const dayness = daynessForMode(mode, { prefersDark: prefersDark(), date: new Date() });
+      if (worker) {
+        worker.postMessage({ type: NightSkyMessageType.SetAutoDayNight, enabled: false } satisfies NightSkyMessage);
+        worker.postMessage({ type: NightSkyMessageType.SetDayness, dayness, animated: true } satisfies NightSkyMessage);
+      } else if (fallbackDriver) {
+        fallbackDriver.setAutoDayNight(false);
+        fallbackDriver.setDayness(dayness, { animated: true });
+      }
+    };
+
+    /** Plays live OS theme flips as animated fades — only while in System mode. */
+    const handleSchemeChange = () => {
+      if (getDayNightMode() !== DayNightMode.System) return;
+      const dayness = daynessForMode(DayNightMode.System, { prefersDark: prefersDark(), date: new Date() });
+      if (worker) {
+        worker.postMessage({ type: NightSkyMessageType.SetDayness, dayness, animated: true } satisfies NightSkyMessage);
+      } else {
+        fallbackDriver?.setDayness(dayness, { animated: true });
+      }
+    };
+
     const handleApiEvent = (event: Event) => {
       const detail = (event as CustomEvent<NightSkyEventDetail>).detail;
       if (!detail) return;
@@ -188,7 +254,7 @@ export function BackgroundScene() {
           cssHeight: height,
           pixelRatio,
           reducedMotion: reducedMotionQuery?.matches ?? false,
-          settings: NIGHT_SKY_DEFAULTS,
+          settings: initialModeSettings(),
         } satisfies NightSkyMessage,
         [offscreen],
       );
@@ -196,7 +262,7 @@ export function BackgroundScene() {
 
     /** Fallback path (no OffscreenCanvas WebGL): same code, gsap.ticker-scheduled. */
     const bootFallback = () => {
-      const settings: NightSkySettings = { ...NIGHT_SKY_DEFAULTS };
+      const settings: NightSkySettings = initialModeSettings();
       fallbackScene = createNightSkyScene(canvas, settings, { onContextLost: () => undefined });
       if (!fallbackScene) return; // no WebGL2 → CSS layer stays
       fallbackDriver = new NightSkyDriver(fallbackScene, settings);
@@ -208,6 +274,8 @@ export function BackgroundScene() {
       fallbackDriver.tick(performance.now()); // first frame before the reveal
       revealCanvas();
     };
+
+    let unsubscribeMode: (() => void) | null = null;
 
     const cancelIdle = scheduleIdle(() => {
       if (disposed) return;
@@ -222,7 +290,11 @@ export function BackgroundScene() {
       }
       document.addEventListener("visibilitychange", handleVisibility);
       reducedMotionQuery?.addEventListener?.("change", handleReducedMotion);
+      darkSchemeQuery?.addEventListener?.("change", handleSchemeChange);
       window.addEventListener(NIGHT_SKY_EVENT, handleApiEvent);
+      // Boot read the store synchronously above, so subscribing afterwards
+      // cannot miss a change in between.
+      unsubscribeMode = subscribeDayNightMode(applyMode);
     });
 
     return () => {
@@ -231,7 +303,9 @@ export function BackgroundScene() {
       observer?.disconnect();
       document.removeEventListener("visibilitychange", handleVisibility);
       reducedMotionQuery?.removeEventListener?.("change", handleReducedMotion);
+      darkSchemeQuery?.removeEventListener?.("change", handleSchemeChange);
       window.removeEventListener(NIGHT_SKY_EVENT, handleApiEvent);
+      unsubscribeMode?.();
       if (fallbackTick) gsap.ticker.remove(fallbackTick);
       fallbackScene?.dispose();
       worker?.terminate();

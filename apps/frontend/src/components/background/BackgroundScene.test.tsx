@@ -2,8 +2,10 @@ import { act, render } from "@testing-library/react";
 import gsap from "gsap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BackgroundScene } from "@/components/background/BackgroundScene";
+import { DayNightMode, setDayNightMode } from "@/components/background/dayNightMode";
 import { NightSkyMessageType, NightSkyWorkerEvent } from "@/components/background/nightSky/protocol";
 import { createNightSkyScene } from "@/components/background/nightSky/scene";
+import type { NightSkySettings } from "@/components/background/nightSky/settings";
 
 /**
  * Bridge-wiring contract of the BackgroundScene island (plan MC-029 Phase
@@ -62,19 +64,62 @@ class MockWorker {
 /** Marker object standing in for the transferred OffscreenCanvas. */
 const FAKE_OFFSCREEN = { __offscreen: true };
 
+const DARK_SCHEME_QUERY = "(prefers-color-scheme: dark)";
+
+/** One controllable media-query record of the matchMedia stub. */
+interface MediaStubEntry {
+  matches: boolean;
+  listeners: Set<(event: { matches: boolean }) => void>;
+}
+
+let mediaQueries: Map<string, MediaStubEntry>;
+
+/**
+ * matchMedia stub with per-query state: the day-night System mode listens on
+ * `(prefers-color-scheme: dark)` while reduced-motion keeps its own query, so
+ * a single shared `matches` value would conflate the two. Tests flip a query
+ * via {@link setMediaMatches}, which also fires its registered listeners.
+ */
+function installMatchMediaStub(): void {
+  const queries = new Map<string, MediaStubEntry>();
+  mediaQueries = queries;
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((query: string) => {
+      let entry = queries.get(query);
+      if (!entry) {
+        entry = { matches: false, listeners: new Set() };
+        queries.set(query, entry);
+      }
+      const stable = entry;
+      return {
+        get matches() {
+          return stable.matches;
+        },
+        media: query,
+        addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) =>
+          stable.listeners.add(listener),
+        removeEventListener: (_type: string, listener: (event: { matches: boolean }) => void) =>
+          stable.listeners.delete(listener),
+      } as unknown as MediaQueryList;
+    }),
+  );
+}
+
+/** Flips a stubbed media query and notifies its listeners (OS theme change). */
+function setMediaMatches(query: string, value: boolean): void {
+  const entry = mediaQueries.get(query);
+  if (!entry) throw new Error(`no media query registered for: ${query}`);
+  entry.matches = value;
+  entry.listeners.forEach((listener) => listener({ matches: value }));
+}
+
 beforeEach(() => {
   workerInstances.length = 0;
   sceneFactory.result = null;
   vi.mocked(createNightSkyScene).mockClear();
   vi.stubGlobal("Worker", MockWorker);
-  vi.stubGlobal(
-    "matchMedia",
-    vi.fn().mockReturnValue({
-      matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    } as unknown as MediaQueryList),
-  );
+  installMatchMediaStub();
   // requestIdleCallback is absent in Safari < 18 AND jsdom — the island must
   // boot through its setTimeout fallback; run timers synchronously here.
   vi.useFakeTimers();
@@ -85,6 +130,9 @@ beforeEach(() => {
 
 afterEach(() => {
   gsap.globalTimeline.getChildren(true, true, true).forEach((animation) => animation.kill());
+  // Reset the module-level mode store so no test leaks its mode (the store
+  // is shared across this file's tests exactly like across real islands).
+  setDayNightMode(DayNightMode.Night);
   vi.useRealTimers();
   vi.unstubAllGlobals();
   // @ts-expect-error cleanup of the prototype stub
@@ -191,5 +239,95 @@ describe("BackgroundScene main-thread fallback", () => {
     expect(workerInstances).toHaveLength(0);
     expect(gsap.getTweensOf(canvas)).toHaveLength(0); // canvas stays transparent
     unmount(); // no crash without a scene
+  });
+
+  it("applies mode changes to the fallback driver settings", () => {
+    forceFallback();
+    sceneFactory.result = { draw: vi.fn(), resize: vi.fn(), dispose: vi.fn() };
+    bootIsland(); // stored default: Night
+
+    // The driver owns the very settings object the scene factory received —
+    // its mutations are the observable proxy for the driver-path calls.
+    const settings = vi.mocked(createNightSkyScene).mock.calls[0][1] as NightSkySettings;
+    expect(settings.autoDayNight).toBe(0);
+
+    act(() => {
+      setDayNightMode(DayNightMode.Automatic);
+    });
+    expect(settings.autoDayNight).toBe(1);
+
+    act(() => {
+      setDayNightMode(DayNightMode.Night);
+    });
+    expect(settings.autoDayNight).toBe(0);
+  });
+});
+
+describe("BackgroundScene day-night mode (plan MC-030)", () => {
+  /** Messages posted AFTER the init message, type/payload only. */
+  function postedAfterInit(worker: MockWorker): unknown[] {
+    return worker.posted.slice(1).map((entry) => entry.message);
+  }
+
+  it("boots with the stored Day mode applied to the init settings", () => {
+    setDayNightMode(DayNightMode.Day);
+    bootIsland();
+    const init = workerInstances[0].posted[0].message as { settings: NightSkySettings };
+    expect(init.settings.dayness).toBe(1);
+    expect(init.settings.autoDayNight).toBe(0);
+  });
+
+  it("boots the Automatic mode with the clock dayness and the automatic enabled", () => {
+    vi.setSystemTime(new Date(2026, 5, 13, 12, 0, 0)); // noon → clock dayness 1
+    setDayNightMode(DayNightMode.Automatic);
+    bootIsland();
+    const init = workerInstances[0].posted[0].message as { settings: NightSkySettings };
+    expect(init.settings.autoDayNight).toBe(1);
+    expect(init.settings.dayness).toBe(1); // first frame already matches the clock
+  });
+
+  it("posts automatic-off before the animated dayness fade on a fixed-mode change", () => {
+    bootIsland(); // stored default: Night
+    act(() => {
+      setDayNightMode(DayNightMode.Day);
+    });
+    expect(postedAfterInit(workerInstances[0])).toEqual([
+      { type: NightSkyMessageType.SetAutoDayNight, enabled: false },
+      { type: NightSkyMessageType.SetDayness, dayness: 1, animated: true },
+    ]);
+  });
+
+  it("posts only the automatic enable on switching to Automatic", () => {
+    bootIsland();
+    act(() => {
+      setDayNightMode(DayNightMode.Automatic);
+    });
+    expect(postedAfterInit(workerInstances[0])).toEqual([{ type: NightSkyMessageType.SetAutoDayNight, enabled: true }]);
+  });
+
+  it("follows live OS scheme changes in System mode only", () => {
+    bootIsland();
+    const worker = workerInstances[0];
+    act(() => {
+      setDayNightMode(DayNightMode.System); // scheme matches=false → day
+    });
+    act(() => {
+      setMediaMatches(DARK_SCHEME_QUERY, true); // OS flips to dark → night
+    });
+    expect(postedAfterInit(worker).at(-1)).toEqual({
+      type: NightSkyMessageType.SetDayness,
+      dayness: 0,
+      animated: true,
+    });
+
+    // Outside System mode the scheme listener must stay inert.
+    act(() => {
+      setDayNightMode(DayNightMode.Night);
+    });
+    const postedCount = worker.posted.length;
+    act(() => {
+      setMediaMatches(DARK_SCHEME_QUERY, false);
+    });
+    expect(worker.posted.length).toBe(postedCount);
   });
 });
