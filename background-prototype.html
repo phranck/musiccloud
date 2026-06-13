@@ -200,6 +200,8 @@ const PARAMS = [
   { key: "sunsetHour",     label: "Sunset (h)",        group: "Sky",    min: 12,   max: 24,   step: 0.25,  def: 20.5 },
   { key: "twilightHours",  label: "Twilight (h)",      group: "Sky",    min: 0.25, max: 4,    step: 0.25,  def: 1.5 },
   { key: "vignette",       label: "Vignette",          group: "Sky",    min: 0,    max: 1,    step: 0.01,  def: 0.25 },
+  { key: "skyWidth",       label: "Sky width (px)",    group: "Sky",    min: 1280, max: 16384, step: 16,   def: 5632 },
+  { key: "skyHeight",      label: "Sky height (px)",   group: "Sky",    min: 720,  max: 9216, step: 16,    def: 3168 },
 
   // ── Stars ──
   { key: "skyFov",         label: "Sky window °",      group: "Stars",  min: 30,   max: 120,  step: 5,     def: 110 },
@@ -208,28 +210,28 @@ const PARAMS = [
   { key: "rotationPeriod", label: "Rotation (s/rev)",  group: "Stars",  min: 120,  max: 3600, step: 30,    def: 1200 },
   { key: "catalogSize",    label: "Bright star size",  group: "Stars",  min: 0.5,  max: 4,    step: 0.05,  def: 1.7 },
   { key: "catalogBrightness", label: "Bright star glow", group: "Stars", min: 0,   max: 2,    step: 0.05,  def: 1.1 },
-  { key: "starDensity",    label: "Fill density",      group: "Stars",  min: 20,   max: 400,  step: 5,     def: 100 },
-  { key: "starSize",       label: "Fill size",         group: "Stars",  min: 0.5,  max: 4,    step: 0.05,  def: 1.5 },
+  { key: "starDensity",    label: "Fill density",      group: "Stars",  min: 20,   max: 400,  step: 5,     def: 170 },
+  { key: "starSize",       label: "Fill size",         group: "Stars",  min: 0.5,  max: 4,    step: 0.05,  def: 1.1 },
   { key: "starBrightness", label: "Fill brightness",   group: "Stars",  min: 0,    max: 2,    step: 0.05,  def: 0.95 },
-  { key: "twinkleAmount",  label: "Twinkle amount",    group: "Stars",  min: 0,    max: 1,    step: 0.01,  def: 0.7 },
-  { key: "twinkleSpeed",   label: "Twinkle speed",     group: "Stars",  min: 0,    max: 3,    step: 0.05,  def: 1.7 },
+  { key: "twinkleAmount",  label: "Twinkle amount",    group: "Stars",  min: 0,    max: 1,    step: 0.01,  def: 0.86 },
+  { key: "twinkleSpeed",   label: "Twinkle speed",     group: "Stars",  min: 0,    max: 3,    step: 0.05,  def: 2.3 },
 
   // ── Clouds ──
   { key: "cloudScale",     label: "Formation size",    group: "Clouds", min: 0.5,  max: 8,    step: 0.1,   def: 8 },
-  { key: "cloudCoverage",  label: "Coverage",          group: "Clouds", min: 0,    max: 1,    step: 0.01,  def: 0.3 },
+  { key: "cloudCoverage",  label: "Coverage",          group: "Clouds", min: 0,    max: 1,    step: 0.01,  def: 0.31 },
   { key: "cloudSoftness",  label: "Softness",          group: "Clouds", min: 0.02, max: 0.8,  step: 0.01,  def: 0.34 },
   { key: "cloudOpacity",   label: "Opacity",           group: "Clouds", min: 0,    max: 1,    step: 0.01,  def: 1 },
   { key: "cloudDetail",    label: "Detail (octaves)",  group: "Clouds", min: 2,    max: 7,    step: 1,     def: 7 },
   { key: "clearZones",     label: "Clear-sky zones",   group: "Clouds", min: 0,    max: 1,    step: 0.01,  def: 0.4 },
   { key: "warpStrength",   label: "Warp (raggedness)", group: "Clouds", min: 0,    max: 2,    step: 0.05,  def: 0.35 },
-  { key: "windSpeed",      label: "Wind speed",        group: "Clouds", min: 0,    max: 0.05, step: 0.001, def: 0.03 },
+  { key: "windSpeed",      label: "Wind speed",        group: "Clouds", min: 0,    max: 0.05, step: 0.001, def: 0.01 },
   { key: "windAngle",      label: "Wind direction °",  group: "Clouds", min: 0,    max: 360,  step: 5,     def: 180 },
-  { key: "evolveSpeed",    label: "Shape evolution",   group: "Clouds", min: 0,    max: 0.2,  step: 0.005, def: 0.05 },
+  { key: "evolveSpeed",    label: "Shape evolution",   group: "Clouds", min: 0,    max: 0.2,  step: 0.005, def: 0.06 },
   { key: "moonIntensity",  label: "Moonlight",         group: "Clouds", min: 0,    max: 2,    step: 0.05,  def: 0.15 },
   { key: "moonAngle",      label: "Moon direction °",  group: "Clouds", min: 0,    max: 360,  step: 5,     def: 265 },
   { key: "sunIntensity",   label: "Sunlight (day)",    group: "Clouds", min: 0,    max: 2,    step: 0.05,  def: 0.85 },
   { key: "sunAngle",       label: "Sun direction °",   group: "Clouds", min: 0,    max: 360,  step: 5,     def: 230 },
-  { key: "starOcclusion",  label: "Star occlusion",    group: "Clouds", min: 0,    max: 3,    step: 0.05,  def: 1.2 },
+  { key: "starOcclusion",  label: "Star occlusion",    group: "Clouds", min: 0,    max: 3,    step: 0.05,  def: 0.1 },
 
   // ── Performance ──
   { key: "animate",        label: "Animation",         group: "Performance", min: 0,    max: 1,  step: 1,    def: 1, bool: true },
@@ -242,7 +244,7 @@ const COLORS = [
   { key: "skyTop",        label: "Night sky (top)",    group: "Sky",    def: "#03070d" },
   { key: "skyBottom",     label: "Night sky (bottom)", group: "Sky",    def: "#0b1923" },
   { key: "skyTopDay",     label: "Day sky (top)",      group: "Sky",    def: "#2d6fb5" },
-  { key: "skyBottomDay",  label: "Day sky (bottom)",   group: "Sky",    def: "#aee5fe" },
+  { key: "skyBottomDay",  label: "Day sky (bottom)",   group: "Sky",    def: "#9fd4eb" },
   { key: "cloudColor",    label: "Cloud base (night)", group: "Clouds", def: "#2c3b47" },
   { key: "cloudColorDay", label: "Cloud base (day)",   group: "Clouds", def: "#e6edf3" },
 ];
@@ -256,20 +258,22 @@ const TIPS = {
   sunriseHour:    "Local hour the morning twilight is centred on (auto mode).",
   sunsetHour:     "Local hour the evening twilight is centred on (auto mode).",
   twilightHours:  "Length of the dawn/dusk transition window in hours (auto mode).",
-  vignette:       "Darkens the screen corners for a photographic look.",
-  skyTop:         "Night sky color at the top of the screen.",
-  skyBottom:      "Night sky color at the horizon (bottom edge).",
-  skyTopDay:      "Day sky color at the top of the screen.",
-  skyBottomDay:   "Day sky color at the horizon (bottom edge).",
+  vignette:       "Darkens the WINDOW corners for a photographic look (stays a viewport effect, not part of the fixed sky plane).",
+  skyWidth:       "Width of the FIXED virtual sky plane in CSS px. The window only shows a crop of it — resize the browser to see the crop move instead of the sky squashing. Keep it above your largest supported viewport (default exceeds native 5K).",
+  skyHeight:      "Height of the fixed virtual sky plane in CSS px (see Sky width). The gradient, star fields and clouds all live on this plane.",
+  skyTop:         "Night sky color at the top of the sky plane.",
+  skyBottom:      "Night sky color at the horizon (bottom of the sky plane).",
+  skyTopDay:      "Day sky color at the top of the sky plane.",
+  skyBottomDay:   "Day sky color at the horizon (bottom of the sky plane).",
 
   // Stars
-  skyFov:         "Degrees of sky mapped onto the screen height — smaller zooms in on the pole, larger shows more constellations.",
-  polarisX:       "Horizontal screen position of Polaris, the rotation pivot (0 = left, 1 = right).",
-  polarisY:       "Vertical screen position of Polaris (0 = bottom, 1 = top).",
+  skyFov:         "Degrees of sky mapped onto the VIRTUAL plane height — smaller zooms in on the pole, larger shows more constellations.",
+  polarisX:       "Horizontal WINDOW position of Polaris (0 = left, 1 = right). Dual role: it also anchors the crop within the sky plane, so Polaris sits here for every window size.",
+  polarisY:       "Vertical WINDOW position of Polaris (0 = bottom, 1 = top); same dual role as Polaris X.",
   rotationPeriod: "Seconds for one full revolution of the sky around Polaris (the real sky takes ~86,164 s).",
   catalogSize:    "Dot size of the real catalog stars (Big Dipper, Cassiopeia, Vega, Capella …).",
   catalogBrightness: "Glow strength of the catalog stars.",
-  starDensity:    "Amount of faint procedural background stars filling the sky.",
+  starDensity:    "Amount of faint procedural background stars filling the sky PLANE (the window shows its crop's share).",
   starSize:       "Dot size of the background fill stars.",
   starBrightness: "Brightness of the background fill stars.",
   twinkleAmount:  "How strongly the stars flicker.",
@@ -278,7 +282,7 @@ const TIPS = {
   // Clouds
   cloudColor:     "Base color of the cloud banks at night.",
   cloudColorDay:  "Base color of the cloud banks at day.",
-  cloudScale:     "Spatial frequency of the cloud field: higher = more and smaller formations, lower = few large banks.",
+  cloudScale:     "Spatial frequency of the cloud field across the sky PLANE: higher = more and smaller formations, lower = few large banks.",
   cloudCoverage:  "How much of the sky the clouds cover.",
   cloudSoftness:  "Edge softness: low = crisp bank edges, high = hazy gradients.",
   cloudOpacity:   "How strongly the cloud layer covers sky and stars.",
@@ -344,6 +348,7 @@ const LABELS_DE = {
   dayness: "Tag-Anteil", dayTransition: "Tag/Nacht-Blende (s)", autoDayNight: "Automatik (Ortszeit)",
   sunriseHour: "Sonnenaufgang (h)", sunsetHour: "Sonnenuntergang (h)", twilightHours: "Dämmerung (h)",
   vignette: "Vignette",
+  skyWidth: "Himmelsbreite (px)", skyHeight: "Himmelshöhe (px)",
   skyTop: "Nachthimmel (oben)", skyBottom: "Nachthimmel (unten)",
   skyTopDay: "Taghimmel (oben)", skyBottomDay: "Taghimmel (unten)",
   skyFov: "Himmelsausschnitt °", polarisX: "Polarstern X", polarisY: "Polarstern Y",
@@ -367,25 +372,27 @@ const TIPS_DE = {
   sunriseHour:    "Ortszeit-Stunde, auf der die Morgendämmerung zentriert ist (Automatik).",
   sunsetHour:     "Ortszeit-Stunde, auf der die Abenddämmerung zentriert ist (Automatik).",
   twilightHours:  "Länge des Dämmerungsfensters in Stunden (Automatik).",
-  vignette:       "Dunkelt die Bildecken fotografisch ab.",
-  skyTop:         "Farbe des Nachthimmels am oberen Bildrand.",
-  skyBottom:      "Farbe des Nachthimmels am Horizont (unten).",
-  skyTopDay:      "Farbe des Taghimmels am oberen Bildrand.",
-  skyBottomDay:   "Farbe des Taghimmels am Horizont (unten).",
-  skyFov:         "Grad Himmel auf der Bildhöhe — kleiner zoomt auf den Pol, größer zeigt mehr Sternbilder.",
-  polarisX:       "Horizontale Bildposition des Polarsterns, des Drehpunkts (0 = links, 1 = rechts).",
-  polarisY:       "Vertikale Bildposition des Polarsterns (0 = unten, 1 = oben).",
+  vignette:       "Dunkelt die FENSTER-Ecken fotografisch ab (bleibt ein Viewport-Effekt, gehört nicht zur festen Himmelsfläche).",
+  skyWidth:       "Breite der FESTEN virtuellen Himmelsfläche in CSS-px. Das Fenster zeigt nur einen Ausschnitt — beim Resize wandert der Ausschnitt, statt dass der Himmel gestaucht wird. Größer halten als den größten unterstützten Viewport (Default übertrifft natives 5K).",
+  skyHeight:      "Höhe der festen virtuellen Himmelsfläche in CSS-px (siehe Himmelsbreite). Gradient, Sternfelder und Wolken leben auf dieser Fläche.",
+  skyTop:         "Farbe des Nachthimmels am oberen Rand der Himmelsfläche.",
+  skyBottom:      "Farbe des Nachthimmels am Horizont (unterer Rand der Fläche).",
+  skyTopDay:      "Farbe des Taghimmels am oberen Rand der Himmelsfläche.",
+  skyBottomDay:   "Farbe des Taghimmels am Horizont (unterer Rand der Fläche).",
+  skyFov:         "Grad Himmel auf der VIRTUELLEN Flächenhöhe — kleiner zoomt auf den Pol, größer zeigt mehr Sternbilder.",
+  polarisX:       "Horizontale FENSTER-Position des Polarsterns (0 = links, 1 = rechts). Doppelrolle: verankert zugleich den Ausschnitt in der Himmelsfläche — Polaris sitzt bei jeder Fenstergröße genau hier.",
+  polarisY:       "Vertikale FENSTER-Position des Polarsterns (0 = unten, 1 = oben); gleiche Doppelrolle wie Polarstern X.",
   rotationPeriod: "Sekunden für eine volle Himmelsumdrehung um den Polarstern (echter Himmel: ~86.164 s).",
   catalogSize:    "Punktgröße der echten Katalogsterne (Großer Wagen, Kassiopeia, Wega, Capella …).",
   catalogBrightness: "Leuchtstärke der Katalogsterne.",
-  starDensity:    "Menge der schwachen prozeduralen Füllsterne.",
+  starDensity:    "Menge der schwachen prozeduralen Füllsterne auf der HimmelsFLÄCHE (das Fenster zeigt den Anteil seines Ausschnitts).",
   starSize:       "Punktgröße der Füllsterne.",
   starBrightness: "Helligkeit der Füllsterne.",
   twinkleAmount:  "Wie stark die Sterne funkeln.",
   twinkleSpeed:   "Wie schnell die Sterne funkeln.",
   cloudColor:     "Grundfarbe der Wolkenbänke bei Nacht.",
   cloudColorDay:  "Grundfarbe der Wolkenbänke bei Tag.",
-  cloudScale:     "Räumliche Frequenz des Wolkenfelds: höher = mehr und kleinere Formationen, niedriger = wenige große Bänke.",
+  cloudScale:     "Räumliche Frequenz des Wolkenfelds über der Himmelsfläche: höher = mehr und kleinere Formationen, niedriger = wenige große Bänke.",
   cloudCoverage:  "Wie viel des Himmels die Wolken bedecken.",
   cloudSoftness:  "Kantenweichheit: niedrig = klare Ränder, hoch = dunstige Verläufe.",
   cloudOpacity:   "Wie stark die Wolkenschicht Himmel und Sterne überdeckt.",
@@ -888,6 +895,23 @@ float vignetteAt(vec2 cuv) {
   return 1.0 - u_vignette * smoothstep(0.45, 1.25, length(cuv) * 1.15);
 }`;
 
+/* Plane-crop mapping (plan MC-031): the sky lives on a FIXED virtual plane
+   of u_skySize CSS px; the window only shows the crop at u_skyOffset (CSS px,
+   y-up like gl_FragCoord). All content keeps its size on resize — only WHICH
+   part is visible changes. The vignette stays a window effect. */
+const GLSL_PLANE = `
+uniform vec2  u_skySize;
+uniform vec2  u_skyOffset;
+uniform float u_pixelScale;
+
+vec2 planeUv(vec2 fragPx) {
+  return (fragPx / u_pixelScale + u_skyOffset) / u_skySize;
+}
+float planeAspect() { return u_skySize.x / u_skySize.y; }
+vec2 windowCuv(vec2 fragPx, vec2 resolution) {
+  return (fragPx / resolution - 0.5) * vec2(resolution.x / resolution.y, 1.0);
+}`;
+
 /* ── Pass A: sky gradient + procedural fill stars ─────────────────────── */
 
 const QUAD_VERT = `#version 300 es
@@ -918,6 +942,7 @@ uniform float u_twinkleSpeed;
 #define TAU 6.28318530718
 ${GLSL_HASH}
 ${GLSL_VIGNETTE}
+${GLSL_PLANE}
 
 mat2 rot2(float a) { return mat2(cos(a), -sin(a), sin(a), cos(a)); }
 
@@ -928,7 +953,9 @@ float starLayer(vec2 uv, float density, float sizePx, float brightMul) {
   float h = hash21(id);
   float present = step(h, 0.22);
   vec2 pos = vec2(hash21(id + 7.1), hash21(id + 3.7)) * 0.6 + 0.2;
-  float distPx = length(f - pos) * (u_resolution.y / density);
+  // Cell size is fixed on the PLANE (virtual height / density), converted to
+  // buffer px — stars keep their pixel size at every window size.
+  float distPx = length(f - pos) * (u_skySize.y * u_pixelScale / density);
   float star = smoothstep(sizePx, sizePx * 0.15, distPx);
   float mag = pow(hash21(id + 13.3), 3.0);
   float tw = 1.0 + u_twinkleAmount * sin(u_time * u_twinkleSpeed * (0.5 + h * 2.0) + h * TAU);
@@ -936,10 +963,11 @@ float starLayer(vec2 uv, float density, float sizePx, float brightMul) {
 }
 
 void main() {
-  vec2 uv = gl_FragCoord.xy / u_resolution;
-  float aspect = u_resolution.x / u_resolution.y;
-  vec2 cuv = (uv - 0.5) * vec2(aspect, 1.0);
+  vec2 uv = planeUv(gl_FragCoord.xy);
+  vec2 cuv = (uv - 0.5) * vec2(planeAspect(), 1.0);
 
+  // Gradient over the VIRTUAL height; smoothstep clamps to the edge colors
+  // outside the plane (oversized windows degrade gracefully).
   vec3 night = mix(u_skyBottom, u_skyTop, smoothstep(0.0, 1.0, uv.y));
   vec3 day   = mix(u_skyBottomDay, u_skyTopDay, smoothstep(0.0, 1.0, uv.y));
   vec3 col = mix(night, day, u_dayness);
@@ -954,7 +982,7 @@ void main() {
   stars *= u_starBrightness * starVis;
   col += vec3(0.85, 0.92, 1.0) * stars;
 
-  col *= vignetteAt(cuv);
+  col *= vignetteAt(windowCuv(gl_FragCoord.xy, u_resolution));
   col += (hash21(gl_FragCoord.xy + fract(u_time)) - 0.5) / 255.0;
   outColor = vec4(col, 1.0);
 }`;
@@ -991,16 +1019,22 @@ ${GLSL_HASH}
 ${GLSL_NOISE}
 ${GLSL_CLOUD_FIELD}
 ${GLSL_VIGNETTE}
+${GLSL_PLANE}
 
 void main() {
-  float aspect = u_resolution.x / u_resolution.y;
+  float aspect = planeAspect();
   float angle = a_star.y + u_theta;
-  // Screen-space radius: angular distance scaled by the visible sky window.
+  // Plane-space radius: angular distance scaled by the sky window (degrees
+  // mapped onto the VIRTUAL plane height).
   float r = a_star.x / u_skyFov;
-  vec2 cuv = u_polaris + vec2(cos(angle), sin(angle)) * r;
+  vec2 virtCuv = u_polaris + vec2(cos(angle), sin(angle)) * r;
 
-  // centered/aspect coords → NDC
-  gl_Position = vec4(cuv.x * 2.0 / aspect, cuv.y * 2.0, 0.0, 1.0);
+  // Plane cuv → plane CSS px (inverse of the fragment mapping) → window CSS
+  // px → NDC. Stars outside the crop clip away naturally.
+  vec2 skyPx = (virtCuv / vec2(aspect, 1.0) + 0.5) * u_skySize;
+  vec2 winCss = skyPx - u_skyOffset;
+  vec2 viewportCss = u_resolution / u_pixelScale;
+  gl_Position = vec4(winCss / viewportCss * 2.0 - 1.0, 0.0, 1.0);
 
   // Magnitude → size and brightness (visual, not photometric — tuned to read
   // like the reference photo: a handful of clear leaders, many modest dots).
@@ -1012,15 +1046,19 @@ void main() {
   float tw = 1.0 + u_twinkleAmount * 0.6 * sin(u_time * u_twinkleSpeed * (0.6 + seed * 1.8) + seed * TAU);
   float bright = clamp(0.18 + (4.2 - m) * 0.26, 0.0, 1.3) * u_catalogBrightness * tw;
 
-  // Cloud occlusion: one field sample per star (cheap — ~60 vertices).
+  // Cloud occlusion: one field sample per star (cheap — ~60 vertices), in
+  // the PLANE domain — the same coordinates the cloud pass shades with.
   vec3 cp; vec2 p2; float tz;
-  float n = cloudRaw(cuv, u_time, cp, p2, tz);
+  float n = cloudRaw(virtCuv, u_time, cp, p2, tz);
   float cloud = cloudMask(n, p2, tz);
   bright *= 1.0 - clamp(cloud * u_starOcclusion, 0.0, 1.0);
   // Same dawn washout curve as the fill stars in the sky pass.
   bright *= 1.0 - smoothstep(0.05, 0.45, u_dayness);
 
-  v_alpha = bright * vignetteAt(cuv);
+  // Vignette is a WINDOW effect — evaluate at the star's window position,
+  // not its plane position (verified-math note, plan MC-031).
+  vec2 winCuvStar = (winCss / viewportCss - 0.5) * vec2(u_resolution.x / u_resolution.y, 1.0);
+  v_alpha = bright * vignetteAt(winCuvStar);
 
   // colorClass: 0 blue-white, 1 white, 2 warm.
   vec3 blueWhite = vec3(0.72, 0.82, 1.00);
@@ -1065,11 +1103,11 @@ ${GLSL_HASH}
 ${GLSL_NOISE}
 ${GLSL_CLOUD_FIELD}
 ${GLSL_VIGNETTE}
+${GLSL_PLANE}
 
 void main() {
-  vec2 uv = gl_FragCoord.xy / u_resolution;
-  float aspect = u_resolution.x / u_resolution.y;
-  vec2 cuv = (uv - 0.5) * vec2(aspect, 1.0);
+  vec2 uv = planeUv(gl_FragCoord.xy);
+  vec2 cuv = (uv - 0.5) * vec2(planeAspect(), 1.0);
 
   vec3 cp; vec2 p2; float tz;
   float n = cloudRaw(cuv, u_time, cp, p2, tz);
@@ -1094,7 +1132,7 @@ void main() {
   dayCol = mix(dayCol, dayCol * vec3(0.72, 0.78, 0.86), coreShade * 0.55);
 
   vec3 cloudCol = mix(nightCol, dayCol, u_dayness);
-  cloudCol *= vignetteAt(cuv);
+  cloudCol *= vignetteAt(windowCuv(gl_FragCoord.xy, u_resolution));
   cloudCol += (hash21(gl_FragCoord.xy + fract(u_time)) - 0.5) / 255.0;
 
   outColor = vec4(cloudCol, cloud * u_cloudOpacity);
@@ -1137,11 +1175,16 @@ const CLOUD_FIELD_UNIFORMS = [
   "u_clearZones", "u_warpStrength", "u_windSpeed", "u_windAngle", "u_evolveSpeed",
 ];
 
+/* Plane-crop uniforms — set on ALL THREE programs; missing one would leave
+   that pass window-relative and visibly drifting against the others. */
+const PLANE_UNIFORMS = ["u_skySize", "u_skyOffset", "u_pixelScale"];
+
 const progSky = link(QUAD_VERT, SKY_FRAG);
 const locSky = locations(progSky, [
   "u_resolution", "u_time", "u_skyTop", "u_skyBottom", "u_skyTopDay", "u_skyBottomDay", "u_dayness",
   "u_polaris", "u_theta",
   "u_starDensity", "u_starSize", "u_starBrightness", "u_twinkleAmount", "u_twinkleSpeed", "u_vignette",
+  ...PLANE_UNIFORMS,
 ]);
 
 const progStar = link(STAR_VERT, STAR_FRAG);
@@ -1149,6 +1192,7 @@ const locStar = locations(progStar, [
   "u_resolution", "u_time", "u_polaris", "u_theta", "u_skyFov",
   "u_catalogSize", "u_catalogBrightness", "u_twinkleAmount", "u_twinkleSpeed",
   "u_starOcclusion", "u_sizeScale", "u_vignette", "u_dayness", ...CLOUD_FIELD_UNIFORMS,
+  ...PLANE_UNIFORMS,
 ]);
 
 const progCloud = link(QUAD_VERT, CLOUD_FRAG);
@@ -1156,6 +1200,7 @@ const locCloud = locations(progCloud, [
   "u_resolution", "u_time", "u_cloudColor", "u_cloudColorDay", "u_cloudOpacity",
   "u_moonIntensity", "u_moonAngle", "u_sunIntensity", "u_sunAngle", "u_dayness",
   "u_vignette", ...CLOUD_FIELD_UNIFORMS,
+  ...PLANE_UNIFORMS,
 ]);
 
 /* Star attribute buffer: vec4(angular dist from pole °, -RA rad, mag, color). */
@@ -1344,15 +1389,28 @@ function frame(now) {
   pollGpuTimers();
 }
 
+/** Sets the plane-crop uniforms on one program (see GLSL_PLANE). */
+function setPlaneUniforms(loc, offsetX, offsetY, sizeScale) {
+  gl.uniform2f(loc.u_skySize, state.skyWidth, state.skyHeight);
+  gl.uniform2f(loc.u_skyOffset, offsetX, offsetY);
+  gl.uniform1f(loc.u_pixelScale, sizeScale);
+}
+
 /** Renders the full three-pass scene once from the current state/simTime. */
 function drawScene() {
-  const aspect = canvas.width / canvas.height;
-  // Rotation pivot in centered/aspect coords (matches cuv in the shaders).
-  const polX = (state.polarisX - 0.5) * aspect;
+  // Rotation pivot in PLANE cuv (unit = virtual plane height) — the star
+  // field no longer scales with the window (plan MC-031).
+  const planeAspect = state.skyWidth / state.skyHeight;
+  const polX = (state.polarisX - 0.5) * planeAspect;
   const polY = state.polarisY - 0.5;
   // Counter-clockwise, like the real northern sky.
   const theta = (simTime / state.rotationPeriod) * Math.PI * 2.0;
   const sizeScale = state.renderScale * Math.min(window.devicePixelRatio || 1, 2);
+  // Crop anchored at Polaris: offset = polaris01 x (skySize - viewportCss),
+  // so Polaris sits at exactly (polarisX, polarisY) of the window for every
+  // window size and DPR (the sizes cancel; independently verified).
+  const offsetX = state.polarisX * (state.skyWidth - canvas.clientWidth);
+  const offsetY = state.polarisY * (state.skyHeight - canvas.clientHeight);
 
   // Pass A — sky + fill stars (opaque base).
   gl.disable(gl.BLEND);
@@ -1372,6 +1430,7 @@ function drawScene() {
   gl.uniform1f(locSky.u_twinkleAmount, state.twinkleAmount);
   gl.uniform1f(locSky.u_twinkleSpeed, state.twinkleSpeed);
   gl.uniform1f(locSky.u_vignette, state.vignette);
+  setPlaneUniforms(locSky, offsetX, offsetY, sizeScale);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 
   // Pass B — catalog stars, additive.
@@ -1392,6 +1451,7 @@ function drawScene() {
   gl.uniform1f(locStar.u_vignette, state.vignette);
   gl.uniform1f(locStar.u_dayness, state.dayness);
   setCloudFieldUniforms(locStar);
+  setPlaneUniforms(locStar, offsetX, offsetY, sizeScale);
   gl.bindVertexArray(starVao);
   gl.drawArrays(gl.POINTS, 0, STAR_CATALOG.length);
   gl.bindVertexArray(null);
@@ -1411,6 +1471,7 @@ function drawScene() {
   gl.uniform1f(locCloud.u_dayness, state.dayness);
   gl.uniform1f(locCloud.u_vignette, state.vignette);
   setCloudFieldUniforms(locCloud);
+  setPlaneUniforms(locCloud, offsetX, offsetY, sizeScale);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 requestAnimationFrame(frame);
