@@ -14,7 +14,7 @@ import { NIGHT_SKY_DEFAULTS, type NightSkySettings } from "@/components/backgrou
 import { MotionEase } from "@/lib/motion/constants";
 import { prefersReducedMotion, setupMotion } from "@/lib/motion/setup";
 
-/** Seconds the canvas takes to fade in over the CSS gradient once the first frame is ready. */
+/** Seconds the canvas takes to fade in over the base background color once the first frame is ready. */
 const CANVAS_FADE_IN_SECONDS = 1.2;
 
 /** Boot delay fallback for browsers without requestIdleCallback (Safari < 18). */
@@ -50,7 +50,7 @@ function scheduleIdle(callback: () => void): () => void {
  * The night-sky WebGL background island (plan MC-029 Phase 4).
  *
  * Renders a single `<canvas>` that starts fully transparent above the static
- * CSS gradient fallback and only fades in once the FIRST frame has been
+ * base background color and only fades in once the FIRST frame has been
  * rendered — the page never shows a black or half-initialised surface, and
  * without JS/WebGL the CSS layer simply stays.
  *
@@ -312,7 +312,7 @@ export function BackgroundScene() {
     };
   }, []);
 
-  // No aria-hidden here: the GradientBackground container already hides the
+  // No aria-hidden here: the NightSkyBackground container already hides the
   // whole background layer from the accessibility tree.
   return <canvas ref={canvasRef} className="absolute inset-0 h-full w-full opacity-0" data-mc-night-sky />;
 }

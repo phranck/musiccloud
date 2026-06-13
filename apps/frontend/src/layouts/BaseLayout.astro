@@ -11,7 +11,7 @@ import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { fetchNavigation } from "@/api/client";
-import GradientBackground from "@/components/background/GradientBackground.astro";
+import NightSkyBackground from "@/components/background/NightSkyBackground.astro";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
 import { getLocaleFromCookie } from "@/i18n/locales";
 import { isTrackingEnabled } from "@/lib/analytics/trackingConfig";
@@ -68,7 +68,7 @@ const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [
         prep for the Phase 4 WebGL background, which must not be torn down/re-created
         (would flicker + leak the WebGL context) on navigation. */}
     <div transition:persist="mc-background">
-      <GradientBackground />
+      <NightSkyBackground />
     </div>
     {/* transition:persist keeps the hydrated header (locale + overlay state) across
         ClientRouter navigations — it is NOT re-rendered on nav, so navItems are
