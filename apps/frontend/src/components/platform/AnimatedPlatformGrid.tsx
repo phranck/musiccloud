@@ -1,21 +1,44 @@
-import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useGSAP } from "@gsap/react";
+import { PLATFORM_CONFIG } from "@musiccloud/shared";
+import { useMemo, useRef } from "react";
 import { PlatformButton } from "@/components/platform/PlatformButton";
+import { animateFlipEnter, animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
 import type { PlatformLink } from "@/lib/types/platform";
 
 interface AnimatedPlatformGridProps {
+  /** Platform links to render; hidden platforms are filtered out, the rest sorted by label. */
   platforms: PlatformLink[];
+  /** Track/album title used for the accessible labels of the tiles. */
   songTitle: string;
 }
 
-const GRID_ANIMATION_MS = 620;
-const GRID_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+/**
+ * Two-column grid of platform link tiles that animates layout changes with
+ * GSAP Flip (compositor-only) instead of layout-property transitions.
+ *
+ * Animation model:
+ * - Every effect run captures a Flip snapshot of the wrapper + tiles into a
+ *   ref. When the platform set changes (e.g. an in-place track resolve on the
+ *   share page swaps the config), the next run animates FROM the previous
+ *   snapshot: persisting tiles glide to their new spots, entering tiles
+ *   fade+scale in, and the wrapper's size change is animated via
+ *   scaleX/scaleY — its layout height changes exactly once at commit, never
+ *   per frame (replaces the old `height` transition).
+ * - Tiles removed by React unmount instantly (parity with the previous
+ *   hand-rolled FLIP, which never animated removals either).
+ * - On first mount (including hydration of the SSR-rendered share page) all
+ *   tiles play the entrance tween, matching the previous behavior.
+ * - Reduced motion: the flip helpers skip every tween — the DOM is already in
+ *   its final state after commit (see `lib/motion/flip.ts`).
+ *
+ * Interruption: capturing a new snapshot force-completes an in-flight flip
+ * (GSAP `FlipState` semantics), so rapid successive reflows restart cleanly
+ * from the latest committed layout instead of compounding transforms.
+ * Unmount cleanup is handled by `useGSAP` (context revert kills the flip).
+ */
 export function AnimatedPlatformGrid({ platforms, songTitle }: AnimatedPlatformGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
-  const itemRefMap = useMemo(() => new Map<ServiceId, HTMLDivElement>(), []);
-  const previousRectMap = useMemo(() => new Map<ServiceId, DOMRect>(), []);
-  const previousGridHeight = useRef<number | null>(null);
-  const heightResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousFlipStateRef = useRef<CapturedFlipState | null>(null);
 
   const visiblePlatforms = useMemo(
     () =>
@@ -25,93 +48,34 @@ export function AnimatedPlatformGrid({ platforms, songTitle }: AnimatedPlatformG
     [platforms],
   );
 
-  useLayoutEffect(() => {
-    const nextRects = new Map<ServiceId, DOMRect>();
-
-    for (const platform of visiblePlatforms) {
-      const el = itemRefMap.get(platform.platform);
-      if (!el) continue;
-      nextRects.set(platform.platform, el.getBoundingClientRect());
-    }
-
-    const grid = gridRef.current;
-    const nextGridHeight = grid?.getBoundingClientRect().height ?? null;
-    const previousHeight = previousGridHeight.current;
-    if (grid && nextGridHeight !== null && previousHeight !== null && Math.abs(nextGridHeight - previousHeight) > 1) {
-      if (heightResetTimer.current) clearTimeout(heightResetTimer.current);
-      Object.assign(grid.style, {
-        height: `${previousHeight}px`,
-        overflow: "hidden",
-        transition: "none",
-      });
-      void grid.offsetHeight;
-      Object.assign(grid.style, {
-        height: `${nextGridHeight}px`,
-        transition: `height ${GRID_ANIMATION_MS}ms ${GRID_EASE}`,
-      });
-      heightResetTimer.current = setTimeout(() => {
-        Object.assign(grid.style, { height: "auto", overflow: "", transition: "" });
-      }, GRID_ANIMATION_MS + 80);
-    }
-    previousGridHeight.current = nextGridHeight;
-
-    const frames: number[] = [];
-    for (const platform of visiblePlatforms) {
-      const el = itemRefMap.get(platform.platform);
-      const next = nextRects.get(platform.platform);
-      if (!el || !next) continue;
-
-      const previous = previousRectMap.get(platform.platform);
-      Object.assign(el.style, {
-        transition: "none",
-        willChange: "transform, opacity",
-      });
-
-      if (previous) {
-        const dx = previous.left - next.left;
-        const dy = previous.top - next.top;
-        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-          el.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
-        }
-      } else {
-        Object.assign(el.style, {
-          transform: "translate3d(0, -10px, 0) scale3d(0.97, 0.97, 1)",
-          opacity: "0",
-        });
+  useGSAP(
+    () => {
+      const grid = gridRef.current;
+      if (!grid) return;
+      const items = Array.from(grid.children);
+      const targets = [grid, ...items];
+      const previousState = previousFlipStateRef.current;
+      // Capture BEFORE animating: the DOM already shows the new layout here
+      // (layout effect after commit), so this snapshot becomes the "before"
+      // state of the NEXT reflow. Capturing also force-completes a still
+      // running flip, keeping the measurement untransformed.
+      previousFlipStateRef.current = captureFlipState(targets);
+      if (previousState) {
+        // Only the tiles go position:absolute during the flip; the wrapper
+        // must stay in flow so Flip can lock its layout size while its
+        // visual size change is scale-animated.
+        animateFlipFrom(previousState, { targets, absolute: items });
+      } else if (items.length > 0) {
+        animateFlipEnter(items);
       }
-
-      const frame = requestAnimationFrame(() => {
-        Object.assign(el.style, {
-          opacity: "1",
-          transform: "translate3d(0, 0, 0) scale3d(1, 1, 1)",
-          transition: `transform ${GRID_ANIMATION_MS}ms ${GRID_EASE}, opacity ${GRID_ANIMATION_MS}ms ${GRID_EASE}`,
-        });
-      });
-      frames.push(frame);
-    }
-
-    previousRectMap.clear();
-    for (const [service, rect] of nextRects) {
-      previousRectMap.set(service, rect);
-    }
-
-    return () => {
-      for (const frame of frames) cancelAnimationFrame(frame);
-      if (heightResetTimer.current) clearTimeout(heightResetTimer.current);
-    };
-  }, [visiblePlatforms, itemRefMap, previousRectMap]);
+    },
+    { scope: gridRef, dependencies: [visiblePlatforms] },
+  );
 
   return (
     <div ref={gridRef} className="grid grid-cols-2 gap-0.5">
       {visiblePlatforms.map((platform) => (
-        <div
-          key={platform.platform}
-          ref={(el) => {
-            if (el) itemRefMap.set(platform.platform, el);
-            else itemRefMap.delete(platform.platform);
-          }}
-          className="transform-gpu"
-        >
+        <div key={platform.platform} className="transform-gpu">
           <PlatformButton
             platform={platform.platform}
             url={platform.url}

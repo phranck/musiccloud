@@ -5,10 +5,18 @@ import {
   type ReactNode,
   use,
   useCallback,
+  useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
+import {
+  getSpectrumFrame,
+  isSpectrumActive,
+  type SpectrumFrame,
+  subscribeSpectrum,
+} from "@/components/audio/spectrumStore";
 import { recessedControlInsetClassName, recessedControlSizeClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { AnalyzerMode, toggleAnalyzerMode, useAnalyzerMode } from "@/components/playback/analyzerMode";
@@ -18,6 +26,8 @@ import {
   VfdBrightness,
   VfdContentTransition,
   VfdDisplay,
+  type VfdDisplayHandle,
+  type VfdDisplayLine,
   type VfdDisplaySection,
   type VfdPixelBarSegment,
   VfdSectionAlign,
@@ -45,9 +55,6 @@ interface PlayerContextValue {
   progressRatio?: number;
   ariaLabel: string;
   title?: string;
-  spectrumBands?: PlayerSpectrumBands | null;
-  stereoLevels?: PlayerStereoLevels | null;
-  stereoPeakHold?: PlayerStereoPeakHold | null;
   phosphorColor?: string;
   onTogglePlay: () => void;
 }
@@ -135,7 +142,7 @@ function isStereoSpectrumBands(bands: PlayerSpectrumBands): bands is StereoSpect
   return Array.isArray(candidate.left) && Array.isArray(candidate.right);
 }
 
-function renderBandContent(bands: readonly number[], cells: number): string {
+function renderBandContent(bands: ArrayLike<number>, cells: number): string {
   const safeCells = Math.max(1, cells);
   return Array.from({ length: safeCells }, (_, index) => {
     const sourceIndex = Math.min(bands.length - 1, Math.floor((index / safeCells) * bands.length));
@@ -278,6 +285,48 @@ function renderStereoVuSections(
   ];
 }
 
+/**
+ * Builds the per-channel frequency-band sections for the multi-band analyzer
+ * mode. Accepts `ArrayLike<number>` so it can read the live store's
+ * `Float32Array` band buffers directly — no per-frame array copy.
+ *
+ * @param left - Left-channel band levels (0..1).
+ * @param right - Right-channel band levels (0..1).
+ * @param displayCells - Total glyph cells available in the VFD row.
+ * @param timeText - Playtime text, reserved on the right.
+ * @returns The compacted left/filler/gap/filler/right section list.
+ */
+function renderStereoBandSections(
+  left: ArrayLike<number>,
+  right: ArrayLike<number>,
+  displayCells: number,
+  timeText: string,
+): VfdDisplaySection[] {
+  const channelCells = stereoChannelBandCells(displayCells, timeText);
+  const timeCells = Math.max(1, Array.from(timeText).length);
+  const analyzerCells = Math.max(0, displayCells - PLAYER_TIME_SPACER_CELLS - timeCells);
+  const gapCells = Math.min(PLAYER_STEREO_CHANNEL_GAP_CELLS, Math.max(0, analyzerCells - channelCells * 2));
+  const fillerCells = Math.max(0, analyzerCells - channelCells * 2 - gapCells);
+  const leftFillerCells = Math.floor(fillerCells / 2);
+  const rightFillerCells = fillerCells - leftFillerCells;
+
+  return compactSections([
+    channelCells > 0
+      ? sectionFor(renderBandContent(left, channelCells), VfdBrightness.Bright, channelCells, "spectrum-left")
+      : null,
+    leftFillerCells > 0
+      ? sectionFor(" ".repeat(leftFillerCells), VfdBrightness.Ghost, leftFillerCells, "spectrum-left-fill")
+      : null,
+    gapCells > 0 ? sectionFor(" ".repeat(gapCells), VfdBrightness.Ghost, gapCells, "spectrum-gap") : null,
+    rightFillerCells > 0
+      ? sectionFor(" ".repeat(rightFillerCells), VfdBrightness.Ghost, rightFillerCells, "spectrum-right-fill")
+      : null,
+    channelCells > 0
+      ? sectionFor(renderBandContent(right, channelCells), VfdBrightness.Bright, channelCells, "spectrum-right")
+      : null,
+  ]);
+}
+
 function renderSpectrumSections(
   bands: PlayerSpectrumBands,
   displayCells = PLAYER_DEFAULT_VFD_CELLS,
@@ -285,34 +334,127 @@ function renderSpectrumSections(
   cells = PLAYER_SPECTRUM_CELLS,
 ): VfdDisplaySection[] {
   if (isStereoSpectrumBands(bands)) {
-    const channelCells = stereoChannelBandCells(displayCells, timeText);
-    const timeCells = Math.max(1, Array.from(timeText).length);
-    const analyzerCells = Math.max(0, displayCells - PLAYER_TIME_SPACER_CELLS - timeCells);
-    const gapCells = Math.min(PLAYER_STEREO_CHANNEL_GAP_CELLS, Math.max(0, analyzerCells - channelCells * 2));
-    const fillerCells = Math.max(0, analyzerCells - channelCells * 2 - gapCells);
-    const leftFillerCells = Math.floor(fillerCells / 2);
-    const rightFillerCells = fillerCells - leftFillerCells;
-
-    return compactSections([
-      channelCells > 0
-        ? sectionFor(renderBandContent(bands.left, channelCells), VfdBrightness.Bright, channelCells, "spectrum-left")
-        : null,
-      leftFillerCells > 0
-        ? sectionFor(" ".repeat(leftFillerCells), VfdBrightness.Ghost, leftFillerCells, "spectrum-left-fill")
-        : null,
-      gapCells > 0 ? sectionFor(" ".repeat(gapCells), VfdBrightness.Ghost, gapCells, "spectrum-gap") : null,
-      rightFillerCells > 0
-        ? sectionFor(" ".repeat(rightFillerCells), VfdBrightness.Ghost, rightFillerCells, "spectrum-right-fill")
-        : null,
-      channelCells > 0
-        ? sectionFor(renderBandContent(bands.right, channelCells), VfdBrightness.Bright, channelCells, "spectrum-right")
-        : null,
-    ]);
+    return renderStereoBandSections(bands.left, bands.right, displayCells, timeText);
   }
 
   const content = renderBandContent(bands, cells);
 
   return compactSections([sectionFor(content, VfdBrightness.Bright)]);
+}
+
+/**
+ * Stable, low-frequency inputs to {@link buildPlayerLines}. Everything here
+ * changes on a real React render (resize, playtime, mode, phase) — never at
+ * the 20 Hz spectrum cadence, which arrives through the store instead.
+ */
+interface PlayerLineParams {
+  /** True when this player renders the analyzer (no custom `children`). */
+  hasAnalyzer: boolean;
+  /** Custom progress content rendered instead of the analyzer. */
+  childrenContent: ReactNode;
+  /** Active analyzer display mode. */
+  analyzerMode: AnalyzerMode;
+  /** Glyph cells available in the VFD row. */
+  displayCells: number;
+  /** Playtime text pinned to the right. */
+  timeText: string;
+  /** Whether the player is disabled (dims the whole row). */
+  isDisabled: boolean;
+  /** Whether playback is active (brightens the playtime). */
+  isPlaying: boolean;
+}
+
+/**
+ * Builds the complete VFD line model for the player progress row from stable
+ * params plus the live spectrum frame (plan MC-029 Task 5.1). Pure — the same
+ * call backs both render paths: the React `lines` prop (low-frequency
+ * changes) and the imperative store-subscription repaint (20 Hz spectrum). It
+ * reproduces the previous prop-driven layout exactly, including the idle
+ * empty-analyzer state when no frame is active.
+ *
+ * @param params - Low-frequency layout inputs.
+ * @param frame - Live spectrum buffers (read, never retained).
+ * @param spectrumActive - Whether a published frame is current; when false the
+ *   multi-band analyzer renders its idle empty state (the former null-spectrum
+ *   path) instead of zeroed stereo bands.
+ * @returns A single-line model ready for {@link VfdDisplay}.
+ */
+function buildPlayerLines(params: PlayerLineParams, frame: SpectrumFrame, spectrumActive: boolean): VfdDisplayLine[] {
+  const { hasAnalyzer, childrenContent, analyzerMode, displayCells, timeText, isDisabled, isPlaying } = params;
+  const isStereoVuMode = hasAnalyzer && analyzerMode === AnalyzerMode.StereoVu;
+
+  let progressSections: VfdDisplaySection[];
+  let isStereoAnalyzer = false;
+  if (!hasAnalyzer) {
+    progressSections = [
+      {
+        content: childrenContent,
+        cells: VfdSectionCells.Fill,
+        align: VfdSectionAlign.Left,
+        brightness: isDisabled ? VfdBrightness.Dim : VfdBrightness.Bright,
+      },
+    ];
+  } else {
+    let analyzerSections: VfdDisplaySection[];
+    if (isStereoVuMode) {
+      analyzerSections = renderStereoVuSections(
+        { left: frame.levels[0], right: frame.levels[1] },
+        { left: frame.peakHold[0], right: frame.peakHold[1] },
+        displayCells,
+        timeText,
+      );
+    } else if (spectrumActive) {
+      analyzerSections = renderStereoBandSections(frame.leftBands, frame.rightBands, displayCells, timeText);
+      isStereoAnalyzer = true;
+    } else {
+      analyzerSections = renderSpectrumSections([], displayCells, timeText);
+    }
+    progressSections = analyzerSections.map((section) => ({
+      ...section,
+      marquee: false,
+      brightness: isDisabled ? VfdBrightness.Dim : section.brightness,
+    }));
+  }
+
+  return [
+    {
+      brightness: isDisabled ? VfdBrightness.Dim : VfdBrightness.Normal,
+      transition: VfdContentTransition.None,
+      sections: [
+        // VfdDisplay is a dumb hardware renderer. The Player owns this layout
+        // contract: analyzer cells keep their own brightness, mono progress
+        // gets a blank fill section, stereo analyzer channels split the fill
+        // area evenly, and playtime stays the trailing auto-sized right section.
+        ...progressSections,
+        ...(isStereoAnalyzer || isStereoVuMode
+          ? []
+          : [
+              {
+                content: "",
+                cells: VfdSectionCells.Fill,
+                align: VfdSectionAlign.Left,
+                brightness: VfdBrightness.Ghost,
+                marquee: false,
+                key: "progress-fill",
+              } satisfies VfdDisplaySection,
+            ]),
+        {
+          content: "  ",
+          cells: 2,
+          align: VfdSectionAlign.Left,
+          brightness: VfdBrightness.Dim,
+          marquee: false,
+        },
+        {
+          content: timeText,
+          cells: VfdSectionCells.Auto,
+          align: VfdSectionAlign.Right,
+          marquee: false,
+          brightness: isPlaying && !isDisabled ? VfdBrightness.Bright : VfdBrightness.Dim,
+        },
+      ],
+    },
+  ];
 }
 
 export function PlayerRoot({
@@ -324,9 +466,6 @@ export function PlayerRoot({
   progressRatio = 0,
   ariaLabel,
   title,
-  spectrumBands,
-  stereoLevels,
-  stereoPeakHold,
   phosphorColor,
   onTogglePlay,
 }: PlayerProps) {
@@ -337,9 +476,6 @@ export function PlayerRoot({
     progressRatio,
     ariaLabel,
     title,
-    spectrumBands,
-    stereoLevels,
-    stereoPeakHold,
     phosphorColor,
     onTogglePlay,
   };
@@ -399,32 +535,46 @@ export function PlayerButton({ className }: PlayerButtonProps) {
 }
 
 export function PlayerProgress({ className, children }: PlayerProgressProps) {
-  const {
-    isDisabled,
-    isPlaying,
-    timeText,
-    progressRatio,
-    phosphorColor,
-    spectrumBands,
-    stereoLevels,
-    stereoPeakHold,
-    title,
-  } = usePlayerContext();
+  const { isDisabled, isPlaying, timeText, progressRatio, phosphorColor, title } = usePlayerContext();
   const t = useT();
   const analyzerMode = useAnalyzerMode();
   const progressRef = useRef<HTMLElement | null>(null);
+  const vfdControllerRef = useRef<VfdDisplayHandle | null>(null);
   const [displayCells, setDisplayCells] = useState(PLAYER_DEFAULT_VFD_CELLS);
   const hasAnalyzer = !children;
   const isStereoVuMode = hasAnalyzer && analyzerMode === AnalyzerMode.StereoVu;
-  const isStereoAnalyzer =
-    hasAnalyzer &&
-    !isStereoVuMode &&
-    spectrumBands !== null &&
-    spectrumBands !== undefined &&
-    isStereoSpectrumBands(spectrumBands);
-  const analyzerSections = isStereoVuMode
-    ? renderStereoVuSections(stereoLevels ?? null, stereoPeakHold ?? null, displayCells, timeText)
-    : renderSpectrumSections(spectrumBands ?? [], displayCells, timeText);
+
+  // Memoised on the STRUCTURAL inputs only — not on the spectrum and not on
+  // the 60 Hz progressRatio. So a playback-position re-render reuses the same
+  // params and line objects, VfdDisplay's memo/effect stay cached, and the
+  // analyzer is never recomputed off the progress loop. The live 20 Hz
+  // spectrum reaches the canvas through the store subscription below, never
+  // through a React commit (the dominant 50 ms-cadence churn before Task 5.1).
+  const lineParams: PlayerLineParams = useMemo(
+    () => ({ hasAnalyzer, childrenContent: children, analyzerMode, displayCells, timeText, isDisabled, isPlaying }),
+    [hasAnalyzer, children, analyzerMode, displayCells, timeText, isDisabled, isPlaying],
+  );
+  // Latest-value mirror so the off-React store subscription rebuilds the
+  // analyzer with the current params without re-subscribing every frame.
+  const lineParamsRef = useRef(lineParams);
+  useLayoutEffect(() => {
+    lineParamsRef.current = lineParams;
+  }, [lineParams]);
+
+  // The React `lines` prop seeds VfdDisplay's initial frame and updates on
+  // structural changes; the spectrum value captured here is just the current
+  // snapshot, kept live afterwards by the imperative subscription.
+  const lines = useMemo(() => buildPlayerLines(lineParams, getSpectrumFrame(), isSpectrumActive()), [lineParams]);
+
+  useEffect(() => {
+    if (!hasAnalyzer) return;
+    return subscribeSpectrum(() => {
+      vfdControllerRef.current?.setLines(
+        buildPlayerLines(lineParamsRef.current, getSpectrumFrame(), isSpectrumActive()),
+      );
+    });
+  }, [hasAnalyzer]);
+
   const safeProgressRatio = Math.max(0, Math.min(1, progressRatio ?? 0));
   const rowWidthPx = PLAYER_VFD_FIRST_CELL_WIDTH_PX + Math.max(0, displayCells - 1) * PLAYER_VFD_CELL_PITCH_PX;
   const progressRightPx = (Array.from(timeText).length + 2) * PLAYER_VFD_CELL_PITCH_PX;
@@ -438,6 +588,7 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
     "--mc-player-progress-color": isDisabled ? "var(--mc-vfd-dim-color)" : "var(--mc-vfd-normal-color)",
     "--mc-player-progress-right": `${progressRightPx}px`,
   } as CSSProperties;
+
   useLayoutEffect(() => {
     const root = progressRef.current;
     const display = root?.querySelector<HTMLElement>(".mc-vfd");
@@ -456,21 +607,6 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
     return () => observer.disconnect();
   }, []);
 
-  const progressSections = children
-    ? [
-        {
-          content: children,
-          cells: VfdSectionCells.Fill,
-          align: VfdSectionAlign.Left,
-          brightness: isDisabled ? VfdBrightness.Dim : VfdBrightness.Bright,
-        } satisfies VfdDisplaySection,
-      ]
-    : analyzerSections.map((section) => ({
-        ...section,
-        marquee: false,
-        brightness: isDisabled ? VfdBrightness.Dim : section.brightness,
-      }));
-
   const wrapperTitle = title ?? (hasAnalyzer ? t("audio.previewAnalyzerToggleTooltip") : undefined);
   const handleDisplayClick = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
@@ -486,51 +622,13 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
 
   const vfd = (
     <VfdDisplay
+      controllerRef={vfdControllerRef}
       sizingMode={VfdSizingMode.Container}
       rows={1}
       phosphorColor={phosphorColor}
       className={cn(!children && "mc-player-progress-vfd")}
       ariaLabel={`Preview progress ${timeText}`}
-      lines={[
-        {
-          brightness: isDisabled ? VfdBrightness.Dim : VfdBrightness.Normal,
-          transition: VfdContentTransition.None,
-          sections: [
-            // VfdDisplay is a dumb hardware renderer. The Player owns this
-            // layout contract: analyzer cells keep their own brightness, mono
-            // progress gets a blank fill section, stereo analyzer channels
-            // split the available fill area evenly, and playtime remains the
-            // trailing auto-sized right section.
-            ...progressSections,
-            ...(isStereoAnalyzer || isStereoVuMode
-              ? []
-              : [
-                  {
-                    content: "",
-                    cells: VfdSectionCells.Fill,
-                    align: VfdSectionAlign.Left,
-                    brightness: VfdBrightness.Ghost,
-                    marquee: false,
-                    key: "progress-fill",
-                  } satisfies VfdDisplaySection,
-                ]),
-            {
-              content: "  ",
-              cells: 2,
-              align: VfdSectionAlign.Left,
-              brightness: VfdBrightness.Dim,
-              marquee: false,
-            },
-            {
-              content: timeText,
-              cells: VfdSectionCells.Auto,
-              align: VfdSectionAlign.Right,
-              marquee: false,
-              brightness: isPlaying && !isDisabled ? VfdBrightness.Bright : VfdBrightness.Dim,
-            },
-          ],
-        },
-      ]}
+      lines={lines}
     />
   );
 

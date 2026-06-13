@@ -5,10 +5,3 @@
 @import "@fontsource/roboto-condensed/latin-400.css";
 @import "@fontsource/roboto-condensed/latin-500.css";
 @import "@fontsource/roboto-condensed/latin-700.css";
-@font-face {
-  font-family: "MatrixType Display";
-  src: url("https://get.fontspace.co/webfont/9MyE5/NjE3YmY2ZTRhNDgyNDUxOGFhM2U1YzJiMThmYTVkOWQudHRm/matrixtype-display.woff") format("woff");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}

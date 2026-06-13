@@ -8,6 +8,7 @@ export default defineConfig({
   output: "server",
   adapter: node({ mode: "standalone" }),
   integrations: [sitemap(), react()],
+  prefetch: { prefetchAll: true, defaultStrategy: "hover" },
   server: {
     port: Number(process.env.PORT) || 3000,
   },

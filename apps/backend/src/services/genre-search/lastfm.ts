@@ -401,7 +401,7 @@ export async function lastfmSearchByGenre(input: LastfmGenreSearchInput): Promis
 export interface GenreTile {
   name: string;
   displayName: string;
-  /** Points at `/api/v1/genre-artwork/:genreKey`; the server generates and caches the image on first hit. */
+  /** Points at the Astro frontend proxy `/api/genre-artwork/:genreKey` (which forwards to the backend's v1 route); the server generates and caches the image on first hit. */
   artworkUrl: string;
   /** Dominant accent derived from the genre's top album cover. Present only when the artwork has already been generated. */
   accentColor?: string;
@@ -500,9 +500,10 @@ function canonicalizeGenreKey(name: string): string {
  * The tag list is fetched from `chart.getTopTags`, filtered through the
  * blocklist, and checked against `tag.getTopAlbums` to weed out empty
  * genres (those without at least one cover). The tile image is NOT the
- * album cover anymore — each tile points at
- * `/api/v1/genre-artwork/<name>`, which lazily renders a unique image
- * derived from the genre's top album color.
+ * album cover anymore — each tile points at the Astro frontend proxy
+ * `/api/genre-artwork/<name>`, which forwards to the backend's v1 route
+ * and lazily renders a unique image derived from the genre's top album
+ * color.
  *
  * Already-generated accents are pulled from the `genre_artworks` table in
  * one batch query and inlined on the tile, so the frontend can colourise

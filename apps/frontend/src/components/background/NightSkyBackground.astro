@@ -1,0 +1,20 @@
+---
+/**
+ * Ambient app background (plan MC-029 Phase 4, blob layer removed MC-031).
+ *
+ * A single fixed layer: the night-sky WebGL island (worker-rendered) — real
+ * northern stars rotating around Polaris behind drifting procedural clouds
+ * on a fixed virtual plane the viewport crops. Its canvas starts transparent
+ * over the page's base background color and fades in once the first frame
+ * is ready, so there is never a black or half-initialised flash.
+ *
+ * The former three-radial-gradient layer ("the blobs") is gone — user
+ * decision 2026-06-13: no legacy backdrop behind the sky. Without JS or
+ * WebGL2 the plain base color remains (bots, reduced environments).
+ */
+import { BackgroundScene } from "@/components/background/BackgroundScene";
+---
+
+<div class="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden="true">
+  <BackgroundScene client:idle />
+</div>

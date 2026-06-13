@@ -1,3 +1,4 @@
+import { navigate } from "astro:transitions/client";
 import { type MouseEvent, useCallback, useRef } from "react";
 import { type ArtistInfoContext, ShareLayout } from "@/components/share/ShareLayout";
 import { LogoView } from "@/components/ui/LogoView";
@@ -22,7 +23,7 @@ export function SharePageShell({ config, artistName, artistInfoContext, initialL
     } catch {
       // sessionStorage can be unavailable in private or locked-down contexts.
     }
-    window.location.assign("/");
+    navigate("/");
   }, []);
 
   useOverlayEscape({ enabled: true, onEscape: navigateHome });
@@ -43,6 +44,10 @@ export function SharePageShell({ config, artistName, artistInfoContext, initialL
           <LogoView className="w-56 sm:w-64 h-auto" />
         </a>
       </div>
+      {/* `animate-fade-in` stays CSS deliberately (MC-029 Task 2.5 exception):
+          this island is client:load inside the server:defer stream, so the
+          share enter plays from parse — before hydration. A GSAP entrance
+          would delay it and double-play after hydration. */}
       <div className="w-full animate-fade-in">
         <ShareLayout
           config={config}

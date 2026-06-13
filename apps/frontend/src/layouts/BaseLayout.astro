@@ -8,9 +8,10 @@
  */
 import "../styles/fonts.css";
 import "../styles/global.css";
+import { ClientRouter } from "astro:transitions";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { fetchNavigation } from "@/api/client";
-import GradientBackground from "@/components/background/GradientBackground.astro";
+import NightSkyBackground from "@/components/background/NightSkyBackground.astro";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
 import { getLocaleFromCookie } from "@/i18n/locales";
 import { isTrackingEnabled } from "@/lib/analytics/trackingConfig";
@@ -46,6 +47,8 @@ const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
 
+    <ClientRouter />
+
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     {noindex && <meta name="robots" content="noindex" />}
@@ -57,9 +60,32 @@ const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [
 
     {trackingEnabled && <script is:inline defer src={`${ENDPOINTS.frontend.umami}/script.js`} data-website-id="3826f51b-34e0-4c61-a89d-a7de016fe712" data-host-url={ENDPOINTS.frontend.umami}></script>}
   </head>
-  <body class="bg-background text-text-primary antialiased">
-    <GradientBackground />
-    {showHeader && <PageHeaderIsland client:idle navItems={headerNav} />}
-    <slot />
+  <body class="bg-background text-text-primary antialiased" transition:animate="none">
+    {/* transition:animate="none" on the body disables Astro's default
+        view-transition fade — the GSAP lifecycle listeners below own the
+        page out/in motion (MC-029 Task 3.1). */}
+    {/* Persisted so the background survives ClientRouter swaps without re-mount —
+        prep for the Phase 4 WebGL background, which must not be torn down/re-created
+        (would flicker + leak the WebGL context) on navigation. */}
+    <div transition:persist="mc-background">
+      <NightSkyBackground />
+    </div>
+    {/* transition:persist keeps the hydrated header (locale + overlay state) across
+        ClientRouter navigations — it is NOT re-rendered on nav, so navItems are
+        frozen to the first mount. Safe only while every page serves the same header
+        nav. If a page needs different items, drop persist or use transition:persist-props. */}
+    {showHeader && <PageHeaderIsland client:idle navItems={headerNav} transition:persist="mc-header" />}
+    {/* Animatable page wrapper: the GSAP page transitions target exactly this
+        element (see PAGE_CONTENT_SELECTOR), so the persistent siblings above
+        never move. Plain block element — layout-neutral. */}
+    <div data-mc-page>
+      <slot />
+    </div>
+    <script>
+      import { initPageTransitions } from "@/lib/motion/pageTransitions";
+      // Module scripts run once per real page load and are NOT re-executed on
+      // ClientRouter swaps; the document-level listeners survive navigations.
+      initPageTransitions();
+    </script>
   </body>
 </html>

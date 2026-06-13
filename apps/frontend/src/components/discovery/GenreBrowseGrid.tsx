@@ -1,8 +1,8 @@
 import type { ApiGenreTile } from "@musiccloud/shared";
-import type { Ref } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { LazyGenreArtwork } from "@/components/ui/LazyGenreArtwork";
 import { useT } from "@/i18n/context";
 
@@ -16,26 +16,39 @@ function safeAccent(color: string | undefined): string | undefined {
   return SAFE_COLOR_RE.test(color.trim()) ? color.trim() : undefined;
 }
 
+/** Per-index `animation-delay` step of the tile entrance in milliseconds. */
+const TILE_ENTRANCE_STAGGER_MS = 30;
+
+/**
+ * Upper bound for the staggered tile delay in milliseconds, so large genre
+ * sets do not trickle in forever.
+ */
+const TILE_ENTRANCE_DELAY_CAP_MS = 600;
+
 interface GenreBrowseGridProps {
   genres: ApiGenreTile[];
   onSelect: (genreName: string) => void;
-  ref?: Ref<HTMLDivElement>;
 }
 
 /**
  * Grid of popular genre tiles with procedurally generated atmospheric
  * artworks. Shown when the user submits `genre:?`. Clicking a tile
  * triggers a full `genre:<name>` search via the parent's submit handler.
+ *
+ * The panel fades in on mount via {@link FadeInOnMount} (GSAP, one element).
+ * The tile entrance deliberately stays CSS (`animate-slide-up` + per-tile
+ * `animation-delay`), exempt from the MC-029 GSAP migration: this grid mounts
+ * ~250 tiles at once, and a per-target JS tween init reads computed styles
+ * inside the React commit — measured as 200+ ms of forced-reflow time and two
+ * >50 ms long tasks in the Phase-2 gate. The browser-native animation scales
+ * without any main-thread work (exception inventory in
+ * `styles/animations.css`).
  */
-export function GenreBrowseGrid({ genres, onSelect, ref }: GenreBrowseGridProps) {
+export function GenreBrowseGrid({ genres, onSelect }: GenreBrowseGridProps) {
   const t = useT();
 
   return (
-    <div
-      ref={ref}
-      tabIndex={-1}
-      className="w-full max-w-full md:max-w-5xl mx-auto mt-8 mb-8 animate-fade-in focus:outline-none"
-    >
+    <FadeInOnMount tabIndex={-1} className="w-full max-w-full md:max-w-5xl mx-auto mt-8 mb-8 focus:outline-none">
       <EmbossedCard className="flex flex-col max-h-[calc(100vh-16rem)]">
         <EmbossedCard.Header className="text-center mb-4 flex-shrink-0">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">{t("genreBrowse.title")}</h2>
@@ -55,7 +68,7 @@ export function GenreBrowseGrid({ genres, onSelect, ref }: GenreBrowseGridProps)
                 // the tile (border, glow, hover) picks it up automatically.
                 const accent = safeAccent(genre.accentColor);
                 const tileStyle = {
-                  animationDelay: `${Math.min(i * 30, 600)}ms`,
+                  animationDelay: `${Math.min(i * TILE_ENTRANCE_STAGGER_MS, TILE_ENTRANCE_DELAY_CAP_MS)}ms`,
                   ...(accent ? { ["--color-accent" as string]: accent } : {}),
                 } as React.CSSProperties;
 
@@ -78,6 +91,6 @@ export function GenreBrowseGrid({ genres, onSelect, ref }: GenreBrowseGridProps)
           </RecessedCard>
         </EmbossedCard.Body>
       </EmbossedCard>
-    </div>
+    </FadeInOnMount>
   );
 }

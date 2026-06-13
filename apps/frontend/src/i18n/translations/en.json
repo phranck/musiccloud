@@ -92,5 +92,10 @@
   "artist.statusError": "ARTIST DATA ERROR {code}",
   "artist.statusResolveError": "RESOLVE ERROR",
   "genreBrowse.title": "Explore Genres",
-  "genreBrowse.subtitle": "Pick a genre to discover tracks, albums, and artists"
+  "genreBrowse.subtitle": "Pick a genre to discover tracks, albums, and artists",
+  "dayNight.label": "Background mode",
+  "dayNight.day": "Day",
+  "dayNight.night": "Night",
+  "dayNight.system": "System",
+  "dayNight.automatic": "Automatic"
 }

@@ -1,6 +1,6 @@
+import { useGSAP } from "@gsap/react";
 import type { NavItem } from "@musiccloud/shared";
 import {
-  type AnimationEvent,
   lazy,
   type MouseEvent,
   type RefObject,
@@ -16,13 +16,15 @@ import { HeroInput } from "@/components/landing/HeroInput";
 import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { LogoView } from "@/components/ui/LogoView";
 import { DialogProvider } from "@/context/DialogContext";
 import { useAppState } from "@/hooks/useAppState";
-import { useFlipAnimation } from "@/hooks/useFlipAnimation";
+import { useSearchFieldReturn } from "@/hooks/useSearchFieldReturn";
 import { useToast } from "@/hooks/useToast";
 import { LocaleProvider, useT } from "@/i18n/context";
 import { CardSignal, genreSignal, sendMusicSignal } from "@/lib/analytics/umami";
+import { animateFadeIn, animateSlideOutDown } from "@/lib/motion/entrances";
 import {
   loadDisambiguationPanel,
   loadGenreBrowseGrid,
@@ -58,7 +60,12 @@ interface ActiveShareResultProps {
   backLabel?: string;
   canGoBack: boolean;
   handleBack: () => void;
-  handleClearAnimationEnd: (event: AnimationEvent<HTMLDivElement>) => void;
+  /**
+   * Fires once when the clearing slide-out has finished (or immediately on
+   * the reduced-motion path) and hands over to the search-field return
+   * staging — see `useSearchFieldReturn`.
+   */
+  onClearSlideOutComplete: () => void;
   handleShareLogoClick: (event: MouseEvent<HTMLAnchorElement>) => void;
   isClearing: boolean;
   resultsPanelRef: RefObject<HTMLDivElement | null>;
@@ -71,24 +78,43 @@ function ActiveShareResult({
   backLabel,
   canGoBack,
   handleBack,
-  handleClearAnimationEnd,
+  onClearSlideOutComplete,
   handleShareLogoClick,
   isClearing,
   resultsPanelRef,
 }: ActiveShareResultProps) {
+  // Clearing slide-out (GSAP port of the removed `animate-slide-out-down`
+  // class). The clear choreography continues from the timeline's
+  // `onComplete` — the `animationend` event this replaced does not exist for
+  // JS tweens (break class 719a656). Unmounting mid-flight (e.g. Escape
+  // while clearing) reverts the useGSAP context, killing the tween and
+  // suppressing the handover — the same outcome the CSS animation had when
+  // its element left the DOM before `animationend`.
+  useGSAP(
+    () => {
+      if (!isClearing) return;
+      const panel = resultsPanelRef.current;
+      if (!panel) return;
+      const tween = animateSlideOutDown(panel, { onComplete: onClearSlideOutComplete });
+      // Reduced motion: no tween exists — the clear flow must not depend on
+      // an animation playing, so hand over synchronously (pre-paint).
+      if (!tween) onClearSlideOutComplete();
+    },
+    { dependencies: [isClearing] },
+  );
+
   return (
     <div
       ref={resultsPanelRef}
       tabIndex={-1}
-      className={`outline-none w-full ${isClearing ? "animate-slide-out-down pointer-events-none" : ""}`}
-      onAnimationEnd={isClearing ? handleClearAnimationEnd : undefined}
+      className={`outline-none w-full ${isClearing ? "pointer-events-none" : ""}`}
     >
       <div className="mb-4 text-center sm:mb-6">
         <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleShareLogoClick}>
           <LogoView className="w-56 sm:w-64 h-auto" />
         </a>
       </div>
-      <div className="animate-fade-in">
+      <FadeInOnMount>
         <Suspense fallback={<ShareResultPlaceholder />}>
           <ShareLayout
             config={activeShareConfig}
@@ -98,7 +124,7 @@ function ActiveShareResult({
             backLabel={canGoBack ? backLabel : undefined}
           />
         </Suspense>
-      </div>
+      </FadeInOnMount>
     </div>
   );
 }
@@ -134,6 +160,21 @@ function LiveExampleTeaser({
 }
 
 function LandingLogoBlock({ isReturning, showCompact }: { isReturning: boolean; showCompact: boolean }) {
+  const logoRef = useRef<HTMLDivElement>(null);
+
+  // While the search-field return flip travels, the large logo fades back in
+  // (GSAP port of the removed conditional `animate-fade-in` class). Keyed on
+  // both flags: compact-cancel flows flip them in the same commit.
+  useGSAP(
+    () => {
+      if (!isReturning || showCompact) return;
+      const el = logoRef.current;
+      if (!el) return;
+      animateFadeIn(el);
+    },
+    { dependencies: [isReturning, showCompact] },
+  );
+
   if (showCompact) {
     return (
       <div className="mb-6">
@@ -143,7 +184,7 @@ function LandingLogoBlock({ isReturning, showCompact }: { isReturning: boolean; 
   }
 
   return (
-    <div className={`flex justify-center mb-10 ${isReturning ? "animate-fade-in" : ""}`}>
+    <div ref={logoRef} className="flex justify-center mb-10">
       <LogoView className="w-80 sm:w-96 md:w-[28rem] h-auto" />
     </div>
   );
@@ -206,10 +247,12 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
     handleBack,
     handleClear,
   } = useAppState();
-  const { isReturning, capturePosition, triggerReturn } = useFlipAnimation(searchFieldRef);
 
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const resetInputValue = useCallback(() => setInputValue(""), []);
+  const { isReturning, isFieldReturnStaging, armFieldReturn, handleCancelWithReturn, handleClearSlideOutComplete } =
+    useSearchFieldReturn(searchFieldRef, { showCompact, onClear: handleClear, onResetInput: resetInputValue });
   const previousSearchTop = useRef<number | null>(null);
   const previousShowCompact = useRef(showCompact);
   const toast = useToast();
@@ -245,19 +288,6 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
     if (focusGenreResults) genreSearchRef.current?.focus();
   }, [focusGenreResults]);
 
-  const handleClearAnimationEnd = useCallback(
-    (event: AnimationEvent<HTMLDivElement>) => {
-      if (event.currentTarget !== event.target) return;
-      if (searchFieldRef.current) {
-        capturePosition();
-        triggerReturn();
-      }
-      setInputValue("");
-      handleClear();
-    },
-    [capturePosition, triggerReturn, handleClear],
-  );
-
   const beginShareExit = useCallback(() => {
     try {
       window.sessionStorage.setItem("mc:focusHero", "1");
@@ -284,6 +314,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
       beginShareExit();
       return;
     }
+    armFieldReturn();
     setInputValue("");
     handleClear();
   });
@@ -365,7 +396,10 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
             isSharePageView ? "justify-start pt-20 sm:pt-12 md:pt-14 pb-12" : "justify-center"
           }`}
         >
-          {activeShareConfig && active ? (
+          {/* During return-flip staging the (invisible, pre-paint) idle branch
+              must render so the field's compact position is measurable — see
+              the staging layout effect. */}
+          {activeShareConfig && active && !isFieldReturnStaging ? (
             <ActiveShareResult
               activeArtistName={activeArtistName}
               activeShareConfig={activeShareConfig}
@@ -373,7 +407,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
               backLabel={t("genreSearch.backToResults")}
               canGoBack={canGoBack}
               handleBack={handleBack}
-              handleClearAnimationEnd={handleClearAnimationEnd}
+              onClearSlideOutComplete={handleClearSlideOutComplete}
               handleShareLogoClick={handleShareLogoClick}
               isClearing={isClearing}
               resultsPanelRef={resultsPanelRef}
@@ -388,6 +422,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                   onChange={setInputValue}
                   onSubmit={handleSubmit}
                   onClear={() => {
+                    armFieldReturn();
                     setInputValue("");
                     handleClear();
                   }}
@@ -415,7 +450,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                     <DisambiguationPanel
                       candidates={candidates}
                       onSelect={handleSelectCandidate}
-                      onCancel={handleClear}
+                      onCancel={handleCancelWithReturn}
                       selectedId={selectedCandidateId}
                       loading={state.type === AppStateType.DisambiguationLoading}
                     />
@@ -440,7 +475,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                     queryDetails={genreSearchPayload.queryDetails}
                     warnings={genreSearchPayload.warnings}
                     onSelect={handleSelectGenreResult}
-                    onCancel={handleClear}
+                    onCancel={handleCancelWithReturn}
                     onBack={canGoBack ? handleBack : undefined}
                     selectedId={selectedGenreResultId}
                     loading={isGenreSearchLoading}

@@ -92,5 +92,10 @@
   "artist.statusError": "KÜNSTLERDATEN FEHLER {code}",
   "artist.statusResolveError": "AUFLÖSUNG FEHLER",
   "genreBrowse.title": "Genres entdecken",
-  "genreBrowse.subtitle": "Wähle ein Genre, um Tracks, Alben und Künstler zu entdecken"
+  "genreBrowse.subtitle": "Wähle ein Genre, um Tracks, Alben und Künstler zu entdecken",
+  "dayNight.label": "Hintergrund-Modus",
+  "dayNight.day": "Tag",
+  "dayNight.night": "Nacht",
+  "dayNight.system": "System",
+  "dayNight.automatic": "Automatisch"
 }

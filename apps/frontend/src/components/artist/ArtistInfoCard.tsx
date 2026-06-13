@@ -6,7 +6,13 @@
 
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { XIcon } from "@phosphor-icons/react";
-import { useEffect, useReducer } from "react";
+import {
+  type ArtistInfoStatus,
+  EventsSkeleton,
+  SimilarArtistsSkeleton,
+  TracksSkeleton,
+  useSkeletonAllowed,
+} from "@/components/artist/ArtistCardParts";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
 import { type ArtistPanelTrackResolveHandler, PopularTracksSection } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
@@ -18,8 +24,6 @@ import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useLocale, useT } from "@/i18n/context";
 import { solidEmbossedCardStyle } from "@/styles/neumorphic";
-
-type ArtistInfoStatus = "loading" | "ready" | "empty" | "error";
 
 interface ArtistInfoCardProps {
   data: ArtistInfoResponse | null;
@@ -43,16 +47,7 @@ export function ArtistInfoCard({
   const t = useT();
   const { locale } = useLocale();
 
-  // Skeleton render gate. Suppresses the loading skeleton for the first
-  // 300 ms of mount, so a fast/null fetch (cache hit, 5xx) never produces
-  // the "empty card flashes in then disappears" effect. If the fetch is
-  // still pending after the threshold, the skeleton appears as before.
-  const SKELETON_DELAY_MS = 300;
-  const [skeletonAllowed, allowSkeleton] = useReducer(() => true, false);
-  useEffect(() => {
-    const timer = setTimeout(allowSkeleton, SKELETON_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, []);
+  const skeletonAllowed = useSkeletonAllowed();
 
   const effectiveStatus: ArtistInfoStatus = status ?? (isLoading ? "loading" : data ? "ready" : "empty");
 
@@ -210,60 +205,5 @@ function ArtistInfoNoticeCard({ onClose, message }: { onClose?: () => void; mess
         </div>
       </div>
     </EmbossedCard>
-  );
-}
-
-// --- Skeletons ---
-
-function TracksSkeleton() {
-  return (
-    <div className="animate-pulse space-y-4">
-      {(["sk-a", "sk-b", "sk-c"] as const).map((k) => (
-        <div key={k} className="flex gap-3 items-center">
-          <div className="size-12 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 bg-white/[0.08] rounded w-4/5" />
-            <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
-          </div>
-          <div className="h-7 w-16 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function EventsSkeleton() {
-  return (
-    <div className="animate-pulse space-y-4">
-      {(["sk-a", "sk-b"] as const).map((k) => (
-        <div key={k} className="flex items-center gap-3">
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 bg-white/[0.08] rounded w-16" />
-            <div className="h-4 bg-white/[0.08] rounded w-3/4" />
-          </div>
-          <div className="h-7 w-20 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SimilarArtistsSkeleton() {
-  return (
-    <div className="animate-pulse space-y-5">
-      {(["sk-a", "sk-b", "sk-c"] as const).map((k) => (
-        <div key={k}>
-          <div className="h-3 bg-white/[0.08] rounded w-1/4 mb-2" />
-          <div className="flex gap-3 items-center">
-            <div className="size-12 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
-            <div className="flex-1 space-y-1.5">
-              <div className="h-3 bg-white/[0.08] rounded w-4/5" />
-              <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
-            </div>
-            <div className="h-7 w-16 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }

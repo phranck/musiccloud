@@ -41,9 +41,17 @@ function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): vo
 /**
  * Top-right header bar: optional admin-managed nav links + Language Switcher.
  * Must be rendered inside a LocaleProvider.
+ *
+ * The DayNightSwitcher (plan MC-030) is deliberately NOT mounted here (user
+ * decision 2026-06-13): the day-night stack stays fully functional behind
+ * the `dayNightMode` store, only the UI entry point is hidden for now.
  */
 export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
   return (
+    // `animate-slide-down-in` stays CSS deliberately (MC-029 Task 2.5
+    // exception): PageHeaderIsland hydrates at client:idle, so the SSR markup
+    // must animate from parse — a GSAP entrance would start only after idle
+    // hydration with a visible delay.
     <div className="absolute top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center gap-2 sm:fixed sm:top-4 sm:right-4 sm:gap-3">
       {navItems.length > 0 && (
         <nav aria-label="Header navigation" className="flex items-center gap-3 text-sm sm:gap-4 sm:mr-2">
