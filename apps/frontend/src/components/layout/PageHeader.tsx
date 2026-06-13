@@ -1,7 +1,6 @@
 import { type NavItem, NavTarget, PageDisplayMode } from "@musiccloud/shared";
 import type { MouseEvent } from "react";
 
-import { DayNightSwitcher } from "@/components/navigation/DayNightSwitcher";
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
 import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/OverlayContext";
 import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
@@ -40,8 +39,12 @@ function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): vo
 }
 
 /**
- * Top-right header bar: optional admin-managed nav links + Day-Night
- * Switcher + Language Switcher. Must be rendered inside a LocaleProvider.
+ * Top-right header bar: optional admin-managed nav links + Language Switcher.
+ * Must be rendered inside a LocaleProvider.
+ *
+ * The DayNightSwitcher (plan MC-030) is deliberately NOT mounted here (user
+ * decision 2026-06-13): the day-night stack stays fully functional behind
+ * the `dayNightMode` store, only the UI entry point is hidden for now.
  */
 export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
   return (
@@ -66,7 +69,6 @@ export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
           ))}
         </nav>
       )}
-      <DayNightSwitcher />
       <LanguageSwitcher />
     </div>
   );
