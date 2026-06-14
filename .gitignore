@@ -4,6 +4,10 @@ node_modules/
 # Build output
 dist/
 build/
+.build/
+coverage/
+*.lcov
+*.tgz
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
@@ -20,9 +24,34 @@ data/*.db-wal
 data/*.db-shm
 apps/backend/data/
 
-# Environment
+# Environment (all dotenv variants; keep a committable example if one is ever added)
 .env
-.env.local
+.env.*
+!.env.example
+
+# Secrets, keys & certificates (never publish)
+*.pem
+*.key
+*.crt
+*.cer
+*.der
+*.p12
+*.pfx
+*.p8
+*.keystore
+*.jks
+*.asc
+*.mobileprovision
+.npmrc
+.pgpass
+id_rsa
+id_ed25519
+*.ppk
+secrets.*
+*.secret
+credentials.json
+service-account*.json
+GoogleService-Info.plist
 
 # Claude / agent / Serena / OpenSpec / notes (local only)
 .agents/
@@ -46,6 +75,7 @@ xcuserdata/
 *.xccheckout
 *.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 DerivedData/
+.swiftpm/
 *.moved-aside
 *.hmap
 *.ipa
