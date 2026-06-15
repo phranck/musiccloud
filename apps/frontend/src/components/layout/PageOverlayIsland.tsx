@@ -194,6 +194,14 @@ function OverlayShell() {
   const { page, close } = useOverlay();
   const isMobileOverlayViewport = useMediaQuery(MOBILE_OVERLAY_QUERY);
 
+  // Retain the last page through the close fade. When `page` goes null the effect
+  // below keeps the frame mounted for OVERLAY_TRANSITION_MS so the reverse tween
+  // (opacity + scale out) plays; rendering the retained page across that window
+  // keeps the content in place while it fades, instead of unmounting on close.
+  const lastPageRef = useRef(page);
+  if (page) lastPageRef.current = page;
+  const renderPage = page ?? lastPageRef.current;
+
   // `mounted` stays true as long as we should render the overlay DOM.
   // `visible` drives the transition classes; flipped on one frame after
   // mount so the browser paints the "hidden" state first and the opacity
@@ -212,10 +220,18 @@ function OverlayShell() {
   useEffect(() => {
     if (page && page.displayMode !== PageDisplayMode.Fullscreen) {
       dispatchVisibility({ type: OverlayVisibilityActionType.Mount });
-      // Paint the hidden state first, then toggle visible on the next
-      // frame so the transition engages.
-      const id = requestAnimationFrame(() => dispatchVisibility({ type: OverlayVisibilityActionType.Show }));
-      return () => cancelAnimationFrame(id);
+      // Flip to visible only after the just-mounted hidden frame has painted for
+      // one full frame. A single rAF can fire before that paint, so the browser
+      // never sees the "from" (scale 0.96) value and the overlay pops in at full
+      // size. Two rAFs guarantee the enter transition always has a from-value.
+      let secondFrame = 0;
+      const firstFrame = requestAnimationFrame(() => {
+        secondFrame = requestAnimationFrame(() => dispatchVisibility({ type: OverlayVisibilityActionType.Show }));
+      });
+      return () => {
+        cancelAnimationFrame(firstFrame);
+        cancelAnimationFrame(secondFrame);
+      };
     }
     dispatchVisibility({ type: OverlayVisibilityActionType.Hide });
     if (!mountedRef.current) return;
@@ -228,9 +244,9 @@ function OverlayShell() {
 
   useOverlayEscape({ enabled: Boolean(page && page.displayMode !== PageDisplayMode.Fullscreen), onEscape: close });
 
-  if (!mounted || !page || page.displayMode === PageDisplayMode.Fullscreen) return null;
+  if (!mounted || !renderPage || renderPage.displayMode === PageDisplayMode.Fullscreen) return null;
 
-  const fullscreenFrame = page.pageType === PageType.Segmented && isMobileOverlayViewport;
+  const fullscreenFrame = renderPage.pageType === PageType.Segmented && isMobileOverlayViewport;
 
   return (
     <>
@@ -241,11 +257,11 @@ function OverlayShell() {
         placement={OverlayBackdropPlacement.Fixed}
         className="z-40"
       />
-      <OverlayFrame key={page.slug} visible={visible} slug={page.slug} fullscreen={fullscreenFrame}>
-        {page.displayMode === PageDisplayMode.Translucent ? (
-          <TranslucentOverlayContent page={page} onClose={close} frameInteractionsDisabled={fullscreenFrame} />
+      <OverlayFrame key={renderPage.slug} visible={visible} slug={renderPage.slug} fullscreen={fullscreenFrame}>
+        {renderPage.displayMode === PageDisplayMode.Translucent ? (
+          <TranslucentOverlayContent page={renderPage} onClose={close} frameInteractionsDisabled={fullscreenFrame} />
         ) : (
-          <EmbossedOverlayContent page={page} onClose={close} frameInteractionsDisabled={fullscreenFrame} />
+          <EmbossedOverlayContent page={renderPage} onClose={close} frameInteractionsDisabled={fullscreenFrame} />
         )}
       </OverlayFrame>
     </>
@@ -359,30 +375,37 @@ function OverlayFrame({
     });
   }
 
+  // The windowed frame eases ONLY the scale (transform) on open and flips opacity
+  // to 1 instantly: an ancestor with opacity < 1 isolates a descendant's
+  // backdrop-filter, so opening at full opacity keeps the EmbossedCard frost
+  // active while the scale eases in. The close fades opacity + scale out together,
+  // where the blur no longer matters. Opacity + transform are inline (not Tailwind
+  // `opacity-*`/`scale-*` utilities, which drive the separate `scale` property) so
+  // the `transform` transition reliably animates the scale.
+  const fadeTransition = `opacity ${OVERLAY_TRANSITION_MS}ms ease-out, transform ${OVERLAY_TRANSITION_MS}ms ease-out`;
   const frameStyle: CSSProperties = fullscreen
     ? {
         left: 0,
         top: 0,
         width: "100vw",
         height: "100dvh",
-        transition: `opacity ${OVERLAY_TRANSITION_MS}ms ease-out, transform ${OVERLAY_TRANSITION_MS}ms ease-out`,
+        opacity: visible ? 1 : 0,
+        transition: fadeTransition,
       }
     : {
         left: `${geom.x}px`,
         top: `${geom.y}px`,
         width: `${geom.w}px`,
         height: `${geom.h}px`,
-        transition: `opacity ${OVERLAY_TRANSITION_MS}ms ease-out, transform ${OVERLAY_TRANSITION_MS}ms ease-out`,
+        opacity: visible ? 1 : 0,
+        transform: visible ? "scale(1)" : "scale(0.96)",
+        transition: visible ? `transform ${OVERLAY_TRANSITION_MS}ms ease-out` : fadeTransition,
       };
 
   return (
     <div
       ref={frameRef}
-      className={cn(
-        "pointer-events-auto fixed z-50 flex flex-col",
-        fullscreen ? "" : "rounded-2xl",
-        visible ? "opacity-100 scale-100" : fullscreen ? "opacity-0" : "opacity-0 scale-[0.96]",
-      )}
+      className={cn("pointer-events-auto fixed z-50 flex flex-col", fullscreen ? "" : "rounded-2xl")}
       data-overlay-frame-mode={fullscreen ? "fullscreen" : "windowed"}
       style={frameStyle}
       onPointerDown={fullscreen ? undefined : onFramePointerDown}
