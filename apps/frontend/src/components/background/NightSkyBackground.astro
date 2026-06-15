@@ -20,6 +20,6 @@ import { BackgroundScene } from "@/components/background/BackgroundScene";
 const { shader } = await fetchDesignTokens();
 ---
 
-<div class="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden="true">
+<div class="mc-sky-backdrop fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
   <BackgroundScene client:idle shaderTokens={shader} />
 </div>

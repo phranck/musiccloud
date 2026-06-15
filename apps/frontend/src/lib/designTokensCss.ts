@@ -124,10 +124,19 @@ export function designTokensToCss(tokens: DesignTokens): string {
   decls.push(`--cover-day-tint:${toRgba(cover.day.tintColor, cover.day.tintOpacity)}`);
   decls.push(`--cover-night-tint:${toRgba(cover.night.tintColor, cover.night.tintOpacity)}`);
 
+  // Sky-gradient base colours: the night-sky shader's sky top/horizon per mode,
+  // emitted as CSS vars so the static backdrop behind the canvas renders the same
+  // day↔night gradient the shader draws (the canvas fades in over a match).
+  const sky = tokens.shader;
+  decls.push(`--sky-top-day:${sky.skyTopDay}`);
+  decls.push(`--sky-bottom-day:${sky.skyBottomDay}`);
+  decls.push(`--sky-top-night:${sky.skyTop}`);
+  decls.push(`--sky-bottom-night:${sky.skyBottom}`);
+
   // Outer-card radius root (consumed by cardGeometry's --mc-card-radius fallback).
   decls.push(`--mc-card-radius:${tokens.cardRadius}px`);
-  // SSR night seed against a flash of an uninitialised cross-fade; the runtime
-  // dayness channel overrides this via an inline style on <html> once booted.
+  // SSR night seed; the day/night seed script in BaseLayout overrides --g-dayness
+  // on <html> before first paint (and on every ClientRouter swap).
   decls.push("--g-dayness:0");
 
   return `html:root{${decls.join(";")}}`;

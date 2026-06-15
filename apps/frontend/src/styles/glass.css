@@ -220,6 +220,13 @@
   --cover-day-tint: rgba(202, 240, 254, 0.15);
   --cover-night-tint: rgba(255, 242, 213, 0.15);
 
+  /* Sky-gradient base colours (the night-sky shader's sky top/horizon, per mode).
+     Overridden per saved tokens by designTokensCss; these match NIGHT_SKY_DEFAULTS. */
+  --sky-top-day: #0076d5;
+  --sky-bottom-day: #69d1fd;
+  --sky-top-night: #0b1318;
+  --sky-bottom-night: #10273b;
+
   /* Re-point the global text tokens at the cross-faded levels so every
      `text-text-*` utility follows day↔night without touching a component.
      This file is imported after Tailwind's @theme, so these overrides win.
@@ -235,6 +242,13 @@
     var(--text-secondary-night)
   );
   --color-text-muted: color-mix(in srgb, var(--text-muted-day) calc(var(--g-dayness) * 100%), var(--text-muted-night));
+  /* Sky top/horizon, each cross-faded day↔night to the shader's sky colours, so
+     the static backdrop matches the rendered sky and the canvas fades in without
+     a colour change. `--color-background` (the body/overscroll fill) tracks the
+     sky top. */
+  --sky-top: color-mix(in srgb, var(--sky-top-day) calc(var(--g-dayness) * 100%), var(--sky-top-night));
+  --sky-bottom: color-mix(in srgb, var(--sky-bottom-day) calc(var(--g-dayness) * 100%), var(--sky-bottom-night));
+  --color-background: var(--sky-top);
 }
 
 /* Sky-anchored footer text — colour/opacity/stroke/size cross-faded day↔night. */
@@ -250,6 +264,14 @@
     var(--skytext-day-stroke-c) calc(var(--g-dayness) * 100%),
     var(--skytext-night-stroke-c)
   );
+}
+
+/* Static sky backdrop behind the WebGL canvas: the shader's vertical day↔night
+   sky gradient (top = --sky-top, horizon = --sky-bottom). The canvas reveals
+   over a matching gradient, so the only thing that fades in is the stars/clouds
+   layer, with no sky colour change. */
+.mc-sky-backdrop {
+  background: linear-gradient(to bottom, var(--sky-top), var(--sky-bottom));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

@@ -56,6 +56,54 @@ const designTokensCss = designTokensToCss(await fetchDesignTokens());
         with no flash; the runtime dayness channel overrides `--g-dayness` later. */}
     <style is:inline set:html={designTokensCss}></style>
 
+    {/* Day/night seed. Sets --g-dayness from the persisted switcher mode (plus the
+        OS scheme / local clock) synchronously before the first paint, and re-applies
+        it on every ClientRouter swap: the swap replaces the <html> element and drops
+        the style attribute the background worker writes, which leaves a navigated
+        page on the night seed until the worker next publishes. The background island
+        is transition:persist, so it never re-publishes on navigation. */}
+    <script is:inline>
+      (function () {
+        function smooth01(t) {
+          var c = Math.max(0, Math.min(1, t));
+          return c * c * (3 - 2 * c);
+        }
+        function clockDayness() {
+          var d = new Date();
+          var h = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+          var half = 1.5 / 2;
+          var up = smooth01((h - (6.5 - half)) / 1.5);
+          var down = 1 - smooth01((h - (20.5 - half)) / 1.5);
+          return up * down;
+        }
+        function readMode() {
+          try {
+            var raw = window.localStorage.getItem("mc.background.dayNightMode");
+            if (raw === "day" || raw === "night" || raw === "system" || raw === "automatic") return raw;
+          } catch (e) {}
+          return "system";
+        }
+        function dayness() {
+          var mode = readMode();
+          if (mode === "day") return 1;
+          if (mode === "night") return 0;
+          if (mode === "automatic") return clockDayness();
+          return typeof window.matchMedia === "function" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? 0
+            : 1;
+        }
+        function apply() {
+          document.documentElement.style.setProperty("--g-dayness", String(dayness()));
+        }
+        apply();
+        if (!window.__mcDaynessBound) {
+          window.__mcDaynessBound = true;
+          document.addEventListener("astro:after-swap", apply);
+        }
+      })();
+    </script>
+
     <ClientRouter />
 
     <title>{title}</title>
