@@ -78,7 +78,6 @@ export function SlideArtwork({
               height={imgDim}
               loading="lazy"
               decoding="async"
-              style={{ borderRadius: "var(--neu-radius-inner)" }}
               onError={(e) => {
                 e.currentTarget.src = "/og/default.jpg";
               }}
@@ -94,10 +93,7 @@ export function SlideArtwork({
         <div
           aria-hidden="true"
           className="absolute inset-0 pointer-events-none z-10"
-          style={{
-            borderRadius: "var(--neu-radius-inner)",
-            boxShadow: innerShadow,
-          }}
+          style={{ boxShadow: innerShadow }}
         />
       </RecessedCard.Body>
     </RecessedCard>

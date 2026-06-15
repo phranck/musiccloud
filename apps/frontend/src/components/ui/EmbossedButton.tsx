@@ -7,21 +7,22 @@ const CONTROL_RADIUS_SM = `max(4px, calc(var(--mc-recessed-radius-sm, var(--mc-r
 const controlRadiusStyle = {
   "--neu-radius-base": CONTROL_RADIUS_BASE,
   "--neu-radius-sm": CONTROL_RADIUS_SM,
-  // The old play button blueprint used the inset control shadow as its visible border.
-  // Keep the gradient-border layer present for API compatibility, but neutral by default.
-  "--neu-light": "transparent",
-  "--neu-shadow": "transparent",
   borderRadius: "var(--neu-radius)",
 } as React.CSSProperties;
 
+// Glass buttons: the surface (tint gradient + chamfer) comes from the
+// `.embossed-gradient-border`/`.mc-glass-button` recipe. The background must NOT
+// transition — the tint tracks the day↔night cross-fade with zero lag; only
+// transform + filter animate. Hover brightens via `filter` instead of swapping
+// a background colour.
 const baseClasses = [
-  "mc-raised-control bg-control-surface px-5 py-2.5 overflow-hidden cursor-pointer transform-gpu",
-  "transition-[background-color,transform] duration-100",
+  "mc-glass-button px-5 py-2.5 overflow-hidden cursor-pointer transform-gpu",
+  "transition-[transform,filter] duration-100",
   "disabled:cursor-not-allowed disabled:opacity-50",
   "focus-visible:outline-2 focus-visible:outline-white/40 focus-visible:outline-offset-2",
 ];
 
-const raisedHoverClasses = ["hover:bg-control-surface-hover", "focus-visible:bg-control-surface-hover"];
+const raisedHoverClasses = ["hover:brightness-110", "focus-visible:brightness-110"];
 
 const raisedScaleClasses = ["hover:scale-[1.015]", "focus-visible:scale-[1.015]", "active:scale-[0.985]"];
 
@@ -56,7 +57,6 @@ export function EmbossedButton({
   const mergedClassName = cn(
     surfaceClass,
     baseClasses,
-    pressed && "mc-raised-control-pressed",
     !pressed && raisedHoverClasses,
     !pressed && !noScale && raisedScaleClasses,
     className,

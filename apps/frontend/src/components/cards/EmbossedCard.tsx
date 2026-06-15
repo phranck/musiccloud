@@ -6,7 +6,6 @@ import {
 } from "@/components/cards/cardGeometry";
 import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
 import { cn } from "@/lib/utils";
-import { embossedCardStyle } from "@/styles/neumorphic";
 
 // ─── Sub-component type tags ───────────────────────────────────────────────
 
@@ -154,7 +153,7 @@ interface EmbossedCardProps {
    * radii (swaps at the `sm` breakpoint, 640 px). Published as
    * `--emb-radius-base` / `--emb-radius-sm` so a nested `RecessedCard`
    * can derive its own radius (`outerRadius − outerPadding`).
-   * Defaults to `1.375rem` (22 px) and is shared through the card geometry tokens.
+   * Defaults to `2rem` (32 px) and is shared through the card geometry tokens.
    */
   radius?: string | { base: string; sm?: string };
 }
@@ -232,7 +231,7 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   const radiusSm = typeof effectiveRadius === "object" ? effectiveRadius.sm : undefined;
 
   // Publish `--emb-radius-base/sm` + `--emb-padding` for descendant
-  // RecessedCards to inherit (the @media swap in neumorphic.css picks the
+  // RecessedCards to inherit (the @media swap in glass.css picks the
   // active value into `--emb-radius`). Keep `--neu-radius-base/sm` in
   // lockstep so this card's own gradient-border transition arc aligns
   // with its actual rounded corner.
@@ -243,7 +242,6 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
     activeRadiusSm !== undefined ? `max(0px, calc(${activeRadiusSm} - var(--mc-card-content-inset)))` : undefined;
 
   const mergedStyle: React.CSSProperties = {
-    ...embossedCardStyle,
     "--mc-card-content-inset": embossedCardContentInset,
     "--mc-recessed-control-inset": recessedControlInset,
     ...(effectivePadding !== undefined ? { "--emb-padding": effectivePadding, padding: "var(--emb-padding)" } : {}),
@@ -264,7 +262,7 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   } as React.CSSProperties;
 
   return (
-    <div className={cn("embossed-gradient-border bg-gray-800/[0.65] overflow-hidden", className)} style={mergedStyle}>
+    <div className={cn("embossed-gradient-border mc-glass-card overflow-hidden", className)} style={mergedStyle}>
       {isCompound ? (
         <>
           {hasAddOns ? (

@@ -5,7 +5,6 @@ import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/compone
 import { AnimatedPlatformGrid } from "@/components/platform/AnimatedPlatformGrid";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
-import { solidEmbossedCardStyle } from "@/styles/neumorphic";
 
 interface ServicesCardProps {
   content: MediaCardContentConfiguration;
@@ -27,7 +26,7 @@ export function ServicesCard({ content, className, animated = false }: ServicesC
   if (!showPlatforms && !showPlatformsInfoOnly) return null;
 
   return (
-    <EmbossedCard className={mediaCardClassName(animated, className)} style={solidEmbossedCardStyle}>
+    <EmbossedCard className={mediaCardClassName(animated, className)}>
       <EmbossedCard.Header className={sectionCardHeaderClassName}>
         <EmbossedCard.Header.Title className={sectionCardTitleClassName}>
           {content.platformsLabel}

@@ -3,7 +3,7 @@
  * Phase 4). The values are the user-approved prototype JSON — fifth
  * iteration, re-tuned 2026-06-13 for the static sky plane (MC-031: star
  * density/size, twinkle, wind, occlusion, day horizon color) — and must
- * stay in lockstep with `background-prototype.html` (the tuning tool that
+ * stay in lockstep with `frontend-prototype.html` (the tuning tool that
  * produced them).
  *
  * Default behaviour encoded here: fixed NIGHT start (`dayness: 0`,
@@ -71,6 +71,10 @@ export interface NightSkySettings {
   cloudSoftness: number;
   /** Opacity of the cloud layer, 0..1. */
   cloudOpacity: number;
+  /** Brightness multiplier of the night cloud colour (1 = production baseline). */
+  cloudNightBrightness: number;
+  /** Brightness multiplier of the day cloud colour (1 = production baseline). */
+  cloudDayBrightness: number;
   /** fbm octaves of the cloud field (integer 2..7). */
   cloudDetail: number;
   /** Strength of the macro clear-sky carving, 0..1. */
@@ -113,7 +117,7 @@ export interface NightSkySettings {
   cloudColorDay: string;
 }
 
-/** User-approved production defaults (prototype sign-off 2026-06-13, static-plane re-tune). */
+/** User-approved production defaults (prototype sign-off 2026-06-15 re-tune). */
 export const NIGHT_SKY_DEFAULTS: NightSkySettings = {
   dayness: 0,
   dayTransition: 1,
@@ -121,7 +125,7 @@ export const NIGHT_SKY_DEFAULTS: NightSkySettings = {
   sunriseHour: 6.5,
   sunsetHour: 20.5,
   twilightHours: 1.5,
-  vignette: 0.25,
+  vignette: 0.1,
   skyWidth: 5632,
   skyHeight: 3168,
   skyFov: 110,
@@ -133,30 +137,32 @@ export const NIGHT_SKY_DEFAULTS: NightSkySettings = {
   starDensity: 170,
   starSize: 1.1,
   starBrightness: 0.95,
-  twinkleAmount: 0.86,
-  twinkleSpeed: 2.3,
-  cloudScale: 8,
-  cloudCoverage: 0.31,
-  cloudSoftness: 0.34,
+  twinkleAmount: 0.6,
+  twinkleSpeed: 1.8,
+  cloudScale: 10,
+  cloudCoverage: 0.32,
+  cloudSoftness: 0.15,
   cloudOpacity: 1,
+  cloudNightBrightness: 2.1,
+  cloudDayBrightness: 0.9,
   cloudDetail: 7,
   clearZones: 0.4,
-  warpStrength: 0.35,
-  windSpeed: 0.01,
+  warpStrength: 0.15,
+  windSpeed: 0.021,
   windAngle: 180,
-  evolveSpeed: 0.06,
+  evolveSpeed: 0.035,
   moonIntensity: 0.15,
-  moonAngle: 265,
-  sunIntensity: 0.85,
-  sunAngle: 230,
+  moonAngle: 120,
+  sunIntensity: 1,
+  sunAngle: 120,
   starOcclusion: 0.1,
   animate: 1,
   renderScale: 0.7,
-  fpsCap: 10,
-  skyTop: "#03070d",
-  skyBottom: "#0b1923",
-  skyTopDay: "#2d6fb5",
-  skyBottomDay: "#9fd4eb",
+  fpsCap: 7,
+  skyTop: "#0b1318",
+  skyBottom: "#10273b",
+  skyTopDay: "#0076d5",
+  skyBottomDay: "#69d1fd",
   cloudColor: "#2c3b47",
   cloudColorDay: "#e6edf3",
 };
@@ -193,10 +199,12 @@ export const NIGHT_SKY_RANGES: Record<
   starBrightness: { min: 0, max: 2 },
   twinkleAmount: { min: 0, max: 1 },
   twinkleSpeed: { min: 0, max: 3 },
-  cloudScale: { min: 0.5, max: 8 },
+  cloudScale: { min: 0.5, max: 12 },
   cloudCoverage: { min: 0, max: 1 },
   cloudSoftness: { min: 0.02, max: 0.8 },
   cloudOpacity: { min: 0, max: 1 },
+  cloudNightBrightness: { min: 0, max: 3 },
+  cloudDayBrightness: { min: 0, max: 3 },
   cloudDetail: { min: 2, max: 7 },
   clearZones: { min: 0, max: 1 },
   warpStrength: { min: 0, max: 2 },
@@ -210,7 +218,7 @@ export const NIGHT_SKY_RANGES: Record<
   starOcclusion: { min: 0, max: 3 },
   animate: { min: 0, max: 1 },
   renderScale: { min: 0.25, max: 1 },
-  fpsCap: { min: 10, max: 60 },
+  fpsCap: { min: 5, max: 60 },
 };
 
 /**

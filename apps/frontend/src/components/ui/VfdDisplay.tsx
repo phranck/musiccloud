@@ -1,7 +1,7 @@
 import gsap from "gsap";
 import { type CSSProperties, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { DAYNESS_EVENT } from "@/components/background/glassDayness";
 import { recessedSurfaceRadius } from "@/components/cards/cardGeometry";
-import { RecessedCard } from "@/components/cards/RecessedCard";
 import { usePrefersReducedMotion } from "@/components/ui/usePrefersReducedMotion";
 import {
   type NormalizedVfdLine,
@@ -82,6 +82,7 @@ export type {
   VfdDisplaySection,
   VfdMarqueeModeLiteral,
   VfdPixelBarSegment,
+  VfdProgress,
   VfdSectionCellsMode,
 } from "@/components/ui/VfdDisplayTypes";
 export {
@@ -124,6 +125,7 @@ export function VfdDisplay({
   className,
   ariaLabel,
   phosphorColor,
+  progress,
   controllerRef,
 }: VfdDisplayProps) {
   const configuredRowCount = normalizePositiveInteger(rows ?? lines.length, DEFAULT_VFD_ROWS);
@@ -229,6 +231,18 @@ export function VfdDisplay({
     if (element) colorsRef.current = resolveCanvasColors(element);
   }, [phosphorColor]);
 
+  // The phosphor colours are CSS `color-mix` on `--g-dayness`; the canvas can't
+  // read that live, so on a dayness change we drop the cached colours (forcing
+  // a re-resolve at the new value) and request a repaint.
+  useLayoutEffect(() => {
+    const onDayness = () => {
+      colorsRef.current = null;
+      requestDrawRef.current?.();
+    };
+    window.addEventListener(DAYNESS_EVENT, onDayness);
+    return () => window.removeEventListener(DAYNESS_EVENT, onDayness);
+  }, []);
+
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const element = vfdRef.current;
@@ -280,26 +294,38 @@ export function VfdDisplay({
           "--mc-vfd-bright-color": phosphorColor,
         }
       : {}),
+    // The VFD IS the recessed screen (no surrounding RecessedCard, matching the
+    // reference prototype): it carries the recessed surface radius itself.
+    borderRadius: recessedSurfaceRadius,
     "--mc-vfd-cells": cellCount,
     "--mc-vfd-row-height": `${VFD_BAND_HEIGHT}px`,
     "--mc-vfd-row-gap": `${VFD_ROW_GAP}px`,
     "--mc-vfd-row-width": `${canvasWidth}px`,
     "--mc-vfd-display-height": `${canvasHeight}px`,
+    // Progress bar (when supplied): the display draws track + fill from its own
+    // row geometry; the consumer only hands in the filled pixel width + colour.
+    ...(progress
+      ? {
+          "--mc-vfd-progress-fill": `${progress.fillWidthPx}px`,
+          ...(progress.color ? { "--mc-vfd-progress-color": progress.color } : {}),
+        }
+      : {}),
   } as CSSProperties;
 
   return (
-    <RecessedCard className={cn("p-0.5", className)} radius={recessedSurfaceRadius}>
-      <RecessedCard.Body>
-        <section ref={vfdRef} className={cn("mc-vfd", VFD_DEVICE_CLASSES)} style={style} aria-label={ariaLabel}>
-          <canvas
-            ref={canvasRef}
-            className="mc-vfd-canvas"
-            width={canvasWidth}
-            height={canvasHeight}
-            style={{ inlineSize: `${canvasWidth}px`, blockSize: `${canvasHeight}px` }}
-          />
-        </section>
-      </RecessedCard.Body>
-    </RecessedCard>
+    <section
+      ref={vfdRef}
+      className={cn("mc-vfd", VFD_DEVICE_CLASSES, progress && "mc-vfd--with-progress", className)}
+      style={style}
+      aria-label={ariaLabel}
+    >
+      <canvas
+        ref={canvasRef}
+        className="mc-vfd-canvas"
+        width={canvasWidth}
+        height={canvasHeight}
+        style={{ inlineSize: `${canvasWidth}px`, blockSize: `${canvasHeight}px` }}
+      />
+    </section>
   );
 }

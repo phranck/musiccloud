@@ -1,5 +1,6 @@
 import type { SimilarArtistTrack } from "@musiccloud/shared";
 import { type ArtistPanelTrackResolveHandler, PopularTrack } from "@/components/artist/PopularTracksSection";
+import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { CardSignal } from "@/lib/analytics/umami";
 
 interface SimilarArtistsSectionProps {
@@ -23,11 +24,12 @@ export function SimilarArtistsSection({
   // track. A name-only row is a dead end for the user — nothing to click,
   // nothing to preview — so we drop it instead of rendering an empty button.
   const withTrack = similarArtistTracks.filter(hasTrack);
+  const listRef = useGroupedCorners<HTMLDivElement>({ frameSelector: ".recessed-gradient-border", frameInset: 4 });
 
   if (withTrack.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-0.5">
+    <div ref={listRef} className="flex flex-col gap-0.5">
       {withTrack.map(({ artistName, track }) => (
         <PopularTrack
           key={artistName}

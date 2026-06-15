@@ -56,7 +56,8 @@
 .mc-tft-screen {
   position: relative;
   border-radius: var(--neu-radius-inner);
-  background: var(--color-tft-background);
+  /* Screen base, cross-faded day↔night from the cover tokens. */
+  background: color-mix(in srgb, var(--cover-day-bg) calc(var(--g-dayness) * 100%), var(--cover-night-bg));
 }
 
 .mc-tft-screen-content {
@@ -70,7 +71,9 @@
   transform: translate3d(0, 0, 0);
 }
 
+.mc-tft-screen-tint,
 .mc-tft-screen-matrix,
+.mc-tft-screen-sheen,
 .mc-tft-screen-shadow {
   position: absolute;
   inset: 0;
@@ -78,37 +81,47 @@
   border-radius: inherit;
 }
 
+/* Art tint overlay. */
+.mc-tft-screen-tint {
+  z-index: 1;
+  background: color-mix(in srgb, var(--cover-day-tint) calc(var(--g-dayness) * 100%), var(--cover-night-tint));
+}
+
+/* LCD dot-matrix: one cross-faded colour at two line opacities; the layer
+   opacity (matrixOpacity token) is the master strength. */
 .mc-tft-screen-matrix {
   z-index: 10;
-  display: block;
-  inline-size: 100%;
-  block-size: 100%;
-  overflow: hidden;
-  opacity: 0.48;
-  contain: paint;
+  --_cover-matrix: color-mix(in srgb, var(--cover-day-matrix) calc(var(--g-dayness) * 100%), var(--cover-night-matrix));
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--_cover-matrix) 50%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--_cover-matrix) 58%, transparent) 1px, transparent 1px);
+  background-size: 4px 4px;
+  opacity: calc(var(--cover-day-matrix-o) * var(--g-dayness) + var(--cover-night-matrix-o) * (1 - var(--g-dayness)));
 }
 
+/* Sheen: top highlight → transparent → bottom shade. */
+.mc-tft-screen-sheen {
+  z-index: 15;
+  background: linear-gradient(
+    to bottom,
+    rgba(
+        255,
+        255,
+        255,
+        calc(var(--cover-day-sheen-l) * var(--g-dayness) + var(--cover-night-sheen-l) * (1 - var(--g-dayness)))
+      )
+      0%,
+    transparent 30%,
+    rgba(0, 0, 0, calc(var(--cover-day-sheen-s) * var(--g-dayness) + var(--cover-night-sheen-s) * (1 - var(--g-dayness))))
+      100%
+  );
+}
+
+/* Inset frame shadow (top-left); strength = innerShadow token. */
 .mc-tft-screen-shadow {
   z-index: 20;
-  box-shadow: inset 4px 4px 12px rgba(0, 0, 0, 0.9);
-}
-
-.mc-raised-control {
-  border-radius: var(--neu-radius);
-  box-shadow:
-    inset 1px 1px 0 rgba(255, 255, 255, 0.12),
-    inset -1px -1px 0 rgba(0, 0, 0, 0.48);
-  transform: translate3d(0, 0, 0);
-  transition:
-    background-color 50ms ease-out,
-    transform 60ms ease-out;
-}
-
-.mc-raised-control:not(:disabled):active,
-.mc-raised-control-pressed {
-  background: var(--color-control-surface);
-  box-shadow: none;
-  transform: translate3d(0, 1px, 0);
+  box-shadow: inset 4px 4px 12px
+    rgba(0, 0, 0, calc(var(--cover-day-inner) * var(--g-dayness) + var(--cover-night-inner) * (1 - var(--g-dayness))));
 }
 
 /* Reusable VFD module. Canvas owns the fixed integer pixel matrix. */
@@ -123,15 +136,21 @@
   overflow: hidden;
   border-radius: var(--neu-radius-inner, 0.875rem);
   border: 0;
-  background: var(--mc-vfd-glass-tint);
+  /* Translucent glass screen, cross-faded day↔night. The inset edge frame is
+     driven by the VFD edge tokens (default 0 → no light/shadow border, matching
+     the prototype). */
+  background: color-mix(in srgb, var(--vfd-day-bg) calc(var(--g-dayness) * 100%), var(--vfd-night-bg));
   box-shadow:
-    inset 1px 1px 0 var(--mc-vfd-glass-edge-light),
-    inset -1px -1px 0 var(--mc-vfd-glass-edge-shade);
+    inset 1px 1px 0 rgba(255, 255, 255, calc(var(--vfd-day-el) * var(--g-dayness) + var(--vfd-night-el) * (1 - var(--g-dayness)))),
+    inset -1px -1px 0 rgba(0, 0, 0, calc(var(--vfd-day-es) * var(--g-dayness) + var(--vfd-night-es) * (1 - var(--g-dayness))));
   color: var(--mc-vfd-color);
-  --mc-vfd-bright-color: var(--color-vfd-phosphor);
-  --mc-vfd-normal-color: var(--color-vfd-phosphor-normal);
-  --mc-vfd-dim-color: var(--color-vfd-phosphor-dim);
-  --mc-vfd-ghost-color: var(--color-vfd-phosphor-ghost);
+  /* Phosphor colours cross-faded day↔night from the vfd tokens. The canvas
+     resolves these (color-mix → rgb via a probe) and redraws on a dayness
+     change (the `mc:dayness` listener in VfdDisplay). */
+  --mc-vfd-bright-color: color-mix(in srgb, var(--vfd-day-bright) calc(var(--g-dayness) * 100%), var(--vfd-night-bright));
+  --mc-vfd-normal-color: color-mix(in srgb, var(--vfd-day-normal) calc(var(--g-dayness) * 100%), var(--vfd-night-normal));
+  --mc-vfd-dim-color: color-mix(in srgb, var(--vfd-day-dim) calc(var(--g-dayness) * 100%), var(--vfd-night-dim));
+  --mc-vfd-ghost-color: color-mix(in srgb, var(--vfd-day-ghost) calc(var(--g-dayness) * 100%), var(--vfd-night-ghost));
   --mc-vfd-cells: 44;
   --mc-vfd-row-height: 13px;
   --mc-vfd-row-gap: 11px;
@@ -150,8 +169,13 @@
   user-select: none;
 }
 
-.mc-player-progress-vfd .mc-vfd::before,
-.mc-player-progress-vfd .mc-vfd::after {
+/* Playback-progress bar. Owned by the VFD display (VfdDisplay sets the
+   `mc-vfd--with-progress` modifier + the fill vars when given a `progress`
+   prop), so it rides the display's own row geometry independent of any
+   consumer layout. Track = full row width of ghost dots,
+   fill = `--mc-vfd-progress-fill` of `--mc-vfd-progress-color` dots. */
+.mc-vfd--with-progress::before,
+.mc-vfd--with-progress::after {
   content: "";
   position: absolute;
   left: calc((100% - var(--mc-vfd-row-width)) / 2);
@@ -160,16 +184,16 @@
   pointer-events: none;
 }
 
-.mc-player-progress-vfd .mc-vfd::before {
+.mc-vfd--with-progress::before {
   inline-size: var(--mc-vfd-row-width);
   background: repeating-linear-gradient(to right, var(--mc-vfd-ghost-color) 0 1px, transparent 1px 2px);
 }
 
-.mc-player-progress-vfd .mc-vfd::after {
-  inline-size: var(--mc-player-progress-width, 0px);
+.mc-vfd--with-progress::after {
+  inline-size: var(--mc-vfd-progress-fill, 0px);
   background: repeating-linear-gradient(
     to right,
-    var(--mc-player-progress-color, var(--mc-vfd-normal-color)) 0 1px,
+    var(--mc-vfd-progress-color, var(--mc-vfd-normal-color)) 0 1px,
     transparent 1px 2px
   );
   opacity: 0.95;

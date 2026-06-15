@@ -14,9 +14,9 @@
 export const DayNightMode = {
   /** Fixed day sky (`dayness: 1`). */
   Day: "day",
-  /** Fixed night sky (`dayness: 0`) — the default. */
+  /** Fixed night sky (`dayness: 0`). */
   Night: "night",
-  /** Follows the OS `prefers-color-scheme`: dark = night, light = day. */
+  /** Follows the OS `prefers-color-scheme`: dark = night, light = day. The default until the user picks a mode. */
   System: "system",
   /** Follows the local clock with the fixed twilight defaults. */
   Automatic: "automatic",
@@ -25,7 +25,12 @@ export const DayNightMode = {
 export type DayNightMode = (typeof DayNightMode)[keyof typeof DayNightMode];
 
 const STORAGE_KEY = "mc.background.dayNightMode";
-const DEFAULT_MODE: DayNightMode = DayNightMode.Night;
+/**
+ * Mode used before the user has made any choice (nothing persisted yet). The
+ * DayNightSwitcher's persisted selection always wins; on the very first visit
+ * — with an empty store — the sky follows the OS colour scheme via System.
+ */
+const DEFAULT_MODE: DayNightMode = DayNightMode.System;
 
 let currentMode: DayNightMode = DEFAULT_MODE;
 let initialized = false;

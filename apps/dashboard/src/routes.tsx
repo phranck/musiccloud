@@ -15,6 +15,7 @@ import {
   ArtistsPage,
   ContentEditorPage,
   DashboardPage,
+  DesignSettingsPage,
   EditorStubPage,
   EmailTemplateEditPage,
   EmailTemplateListPage,
@@ -68,6 +69,7 @@ export const routes = createRoutesFromElements(
           <Route path="markdown-widgets" element={lazyFallback(<MarkdownWidgetsPage />)} />
           <Route path="system" element={lazyFallback(<SystemPage />)} />
           <Route path="services" element={lazyFallback(<ServicesPage />)} />
+          <Route path="design" element={lazyFallback(<DesignSettingsPage />)} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -75,7 +75,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
               className="flex size-full min-h-0 items-center justify-center px-0 py-0"
               aria-label={songTitle ? t("share.nativeShare", { title: songTitle }) : t("share.shareLink")}
             >
-              <ShareNetworkIcon size={24} weight="duotone" className="text-vfd-phosphor" />
+              <ShareNetworkIcon size={24} weight="duotone" className="text-white" />
             </EmbossedButton>
           </RecessedCard.Body>
         </RecessedCard>
@@ -91,7 +91,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
             className={cn(
               "flex h-full min-h-0 w-full items-center justify-center gap-2 py-0",
               "font-bold text-[15px] tracking-[-0.01em] text-text-primary",
-              state === ShareButtonState.Idle && "text-vfd-phosphor",
+              state === ShareButtonState.Idle && "text-white",
               state === ShareButtonState.Copied && "text-success",
               state === ShareButtonState.Error && "text-error",
             )}

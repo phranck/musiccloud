@@ -9,7 +9,6 @@ import { ShareButton } from "@/components/share/ShareButton";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
-import { solidEmbossedCardStyle } from "@/styles/neumorphic";
 
 export type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 
@@ -50,7 +49,7 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
   const showPlatforms = content.platforms.length > 0;
   const showPlatformsInfoOnly = content.platforms.length === 0 && !!content.platformsInfo;
   return (
-    <EmbossedCard className={mediaCardClassName(animated, className)} style={solidEmbossedCardStyle}>
+    <EmbossedCard className={mediaCardClassName(animated, className)}>
       {srAnnouncement && (
         <p className="sr-only" aria-live="polite">
           {srAnnouncement}

@@ -1,5 +1,6 @@
 import type { ArtistEvent } from "@musiccloud/shared";
 import { TicketIcon } from "@phosphor-icons/react";
+import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 
@@ -10,8 +11,9 @@ interface UpcomingEventsSectionProps {
 }
 
 export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEventsSectionProps) {
+  const listRef = useGroupedCorners<HTMLDivElement>();
   return (
-    <div className="flex flex-col gap-0.5">
+    <div ref={listRef} className="flex flex-col gap-0.5">
       {events.map((event) => {
         const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
         const linkProps = event.ticketUrl

@@ -10,9 +10,12 @@
  * `authenticateAdmin`. Bundling both into one default export would force
  * both scopes to register the same plugin.
  */
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, parseDesignTokens } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getAllSettings, getSetting, setSetting } from "../services/site-settings.js";
+
+/** Site-settings store key holding the JSON-encoded design-token blob. */
+const DESIGN_TOKENS_KEY = "design_tokens";
 
 /**
  * Public read for a single well-known flag (`tracking_enabled`). Kept
@@ -51,6 +54,27 @@ export async function siteSettingsPublicRoutes(app: FastifyInstance) {
       const value = await getSetting("tracking_enabled");
       reply.header("Cache-Control", "private, max-age=60");
       return { enabled: value === "true" };
+    },
+  );
+
+  app.get(
+    ENDPOINTS.v1.siteSettings.designTokens,
+    {
+      schema: {
+        tags: ["Site"],
+        summary: "Read the validated design-token blob",
+        description:
+          "Returns the site's design tokens (glass material + night-sky shader), validated and sanitised through `parseDesignTokens`. Consumed by the Astro frontend during SSR to seed the `:root` custom properties. Always returns a complete, valid token set (canonical defaults fill any missing/invalid value); never returns the raw stored string or any other setting.",
+      },
+    },
+    async (_request, reply) => {
+      // Read ONLY the design-token key and run it through the shared validator
+      // so a tampered/garbage stored value can never leak as raw CSS or expose
+      // an unrelated setting. `getAllSettings` is deliberately NOT used here.
+      const raw = await getSetting(DESIGN_TOKENS_KEY);
+      const { tokens } = parseDesignTokens(raw);
+      reply.header("Cache-Control", "private, max-age=60");
+      return tokens;
     },
   );
 }

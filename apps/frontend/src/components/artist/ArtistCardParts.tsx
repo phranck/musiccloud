@@ -7,7 +7,6 @@ import {
   sectionCardHeaderClassName,
   sectionCardTitleClassName,
 } from "@/components/cards/sectionCardChromeStyles";
-import { solidEmbossedCardStyle } from "@/styles/neumorphic";
 
 export type ArtistInfoStatus = "loading" | "ready" | "empty" | "error";
 
@@ -40,7 +39,7 @@ interface ArtistCardShellProps {
 
 export function ArtistCardShell({ children, className, footer, title }: ArtistCardShellProps) {
   return (
-    <EmbossedCard className={className ?? fullWidthEmbossedCardClassName} style={solidEmbossedCardStyle}>
+    <EmbossedCard className={className ?? fullWidthEmbossedCardClassName}>
       {title && (
         <EmbossedCard.Header className={sectionCardHeaderClassName}>
           <EmbossedCard.Header.Title className={sectionCardTitleClassName}>{title}</EmbossedCard.Header.Title>

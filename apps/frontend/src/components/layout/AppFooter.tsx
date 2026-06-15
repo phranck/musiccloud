@@ -34,7 +34,7 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
 
   return (
     <footer
-      className="w-full grid grid-cols-3 items-center px-4 sm:px-6 py-3 text-xs text-text-muted"
+      className="mc-skytext w-full grid grid-cols-3 items-center px-4 sm:px-6 py-3"
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       <span className="text-left">&copy; {yearDisplay} musiccloud</span>

@@ -1,5 +1,6 @@
 import type { ArtistTopTrack } from "@musiccloud/shared";
 import { type MouseEvent, useCallback, useState } from "react";
+import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useToastSafe } from "@/context/ToastContext";
@@ -21,8 +22,12 @@ export function PopularTracksSection({
   onTrackResolve,
   onResolveStart,
 }: PopularTracksSectionProps) {
+  // Grouped corners: every row defaults to a ≤5px interior radius; only the
+  // first row's top corners and the last row's bottom corners are promoted to
+  // the full control radius so the list reads as one block inscribed in the well.
+  const listRef = useGroupedCorners<HTMLDivElement>({ frameSelector: ".recessed-gradient-border", frameInset: 4 });
   return (
-    <div className="flex flex-col gap-0.5">
+    <div ref={listRef} className="flex flex-col gap-0.5">
       {tracks.map((track) => (
         <PopularTrack
           key={track.deezerUrl}

@@ -3,7 +3,6 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
-import { embossedCardStyle } from "@/styles/neumorphic";
 
 interface Segment<T extends string> {
   key: T;
@@ -56,7 +55,11 @@ export function EmbossedSegmentedControl<T extends string>({
   }, [value, segments, buttonRefMap]);
 
   return (
-    <RecessedCard ref={containerRef} className={cn("relative flex p-1", className)} radius={recessedSurfaceRadius}>
+    <RecessedCard
+      ref={containerRef}
+      className={cn("mc-glass-seg-track relative flex p-1", className)}
+      radius={recessedSurfaceRadius}
+    >
       <RecessedCard.Body className="contents">
         {indicator && (
           <div
@@ -68,10 +71,9 @@ export function EmbossedSegmentedControl<T extends string>({
             }}
           >
             <div
-              className="embossed-gradient-border size-full bg-zinc-700/[0.65]"
+              className="embossed-gradient-border mc-glass-seg-indicator size-full"
               style={
                 {
-                  ...embossedCardStyle,
                   "--neu-radius-base": raisedControlRadius,
                   "--neu-radius-sm": raisedControlRadius,
                   borderRadius: "var(--neu-radius)",

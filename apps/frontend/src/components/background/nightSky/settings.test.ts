@@ -36,6 +36,8 @@ const EXPECTED_KEYS = [
   "cloudCoverage",
   "cloudSoftness",
   "cloudOpacity",
+  "cloudNightBrightness",
+  "cloudDayBrightness",
   "cloudDetail",
   "clearZones",
   "warpStrength",
@@ -62,16 +64,16 @@ const EXPECTED_KEYS = [
 const PINNED_VALUES: Partial<Record<(typeof EXPECTED_KEYS)[number], number | string>> = {
   dayness: 0,
   autoDayNight: 0,
-  fpsCap: 10,
+  fpsCap: 7,
   renderScale: 0.7,
   cloudDetail: 7,
   rotationPeriod: 1200,
-  skyTop: "#03070d",
+  skyTop: "#0b1318",
   cloudColorDay: "#e6edf3",
 };
 
 describe("NIGHT_SKY_DEFAULTS", () => {
-  it("contains exactly the 44 approved settings keys", () => {
+  it("contains exactly the 46 approved settings keys", () => {
     expect(Object.keys(NIGHT_SKY_DEFAULTS).sort()).toEqual([...EXPECTED_KEYS].sort());
   });
 

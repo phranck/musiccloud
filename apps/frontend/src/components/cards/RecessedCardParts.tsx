@@ -5,7 +5,6 @@ import {
   recessedSurfaceRadius,
 } from "@/components/cards/cardGeometry";
 import { cn } from "@/lib/utils";
-import { recessedStyle } from "@/styles/neumorphic";
 
 // ─── Sub-component type tags ───────────────────────────────────────────────
 
@@ -233,7 +232,6 @@ export function RecessedCardRoot({ children, className, ref, style, borderWidth,
   const publishedPadding = paddingValue ?? paddingFromClassName(className);
 
   const mergedStyle: React.CSSProperties = {
-    ...recessedStyle,
     "--neu-radius-base": radiusBase,
     "--neu-radius-sm": radiusSm,
     "--mc-recessed-radius-base": radiusBase,
@@ -255,11 +253,7 @@ export function RecessedCardRoot({ children, className, ref, style, borderWidth,
   );
 
   return (
-    <div
-      ref={ref}
-      className={cn("recessed-gradient-border bg-black/25 overflow-hidden", className)}
-      style={mergedStyle}
-    >
+    <div ref={ref} className={cn("recessed-gradient-border overflow-hidden", className)} style={mergedStyle}>
       {content}
     </div>
   );
