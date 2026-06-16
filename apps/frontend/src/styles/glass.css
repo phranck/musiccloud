@@ -377,9 +377,9 @@ a.mc-skylink {
   text-decoration-color: color-mix(in srgb, var(--skylink-day-deco, #28a8d8) calc(var(--g-dayness) * 100%), var(--skylink-night-deco, #28a8d8));
   text-decoration-thickness: var(--skylink-thickness, 1.5px);
   text-underline-offset: var(--skylink-offset, 2.5px);
-  transition:
-    color 0.2s ease,
-    text-decoration-color 0.2s ease;
+  /* No transition: like every other glass surface, the colours follow
+     `--g-dayness` live (per frame), so the link cross-fades in lockstep with the
+     sky instead of snapping at the end of the day/night blend. */
 }
 
 /* Static sky backdrop behind the WebGL canvas: the shader's vertical day↔night
