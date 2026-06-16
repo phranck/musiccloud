@@ -766,7 +766,7 @@ body.glass .mc-vfd {
 /* Outer pill. The global --mc-card-radius (22px) is overridden to a full pill
    on the hero only. */
 .hero-wrap { border-radius: 9999px; }
-.hero-card { border-radius: 9999px; padding: .75rem; }            /* EmbossedCard default padding (p-3) */
+.hero-card { border-radius: 9999px; padding: var(--mc-pad-card, .75rem); }   /* EmbossedCard outer padding — follows the Card-padding token (--mc-pad-card) */
 .hero-well { border-radius: 9999px; padding: .1875rem;            /* recessedControlInset (3px) */
   display: flex; align-items: center; gap: 0;
   outline: 2px solid transparent; outline-offset: 3px; transition: outline-color .2s ease; }
