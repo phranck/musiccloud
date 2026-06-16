@@ -97,5 +97,6 @@
   "dayNight.day": "Day",
   "dayNight.night": "Night",
   "dayNight.system": "System",
-  "dayNight.automatic": "Automatic"
+  "dayNight.automatic": "Automatic",
+  "language.label": "Language"
 }
