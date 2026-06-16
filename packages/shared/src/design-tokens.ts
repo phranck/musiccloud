@@ -336,6 +336,7 @@ export const PADDING_DEFAULTS = {
   "--mc-pad-svc-y": 10,
   "--mc-pad-svc-x": 12,
   "--mc-pad-event-x": 12,
+  "--mc-pad-event-y": 4,
   "--mc-gap-cards": 22,
   "--mc-gap-list": 3,
   "--mc-gap-grid": 3,

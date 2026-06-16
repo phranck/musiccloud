@@ -241,6 +241,7 @@
   --mc-pad-svc-y: 10px;       /* service-button vertical padding */
   --mc-pad-svc-x: 12px;       /* service-button horizontal padding */
   --mc-pad-event-x: 12px;     /* upcoming-events row horizontal padding (text-only row) */
+  --mc-pad-event-y: 4px;      /* upcoming-events row vertical padding (text to top/bottom edge) */
   --mc-gap-cards: 22px;       /* gap between stacked cards (.stage-inner) */
   --mc-gap-list: 3px;         /* gap between track rows (.track-list) */
   --mc-gap-grid: 3px;         /* gap between service buttons (.svc-grid) */
@@ -397,11 +398,12 @@
    (date + venue·city) + trailing ticket icon, NO leading artwork. Uses its own
    horizontal padding (--mc-pad-event-x) because text-only clings under the artwork inset. */
 .event-btn { display:flex; align-items:center; gap:var(--mc-gap-rowitem); width:100%;
-  padding:var(--mc-pad-track) var(--mc-pad-event-x); text-align:left; }
+  padding:var(--mc-pad-event-y) var(--mc-pad-event-x); text-align:left; }
 .event-meta { display:flex; flex-direction:column; min-width:0; flex:1 1 0; overflow:hidden; }
-.event-date { font-size:.875rem; font-weight:500; color:var(--color-text-secondary); }
-.event-venue { font-size:.875rem; color:var(--color-text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.event-ticket { width:1.75rem; height:1.25rem; flex-shrink:0; color:var(--color-text-secondary); }
+.event-date { font-size:.875rem; line-height:1.25rem; font-weight:500; color:var(--color-text-secondary); font-variant-numeric:tabular-nums; }  /* production: text-sm font-medium tabular-nums text-text-secondary */
+.event-venue { font-size:.875rem; line-height:1.25rem; font-weight:400; color:var(--color-text-primary); overflow-wrap:break-word; }  /* production: text-sm text-text-primary break-words */
+.event-city { color:var(--color-text-secondary); }  /* the " · city, country" half — secondary, like production's inner span */
+.event-ticket { width:1.5rem; height:1.5rem; flex-shrink:0; color:var(--color-text-secondary); }  /* Phosphor TicketIcon duotone, 24px */
 /* Services card (ServicesCard → AnimatedPlatformGrid): two-column grid of platform
    buttons (icon + name). Real labels + brand colours from PLATFORM_CONFIG; the
    standalone prototype can't bundle production's react-icons, so the icon is the
@@ -444,7 +446,7 @@
    column layout (offsetTop grouping) and recomputed on reflow, so it works for any
    column/item count — this logic ports straight to production (Similar Artists,
    Upcoming Events, the platform grid) where the counts vary. */
-.track-list .track-btn, .svc-grid .svc-btn { border-radius: var(--mc-control-radius-inner); }
+.track-list .track-btn, .track-list .event-btn, .svc-grid .svc-btn { border-radius: var(--mc-control-radius-inner); }
 
 /* ════════ EmbossedSegmentedControl ════════ */
 .seg-track {
@@ -924,8 +926,8 @@ body.glass .emb-btn.hero-submit {
         <div class="recessed-card section-recessed">
           <div class="recessed-body">
             <div class="track-list">
-              <a class="emb-btn event-btn"><div class="event-meta"><span class="event-date">Aug 28</span><span class="event-venue">Collins Barracks · Dublin, IE</span></div><svg class="event-ticket" viewBox="0 0 28 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="1" y="1" width="26" height="18" rx="3"/><line x1="11" y1="1" x2="11" y2="19" stroke-dasharray="2 2"/></svg></a>
-              <a class="emb-btn event-btn"><div class="event-meta"><span class="event-date">Sep 14</span><span class="event-venue">The O2 · London, GB</span></div><svg class="event-ticket" viewBox="0 0 28 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="1" y="1" width="26" height="18" rx="3"/><line x1="11" y1="1" x2="11" y2="19" stroke-dasharray="2 2"/></svg></a>
+              <a class="emb-btn event-btn"><div class="event-meta"><span class="event-date">Aug 28</span><span class="event-venue">Collins Barracks<span class="event-city"> · Dublin, IE</span></span></div><svg class="event-ticket" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256" aria-hidden="true"><path d="M200,128a32,32,0,0,0,32,32v32a8,8,0,0,1-8,8H96V56H224a8,8,0,0,1,8,8V96A32,32,0,0,0,200,128Z" opacity="0.2"></path><path d="M232,104a8,8,0,0,0,8-8V64a16,16,0,0,0-16-16H32A16,16,0,0,0,16,64V96a8,8,0,0,0,8,8,24,24,0,0,1,0,48,8,8,0,0,0-8,8v32a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V160a8,8,0,0,0-8-8,24,24,0,0,1,0-48ZM32,167.2a40,40,0,0,0,0-78.4V64H88V192H32Zm192,0V192H104V64H224V88.8a40,40,0,0,0,0,78.4Z"></path></svg></a>
+              <a class="emb-btn event-btn"><div class="event-meta"><span class="event-date">Sep 14</span><span class="event-venue">The O2<span class="event-city"> · London, GB</span></span></div><svg class="event-ticket" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256" aria-hidden="true"><path d="M200,128a32,32,0,0,0,32,32v32a8,8,0,0,1-8,8H96V56H224a8,8,0,0,1,8,8V96A32,32,0,0,0,200,128Z" opacity="0.2"></path><path d="M232,104a8,8,0,0,0,8-8V64a16,16,0,0,0-16-16H32A16,16,0,0,0,16,64V96a8,8,0,0,0,8,8,24,24,0,0,1,0,48,8,8,0,0,0-8,8v32a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V160a8,8,0,0,0-8-8,24,24,0,0,1,0-48ZM32,167.2a40,40,0,0,0,0-78.4V64H88V192H32Zm192,0V192H104V64H224V88.8a40,40,0,0,0,0,78.4Z"></path></svg></a>
             </div>
           </div>
         </div>
@@ -3578,6 +3580,7 @@ const PADDING_GROUPS = [
     { var: "--mc-pad-svc-y", def: 10, label: { en: "Service btn · y",   de: "Service-Btn · y" },       tip: { en: "Service-button vertical padding.", de: "Vertikales Padding des Service-Buttons." } },
     { var: "--mc-pad-svc-x", def: 12, label: { en: "Service btn · x",   de: "Service-Btn · x" },       tip: { en: "Service-button horizontal padding.", de: "Horizontales Padding des Service-Buttons." } },
     { var: "--mc-pad-event-x", def: 12, label: { en: "Event row · x",    de: "Event-Zeile · x" },       tip: { en: "Upcoming-events row horizontal padding (text-only row, no artwork inset).", de: "Horizontales Padding der Upcoming-Events-Zeile (text-only, ohne Artwork-Inset)." } },
+    { var: "--mc-pad-event-y", def: 4,  label: { en: "Event row · y",    de: "Event-Zeile · y" },       tip: { en: "Upcoming-events row vertical padding (text to the row's top/bottom edge).", de: "Vertikales Padding der Upcoming-Events-Zeile (Text zum oberen/unteren Rand)." } },
   ] },
   { key: "gaps", label: { en: "Gaps", de: "Abstände" }, fields: [
     { var: "--mc-gap-cards",   def: 22, label: { en: "Between cards",  de: "Zwischen Karten" }, tip: { en: "Vertical gap between stacked cards.", de: "Vertikaler Abstand zwischen gestapelten Karten." } },
@@ -4001,7 +4004,7 @@ function applyGroupedCorners(container, itemSelector, frameSelector, frameInset)
 
 /** Recomputes grouped-button (+ cover-frame) corners for every list/grid. */
 function applyAllGroupedCorners() {
-  for (const list of document.querySelectorAll(".track-list")) applyGroupedCorners(list, ".track-btn", ".track-art", 4);
+  for (const list of document.querySelectorAll(".track-list")) applyGroupedCorners(list, ".track-btn, .event-btn", ".track-art", 4);
   for (const grid of document.querySelectorAll(".svc-grid")) applyGroupedCorners(grid, ".svc-btn");
 }
 
