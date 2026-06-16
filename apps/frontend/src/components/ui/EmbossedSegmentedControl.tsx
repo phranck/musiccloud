@@ -121,9 +121,13 @@ export function EmbossedSegmentedControl<T extends string>({
               onClick={() => onChange(key)}
               aria-label={hasVisibleText ? undefined : ariaLabel}
               className={cn(
-                "relative z-10 flex-auto flex items-center justify-center rounded-lg whitespace-nowrap transition-colors duration-150",
+                "relative z-10 flex items-center justify-center rounded-lg whitespace-nowrap transition-colors duration-150",
                 "border-none",
-                hasVisibleText ? "py-2 px-3 text-[13px] font-semibold text-center" : "p-2",
+                // Text cells grow to share the track width; icon-only cells get a
+                // fixed square size so a control's segment height/size stays the
+                // same regardless of the glyph (an 18px Phosphor icon and a 16px
+                // flag emoji both yield identical 34px segments).
+                hasVisibleText ? "flex-auto py-2 px-3 text-[13px] font-semibold text-center" : "size-[34px]",
                 key === value ? "mc-txt-button-bright" : "mc-txt-button-normal",
               )}
             >

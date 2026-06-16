@@ -10,9 +10,10 @@ import { languageSignal, sendMusicSignal } from "@/lib/analytics/umami";
  * a persistently visible segment whose decorative (`aria-hidden`) flag emoji
  * sits in front of its translated language name, which doubles as the button's
  * accessible name. The flags are emoji strings rather than Phosphor icons
- * because Phosphor ships no country flags; the explicit `text-[18px]` span keeps
- * them sized to match the icon-only segments elsewhere in the header. The control
- * sits in a `<fieldset>` whose visually-hidden `<legend>` names the group via the
+ * because Phosphor ships no country flags; the explicit `text-[16px]` span sizes
+ * the emoji to visually match the 18px Phosphor icons in the other header control
+ * (emoji render fuller than line icons at the same px). The control sits in a
+ * `<fieldset>` whose visually-hidden `<legend>` names the group via the
  * `language.label` key.
  *
  * The locale binds to the shared `LocaleProvider` context (`useLocale`) rather
@@ -34,7 +35,7 @@ export function LanguageSwitcher() {
     label: "",
     ariaLabel: LOCALE_META[code].label,
     icon: (
-      <span aria-hidden="true" className="text-[18px] leading-none">
+      <span aria-hidden="true" className="text-[16px] leading-none">
         {LOCALE_META[code].flag}
       </span>
     ),
