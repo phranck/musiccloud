@@ -94,15 +94,14 @@ button,
   touch-action: manipulation;
 }
 
-/* Hero search field — focus ring around the RecessedCard well (LandingPage
+/* Hero search field — focus ring directly on the RecessedCard well (LandingPage
    HeroInput). Uses `outline` (not box-shadow) so it never replaces the recessed
    chamfer of the `.recessed-gradient-border` recipe. The base ring is
-   transparent so focus fades transparent→accent (no white flash). It sits in the
-   EmbossedCard's 0.75rem padding, so the card's `overflow: hidden` never clips
-   it. */
+   transparent so focus fades transparent→accent (no white flash).
+   `outline-offset: 0` keeps the ring flush on the RecessedCard contour. */
 .hero-field {
   outline: 2px solid transparent;
-  outline-offset: 3px;
+  outline-offset: 0;
   transition: outline-color 0.2s ease;
 }
 .hero-field:focus-within {
