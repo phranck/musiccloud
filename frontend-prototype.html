@@ -287,6 +287,13 @@
 .footer-text:last-child { text-align: right; }
 .footer-text a { color: inherit; text-decoration: none; }
 .footer-text a:hover { text-decoration: underline; }
+/* Sky-anchored link (parity with the frontend `a.mc-skylink`): text colour
+   cross-fades day↔night over the sky, accent underline is the link affordance.
+   Day #06324a (dark, legible on the light-blue day sky), night #caf0fe. */
+a.mc-skylink { color: color-mix(in srgb, #06324a calc(var(--g-dayness) * 100%), #caf0fe);
+  text-decoration: underline; text-decoration-color: var(--color-accent);
+  text-decoration-thickness: 1.5px; text-underline-offset: 2.5px; }
+a.mc-skylink:hover { text-decoration-color: var(--color-accent-hover); }
 
 /* ════════ shared neumorphic surface base ════════ */
 .embossed-card, .section-card, .recessed-card, .emb-btn, .seg-track, .seg-indicator, .seg-hover {
@@ -996,7 +1003,7 @@ body.glass .emb-btn.hero-submit {
      corner), directly on the sky in the lower corners. Tuned via the Footer section. -->
 <footer class="sky-footer" id="sky-footer">
   <span class="footer-text">&copy; 2026 musiccloud</span>
-  <span class="footer-text">made by <a href="https://layered.work" target="_blank" rel="noopener noreferrer">LAYERED</a></span>
+  <span class="footer-text">made by <a class="mc-skylink" href="https://layered.work" target="_blank" rel="noopener noreferrer">LAYERED</a></span>
 </footer>
 
 <div id="topleft">

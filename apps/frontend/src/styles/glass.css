@@ -358,6 +358,34 @@
   );
 }
 
+/* Sky-anchored link — a link sitting directly on the day↔night sky gradient,
+   where the static accent blue (#28A8D8) is illegible on the daytime sky
+   (#69d1fd horizon → #0076d5 top). The text colour cross-fades day↔night for
+   contrast; the accent underline is the link affordance and always carries the
+   brand colour.
+
+   Day text: #06324a — a deep petrol/navy. On the daytime sky (#69d1fd at the
+   horizon, #0076d5 at the top) this reads as dark-on-light at every band of the
+   gradient, well clear of the WCAG AA 4.5:1 threshold against the lighter sky.
+   Night text: #caf0fe — the same light cyan as `.mc-skytext`'s day colour,
+   legible as light-on-dark over the night sky (#0b1318 → #10273b).
+
+   The compound `a.mc-skylink` selector outranks the global `a { text-decoration:
+   none }` rule, so the underline survives. */
+a.mc-skylink {
+  color: color-mix(in srgb, #06324a calc(var(--g-dayness) * 100%), #caf0fe);
+  text-decoration: underline;
+  text-decoration-color: var(--color-accent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2.5px;
+  transition:
+    color 0.2s ease,
+    text-decoration-color 0.2s ease;
+}
+a.mc-skylink:hover {
+  text-decoration-color: var(--color-accent-hover);
+}
+
 /* Static sky backdrop behind the WebGL canvas: the shader's vertical day↔night
    sky gradient (top = --sky-top, horizon = --sky-bottom). The canvas reveals
    over a matching gradient, so the only thing that fades in is the stars/clouds

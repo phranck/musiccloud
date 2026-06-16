@@ -148,11 +148,7 @@ function LiveExampleTeaser({
       aria-hidden={!visible}
     >
       {teaser}{" "}
-      <a
-        href={`/${exampleShortId}`}
-        onClick={() => sendMusicSignal(CardSignal.LiveExample)}
-        className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
-      >
+      <a href={`/${exampleShortId}`} onClick={() => sendMusicSignal(CardSignal.LiveExample)} className="mc-skylink">
         {label}
       </a>
     </p>

@@ -46,7 +46,7 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
             target={item.target === NavTarget.Blank ? NavTarget.Blank : undefined}
             rel={item.target === NavTarget.Blank ? "noopener noreferrer" : undefined}
             onClick={(e) => handleFooterNavClick(e, item)}
-            className="hover:text-text-secondary transition-colors duration-150"
+            className="mc-skylink"
           >
             {navLabel(item)}
           </a>
@@ -59,7 +59,7 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => sendMusicSignal(FooterSignal.LayeredLogo)}
-          className="hover:text-text-secondary transition-colors duration-150 ml-1"
+          className="mc-skylink ml-1"
         >
           LAYERED
         </a>
