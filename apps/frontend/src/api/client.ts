@@ -190,9 +190,12 @@ export async function fetchRandomExample(): Promise<{ shortId: string } | null> 
  * would hit the backend's dedicated `max: 2` pool and share the
  * `apiRateLimiter` bucket (see {@link forwardedForExtra}). One fetch per TTL
  * window across all renders is plenty — tokens change only on an admin save.
+ *
+ * Dev: the TTL is 0 so a dashboard save shows on the very next reload, with no
+ * server restart. Production keeps the 60s window for the pool/rate-limit budget.
  */
 let designTokensCache: { tokens: DesignTokens; expiresAt: number } | null = null;
-const DESIGN_TOKENS_TTL_MS = 60_000;
+const DESIGN_TOKENS_TTL_MS = import.meta.env.DEV ? 0 : 60_000;
 
 /**
  * Fetch the site's validated design tokens for SSR `:root` seeding. Cached

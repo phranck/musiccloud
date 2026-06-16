@@ -22,7 +22,7 @@ export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEv
         return (
           <ArtistPanelRow
             key={`${event.date}-${event.venueName || event.city}`}
-            className="no-underline"
+            className="no-underline px-[var(--mc-pad-event-x,0.75rem)]"
             onClick={event.ticketUrl ? () => sendMusicSignal(CardSignal.UpcomingEvent) : undefined}
             {...linkProps}
           >

@@ -34,7 +34,7 @@ export function SimilarArtistsCard({ data, isLoading, onTrackResolve, onResolveS
 
   return (
     <ArtistCardShell title={t("artist.similarArtists")}>
-      <div className="p-3">
+      <div className="px-3 pt-0 pb-3">
         <RecessedCard className={recessedControlInsetClassName}>
           <RecessedCard.Body>
             {showInitialSkeleton ? (

@@ -31,7 +31,7 @@ export function ArtistProfileDesktopCard({ data, isLoading, status }: ArtistProf
   if (!isLoading && (!data || !data.profile)) {
     return (
       <ArtistCardShell title={t("artist.infoTitle")}>
-        <div className="p-3">
+        <div className="px-3 pt-0 pb-3">
           <RecessedCard className="p-4 min-h-[108px]">
             <RecessedCard.Body>
               <ArtistNoticeContent message={effectiveStatus === "error" ? t("artist.error") : t("artist.empty")} />
@@ -47,7 +47,7 @@ export function ArtistProfileDesktopCard({ data, isLoading, status }: ArtistProf
 
   return (
     <ArtistCardShell title={t("artist.infoTitle")} footer={footer}>
-      <div className={footer ? "px-3 pt-3 pb-2" : "p-3"}>
+      <div className={footer ? "px-3 pt-0 pb-2" : "px-3 pt-0 pb-3"}>
         <ArtistProfileCard profile={data?.profile} showInitialSkeleton={showInitialSkeleton} />
       </div>
     </ArtistCardShell>

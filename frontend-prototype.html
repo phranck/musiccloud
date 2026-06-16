@@ -232,14 +232,15 @@
   /* — Paddings & gaps — structural spacing, mode-independent (no day/night). The
        Paddings sidebar section overrides these per element; defaults match production. — */
   --mc-pad-card: 12px;        /* EmbossedCard content padding (p-3) */
-  --mc-pad-header: 8px;       /* section-card title top padding */
+  --mc-pad-header: 10px;      /* section-card title top padding */
   --mc-pad-header-b: 0px;     /* section-card title bottom padding (below the title) */
   --mc-pad-recessed: 3px;     /* RecessedCard / segmented-track well inset */
   --mc-pad-artist: 6px;       /* artist-profile well inset (p-1.5) */
-  --mc-pad-track: 4px;        /* track-row padding (top/bottom/left) */
+  --mc-pad-track: 3px;        /* track-row padding (top/bottom/left) */
   --mc-pad-tracktime: 8px;    /* track-row right padding (around the duration) */
   --mc-pad-svc-y: 10px;       /* service-button vertical padding */
   --mc-pad-svc-x: 12px;       /* service-button horizontal padding */
+  --mc-pad-event-x: 12px;     /* upcoming-events row horizontal padding (text-only row) */
   --mc-gap-cards: 22px;       /* gap between stacked cards (.stage-inner) */
   --mc-gap-list: 3px;         /* gap between track rows (.track-list) */
   --mc-gap-grid: 3px;         /* gap between service buttons (.svc-grid) */
@@ -364,12 +365,12 @@
    the phosphor pixels live on the canvas. No glow — production has none. */
 .mc-vfd {
   position: relative; overflow: hidden; isolation: isolate; border-radius: var(--mc-recessed-radius);
-  padding: var(--mc-pad-card); display: flex; justify-content: center;
+  padding: 16px 12px; display: flex; justify-content: center;
 }
 .mc-vfd-canvas { display: block; image-rendering: pixelated; pointer-events: none; user-select: none; }
 
 /* ── Section card (ArtistInfoCard "Popular Tracks") ── */
-.section-pad { padding: var(--mc-pad-card); }                /* CollapsibleSection p-3 */
+.section-pad { padding: 0 var(--mc-pad-card) var(--mc-pad-card); }  /* body under a title: pt:0 so the title's top/bottom paddings own the top region */
 .section-recessed { padding: var(--mc-pad-recessed); }       /* recessedControlInset */
 .recessed-header { display:flex; align-items:center; justify-content:space-between;
   margin:.125rem 0 .5rem; padding:0 .5rem; }                 /* mt-0.5 mb-2 px-2 */
@@ -392,6 +393,15 @@
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .track-dur { font-size:.75rem; line-height:1rem; color:var(--color-text-secondary); flex-shrink:0;
   font-variant-numeric:tabular-nums; }
+/* Upcoming-events row — production UpcomingEventsSection: text-only EmbossedButton
+   (date + venue·city) + trailing ticket icon, NO leading artwork. Uses its own
+   horizontal padding (--mc-pad-event-x) because text-only clings under the artwork inset. */
+.event-btn { display:flex; align-items:center; gap:var(--mc-gap-rowitem); width:100%;
+  padding:var(--mc-pad-track) var(--mc-pad-event-x); text-align:left; }
+.event-meta { display:flex; flex-direction:column; min-width:0; flex:1 1 0; overflow:hidden; }
+.event-date { font-size:.875rem; font-weight:500; color:var(--color-text-secondary); }
+.event-venue { font-size:.875rem; color:var(--color-text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.event-ticket { width:1.75rem; height:1.25rem; flex-shrink:0; color:var(--color-text-secondary); }
 /* Services card (ServicesCard → AnimatedPlatformGrid): two-column grid of platform
    buttons (icon + name). Real labels + brand colours from PLATFORM_CONFIG; the
    standalone prototype can't bundle production's react-icons, so the icon is the
@@ -898,6 +908,24 @@ body.glass .emb-btn.hero-submit {
               <button type="button" class="emb-btn track-btn"><div class="track-art"></div><div class="track-meta"><span class="track-name">Midnight City</span><span class="track-album">Hurry Up, We're Dreaming</span></div><span class="track-dur">4:03</span></button>
               <button type="button" class="emb-btn track-btn"><div class="track-art"></div><div class="track-meta"><span class="track-name">Wait</span><span class="track-album">Hurry Up, We're Dreaming</span></div><span class="track-dur">3:49</span></button>
               <button type="button" class="emb-btn track-btn"><div class="track-art"></div><div class="track-meta"><span class="track-name">Outro</span><span class="track-album">Hurry Up, We're Dreaming</span></div><span class="track-dur">2:43</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───── Upcoming Events card (EventsCard → UpcomingEventsSection) ─────
+         Text-only EmbossedButton rows (date + venue·city) + trailing ticket icon,
+         no leading artwork — they use their own horizontal padding (--mc-pad-event-x),
+         not the artwork inset the track rows lean on. -->
+    <div class="section-card">
+      <div class="section-head"><span class="section-title">Upcoming Events</span></div>
+      <div class="section-pad">
+        <div class="recessed-card section-recessed">
+          <div class="recessed-body">
+            <div class="track-list">
+              <a class="emb-btn event-btn"><div class="event-meta"><span class="event-date">Aug 28</span><span class="event-venue">Collins Barracks · Dublin, IE</span></div><svg class="event-ticket" viewBox="0 0 28 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="1" y="1" width="26" height="18" rx="3"/><line x1="11" y1="1" x2="11" y2="19" stroke-dasharray="2 2"/></svg></a>
+              <a class="emb-btn event-btn"><div class="event-meta"><span class="event-date">Sep 14</span><span class="event-venue">The O2 · London, GB</span></div><svg class="event-ticket" viewBox="0 0 28 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="1" y="1" width="26" height="18" rx="3"/><line x1="11" y1="1" x2="11" y2="19" stroke-dasharray="2 2"/></svg></a>
             </div>
           </div>
         </div>
@@ -2962,19 +2990,19 @@ const TYPO_FIELDS = [
 ];
 const TYPO_BARLOW = '"Barlow", sans-serif';
 const TYPO_ROBOCOND = '"Roboto Condensed", "Barlow", sans-serif';
-/** Args: font family, size, weight, capitalization. The three emphasis levels differ
- *  only in colour (day = white at falling opacity, night = grey), mirroring the
- *  former global primary/secondary/muted. */
-function mkTypo(fontFamily, fontSize, fontWeight, capitalization) {
+/** Args: font family, size, weight, capitalization, optional day-colour overrides.
+ *  The three emphasis levels differ only in colour (day = white at falling opacity,
+ *  night = grey); a surface may override its day colours (e.g. recessed). */
+function mkTypo(fontFamily, fontSize, fontWeight, capitalization, dayOverrides) {
   const font = { fontFamily, fontSize, fontWeight, capitalization };
   return {
-    day:   { ...font, brightColor: "#ffffff", brightOpacity: 1.0, normalColor: "#ffffff", normalOpacity: 0.6, dimmedColor: "#ffffff", dimmedOpacity: 0.4 },
+    day:   { ...font, brightColor: "#ffffff", brightOpacity: 1.0, normalColor: "#ffffff", normalOpacity: 0.6, dimmedColor: "#ffffff", dimmedOpacity: 0.4, ...(dayOverrides || {}) },
     night: { ...font, brightColor: "#f5f5f7", brightOpacity: 1.0, normalColor: "#c7c7cc", normalOpacity: 1.0, dimmedColor: "#9a9aa0", dimmedOpacity: 1.0 },
   };
 }
 const TYPO_DEFAULTS = {
   embossed:      mkTypo(TYPO_BARLOW, 14, 500, "none"),
-  recessed:      mkTypo(TYPO_BARLOW, 14, 200, "none"),
+  recessed:      mkTypo(TYPO_BARLOW, 15, 200, "none", { normalOpacity: 0.75, dimmedOpacity: 0.5 }),
   button:        mkTypo(TYPO_BARLOW, 15, 200, "none"),
   embossedTitle: mkTypo(TYPO_ROBOCOND, 14, 200, "uppercase"),
   infoText:      mkTypo(TYPO_BARLOW, 12, 200, "none"),
@@ -3176,7 +3204,19 @@ const VFD_LINES = [
   { text: "HURRY UP, WE'RE DREAMING", brightness: "normal" },
   { text: "READY", brightness: "dim" },
 ];
-const VFD_CELLS = Math.max(...VFD_LINES.map((l) => Array.from(l.text).length));
+/** Cell count that FILLS the VFD screen content width. Production runs the VFD in
+ *  sizingMode=Container, so the dot-matrix spans the whole screen, not just the
+ *  longest line: the largest glyph-cell count whose band fits the screen minus its
+ *  padding (cell pitch = VFD_CELLW * VFD_PITCH = 12px), never narrower than the text. */
+function vfdScreenCells() {
+  const longest = Math.max(1, ...VFD_LINES.map((l) => Array.from(l.text).length));
+  const screen = document.querySelector(".mc-vfd");
+  if (!screen) return longest;
+  const cs = getComputedStyle(screen);
+  const w = screen.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const fit = Math.floor(w / (VFD_CELLW * VFD_PITCH));
+  return Math.max(longest, fit);
+}
 
 /** Linear-interpolate two #rrggbb colours; t=0 → a, t=1 → b. Returns "rgba(...)"
  *  with the given alpha (default opaque). */
@@ -3203,7 +3243,7 @@ function redrawVfd() {
   const d = typeof state !== "undefined" ? Math.max(0, Math.min(1, state.dayness || 0)) : 0;
   const day = vfdCfg.vfd.day, night = vfdCfg.vfd.night;
   const ghostAlpha = night.ghostOpacity + (day.ghostOpacity - night.ghostOpacity) * d;
-  drawVfd(canvas, VFD_LINES, VFD_CELLS, {
+  drawVfd(canvas, VFD_LINES, vfdScreenCells(), {
     bright: lerpHex(night.bright, day.bright, d),
     normal: lerpHex(night.normal, day.normal, d),
     dim: lerpHex(night.dim, day.dim, d),
@@ -3223,6 +3263,12 @@ function applyVfd() {
   }
   redrawVfd();
 }
+
+/** Production runs the VFD with a ResizeObserver (sizingMode=Container), so the
+ *  dot-matrix re-fills the screen width on resize. Mirror that here. */
+window.addEventListener("resize", () => {
+  if (document.getElementById("vfd-canvas")) redrawVfd();
+});
 
 /** Applies the footer texts' day↔night cross-faded style inline on each .footer-text
  *  (a text-shadow / -webkit-text-stroke can't be CSS color-mix'd like the card text).
@@ -3521,16 +3567,17 @@ function buildCardRadiusRow() {
 const PADDING_GROUPS = [
   { key: "cards", label: { en: "Cards", de: "Karten" }, fields: [
     { var: "--mc-pad-card",     def: 12, label: { en: "Card padding",       de: "Karten-Padding" },     tip: { en: "EmbossedCard inner content padding (header/body/footer follow).", de: "Innenabstand der EmbossedCard (Header/Body/Footer folgen)." } },
-    { var: "--mc-pad-header",   def: 8,  label: { en: "Title padding · top",    de: "Title-Padding · oben" },  tip: { en: "Section-card title top padding (space above the title).", de: "Oberer Abstand des Section-Card-Titels (Raum über dem Titel)." } },
+    { var: "--mc-pad-header",   def: 10, label: { en: "Title padding · top",    de: "Title-Padding · oben" },  tip: { en: "Section-card title top padding (space above the title).", de: "Oberer Abstand des Section-Card-Titels (Raum über dem Titel)." } },
     { var: "--mc-pad-header-b", def: 0,  label: { en: "Title padding · bottom", de: "Title-Padding · unten" }, tip: { en: "Section-card title bottom padding (space below the title).", de: "Unterer Abstand des Section-Card-Titels (Raum unter dem Titel)." } },
     { var: "--mc-pad-recessed", def: 3,  label: { en: "Recessed padding",   de: "Vertiefungs-Padding" },tip: { en: "RecessedCard / segmented-track well inset.", de: "Well-Inset der RecessedCard / Segment-Leiste." } },
     { var: "--mc-pad-artist",   def: 6,  label: { en: "Artist well padding",de: "Artist-Well-Padding" },tip: { en: "Artist-profile well inset (the cover's top-left corner follows it).", de: "Inset des Artist-Profil-Wells (die obere-linke Cover-Ecke folgt)." } },
   ] },
   { key: "rows", label: { en: "Rows", de: "Zeilen" }, fields: [
-    { var: "--mc-pad-track",     def: 4, label: { en: "Track row padding", de: "Track-Zeilen-Padding" }, tip: { en: "Track-row padding (top/bottom/left).", de: "Track-Zeilen-Padding (oben/unten/links)." } },
+    { var: "--mc-pad-track",     def: 3, label: { en: "Track row padding", de: "Track-Zeilen-Padding" }, tip: { en: "Track-row padding (top/bottom/left).", de: "Track-Zeilen-Padding (oben/unten/links)." } },
     { var: "--mc-pad-tracktime", def: 8, label: { en: "Track time · right", de: "Trackzeit · rechts" },   tip: { en: "Row right padding (space around the trailing duration/icon).", de: "Rechtes Zeilen-Padding (Abstand um die Spielzeit/das Icon rechts)." } },
     { var: "--mc-pad-svc-y", def: 10, label: { en: "Service btn · y",   de: "Service-Btn · y" },       tip: { en: "Service-button vertical padding.", de: "Vertikales Padding des Service-Buttons." } },
     { var: "--mc-pad-svc-x", def: 12, label: { en: "Service btn · x",   de: "Service-Btn · x" },       tip: { en: "Service-button horizontal padding.", de: "Horizontales Padding des Service-Buttons." } },
+    { var: "--mc-pad-event-x", def: 12, label: { en: "Event row · x",    de: "Event-Zeile · x" },       tip: { en: "Upcoming-events row horizontal padding (text-only row, no artwork inset).", de: "Horizontales Padding der Upcoming-Events-Zeile (text-only, ohne Artwork-Inset)." } },
   ] },
   { key: "gaps", label: { en: "Gaps", de: "Abstände" }, fields: [
     { var: "--mc-gap-cards",   def: 22, label: { en: "Between cards",  de: "Zwischen Karten" }, tip: { en: "Vertical gap between stacked cards.", de: "Vertikaler Abstand zwischen gestapelten Karten." } },

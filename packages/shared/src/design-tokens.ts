@@ -327,14 +327,15 @@ export const CARD_RADIUS_DEFAULT = 28;
  */
 export const PADDING_DEFAULTS = {
   "--mc-pad-card": 12,
-  "--mc-pad-header": 8,
+  "--mc-pad-header": 10,
   "--mc-pad-header-b": 0,
   "--mc-pad-recessed": 3,
   "--mc-pad-artist": 6,
-  "--mc-pad-track": 4,
+  "--mc-pad-track": 3,
   "--mc-pad-tracktime": 8,
   "--mc-pad-svc-y": 10,
   "--mc-pad-svc-x": 12,
+  "--mc-pad-event-x": 12,
   "--mc-gap-cards": 22,
   "--mc-gap-list": 3,
   "--mc-gap-grid": 3,
@@ -571,36 +572,55 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
   },
 };
 
-/** Shared day/night emphasis COLOURS per level, derived 1:1 from the former global
- *  primary/secondary/muted. The font (family/size/weight) is supplied per surface. */
-const DAY_COLORS = {
+/** The six emphasis colour/opacity fields of a {@link TextSurfaceFields} (font excluded). */
+type TextColorLevels = Pick<
+  TextSurfaceFields,
+  "brightColor" | "brightOpacity" | "normalColor" | "normalOpacity" | "dimmedColor" | "dimmedOpacity"
+>;
+
+/** Shared day emphasis COLOURS per level: white at falling opacity. The font
+ *  (family/size/weight) is supplied per surface. */
+const DAY_COLORS: TextColorLevels = {
   brightColor: "#ffffff",
   brightOpacity: 1.0,
   normalColor: "#ffffff",
   normalOpacity: 0.6,
   dimmedColor: "#ffffff",
   dimmedOpacity: 0.4,
-} as const;
-const NIGHT_COLORS = {
+};
+/** Recessed-surface day colours: brighter normal/dimmed than {@link DAY_COLORS} so
+ *  recessed-well text stays legible over the lighter day sky. */
+const DAY_COLORS_RECESSED: TextColorLevels = {
+  brightColor: "#ffffff",
+  brightOpacity: 1.0,
+  normalColor: "#ffffff",
+  normalOpacity: 0.75,
+  dimmedColor: "#ffffff",
+  dimmedOpacity: 0.5,
+};
+/** Shared night emphasis COLOURS per level: greys at full opacity. */
+const NIGHT_COLORS: TextColorLevels = {
   brightColor: "#f5f5f7",
   brightOpacity: 1.0,
   normalColor: "#c7c7cc",
   normalOpacity: 1.0,
   dimmedColor: "#9a9aa0",
   dimmedOpacity: 1.0,
-} as const;
+};
 
 /** Assembles one surface's day/night defaults from a single font + caps; the three
- *  emphasis levels differ only in colour (shared day/night colour sets). */
+ *  emphasis levels differ only in colour. `dayColors` defaults to the shared
+ *  {@link DAY_COLORS}; a surface may pass its own (e.g. recessed). */
 function mkTextSurface(
   fontFamily: string,
   fontSize: number,
   fontWeight: number,
   capitalization: string,
+  dayColors: TextColorLevels = DAY_COLORS,
 ): DayNight<TextSurfaceFields> {
   const font = { fontFamily, fontSize, fontWeight, capitalization };
   return {
-    day: { ...font, ...DAY_COLORS },
+    day: { ...font, ...dayColors },
     night: { ...font, ...NIGHT_COLORS },
   };
 }
@@ -615,7 +635,7 @@ const ROBOTO_COND = '"Roboto Condensed", "Barlow", sans-serif';
  */
 export const TEXT_SURFACE_DEFAULTS: Record<TextSurfaceKey, DayNight<TextSurfaceFields>> = {
   embossed: mkTextSurface(BARLOW, 14, 500, TextCapitalization.None),
-  recessed: mkTextSurface(BARLOW, 14, 200, TextCapitalization.None),
+  recessed: mkTextSurface(BARLOW, 15, 200, TextCapitalization.None, DAY_COLORS_RECESSED),
   button: mkTextSurface(BARLOW, 15, 200, TextCapitalization.None),
   embossedTitle: mkTextSurface(ROBOTO_COND, 14, 200, TextCapitalization.Uppercase),
   infoText: mkTextSurface(BARLOW, 12, 200, TextCapitalization.None),
