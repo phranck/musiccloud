@@ -4,7 +4,7 @@ import {
   embossedCardOuterRadius,
   recessedControlInset,
 } from "@/components/cards/cardGeometry";
-import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
+import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { cn } from "@/lib/utils";
 
 // ─── Sub-component type tags ───────────────────────────────────────────────
@@ -291,9 +291,10 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
 
 // Full-width segmented control slot — used by segmented content-page overlays
 // and by the fullscreen segmented-page island. Reuses the project-wide
-// SegmentedControl (recessed track + sliding embossed indicator) verbatim.
-interface EmbossedSegmentedControlProps<T extends string> {
-  segments: { key: T; label: string }[];
+// SegmentedControl (recessed track + sliding embossed indicator) verbatim,
+// including its `Segment` shape so icon/label segments stay in lockstep.
+interface SegmentedControlSlotProps<T extends string> {
+  segments: Segment<T>[];
   value: T;
   onChange: (value: T) => void;
   className?: string;
@@ -304,7 +305,7 @@ function SegmentedControlSlot<T extends string>({
   value,
   onChange,
   className,
-}: EmbossedSegmentedControlProps<T>) {
+}: SegmentedControlSlotProps<T>) {
   return (
     <div className={cn("w-full mt-3", className)}>
       <EmbossedSegmentedControl segments={segments} value={value} onChange={onChange} className="w-full" />

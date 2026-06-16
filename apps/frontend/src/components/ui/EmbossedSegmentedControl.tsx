@@ -4,9 +4,23 @@ import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/c
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
 
-interface Segment<T extends string> {
+/**
+ * One selectable cell of the segmented control.
+ *
+ * A segment can render a visible text label, an icon-only cell, or both. When
+ * `icon` is set and `label` is empty, the cell is icon-only and MUST supply
+ * `ariaLabel` so the button stays announced to assistive tech.
+ *
+ * @property key Stable identifier for this segment and the control's value.
+ * @property label Visible text. Empty string for an icon-only segment.
+ * @property icon Optional decorative icon node (rendered `aria-hidden` by the caller).
+ * @property ariaLabel Accessible name applied to the button when no visible text exists.
+ */
+export interface Segment<T extends string> {
   key: T;
   label: string;
+  icon?: React.ReactNode;
+  ariaLabel?: string;
 }
 
 interface EmbossedSegmentedControlProps<T extends string> {
@@ -20,7 +34,14 @@ interface EmbossedSegmentedControlProps<T extends string> {
  * A segmented control with a recessed track and a sliding embossed indicator.
  *
  * Segments size to their content so longer labels stay readable; the indicator
- * tracks the active button's measured geometry.
+ * tracks the active button's measured geometry. Each segment renders either a
+ * text label, an icon-only cell, or both: icon-only cells get square padding
+ * and fall back to `ariaLabel` for their accessible name, while labelled cells
+ * keep the wider text padding and typography.
+ *
+ * The indicator geometry is measured per active button via a `ResizeObserver`,
+ * so icon-only and text segments are handled identically without extra layout
+ * logic.
  */
 export function EmbossedSegmentedControl<T extends string>({
   segments,
@@ -46,6 +67,11 @@ export function EmbossedSegmentedControl<T extends string>({
     };
 
     update();
+
+    // SSR / jsdom have no ResizeObserver. The initial `update()` already seeds
+    // the indicator; live re-measuring on resize only matters in the browser,
+    // which always provides it. Mirrors the guard in BackgroundScene/VfdDisplay.
+    if (typeof ResizeObserver === "undefined") return;
 
     const resizeObserver = new ResizeObserver(update);
     resizeObserver.observe(container);
@@ -82,24 +108,30 @@ export function EmbossedSegmentedControl<T extends string>({
             />
           </div>
         )}
-        {segments.map(({ key, label }) => (
-          <button
-            key={key}
-            ref={(el) => {
-              if (el) buttonRefMap.set(key, el);
-              else buttonRefMap.delete(key);
-            }}
-            type="button"
-            onClick={() => onChange(key)}
-            className={cn(
-              "relative z-10 flex-auto py-2 px-3 rounded-lg text-[13px] font-semibold text-center whitespace-nowrap transition-colors duration-150",
-              "border-none",
-              key === value ? "mc-txt-button-bright" : "mc-txt-button-normal",
-            )}
-          >
-            {label}
-          </button>
-        ))}
+        {segments.map(({ key, label, icon, ariaLabel }) => {
+          const hasVisibleText = label.length > 0;
+          return (
+            <button
+              key={key}
+              ref={(el) => {
+                if (el) buttonRefMap.set(key, el);
+                else buttonRefMap.delete(key);
+              }}
+              type="button"
+              onClick={() => onChange(key)}
+              aria-label={hasVisibleText ? undefined : ariaLabel}
+              className={cn(
+                "relative z-10 flex-auto flex items-center justify-center rounded-lg whitespace-nowrap transition-colors duration-150",
+                "border-none",
+                hasVisibleText ? "py-2 px-3 text-[13px] font-semibold text-center" : "p-2",
+                key === value ? "mc-txt-button-bright" : "mc-txt-button-normal",
+              )}
+            >
+              {icon}
+              {hasVisibleText ? label : null}
+            </button>
+          );
+        })}
       </RecessedCard.Body>
     </RecessedCard>
   );
