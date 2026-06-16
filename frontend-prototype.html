@@ -228,6 +228,7 @@
   --mc-control-radius: max(0px, calc(var(--mc-card-radius) - 15px));   /* − control inset (total 0.9375rem) */
   --mc-cover-radius:   max(0px, calc(var(--mc-card-radius) - 14px));   /* cover screen (recessed − 0.125rem) */
   --mc-control-radius-inner: min(5px, var(--mc-control-radius));       /* inner corners of grouped list/grid buttons stay ≤5px */
+  --mc-card-chrome-x: calc(12px + var(--mc-recessed-radius) / 2);      /* section title/footer horizontal padding (production --mc-card-chrome-x): content-inset (12px) + inner-radius/2, so the title aligns to the card-rounding centre, not the edge */
 
   /* — Paddings & gaps — structural spacing, mode-independent (no day/night). The
        Paddings sidebar section overrides these per element; defaults match production. — */
@@ -378,7 +379,7 @@
 .recessed-title { margin:0; font-family:var(--font-condensed); font-size:.875rem; line-height:1.25rem;
   font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--color-text-secondary); }
 /* Section-card header (ArtistCardShell: title in the card header, not the recess). */
-.section-head { padding: var(--mc-pad-header) var(--mc-pad-card) var(--mc-pad-header-b); }
+.section-head { padding: var(--mc-pad-header) var(--mc-card-chrome-x) var(--mc-pad-header-b); }
 .section-title { font-family:var(--font-condensed); font-size:.875rem; line-height:1; font-weight:700;
   text-transform:uppercase; letter-spacing:.1em; color:var(--color-text-secondary); }
 /* Popular track row — production PopularTrack: artwork + title + (album) + duration,
