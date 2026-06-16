@@ -118,6 +118,11 @@ export function EmbossedSegmentedControl<T extends string>({
                 else buttonRefMap.delete(key);
               }}
               type="button"
+              // Keep focus where it is (e.g. the hero input) when a segment is
+              // clicked: preventing the mousedown default stops the button from
+              // stealing focus. The selection still fires via onClick, and
+              // keyboard focus (Tab/Enter) is unaffected (it sends no mousedown).
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => onChange(key)}
               aria-label={hasVisibleText ? undefined : ariaLabel}
               className={cn(
