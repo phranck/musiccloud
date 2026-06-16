@@ -194,6 +194,17 @@ export function designTokensToCss(tokens: DesignTokens): string {
   decls.push(`--skytext-night-size:${st.night.size}px`);
   decls.push(`--skytext-font:${st.night.fontFamily}`);
 
+  // Sky-anchored link (live-example teaser + footer links): text + underline
+  // colour per mode, cross-faded in `a.mc-skylink`; underline width (0 = none)
+  // and offset are shared, so the day value carries both.
+  const sl = tokens.skylink.skylink;
+  decls.push(`--skylink-day-color:${sl.day.color}`);
+  decls.push(`--skylink-night-color:${sl.night.color}`);
+  decls.push(`--skylink-day-deco:${sl.day.decoColor}`);
+  decls.push(`--skylink-night-deco:${sl.night.decoColor}`);
+  decls.push(`--skylink-thickness:${sl.day.thickness}px`);
+  decls.push(`--skylink-offset:${sl.day.offset}px`);
+
   // TFT cover screen layers (bg, inset shadow strength, LCD matrix colour +
   // layer opacity, sheen highlight/shade strengths, art tint).
   const cover = tokens.cover.cover;

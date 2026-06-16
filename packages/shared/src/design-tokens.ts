@@ -178,6 +178,22 @@ export interface SkyTextFields {
   strokeColor: string;
 }
 
+/**
+ * Tunable fields of a sky-anchored link ("skylink"), per mode. The text and
+ * underline colours are per-mode; `thickness` (0 = no underline) and `offset`
+ * are shared across modes (the prototype writes the same value to both).
+ */
+export interface SkyLinkFields {
+  /** Link text colour, emitted as `--skylink-<mode>-color`. */
+  color: string;
+  /** Underline (text-decoration) colour, emitted as `--skylink-<mode>-deco`. */
+  decoColor: string;
+  /** Underline thickness in px (0..4; 0 = no underline). */
+  thickness: number;
+  /** Underline offset in px (0..8). */
+  offset: number;
+}
+
 /** Tunable fields of the TFT cover plate, per mode. */
 export interface CoverFields {
   bg: string;
@@ -294,6 +310,8 @@ export interface DesignTokens {
   cover: { cover: DayNight<CoverFields> };
   /** Info-overlay backdrop tokens (single group, wrapper key kept 1:1 to export). */
   backdrop: { backdrop: DayNight<BackdropFields> };
+  /** Sky-anchored link tokens (single group, wrapper key kept 1:1 to export). */
+  skylink: { skylink: DayNight<SkyLinkFields> };
 }
 
 // ─── Canonical defaults (1:1 from the prototype) ───────────────────────────────
@@ -723,6 +741,12 @@ export const BACKDROP_DEFAULTS: DayNight<BackdropFields> = {
   night: { color: "#000000", opacity: 0.32, blur: 3 },
 };
 
+/** Canonical sky-link defaults (prototype `SKYLINK_DEFAULTS`). */
+export const SKYLINK_DEFAULTS: DayNight<SkyLinkFields> = {
+  day: { color: "#06324a", decoColor: "#28a8d8", thickness: 1.5, offset: 2.5 },
+  night: { color: "#caf0fe", decoColor: "#28a8d8", thickness: 1.5, offset: 2.5 },
+};
+
 /** The fully-assembled canonical default token set. */
 export const DESIGN_TOKENS_DEFAULTS: DesignTokens = {
   shader: SHADER_DEFAULTS,
@@ -734,6 +758,7 @@ export const DESIGN_TOKENS_DEFAULTS: DesignTokens = {
   footer: { skytext: SKYTEXT_DEFAULTS },
   cover: { cover: COVER_DEFAULTS },
   backdrop: { backdrop: BACKDROP_DEFAULTS },
+  skylink: { skylink: SKYLINK_DEFAULTS },
 };
 
 // ─── Field-spec tables (drive validation, mirror the prototype field defs) ─────
@@ -808,6 +833,13 @@ const BACKDROP_FIELD_SPECS: Record<keyof BackdropFields, FieldSpec> = {
   color: { kind: "color" },
   opacity: { kind: "number", min: 0, max: 1 },
   blur: { kind: "number", min: 0, max: 40 },
+};
+
+const SKYLINK_FIELD_SPECS: Record<keyof SkyLinkFields, FieldSpec> = {
+  color: { kind: "color" },
+  decoColor: { kind: "color" },
+  thickness: { kind: "number", min: 0, max: 4 },
+  offset: { kind: "number", min: 0, max: 8 },
 };
 
 // ─── Validation primitives ─────────────────────────────────────────────────────
@@ -1046,6 +1078,14 @@ export function parseDesignTokens(raw: unknown): { tokens: DesignTokens; errors:
     errors,
   ) as unknown as DayNight<BackdropFields>;
 
+  const skylink = sanitizeDayNight(
+    (obj.skylink as { skylink?: unknown } | undefined)?.skylink,
+    SKYLINK_DEFAULTS as unknown as DayNight<Record<string, unknown>>,
+    SKYLINK_FIELD_SPECS,
+    "skylink.skylink",
+    errors,
+  ) as unknown as DayNight<SkyLinkFields>;
+
   return {
     tokens: {
       shader,
@@ -1057,6 +1097,7 @@ export function parseDesignTokens(raw: unknown): { tokens: DesignTokens; errors:
       footer: { skytext },
       cover: { cover },
       backdrop: { backdrop },
+      skylink: { skylink },
     },
     errors,
   };
