@@ -34,7 +34,7 @@ export function ServicesCard({ content, className, animated = false }: ServicesC
       </EmbossedCard.Header>
       <EmbossedCard.Body>
         {showPlatforms && (
-          <div className="p-3">
+          <div className="p-[var(--mc-pad-card,0.75rem)]">
             <RecessedCard className={recessedControlInsetClassName}>
               <RecessedCard.Body>
                 <AnimatedPlatformGrid platforms={content.platforms} songTitle={content.title} />
@@ -46,7 +46,9 @@ export function ServicesCard({ content, className, animated = false }: ServicesC
           </div>
         )}
         {showPlatformsInfoOnly && (
-          <p className="p-3 text-sm text-text-secondary text-center">{content.platformsInfo}</p>
+          <p className="p-[var(--mc-pad-card,0.75rem)] text-sm text-text-secondary text-center">
+            {content.platformsInfo}
+          </p>
         )}
       </EmbossedCard.Body>
     </EmbossedCard>

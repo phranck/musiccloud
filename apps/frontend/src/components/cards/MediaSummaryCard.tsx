@@ -47,7 +47,10 @@ export function MediaSummaryCard({
         statusLine={content.statusLine}
       />
 
-      <CollapsibleSection visible={showPreview} sectionClass="px-3 pt-0 pb-3">
+      <CollapsibleSection
+        visible={showPreview}
+        sectionClass="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)]"
+      >
         {showPreview && (
           <AudioPreviewPlayer
             key={audioPreviewKey}
@@ -59,7 +62,10 @@ export function MediaSummaryCard({
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection visible={showShareActions} sectionClass="px-3 pt-0 pb-3">
+      <CollapsibleSection
+        visible={showShareActions}
+        sectionClass="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)]"
+      >
         {shareActionUrl && (
           <ShareButton shareUrl={shareActionUrl} songTitle={content.title} artistName={content.artist} />
         )}

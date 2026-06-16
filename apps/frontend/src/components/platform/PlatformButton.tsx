@@ -68,7 +68,7 @@ export const PlatformButton = memo(function PlatformButton({
       aria-label={`Open ${songTitle} on ${label} (opens in new window)`}
       onClick={() => sendMusicSignal(serviceSignal(platform))}
       className={cn(
-        "flex w-full items-center px-3 no-underline max-[389px]:px-2",
+        "flex w-full items-center px-[var(--mc-pad-svc-x,0.75rem)] py-[var(--mc-pad-svc-y,0.625rem)] no-underline max-[389px]:px-2",
         "hover:shadow-[0_0_8px_var(--embossed-glow)] focus-visible:shadow-[0_0_8px_var(--embossed-glow)]",
         s.minH,
         s.gap,
@@ -80,14 +80,13 @@ export const PlatformButton = memo(function PlatformButton({
       <div className="min-w-0 flex-1">
         <span
           className={cn(
-            "block truncate text-text-primary tracking-[0] max-[389px]:font-normal min-[390px]:font-medium",
+            "mc-txt-button-bright block truncate text-text-primary tracking-[0] max-[389px]:font-normal min-[390px]:font-medium",
             s.text,
           )}
-          style={{ fontFamily: "var(--font-condensed)" }}
         >
           {label}
         </span>
-        {isDev && sourceLabel && <div className="text-xs text-text-muted">{sourceLabel}</div>}
+        {isDev && sourceLabel && <div className="mc-txt-button-dimmed text-xs text-text-muted">{sourceLabel}</div>}
       </div>
     </EmbossedButton>
   );

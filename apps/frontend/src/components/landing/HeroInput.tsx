@@ -1,12 +1,26 @@
 import { ArrowRightIcon, CheckIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef } from "react";
+import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
+import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/context";
 import { isMusicUrl } from "@/lib/platform/url";
 import { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
 export type { InputState };
+
+/**
+ * Accent-tinted glass fill for the submit button ("Glass + Accent"). Set on the
+ * `EmbossedButton` via its `style` prop so it overrides the neutral button-glass
+ * tint of the `.embossed-gradient-border` recipe (inline style beats the class).
+ * The CTA stays in the glass language while reading clearly in both day + night;
+ * the accent is constant (no day↔night cross-fade) by design.
+ */
+const SUBMIT_ACCENT_FILL =
+  "linear-gradient(to bottom, color-mix(in srgb, var(--color-accent) 92%, transparent), color-mix(in srgb, var(--color-accent) 78%, transparent))";
 
 interface HeroInputProps {
   /** Current input value (controlled). */
@@ -121,21 +135,8 @@ export function HeroInput({
           : "max-w-full sm:max-w-[520px] md:max-w-[640px]",
       )}
     >
-      <div className="relative">
-        <div
-          className={cn(
-            "relative flex items-center rounded-full",
-            "bg-surface",
-            "border",
-            "transition-all duration-[250ms]",
-            state === InputState.Idle && (compact ? "border-[var(--color-accent)]/25" : "border-white/15"),
-            state === InputState.Focused &&
-              (compact ? ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"] : "border-white/10"),
-            state === InputState.Loading && "border-accent",
-            state === InputState.Success && ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"],
-            state === InputState.Error && ["border-error", "shadow-[0_0_12px_rgba(255,69,58,0.25)]"],
-          )}
-        >
+      <EmbossedCard radius="9999px">
+        <RecessedCard className={cn(recessedControlInsetClassName, "hero-field", "flex items-center")}>
           <input
             ref={inputRef}
             type="text"
@@ -149,8 +150,8 @@ export function HeroInput({
             placeholder={t("hero.placeholder")}
             readOnly={state === InputState.Loading || state === InputState.Success}
             className={cn(
-              "flex-1 bg-transparent border-0 px-6 text-lg font-medium text-text-primary tracking-[-0.01em]",
-              "placeholder:text-text-muted placeholder:text-base placeholder:tracking-normal outline-none",
+              "mc-hero-input flex-1 min-w-0 bg-transparent border-0 pl-6 pr-2 text-lg font-medium text-text-primary tracking-[-0.01em]",
+              "placeholder:tracking-normal outline-none",
               "h-[40px] md:h-[48px]",
               state === InputState.Loading && "opacity-50",
             )}
@@ -164,7 +165,7 @@ export function HeroInput({
               type="button"
               onClick={handleClear}
               className={cn(
-                "p-2 mr-1 rounded-full",
+                "flex items-center justify-center flex-shrink-0 size-9 rounded-full",
                 "text-text-muted hover:text-text-primary",
                 "transition-colors duration-150",
               )}
@@ -174,39 +175,32 @@ export function HeroInput({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={handleSubmitClick}
-            disabled={state === InputState.Loading || !value.trim()}
-            className={cn(
-              "flex items-center justify-center",
-              compact && state !== InputState.Loading ? "hidden" : "flex",
-              "w-8 h-8 md:w-10 md:h-10 mr-1 flex-shrink-0",
-              "rounded-full",
-              "transition-all duration-[250ms]",
-              state === InputState.Loading
-                ? "bg-transparent cursor-wait"
-                : state === InputState.Success
-                  ? "bg-accent"
-                  : [
-                      "bg-accent text-[var(--color-accent-contrast)]",
-                      "hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]",
-                      "active:scale-[0.97]",
-                      "disabled:opacity-30 disabled:hover:scale-100 disabled:hover:shadow-none",
-                    ],
-            )}
-            aria-label={state === InputState.Loading ? "Searching..." : "Search"}
-          >
-            {state === InputState.Loading ? (
+          {state === InputState.Loading ? (
+            <div className="flex items-center justify-center flex-shrink-0 size-10 md:size-12" aria-hidden="true">
               <CDSpinArtwork className="w-8 h-8 md:w-10 md:h-10" />
-            ) : state === InputState.Success ? (
-              <CheckIcon size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
-            ) : (
-              <ArrowRightIcon size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
-            )}
-          </button>
-        </div>
-      </div>
+            </div>
+          ) : (
+            <EmbossedButton
+              as="button"
+              type="button"
+              onClick={handleSubmitClick}
+              disabled={!value.trim()}
+              style={{ background: SUBMIT_ACCENT_FILL }}
+              className={cn(
+                "flex items-center justify-center px-0 py-0 ml-0.5 flex-shrink-0 size-10 md:size-12 text-white",
+                compact && "hidden",
+              )}
+              aria-label="Search"
+            >
+              {state === InputState.Success ? (
+                <CheckIcon size={20} weight="duotone" className="text-white" />
+              ) : (
+                <ArrowRightIcon size={20} weight="duotone" className="text-white" />
+              )}
+            </EmbossedButton>
+          )}
+        </RecessedCard>
+      </EmbossedCard>
     </div>
   );
 }

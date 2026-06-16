@@ -28,7 +28,7 @@
 // ─── Domain-literal namespaces (PascalCase.PascalCase) ─────────────────────────
 
 /**
- * The seven glass surface controls. Member values are the wire keys used in the
+ * The six glass surface controls. Member values are the wire keys used in the
  * exported JSON and as CSS-var prefixes; the PascalCase member names are the
  * stable references used in code (per the project's domain-literal convention).
  */
@@ -39,19 +39,43 @@ export const GlassControl = {
   Recessed: "recessed",
   SegTrack: "segTrack",
   SegIndicator: "segIndicator",
-  SegHover: "segHover",
 } as const;
 /** Union of the glass control wire keys (`"card" | "cardOverlay" | …`). */
 export type GlassControlKey = (typeof GlassControl)[keyof typeof GlassControl];
 
-/** The three text emphasis levels the material themes independently. */
-export const TextLevel = {
-  Primary: "primary",
-  Secondary: "secondary",
-  Muted: "muted",
+/** The surfaces whose text the material themes independently. */
+export const TextSurface = {
+  Embossed: "embossed",
+  Recessed: "recessed",
+  Button: "button",
+  EmbossedTitle: "embossedTitle",
+  /** Long-form info / help / description text (artist bio, info & help pages). */
+  InfoText: "infoText",
+  /** Input placeholder text (the hero search field). Single-emphasis: only its
+   *  dimmed colour level is consumed. */
+  Placeholder: "placeholder",
 } as const;
-/** Union of the text-level wire keys (`"primary" | "secondary" | "muted"`). */
-export type TextLevelKey = (typeof TextLevel)[keyof typeof TextLevel];
+/** Union of the text-surface wire keys (`"embossed" | "recessed" | …`). */
+export type TextSurfaceKey = (typeof TextSurface)[keyof typeof TextSurface];
+
+/** The three emphasis levels each surface carries. */
+export const TextEmphasis = {
+  Bright: "bright",
+  Normal: "normal",
+  Dimmed: "dimmed",
+} as const;
+/** Union of the emphasis wire keys (`"bright" | "normal" | "dimmed"`). */
+export type TextEmphasisKey = (typeof TextEmphasis)[keyof typeof TextEmphasis];
+
+/** Allowed text capitalisation (CSS `text-transform`); consumed by the title. */
+export const TextCapitalization = {
+  None: "none",
+  Uppercase: "uppercase",
+  Lowercase: "lowercase",
+  Capitalize: "capitalize",
+} as const;
+/** Union of the capitalisation wire keys. */
+export type TextCapitalizationKey = (typeof TextCapitalization)[keyof typeof TextCapitalization];
 
 /** The two themed lighting modes every group carries values for. */
 export const DayNightKey = {
@@ -91,12 +115,35 @@ export interface GlassFields {
   shadow: number;
 }
 
-/** Tunable fields of a single text level, per mode. */
-export interface TextFields {
-  /** Text colour (`#rrggbb`). */
-  color: string;
-  /** Text alpha (0..1). */
-  opacity: number;
+/**
+ * Tunable fields of one text surface, per mode. One font (family/size/weight)
+ * applies to the whole surface; the three emphasis levels (bright/normal/dimmed)
+ * differ only in colour/alpha. `capitalization` is per-surface (primarily the
+ * title consumes it).
+ *
+ * `fontFamily` + `capitalization` are discrete (not interpolable) — the live render
+ * uses the night value (mirroring skytext's single-font emit); `fontSize`,
+ * `fontWeight` and the colours cross-fade day↔night.
+ */
+export interface TextSurfaceFields {
+  /** CSS font-family for this surface; one of {@link TYPO_FONTS}. Discrete (night value used). */
+  fontFamily: string;
+  /** Font size in px (8..48); cross-faded day↔night. */
+  fontSize: number;
+  /** Font weight (100..900); cross-faded day↔night. */
+  fontWeight: number;
+  /** CSS `text-transform` for this surface; one of {@link TextCapitalization}.
+   *  Discrete (night value used); primarily consumed by {@link TextSurface.EmbossedTitle}. */
+  capitalization: string;
+  /** Brightest emphasis level colour + alpha. */
+  brightColor: string;
+  brightOpacity: number;
+  /** Normal emphasis level colour + alpha. */
+  normalColor: string;
+  normalOpacity: number;
+  /** Dimmed emphasis level colour + alpha. */
+  dimmedColor: string;
+  dimmedOpacity: number;
 }
 
 /** Tunable fields of the VFD display, per mode. */
@@ -232,10 +279,13 @@ export interface DesignTokens {
   shader: ShaderTokens;
   /** Outer-card corner radius in px (0..40); root of the radius cascade. */
   cardRadius: number;
+  /** Structural padding/gap tokens, keyed by their `--mc-*` CSS-var name → px.
+   *  Mode-independent (no day/night); emitted verbatim as custom properties. */
+  paddings: Record<PaddingKey, number>;
   /** Glass surface tokens, keyed by control. */
   glass: Record<GlassControlKey, DayNight<GlassFields>>;
-  /** Text tokens, keyed by emphasis level. */
-  text: Record<TextLevelKey, DayNight<TextFields>>;
+  /** Text tokens, keyed by surface. */
+  text: Record<TextSurfaceKey, DayNight<TextSurfaceFields>>;
   /** VFD display tokens (single group, wrapper key kept 1:1 to export). */
   vfd: { vfd: DayNight<VfdFields> };
   /** Footer/skytext tokens (export key `footer`, internal group `skytext`). */
@@ -255,8 +305,47 @@ export const SKYTEXT_FONTS = [
   "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
 ] as const;
 
+/** Allowed `fontFamily` values for the surface text controls (adds Roboto Condensed,
+ *  the production `--font-condensed` used by titles/labels). */
+export const TYPO_FONTS = [
+  '"Barlow", sans-serif',
+  '"Roboto Condensed", "Barlow", sans-serif',
+  '"Roboto", sans-serif',
+  "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+] as const;
+
+/** Allowed `text-transform` values (the {@link TextCapitalization} members). */
+const TEXT_CAPITALIZATIONS = Object.values(TextCapitalization);
+
 /** Default outer-card radius in px (prototype `CARD_RADIUS_DEFAULT`). */
-export const CARD_RADIUS_DEFAULT = 32;
+export const CARD_RADIUS_DEFAULT = 28;
+
+/**
+ * Canonical padding/gap tokens (prototype `PADDING_DEFAULTS`), keyed by their
+ * `--mc-*` CSS-var name → px. Mode-independent structural spacing; the production
+ * components + cardGeometry consume these vars. Range 0..{@link PADDING_MAX} px.
+ */
+export const PADDING_DEFAULTS = {
+  "--mc-pad-card": 12,
+  "--mc-pad-header": 8,
+  "--mc-pad-header-b": 0,
+  "--mc-pad-recessed": 3,
+  "--mc-pad-artist": 6,
+  "--mc-pad-track": 4,
+  "--mc-pad-tracktime": 8,
+  "--mc-pad-svc-y": 10,
+  "--mc-pad-svc-x": 12,
+  "--mc-gap-cards": 22,
+  "--mc-gap-list": 3,
+  "--mc-gap-grid": 3,
+  "--mc-gap-seg": 3,
+  "--mc-gap-rowitem": 12,
+  "--mc-gap-artist": 16,
+} as const satisfies Record<string, number>;
+/** Union of the padding/gap token keys (the `--mc-*` CSS-var names). */
+export type PaddingKey = keyof typeof PADDING_DEFAULTS;
+/** Max padding/gap value in px (prototype `PADDING_MAX`). */
+export const PADDING_MAX = 48;
 
 /**
  * Canonical shader defaults.
@@ -328,7 +417,7 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
     day: {
       tintTop: "#000000",
       tintBottom: "#000000",
-      opacity: 0.35,
+      opacity: 0.42,
       blur: 6,
       saturate: 0.0,
       brightness: 0.1,
@@ -380,13 +469,13 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
     day: {
       tintTop: "#94e3fe",
       tintBottom: "#94e3fe",
-      opacity: 0.18,
+      opacity: 0.13,
       blur: 0,
       saturate: 0.0,
       brightness: 0.0,
       edgeLight: 0,
       edgeShadow: 0,
-      rim: 0.0,
+      rim: 0.06,
       shadow: 0.0,
     },
     night: {
@@ -398,15 +487,15 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
       brightness: 0.42,
       edgeLight: 0,
       edgeShadow: 0,
-      rim: 0.0,
+      rim: 0.06,
       shadow: 0.0,
     },
   },
   recessed: {
     day: {
-      tintTop: "#00364a",
-      tintBottom: "#00364a",
-      opacity: 0.32,
+      tintTop: "#000000",
+      tintBottom: "#000000",
+      opacity: 0.28,
       blur: 0,
       saturate: 0.0,
       brightness: 0.0,
@@ -418,7 +507,7 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
     night: {
       tintTop: "#000000",
       tintBottom: "#000000",
-      opacity: 0.32,
+      opacity: 0.28,
       blur: 0,
       saturate: 0.0,
       brightness: 0.0,
@@ -444,7 +533,7 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
     night: {
       tintTop: "#000000",
       tintBottom: "#000000",
-      opacity: 0.21,
+      opacity: 0.28,
       blur: 0,
       saturate: 0.0,
       brightness: 0.0,
@@ -476,43 +565,63 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
       brightness: 0.42,
       edgeLight: 0,
       edgeShadow: 0,
-      rim: 0.0,
-      shadow: 0.0,
-    },
-  },
-  segHover: {
-    day: {
-      tintTop: "#94e3fe",
-      tintBottom: "#94e3fe",
-      opacity: 0.0,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
-      shadow: 0.0,
-    },
-    night: {
-      tintTop: "#94e3fe",
-      tintBottom: "#94e3fe",
-      opacity: 0.0,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
+      rim: 0.08,
       shadow: 0.0,
     },
   },
 };
 
-/** Canonical text defaults (prototype `TEXT_DEFAULTS`). */
-export const TEXT_DEFAULTS: Record<TextLevelKey, DayNight<TextFields>> = {
-  primary: { day: { color: "#ffffff", opacity: 1.0 }, night: { color: "#f5f5f7", opacity: 1.0 } },
-  secondary: { day: { color: "#ffffff", opacity: 0.6 }, night: { color: "#c7c7cc", opacity: 1.0 } },
-  muted: { day: { color: "#ffffff", opacity: 0.4 }, night: { color: "#9a9aa0", opacity: 1.0 } },
+/** Shared day/night emphasis COLOURS per level, derived 1:1 from the former global
+ *  primary/secondary/muted. The font (family/size/weight) is supplied per surface. */
+const DAY_COLORS = {
+  brightColor: "#ffffff",
+  brightOpacity: 1.0,
+  normalColor: "#ffffff",
+  normalOpacity: 0.6,
+  dimmedColor: "#ffffff",
+  dimmedOpacity: 0.4,
+} as const;
+const NIGHT_COLORS = {
+  brightColor: "#f5f5f7",
+  brightOpacity: 1.0,
+  normalColor: "#c7c7cc",
+  normalOpacity: 1.0,
+  dimmedColor: "#9a9aa0",
+  dimmedOpacity: 1.0,
+} as const;
+
+/** Assembles one surface's day/night defaults from a single font + caps; the three
+ *  emphasis levels differ only in colour (shared day/night colour sets). */
+function mkTextSurface(
+  fontFamily: string,
+  fontSize: number,
+  fontWeight: number,
+  capitalization: string,
+): DayNight<TextSurfaceFields> {
+  const font = { fontFamily, fontSize, fontWeight, capitalization };
+  return {
+    day: { ...font, ...DAY_COLORS },
+    night: { ...font, ...NIGHT_COLORS },
+  };
+}
+
+const BARLOW = '"Barlow", sans-serif';
+const ROBOTO_COND = '"Roboto Condensed", "Barlow", sans-serif';
+
+/**
+ * Canonical per-surface text defaults (from the reference prototype export). One
+ * font per surface; the bright/normal/dimmed levels differ only in colour. The
+ * prototype is where the families/sizes/weights get tuned.
+ */
+export const TEXT_SURFACE_DEFAULTS: Record<TextSurfaceKey, DayNight<TextSurfaceFields>> = {
+  embossed: mkTextSurface(BARLOW, 14, 500, TextCapitalization.None),
+  recessed: mkTextSurface(BARLOW, 14, 200, TextCapitalization.None),
+  button: mkTextSurface(BARLOW, 15, 200, TextCapitalization.None),
+  embossedTitle: mkTextSurface(ROBOTO_COND, 14, 200, TextCapitalization.Uppercase),
+  infoText: mkTextSurface(BARLOW, 12, 200, TextCapitalization.None),
+  // Single-emphasis (its dimmed colour is the placeholder colour = the former
+  // `text-text-muted`); font matches the hero input's text size.
+  placeholder: mkTextSurface(BARLOW, 16, 500, TextCapitalization.None),
 };
 
 /** Canonical VFD defaults (prototype `VFD_DEFAULTS`). */
@@ -597,8 +706,9 @@ export const BACKDROP_DEFAULTS: DayNight<BackdropFields> = {
 export const DESIGN_TOKENS_DEFAULTS: DesignTokens = {
   shader: SHADER_DEFAULTS,
   cardRadius: CARD_RADIUS_DEFAULT,
+  paddings: { ...PADDING_DEFAULTS },
   glass: GLASS_DEFAULTS,
-  text: TEXT_DEFAULTS,
+  text: TEXT_SURFACE_DEFAULTS,
   vfd: { vfd: VFD_DEFAULTS },
   footer: { skytext: SKYTEXT_DEFAULTS },
   cover: { cover: COVER_DEFAULTS },
@@ -608,7 +718,11 @@ export const DESIGN_TOKENS_DEFAULTS: DesignTokens = {
 // ─── Field-spec tables (drive validation, mirror the prototype field defs) ─────
 
 /** A single tunable field's validation contract. */
-type FieldSpec = { kind: "color" } | { kind: "number"; min: number; max: number; bool?: boolean } | { kind: "font" };
+type FieldSpec =
+  | { kind: "color" }
+  | { kind: "number"; min: number; max: number; bool?: boolean }
+  | { kind: "font" }
+  | { kind: "enum"; values: readonly string[] };
 
 const GLASS_FIELD_SPECS: Record<keyof GlassFields, FieldSpec> = {
   tintTop: { kind: "color" },
@@ -623,9 +737,17 @@ const GLASS_FIELD_SPECS: Record<keyof GlassFields, FieldSpec> = {
   shadow: { kind: "number", min: 0, max: 0.8 },
 };
 
-const TEXT_FIELD_SPECS: Record<keyof TextFields, FieldSpec> = {
-  color: { kind: "color" },
-  opacity: { kind: "number", min: 0, max: 1 },
+const TEXT_SURFACE_FIELD_SPECS: Record<keyof TextSurfaceFields, FieldSpec> = {
+  fontFamily: { kind: "enum", values: TYPO_FONTS },
+  fontSize: { kind: "number", min: 8, max: 48 },
+  fontWeight: { kind: "number", min: 100, max: 900 },
+  capitalization: { kind: "enum", values: TEXT_CAPITALIZATIONS },
+  brightColor: { kind: "color" },
+  brightOpacity: { kind: "number", min: 0, max: 1 },
+  normalColor: { kind: "color" },
+  normalOpacity: { kind: "number", min: 0, max: 1 },
+  dimmedColor: { kind: "color" },
+  dimmedOpacity: { kind: "number", min: 0, max: 1 },
 };
 
 const VFD_FIELD_SPECS: Record<keyof VfdFields, FieldSpec> = {
@@ -714,6 +836,11 @@ function sanitizeField(raw: unknown, fallback: unknown, spec: FieldSpec, path: s
     case "font": {
       if (typeof raw === "string" && (SKYTEXT_FONTS as readonly string[]).includes(raw)) return raw;
       if (raw !== undefined) errors.push(`${path}: unknown font, using default`);
+      return fallback;
+    }
+    case "enum": {
+      if (typeof raw === "string" && spec.values.includes(raw)) return raw;
+      if (raw !== undefined) errors.push(`${path}: invalid value, using default`);
       return fallback;
     }
   }
@@ -827,6 +954,20 @@ export function parseDesignTokens(raw: unknown): { tokens: DesignTokens; errors:
     errors.push("cardRadius: invalid number, using default");
   }
 
+  // Paddings — flat { "--mc-*": px } map; each known key clamped to 0..PADDING_MAX,
+  // unknown keys dropped. The keys ARE the emitted CSS-var names.
+  const rawPaddings = (obj.paddings && typeof obj.paddings === "object" ? obj.paddings : {}) as Record<string, unknown>;
+  const paddings = {} as Record<PaddingKey, number>;
+  for (const key of Object.keys(PADDING_DEFAULTS) as PaddingKey[]) {
+    const n = sanitizeNumber(rawPaddings[key], 0, PADDING_MAX);
+    if (n === null) {
+      if (rawPaddings[key] !== undefined) errors.push(`paddings.${key}: invalid number, using default`);
+      paddings[key] = PADDING_DEFAULTS[key];
+    } else {
+      paddings[key] = n;
+    }
+  }
+
   // Structured groups.
   const rawGlass = (obj.glass && typeof obj.glass === "object" ? obj.glass : {}) as Record<string, unknown>;
   const glass = {} as Record<GlassControlKey, DayNight<GlassFields>>;
@@ -841,15 +982,15 @@ export function parseDesignTokens(raw: unknown): { tokens: DesignTokens; errors:
   }
 
   const rawText = (obj.text && typeof obj.text === "object" ? obj.text : {}) as Record<string, unknown>;
-  const text = {} as Record<TextLevelKey, DayNight<TextFields>>;
-  for (const level of Object.keys(TEXT_DEFAULTS) as TextLevelKey[]) {
-    text[level] = sanitizeDayNight(
-      rawText[level],
-      TEXT_DEFAULTS[level] as unknown as DayNight<Record<string, unknown>>,
-      TEXT_FIELD_SPECS,
-      `text.${level}`,
+  const text = {} as Record<TextSurfaceKey, DayNight<TextSurfaceFields>>;
+  for (const surface of Object.keys(TEXT_SURFACE_DEFAULTS) as TextSurfaceKey[]) {
+    text[surface] = sanitizeDayNight(
+      rawText[surface],
+      TEXT_SURFACE_DEFAULTS[surface] as unknown as DayNight<Record<string, unknown>>,
+      TEXT_SURFACE_FIELD_SPECS,
+      `text.${surface}`,
       errors,
-    ) as unknown as DayNight<TextFields>;
+    ) as unknown as DayNight<TextSurfaceFields>;
   }
 
   const vfd = sanitizeDayNight(
@@ -888,6 +1029,7 @@ export function parseDesignTokens(raw: unknown): { tokens: DesignTokens; errors:
     tokens: {
       shader,
       cardRadius,
+      paddings,
       glass,
       text,
       vfd: { vfd },

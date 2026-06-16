@@ -509,7 +509,6 @@ export function PlayerButton({ className }: PlayerButtonProps) {
           aria-pressed={isPlaying}
           title={title}
           pressed={isPlaying && !isDisabled}
-          noScale
           className="relative flex size-full items-center justify-center px-0 py-0"
         >
           <svg

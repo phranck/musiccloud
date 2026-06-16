@@ -57,7 +57,7 @@ export function EmbossedSegmentedControl<T extends string>({
   return (
     <RecessedCard
       ref={containerRef}
-      className={cn("mc-glass-seg-track relative flex p-1", className)}
+      className={cn("mc-glass-seg-track relative flex gap-[var(--mc-gap-seg,0px)] p-1", className)}
       radius={recessedSurfaceRadius}
     >
       <RecessedCard.Body className="contents">
@@ -94,7 +94,7 @@ export function EmbossedSegmentedControl<T extends string>({
             className={cn(
               "relative z-10 flex-auto py-2 px-3 rounded-lg text-[13px] font-semibold text-center whitespace-nowrap transition-colors duration-150",
               "border-none",
-              key === value ? "text-text-primary" : "text-text-secondary hover:text-text-primary",
+              key === value ? "mc-txt-button-bright" : "mc-txt-button-normal",
             )}
           >
             {label}

@@ -661,7 +661,7 @@ function DesktopShareLayout({
       className="hidden min-[1080px]:grid grid-cols-[512px_512px] items-start gap-6 mx-auto"
       style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}
     >
-      <div className="flex flex-col gap-6" style={{ width: `${MEDIA_W}px` }}>
+      <div className="flex flex-col gap-[var(--mc-gap-cards,1.5rem)]" style={{ width: `${MEDIA_W}px` }}>
         <MediaSummaryCard content={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
         <ServicesCard content={config} animated={animated} />
       </div>

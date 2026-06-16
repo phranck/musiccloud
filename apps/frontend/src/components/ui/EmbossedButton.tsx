@@ -11,20 +11,16 @@ const controlRadiusStyle = {
 } as React.CSSProperties;
 
 // Glass buttons: the surface (tint gradient + chamfer) comes from the
-// `.embossed-gradient-border`/`.mc-glass-button` recipe. The background must NOT
-// transition — the tint tracks the day↔night cross-fade with zero lag; only
-// transform + filter animate. Hover brightens via `filter` instead of swapping
-// a background colour.
+// `.embossed-gradient-border`/`.mc-glass-button` recipe. Hover/active NEVER change
+// size — only the background lightens, via an HSL-lifted tint resolved in glass.css
+// (`.embossed-gradient-border.mc-glass-button:hover`), computed at SSR so it tracks
+// the configured colour and the day↔night cross-fade. No transform/scale/filter on
+// interaction (`transform-gpu` only pre-allocates a GPU layer; it never animates).
 const baseClasses = [
   "mc-glass-button px-5 py-2.5 overflow-hidden cursor-pointer transform-gpu",
-  "transition-[transform,filter] duration-100",
   "disabled:cursor-not-allowed disabled:opacity-50",
   "focus-visible:outline-2 focus-visible:outline-white/40 focus-visible:outline-offset-2",
 ];
-
-const raisedHoverClasses = ["hover:brightness-110", "focus-visible:brightness-110"];
-
-const raisedScaleClasses = ["hover:scale-[1.015]", "focus-visible:scale-[1.015]", "active:scale-[0.985]"];
 
 type AnchorProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & { as?: "a" };
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { as: "button" };
@@ -32,10 +28,8 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { as: "button
 type EmbossedButtonProps = (AnchorProps | ButtonProps) & {
   children: React.ReactNode;
   className?: string;
-  /** When true, render as a latched/pressed-in button (recessed look, no hover scale). */
+  /** When true, render as a latched/pressed-in button (recessed look; no hover lighten). */
   pressed?: boolean;
-  /** When true, disable the hover/active scale transition. */
-  noScale?: boolean;
 };
 
 /**
@@ -45,22 +39,9 @@ type EmbossedButtonProps = (AnchorProps | ButtonProps) & {
  * Corner radii default to the surrounding `RecessedCard` radius minus its padding.
  */
 
-export function EmbossedButton({
-  children,
-  className,
-  style,
-  pressed = false,
-  noScale = false,
-  ...props
-}: EmbossedButtonProps) {
+export function EmbossedButton({ children, className, style, pressed = false, ...props }: EmbossedButtonProps) {
   const surfaceClass = pressed ? "recessed-gradient-border" : "embossed-gradient-border";
-  const mergedClassName = cn(
-    surfaceClass,
-    baseClasses,
-    !pressed && raisedHoverClasses,
-    !pressed && !noScale && raisedScaleClasses,
-    className,
-  );
+  const mergedClassName = cn(surfaceClass, baseClasses, className);
   const mergedStyle: React.CSSProperties = { ...controlRadiusStyle, ...style };
 
   if ("as" in props && props.as === "button") {

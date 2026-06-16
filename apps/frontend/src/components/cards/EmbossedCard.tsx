@@ -158,7 +158,7 @@ interface EmbossedCardProps {
   radius?: string | { base: string; sm?: string };
 }
 
-const DEFAULT_PADDING = "0.75rem";
+const DEFAULT_PADDING = "var(--mc-pad-card, 0.75rem)";
 const DEFAULT_RADIUS = embossedCardOuterRadius;
 
 // Backward-compat detection: a caller that still sets `p-*` or `rounded-*`

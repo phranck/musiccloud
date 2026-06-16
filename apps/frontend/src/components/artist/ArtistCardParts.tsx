@@ -82,18 +82,37 @@ export function ProfileSkeleton() {
   );
 }
 
+/** Stable keys for the fixed-length skeleton lists (avoids index-as-key). */
+const SKELETON_ROW_KEYS = ["sk-a", "sk-b", "sk-c"] as const;
+
+/**
+ * One loading-placeholder row mirroring an artist-panel row's geometry: an
+ * optional leading artwork box, a two-line text column, and a trailing box. The
+ * shared building block for the track/event/similar skeletons so the placeholder
+ * row markup lives in one place. Uses `--mc-gap-rowitem` so the shimmer tracks
+ * the same horizontal rhythm as the real rows.
+ *
+ * @param leading Render the leading artwork box (tracks/similar have artwork;
+ *   events do not).
+ */
+function SkeletonRow({ leading = true }: { leading?: boolean }) {
+  return (
+    <div className="flex items-center gap-[var(--mc-gap-rowitem,0.75rem)]">
+      {leading && <div className="size-12 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />}
+      <div className="flex-1 space-y-1.5">
+        <div className="h-3 bg-white/[0.08] rounded w-4/5" />
+        <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
+      </div>
+      <div className="h-7 w-16 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
+    </div>
+  );
+}
+
 export function TracksSkeleton() {
   return (
     <div className="animate-pulse space-y-4">
-      {(["sk-a", "sk-b", "sk-c"] as const).map((k) => (
-        <div key={k} className="flex gap-3 items-center">
-          <div className="size-12 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 bg-white/[0.08] rounded w-4/5" />
-            <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
-          </div>
-          <div className="h-7 w-16 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
-        </div>
+      {SKELETON_ROW_KEYS.map((k) => (
+        <SkeletonRow key={k} />
       ))}
     </div>
   );
@@ -102,14 +121,8 @@ export function TracksSkeleton() {
 export function EventsSkeleton() {
   return (
     <div className="animate-pulse space-y-4">
-      {(["sk-a", "sk-b"] as const).map((k) => (
-        <div key={k} className="flex items-center gap-3">
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 bg-white/[0.08] rounded w-16" />
-            <div className="h-4 bg-white/[0.08] rounded w-3/4" />
-          </div>
-          <div className="h-7 w-20 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
-        </div>
+      {SKELETON_ROW_KEYS.slice(0, 2).map((k) => (
+        <SkeletonRow key={k} leading={false} />
       ))}
     </div>
   );
@@ -118,17 +131,10 @@ export function EventsSkeleton() {
 export function SimilarArtistsSkeleton() {
   return (
     <div className="animate-pulse space-y-5">
-      {(["sk-a", "sk-b", "sk-c"] as const).map((k) => (
+      {SKELETON_ROW_KEYS.map((k) => (
         <div key={k}>
           <div className="h-3 bg-white/[0.08] rounded w-1/4 mb-2" />
-          <div className="flex gap-3 items-center">
-            <div className="size-12 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
-            <div className="flex-1 space-y-1.5">
-              <div className="h-3 bg-white/[0.08] rounded w-4/5" />
-              <div className="h-2.5 bg-white/[0.08] rounded w-3/5" />
-            </div>
-            <div className="h-7 w-16 rounded-[4px] sm:rounded-lg bg-white/[0.08] flex-none" />
-          </div>
+          <SkeletonRow />
         </div>
       ))}
     </div>

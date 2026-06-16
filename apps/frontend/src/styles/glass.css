@@ -160,14 +160,18 @@
   --segIndicator-night-rm: 0;
   --segIndicator-night-sh: 0;
 
-  /* Text levels — rgba (opacity folded). At night (--g-dayness:0) these equal
-     the original --color-text-* @theme tokens; at day they brighten. */
-  --text-primary-day: rgba(255, 255, 255, 1);
-  --text-primary-night: rgba(245, 245, 247, 1);
-  --text-secondary-day: rgba(255, 255, 255, 0.6);
-  --text-secondary-night: rgba(199, 199, 204, 1);
-  --text-muted-day: rgba(255, 255, 255, 0.4);
-  --text-muted-night: rgba(154, 154, 160, 1);
+  /* Per-surface text — embossed seeds (SSR designTokensCss overrides per saved tokens,
+     and emits the other surfaces' vars too). The embossed surface is the global default
+     via the transitional `--color-text-*` mapping below; the recessed / button /
+     embossedTitle / infoText / placeholder surfaces are consumed by the `mc-txt-*`
+     classes (and the hero placeholder) on the production components. The embossed
+     defaults equal the former global primary/secondary/muted. */
+  --text-embossed-bright-day: rgba(255, 255, 255, 1);
+  --text-embossed-bright-night: rgba(245, 245, 247, 1);
+  --text-embossed-normal-day: rgba(255, 255, 255, 0.6);
+  --text-embossed-normal-night: rgba(199, 199, 204, 1);
+  --text-embossed-dimmed-day: rgba(255, 255, 255, 0.4);
+  --text-embossed-dimmed-night: rgba(154, 154, 160, 1);
 
   /* VFD screen — translucent bg (rgba, opacity folded) + inset edge frame, both
      cross-faded day↔night. The edge strengths default to 0 (no light/shadow
@@ -227,21 +231,29 @@
   --sky-top-night: #0b1318;
   --sky-bottom-night: #10273b;
 
-  /* Re-point the global text tokens at the cross-faded levels so every
-     `text-text-*` utility follows day↔night without touching a component.
-     This file is imported after Tailwind's @theme, so these overrides win.
-     At --g-dayness:0 they resolve to the night values = the original tokens. */
-  --color-text-primary: color-mix(
+  /* Embossed-surface emphasis levels, cross-faded day↔night, plus a transitional
+     mapping of the global text tokens onto them: every `text-text-*` utility keeps
+     following day↔night until components migrate to surface-scoped text. This file
+     is imported after Tailwind's @theme, so these overrides win. At --g-dayness:0
+     they resolve to the night values = the original tokens. */
+  --mc-text-embossed-bright: color-mix(
     in srgb,
-    var(--text-primary-day) calc(var(--g-dayness) * 100%),
-    var(--text-primary-night)
+    var(--text-embossed-bright-day) calc(var(--g-dayness) * 100%),
+    var(--text-embossed-bright-night)
   );
-  --color-text-secondary: color-mix(
+  --mc-text-embossed-normal: color-mix(
     in srgb,
-    var(--text-secondary-day) calc(var(--g-dayness) * 100%),
-    var(--text-secondary-night)
+    var(--text-embossed-normal-day) calc(var(--g-dayness) * 100%),
+    var(--text-embossed-normal-night)
   );
-  --color-text-muted: color-mix(in srgb, var(--text-muted-day) calc(var(--g-dayness) * 100%), var(--text-muted-night));
+  --mc-text-embossed-dimmed: color-mix(
+    in srgb,
+    var(--text-embossed-dimmed-day) calc(var(--g-dayness) * 100%),
+    var(--text-embossed-dimmed-night)
+  );
+  --color-text-primary: var(--mc-text-embossed-bright);
+  --color-text-secondary: var(--mc-text-embossed-normal);
+  --color-text-muted: var(--mc-text-embossed-dimmed);
   /* Sky top/horizon, each cross-faded day↔night to the shader's sky colours, so
      the static backdrop matches the rendered sky and the canvas fades in without
      a colour change. `--color-background` (the body/overscroll fill) tracks the
@@ -249,6 +261,86 @@
   --sky-top: color-mix(in srgb, var(--sky-top-day) calc(var(--g-dayness) * 100%), var(--sky-top-night));
   --sky-bottom: color-mix(in srgb, var(--sky-bottom-day) calc(var(--g-dayness) * 100%), var(--sky-bottom-night));
   --color-background: var(--sky-top);
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Surface-scoped text — the font (family/size/weight) from the surface + the level
+   colour, cross-faded day↔night. Applied via `mc-txt-<surface>-<level>` classes on
+   the production text elements. This file is unlayered, so these win over Tailwind's
+   layered `text-*` utilities. Surface vars come from SSR (designTokensCss); if absent
+   the colour/size no-op and the element's Tailwind classes show through. Mirrors the
+   reference prototype's per-surface text mapping. (embossed = the global default.)
+   ─────────────────────────────────────────────────────────────────────────── */
+.mc-txt-button-bright,
+.mc-txt-button-normal,
+.mc-txt-button-dimmed {
+  font-family: var(--text-button-font);
+  font-size: calc(
+    var(--text-button-size-day) * var(--g-dayness) + var(--text-button-size-night) * (1 - var(--g-dayness))
+  );
+  font-weight: calc(
+    var(--text-button-weight-day) * var(--g-dayness) + var(--text-button-weight-night) * (1 - var(--g-dayness))
+  );
+}
+.mc-txt-button-bright {
+  color: color-mix(in srgb, var(--text-button-bright-day) calc(var(--g-dayness) * 100%), var(--text-button-bright-night));
+}
+.mc-txt-button-normal {
+  color: color-mix(in srgb, var(--text-button-normal-day) calc(var(--g-dayness) * 100%), var(--text-button-normal-night));
+}
+.mc-txt-button-dimmed {
+  color: color-mix(in srgb, var(--text-button-dimmed-day) calc(var(--g-dayness) * 100%), var(--text-button-dimmed-night));
+}
+.mc-txt-recessed-normal,
+.mc-txt-recessed-dimmed {
+  font-family: var(--text-recessed-font);
+  font-size: calc(
+    var(--text-recessed-size-day) * var(--g-dayness) + var(--text-recessed-size-night) * (1 - var(--g-dayness))
+  );
+  font-weight: calc(
+    var(--text-recessed-weight-day) * var(--g-dayness) + var(--text-recessed-weight-night) * (1 - var(--g-dayness))
+  );
+}
+.mc-txt-recessed-normal {
+  color: color-mix(
+    in srgb,
+    var(--text-recessed-normal-day) calc(var(--g-dayness) * 100%),
+    var(--text-recessed-normal-night)
+  );
+}
+.mc-txt-recessed-dimmed {
+  color: color-mix(
+    in srgb,
+    var(--text-recessed-dimmed-day) calc(var(--g-dayness) * 100%),
+    var(--text-recessed-dimmed-night)
+  );
+}
+.mc-txt-embossedTitle {
+  font-family: var(--text-embossedTitle-font);
+  font-size: calc(
+    var(--text-embossedTitle-size-day) * var(--g-dayness) + var(--text-embossedTitle-size-night) *
+      (1 - var(--g-dayness))
+  );
+  font-weight: calc(
+    var(--text-embossedTitle-weight-day) * var(--g-dayness) + var(--text-embossedTitle-weight-night) *
+      (1 - var(--g-dayness))
+  );
+  text-transform: var(--text-embossedTitle-transform);
+  color: color-mix(
+    in srgb,
+    var(--text-embossedTitle-normal-day) calc(var(--g-dayness) * 100%),
+    var(--text-embossedTitle-normal-night)
+  );
+}
+.mc-txt-info {
+  font-family: var(--text-infoText-font);
+  font-size: calc(
+    var(--text-infoText-size-day) * var(--g-dayness) + var(--text-infoText-size-night) * (1 - var(--g-dayness))
+  );
+  font-weight: calc(
+    var(--text-infoText-weight-day) * var(--g-dayness) + var(--text-infoText-weight-night) * (1 - var(--g-dayness))
+  );
+  color: color-mix(in srgb, var(--text-infoText-dimmed-day) calc(var(--g-dayness) * 100%), var(--text-infoText-dimmed-night));
 }
 
 /* Sky-anchored footer text — colour/opacity/stroke/size cross-faded day↔night. */
@@ -327,6 +419,12 @@
   --_es: calc(var(--button-day-es) * var(--g-dayness) + var(--button-night-es) * (1 - var(--g-dayness)));
   --_rm: calc(var(--button-day-rm) * var(--g-dayness) + var(--button-night-rm) * (1 - var(--g-dayness)));
   --_sh: calc(var(--button-day-sh) * var(--g-dayness) + var(--button-night-sh) * (1 - var(--g-dayness)));
+  /* HSL-lifted hover/active tints (computed at SSR in designTokensCss), cross-faded
+     like --_tt so a raised button lightens its background on interaction. */
+  --_htt: color-mix(in srgb, var(--button-day-htt) calc(var(--g-dayness) * 100%), var(--button-night-htt));
+  --_htb: color-mix(in srgb, var(--button-day-htb) calc(var(--g-dayness) * 100%), var(--button-night-htb));
+  --_att: color-mix(in srgb, var(--button-day-att) calc(var(--g-dayness) * 100%), var(--button-night-att));
+  --_atb: color-mix(in srgb, var(--button-day-atb) calc(var(--g-dayness) * 100%), var(--button-night-atb));
 }
 
 .mc-glass-seg-track {
@@ -365,6 +463,17 @@
     inset 0 0 0 1px rgba(255, 255, 255, var(--_rm)),
     inset 1px 1px 1.5px rgba(255, 255, 255, var(--_el)),
     inset -1px -1px 1.5px rgba(0, 0, 0, var(--_es));
+}
+
+/* Raised button hover/active: ONLY the background lightens (HSL-lifted tint) — NEVER
+   a size change. Gated on `.embossed-gradient-border` so a pressed/latched button
+   (`.recessed-gradient-border`) does not react. Gradients can't CSS-transition, so
+   this is an instant, lag-free swap that still follows the day↔night cross-fade. */
+.embossed-gradient-border.mc-glass-button:hover {
+  background: linear-gradient(to bottom, var(--_htt), var(--_htb));
+}
+.embossed-gradient-border.mc-glass-button:active {
+  background: linear-gradient(to bottom, var(--_att), var(--_atb));
 }
 
 /* Recessed surfaces sink in, so the chamfer inverts: shadow top-left, light

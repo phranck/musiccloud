@@ -157,9 +157,52 @@ describe("parseDesignTokens — colors & injection safety", () => {
 
   it("rejects 3-digit hex (only #rrggbb is allowed)", () => {
     const { tokens } = parseDesignTokens({
-      text: { primary: { day: { color: "#fff" } } },
+      text: { embossed: { day: { brightColor: "#fff" } } },
     });
-    expect(tokens.text.primary.day.color).toBe(DESIGN_TOKENS_DEFAULTS.text.primary.day.color);
+    expect(tokens.text.embossed.day.brightColor).toBe(DESIGN_TOKENS_DEFAULTS.text.embossed.day.brightColor);
+  });
+});
+
+describe("parseDesignTokens — per-surface text", () => {
+  it("round-trips the per-surface text defaults with no errors", () => {
+    const { tokens, errors } = parseDesignTokens({ text: DESIGN_TOKENS_DEFAULTS.text });
+    expect(errors).toEqual([]);
+    expect(tokens.text).toEqual(DESIGN_TOKENS_DEFAULTS.text);
+  });
+
+  it("clamps a surface's fontSize and fontWeight to their ranges", () => {
+    const { tokens } = parseDesignTokens({
+      text: { button: { day: { fontSize: 999, fontWeight: 5 } } },
+    });
+    expect(tokens.text.button.day.fontSize).toBe(48);
+    expect(tokens.text.button.day.fontWeight).toBe(100);
+  });
+
+  it("keeps the three emphasis colours independent (bright vs dimmed)", () => {
+    const { tokens, errors } = parseDesignTokens({
+      text: { button: { day: { brightOpacity: 0.9, dimmedOpacity: 0.2 } } },
+    });
+    expect(errors).toEqual([]);
+    expect(tokens.text.button.day.brightOpacity).toBe(0.9);
+    expect(tokens.text.button.day.dimmedOpacity).toBe(0.2);
+  });
+
+  it("rejects an invalid capitalization (enum), keeping the default", () => {
+    const { tokens, errors } = parseDesignTokens({
+      text: { embossedTitle: { day: { capitalization: "tiny-caps" } } },
+    });
+    expect(tokens.text.embossedTitle.day.capitalization).toBe(
+      DESIGN_TOKENS_DEFAULTS.text.embossedTitle.day.capitalization,
+    );
+    expect(errors.some((e) => e.includes("invalid value"))).toBe(true);
+  });
+
+  it("rejects an unknown surface font (enum), keeping the default", () => {
+    const { tokens, errors } = parseDesignTokens({
+      text: { button: { night: { fontFamily: "Comic Sans MS" } } },
+    });
+    expect(tokens.text.button.night.fontFamily).toBe(DESIGN_TOKENS_DEFAULTS.text.button.night.fontFamily);
+    expect(errors.some((e) => e.includes("invalid value"))).toBe(true);
   });
 });
 
@@ -193,5 +236,26 @@ describe("parseDesignTokens — unknown keys & garbage", () => {
     });
     expect(tokens.footer.skytext.day.fontFamily).toBe(DESIGN_TOKENS_DEFAULTS.footer.skytext.day.fontFamily);
     expect(errors.some((e) => e.includes("unknown font"))).toBe(true);
+  });
+});
+
+describe("parseDesignTokens — paddings", () => {
+  it("round-trips the padding defaults with no errors", () => {
+    const { tokens, errors } = parseDesignTokens({ paddings: DESIGN_TOKENS_DEFAULTS.paddings });
+    expect(errors).toEqual([]);
+    expect(tokens.paddings).toEqual(DESIGN_TOKENS_DEFAULTS.paddings);
+  });
+
+  it("clamps an out-of-range padding and drops unknown padding keys", () => {
+    const { tokens } = parseDesignTokens({
+      paddings: { "--mc-pad-card": 999, "--mc-bogus": 5 },
+    });
+    expect(tokens.paddings["--mc-pad-card"]).toBe(48); // clamped to PADDING_MAX
+    expect((tokens.paddings as Record<string, number>)["--mc-bogus"]).toBeUndefined(); // unknown dropped
+  });
+
+  it("defaults a missing padding key", () => {
+    const { tokens } = parseDesignTokens({ paddings: {} });
+    expect(tokens.paddings["--mc-gap-cards"]).toBe(DESIGN_TOKENS_DEFAULTS.paddings["--mc-gap-cards"]);
   });
 });

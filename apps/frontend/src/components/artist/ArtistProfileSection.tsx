@@ -10,7 +10,7 @@ interface ArtistProfileSectionProps {
 export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) {
   return (
     <>
-      <div className="flex gap-4 min-h-24">
+      <div className="flex gap-[var(--mc-gap-artist,1rem)] min-h-24">
         {profile.imageUrl && (
           <RecessedCard
             className="p-0 size-24 flex-none relative overflow-hidden"
@@ -40,14 +40,14 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
               {profile.genres.map((g) => (
                 <span
                   key={g}
-                  className="text-xs px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-text-secondary capitalize"
+                  className="mc-txt-recessed-dimmed text-xs px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-text-secondary capitalize"
                 >
                   {g}
                 </span>
               ))}
             </div>
           )}
-          <p className="text-sm text-text-secondary">
+          <p className="mc-txt-recessed-normal text-sm text-text-secondary">
             {profile.followers != null && (
               <>
                 {formatCount(profile.followers)} {t("artist.fanCount")}
@@ -56,14 +56,16 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
             {profile.scrobbles != null && ` \u00B7 ${formatCount(profile.scrobbles)} ${t("artist.lastfmPlays")}`}
           </p>
           {profile.similarArtists.length > 0 && (
-            <p className="text-sm text-text-secondary mt-1">
+            <p className="mc-txt-recessed-normal text-sm text-text-secondary mt-1">
               {t("artist.similar")}: {profile.similarArtists.join(" \u00B7 ")}
             </p>
           )}
         </div>
       </div>
       {profile.bioSummary && (
-        <p className="text-base text-text-secondary leading-relaxed mt-3 px-[5px]">{profile.bioSummary}</p>
+        <p className="mc-txt-recessed-normal text-base text-text-secondary leading-relaxed mt-3 px-[5px]">
+          {profile.bioSummary}
+        </p>
       )}
     </>
   );

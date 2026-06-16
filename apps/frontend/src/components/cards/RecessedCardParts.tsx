@@ -151,7 +151,7 @@ const STANDALONE_RADIUS_FALLBACK = recessedSurfaceRadius;
 // yields 1rem standalone, and the correct inscribed radius when nested.
 const INHERITED_RADIUS_BASE = `var(--mc-card-inner-radius-base, calc(var(--emb-radius-base, ${embossedCardOuterRadius}) - var(--emb-padding, ${embossedCardContentInset})))`;
 const INHERITED_RADIUS_SM = `var(--mc-card-inner-radius-sm, calc(var(--emb-radius-sm, var(--emb-radius-base, ${embossedCardOuterRadius})) - var(--emb-padding, ${embossedCardContentInset})))`;
-const INHERITED_PADDING = "calc(var(--emb-padding, 2rem) / 2)";
+const INHERITED_PADDING = "var(--mc-pad-recessed, calc(var(--emb-padding, 2rem) / 2))";
 
 // Backward-compat: callers that still set padding via Tailwind (`p-*`,
 // `px-*`, etc.) opt out of inline padding so their class wins.

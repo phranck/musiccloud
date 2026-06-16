@@ -103,7 +103,7 @@ export function AnimatedPlatformGrid({ platforms, songTitle }: AnimatedPlatformG
   );
 
   return (
-    <div ref={gridRef} className="grid grid-cols-2 gap-0.5">
+    <div ref={gridRef} className="grid grid-cols-2 gap-[var(--mc-gap-grid,0.125rem)]">
       {visiblePlatforms.map((platform, index) => (
         <div key={platform.platform} className="transform-gpu">
           <PlatformButton

@@ -69,7 +69,7 @@ export function AlertDialog({ open, visible = open, title, message, closeLabel, 
 
           <EmbossedCard.Footer className="flex justify-end px-3 pt-5 pb-2">
             <RecessedCard radius={dialogButtonWellRadius} padding={dialogButtonWellPadding}>
-              <EmbossedButton as="button" onClick={onClose} className="min-w-24 py-2 text-sm font-semibold" noScale>
+              <EmbossedButton as="button" onClick={onClose} className="min-w-24 py-2 text-sm font-semibold">
                 {closeLabel}
               </EmbossedButton>
             </RecessedCard>
