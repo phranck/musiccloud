@@ -276,6 +276,33 @@
   animation: mc-hero-disc-out 260ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
+/* Disambiguation row artwork swap (see SlideArtwork). On selection the cover
+   slides down out of its tile while the spinning disc drops in from the top, so
+   it reads like a CD slotting into a device. The disc is oversized + centred and
+   the tile's `overflow:hidden` clips the overhang. */
+@keyframes mc-disc-drop-in {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes mc-cover-drop-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+.mc-disc-drop-in {
+  animation: mc-disc-drop-in 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.mc-cover-drop-out {
+  animation: mc-cover-drop-out 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 /* Respect user preference for reduced motion (WCAG 2.3) */
 @media (prefers-reduced-motion: reduce) {
   *,

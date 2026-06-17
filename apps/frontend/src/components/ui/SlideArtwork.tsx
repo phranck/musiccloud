@@ -50,25 +50,19 @@ export function SlideArtwork({
       style={{ "--neu-light": "hsl(0 0% 100% / 0.5)", "--neu-shadow": "hsl(0 0% 0% / 0.1)" } as React.CSSProperties}
     >
       <RecessedCard.Body className="contents">
-        {/* CD spinner -- only mounted for the selected row */}
+        {/* Spinning CD: mounted only for the selected row. It drops in from the
+            top (mc-disc-drop-in) as the cover drops out below. Oversized + centred
+            so it reads as a CD slotted into a device; the tile's `overflow:hidden`
+            clips the overhang. Sits below the rim shadow only — its face is never
+            dimmed. */}
         {active && (
-          <div
-            className={cn(
-              "absolute inset-0 z-0 transition-transform duration-[420ms] ease-in-out",
-              active ? "translate-y-0" : "-translate-y-full",
-            )}
-          >
-            <CDSpinArtwork className="w-full h-full" />
+          <div className="mc-disc-drop-in absolute inset-0 z-0 flex items-center justify-center" aria-hidden="true">
+            <CDSpinArtwork className="w-[130%] h-[130%]" />
           </div>
         )}
 
-        {/* Cover artwork -- pushed down when CD slides in */}
-        <div
-          className={cn(
-            "relative z-0 transition-transform duration-[420ms] ease-in-out w-full h-full bg-surface",
-            active ? "translate-y-full" : "translate-y-0",
-          )}
-        >
+        {/* Cover artwork -- drops out downward when the CD slides in */}
+        <div className={cn("relative z-0 w-full h-full bg-surface", active && "mc-cover-drop-out")}>
           {artworkUrl ? (
             <img
               src={artworkUrl}
@@ -89,7 +83,8 @@ export function SlideArtwork({
           )}
         </div>
 
-        {/* Inner shadow overlay -- stays on top of both CD and cover */}
+        {/* Recessed rim shadow -- edge-localised (top/left), so the disc reads as
+            sitting INSIDE the tile without dimming its face. Stays above both layers. */}
         <div
           aria-hidden="true"
           className="absolute inset-0 pointer-events-none z-10"
