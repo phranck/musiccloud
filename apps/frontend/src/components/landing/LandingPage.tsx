@@ -24,6 +24,7 @@ import { useHeroFieldFlip } from "@/hooks/useHeroFieldFlip";
 import { useSearchFieldReturn } from "@/hooks/useSearchFieldReturn";
 import { useToast } from "@/hooks/useToast";
 import { LocaleProvider, useT } from "@/i18n/context";
+import type { Locale } from "@/i18n/locales";
 import { CardSignal, genreSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { animateFadeIn, animateSlideOutDown } from "@/lib/motion/entrances";
 import {
@@ -52,6 +53,8 @@ const EMPTY_NAV_ITEMS: NavItem[] = [];
 interface LandingPageProps {
   exampleShortId?: string | null;
   footerNav?: NavItem[];
+  /** Server-resolved locale, so SSR and client hydration agree (no mismatch). */
+  initialLocale?: Locale;
 }
 
 interface ActiveShareResultProps {
@@ -473,10 +476,14 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
   );
 }
 
-export function LandingPage({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }: LandingPageProps = {}) {
+export function LandingPage({
+  exampleShortId = null,
+  footerNav = EMPTY_NAV_ITEMS,
+  initialLocale,
+}: LandingPageProps = {}) {
   return (
     <ErrorBoundary>
-      <LocaleProvider>
+      <LocaleProvider initialLocale={initialLocale}>
         <DialogProvider>
           <LandingPageInner exampleShortId={exampleShortId} footerNav={footerNav} />
         </DialogProvider>

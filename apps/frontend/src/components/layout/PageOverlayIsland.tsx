@@ -19,10 +19,13 @@ import { OVERLAY_TRANSITION_MS, OverlayBackdropPlacement } from "@/components/ui
 import { OverlayProvider, useOverlay } from "@/context/OverlayContext";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider } from "@/i18n/context";
+import type { Locale } from "@/i18n/locales";
 import { cn } from "@/lib/utils";
 
 interface Props {
   initialPage: PublicContentPage | null;
+  /** Server-resolved locale, so SSR and client hydration agree (no mismatch). */
+  initialLocale?: Locale;
 }
 
 // Default + limits for the draggable / resizable overlay frame.
@@ -180,9 +183,9 @@ function useMediaQuery(query: string): boolean {
   return matches;
 }
 
-export function PageOverlayIsland({ initialPage }: Props) {
+export function PageOverlayIsland({ initialPage, initialLocale }: Props) {
   return (
-    <LocaleProvider>
+    <LocaleProvider initialLocale={initialLocale}>
       <OverlayProvider initialPage={initialPage}>
         <OverlayShell />
       </OverlayProvider>
