@@ -64,7 +64,10 @@ export function SlideArtwork({
             dimmed. */}
         {active && (
           <div className="mc-disc-drop-in absolute inset-0 z-0 flex items-center justify-center" aria-hidden="true">
-            <CDSpinArtwork className="w-[130%] h-[130%]" />
+            {/* `shrink-0`: without it the row flex container shrinks the oversized
+                disc's WIDTH back to the tile width while its height stays at 130%,
+                turning the round layers into a wobbling ellipse. */}
+            <CDSpinArtwork className="w-[130%] h-[130%] shrink-0" />
           </div>
         )}
 
