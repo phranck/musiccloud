@@ -1,26 +1,15 @@
-import { ArrowRightIcon, CheckIcon, XCircleIcon } from "@phosphor-icons/react";
+import { XCircleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef } from "react";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
-import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { HeroSubmitSlot } from "@/components/landing/HeroSubmitSlot";
 import { useT } from "@/i18n/context";
 import { isMusicUrl } from "@/lib/platform/url";
 import { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
 export type { InputState };
-
-/**
- * Accent-tinted glass fill for the submit button ("Glass + Accent"). Set on the
- * `EmbossedButton` via its `style` prop so it overrides the neutral button-glass
- * tint of the `.embossed-gradient-border` recipe (inline style beats the class).
- * The CTA stays in the glass language while reading clearly in both day + night;
- * the accent is constant (no day↔night cross-fade) by design.
- */
-const SUBMIT_ACCENT_FILL =
-  "linear-gradient(to bottom, color-mix(in srgb, var(--color-accent) 92%, transparent), color-mix(in srgb, var(--color-accent) 78%, transparent))";
 
 interface HeroInputProps {
   /** Current input value (controlled). */
@@ -34,6 +23,15 @@ interface HeroInputProps {
   state: InputState;
   compact?: boolean;
   songName?: string;
+  /**
+   * When true, the parent is holding the result reveal and asks the spinning
+   * disc to slide out to the right. {@link HeroInputProps.onLoadingExitComplete}
+   * fires once it is fully gone (and never fires under reduced motion, where the
+   * parent does not hold the reveal).
+   */
+  requestDiscExit?: boolean;
+  /** Called after the disc has slid out, so the parent can reveal the result. */
+  onLoadingExitComplete?: () => void;
 }
 
 export function HeroInput({
@@ -46,6 +44,8 @@ export function HeroInput({
   state,
   compact = false,
   songName,
+  requestDiscExit = false,
+  onLoadingExitComplete,
 }: HeroInputProps) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -184,30 +184,14 @@ export function HeroInput({
             </button>
           )}
 
-          {state === InputState.Loading ? (
-            <div className="flex items-center justify-center flex-shrink-0 size-10 md:size-12" aria-hidden="true">
-              <CDSpinArtwork className="w-8 h-8 md:w-10 md:h-10" />
-            </div>
-          ) : (
-            <EmbossedButton
-              as="button"
-              type="button"
-              onClick={handleSubmitClick}
-              disabled={!value.trim()}
-              style={{ background: SUBMIT_ACCENT_FILL }}
-              className={cn(
-                "flex items-center justify-center px-0 py-0 ml-0.5 flex-shrink-0 size-10 md:size-12 text-white",
-                compact && "hidden",
-              )}
-              aria-label="Search"
-            >
-              {state === InputState.Success ? (
-                <CheckIcon size={20} weight="duotone" className="text-white" />
-              ) : (
-                <ArrowRightIcon size={20} weight="duotone" className="text-white" />
-              )}
-            </EmbossedButton>
-          )}
+          <HeroSubmitSlot
+            state={state}
+            submitDisabled={!value.trim()}
+            compact={compact}
+            onSubmitClick={handleSubmitClick}
+            requestDiscExit={requestDiscExit}
+            onLoadingExitComplete={onLoadingExitComplete}
+          />
         </RecessedCard>
       </EmbossedCard>
     </div>

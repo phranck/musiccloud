@@ -235,6 +235,47 @@
   }
 }
 
+/* Hero submit-slot slide choreography (see HeroSubmitSlot). The submit button
+   slides out to the right, the spinning disc slides into the same slot at the
+   same size, spins while loading, then slides back out to the right before the
+   result is revealed. Each phase is a finite `forwards` animation whose
+   `animationend` advances the slot's phase. */
+@keyframes mc-hero-btn-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(170%);
+    opacity: 0;
+  }
+}
+@keyframes mc-hero-disc-in {
+  from {
+    transform: translateX(170%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes mc-hero-disc-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(170%);
+  }
+}
+.mc-hero-btn-out {
+  animation: mc-hero-btn-out 260ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+.mc-hero-disc-in {
+  animation: mc-hero-disc-in 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.mc-hero-disc-out {
+  animation: mc-hero-disc-out 260ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
 /* Respect user preference for reduced motion (WCAG 2.3) */
 @media (prefers-reduced-motion: reduce) {
   *,

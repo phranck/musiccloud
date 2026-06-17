@@ -89,6 +89,26 @@ async function submitQuery(query: string): Promise<void> {
   fireEvent.keyDown(input, { key: "Enter" });
 }
 
+/**
+ * Drives the hero submit-slot slide choreography to completion. jsdom runs no
+ * CSS animations, so the phase machine's `animationend`-driven advances (and the
+ * resulting result-reveal hold) never fire on their own; dispatch each phase's
+ * `animationend` (button out → disc in → disc out) so the held share result
+ * reveals — the CSS-animation analogue of completing the GSAP tweens above.
+ */
+async function completeHeroDiscExit(): Promise<void> {
+  for (const selector of [".mc-hero-btn-out", ".mc-hero-disc-in", ".mc-hero-disc-out"]) {
+    const node = await waitFor(() => {
+      const found = document.querySelector(selector);
+      if (!found) throw new Error(`hero slot phase element ${selector} not present yet`);
+      return found;
+    });
+    act(() => {
+      node.dispatchEvent(new Event("animationend", { bubbles: true }));
+    });
+  }
+}
+
 /** The armed flip projects as an in-flight GSAP fade tween on the large logo block. */
 function expectReturnFlipArmed(): void {
   const logoBlock = document.querySelector(BIG_LOGO_SELECTOR);
@@ -130,6 +150,10 @@ describe("LandingPage search-field return flip wiring", () => {
     render(<LandingPage />);
 
     await submitQuery("https://open.spotify.com/track/x");
+
+    // The result is held behind the hero's disc-exit choreography; drive it to
+    // completion so the share view can replace the hero field.
+    await completeHeroDiscExit();
 
     // Result view: the share-style layout replaces the hero field entirely.
     const homeLink = await screen.findByLabelText("Go to musiccloud home");
