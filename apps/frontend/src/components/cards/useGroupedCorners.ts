@@ -8,7 +8,7 @@ import { type RefObject, useEffect, useRef } from "react";
  * to a small interior radius (`min(5px, var(--neu-radius))`) and only the
  * corners that coincide with the well's rounded corners are promoted to the
  * full control radius (`var(--neu-radius)`). Rows are read from the LIVE layout
- * (items sharing a rounded `offsetTop` form one row), so it is agnostic to
+ * (items sharing a rounded viewport top form one row), so it is agnostic to
  * column count and recomputes on reflow — a vertical list gets its first row's
  * top corners and its last row's bottom corners; a grid gets the four grid
  * corners.
@@ -20,13 +20,23 @@ const FULL = "var(--neu-radius)";
 const INNER = "min(5px, var(--neu-radius))";
 
 /** Computes which of an item's corners are outer, then writes the radii inline. */
-function applyGroupedCorners(items: HTMLElement[], frameSelector?: string, frameInset = 0): void {
+function applyGroupedCorners(items: HTMLElement[], frameSelector?: string, frameInset = 0, promoteTop = true): void {
   if (items.length === 0) return;
 
-  // Group items by rounded offsetTop → one entry per visual row.
+  // Group items by their rounded viewport top → one entry per visual row.
+  //
+  // We read `getBoundingClientRect().top`, NOT `offsetTop`: when a staggered
+  // entrance puts a transform on the row's wrapper, that wrapper becomes the
+  // item's `offsetParent` and every `offsetTop` collapses to 0 — the whole list
+  // would then group as a single row. The rect top stays correct throughout,
+  // because a uniform entrance translate shifts every row by the same delta and
+  // so preserves their relative ordering and spacing.
+  const itemTop = new Map<HTMLElement, number>();
+  for (const item of items) itemTop.set(item, Math.round(item.getBoundingClientRect().top));
+
   const rows = new Map<number, HTMLElement[]>();
   for (const item of items) {
-    const top = Math.round(item.offsetTop);
+    const top = itemTop.get(item)!;
     const row = rows.get(top);
     if (row) row.push(item);
     else rows.set(top, [item]);
@@ -36,10 +46,12 @@ function applyGroupedCorners(items: HTMLElement[], frameSelector?: string, frame
   const lastTop = tops[tops.length - 1];
 
   for (const item of items) {
-    const row = rows.get(Math.round(item.offsetTop)) ?? [item];
-    const top = Math.round(item.offsetTop);
-    const tl = top === firstTop && item === row[0];
-    const tr = top === firstTop && item === row[row.length - 1];
+    const top = itemTop.get(item)!;
+    const row = rows.get(top) ?? [item];
+    // `promoteTop` is false when a header sits above the rows inside the same
+    // well (genre columns): the rows then never reach the well's top corners.
+    const tl = promoteTop && top === firstTop && item === row[0];
+    const tr = promoteTop && top === firstTop && item === row[row.length - 1];
     const bl = top === lastTop && item === row[0];
     const br = top === lastTop && item === row[row.length - 1];
     item.style.borderTopLeftRadius = tl ? FULL : INNER;
@@ -74,12 +86,15 @@ function applyGroupedCorners(items: HTMLElement[], frameSelector?: string, frame
  * @param options.frameSelector Optional selector for a per-item left-hugging frame
  *   (e.g. the track artwork) whose left corners should follow the button.
  * @param options.frameInset Padding in px between the button edge and that frame.
+ * @param options.promoteTop Whether the top corners may be promoted. Pass `false`
+ *   when a header sits above the rows in the same well (e.g. genre columns), so
+ *   the rows never round their top corners below the header. Defaults to `true`.
  * @returns A ref object for the container element.
  */
 export function useGroupedCorners<T extends HTMLElement = HTMLDivElement>(
-  options: { itemSelector?: string; frameSelector?: string; frameInset?: number } = {},
+  options: { itemSelector?: string; frameSelector?: string; frameInset?: number; promoteTop?: boolean } = {},
 ): RefObject<T | null> {
-  const { itemSelector = ":scope > *", frameSelector, frameInset = 0 } = options;
+  const { itemSelector = ":scope > *", frameSelector, frameInset = 0, promoteTop = true } = options;
   const ref = useRef<T>(null);
 
   useEffect(() => {
@@ -87,7 +102,12 @@ export function useGroupedCorners<T extends HTMLElement = HTMLDivElement>(
     if (!container) return;
 
     const apply = () => {
-      applyGroupedCorners([...container.querySelectorAll<HTMLElement>(itemSelector)], frameSelector, frameInset);
+      applyGroupedCorners(
+        [...container.querySelectorAll<HTMLElement>(itemSelector)],
+        frameSelector,
+        frameInset,
+        promoteTop,
+      );
     };
     apply();
 
@@ -101,7 +121,7 @@ export function useGroupedCorners<T extends HTMLElement = HTMLDivElement>(
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };
-  }, [itemSelector, frameSelector, frameInset]);
+  }, [itemSelector, frameSelector, frameInset, promoteTop]);
 
   return ref;
 }

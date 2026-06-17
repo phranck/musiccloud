@@ -44,7 +44,14 @@ export function SlideArtwork({
 
   return (
     <RecessedCard
-      className={cn(sizeClass, "p-0 flex-shrink-0 relative overflow-hidden [&::before]:z-10")}
+      // `mc-row-art` lets a grouped list promote this frame's left corners (see
+      // CandidateRowContent). Only square covers are such a frame; a round artist
+      // disc keeps its 50% radius and must not carry the marker.
+      className={cn(
+        sizeClass,
+        kind === SlideArtworkKind.Square && "mc-row-art",
+        "p-0 flex-shrink-0 relative overflow-hidden [&::before]:z-10",
+      )}
       radius={borderRadius}
       borderWidth="1px"
       style={{ "--neu-light": "hsl(0 0% 100% / 0.5)", "--neu-shadow": "hsl(0 0% 0% / 0.1)" } as React.CSSProperties}

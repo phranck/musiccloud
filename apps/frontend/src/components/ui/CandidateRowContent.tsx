@@ -63,7 +63,16 @@ export function CandidateRowContent({
 }: CandidateRowContentProps) {
   const artworkSize = compact ? "w-12 h-12 md:w-14 md:h-14" : "w-14 h-14 md:w-16 md:h-16";
   const artworkShape = artworkKind === "round" ? "rounded-full" : "rounded-md";
-  const artworkClasses = cn(artworkSize, artworkShape, "overflow-hidden shadow-md flex-shrink-0 bg-surface");
+  // `mc-row-art` marks the left-hugging frame so a grouped list (useGroupedCorners
+  // with `frameSelector=".mc-row-art"`) can promote its left corners concentrically.
+  // Only SQUARE artwork is such a frame; a round avatar keeps its 50% radius and
+  // must not carry the marker, or the hook would square it off.
+  const artworkClasses = cn(
+    artworkSize,
+    artworkShape,
+    artworkKind === "square" && "mc-row-art",
+    "overflow-hidden shadow-md flex-shrink-0 bg-surface",
+  );
   const imgDim = compact ? 56 : 64;
   const FallbackIcon = artworkKind === "round" ? UserIcon : MusicNoteIcon;
   const iconSize = compact ? 20 : 24;
