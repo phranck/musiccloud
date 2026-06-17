@@ -261,6 +261,12 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
     ...style,
   } as React.CSSProperties;
 
+  // `mc-glass-card` carries the `backdrop-filter` frost. `overflow-hidden` clips
+  // child content to the rounded corners, but in Firefox a clipped backdrop-filter
+  // element renders a lighter tile-edge artifact in the frost (see the "Firefox
+  // clip rule" in glass.css). Consumers that frost over an animated backdrop and
+  // whose children are inset can override with `overflow-visible` via className
+  // (twMerge drops the default); the hero pill (`HeroInput`) does exactly that.
   return (
     <div className={cn("embossed-gradient-border mc-glass-card overflow-hidden", className)} style={mergedStyle}>
       {isCompound ? (

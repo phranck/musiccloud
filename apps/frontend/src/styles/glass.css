@@ -25,6 +25,19 @@
  * day↔night cross-fade (a hard none↔active jump) and shows a "window to the
  * sky". Their frost comes from the card behind them; they add tint + chamfer.
  *
+ * ## Firefox clip rule
+ * NEVER combine `backdrop-filter` with `overflow: hidden` on the SAME element in
+ * Firefox. WebRender renders a clipped backdrop-filter element through a separate
+ * intermediate surface whose compositor-tile boundary shows through as a lighter,
+ * sharp-edged rectangle in the frost (most visible over an animated backdrop like
+ * the sky, where `--g-dayness` repaints every frame). Chrome is unaffected. The
+ * frost element must keep `overflow: visible`; clip child content another way
+ * (children are usually inset by padding and never reach the rounded edge). This
+ * is why the hero pill (`HeroInput`) overrides EmbossedCard's default
+ * `overflow-hidden` to `overflow-visible`. GPU-layer hints (`translateZ`,
+ * `isolation`), dropping individual filter functions, and shrinking the radius do
+ * NOT cure it; only removing the clip does. Ref: Bugzilla 1749625.
+ *
  * The radius cascade further down is unchanged from the previous system — it is
  * orthogonal to the material and every consumer still depends on it.
  */

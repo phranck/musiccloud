@@ -135,7 +135,13 @@ export function HeroInput({
           : "max-w-full sm:max-w-[520px] md:max-w-[640px]",
       )}
     >
-      <EmbossedCard radius="9999px">
+      {/* `overflow-visible` overrides EmbossedCard's default `overflow-hidden`.
+          EmbossedCard carries the `backdrop-filter` frost, and Firefox (WebRender)
+          renders a CLIPPED backdrop-filter element through a separate intermediate
+          surface whose tile boundary shows as a lighter rectangle in the frost.
+          Dropping the clip removes it; the pill's children are inset, so nothing
+          overflows the rounded shape. */}
+      <EmbossedCard radius="9999px" className="overflow-visible">
         <RecessedCard className={cn(recessedControlInsetClassName, "hero-field", "flex items-center")}>
           <input
             ref={inputRef}
@@ -150,7 +156,10 @@ export function HeroInput({
             placeholder={t("hero.placeholder")}
             readOnly={state === InputState.Loading || state === InputState.Success}
             className={cn(
-              "mc-hero-input flex-1 min-w-0 bg-transparent border-0 pl-6 pr-2 text-lg font-medium text-text-primary tracking-[-0.01em]",
+              // Fill the field and shrink for the trailing button (`flex-auto w-full
+              // min-w-0`). `appearance-none` strips the browser's native text-field
+              // chrome so the input is a plain transparent box on the recessed glass.
+              "mc-hero-input appearance-none flex-auto w-full min-w-0 bg-transparent border-0 pl-6 pr-2 text-lg font-medium text-text-primary tracking-[-0.01em]",
               "placeholder:tracking-normal outline-none",
               "h-[40px] md:h-[48px]",
               state === InputState.Loading && "opacity-50",
