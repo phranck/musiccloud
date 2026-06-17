@@ -406,6 +406,33 @@ a.mc-skylink {
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .track-dur { font-size:.75rem; line-height:1rem; color:var(--color-text-secondary); flex-shrink:0;
   font-variant-numeric:tabular-nums; }
+/* Disambiguation card (DisambiguationPanel → "Did you mean?") — production
+   CandidateRowContent rows: square artwork + title / artists / album (three text
+   lines, no trailing duration), inside a RecessedCard well. The rows reuse the
+   result-row spacing tokens (--mc-pad-track, --mc-pad-tracktime, --mc-gap-rowitem,
+   --mc-gap-list), so the Row/Gap settings drive this list live, exactly like the
+   Popular Tracks list above. */
+.cand-head { text-align:center; padding:var(--mc-pad-card) var(--mc-pad-card) 1rem; }  /* EmbossedCard.Header text-center, mb-4 below */
+.cand-title { margin:0; font-size:1.125rem; line-height:1.75rem; font-weight:600;
+  letter-spacing:-.02em; color:var(--color-text-primary); }            /* h2 text-lg font-semibold tracking-[-0.02em] */
+.cand-sub { margin:.25rem 0 0; font-size:.875rem; line-height:1.25rem; color:var(--color-text-secondary); }  /* p text-sm mt-1 */
+.cand-list { display:flex; flex-direction:column; gap:var(--mc-gap-list); }  /* same inter-row gap as the track list */
+.cand-btn { display:flex; align-items:center; gap:var(--mc-gap-rowitem); width:100%;
+  padding:var(--mc-pad-track) var(--mc-pad-tracktime) var(--mc-pad-track) var(--mc-pad-track); text-align:left;
+  border-radius:var(--mc-control-radius-inner); }                      /* JS promotes the first/last corners */
+.cand-art { width:4rem; height:4rem; border-radius:var(--mc-control-radius-inner); flex-shrink:0;
+  background:linear-gradient(135deg,#3a3550,#1b2740); }                /* square cover (md:w-16); JS promotes its left corners */
+.cand-meta { display:flex; flex-direction:column; min-width:0; flex:1 1 0; overflow:hidden; }
+.cand-primary { font-size:1rem; line-height:1.5rem; font-weight:500; color:var(--color-text-primary);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }       /* primary: text-base font-medium */
+.cand-secondary { font-size:.875rem; line-height:1.25rem; margin-top:.0625rem; color:var(--color-text-secondary);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }       /* secondary: text-sm; margin-top = the (still hard-coded) text-line gap */
+.cand-tertiary { font-size:.75rem; line-height:1rem; margin-top:.0625rem; color:var(--color-text-muted);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }       /* tertiary: text-xs; same text-line gap */
+.cand-foot { padding:.25rem var(--mc-pad-card) var(--mc-pad-card); text-align:center; }
+.cand-cancel { font-family:inherit; font-size:.875rem; color:var(--color-text-muted);
+  background:none; border:none; cursor:pointer; }
+.cand-cancel:hover { color:var(--color-text-secondary); }
 /* Upcoming-events row — production UpcomingEventsSection: text-only EmbossedButton
    (date + venue·city) + trailing ticket icon, NO leading artwork. Uses its own
    horizontal padding (--mc-pad-event-x) because text-only clings under the artwork inset. */
@@ -967,6 +994,34 @@ body.glass .emb-btn.hero-submit {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- ───── Disambiguation card (DisambiguationPanel → "Did you mean?") ─────
+         Production CandidateRowContent rows: square artwork + title / artists /
+         album (three text lines, no trailing duration), inside a RecessedCard well,
+         with a centred title + subtitle header and a cancel link. The rows reuse the
+         result-row paddings + gaps (--mc-pad-track, --mc-pad-tracktime,
+         --mc-gap-rowitem, --mc-gap-list), so the Row/Gap settings drive this list
+         live. Four rows so the grouped-corner promotion (first row top, last row
+         bottom, middle rows ≤5px) is visible. -->
+    <div class="embossed-card">
+      <div class="cand-head">
+        <h2 class="cand-title">Did you mean?</h2>
+        <p class="cand-sub">We found multiple matches. Pick the right one.</p>
+      </div>
+      <div class="section-pad">
+        <div class="recessed-card section-recessed">
+          <div class="recessed-body">
+            <div class="cand-list">
+              <button type="button" class="emb-btn cand-btn"><div class="cand-art"></div><div class="cand-meta"><span class="cand-primary">Down Under</span><span class="cand-secondary">Men at Work</span><span class="cand-tertiary">The Best Of Men At Work: Contraband</span></div></button>
+              <button type="button" class="emb-btn cand-btn"><div class="cand-art"></div><div class="cand-meta"><span class="cand-primary">Down Under</span><span class="cand-secondary">Men at Work</span><span class="cand-tertiary">Business as Usual</span></div></button>
+              <button type="button" class="emb-btn cand-btn"><div class="cand-art"></div><div class="cand-meta"><span class="cand-primary">Down Under - 2021 Remaster</span><span class="cand-secondary">Men at Work</span><span class="cand-tertiary">Cargo</span></div></button>
+              <button type="button" class="emb-btn cand-btn"><div class="cand-art"></div><div class="cand-meta"><span class="cand-primary">Down Under</span><span class="cand-secondary">Luude, Colin Hay</span><span class="cand-tertiary">Down Under</span></div></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cand-foot"><button type="button" class="cand-cancel">None of these? Try a different search.</button></div>
     </div>
 
     <!-- ───── Card with SegmentedControl + CloseButton in real slots ───── -->
@@ -4087,6 +4142,7 @@ function applyGroupedCorners(container, itemSelector, frameSelector, frameInset)
 /** Recomputes grouped-button (+ cover-frame) corners for every list/grid. */
 function applyAllGroupedCorners() {
   for (const list of document.querySelectorAll(".track-list")) applyGroupedCorners(list, ".track-btn, .event-btn", ".track-art", 4);
+  for (const list of document.querySelectorAll(".cand-list")) applyGroupedCorners(list, ".cand-btn", ".cand-art", 4);
   for (const grid of document.querySelectorAll(".svc-grid")) applyGroupedCorners(grid, ".svc-btn");
 }
 
