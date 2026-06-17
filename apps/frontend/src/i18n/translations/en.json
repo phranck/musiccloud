@@ -98,5 +98,6 @@
   "dayNight.night": "Night",
   "dayNight.system": "System",
   "dayNight.automatic": "Automatic",
-  "language.label": "Language"
+  "language.label": "Language",
+  "nav.menu": "Menu"
 }
