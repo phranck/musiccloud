@@ -158,32 +158,39 @@
     color: var(--accent); opacity: 0.9; font-size: 10px; font-weight: 600;
     letter-spacing: 0.08em; text-transform: uppercase; }
   /* A group whose body opens with the divider (no shared fields above) drops its top gap. */
+  .glass-group-body { overflow: hidden; }
   .glass-group-body > .gg-mode-row:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
-  .glass-group.collapsed .glass-group-body { display: none; }
+  /* Second-level groups collapse with the same pixel-height animation as the top-level
+     sections (animateCollapse): height 0 ↔ measured px, with the head's bottom gap
+     animated alongside, so open/close is smooth instead of an instant display:none. */
+  .glass-group.collapsed .glass-group-body { height: 0; }
+  .glass-group.animating .glass-group-body { transition: height 0.28s ease; }
+  .glass-group.animating .glass-group-head { transition: margin-bottom 0.28s ease; }
   /* Collapsible TOP-LEVEL sections (Glass, Text, VFD, and each sky group). Expanded
-     sections get a subtly lighter background to lift them off the dark sidebar; the
-     collapse animates smoothly via grid-template-rows (the body is the single 1fr↔0fr
-     track, clipped by overflow:hidden — `min-height:0` lets it shrink to zero). */
+     sections get a subtly lighter background to lift them off the dark sidebar. The
+     body animates its explicit pixel HEIGHT (see toggleSection), not a grid `fr`
+     track: px is interpolated identically across Chrome/Firefox/Safari, whereas
+     `grid-template-rows` fr-unit transitions are inconsistent between engines. */
   .sec {
-    display: grid;
-    grid-template-rows: auto 1fr;
     transition: background-color 0.25s ease;
     margin-top: 6px;
     padding: 0 10px;
     border-radius: 10px;
   }
-  /* grid-template-rows only transitions during an explicit collapse toggle (JS adds
-     `.animating`). Otherwise a body-height change from a day/night rebuild or an inner
-     group toggle would re-animate the whole section — the "jumping" we want to avoid. */
-  .sec.animating { transition: grid-template-rows 0.28s ease, background-color 0.25s ease; }
   .sec:not(.collapsed) { background-color: rgba(255, 255, 255, 0.05); }
-  .sec.collapsed { grid-template-rows: auto 0fr; }
   .sec-head { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none;
     font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
     color: var(--text-dim); margin: 0; padding: 9px 0; }
   .sec-head .chevron { flex: 0 0 auto; width: 11px; height: 11px; transition: transform 0.2s ease; }
   .sec.collapsed .sec-head .chevron { transform: rotate(-90deg); }
-  .sec-body { overflow: hidden; min-height: 0; padding-bottom: 10px; }
+  .sec-body { overflow: hidden; padding-bottom: 10px; }
+  /* Resting collapsed state (e.g. on load): fully closed, no padding sliver. While a
+     toggle runs, toggleSection drives inline height/padding instead. */
+  .sec.collapsed .sec-body { height: 0; padding-bottom: 0; }
+  /* The height + padding transition fires ONLY during an explicit toggle (JS adds
+     `.animating`), so day/night rebuilds and inner-group toggles snap instead of
+     re-animating the whole section. */
+  .sec.animating .sec-body { transition: height 0.28s ease, padding-bottom 0.28s ease; }
   /* untergroups nest one level inside a section — drop their own divider/indent so
      the two collapse levels read as a hierarchy, not as sibling rows */
   .sec-body #glass-controls .glass-group:first-child,
@@ -1692,15 +1699,50 @@ const groups = {};
 
 /** Toggles a collapsible top-level section and persists the state. Shared by the sky
  *  groups (groupEl) and the static Glass/Text/VFD sections (wireStaticSections). */
+/**
+ * Shared pixel-height collapse animation for a collapsible host (a top-level `.sec`
+ * or a nested `.glass-group`) and its body element. The body's explicit height is
+ * animated between its measured size and zero, so the transition always has a
+ * defined `from` in every engine (grid `fr` units interpolate inconsistently across
+ * Chrome/Firefox/Safari). A forced reflow commits each start value before the end
+ * value is set. `.animating` carries the transition so ONLY this explicit toggle
+ * animates — day/night rebuilds and inner toggles snap. `padPx` is the body's
+ * expanded bottom padding, animated to 0 on collapse so it leaves no sliver; pass 0
+ * when the body has none. After the transition the resting state is handed back to
+ * CSS (expanded → `auto`; collapsed → the host's `…collapsed …-body { height: 0 }`).
+ */
+function animateCollapse(host, body, willCollapse, padPx) {
+  host.classList.add("animating");
+  if (willCollapse) {
+    body.style.height = `${body.getBoundingClientRect().height}px`;
+    if (padPx) body.style.paddingBottom = `${padPx}px`;
+    void body.offsetHeight;
+    host.classList.add("collapsed");
+    body.style.height = "0px";
+    if (padPx) body.style.paddingBottom = "0px";
+  } else {
+    host.classList.remove("collapsed");
+    body.style.height = "auto";
+    if (padPx) body.style.paddingBottom = `${padPx}px`;
+    const target = body.getBoundingClientRect().height;
+    body.style.height = "0px";
+    if (padPx) body.style.paddingBottom = "0px";
+    void body.offsetHeight;
+    body.style.height = `${target}px`;
+    if (padPx) body.style.paddingBottom = `${padPx}px`;
+  }
+  clearTimeout(host._animTimer);
+  host._animTimer = setTimeout(() => {
+    host.classList.remove("animating");
+    body.style.height = willCollapse ? "" : "auto";
+    if (padPx) body.style.paddingBottom = "";
+  }, 300);
+}
+
 function toggleSection(secEl, key) {
-  glassCollapsed[key] = !glassCollapsed[key];
-  // Animate the height ONLY for this explicit toggle: the grid-template-rows transition
-  // lives on `.animating`, so day/night rebuilds and inner-group toggles (which also
-  // change the body height) snap instead of re-animating the whole section.
-  secEl.classList.add("animating");
-  secEl.classList.toggle("collapsed", glassCollapsed[key]);
-  clearTimeout(secEl._animTimer);
-  secEl._animTimer = setTimeout(() => secEl.classList.remove("animating"), 320);
+  const willCollapse = !glassCollapsed[key];
+  glassCollapsed[key] = willCollapse;
+  animateCollapse(secEl, secEl.querySelector(".sec-body"), willCollapse, 10);
   saveCollapse();
 }
 
@@ -3782,8 +3824,9 @@ function buildPaddingControls() {
     label.textContent = loc(g.label);
     head.appendChild(label);
     head.addEventListener("click", () => {
-      glassCollapsed[collapseKey] = !glassCollapsed[collapseKey];
-      grp.classList.toggle("collapsed", glassCollapsed[collapseKey]);
+      const willCollapse = !glassCollapsed[collapseKey];
+      glassCollapsed[collapseKey] = willCollapse;
+      animateCollapse(grp, grp.querySelector(".glass-group-body"), willCollapse, 0);
       saveCollapse();
     });
     grp.appendChild(head);
@@ -3862,8 +3905,9 @@ function buildTuneSection(rootId, groups, fields, cfg, collapsed, mode, onChange
     label.textContent = loc(g.label);
     head.appendChild(label);
     head.addEventListener("click", () => {
-      collapsed[collapseKey] = !collapsed[collapseKey];
-      grp.classList.toggle("collapsed", collapsed[collapseKey]);
+      const willCollapse = !collapsed[collapseKey];
+      collapsed[collapseKey] = willCollapse;
+      animateCollapse(grp, grp.querySelector(".glass-group-body"), willCollapse, 0);
       saveCollapse();
     });
     grp.appendChild(head);
