@@ -66,10 +66,10 @@ export function UsersPage() {
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       user.role === AdminRole.Owner
-                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                        ? "bg-amber-900/40 text-amber-400"
                         : user.role === AdminRole.Admin
-                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
-                          : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                          ? "bg-blue-900/40 text-blue-400"
+                          : "bg-gray-800 text-gray-400"
                     }`}
                   >
                     {user.role === AdminRole.Owner

@@ -249,7 +249,7 @@ export function TrackEditPage() {
   const toolbar = (
     <div className="flex items-center gap-3 ml-auto">
       {save.saved && (
-        <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+        <span className="flex items-center gap-1 text-xs text-green-400">
           <CheckCircleIcon weight="duotone" className="w-3.5 h-3.5" />
           {common.saved}
         </span>

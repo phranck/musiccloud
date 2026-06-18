@@ -11,7 +11,7 @@ interface StatusDef {
 const STATUS_DEFS: Record<string, StatusDef> = {
   published: {
     icon: CheckCircleIcon,
-    badgeClass: "text-green-600 dark:text-green-400",
+    badgeClass: "text-green-400",
     iconClass: "text-green-500",
   },
   hidden: {
@@ -21,7 +21,7 @@ const STATUS_DEFS: Record<string, StatusDef> = {
   },
   draft: {
     icon: CircleIcon,
-    badgeClass: "text-amber-600 dark:text-amber-400",
+    badgeClass: "text-amber-400",
     iconClass: "text-amber-500",
   },
 };
