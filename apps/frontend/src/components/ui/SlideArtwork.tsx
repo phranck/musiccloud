@@ -57,17 +57,14 @@ export function SlideArtwork({
       style={{ "--neu-light": "hsl(0 0% 100% / 0.5)", "--neu-shadow": "hsl(0 0% 0% / 0.1)" } as React.CSSProperties}
     >
       <RecessedCard.Body className="contents">
-        {/* Spinning CD: mounted only for the selected row. It drops in from the
-            top (mc-disc-drop-in) as the cover drops out below. Oversized + centred
-            so it reads as a CD slotted into a device; the tile's `overflow:hidden`
-            clips the overhang. Sits below the rim shadow only — its face is never
-            dimmed. */}
+        {/* Spinning CD: mounted only for the selected row. The cover slides down out
+            of the tile (mc-cover-drop-out) while the disc slides in from the top
+            (mc-disc-drop-in). It is sized to the tile so the round disc stays fully
+            visible — never clipped — and settles centred. Sits below the rim shadow
+            only, so its face is never dimmed. */}
         {active && (
           <div className="mc-disc-drop-in absolute inset-0 z-0 flex items-center justify-center" aria-hidden="true">
-            {/* `shrink-0`: without it the row flex container shrinks the oversized
-                disc's WIDTH back to the tile width while its height keeps its
-                oversize, turning the round layers into a wobbling ellipse. */}
-            <CDSpinArtwork className="w-[115%] h-[115%] shrink-0" />
+            <CDSpinArtwork className="w-full h-full" />
           </div>
         )}
 
