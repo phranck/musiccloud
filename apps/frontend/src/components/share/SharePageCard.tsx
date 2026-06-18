@@ -9,7 +9,7 @@
  */
 
 import { type AudioPreviewStatus, MediaCard } from "@/components/cards/MediaCard";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 import {
   type MediaCardContentConfiguration,
   MediaCardContentTypeValue,

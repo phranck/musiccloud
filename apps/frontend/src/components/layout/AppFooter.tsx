@@ -1,7 +1,7 @@
 import { type NavItem, NavTarget } from "@musiccloud/shared";
 import type { MouseEvent } from "react";
 
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
 import { FooterSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { navHref, navLabel } from "@/lib/nav";

@@ -7,7 +7,7 @@ import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 import { animateSlideUp, killEntranceTweens } from "@/lib/motion/entrances";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 import { cn } from "@/lib/utils";

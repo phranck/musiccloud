@@ -22,7 +22,7 @@ import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
-import { useLocale, useT } from "@/i18n/context";
+import { useLocale, useT } from "@/i18n/localeContext";
 
 interface ArtistInfoCardProps {
   data: ArtistInfoResponse | null;

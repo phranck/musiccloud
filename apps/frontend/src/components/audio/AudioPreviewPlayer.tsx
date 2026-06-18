@@ -14,7 +14,7 @@ import {
   writeSpectrumPeakHold,
 } from "@/components/audio/spectrumStore";
 import { Player } from "@/components/playback/Player";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { setupMotion } from "@/lib/motion/setup";
 

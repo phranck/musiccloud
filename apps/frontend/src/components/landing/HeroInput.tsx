@@ -4,7 +4,7 @@ import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { HeroSubmitSlot } from "@/components/landing/HeroSubmitSlot";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 import { isMusicUrl } from "@/lib/platform/url";
 import { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";

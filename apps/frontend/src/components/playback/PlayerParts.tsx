@@ -35,7 +35,7 @@ import {
   VfdSizingMode,
 } from "@/components/ui/VfdDisplay";
 import { VfdGlyph } from "@/components/ui/VfdGlyphs";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 import { cn } from "@/lib/utils";
 
 interface PlayerStereoLevels {

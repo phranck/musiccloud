@@ -5,7 +5,7 @@ import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 
 interface SimilarArtistsCardProps {
   data: ArtistInfoResponse | null;

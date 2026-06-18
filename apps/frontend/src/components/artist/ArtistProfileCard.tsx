@@ -3,7 +3,7 @@ import { ProfileSkeleton } from "@/components/artist/ArtistCardParts";
 import { ArtistProfileSection } from "@/components/artist/ArtistProfileSection";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 
 type ArtistProfile = ArtistInfoResponse["profile"];
 

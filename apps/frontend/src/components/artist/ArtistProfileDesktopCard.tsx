@@ -7,7 +7,7 @@ import {
 } from "@/components/artist/ArtistCardParts";
 import { ArtistProfileCard } from "@/components/artist/ArtistProfileCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 
 interface ArtistProfileDesktopCardProps {
   data: ArtistInfoResponse | null;

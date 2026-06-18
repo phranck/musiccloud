@@ -1,5 +1,5 @@
 import { VerticalSegmentedControl } from "@/components/ui/VerticalSegmentedControl";
-import { useLocale, useT } from "@/i18n/context";
+import { useLocale, useT } from "@/i18n/localeContext";
 import { LOCALE_META, LOCALES } from "@/i18n/locales";
 import { languageSignal, sendMusicSignal } from "@/lib/analytics/umami";
 

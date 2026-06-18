@@ -4,7 +4,7 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { LazyGenreArtwork } from "@/components/ui/LazyGenreArtwork";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 
 // Whitelist for backend-provided accent colors that end up as a scoped
 // `--color-accent` CSS variable on the tile. CSS custom properties are

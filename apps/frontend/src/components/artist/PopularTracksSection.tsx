@@ -5,7 +5,7 @@ import { ArtistPanelRow } from "@/components/artist/ArtistPanelRow";
 import { ArtistPanelRowText } from "@/components/artist/ArtistPanelRowText";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useToastSafe } from "@/context/ToastContext";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 import { CardSignal, ResolveSignal, sendMusicSignal } from "@/lib/analytics/umami";
 
 interface PopularTracksSectionProps {

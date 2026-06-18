@@ -4,7 +4,7 @@ import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 
 import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 import { navHref, navLabel } from "@/lib/nav";
 
 interface HeaderNavMenuProps {

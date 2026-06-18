@@ -7,7 +7,7 @@ import {
 } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 import { ShareSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { cn } from "@/lib/utils";
 

@@ -6,7 +6,7 @@ import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { GenreColumn } from "@/components/ui/GenreColumn";
 import { GenreRowButton } from "@/components/ui/GenreRowButton";
 import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
-import { useLocale, useT } from "@/i18n/context";
+import { useLocale, useT } from "@/i18n/localeContext";
 import type { Locale } from "@/i18n/locales";
 import type { GenreSearchPayload, GenreSearchResults as GenreSearchResultsData } from "@/lib/types/app";
 import { cn } from "@/lib/utils";

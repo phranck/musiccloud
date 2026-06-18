@@ -1,4 +1,5 @@
-import { createContext, use, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { LocaleContext } from "./localeContext";
 import { detectLocale, LOCALE_STORAGE_KEY, type Locale } from "./locales";
 import deTranslations from "./translations/de.json";
 import enTranslations from "./translations/en.json";
@@ -12,14 +13,6 @@ const TRANSLATIONS_BY_LOCALE: Record<Locale, Translations> = {
   de: deTranslations,
   en: enTranslations,
 };
-
-interface LocaleContextValue {
-  locale: Locale;
-  setLocale: (l: Locale) => void;
-  t: (key: string, vars?: Record<string, string>) => string;
-}
-
-const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 const LOCALE_EVENT = "musiccloud:locale-change";
 
@@ -70,14 +63,4 @@ export function LocaleProvider({
   const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
-}
-
-export function useLocale() {
-  const ctx = use(LocaleContext);
-  if (!ctx) throw new Error("useLocale must be used within LocaleProvider");
-  return ctx;
-}
-
-export function useT() {
-  return useLocale().t;
 }

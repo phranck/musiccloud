@@ -7,7 +7,7 @@ import {
   subscribeDayNightMode,
 } from "@/components/background/dayNightMode";
 import { VerticalSegmentedControl } from "@/components/ui/VerticalSegmentedControl";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 import { SkySignal, sendMusicSignal } from "@/lib/analytics/umami";
 
 /** Display metadata per mode: segment icon, i18n label key, analytics signal. */

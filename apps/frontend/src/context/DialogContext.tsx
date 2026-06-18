@@ -11,7 +11,7 @@ import {
 } from "react";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import { dialogTransitionMs } from "@/components/ui/dialogGeometry";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 
 export const DialogType = {
   ErrorAlert: "error-alert",

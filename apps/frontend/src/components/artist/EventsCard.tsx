@@ -4,7 +4,7 @@ import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
-import { useLocale, useT } from "@/i18n/context";
+import { useLocale, useT } from "@/i18n/localeContext";
 
 interface EventsCardProps {
   data: ArtistInfoResponse | null;

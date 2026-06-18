@@ -8,7 +8,7 @@ import {
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { type Dispatch, useCallback, useReducer } from "react";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/localeContext";
 import { CardSignal, GenreSignal, ResolveSignal, SearchSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import {
   appReducer,
