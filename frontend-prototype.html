@@ -222,14 +222,15 @@
 
   /* — Corner radii — ONLY the outermost EmbossedCard radius (--mc-card-radius) is
        user-set; every nested radius derives from it by subtracting that level's
-       inset (production cardGeometry.ts formula). max(0px,…) guards negatives.
+       actual PADDING token, so the corners stay concentric (mirrors production's
+       --emb-padding derivation in RecessedCardParts). max(0px,…) guards negatives.
        JS overrides --mc-card-radius from the saved value. — */
   --mc-card-radius: 28px;                                              /* EmbossedCard — production default */
-  --mc-recessed-radius: max(0px, calc(var(--mc-card-radius) - 12px));  /* − content inset (0.75rem) */
-  --mc-control-radius: max(0px, calc(var(--mc-card-radius) - 15px));   /* − control inset (total 0.9375rem) */
-  --mc-cover-radius:   max(0px, calc(var(--mc-card-radius) - 14px));   /* cover screen (recessed − 0.125rem) */
+  --mc-recessed-radius: max(0px, calc(var(--mc-card-radius) - var(--mc-pad-card)));         /* − the card's content padding */
+  --mc-control-radius:  max(0px, calc(var(--mc-recessed-radius) - var(--mc-pad-recessed))); /* − the recessed well's padding */
+  --mc-cover-radius:    max(0px, calc(var(--mc-recessed-radius) - 2px));                     /* cover screen: recessed − 0.125rem inset */
   --mc-control-radius-inner: min(5px, var(--mc-control-radius));       /* inner corners of grouped list/grid buttons stay ≤5px */
-  --mc-card-chrome-x: calc(12px + var(--mc-recessed-radius) / 2);      /* section title/footer horizontal padding (production --mc-card-chrome-x): content-inset (12px) + inner-radius/2, so the title aligns to the card-rounding centre, not the edge */
+  --mc-card-chrome-x: calc(var(--mc-pad-card) + var(--mc-recessed-radius) / 2);      /* section title/footer horizontal padding: content padding + inner-radius/2, so the title aligns to the card-rounding centre, not the edge */
 
   /* — Paddings & gaps — structural spacing, mode-independent (no day/night). The
        Paddings sidebar section overrides these per element; defaults match production. — */
