@@ -1,6 +1,7 @@
 import { navigate } from "astro:transitions/client";
 import { PageDisplayMode, type PublicContentPage } from "@musiccloud/shared";
-import { createContext, type ReactNode, use, useCallback, useEffect, useMemo, useReducer } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
+import { OVERLAY_OPEN_EVENT, type OverlayAPI, OverlayCtx, PRESENCE_FLAG } from "./useOverlay";
 
 interface OverlayState {
   page: PublicContentPage | null;
@@ -17,14 +18,6 @@ type OverlayAction =
   | { type: typeof OverlayActionType.Open; page: PublicContentPage; previousTitle: string; previousUrl: string }
   | { type: typeof OverlayActionType.Close };
 
-interface OverlayAPI {
-  page: PublicContentPage | null;
-  open: (page: PublicContentPage) => void;
-  close: () => void;
-}
-
-const OverlayCtx = createContext<OverlayAPI | null>(null);
-
 function reducer(_state: OverlayState, action: OverlayAction): OverlayState {
   if (action.type === OverlayActionType.Open) {
     return {
@@ -35,12 +28,6 @@ function reducer(_state: OverlayState, action: OverlayAction): OverlayState {
   }
   return { page: null, previousTitle: null, previousUrl: null };
 }
-
-/** Event name fired by nav-click interception; see PageHeader.tsx. */
-export const OVERLAY_OPEN_EVENT = "mc:overlay-open";
-
-/** Flag on window set while at least one OverlayProvider is mounted. */
-const PRESENCE_FLAG = "__mcOverlayActive";
 
 interface OverlayOpenDetail {
   slug: string;
@@ -152,19 +139,4 @@ export function OverlayProvider({
 
   const value = useMemo<OverlayAPI>(() => ({ page: state.page, open, close }), [state.page, open, close]);
   return <OverlayCtx.Provider value={value}>{children}</OverlayCtx.Provider>;
-}
-
-/**
- * True when a PageOverlayIsland is mounted on the current page. Used by
- * PageHeader.tsx to decide whether to intercept nav clicks.
- */
-export function isOverlayActive(): boolean {
-  if (typeof window === "undefined") return false;
-  return (window as unknown as Record<string, unknown>)[PRESENCE_FLAG] === true;
-}
-
-export function useOverlay(): OverlayAPI {
-  const ctx = use(OverlayCtx);
-  if (!ctx) throw new Error("useOverlay must be used inside OverlayProvider");
-  return ctx;
 }

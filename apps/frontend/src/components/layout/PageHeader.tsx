@@ -4,7 +4,7 @@ import type { MouseEvent } from "react";
 import { DayNightSwitcher } from "@/components/navigation/DayNightSwitcher";
 import { HeaderNavMenu } from "@/components/navigation/HeaderNavMenu";
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
-import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/OverlayContext";
+import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/useOverlay";
 import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
 
 interface PageHeaderProps {
