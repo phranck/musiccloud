@@ -3,6 +3,39 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useAdminSSE } from "@/features/music/hooks/useAdminSSE";
 import { api } from "@/lib/api";
 
+/**
+ * Walks up the DOM from `el` (inclusive) and returns the nearest ancestor
+ * that genuinely scrolls — i.e. its computed `overflow-y` is `auto`/`scroll`
+ * *and* its content is taller than its box.
+ *
+ * The infinite-scroll {@link IntersectionObserver} must be anchored to the
+ * element that actually scrolls. The dashboard shell renders every route
+ * inside a height-capped, scrollable Card, while the list's own
+ * `overflow-y-auto` wrapper expands to full content height and therefore
+ * never scrolls itself. Anchoring the observer to that non-scrolling
+ * wrapper keeps the sentinel permanently intersecting, which fires
+ * `loadMore` again and again until the entire catalog is loaded. Resolving
+ * the real scroll ancestor at observe-time stops that cascade and keeps the
+ * `rootMargin` prefetch buffer meaningful (it is measured against the
+ * scrolling viewport, not the expanded wrapper).
+ *
+ * @param el - Element to start from (the sentinel node). The search is
+ *   inclusive, so a wrapper that does scroll is still picked up.
+ * @returns The nearest scrolling ancestor, or `null` to let the observer
+ *   fall back to the browser viewport as its root.
+ */
+function findScrollParent(el: HTMLElement | null): HTMLElement | null {
+  let node: HTMLElement | null = el;
+  while (node) {
+    const overflowY = getComputedStyle(node).overflowY;
+    if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight + 1) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
 interface Page<T> {
   items: T[];
   total: number;
@@ -188,18 +221,21 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
     fetchFirstPageRef.current(stale);
   }, [searchQuery, sortBy, sortDir]);
 
-  // Infinite scroll
+  // Infinite scroll. The observer root is resolved to the element that
+  // actually scrolls (see findScrollParent); anchoring it to the list's
+  // own wrapper — which the shell lets expand to full height — would keep
+  // the sentinel permanently visible and load the whole catalog at once.
   const canLoadMore = state.tag === "ready" && state.hasMore;
   useEffect(() => {
     if (!canLoadMore) return;
     const sentinel = sentinelRef.current;
-    const container = scrollContainerRef.current;
-    if (!sentinel || !container) return;
+    if (!sentinel) return;
+    const root = findScrollParent(sentinel);
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) loadMoreRef.current();
       },
-      { root: container, rootMargin: "0px 0px 400px 0px", threshold: 0 },
+      { root, rootMargin: "0px 0px 400px 0px", threshold: 0 },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
