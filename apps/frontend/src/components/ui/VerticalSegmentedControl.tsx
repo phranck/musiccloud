@@ -124,7 +124,7 @@ export function VerticalSegmentedControl<T extends string>({
       onPointerLeave={handlePointerLeave}
     >
       <RecessedCard
-        className="mc-glass-seg-track flex flex-col p-1 transition-[row-gap] duration-250 ease-out motion-reduce:transition-none"
+        className="mc-glass-nav-track flex flex-col p-1 transition-[row-gap] duration-250 ease-out motion-reduce:transition-none"
         radius={recessedSurfaceRadius}
         style={{ rowGap: open ? "var(--mc-gap-seg, 0px)" : "0px" }}
       >
@@ -151,9 +151,7 @@ export function VerticalSegmentedControl<T extends string>({
                   "relative z-10 flex w-[34px] cursor-pointer items-center justify-center overflow-hidden rounded-lg border-none",
                   "transition-[height,opacity] duration-250 ease-out motion-reduce:transition-none",
                   shown ? "h-[34px] opacity-100" : "h-0 opacity-0 pointer-events-none",
-                  isActive
-                    ? "embossed-gradient-border mc-glass-seg-indicator mc-txt-button-bright"
-                    : "mc-txt-button-normal",
+                  isActive ? "embossed-gradient-border mc-glass-nav-indicator mc-txt-nav-bright" : "mc-txt-nav-normal",
                 )}
                 // The active cell is pinned to the top via flex `order`; the others keep
                 // their fixed relative order below it, so the active icon never moves on

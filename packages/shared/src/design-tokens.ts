@@ -28,7 +28,7 @@
 // ─── Domain-literal namespaces (PascalCase.PascalCase) ─────────────────────────
 
 /**
- * The six glass surface controls. Member values are the wire keys used in the
+ * The eight glass surface controls. Member values are the wire keys used in the
  * exported JSON and as CSS-var prefixes; the PascalCase member names are the
  * stable references used in code (per the project's domain-literal convention).
  */
@@ -39,6 +39,10 @@ export const GlassControl = {
   Recessed: "recessed",
   SegTrack: "segTrack",
   SegIndicator: "segIndicator",
+  /** Header-controls recessed track (nav hamburger + day/night & language switchers). */
+  NavTrack: "navTrack",
+  /** Header-controls raised indicator: the hamburger icon, the active switcher cell, and the hovered nav item. */
+  NavIndicator: "navIndicator",
 } as const;
 /** Union of the glass control wire keys (`"card" | "cardOverlay" | …`). */
 export type GlassControlKey = (typeof GlassControl)[keyof typeof GlassControl];
@@ -54,6 +58,8 @@ export const TextSurface = {
   /** Input placeholder text (the hero search field). Single-emphasis: only its
    *  dimmed colour level is consumed. */
   Placeholder: "placeholder",
+  /** Header-controls label/item text (nav dropdown items + switcher labels): normal + bright. */
+  Nav: "nav",
 } as const;
 /** Union of the text-surface wire keys (`"embossed" | "recessed" | …`). */
 export type TextSurfaceKey = (typeof TextSurface)[keyof typeof TextSurface];
@@ -589,6 +595,61 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
       shadow: 0.0,
     },
   },
+  // Header controls (nav hamburger + day/night & language switchers) — dedicated
+  // tokens so they theme independently of the overlay segmented controls. Defaults
+  // mirror segTrack/segIndicator (the current shared look).
+  navTrack: {
+    day: {
+      tintTop: "#00364a",
+      tintBottom: "#00364a",
+      opacity: 0.32,
+      blur: 0,
+      saturate: 0.0,
+      brightness: 0.0,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.0,
+      shadow: 0.0,
+    },
+    night: {
+      tintTop: "#000000",
+      tintBottom: "#000000",
+      opacity: 0.28,
+      blur: 0,
+      saturate: 0.0,
+      brightness: 0.0,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.0,
+      shadow: 0.0,
+    },
+  },
+  navIndicator: {
+    day: {
+      tintTop: "#94e3fe",
+      tintBottom: "#94e3fe",
+      opacity: 0.35,
+      blur: 0,
+      saturate: 0.0,
+      brightness: 0.0,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.0,
+      shadow: 0.0,
+    },
+    night: {
+      tintTop: "#94e3fe",
+      tintBottom: "#94e3fe",
+      opacity: 0.2,
+      blur: 2,
+      saturate: 0.0,
+      brightness: 0.42,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.08,
+      shadow: 0.0,
+    },
+  },
 };
 
 /** The six emphasis colour/opacity fields of a {@link TextSurfaceFields} (font excluded). */
@@ -661,6 +722,9 @@ export const TEXT_SURFACE_DEFAULTS: Record<TextSurfaceKey, DayNight<TextSurfaceF
   // Single-emphasis (its dimmed colour is the placeholder colour = the former
   // `text-text-muted`); font matches the hero input's text size.
   placeholder: mkTextSurface(BARLOW, 16, 500, TextCapitalization.None),
+  // Header-controls label/item text — mirrors the button text defaults so the
+  // switchers/nav read identically until tuned in the prototype's Header section.
+  nav: mkTextSurface(BARLOW, 15, 200, TextCapitalization.None),
 };
 
 /** Canonical VFD defaults (prototype `VFD_DEFAULTS`). */

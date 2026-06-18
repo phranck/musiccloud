@@ -77,12 +77,6 @@
     padding: 6px 10px; font-size: 12px; color: var(--text-dim);
   }
   #hud b { color: var(--text); font-variant-numeric: tabular-nums; }
-  /* "Info" menu item — opens the production-style page overlay (dummy content). */
-  #info-btn {
-    background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 9px;
-    padding: 6px 12px; font-size: 12px; color: var(--text); cursor: pointer;
-  }
-  #info-btn:hover { background: rgba(255,255,255,0.10); color: #fff; }
   #toggle { position: fixed; top: 12px; right: 12px; z-index: 10; }
   #copied { color: var(--accent); font-size: 11px; opacity: 0; transition: opacity 0.3s; }
   #copied.show { opacity: 1; }
@@ -690,6 +684,83 @@ body.glass .seg-hover {
   --_rm: calc(var(--segHover-day-rm)*var(--g-dayness) + var(--segHover-night-rm)*(1 - var(--g-dayness)));
   --_sh: calc(var(--segHover-day-sh)*var(--g-dayness) + var(--segHover-night-sh)*(1 - var(--g-dayness)));
 }
+/* Header-controls live preview — sits on the sky, top-right, like the real header
+   controls. Renders production's exact surface recipe (tint + 1px rim + chamfer edges
+   + float shadow) from the --navTrack-* / --navIndicator-* / --text-nav-* vars,
+   day↔night cross-faded, so every tunable nav surface is visible while tuning. A
+   working copy of the nav hamburger menu (Info opens the overlay, like production) +
+   the Day/Night switcher (collapse/expand only — switches no real mode). The `--t-*`
+   / `--i-*` helper vars fold each glass field once. */
+.sky-header { position: fixed; top: 12px; right: 12px; z-index: 5; display: flex; gap: 8px; align-items: flex-start; }
+.sky-header.panel-open { right: calc(var(--panel-width, 380px) + 36px); }  /* clear the open sidebar */
+
+/* Recessed track surface (shadow top-left, light bottom-right). */
+.hc-sw, .hc-nav-track, .hc-nav-menu {
+  --t-tt: color-mix(in srgb, var(--navTrack-day-tt) calc(var(--g-dayness)*100%), var(--navTrack-night-tt));
+  --t-tb: color-mix(in srgb, var(--navTrack-day-tb) calc(var(--g-dayness)*100%), var(--navTrack-night-tb));
+  --t-rm: calc(var(--navTrack-day-rm)*var(--g-dayness) + var(--navTrack-night-rm)*(1 - var(--g-dayness)));
+  --t-el: calc(var(--navTrack-day-el)*var(--g-dayness) + var(--navTrack-night-el)*(1 - var(--g-dayness)));
+  --t-es: calc(var(--navTrack-day-es)*var(--g-dayness) + var(--navTrack-night-es)*(1 - var(--g-dayness)));
+  --t-sh: calc(var(--navTrack-day-sh)*var(--g-dayness) + var(--navTrack-night-sh)*(1 - var(--g-dayness)));
+  background: linear-gradient(to bottom, var(--t-tt), var(--t-tb));
+  box-shadow: 0 12px 40px rgba(0,0,0,var(--t-sh)), inset 0 0 0 1px rgba(255,255,255,var(--t-rm)),
+    inset 1px 1px 1.5px rgba(0,0,0,var(--t-es)), inset -1px -1px 1.5px rgba(255,255,255,var(--t-el));
+}
+/* Raised indicator surface (light top-left, shadow bottom-right) — active cell + trigger. */
+#hc-switch .hc-sw-cell.hc-sw-active, .hc-nav-trigger {
+  --i-tt: color-mix(in srgb, var(--navIndicator-day-tt) calc(var(--g-dayness)*100%), var(--navIndicator-night-tt));
+  --i-tb: color-mix(in srgb, var(--navIndicator-day-tb) calc(var(--g-dayness)*100%), var(--navIndicator-night-tb));
+  --i-rm: calc(var(--navIndicator-day-rm)*var(--g-dayness) + var(--navIndicator-night-rm)*(1 - var(--g-dayness)));
+  --i-el: calc(var(--navIndicator-day-el)*var(--g-dayness) + var(--navIndicator-night-el)*(1 - var(--g-dayness)));
+  --i-es: calc(var(--navIndicator-day-es)*var(--g-dayness) + var(--navIndicator-night-es)*(1 - var(--g-dayness)));
+  --i-sh: calc(var(--navIndicator-day-sh)*var(--g-dayness) + var(--navIndicator-night-sh)*(1 - var(--g-dayness)));
+  background: linear-gradient(to bottom, var(--i-tt), var(--i-tb));
+  box-shadow: 0 12px 40px rgba(0,0,0,var(--i-sh)), inset 0 0 0 1px rgba(255,255,255,var(--i-rm)),
+    inset 1px 1px 1.5px rgba(255,255,255,var(--i-el)), inset -1px -1px 1.5px rgba(0,0,0,var(--i-es));
+  color: color-mix(in srgb, var(--text-nav-bright-day) calc(var(--g-dayness)*100%), var(--text-nav-bright-night));
+}
+
+/* Day/Night switcher copy — recessed track + raised active cell; collapsed shows only
+   the active cell (others height 0), `.open` reveals all (mirrors VerticalSegmentedControl). */
+.hc-sw { display: inline-flex; flex-direction: column; gap: 0; padding: 4px; border-radius: var(--mc-recessed-radius); transition: gap .25s ease-out; }
+.hc-sw.open { gap: 3px; }
+#hc-switch .hc-sw-cell {
+  width: 34px; height: 0; min-height: 0; padding: 0; border: none; background: transparent; cursor: pointer; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; border-radius: var(--mc-control-radius);
+  font-size: 15px; line-height: 1; opacity: 0; pointer-events: none;
+  color: color-mix(in srgb, var(--text-nav-normal-day) calc(var(--g-dayness)*100%), var(--text-nav-normal-night));
+  transition: height .25s ease-out, opacity .25s ease-out;
+}
+#hc-switch.open .hc-sw-cell { height: 34px; opacity: 1; pointer-events: auto; }
+#hc-switch .hc-sw-cell.hc-sw-active { order: -1; height: 34px; opacity: 1; pointer-events: auto; }
+/* Phosphor icon (duotone), 18px like live; colour follows currentColor (the nav text token). */
+.hc-ico { width: 18px; height: 18px; display: block; flex-shrink: 0; }
+
+/* Nav hamburger menu — a track holding the raised trigger, plus a dropdown panel. */
+.hc-nav { position: relative; }
+.hc-nav-track { display: inline-flex; padding: 4px; border-radius: var(--mc-recessed-radius); }
+.hc-nav-trigger {
+  width: 34px; height: 34px; padding: 0; border: none; cursor: pointer; border-radius: var(--mc-control-radius);
+  display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1;
+}
+.hc-nav-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; min-width: 150px; z-index: 1;
+  display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: var(--mc-control-radius);
+}
+.hc-nav-menu[hidden] { display: none; }
+.hc-nav-item {
+  text-align: left; padding: 6px 12px; border: none; background: transparent; cursor: pointer; border-radius: var(--mc-control-radius-inner);
+  font-size: 14px; transition: color .15s ease-out;
+  color: color-mix(in srgb, var(--text-nav-normal-day) calc(var(--g-dayness)*100%), var(--text-nav-normal-night));
+}
+.hc-nav-item:hover, .hc-nav-item:focus-visible {
+  --i-tt: color-mix(in srgb, var(--navIndicator-day-tt) calc(var(--g-dayness)*100%), var(--navIndicator-night-tt));
+  --i-tb: color-mix(in srgb, var(--navIndicator-day-tb) calc(var(--g-dayness)*100%), var(--navIndicator-night-tb));
+  --i-rm: calc(var(--navIndicator-day-rm)*var(--g-dayness) + var(--navIndicator-night-rm)*(1 - var(--g-dayness)));
+  background: linear-gradient(to bottom, var(--i-tt), var(--i-tb));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,var(--i-rm));
+  color: color-mix(in srgb, var(--text-nav-bright-day) calc(var(--g-dayness)*100%), var(--text-nav-bright-night));
+}
 /* Overlay card: .info-overlay-card IS an .embossed-card, so the rule above gave it
    the card glass + backdrop-filter. This later rule re-points the resolved vars to the
    cardOverlay control, so an EmbossedCard shown as an overlay tunes apart from the
@@ -1074,9 +1145,39 @@ body.glass .emb-btn.hero-submit {
 
 <div id="topleft">
   <div id="hud"><span>fps</span> <b id="fps">–</b> <span id="res"></span></div>
-  <button id="info-btn" type="button">Info</button>
 </div>
 <button id="toggle">⚙︎ Panel</button>
+
+<!-- Header-controls live preview (on the sky, top-right, like production): a working
+     copy of the nav hamburger menu (Info opens the overlay) + the Day/Night switcher
+     (collapse/expand only). Tuned live by the "Header Controls" sidebar section. -->
+<div class="sky-header" id="sky-header">
+  <div class="hc-nav" id="hc-nav">
+    <div class="hc-nav-track">
+      <button type="button" class="hc-nav-trigger" id="hc-nav-trigger" aria-label="Menu">
+        <svg class="hc-ico" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,64V192H40V64Z" opacity="0.2"/><path d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"/></svg>
+      </button>
+    </div>
+    <nav class="hc-nav-menu" id="hc-nav-menu" hidden>
+      <button type="button" class="hc-nav-item" id="hc-nav-info">Info</button>
+      <button type="button" class="hc-nav-item" id="hc-nav-help">Help</button>
+    </nav>
+  </div>
+  <div class="hc-sw" id="hc-switch">
+    <button type="button" class="hc-sw-cell hc-sw-active" aria-label="Day">
+      <svg class="hc-ico" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M184,128a56,56,0,1,1-56-56A56,56,0,0,1,184,128Z" opacity="0.2"/><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></svg>
+    </button>
+    <button type="button" class="hc-sw-cell" aria-label="Night">
+      <svg class="hc-ico" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M227.89,147.89A96,96,0,1,1,108.11,28.11,96.09,96.09,0,0,0,227.89,147.89Z" opacity="0.2"/><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/></svg>
+    </button>
+    <button type="button" class="hc-sw-cell" aria-label="System">
+      <svg class="hc-ico" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,64V176a16,16,0,0,1-16,16H48a16,16,0,0,1-16-16V64A16,16,0,0,1,48,48H208A16,16,0,0,1,224,64Z" opacity="0.2"/><path d="M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V64a8,8,0,0,1,8-8H208a8,8,0,0,1,8,8Zm-48,48a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,224Z"/></svg>
+    </button>
+    <button type="button" class="hc-sw-cell" aria-label="Automatic">
+      <svg class="hc-ico" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M192,144a64.33,64.33,0,0,1-2,16H66a64,64,0,1,1,126-16Z" opacity="0.2"/><path d="M240,152H199.55a73.54,73.54,0,0,0,.45-8,72,72,0,0,0-144,0,73.54,73.54,0,0,0,.45,8H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM72,144a56,56,0,1,1,111.41,8H72.59A56.13,56.13,0,0,1,72,144Zm144,56a8,8,0,0,1-8,8H48a8,8,0,0,1,0-16H208A8,8,0,0,1,216,200ZM72.84,43.58a8,8,0,0,1,14.32-7.16l8,16a8,8,0,0,1-14.32,7.16Zm-56,48.84a8,8,0,0,1,10.74-3.57l16,8a8,8,0,0,1-7.16,14.31l-16-8A8,8,0,0,1,16.84,92.42Zm192,15.16a8,8,0,0,1,3.58-10.73l16-8a8,8,0,1,1,7.16,14.31l-16,8a8,8,0,0,1-10.74-3.58Zm-48-55.16,8-16a8,8,0,0,1,14.32,7.16l-8,16a8,8,0,1,1-14.32-7.16Z"/></svg>
+    </button>
+  </div>
+</div>
 
 <!-- Info overlay — production PageOverlay: dimmed backdrop + a draggable/resizable
      embossed frame (header drag-handle + close knob, scrollable markdown body).
@@ -1193,6 +1294,16 @@ body.glass .emb-btn.hero-submit {
     <div class="sec-body">
       <div class="hint" id="hint-glass"></div>
       <div id="glass-controls"></div>
+    </div>
+  </div>
+
+  <!-- ── Header controls — nav hamburger + day/night & language switchers, Day + Night ── -->
+  <div class="sec" id="sec-headercontrols">
+    <h2 class="sec-head" data-sec="headercontrols"><span id="h-headercontrols">Header Controls</span></h2>
+    <div class="sec-body">
+      <div class="hint" id="hint-headercontrols"></div>
+      <div id="headercontrols-glass-controls"></div>
+      <div id="headercontrols-text-controls"></div>
     </div>
   </div>
 
@@ -1511,8 +1622,9 @@ const UI = {
     gpuTip: "GPU render time per frame; busy % = time × FPS — the closest browser proxy for energy use (real wattage is not exposed to websites). Live via EXT_disjoint_timer_query where available; Safari and Chrome on macOS block that extension, so the Measure button runs a 30-frame gl.finish() benchmark instead — treat its result as a slight upper bound.",
     groups: { Sky: "Sky", Stars: "Stars", Clouds: "Clouds", Performance: "Performance" },
     badgeDay: "Day", badgeNight: "Night",
-    secGlass: "Glass material", secText: "Typography", secPaddings: "Paddings", secVfd: "VFD Display", secSkyText: "Footer", secSkyLink: "Sky link", secCover: "Cover Screen", secBackdrop: "Overlay Backdrop",
+    secGlass: "Glass material", secHeaderControls: "Header Controls", secText: "Typography", secPaddings: "Paddings", secVfd: "VFD Display", secSkyText: "Footer", secSkyLink: "Sky link", secCover: "Cover Screen", secBackdrop: "Overlay Backdrop",
     hintGlass: "Glass is always on. Tune each control's Day & Night settings; toggle ☀︎ Day to preview.",
+    hintHeaderControls: "Navigation, Day/Night & language switchers. Tune their Track, Active/Icon and label-text colours per Day/Night; toggle ☀︎ Day to preview.",
     hintText: "Per-surface typography. Font, size, weight & capitalization are shared (same day & night); only the bright/normal/dimmed colours are tuned per Day/Night.",
     hintPaddings: "Structural spacing per component (mode-independent — no Day/Night). Paddings and gaps for cards, rows and the grid.",
     hintVfd: "The phosphor screen (background, three phosphor steps, glow), per Day/Night.",
@@ -1537,8 +1649,9 @@ const UI = {
     gpuTip: "GPU-Renderzeit pro Frame; Busy-% = Zeit × FPS — der beste Browser-Näherungswert für den Energieverbrauch (echte Watt geben Browser nicht preis). Live via EXT_disjoint_timer_query, wo verfügbar; Safari und Chrome auf macOS blockieren die Extension, daher misst der Messen-Button stattdessen 30 Frames mit gl.finish() — das Ergebnis ist eine leichte Obergrenze.",
     groups: { Sky: "Himmel", Stars: "Sterne", Clouds: "Wolken", Performance: "Performance" },
     badgeDay: "Tag", badgeNight: "Nacht",
-    secGlass: "Glas-Material", secText: "Typografie", secPaddings: "Paddings", secVfd: "VFD-Display", secSkyText: "Footer", secSkyLink: "Sky-Link", secCover: "Cover-Screen", secBackdrop: "Overlay-Hintergrund",
+    secGlass: "Glas-Material", secHeaderControls: "Header-Controls", secText: "Typografie", secPaddings: "Paddings", secVfd: "VFD-Display", secSkyText: "Footer", secSkyLink: "Sky-Link", secCover: "Cover-Screen", secBackdrop: "Overlay-Hintergrund",
     hintGlass: "Glas ist immer aktiv. Stelle pro Control die Tag- & Nacht-Werte ein; mit ☀︎ Tag umschalten zur Vorschau.",
+    hintHeaderControls: "Navigation, Day/Night- & Sprachumschalter. Stelle Track, Aktiv/Icon und Label-Text je Tag/Nacht ein; mit ☀︎ Tag umschalten zur Vorschau.",
     hintText: "Typografie je Fläche. Font, Größe, Gewicht & Großschreibung sind geteilt (gleich Tag & Nacht); nur die hell/normal/gedämpft-Farben werden je Tag/Nacht getunt.",
     hintPaddings: "Strukturelle Abstände je Komponente (mode-unabhängig — kein Tag/Nacht). Paddings und Gaps für Karten, Zeilen und das Grid.",
     hintVfd: "Das Phosphor-Display (Hintergrund, drei Phosphor-Stufen, Leuchten), je Tag/Nacht.",
@@ -1867,6 +1980,8 @@ function applyStaticTexts() {
   // Glass / Text / VFD section chrome (the controls themselves localize via loc()).
   document.getElementById("h-glass").textContent = t.secGlass;
   document.getElementById("hint-glass").textContent = t.hintGlass;
+  document.getElementById("h-headercontrols").textContent = t.secHeaderControls;
+  document.getElementById("hint-headercontrols").textContent = t.hintHeaderControls;
   document.getElementById("reset-glass").textContent = t.resetUi;
   document.getElementById("h-paddings").textContent = t.secPaddings;
   document.getElementById("hint-paddings").textContent = t.hintPaddings;
@@ -2890,6 +3005,10 @@ const G_CONTROLS = [
   { key: "recessed",     label: { en: "Recessed Card", de: "Vertiefte Karte" }, recessed: true, noFrost: true },
   { key: "segTrack",     label: { en: "Segmented Track", de: "Segment-Leiste" }, recessed: true, noFrost: true },
   { key: "segIndicator", label: { en: "Segmented Indicator", de: "Segment-Indikator" }, noFrost: true },
+  // Header controls (nav hamburger + day/night & language switchers) — rendered in the
+  // dedicated "Header Controls" section (filtered out of the Glass section via `header`).
+  { key: "navTrack",     label: { en: "Track", de: "Track" }, header: true, recessed: true, noFrost: true },
+  { key: "navIndicator", label: { en: "Active / Icon", de: "Aktiv / Icon" }, header: true, noFrost: true },
 ];
 /** Per-control / per-mode fields (label + tooltip localized inline via loc()). */
 const G_FIELDS = [
@@ -2920,6 +3039,9 @@ const G_DEFAULTS = {
   recessed:     { day: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00) },
   segTrack:     { day: mk("#00364a", "#00364a", 0.32, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00) },
   segIndicator: { day: mk("#94e3fe", "#94e3fe", 0.35, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#94e3fe", "#94e3fe", 0.20, 2, 0.0, 0.42, 0, 0, 0.08, 0.00) },
+  // Header controls — dedicated tokens, defaults mirror seg-track / seg-indicator.
+  navTrack:     { day: mk("#00364a", "#00364a", 0.32, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00) },
+  navIndicator: { day: mk("#94e3fe", "#94e3fe", 0.35, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#94e3fe", "#94e3fe", 0.20, 2, 0.0, 0.42, 0, 0, 0.08, 0.00) },
 };
 
 const GLASS_KEY = "mc-card-prototype-glass-v5";
@@ -3087,6 +3209,8 @@ const TYPO_SURFACES = [
   // Single-emphasis: a placeholder has one colour, so only its dimmed level shows
   // (font + size + weight + colour/opacity). Drives the hero input placeholder.
   { key: "placeholder",   label: { en: "Placeholder Text", de: "Placeholder-Text" }, singleEmphasis: "dimmed" },
+  // Header-controls label/item text — rendered in the dedicated "Header Controls" section.
+  { key: "nav",           label: { en: "Label text", de: "Label-Text" }, header: true },
 ];
 const TYPO_FONTS = [
   { label: "Barlow", value: '"Barlow", sans-serif' },
@@ -3136,6 +3260,8 @@ const TYPO_DEFAULTS = {
   embossedTitle: mkTypo(TYPO_ROBOCOND, 14, 200, "uppercase"),
   infoText:      mkTypo(TYPO_BARLOW, 12, 200, "none"),
   placeholder:   mkTypo(TYPO_BARLOW, 16, 500, "none"),
+  // Header-controls label/item text — mirrors the button text defaults.
+  nav:           mkTypo(TYPO_BARLOW, 15, 200, "none", { normalOpacity: 0.7 }),
 };
 
 /** The VfdDisplay phosphor screen as a single tunable group. */
@@ -3919,14 +4045,57 @@ function buildTuneSection(rootId, groups, fields, cfg, collapsed, mode, onChange
 /** (Re)builds the glass material controls for the active mode. */
 function buildGlassControls() {
   glassRenderedMode = currentGlassMode();
-  buildTuneSection("glass-controls", G_CONTROLS, G_FIELDS, glass, glassCollapsed, glassRenderedMode,
+  buildTuneSection("glass-controls", G_CONTROLS.filter((c) => !c.header), G_FIELDS, glass, glassCollapsed, glassRenderedMode,
     () => { applyGlass(); saveGlass(); });
 }
 
 /** (Re)builds the per-surface typography controls for the active mode. */
 function buildTypographyControls() {
-  buildTuneSection("text-controls", TYPO_SURFACES, TYPO_FIELDS, typoCfg, glassCollapsed, currentGlassMode(),
+  buildTuneSection("text-controls", TYPO_SURFACES.filter((s) => !s.header), TYPO_FIELDS, typoCfg, glassCollapsed, currentGlassMode(),
     () => { applyTypography(); saveTypo(); });
+  // The Header Controls section shares the glass + typo state; rebuild it on the same
+  // triggers (init / reset / mode toggle / language switch) as the typography controls.
+  buildHeaderControls();
+}
+
+/** (Re)builds the dedicated Header Controls section — the nav track + indicator glass
+ *  controls and the nav label text — into their own sub-containers (the three header
+ *  controls share one token set). */
+function buildHeaderControls() {
+  buildTuneSection("headercontrols-glass-controls", G_CONTROLS.filter((c) => c.header), G_FIELDS, glass, glassCollapsed, currentGlassMode(),
+    () => { applyGlass(); saveGlass(); });
+  buildTuneSection("headercontrols-text-controls", TYPO_SURFACES.filter((s) => s.header), TYPO_FIELDS, typoCfg, glassCollapsed, currentGlassMode(),
+    () => { applyTypography(); saveTypo(); });
+}
+
+/** Wires the on-sky header-controls preview. The Day/Night switcher copy: a click
+ *  expands the collapsed control; selecting a cell while open moves the active
+ *  highlight and collapses (switches no real mode). The nav hamburger menu: the
+ *  trigger toggles the dropdown; "Info" opens the info overlay (production
+ *  behaviour); any item or an outside pointer press closes the open control. */
+function wireHeaderPreview() {
+  const sw = document.getElementById("hc-switch");
+  if (sw) {
+    sw.addEventListener("click", (e) => {
+      const cell = e.target.closest(".hc-sw-cell");
+      if (!cell) return;
+      if (!sw.classList.contains("open")) { sw.classList.add("open"); return; }
+      for (const c of sw.querySelectorAll(".hc-sw-cell")) c.classList.remove("hc-sw-active");
+      cell.classList.add("hc-sw-active");
+      sw.classList.remove("open");
+    });
+  }
+  const nav = document.getElementById("hc-nav");
+  const menu = document.getElementById("hc-nav-menu");
+  if (nav && menu) {
+    document.getElementById("hc-nav-trigger").addEventListener("click", () => { menu.hidden = !menu.hidden; });
+    document.getElementById("hc-nav-info").addEventListener("click", () => { menu.hidden = true; openInfoOverlay(); });
+    document.getElementById("hc-nav-help").addEventListener("click", () => { menu.hidden = true; });
+  }
+  document.addEventListener("pointerdown", (e) => {
+    if (sw?.classList.contains("open") && !sw.contains(e.target)) sw.classList.remove("open");
+    if (nav && menu && !menu.hidden && !nav.contains(e.target)) menu.hidden = true;
+  });
 }
 
 /** (Re)builds the VfdDisplay controls for the active mode. */
@@ -3963,7 +4132,7 @@ function buildSkyLinkControls() {
  *  chevron, restores the saved collapsed state, and attaches the toggle handler.
  *  The sky groups self-wire in groupEl; this runs once at init. */
 function wireStaticSections() {
-  for (const id of ["sec-glass", "sec-paddings", "sec-text", "sec-vfd", "sec-skytext", "sec-skylink", "sec-cover", "sec-backdrop"]) {
+  for (const id of ["sec-glass", "sec-headercontrols", "sec-paddings", "sec-text", "sec-vfd", "sec-skytext", "sec-skylink", "sec-cover", "sec-backdrop"]) {
     const sec = document.getElementById(id);
     if (!sec) continue;
     const head = sec.querySelector(".sec-head");
@@ -4019,6 +4188,7 @@ function syncStagePanel() {
   const open = !panelEl.classList.contains("hidden");
   stageEl.classList.toggle("panel-open", open);
   document.getElementById("sky-footer")?.classList.toggle("panel-open", open);
+  document.getElementById("sky-header")?.classList.toggle("panel-open", open);
   document.getElementById("panel-resize")?.classList.toggle("hidden", !open); // no handle while collapsed
   document.getElementById("info-backdrop")?.classList.toggle("panel-open", open);
   reclampOverlay(); // the usable area changed — keep an open overlay clear of the sidebar
@@ -4292,8 +4462,7 @@ function closeInfoOverlay() {
  *  drag/resize gestures with pointer capture (production OverlayFrame). */
 (function wireInfoOverlay() {
   const frame = document.getElementById("info-frame");
-  const btn = document.getElementById("info-btn");
-  if (!frame || !btn) return;
+  if (!frame) return;
   // Inject the eight resize-handle hit areas (production ResizeHandles).
   for (const h of OVERLAY_RESIZE_HANDLES) {
     const el = document.createElement("div");
@@ -4337,7 +4506,6 @@ function closeInfoOverlay() {
   frame.addEventListener("pointerup", end);
   frame.addEventListener("pointercancel", end);
 
-  btn.addEventListener("click", openInfoOverlay);
   document.getElementById("info-close").addEventListener("click", closeInfoOverlay);
   document.getElementById("info-backdrop").addEventListener("click", closeInfoOverlay);
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeInfoOverlay(); });
@@ -4356,6 +4524,7 @@ buildSkyLinkControls();
 wireStaticSections();
 wireSegmentedControls();
 wireInfoTabs();
+wireHeaderPreview();
 applyGlass();
 applyTypography();
 applyVfd();

@@ -6,7 +6,6 @@ import { HeaderNavMenu } from "@/components/navigation/HeaderNavMenu";
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
 import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/OverlayContext";
 import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
-import { navHref, navLabel } from "@/lib/nav";
 
 interface PageHeaderProps {
   /** Items from the admin nav editor (header). Empty array hides the inline list. */
@@ -41,10 +40,10 @@ function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): vo
 }
 
 /**
- * Header bars pinned to the top corners. LEFT: the admin-managed nav links —
- * inline text on desktop, collapsed into a glass hamburger menu below the `sm`
- * breakpoint (see {@link HeaderNavMenu}). RIGHT: the Day/Night switcher + the
- * Language switcher. Must be rendered inside a LocaleProvider.
+ * Header bars pinned to the top corners. LEFT: the admin-managed nav links,
+ * collapsed into a glass hamburger menu on every viewport (see
+ * {@link HeaderNavMenu}). RIGHT: the Day/Night switcher + the Language switcher.
+ * Must be rendered inside a LocaleProvider.
  *
  * The DayNightSwitcher drives the `dayNightMode` store, which feeds the sky
  * driver's dayness and — via the reverse `--g-dayness` publish channel — the
@@ -59,25 +58,7 @@ export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
     <>
       {navItems.length > 0 && (
         <div className="absolute top-3 left-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center sm:fixed sm:top-4 sm:left-4">
-          {/* Desktop: inline links. */}
-          <nav aria-label="Header navigation" className="hidden items-center gap-3 text-sm sm:flex sm:gap-4">
-            {navItems.map((item) => (
-              <a
-                key={item.id}
-                href={navHref(item)}
-                target={item.target === NavTarget.Blank ? NavTarget.Blank : undefined}
-                rel={item.target === NavTarget.Blank ? "noopener noreferrer" : undefined}
-                onClick={(e) => handleNavClick(e, item)}
-                className="text-text-primary/85 hover:text-text-primary transition-colors duration-150"
-              >
-                {navLabel(item)}
-              </a>
-            ))}
-          </nav>
-          {/* Mobile: collapse the links into a glass hamburger menu. */}
-          <div className="sm:hidden">
-            <HeaderNavMenu navItems={navItems} onNavClick={handleNavClick} />
-          </div>
+          <HeaderNavMenu navItems={navItems} onNavClick={handleNavClick} />
         </div>
       )}
       <div className="absolute top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-start gap-2 sm:fixed sm:top-4 sm:right-4 sm:gap-3">

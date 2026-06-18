@@ -99,7 +99,7 @@ describe("DayNightSwitcher", () => {
       renderSwitcher();
       fireEvent.click(screen.getByRole("button", { name: "Night" })); // open
       // The control container owns the hover handlers (parent of the track).
-      const container = document.querySelector(".mc-glass-seg-track")?.parentElement;
+      const container = document.querySelector(".mc-glass-nav-track")?.parentElement;
       if (!container) throw new Error("control container not found");
 
       // Pointer resting on the control pauses the idle countdown.

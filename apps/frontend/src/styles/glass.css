@@ -173,6 +173,45 @@
   --segIndicator-night-rm: 0;
   --segIndicator-night-sh: 0;
 
+  /* navTrack / navIndicator (header controls — nav hamburger + day/night & language
+     switchers). Compiled-in fallback; SSR designTokensCss overrides with saved tokens. */
+  --navTrack-day-tt: rgba(0, 54, 74, 0.32);
+  --navTrack-day-tb: rgba(0, 54, 74, 0.32);
+  --navTrack-day-bl: 0px;
+  --navTrack-day-sa: 0;
+  --navTrack-day-br: 0;
+  --navTrack-day-el: 0;
+  --navTrack-day-es: 0;
+  --navTrack-day-rm: 0;
+  --navTrack-day-sh: 0;
+  --navTrack-night-tt: rgba(0, 0, 0, 0.28);
+  --navTrack-night-tb: rgba(0, 0, 0, 0.28);
+  --navTrack-night-bl: 0px;
+  --navTrack-night-sa: 0;
+  --navTrack-night-br: 0;
+  --navTrack-night-el: 0;
+  --navTrack-night-es: 0;
+  --navTrack-night-rm: 0;
+  --navTrack-night-sh: 0;
+  --navIndicator-day-tt: rgba(148, 227, 254, 0.35);
+  --navIndicator-day-tb: rgba(148, 227, 254, 0.35);
+  --navIndicator-day-bl: 0px;
+  --navIndicator-day-sa: 0;
+  --navIndicator-day-br: 0;
+  --navIndicator-day-el: 0;
+  --navIndicator-day-es: 0;
+  --navIndicator-day-rm: 0;
+  --navIndicator-day-sh: 0;
+  --navIndicator-night-tt: rgba(148, 227, 254, 0.2);
+  --navIndicator-night-tb: rgba(148, 227, 254, 0.2);
+  --navIndicator-night-bl: 2px;
+  --navIndicator-night-sa: 0;
+  --navIndicator-night-br: 0.42;
+  --navIndicator-night-el: 0;
+  --navIndicator-night-es: 0;
+  --navIndicator-night-rm: 0.08;
+  --navIndicator-night-sh: 0;
+
   /* Per-surface text — embossed seeds (SSR designTokensCss overrides per saved tokens,
      and emits the other surfaces' vars too). The embossed surface is the global default
      via the transitional `--color-text-*` mapping below; the recessed / button /
@@ -303,6 +342,24 @@
 }
 .mc-txt-button-dimmed {
   color: color-mix(in srgb, var(--text-button-dimmed-day) calc(var(--g-dayness) * 100%), var(--text-button-dimmed-night));
+}
+/* Header-controls label/item text (switcher labels + nav dropdown rows). Own font +
+   bright/normal levels, reading the dedicated `--text-nav-*` vars. */
+.mc-txt-nav-bright,
+.mc-txt-nav-normal {
+  font-family: var(--text-nav-font);
+  font-size: calc(
+    var(--text-nav-size-day) * var(--g-dayness) + var(--text-nav-size-night) * (1 - var(--g-dayness))
+  );
+  font-weight: calc(
+    var(--text-nav-weight-day) * var(--g-dayness) + var(--text-nav-weight-night) * (1 - var(--g-dayness))
+  );
+}
+.mc-txt-nav-bright {
+  color: color-mix(in srgb, var(--text-nav-bright-day) calc(var(--g-dayness) * 100%), var(--text-nav-bright-night));
+}
+.mc-txt-nav-normal {
+  color: color-mix(in srgb, var(--text-nav-normal-day) calc(var(--g-dayness) * 100%), var(--text-nav-normal-night));
 }
 .mc-txt-recessed-normal,
 .mc-txt-recessed-dimmed {
@@ -488,6 +545,33 @@ a.mc-skylink {
   --_sh: calc(var(--segIndicator-day-sh) * var(--g-dayness) + var(--segIndicator-night-sh) * (1 - var(--g-dayness)));
 }
 
+/* Header controls (nav hamburger + day/night & language switchers): a dedicated
+   track + indicator pair, independent of the segmented controls above. Same recipe
+   as seg-track/seg-indicator, reading the `--navTrack-*` / `--navIndicator-*` vars. */
+.mc-glass-nav-track {
+  --_tt: color-mix(in srgb, var(--navTrack-day-tt) calc(var(--g-dayness) * 100%), var(--navTrack-night-tt));
+  --_tb: color-mix(in srgb, var(--navTrack-day-tb) calc(var(--g-dayness) * 100%), var(--navTrack-night-tb));
+  --_bl: calc(var(--navTrack-day-bl) * var(--g-dayness) + var(--navTrack-night-bl) * (1 - var(--g-dayness)));
+  --_sa: calc(var(--navTrack-day-sa) * var(--g-dayness) + var(--navTrack-night-sa) * (1 - var(--g-dayness)));
+  --_br: calc(var(--navTrack-day-br) * var(--g-dayness) + var(--navTrack-night-br) * (1 - var(--g-dayness)));
+  --_el: calc(var(--navTrack-day-el) * var(--g-dayness) + var(--navTrack-night-el) * (1 - var(--g-dayness)));
+  --_es: calc(var(--navTrack-day-es) * var(--g-dayness) + var(--navTrack-night-es) * (1 - var(--g-dayness)));
+  --_rm: calc(var(--navTrack-day-rm) * var(--g-dayness) + var(--navTrack-night-rm) * (1 - var(--g-dayness)));
+  --_sh: calc(var(--navTrack-day-sh) * var(--g-dayness) + var(--navTrack-night-sh) * (1 - var(--g-dayness)));
+}
+
+.mc-glass-nav-indicator {
+  --_tt: color-mix(in srgb, var(--navIndicator-day-tt) calc(var(--g-dayness) * 100%), var(--navIndicator-night-tt));
+  --_tb: color-mix(in srgb, var(--navIndicator-day-tb) calc(var(--g-dayness) * 100%), var(--navIndicator-night-tb));
+  --_bl: calc(var(--navIndicator-day-bl) * var(--g-dayness) + var(--navIndicator-night-bl) * (1 - var(--g-dayness)));
+  --_sa: calc(var(--navIndicator-day-sa) * var(--g-dayness) + var(--navIndicator-night-sa) * (1 - var(--g-dayness)));
+  --_br: calc(var(--navIndicator-day-br) * var(--g-dayness) + var(--navIndicator-night-br) * (1 - var(--g-dayness)));
+  --_el: calc(var(--navIndicator-day-el) * var(--g-dayness) + var(--navIndicator-night-el) * (1 - var(--g-dayness)));
+  --_es: calc(var(--navIndicator-day-es) * var(--g-dayness) + var(--navIndicator-night-es) * (1 - var(--g-dayness)));
+  --_rm: calc(var(--navIndicator-day-rm) * var(--g-dayness) + var(--navIndicator-night-rm) * (1 - var(--g-dayness)));
+  --_sh: calc(var(--navIndicator-day-sh) * var(--g-dayness) + var(--navIndicator-night-sh) * (1 - var(--g-dayness)));
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    3. Shared surface recipe — tint gradient + 4-layer raised chamfer box-shadow.
    ═════════════════════════════════════════════════════════════════════════ */
@@ -516,12 +600,24 @@ a.mc-skylink {
 /* Recessed surfaces sink in, so the chamfer inverts: shadow top-left, light
    bottom-right (the opposite corners from the raised recipe above). */
 .recessed-gradient-border,
-.mc-glass-seg-track {
+.mc-glass-seg-track,
+.mc-glass-nav-track {
   box-shadow:
     0 12px 40px rgba(0, 0, 0, var(--_sh)),
     inset 0 0 0 1px rgba(255, 255, 255, var(--_rm)),
     inset 1px 1px 1.5px rgba(0, 0, 0, var(--_es)),
     inset -1px -1px 1.5px rgba(255, 255, 255, var(--_el));
+}
+
+/* Header-nav dropdown row — flat on the recessed panel, lifting into the switcher's
+   raised "active segment" look on hover/focus. `.mc-glass-nav-indicator` (set on the
+   same element) seeds the indicator tint + rim vars; the surface only paints on
+   interaction, so a resting row shows just its text on the panel. */
+.mc-nav-item:hover,
+.mc-nav-item:focus-visible {
+  background: linear-gradient(to bottom, var(--_tt), var(--_tb));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, var(--_rm));
+  color: color-mix(in srgb, var(--text-nav-bright-day) calc(var(--g-dayness) * 100%), var(--text-nav-bright-night));
 }
 
 /* Frost — OUTER CARDS ONLY (see noFrost rule in the header). Neutral at all
