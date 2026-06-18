@@ -1374,7 +1374,7 @@ const STAR_CATALOG = [
 /** Slider definitions: key, label, group, min/max/step, default. */
 const PARAMS = [
   // ── Sky ──
-  { key: "dayness",        label: "Day amount",        group: "Sky",    min: 0,    max: 1,    step: 0.01,  def: 0 },
+  { key: "dayness",        label: "Day amount",        group: "Sky",    min: 0,    max: 1,    step: 0.01,  def: 1 },
   { key: "dayTransition",  label: "Day/night fade (s)",group: "Sky",    min: 0.2,  max: 10,   step: 0.2,   def: 1 },
   { key: "autoDayNight",   label: "Auto (local time)", group: "Sky",    min: 0,    max: 1,    step: 1,     def: 0, bool: true },
   { key: "sunriseHour",    label: "Sunrise (h)",       group: "Sky",    min: 0,    max: 12,   step: 0.25,  def: 6.5 },
@@ -1419,7 +1419,7 @@ const PARAMS = [
   // ── Performance ──
   { key: "animate",        label: "Animation",         group: "Performance", min: 0,    max: 1,  step: 1,    def: 1, bool: true },
   { key: "renderScale",    label: "Render scale",      group: "Performance", min: 0.25, max: 1,  step: 0.05, def: 0.7 },
-  { key: "fpsCap",         label: "FPS cap",           group: "Performance", min: 5,    max: 60, step: 1,    def: 7 },
+  { key: "fpsCap",         label: "FPS cap",           group: "Performance", min: 5,    max: 60, step: 1,    def: 8 },
 ];
 
 /** Color definitions (hex inputs → vec3 uniforms). */
@@ -2911,12 +2911,12 @@ function mk(top, bottom, opacity, blur, saturate, brightness, edgeLight, edgeSha
   return { tintTop: top, tintBottom: bottom, opacity, blur, saturate, brightness, edgeLight, edgeShadow, rim, shadow };
 }
 const G_DEFAULTS = {
-  card:         { day: mk("#000000", "#000000", 0.42, 6, 0.0, 0.10, 0, 0, 0.00, 0.30), night: mk("#232323", "#232323", 0.42, 6, 0.25, 0.50, 0, 0, 0.07, 0.20) },
+  card:         { day: mk("#000000", "#000000", 0.42, 6, 0.0, 0.10, 0, 0, 0.00, 0.30), night: mk("#232323", "#232323", 0.42, 6, 0.25, 0.50, 0, 0, 0.03, 0.20) },
   // Overlay card: same recipe as the card, its own day/night values — an overlay sits
   // over a dimmed backdrop, so it wants much heavier frost (high blur) than the inline
   // cards. Tune it apart in the "Embossed Overlay Card" group.
   cardOverlay:  { day: mk("#000000", "#000000", 0.5, 42, 0.0, 0.42, 0, 0, 0.00, 0.42), night: mk("#232323", "#232323", 0.5, 42, 0.75, 0.42, 0, 0, 0.07, 0.42) },
-  button:       { day: mk("#94e3fe", "#94e3fe", 0.13, 0, 0.0, 0.00, 0, 0, 0.06, 0.00), night: mk("#94e3fe", "#94e3fe", 0.13, 2, 0.0, 0.42, 0, 0, 0.06, 0.00) },
+  button:       { day: mk("#94e3fe", "#94e3fe", 0.13, 0, 0.0, 0.00, 0, 0, 0.06, 0.00), night: mk("#94e3fe", "#94e3fe", 0.13, 2, 0.0, 0.42, 0, 0, 0.03, 0.00) },
   recessed:     { day: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00) },
   segTrack:     { day: mk("#00364a", "#00364a", 0.32, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00) },
   segIndicator: { day: mk("#94e3fe", "#94e3fe", 0.35, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#94e3fe", "#94e3fe", 0.20, 2, 0.0, 0.42, 0, 0, 0.08, 0.00) },
@@ -3131,8 +3131,8 @@ function mkTypo(fontFamily, fontSize, fontWeight, capitalization, dayOverrides) 
 }
 const TYPO_DEFAULTS = {
   embossed:      mkTypo(TYPO_BARLOW, 14, 500, "none"),
-  recessed:      mkTypo(TYPO_BARLOW, 15, 200, "none", { normalOpacity: 0.75, dimmedOpacity: 0.5 }),
-  button:        mkTypo(TYPO_BARLOW, 15, 200, "none"),
+  recessed:      mkTypo(TYPO_BARLOW, 14, 200, "none", { normalOpacity: 0.7, dimmedOpacity: 0.45 }),
+  button:        mkTypo(TYPO_BARLOW, 15, 200, "none", { normalOpacity: 0.7 }),
   embossedTitle: mkTypo(TYPO_ROBOCOND, 14, 200, "uppercase"),
   infoText:      mkTypo(TYPO_BARLOW, 12, 200, "none"),
   placeholder:   mkTypo(TYPO_BARLOW, 16, 500, "none"),
@@ -3160,8 +3160,8 @@ function mkVfd(bg, bgOpacity, bright, normal, dim, ghost, ghostOpacity, edgeLigh
 /** Defaults = production phosphor + glass-bg colours; frame off (edge 0) per request. */
 const VFD_DEFAULTS = {
   vfd: {
-    day:   mkVfd("#00364a", 0.42, "#caf0fe", "#bce0ee", "#93afba", "#00364a", 1.0, 0.0, 0.0),
-    night: mkVfd("#000000", 0.32, "#caf0fe", "#a5c5d1", "#839ba7", "#004d65", 0.42, 0.0, 0.0),
+    day:   mkVfd("#00364a", 0.42, "#caf0fe", "#bce0ee", "#93afba", "#00364a", 0.75, 0.0, 0.0),
+    night: mkVfd("#000000", 0.32, "#caf0fe", "#a5c5d1", "#839ba7", "#004d65", 0.4, 0.0, 0.0),
   },
 };
 
@@ -3191,7 +3191,7 @@ function mkSkyText(fontFamily, size, weight, color, opacity, strokeWidth, stroke
 }
 const SKYTEXT_DEFAULTS = {
   skytext: {
-    day:   mkSkyText('"Barlow", sans-serif', 13, 500, "#caf0fe", 1, 0, "#000000"),
+    day:   mkSkyText('"Barlow", sans-serif', 13, 500, "#ffffff", 1, 0, "#ffffff"),
     night: mkSkyText('"Barlow", sans-serif', 13, 500, "#caf0fe", 0.55, 0, "#0b1f33"),
   },
 };
@@ -3213,8 +3213,8 @@ function mkSkyLink(color, decoColor, thickness, offset) {
 }
 const SKYLINK_DEFAULTS = {
   skylink: {
-    day:   mkSkyLink("#06324a", "#28a8d8", 1.5, 2.5),
-    night: mkSkyLink("#caf0fe", "#28a8d8", 1.5, 2.5),
+    day:   mkSkyLink("#fff800", "#fff800", 0.75, 3.5),
+    night: mkSkyLink("#00ffff", "#28a8d8", 0.75, 3.5),
   },
 };
 
@@ -3737,19 +3737,19 @@ function buildCardRadiusRow() {
    in the exported "Copy settings" JSON as `paddings` (keyed by CSS-var name). ── */
 const PADDING_GROUPS = [
   { key: "cards", label: { en: "Cards", de: "Karten" }, fields: [
-    { var: "--mc-pad-card",     def: 12, label: { en: "Card padding",       de: "Karten-Padding" },     tip: { en: "EmbossedCard inner content padding (header/body/footer follow).", de: "Innenabstand der EmbossedCard (Header/Body/Footer folgen)." } },
-    { var: "--mc-pad-header",   def: 10, label: { en: "Title padding · top",    de: "Title-Padding · oben" },  tip: { en: "Section-card title top padding (space above the title).", de: "Oberer Abstand des Section-Card-Titels (Raum über dem Titel)." } },
-    { var: "--mc-pad-header-b", def: 0,  label: { en: "Title padding · bottom", de: "Title-Padding · unten" }, tip: { en: "Section-card title bottom padding (space below the title).", de: "Unterer Abstand des Section-Card-Titels (Raum unter dem Titel)." } },
+    { var: "--mc-pad-card",     def: 10, label: { en: "Card padding",       de: "Karten-Padding" },     tip: { en: "EmbossedCard inner content padding (header/body/footer follow).", de: "Innenabstand der EmbossedCard (Header/Body/Footer folgen)." } },
+    { var: "--mc-pad-header",   def: 14, label: { en: "Title padding · top",    de: "Title-Padding · oben" },  tip: { en: "Section-card title top padding (space above the title).", de: "Oberer Abstand des Section-Card-Titels (Raum über dem Titel)." } },
+    { var: "--mc-pad-header-b", def: 12,  label: { en: "Title padding · bottom", de: "Title-Padding · unten" }, tip: { en: "Section-card title bottom padding (space below the title).", de: "Unterer Abstand des Section-Card-Titels (Raum unter dem Titel)." } },
     { var: "--mc-pad-recessed", def: 3,  label: { en: "Recessed padding",   de: "Vertiefungs-Padding" },tip: { en: "RecessedCard / segmented-track well inset.", de: "Well-Inset der RecessedCard / Segment-Leiste." } },
-    { var: "--mc-pad-artist",   def: 6,  label: { en: "Artist well padding",de: "Artist-Well-Padding" },tip: { en: "Artist-profile well inset (the cover's top-left corner follows it).", de: "Inset des Artist-Profil-Wells (die obere-linke Cover-Ecke folgt)." } },
+    { var: "--mc-pad-artist",   def: 10,  label: { en: "Artist well padding",de: "Artist-Well-Padding" },tip: { en: "Artist-profile well inset (the cover's top-left corner follows it).", de: "Inset des Artist-Profil-Wells (die obere-linke Cover-Ecke folgt)." } },
   ] },
   { key: "rows", label: { en: "Rows", de: "Zeilen" }, fields: [
-    { var: "--mc-pad-track",     def: 3, label: { en: "Track row padding", de: "Track-Zeilen-Padding" }, tip: { en: "Track-row padding (top/bottom/left).", de: "Track-Zeilen-Padding (oben/unten/links)." } },
-    { var: "--mc-pad-tracktime", def: 8, label: { en: "Track time · right", de: "Trackzeit · rechts" },   tip: { en: "Row right padding (space around the trailing duration/icon).", de: "Rechtes Zeilen-Padding (Abstand um die Spielzeit/das Icon rechts)." } },
+    { var: "--mc-pad-track",     def: 4, label: { en: "Track row padding", de: "Track-Zeilen-Padding" }, tip: { en: "Track-row padding (top/bottom/left).", de: "Track-Zeilen-Padding (oben/unten/links)." } },
+    { var: "--mc-pad-tracktime", def: 14, label: { en: "Track time · right", de: "Trackzeit · rechts" },   tip: { en: "Row right padding (space around the trailing duration/icon).", de: "Rechtes Zeilen-Padding (Abstand um die Spielzeit/das Icon rechts)." } },
     { var: "--mc-pad-svc-y", def: 10, label: { en: "Service btn · y",   de: "Service-Btn · y" },       tip: { en: "Service-button vertical padding.", de: "Vertikales Padding des Service-Buttons." } },
     { var: "--mc-pad-svc-x", def: 12, label: { en: "Service btn · x",   de: "Service-Btn · x" },       tip: { en: "Service-button horizontal padding.", de: "Horizontales Padding des Service-Buttons." } },
     { var: "--mc-pad-event-x", def: 12, label: { en: "Event row · x",    de: "Event-Zeile · x" },       tip: { en: "Upcoming-events row horizontal padding (text-only row, no artwork inset).", de: "Horizontales Padding der Upcoming-Events-Zeile (text-only, ohne Artwork-Inset)." } },
-    { var: "--mc-pad-event-y", def: 4,  label: { en: "Event row · y",    de: "Event-Zeile · y" },       tip: { en: "Upcoming-events row vertical padding (text to the row's top/bottom edge).", de: "Vertikales Padding der Upcoming-Events-Zeile (Text zum oberen/unteren Rand)." } },
+    { var: "--mc-pad-event-y", def: 10,  label: { en: "Event row · y",    de: "Event-Zeile · y" },       tip: { en: "Upcoming-events row vertical padding (text to the row's top/bottom edge).", de: "Vertikales Padding der Upcoming-Events-Zeile (Text zum oberen/unteren Rand)." } },
   ] },
   { key: "gaps", label: { en: "Gaps", de: "Abstände" }, fields: [
     { var: "--mc-gap-cards",   def: 22, label: { en: "Between cards",  de: "Zwischen Karten" }, tip: { en: "Vertical gap between stacked cards.", de: "Vertikaler Abstand zwischen gestapelten Karten." } },
