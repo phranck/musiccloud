@@ -6,7 +6,7 @@ import {
   setDayNightMode,
   subscribeDayNightMode,
 } from "@/components/background/dayNightMode";
-import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
+import { VerticalSegmentedControl } from "@/components/ui/VerticalSegmentedControl";
 import { useT } from "@/i18n/context";
 import { SkySignal, sendMusicSignal } from "@/lib/analytics/umami";
 
@@ -69,7 +69,7 @@ export function DayNightSwitcher() {
   return (
     <fieldset className="m-0 min-w-0 border-0 p-0">
       <legend className="sr-only">{t("dayNight.label")}</legend>
-      <EmbossedSegmentedControl segments={segments} value={mode} onChange={handleChange} />
+      <VerticalSegmentedControl segments={segments} value={mode} onChange={handleChange} />
     </fieldset>
   );
 }

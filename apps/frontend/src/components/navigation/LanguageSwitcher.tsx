@@ -1,4 +1,4 @@
-import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
+import { VerticalSegmentedControl } from "@/components/ui/VerticalSegmentedControl";
 import { useLocale, useT } from "@/i18n/context";
 import { LOCALE_META, LOCALES } from "@/i18n/locales";
 import { languageSignal, sendMusicSignal } from "@/lib/analytics/umami";
@@ -44,7 +44,7 @@ export function LanguageSwitcher() {
   return (
     <fieldset className="m-0 min-w-0 border-0 p-0">
       <legend className="sr-only">{t("language.label")}</legend>
-      <EmbossedSegmentedControl segments={segments} value={locale} onChange={handleChange} />
+      <VerticalSegmentedControl segments={segments} value={locale} onChange={handleChange} />
     </fieldset>
   );
 }

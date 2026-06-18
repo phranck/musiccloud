@@ -80,7 +80,7 @@ export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
           </div>
         </div>
       )}
-      <div className="absolute top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center gap-2 sm:fixed sm:top-4 sm:right-4 sm:gap-3">
+      <div className="absolute top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-start gap-2 sm:fixed sm:top-4 sm:right-4 sm:gap-3">
         <DayNightSwitcher />
         <LanguageSwitcher />
       </div>

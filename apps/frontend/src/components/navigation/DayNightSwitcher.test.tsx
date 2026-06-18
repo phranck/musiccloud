@@ -7,11 +7,12 @@ import { SkySignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { createLocalStorageMock } from "@/test/localStorageMock";
 
 /**
- * Contract of the header day-night switcher (plan MC-030 Task 4): an icon-only
- * `EmbossedSegmentedControl` that reads/writes the shared `dayNightMode` store.
- * The background reaction lives in BackgroundScene.test.tsx — here only the UI
- * wiring is pinned: the four persistently visible segments, selection → store +
- * analytics signal, and the no-signal guard on re-selecting the active mode.
+ * Contract of the header day-night switcher: a collapse-by-default
+ * `VerticalSegmentedControl` that reads/writes the shared `dayNightMode` store.
+ * Collapsed it exposes ONLY the active mode (the other cells are removed from the
+ * accessibility tree); clicking the active icon opens the list, and choosing a
+ * mode writes the store + fires the analytics signal once. The background
+ * reaction lives in BackgroundScene.test.tsx.
  *
  * Each segment is icon-only, so its accessible name comes from the segment's
  * `aria-label` (the translated mode label) and is queried via `getByRole`.
@@ -32,6 +33,9 @@ function renderSwitcher() {
 
 beforeEach(() => {
   vi.stubGlobal("localStorage", createLocalStorageMock());
+  // Pin Night as the active mode so every test (incl. the first) has a known
+  // collapsed trigger; the store is module-level and otherwise leaks its default.
+  setDayNightMode(DayNightMode.Night);
   vi.mocked(sendMusicSignal).mockClear();
 });
 
@@ -42,26 +46,31 @@ afterEach(() => {
 });
 
 describe("DayNightSwitcher", () => {
-  it("renders all four mode segments, persistently visible", () => {
+  it("collapsed exposes only the active mode; opening reveals all four", () => {
     renderSwitcher();
+    // Night is the default active mode → the only non-inert cell while collapsed.
+    expect(screen.getByRole("button", { name: "Night" })).not.toHaveAttribute("inert");
+    expect(screen.getByRole("button", { name: "Day" })).toHaveAttribute("inert");
+    // Click the active trigger to open → every mode cell becomes active (not inert).
+    fireEvent.click(screen.getByRole("button", { name: "Night" }));
     for (const label of ["Day", "Night", "System", "Automatic"]) {
-      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: label })).not.toHaveAttribute("inert");
     }
   });
 
   it("selects a mode: store updated, signal sent once", () => {
     renderSwitcher();
-    fireEvent.click(screen.getByRole("button", { name: "Day" }));
+    fireEvent.click(screen.getByRole("button", { name: "Night" })); // open
+    fireEvent.click(screen.getByRole("button", { name: "Day" })); // select
 
     expect(getDayNightMode()).toBe(DayNightMode.Day);
     expect(sendMusicSignal).toHaveBeenCalledExactlyOnceWith(SkySignal.Day);
-    // All segments remain visible after selection.
-    expect(screen.getByRole("button", { name: "System" })).toBeInTheDocument();
   });
 
   it("sends no signal when re-selecting the active mode", () => {
     renderSwitcher();
-    fireEvent.click(screen.getByRole("button", { name: "Night" }));
+    fireEvent.click(screen.getByRole("button", { name: "Night" })); // open
+    fireEvent.click(screen.getByRole("button", { name: "Night" })); // re-select active
 
     expect(sendMusicSignal).not.toHaveBeenCalled();
     expect(getDayNightMode()).toBe(DayNightMode.Night);

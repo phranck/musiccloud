@@ -6,16 +6,16 @@ import { languageSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { createLocalStorageMock } from "@/test/localStorageMock";
 
 /**
- * Contract of the header language switcher: an icon-only
- * `EmbossedSegmentedControl` that reads/writes the shared `LocaleProvider`
- * context. Only the UI wiring is pinned here: both persistently visible
- * segments, selection → locale change + analytics signal, and the no-signal
- * guard on re-selecting the active locale.
+ * Contract of the header language switcher: a collapse-by-default
+ * `VerticalSegmentedControl` that reads/writes the shared `LocaleProvider`
+ * context. Collapsed it exposes ONLY the active locale (the other cell is removed
+ * from the accessibility tree); clicking the active icon opens the list, and
+ * choosing a locale changes it + fires the analytics signal once.
  *
  * Each segment is icon-only, so its accessible name comes from the segment's
- * `aria-label` (the translated language name) and is queried via `getByRole`.
- * The provider starts at `en`, so the German segment is the inactive target and
- * the English segment is the active one used for the no-signal guard.
+ * `aria-label` (the translated language name) and is queried via `getByRole`. The
+ * provider starts at `en`, so English is the active cell and German is the
+ * inactive target revealed on open.
  */
 
 vi.mock("@/lib/analytics/umami", async (importOriginal) => {
@@ -41,26 +41,30 @@ afterEach(() => {
 });
 
 describe("LanguageSwitcher", () => {
-  it("renders both locale segments, persistently visible", () => {
+  it("collapsed exposes only the active locale; opening reveals both", () => {
     renderSwitcher();
+    // English is the active locale → the only non-inert cell while collapsed.
+    expect(screen.getByRole("button", { name: "English" })).not.toHaveAttribute("inert");
+    expect(screen.getByRole("button", { name: "Deutsch" })).toHaveAttribute("inert");
+    // Click the active trigger to open → both locale cells become active (not inert).
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
     for (const label of ["English", "Deutsch"]) {
-      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: label })).not.toHaveAttribute("inert");
     }
   });
 
-  it("selects a locale: signal sent once, both segments stay visible", () => {
+  it("selects a locale: signal sent once", () => {
     renderSwitcher();
-    fireEvent.click(screen.getByRole("button", { name: "Deutsch" }));
+    fireEvent.click(screen.getByRole("button", { name: "English" })); // open
+    fireEvent.click(screen.getByRole("button", { name: "Deutsch" })); // select
 
     expect(sendMusicSignal).toHaveBeenCalledExactlyOnceWith(languageSignal("de"));
-    // Both segments remain visible after selection.
-    expect(screen.getByRole("button", { name: "English" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Deutsch" })).toBeInTheDocument();
   });
 
   it("sends no signal when re-selecting the active locale", () => {
     renderSwitcher();
-    fireEvent.click(screen.getByRole("button", { name: "English" }));
+    fireEvent.click(screen.getByRole("button", { name: "English" })); // open
+    fireEvent.click(screen.getByRole("button", { name: "English" })); // re-select active
 
     expect(sendMusicSignal).not.toHaveBeenCalled();
   });
