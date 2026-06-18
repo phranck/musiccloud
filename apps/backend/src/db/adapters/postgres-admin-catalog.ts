@@ -404,7 +404,7 @@ export async function listArtists(
   const offset = (page - 1) * limit;
   const ALLOWED = ["created_at", "updated_at", "name"];
   const col = ALLOWED.includes(sortBy) ? sortBy : "created_at";
-  const orderExpr = col === "name" ? "name" : `a.${col}`;
+  const orderExpr = col === "name" ? "name" : `ar.${col}`;
   const dir = sortDir === "asc" ? "ASC" : "DESC";
 
   let whereClause = "";
@@ -413,7 +413,7 @@ export async function listArtists(
     whereClause = `WHERE EXISTS (
       SELECT 1
       FROM artist_entity_names n
-      WHERE n.artist_entity_id = a.artist_entity_id AND n.name ILIKE $1
+      WHERE n.artist_entity_id = ar.artist_entity_id AND n.name ILIKE $1
     )`;
     dataParams.push(`%${q}%`);
   }
@@ -421,7 +421,7 @@ export async function listArtists(
   let total: number | string = -1;
   if (page === 1) {
     const countResult = await pool.query<CountRow>(
-      `SELECT COUNT(*) as count FROM artist_profiles a ${whereClause}`,
+      `SELECT COUNT(*) as count FROM artist_profiles ar ${whereClause}`,
       q ? dataParams : [],
     );
     total = countResult.rows[0]?.count ?? 0;
@@ -429,12 +429,12 @@ export async function listArtists(
 
   dataParams.push(limit, offset);
   const query = `SELECT
-    a.artist_entity_id AS id, a.artist_entity_id, ${ARTIST_NAME_SELECT}, a.image_url, a.genres, a.source_service, a.created_at,
+    ar.artist_entity_id AS id, ar.artist_entity_id, ${ARTIST_NAME_SELECT}, ar.image_url, ar.genres, ar.source_service, ar.created_at,
     asu.id as short_id,
-    (SELECT COUNT(*) FROM artist_service_links asl WHERE asl.artist_entity_id = a.artist_entity_id) as link_count
-  FROM artist_profiles a
+    (SELECT COUNT(*) FROM artist_service_links asl WHERE asl.artist_entity_id = ar.artist_entity_id) as link_count
+  FROM artist_profiles ar
   ${ARTIST_NAME_LATERAL_JOIN}
-  LEFT JOIN artist_short_urls asu ON a.artist_entity_id = asu.artist_entity_id
+  LEFT JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
   ${whereClause}
   ORDER BY ${orderExpr} ${dir}
   LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
