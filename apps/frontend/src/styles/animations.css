@@ -303,6 +303,35 @@
   animation: mc-cover-drop-out 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
+/* Exit (the requested data finished loading): the symmetric reverse of the
+   drop-in — the spinning disc drops back DOWN out of the tile while the cover
+   slides in from the top, reading like the CD being ejected and the artwork
+   returning. The disc's overhang is clipped by the tile's `overflow:hidden`,
+   and the cover's brief jump from its dropped-out position to the top happens
+   entirely outside the clipped tile, so only the downward eject is visible. */
+@keyframes mc-disc-drop-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes mc-cover-drop-in {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.mc-disc-drop-out {
+  animation: mc-disc-drop-out 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.mc-cover-drop-in {
+  animation: mc-cover-drop-in 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 /* Respect user preference for reduced motion (WCAG 2.3) */
 @media (prefers-reduced-motion: reduce) {
   *,

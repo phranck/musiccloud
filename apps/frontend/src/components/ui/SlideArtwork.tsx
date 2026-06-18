@@ -1,4 +1,5 @@
 import { MusicNoteIcon, UserIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { SlideArtworkKind, type SlideArtworkKind as SlideArtworkKindType } from "@/components/ui/SlideArtworkTypes";
@@ -18,9 +19,20 @@ interface SlideArtworkProps {
 
 /**
  * Artwork tile with RecessedCard + inner shadow matching the artist profile
- * image in ArtistInfoCard. When `active` becomes true a spinning CD slides
- * in from above, pushing the cover image out downward. The RecessedCard
- * border and inner shadow stay fixed on top of both layers.
+ * image in ArtistInfoCard.
+ *
+ * Drives a two-phase loading swap around `active`:
+ * - **Enter** (`active` → true): a spinning CD slides in from above
+ *   (`mc-disc-drop-in`) while the cover slides down out of the tile
+ *   (`mc-cover-drop-out`), reading as a CD slotting into a device.
+ * - **Exit** (`active` → false, i.e. the requested data has loaded): the disc
+ *   slides back DOWN out of the tile (`mc-disc-drop-out`) while the cover
+ *   slides in from above (`mc-cover-drop-in`) — the symmetric reverse, like
+ *   the CD being ejected and the artwork returning. The disc stays mounted
+ *   through the exit (`discMounted`) and only unmounts once its drop-out
+ *   animation ends, so the reverse glide is never skipped.
+ *
+ * The RecessedCard border and inner rim shadow stay fixed above both layers.
  */
 export function SlideArtwork({
   active,
@@ -29,6 +41,15 @@ export function SlideArtwork({
   sizeClass,
   imgDim = 56,
 }: SlideArtworkProps) {
+  // Keep the disc in the DOM across the EXIT animation: when `active` flips
+  // back to false the disc must slide OUT before it unmounts, so its mount
+  // cannot be gated on `active` alone. Mount it synchronously the moment a row
+  // turns active (set during render, no effect → no first-frame gap); the
+  // disc's own animationend clears the flag after the exit glide. Starts
+  // unmounted so idle rows never run the spin off-screen.
+  const [discMounted, setDiscMounted] = useState(false);
+  if (active && !discMounted) setDiscMounted(true);
+
   const FallbackIcon = kind === SlideArtworkKind.Round ? UserIcon : MusicNoteIcon;
   const borderRadius = kind === SlideArtworkKind.Round ? "50%" : imgDim <= 40 ? "4px" : "6px";
   // Scale a tight top/left-only inner shadow proportionally. It should read
@@ -41,6 +62,9 @@ export function SlideArtwork({
     `inset ${shadowOffset}px 0 ${shadowBlur}px -${shadowSpread}px ${shadowColor}`,
     `inset 0 ${shadowOffset}px ${shadowBlur}px -${shadowSpread}px ${shadowColor}`,
   ].join(", ");
+
+  // Cover motion: out on enter, back in during the exit, at rest otherwise.
+  const coverSlideClass = active ? "mc-cover-drop-out" : discMounted ? "mc-cover-drop-in" : undefined;
 
   return (
     <RecessedCard
@@ -57,19 +81,32 @@ export function SlideArtwork({
       style={{ "--neu-light": "hsl(0 0% 100% / 0.5)", "--neu-shadow": "hsl(0 0% 0% / 0.1)" } as React.CSSProperties}
     >
       <RecessedCard.Body className="contents">
-        {/* Spinning CD: mounted only for the selected row. The cover slides down out
-            of the tile (mc-cover-drop-out) while the disc slides in from the top
-            (mc-disc-drop-in). It is sized to the tile so the round disc stays fully
-            visible — never clipped — and settles centred. Sits below the rim shadow
-            only, so its face is never dimmed. */}
-        {active && (
-          <div className="mc-disc-drop-in absolute inset-0 z-0 flex items-center justify-center" aria-hidden="true">
+        {/* Spinning CD: mounted for the selected row AND through its exit glide.
+            On enter it drops in from the top (mc-disc-drop-in); on exit it drops
+            back down out of the tile (mc-disc-drop-out) and unmounts once that
+            animation ends. Sized to the tile so the round disc stays fully
+            visible — never clipped — and settles centred. Sits below the rim
+            shadow only, so its face is never dimmed. */}
+        {discMounted && (
+          <div
+            className={cn(
+              "absolute inset-0 z-0 flex items-center justify-center",
+              active ? "mc-disc-drop-in" : "mc-disc-drop-out",
+            )}
+            aria-hidden="true"
+            onAnimationEnd={(event) => {
+              // Only the container's own drop animation (not the inner spin),
+              // and only the exit run: unmount the disc now that it slid out.
+              if (event.target === event.currentTarget && !active) setDiscMounted(false);
+            }}
+          >
             <CDSpinArtwork className="w-full h-full" />
           </div>
         )}
 
-        {/* Cover artwork -- drops out downward when the CD slides in */}
-        <div className={cn("relative z-0 w-full h-full bg-surface", active && "mc-cover-drop-out")}>
+        {/* Cover artwork -- drops out downward on enter, slides back in from the
+            top on exit (see coverSlideClass). */}
+        <div className={cn("relative z-0 w-full h-full bg-surface", coverSlideClass)}>
           {artworkUrl ? (
             <img
               src={artworkUrl}
