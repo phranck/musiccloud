@@ -44,7 +44,6 @@ export interface DashboardMessages {
       emailTemplates: string;
       emailTemplatesOverview: string;
       footerBuilder: string;
-      markdownWidgets: string;
       system: string;
       services: string;
       design: string;
@@ -433,49 +432,6 @@ export interface DashboardMessages {
         separator: string;
       };
     };
-    markdownWidgets: {
-      title: string;
-      widgetsTitle: string;
-      widgetsHint: string;
-      newWidget: string;
-      emptyTitle: string;
-      emptyHint: string;
-      active: string;
-      inactive: string;
-      markdownLabel: string;
-      deleteWidget: string;
-      keyLabel: string;
-      keyHint: string;
-      nameLabel: string;
-      typeLabel: string;
-      typeHint: string;
-      defaultHeightLabel: string;
-      defaultHeightHint: string;
-      enabledLabel: string;
-      descriptionLabel: string;
-      descriptionHint: string;
-      configurationTitle: string;
-      usageTitle: string;
-      widgetUsage: string;
-      imageUsage: string;
-      pdfUsage: string;
-      pdfExampleLabel: string;
-      emptySelection: string;
-      types: {
-        html: {
-          label: string;
-          description: string;
-          snippetLabel: string;
-          snippetHint: string;
-        };
-        iframe: {
-          label: string;
-          description: string;
-          urlLabel: string;
-          urlHint: string;
-        };
-      };
-    };
     linkPicker: {
       insertInternalLink: string;
       closeSelection: string;
@@ -818,7 +774,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emailTemplates: "E-Mail-Vorlagen",
         emailTemplatesOverview: "\u00dcbersicht",
         footerBuilder: "Footer-Builder",
-        markdownWidgets: "Markdown-Widgets",
         system: "System",
         services: "Services",
         design: "Design",
@@ -1195,49 +1150,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           separator: "Trennlinie",
         },
       },
-      markdownWidgets: {
-        title: "Markdown-Widgets",
-        widgetsTitle: "Widgets",
-        widgetsHint: "Verwalte eingebettete Inhalte.",
-        newWidget: "Neues Widget",
-        emptyTitle: "Keine Widgets",
-        emptyHint: "Erstelle ein Widget, um eingebettete Inhalte zu verwalten.",
-        active: "Aktiv",
-        inactive: "Inaktiv",
-        markdownLabel: "Markdown",
-        deleteWidget: "Widget l\u00f6schen",
-        keyLabel: "Schl\u00fcssel",
-        keyHint: "Eindeutiger Bezeichner",
-        nameLabel: "Name",
-        typeLabel: "Typ",
-        typeHint: "Art des Widgets",
-        defaultHeightLabel: "Standardh\u00f6he",
-        defaultHeightHint: "H\u00f6he in Pixeln",
-        enabledLabel: "Aktiviert",
-        descriptionLabel: "Beschreibung",
-        descriptionHint: "Optionale Beschreibung",
-        configurationTitle: "Konfiguration",
-        usageTitle: "Verwendung",
-        widgetUsage: "Widget einbetten",
-        imageUsage: "Bild einbetten",
-        pdfUsage: "PDF einbetten",
-        pdfExampleLabel: "Beispiel",
-        emptySelection: "Kein Widget ausgew\u00e4hlt",
-        types: {
-          html: {
-            label: "HTML",
-            description: "HTML-Snippet einbetten",
-            snippetLabel: "Snippet",
-            snippetHint: "HTML-Code",
-          },
-          iframe: {
-            label: "iFrame",
-            description: "Externe Seite einbetten",
-            urlLabel: "URL",
-            urlHint: "Externe URL",
-          },
-        },
-      },
       linkPicker: {
         insertInternalLink: "Internen Link einf\u00fcgen",
         closeSelection: "Auswahl schlie\u00dfen",
@@ -1567,7 +1479,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emailTemplates: "Email Templates",
         emailTemplatesOverview: "Overview",
         footerBuilder: "Footer Builder",
-        markdownWidgets: "Markdown Widgets",
         system: "System",
         services: "Services",
         design: "Design",
@@ -1942,49 +1853,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           button: "Button",
           footerNav: "Footer Navigation",
           separator: "Separator",
-        },
-      },
-      markdownWidgets: {
-        title: "Markdown Widgets",
-        widgetsTitle: "Widgets",
-        widgetsHint: "Manage embedded content.",
-        newWidget: "New Widget",
-        emptyTitle: "No Widgets",
-        emptyHint: "Create a widget to manage embedded content.",
-        active: "Active",
-        inactive: "Inactive",
-        markdownLabel: "Markdown",
-        deleteWidget: "Delete Widget",
-        keyLabel: "Key",
-        keyHint: "Unique identifier",
-        nameLabel: "Name",
-        typeLabel: "Type",
-        typeHint: "Widget type",
-        defaultHeightLabel: "Default Height",
-        defaultHeightHint: "Height in pixels",
-        enabledLabel: "Enabled",
-        descriptionLabel: "Description",
-        descriptionHint: "Optional description",
-        configurationTitle: "Configuration",
-        usageTitle: "Usage",
-        widgetUsage: "Embed widget",
-        imageUsage: "Embed image",
-        pdfUsage: "Embed PDF",
-        pdfExampleLabel: "Example",
-        emptySelection: "No widget selected",
-        types: {
-          html: {
-            label: "HTML",
-            description: "Embed HTML snippet",
-            snippetLabel: "Snippet",
-            snippetHint: "HTML code",
-          },
-          iframe: {
-            label: "iFrame",
-            description: "Embed external page",
-            urlLabel: "URL",
-            urlHint: "External URL",
-          },
         },
       },
       linkPicker: {
