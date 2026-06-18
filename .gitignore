@@ -58,6 +58,7 @@ GoogleService-Info.plist
 .claude/
 .codex/
 .continue/
+.deepsec/
 .kiro/
 .pi/
 .pi-lens/
@@ -95,6 +96,9 @@ DerivedData/
 
 # Local app runner
 /.app/
+
+# Local DB-dump helper (machine-specific: Zerops project id + local DB creds)
+scripts/dbdump
 
 # OS
 .DS_Store
