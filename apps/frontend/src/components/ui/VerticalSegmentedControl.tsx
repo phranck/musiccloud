@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -36,6 +36,8 @@ const AUTO_CLOSE_MS = 5000;
  * is pinned to the top via flex `order`, so it never moves when the list opens or
  * closes. Choosing a cell fires `onChange` and closes; clicking outside, pressing
  * Escape, or leaving it open for {@link AUTO_CLOSE_MS} without a choice also closes.
+ * The idle countdown pauses while the pointer hovers the control and restarts when
+ * it leaves, so resting on an item keeps the list open.
  *
  * The cells are fixed-size, so the open/close is a pure CSS height + row-gap
  * transition (no layout measurement); it is disabled under `prefers-reduced-motion`.
@@ -53,30 +55,42 @@ export function VerticalSegmentedControl<T extends string>({
 }: VerticalSegmentedControlProps<T>) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const close = useCallback(() => setOpen(false), []);
+  // The pending idle-auto-close timer and whether the pointer rests on the control.
+  // Both are refs, not state: they drive the imperative dismiss timer, never the
+  // rendered output, so toggling them must not trigger a re-render.
+  const autoCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHovered = useRef(false);
 
-  // While open, dismiss on an outside pointer press, Escape, or the auto-close timer.
-  // The listeners + timer are scoped to the open state and torn down when it closes
-  // or the control unmounts. Every dismissal routes through `close`, so the effect
-  // holds a single shared state update rather than three separate ones.
+  // Non-reactive dismiss for the effect-scoped listeners and idle timer: an Effect
+  // Event reads the latest state yet is never a dependency, so the effect stays
+  // keyed to `open` alone and never re-subscribes on an unrelated re-render.
+  const requestClose = useEffectEvent(() => setOpen(false));
+
+  // While open, dismiss on an outside pointer press, Escape, or the idle timeout.
+  // The idle countdown is armed here only when the pointer is not already resting on
+  // the control — while it hovers, the pointer-enter/leave handlers own the timer
+  // and keep it paused, so hovering an item never auto-collapses the list. Listeners
+  // and the timer are torn down on close/unmount.
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) close();
+      if (!containerRef.current?.contains(event.target as Node)) requestClose();
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
+      if (event.key === "Escape") requestClose();
     };
-    // Collapse on its own if the list is opened but left without a selection.
-    const autoClose = setTimeout(close, AUTO_CLOSE_MS);
+    if (!isHovered.current) {
+      autoCloseTimer.current = setTimeout(() => requestClose(), AUTO_CLOSE_MS);
+    }
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      clearTimeout(autoClose);
+      if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current);
+      autoCloseTimer.current = null;
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, close]);
+  }, [open]);
 
   const handleSegment = (key: T) => {
     // Collapsed: the only reachable cell is the active one — it opens the list.
@@ -86,11 +100,29 @@ export function VerticalSegmentedControl<T extends string>({
     }
     // Open: choose the cell (re-choosing the active one is a no-op change) and close.
     onChange(key);
-    close();
+    setOpen(false);
+  };
+
+  // Pause the idle auto-close while the pointer rests on the control, and start a
+  // fresh countdown when it leaves — so hovering its items keeps the list open.
+  // Hover lives on a ref so these toggles never re-render the control.
+  const handlePointerEnter = () => {
+    isHovered.current = true;
+    if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current);
+    autoCloseTimer.current = null;
+  };
+  const handlePointerLeave = () => {
+    isHovered.current = false;
+    if (open) autoCloseTimer.current = setTimeout(() => setOpen(false), AUTO_CLOSE_MS);
   };
 
   return (
-    <div ref={containerRef} className={cn("relative", className)}>
+    <div
+      ref={containerRef}
+      className={cn("relative", className)}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+    >
       <RecessedCard
         className="mc-glass-seg-track flex flex-col p-1 transition-[row-gap] duration-250 ease-out motion-reduce:transition-none"
         radius={recessedSurfaceRadius}

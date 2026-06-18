@@ -92,4 +92,31 @@ describe("DayNightSwitcher", () => {
       vi.useRealTimers();
     }
   });
+
+  it("keeps the list open while hovered, then auto-collapses after the pointer leaves", () => {
+    vi.useFakeTimers();
+    try {
+      renderSwitcher();
+      fireEvent.click(screen.getByRole("button", { name: "Night" })); // open
+      // The control container owns the hover handlers (parent of the track).
+      const container = document.querySelector(".mc-glass-seg-track")?.parentElement;
+      if (!container) throw new Error("control container not found");
+
+      // Pointer resting on the control pauses the idle countdown.
+      fireEvent.pointerEnter(container);
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByRole("button", { name: "Day" })).not.toHaveAttribute("inert");
+
+      // Once it leaves, the full 5s countdown resumes and collapses the list.
+      fireEvent.pointerLeave(container);
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByRole("button", { name: "Day" })).toHaveAttribute("inert");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
