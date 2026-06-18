@@ -18,12 +18,6 @@ graphify-out/
 # Astro
 .astro/
 
-# Database
-data/*.db
-data/*.db-wal
-data/*.db-shm
-apps/backend/data/
-
 # Environment (all dotenv variants; keep a committable example if one is ever added)
 .env
 .env.*

@@ -31,7 +31,6 @@
     "doctor:lsp": "pnpm exec react-doctor experimental-lsp"
   },
   "devDependencies": {
-    "@astrojs/check": "0.9.9",
     "@biomejs/biome": "2.4.8",
     "concurrently": "^9.1.0",
     "drizzle-kit": "^0.31.10",
@@ -39,8 +38,7 @@
     "react-doctor-config-strict": "workspace:*",
     "react-doctor-plugin-domain-literals": "workspace:*",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1",
-    "vitest": "^1.6.1"
+    "vite": "^7.3.1"
   },
   "optionalDependencies": {
     "@rolldown/binding-linux-x64-musl": "1.0.0-rc.9",

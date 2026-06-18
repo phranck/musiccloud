@@ -2,7 +2,7 @@
  * Design-token model — the single source of truth for the runtime-tunable
  * glassmorphism material and the WebGL night-sky shader.
  *
- * The values originate from the visual reference prototype (`frontend-prototype.html`)
+ * The values originate from the visual reference prototype (`architecture/frontend-prototype.html`)
  * and are exported by it as a single JSON blob ("Copy settings"). An administrator
  * pastes that blob into the dashboard Design page; it is persisted verbatim under
  * the `design_tokens` site-setting key, validated on read, injected into the

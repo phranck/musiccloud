@@ -3,7 +3,7 @@
  * Phase 4). The values are the user-approved prototype JSON — fifth
  * iteration, re-tuned 2026-06-13 for the static sky plane (MC-031: star
  * density/size, twinkle, wind, occlusion, day horizon color) — and must
- * stay in lockstep with `frontend-prototype.html` (the tuning tool that
+ * stay in lockstep with `architecture/frontend-prototype.html` (the tuning tool that
  * produced them).
  *
  * Default behaviour encoded here: fixed NIGHT start (`dayness: 0`,
