@@ -7,12 +7,10 @@ import { PagesSaveBar } from "@/components/layout/PagesSaveBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { FooterUserInfo } from "@/components/layout/SidebarFooter";
 import { Card } from "@/components/ui/Card";
-import { ThemeSegmentedControl } from "@/components/ui/ThemeSegmentedControl";
 import { BodyCardProvider, useBodyCard } from "@/context/BodyCardContext";
 import { useI18n } from "@/context/I18nContext";
 import { PageFooterProvider, usePageFooterContext } from "@/context/PageFooterContext";
 import { PageHeaderProvider, usePageHeaderContext } from "@/context/PageHeaderContext";
-import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { PagesEditorProvider, usePagesEditor } from "@/features/content/state/PagesEditorContext";
@@ -20,7 +18,6 @@ import { SegmentsActionType } from "@/features/content/state/slices/segmentsSlic
 import { UnsavedGuard } from "@/features/content/state/UnsavedGuard";
 import { useGlobalPagesSave } from "@/features/content/state/useGlobalPagesSave";
 import { UserEditCard } from "@/features/system/UserEditCard";
-import { getSegmentedStorageKey } from "@/lib/segmented-storage";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 import { LogoView } from "@/shared/ui/LogoView";
 
@@ -82,17 +79,6 @@ function useSidebarWidth() {
   return { width, onMouseDown };
 }
 
-function ThemeToggle({ userId }: { userId?: string }) {
-  const { theme, setTheme } = useTheme();
-  return (
-    <ThemeSegmentedControl
-      value={theme}
-      onChange={setTheme}
-      storageKey={getSegmentedStorageKey(userId, "layout:theme")}
-    />
-  );
-}
-
 function AdminLayoutInner() {
   const { user, logout } = useAuth();
   const { messages } = useI18n();
@@ -146,7 +132,6 @@ function AdminLayoutInner() {
           </div>
           <div className="flex items-center gap-3 ml-auto">
             <div ref={setActionsEl} className="flex items-center gap-2" />
-            <ThemeToggle userId={user?.id} />
           </div>
         </div>
       </Card>
