@@ -23,9 +23,8 @@ import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
-import { AdminMusicItemKind } from "@/features/music/adminMusicKind";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
-import { InvalidateCacheButton } from "@/features/music/InvalidateCacheButton";
+import { RefreshArtistButton } from "@/features/music/RefreshArtistButton";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
 
@@ -64,11 +63,6 @@ function useArtistColumns(table: ArtistTable, ma: ArtistMessages): ColumnDef<Art
             } satisfies ColumnDef<ArtistListItem>,
           ]
         : []),
-      {
-        id: "invalidate-cache",
-        className: "w-10",
-        cell: (artist) => <InvalidateCacheButton shortId={artist.shortId} kind={AdminMusicItemKind.Artists} />,
-      },
       {
         id: "image",
         className: "w-16",
@@ -158,6 +152,15 @@ function useArtistColumns(table: ArtistTable, ma: ArtistMessages): ColumnDef<Art
         sortKey: (artist) => artist.createdAt,
         cell: (artist) => (
           <span className="text-sm text-[var(--ds-text-muted)] whitespace-nowrap">{formatDate(artist.createdAt)}</span>
+        ),
+      },
+      {
+        id: "actions",
+        className: "w-40",
+        cell: (artist) => (
+          <div className="flex gap-2 justify-end">
+            <RefreshArtistButton shortId={artist.shortId} />
+          </div>
         ),
       },
     ],

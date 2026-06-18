@@ -18,8 +18,8 @@
  *
  * ## Conventions
  *
- * - Group structure mirrors URL segments: `ENDPOINTS.admin.tracks.invalidateCache(shortId)`
- *   produces `/api/admin/tracks/<shortId>/invalidate-cache`.
+ * - Group structure mirrors URL segments: `ENDPOINTS.admin.artists.invalidateCache(shortId)`
+ *   produces `/api/admin/artists/<shortId>/invalidate-cache`.
  * - Plain strings for static paths; functions for parameterised paths.
  * - Methods are encoded only when a single path serves multiple verbs (e.g.
  *   GET + POST on `/api/v1/resolve`). Otherwise the path is just a string.
@@ -156,15 +156,11 @@ export const ENDPOINTS = {
       list: "/api/admin/tracks",
       /** GET: fetch one / PATCH: update one. */
       detail: (id: string) => `/api/admin/tracks/${id}`,
-      /** POST: mark this track's cached resolution as stale; share URL stays alive. */
-      invalidateCache: (shortId: string) => `/api/admin/tracks/${shortId}/invalidate-cache`,
     },
 
     albums: {
       /** GET: list / DELETE: bulk delete. */
       list: "/api/admin/albums",
-      /** POST: mark this album's cached resolution as stale. */
-      invalidateCache: (shortId: string) => `/api/admin/albums/${shortId}/invalidate-cache`,
     },
 
     artists: {
@@ -294,10 +290,6 @@ export const ROUTE_TEMPLATES = {
     },
     tracks: {
       detail: "/api/admin/tracks/:id",
-      invalidateCache: "/api/admin/tracks/:shortId/invalidate-cache",
-    },
-    albums: {
-      invalidateCache: "/api/admin/albums/:shortId/invalidate-cache",
     },
     artists: {
       invalidateCache: "/api/admin/artists/:shortId/invalidate-cache",

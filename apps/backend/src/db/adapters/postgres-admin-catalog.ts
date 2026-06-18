@@ -10,8 +10,7 @@
  *   - Hard-delete with foreign-key cleanup for tracks, albums and artist
  *     profiles. Emits typed events on the {@link adminEventBroadcaster}
  *     so dashboard clients can react in real time.
- *   - Cache invalidation: per-entity (`invalidateTrackCache`,
- *     `invalidateAlbumCache`, `invalidateArtistCache`) and full
+ *   - Cache invalidation: per-artist (`invalidateArtistCache`) and full
  *     (`invalidateAllCaches`, `clearArtistCache`).
  *   - Aggregate counts and full data reset for the maintenance UI.
  *   - `resolveShortIds` batch lookup for any short-id that may refer to a
@@ -695,60 +694,11 @@ export async function deleteArtists(pool: Pool, ids: string[]): Promise<void> {
 // CACHE INVALIDATION
 // ============================================================================
 //
-// Track and album resolver cache hits are permanently fresh after the
-// static/dynamic cache split; preview freshness lives in `track_previews` /
-// `album_previews`. Rewinding `updated_at` on tracks/albums is therefore an
-// admin catalogue marker only, not a resolver freshness trigger. Artist cache
-// still uses CACHE_TTL_MS through `tryArtistCache`.
-
-/**
- * Marks a track row as administratively stale by rewinding
- * `tracks.updated_at` to the Unix epoch.
- *
- * Track resolves no longer use this timestamp as a freshness gate; use this
- * only for admin/catalog state, not to force upstream re-resolution.
- *
- * @param pool - Postgres connection pool.
- * @param shortId - The public short URL id that identifies the track.
- * @returns `{ ok: true }` on success.
- * @throws `Error` when no short URL with that id exists (so the admin
- *   UI can surface a clear "not found" instead of silently no-op'ing).
- */
-export async function invalidateTrackCache(pool: Pool, shortId: string): Promise<{ ok: true }> {
-  const result = await pool.query(
-    `UPDATE tracks SET updated_at = to_timestamp(0)
-     WHERE id = (SELECT track_id FROM short_urls WHERE id = $1)`,
-    [shortId],
-  );
-  if ((result.rowCount ?? 0) === 0) {
-    throw new Error(`Track short URL not found: ${shortId}`);
-  }
-  return { ok: true };
-}
-
-/**
- * Marks an album row as administratively stale by rewinding
- * `albums.updated_at` to the Unix epoch.
- *
- * Album resolves no longer use this timestamp as a freshness gate; use this
- * only for admin/catalog state, not to force upstream re-resolution.
- *
- * @param pool - Postgres connection pool.
- * @param shortId - The public short URL id that identifies the album.
- * @returns `{ ok: true }` on success.
- * @throws `Error` when no album short URL with that id exists.
- */
-export async function invalidateAlbumCache(pool: Pool, shortId: string): Promise<{ ok: true }> {
-  const result = await pool.query(
-    `UPDATE albums SET updated_at = to_timestamp(0)
-     WHERE id = (SELECT album_id FROM album_short_urls WHERE id = $1)`,
-    [shortId],
-  );
-  if ((result.rowCount ?? 0) === 0) {
-    throw new Error(`Album short URL not found: ${shortId}`);
-  }
-  return { ok: true };
-}
+// Only artists still gate resolver freshness on `updated_at` (48h TTL via
+// `tryArtistCache`). Track and album resolver cache hits are permanently fresh
+// after the static/dynamic cache split (preview freshness lives in
+// `track_previews` / `album_previews`), so there is no per-row track/album
+// invalidation — rewinding their `updated_at` would have no effect.
 
 /**
  * Forces the next resolve for an artist to re-fetch from upstream by

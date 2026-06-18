@@ -23,9 +23,7 @@ import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
-import { AdminMusicItemKind } from "@/features/music/adminMusicKind";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
-import { InvalidateCacheButton } from "@/features/music/InvalidateCacheButton";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
 
@@ -72,11 +70,6 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages): ColumnDef<AlbumL
             } satisfies ColumnDef<AlbumListItem>,
           ]
         : []),
-      {
-        id: "invalidate-cache",
-        className: "w-10",
-        cell: (album) => <InvalidateCacheButton shortId={album.shortId} kind={AdminMusicItemKind.Albums} />,
-      },
       {
         id: "artwork",
         className: "w-16",

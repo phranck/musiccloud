@@ -166,6 +166,9 @@ export interface DashboardMessages {
       colSource: string;
       colLinks: string;
       colAdded: string;
+      refreshLabel: string;
+      refreshTooltip: string;
+      refreshConfirm: string;
     };
     table: {
       editButton: string;
@@ -174,8 +177,6 @@ export interface DashboardMessages {
       deleteConfirmDescription: string;
       deleteConfirmCancel: string;
       deleteConfirmAction: string;
-      invalidateCache: string;
-      invalidateCacheConfirm: string;
     };
   };
   system: {
@@ -897,6 +898,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         colSource: "Quelle",
         colLinks: "Services",
         colAdded: "Hinzugef\u00fcgt",
+        refreshLabel: "Auffrischen",
+        refreshTooltip: "K\u00fcnstlerdaten neu von der Quelle laden",
+        refreshConfirm: "Aufgefrischt",
       },
       table: {
         editButton: "Bearbeiten",
@@ -905,8 +909,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         deleteConfirmDescription: "{count} Eintr\u00e4ge werden unwiderruflich gel\u00f6scht.",
         deleteConfirmCancel: "Abbrechen",
         deleteConfirmAction: "L\u00f6schen",
-        invalidateCache: "Cache auffrischen",
-        invalidateCacheConfirm: "Cache aufgefrischt",
       },
     },
     system: {
@@ -1602,6 +1604,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         colSource: "Source",
         colLinks: "Services",
         colAdded: "Added",
+        refreshLabel: "Refresh",
+        refreshTooltip: "Reload artist data from the source",
+        refreshConfirm: "Refreshed",
       },
       table: {
         editButton: "Edit",
@@ -1610,8 +1615,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         deleteConfirmDescription: "{count} entries will be permanently deleted.",
         deleteConfirmCancel: "Cancel",
         deleteConfirmAction: "Delete",
-        invalidateCache: "Refresh cache",
-        invalidateCacheConfirm: "Cache refreshed",
       },
     },
     system: {
