@@ -45,6 +45,32 @@ describe("NightSkyDriver", () => {
     expect(scene.draw).toHaveBeenCalledTimes(2);
   });
 
+  it("redrawNow paints immediately, bypassing the fps gate, then re-anchors it", () => {
+    const { scene, driver } = makeDriver({ fpsCap: 10 });
+    driver.tick(0); // baseline draw anchors the gate at t=0
+    scene.draw.mockClear();
+
+    // A scheduled tick 20 ms later is gated (< 100 ms interval)…
+    driver.tick(20);
+    expect(scene.draw).not.toHaveBeenCalled();
+
+    // …but a resize repaint must land in the SAME task: the cleared buffer
+    // would otherwise flash opaque-black until the next gated tick.
+    driver.redrawNow(20);
+    expect(scene.draw).toHaveBeenCalledTimes(1);
+
+    // It re-anchored the gate, so the next sub-interval tick still gates.
+    driver.tick(60);
+    expect(scene.draw).toHaveBeenCalledTimes(1);
+  });
+
+  it("redrawNow skips the paint while the tab is hidden", () => {
+    const { scene, driver } = makeDriver();
+    driver.setVisible(false);
+    driver.redrawNow(0);
+    expect(scene.draw).not.toHaveBeenCalled();
+  });
+
   it("lifts the cap to DAY_FADE_FPS while a manual fade runs and settles at the target", () => {
     const { scene, driver } = makeDriver({ fpsCap: 10, dayTransition: 1, dayness: 0 });
     driver.tick(0); // baseline draw

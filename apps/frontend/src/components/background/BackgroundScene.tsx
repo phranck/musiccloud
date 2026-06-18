@@ -110,7 +110,7 @@ function scheduleIdle(callback: () => void): () => void {
  * calls (fallback). In System mode a `prefers-color-scheme` listener plays
  * live OS theme flips as animated fades.
  *
- * Default behaviour per the approved settings: fixed night start, 10 fps
+ * Default behaviour per the approved settings: fixed night start, 7 fps
  * idle loop, 30 fps lift during the manual day/night fade.
  */
 export function BackgroundScene({ shaderTokens }: { shaderTokens?: ShaderTokens }) {
@@ -180,7 +180,9 @@ export function BackgroundScene({ shaderTokens }: { shaderTokens?: ShaderTokens 
         } satisfies NightSkyMessage);
       } else if (fallbackScene && fallbackDriver) {
         fallbackScene.resize(width, height, fallbackDriver.settings.renderScale * Math.min(pixelRatio, 2));
-        fallbackDriver.requestRedraw();
+        // Same-task repaint so the freshly cleared buffer never flashes black
+        // (see NightSkyDriver.redrawNow).
+        fallbackDriver.redrawNow(performance.now());
       }
     };
 

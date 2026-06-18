@@ -29,7 +29,7 @@ function smooth01(t: number): number {
  * callback — policy 3: no extra rAF source on the main thread). It owns the
  * loop POLICY, not the scheduling:
  *
- * - fps gating at `settings.fpsCap` (production default 10);
+ * - fps gating at `settings.fpsCap` (production default 7);
  * - the temporary {@link DAY_FADE_FPS} lift while a manual day/night fade
  *   runs (user decision: a 1 s fade at 10 fps would look steppy);
  * - `animate` off → one initial still frame, afterwards zero draws unless
@@ -171,6 +171,32 @@ export class NightSkyDriver {
   /** Requests a one-shot repaint (resize, external tuning) without enabling animation. */
   requestRedraw(): void {
     this.needsRedraw = true;
+  }
+
+  /**
+   * Draws one frame IMMEDIATELY, bypassing the fps gate, and re-anchors the
+   * gate on `nowMs`. Used right after a resize: `scene.resize()` reallocates
+   * and CLEARS the GL drawing buffer, so with the context's `alpha: false` the
+   * canvas would show an opaque-black surface until the next gated tick — up to
+   * one fps interval later (~143 ms at the production cap of 7). Painting in the
+   * SAME task as the resize closes that gap: the compositor only ever sees the
+   * freshly redrawn buffer, so dragging the window edge never flashes black.
+   *
+   * Skips the paint while the tab is hidden (like {@link tick}); `setVisible`
+   * repaints on return. Re-anchoring `lastDrawMs` keeps the following scheduled
+   * tick on the fps interval instead of drawing a second time straight away.
+   *
+   * @param nowMs - Monotonic timestamp (worker rAF / `performance.now()`) the
+   *   fps gate re-anchors on.
+   */
+  redrawNow(nowMs: number): void {
+    if (!this.visible) {
+      this.needsRedraw = true;
+      return;
+    }
+    this.needsRedraw = false;
+    this.lastDrawMs = nowMs;
+    this.scene.draw(this.simTime);
   }
 
   /** Advances a running manual fade (smoothstepped over `dayTransition` seconds). */

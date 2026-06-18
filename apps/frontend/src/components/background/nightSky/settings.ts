@@ -223,7 +223,7 @@ export const NIGHT_SKY_RANGES: Record<
 
 /**
  * Frame rate the manual day/night fade renders at (user decision
- * 2026-06-12): the scene idles at `fpsCap` (10), but the one-second fade
+ * 2026-06-12): the scene idles at `fpsCap` (7), but the one-second fade
  * would look steppy there — while a fade runs, the loop temporarily lifts
  * the cap to this value and falls back right after.
  */

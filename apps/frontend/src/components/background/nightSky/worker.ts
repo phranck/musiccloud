@@ -68,7 +68,10 @@ workerSelf.onmessage = (event: MessageEvent<NightSkyMessage>) => {
     case NightSkyMessageType.Resize: {
       if (!scene || !driver) return;
       scene.resize(message.cssWidth, message.cssHeight, pixelScale(message.pixelRatio, driver.settings));
-      driver.requestRedraw();
+      // Repaint in THIS task: scene.resize() just cleared the reallocated GL
+      // buffer; deferring to the gated loop would flash the opaque-black empty
+      // surface for up to one fps interval while the window is being dragged.
+      driver.redrawNow(performance.now());
       break;
     }
     case NightSkyMessageType.Visibility: {
