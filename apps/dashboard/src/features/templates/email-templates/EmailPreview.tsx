@@ -2,8 +2,8 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import { EyeIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
+import { ColorSchemeSegmentedControl } from "@/components/ui/ColorSchemeSegmentedControl";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { ThemeSegmentedControl } from "@/components/ui/ThemeSegmentedControl";
 import { useI18n } from "@/context/I18nContext";
 import { api } from "@/lib/api";
 
@@ -66,14 +66,12 @@ export function EmailPreview({
         icon={<EyeIcon weight="duotone" className="size-4" />}
         title={m.previewTitle}
         renderAddOn={() => (
-          <ThemeSegmentedControl
+          <ColorSchemeSegmentedControl
             value={colorScheme}
             onChange={(value) => {
-              if (value === "system") return;
               setColorScheme(value);
               localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, value);
             }}
-            options={["light", "dark"]}
           />
         )}
       />

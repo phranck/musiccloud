@@ -12,7 +12,6 @@ import {
   GearIcon,
   HouseSimpleIcon,
   ListIcon,
-  MarkdownLogoIcon,
   MicrophoneStageIcon,
   MusicNotesIcon,
   NotebookIcon,
@@ -756,15 +755,6 @@ export function Sidebar({
                     <DashboardSection.Item
                       icon={<UsersThreeIcon weight="duotone" className="w-4 h-4" />}
                       label={s.users}
-                      active={isActive}
-                    />
-                  )}
-                </NavLink>
-                <NavLink to="/markdown-widgets" onClick={onItemClick} className="contents">
-                  {({ isActive }) => (
-                    <DashboardSection.Item
-                      icon={<MarkdownLogoIcon weight="duotone" className="w-4 h-4" />}
-                      label={s.markdownWidgets}
                       active={isActive}
                     />
                   )}

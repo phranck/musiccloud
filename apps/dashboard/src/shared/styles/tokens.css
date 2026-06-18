@@ -53,23 +53,21 @@
   /* -- COLOR SYSTEM ------------------------------------------ */
   --ds-neutral-c: 0.006;
   --ds-neutral-h: 250;
-  --ds-L-surface-step: 0.025;
-  --ds-L-text-step: 0.16;
 }
 
-/* -- SEMANTIC TOKENS - Light mode ----------------------------- */
+/* -- SEMANTIC TOKENS ------------------------------------------ */
 
 :root {
   /* Surface lightness levels */
-  --ds-L-surface: 1;
-  --ds-L-bg: calc(var(--ds-L-surface) - var(--ds-L-surface-step));
-  --ds-L-elevated: calc(var(--ds-L-surface) - var(--ds-L-surface-step) * 2);
-  --ds-L-inset: calc(var(--ds-L-bg) - var(--ds-L-surface-step));
+  --ds-L-surface: 0.225;
+  --ds-L-bg: 0.185;
+  --ds-L-elevated: 0.25;
+  --ds-L-inset: 0.205;
 
   /* Text lightness levels */
-  --ds-L-text: 0.2;
-  --ds-L-muted: calc(var(--ds-L-text) + var(--ds-L-text-step));
-  --ds-L-subtle: calc(var(--ds-L-text) + var(--ds-L-text-step) * 2);
+  --ds-L-text: 0.95;
+  --ds-L-muted: 0.65;
+  --ds-L-subtle: 0.5;
 
   /* Surfaces */
   --ds-bg: oklch(var(--ds-L-bg) var(--ds-neutral-c) var(--ds-neutral-h));
@@ -77,39 +75,39 @@
   --ds-surface: oklch(var(--ds-L-surface) var(--ds-neutral-c) var(--ds-neutral-h));
   --ds-surface-alt: oklch(var(--ds-L-inset) var(--ds-neutral-c) var(--ds-neutral-h));
   --ds-surface-inset: oklch(var(--ds-L-inset) var(--ds-neutral-c) var(--ds-neutral-h));
-  --ds-input-bg: var(--ds-surface);
+  --ds-input-bg: var(--ds-bg-elevated);
 
   /* Borders */
-  --ds-border: #d0d7de;
-  --ds-border-strong: #6e7781;
-  --ds-border-subtle: hsl(210 14% 89%);
+  --ds-border: #3d444d;
+  --ds-border-strong: #656c76;
+  --ds-border-subtle: hsl(215 12% 28%);
 
   /* Text */
   --ds-text: oklch(var(--ds-L-text) var(--ds-neutral-c) var(--ds-neutral-h));
   --ds-text-muted: oklch(var(--ds-L-muted) var(--ds-neutral-c) var(--ds-neutral-h));
   --ds-text-subtle: oklch(var(--ds-L-subtle) var(--ds-neutral-c) var(--ds-neutral-h));
-  --ds-text-inverse: #ffffff;
+  --ds-text-inverse: oklch(var(--ds-L-inset) 0 0);
 
   /* Accent / CTA */
   --ds-accent: var(--ds-color-brand-500);
   --ds-accent-hover: var(--ds-color-brand-600);
   --ds-accent-active: var(--ds-color-brand-700);
-  --ds-accent-subtle: var(--ds-color-brand-50);
+  --ds-accent-subtle: hsl(215 30% 20%);
   --ds-accent-fg: #ffffff;
 
   /* Status */
-  --ds-success-bg: hsl(135 60% 92%);
-  --ds-success-border: hsl(130 40% 70%);
-  --ds-success-text: hsl(140 65% 30%);
-  --ds-danger-bg: hsl(0 80% 95%);
-  --ds-danger-border: hsl(0 60% 72%);
-  --ds-danger-text: hsl(0 75% 48%);
-  --ds-warning-bg: hsl(48 90% 90%);
-  --ds-warning-border: hsl(45 65% 55%);
-  --ds-warning-text: hsl(40 100% 30%);
-  --ds-info-bg: hsl(205 80% 93%);
-  --ds-info-border: hsl(210 70% 68%);
-  --ds-info-text: hsl(212 80% 44%);
+  --ds-success-bg: hsl(135 25% 18%);
+  --ds-success-border: hsl(130 35% 35%);
+  --ds-success-text: hsl(135 50% 55%);
+  --ds-danger-bg: hsl(0 30% 20%);
+  --ds-danger-border: hsl(0 50% 38%);
+  --ds-danger-text: hsl(0 65% 62%);
+  --ds-warning-bg: hsl(40 35% 18%);
+  --ds-warning-border: hsl(40 50% 35%);
+  --ds-warning-text: hsl(38 60% 55%);
+  --ds-info-bg: hsl(215 30% 20%);
+  --ds-info-border: hsl(215 50% 38%);
+  --ds-info-text: hsl(212 70% 65%);
 
   /* Typography - font families */
   --ds-font-sans: "Inter", system-ui, -apple-system, sans-serif;
@@ -149,11 +147,11 @@
   --ds-radius-pill: 9999px;
 
   /* Shadows */
-  --ds-shadow-xs: 0 1px 2px oklch(0 0 0 / 0.04);
-  --ds-shadow-sm: 0 1px 3px oklch(0 0 0 / 0.06), 0 1px 2px oklch(0 0 0 / 0.04);
-  --ds-shadow-md: 0 4px 6px oklch(0 0 0 / 0.05), 0 2px 4px oklch(0 0 0 / 0.04);
-  --ds-shadow-lg: 0 10px 15px oklch(0 0 0 / 0.06), 0 4px 6px oklch(0 0 0 / 0.04);
-  --ds-shadow-xl: 0 20px 25px oklch(0 0 0 / 0.08), 0 8px 10px oklch(0 0 0 / 0.04);
+  --ds-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+  --ds-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.4);
+  --ds-shadow-md: 0 4px 6px rgb(0 0 0 / 0.45), 0 2px 4px rgb(0 0 0 / 0.35);
+  --ds-shadow-lg: 0 10px 15px rgb(0 0 0 / 0.5), 0 4px 6px rgb(0 0 0 / 0.4);
+  --ds-shadow-xl: 0 20px 25px rgb(0 0 0 / 0.55), 0 8px 10px rgb(0 0 0 / 0.45);
 
   /* Border radius - referenced by UnoCSS theme config */
   --radius-control: 0.5rem;
@@ -170,9 +168,9 @@
   --ds-control-h-menu-item: 2rem;
   --ds-border-focus: var(--ds-accent);
   --ds-focus-ring: var(--color-primary);
-  --ds-focus-ring-offset: var(--ds-surface);
-  --ds-control-hover-bg: oklch(var(--ds-L-text) var(--ds-neutral-c) var(--ds-neutral-h) / 0.06);
-  --ds-control-active-bg: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  --ds-focus-ring-offset: var(--ds-bg);
+  --ds-control-hover-bg: oklch(var(--ds-L-text) var(--ds-neutral-c) var(--ds-neutral-h) / 0.08);
+  --ds-control-active-bg: color-mix(in srgb, var(--color-primary) 22%, transparent);
   --ds-control-disabled-opacity: 0.4;
   --ds-bg-hover: var(--ds-control-hover-bg);
   --ds-surface-hover: var(--ds-control-hover-bg);
@@ -194,63 +192,6 @@
   --ds-ease-in: cubic-bezier(0.4, 0, 1, 1);
 
   /* Markdown editor syntax highlighting */
-  --md-heading: #0969da;
-  --md-emphasis: #8250df;
-  --md-code: #bc4c00;
-  --md-quote: #1a7f37;
-  --md-punctuation: #6e7781;
-}
-
-/* -- SEMANTIC TOKENS - Dark mode ------------------------------ */
-
-.dark {
-  --ds-L-surface: 0.225;
-  --ds-L-bg: 0.185;
-  --ds-L-elevated: 0.25;
-  --ds-L-inset: 0.205;
-
-  --ds-L-text: 0.95;
-  --ds-L-muted: 0.65;
-  --ds-L-subtle: 0.5;
-
-  --ds-text-inverse: oklch(var(--ds-L-inset) 0 0);
-  --ds-input-bg: var(--ds-bg-elevated);
-  --ds-focus-ring-offset: var(--ds-bg);
-  --ds-control-hover-bg: oklch(var(--ds-L-text) var(--ds-neutral-c) var(--ds-neutral-h) / 0.08);
-  --ds-control-active-bg: color-mix(in srgb, var(--color-primary) 22%, transparent);
-  --ds-bg-hover: var(--ds-control-hover-bg);
-  --ds-surface-hover: var(--ds-control-hover-bg);
-
-  /* Borders */
-  --ds-border: #3d444d;
-  --ds-border-strong: #656c76;
-  --ds-border-subtle: hsl(215 12% 28%);
-
-  /* Accent */
-  --ds-accent-subtle: hsl(215 30% 20%);
-
-  /* Status */
-  --ds-success-bg: hsl(135 25% 18%);
-  --ds-success-border: hsl(130 35% 35%);
-  --ds-success-text: hsl(135 50% 55%);
-  --ds-danger-bg: hsl(0 30% 20%);
-  --ds-danger-border: hsl(0 50% 38%);
-  --ds-danger-text: hsl(0 65% 62%);
-  --ds-warning-bg: hsl(40 35% 18%);
-  --ds-warning-border: hsl(40 50% 35%);
-  --ds-warning-text: hsl(38 60% 55%);
-  --ds-info-bg: hsl(215 30% 20%);
-  --ds-info-border: hsl(215 50% 38%);
-  --ds-info-text: hsl(212 70% 65%);
-
-  /* Shadows */
-  --ds-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
-  --ds-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.4);
-  --ds-shadow-md: 0 4px 6px rgb(0 0 0 / 0.45), 0 2px 4px rgb(0 0 0 / 0.35);
-  --ds-shadow-lg: 0 10px 15px rgb(0 0 0 / 0.5), 0 4px 6px rgb(0 0 0 / 0.4);
-  --ds-shadow-xl: 0 20px 25px rgb(0 0 0 / 0.55), 0 8px 10px rgb(0 0 0 / 0.45);
-
-  /* Markdown editor syntax highlighting */
   --md-heading: #79c0ff;
   --md-emphasis: #d2a8ff;
   --md-code: #ffa657;
@@ -258,15 +199,15 @@
   --md-punctuation: #8b949e;
 }
 
-/* -- COMPONENT TOKENS - Light mode ---------------------------- */
+/* -- COMPONENT TOKENS ----------------------------------------- */
 
 :root {
   /* Overlay / modal backdrop */
   --ds-overlay-bg: oklch(0 0 0 / 0.5);
 
   /* Filled button */
-  --ds-btn-filled-bg: var(--ds-color-neutral-900);
-  --ds-btn-filled-hover: var(--ds-color-neutral-800);
+  --ds-btn-filled-bg: var(--ds-color-neutral-700);
+  --ds-btn-filled-hover: var(--ds-color-neutral-600);
   --ds-btn-filled-fg: #ffffff;
 
   /* Primary CTA button */
@@ -275,88 +216,41 @@
   --ds-btn-primary-fg: #ffffff;
 
   /* Outline action button: primary */
-  --ds-btn-primary-border: hsl(195 55% 75%);
-  --ds-btn-primary-text: hsl(195 100% 40%);
-  --ds-btn-primary-hover-border: hsl(195 65% 58%);
-  --ds-btn-primary-hover-bg: hsl(195 80% 96%);
-
-  /* Segment controls */
-  --ds-segment-bg: var(--ds-bg-elevated);
-  --ds-segment-active-bg: var(--ds-control-active-bg);
-  --ds-segment-active-border: color-mix(in srgb, var(--color-primary) 16%, var(--ds-border));
-
-  /* Neutral outline button */
-  --ds-btn-neutral-border: var(--ds-border);
-  --ds-btn-neutral-text: var(--ds-text-muted);
-  --ds-btn-neutral-hover-border: var(--ds-border-strong);
-  --ds-btn-neutral-hover-bg: hsl(210 10% 95%);
-
-  /* Outline action button: danger */
-  --ds-btn-danger-border: hsl(355 55% 75%);
-  --ds-btn-danger-text: hsl(0 75% 48%);
-  --ds-btn-danger-hover-bg: hsl(0 80% 95%);
-  --ds-btn-danger-hover-border: hsl(355 60% 58%);
-
-  /* Outline action button: success */
-  --ds-btn-success-border: hsl(140 40% 72%);
-  --ds-btn-success-text: hsl(140 65% 30%);
-  --ds-btn-success-hover-bg: hsl(135 60% 92%);
-  --ds-btn-success-hover-border: hsl(140 50% 52%);
-
-  /* Outline action button: warning */
-  --ds-btn-warning-border: hsl(40 55% 68%);
-  --ds-btn-warning-text: hsl(40 100% 30%);
-  --ds-btn-warning-hover-bg: hsl(48 90% 90%);
-  --ds-btn-warning-hover-border: hsl(40 65% 48%);
-
-  /* Status badges */
-  --ds-badge-pending-bg: hsl(48 90% 90%);
-  --ds-badge-pending-text: hsl(40 100% 30%);
-  --ds-badge-success-bg: hsl(135 60% 92%);
-  --ds-badge-success-text: hsl(140 65% 30%);
-  --ds-badge-danger-bg: hsl(0 80% 95%);
-  --ds-badge-danger-text: hsl(0 75% 48%);
-  --ds-badge-info-bg: hsl(205 80% 93%);
-  --ds-badge-info-text: hsl(212 80% 44%);
-  --ds-badge-review-bg: hsl(270 70% 93%);
-  --ds-badge-review-text: hsl(270 55% 50%);
-}
-
-/* -- COMPONENT TOKENS - Dark mode ----------------------------- */
-
-.dark {
-  --ds-btn-filled-bg: var(--ds-color-neutral-700);
-  --ds-btn-filled-hover: var(--ds-color-neutral-600);
-
   --ds-btn-primary-border: hsl(195 40% 30%);
   --ds-btn-primary-text: hsl(195 80% 62%);
   --ds-btn-primary-hover-border: hsl(195 50% 45%);
   --ds-btn-primary-hover-bg: hsl(195 30% 20%);
 
+  /* Segment controls */
   --ds-segment-bg: var(--ds-bg-elevated);
   --ds-segment-active-bg: var(--ds-control-active-bg);
   --ds-segment-active-border: color-mix(in srgb, var(--color-primary) 20%, var(--ds-border));
 
+  /* Neutral outline button */
   --ds-btn-neutral-border: var(--ds-border);
   --ds-btn-neutral-text: var(--ds-text-muted);
   --ds-btn-neutral-hover-border: var(--ds-border-strong);
   --ds-btn-neutral-hover-bg: hsl(215 12% 24%);
 
+  /* Outline action button: danger */
   --ds-btn-danger-border: hsl(0 40% 30%);
   --ds-btn-danger-text: hsl(0 65% 62%);
   --ds-btn-danger-hover-bg: hsl(0 30% 20%);
   --ds-btn-danger-hover-border: hsl(0 50% 42%);
 
+  /* Outline action button: success */
   --ds-btn-success-border: hsl(130 30% 30%);
   --ds-btn-success-text: hsl(135 50% 55%);
   --ds-btn-success-hover-bg: hsl(135 25% 18%);
   --ds-btn-success-hover-border: hsl(130 40% 42%);
 
+  /* Outline action button: warning */
   --ds-btn-warning-border: hsl(40 40% 30%);
   --ds-btn-warning-text: hsl(38 60% 55%);
   --ds-btn-warning-hover-bg: hsl(40 35% 18%);
   --ds-btn-warning-hover-border: hsl(40 50% 42%);
 
+  /* Status badges */
   --ds-badge-pending-bg: hsl(40 40% 20%);
   --ds-badge-pending-text: hsl(40 70% 65%);
   --ds-badge-success-bg: hsl(135 30% 18%);

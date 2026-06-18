@@ -31,7 +31,6 @@ import {
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useI18n } from "@/context/I18nContext";
-import { useTheme } from "@/context/ThemeContext";
 import {
   type UmamiMetricRow,
   UmamiMetricType,
@@ -467,15 +466,13 @@ function intTicks(max: number): number[] {
 
 function RealtimeCard() {
   const { locale, messages, formatNumber } = useI18n();
-  const { effectiveTheme } = useTheme();
   const m = messages.analytics;
-  const isDark = effectiveTheme === "dark";
-  const gridColor = isDark ? "#3d444d" : "#f1f0ef";
-  const tickColor = isDark ? "#a8a29e" : "#9ca3af";
-  const tooltipBg = isDark ? "oklch(0.19 0.006 38.2)" : "#ffffff";
-  const tooltipBorder = isDark ? "oklch(0.30 0.008 38.2)" : "#e7e5e4";
-  const tooltipColor = isDark ? "#fafaf9" : "#111827";
-  const cursorColor = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)";
+  const gridColor = "#3d444d";
+  const tickColor = "#a8a29e";
+  const tooltipBg = "oklch(0.19 0.006 38.2)";
+  const tooltipBorder = "oklch(0.30 0.008 38.2)";
+  const tooltipColor = "#fafaf9";
+  const cursorColor = "rgba(255,255,255,0.05)";
 
   const { data: realtime, isLoading: rtLoading } = useUmamiRealtime();
   const { data: active } = useUmamiActive();
@@ -827,15 +824,13 @@ function TabbedMetricCard({ title, tabs, period, storageKey }: TabbedMetricCardP
 export function AnalyticsSection() {
   const { user } = useAuth();
   const { locale, messages, formatNumber } = useI18n();
-  const { effectiveTheme } = useTheme();
   const m = messages.analytics;
   const periodStorageKey = getSegmentedStorageKey(user?.id, "analytics:period");
-  const isDark = effectiveTheme === "dark";
-  const gridColor = isDark ? "#3d444d" : "#f1f0ef";
-  const tickColor = isDark ? "#a8a29e" : "#9ca3af";
-  const tooltipBg = isDark ? "oklch(0.19 0.006 38.2)" : "#ffffff";
-  const tooltipBorder = isDark ? "oklch(0.30 0.008 38.2)" : "#e7e5e4";
-  const tooltipColor = isDark ? "#fafaf9" : "#111827";
+  const gridColor = "#3d444d";
+  const tickColor = "#a8a29e";
+  const tooltipBg = "oklch(0.19 0.006 38.2)";
+  const tooltipBorder = "oklch(0.30 0.008 38.2)";
+  const tooltipColor = "#fafaf9";
 
   const [period, setPeriod] = useState<UmamiPeriod>(() => loadPeriod(periodStorageKey));
 

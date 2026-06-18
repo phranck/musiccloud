@@ -30,9 +30,9 @@
   --radius-card: calc(var(--radius-control) + 0.75rem);
 
   /* Nav: active state */
-  --ds-nav-active-bg: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  --ds-nav-active-bg: color-mix(in srgb, var(--color-primary) 18%, transparent);
   --ds-nav-active-text: var(--ds-text);
-  --ds-nav-active-border: #0969da;
+  --ds-nav-active-border: #478be6;
 
   /* Nav: default / hover */
   --ds-nav-text: var(--ds-text-muted);
@@ -46,18 +46,19 @@
   --ds-row-hover: oklch(var(--ds-L-text) var(--ds-neutral-c) var(--ds-neutral-h) / 0.06);
 
   /* Table row separator */
-  --ds-table-row-separator: hsl(210 12% 94%);
+  --ds-table-row-separator: hsl(215 10% 18%);
 
   /* Subtle surface hover */
   --ds-surface-hover: oklch(var(--ds-L-text) var(--ds-neutral-c) var(--ds-neutral-h) / 0.06);
 
   /* Section card backgrounds */
-  --ds-section-header-bg: #edeff5;
-  --ds-section-body-bg: #f6f8fe;
-  --ds-json-editor-bg: #f6f8fe;
-  --ds-json-gutter-bg: #f2f5fb;
-  --ds-md-editor-bg: #f6f8fe;
-  --ds-form-control-bg: #fff;
+  --ds-card-bg: #1b1f22;
+  --ds-section-header-bg: #2a3033;
+  --ds-section-body-bg: #212528;
+  --ds-json-editor-bg: #212628;
+  --ds-json-gutter-bg: #252a2e;
+  --ds-md-editor-bg: #212628;
+  --ds-form-control-bg: #1d2124;
 
   /* Table row alternating stripe */
   --ds-row-stripe: oklch(var(--ds-L-text) var(--ds-neutral-c) var(--ds-neutral-h) / 0.025);
@@ -69,24 +70,6 @@
   --color-surface: var(--ds-surface);
   --color-text: var(--ds-text);
   --color-text-muted: var(--ds-text-muted);
-}
-
-.dark {
-  --ds-nav-active-bg: color-mix(in srgb, var(--color-primary) 18%, transparent);
-  --ds-nav-active-text: var(--ds-text);
-  --ds-nav-active-border: #478be6;
-  --ds-nav-text: var(--ds-text-muted);
-  --ds-nav-hover-bg: var(--ds-nav-active-bg);
-  --ds-nav-hover-text: var(--ds-text);
-  --ds-brand-text: var(--ds-text);
-  --ds-section-header-bg: #2a3033;
-  --ds-section-body-bg: #212528;
-  --ds-json-editor-bg: #212628;
-  --ds-json-gutter-bg: #252a2e;
-  --ds-md-editor-bg: #212628;
-  --ds-form-control-bg: #1d2124;
-  --ds-card-bg: #1b1f22;
-  --ds-table-row-separator: hsl(215 10% 18%);
 }
 
 /* Table row hover */
@@ -116,7 +99,7 @@
   border-color: var(--ds-border-strong);
 }
 .btn-delete:hover {
-  background-color: rgb(254 242 242);
+  background-color: var(--ds-danger-bg);
 }
 
 /* Hover lift for list/grid cards */
@@ -185,8 +168,7 @@ button {
 .save-notification-exit { animation: save-notification-out 250ms ease forwards; }
 
 /* Color scheme */
-:root { color-scheme: light; }
-.dark { color-scheme: dark; }
+:root { color-scheme: dark; }
 
 /* Autofill detection */
 @keyframes on-autofill { from { opacity: 0.99; } }

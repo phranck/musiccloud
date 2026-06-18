@@ -46,7 +46,7 @@ function ActiveBadge({
 }) {
   if (isActive) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+      <span className="inline-flex items-center gap-1 text-xs text-green-400">
         <CheckCircleIcon weight="duotone" className="w-3.5 h-3.5" />
         {activeLabel}
       </span>

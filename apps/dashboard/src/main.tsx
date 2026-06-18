@@ -8,7 +8,6 @@ import "virtual:uno.css";
 import "./index.css";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { I18nProvider } from "./context/I18nContext";
-import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./features/auth/AuthContext";
 import { KeyboardSaveProvider } from "./lib/useKeyboardSave";
 import { routes } from "./routes";
@@ -46,11 +45,9 @@ createRoot(rootEl).render(
         >
           <AuthProvider>
             <I18nProvider>
-              <ThemeProvider>
-                <KeyboardSaveProvider>
-                  <RouterProvider router={router} />
-                </KeyboardSaveProvider>
-              </ThemeProvider>
+              <KeyboardSaveProvider>
+                <RouterProvider router={router} />
+              </KeyboardSaveProvider>
             </I18nProvider>
           </AuthProvider>
         </IconContext.Provider>

@@ -2,7 +2,7 @@ import { defineConfig, type PresetWind4Theme, presetTypography, presetWind4, tra
 
 export default defineConfig<PresetWind4Theme>({
   presets: [
-    presetWind4({ dark: "class" }),
+    presetWind4(),
     presetTypography<PresetWind4Theme>({
       cssExtend: {
         h1: {

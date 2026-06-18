@@ -502,32 +502,18 @@ export interface AdminRepository {
   resolveShortIds(shortIds: string[]): Promise<Map<string, { title: string; artist: string }>>;
 
   /**
-   * Mark a single share's resolved data as stale. The share's URL mapping
-   * stays intact — only the `updated_at` timestamp on the underlying row is
-   * rewound, so the next resolve of the same URL misses the TTL cache and
-   * re-fetches fresh data from the source services.
+   * Mark an artist share's resolved data as stale. The share's URL mapping
+   * stays intact — only the `updated_at` timestamp on the underlying
+   * `artist_profiles` row is rewound, so the next resolve of the same URL
+   * misses the 48h TTL cache and re-fetches fresh data from the source
+   * services.
    *
-   * Throws if the shortId is unknown.
-   */
-  /**
-   * Invalidates track cache.
+   * Tracks and albums have no equivalent: their resolves no longer gate on
+   * `updated_at`, so rewinding it would have no effect.
    *
-   * @param shortId - The `shortId` value.
-   * @returns The requested repository result.
-   */
-  invalidateTrackCache(shortId: string): Promise<{ ok: true }>;
-  /**
-   * Invalidates album cache.
-   *
-   * @param shortId - The `shortId` value.
-   * @returns The requested repository result.
-   */
-  invalidateAlbumCache(shortId: string): Promise<{ ok: true }>;
-  /**
-   * Invalidates artist cache.
-   *
-   * @param shortId - The `shortId` value.
-   * @returns The requested repository result.
+   * @param shortId - The artist share's short id.
+   * @returns `{ ok: true }` on success.
+   * @throws If the shortId is unknown.
    */
   invalidateArtistCache(shortId: string): Promise<{ ok: true }>;
 

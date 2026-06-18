@@ -25,9 +25,7 @@ import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
-import { AdminMusicItemKind } from "@/features/music/adminMusicKind";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
-import { InvalidateCacheButton } from "@/features/music/InvalidateCacheButton";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
 
@@ -74,11 +72,6 @@ function useTrackColumns(
             } satisfies ColumnDef<TrackListItem>,
           ]
         : []),
-      {
-        id: "invalidate-cache",
-        className: "w-10",
-        cell: (track) => <InvalidateCacheButton shortId={track.shortId} kind={AdminMusicItemKind.Tracks} />,
-      },
       {
         id: "artwork",
         className: "w-16",

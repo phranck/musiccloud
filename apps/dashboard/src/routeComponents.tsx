@@ -102,12 +102,6 @@ export const EmailTemplateEditPage = lazy(() =>
   })),
 );
 
-export const MarkdownWidgetsPage = lazy(() =>
-  import("@/features/system/MarkdownWidgetsPage").then((m) => ({
-    default: m.MarkdownWidgetsPage,
-  })),
-);
-
 export const SystemPage = lazy(() =>
   import("@/features/system/SystemPage").then((m) => ({
     default: m.SystemPage,

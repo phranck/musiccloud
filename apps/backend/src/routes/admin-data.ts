@@ -144,31 +144,10 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     return reply.send(result);
   });
 
-  // Per-share cache invalidation. Tracks/albums are marked stale for the
-  // admin catalog only; resolver freshness now lives in static rows plus
-  // preview tables. Artist rows still use updated_at as a TTL input.
-  app.post(ROUTE_TEMPLATES.admin.tracks.invalidateCache, async (request, reply) => {
-    const { shortId } = request.params as { shortId: string };
-    try {
-      const repo = await getAdminRepository();
-      const result = await repo.invalidateTrackCache(shortId);
-      return reply.send(result);
-    } catch (err) {
-      return reply.status(404).send({ error: err instanceof Error ? err.message : "Not found" });
-    }
-  });
-
-  app.post(ROUTE_TEMPLATES.admin.albums.invalidateCache, async (request, reply) => {
-    const { shortId } = request.params as { shortId: string };
-    try {
-      const repo = await getAdminRepository();
-      const result = await repo.invalidateAlbumCache(shortId);
-      return reply.send(result);
-    } catch (err) {
-      return reply.status(404).send({ error: err instanceof Error ? err.message : "Not found" });
-    }
-  });
-
+  // Per-share artist cache invalidation. Rewinds the artist row's updated_at
+  // so the next resolve misses the 48h TTL cache and re-fetches from upstream.
+  // Tracks/albums no longer gate resolver freshness on updated_at, so they
+  // have no equivalent per-row action.
   app.post(ROUTE_TEMPLATES.admin.artists.invalidateCache, async (request, reply) => {
     const { shortId } = request.params as { shortId: string };
     try {

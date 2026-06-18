@@ -64,10 +64,8 @@ import {
   findMissingTables as adminCatalogFindMissingTables,
   getRandomShortId as adminCatalogGetRandomShortId,
   getTrackById as adminCatalogGetTrackById,
-  invalidateAlbumCache as adminCatalogInvalidateAlbumCache,
   invalidateAllCaches as adminCatalogInvalidateAllCaches,
   invalidateArtistCache as adminCatalogInvalidateArtistCache,
-  invalidateTrackCache as adminCatalogInvalidateTrackCache,
   listAlbums as adminCatalogListAlbums,
   listArtistEntities as adminCatalogListArtistEntities,
   listArtists as adminCatalogListArtists,
@@ -643,14 +641,6 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   deleteArtists(ids: string[]): Promise<void> {
     return adminCatalogDeleteArtists(this.pool, ids);
-  }
-
-  invalidateTrackCache(shortId: string): Promise<{ ok: true }> {
-    return adminCatalogInvalidateTrackCache(this.pool, shortId);
-  }
-
-  invalidateAlbumCache(shortId: string): Promise<{ ok: true }> {
-    return adminCatalogInvalidateAlbumCache(this.pool, shortId);
   }
 
   invalidateArtistCache(shortId: string): Promise<{ ok: true }> {
