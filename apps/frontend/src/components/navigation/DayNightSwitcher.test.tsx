@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DayNightMode, getDayNightMode, setDayNightMode } from "@/components/background/dayNightMode";
 import { DayNightSwitcher } from "@/components/navigation/DayNightSwitcher";
@@ -74,5 +74,22 @@ describe("DayNightSwitcher", () => {
 
     expect(sendMusicSignal).not.toHaveBeenCalled();
     expect(getDayNightMode()).toBe(DayNightMode.Night);
+  });
+
+  it("auto-collapses 5s after opening when nothing is clicked", () => {
+    vi.useFakeTimers();
+    try {
+      renderSwitcher();
+      fireEvent.click(screen.getByRole("button", { name: "Night" })); // open
+      expect(screen.getByRole("button", { name: "Day" })).not.toHaveAttribute("inert");
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      // No selection within 5s → the list collapses on its own.
+      expect(screen.getByRole("button", { name: "Day" })).toHaveAttribute("inert");
+      expect(getDayNightMode()).toBe(DayNightMode.Night);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

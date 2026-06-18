@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -22,6 +22,9 @@ const ACTIVE_RADIUS_STYLE = {
   borderRadius: "var(--neu-radius)",
 } as React.CSSProperties;
 
+/** Auto-collapse an opened control after this long with no selection (ms). */
+const AUTO_CLOSE_MS = 5000;
+
 /**
  * A vertical, collapse-by-default segmented control sharing the glass language of
  * {@link EmbossedSegmentedControl}: a recessed track holding fixed-order icon cells
@@ -31,8 +34,8 @@ const ACTIVE_RADIUS_STYLE = {
  * doubles as the trigger: clicking it opens the list, growing the track downward so
  * the remaining cells reveal below it in their fixed relative order. The active cell
  * is pinned to the top via flex `order`, so it never moves when the list opens or
- * closes. Choosing a cell fires `onChange` and closes; clicking outside or pressing
- * Escape also closes.
+ * closes. Choosing a cell fires `onChange` and closes; clicking outside, pressing
+ * Escape, or leaving it open for {@link AUTO_CLOSE_MS} without a choice also closes.
  *
  * The cells are fixed-size, so the open/close is a pure CSS height + row-gap
  * transition (no layout measurement); it is disabled under `prefers-reduced-motion`.
@@ -50,24 +53,30 @@ export function VerticalSegmentedControl<T extends string>({
 }: VerticalSegmentedControlProps<T>) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const close = useCallback(() => setOpen(false), []);
 
-  // While open, dismiss on an outside pointer press or Escape. Listeners are scoped
-  // to the open state and removed when it closes or the control unmounts.
+  // While open, dismiss on an outside pointer press, Escape, or the auto-close timer.
+  // The listeners + timer are scoped to the open state and torn down when it closes
+  // or the control unmounts. Every dismissal routes through `close`, so the effect
+  // holds a single shared state update rather than three separate ones.
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!containerRef.current?.contains(event.target as Node)) close();
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") close();
     };
+    // Collapse on its own if the list is opened but left without a selection.
+    const autoClose = setTimeout(close, AUTO_CLOSE_MS);
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
     return () => {
+      clearTimeout(autoClose);
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [open, close]);
 
   const handleSegment = (key: T) => {
     // Collapsed: the only reachable cell is the active one — it opens the list.
@@ -77,7 +86,7 @@ export function VerticalSegmentedControl<T extends string>({
     }
     // Open: choose the cell (re-choosing the active one is a no-op change) and close.
     onChange(key);
-    setOpen(false);
+    close();
   };
 
   return (
