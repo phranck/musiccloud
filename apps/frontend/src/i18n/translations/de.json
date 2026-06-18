@@ -98,6 +98,10 @@
   "dayNight.night": "Nacht",
   "dayNight.system": "System",
   "dayNight.automatic": "Automatisch",
+  "dayNight.day.help": "Immer den Tag-Himmel zeigen",
+  "dayNight.night.help": "Immer den Nacht-Himmel zeigen",
+  "dayNight.system.help": "Dem Hell- oder Dunkelmodus des Systems folgen",
+  "dayNight.automatic.help": "Nach lokaler Tageszeit wechseln",
   "language.label": "Sprache",
   "nav.menu": "Menü"
 }

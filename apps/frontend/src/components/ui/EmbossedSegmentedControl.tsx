@@ -15,12 +15,14 @@ import { cn } from "@/lib/utils";
  * @property label Visible text. Empty string for an icon-only segment.
  * @property icon Optional decorative icon node (rendered `aria-hidden` by the caller).
  * @property ariaLabel Accessible name applied to the button when no visible text exists.
+ * @property title Optional help text surfaced as the button's native `title` tooltip.
  */
 export interface Segment<T extends string> {
   key: T;
   label: string;
   icon?: React.ReactNode;
   ariaLabel?: string;
+  title?: string;
 }
 
 interface EmbossedSegmentedControlProps<T extends string> {

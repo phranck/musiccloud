@@ -98,6 +98,10 @@
   "dayNight.night": "Night",
   "dayNight.system": "System",
   "dayNight.automatic": "Automatic",
+  "dayNight.day.help": "Always show the day sky",
+  "dayNight.night.help": "Always show the night sky",
+  "dayNight.system.help": "Follow your system's light or dark mode",
+  "dayNight.automatic.help": "Switch by the local time of day",
   "language.label": "Language",
   "nav.menu": "Menu"
 }

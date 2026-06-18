@@ -129,7 +129,7 @@ export function VerticalSegmentedControl<T extends string>({
         style={{ rowGap: open ? "var(--mc-gap-seg, 0px)" : "0px" }}
       >
         <RecessedCard.Body className="contents">
-          {segments.map(({ key, icon, ariaLabel: segmentLabel }, index) => {
+          {segments.map(({ key, icon, ariaLabel: segmentLabel, title: segmentTitle }, index) => {
             const isActive = key === value;
             const shown = open || isActive;
             return (
@@ -140,6 +140,7 @@ export function VerticalSegmentedControl<T extends string>({
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => handleSegment(key)}
                 aria-label={segmentLabel}
+                title={segmentTitle}
                 aria-current={isActive ? "true" : undefined}
                 aria-haspopup={isActive ? "menu" : undefined}
                 aria-expanded={isActive ? open : undefined}
