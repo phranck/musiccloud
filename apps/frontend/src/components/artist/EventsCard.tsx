@@ -35,7 +35,7 @@ export function EventsCard({ data, isLoading, userRegion }: EventsCardProps) {
 
   return (
     <ArtistCardShell title={t("artist.upcomingEvents")} footer={footer}>
-      <div className={footer ? "px-3 pt-3 pb-2" : "p-3"}>
+      <div className={footer ? "px-3 pt-0 pb-2" : "px-3 pt-0 pb-3"}>
         <RecessedCard className={recessedControlInsetClassName}>
           <RecessedCard.Body>
             {showInitialSkeleton ? (

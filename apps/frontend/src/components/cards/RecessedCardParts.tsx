@@ -5,7 +5,6 @@ import {
   recessedSurfaceRadius,
 } from "@/components/cards/cardGeometry";
 import { cn } from "@/lib/utils";
-import { recessedStyle } from "@/styles/neumorphic";
 
 // ─── Sub-component type tags ───────────────────────────────────────────────
 
@@ -152,7 +151,7 @@ const STANDALONE_RADIUS_FALLBACK = recessedSurfaceRadius;
 // yields 1rem standalone, and the correct inscribed radius when nested.
 const INHERITED_RADIUS_BASE = `var(--mc-card-inner-radius-base, calc(var(--emb-radius-base, ${embossedCardOuterRadius}) - var(--emb-padding, ${embossedCardContentInset})))`;
 const INHERITED_RADIUS_SM = `var(--mc-card-inner-radius-sm, calc(var(--emb-radius-sm, var(--emb-radius-base, ${embossedCardOuterRadius})) - var(--emb-padding, ${embossedCardContentInset})))`;
-const INHERITED_PADDING = "calc(var(--emb-padding, 2rem) / 2)";
+const INHERITED_PADDING = "var(--mc-pad-recessed, calc(var(--emb-padding, 2rem) / 2))";
 
 // Backward-compat: callers that still set padding via Tailwind (`p-*`,
 // `px-*`, etc.) opt out of inline padding so their class wins.
@@ -233,7 +232,6 @@ export function RecessedCardRoot({ children, className, ref, style, borderWidth,
   const publishedPadding = paddingValue ?? paddingFromClassName(className);
 
   const mergedStyle: React.CSSProperties = {
-    ...recessedStyle,
     "--neu-radius-base": radiusBase,
     "--neu-radius-sm": radiusSm,
     "--mc-recessed-radius-base": radiusBase,
@@ -255,11 +253,7 @@ export function RecessedCardRoot({ children, className, ref, style, borderWidth,
   );
 
   return (
-    <div
-      ref={ref}
-      className={cn("recessed-gradient-border bg-black/25 overflow-hidden", className)}
-      style={mergedStyle}
-    >
+    <div ref={ref} className={cn("recessed-gradient-border overflow-hidden", className)} style={mergedStyle}>
       {content}
     </div>
   );

@@ -76,7 +76,7 @@
 }
 
 @import "./animations.css";
-@import "./neumorphic.css";
+@import "./glass.css";
 
 /* Safe area padding for notch / home indicator (iPhone X+) */
 .pb-safe {
@@ -92,5 +92,40 @@ a {
 button,
 [role="button"] {
   touch-action: manipulation;
+}
+
+/* Hero search field — focus ring directly on the RecessedCard well (LandingPage
+   HeroInput). Uses `outline` (not box-shadow) so it never replaces the recessed
+   chamfer of the `.recessed-gradient-border` recipe. The base ring is
+   transparent so focus fades transparent→accent (no white flash).
+   `outline-offset: 0` keeps the ring flush on the RecessedCard contour. */
+.hero-field {
+  outline: 2px solid transparent;
+  outline-offset: 0;
+  transition: outline-color 0.2s ease;
+}
+.hero-field:focus-within {
+  outline-color: var(--color-accent);
+}
+
+/* Hero input placeholder — themed by the `placeholder` text surface (font + size +
+   weight + its dimmed colour level), cross-faded day↔night. Replaces the former
+   `placeholder:text-text-muted placeholder:text-base` utilities. `opacity: 1` so the
+   tuned colour is not dimmed further by the UA default placeholder opacity. */
+.mc-hero-input::placeholder {
+  font-family: var(--text-placeholder-font);
+  font-size: calc(
+    var(--text-placeholder-size-day) * var(--g-dayness) + var(--text-placeholder-size-night) * (1 - var(--g-dayness))
+  );
+  font-weight: calc(
+    var(--text-placeholder-weight-day) * var(--g-dayness) + var(--text-placeholder-weight-night) *
+      (1 - var(--g-dayness))
+  );
+  color: color-mix(
+    in srgb,
+    var(--text-placeholder-dimmed-day) calc(var(--g-dayness) * 100%),
+    var(--text-placeholder-dimmed-night)
+  );
+  opacity: 1;
 }
 

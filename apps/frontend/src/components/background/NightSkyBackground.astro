@@ -12,9 +12,14 @@
  * decision 2026-06-13: no legacy backdrop behind the sky. Without JS or
  * WebGL2 the plain base color remains (bots, reduced environments).
  */
+import { fetchDesignTokens } from "@/api/client";
 import { BackgroundScene } from "@/components/background/BackgroundScene";
+
+// Saved shader tokens seed the sky's initial settings (cached fetch — shares
+// the BaseLayout request). The driver re-clamps them against NIGHT_SKY_RANGES.
+const { shader } = await fetchDesignTokens();
 ---
 
-<div class="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden="true">
-  <BackgroundScene client:idle />
+<div class="mc-sky-backdrop fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
+  <BackgroundScene client:idle shaderTokens={shader} />
 </div>

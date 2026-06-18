@@ -1,6 +1,9 @@
-import { ArrowRightIcon, CheckIcon, XCircleIcon } from "@phosphor-icons/react";
+import { XCircleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef } from "react";
-import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
+import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { RecessedCard } from "@/components/cards/RecessedCard";
+import { HeroSubmitSlot } from "@/components/landing/HeroSubmitSlot";
 import { useT } from "@/i18n/context";
 import { isMusicUrl } from "@/lib/platform/url";
 import { InputState } from "@/lib/types/app";
@@ -20,6 +23,15 @@ interface HeroInputProps {
   state: InputState;
   compact?: boolean;
   songName?: string;
+  /**
+   * When true, the parent is holding the result reveal and asks the spinning
+   * disc to slide out to the right. {@link HeroInputProps.onLoadingExitComplete}
+   * fires once it is fully gone (and never fires under reduced motion, where the
+   * parent does not hold the reveal).
+   */
+  requestDiscExit?: boolean;
+  /** Called after the disc has slid out, so the parent can reveal the result. */
+  onLoadingExitComplete?: () => void;
 }
 
 export function HeroInput({
@@ -32,6 +44,8 @@ export function HeroInput({
   state,
   compact = false,
   songName,
+  requestDiscExit = false,
+  onLoadingExitComplete,
 }: HeroInputProps) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -121,21 +135,14 @@ export function HeroInput({
           : "max-w-full sm:max-w-[520px] md:max-w-[640px]",
       )}
     >
-      <div className="relative">
-        <div
-          className={cn(
-            "relative flex items-center rounded-full",
-            "bg-surface",
-            "border",
-            "transition-all duration-[250ms]",
-            state === InputState.Idle && (compact ? "border-[var(--color-accent)]/25" : "border-white/15"),
-            state === InputState.Focused &&
-              (compact ? ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"] : "border-white/10"),
-            state === InputState.Loading && "border-accent",
-            state === InputState.Success && ["border-accent", "shadow-[0_0_12px_var(--color-accent-glow)]"],
-            state === InputState.Error && ["border-error", "shadow-[0_0_12px_rgba(255,69,58,0.25)]"],
-          )}
-        >
+      {/* `overflow-visible` overrides EmbossedCard's default `overflow-hidden`.
+          EmbossedCard carries the `backdrop-filter` frost, and Firefox (WebRender)
+          renders a CLIPPED backdrop-filter element through a separate intermediate
+          surface whose tile boundary shows as a lighter rectangle in the frost.
+          Dropping the clip removes it; the pill's children are inset, so nothing
+          overflows the rounded shape. */}
+      <EmbossedCard radius="9999px" className="overflow-visible">
+        <RecessedCard className={cn(recessedControlInsetClassName, "hero-field", "flex items-center")}>
           <input
             ref={inputRef}
             type="text"
@@ -149,8 +156,11 @@ export function HeroInput({
             placeholder={t("hero.placeholder")}
             readOnly={state === InputState.Loading || state === InputState.Success}
             className={cn(
-              "flex-1 bg-transparent border-0 px-6 text-lg font-medium text-text-primary tracking-[-0.01em]",
-              "placeholder:text-text-muted placeholder:text-base placeholder:tracking-normal outline-none",
+              // Fill the field and shrink for the trailing button (`flex-auto w-full
+              // min-w-0`). `appearance-none` strips the browser's native text-field
+              // chrome so the input is a plain transparent box on the recessed glass.
+              "mc-hero-input appearance-none flex-auto w-full min-w-0 bg-transparent border-0 pl-6 pr-2 text-lg font-medium text-text-primary tracking-[-0.01em]",
+              "placeholder:tracking-normal outline-none",
               "h-[40px] md:h-[48px]",
               state === InputState.Loading && "opacity-50",
             )}
@@ -164,7 +174,7 @@ export function HeroInput({
               type="button"
               onClick={handleClear}
               className={cn(
-                "p-2 mr-1 rounded-full",
+                "flex items-center justify-center flex-shrink-0 size-9 rounded-full",
                 "text-text-muted hover:text-text-primary",
                 "transition-colors duration-150",
               )}
@@ -174,39 +184,16 @@ export function HeroInput({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={handleSubmitClick}
-            disabled={state === InputState.Loading || !value.trim()}
-            className={cn(
-              "flex items-center justify-center",
-              compact && state !== InputState.Loading ? "hidden" : "flex",
-              "w-8 h-8 md:w-10 md:h-10 mr-1 flex-shrink-0",
-              "rounded-full",
-              "transition-all duration-[250ms]",
-              state === InputState.Loading
-                ? "bg-transparent cursor-wait"
-                : state === InputState.Success
-                  ? "bg-accent"
-                  : [
-                      "bg-accent text-[var(--color-accent-contrast)]",
-                      "hover:scale-[1.08] hover:shadow-[0_0_12px_var(--color-accent-glow)]",
-                      "active:scale-[0.97]",
-                      "disabled:opacity-30 disabled:hover:scale-100 disabled:hover:shadow-none",
-                    ],
-            )}
-            aria-label={state === InputState.Loading ? "Searching..." : "Search"}
-          >
-            {state === InputState.Loading ? (
-              <CDSpinArtwork className="w-8 h-8 md:w-10 md:h-10" />
-            ) : state === InputState.Success ? (
-              <CheckIcon size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
-            ) : (
-              <ArrowRightIcon size={20} weight="duotone" className="text-[var(--color-accent-contrast)]" />
-            )}
-          </button>
-        </div>
-      </div>
+          <HeroSubmitSlot
+            state={state}
+            submitDisabled={!value.trim()}
+            compact={compact}
+            onSubmitClick={handleSubmitClick}
+            requestDiscExit={requestDiscExit}
+            onLoadingExitComplete={onLoadingExitComplete}
+          />
+        </RecessedCard>
+      </EmbossedCard>
     </div>
   );
 }

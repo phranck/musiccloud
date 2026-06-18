@@ -44,31 +44,32 @@ export function SlideArtwork({
 
   return (
     <RecessedCard
-      className={cn(sizeClass, "p-0 flex-shrink-0 relative overflow-hidden [&::before]:z-10")}
+      // `mc-row-art` lets a grouped list promote this frame's left corners (see
+      // CandidateRowContent). Only square covers are such a frame; a round artist
+      // disc keeps its 50% radius and must not carry the marker.
+      className={cn(
+        sizeClass,
+        kind === SlideArtworkKind.Square && "mc-row-art",
+        "p-0 flex-shrink-0 relative overflow-hidden [&::before]:z-10",
+      )}
       radius={borderRadius}
       borderWidth="1px"
       style={{ "--neu-light": "hsl(0 0% 100% / 0.5)", "--neu-shadow": "hsl(0 0% 0% / 0.1)" } as React.CSSProperties}
     >
       <RecessedCard.Body className="contents">
-        {/* CD spinner -- only mounted for the selected row */}
+        {/* Spinning CD: mounted only for the selected row. The cover slides down out
+            of the tile (mc-cover-drop-out) while the disc slides in from the top
+            (mc-disc-drop-in). It is sized to the tile so the round disc stays fully
+            visible — never clipped — and settles centred. Sits below the rim shadow
+            only, so its face is never dimmed. */}
         {active && (
-          <div
-            className={cn(
-              "absolute inset-0 z-0 transition-transform duration-[420ms] ease-in-out",
-              active ? "translate-y-0" : "-translate-y-full",
-            )}
-          >
+          <div className="mc-disc-drop-in absolute inset-0 z-0 flex items-center justify-center" aria-hidden="true">
             <CDSpinArtwork className="w-full h-full" />
           </div>
         )}
 
-        {/* Cover artwork -- pushed down when CD slides in */}
-        <div
-          className={cn(
-            "relative z-0 transition-transform duration-[420ms] ease-in-out w-full h-full bg-surface",
-            active ? "translate-y-full" : "translate-y-0",
-          )}
-        >
+        {/* Cover artwork -- drops out downward when the CD slides in */}
+        <div className={cn("relative z-0 w-full h-full bg-surface", active && "mc-cover-drop-out")}>
           {artworkUrl ? (
             <img
               src={artworkUrl}
@@ -78,7 +79,6 @@ export function SlideArtwork({
               height={imgDim}
               loading="lazy"
               decoding="async"
-              style={{ borderRadius: "var(--neu-radius-inner)" }}
               onError={(e) => {
                 e.currentTarget.src = "/og/default.jpg";
               }}
@@ -90,14 +90,12 @@ export function SlideArtwork({
           )}
         </div>
 
-        {/* Inner shadow overlay -- stays on top of both CD and cover */}
+        {/* Recessed rim shadow -- edge-localised (top/left), so the disc reads as
+            sitting INSIDE the tile without dimming its face. Stays above both layers. */}
         <div
           aria-hidden="true"
           className="absolute inset-0 pointer-events-none z-10"
-          style={{
-            borderRadius: "var(--neu-radius-inner)",
-            boxShadow: innerShadow,
-          }}
+          style={{ boxShadow: innerShadow }}
         />
       </RecessedCard.Body>
     </RecessedCard>

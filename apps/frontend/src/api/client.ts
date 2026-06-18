@@ -1,9 +1,12 @@
 import {
+  DESIGN_TOKENS_DEFAULTS,
+  type DesignTokens,
   ENDPOINTS,
   type Locale,
   type NavId,
   type NavItem,
   type PublicContentPage,
+  parseDesignTokens,
   type SharePageResponse,
 } from "@musiccloud/shared";
 
@@ -178,6 +181,48 @@ export async function fetchRandomExample(): Promise<{ shortId: string } | null> 
     return res.json() as Promise<{ shortId: string }>;
   } catch {
     return null;
+  }
+}
+
+/**
+ * In-process TTL cache for the design tokens. The BFF has no cache layer and
+ * `output: "server"` re-runs SSR on every request, so without this each render
+ * would hit the backend's dedicated `max: 2` pool and share the
+ * `apiRateLimiter` bucket (see {@link forwardedForExtra}). One fetch per TTL
+ * window across all renders is plenty — tokens change only on an admin save.
+ *
+ * Dev: the TTL is 0 so a dashboard save shows on the very next reload, with no
+ * server restart. Production keeps the 60s window for the pool/rate-limit budget.
+ */
+let designTokensCache: { tokens: DesignTokens; expiresAt: number } | null = null;
+const DESIGN_TOKENS_TTL_MS = import.meta.env.DEV ? 0 : 60_000;
+
+/**
+ * Fetch the site's validated design tokens for SSR `:root` seeding. Cached
+ * in-process for {@link DESIGN_TOKENS_TTL_MS}. The backend already validates the
+ * blob, but the response is re-run through `parseDesignTokens` here (idempotent)
+ * so every value emitted into the inline `<style>` is guaranteed
+ * CSS-injection-safe regardless of transport. Falls back to the last good cache,
+ * then to the canonical defaults, on any error — SSR never throws on this path.
+ */
+export async function fetchDesignTokens(): Promise<DesignTokens> {
+  const now = Date.now();
+  if (designTokensCache && designTokensCache.expiresAt > now) return designTokensCache.tokens;
+  try {
+    const res = await fetchWithTimeout(
+      backendUrl(ENDPOINTS.v1.siteSettings.designTokens),
+      { headers: internalHeaders() },
+      5000,
+    );
+    if (!res.ok) throw new Error(`design-tokens responded ${res.status}`);
+    const { tokens } = parseDesignTokens(await res.json());
+    designTokensCache = { tokens, expiresAt: now + DESIGN_TOKENS_TTL_MS };
+    return tokens;
+  } catch {
+    const tokens = designTokensCache?.tokens ?? DESIGN_TOKENS_DEFAULTS;
+    // Cache the fallback for the TTL too so a backend blip doesn't re-hit every render.
+    designTokensCache = { tokens, expiresAt: now + DESIGN_TOKENS_TTL_MS };
+    return tokens;
   }
 }
 

@@ -16,6 +16,7 @@ import {
   MicrophoneStageIcon,
   MusicNotesIcon,
   NotebookIcon,
+  PaletteIcon,
   PlugsConnectedIcon,
   PlusCircleIcon,
   SquaresFourIcon,
@@ -782,6 +783,15 @@ export function Sidebar({
                     <DashboardSection.Item
                       icon={<GearIcon weight="duotone" className="w-4 h-4" />}
                       label={s.system}
+                      active={isActive}
+                    />
+                  )}
+                </NavLink>
+                <NavLink to="/design" onClick={onItemClick} className="contents">
+                  {({ isActive }) => (
+                    <DashboardSection.Item
+                      icon={<PaletteIcon weight="duotone" className="w-4 h-4" />}
+                      label={s.design}
                       active={isActive}
                     />
                   )}

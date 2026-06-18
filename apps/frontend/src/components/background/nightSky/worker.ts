@@ -46,7 +46,16 @@ workerSelf.onmessage = (event: MessageEvent<NightSkyMessage>) => {
         workerSelf.postMessage({ type: NightSkyWorkerEvent.Failed });
         return;
       }
-      driver = new NightSkyDriver(scene, settings);
+      // Pre-allocated reverse message: the driver hands us a bare number on a
+      // (change-gated) day-amount move; we mutate one object and post it.
+      // postMessage structured-clones it, so reuse is safe and per-emit
+      // allocation stays out of the loop's steady-state path.
+      const daynessMessage = { type: NightSkyWorkerEvent.Dayness, dayness: 0 };
+      const publishDayness = (dayness: number): void => {
+        daynessMessage.dayness = dayness;
+        workerSelf.postMessage(daynessMessage);
+      };
+      driver = new NightSkyDriver(scene, settings, publishDayness);
       driver.setReducedMotion(message.reducedMotion);
       scene.resize(message.cssWidth, message.cssHeight, pixelScale(message.pixelRatio, settings));
       // Draw the first frame synchronously, then tell the bridge to fade the

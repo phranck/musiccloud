@@ -32,6 +32,12 @@ export const NightSkyWorkerEvent = {
   Ready: "ready",
   /** WebGL2 unavailable or context lost — the bridge keeps the CSS fallback. */
   Failed: "failed",
+  /**
+   * The live day amount changed (reverse channel). The bridge mirrors it into
+   * `--g-dayness` so the glass material cross-fades in lockstep with the sky.
+   * Emitted change-gated from the driver — never per idle frame.
+   */
+  Dayness: "dayness",
 } as const;
 
 /** One-time setup message; `canvas` must be listed in the transfer array. */
@@ -98,7 +104,14 @@ export type NightSkyMessage =
   | SetAnimateMessage
   | SetAutoDayNightMessage;
 
-/** Union of every event the worker emits back to the bridge. */
-export interface NightSkyWorkerEventMessage {
-  type: (typeof NightSkyWorkerEvent)[keyof typeof NightSkyWorkerEvent];
+/** Live day-amount update (reverse channel, worker→bridge). */
+export interface NightSkyDaynessMessage {
+  type: typeof NightSkyWorkerEvent.Dayness;
+  dayness: number;
 }
+
+/** Union of every event the worker emits back to the bridge. */
+export type NightSkyWorkerEventMessage =
+  | { type: typeof NightSkyWorkerEvent.Ready }
+  | { type: typeof NightSkyWorkerEvent.Failed }
+  | NightSkyDaynessMessage;

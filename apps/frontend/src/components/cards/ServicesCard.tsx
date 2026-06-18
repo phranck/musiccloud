@@ -5,7 +5,6 @@ import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/compone
 import { AnimatedPlatformGrid } from "@/components/platform/AnimatedPlatformGrid";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
-import { solidEmbossedCardStyle } from "@/styles/neumorphic";
 
 interface ServicesCardProps {
   content: MediaCardContentConfiguration;
@@ -27,7 +26,7 @@ export function ServicesCard({ content, className, animated = false }: ServicesC
   if (!showPlatforms && !showPlatformsInfoOnly) return null;
 
   return (
-    <EmbossedCard className={mediaCardClassName(animated, className)} style={solidEmbossedCardStyle}>
+    <EmbossedCard className={mediaCardClassName(animated, className)}>
       <EmbossedCard.Header className={sectionCardHeaderClassName}>
         <EmbossedCard.Header.Title className={sectionCardTitleClassName}>
           {content.platformsLabel}
@@ -35,7 +34,7 @@ export function ServicesCard({ content, className, animated = false }: ServicesC
       </EmbossedCard.Header>
       <EmbossedCard.Body>
         {showPlatforms && (
-          <div className="p-3">
+          <div className="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)]">
             <RecessedCard className={recessedControlInsetClassName}>
               <RecessedCard.Body>
                 <AnimatedPlatformGrid platforms={content.platforms} songTitle={content.title} />
@@ -47,7 +46,9 @@ export function ServicesCard({ content, className, animated = false }: ServicesC
           </div>
         )}
         {showPlatformsInfoOnly && (
-          <p className="p-3 text-sm text-text-secondary text-center">{content.platformsInfo}</p>
+          <p className="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)] text-sm text-text-secondary text-center">
+            {content.platformsInfo}
+          </p>
         )}
       </EmbossedCard.Body>
     </EmbossedCard>

@@ -114,6 +114,12 @@ export const SystemPage = lazy(() =>
   })),
 );
 
+export const DesignSettingsPage = lazy(() =>
+  import("@/features/system/DesignSettingsPage").then((m) => ({
+    default: m.DesignSettingsPage,
+  })),
+);
+
 export const ServicesPage = lazy(() =>
   import("@/features/services/ServicesPage").then((m) => ({
     default: m.ServicesPage,

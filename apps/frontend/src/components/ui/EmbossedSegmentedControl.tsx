@@ -3,11 +3,26 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
-import { embossedCardStyle } from "@/styles/neumorphic";
 
-interface Segment<T extends string> {
+/**
+ * One selectable cell of the segmented control.
+ *
+ * A segment can render a visible text label, an icon-only cell, or both. When
+ * `icon` is set and `label` is empty, the cell is icon-only and MUST supply
+ * `ariaLabel` so the button stays announced to assistive tech.
+ *
+ * @property key Stable identifier for this segment and the control's value.
+ * @property label Visible text. Empty string for an icon-only segment.
+ * @property icon Optional decorative icon node (rendered `aria-hidden` by the caller).
+ * @property ariaLabel Accessible name applied to the button when no visible text exists.
+ * @property title Optional help text surfaced as the button's native `title` tooltip.
+ */
+export interface Segment<T extends string> {
   key: T;
   label: string;
+  icon?: React.ReactNode;
+  ariaLabel?: string;
+  title?: string;
 }
 
 interface EmbossedSegmentedControlProps<T extends string> {
@@ -21,7 +36,14 @@ interface EmbossedSegmentedControlProps<T extends string> {
  * A segmented control with a recessed track and a sliding embossed indicator.
  *
  * Segments size to their content so longer labels stay readable; the indicator
- * tracks the active button's measured geometry.
+ * tracks the active button's measured geometry. Each segment renders either a
+ * text label, an icon-only cell, or both: icon-only cells get square padding
+ * and fall back to `ariaLabel` for their accessible name, while labelled cells
+ * keep the wider text padding and typography.
+ *
+ * The indicator geometry is measured per active button via a `ResizeObserver`,
+ * so icon-only and text segments are handled identically without extra layout
+ * logic.
  */
 export function EmbossedSegmentedControl<T extends string>({
   segments,
@@ -48,6 +70,11 @@ export function EmbossedSegmentedControl<T extends string>({
 
     update();
 
+    // SSR / jsdom have no ResizeObserver. The initial `update()` already seeds
+    // the indicator; live re-measuring on resize only matters in the browser,
+    // which always provides it. Mirrors the guard in BackgroundScene/VfdDisplay.
+    if (typeof ResizeObserver === "undefined") return;
+
     const resizeObserver = new ResizeObserver(update);
     resizeObserver.observe(container);
     for (const btn of buttonRefMap.values()) resizeObserver.observe(btn);
@@ -56,7 +83,11 @@ export function EmbossedSegmentedControl<T extends string>({
   }, [value, segments, buttonRefMap]);
 
   return (
-    <RecessedCard ref={containerRef} className={cn("relative flex p-1", className)} radius={recessedSurfaceRadius}>
+    <RecessedCard
+      ref={containerRef}
+      className={cn("mc-glass-seg-track relative flex gap-[var(--mc-gap-seg,0px)] p-1", className)}
+      radius={recessedSurfaceRadius}
+    >
       <RecessedCard.Body className="contents">
         {indicator && (
           <div
@@ -68,10 +99,9 @@ export function EmbossedSegmentedControl<T extends string>({
             }}
           >
             <div
-              className="embossed-gradient-border size-full bg-zinc-700/[0.65]"
+              className="embossed-gradient-border mc-glass-seg-indicator size-full"
               style={
                 {
-                  ...embossedCardStyle,
                   "--neu-radius-base": raisedControlRadius,
                   "--neu-radius-sm": raisedControlRadius,
                   borderRadius: "var(--neu-radius)",
@@ -80,24 +110,39 @@ export function EmbossedSegmentedControl<T extends string>({
             />
           </div>
         )}
-        {segments.map(({ key, label }) => (
-          <button
-            key={key}
-            ref={(el) => {
-              if (el) buttonRefMap.set(key, el);
-              else buttonRefMap.delete(key);
-            }}
-            type="button"
-            onClick={() => onChange(key)}
-            className={cn(
-              "relative z-10 flex-auto py-2 px-3 rounded-lg text-[13px] font-semibold text-center whitespace-nowrap transition-colors duration-150",
-              "border-none",
-              key === value ? "text-text-primary" : "text-text-secondary hover:text-text-primary",
-            )}
-          >
-            {label}
-          </button>
-        ))}
+        {segments.map(({ key, label, icon, ariaLabel }) => {
+          const hasVisibleText = label.length > 0;
+          return (
+            <button
+              key={key}
+              ref={(el) => {
+                if (el) buttonRefMap.set(key, el);
+                else buttonRefMap.delete(key);
+              }}
+              type="button"
+              // Keep focus where it is (e.g. the hero input) when a segment is
+              // clicked: preventing the mousedown default stops the button from
+              // stealing focus. The selection still fires via onClick, and
+              // keyboard focus (Tab/Enter) is unaffected (it sends no mousedown).
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onChange(key)}
+              aria-label={hasVisibleText ? undefined : ariaLabel}
+              className={cn(
+                "relative z-10 flex items-center justify-center rounded-lg whitespace-nowrap transition-colors duration-150",
+                "border-none",
+                // Text cells grow to share the track width; icon-only cells get a
+                // fixed square size so a control's segment height/size stays the
+                // same regardless of the glyph (an 18px Phosphor icon and a 16px
+                // flag emoji both yield identical 34px segments).
+                hasVisibleText ? "flex-auto py-2 px-3 text-[13px] font-semibold text-center" : "size-[34px]",
+                key === value ? "mc-txt-button-bright" : "mc-txt-button-normal",
+              )}
+            >
+              {icon}
+              {hasVisibleText ? label : null}
+            </button>
+          );
+        })}
       </RecessedCard.Body>
     </RecessedCard>
   );

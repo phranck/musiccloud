@@ -23,7 +23,6 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useLocale, useT } from "@/i18n/context";
-import { solidEmbossedCardStyle } from "@/styles/neumorphic";
 
 interface ArtistInfoCardProps {
   data: ArtistInfoResponse | null;
@@ -67,7 +66,7 @@ export function ArtistInfoCard({
   // pops from empty space into a full card after hydration/fetch startup.
   if (isLoading && !data && !skeletonAllowed) {
     return (
-      <EmbossedCard className={fullWidthEmbossedCardClassName} style={solidEmbossedCardStyle}>
+      <EmbossedCard className={fullWidthEmbossedCardClassName}>
         <div className="min-h-[560px]" aria-hidden="true" />
       </EmbossedCard>
     );
@@ -91,7 +90,7 @@ export function ArtistInfoCard({
   }
 
   return (
-    <EmbossedCard className={fullWidthEmbossedCardClassName} style={solidEmbossedCardStyle}>
+    <EmbossedCard className={fullWidthEmbossedCardClassName}>
       <div className="relative">
         {onClose && (
           <button
@@ -113,7 +112,7 @@ export function ArtistInfoCard({
         />
 
         {/* 2. Popular Tracks */}
-        <CollapsibleSection visible={showTracks} sectionClass="p-3" disableMobileCollapse>
+        <CollapsibleSection visible={showTracks} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Header>
               <RecessedCard.Header.Title>{t("artist.popularTracks")}</RecessedCard.Header.Title>
@@ -135,7 +134,7 @@ export function ArtistInfoCard({
         </CollapsibleSection>
 
         {/* 3. Upcoming Events */}
-        <CollapsibleSection visible={showEvents} sectionClass="p-3" disableMobileCollapse>
+        <CollapsibleSection visible={showEvents} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Header>
               <RecessedCard.Header.Title>{t("artist.upcomingEvents")}</RecessedCard.Header.Title>
@@ -156,7 +155,7 @@ export function ArtistInfoCard({
         </CollapsibleSection>
 
         {/* 4. Similar Artists */}
-        <CollapsibleSection visible={showSimilar} sectionClass="p-3" disableMobileCollapse>
+        <CollapsibleSection visible={showSimilar} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Header>
               <RecessedCard.Header.Title>{t("artist.similarArtists")}</RecessedCard.Header.Title>
@@ -184,7 +183,7 @@ export function ArtistInfoCard({
 function ArtistInfoNoticeCard({ onClose, message }: { onClose?: () => void; message: string }) {
   const t = useT();
   return (
-    <EmbossedCard className={fullWidthEmbossedCardClassName} style={solidEmbossedCardStyle}>
+    <EmbossedCard className={fullWidthEmbossedCardClassName}>
       <div className="relative">
         {onClose && (
           <button

@@ -1,55 +1,50 @@
-import { useRef, useState } from "react";
-import { useOutsideClick } from "@/hooks/useOutsideClick";
-import { useLocale } from "@/i18n/context";
+import { VerticalSegmentedControl } from "@/components/ui/VerticalSegmentedControl";
+import { useLocale, useT } from "@/i18n/context";
 import { LOCALE_META, LOCALES } from "@/i18n/locales";
 import { languageSignal, sendMusicSignal } from "@/lib/analytics/umami";
 
+/**
+ * Header control switching the active UI locale.
+ *
+ * The UI is an icon-only `EmbossedSegmentedControl`: every available locale is
+ * a persistently visible segment whose decorative (`aria-hidden`) flag emoji
+ * sits in front of its translated language name, which doubles as the button's
+ * accessible name. The flags are emoji strings rather than Phosphor icons
+ * because Phosphor ships no country flags; the explicit `text-[16px]` span sizes
+ * the emoji to visually match the 18px Phosphor icons in the other header control
+ * (emoji render fuller than line icons at the same px). The control sits in a
+ * `<fieldset>` whose visually-hidden `<legend>` names the group via the
+ * `language.label` key.
+ *
+ * The locale binds to the shared `LocaleProvider` context (`useLocale`) rather
+ * than a standalone store, so `value` simply mirrors the context locale. The
+ * analytics signal fires only on actual locale CHANGES, mirroring the
+ * DayNightSwitcher.
+ */
 export function LanguageSwitcher() {
   const { locale, setLocale } = useLocale();
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const t = useT();
 
-  const close = () => setIsOpen(false);
-  useOutsideClick(containerRef, isOpen, close);
+  const handleChange = (next: (typeof LOCALES)[number]) => {
+    if (next !== locale) sendMusicSignal(languageSignal(next));
+    setLocale(next);
+  };
 
-  const current = LOCALE_META[locale];
+  const segments = LOCALES.map((code) => ({
+    key: code,
+    label: "",
+    ariaLabel: LOCALE_META[code].label,
+    icon: (
+      <span aria-hidden="true" className="text-[16px] leading-none">
+        {LOCALE_META[code].flag}
+      </span>
+    ),
+  }));
 
   return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setIsOpen((o) => !o)}
-        aria-label={`Language: ${current.label}`}
-        aria-expanded={isOpen}
-        className="p-2 opacity-70 hover:opacity-100 transition-opacity duration-150 rounded-lg focus:outline-none"
-      >
-        <span className="text-[18px] leading-none select-none">{current.flag}</span>
-      </button>
-
-      {isOpen && (
-        <div className="absolute top-full right-0 mt-1 py-1 min-w-[160px] bg-[#1c1c1e] border border-white/[0.08] rounded-xl overflow-hidden z-50">
-          {LOCALES.map((code) => {
-            const meta = LOCALE_META[code];
-            const active = locale === code;
-            return (
-              <button
-                key={code}
-                type="button"
-                onClick={() => {
-                  if (code !== locale) sendMusicSignal(languageSignal(code));
-                  setLocale(code);
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-100 focus:outline-none
-                  ${active ? "text-white bg-white/[0.08]" : "text-white/50 hover:text-white hover:bg-white/[0.05]"}`}
-              >
-                <span className="text-base leading-none select-none">{meta.flag}</span>
-                <span className={active ? "font-medium" : ""}>{meta.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <fieldset className="m-0 min-w-0 border-0 p-0">
+      <legend className="sr-only">{t("language.label")}</legend>
+      <VerticalSegmentedControl segments={segments} value={locale} onChange={handleChange} />
+    </fieldset>
   );
 }

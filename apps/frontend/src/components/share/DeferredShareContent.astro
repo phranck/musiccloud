@@ -19,7 +19,7 @@ import { MarkdownHtml, SegmentedPageFullscreen } from "@/components/layout/PageO
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SharePageShell } from "@/components/share/SharePageShell";
 import { LogoView } from "@/components/ui/LogoView";
-import { getLocaleFromCookie } from "@/i18n/locales";
+import { getRequestLocale } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
 import { buildShareViewFromSharePageResponse } from "@/lib/share/share-view";
 
@@ -29,7 +29,7 @@ interface Props {
 
 const { shortId } = Astro.props;
 
-const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
+const locale = getRequestLocale(Astro.cookies.get("mc:locale")?.value, Astro.request.headers.get("accept-language"));
 const translations = await loadTranslations(locale);
 const t = makeT(translations);
 
@@ -100,7 +100,7 @@ const artworkUrl = contentPage ? null : shareView?.artworkUrl;
       </a>
     </div>
     <div class="animate-slide-up">
-      <PageOverlayIsland client:load initialPage={contentPage} />
+      <PageOverlayIsland client:load initialPage={contentPage} initialLocale={locale} />
     </div>
   </main>
 )}
@@ -120,5 +120,5 @@ const artworkUrl = contentPage ? null : shareView?.artworkUrl;
     overlays still work. Rendered here because it depends on knowing
     whether contentPage is overlay-mode (which already has its own). */}
 {!notFound && (!contentPage || contentPage.displayMode === "fullscreen") && (
-  <PageOverlayIsland client:load initialPage={null} />
+  <PageOverlayIsland client:load initialPage={null} initialLocale={locale} />
 )}

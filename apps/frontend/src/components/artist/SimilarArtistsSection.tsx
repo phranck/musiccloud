@@ -1,4 +1,5 @@
 import type { SimilarArtistTrack } from "@musiccloud/shared";
+import { ArtistPanelList } from "@/components/artist/ArtistPanelList";
 import { type ArtistPanelTrackResolveHandler, PopularTrack } from "@/components/artist/PopularTracksSection";
 import { CardSignal } from "@/lib/analytics/umami";
 
@@ -27,7 +28,7 @@ export function SimilarArtistsSection({
   if (withTrack.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-0.5">
+    <ArtistPanelList frameSelector=".recessed-gradient-border" frameInset={4}>
       {withTrack.map(({ artistName, track }) => (
         <PopularTrack
           key={artistName}
@@ -38,6 +39,6 @@ export function SimilarArtistsSection({
           onResolveStart={onResolveStart}
         />
       ))}
-    </div>
+    </ArtistPanelList>
   );
 }

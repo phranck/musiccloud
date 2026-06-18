@@ -47,6 +47,7 @@ export interface DashboardMessages {
       markdownWidgets: string;
       system: string;
       services: string;
+      design: string;
       expandAll: string;
       collapseAll: string;
       expandAllAria: string;
@@ -206,6 +207,21 @@ export interface DashboardMessages {
     trackingDescription: string;
     trackingEnabled: string;
     trackingDisabled: string;
+  };
+  design: {
+    title: string;
+    description: string;
+    jsonLabel: string;
+    jsonHint: string;
+    save: string;
+    saving: string;
+    saved: string;
+    saveError: string;
+    reset: string;
+    validJson: string;
+    invalidJson: string;
+    invalidValues: string;
+    reloadHint: string;
   };
   services: {
     title: string;
@@ -805,6 +821,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         markdownWidgets: "Markdown-Widgets",
         system: "System",
         services: "Services",
+        design: "Design",
         expandAll: "Alle aufklappen",
         collapseAll: "Alle zuklappen",
         expandAllAria: "Alle Gruppen aufklappen",
@@ -971,6 +988,21 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         "Aktiviert das Umami-Tracking-Script auf der Website. Wenn deaktiviert, wird kein Tracking-Code eingebunden.",
       trackingEnabled: "Aktiv",
       trackingDisabled: "Deaktiviert",
+    },
+    design: {
+      title: "Design",
+      description: "Erscheinungsbild der Website — Glas-Material, Farben und Nachthimmel.",
+      jsonLabel: "Design-Token JSON",
+      jsonHint: "Das vom Prototyp exportierte Settings-JSON hier einfügen und speichern.",
+      save: "Speichern",
+      saving: "Speichern…",
+      saved: "Gespeichert",
+      saveError: "Speichern fehlgeschlagen",
+      reset: "Verworfen zurücksetzen",
+      validJson: "Gültiges JSON",
+      invalidJson: "Ungültiges JSON",
+      invalidValues: "{count} Werte unzulässig, Standardwerte werden verwendet",
+      reloadHint: "Änderungen erscheinen im Frontend beim nächsten Laden (bis zu 60 Sekunden).",
     },
     services: {
       title: "Services",
@@ -1538,6 +1570,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         markdownWidgets: "Markdown Widgets",
         system: "System",
         services: "Services",
+        design: "Design",
         expandAll: "Expand all",
         collapseAll: "Collapse all",
         expandAllAria: "Expand all groups",
@@ -1704,6 +1737,21 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         "Enables the Umami tracking script on the website. When disabled, no tracking code is embedded.",
       trackingEnabled: "Active",
       trackingDisabled: "Disabled",
+    },
+    design: {
+      title: "Design",
+      description: "Website appearance — glass material, colours and night sky.",
+      jsonLabel: "Design token JSON",
+      jsonHint: "Paste the settings JSON exported from the prototype here and save.",
+      save: "Save",
+      saving: "Saving…",
+      saved: "Saved",
+      saveError: "Save failed",
+      reset: "Discard changes",
+      validJson: "Valid JSON",
+      invalidJson: "Invalid JSON",
+      invalidValues: "{count} values out of range, defaults applied",
+      reloadHint: "Changes appear on the site on its next load (up to 60 seconds).",
     },
     services: {
       title: "Services",

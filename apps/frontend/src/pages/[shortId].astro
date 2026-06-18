@@ -23,7 +23,7 @@ import DeferredShareContent from "@/components/share/DeferredShareContent.astro"
 import ShareResultPlaceholder from "@/components/share/ShareResultPlaceholder.astro";
 import { ShareLayout } from "@/components/share/ShareLayout";
 import { LogoView } from "@/components/ui/LogoView";
-import { getLocaleFromCookie } from "@/i18n/locales";
+import { getRequestLocale } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
 import { isBot } from "@/lib/isBot";
 import BaseLayout from "@/layouts/BaseLayout.astro";
@@ -41,7 +41,7 @@ const treatAsBot = isBot(userAgent);
 // SSR i18n: read locale from cookie, load translations (needed by both paths
 // — bot path renders server-translated labels, browser path forwards the
 // locale to the deferred island)
-const locale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
+const locale = getRequestLocale(Astro.cookies.get("mc:locale")?.value, Astro.request.headers.get("accept-language"));
 const translations = await loadTranslations(locale);
 const t = makeT(translations);
 
@@ -161,7 +161,7 @@ if (treatAsBot) {
                 <LogoView className="w-56 sm:w-64 h-auto" />
               </a>
             </div>
-            <PageOverlayIsland client:load initialPage={contentPage} />
+            <PageOverlayIsland client:load initialPage={contentPage} initialLocale={locale} />
           </main>
         )}
 
@@ -211,7 +211,7 @@ if (treatAsBot) {
       </DeferredShareContent>
     )}
 
-    <DeferredFooter server:defer />
+    <DeferredFooter server:defer locale={locale} />
   </div>
 
   {/* Always-on overlay host so nav clicks on overlay-mode pages open
@@ -219,6 +219,6 @@ if (treatAsBot) {
       with the old layout); browser path gets it from DeferredShareContent
       once the island resolves. */}
   {treatAsBot && (!contentPage || contentPage.displayMode === "fullscreen") && (
-    <PageOverlayIsland client:load initialPage={null} />
+    <PageOverlayIsland client:load initialPage={null} initialLocale={locale} />
   )}
 </BaseLayout>

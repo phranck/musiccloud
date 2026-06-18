@@ -19,7 +19,7 @@ export function ArtistProfileCard({ profile, showInitialSkeleton }: ArtistProfil
     : "profile-empty";
 
   return (
-    <RecessedCard className="p-1.5 min-h-[108px]">
+    <RecessedCard className="p-[var(--mc-pad-artist,0.375rem)] min-h-[108px]">
       <RecessedCard.Body>
         {showInitialSkeleton ? (
           <ProfileSkeleton />

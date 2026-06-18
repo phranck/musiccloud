@@ -168,6 +168,25 @@ export interface VfdDisplayLine {
 }
 
 /**
+ * Playback-progress overlay drawn by the display directly beneath its pixel
+ * matrix. The display OWNS the rendering: it draws the full-width dotted track
+ * (from its own row width) and a fill bar of exactly {@link fillWidthPx} pixels.
+ * The consumer owns only the data: the filled pixel width and an optional fill
+ * colour. The bar lives inside the display, so its position follows the matrix
+ * geometry directly and a consumer's layout cannot affect whether it renders.
+ */
+export interface VfdProgress {
+  /**
+   * Filled width of the progress bar in CSS pixels. The consumer computes this
+   * from its own geometry (e.g. playtime-reserved track minus the time text),
+   * so the display stays a dumb renderer and never interprets a ratio.
+   */
+  fillWidthPx: number;
+  /** Fill colour of the bar. Defaults to the VFD normal phosphor colour. */
+  color?: string;
+}
+
+/**
  * Configuration for the generic VFD hardware emulator.
  *
  * There are exactly two supported rendering modes:
@@ -214,6 +233,11 @@ export interface VfdDisplayProps {
   ariaLabel?: string;
   /** CSS color for the VFD phosphor. Defaults to blue-green like HiFi VFD modules. */
   phosphorColor?: string;
+  /**
+   * Optional playback-progress bar rendered by the display beneath the matrix.
+   * Omit for displays without a progress bar (the default). See {@link VfdProgress}.
+   */
+  progress?: VfdProgress;
   /** Faint inactive-cell matrix behind every row. Defaults to a custom 5x7 cell, not a font glyph. */
   ghostPattern?: string;
   /**

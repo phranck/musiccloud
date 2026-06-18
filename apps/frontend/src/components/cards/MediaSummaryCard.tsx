@@ -7,7 +7,6 @@ import { ShareButton } from "@/components/share/ShareButton";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
-import { solidEmbossedCardStyle } from "@/styles/neumorphic";
 
 interface MediaSummaryCardProps {
   content: MediaCardContentConfiguration;
@@ -37,7 +36,7 @@ export function MediaSummaryCard({
   const showShareActions = !!shareActionUrl;
 
   return (
-    <EmbossedCard className={mediaCardClassName(animated, className)} style={solidEmbossedCardStyle}>
+    <EmbossedCard className={mediaCardClassName(animated, className)}>
       <SongInfo
         title={content.title}
         artist={content.artist}
@@ -48,7 +47,10 @@ export function MediaSummaryCard({
         statusLine={content.statusLine}
       />
 
-      <CollapsibleSection visible={showPreview} sectionClass="px-3 pt-0 pb-3">
+      <CollapsibleSection
+        visible={showPreview}
+        sectionClass="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)]"
+      >
         {showPreview && (
           <AudioPreviewPlayer
             key={audioPreviewKey}
@@ -60,7 +62,10 @@ export function MediaSummaryCard({
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection visible={showShareActions} sectionClass="px-3 pt-0 pb-3">
+      <CollapsibleSection
+        visible={showShareActions}
+        sectionClass="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)]"
+      >
         {shareActionUrl && (
           <ShareButton shareUrl={shareActionUrl} songTitle={content.title} artistName={content.artist} />
         )}

@@ -63,6 +63,10 @@ export const ENDPOINTS = {
     siteSettings: {
       /** GET: public site settings exposed to the frontend (currently: tracking flag). */
       tracking: "/api/v1/site-settings/tracking",
+      /** GET: the validated, whitelisted design-token blob (glass material +
+       *  night-sky shader). Consumed by the Astro frontend during SSR to seed
+       *  the `:root` custom properties. Never exposes the raw stored string. */
+      designTokens: "/api/v1/site-settings/design-tokens",
     },
     services: {
       /** GET: list of currently enabled + available resolve plugins.

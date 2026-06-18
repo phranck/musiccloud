@@ -3,7 +3,7 @@ import type { NightSkySettings } from "./settings";
 
 /**
  * WebGL2 night-sky scene (plan MC-029 Phase 4) — the production port of the
- * user-approved `background-prototype.html`. Three passes per frame:
+ * user-approved `frontend-prototype.html`. Three passes per frame:
  *
  *   A) fullscreen quad: sky gradient (night↔day blend) + procedural faint
  *      fill stars rotating around Polaris;
@@ -333,6 +333,8 @@ uniform float u_moonAngle;
 uniform float u_sunIntensity;
 uniform float u_sunAngle;
 uniform float u_dayness;
+uniform float u_cloudNightBrightness;
+uniform float u_cloudDayBrightness;
 
 ${GLSL_HASH}
 ${GLSL_NOISE}
@@ -360,9 +362,11 @@ void main() {
 
   vec3 nightCol = u_cloudColor + u_moonIntensity * rim * vec3(0.50, 0.56, 0.62);
   nightCol *= 1.0 - 0.42 * coreShade;
+  nightCol *= u_cloudNightBrightness;
 
   vec3 dayCol = u_cloudColorDay + u_sunIntensity * rim * vec3(1.00, 0.97, 0.88);
   dayCol = mix(dayCol, dayCol * vec3(0.72, 0.78, 0.86), coreShade * 0.55);
+  dayCol *= u_cloudDayBrightness;
 
   vec3 cloudCol = mix(nightCol, dayCol, u_dayness);
   cloudCol *= vignetteAt(windowCuv(gl_FragCoord.xy, u_resolution));
@@ -514,6 +518,8 @@ export function createNightSkyScene(
     "u_sunIntensity",
     "u_sunAngle",
     "u_dayness",
+    "u_cloudNightBrightness",
+    "u_cloudDayBrightness",
     "u_vignette",
     ...CLOUD_FIELD_UNIFORMS,
     ...PLANE_UNIFORMS,
@@ -582,7 +588,7 @@ export function createNightSkyScene(
       const width = canvas.width;
       const height = canvas.height;
       // Polaris in PLANE cuv — the unit is the virtual plane height, so the
-      // pivot (and with it the whole star field) no longer scales with the
+      // pivot (and with it the whole star field) does not scale with the
       // window (plan MC-031).
       const planeAspect = settings.skyWidth / settings.skyHeight;
       const polX = (settings.polarisX - 0.5) * planeAspect;
@@ -649,6 +655,8 @@ export function createNightSkyScene(
       gl.uniform1f(locCloud.u_moonAngle, settings.moonAngle);
       gl.uniform1f(locCloud.u_sunIntensity, settings.sunIntensity);
       gl.uniform1f(locCloud.u_sunAngle, settings.sunAngle);
+      gl.uniform1f(locCloud.u_cloudNightBrightness, settings.cloudNightBrightness);
+      gl.uniform1f(locCloud.u_cloudDayBrightness, settings.cloudDayBrightness);
       gl.uniform1f(locCloud.u_dayness, settings.dayness);
       gl.uniform1f(locCloud.u_vignette, settings.vignette);
       setCloudFieldUniforms(locCloud);

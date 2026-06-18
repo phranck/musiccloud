@@ -12,7 +12,6 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
 import { OverlayBackdropPlacement } from "@/components/ui/OverlayBackdropTypes";
 import { cn } from "@/lib/utils";
-import { solidEmbossedCardStyle } from "@/styles/neumorphic";
 
 interface AlertDialogProps {
   open: boolean;
@@ -52,7 +51,7 @@ export function AlertDialog({ open, visible = open, title, message, closeLabel, 
         )}
         style={dialogTransitionStyle}
       >
-        <EmbossedCard style={solidEmbossedCardStyle} radius={dialogCardRadius} padding={dialogCardPadding}>
+        <EmbossedCard radius={dialogCardRadius} padding={dialogCardPadding}>
           <EmbossedCard.Header className="px-3 pt-2">
             <div className="flex items-center gap-3">
               <SealWarningIcon size={32} weight="duotone" className="shrink-0 text-error" />
@@ -70,7 +69,7 @@ export function AlertDialog({ open, visible = open, title, message, closeLabel, 
 
           <EmbossedCard.Footer className="flex justify-end px-3 pt-5 pb-2">
             <RecessedCard radius={dialogButtonWellRadius} padding={dialogButtonWellPadding}>
-              <EmbossedButton as="button" onClick={onClose} className="min-w-24 py-2 text-sm font-semibold" noScale>
+              <EmbossedButton as="button" onClick={onClose} className="min-w-24 py-2 text-sm font-semibold">
                 {closeLabel}
               </EmbossedButton>
             </RecessedCard>

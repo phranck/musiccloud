@@ -4,9 +4,8 @@ import {
   embossedCardOuterRadius,
   recessedControlInset,
 } from "@/components/cards/cardGeometry";
-import { EmbossedSegmentedControl } from "@/components/ui/EmbossedSegmentedControl";
+import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { cn } from "@/lib/utils";
-import { embossedCardStyle } from "@/styles/neumorphic";
 
 // ─── Sub-component type tags ───────────────────────────────────────────────
 
@@ -154,12 +153,12 @@ interface EmbossedCardProps {
    * radii (swaps at the `sm` breakpoint, 640 px). Published as
    * `--emb-radius-base` / `--emb-radius-sm` so a nested `RecessedCard`
    * can derive its own radius (`outerRadius − outerPadding`).
-   * Defaults to `1.375rem` (22 px) and is shared through the card geometry tokens.
+   * Defaults to `2rem` (32 px) and is shared through the card geometry tokens.
    */
   radius?: string | { base: string; sm?: string };
 }
 
-const DEFAULT_PADDING = "0.75rem";
+const DEFAULT_PADDING = "var(--mc-pad-card, 0.75rem)";
 const DEFAULT_RADIUS = embossedCardOuterRadius;
 
 // Backward-compat detection: a caller that still sets `p-*` or `rounded-*`
@@ -232,7 +231,7 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   const radiusSm = typeof effectiveRadius === "object" ? effectiveRadius.sm : undefined;
 
   // Publish `--emb-radius-base/sm` + `--emb-padding` for descendant
-  // RecessedCards to inherit (the @media swap in neumorphic.css picks the
+  // RecessedCards to inherit (the @media swap in glass.css picks the
   // active value into `--emb-radius`). Keep `--neu-radius-base/sm` in
   // lockstep so this card's own gradient-border transition arc aligns
   // with its actual rounded corner.
@@ -243,7 +242,6 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
     activeRadiusSm !== undefined ? `max(0px, calc(${activeRadiusSm} - var(--mc-card-content-inset)))` : undefined;
 
   const mergedStyle: React.CSSProperties = {
-    ...embossedCardStyle,
     "--mc-card-content-inset": embossedCardContentInset,
     "--mc-recessed-control-inset": recessedControlInset,
     ...(effectivePadding !== undefined ? { "--emb-padding": effectivePadding, padding: "var(--emb-padding)" } : {}),
@@ -263,8 +261,14 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
     ...style,
   } as React.CSSProperties;
 
+  // `mc-glass-card` carries the `backdrop-filter` frost. `overflow-hidden` clips
+  // child content to the rounded corners, but in Firefox a clipped backdrop-filter
+  // element renders a lighter tile-edge artifact in the frost (see the "Firefox
+  // clip rule" in glass.css). Consumers that frost over an animated backdrop and
+  // whose children are inset can override with `overflow-visible` via className
+  // (twMerge drops the default); the hero pill (`HeroInput`) does exactly that.
   return (
-    <div className={cn("embossed-gradient-border bg-gray-800/[0.65] overflow-hidden", className)} style={mergedStyle}>
+    <div className={cn("embossed-gradient-border mc-glass-card overflow-hidden", className)} style={mergedStyle}>
       {isCompound ? (
         <>
           {hasAddOns ? (
@@ -293,9 +297,10 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
 
 // Full-width segmented control slot — used by segmented content-page overlays
 // and by the fullscreen segmented-page island. Reuses the project-wide
-// SegmentedControl (recessed track + sliding embossed indicator) verbatim.
-interface EmbossedSegmentedControlProps<T extends string> {
-  segments: { key: T; label: string }[];
+// SegmentedControl (recessed track + sliding embossed indicator) verbatim,
+// including its `Segment` shape so icon/label segments stay in lockstep.
+interface SegmentedControlSlotProps<T extends string> {
+  segments: Segment<T>[];
   value: T;
   onChange: (value: T) => void;
   className?: string;
@@ -306,7 +311,7 @@ function SegmentedControlSlot<T extends string>({
   value,
   onChange,
   className,
-}: EmbossedSegmentedControlProps<T>) {
+}: SegmentedControlSlotProps<T>) {
   return (
     <div className={cn("w-full mt-3", className)}>
       <EmbossedSegmentedControl segments={segments} value={value} onChange={onChange} className="w-full" />

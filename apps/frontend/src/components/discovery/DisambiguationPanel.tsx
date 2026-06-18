@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
@@ -53,6 +54,24 @@ export function DisambiguationPanel({
 
   const listRef = useRef<HTMLDivElement>(null);
   const resolveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Grouped-corner radii for the candidate rows (AGENTS.md): rows default to the
+  // ≤5px inner radius; the first row's top corners and the last row's bottom
+  // corners promote to the full control radius, and the artwork frame follows.
+  // The list has no header in its well, so `promoteTop` stays true. Merged onto
+  // the same node as `listRef` (which the FLIP choreography measures).
+  const groupedListRef = useGroupedCorners<HTMLDivElement>({
+    itemSelector: ":scope > * > button",
+    frameSelector: ".mc-row-art",
+    frameInset: 4,
+  });
+  const setListEl = useCallback(
+    (el: HTMLDivElement | null) => {
+      listRef.current = el;
+      groupedListRef.current = el;
+    },
+    [groupedListRef],
+  );
 
   const clearResolveTimer = useCallback(() => {
     if (resolveTimer.current === null) return;
@@ -205,7 +224,7 @@ export function DisambiguationPanel({
         <EmbossedCard.Body>
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Body>
-              <div ref={listRef} className="flex flex-col gap-0.5">
+              <div ref={setListEl} className="flex flex-col gap-[var(--mc-gap-list,0.125rem)]">
                 {visibleCandidates.map((candidate) => {
                   const isThisSelected =
                     (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
@@ -218,7 +237,8 @@ export function DisambiguationPanel({
                         onClick={() => handleClick(candidate)}
                         disabled={isAnimating || loading}
                         className={cn(
-                          "w-full flex items-center gap-3 py-1 pl-1 pr-2 text-left rounded-lg",
+                          "w-full flex items-center text-left",
+                          "gap-[var(--mc-gap-rowitem,0.75rem)] py-[var(--mc-pad-track,0.25rem)] pl-[var(--mc-pad-track,0.25rem)] pr-[var(--mc-pad-tracktime,0.5rem)]",
                           isThisSelected && "ring-1 ring-accent/20",
                           (isAnimating || loading) && "cursor-default",
                         )}

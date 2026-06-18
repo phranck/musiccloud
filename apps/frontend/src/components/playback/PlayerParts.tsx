@@ -1,5 +1,4 @@
 import {
-  type CSSProperties,
   createContext,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
@@ -30,6 +29,7 @@ import {
   type VfdDisplayLine,
   type VfdDisplaySection,
   type VfdPixelBarSegment,
+  type VfdProgress,
   VfdSectionAlign,
   VfdSectionCells,
   VfdSizingMode,
@@ -369,14 +369,13 @@ interface PlayerLineParams {
  * params plus the live spectrum frame (plan MC-029 Task 5.1). Pure — the same
  * call backs both render paths: the React `lines` prop (low-frequency
  * changes) and the imperative store-subscription repaint (20 Hz spectrum). It
- * reproduces the previous prop-driven layout exactly, including the idle
- * empty-analyzer state when no frame is active.
+ * renders the idle empty-analyzer state when no frame is active.
  *
  * @param params - Low-frequency layout inputs.
  * @param frame - Live spectrum buffers (read, never retained).
  * @param spectrumActive - Whether a published frame is current; when false the
- *   multi-band analyzer renders its idle empty state (the former null-spectrum
- *   path) instead of zeroed stereo bands.
+ *   multi-band analyzer renders its idle empty state instead of zeroed stereo
+ *   bands.
  * @returns A single-line model ready for {@link VfdDisplay}.
  */
 function buildPlayerLines(params: PlayerLineParams, frame: SpectrumFrame, spectrumActive: boolean): VfdDisplayLine[] {
@@ -496,7 +495,7 @@ export function PlayerRoot({
 
 export function PlayerButton({ className }: PlayerButtonProps) {
   const { isPlaying, isDisabled, onTogglePlay, ariaLabel, title } = usePlayerContext();
-  const accentColor = isDisabled ? "var(--color-player-control-disabled)" : "var(--color-vfd-phosphor)";
+  const accentColor = isDisabled ? "var(--color-player-control-disabled)" : "#ffffff";
 
   return (
     <RecessedCard className={cn("flex-none", recessedControlSizeClassName, recessedControlInsetClassName, className)}>
@@ -510,7 +509,6 @@ export function PlayerButton({ className }: PlayerButtonProps) {
           aria-pressed={isPlaying}
           title={title}
           pressed={isPlaying && !isDisabled}
-          noScale
           className="relative flex size-full items-center justify-center px-0 py-0"
         >
           <svg
@@ -583,11 +581,16 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
     progressTrackWidthPx,
     Math.floor((progressTrackWidthPx * safeProgressRatio) / 2) * 2,
   );
-  const progressStyle = {
-    "--mc-player-progress-width": `${progressWidthPx}px`,
-    "--mc-player-progress-color": isDisabled ? "var(--mc-vfd-dim-color)" : "var(--mc-vfd-normal-color)",
-    "--mc-player-progress-right": `${progressRightPx}px`,
-  } as CSSProperties;
+  // The progress bar is rendered by the VFD display itself (it owns the track +
+  // fill geometry). The player hands in only the data: the filled pixel width
+  // and the brightness-matched colour. Only the analyzer variant carries a bar;
+  // the custom-children variant renders its own progress content instead.
+  const progress: VfdProgress | undefined = hasAnalyzer
+    ? {
+        fillWidthPx: progressWidthPx,
+        color: isDisabled ? "var(--mc-vfd-dim-color)" : "var(--mc-vfd-normal-color)",
+      }
+    : undefined;
 
   useLayoutEffect(() => {
     const root = progressRef.current;
@@ -626,7 +629,7 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
       sizingMode={VfdSizingMode.Container}
       rows={1}
       phosphorColor={phosphorColor}
-      className={cn(!children && "mc-player-progress-vfd")}
+      progress={progress}
       ariaLabel={`Preview progress ${timeText}`}
       lines={lines}
     />
@@ -638,7 +641,6 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
         ref={setProgressRef}
         type="button"
         className={cn("flex-1 min-w-0 cursor-pointer appearance-none border-0 bg-transparent p-0 text-left", className)}
-        style={progressStyle}
         aria-pressed={isStereoVuMode}
         aria-label={wrapperTitle}
         title={wrapperTitle}
@@ -650,7 +652,7 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
   }
 
   return (
-    <div ref={setProgressRef} className={cn("flex-1 min-w-0", className)} style={progressStyle} title={wrapperTitle}>
+    <div ref={setProgressRef} className={cn("flex-1 min-w-0", className)} title={wrapperTitle}>
       {vfd}
     </div>
   );

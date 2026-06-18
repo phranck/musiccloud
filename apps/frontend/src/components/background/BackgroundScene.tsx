@@ -1,7 +1,9 @@
+import type { ShaderTokens } from "@musiccloud/shared";
 import gsap from "gsap";
 import { useEffect, useRef } from "react";
 import { DayNightMode, getDayNightMode, subscribeDayNightMode } from "@/components/background/dayNightMode";
 import { daynessForMode } from "@/components/background/dayNightPolicy";
+import { publishGlassDayness } from "@/components/background/glassDayness";
 import { NightSkyDriver } from "@/components/background/nightSky/loop";
 import {
   type NightSkyMessage,
@@ -10,12 +12,46 @@ import {
   type NightSkyWorkerEventMessage,
 } from "@/components/background/nightSky/protocol";
 import { createNightSkyScene, type NightSkyScene } from "@/components/background/nightSky/scene";
-import { NIGHT_SKY_DEFAULTS, type NightSkySettings } from "@/components/background/nightSky/settings";
+import { NIGHT_SKY_DEFAULTS, NIGHT_SKY_RANGES, type NightSkySettings } from "@/components/background/nightSky/settings";
 import { MotionEase } from "@/lib/motion/constants";
 import { prefersReducedMotion, setupMotion } from "@/lib/motion/setup";
 
 /** Seconds the canvas takes to fade in over the base background color once the first frame is ready. */
 const CANVAS_FADE_IN_SECONDS = 1.2;
+
+/** Sky settings the day-night mode owns — never seeded from the saved token blob. */
+const MODE_OWNED_SKY_KEYS = new Set<string>(["dayness", "autoDayNight"]);
+
+/** Hex-colour sky settings (everything else in NIGHT_SKY_RANGES is numeric). */
+const SKY_COLOR_KEYS = ["skyTop", "skyBottom", "skyTopDay", "skyBottomDay", "cloudColor", "cloudColorDay"] as const;
+
+/**
+ * Overlays the saved shader tokens onto the night-sky defaults: each numeric
+ * value is clamped against {@link NIGHT_SKY_RANGES} (the sky's own authoritative
+ * bounds, which the validated token blob may exceed), colours are copied
+ * verbatim, and the mode-owned keys ({@link MODE_OWNED_SKY_KEYS}) are skipped so
+ * the day-night store stays the single source of `dayness`/`autoDayNight`.
+ *
+ * @param base The compiled-in production defaults.
+ * @param shader The saved shader tokens, or `undefined` to use `base` as-is.
+ * @returns A fresh settings object safe to hand to the driver.
+ */
+function mergeShaderTokens(base: NightSkySettings, shader: ShaderTokens | undefined): NightSkySettings {
+  if (!shader) return base;
+  const merged: NightSkySettings = { ...base };
+  for (const key of Object.keys(NIGHT_SKY_RANGES) as (keyof typeof NIGHT_SKY_RANGES)[]) {
+    if (MODE_OWNED_SKY_KEYS.has(key)) continue;
+    const raw = (shader as Record<string, unknown>)[key];
+    if (typeof raw !== "number" || !Number.isFinite(raw)) continue;
+    const { min, max } = NIGHT_SKY_RANGES[key];
+    (merged as unknown as Record<string, number>)[key] = Math.min(max, Math.max(min, raw));
+  }
+  for (const key of SKY_COLOR_KEYS) {
+    const raw = shader[key];
+    if (typeof raw === "string") merged[key] = raw;
+  }
+  return merged;
+}
 
 /** Boot delay fallback for browsers without requestIdleCallback (Safari < 18). */
 const IDLE_FALLBACK_MS = 200;
@@ -77,8 +113,11 @@ function scheduleIdle(callback: () => void): () => void {
  * Default behaviour per the approved settings: fixed night start, 10 fps
  * idle loop, 30 fps lift during the manual day/night fade.
  */
-export function BackgroundScene() {
+export function BackgroundScene({ shaderTokens }: { shaderTokens?: ShaderTokens }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Captured once from the SSR prop (stable across the island's lifetime); read
+  // inside the boot effect without widening its dependency list.
+  const shaderTokensRef = useRef(shaderTokens);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -108,7 +147,7 @@ export function BackgroundScene() {
     const initialModeSettings = (): NightSkySettings => {
       const mode = getDayNightMode();
       return {
-        ...NIGHT_SKY_DEFAULTS,
+        ...mergeShaderTokens(NIGHT_SKY_DEFAULTS, shaderTokensRef.current),
         autoDayNight: mode === DayNightMode.Automatic ? 1 : 0,
         dayness: daynessForMode(mode, { prefersDark: prefersDark(), date: new Date() }),
       };
@@ -242,7 +281,9 @@ export function BackgroundScene() {
       const offscreen = canvas.transferControlToOffscreen();
       worker = new Worker(new URL("./nightSky/worker.ts", import.meta.url), { type: "module" });
       worker.onmessage = (event: MessageEvent<NightSkyWorkerEventMessage>) => {
-        if (event.data.type === NightSkyWorkerEvent.Ready) revealCanvas();
+        const data = event.data;
+        if (data.type === NightSkyWorkerEvent.Ready) revealCanvas();
+        else if (data.type === NightSkyWorkerEvent.Dayness) publishGlassDayness(data.dayness);
         // On `failed` the canvas simply stays transparent — CSS layer remains.
       };
       const { width, height, pixelRatio } = cssSize();
@@ -265,7 +306,7 @@ export function BackgroundScene() {
       const settings: NightSkySettings = initialModeSettings();
       fallbackScene = createNightSkyScene(canvas, settings, { onContextLost: () => undefined });
       if (!fallbackScene) return; // no WebGL2 → CSS layer stays
-      fallbackDriver = new NightSkyDriver(fallbackScene, settings);
+      fallbackDriver = new NightSkyDriver(fallbackScene, settings, publishGlassDayness);
       fallbackDriver.setReducedMotion(reducedMotionQuery?.matches ?? false);
       const { width, height, pixelRatio } = cssSize();
       fallbackScene.resize(width, height, settings.renderScale * Math.min(pixelRatio, 2));

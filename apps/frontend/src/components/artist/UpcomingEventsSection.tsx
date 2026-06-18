@@ -1,6 +1,8 @@
 import type { ArtistEvent } from "@musiccloud/shared";
 import { TicketIcon } from "@phosphor-icons/react";
-import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { ArtistPanelList } from "@/components/artist/ArtistPanelList";
+import { ArtistPanelRow } from "@/components/artist/ArtistPanelRow";
+import { ArtistPanelRowText } from "@/components/artist/ArtistPanelRowText";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 
 interface UpcomingEventsSectionProps {
@@ -11,21 +13,20 @@ interface UpcomingEventsSectionProps {
 
 export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEventsSectionProps) {
   return (
-    <div className="flex flex-col gap-0.5">
+    <ArtistPanelList>
       {events.map((event) => {
         const isLocal = userRegion && event.country.toUpperCase() === userRegion.toUpperCase();
         const linkProps = event.ticketUrl
           ? ({ href: event.ticketUrl, target: "_blank", rel: "noopener noreferrer" } as const)
           : {};
         return (
-          <EmbossedButton
+          <ArtistPanelRow
             key={`${event.date}-${event.venueName || event.city}`}
-            noScale
-            className="flex items-center gap-3 w-full px-3 py-2 no-underline"
+            className="no-underline px-[var(--mc-pad-event-x,0.75rem)] py-[var(--mc-pad-event-y,0.25rem)]"
             onClick={event.ticketUrl ? () => sendMusicSignal(CardSignal.UpcomingEvent) : undefined}
             {...linkProps}
           >
-            <div className="min-w-0 flex-1">
+            <ArtistPanelRowText>
               <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
                 {formatEventDate(event.date, locale)}
                 {isLocal && " \u2605"}
@@ -37,12 +38,12 @@ export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEv
                   {event.city}, {event.country}
                 </span>
               </p>
-            </div>
+            </ArtistPanelRowText>
             {event.ticketUrl && <TicketIcon size={24} weight="duotone" className="text-text-secondary flex-none" />}
-          </EmbossedButton>
+          </ArtistPanelRow>
         );
       })}
-    </div>
+    </ArtistPanelList>
   );
 }
 

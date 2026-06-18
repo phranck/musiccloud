@@ -61,13 +61,26 @@ export class NightSkyDriver {
   private reducedMotion = false;
   private visible = true;
 
+  /** Optional reverse-publish sink for the live day amount (see {@link publishDayness}). */
+  private readonly onDayness?: (dayness: number) => void;
+  /** Last value handed to {@link onDayness}; `NaN` forces the first publish. */
+  private lastPublishedDayness = Number.NaN;
+  /** Minimum day-amount delta that triggers a reverse publish (sub-step changes are skipped). */
+  private static readonly DAYNESS_EPSILON = 0.001;
+
   /**
    * @param scene - Render sink (the GL scene, or a mock in tests).
    * @param settings - Settings instance the driver takes ownership of.
+   * @param onDayness - Optional change-gated sink for the live day amount. The
+   *   driver calls it with a bare number (zero allocation on the loop side) only
+   *   when `dayness` actually moves — never per idle frame. The worker forwards
+   *   it as a reverse `Dayness` message; the fallback path writes `--g-dayness`
+   *   directly. Omit it (tests, headless) to disable the channel.
    */
-  constructor(scene: DrawableScene, settings: NightSkySettings) {
+  constructor(scene: DrawableScene, settings: NightSkySettings, onDayness?: (dayness: number) => void) {
     this.scene = scene;
     this.settings = settings;
+    this.onDayness = onDayness;
   }
 
   /**
@@ -81,6 +94,7 @@ export class NightSkyDriver {
 
     this.tickFade(nowMs);
     this.tickAutoClock();
+    this.publishDayness();
 
     const animating = this.settings.animate === 1 && !this.reducedMotion;
     if (animating) this.simTime += dtMs / 1000;
@@ -180,6 +194,25 @@ export class NightSkyDriver {
       this.settings.dayness = target;
       this.needsRedraw = true;
     }
+  }
+
+  /**
+   * Reverse-publishes the live day amount when it has moved enough to matter.
+   * Runs every tick (so snaps and fade steps are both caught) but invokes the
+   * sink only on a meaningful change — preserving the zero-allocation idle
+   * path: no fade and no clock step means `dayness` is stable, so no call and
+   * no message. A settled fade publishes the exact target (`fade === null`
+   * branch) so the glass lands on the precise endpoint.
+   */
+  private publishDayness(): void {
+    if (!this.onDayness) return;
+    const d = this.settings.dayness;
+    const last = this.lastPublishedDayness;
+    const moved =
+      Number.isNaN(last) || Math.abs(d - last) >= NightSkyDriver.DAYNESS_EPSILON || (this.fade === null && d !== last);
+    if (!moved) return;
+    this.lastPublishedDayness = d;
+    this.onDayness(d);
   }
 
   /**

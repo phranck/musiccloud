@@ -77,7 +77,6 @@ export function GenreBrowseGrid({ genres, onSelect }: GenreBrowseGridProps) {
                     <EmbossedButton
                       as="button"
                       type="button"
-                      noScale
                       onClick={() => onSelect(genre.name)}
                       className="w-full h-full rounded-xl p-0 overflow-hidden"
                       aria-label={`Search ${genre.displayName}`}

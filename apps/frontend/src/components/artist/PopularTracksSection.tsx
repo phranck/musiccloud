@@ -1,6 +1,8 @@
 import type { ArtistTopTrack } from "@musiccloud/shared";
 import { type MouseEvent, useCallback, useState } from "react";
-import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { ArtistPanelList } from "@/components/artist/ArtistPanelList";
+import { ArtistPanelRow } from "@/components/artist/ArtistPanelRow";
+import { ArtistPanelRowText } from "@/components/artist/ArtistPanelRowText";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useToastSafe } from "@/context/ToastContext";
 import { useT } from "@/i18n/context";
@@ -22,7 +24,7 @@ export function PopularTracksSection({
   onResolveStart,
 }: PopularTracksSectionProps) {
   return (
-    <div className="flex flex-col gap-0.5">
+    <ArtistPanelList frameSelector=".recessed-gradient-border" frameInset={4}>
       {tracks.map((track) => (
         <PopularTrack
           key={track.deezerUrl}
@@ -32,7 +34,7 @@ export function PopularTracksSection({
           onResolveStart={onResolveStart}
         />
       ))}
-    </div>
+    </ArtistPanelList>
   );
 }
 
@@ -81,27 +83,28 @@ export function PopularTrack({
   );
 
   return (
-    <EmbossedButton
-      as="button"
-      type="button"
-      onClick={handleListen}
-      aria-busy={resolving}
-      aria-disabled={resolving}
-      noScale
-      className="flex items-center gap-3 w-full py-1 pl-1 pr-2"
-    >
+    <ArtistPanelRow as="button" type="button" onClick={handleListen} aria-busy={resolving} aria-disabled={resolving}>
       <SlideArtwork active={resolving} artworkUrl={track.artworkUrl ?? undefined} sizeClass="w-12 h-12" imgDim={48} />
-      <div className="min-w-0 flex-1 overflow-hidden text-left">
-        <p className="max-w-full truncate text-sm font-medium text-text-primary" title={track.title}>
+      <ArtistPanelRowText>
+        <p
+          className="mc-txt-button-bright max-w-full truncate text-sm font-medium text-text-primary"
+          title={track.title}
+        >
           {track.title}
         </p>
-        {artistLabel && <p className="text-xs text-text-secondary mt-0.5 break-words">{artistLabel}</p>}
-        {showAlbum && <p className="text-xs text-text-secondary mt-0.5 break-words">{track.albumName}</p>}
-      </div>
+        {artistLabel && (
+          <p className="mc-txt-button-normal text-xs text-text-secondary mt-0.5 break-words">{artistLabel}</p>
+        )}
+        {showAlbum && (
+          <p className="mc-txt-button-normal text-xs text-text-secondary mt-0.5 break-words">{track.albumName}</p>
+        )}
+      </ArtistPanelRowText>
       {track.durationMs != null && (
-        <span className="text-xs text-text-secondary tabular-nums flex-none">{formatDuration(track.durationMs)}</span>
+        <span className="mc-txt-button-dimmed text-xs text-text-secondary tabular-nums flex-none">
+          {formatDuration(track.durationMs)}
+        </span>
       )}
-    </EmbossedButton>
+    </ArtistPanelRow>
   );
 }
 

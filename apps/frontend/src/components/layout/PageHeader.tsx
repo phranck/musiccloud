@@ -1,10 +1,11 @@
 import { type NavItem, NavTarget, PageDisplayMode } from "@musiccloud/shared";
 import type { MouseEvent } from "react";
 
+import { DayNightSwitcher } from "@/components/navigation/DayNightSwitcher";
+import { HeaderNavMenu } from "@/components/navigation/HeaderNavMenu";
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
 import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/OverlayContext";
 import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
-import { navHref, navLabel } from "@/lib/nav";
 
 interface PageHeaderProps {
   /** Items from the admin nav editor (header). Empty array hides the inline list. */
@@ -39,37 +40,31 @@ function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): vo
 }
 
 /**
- * Top-right header bar: optional admin-managed nav links + Language Switcher.
+ * Header bars pinned to the top corners. LEFT: the admin-managed nav links,
+ * collapsed into a glass hamburger menu on every viewport (see
+ * {@link HeaderNavMenu}). RIGHT: the Day/Night switcher + the Language switcher.
  * Must be rendered inside a LocaleProvider.
  *
- * The DayNightSwitcher (plan MC-030) is deliberately NOT mounted here (user
- * decision 2026-06-13): the day-night stack stays fully functional behind
- * the `dayNightMode` store, only the UI entry point is hidden for now.
+ * The DayNightSwitcher drives the `dayNightMode` store, which feeds the sky
+ * driver's dayness and — via the reverse `--g-dayness` publish channel — the
+ * glass material's day↔night cross-fade.
  */
 export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
+  // `animate-slide-down-in` stays CSS deliberately (MC-029 Task 2.5 exception):
+  // PageHeaderIsland hydrates at client:idle, so the SSR markup must animate
+  // from parse — a GSAP entrance would start only after idle hydration with a
+  // visible delay.
   return (
-    // `animate-slide-down-in` stays CSS deliberately (MC-029 Task 2.5
-    // exception): PageHeaderIsland hydrates at client:idle, so the SSR markup
-    // must animate from parse — a GSAP entrance would start only after idle
-    // hydration with a visible delay.
-    <div className="absolute top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center gap-2 sm:fixed sm:top-4 sm:right-4 sm:gap-3">
+    <>
       {navItems.length > 0 && (
-        <nav aria-label="Header navigation" className="flex items-center gap-3 text-sm sm:gap-4 sm:mr-2">
-          {navItems.map((item) => (
-            <a
-              key={item.id}
-              href={navHref(item)}
-              target={item.target === NavTarget.Blank ? NavTarget.Blank : undefined}
-              rel={item.target === NavTarget.Blank ? "noopener noreferrer" : undefined}
-              onClick={(e) => handleNavClick(e, item)}
-              className="text-text-primary/85 hover:text-text-primary transition-colors duration-150"
-            >
-              {navLabel(item)}
-            </a>
-          ))}
-        </nav>
+        <div className="absolute top-3 left-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center sm:fixed sm:top-4 sm:left-4">
+          <HeaderNavMenu navItems={navItems} onNavClick={handleNavClick} />
+        </div>
       )}
-      <LanguageSwitcher />
-    </div>
+      <div className="absolute top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-start gap-2 sm:fixed sm:top-4 sm:right-4 sm:gap-3">
+        <DayNightSwitcher />
+        <LanguageSwitcher />
+      </div>
+    </>
   );
 }

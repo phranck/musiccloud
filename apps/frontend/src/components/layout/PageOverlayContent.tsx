@@ -8,7 +8,6 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { TranslucentCard } from "@/components/cards/TranslucentCard";
 import { EmbossedCloseButton } from "@/components/ui/EmbossedCloseButton";
 import { cn } from "@/lib/utils";
-import { embossedOverlayCardStyle } from "@/styles/neumorphic";
 
 const MD_FIELDS = [
   "[&_.mc-fields]:my-3 [&_.mc-fields]:items-baseline [&_.mc-fields]:gap-y-0.5",
@@ -206,7 +205,7 @@ export function EmbossedOverlayContent({ page, onClose, frameInteractionsDisable
   const showTitle = isSegmented ? page.showTitle || segmented.currentShowTitle : page.showTitle;
 
   return (
-    <EmbossedCard className={cn("flex flex-col h-full")} style={embossedOverlayCardStyle}>
+    <EmbossedCard className={cn("mc-glass-card-overlay flex flex-col h-full")}>
       <EmbossedCard.Header
         className={cn(
           "p-2",

@@ -31,7 +31,7 @@ export function PopularTracksCard({ data, isLoading, onTrackResolve, onResolveSt
 
   return (
     <ArtistCardShell title={t("artist.popularTracks")}>
-      <div className="p-3">
+      <div className="px-3 pt-0 pb-3">
         <RecessedCard className={recessedControlInsetClassName}>
           <RecessedCard.Body>
             {showInitialSkeleton ? (

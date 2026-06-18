@@ -48,6 +48,8 @@ export function GenreRowButton({
     });
   }, []);
 
+  // Token-driven row chrome (matches the track-row recipe). Grouped-corner radii
+  // are applied by the parent column's `useGroupedCorners` (AGENTS.md).
   return (
     <div ref={rowRef}>
       <EmbossedButton
@@ -55,8 +57,11 @@ export function GenreRowButton({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        noScale
-        className={cn("w-full flex items-center gap-3 px-2 py-2 text-left", disabled && "cursor-default")}
+        className={cn(
+          "w-full flex items-center text-left",
+          "gap-[var(--mc-gap-rowitem,0.75rem)] py-[var(--mc-pad-track,0.25rem)] pl-[var(--mc-pad-track,0.25rem)] pr-[var(--mc-pad-tracktime,0.5rem)]",
+          disabled && "cursor-default",
+        )}
         aria-label={ariaLabel}
       >
         {children}

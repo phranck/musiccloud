@@ -8,7 +8,6 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -20,9 +19,12 @@ import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { LogoView } from "@/components/ui/LogoView";
 import { DialogProvider } from "@/context/DialogContext";
 import { useAppState } from "@/hooks/useAppState";
+import { useDeferredResultReveal } from "@/hooks/useDeferredResultReveal";
+import { useHeroFieldFlip } from "@/hooks/useHeroFieldFlip";
 import { useSearchFieldReturn } from "@/hooks/useSearchFieldReturn";
 import { useToast } from "@/hooks/useToast";
 import { LocaleProvider, useT } from "@/i18n/context";
+import type { Locale } from "@/i18n/locales";
 import { CardSignal, genreSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { animateFadeIn, animateSlideOutDown } from "@/lib/motion/entrances";
 import {
@@ -51,6 +53,8 @@ const EMPTY_NAV_ITEMS: NavItem[] = [];
 interface LandingPageProps {
   exampleShortId?: string | null;
   footerNav?: NavItem[];
+  /** Server-resolved locale, so SSR and client hydration agree (no mismatch). */
+  initialLocale?: Locale;
 }
 
 interface ActiveShareResultProps {
@@ -148,11 +152,7 @@ function LiveExampleTeaser({
       aria-hidden={!visible}
     >
       {teaser}{" "}
-      <a
-        href={`/${exampleShortId}`}
-        onClick={() => sendMusicSignal(CardSignal.LiveExample)}
-        className="text-accent hover:text-[var(--color-accent-hover)] transition-colors"
-      >
+      <a href={`/${exampleShortId}`} onClick={() => sendMusicSignal(CardSignal.LiveExample)} className="mc-skylink">
         {label}
       </a>
     </p>
@@ -253,8 +253,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
   const resetInputValue = useCallback(() => setInputValue(""), []);
   const { isReturning, isFieldReturnStaging, armFieldReturn, handleCancelWithReturn, handleClearSlideOutComplete } =
     useSearchFieldReturn(searchFieldRef, { showCompact, onClear: handleClear, onResetInput: resetInputValue });
-  const previousSearchTop = useRef<number | null>(null);
-  const previousShowCompact = useRef(showCompact);
+  useHeroFieldFlip(searchFieldRef, { showCompact, isReturning });
   const toast = useToast();
 
   const baseInputState: InputState =
@@ -264,6 +263,12 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
         ? InputState.Success
         : (state.type as InputState);
   const inputState = baseInputState === InputState.Idle && isFocused ? InputState.Focused : baseInputState;
+
+  // Hold the share-result reveal until the hero's spinning disc has slid out.
+  const { discExitPending, onLoadingExitComplete: handleLoadingExitComplete } = useDeferredResultReveal(
+    active,
+    inputState,
+  );
 
   // Sync input value when back-navigation restores a previous screen.
   useEffect(() => {
@@ -337,54 +342,12 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
     return () => window.cancelAnimationFrame(frame);
   }, [state.type]);
 
-  useLayoutEffect(() => {
-    const el = searchFieldRef.current;
-    if (!el) return;
-    let transitionEndCleanup: (() => void) | undefined;
-
-    const nextTop = el.getBoundingClientRect().top;
-    const becameCompact = showCompact && !previousShowCompact.current;
-    const previousTop = previousSearchTop.current;
-
-    if (becameCompact && previousTop !== null && !isReturning) {
-      const delta = previousTop - nextTop;
-      if (Math.abs(delta) >= 2) {
-        Object.assign(el.style, {
-          transform: `translateY(${delta}px)`,
-          transition: "none",
-        });
-        void el.offsetHeight;
-        Object.assign(el.style, {
-          transform: "",
-          transition: "transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)",
-        });
-
-        const cleanup = () => {
-          Object.assign(el.style, { transform: "", transition: "" });
-          el.removeEventListener("transitionend", cleanup);
-          transitionEndCleanup = undefined;
-        };
-        transitionEndCleanup = cleanup;
-        el.addEventListener("transitionend", cleanup);
-      }
-    }
-
-    previousSearchTop.current = nextTop;
-    previousShowCompact.current = showCompact;
-
-    return () => {
-      if (!transitionEndCleanup) return;
-      Object.assign(el.style, { transform: "", transition: "" });
-      el.removeEventListener("transitionend", transitionEndCleanup);
-    };
-  }, [isReturning, showCompact]);
-
   const activeShareView = resolved ? buildShareViewFromResolvedResponse(resolved, t) : null;
   const activeShareConfig = activeShareView?.config ?? (active ? buildShareConfigFromActive(active, t) : null);
   const activeArtistName =
     activeShareView?.artistName ??
     (active ? (active.kind === ActiveResultKind.Artist ? active.name : active.artist) : "");
-  const isSharePageView = !!(activeShareConfig && active);
+  const isSharePageView = !!(activeShareConfig && active && !discExitPending);
 
   return (
     <>
@@ -399,7 +362,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
           {/* During return-flip staging the (invisible, pre-paint) idle branch
               must render so the field's compact position is measurable — see
               the staging layout effect. */}
-          {activeShareConfig && active && !isFieldReturnStaging ? (
+          {activeShareConfig && active && !isFieldReturnStaging && !discExitPending ? (
             <ActiveShareResult
               activeArtistName={activeArtistName}
               activeShareConfig={activeShareConfig}
@@ -428,8 +391,10 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                   }}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
-                  state={inputState}
+                  state={discExitPending ? InputState.Loading : inputState}
                   compact={showCompact}
+                  requestDiscExit={discExitPending}
+                  onLoadingExitComplete={handleLoadingExitComplete}
                 />
               </div>
 
@@ -439,7 +404,11 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                   label={t("landing.exampleLink")}
                   teaser={t("landing.exampleTeaser")}
                   visible={
-                    state.type !== AppStateType.Loading && !candidates && !genreBrowseGenres && !genreSearchPayload
+                    state.type !== AppStateType.Loading &&
+                    !discExitPending &&
+                    !candidates &&
+                    !genreBrowseGenres &&
+                    !genreSearchPayload
                   }
                 />
               )}
@@ -483,7 +452,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
                 </Suspense>
               )}
 
-              {state.type === AppStateType.Loading && showCompact && (
+              {(state.type === AppStateType.Loading || discExitPending) && showCompact && (
                 <div className="mt-6 sm:mt-8 w-full">
                   <ShareResultPlaceholder />
                 </div>
@@ -507,10 +476,14 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
   );
 }
 
-export function LandingPage({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }: LandingPageProps = {}) {
+export function LandingPage({
+  exampleShortId = null,
+  footerNav = EMPTY_NAV_ITEMS,
+  initialLocale,
+}: LandingPageProps = {}) {
   return (
     <ErrorBoundary>
-      <LocaleProvider>
+      <LocaleProvider initialLocale={initialLocale}>
         <DialogProvider>
           <LandingPageInner exampleShortId={exampleShortId} footerNav={footerNav} />
         </DialogProvider>

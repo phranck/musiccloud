@@ -26,9 +26,9 @@ afterEach(() => {
 });
 
 describe("dayNightMode store", () => {
-  it("defaults to Night without a stored choice", async () => {
+  it("defaults to System without a stored choice", async () => {
     const { getDayNightMode, DayNightMode } = await freshStore();
-    expect(getDayNightMode()).toBe(DayNightMode.Night);
+    expect(getDayNightMode()).toBe(DayNightMode.System);
   });
 
   it("persists the chosen mode and reads it back after a reload", async () => {
@@ -40,10 +40,10 @@ describe("dayNightMode store", () => {
     expect(reloaded.getDayNightMode()).toBe(reloaded.DayNightMode.Day);
   });
 
-  it("falls back to Night on an invalid stored value", async () => {
+  it("falls back to System on an invalid stored value", async () => {
     localStorage.setItem(STORAGE_KEY, "purple");
     const { getDayNightMode, DayNightMode } = await freshStore();
-    expect(getDayNightMode()).toBe(DayNightMode.Night);
+    expect(getDayNightMode()).toBe(DayNightMode.System);
   });
 
   it("notifies subscribers on change and stops after unsubscribe", async () => {
@@ -51,11 +51,11 @@ describe("dayNightMode store", () => {
     const subscriber = vi.fn();
     const unsubscribe = store.subscribeDayNightMode(subscriber);
 
-    store.setDayNightMode(store.DayNightMode.System);
-    expect(subscriber).toHaveBeenCalledExactlyOnceWith(store.DayNightMode.System);
+    store.setDayNightMode(store.DayNightMode.Day);
+    expect(subscriber).toHaveBeenCalledExactlyOnceWith(store.DayNightMode.Day);
 
     unsubscribe();
-    store.setDayNightMode(store.DayNightMode.Day);
+    store.setDayNightMode(store.DayNightMode.Night);
     expect(subscriber).toHaveBeenCalledTimes(1);
   });
 
@@ -64,7 +64,7 @@ describe("dayNightMode store", () => {
     const subscriber = vi.fn();
     store.subscribeDayNightMode(subscriber);
 
-    store.setDayNightMode(store.DayNightMode.Night); // Night is the default
+    store.setDayNightMode(store.DayNightMode.System); // System is the default
     expect(subscriber).not.toHaveBeenCalled();
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });

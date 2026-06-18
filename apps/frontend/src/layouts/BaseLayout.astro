@@ -10,11 +10,12 @@ import "../styles/fonts.css";
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
 import { ENDPOINTS } from "@musiccloud/shared";
-import { fetchNavigation } from "@/api/client";
+import { fetchDesignTokens, fetchNavigation } from "@/api/client";
 import NightSkyBackground from "@/components/background/NightSkyBackground.astro";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
-import { getLocaleFromCookie } from "@/i18n/locales";
+import { getRequestLocale } from "@/i18n/locales";
 import { isTrackingEnabled } from "@/lib/analytics/trackingConfig";
+import { designTokensToCss } from "@/lib/designTokensCss";
 
 const trackingEnabled = isTrackingEnabled();
 
@@ -29,8 +30,11 @@ interface Props {
 }
 
 const { title, description, canonicalUrl, preloadImage, noindex, lang = "en", showHeader = true } = Astro.props;
-const headerLocale = getLocaleFromCookie(Astro.cookies.get("mc:locale")?.value);
+const headerLocale = getRequestLocale(Astro.cookies.get("mc:locale")?.value, Astro.request.headers.get("accept-language"));
 const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [];
+// Persisted design tokens → `:root` custom properties, seeded synchronously in
+// the head so the glass material renders the saved values on first paint.
+const designTokensCss = designTokensToCss(await fetchDesignTokens());
 ---
 
 <!doctype html>
@@ -46,6 +50,59 @@ const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+
+    {/* Persisted design tokens (validated server-side). `html:root` outranks the
+        compiled-in `:root` defaults so the saved material applies on first paint
+        with no flash; the runtime dayness channel overrides `--g-dayness` later. */}
+    <style is:inline set:html={designTokensCss}></style>
+
+    {/* Day/night seed. Sets --g-dayness from the persisted switcher mode (plus the
+        OS scheme / local clock) synchronously before the first paint, and re-applies
+        it on every ClientRouter swap: the swap replaces the <html> element and drops
+        the style attribute the background worker writes, which leaves a navigated
+        page on the night seed until the worker next publishes. The background island
+        is transition:persist, so it never re-publishes on navigation. */}
+    <script is:inline>
+      (function () {
+        function smooth01(t) {
+          var c = Math.max(0, Math.min(1, t));
+          return c * c * (3 - 2 * c);
+        }
+        function clockDayness() {
+          var d = new Date();
+          var h = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+          var half = 1.5 / 2;
+          var up = smooth01((h - (6.5 - half)) / 1.5);
+          var down = 1 - smooth01((h - (20.5 - half)) / 1.5);
+          return up * down;
+        }
+        function readMode() {
+          try {
+            var raw = window.localStorage.getItem("mc.background.dayNightMode");
+            if (raw === "day" || raw === "night" || raw === "system" || raw === "automatic") return raw;
+          } catch (e) {}
+          return "system";
+        }
+        function dayness() {
+          var mode = readMode();
+          if (mode === "day") return 1;
+          if (mode === "night") return 0;
+          if (mode === "automatic") return clockDayness();
+          return typeof window.matchMedia === "function" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? 0
+            : 1;
+        }
+        function apply() {
+          document.documentElement.style.setProperty("--g-dayness", String(dayness()));
+        }
+        apply();
+        if (!window.__mcDaynessBound) {
+          window.__mcDaynessBound = true;
+          document.addEventListener("astro:after-swap", apply);
+        }
+      })();
+    </script>
 
     <ClientRouter />
 
@@ -74,7 +131,7 @@ const headerNav = showHeader ? await fetchNavigation("header", headerLocale) : [
         ClientRouter navigations — it is NOT re-rendered on nav, so navItems are
         frozen to the first mount. Safe only while every page serves the same header
         nav. If a page needs different items, drop persist or use transition:persist-props. */}
-    {showHeader && <PageHeaderIsland client:idle navItems={headerNav} transition:persist="mc-header" />}
+    {showHeader && <PageHeaderIsland client:idle navItems={headerNav} initialLocale={headerLocale} transition:persist="mc-header" />}
     {/* Animatable page wrapper: the GSAP page transitions target exactly this
         element (see PAGE_CONTENT_SELECTOR), so the persistent siblings above
         never move. Plain block element — layout-neutral. */}
