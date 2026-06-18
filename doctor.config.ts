@@ -20,6 +20,25 @@ const config = {
       "src/components/ui/CrossFade.tsx",
       "src/lib/loadNav.ts",
     ],
+    overrides: [
+      /**
+       * `@astrojs/check` is a CLI-only dependency: Astro loads it at runtime
+       * when `astro check` is invoked from the `check` npm script. There is
+       * no source import for the scanner to discover, so the dead-code rule
+       * flags it as unused.
+       *
+       * React Doctor's override globs match relative to each scanned
+       * workspace's root, so the only pattern that catches the report is
+       * the bare `package.json`. That trades precision for broad suppression
+       * of the rule across every workspace package.json. Acceptable today
+       * because dashboard / dashboard-ui have no CLI-only dev-deps; revisit
+       * if a real unused dev-dep slips through here.
+       */
+      {
+        files: ["package.json"],
+        rules: ["deslop/unused-dev-dependency"],
+      },
+    ],
   },
 } satisfies ReactDoctorConfig;
 
