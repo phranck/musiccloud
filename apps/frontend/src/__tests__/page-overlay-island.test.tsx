@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
+import { initialOverlayState } from "@/context/OverlayContext";
 
 const originalMatchMedia = window.matchMedia;
 
@@ -118,5 +119,24 @@ describe("PageOverlayIsland section deep-link via hash", () => {
     await screen.findByText("services-body");
     expect(screen.queryByText("about-body")).toBeNull();
     window.location.hash = "";
+  });
+});
+
+describe("initialOverlayState (direct-load close target)", () => {
+  it("records the landing page as the previous URL for a directly-opened overlay", () => {
+    // initialPage is only ever set on a direct SSR load of an overlay page, so
+    // closing must return to the landing page rather than stay on e.g. /info.
+    // The path is moved away from "/" so this assertion would fail against the
+    // previous (current-URL) behaviour, not just pass by jsdom default.
+    window.history.replaceState({}, "", "/info");
+    const state = initialOverlayState(page({ pageType: "default", segments: [] }));
+    expect(state.page).not.toBeNull();
+    expect(state.previousUrl).toBe("/");
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("does not treat a fullscreen page as an overlay", () => {
+    const state = initialOverlayState(page({ displayMode: "fullscreen" }));
+    expect(state.page).toBeNull();
   });
 });
