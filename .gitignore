@@ -48,9 +48,6 @@ service-account*.json
 GoogleService-Info.plist
 
 # Claude / agent / Serena / OpenSpec / notes (local only)
-.agents/
-.claude/
-.codex/
 .continue/
 .deepsec/
 .kiro/
@@ -62,6 +59,13 @@ GoogleService-Info.plist
 openspec/
 papers/
 WHATS-NEXT.md
+
+# .claude / .codex are tracked (plans, runbooks, skills, architecture, project
+# knowledge), but local-only state and credentials must never be published:
+.claude/settings.local.json
+.claude/SESSION.md
+.codex/SESSION.md
+.claude/memory/*credential*
 
 # Xcode
 xcuserdata/
