@@ -151,17 +151,17 @@ if (treatAsBot) {
         )}
 
         {contentPage && contentPage.displayMode !== "fullscreen" && (
-          <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 pt-20 sm:pt-12 pb-12">
-            <div class="text-center">
-              <a
-                href="/"
-                aria-label="Go to musiccloud home"
-                class="inline-block"
-              >
-                <LogoView className="w-56 sm:w-64 h-auto" />
-              </a>
-            </div>
-            <PageOverlayIsland client:load initialPage={contentPage} initialLocale={locale} />
+          <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-20 sm:pt-12 pb-12">
+            {/* Bots get the content statically — the overlay island never
+                hydrates without JS, so crawlers would otherwise index nothing.
+                Segmented pages emit every section so the full text is present. */}
+            {contentPage.pageType === "segmented" ? (
+              contentPage.segments.map((seg) => (
+                <MarkdownHtml html={seg.contentHtml} className="prose prose-invert max-w-none mb-8" />
+              ))
+            ) : (
+              <MarkdownHtml html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
+            )}
           </main>
         )}
 
