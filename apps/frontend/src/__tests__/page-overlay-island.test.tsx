@@ -103,3 +103,20 @@ describe("PageOverlayIsland mobile segmented overlays", () => {
     expect(document.querySelectorAll("[data-overlay-resize-handle]")).toHaveLength(8);
   });
 });
+
+describe("PageOverlayIsland section deep-link via hash", () => {
+  it("opens the segment whose targetSlug matches the URL hash", async () => {
+    mockMatchMedia(false);
+    window.location.hash = "#services";
+    const p = page({
+      segments: [
+        { label: "About", targetSlug: "about", title: "About", showTitle: true, content: "", contentHtml: "<p>about-body</p>" },
+        { label: "Services", targetSlug: "services", title: "Services", showTitle: true, content: "", contentHtml: "<p>services-body</p>" },
+      ],
+    });
+    render(<PageOverlayIsland initialPage={p} />);
+    await screen.findByText("services-body");
+    expect(screen.queryByText("about-body")).toBeNull();
+    window.location.hash = "";
+  });
+});
