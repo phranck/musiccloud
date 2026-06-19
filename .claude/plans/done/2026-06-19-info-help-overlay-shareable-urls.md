@@ -274,3 +274,25 @@ Erwartung: ≥1 (Content im Body).
 - [ ] Task 4: Bot-Pfad Content statisch
 - [ ] Task 5: Browser-Repro + Unit-Tests + Gates grün
 - [ ] Bestehende Pfade unverändert: `/`, fullscreen Pages, echte Shares
+
+## Completed
+
+Umgesetzt auf Branch `info-help-overlay-shareable-urls` (2026-06-19):
+
+- `69f92f2` — Memory-Verweis-Fix (groundwork)
+- `97db806` — Spec + Plan (groundwork)
+- `a3dcf86` — Task 1: Hash ↔ Sektion in `useSegmented` (`syncHash`)
+- `6f4807e` — Task 2: `previousUrl="/"` bei Direktaufruf (+ exportierte `initialOverlayState`, deterministischer Test)
+- `3f84b43` — Task 3: Landing-Shell + offenes Overlay im Direktaufruf; `animate-slide-up`-Containing-Block behoben; `LandingPage.showFooter`
+- `9e9b5b0` — Task 4: Bot-Pfad rendert overlay-mode Content statisch
+
+**Verifikation (Browser, lokal :3002):**
+- `/info` Direktaufruf → Landingpage-Hintergrund + zentriertes Overlay (Frame x=460, vorher 1180/595).
+- `/info#services` → Services-Sektion aktiv über der Landingpage.
+- Tab-Wechsel → Hash via `replaceState` (`/info#services`).
+- Homepage `/` und echte Share-URL (`/8d-Hi`) unverändert.
+- Bot-UA `/info` → alle Segment-Inhalte statisch im HTML.
+
+**Gates:** Frontend-Tests 153/153 ✓ · astro check 0 Fehler ✓ · biome lint ✓ · Typecheck (alle Workspaces) ✓ · react-doctor (pre-commit Full-Scan je Commit) ✓.
+
+Hinweis: Der in `/info#services` sichtbare „Supported Services"-Text ist noch die alte DB-Version; die abgestimmten Markdowns (vorherige Aufgabe) pflegt der User im CMS ein — unabhängig von diesem Fix.
