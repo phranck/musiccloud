@@ -1,7 +1,7 @@
 import type { PublicContentPage } from "@musiccloud/shared";
 import { XCircleIcon } from "@phosphor-icons/react";
 import parse, { domToReact, type Element, type HTMLReactParserOptions } from "html-react-parser";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -116,7 +116,34 @@ export function MarkdownHtml({ html, className }: { html: string; className?: st
   return <div className={className}>{parse(html, parserOptions)}</div>;
 }
 
-function useSegmented(page: PublicContentPage): {
+/**
+ * Resolve the active segment index from the URL hash (`#<targetSlug>`).
+ * Overlay content renders only after client mount (`OverlayShell.mounted`
+ * starts false on the server), so reading `window.location` here is SSR-safe.
+ *
+ * @returns the index of the segment whose `targetSlug` matches the hash, or 0
+ *   when there is no hash, no match, or no window.
+ */
+function segmentIndexForHash(page: PublicContentPage): number {
+  if (typeof window === "undefined") return 0;
+  const hash = window.location.hash.replace(/^#/, "");
+  if (!hash) return 0;
+  const idx = page.segments.findIndex((s) => s.targetSlug === hash);
+  return idx >= 0 ? idx : 0;
+}
+
+/**
+ * Drives the active segment of a segmented content page.
+ *
+ * @param page - the content page whose `segments` back the tab strip
+ * @param options.syncHash - when true, the active section is initialised from
+ *   and written back to the URL hash (`#<targetSlug>`) so overlay sections are
+ *   deep-linkable / shareable. Standalone fullscreen pages pass false.
+ */
+function useSegmented(
+  page: PublicContentPage,
+  { syncHash = false }: { syncHash?: boolean } = {},
+): {
   segments: { key: string; label: string }[];
   active: string;
   activeIndex: number;
@@ -129,17 +156,36 @@ function useSegmented(page: PublicContentPage): {
   // target slug keep distinct React keys (otherwise the segmented control
   // collapses them and active state can't be tracked per-segment).
   const segments = useMemo(() => page.segments.map((s, i) => ({ key: String(i), label: s.label })), [page.segments]);
-  const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [activeIndex, setActiveIndex] = useState<number>(() => (syncHash ? segmentIndexForHash(page) : 0));
   const current = page.segments[activeIndex] ?? page.segments[0];
+
+  const setActive = useCallback(
+    (next: string) => {
+      const idx = Number.parseInt(next, 10);
+      if (Number.isNaN(idx)) return;
+      setActiveIndex(idx);
+      // Mirror the active section into the URL hash so it can be shared/reloaded.
+      // replaceState (not pushState) keeps tab switches out of the history stack,
+      // so Back closes the whole overlay instead of stepping tab-by-tab.
+      if (syncHash && typeof window !== "undefined") {
+        const slug = page.segments[idx]?.targetSlug;
+        if (slug) {
+          window.history.replaceState(
+            window.history.state,
+            "",
+            `${window.location.pathname}${window.location.search}#${slug}`,
+          );
+        }
+      }
+    },
+    [syncHash, page.segments],
+  );
+
   return {
     segments,
     active: String(activeIndex),
     activeIndex,
-    setActive: (next) => {
-      const idx = Number.parseInt(next, 10);
-      if (Number.isNaN(idx)) return;
-      setActiveIndex(idx);
-    },
+    setActive,
     currentHtml: current?.contentHtml ?? "",
     currentTitle: current?.title ?? page.title,
     currentShowTitle: current?.showTitle ?? page.showTitle,
@@ -153,7 +199,7 @@ interface OverlayContentProps {
 }
 
 export function TranslucentOverlayContent({ page, onClose, frameInteractionsDisabled = false }: OverlayContentProps) {
-  const segmented = useSegmented(page);
+  const segmented = useSegmented(page, { syncHash: true });
   const isSegmented = page.pageType === "segmented" && page.segments.length > 0;
   const html = isSegmented ? segmented.currentHtml : page.contentHtml;
   // Title cascade for segmented pages: owner's showTitle overrides the
@@ -197,7 +243,7 @@ export function TranslucentOverlayContent({ page, onClose, frameInteractionsDisa
 }
 
 export function EmbossedOverlayContent({ page, onClose, frameInteractionsDisabled = false }: OverlayContentProps) {
-  const segmented = useSegmented(page);
+  const segmented = useSegmented(page, { syncHash: true });
   const isSegmented = page.pageType === "segmented" && page.segments.length > 0;
   const html = isSegmented ? segmented.currentHtml : page.contentHtml;
   // See title-cascade note in TranslucentOverlayContent above.

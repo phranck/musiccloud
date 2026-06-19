@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
+import { initialOverlayState } from "@/context/OverlayContext";
 
 const originalMatchMedia = window.matchMedia;
 
@@ -101,5 +102,55 @@ describe("PageOverlayIsland mobile segmented overlays", () => {
     expect(document.querySelector('[data-overlay-frame-mode="windowed"]')).not.toBeNull();
     expect(document.querySelector(".overlay-drag-handle")).not.toBeNull();
     expect(document.querySelectorAll("[data-overlay-resize-handle]")).toHaveLength(8);
+  });
+});
+
+describe("PageOverlayIsland section deep-link via hash", () => {
+  it("opens the segment whose targetSlug matches the URL hash", async () => {
+    mockMatchMedia(false);
+    window.location.hash = "#services";
+    const p = page({
+      segments: [
+        {
+          label: "About",
+          targetSlug: "about",
+          title: "About",
+          showTitle: true,
+          content: "",
+          contentHtml: "<p>about-body</p>",
+        },
+        {
+          label: "Services",
+          targetSlug: "services",
+          title: "Services",
+          showTitle: true,
+          content: "",
+          contentHtml: "<p>services-body</p>",
+        },
+      ],
+    });
+    render(<PageOverlayIsland initialPage={p} />);
+    await screen.findByText("services-body");
+    expect(screen.queryByText("about-body")).toBeNull();
+    window.location.hash = "";
+  });
+});
+
+describe("initialOverlayState (direct-load close target)", () => {
+  it("records the landing page as the previous URL for a directly-opened overlay", () => {
+    // initialPage is only ever set on a direct SSR load of an overlay page, so
+    // closing must return to the landing page rather than stay on e.g. /info.
+    // The path is moved away from "/" so this assertion would fail against the
+    // previous (current-URL) behaviour, not just pass by jsdom default.
+    window.history.replaceState({}, "", "/info");
+    const state = initialOverlayState(page({ pageType: "default", segments: [] }));
+    expect(state.page).not.toBeNull();
+    expect(state.previousUrl).toBe("/");
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("does not treat a fullscreen page as an overlay", () => {
+    const state = initialOverlayState(page({ displayMode: "fullscreen" }));
+    expect(state.page).toBeNull();
   });
 });

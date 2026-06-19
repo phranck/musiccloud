@@ -42,7 +42,7 @@ async function fetchOverlayPage(slug: string, signal: AbortSignal): Promise<Publ
   return res.ok ? ((await res.json()) as PublicContentPage) : null;
 }
 
-function initialOverlayState(initialPage: PublicContentPage | null | undefined): OverlayState {
+export function initialOverlayState(initialPage: PublicContentPage | null | undefined): OverlayState {
   if (!initialPage || initialPage.displayMode === PageDisplayMode.Fullscreen) {
     return { page: null, previousTitle: null, previousUrl: null };
   }
@@ -52,7 +52,11 @@ function initialOverlayState(initialPage: PublicContentPage | null | undefined):
   return {
     page: initialPage,
     previousTitle: document.title,
-    previousUrl: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    // `initialPage` is only set on a direct SSR load of an overlay page (menu
+    // opens go through `open()` with `initialPage=null`). Closing should return
+    // to the landing page rather than stay on e.g. `/info`, so the previous URL
+    // is the homepage.
+    previousUrl: "/",
   };
 }
 

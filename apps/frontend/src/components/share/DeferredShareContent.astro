@@ -13,12 +13,12 @@
  * branch in `[shortId].astro` so OG/Twitter meta can be in `<head>`.
  */
 
-import { fetchPublicContentPage, fetchShareData } from "@/api/client";
+import { fetchPublicContentPage, fetchRandomExample, fetchShareData } from "@/api/client";
+import { LandingPage } from "@/components/landing/LandingPage";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import { MarkdownHtml, SegmentedPageFullscreen } from "@/components/layout/PageOverlayContent";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SharePageShell } from "@/components/share/SharePageShell";
-import { LogoView } from "@/components/ui/LogoView";
 import { getRequestLocale } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
 import { buildShareViewFromSharePageResponse } from "@/lib/share/share-view";
@@ -40,6 +40,12 @@ const [contentPage, shareData] = await Promise.all([
 ]);
 const data = contentPage ? null : shareData;
 const notFound = !contentPage && !data;
+
+// Overlay-mode content pages render as "the landing page with an overlay open"
+// (see the overlay branch below); fetch the hero's live-example just like the
+// home route so the background matches the real landing page.
+const overlayMode = !!contentPage && contentPage.displayMode !== "fullscreen";
+const exampleShortId = overlayMode ? ((await fetchRandomExample())?.shortId ?? null) : null;
 
 const shareView = data ? buildShareViewFromSharePageResponse(data, shortId, t) : null;
 const shareConfig = shareView?.config ?? null;
@@ -90,19 +96,20 @@ const artworkUrl = contentPage ? null : shareView?.artworkUrl;
   </main>
 )}
 
-{!notFound && contentPage && contentPage.displayMode !== "fullscreen" && (
-  <main id="main-content" class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 pt-20 sm:pt-12 pb-12">
-    {/* Logo was identical in the shell fallback; keep it static to avoid a
-        re-animation flash on swap. Only the content below animates in. */}
-    <div class="text-center">
-      <a href="/" aria-label="Go to musiccloud home" class="inline-block">
-        <LogoView className="w-56 sm:w-64 h-auto" />
-      </a>
-    </div>
-    <div class="animate-slide-up">
-      <PageOverlayIsland client:load initialPage={contentPage} initialLocale={locale} />
-    </div>
-  </main>
+{!notFound && overlayMode && (
+  <Fragment>
+    {/* An overlay-mode content page IS the landing page with an overlay open.
+        Render the same shell as index.astro so a direct load / reload / shared
+        link shows the homepage behind the centred overlay (not the share-page
+        chrome). showFooter=false because the route's DeferredFooter already
+        renders the footer. PageOverlayIsland is a sibling of <main> — never
+        inside a transformed wrapper — so its position:fixed frame stays
+        viewport-anchored and centred. */}
+    <main id="main-content" class="flex-1 flex flex-col">
+      <LandingPage client:idle showFooter={false} exampleShortId={exampleShortId} initialLocale={locale} />
+    </main>
+    <PageOverlayIsland client:load initialPage={contentPage} initialLocale={locale} />
+  </Fragment>
 )}
 
 {!notFound && !contentPage && shareView && shareConfig && (

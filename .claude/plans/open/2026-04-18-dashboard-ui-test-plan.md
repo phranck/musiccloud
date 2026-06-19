@@ -17,7 +17,7 @@ Catch regressions in the primary user flows of the dashboard before they reach `
 
 1. All three dev servers running: backend `:4000`, frontend `:3000`, dashboard `:4001`. If not, start them before testing (see `feedback_consistent_ports.md`).
 2. Local Postgres reachable on `:5433` with migrations applied.
-3. Login user `claude` exists (see `reference_local_dashboard_login.md`). If the user is missing or the password is wrong, abort and tell the user — do **not** mutate the DB to fix it.
+3. Login user `claude` exists (see `project_local_admin_credentials.md`). If the user is missing or the password is wrong, abort and tell the user — do **not** mutate the DB to fix it.
 4. Chrome DevTools MCP tools available (`mcp__chrome-devtools__*`). If absent, abort.
 
 ## Approach
