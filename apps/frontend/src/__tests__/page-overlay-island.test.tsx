@@ -111,8 +111,22 @@ describe("PageOverlayIsland section deep-link via hash", () => {
     window.location.hash = "#services";
     const p = page({
       segments: [
-        { label: "About", targetSlug: "about", title: "About", showTitle: true, content: "", contentHtml: "<p>about-body</p>" },
-        { label: "Services", targetSlug: "services", title: "Services", showTitle: true, content: "", contentHtml: "<p>services-body</p>" },
+        {
+          label: "About",
+          targetSlug: "about",
+          title: "About",
+          showTitle: true,
+          content: "",
+          contentHtml: "<p>about-body</p>",
+        },
+        {
+          label: "Services",
+          targetSlug: "services",
+          title: "Services",
+          showTitle: true,
+          content: "",
+          contentHtml: "<p>services-body</p>",
+        },
       ],
     });
     render(<PageOverlayIsland initialPage={p} />);

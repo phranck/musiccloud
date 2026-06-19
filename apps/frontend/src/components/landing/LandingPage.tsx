@@ -56,6 +56,12 @@ interface LandingPageProps {
   footerNav?: NavItem[];
   /** Server-resolved locale, so SSR and client hydration agree (no mismatch). */
   initialLocale?: Locale;
+  /**
+   * Whether to render the in-page footer. The homepage renders it; routes that
+   * already provide their own footer (e.g. the `/[shortId]` content-overlay
+   * shell, which has its own `DeferredFooter`) pass false to avoid a duplicate.
+   */
+  showFooter?: boolean;
 }
 
 interface ActiveShareResultProps {
@@ -218,7 +224,7 @@ function selectGenreTile(
   void handleSubmit(query);
 }
 
-function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }: LandingPageProps) {
+function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, showFooter = true }: LandingPageProps) {
   const t = useT();
 
   const resultsPanelRef = useRef<HTMLDivElement>(null);
@@ -472,7 +478,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS }
         </Suspense>
       </div>
 
-      <AppFooter navItems={footerNav} />
+      {showFooter && <AppFooter navItems={footerNav} />}
     </>
   );
 }
@@ -481,12 +487,13 @@ export function LandingPage({
   exampleShortId = null,
   footerNav = EMPTY_NAV_ITEMS,
   initialLocale,
+  showFooter = true,
 }: LandingPageProps = {}) {
   return (
     <ErrorBoundary>
       <LocaleProvider initialLocale={initialLocale}>
         <DialogProvider>
-          <LandingPageInner exampleShortId={exampleShortId} footerNav={footerNav} />
+          <LandingPageInner exampleShortId={exampleShortId} footerNav={footerNav} showFooter={showFooter} />
         </DialogProvider>
       </LocaleProvider>
     </ErrorBoundary>
