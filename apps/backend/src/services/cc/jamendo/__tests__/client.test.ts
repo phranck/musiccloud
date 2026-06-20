@@ -1,0 +1,94 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { searchCcTracks } from "../client.js";
+import type { JamendoEnvelope, JamendoTrackRaw } from "../types.js";
+
+const SAMPLE_TRACK: JamendoTrackRaw = {
+  id: "1886393",
+  name: "Sample Title",
+  duration: 180,
+  artist_id: "338723",
+  artist_name: "Sample Artist",
+  album_id: "176136",
+  album_name: "Sample Album",
+  album_image: "https://usercontent.jamendo.com/album.jpg",
+  image: "https://usercontent.jamendo.com/track.jpg",
+  audio: "https://prod-1.storage.jamendo.com/?trackid=1886393&format=mp31",
+  audiodownload: "https://prod-1.storage.jamendo.com/download/track/1886393/mp32/",
+  audiodownload_allowed: true,
+  license_ccurl: "http://creativecommons.org/licenses/by-nc-nd/3.0/",
+  shareurl: "https://www.jamendo.com/track/1886393",
+  waveform: '{"peaks":[0,12,40,255]}',
+  releasedate: "2020-05-01",
+};
+
+function mockJamendo(body: JamendoEnvelope<JamendoTrackRaw>): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => body,
+    } as Response),
+  );
+}
+
+describe("searchCcTracks", () => {
+  beforeEach(() => {
+    vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id");
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("maps a Jamendo track to a CcTrack (seconds → ms, license, stream, waveform)", async () => {
+    mockJamendo({
+      headers: { status: "success", code: 0, results_count: 1 },
+      results: [SAMPLE_TRACK],
+    });
+
+    const tracks = await searchCcTracks({ search: "sample" });
+
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0]).toMatchObject({
+      jamendoId: "1886393",
+      title: "Sample Title",
+      artistName: "Sample Artist",
+      jamendoArtistId: "338723",
+      albumName: "Sample Album",
+      durationMs: 180000,
+      licenseCcurl: "http://creativecommons.org/licenses/by-nc-nd/3.0/",
+      streamUrl: "https://prod-1.storage.jamendo.com/?trackid=1886393&format=mp31",
+      downloadAllowed: true,
+      waveform: '{"peaks":[0,12,40,255]}',
+    });
+  });
+
+  it("passes client_id and structured fields to the request URL", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ headers: { status: "success", code: 0, results_count: 0 }, results: [] }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await searchCcTracks({ name: "Enjoy The Silence", artist_name: "Depeche Mode", limit: 5 });
+
+    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("client_id=test_client_id");
+    expect(calledUrl).toContain("name=Enjoy+The+Silence");
+    expect(calledUrl).toContain("artist_name=Depeche+Mode");
+    expect(calledUrl).toContain("limit=5");
+  });
+
+  it("throws when JAMENDO_CLIENT_ID is missing", async () => {
+    vi.unstubAllEnvs();
+    await expect(searchCcTracks({ search: "x" })).rejects.toThrow(/JAMENDO_CLIENT_ID/);
+  });
+
+  it("throws when the API reports a failed status", async () => {
+    mockJamendo({
+      headers: { status: "failed", code: 1, error_message: "boom", results_count: 0 },
+      results: [],
+    });
+    await expect(searchCcTracks({ search: "x" })).rejects.toThrow(/boom/);
+  });
+});
