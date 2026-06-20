@@ -171,7 +171,12 @@ describe("getCcAlbum", () => {
       } as Response),
     );
     const album = await getCcAlbum("176136");
-    expect(album).toMatchObject({ jamendoId: "176136", name: "Sample Album", jamendoArtistId: "338723", zipUrl: SAMPLE_ALBUM.zip });
+    expect(album).toMatchObject({
+      jamendoId: "176136",
+      name: "Sample Album",
+      jamendoArtistId: "338723",
+      zipUrl: SAMPLE_ALBUM.zip,
+    });
   });
 });
 

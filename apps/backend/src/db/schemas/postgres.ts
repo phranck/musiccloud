@@ -1272,10 +1272,7 @@ export const ccArtists = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (table) => [
-    uniqueIndex("uq_cc_artists_jamendo_id").on(table.jamendoId),
-    index("idx_cc_artists_name").on(table.name),
-  ],
+  (table) => [uniqueIndex("uq_cc_artists_jamendo_id").on(table.jamendoId), index("idx_cc_artists_name").on(table.name)],
 );
 
 /**

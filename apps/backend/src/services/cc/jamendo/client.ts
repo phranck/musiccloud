@@ -59,10 +59,7 @@ function requireClientId(): string {
  * @returns The parsed `results` array.
  * @throws Error on transport failure, non-OK HTTP, or `status === "failed"`.
  */
-export async function jamendoFetch<T>(
-  path: string,
-  params: Record<string, string | number | undefined>,
-): Promise<T[]> {
+export async function jamendoFetch<T>(path: string, params: Record<string, string | number | undefined>): Promise<T[]> {
   const url = new URL(`${JAMENDO_BASE}${path}`);
   url.searchParams.set("client_id", requireClientId());
   url.searchParams.set("format", "json");
