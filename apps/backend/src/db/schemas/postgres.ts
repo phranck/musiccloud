@@ -1250,3 +1250,110 @@ export const crawlRuns = pgTable(
 
 export type CrawlRunRow = typeof crawlRuns.$inferSelect;
 export type CrawlRunInsert = typeof crawlRuns.$inferInsert;
+
+// ============================================================================
+// CREATIVE COMMONS (Jamendo) — separate entity families, no commercial overlap
+// ============================================================================
+
+/**
+ * Creative-Commons artists resolved from Jamendo.
+ * Slim by design: a single localized bio blob, no normalized identity graph.
+ */
+export const ccArtists = pgTable(
+  "cc_artists",
+  {
+    id: text("id").primaryKey(),
+    jamendoId: text("jamendo_id").notNull(),
+    name: text("name").notNull(),
+    imageUrl: text("image_url"),
+    website: text("website"),
+    bio: jsonb("bio"), // localized { en, de, ... }
+    shareUrl: text("share_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_cc_artists_jamendo_id").on(table.jamendoId),
+    index("idx_cc_artists_name").on(table.name),
+  ],
+);
+
+/**
+ * Creative-Commons albums resolved from Jamendo.
+ */
+export const ccAlbums = pgTable(
+  "cc_albums",
+  {
+    id: text("id").primaryKey(),
+    jamendoId: text("jamendo_id").notNull(),
+    name: text("name").notNull(),
+    ccArtistId: text("cc_artist_id").references(() => ccArtists.id),
+    artworkUrl: text("artwork_url"),
+    releaseDate: text("release_date"),
+    zipUrl: text("zip_url"),
+    shareUrl: text("share_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_cc_albums_jamendo_id").on(table.jamendoId),
+    index("idx_cc_albums_cc_artist_id").on(table.ccArtistId),
+  ],
+);
+
+/**
+ * Creative-Commons tracks resolved from Jamendo.
+ * `stream_url` is the permanent full-track stream (no expiry, unlike commercial
+ * previews). `download_allowed` mirrors Jamendo's `audiodownload_allowed`.
+ */
+export const ccTracks = pgTable(
+  "cc_tracks",
+  {
+    id: text("id").primaryKey(),
+    jamendoId: text("jamendo_id").notNull(),
+    title: text("title").notNull(),
+    artistName: text("artist_name").notNull(),
+    ccArtistId: text("cc_artist_id").references(() => ccArtists.id),
+    albumName: text("album_name"),
+    ccAlbumId: text("cc_album_id").references(() => ccAlbums.id),
+    artworkUrl: text("artwork_url"),
+    durationMs: integer("duration_ms"),
+    releaseDate: text("release_date"),
+    licenseCcurl: text("license_ccurl"),
+    streamUrl: text("stream_url").notNull(),
+    downloadUrl: text("download_url"),
+    downloadAllowed: integer("download_allowed"),
+    waveform: text("waveform"),
+    shareUrl: text("share_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_cc_tracks_jamendo_id").on(table.jamendoId),
+    index("idx_cc_tracks_cc_artist_id").on(table.ccArtistId),
+    index("idx_cc_tracks_cc_album_id").on(table.ccAlbumId),
+    index("idx_cc_tracks_title").on(table.title),
+    index("idx_cc_tracks_created_at").on(table.createdAt.desc()),
+  ],
+);
+
+/**
+ * Public short-code mapping for CC track share pages.
+ * Mirrors the commercial `short_urls` pattern (`id` is the code, one per track),
+ * but is created eagerly on track persistence so every CC track is immediately
+ * shareable and playlist-ready.
+ */
+export const ccShortUrls = pgTable(
+  "cc_short_urls",
+  {
+    id: text("id").primaryKey(),
+    ccTrackId: text("cc_track_id")
+      .notNull()
+      .references(() => ccTracks.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("idx_cc_short_urls_cc_track_id").on(table.ccTrackId),
+    uniqueIndex("uq_cc_short_urls_cc_track_id").on(table.ccTrackId),
+  ],
+);
