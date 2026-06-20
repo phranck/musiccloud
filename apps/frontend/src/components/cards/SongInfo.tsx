@@ -159,8 +159,8 @@ export const SongInfo = memo(function SongInfo({
       <div className="px-3 pt-3 pb-3">
         {/* Fixed four-row hardware-style VFD. Text changes refresh via
             clipped translate3d movement, while the display height never changes.
-            Weight hierarchy is modeled as phosphor intensity in VfdDisplay,
-            not font-weight. */}
+            Every row renders at full phosphor intensity (`bright`) so all track
+            information reads with maximum legibility and contrast. */}
         <VfdDisplay
           sizingMode={VfdSizingMode.Container}
           ariaLabel={`Track information: ${title} ${artist} ${detailLine} ${statusLine}`}
@@ -183,7 +183,6 @@ export const SongInfo = memo(function SongInfo({
                       content: ` ${metaLine}`,
                       cells: VfdSectionCells.Auto,
                       align: VfdSectionAlign.Right,
-                      brightness: VfdBrightness.Normal,
                     },
                   ]
                 : [
@@ -195,11 +194,11 @@ export const SongInfo = memo(function SongInfo({
                     },
                   ],
             },
-            { content: artist, brightness: VfdBrightness.Normal },
-            { content: detailLine, brightness: VfdBrightness.Dim },
+            { content: artist, brightness: VfdBrightness.Bright },
+            { content: detailLine, brightness: VfdBrightness.Bright },
             {
               content: statusLine,
-              brightness: VfdBrightness.Normal,
+              brightness: VfdBrightness.Bright,
               align: VfdSectionAlign.Center,
               marquee: shouldMarqueeStatus,
             },
