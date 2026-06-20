@@ -46,6 +46,7 @@ export const ENDPOINTS = {
   v1: {
     /** Resolve a music URL or text query. POST for full-feature, GET for read-only. */
     resolve: "/api/v1/resolve",
+    ccResolve: "/api/v1/cc/resolve",
     /** GET `/api/v1/share/:shortId`: fetch a previously-resolved share. */
     share: (shortId: string) => `/api/v1/share/${shortId}`,
     /** GET `/api/v1/share/:shortId/preview`: refresh + return fresh preview URL.

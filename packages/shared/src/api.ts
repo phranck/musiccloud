@@ -191,6 +191,45 @@ export type UnifiedResolveSuccessResponse =
   | ({ type: "album" } & AlbumResolveSuccessResponse)
   | ({ type: "artist" } & ArtistResolveSuccessResponse);
 
+// ─── Creative-Commons (Jamendo) Resolve Types ─────────────────────────────────
+
+/**
+ * A Creative-Commons track on the wire. Unlike {@link ApiTrack} it carries no
+ * cross-service links; instead it exposes the full permanent stream, the exact
+ * CC licence, the optional download, and the waveform peaks the CC player needs.
+ */
+export interface ApiCcTrack {
+  jamendoId: string;
+  title: string;
+  artistName: string;
+  albumName?: string;
+  artworkUrl?: string;
+  durationMs?: number;
+  releaseDate?: string;
+  /** Exact CC licence URL (e.g. `.../licenses/by-nc-nd/3.0/`). */
+  licenseCcurl?: string;
+  /** Permanent full-track stream URL. */
+  streamUrl: string;
+  downloadUrl?: string;
+  downloadAllowed: boolean;
+  /** Escaped JSON string `{"peaks":[…]}` for the waveform scrubber. */
+  waveform?: string;
+  /** Canonical Jamendo page for the track. */
+  shareUrl?: string;
+}
+
+/**
+ * Success payload of the CC resolve route after a candidate was picked.
+ * Discriminated by `type: "cc-track"`, mirroring the commercial
+ * {@link UnifiedResolveSuccessResponse} shape (`id` + `shortUrl` + entity).
+ */
+export interface CcResolveSuccessResponse {
+  type: "cc-track";
+  id: string;
+  shortUrl: string;
+  track: ApiCcTrack;
+}
+
 // ─── Album API Types ──────────────────────────────────────────────────────────
 
 export interface ApiAlbum {
