@@ -906,3 +906,20 @@ git commit -m "Feat: add getCcAlbum and getCcArtist to Jamendo client"
 - Migration-Config (`schema`/`out`), Runner `scripts/migrate.mjs` (crasht bei Fehler) — `drizzle.config.postgres.ts`.
 - Backend-Test `vitest`/`vitest run`, `pnpm --filter @musiccloud/backend test:run` — `apps/backend/package.json`.
 - Jamendo-Felder `audio`/`audiodownload`/`audiodownload_allowed`/`license_ccurl`/`shareurl`/`waveform`/`image`/`album_image`/`name`/`artist_name`/`album_name`/`duration`(s)/`releasedate`, Params `search`/`name`/`artist_name`/`album_name`/`tags`/`fuzzytags`/`limit`(max 200)/`include`, `client_id` Pflicht, Envelope `{headers,results}` — web-verifiziert gegen <https://developer.jamendo.com/v3.0/tracks>.
+
+## Completed
+
+Status: ✅ Abgeschlossen · 2026-06-21 · lokal nach `main` gemergt
+
+Alle fünf Tasks via Subagent-Driven Development umgesetzt (pro Task Spec- + Code-Quality-Review, plus finaler Gesamt-Review „ready to merge"):
+
+- **Task 1** — `cc_artists`/`cc_albums`/`cc_tracks`/`cc_short_urls` + additive Migration `0043_pink_omega_red.sql` (`f92218f`).
+- **Task 2** — Jamendo- + CC-Domänen-Typen (`7148f2e`).
+- **Task 3** — `jamendoFetch` + `searchCcTracks` + Track-Mapper, TDD (`f141a1b`).
+- **Task 4** — `getCcTrack` + `getSimilarCcTracks`, TDD (`7313053`).
+- **Task 5** — `getCcAlbum` + `getCcArtist`, TDD (`bfc46ba`).
+- Biome-Formatierung (`21caa86`), Plan-Doku-Fix (`9b85394`).
+
+Gates beim Abschluss: typecheck clean, **989 Backend-Tests grün**, Biome clean, doctor:diff sauber.
+
+Folgepläne: Plan 2 (CC-Repository + Resolve-Modul + Fastify-Route), Plan 3 (Frontend), Plan 4 (Dashboard).
