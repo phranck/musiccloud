@@ -127,3 +127,30 @@ export async function searchCcTracks(query: CcTrackQuery): Promise<CcTrack[]> {
   });
   return raw.map(mapJamendoTrack);
 }
+
+/**
+ * Fetches a single CC track by its Jamendo id.
+ *
+ * @param jamendoId - Jamendo track id.
+ * @returns The mapped track, or null when none matches.
+ * @throws Error on missing client id or API failure.
+ */
+export async function getCcTrack(jamendoId: string): Promise<CcTrack | null> {
+  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks", { id: jamendoId, limit: 1 });
+  const first = raw[0];
+  return first ? mapJamendoTrack(first) : null;
+}
+
+/**
+ * Fetches tracks similar to a seed track via `GET /tracks/similar`.
+ * Jamendo returns these ordered by descending similarity.
+ *
+ * @param seedJamendoId - Jamendo id of the seed track.
+ * @param limit - Maximum number of similar tracks (default 12).
+ * @returns Mapped similar tracks (possibly empty).
+ * @throws Error on missing client id or API failure.
+ */
+export async function getSimilarCcTracks(seedJamendoId: string, limit = 12): Promise<CcTrack[]> {
+  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks/similar", { id: seedJamendoId, limit });
+  return raw.map(mapJamendoTrack);
+}

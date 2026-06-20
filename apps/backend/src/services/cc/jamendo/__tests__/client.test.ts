@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { searchCcTracks } from "../client.js";
+import { getCcTrack, getSimilarCcTracks, searchCcTracks } from "../client.js";
 import type { JamendoEnvelope, JamendoTrackRaw } from "../types.js";
 
 const SAMPLE_TRACK: JamendoTrackRaw = {
@@ -90,5 +90,48 @@ describe("searchCcTracks", () => {
       results: [],
     });
     await expect(searchCcTracks({ search: "x" })).rejects.toThrow(/boom/);
+  });
+});
+
+describe("getCcTrack", () => {
+  beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("returns the single mapped track for an id", async () => {
+    mockJamendo({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] });
+    const track = await getCcTrack("1886393");
+    expect(track?.jamendoId).toBe("1886393");
+    expect(track?.streamUrl).toContain("trackid=1886393");
+  });
+
+  it("returns null when no track matches", async () => {
+    mockJamendo({ headers: { status: "success", code: 0, results_count: 0 }, results: [] });
+    const track = await getCcTrack("does-not-exist");
+    expect(track).toBeNull();
+  });
+});
+
+describe("getSimilarCcTracks", () => {
+  beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("requests /tracks/similar with the seed id and maps results", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const similar = await getSimilarCcTracks("1886393");
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/tracks/similar");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("id=1886393");
+    expect(similar[0]?.jamendoId).toBe("1886393");
   });
 });
