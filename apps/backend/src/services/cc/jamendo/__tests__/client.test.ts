@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getCcTrack, getSimilarCcTracks, searchCcTracks } from "../client.js";
-import type { JamendoEnvelope, JamendoTrackRaw } from "../types.js";
+import { getCcAlbum, getCcArtist, getCcTrack, getSimilarCcTracks, searchCcTracks } from "../client.js";
+import type { JamendoAlbumRaw, JamendoArtistRaw, JamendoEnvelope, JamendoTrackRaw } from "../types.js";
 
 const SAMPLE_TRACK: JamendoTrackRaw = {
   id: "1886393",
@@ -133,5 +133,64 @@ describe("getSimilarCcTracks", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("/tracks/similar");
     expect(String(fetchMock.mock.calls[0][0])).toContain("id=1886393");
     expect(similar[0]?.jamendoId).toBe("1886393");
+  });
+});
+
+const SAMPLE_ALBUM: JamendoAlbumRaw = {
+  id: "176136",
+  name: "Sample Album",
+  artist_id: "338723",
+  artist_name: "Sample Artist",
+  image: "https://usercontent.jamendo.com/album.jpg",
+  releasedate: "2020-05-01",
+  zip: "https://prod-1.storage.jamendo.com/download/album/176136/mp32/",
+  shareurl: "https://www.jamendo.com/album/176136",
+};
+
+const SAMPLE_ARTIST: JamendoArtistRaw = {
+  id: "338723",
+  name: "Sample Artist",
+  website: "https://example.org",
+  image: "https://usercontent.jamendo.com/artist.jpg",
+  shareurl: "https://www.jamendo.com/artist/338723",
+};
+
+describe("getCcAlbum", () => {
+  beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("maps a Jamendo album to a CcAlbum", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_ALBUM] }),
+      } as Response),
+    );
+    const album = await getCcAlbum("176136");
+    expect(album).toMatchObject({ jamendoId: "176136", name: "Sample Album", jamendoArtistId: "338723", zipUrl: SAMPLE_ALBUM.zip });
+  });
+});
+
+describe("getCcArtist", () => {
+  beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("maps a Jamendo artist to a CcArtist", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_ARTIST] }),
+      } as Response),
+    );
+    const artist = await getCcArtist("338723");
+    expect(artist).toMatchObject({ jamendoId: "338723", name: "Sample Artist", website: "https://example.org" });
   });
 });

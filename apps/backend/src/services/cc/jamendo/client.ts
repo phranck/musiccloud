@@ -7,7 +7,11 @@
  */
 
 import type {
+  CcAlbum,
+  CcArtist,
   CcTrack,
+  JamendoAlbumRaw,
+  JamendoArtistRaw,
   JamendoEnvelope,
   JamendoTrackRaw,
 } from "./types.js";
@@ -153,4 +157,65 @@ export async function getCcTrack(jamendoId: string): Promise<CcTrack | null> {
 export async function getSimilarCcTracks(seedJamendoId: string, limit = 12): Promise<CcTrack[]> {
   const raw = await jamendoFetch<JamendoTrackRaw>("/tracks/similar", { id: seedJamendoId, limit });
   return raw.map(mapJamendoTrack);
+}
+
+/**
+ * Maps a raw Jamendo album to the CC domain shape.
+ *
+ * @param raw - Raw Jamendo album object.
+ * @returns The mapped {@link CcAlbum}.
+ */
+export function mapJamendoAlbum(raw: JamendoAlbumRaw): CcAlbum {
+  return {
+    jamendoId: raw.id,
+    name: raw.name,
+    jamendoArtistId: raw.artist_id,
+    artistName: raw.artist_name,
+    artworkUrl: raw.image || undefined,
+    releaseDate: raw.releasedate || undefined,
+    zipUrl: raw.zip || undefined,
+    shareUrl: raw.shareurl || undefined,
+  };
+}
+
+/**
+ * Maps a raw Jamendo artist to the CC domain shape.
+ *
+ * @param raw - Raw Jamendo artist object.
+ * @returns The mapped {@link CcArtist}.
+ */
+export function mapJamendoArtist(raw: JamendoArtistRaw): CcArtist {
+  return {
+    jamendoId: raw.id,
+    name: raw.name,
+    website: raw.website || undefined,
+    imageUrl: raw.image || undefined,
+    shareUrl: raw.shareurl || undefined,
+  };
+}
+
+/**
+ * Fetches a single CC album by its Jamendo id.
+ *
+ * @param jamendoId - Jamendo album id.
+ * @returns The mapped album, or null when none matches.
+ * @throws Error on missing client id or API failure.
+ */
+export async function getCcAlbum(jamendoId: string): Promise<CcAlbum | null> {
+  const raw = await jamendoFetch<JamendoAlbumRaw>("/albums", { id: jamendoId, limit: 1 });
+  const first = raw[0];
+  return first ? mapJamendoAlbum(first) : null;
+}
+
+/**
+ * Fetches a single CC artist by its Jamendo id.
+ *
+ * @param jamendoId - Jamendo artist id.
+ * @returns The mapped artist, or null when none matches.
+ * @throws Error on missing client id or API failure.
+ */
+export async function getCcArtist(jamendoId: string): Promise<CcArtist | null> {
+  const raw = await jamendoFetch<JamendoArtistRaw>("/artists", { id: jamendoId, limit: 1 });
+  const first = raw[0];
+  return first ? mapJamendoArtist(first) : null;
 }
