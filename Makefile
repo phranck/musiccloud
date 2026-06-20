@@ -8,6 +8,8 @@ DOCS_DE_DIR := $(DOCS_DIR)/de
 DOCS_EN_DIR := $(DOCS_DIR)/en
 DIAGRAMS_DE_DIR := $(DOCS_DE_DIR)/diagrams
 DIAGRAMS_EN_DIR := $(DOCS_EN_DIR)/diagrams
+SCREENSHOTS_DE_DIR := $(DOCS_DE_DIR)/screenshots
+SCREENSHOTS_EN_DIR := $(DOCS_EN_DIR)/screenshots
 
 D2_SOURCES_DE := $(wildcard $(DIAGRAMS_DE_DIR)/*.d2)
 D2_SOURCES_EN := $(wildcard $(DIAGRAMS_EN_DIR)/*.d2)
@@ -96,7 +98,8 @@ docs-pdf-de: $(PDF_DIAGRAM_TARGETS_DE) $(TEX_SOURCE_DE) $(VERSION_FILE)
 	  sed -e "s|DOC\\\\_VERSION|$(DOC_VERSION)|g" \
 	      -e "s|DOC\\\\_DATE|$(DOC_DATE)|g" \
 	      "$(TEX_SOURCE_DE)" > "$$TMPDIR/resolve-flow.tex"; \
-	  cp -R "$(DIAGRAMS_DE_DIR)" "$$TMPDIR/diagrams"; \
+	  cp -R "$(DIAGRAMS_DE_DIR)" "$$TMPDIR/diagrams" 2>/dev/null || true; \
+	  cp -R "$(SCREENSHOTS_DE_DIR)" "$$TMPDIR/screenshots" 2>/dev/null || true; \
 	  ( cd "$$TMPDIR" && xelatex -interaction=nonstopmode resolve-flow.tex >/dev/null 2>&1; \
 	                     xelatex -interaction=nonstopmode resolve-flow.tex >/dev/null 2>&1 ); \
 	  if [ -f "$$TMPDIR/resolve-flow.pdf" ]; then \
@@ -113,7 +116,8 @@ docs-pdf-en: $(PDF_DIAGRAM_TARGETS_EN) $(TEX_SOURCE_EN) $(VERSION_FILE)
 	  sed -e "s|DOC\\\\_VERSION|$(DOC_VERSION)|g" \
 	      -e "s|DOC\\\\_DATE|$(DOC_DATE)|g" \
 	      "$(TEX_SOURCE_EN)" > "$$TMPDIR/resolve-flow.tex"; \
-	  cp -R "$(DIAGRAMS_EN_DIR)" "$$TMPDIR/diagrams"; \
+	  cp -R "$(DIAGRAMS_EN_DIR)" "$$TMPDIR/diagrams" 2>/dev/null || true; \
+	  cp -R "$(SCREENSHOTS_EN_DIR)" "$$TMPDIR/screenshots" 2>/dev/null || true; \
 	  ( cd "$$TMPDIR" && xelatex -interaction=nonstopmode resolve-flow.tex >/dev/null 2>&1; \
 	                     xelatex -interaction=nonstopmode resolve-flow.tex >/dev/null 2>&1 ); \
 	  if [ -f "$$TMPDIR/resolve-flow.pdf" ]; then \
