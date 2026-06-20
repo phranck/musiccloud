@@ -1,39 +1,10 @@
 import { useGSAP } from "@gsap/react";
 import { compareByDisplayOrder, PLATFORM_CONFIG } from "@musiccloud/shared";
-import { type CSSProperties, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
+import { gridCornerStyle } from "@/components/platform/gridCornerStyle";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { animateFlipEnter, animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
 import type { PlatformLink } from "@/lib/types/platform";
-
-/** Promoted (outer) tile corner: the button's own control radius. */
-const GRID_FULL = "var(--neu-radius)";
-/** Interior tile corner, capped at 5px (mirrors `--mc-control-radius-inner`). */
-const GRID_INNER = "min(5px, var(--neu-radius))";
-/** The grid is always two columns (`grid-cols-2`). */
-const GRID_COLS = 2;
-
-/**
- * Per-corner radii for a tile so the 2-column grid reads as one rounded block
- * inscribed in its RecessedCard: only the four grid-corner tiles get a promoted
- * outer corner, everything else stays at the small interior radius. Index-based
- * (not layout-read) so it is immune to the GSAP Flip reflow.
- */
-function gridCornerStyle(index: number, count: number): CSSProperties {
-  const row = Math.floor(index / GRID_COLS);
-  const col = index % GRID_COLS;
-  const lastRow = Math.floor((count - 1) / GRID_COLS);
-  const itemsInRow = Math.min(GRID_COLS, count - row * GRID_COLS);
-  const tl = row === 0 && col === 0;
-  const tr = row === 0 && col === itemsInRow - 1;
-  const bl = row === lastRow && col === 0;
-  const br = row === lastRow && col === itemsInRow - 1;
-  return {
-    borderTopLeftRadius: tl ? GRID_FULL : GRID_INNER,
-    borderTopRightRadius: tr ? GRID_FULL : GRID_INNER,
-    borderBottomLeftRadius: bl ? GRID_FULL : GRID_INNER,
-    borderBottomRightRadius: br ? GRID_FULL : GRID_INNER,
-  };
-}
 
 interface AnimatedPlatformGridProps {
   /** Platform links to render; hidden platforms are filtered out, the rest sorted by display order (importance/popularity). */
