@@ -37,6 +37,8 @@ import type {
   CachedAlbumResult,
   CachedArtistResult,
   CachedTrackResult,
+  CcRepository,
+  CcTrackRecord,
   CrawlRunFinalize,
   CrawlRunInsert,
   CrawlRunsPage,
@@ -47,6 +49,7 @@ import type {
   ExternalIdRecord,
   PersistAlbumData,
   PersistArtistData,
+  PersistCcTrackData,
   PersistTrackData,
   PreviewObservation,
   PreviewRow,
@@ -116,6 +119,7 @@ import {
   persistArtistWithLinks as artistsPersistArtistWithLinks,
   saveArtistCache as artistsSaveArtistCache,
 } from "./postgres-artists.js";
+import { findCcTrackByShortId as ccFindByShortId, persistCcTrack as ccPersistTrack } from "./postgres-cc.js";
 import {
   deleteEmailTemplate as contentEmailDeleteEmailTemplate,
   getEmailTemplateById as contentEmailGetEmailTemplateById,
@@ -190,7 +194,7 @@ import {
 // POSTGRES ADAPTER
 // ============================================================================
 
-export class PostgresAdapter implements TrackRepository, AdminRepository {
+export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepository {
   private pool: pgModule.Pool;
   private cleanupInterval: NodeJS.Timeout | null = null;
 
@@ -679,6 +683,18 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   loadSharePageResult(shortId: string): Promise<SharePageDbResult | null> {
     return tracksLoadSharePageResult(this.pool, shortId);
+  }
+
+  // ============================================================================
+  // CREATIVE-COMMONS PERSISTENCE (CcRepository) — migration 0043
+  // ============================================================================
+
+  persistCcTrack(data: PersistCcTrackData): Promise<{ ccTrackId: string; shortId: string }> {
+    return ccPersistTrack(this.pool, data);
+  }
+
+  findCcTrackByShortId(shortId: string): Promise<CcTrackRecord | null> {
+    return ccFindByShortId(this.pool, shortId);
   }
 
   // ============================================================================

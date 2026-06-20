@@ -836,6 +836,59 @@ export interface TrackRepository {
   close(): Promise<void>;
 }
 
+// ─── Creative-Commons Repository Types ────────────────────────────────────────
+
+/** Data needed to persist a resolved CC track (artist + optional album inline). */
+export interface PersistCcTrackData {
+  jamendoId: string;
+  title: string;
+  artistName: string;
+  jamendoArtistId: string;
+  artistImageUrl?: string;
+  artistWebsite?: string;
+  artistShareUrl?: string;
+  albumName?: string;
+  jamendoAlbumId?: string;
+  albumArtworkUrl?: string;
+  albumReleaseDate?: string;
+  albumZipUrl?: string;
+  albumShareUrl?: string;
+  artworkUrl?: string;
+  durationMs?: number;
+  releaseDate?: string;
+  licenseCcurl?: string;
+  streamUrl: string;
+  downloadUrl?: string;
+  downloadAllowed: boolean;
+  waveform?: string;
+  shareUrl?: string;
+}
+
+/** Read shape returned by CC short-id lookups (single row, no link fan-out). */
+export interface CcTrackRecord {
+  ccTrackId: string;
+  shortId: string;
+  jamendoId: string;
+  title: string;
+  artistName: string;
+  albumName: string | null;
+  artworkUrl: string | null;
+  durationMs: number | null;
+  releaseDate: string | null;
+  licenseCcurl: string | null;
+  streamUrl: string;
+  downloadUrl: string | null;
+  downloadAllowed: boolean;
+  waveform: string | null;
+  shareUrl: string | null;
+}
+
+/** CC persistence + lookups, kept separate from the commercial TrackRepository. */
+export interface CcRepository {
+  persistCcTrack(data: PersistCcTrackData): Promise<{ ccTrackId: string; shortId: string }>;
+  findCcTrackByShortId(shortId: string): Promise<CcTrackRecord | null>;
+}
+
 /** Payload accepted by `insertAppTelemetryEvent`. Shape matches the
  * /api/v1/telemetry/app-error request body one-to-one. */
 export interface AppTelemetryEventInput {

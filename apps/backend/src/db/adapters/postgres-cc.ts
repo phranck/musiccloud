@@ -1,0 +1,249 @@
+/**
+ * Creative-Commons (Jamendo) persistence. Mirrors the commercial track
+ * persistence shape but drastically slimmer: a single source (Jamendo), dedup
+ * via the `jamendo_id` unique key, no service-links / external-ids / previews /
+ * credits, and an eagerly-created canonical short URL per track.
+ */
+
+import type { Pool, PoolClient } from "pg";
+import { generateShortId, generateTrackId } from "../../lib/short-id.js";
+import type { CcTrackRecord, PersistCcTrackData } from "../repository.js";
+
+/**
+ * Upserts a CC artist by its Jamendo id and returns the internal id.
+ * Idempotent: `ON CONFLICT (jamendo_id)` keeps the existing internal id.
+ *
+ * @param client - Active transaction client.
+ * @param data - Artist fields.
+ * @param now - Shared transaction timestamp.
+ * @returns The internal `cc_artists.id`.
+ */
+async function upsertCcArtist(
+  client: PoolClient,
+  data: { jamendoId: string; name: string; imageUrl?: string; website?: string; shareUrl?: string },
+  now: Date,
+): Promise<string> {
+  const result = await client.query(
+    `INSERT INTO cc_artists (id, jamendo_id, name, image_url, website, share_url, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+     ON CONFLICT (jamendo_id) DO UPDATE SET
+       name = EXCLUDED.name,
+       image_url = EXCLUDED.image_url,
+       website = EXCLUDED.website,
+       share_url = EXCLUDED.share_url,
+       updated_at = EXCLUDED.updated_at
+     RETURNING id`,
+    [
+      generateTrackId(),
+      data.jamendoId,
+      data.name,
+      data.imageUrl ?? null,
+      data.website ?? null,
+      data.shareUrl ?? null,
+      now,
+    ],
+  );
+  return result.rows[0].id as string;
+}
+
+/**
+ * Upserts a CC album by its Jamendo id and returns the internal id.
+ *
+ * @param client - Active transaction client.
+ * @param data - Album fields (with the resolved internal artist id).
+ * @param now - Shared transaction timestamp.
+ * @returns The internal `cc_albums.id`.
+ */
+async function upsertCcAlbum(
+  client: PoolClient,
+  data: {
+    jamendoId: string;
+    name: string;
+    ccArtistId: string;
+    artworkUrl?: string;
+    releaseDate?: string;
+    zipUrl?: string;
+    shareUrl?: string;
+  },
+  now: Date,
+): Promise<string> {
+  const result = await client.query(
+    `INSERT INTO cc_albums (id, jamendo_id, name, cc_artist_id, artwork_url, release_date, zip_url, share_url, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+     ON CONFLICT (jamendo_id) DO UPDATE SET
+       name = EXCLUDED.name,
+       cc_artist_id = EXCLUDED.cc_artist_id,
+       artwork_url = EXCLUDED.artwork_url,
+       release_date = EXCLUDED.release_date,
+       zip_url = EXCLUDED.zip_url,
+       share_url = EXCLUDED.share_url,
+       updated_at = EXCLUDED.updated_at
+     RETURNING id`,
+    [
+      generateTrackId(),
+      data.jamendoId,
+      data.name,
+      data.ccArtistId,
+      data.artworkUrl ?? null,
+      data.releaseDate ?? null,
+      data.zipUrl ?? null,
+      data.shareUrl ?? null,
+      now,
+    ],
+  );
+  return result.rows[0].id as string;
+}
+
+/**
+ * Transactionally persists a CC track, its artist and optional album, and
+ * eagerly mints a canonical short URL. Dedup is by `jamendo_id` on every
+ * entity, so re-resolving the same track keeps all internal ids and the same
+ * stable short code.
+ *
+ * @param pool - Postgres pool.
+ * @param data - Flattened track + artist + album payload.
+ * @returns The internal `cc_tracks.id` and the canonical short code.
+ * @throws Query errors propagate after rollback.
+ */
+export async function persistCcTrack(
+  pool: Pool,
+  data: PersistCcTrackData,
+): Promise<{ ccTrackId: string; shortId: string }> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const now = new Date();
+
+    const ccArtistId = await upsertCcArtist(
+      client,
+      {
+        jamendoId: data.jamendoArtistId,
+        name: data.artistName,
+        imageUrl: data.artistImageUrl,
+        website: data.artistWebsite,
+        shareUrl: data.artistShareUrl,
+      },
+      now,
+    );
+
+    let ccAlbumId: string | null = null;
+    if (data.jamendoAlbumId && data.albumName) {
+      ccAlbumId = await upsertCcAlbum(
+        client,
+        {
+          jamendoId: data.jamendoAlbumId,
+          name: data.albumName,
+          ccArtistId,
+          artworkUrl: data.albumArtworkUrl,
+          releaseDate: data.albumReleaseDate,
+          zipUrl: data.albumZipUrl,
+          shareUrl: data.albumShareUrl,
+        },
+        now,
+      );
+    }
+
+    const trackResult = await client.query(
+      `INSERT INTO cc_tracks (
+        id, jamendo_id, title, artist_name, cc_artist_id, album_name, cc_album_id,
+        artwork_url, duration_ms, release_date, license_ccurl, stream_url,
+        download_url, download_allowed, waveform, share_url, created_at, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17)
+      ON CONFLICT (jamendo_id) DO UPDATE SET
+        title = EXCLUDED.title,
+        artist_name = EXCLUDED.artist_name,
+        cc_artist_id = EXCLUDED.cc_artist_id,
+        album_name = EXCLUDED.album_name,
+        cc_album_id = EXCLUDED.cc_album_id,
+        artwork_url = EXCLUDED.artwork_url,
+        duration_ms = EXCLUDED.duration_ms,
+        release_date = EXCLUDED.release_date,
+        license_ccurl = EXCLUDED.license_ccurl,
+        stream_url = EXCLUDED.stream_url,
+        download_url = EXCLUDED.download_url,
+        download_allowed = EXCLUDED.download_allowed,
+        waveform = EXCLUDED.waveform,
+        share_url = EXCLUDED.share_url,
+        updated_at = EXCLUDED.updated_at
+      RETURNING id`,
+      [
+        generateTrackId(),
+        data.jamendoId,
+        data.title,
+        data.artistName,
+        ccArtistId,
+        data.albumName ?? null,
+        ccAlbumId,
+        data.artworkUrl ?? null,
+        data.durationMs ?? null,
+        data.releaseDate ?? null,
+        data.licenseCcurl ?? null,
+        data.streamUrl,
+        data.downloadUrl ?? null,
+        data.downloadAllowed ? 1 : 0,
+        data.waveform ?? null,
+        data.shareUrl ?? null,
+        now,
+      ],
+    );
+    const ccTrackId = trackResult.rows[0].id as string;
+
+    // Eager, idempotent short URL: always attempt insert; conflict keeps the
+    // existing canonical code, then read it back so the stable token never
+    // changes across re-resolves.
+    await client.query(
+      `INSERT INTO cc_short_urls (id, cc_track_id, created_at) VALUES ($1, $2, $3)
+       ON CONFLICT (cc_track_id) DO NOTHING`,
+      [generateShortId(), ccTrackId, now],
+    );
+    const shortResult = await client.query(`SELECT id FROM cc_short_urls WHERE cc_track_id = $1`, [ccTrackId]);
+    const shortId = shortResult.rows[0].id as string;
+
+    await client.query("COMMIT");
+    return { ccTrackId, shortId };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Loads a CC track by its public short id (single row, no link fan-out).
+ *
+ * @param pool - Postgres pool.
+ * @param shortId - Public short code from `cc_short_urls`.
+ * @returns The CC track record, or null when no track matches.
+ */
+export async function findCcTrackByShortId(pool: Pool, shortId: string): Promise<CcTrackRecord | null> {
+  const result = await pool.query(
+    `SELECT
+       t.id AS cc_track_id, su.id AS short_id, t.jamendo_id, t.title, t.artist_name,
+       t.album_name, t.artwork_url, t.duration_ms, t.release_date, t.license_ccurl,
+       t.stream_url, t.download_url, t.download_allowed, t.waveform, t.share_url
+     FROM cc_tracks t
+     JOIN cc_short_urls su ON su.cc_track_id = t.id
+     WHERE su.id = $1`,
+    [shortId],
+  );
+  if (result.rows.length === 0) return null;
+  const r = result.rows[0];
+  return {
+    ccTrackId: r.cc_track_id,
+    shortId: r.short_id,
+    jamendoId: r.jamendo_id,
+    title: r.title,
+    artistName: r.artist_name,
+    albumName: r.album_name,
+    artworkUrl: r.artwork_url,
+    durationMs: r.duration_ms,
+    releaseDate: r.release_date,
+    licenseCcurl: r.license_ccurl,
+    streamUrl: r.stream_url,
+    downloadUrl: r.download_url,
+    downloadAllowed: r.download_allowed === 1,
+    waveform: r.waveform,
+    shareUrl: r.share_url,
+  };
+}
