@@ -30,7 +30,7 @@ Der Client liest `process.env.JAMENDO_CLIENT_ID`. Vor Task 3 muss eine kostenlos
 
 - **Modify:** `apps/backend/src/db/schemas/postgres.ts` — vier `cc_*`-Tabellen ans Dateiende anhängen (folgt dem bestehenden `pgTable`-Muster der Datei).
 - **Create (generiert):** `apps/backend/src/db/migrations/postgres/0043_*.sql` — additive Migration, von `drizzle-kit generate` erzeugt (Name ist zufällig).
-- **Create:** `apps/backend/src/services/cc/jamendo/types.ts` — rohe Jamendo-Response-Typen (`JamendoTrackRaw`, `JamendoEnvelope`) + CC-Domänen-Typen (`CcTrack`, `CcAlbum`, `CcArtist`, `CcSimilarTrack`).
+- **Create:** `apps/backend/src/services/cc/jamendo/types.ts` — rohe Jamendo-Response-Typen (`JamendoEnvelope`, `JamendoTrackRaw`, `JamendoAlbumRaw`, `JamendoArtistRaw`) + CC-Domänen-Typen (`CcTrack`, `CcAlbum`, `CcArtist`).
 - **Create:** `apps/backend/src/services/cc/jamendo/client.ts` — `jamendoFetch` (Low-Level), `searchCcTracks`, `getCcTrack`, `getSimilarCcTracks`, `getCcAlbum`, `getCcArtist` + Mapper.
 - **Create:** `apps/backend/src/services/cc/jamendo/__tests__/client.test.ts` — Unit-Tests mit gemocktem `fetch`.
 
