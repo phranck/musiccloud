@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runCcGenreBrowse, runCcGenreSearch } from "../cc-genre.js";
 import * as client from "../jamendo/client.js";
-import type { CcGenre, CcTrack } from "../jamendo/types.js";
+import type { CcArtist, CcGenre, CcTrack } from "../jamendo/types.js";
 
 const GENRES: CcGenre[] = [
   { name: "jazz", displayName: "Jazz" },
@@ -22,6 +22,50 @@ const TRACK: CcTrack = {
   shareUrl: "https://www.jamendo.com/track/1886393",
 };
 
+/** Three rows where A and B share artist `a1` + album `al1`, C is distinct. */
+const TRACK_A: CcTrack = {
+  jamendoId: "t1",
+  title: "Track A",
+  artistName: "Artist One",
+  jamendoArtistId: "a1",
+  albumName: "Album One",
+  jamendoAlbumId: "al1",
+  artworkUrl: "https://usercontent.jamendo.com/a.jpg",
+  durationMs: 100000,
+  streamUrl: "https://prod-1.storage.jamendo.com/?trackid=t1",
+  downloadAllowed: false,
+  shareUrl: "https://www.jamendo.com/track/t1",
+};
+const TRACK_B: CcTrack = {
+  ...TRACK_A,
+  jamendoId: "t2",
+  title: "Track B",
+  shareUrl: "https://www.jamendo.com/track/t2",
+};
+const TRACK_C: CcTrack = {
+  ...TRACK_A,
+  jamendoId: "t3",
+  title: "Track C",
+  artistName: "Artist Two",
+  jamendoArtistId: "a2",
+  albumName: "Album Two",
+  jamendoAlbumId: "al2",
+  shareUrl: "https://www.jamendo.com/track/t3",
+};
+
+const ARTIST_A1: CcArtist = {
+  jamendoId: "a1",
+  name: "Artist One",
+  imageUrl: "https://usercontent.jamendo.com/artist-a1.jpg",
+  shareUrl: "https://www.jamendo.com/artist/a1",
+};
+const ARTIST_A2: CcArtist = {
+  jamendoId: "a2",
+  name: "Artist Two",
+  imageUrl: "https://usercontent.jamendo.com/artist-a2.jpg",
+  shareUrl: "https://www.jamendo.com/artist/a2",
+};
+
 afterEach(() => vi.restoreAllMocks());
 
 describe("runCcGenreBrowse", () => {
@@ -40,7 +84,7 @@ describe("runCcGenreBrowse", () => {
 });
 
 describe("runCcGenreSearch", () => {
-  it("queries Jamendo by tag and maps tracks with jamendo: ids, albums/artists null", async () => {
+  it("a per-type tracks-only query fills the tracks column and leaves albums/artists null", async () => {
     const spy = vi.spyOn(client, "searchCcTracks").mockResolvedValue([TRACK]);
 
     const response = await runCcGenreSearch("genre: jazz, tracks: 5");
@@ -67,15 +111,63 @@ describe("runCcGenreSearch", () => {
         webUrl: "https://www.jamendo.com/track/1886393",
       },
     ]);
-    expect(response.results.tracks?.[0]?.id.startsWith("jamendo:")).toBe(true);
   });
 
-  it("OR-combines multiple genres into a '+'-joined tag and defaults to 10 tracks", async () => {
+  it("derives deduped album and artist columns from the track rows, enriching artists by id", async () => {
+    const tracksSpy = vi.spyOn(client, "searchCcTracks").mockResolvedValue([TRACK_A, TRACK_B, TRACK_C]);
+    // Jamendo returns the enrichment in arbitrary order — reversed here on purpose.
+    const artistsSpy = vi.spyOn(client, "getCcArtistsByIds").mockResolvedValue([ARTIST_A2, ARTIST_A1]);
+
+    const response = await runCcGenreSearch("genre: jazz");
+
+    // Default query → all three counts default to 10; over-fetch is 10*3 = 30.
+    expect(tracksSpy).toHaveBeenCalledWith(expect.objectContaining({ tags: "jazz", limit: 30 }));
+    expect(response.query).toEqual({ genres: ["jazz"], vibe: "hot", tracks: 10, albums: 10, artists: 10 });
+
+    // Albums deduped by album id (A and B collapse to al1), in track order.
+    expect(response.results.albums).toEqual([
+      {
+        id: "jamendo-album:al1",
+        title: "Album One",
+        artists: ["Artist One"],
+        artworkUrl: "https://usercontent.jamendo.com/a.jpg",
+        webUrl: "",
+      },
+      {
+        id: "jamendo-album:al2",
+        title: "Album Two",
+        artists: ["Artist Two"],
+        artworkUrl: "https://usercontent.jamendo.com/a.jpg",
+        webUrl: "",
+      },
+    ]);
+
+    // Artists deduped by artist id, enriched with image + share url matched by id.
+    expect(artistsSpy).toHaveBeenCalledWith(["a1", "a2"]);
+    expect(response.results.artists).toEqual([
+      {
+        id: "jamendo-artist:a1",
+        name: "Artist One",
+        imageUrl: "https://usercontent.jamendo.com/artist-a1.jpg",
+        webUrl: "https://www.jamendo.com/artist/a1",
+      },
+      {
+        id: "jamendo-artist:a2",
+        name: "Artist Two",
+        imageUrl: "https://usercontent.jamendo.com/artist-a2.jpg",
+        webUrl: "https://www.jamendo.com/artist/a2",
+      },
+    ]);
+    expect(response.results.tracks).toHaveLength(3);
+  });
+
+  it("OR-combines multiple genres into a '+'-joined tag and over-fetches for the default counts", async () => {
     const spy = vi.spyOn(client, "searchCcTracks").mockResolvedValue([]);
+    vi.spyOn(client, "getCcArtistsByIds").mockResolvedValue([]);
 
     await runCcGenreSearch("genre: jazz|rock");
 
-    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ tags: "jazz+rock", limit: 10 }));
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ tags: "jazz+rock", limit: 30 }));
   });
 
   it("propagates GenreQueryParseError for an invalid query", async () => {

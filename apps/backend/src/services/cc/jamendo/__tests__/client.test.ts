@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getCcAlbum,
+  getCcAlbumTracks,
   getCcArtist,
+  getCcArtistsByIds,
+  getCcArtistTopTracks,
   getCcGenreCoverUrl,
   getCcGenres,
   getCcTrack,
@@ -157,6 +160,52 @@ describe("getSimilarCcTracks", () => {
   });
 });
 
+describe("getCcAlbumTracks", () => {
+  beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("requests /tracks filtered by album_id and maps the rows", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const tracks = await getCcAlbumTracks("176136");
+
+    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("/tracks");
+    expect(calledUrl).toContain("album_id=176136");
+    expect(tracks[0]?.jamendoId).toBe("1886393");
+  });
+});
+
+describe("getCcArtistTopTracks", () => {
+  beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("requests /tracks filtered by artist_id ordered by popularity", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const tracks = await getCcArtistTopTracks("338723");
+
+    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("artist_id=338723");
+    expect(calledUrl).toContain("order=popularity_total");
+    expect(tracks[0]?.jamendoId).toBe("1886393");
+  });
+});
+
 const SAMPLE_ALBUM: JamendoAlbumRaw = {
   id: "176136",
   name: "Sample Album",
@@ -218,6 +267,42 @@ describe("getCcArtist", () => {
     );
     const artist = await getCcArtist("338723");
     expect(artist).toMatchObject({ jamendoId: "338723", name: "Sample Artist", website: "https://example.org" });
+  });
+});
+
+describe("getCcArtistsByIds", () => {
+  beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("requests /artists with a '+'-joined id list and maps the rows", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        headers: { status: "success", code: 0, results_count: 2 },
+        results: [SAMPLE_ARTIST, { ...SAMPLE_ARTIST, id: "999", name: "Other" }],
+      }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const artists = await getCcArtistsByIds(["338723", "999"]);
+
+    // URLSearchParams encodes the '+' separator as %2B; Jamendo accepts that as
+    // a multi-id list (verified live), so the wire form carries %2B, not '+'.
+    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("/artists");
+    expect(calledUrl).toContain("id=338723%2B999");
+    expect(artists.map((a) => a.jamendoId)).toEqual(["338723", "999"]);
+  });
+
+  it("short-circuits to [] without a request for an empty id list", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await getCcArtistsByIds([])).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

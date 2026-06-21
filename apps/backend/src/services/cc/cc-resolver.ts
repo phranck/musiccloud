@@ -41,6 +41,28 @@ export function ccCandidateId(jamendoId: string): string {
 }
 
 /**
+ * Builds the `jamendo-album:<id>` candidate id a genre-search album hit carries,
+ * so a click resolves straight to the CC album view.
+ *
+ * @param jamendoAlbumId - Jamendo album id.
+ * @returns `jamendo-album:<jamendoAlbumId>`.
+ */
+export function ccAlbumCandidateId(jamendoAlbumId: string): string {
+  return `${CC_ALBUM_CANDIDATE_PREFIX}${jamendoAlbumId}`;
+}
+
+/**
+ * Builds the `jamendo-artist:<id>` candidate id a genre-search artist hit carries,
+ * so a click resolves straight to the CC artist view.
+ *
+ * @param jamendoArtistId - Jamendo artist id.
+ * @returns `jamendo-artist:<jamendoArtistId>`.
+ */
+export function ccArtistCandidateId(jamendoArtistId: string): string {
+  return `${CC_ARTIST_CANDIDATE_PREFIX}${jamendoArtistId}`;
+}
+
+/**
  * Extracts the Jamendo id from a CC candidate id.
  *
  * @param candidateId - Candidate id from a prior disambiguation round.

@@ -296,6 +296,28 @@ export async function getCcArtistTopTracks(
 }
 
 /**
+ * Fetches multiple CC artists in a single call via `GET /artists?id=<id1>+<id2>…`.
+ * Enriches the genre-search artist column with the images and share URLs the
+ * track query does not carry. Jamendo returns the artists in an arbitrary order
+ * (not the request order) and may omit ones it has no record for, so callers
+ * must match results back by `jamendoId` rather than position.
+ *
+ * @param jamendoArtistIds - Jamendo artist ids; an empty array short-circuits to `[]`.
+ * @returns Mapped CC artists (possibly fewer than requested, arbitrary order).
+ * @throws Error on missing client id or API failure (see {@link jamendoFetch}).
+ */
+export async function getCcArtistsByIds(jamendoArtistIds: string[]): Promise<CcArtist[]> {
+  if (jamendoArtistIds.length === 0) {
+    return [];
+  }
+  const raw = await jamendoFetch<JamendoArtistRaw>("/artists", {
+    id: jamendoArtistIds.join("+"),
+    limit: jamendoArtistIds.length,
+  });
+  return raw.map(mapJamendoArtist);
+}
+
+/**
  * The curated Creative-Commons genre set surfaced by the `genre:?` browse grid.
  *
  * Jamendo exposes no "top genres" endpoint — its `/radios` list is only ~14
