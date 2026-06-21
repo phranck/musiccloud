@@ -62,7 +62,15 @@ export async function ensureArtwork(
     }
 
     const jpeg = await generateArtwork(displayName, coverBuffer, tileColor);
-    await saveArtwork(genreKey, jpeg, tileColor, coverUrl);
+    // A transient cover-fetch failure (URL present but nothing decoded) must
+    // NOT be cached — that would freeze the genre as a permanent flat-colour
+    // tile. Persist only a successful cover or a genuinely cover-less genre
+    // (no URL); the failed case still renders this once but retries on the
+    // next request instead of caching the fallback.
+    const coverFetchFailed = coverUrl !== null && coverBuffer === null;
+    if (!coverFetchFailed) {
+      await saveArtwork(genreKey, jpeg, tileColor, coverUrl);
+    }
     return { jpeg, accentColor: tileColor };
   })().finally(() => {
     inflight.delete(genreKey);
