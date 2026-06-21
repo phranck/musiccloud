@@ -39,6 +39,8 @@ export interface JamendoTrackRaw {
   shareurl: string;
   waveform: string; // escaped JSON string {"peaks":[…]}
   releasedate: string; // YYYY-MM-DD
+  /** Present only when the request adds `include=musicinfo`. Drives tag-based track similarity. */
+  musicinfo?: { tags?: { genres?: string[] } };
 }
 
 /** Raw album object as returned by `GET /v3.0/albums`. */

@@ -175,16 +175,35 @@ export async function getCcTrack(jamendoId: string): Promise<CcTrack | null> {
 }
 
 /**
- * Fetches tracks similar to a seed track via `GET /tracks/similar`.
- * Jamendo returns these ordered by descending similarity.
+ * Fetches CC tracks similar to a seed track, approximated by shared genre tags.
+ *
+ * Jamendo's `GET /tracks/similar` returns nothing for the CC catalogue (verified
+ * empty across seeds), so similarity is derived from the seed's genres: read the
+ * seed's `musicinfo.tags.genres`, then fuzzy-tag search the most popular tracks
+ * sharing those genres. Two throttled calls. Callers filter out the seed's own
+ * artist so "similar" stays genuinely other artists.
  *
  * @param seedJamendoId - Jamendo id of the seed track.
  * @param limit - Maximum number of similar tracks (default 12).
- * @returns Mapped similar tracks (possibly empty).
+ * @returns Mapped tracks sharing the seed's genres (empty when the seed has no
+ *   genre tags or none match).
  * @throws Error on missing client id or API failure.
  */
 export async function getSimilarCcTracks(seedJamendoId: string, limit = 12): Promise<CcTrack[]> {
-  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks/similar", { id: seedJamendoId, limit });
+  const seedRaw = await jamendoFetch<JamendoTrackRaw>("/tracks", {
+    id: seedJamendoId,
+    include: "musicinfo",
+    limit: 1,
+  });
+  const genres = seedRaw[0]?.musicinfo?.tags?.genres ?? [];
+  if (genres.length === 0) {
+    return [];
+  }
+  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks", {
+    fuzzytags: genres.join("+"),
+    order: "popularity_total",
+    limit,
+  });
   return raw.map(mapJamendoTrack);
 }
 

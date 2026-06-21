@@ -145,18 +145,39 @@ describe("getSimilarCcTracks", () => {
     vi.unstubAllEnvs();
   });
 
-  it("requests /tracks/similar with the seed id and maps results", async () => {
+  it("reads the seed's genre tags then fuzzy-tag searches similar tracks", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          headers: { status: "success", code: 0, results_count: 1 },
+          results: [{ ...SAMPLE_TRACK, musicinfo: { tags: { genres: ["jazz", "piano"] } } }],
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const similar = await getSimilarCcTracks("1886393");
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain("id=1886393");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("include=musicinfo");
+    expect(String(fetchMock.mock.calls[1][0])).toContain("fuzzytags=jazz");
+    expect(similar[0]?.jamendoId).toBe("1886393");
+  });
+
+  it("returns [] without a second call when the seed has no genre tags", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] }),
     } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
-    const similar = await getSimilarCcTracks("1886393");
-
-    expect(String(fetchMock.mock.calls[0][0])).toContain("/tracks/similar");
-    expect(String(fetchMock.mock.calls[0][0])).toContain("id=1886393");
-    expect(similar[0]?.jamendoId).toBe("1886393");
+    expect(await getSimilarCcTracks("1886393")).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 
