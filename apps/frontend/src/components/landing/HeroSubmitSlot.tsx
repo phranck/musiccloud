@@ -7,16 +7,6 @@ import { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
 /**
- * Accent-tinted glass fill for the submit button ("Glass + Accent"). Set via the
- * `EmbossedButton` `style` prop so it overrides the neutral button-glass tint of
- * the `.embossed-gradient-border` recipe (inline style beats the class). The CTA
- * stays in the glass language while reading clearly in both day + night; the
- * accent is constant (no day↔night cross-fade) by design.
- */
-const SUBMIT_ACCENT_FILL =
-  "linear-gradient(to bottom, color-mix(in srgb, var(--color-accent) 92%, transparent), color-mix(in srgb, var(--color-accent) 78%, transparent))";
-
-/**
  * Phases of the animated submit slot. The slot mounts in {@link SubmitPhase.ButtonOut}
  * (the button is sliding out), advances to {@link SubmitPhase.DiscIn} when the
  * button-out animation ends, then to {@link SubmitPhase.Spinning} when the disc
@@ -63,7 +53,6 @@ function RestSubmitButton({ state, submitDisabled, compact, onSubmitClick }: Res
       type="button"
       onClick={onSubmitClick}
       disabled={submitDisabled}
-      style={{ background: SUBMIT_ACCENT_FILL }}
       className={cn(
         "flex items-center justify-center px-0 py-0 ml-0.5 flex-shrink-0 size-10 md:size-12 text-white",
         compact && "hidden",
@@ -71,9 +60,9 @@ function RestSubmitButton({ state, submitDisabled, compact, onSubmitClick }: Res
       aria-label="Search"
     >
       {state === InputState.Success ? (
-        <CheckIcon size={20} weight="duotone" className="text-white" />
+        <CheckIcon size={28} weight="duotone" className="text-[var(--color-accent)]" />
       ) : (
-        <ArrowRightIcon size={20} weight="duotone" className="text-white" />
+        <ArrowRightIcon size={28} weight="duotone" className="text-[var(--color-accent)]" />
       )}
     </EmbossedButton>
   );
@@ -125,10 +114,9 @@ function AnimatedSubmitSlot({ requestDiscExit, onLoadingExitComplete }: Animated
           type="button"
           tabIndex={-1}
           disabled
-          style={{ background: SUBMIT_ACCENT_FILL }}
           className="flex items-center justify-center px-0 py-0 size-full text-white"
         >
-          <ArrowRightIcon size={20} weight="duotone" className="text-white" />
+          <ArrowRightIcon size={28} weight="duotone" className="text-[var(--color-accent)]" />
         </EmbossedButton>
       </div>
       {showDisc && (
