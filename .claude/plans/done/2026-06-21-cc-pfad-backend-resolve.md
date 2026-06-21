@@ -888,3 +888,24 @@ git commit -m "Feat: add CC resolve route and register it in the protected scope
 - Registrierungs-Scope `protectedRoutes`, Endpoint-Pattern `resolve: "/api/v1/resolve"`, Delegations-Muster, `getRepository` — Research-Workflow + Refs (`server.ts:440-445`, `endpoints.ts:48`, `postgres.ts:315`, `db/index.ts:11`); vom Implementer beim Ändern dieser Dateien zu re-verifizieren.
 - cc_*-Schema + Unique-Indizes (`uq_cc_*_jamendo_id`, `uq_cc_short_urls_cc_track_id`) für die `ON CONFLICT`-Targets — Plan 1, `postgres.ts:1262-1356`.
 - Jamendo-Client `searchCcTracks`/`getCcTrack`/`CcTrackQuery`/`CcTrack` — Plan 1, `services/cc/jamendo/`.
+
+## Completed
+
+Status: ✅ Abgeschlossen · 2026-06-21 · lokal nach `main` gemergt
+
+Vier Tasks via Subagent-Driven Development (Implementer + Review je Task, finaler End-to-End-Review „ready to merge"):
+
+- **Task 1** — CC-Wire-Typen (`ApiCcTrack`, `CcResolveSuccessResponse`) + Endpoint `ccResolve` (`57bde6a`).
+- **Task 2** — schlankes CC-Repository `postgres-cc.ts` (`persistCcTrack` mit `ON CONFLICT (jamendo_id)` + eager `cc_short_urls`, `findCcTrackByShortId`) + Wiring + Integrationstest (`f01a044`).
+- **Task 3** — CC-Resolve-Modul (Zwei-Leg, `parseStructuredSearchQuery` wiederverwendet) (`c3427fc`).
+- **Task 4** — CC-Route `/api/v1/cc/resolve` im protected Scope (`71d8158`).
+
+Gates beim Abschluss: typecheck clean, **alle CC-Tests grün (19)**, Biome clean, doctor:diff sauber. Lokaler Merge (Branch `feat/cc-path-resolve` gelöscht).
+
+**Befund (separat geflaggt, NICHT von diesem Plan verursacht):** Der kommerzielle Integrationstest `track-previews-repo.integration.test.ts:110` (album-preview-Lesen, `topTrackPreviewUrl` kommt `undefined`) schlägt fehl — vorbestehend, failt isoliert, nur mit gesetzter `DATABASE_URL` sichtbar. Eigener Task `task_0252723f`.
+
+**Forward-looking Hinweise für Folge-Pläne (aus den Reviews):**
+1. **Share-Page-Plan:** CC- und kommerzielle Short-Codes teilen denselben `nanoid(5)`-Keyspace in getrennten Tabellen (`cc_short_urls` vs. `short_urls`). Eine permanente `/{shortId}`-Auflösung muss beide unterscheiden — Pfad-Präfix (`/cc/{shortId}`) oder beide Tabellen prüfen.
+2. **Enrichment-Plan (Artist-Bio / Album):** `upsertCcArtist`/`upsertCcAlbum` machen `ON CONFLICT DO UPDATE` und überschreiben optionale Spalten (image/website/artwork/zip/releaseDate) mit `null`, wenn die Quelle sie nicht liefert. Sobald ein Enrichment-Pfad diese Spalten füllt, muss der Resolve-Upsert sie per `COALESCE` schützen, statt sie zu überschreiben.
+
+Folgepläne: Plan 3 (Frontend — Hero-Umschalter + CC-Seiten), Plan 4 (Dashboard). Optionaler Plan 2b: Genre-Discovery, Album-/Artist-Resolve, Similar-Endpoint, Bio, permanente Share-Page.
