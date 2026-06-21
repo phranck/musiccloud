@@ -27,8 +27,10 @@ import { requireEnvList } from "../lib/env.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
+import { buildCcArtistInfo } from "../services/cc/cc-artist-info.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
 import { resolveCcCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
+import { getCcArtistTopTracks } from "../services/cc/jamendo/client.js";
 import type { CcAlbum, CcArtist, CcTrack } from "../services/cc/jamendo/types.js";
 import { GenreQueryParseError, isGenreBrowseQuery, isGenreSearchQuery } from "../services/genre-search/index.js";
 
@@ -216,7 +218,16 @@ async function persistCcTrackAndRespond(track: CcTrack, origin: string): Promise
     shareUrl: track.shareUrl,
   });
 
-  return { type: "cc-track", id: ccTrackId, shortUrl: `${origin}/${shortId}`, track: toApiCcTrack(track) };
+  // Right column: the track artist's popular tracks + similar tracks.
+  const artistInfo = await buildCcArtistInfo(track.artistName, await getCcArtistTopTracks(track.jamendoArtistId));
+
+  return {
+    type: "cc-track",
+    id: ccTrackId,
+    shortUrl: `${origin}/${shortId}`,
+    track: toApiCcTrack(track),
+    artistInfo,
+  };
 }
 
 /**
@@ -256,7 +267,10 @@ async function persistCcAlbumAndRespond(
     tracks: tracks.map(toApiCcTrack),
   };
 
-  return { type: "cc-album", id: ccAlbumId, shortUrl: `${origin}/${shortId}`, album: apiAlbum };
+  // Right column: the album's tracks as the popular column + similar tracks.
+  const artistInfo = await buildCcArtistInfo(album.artistName, tracks);
+
+  return { type: "cc-album", id: ccAlbumId, shortUrl: `${origin}/${shortId}`, album: apiAlbum, artistInfo };
 }
 
 /**
@@ -291,5 +305,8 @@ async function persistCcArtistAndRespond(
     topTracks: topTracks.map(toApiCcTrack),
   };
 
-  return { type: "cc-artist", id: ccArtistId, shortUrl: `${origin}/${shortId}`, artist: apiArtist };
+  // Right column: the artist's top tracks as the popular column + similar tracks.
+  const artistInfo = await buildCcArtistInfo(artist.name, topTracks);
+
+  return { type: "cc-artist", id: ccArtistId, shortUrl: `${origin}/${shortId}`, artist: apiArtist, artistInfo };
 }

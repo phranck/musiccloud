@@ -228,6 +228,14 @@ export interface CcResolveSuccessResponse {
   id: string;
   shortUrl: string;
   track: ApiCcTrack;
+  /**
+   * Right-column data for the shared share layout, built from Jamendo: the
+   * track artist's popular tracks (`topTracks`) plus similar tracks
+   * (`similarArtistTracks`). `profile` is null and `events` empty — Jamendo has
+   * neither — so those cards self-hide. Lets a CC result reuse the commercial
+   * artist column verbatim.
+   */
+  artistInfo: ArtistInfoResponse;
 }
 
 /**
@@ -259,6 +267,8 @@ export interface CcAlbumResolveSuccessResponse {
   id: string;
   shortUrl: string;
   album: ApiCcAlbum;
+  /** Right-column data: the album's tracks as `topTracks` plus similar tracks. See {@link CcResolveSuccessResponse.artistInfo}. */
+  artistInfo: ArtistInfoResponse;
 }
 
 /**
@@ -285,6 +295,8 @@ export interface CcArtistResolveSuccessResponse {
   id: string;
   shortUrl: string;
   artist: ApiCcArtist;
+  /** Right-column data: the artist's top tracks as `topTracks` plus similar tracks. See {@link CcResolveSuccessResponse.artistInfo}. */
+  artistInfo: ArtistInfoResponse;
 }
 
 // ─── Album API Types ──────────────────────────────────────────────────────────
