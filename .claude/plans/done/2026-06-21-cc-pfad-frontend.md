@@ -251,3 +251,22 @@ Der Hook bekommt den Modus als Argument (KISS — die LandingPage liest den Stor
 **Typ-Konsistenz:** `CcTrackResult` (app.ts) → `CcTrackContentConfiguration` (media-card.ts) → `CcInfoCard`-Props; `parseCcResolveResponse` mappt `ApiCcTrack` → `CcTrackResult`; Reducer-Action `RESOLVE_CC_SUCCESS` trägt `ccActive: CcTrackResult`; State-Zweig `CcResult` liest `ccActive`.
 
 **Verifizierte Referenzen (am Plan-Write-Time gelesen):** `useAppState.ts` (3 fetch-Sites :90/:145/:181, Branch-Reihenfolge :106-132), `parsers.ts` (`appReducer` :30-76, `parseUnifiedResolveResponse` :129-133, `buildShareConfigFromActive` :262-324), `app.ts` (`AppStateType` :65-76, `ActiveResultKind` :59-63, `SongResult` :78-91, `ActiveResult` :116, `AppState` :118-128, `AppAction` :135-146) — alle vollständig gelesen. Hero/Tokens/Komponenten-Refs aus dem Research-Workflow (`HeroInput.tsx:129-198`, `EmbossedSegmentedControl.tsx:48`, `dayNightMode.ts`, `DayNightSwitcher.tsx:64`, `design-tokens.ts:35-46/601-652`, `glass.css:176-213/524-573`, `MediaCard.tsx:40-116`, `media-card.ts:22-94`, `PlatformIcon.tsx:32`) — vom Implementer beim Bearbeiten dieser Dateien zu re-verifizieren. `ENDPOINTS.v1.ccResolve`/`CcResolveSuccessResponse`/`ApiCcTrack` existieren (Plan 2).
+
+## Completed
+
+Status: ✅ Abgeschlossen · 2026-06-21 · lokal nach `main` gemergt · **end-to-end im Browser verifiziert**
+
+Sieben Tasks + ein Fix via Subagent-Driven Development (Review je Task; State/Reducer-Kern selbst gelesen):
+
+- **Task 1** — `ResolveMode`-Store + CC-Result-Typen (`46c70d6`).
+- **Task 2** — CC-Grün als token-konforme Glas-Flächen + `data-resolve-mode`-Accent-Scope (`121ca68`).
+- **Task 3** — CC-Resolve-Proxy + Client (`e9ea069`).
+- **Task 4** — CC-Parser, Reducer-Case, Content-Config (`03a5827`).
+- **Task 5** — mode-aware Resolve (Submit + Pick) (`e27df41`).
+- **Task 6** — Hero-Umschalter „Streaming | Creative Commons" + Modus-Icon + CC-Logo + Grün-Akzent (`3210cad`).
+- **Task 7** — CC-Track-Seite (`CcInfoCard`/`CcMediaCard`, voller Stream) (`a4a8b01`).
+- **Fix** — Escape schließt die CC-Track-Seite (`showCompact` deckt `cc-result`) (`7ffe871`).
+
+Gates: astro check clean, **158 Frontend-Tests grün**, Biome clean, doctor:diff clean, alle CC-doctor-Suppressions am Ende entfernt. Browser-Smoke (chrome-devtools): Umschalter grün + CC-Icon, Modus-Persistenz, CC-Freitext → Jamendo-Trefferliste → Auswahl → CC-Track-Seite mit vollem Stream (echte Dauer 22:17), Lizenz-Badge (CC BY-NC-ND 3.0), Attribution, Download, „Open on Jamendo". Kommerzieller Pfad provably unverändert (Code-Review + 158 Tests).
+
+**Offen / Folge:** Grünton ist `#30D158` (token, am Code feinjustierbar). Waveform-Scrubber = Plan 3c. CC-Genre-Discovery, CC-Album-/Künstler-Seiten, permanente CC-Share-Page (`/{shortId}`) = spätere Pläne. Backend-Befund `task_0252723f` (album-preview-Integrationstest) weiterhin offen.
