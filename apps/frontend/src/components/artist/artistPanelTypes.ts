@@ -18,3 +18,20 @@ export type ArtistPanelTrackResolveHandler = (track: ArtistTopTrack) => Promise<
  * and uses it as the GSAP-flip trigger), so the two can never drift apart.
  */
 export type ArtistInfoStatus = "loading" | "ready" | "empty" | "error";
+
+/**
+ * The four section titles of the artist column. Supplied by the presentation
+ * owner (`ShareLayout`) so the cards stay pure presentation and never hardcode
+ * their own title: commercial passes its i18n defaults, the Creative-Commons
+ * path can pass its own wording, and the shared cards know about neither case.
+ */
+export interface ArtistCardLabels {
+  /** Title of the artist profile / info card. */
+  profile: string;
+  /** Title of the popular-tracks card. */
+  popularTracks: string;
+  /** Title of the upcoming-events card. */
+  events: string;
+  /** Title of the similar-artists / similar-tracks card. */
+  similar: string;
+}

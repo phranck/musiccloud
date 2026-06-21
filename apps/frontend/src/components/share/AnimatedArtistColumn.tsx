@@ -2,7 +2,11 @@ import { useGSAP } from "@gsap/react";
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { useRef } from "react";
 import { ArtistProfileDesktopCard } from "@/components/artist/ArtistProfileDesktopCard";
-import type { ArtistInfoStatus, ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
+import type {
+  ArtistCardLabels,
+  ArtistInfoStatus,
+  ArtistPanelTrackResolveHandler,
+} from "@/components/artist/artistPanelTypes";
 import { EventsCard } from "@/components/artist/EventsCard";
 import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
 import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
@@ -15,6 +19,8 @@ interface AnimatedArtistColumnProps {
   artistLoadStatus: ArtistInfoStatus;
   /** `true` while the fetch is in flight and no data has arrived yet (cards show skeletons). */
   isLoading: boolean;
+  /** The four artist-column section titles, supplied by the presentation owner. */
+  labels: ArtistCardLabels;
   /** Lifts the "resolve started" moment so the VFD flips to loading in sync with the spinning disc. */
   onArtistResolveStart: () => void;
   /** Resolves a clicked popular/similar track into a new share view. */
@@ -74,6 +80,7 @@ export function AnimatedArtistColumn({
   artistData,
   artistLoadStatus,
   isLoading,
+  labels,
   onArtistResolveStart,
   onTrackResolve,
   userRegion,
@@ -106,15 +113,22 @@ export function AnimatedArtistColumn({
 
   return (
     <div ref={columnRef} className="flex flex-col gap-6" style={{ width: `${widthPx}px` }}>
-      <ArtistProfileDesktopCard data={artistData} isLoading={isLoading} status={artistLoadStatus} />
+      <ArtistProfileDesktopCard
+        title={labels.profile}
+        data={artistData}
+        isLoading={isLoading}
+        status={artistLoadStatus}
+      />
       <PopularTracksCard
+        title={labels.popularTracks}
         data={artistData}
         isLoading={isLoading}
         onTrackResolve={onTrackResolve}
         onResolveStart={onArtistResolveStart}
       />
-      <EventsCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
+      <EventsCard title={labels.events} data={artistData} isLoading={isLoading} userRegion={userRegion} />
       <SimilarArtistsCard
+        title={labels.similar}
         data={artistData}
         isLoading={isLoading}
         onTrackResolve={onTrackResolve}

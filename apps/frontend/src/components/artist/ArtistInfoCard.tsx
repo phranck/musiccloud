@@ -8,24 +8,30 @@ import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistCardCloseButton } from "@/components/artist/ArtistCardCloseButton";
 import { ArtistInfoNoticeCard } from "@/components/artist/ArtistInfoNoticeCard";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
-import type { ArtistInfoStatus, ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
+import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
+import type {
+  ArtistCardLabels,
+  ArtistInfoStatus,
+  ArtistPanelTrackResolveHandler,
+} from "@/components/artist/artistPanelTypes";
+import { buildEventsSwapKey, buildSimilarSwapKey, buildTracksSwapKey } from "@/components/artist/artistSwapKeys";
 import { EventsSkeleton } from "@/components/artist/EventsSkeleton";
 import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
-import { fullWidthEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { fullWidthEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
-import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useLocale, useT } from "@/i18n/localeContext";
 
 interface ArtistInfoCardProps {
   data: ArtistInfoResponse | null;
   isLoading: boolean;
+  /** The four artist-column section titles, supplied by the presentation owner. */
+  labels: ArtistCardLabels;
   status?: ArtistInfoStatus;
   userRegion: string;
   onClose?: () => void;
@@ -33,9 +39,17 @@ interface ArtistInfoCardProps {
   onResolveStart?: () => void;
 }
 
+/**
+ * Mobile artist panel: profile, popular tracks, upcoming events, and similar
+ * tracks stacked in one card, rendered inside the bottom sheet. Each list
+ * section reuses the shared {@link ArtistSectionWell} (skeleton → content
+ * tri-state) with its title supplied via {@link ArtistInfoCardProps.labels}, so
+ * the markup matches the desktop cards without duplicating their body.
+ */
 export function ArtistInfoCard({
   data,
   isLoading,
+  labels,
   status,
   userRegion,
   onClose,
@@ -76,13 +90,6 @@ export function ArtistInfoCard({
   const showTracks = showInitialSkeleton || (data?.topTracks.length ?? 0) > 0;
   const showEvents = showInitialSkeleton || (data?.events.length ?? 0) > 0;
   const showSimilar = showInitialSkeleton || (data?.similarArtistTracks?.length ?? 0) > 0;
-  const tracksSwapKey = data?.topTracks.map((track) => track.deezerUrl).join("|") ?? "tracks-empty";
-  const eventsSwapKey =
-    data?.events.map((event) => `${event.date}:${event.venueName}:${event.city}:${event.ticketUrl ?? ""}`).join("|") ??
-    "events-empty";
-  const similarSwapKey =
-    data?.similarArtistTracks?.map((entry) => `${entry.artistName}:${entry.track?.deezerUrl ?? ""}`).join("|") ??
-    "similar-empty";
   // All sections empty after load -> keep the card shell and explain the empty state.
   if (!isLoading && !showProfile && !showTracks && !showEvents && !showSimilar) {
     return <ArtistInfoNoticeCard onClose={onClose} message={t("artist.empty")} />;
@@ -103,42 +110,32 @@ export function ArtistInfoCard({
 
         {/* 2. Popular Tracks */}
         <CollapsibleSection visible={showTracks} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
-          <RecessedCard className={recessedControlInsetClassName}>
-            <RecessedCard.Header>
-              <RecessedCard.Header.Title>{t("artist.popularTracks")}</RecessedCard.Header.Title>
-            </RecessedCard.Header>
-            <RecessedCard.Body>
-              {showInitialSkeleton ? (
-                <TracksSkeleton />
-              ) : data && data.topTracks.length > 0 ? (
-                <SmoothSwap swapKey={tracksSwapKey}>
-                  <PopularTracksSection
-                    tracks={data.topTracks}
-                    onTrackResolve={onTrackResolve}
-                    onResolveStart={onResolveStart}
-                  />
-                </SmoothSwap>
-              ) : null}
-            </RecessedCard.Body>
-          </RecessedCard>
+          <ArtistSectionWell
+            innerTitle={labels.popularTracks}
+            showInitialSkeleton={showInitialSkeleton}
+            Skeleton={TracksSkeleton}
+            hasContent={!!data && data.topTracks.length > 0}
+            swapKey={buildTracksSwapKey(data)}
+          >
+            <PopularTracksSection
+              tracks={data?.topTracks ?? []}
+              onTrackResolve={onTrackResolve}
+              onResolveStart={onResolveStart}
+            />
+          </ArtistSectionWell>
         </CollapsibleSection>
 
         {/* 3. Upcoming Events */}
         <CollapsibleSection visible={showEvents} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
-          <RecessedCard className={recessedControlInsetClassName}>
-            <RecessedCard.Header>
-              <RecessedCard.Header.Title>{t("artist.upcomingEvents")}</RecessedCard.Header.Title>
-            </RecessedCard.Header>
-            <RecessedCard.Body>
-              {showInitialSkeleton ? (
-                <EventsSkeleton />
-              ) : data && data.events.length > 0 ? (
-                <SmoothSwap swapKey={eventsSwapKey}>
-                  <UpcomingEventsSection events={data.events} userRegion={userRegion} locale={locale} />
-                </SmoothSwap>
-              ) : null}
-            </RecessedCard.Body>
-          </RecessedCard>
+          <ArtistSectionWell
+            innerTitle={labels.events}
+            showInitialSkeleton={showInitialSkeleton}
+            Skeleton={EventsSkeleton}
+            hasContent={!!data && data.events.length > 0}
+            swapKey={buildEventsSwapKey(data)}
+          >
+            <UpcomingEventsSection events={data?.events ?? []} userRegion={userRegion} locale={locale} />
+          </ArtistSectionWell>
           {!showInitialSkeleton && data && data.events.length > 0 && (
             <p className="mt-2 text-xs text-text-muted text-center px-2">{t("artist.eventsProvidedBy")}</p>
           )}
@@ -146,24 +143,19 @@ export function ArtistInfoCard({
 
         {/* 4. Similar Artists */}
         <CollapsibleSection visible={showSimilar} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
-          <RecessedCard className={recessedControlInsetClassName}>
-            <RecessedCard.Header>
-              <RecessedCard.Header.Title>{t("artist.similarArtists")}</RecessedCard.Header.Title>
-            </RecessedCard.Header>
-            <RecessedCard.Body>
-              {showInitialSkeleton ? (
-                <SimilarArtistsSkeleton />
-              ) : data?.similarArtistTracks && data.similarArtistTracks.length > 0 ? (
-                <SmoothSwap swapKey={similarSwapKey}>
-                  <SimilarArtistsSection
-                    similarArtistTracks={data.similarArtistTracks}
-                    onTrackResolve={onTrackResolve}
-                    onResolveStart={onResolveStart}
-                  />
-                </SmoothSwap>
-              ) : null}
-            </RecessedCard.Body>
-          </RecessedCard>
+          <ArtistSectionWell
+            innerTitle={labels.similar}
+            showInitialSkeleton={showInitialSkeleton}
+            Skeleton={SimilarArtistsSkeleton}
+            hasContent={!!data?.similarArtistTracks && data.similarArtistTracks.length > 0}
+            swapKey={buildSimilarSwapKey(data)}
+          >
+            <SimilarArtistsSection
+              similarArtistTracks={data?.similarArtistTracks ?? []}
+              onTrackResolve={onTrackResolve}
+              onResolveStart={onResolveStart}
+            />
+          </ArtistSectionWell>
         </CollapsibleSection>
       </div>
     </EmbossedCard>

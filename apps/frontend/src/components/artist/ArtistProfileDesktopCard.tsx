@@ -8,19 +8,26 @@ import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useT } from "@/i18n/localeContext";
 
 interface ArtistProfileDesktopCardProps {
+  /** Card title, supplied by the presentation owner (never hardcoded here). */
+  title: string;
   data: ArtistInfoResponse | null;
   isLoading: boolean;
   status?: ArtistInfoStatus;
 }
 
-export function ArtistProfileDesktopCard({ data, isLoading, status }: ArtistProfileDesktopCardProps) {
+/**
+ * Desktop artist-info card: the artist's profile (image, genres, bio). Self-hides
+ * on an empty profile; shows a notice on an error. Keeps `useT` for the error
+ * message and the "provided by" footer credit — both content, not the title.
+ */
+export function ArtistProfileDesktopCard({ title, data, isLoading, status }: ArtistProfileDesktopCardProps) {
   const t = useT();
   const skeletonAllowed = useSkeletonAllowed();
   const effectiveStatus: ArtistInfoStatus = status ?? (isLoading ? "loading" : data ? "ready" : "empty");
 
   if (isLoading && !data && !skeletonAllowed) {
     return (
-      <ArtistCardShell title={t("artist.infoTitle")}>
+      <ArtistCardShell title={title}>
         <div className="min-h-[132px]" aria-hidden="true" />
       </ArtistCardShell>
     );
@@ -33,7 +40,7 @@ export function ArtistProfileDesktopCard({ data, isLoading, status }: ArtistProf
     // PopularTracks/Events/SimilarArtists self-hide behaviour.
     if (effectiveStatus !== "error") return null;
     return (
-      <ArtistCardShell title={t("artist.infoTitle")}>
+      <ArtistCardShell title={title}>
         <div className="px-3 pt-0 pb-3">
           <RecessedCard className="p-4 min-h-[108px]">
             <RecessedCard.Body>
@@ -49,7 +56,7 @@ export function ArtistProfileDesktopCard({ data, isLoading, status }: ArtistProf
   const footer = !showInitialSkeleton && data?.profile ? t("artist.profileProvidedBy") : undefined;
 
   return (
-    <ArtistCardShell title={t("artist.infoTitle")} footer={footer}>
+    <ArtistCardShell title={title} footer={footer}>
       <div className={footer ? "px-3 pt-0 pb-2" : "px-3 pt-0 pb-3"}>
         <ArtistProfileCard profile={data?.profile} showInitialSkeleton={showInitialSkeleton} />
       </div>

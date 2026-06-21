@@ -181,7 +181,11 @@ function initialShareUiState({
 }
 
 import { ArtistInfoCard } from "@/components/artist/ArtistInfoCard";
-import type { ArtistInfoStatus, ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
+import type {
+  ArtistCardLabels,
+  ArtistInfoStatus,
+  ArtistPanelTrackResolveHandler,
+} from "@/components/artist/artistPanelTypes";
 import { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
@@ -396,6 +400,11 @@ interface ShareLayoutProps {
    * resolves the row's `jamendo:<id>` candidate through the CC endpoint.
    */
   onTrackResolve?: ArtistPanelTrackResolveHandler;
+  /**
+   * Overrides the four artist-column section titles. Commercial omits this and
+   * gets the i18n defaults; the CC path can pass its own wording.
+   */
+  labels?: ArtistCardLabels;
 }
 
 export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
@@ -419,8 +428,20 @@ function ShareLayoutInner({
   skipArtistFetch = false,
   secondaryCard,
   onTrackResolve,
+  labels,
 }: ShareLayoutProps) {
   const t = useT();
+  // Commercial section titles; the CC caller overrides them via the `labels` prop.
+  const commercialArtistLabels = useMemo<ArtistCardLabels>(
+    () => ({
+      profile: t("artist.infoTitle"),
+      popularTracks: t("artist.popularTracks"),
+      events: t("artist.upcomingEvents"),
+      similar: t("artist.similarArtists"),
+    }),
+    [t],
+  );
+  const artistLabels = labels ?? commercialArtistLabels;
   const userRegion = useMemo(detectRegion, []);
   const [artistState, dispatch] = useReducer(artistReducer, {
     status: ArtistLoadStatus.Loading,
@@ -626,6 +647,7 @@ function ShareLayoutInner({
         artistLoadStatus={artistLoadStatus}
         config={enrichedConfig}
         isLoading={isLoading}
+        labels={artistLabels}
         onArtistResolveStart={handleArtistResolveStart}
         onPreviewStatusChange={handlePreviewStatusChange}
         onTrackResolve={resolveTrack}
@@ -647,6 +669,7 @@ function ShareLayoutInner({
             artistLoadStatus={artistLoadStatus}
             closeLabel={t("artist.closeInfo")}
             isLoading={isLoading}
+            labels={artistLabels}
             onArtistResolveStart={handleArtistResolveStart}
             onClose={closeSheet}
             onTrackResolve={resolveTrack}
@@ -675,6 +698,7 @@ interface DesktopShareLayoutProps {
   artistLoadStatus: ArtistInfoStatus;
   config: MediaCardContentConfiguration;
   isLoading: boolean;
+  labels: ArtistCardLabels;
   onArtistResolveStart: () => void;
   onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
   onTrackResolve: ArtistPanelTrackResolveHandler;
@@ -688,6 +712,7 @@ function DesktopShareLayout({
   artistLoadStatus,
   config,
   isLoading,
+  labels,
   onArtistResolveStart,
   onPreviewStatusChange,
   onTrackResolve,
@@ -707,6 +732,7 @@ function DesktopShareLayout({
           artistData={artistData}
           artistLoadStatus={artistLoadStatus}
           isLoading={isLoading}
+          labels={labels}
           onArtistResolveStart={onArtistResolveStart}
           onTrackResolve={onTrackResolve}
           userRegion={userRegion}
@@ -765,6 +791,7 @@ interface MobileArtistSheetProps {
   artistLoadStatus: ArtistInfoStatus;
   closeLabel: string;
   isLoading: boolean;
+  labels: ArtistCardLabels;
   onArtistResolveStart: () => void;
   onClose: () => void;
   onTrackResolve: ArtistPanelTrackResolveHandler;
@@ -777,6 +804,7 @@ function MobileArtistSheet({
   artistLoadStatus,
   closeLabel,
   isLoading,
+  labels,
   onArtistResolveStart,
   onClose,
   onTrackResolve,
@@ -824,6 +852,7 @@ function MobileArtistSheet({
             <ArtistInfoCard
               data={artistData}
               isLoading={isLoading}
+              labels={labels}
               status={artistLoadStatus}
               userRegion={userRegion}
               onTrackResolve={handleTrackResolve}
