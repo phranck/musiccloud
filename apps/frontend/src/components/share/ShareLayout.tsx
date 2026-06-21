@@ -189,6 +189,7 @@ import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
 import { ServicesCard } from "@/components/cards/ServicesCard";
 import { AnimatedArtistColumn } from "@/components/share/AnimatedArtistColumn";
 import { SharePageCard } from "@/components/share/SharePageCard";
+import { ARTIST_W, MEDIA_W, TWO_COLUMN_TOTAL_W, TwoColumnResultGrid } from "@/components/share/TwoColumnResultGrid";
 import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
@@ -203,10 +204,6 @@ import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import type { ActiveResult } from "@/lib/types/app";
 import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
-
-const MEDIA_W = 512;
-const ARTIST_W = 512;
-const GAP = 24;
 
 // Maps IANA timezone to ISO 3166-1 alpha-2 country code.
 const TIMEZONE_TO_COUNTRY: Record<string, string> = {
@@ -628,7 +625,7 @@ function ShareBackLink({ label, onBack }: { label?: string; onBack?: () => void 
   if (!onBack || !label) return null;
 
   return (
-    <div className="mx-auto mb-3 min-[1080px]:mb-4" style={{ maxWidth: `${MEDIA_W + GAP + ARTIST_W}px` }}>
+    <div className="mx-auto mb-3 min-[1080px]:mb-4" style={{ maxWidth: `${TWO_COLUMN_TOTAL_W}px` }}>
       <BackLink onClick={onBack} label={label} />
     </div>
   );
@@ -658,24 +655,25 @@ function DesktopShareLayout({
   userRegion,
 }: DesktopShareLayoutProps) {
   return (
-    <div
-      className="hidden min-[1080px]:grid grid-cols-[512px_512px] items-start gap-6 mx-auto"
-      style={{ width: `${MEDIA_W + GAP + ARTIST_W}px` }}
-    >
-      <div className="flex flex-col gap-[var(--mc-gap-cards,1.5rem)]" style={{ width: `${MEDIA_W}px` }}>
-        <MediaSummaryCard content={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
-        <ServicesCard content={config} animated={animated} />
-      </div>
-      <AnimatedArtistColumn
-        artistData={artistData}
-        artistLoadStatus={artistLoadStatus}
-        isLoading={isLoading}
-        onArtistResolveStart={onArtistResolveStart}
-        onTrackResolve={onTrackResolve}
-        userRegion={userRegion}
-        widthPx={ARTIST_W}
-      />
-    </div>
+    <TwoColumnResultGrid
+      left={
+        <div className="flex flex-col gap-[var(--mc-gap-cards,1.5rem)]" style={{ width: `${MEDIA_W}px` }}>
+          <MediaSummaryCard content={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
+          <ServicesCard content={config} animated={animated} />
+        </div>
+      }
+      right={
+        <AnimatedArtistColumn
+          artistData={artistData}
+          artistLoadStatus={artistLoadStatus}
+          isLoading={isLoading}
+          onArtistResolveStart={onArtistResolveStart}
+          onTrackResolve={onTrackResolve}
+          userRegion={userRegion}
+          widthPx={ARTIST_W}
+        />
+      }
+    />
   );
 }
 
