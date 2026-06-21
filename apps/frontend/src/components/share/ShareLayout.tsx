@@ -25,7 +25,7 @@ export interface ArtistInfoContext {
 }
 
 // Value namespace for domain-literal comparisons; `satisfies` pins every
-// member to the canonical `ArtistInfoStatus` union (ArtistCardParts), so the
+// member to the canonical `ArtistInfoStatus` union (artistPanelTypes), so the
 // two can never drift apart silently.
 const ArtistLoadStatus = {
   Loading: "loading",
@@ -180,9 +180,8 @@ function initialShareUiState({
   };
 }
 
-import type { ArtistInfoStatus } from "@/components/artist/ArtistCardParts";
 import { ArtistInfoCard } from "@/components/artist/ArtistInfoCard";
-import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
+import type { ArtistInfoStatus, ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";

@@ -11,3 +11,10 @@ import type { ArtistTopTrack } from "@musiccloud/shared";
  * all import it without forming a circular dependency through each other.
  */
 export type ArtistPanelTrackResolveHandler = (track: ArtistTopTrack) => Promise<void>;
+
+/**
+ * Load phase of the artist-info fetch. Shared by the artist cards (which render
+ * per-phase content) and `ShareLayout` (which drives the phase via its reducer
+ * and uses it as the GSAP-flip trigger), so the two can never drift apart.
+ */
+export type ArtistInfoStatus = "loading" | "ready" | "empty" | "error";

@@ -1,9 +1,11 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
-import { ArtistCardShell, EventsSkeleton, useSkeletonAllowed } from "@/components/artist/ArtistCardParts";
+import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
+import { EventsSkeleton } from "@/components/artist/EventsSkeleton";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
+import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useLocale, useT } from "@/i18n/localeContext";
 
 interface EventsCardProps {

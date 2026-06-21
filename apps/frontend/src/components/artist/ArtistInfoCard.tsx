@@ -6,24 +6,21 @@
 
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistCardCloseButton } from "@/components/artist/ArtistCardCloseButton";
-import {
-  type ArtistInfoStatus,
-  EventsSkeleton,
-  SimilarArtistsSkeleton,
-  TracksSkeleton,
-  useSkeletonAllowed,
-} from "@/components/artist/ArtistCardParts";
 import { ArtistInfoNoticeCard } from "@/components/artist/ArtistInfoNoticeCard";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
-import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
+import type { ArtistInfoStatus, ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
+import { EventsSkeleton } from "@/components/artist/EventsSkeleton";
 import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
+import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
+import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
 import { fullWidthEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
+import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useLocale, useT } from "@/i18n/localeContext";
 
 interface ArtistInfoCardProps {

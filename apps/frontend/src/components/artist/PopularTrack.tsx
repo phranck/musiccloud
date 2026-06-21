@@ -1,8 +1,8 @@
 import type { ArtistTopTrack } from "@musiccloud/shared";
 import { type MouseEvent, useCallback, useState } from "react";
-import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { ArtistPanelRow } from "@/components/artist/ArtistPanelRow";
 import { ArtistPanelRowText } from "@/components/artist/ArtistPanelRowText";
+import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useToastSafe } from "@/context/ToastContext";
 import { useT } from "@/i18n/localeContext";

@@ -1,6 +1,6 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
-import { ProfileSkeleton } from "@/components/artist/ArtistCardParts";
 import { ArtistProfileSection } from "@/components/artist/ArtistProfileSection";
+import { ProfileSkeleton } from "@/components/artist/ProfileSkeleton";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useT } from "@/i18n/localeContext";

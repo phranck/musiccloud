@@ -1,10 +1,12 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
-import { ArtistCardShell, SimilarArtistsSkeleton, useSkeletonAllowed } from "@/components/artist/ArtistCardParts";
+import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
+import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
+import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useT } from "@/i18n/localeContext";
 
 interface SimilarArtistsCardProps {

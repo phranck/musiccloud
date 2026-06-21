@@ -1,6 +1,6 @@
 import type { ArtistTopTrack } from "@musiccloud/shared";
-import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { ArtistPanelList } from "@/components/artist/ArtistPanelList";
+import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { PopularTrack } from "@/components/artist/PopularTrack";
 import { CardSignal } from "@/lib/analytics/umami";
 

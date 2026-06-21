@@ -1,11 +1,10 @@
 import { useGSAP } from "@gsap/react";
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { useRef } from "react";
-import type { ArtistInfoStatus } from "@/components/artist/ArtistCardParts";
 import { ArtistProfileDesktopCard } from "@/components/artist/ArtistProfileDesktopCard";
+import type { ArtistInfoStatus, ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { EventsCard } from "@/components/artist/EventsCard";
 import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
-import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
 import { animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
 
@@ -66,7 +65,7 @@ interface AnimatedArtistColumnProps {
  *
  * Snapshot freshness: the trigger is `artistLoadStatus`, which does not change
  * during the internal placeholder→skeleton step (`useSkeletonAllowed` in
- * `components/artist/ArtistCardParts.tsx`, 300 ms).
+ * `hooks/useSkeletonAllowed.ts`, 300 ms).
  * That step is shift-free by design — the cards' `min-h` placeholders are sized
  * to the skeleton heights — so the loading snapshot captured at mount stays a
  * faithful "before" for the resolve flip even when the skeleton phase is shown.

@@ -1,12 +1,10 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
-import {
-  ArtistCardShell,
-  type ArtistInfoStatus,
-  ArtistNoticeContent,
-  useSkeletonAllowed,
-} from "@/components/artist/ArtistCardParts";
+import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
+import { ArtistNoticeContent } from "@/components/artist/ArtistNoticeContent";
 import { ArtistProfileCard } from "@/components/artist/ArtistProfileCard";
+import type { ArtistInfoStatus } from "@/components/artist/artistPanelTypes";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useT } from "@/i18n/localeContext";
 
 interface ArtistProfileDesktopCardProps {
