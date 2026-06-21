@@ -10,14 +10,13 @@
 
 ---
 
-## Task A: Vollflächen-Cover-Artwork (Name oben links)
+## Task A: CC-Tile-Artwork (Composite + größeres Thumbnail) — erledigt
 
-CC-Kacheln sollen das Jamendo-Cover vollflächig zeigen + Name oben links eingebrannt (gleiche Schrift/Größe/Position wie kommerziell), NICHT den Composite (Flat-Color + rotiertes Mini-Cover).
+**Endgültige Entscheidung (revidiert):** CC-Kacheln nutzen die **kommerzielle Composite-Komposition** (Flächenfarbe in der Cover-Durchschnittsfarbe + Name oben links eingebrannt + rotiertes Cover-Thumbnail unten rechts), aber mit **größerem Thumbnail**. Der zwischenzeitliche Vollflächen-Ansatz (`generateCoverTileArtwork` + Scrim, Commit `aba7274`) wurde verworfen — der User wollte „die gleiche Composition wie kommerziell, **aber** das Cover etwas größer" (Commit `c64e6f0`).
 
-- [ ] Neue Funktion in `services/genre-artwork/generator.ts`, z. B. `generateCoverTileArtwork(displayName, coverBuffer): Promise<Buffer>` — Cover auf 512² cover-fit (center-crop), oben ein dunkler Legibility-Scrim (Gradient), Name oben links via vorhandenem `drawGenreText` in Weiß (gleiche `TEXT_X`/`TEXT_TOP_Y`/Font/Größen). Interne Helfer (`fillPath`, `drawGenreText`, `buildShadow`) wiederverwenden. **Commercial `generateArtwork` unverändert lassen.**
-- [ ] CC-Artwork-Pfad auf die neue Funktion umstellen: entweder eine CC-Variante von `ensureArtwork` oder ein `style`-Param. Nur die **CC**-Route (`routes/cc-genre-artwork.ts`) nutzt den Cover-Stil; die kommerzielle Route bleibt beim Composite. Bei null-Cover Fallback wie bisher (Flat-Color + Name).
-- [ ] `CC_ARTWORK_VERSION` auf 3 bumpen (neuer Render) + alte `cc:*`-Rows löschen (Regeneration).
-- [ ] Browser: CC-Kacheln zeigen Cover vollflächig + Name oben links, lesbar (Scrim), keine 404er.
+- [x] `generateArtwork` um optionalen `coverSize`-Param erweitert (Default `COVER_SIZE`=320); `ensureArtwork` reicht ihn durch; CC-Route übergibt `CC_THUMB_SIZE`=400. Die kommerzielle Route ruft ohne Param → unverändert. Die Vollflächen-Funktion wurde wieder entfernt (Dead Code).
+- [x] `CC_ARTWORK_VERSION` = 4; alte `cc:*`-Artworks gepurgt → Regeneration im Composite-Stil.
+- [x] Browser verifiziert: Composite mit prominentem, größerem Cover-Thumb unten rechts; Name oben links; kommerziell unverändert.
 
 ## Task B: 3-Spalten-Genre-Suche (aus den Genre-Tracks abgeleitet)
 
