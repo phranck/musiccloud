@@ -72,7 +72,7 @@
 
 - [ ] **Step 2: `resolveMode.ts`-Store** — `apps/frontend/src/lib/resolve/resolveMode.ts` erstellen. Lies `apps/frontend/src/components/background/dayNightMode.ts` und klone das Muster exakt (module-level Store mit `getResolveMode`/`setResolveMode`/`subscribeResolveMode`, `localStorage` read/write in try/catch, SSR-safe, listener-Set). Konstanten: `STORAGE_KEY = "mc:resolveMode"`, Default `ResolveMode.Commercial`. Validierung: nur `ResolveMode.Commercial`/`ResolveMode.Cc` akzeptieren, sonst Default. TSDoc auf jeder Export-Funktion.
 
-- [ ] **Step 3: Typecheck.** `pnpm --filter @musiccloud/frontend typecheck` → PASS. (Reducer-Case kommt in Task 4 — bis dahin kann der Switch über `AppAction` ein „nicht behandelt" zeigen; falls TS einen exhaustiveness-Fehler in `appReducer` wirft, in diesem Task einen Minimal-Case `case "RESOLVE_CC_SUCCESS": return { screen, stack };` als Platzhalter setzen und in Task 4 ausfüllen — ODER Task 4 vorziehen. Implementer entscheidet nach der echten TS-Fehlerlage.)
+- [ ] **Step 3: Typecheck.** `pnpm --filter @musiccloud/frontend check` → PASS. (Reducer-Case kommt in Task 4 — bis dahin kann der Switch über `AppAction` ein „nicht behandelt" zeigen; falls TS einen exhaustiveness-Fehler in `appReducer` wirft, in diesem Task einen Minimal-Case `case "RESOLVE_CC_SUCCESS": return { screen, stack };` als Platzhalter setzen und in Task 4 ausfüllen — ODER Task 4 vorziehen. Implementer entscheidet nach der echten TS-Fehlerlage.)
 
 - [ ] **Step 4: Biome + Commit**
   ```bash
@@ -122,7 +122,7 @@ Kein freistehendes Farb-Token — Farbe lebt je Glas-Fläche als day/night-Paar.
 
 - [ ] **Step 4: Typecheck + Biome + Commit**
   ```bash
-  pnpm --filter @musiccloud/frontend typecheck
+  pnpm --filter @musiccloud/frontend check
   pnpm exec biome check --write packages/shared/src/endpoints.ts apps/frontend/src/pages/api/cc apps/frontend/src/api/client.ts
   git add packages/shared/src/endpoints.ts apps/frontend/src/pages/api/cc apps/frontend/src/api/client.ts
   git commit -m "Feat: add CC resolve proxy and client"
@@ -145,7 +145,7 @@ Kein freistehendes Farb-Token — Farbe lebt je Glas-Fläche als day/night-Paar.
 
 - [ ] **Step 4: Typecheck + Biome + Commit**
   ```bash
-  pnpm --filter @musiccloud/frontend typecheck
+  pnpm --filter @musiccloud/frontend check
   pnpm exec biome check --write apps/frontend/src/lib/resolve/parsers.ts apps/frontend/src/lib/types/media-card.ts
   git add apps/frontend/src/lib/resolve/parsers.ts apps/frontend/src/lib/types/media-card.ts
   git commit -m "Feat: add CC resolve parser, reducer case, and content config"
@@ -176,7 +176,7 @@ Der Hook bekommt den Modus als Argument (KISS — die LandingPage liest den Stor
 
 - [ ] **Step 4: Typecheck + Tests + Biome + Commit**
   ```bash
-  pnpm --filter @musiccloud/frontend typecheck
+  pnpm --filter @musiccloud/frontend check
   pnpm --filter @musiccloud/frontend test:run
   pnpm exec biome check --write apps/frontend/src/hooks/useAppState.ts apps/frontend/src/lib/types/app.ts
   git add apps/frontend/src/hooks/useAppState.ts apps/frontend/src/lib/types/app.ts
@@ -202,7 +202,7 @@ Der Hook bekommt den Modus als Argument (KISS — die LandingPage liest den Stor
 
 - [ ] **Step 4: Doctor + Typecheck + Biome + Commit**
   ```bash
-  pnpm --filter @musiccloud/frontend typecheck
+  pnpm --filter @musiccloud/frontend check
   pnpm doctor:diff
   pnpm exec biome check --write apps/frontend/src/components/landing
   git add apps/frontend/src/components/landing apps/frontend/public/icons/creative-commons.svg
@@ -223,7 +223,7 @@ Der Hook bekommt den Modus als Argument (KISS — die LandingPage liest den Stor
 
 - [ ] **Step 4: Doctor + Typecheck + Tests + Biome + Commit**
   ```bash
-  pnpm --filter @musiccloud/frontend typecheck
+  pnpm --filter @musiccloud/frontend check
   pnpm --filter @musiccloud/frontend test:run
   pnpm doctor:diff
   pnpm exec biome check --write apps/frontend/src/components
@@ -238,7 +238,7 @@ Der Hook bekommt den Modus als Argument (KISS — die LandingPage liest den Stor
 - [ ] **Step 1: Dev-Server** — via `./app start` (nicht manuell). `JAMENDO_CLIENT_ID` muss in `apps/backend/.env.local` gesetzt sein (sonst keine echten Treffer). Falls nicht gesetzt: dem User melden + Key anfordern, dann verifizieren.
 - [ ] **Step 2: Browser-Smoke** (agent-browser / chrome-devtools-mcp): (a) Umschalter sichtbar im Idle, wechselt Modus, Eingabe wird grün (Accent + Focus-Ring), CC-Icon links. (b) CC-Freitext-Query → Trefferliste (DisambiguationPanel). (c) Auswahl → CC-Track-Seite mit vollem Player (spielt Jamendo-Stream), Lizenz-Badge, Attribution, Download, „Auf Jamendo". (d) Zurück zu commercial → blaue Identität + kommerzieller Flow unverändert. Screenshots als Beleg.
 - [ ] **Step 3: Grün feinjustieren** am Code, Screenshots dem User zeigen.
-- [ ] **Step 4: Volle Gates** — `pnpm --filter @musiccloud/frontend typecheck`, `pnpm --filter @musiccloud/frontend test:run`, `pnpm lint` (Biome), `pnpm doctor:diff` — alle grün.
+- [ ] **Step 4: Volle Gates** — `pnpm --filter @musiccloud/frontend check`, `pnpm --filter @musiccloud/frontend test:run`, `pnpm lint` (Biome), `pnpm doctor:diff` — alle grün.
 
 ---
 
