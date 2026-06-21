@@ -49,7 +49,7 @@ const DEFAULT_CC_GENRE_TRACKS = 10;
  * and clients refetch. Mirrors `ARTWORK_VERSION` in the commercial
  * `services/genre-search/lastfm.ts`.
  */
-const CC_ARTWORK_VERSION = 4;
+const CC_ARTWORK_VERSION = 5;
 
 /**
  * Maps a Jamendo genre to a browse-grid tile.

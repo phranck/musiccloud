@@ -455,7 +455,7 @@ const FORCED_DECADE_TAGS: { name: string; reach?: string }[] = [
  * generator algorithm, font, layout, or colour rules change — every
  * tile URL becomes a new cache key and clients refetch.
  */
-const ARTWORK_VERSION = 5;
+const ARTWORK_VERSION = 6;
 
 function capitalize(s: string): string {
   return s.replace(/\b\w/g, (c) => c.toUpperCase());

@@ -20,7 +20,10 @@ import type opentype from "opentype.js";
 
 const SIZE = 512;
 const JPEG_QUALITY = 82;
-const COVER_SIZE = 320;
+// Lower-right cover thumbnail size (pre-rotation), shared by ALL genre tiles
+// (commercial + CC). Larger than the tile's flat area so the rotated cover
+// overhangs and is partially clipped at the corner.
+const COVER_SIZE = 400;
 const COVER_CORNER_RADIUS = 24;
 const COVER_ROTATION_DEG = -18;
 const COVER_CENTER_X = 380;
@@ -371,22 +374,18 @@ function hexToRgb(hex: string): [number, number, number] {
 /**
  * Composes a Spotify-style genre tile: a flat fill in the cover's average
  * colour, the genre name baked into the upper-left, and a rotated cover
- * thumbnail tucked into the lower-right (partially clipped). Deterministic for
- * a given input.
+ * thumbnail (sized {@link COVER_SIZE}) tucked into the lower-right (partially
+ * clipped). Deterministic for a given input.
  *
  * @param displayName - Human genre label, e.g. `"Hip Hop"`.
  * @param coverBuffer - Representative cover, or `null` for a name-only tile.
  * @param tileColorHex - Flat-fill colour (the cover's average).
- * @param coverSize - Edge length of the lower-right thumbnail before rotation.
- *   Defaults to {@link COVER_SIZE}; the CC route passes a larger value so its
- *   thumbnail reads bigger.
  * @returns A 512×512 JPEG buffer.
  */
 export async function generateArtwork(
   displayName: string,
   coverBuffer: Buffer | null,
   tileColorHex: string,
-  coverSize: number = COVER_SIZE,
 ): Promise<Buffer> {
   const [r, g, b] = hexToRgb(tileColorHex);
 
@@ -402,7 +401,7 @@ export async function generateArtwork(
   if (coverBuffer) {
     try {
       const thumb = (await Jimp.read(coverBuffer)) as JimpInstance;
-      thumb.resize({ w: coverSize, h: coverSize });
+      thumb.resize({ w: COVER_SIZE, h: COVER_SIZE });
       applyRoundedCorners(thumb, COVER_CORNER_RADIUS);
       thumb.rotate(COVER_ROTATION_DEG);
 

@@ -34,7 +34,6 @@ export async function ensureArtwork(
   genreKey: string,
   coverUrl: string | null,
   displayName: string,
-  coverSize?: number,
 ): Promise<StoredArtwork> {
   const cached = await getArtwork(genreKey);
   if (cached) return cached;
@@ -62,9 +61,7 @@ export async function ensureArtwork(
       }
     }
 
-    // `coverSize` lets the CC route render a larger lower-right thumbnail than
-    // the commercial default; otherwise the composition is identical.
-    const jpeg = await generateArtwork(displayName, coverBuffer, tileColor, coverSize);
+    const jpeg = await generateArtwork(displayName, coverBuffer, tileColor);
     await saveArtwork(genreKey, jpeg, tileColor, coverUrl);
     return { jpeg, accentColor: tileColor };
   })().finally(() => {
