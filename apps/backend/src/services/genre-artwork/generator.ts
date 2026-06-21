@@ -368,10 +368,25 @@ function hexToRgb(hex: string): [number, number, number] {
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
+/**
+ * Composes a Spotify-style genre tile: a flat fill in the cover's average
+ * colour, the genre name baked into the upper-left, and a rotated cover
+ * thumbnail tucked into the lower-right (partially clipped). Deterministic for
+ * a given input.
+ *
+ * @param displayName - Human genre label, e.g. `"Hip Hop"`.
+ * @param coverBuffer - Representative cover, or `null` for a name-only tile.
+ * @param tileColorHex - Flat-fill colour (the cover's average).
+ * @param coverSize - Edge length of the lower-right thumbnail before rotation.
+ *   Defaults to {@link COVER_SIZE}; the CC route passes a larger value so its
+ *   thumbnail reads bigger.
+ * @returns A 512×512 JPEG buffer.
+ */
 export async function generateArtwork(
   displayName: string,
   coverBuffer: Buffer | null,
   tileColorHex: string,
+  coverSize: number = COVER_SIZE,
 ): Promise<Buffer> {
   const [r, g, b] = hexToRgb(tileColorHex);
 
@@ -387,7 +402,7 @@ export async function generateArtwork(
   if (coverBuffer) {
     try {
       const thumb = (await Jimp.read(coverBuffer)) as JimpInstance;
-      thumb.resize({ w: COVER_SIZE, h: COVER_SIZE });
+      thumb.resize({ w: coverSize, h: coverSize });
       applyRoundedCorners(thumb, COVER_CORNER_RADIUS);
       thumb.rotate(COVER_ROTATION_DEG);
 
@@ -413,45 +428,5 @@ export async function generateArtwork(
   await drawGenreText(img, displayName.toUpperCase(), textColor, shadowColor);
 
   // 4. Encode.
-  return img.getBuffer("image/jpeg", { quality: JPEG_QUALITY });
-}
-
-// ── Full-bleed cover tile (CC) ─────────────────────────────────────────────
-//
-// The CC browse grid fills the whole tile with the Jamendo cover and bakes the
-// genre name into the upper-left. A dark gradient scrim across the top keeps
-// the white name legible over any cover. Commercial tiles keep the Spotify-
-// style composite (`generateArtwork`) above.
-const SCRIM_HEIGHT_FRACTION = 0.42;
-const SCRIM_MAX_ALPHA = 0.72;
-
-/** Darken the top band of `img` with a top→down alpha falloff, for text legibility. */
-function applyTopScrim(img: JimpInstance): void {
-  const w = img.bitmap.width;
-  const scrimRows = Math.max(1, Math.round(img.bitmap.height * SCRIM_HEIGHT_FRACTION));
-  img.scan(0, 0, w, scrimRows, (_x, y, idx) => {
-    const keep = 1 - SCRIM_MAX_ALPHA * (1 - y / scrimRows);
-    img.bitmap.data[idx] = Math.round(img.bitmap.data[idx] * keep);
-    img.bitmap.data[idx + 1] = Math.round(img.bitmap.data[idx + 1] * keep);
-    img.bitmap.data[idx + 2] = Math.round(img.bitmap.data[idx + 2] * keep);
-  });
-}
-
-/**
- * Generates a CC genre tile that fills the frame with the Jamendo cover and
- * bakes the genre name into the upper-left — identical font, size and margins
- * to {@link generateArtwork} (both render through {@link drawGenreText}). A top
- * scrim keeps the white name legible over any cover. Used by the CC
- * genre-artwork route; the commercial route keeps the composite style.
- *
- * @param displayName - Human genre label, e.g. `"Hip Hop"`.
- * @param coverBuffer - Encoded representative Jamendo album cover.
- * @returns A 512×512 JPEG buffer.
- */
-export async function generateCoverTileArtwork(displayName: string, coverBuffer: Buffer): Promise<Buffer> {
-  const img = (await Jimp.read(coverBuffer)) as JimpInstance;
-  img.cover({ w: SIZE, h: SIZE });
-  applyTopScrim(img);
-  await drawGenreText(img, displayName.toUpperCase(), [255, 255, 255], [0, 0, 0]);
   return img.getBuffer("image/jpeg", { quality: JPEG_QUALITY });
 }

@@ -2,16 +2,17 @@
  * @file Serves procedurally generated Creative-Commons genre artworks.
  *
  * The CC browse grid references one of these per tile via `artworkUrl`. The
- * tile fills the frame with a representative Jamendo album cover and bakes the
- * genre name into the upper-left — same font, size, and margins as the
- * commercial tiles, via the shared `services/genre-artwork` generator's
- * `cover` style. The CC path stays 100% Jamendo: the cover comes from a
- * representative Jamendo album, never Last.fm or Deezer.
+ * tile uses the shared Spotify-style composite — flat fill in the cover's
+ * average colour, genre name baked upper-left, and a rotated cover thumbnail
+ * tucked into the lower-right — identical to the commercial tiles except for a
+ * larger lower-right thumbnail (`CC_THUMB_SIZE`). The CC path stays 100%
+ * Jamendo: the cover comes from a representative Jamendo album, never Last.fm
+ * or Deezer.
  *
  * On a cache hit the JPEG comes straight out of Postgres (keyed `cc:<genreKey>`
  * so CC and commercial artworks never collide on the shared `genre_artworks`
- * table); on a miss the service fetches the Jamendo cover, fills the tile with
- * it, scrims the top for legibility, and bakes the name in.
+ * table); on a miss the service fetches the Jamendo cover, samples its dominant
+ * hue, and synthesises the composite.
  *
  * Marked immutable in `Cache-Control`: the same (genre, algorithm) pair always
  * produces the same bytes, so browsers and CDNs can hold the response
@@ -25,6 +26,14 @@ import { getCcGenreCoverUrl, getCcGenres } from "../services/cc/jamendo/client.j
 import { ensureArtwork, getCachedArtwork } from "../services/genre-artwork/index.js";
 
 const GENRE_KEY_PATTERN = /^[a-z0-9][a-z0-9 &'.\-+]{0,63}$/;
+
+/**
+ * Lower-right thumbnail edge length (pre-rotation) for CC genre tiles. Larger
+ * than the commercial default (`COVER_SIZE` = 320) so the cover reads more
+ * prominently; everything else about the composition matches the commercial
+ * tiles.
+ */
+const CC_THUMB_SIZE = 400;
 
 /**
  * Canonicalises a raw genre key from the URL: percent-decoded, lowercased,
@@ -110,7 +119,7 @@ export default async function ccGenreArtworkRoutes(app: FastifyInstance) {
       // flat-colour tile with the name baked in, so the grid never shows a
       // broken tile (no 404). Only refuse on a genuinely nonsense key (above).
       const coverUrl = await getCcGenreCoverUrl(genreKey);
-      const { jpeg } = await ensureArtwork(cacheKey, coverUrl, displayName, "cover");
+      const { jpeg } = await ensureArtwork(cacheKey, coverUrl, displayName, CC_THUMB_SIZE);
       return reply
         .code(200)
         .header("Content-Type", "image/jpeg")

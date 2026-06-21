@@ -32,8 +32,8 @@ describe("runCcGenreBrowse", () => {
 
     expect(response.status).toBe("genre-browse");
     expect(response.genres).toEqual([
-      { name: "jazz", displayName: "Jazz", artworkUrl: "/api/cc/genre-artwork/jazz?v=3" },
-      { name: "rock", displayName: "Rock", artworkUrl: "/api/cc/genre-artwork/rock?v=3" },
+      { name: "jazz", displayName: "Jazz", artworkUrl: "/api/cc/genre-artwork/jazz?v=4" },
+      { name: "rock", displayName: "Rock", artworkUrl: "/api/cc/genre-artwork/rock?v=4" },
     ]);
     expect(response.genres.every((tile) => !("accentColor" in tile))).toBe(true);
   });
