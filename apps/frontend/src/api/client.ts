@@ -160,6 +160,43 @@ export async function resolveTrack(
 }
 
 /**
+ * Forward a Creative Commons resolve request to the backend CC resolve endpoint.
+ *
+ * Exact clone of {@link resolveTrack} but targets `ENDPOINTS.v1.ccResolve`
+ * (`/api/v1/cc/resolve`). Separated so the CC and commercial resolve paths
+ * are independently typeable and do not accidentally cross-call each other
+ * when the mode-aware hook switches endpoints.
+ *
+ * @param body - Resolve payload: either a free-text `query` or a
+ *   `selectedCandidate` short-ID picked from a disambiguation list.
+ * @param clientIp - The real visitor IP forwarded as `X-Forwarded-For` so
+ *   the backend rate-limiter buckets per user rather than per frontend pod.
+ *   Pass `Astro.clientAddress` from the proxy handler.
+ * @param origin - The `Origin` header from the incoming browser request,
+ *   forwarded for CORS audit on the backend side.
+ * @returns The raw `Response` from the backend. The caller (Astro proxy) is
+ *   responsible for streaming the body and propagating status / headers.
+ */
+export async function resolveCcTrack(
+  body: { query?: string; selectedCandidate?: string },
+  clientIp?: string,
+  origin?: string,
+): Promise<Response> {
+  const extra: Record<string, string> = {};
+  if (clientIp) extra["X-Forwarded-For"] = clientIp;
+  if (origin) extra.Origin = origin;
+  return fetchWithTimeout(
+    backendUrl(ENDPOINTS.v1.ccResolve),
+    {
+      method: "POST",
+      headers: internalHeaders(Object.keys(extra).length > 0 ? extra : undefined),
+      body: JSON.stringify(body),
+    },
+    15000,
+  );
+}
+
+/**
  * Fetch a procedurally generated genre artwork from the backend. Returns
  * the raw `Response` so the Astro proxy can stream the JPEG body straight
  * through to the browser with the upstream headers intact (Content-Type,

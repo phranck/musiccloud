@@ -105,6 +105,8 @@ export const ENDPOINTS = {
   frontend: {
     /** POST: React components call this; Astro forwards to `ENDPOINTS.v1.resolve`. */
     resolve: "/api/resolve",
+    /** POST: React components call this in CC mode; Astro forwards to `ENDPOINTS.v1.ccResolve`. */
+    ccResolve: "/api/cc/resolve",
     /** GET: forwarded to `ENDPOINTS.v1.randomExample`. */
     randomExample: "/api/random-example",
     /** GET: forwarded to `ENDPOINTS.v1.artistInfo`. */
