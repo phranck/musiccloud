@@ -56,10 +56,31 @@ export const InputState = {
 
 export type InputState = (typeof InputState)[keyof typeof InputState];
 
+/**
+ * The two resolve modes the user can choose between.
+ *
+ * - `Commercial` routes queries through the standard commercial resolve endpoint
+ *   (`/api/resolve`) and surfaces streaming-platform links.
+ * - `Cc` routes queries through the Creative Commons resolve endpoint
+ *   (`/api/cc/resolve`) and surfaces Jamendo tracks with license/attribution
+ *   metadata instead of platform links.
+ *
+ * Values are intentionally lower-case strings to match the `data-resolve-mode`
+ * HTML attribute and the persisted `mc:resolveMode` localStorage key verbatim,
+ * eliminating any mapping layer.
+ */
+export const ResolveMode = {
+  Commercial: "commercial",
+  Cc: "cc",
+} as const;
+
+export type ResolveMode = (typeof ResolveMode)[keyof typeof ResolveMode];
+
 export const ActiveResultKind = {
   Song: "song",
   Album: "album",
   Artist: "artist",
+  CcSong: "cc-song",
 } as const;
 
 export const AppStateType = {
@@ -73,6 +94,7 @@ export const AppStateType = {
   GenreBrowse: "genre-browse",
   GenreSearch: "genre-search",
   GenreSearchLoading: "genre-search_loading",
+  CcResult: "cc-result",
 } as const;
 
 export interface SongResult {
@@ -113,7 +135,51 @@ export interface ArtistResult {
   shareUrl: string;
 }
 
-export type ActiveResult = SongResult | AlbumResult | ArtistResult;
+/**
+ * A resolved Creative Commons track from the Jamendo catalogue.
+ *
+ * Intentionally has no `platforms` field — CC tracks are accessed directly
+ * via Jamendo (stream, download, artist page) rather than through a
+ * multi-platform link grid. The `shareUrl` is the musiccloud short URL for
+ * this result; `jamendoUrl` is the canonical Jamendo page for the track.
+ *
+ * All optional fields may be absent when Jamendo's API does not return them
+ * for a given track.
+ */
+export interface CcTrackResult {
+  /** Discriminant: always `ActiveResultKind.CcSong`. */
+  kind: typeof ActiveResultKind.CcSong;
+  /** Jamendo numeric track ID (as string). */
+  jamendoId: string;
+  /** Track title as returned by Jamendo. */
+  title: string;
+  /** Primary artist name. */
+  artist: string;
+  /** Album title, if available. */
+  album?: string;
+  /** ISO 8601 release date string (`YYYY-MM-DD`), if available. */
+  releaseDate?: string;
+  /** Track duration in milliseconds, if available. */
+  durationMs?: number;
+  /** URL of the track's cover art (always present — falls back to a placeholder). */
+  artworkUrl: string;
+  /** Direct MP3 stream URL for the full track (Jamendo's `audio` field). */
+  streamUrl: string;
+  /** Canonical URL of the CC licence deed (e.g. `https://creativecommons.org/licenses/by/4.0/`), if available. */
+  licenseCcurl?: string;
+  /** Direct download URL for the track MP3, if `downloadAllowed` is true. */
+  downloadUrl?: string;
+  /** Whether Jamendo permits direct download of this track. */
+  downloadAllowed: boolean;
+  /** URL of the waveform image provided by Jamendo, if available. */
+  waveform?: string;
+  /** Canonical Jamendo page for the track, used for the "Open on Jamendo" link. */
+  jamendoUrl?: string;
+  /** musiccloud short URL for this result (e.g. `https://musi.cc/abc123`). */
+  shareUrl: string;
+}
+
+export type ActiveResult = SongResult | AlbumResult | ArtistResult | CcTrackResult;
 
 export type AppState =
   | { type: typeof AppStateType.Idle }
@@ -125,7 +191,8 @@ export type AppState =
   | { type: typeof AppStateType.DisambiguationLoading; candidates: DisambiguationCandidate[]; selectedId: string }
   | { type: typeof AppStateType.GenreBrowse; genres: ApiGenreTile[] }
   | { type: typeof AppStateType.GenreSearch; payload: GenreSearchPayload }
-  | { type: typeof AppStateType.GenreSearchLoading; payload: GenreSearchPayload; selectedId: string };
+  | { type: typeof AppStateType.GenreSearchLoading; payload: GenreSearchPayload; selectedId: string }
+  | { type: typeof AppStateType.CcResult; ccActive: CcTrackResult };
 
 export interface ReducerState {
   screen: AppState;
@@ -143,4 +210,5 @@ export type AppAction =
   | { type: "NAV_BACK" }
   | { type: "ERROR"; error: ResolveUiError }
   | { type: "CLEAR_START" }
-  | { type: "CLEAR" };
+  | { type: "CLEAR" }
+  | { type: "RESOLVE_CC_SUCCESS"; ccActive: CcTrackResult };

@@ -6,14 +6,15 @@ import type {
 } from "@musiccloud/shared";
 import { buildMetaLine, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
-import type {
-  ActiveResult,
-  AlbumResult,
-  AppAction,
-  ArtistResult,
-  ReducerState,
-  ResolveUiError,
-  SongResult,
+import {
+  type ActiveResult,
+  ActiveResultKind,
+  type AlbumResult,
+  type AppAction,
+  type ArtistResult,
+  type ReducerState,
+  type ResolveUiError,
+  type SongResult,
 } from "@/lib/types/app";
 import type {
   AlbumContentConfiguration,
@@ -72,6 +73,9 @@ export function appReducer({ screen, stack }: ReducerState, action: AppAction): 
       return { screen: { type: "idle" }, stack: [] };
     case "CLEAR":
       return { screen: { type: "idle" }, stack: [] };
+    // Placeholder: full implementation in Task 4 (parsers + CcTrackResult import).
+    case "RESOLVE_CC_SUCCESS":
+      return { screen, stack };
   }
 }
 
@@ -201,6 +205,11 @@ export function buildActiveConfig(
   active: ActiveResult,
   t: TFunc,
 ): SongContentConfiguration | AlbumContentConfiguration | ArtistContentConfiguration {
+  // CcTrackResult has no platforms — it is rendered via buildCcShareConfig (Task 4).
+  // This guard keeps the union exhaustive; callers must not pass a CcTrackResult here.
+  if (active.kind === ActiveResultKind.CcSong) {
+    throw new Error("buildActiveConfig does not handle CcTrackResult — use buildCcShareConfig");
+  }
   const platformsInfo = getPlatformsInfo(active.platforms, t);
 
   if (active.kind === "song") {
@@ -260,6 +269,11 @@ export function buildActiveConfig(
 }
 
 export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): ShareContentConfiguration {
+  // CcTrackResult has no platforms — it is rendered via buildCcShareConfig (Task 4).
+  // This guard keeps the union exhaustive; callers must not pass a CcTrackResult here.
+  if (active.kind === ActiveResultKind.CcSong) {
+    throw new Error("buildShareConfigFromActive does not handle CcTrackResult — use buildCcShareConfig");
+  }
   const platformsInfo = getPlatformsInfo(active.platforms, t);
   const shortId = shortIdFromShortUrl(active.shareUrl);
 

@@ -19,6 +19,12 @@ const config = {
        */
       "src/components/ui/CrossFade.tsx",
       "src/lib/loadNav.ts",
+      /**
+       * resolveMode.ts is a new module-level store created in Task 1 of the
+       * CC-path plan (2026-06-21-cc-pfad-frontend). It will be consumed by
+       * LandingPage.tsx in Task 6. Remove this suppression when Task 6 lands.
+       */
+      "src/lib/resolve/resolveMode.ts",
     ],
     overrides: [
       /**
@@ -37,6 +43,16 @@ const config = {
       {
         files: ["package.json"],
         rules: ["deslop/unused-dev-dependency"],
+      },
+      /**
+       * ResolveMode is a new namespace added in Task 1 of the CC-path plan
+       * (2026-06-21-cc-pfad-frontend). It will be consumed by resolveMode.ts
+       * and LandingPage.tsx in Tasks 1/6. Remove this suppression when Task 6
+       * lands and the first real import exists.
+       */
+      {
+        files: ["src/lib/types/app.ts"],
+        rules: ["deslop/unused-export"],
       },
     ],
   },
