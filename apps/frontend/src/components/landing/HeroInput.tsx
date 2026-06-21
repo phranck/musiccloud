@@ -1,4 +1,8 @@
-import { CopyrightIcon, XCircleIcon } from "@phosphor-icons/react";
+import { config } from "@fortawesome/fontawesome-svg-core";
+import { faCreativeCommons } from "@fortawesome/free-brands-svg-icons";
+import { faCopyright } from "@fortawesome/free-regular-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { XCircleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef } from "react";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -8,6 +12,10 @@ import { useT } from "@/i18n/localeContext";
 import { isMusicUrl } from "@/lib/platform/url";
 import { InputState, ResolveMode } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
+
+// Disable Font Awesome's automatic CSS injection — icons are sized via Tailwind,
+// and auto-injected styles cause SSR/Astro-island hydration artefacts.
+config.autoAddCss = false;
 
 export type { InputState };
 
@@ -158,9 +166,9 @@ export function HeroInput({
               an `aria-label`), so it is hidden from assistive tech. */}
           <span className="flex-shrink-0 pl-4 pr-1 text-[var(--color-accent)]" aria-hidden="true">
             {mode === ResolveMode.Cc ? (
-              <img src="/icons/creative-commons.svg" alt="" aria-hidden className="size-5" />
+              <FontAwesomeIcon icon={faCreativeCommons} className="size-5" aria-hidden />
             ) : (
-              <CopyrightIcon weight="duotone" className="size-5" />
+              <FontAwesomeIcon icon={faCopyright} className="size-5" aria-hidden />
             )}
           </span>
           <input
