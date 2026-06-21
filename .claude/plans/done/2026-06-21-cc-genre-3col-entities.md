@@ -22,9 +22,9 @@
 
 `runCcGenreSearch` baut alle 3 Spalten aus **einer** `/tracks?tags=`-Query (rate-limit-freundlich) plus einem `/artists?id=`-Nachschlag für Artist-Bilder.
 
-- [ ] `runCcGenreSearch`: aus den Genre-Tracks ableiten — **tracks** (wie bisher), **albums** (unique nach `album_id`: `album_name` + `album_image`), **artists** (unique nach `artist_id`: `artist_name`). Artist-Bilder per einem `getCcArtistsByIds(ids)` → `GET /artists?id=<id1>+<id2>…` (filtert per id, nicht per Tag).
-- [ ] Map auf `ApiGenreTrackCandidate` (id `jamendo:<id>`), `ApiGenreAlbumCandidate` (id **`jamendo-album:<id>`**, `webUrl` = Jamendo-Album-Shareurl, `artworkUrl`), `ApiGenreArtistCandidate` (id **`jamendo-artist:<id>`**, `imageUrl`, `webUrl`). Counts an die kommerziellen Defaults angleichen (statt fix 10).
-- [ ] `query`-Echo: `albums`/`artists` nicht mehr `null`. Test anpassen.
+- [x] `runCcGenreSearch`: aus den Genre-Tracks ableiten — **tracks** (wie bisher), **albums** (unique nach `album_id`: `album_name` + `album_image`), **artists** (unique nach `artist_id`: `artist_name`). Artist-Bilder per einem `getCcArtistsByIds(ids)` → `GET /artists?id=<id1>+<id2>…` (filtert per id, nicht per Tag).
+- [x] Map auf `ApiGenreTrackCandidate` (id `jamendo:<id>`), `ApiGenreAlbumCandidate` (id **`jamendo-album:<id>`**, `webUrl` = Jamendo-Album-Shareurl, `artworkUrl`), `ApiGenreArtistCandidate` (id **`jamendo-artist:<id>`**, `imageUrl`, `webUrl`). Counts an die kommerziellen Defaults angleichen (statt fix 10).
+- [x] `query`-Echo: `albums`/`artists` nicht mehr `null`. Test anpassen.
 
 ## Scheibe-1-Entscheidung (entschieden 2026-06-21): teilbar mit Persist
 
@@ -36,23 +36,23 @@ CC-Album/Artist-Ansichten sind **teilbar** — die Resolve-Response trägt `id` 
 
 ## Task C: CC-Album-Resolve + Ansicht
 
-- [ ] Wire-Type `ApiCcAlbum` (`packages/shared/src/api.ts`): Album-Felder + `tracks: ApiCcTrack[]`. Response `CcAlbumResolveSuccessResponse` (`type: "cc-album"`, mit `id` + `shortUrl`).
-- [ ] Client: `getCcAlbumTracks(albumId)` via `GET /tracks?album_id=<id>` (live bestätigt). Repo: `persistCcAlbum` (upsert Artist + Album, mint `cc_album_short_urls`) → `{ ccAlbumId, shortId }`.
-- [ ] Backend: `resolveCcCandidate` (diskriminiertes Union) erkennt `jamendo-album:<id>` → `getCcAlbum(id)` + `getCcAlbumTracks(id)`; Route persistiert Album + shaped `cc-album`-Response.
-- [ ] Frontend (Scheibe 3): `parseCcAlbumResolveResponse` + neue `CcAlbumView` (Album-Header + Trackliste, je Track abspielbar / klickbar zur CC-Track-Seite). An `CcMediaCard` orientieren.
+- [x] Wire-Type `ApiCcAlbum` (`packages/shared/src/api.ts`): Album-Felder + `tracks: ApiCcTrack[]`. Response `CcAlbumResolveSuccessResponse` (`type: "cc-album"`, mit `id` + `shortUrl`).
+- [x] Client: `getCcAlbumTracks(albumId)` via `GET /tracks?album_id=<id>` (live bestätigt). Repo: `persistCcAlbum` (upsert Artist + Album, mint `cc_album_short_urls`) → `{ ccAlbumId, shortId }`.
+- [x] Backend: `resolveCcCandidate` (diskriminiertes Union) erkennt `jamendo-album:<id>` → `getCcAlbum(id)` + `getCcAlbumTracks(id)`; Route persistiert Album + shaped `cc-album`-Response.
+- [x] Frontend (Scheibe 3): `parseCcAlbumResolveResponse` + neue `CcAlbumView` (Album-Header + Trackliste, je Track abspielbar / klickbar zur CC-Track-Seite). An `CcMediaCard` orientieren.
 
 ## Task D: CC-Artist-Resolve + Ansicht
 
-- [ ] Wire-Type `ApiCcArtist` + `CcArtistResolveSuccessResponse` (`type: "cc-artist"`, mit `id` + `shortUrl`): Artist-Felder + `topTracks: ApiCcTrack[]`.
-- [ ] Client: `getCcArtistTopTracks(artistId)` via `GET /tracks?artist_id=<id>&order=popularity_total`. Repo: `persistCcArtist` (upsert Artist, mint `cc_artist_short_urls`) → `{ ccArtistId, shortId }`.
-- [ ] Backend: `resolveCcCandidate` erkennt `jamendo-artist:<id>` → `getCcArtist(id)` + `getCcArtistTopTracks(id)`; Route persistiert Artist + shaped `cc-artist`-Response.
-- [ ] Frontend (Scheibe 3): `CcArtistView` (Artist-Header + Top-Tracks).
+- [x] Wire-Type `ApiCcArtist` + `CcArtistResolveSuccessResponse` (`type: "cc-artist"`, mit `id` + `shortUrl`): Artist-Felder + `topTracks: ApiCcTrack[]`.
+- [x] Client: `getCcArtistTopTracks(artistId)` via `GET /tracks?artist_id=<id>&order=popularity_total`. Repo: `persistCcArtist` (upsert Artist, mint `cc_artist_short_urls`) → `{ ccArtistId, shortId }`.
+- [x] Backend: `resolveCcCandidate` erkennt `jamendo-artist:<id>` → `getCcArtist(id)` + `getCcArtistTopTracks(id)`; Route persistiert Artist + shaped `cc-artist`-Response.
+- [x] Frontend (Scheibe 3): `CcArtistView` (Artist-Header + Top-Tracks).
 
 ## Task E: Klick-Routing + Verifikation
 
-- [ ] `handleSelectGenreResult` (CC-Modus): `selectedCandidate: id` an den CC-Endpoint; Response-Branch nach `type` (`cc-track`/`cc-album`/`cc-artist`) → passende View dispatchen. Kommerzieller Pfad unverändert.
-- [ ] CC-Resolve-Route: Candidate-Parsing nach Prefix (`jamendo:` Track, `jamendo-album:` Album, `jamendo-artist:` Artist). Response-Schema um die 3 Formen erweitern.
-- [ ] Browser: `genre: jazz` (CC) → 3 Spalten; Track-Klick → CC-Track-Seite; Album-Klick → CC-Album-Ansicht (Trackliste); Artist-Klick → CC-Artist-Ansicht. Kommerziell unverändert. Gates grün.
+- [x] `handleSelectGenreResult` (CC-Modus): `selectedCandidate: id` an den CC-Endpoint; Response-Branch nach `type` (`cc-track`/`cc-album`/`cc-artist`) → passende View dispatchen. Kommerzieller Pfad unverändert.
+- [x] CC-Resolve-Route: Candidate-Parsing nach Prefix (`jamendo:` Track, `jamendo-album:` Album, `jamendo-artist:` Artist). Response-Schema um die 3 Formen erweitern.
+- [x] Browser: `genre: jazz` (CC) → 3 Spalten; Track-Klick → CC-Track-Seite; Album-Klick → CC-Album-Ansicht (Trackliste); Artist-Klick → CC-Artist-Ansicht. Kommerziell unverändert. Gates grün.
 
 ---
 
@@ -65,5 +65,19 @@ CC-Album/Artist-Ansichten sind **teilbar** — die Resolve-Response trägt `id` 
 - **CC-Resolve-Architektur (bestätigt):** `cc-resolver.ts` — `CC_CANDIDATE_PREFIX = "jamendo:"`, `ccCandidateId(id)`, `parseCcCandidateId(candidateId)`, `resolveCcSelectedCandidate(candidateId) → getCcTrack`. Für Album/Artist: neue Prefixes `jamendo-album:`/`jamendo-artist:` + `parse`-Varianten + Resolver-Branches + `getCcAlbumTracks`/`getCcArtistTopTracks` im Client. Route-Handler (`routes/cc-resolve.ts:106-111`) verzweigt heute nur auf Track → um Album/Artist erweitern. `CcMediaCard`-Struktur als Vorlage für die neuen Views.
 
 ## Checklist
-- [ ] Alle Code-Refs am Execute re-verifiziert (Funktionen, Pfade, Jamendo-Params, Schema).
-- [ ] Jamendo-Probes am Execute nur einzeln + mit Pause (Rate-Limit-Regel).
+- [x] Alle Code-Refs am Execute re-verifiziert (Funktionen, Pfade, Jamendo-Params, Schema).
+- [x] Jamendo-Probes am Execute nur einzeln + mit Pause (Rate-Limit-Regel).
+
+---
+
+## Completed (2026-06-21)
+
+In drei vertikalen Scheiben umgesetzt, jede mit grünen Gates (typecheck · vitest · biome · doctor:diff) und eigenem Commit:
+
+- **Scheibe 1 — Backend CC-Album/Artist-Resolve mit Persist** (Commit `8ece9ac`): Migration `0044` (neue Tabellen `cc_album_short_urls` / `cc_artist_short_urls` nach dem kommerziellen Per-Typ-Muster), `persistCcAlbum`/`persistCcArtist` + `mintCcShortUrl`-Helfer, Wire-Types `ApiCcAlbum`/`ApiCcArtist` + `cc-album`/`cc-artist`-Responses, `getCcAlbumTracks`/`getCcArtistTopTracks`, `resolveCcCandidate` (diskriminiertes Union), Route-Switch. Resolver-Unit + Persist-Integration-Tests.
+- **Scheibe 2 — 3-Spalten-Genre-Suche (Task B)** (Commit `91827f6`): `runCcGenreSearch` leitet Album-/Artist-Spalten aus einer `/tracks?tags=`-Query ab; `getCcArtistsByIds` (`/artists?id=…`) reichert die Artist-Spalte an (Zuordnung per id, Jamendo reordert); `ccAlbumCandidateId`/`ccArtistCandidateId`-Builder. Per-Typ-Counts steuern jede Spalte. Client- + Genre-Tests.
+- **Scheibe 3 — Frontend CC-Album/Artist-Views + Klick-Routing (Tasks C/D/E)** (Commit `efd41c4`): generische `CcEntityCard` (Header + klickbare Trackliste, Row-Chrome aus der Genre-Suche wiederverwendet), `parseCcAlbumResolveResponse`/`parseCcArtistResolveResponse` + `CcResult`-Union, `dispatchCcResult` (parser-Wahl per Discriminant) + `handleSelectCcTrack`, `CcResultView` dispatcht nach Entity-kind, `CcResultType`-Namespace + `CC_TRACK_CANDIDATE_PREFIX`, en/de-Strings.
+
+**Browser-verifiziert** (agent-browser): `genre: jazz` (CC) → 3 Spalten (Tracks/Alben/Artists); Album-Klick → CC-Album-Ansicht (Header + Trackliste) → Track-Klick → CC-Track-Seite; Artist-Klick → CC-Artist-Ansicht (Top Tracks) → Track-Klick → CC-Track-Seite. Kommerzieller Pfad unverändert (Disambiguation → Result mit allen Plattform-Links + Artist-Info).
+
+**Bewusst nicht umgesetzt (YAGNI):** Vollflächen-Tile-Artwork (Goal-Zeile) — durch Task A (Composite + größeres Thumbnail) ersetzt; CC-Album/Artist-Share-Page-Konsumierung (`findCcAlbum/ArtistByShortId` + Render) — short-urls werden eager gemintet, eine Share-Route konsumiert sie noch nicht (wie beim cc-track-Flow).
