@@ -182,7 +182,7 @@ function initialShareUiState({
 
 import type { ArtistInfoStatus } from "@/components/artist/ArtistCardParts";
 import { ArtistInfoCard } from "@/components/artist/ArtistInfoCard";
-import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
+import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";

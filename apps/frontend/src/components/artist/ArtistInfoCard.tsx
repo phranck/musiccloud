@@ -14,7 +14,8 @@ import {
   useSkeletonAllowed,
 } from "@/components/artist/ArtistCardParts";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
-import { type ArtistPanelTrackResolveHandler, PopularTracksSection } from "@/components/artist/PopularTracksSection";
+import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
+import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
 import { fullWidthEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";

@@ -3,7 +3,7 @@ import { render } from "@testing-library/react";
 import gsap from "gsap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ArtistInfoStatus } from "@/components/artist/ArtistCardParts";
-import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
+import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { AnimatedArtistColumn } from "@/components/share/AnimatedArtistColumn";
 import { LocaleProvider } from "@/i18n/context";
 

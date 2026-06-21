@@ -1,6 +1,6 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistCardShell, SimilarArtistsSkeleton, useSkeletonAllowed } from "@/components/artist/ArtistCardParts";
-import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
+import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";

@@ -5,7 +5,7 @@ import type { ArtistInfoStatus } from "@/components/artist/ArtistCardParts";
 import { ArtistProfileDesktopCard } from "@/components/artist/ArtistProfileDesktopCard";
 import { EventsCard } from "@/components/artist/EventsCard";
 import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
-import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
+import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
 import { animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
 

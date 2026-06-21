@@ -1,6 +1,7 @@
 import type { SimilarArtistTrack } from "@musiccloud/shared";
 import { ArtistPanelList } from "@/components/artist/ArtistPanelList";
-import { type ArtistPanelTrackResolveHandler, PopularTrack } from "@/components/artist/PopularTracksSection";
+import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
+import { PopularTrack } from "@/components/artist/PopularTrack";
 import { CardSignal } from "@/lib/analytics/umami";
 
 interface SimilarArtistsSectionProps {
