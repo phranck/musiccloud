@@ -50,10 +50,8 @@ Reihenfolge intern: erst die A-Splits (Type-Relocation als Prerequisite), dann B
   4. **Titel-als-Props:** Type `ArtistCardLabels { profile; popularTracks; events; similar }` (in `artistPanelTypes.ts`). `ShareLayout` baut memoisiert `commercialArtistLabels` aus `t("artist.infoTitle"|"artist.popularTracks"|"artist.upcomingEvents"|"artist.similarArtists")` und reicht `labels` über `AnimatedArtistColumn`/`DesktopShareLayout` (Desktop) und `MobileArtistSheet` → `ArtistInfoCard` (Mobile) durch. CC übergibt sein eigenes `labels`-Objekt. Cards/`ArtistInfoCard` ersetzen die hardcoded `t("artist.*")`-Titel durch die Label-Props. `PopularTracksCard`/`SimilarArtistsCard` verlieren ihren `useT()` (Titel war einzige Nutzung); `EventsCard`/`ArtistProfileDesktopCard` behalten `useT()` (Footer/Notice).
 - **Wichtig:** alle drei Sections in einem Zug. Desktop muss genau ein Top-Level-Card pro Section emittieren (kein Extra-Wrapper-Div), Self-hide-`return null` bleibt; Mobile darf nie `return null` (toggelt via `visible`).
 
-### 1.5 `artist-desktop-section-card-shell` (medium)
-- Vier Desktop-Cards wiederholen dasselbe Shell-Gerüst; `ServicesCard`/`CcInfoCard` umgehen das vorhandene `ArtistCardShell`.
-- **Fix:** `ArtistCardShell` zu einem geteilten `SectionCardShell` generalisieren (nach `components/cards/`), Props `{ title; footer?; skeletonMinHeight?; animated?; className?; children }`. Vier Desktop-Cards werden dünne Wrapper (eigene show/swapKey/`min-h` als Props). `ServicesCard`/`CcInfoCard` rendern `SectionCardShell` statt inline-Header. `ArtistCardShell` als dünner Alias re-exportieren.
-- **Risiko:** `min-h` (132/186/140/205) bleiben Per-Card-Inputs. `ArtistProfileDesktopCard` behält Error-Notice-Branch + Self-hide. Mobile-Blöcke NICHT durch diese Shell routen.
+### 1.5 `artist-desktop-section-card-shell` → verschoben nach Phase 2 (2.7)
+Berührt `ServicesCard`/`CcInfoCard` in `components/cards/`, die in Phase 2 ohnehin angefasst werden — dort gebündelt, um die Files nur einmal anzufassen.
 
 ### 1.6 Klein-Dedups Artist (low)
 - `artist-providedby-footer`: Mobile-Footer-`<p>` (`ArtistInfoCard.tsx:153`, `ArtistProfileMobileCard.tsx:28`) über `sectionCardFooterTextClassName` statt Class-String neu tippen; `mt-2`→padding (CollapsibleSection padding-only).
@@ -88,6 +86,11 @@ Reihenfolge intern: erst die A-Splits (Type-Relocation als Prerequisite), dann B
 ### 2.6 `platform-grid-visible-selector` (B)
 - `AnimatedPlatformGrid.tsx:44-52` useMemo = Domain-Selektor (hidden-Filter + display-order-Sort).
 - **Fix:** pure `visiblePlatformsInDisplayOrder(platforms: PlatformLink[])` nach `lib/types/platform.ts` (auf FRONTEND-`PlatformLink` getypt, keyed `.platform`). GSAP-Flip bleibt unangetastet. „reused by dashboard"-Begründung streichen (single-call-site).
+
+### 2.7 `artist-desktop-section-card-shell` (medium, aus Phase 1 verschoben)
+- Vier Desktop-Artist-Cards wiederholen dasselbe Shell-Gerüst; `ServicesCard`/`CcInfoCard` umgehen das vorhandene `ArtistCardShell` und bauen ihren Header inline.
+- **Fix:** `ArtistCardShell` zu einem geteilten `SectionCardShell` generalisieren (nach `components/cards/`), Props `{ title; footer?; skeletonMinHeight?; animated?; className?; children }`. Die vier Desktop-Cards bleiben dünne Wrapper (eigene show/swapKey, `min-h` als Prop). `ServicesCard`/`CcInfoCard` rendern `SectionCardShell` statt inline-Header. `ArtistCardShell` als dünner Alias re-exportieren.
+- **Risiko:** `min-h` (132/186/140/205) bleiben Per-Card-Inputs. `ArtistProfileDesktopCard` behält Error-Notice-Branch + Self-hide. Mobile-Blöcke NICHT durch diese Shell routen.
 
 ---
 
