@@ -110,12 +110,17 @@ export default async function ccGenreArtworkRoutes(app: FastifyInstance) {
       // flat-colour tile with the name baked in, so the grid never shows a
       // broken tile (no 404). Only refuse on a genuinely nonsense key (above).
       const coverUrl = await getCcGenreCoverUrl(genreKey);
-      const { jpeg } = await ensureArtwork(cacheKey, coverUrl, displayName);
-      return reply
-        .code(200)
-        .header("Content-Type", "image/jpeg")
-        .header("Cache-Control", "public, max-age=31536000, immutable")
-        .send(jpeg);
+      const { jpeg, isFallback } = await ensureArtwork(cacheKey, coverUrl, displayName);
+      return (
+        reply
+          .code(200)
+          .header("Content-Type", "image/jpeg")
+          // A transient fallback (cover fetch failed) must NOT be cached
+          // immutably or it freezes in the browser; serve it `no-store` so the
+          // next view re-requests and retries the cover.
+          .header("Cache-Control", isFallback ? "no-store" : "public, max-age=31536000, immutable")
+          .send(jpeg)
+      );
     },
   );
 }
