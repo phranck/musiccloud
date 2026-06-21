@@ -12,6 +12,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { CcMediaCard } from "@/components/cards/CcMediaCard";
 import { HeroInput } from "@/components/landing/HeroInput";
 import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
 import { AppFooter } from "@/components/layout/AppFooter";
@@ -38,11 +39,11 @@ import {
   loadToast,
   preloadResolveResultRuntime,
 } from "@/lib/preload/resultRuntime";
-import { buildShareConfigFromActive } from "@/lib/resolve/parsers";
+import { buildCcShareConfig, buildShareConfigFromActive } from "@/lib/resolve/parsers";
 import { getResolveMode, setResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
 import { buildShareViewFromResolvedResponse, type ShareArtistInfoContext } from "@/lib/share/share-view";
 import { ActiveResultKind, AppStateType, InputState, ResolveMode } from "@/lib/types/app";
-import type { ShareContentConfiguration } from "@/lib/types/media-card";
+import type { CcTrackContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
 
 // Lazy-loaded panels — only pulled into the bundle when the user needs them.
 // Fallback is `null` because each is only rendered behind a visibility flag anyway.
@@ -138,6 +139,42 @@ function ActiveShareResult({
             backLabel={canGoBack ? backLabel : undefined}
           />
         </Suspense>
+      </FadeInOnMount>
+    </div>
+  );
+}
+
+interface CcTrackResultViewProps {
+  ccConfig: CcTrackContentConfiguration;
+  handleShareLogoClick: (event: MouseEvent<HTMLAnchorElement>) => void;
+  resultsPanelRef: RefObject<HTMLDivElement | null>;
+}
+
+/**
+ * Renders the Creative-Commons track result.
+ *
+ * Mirrors {@link ActiveShareResult}'s framing (home-link logo above the result)
+ * but renders the single-column {@link CcMediaCard} instead of the commercial
+ * two-column share layout — CC tracks have no artist-info column. The card
+ * column is width-capped and centred to match the share view's media column.
+ *
+ * @param ccConfig - The CC track content configuration to render.
+ * @param handleShareLogoClick - Click handler for the home link (begins the
+ *   clear/return flow, shared with the commercial result view).
+ * @param resultsPanelRef - Focus target so keyboard users land on the result.
+ */
+function CcTrackResultView({ ccConfig, handleShareLogoClick, resultsPanelRef }: CcTrackResultViewProps) {
+  return (
+    <div ref={resultsPanelRef} tabIndex={-1} className="outline-none w-full">
+      <div className="mb-4 text-center sm:mb-6">
+        <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleShareLogoClick}>
+          <LogoView className="w-56 sm:w-64 h-auto" />
+        </a>
+      </div>
+      <FadeInOnMount>
+        <div className="mx-auto w-full max-w-[512px]">
+          <CcMediaCard content={ccConfig} />
+        </div>
       </FadeInOnMount>
     </div>
   );
@@ -311,7 +348,8 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
     }
   }, [state]);
 
-  const focusActive = state.type === AppStateType.Result ? state.active : null;
+  const focusActive =
+    state.type === AppStateType.Result ? state.active : state.type === AppStateType.CcResult ? state.ccActive : null;
   const focusCandidates = state.type === AppStateType.Disambiguation ? state.candidates : null;
   const focusGenreResults = state.type === AppStateType.GenreSearch ? state.payload : null;
   const genreSearchRef = useRef<HTMLDivElement>(null);
@@ -381,6 +419,14 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
     (active ? (active.kind === ActiveResultKind.Artist ? active.name : active.artist) : "");
   const isSharePageView = !!(activeShareConfig && active && !discExitPending);
 
+  // Creative-Commons result: a self-contained state branch (no `active`,
+  // no `resolved`) carrying just the CC track. Rendered through its own
+  // single-column view, sharing the result-page framing (top-aligned, logo
+  // home link) with the commercial share view.
+  const ccConfig: CcTrackContentConfiguration | null =
+    state.type === AppStateType.CcResult ? buildCcShareConfig(state.ccActive, t) : null;
+  const isCcResultView = !!ccConfig;
+
   return (
     <>
       <LandingPageErrorAlert message={errorMessage} onDismiss={handleClear} />
@@ -388,13 +434,19 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
       <div className="flex-1 flex flex-col items-center px-4 transition-colors duration-700 relative">
         <div
           className={`flex-1 flex flex-col items-center w-full ${
-            isSharePageView ? "justify-start pt-20 sm:pt-12 md:pt-14 pb-12" : "justify-center"
+            isSharePageView || isCcResultView ? "justify-start pt-20 sm:pt-12 md:pt-14 pb-12" : "justify-center"
           }`}
         >
           {/* During return-flip staging the (invisible, pre-paint) idle branch
               must render so the field's compact position is measurable — see
               the staging layout effect. */}
-          {activeShareConfig && active && !isFieldReturnStaging && !discExitPending ? (
+          {ccConfig ? (
+            <CcTrackResultView
+              ccConfig={ccConfig}
+              handleShareLogoClick={handleShareLogoClick}
+              resultsPanelRef={resultsPanelRef}
+            />
+          ) : activeShareConfig && active && !isFieldReturnStaging && !discExitPending ? (
             <ActiveShareResult
               activeArtistName={activeArtistName}
               activeShareConfig={activeShareConfig}

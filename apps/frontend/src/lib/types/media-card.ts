@@ -153,4 +153,3 @@ export function isShareableContent(
 export function isSharePageContent(content: MediaCardContentConfiguration): content is ShareContentConfiguration {
   return content.type === MediaCardContentTypeValue.Share;
 }
-
