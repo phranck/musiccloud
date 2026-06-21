@@ -16,7 +16,7 @@ import {
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { MicrophoneStageIcon, XIcon } from "@phosphor-icons/react";
-import { type CSSProperties, useCallback, useEffect, useMemo, useReducer } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
 import { createPortal } from "react-dom";
 
 export interface ArtistInfoContext {
@@ -376,6 +376,27 @@ interface ShareLayoutProps {
   onBack?: () => void;
   /** Translated label for the back link. Required if `onBack` is given. */
   backLabel?: string;
+  /**
+   * Pre-supplied artist-column data. When `skipArtistFetch` is set, ShareLayout
+   * renders this directly and runs no internal fetch — the Creative-Commons path
+   * passes a Jamendo-built {@link ArtistInfoResponse} here. Commercial omits it.
+   */
+  artistData?: ArtistInfoResponse | null;
+  /** Suppresses the internal commercial artist-info fetch (CC has no such endpoint). */
+  skipArtistFetch?: boolean;
+  /**
+   * Card rendered below `MediaSummaryCard` in the left column. Defaults to the
+   * commercial `<ServicesCard>`. The CC path passes `<CcInfoCard>` (license /
+   * attribution). On mobile it renders below the share card only when provided
+   * (commercial keeps its platform grid inside the share card).
+   */
+  secondaryCard?: ReactNode;
+  /**
+   * Resolves a clicked popular/similar-track row. Defaults to the commercial
+   * in-place resolve (`POST /api/resolve`). The CC path passes a handler that
+   * resolves the row's `jamendo:<id>` candidate through the CC endpoint.
+   */
+  onTrackResolve?: ArtistPanelTrackResolveHandler;
 }
 
 export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
@@ -395,6 +416,10 @@ function ShareLayoutInner({
   animated = false,
   onBack,
   backLabel,
+  artistData: artistDataProp,
+  skipArtistFetch = false,
+  secondaryCard,
+  onTrackResolve,
 }: ShareLayoutProps) {
   const t = useT();
   const userRegion = useMemo(detectRegion, []);
@@ -477,8 +502,17 @@ function ShareLayoutInner({
     [currentConfig, t, vfdStatusLine],
   );
 
-  // Fetch artist data immediately (SSR already rendered the share card)
+  // Caller-supplied artist data (CC): seed the reducer directly, no fetch.
   useEffect(() => {
+    if (!skipArtistFetch) return;
+    dispatch({ type: ArtistActionType.Done, data: artistDataProp ?? null });
+    dispatchUi({ type: ShareUiActionType.ArtistFetchFinished });
+  }, [skipArtistFetch, artistDataProp]);
+
+  // Fetch artist data immediately (SSR already rendered the share card).
+  // Skipped when the caller pre-supplies it (skipArtistFetch).
+  useEffect(() => {
+    if (skipArtistFetch) return;
     let cancelled = false;
     dispatch({ type: ArtistActionType.Loading });
     const controller = new AbortController();
@@ -499,7 +533,7 @@ function ShareLayoutInner({
       controller.abort();
       clearTimeout(timeout);
     };
-  }, [currentArtistContext, currentArtistName, userRegion]);
+  }, [currentArtistContext, currentArtistName, userRegion, skipArtistFetch]);
 
   const openSheet = useCallback(() => {
     sendMusicSignal(CardSignal.ArtistInfo);
@@ -581,6 +615,9 @@ function ShareLayoutInner({
     [currentArtistContext, currentArtistName, currentConfig, t],
   );
 
+  // Commercial in-place resolve by default; the CC path injects its own handler.
+  const resolveTrack = onTrackResolve ?? handleTrackResolve;
+
   return (
     <div className="w-full">
       <ShareBackLink label={backLabel} onBack={onBack} />
@@ -592,7 +629,8 @@ function ShareLayoutInner({
         isLoading={isLoading}
         onArtistResolveStart={handleArtistResolveStart}
         onPreviewStatusChange={handlePreviewStatusChange}
-        onTrackResolve={handleTrackResolve}
+        onTrackResolve={resolveTrack}
+        secondaryCard={secondaryCard}
         userRegion={userRegion}
       />
       <MobileShareLayout
@@ -601,6 +639,7 @@ function ShareLayoutInner({
         label={t("artist.mobileButton")}
         onOpenSheet={openSheet}
         onPreviewStatusChange={handlePreviewStatusChange}
+        secondaryCard={secondaryCard}
       />
       {mounted &&
         createPortal(
@@ -611,7 +650,7 @@ function ShareLayoutInner({
             isLoading={isLoading}
             onArtistResolveStart={handleArtistResolveStart}
             onClose={closeSheet}
-            onTrackResolve={handleTrackResolve}
+            onTrackResolve={resolveTrack}
             open={sheetOpen}
             userRegion={userRegion}
           />,
@@ -640,6 +679,7 @@ interface DesktopShareLayoutProps {
   onArtistResolveStart: () => void;
   onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
   onTrackResolve: ArtistPanelTrackResolveHandler;
+  secondaryCard?: ReactNode;
   userRegion: string;
 }
 
@@ -652,6 +692,7 @@ function DesktopShareLayout({
   onArtistResolveStart,
   onPreviewStatusChange,
   onTrackResolve,
+  secondaryCard,
   userRegion,
 }: DesktopShareLayoutProps) {
   return (
@@ -659,7 +700,7 @@ function DesktopShareLayout({
       left={
         <div className="flex flex-col gap-[var(--mc-gap-cards,1.5rem)]" style={{ width: `${MEDIA_W}px` }}>
           <MediaSummaryCard content={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
-          <ServicesCard content={config} animated={animated} />
+          {secondaryCard ?? <ServicesCard content={config} animated={animated} />}
         </div>
       }
       right={
@@ -683,12 +724,21 @@ interface MobileShareLayoutProps {
   label: string;
   onOpenSheet: () => void;
   onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
+  secondaryCard?: ReactNode;
 }
 
-function MobileShareLayout({ animated, config, label, onOpenSheet, onPreviewStatusChange }: MobileShareLayoutProps) {
+function MobileShareLayout({
+  animated,
+  config,
+  label,
+  onOpenSheet,
+  onPreviewStatusChange,
+  secondaryCard,
+}: MobileShareLayoutProps) {
   return (
     <div className="block min-[1080px]:hidden">
       <SharePageCard config={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
+      {secondaryCard && <div className="mt-[var(--mc-gap-cards,1.5rem)]">{secondaryCard}</div>}
       <div className="mt-3 flex justify-center px-3">
         <EmbossedButton
           as="button"
