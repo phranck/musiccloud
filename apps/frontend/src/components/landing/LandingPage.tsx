@@ -3,6 +3,7 @@ import type { NavItem } from "@musiccloud/shared";
 import {
   lazy,
   type MouseEvent,
+  type ReactNode,
   type RefObject,
   Suspense,
   useCallback,
@@ -12,8 +13,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { CcEntityLayout } from "@/components/cards/CcEntityLayout";
-import { CcMediaCard } from "@/components/cards/CcMediaCard";
+import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { HeroInput } from "@/components/landing/HeroInput";
 import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
 import { AppFooter } from "@/components/layout/AppFooter";
@@ -40,7 +40,12 @@ import {
   loadToast,
   preloadResolveResultRuntime,
 } from "@/lib/preload/resultRuntime";
-import { buildCcShareConfig, buildShareConfigFromActive } from "@/lib/resolve/parsers";
+import {
+  buildCcEntityHeaderConfig,
+  buildCcShareConfig,
+  buildShareConfigFromActive,
+  ccTrackToShareConfig,
+} from "@/lib/resolve/parsers";
 import { getResolveMode, setResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
 import { buildShareViewFromResolvedResponse, type ShareArtistInfoContext } from "@/lib/share/share-view";
 import { ActiveResultKind, AppStateType, type CcResult, InputState, ResolveMode } from "@/lib/types/app";
@@ -147,29 +152,87 @@ function ActiveShareResult({
 
 type CcViewTFunc = (key: string, vars?: Record<string, string>) => string;
 
-interface CcResultViewProps {
+interface CcShareResultProps {
   ccActive: CcResult;
   handleSelectCcTrack: (candidateId: string) => Promise<void>;
   handleShareLogoClick: (event: MouseEvent<HTMLAnchorElement>) => void;
   resultsPanelRef: RefObject<HTMLDivElement | null>;
+  canGoBack: boolean;
+  handleBack: () => void;
   t: CcViewTFunc;
 }
 
 /**
- * Renders any resolved Creative-Commons entity (track, album or artist).
+ * Picks the per-kind {@link ShareLayout} props for a resolved CC entity. The left
+ * media card is always a `ShareContentConfiguration`; only the track carries a
+ * player (`previewUrl`) and a `CcInfoCard` secondary (license / attribution).
+ * Album/artist pass no secondary card — the default `ServicesCard` self-hides on
+ * the CC config's empty platforms.
  *
- * Mirrors {@link ActiveShareResult}'s framing (home-link logo above the result)
- * and dispatches on the entity kind via {@link CcResultCard}, which lays the
- * album/artist views out in the same two-column grid as the commercial share
- * view (cover/player left, track list right).
+ * @param ccActive - The resolved CC entity.
+ * @param t - Translation function.
+ * @returns The `config`, `artistName` and optional `secondaryCard` for ShareLayout.
+ */
+function ccShareLayoutProps(
+  ccActive: CcResult,
+  t: CcViewTFunc,
+): { config: ShareContentConfiguration; artistName: string; secondaryCard?: ReactNode } {
+  if (ccActive.kind === ActiveResultKind.CcAlbum) {
+    return {
+      config: buildCcEntityHeaderConfig({
+        title: ccActive.title,
+        artist: ccActive.artist,
+        artworkUrl: ccActive.artworkUrl,
+        metaLine: ccActive.releaseDate?.slice(0, 4),
+        shortUrl: ccActive.shareUrl,
+      }),
+      artistName: ccActive.artist,
+    };
+  }
+  if (ccActive.kind === ActiveResultKind.CcArtist) {
+    return {
+      config: buildCcEntityHeaderConfig({
+        title: ccActive.name,
+        artist: "",
+        artworkUrl: ccActive.imageUrl,
+        shortUrl: ccActive.shareUrl,
+      }),
+      artistName: ccActive.name,
+    };
+  }
+  return {
+    config: ccTrackToShareConfig(ccActive),
+    artistName: ccActive.artist,
+    secondaryCard: <CcInfoCard content={buildCcShareConfig(ccActive, t)} />,
+  };
+}
+
+/**
+ * Renders any resolved Creative-Commons entity (track, album or artist) through
+ * the SAME {@link ShareLayout} as the commercial result — only the data source
+ * differs. CC supplies a Jamendo-built `artistData` (skipping the commercial
+ * artist-info fetch), a CC track-resolve handler, and (for a track) the
+ * `CcInfoCard` license/attribution as the secondary card. The Back-to-discovery
+ * button, popular/similar-track column and two-column layout all come for free.
  *
  * @param ccActive - The resolved CC entity from app state.
- * @param handleSelectCcTrack - Resolves a clicked album/artist track row.
+ * @param handleSelectCcTrack - Resolves a clicked popular/similar track row.
  * @param handleShareLogoClick - Home-link handler (begins the clear/return flow).
  * @param resultsPanelRef - Focus target so keyboard users land on the result.
- * @param t - Translation function for the pre-computed labels.
+ * @param canGoBack - Whether a genre-search screen is on the navigation stack.
+ * @param handleBack - Pops the navigation stack back to the genre-search results.
+ * @param t - Translation function.
  */
-function CcResultView({ ccActive, handleSelectCcTrack, handleShareLogoClick, resultsPanelRef, t }: CcResultViewProps) {
+function CcShareResult({
+  ccActive,
+  handleSelectCcTrack,
+  handleShareLogoClick,
+  resultsPanelRef,
+  canGoBack,
+  handleBack,
+  t,
+}: CcShareResultProps) {
+  const { config, artistName, secondaryCard } = ccShareLayoutProps(ccActive, t);
   return (
     <div ref={resultsPanelRef} tabIndex={-1} className="outline-none w-full">
       <div className="mb-4 text-center sm:mb-6">
@@ -178,65 +241,19 @@ function CcResultView({ ccActive, handleSelectCcTrack, handleShareLogoClick, res
         </a>
       </div>
       <FadeInOnMount>
-        <CcResultCard ccActive={ccActive} onSelectTrack={handleSelectCcTrack} t={t} />
+        <Suspense fallback={<ShareResultPlaceholder />}>
+          <ShareLayout
+            config={config}
+            artistName={artistName}
+            artistData={ccActive.artistInfo}
+            skipArtistFetch
+            secondaryCard={secondaryCard}
+            onTrackResolve={(track) => handleSelectCcTrack(track.deezerUrl)}
+            onBack={canGoBack ? handleBack : undefined}
+            backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
+          />
+        </Suspense>
       </FadeInOnMount>
-    </div>
-  );
-}
-
-/**
- * Picks the view for a resolved CC entity by its kind: the single-column
- * {@link CcMediaCard} for a track, and the two-column {@link CcEntityLayout}
- * (cover/player left, track list right) for an album or artist — the same grid
- * the commercial share view uses. Labels and the album meta line are
- * pre-translated here so the shared layout stays presentational.
- *
- * @param ccActive - The resolved CC entity.
- * @param onSelectTrack - Resolves a clicked track row to the CC track page.
- * @param t - Translation function.
- */
-function CcResultCard({
-  ccActive,
-  onSelectTrack,
-  t,
-}: {
-  ccActive: CcResult;
-  onSelectTrack: (candidateId: string) => Promise<void>;
-  t: CcViewTFunc;
-}) {
-  if (ccActive.kind === ActiveResultKind.CcAlbum) {
-    return (
-      <CcEntityLayout
-        artworkUrl={ccActive.artworkUrl}
-        title={ccActive.title}
-        subtitle={ccActive.artist}
-        metaLine={ccActive.releaseDate?.slice(0, 4)}
-        shortUrl={ccActive.shareUrl}
-        tracks={ccActive.tracks}
-        tracksLabel={t("genreSearch.tracks", { count: String(ccActive.tracks.length) })}
-        emptyLabel={t("genreSearch.empty")}
-        onSelectTrack={onSelectTrack}
-      />
-    );
-  }
-
-  if (ccActive.kind === ActiveResultKind.CcArtist) {
-    return (
-      <CcEntityLayout
-        artworkUrl={ccActive.imageUrl}
-        title={ccActive.name}
-        shortUrl={ccActive.shareUrl}
-        tracks={ccActive.topTracks}
-        tracksLabel={t("cc.topTracks", { count: String(ccActive.topTracks.length) })}
-        emptyLabel={t("genreSearch.empty")}
-        onSelectTrack={onSelectTrack}
-      />
-    );
-  }
-
-  return (
-    <div className="mx-auto w-full max-w-[512px]">
-      <CcMediaCard content={buildCcShareConfig(ccActive, t)} />
     </div>
   );
 }
@@ -502,11 +519,13 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
               must render so the field's compact position is measurable — see
               the staging layout effect. */}
           {ccActive ? (
-            <CcResultView
+            <CcShareResult
               ccActive={ccActive}
               handleSelectCcTrack={handleSelectCcTrack}
               handleShareLogoClick={handleShareLogoClick}
               resultsPanelRef={resultsPanelRef}
+              canGoBack={canGoBack}
+              handleBack={handleBack}
               t={t}
             />
           ) : activeShareConfig && active && !isFieldReturnStaging && !discExitPending ? (

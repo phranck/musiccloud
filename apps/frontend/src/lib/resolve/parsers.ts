@@ -1,6 +1,5 @@
 import type {
   AlbumResolveSuccessResponse,
-  ApiCcTrack,
   ArtistResolveSuccessResponse,
   CcAlbumResolveSuccessResponse,
   CcArtistResolveSuccessResponse,
@@ -17,10 +16,8 @@ import {
   type AppAction,
   AppStateType,
   type ArtistResult,
-  CC_TRACK_CANDIDATE_PREFIX,
   type CcAlbumResult,
   type CcArtistResult,
-  type CcEntityTrack,
   type CcTrackResult,
   type ReducerState,
   type ResolveUiError,
@@ -176,32 +173,15 @@ export function parseCcResolveResponse(data: CcResolveSuccessResponse): CcTrackR
     waveform: data.track.waveform,
     jamendoUrl: data.track.shareUrl,
     shareUrl: data.shortUrl,
-  };
-}
-
-/**
- * Maps a wire CC track (carried inside an album/artist payload) to a
- * {@link CcEntityTrack} row, prebuilding the `jamendo:<id>` click-through
- * candidate id so a row click resolves straight to the CC track page.
- *
- * @param track - A CC track from an album's `tracks` / artist's `topTracks`.
- * @returns The track row for the album/artist view.
- */
-function toCcEntityTrack(track: ApiCcTrack): CcEntityTrack {
-  return {
-    candidateId: `${CC_TRACK_CANDIDATE_PREFIX}${track.jamendoId}`,
-    title: track.title,
-    artist: track.artistName,
-    durationMs: track.durationMs,
-    artworkUrl: track.artworkUrl ?? "",
+    artistInfo: data.artistInfo,
   };
 }
 
 /**
  * Maps a {@link CcAlbumResolveSuccessResponse} to a {@link CcAlbumResult} for the
- * app state. The album's tracks travel live (not persisted) and become clickable
- * {@link CcEntityTrack} rows; `jamendoUrl` is the album's own Jamendo page and
- * `shareUrl` is the musiccloud short URL from the response envelope.
+ * app state. `artistInfo` (the album's tracks + similar tracks, built by the
+ * backend) drives the shared artist column; `jamendoUrl` is the album's Jamendo
+ * page and `shareUrl` is the musiccloud short URL.
  *
  * @param data - The raw CC album resolve success payload.
  * @returns A fully mapped `CcAlbumResult`.
@@ -216,14 +196,14 @@ export function parseCcAlbumResolveResponse(data: CcAlbumResolveSuccessResponse)
     artworkUrl: data.album.artworkUrl ?? "",
     jamendoUrl: data.album.shareUrl,
     shareUrl: data.shortUrl,
-    tracks: data.album.tracks.map(toCcEntityTrack),
+    artistInfo: data.artistInfo,
   };
 }
 
 /**
  * Maps a {@link CcArtistResolveSuccessResponse} to a {@link CcArtistResult} for
- * the app state. The artist's top tracks travel live (not persisted) and become
- * clickable {@link CcEntityTrack} rows.
+ * the app state. `artistInfo` (the artist's top tracks + similar tracks) drives
+ * the shared artist column.
  *
  * @param data - The raw CC artist resolve success payload.
  * @returns A fully mapped `CcArtistResult`.
@@ -236,7 +216,7 @@ export function parseCcArtistResolveResponse(data: CcArtistResolveSuccessRespons
     imageUrl: data.artist.imageUrl ?? "",
     jamendoUrl: data.artist.shareUrl,
     shareUrl: data.shortUrl,
-    topTracks: data.artist.topTracks.map(toCcEntityTrack),
+    artistInfo: data.artistInfo,
   };
 }
 
@@ -510,5 +490,31 @@ export function buildCcEntityHeaderConfig(opts: {
     platformsLabel: "",
     platformsLabelKey: "",
     shortUrl: opts.shortUrl,
+  };
+}
+
+/**
+ * Builds the {@link MediaSummaryCard} config for a resolved CC track: the shared
+ * entity header plus the full-stream player (`previewUrl = streamUrl`) and album
+ * line. The audio player seeds a placeholder duration and overrides it from the
+ * real stream, so passing the full stream URL plays the whole track. Used as
+ * `ShareLayout.config` for the CC track page (the CC license/attribution lives in
+ * the separate `CcInfoCard` secondary slot).
+ *
+ * @param cc - The resolved CC track from app state.
+ * @returns The share-content configuration for the track's left media card.
+ */
+export function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
+  return {
+    ...buildCcEntityHeaderConfig({
+      title: cc.title,
+      artist: cc.artist,
+      artworkUrl: cc.artworkUrl,
+      metaLine: buildMetaLine({ durationMs: cc.durationMs, releaseDate: cc.releaseDate }) || undefined,
+      shortUrl: cc.shareUrl,
+    }),
+    album: cc.album,
+    previewUrl: cc.streamUrl,
+    shortId: shortIdFromShortUrl(cc.shareUrl),
   };
 }

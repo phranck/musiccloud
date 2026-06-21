@@ -29,12 +29,17 @@ export function ArtistProfileDesktopCard({ data, isLoading, status }: ArtistProf
   }
 
   if (!isLoading && (!data || !data.profile)) {
+    // No profile data: an error still surfaces a notice, but a clean empty
+    // profile (e.g. a CC result — Jamendo supplies no artist profile) self-hides
+    // so the column shows only its populated cards, matching the
+    // PopularTracks/Events/SimilarArtists self-hide behaviour.
+    if (effectiveStatus !== "error") return null;
     return (
       <ArtistCardShell title={t("artist.infoTitle")}>
         <div className="px-3 pt-0 pb-3">
           <RecessedCard className="p-4 min-h-[108px]">
             <RecessedCard.Body>
-              <ArtistNoticeContent message={effectiveStatus === "error" ? t("artist.error") : t("artist.empty")} />
+              <ArtistNoticeContent message={t("artist.error")} />
             </RecessedCard.Body>
           </RecessedCard>
         </div>

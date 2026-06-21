@@ -3,6 +3,7 @@ import type {
   ApiGenreArtistCandidate,
   ApiGenreTile,
   ApiGenreTrackCandidate,
+  ArtistInfoResponse,
   UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import type { DisambiguationCandidate } from "./disambiguation";
@@ -101,15 +102,6 @@ export const CcResultType = {
 
 export type CcResultType = (typeof CcResultType)[keyof typeof CcResultType];
 
-/**
- * Candidate-id prefix the CC resolve endpoint expects for a single track. The
- * backend mints genre-search track ids in this exact form (`jamendo:<id>`); the
- * album / artist views rebuild it from each row's bare `jamendoId` so a track
- * click resolves to the CC track page. Must stay in sync with
- * `services/cc/cc-resolver.ts#CC_CANDIDATE_PREFIX`.
- */
-export const CC_TRACK_CANDIDATE_PREFIX = "jamendo:";
-
 export const AppStateType = {
   Idle: "idle",
   Loading: "loading",
@@ -204,30 +196,13 @@ export interface CcTrackResult {
   jamendoUrl?: string;
   /** musiccloud short URL for this result (e.g. `https://musi.cc/abc123`). */
   shareUrl: string;
+  /** Right-column data (track-artist popular tracks + similar tracks) for the shared artist column. */
+  artistInfo: ArtistInfoResponse;
 }
 
 /**
- * A track row inside a CC album or artist view. Carries the prebuilt
- * `candidateId` (`jamendo:<id>`) so a click resolves straight to the CC track
- * page through the same `selectedCandidate` flow the genre-search rows use.
- */
-export interface CcEntityTrack {
-  /** `jamendo:<jamendoId>` — fed back as `selectedCandidate` on click. */
-  candidateId: string;
-  /** Track title. */
-  title: string;
-  /** Primary artist name. */
-  artist: string;
-  /** Track duration in milliseconds, if available. */
-  durationMs?: number;
-  /** Track cover-art URL (falls back to a placeholder). */
-  artworkUrl: string;
-}
-
-/**
- * A resolved Creative Commons album from Jamendo: the album entity plus its
- * track list. Like {@link CcTrackResult} it has no `platforms` — the tracks are
- * the navigable content. `shareUrl` is the musiccloud short URL; `jamendoUrl` is
+ * A resolved Creative Commons album from Jamendo: the album header plus its
+ * artist-column data. `shareUrl` is the musiccloud short URL; `jamendoUrl` is
  * the canonical Jamendo album page.
  */
 export interface CcAlbumResult {
@@ -239,12 +214,13 @@ export interface CcAlbumResult {
   artworkUrl: string;
   jamendoUrl?: string;
   shareUrl: string;
-  tracks: CcEntityTrack[];
+  /** Right-column data (the album's tracks + similar tracks) for the shared artist column. */
+  artistInfo: ArtistInfoResponse;
 }
 
 /**
- * A resolved Creative Commons artist from Jamendo: the artist entity plus its
- * most-popular tracks. `shareUrl` is the musiccloud short URL; `jamendoUrl` is
+ * A resolved Creative Commons artist from Jamendo: the artist header plus its
+ * artist-column data. `shareUrl` is the musiccloud short URL; `jamendoUrl` is
  * the canonical Jamendo artist page.
  */
 export interface CcArtistResult {
@@ -254,7 +230,8 @@ export interface CcArtistResult {
   imageUrl: string;
   jamendoUrl?: string;
   shareUrl: string;
-  topTracks: CcEntityTrack[];
+  /** Right-column data (the artist's top tracks + similar tracks) for the shared artist column. */
+  artistInfo: ArtistInfoResponse;
 }
 
 /**

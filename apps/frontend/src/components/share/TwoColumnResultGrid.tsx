@@ -2,11 +2,11 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Fixed column geometry shared by every desktop two-column result view. Both the
- * commercial share layout (`ShareLayout`/`DesktopShareLayout`) and the CC
- * album/artist layout (`CcEntityLayout`) render through {@link TwoColumnResultGrid},
- * so these widths are the single source of truth — keep the Tailwind grid track
- * literal (`grid-cols-[512px_512px]`) in sync with `MEDIA_W`/`ARTIST_W` here.
+ * Fixed column geometry for the desktop two-column result view. `ShareLayout`'s
+ * `DesktopShareLayout` renders through {@link TwoColumnResultGrid} for both
+ * commercial and Creative-Commons results, so these widths are the single source
+ * of truth — keep the Tailwind grid track literal (`grid-cols-[512px_512px]`) in
+ * sync with `MEDIA_W`/`ARTIST_W` here.
  */
 export const MEDIA_W = 512;
 export const ARTIST_W = 512;
