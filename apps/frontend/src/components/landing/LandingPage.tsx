@@ -385,7 +385,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
   const handleEscapeKey = useEffectEvent((e: KeyboardEvent) => {
     if (e.key !== "Escape" || !showCompact) return;
     e.preventDefault();
-    if (active) {
+    if (active || isCcResultView) {
       beginShareExit();
       return;
     }

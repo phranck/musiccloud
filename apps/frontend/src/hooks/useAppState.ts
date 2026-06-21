@@ -23,6 +23,7 @@ import {
 import {
   type ActiveResult,
   type AppState,
+  AppStateType,
   CcTrackType,
   type GenreSearchPayload,
   type ReducerState,
@@ -93,6 +94,7 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
   const showCompact = !!(
     (screen.type === "loading" && screen.compact) ||
     active ||
+    screen.type === AppStateType.CcResult ||
     candidates ||
     genreBrowseGenres ||
     genreSearchPayload
