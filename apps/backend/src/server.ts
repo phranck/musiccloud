@@ -29,6 +29,7 @@ import adminSseRoutes from "./routes/admin-sse.js";
 import adminUserRoutes from "./routes/admin-users.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import authRoutes from "./routes/auth.js";
+import ccResolveRoutes from "./routes/cc-resolve.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
@@ -441,6 +442,7 @@ async function buildApp() {
     protectedApp.addHook("preHandler", protectedApp.authenticatePublic);
 
     await protectedApp.register(resolveRoutes);
+    await protectedApp.register(ccResolveRoutes);
     await protectedApp.register(linkRoutes);
   });
 
