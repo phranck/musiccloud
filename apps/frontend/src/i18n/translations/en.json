@@ -50,7 +50,6 @@
   "cc.openOnJamendo": "Open on Jamendo",
   "cc.opensInNewWindow": "opens in new window",
   "cc.topTracks": "Top Tracks ({count})",
-  "cc.openTrack": "Open {title} by {artist}",
   "share.copyLink": "Copy share link to clipboard",
   "share.shareLink": "Copy Share Link",
   "share.copied": "Copied!",

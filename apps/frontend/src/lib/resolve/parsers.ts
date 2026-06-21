@@ -26,12 +26,13 @@ import {
   type ResolveUiError,
   type SongResult,
 } from "@/lib/types/app";
-import type {
-  AlbumContentConfiguration,
-  ArtistContentConfiguration,
-  CcTrackContentConfiguration,
-  ShareContentConfiguration,
-  SongContentConfiguration,
+import {
+  type AlbumContentConfiguration,
+  type ArtistContentConfiguration,
+  type CcTrackContentConfiguration,
+  MediaCardContentTypeValue,
+  type ShareContentConfiguration,
+  type SongContentConfiguration,
 } from "@/lib/types/media-card";
 import type { PlatformLink } from "@/lib/types/platform";
 
@@ -474,5 +475,40 @@ export function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentC
     downloadAllowed: cc.downloadAllowed,
     jamendoUrl: cc.jamendoUrl,
     waveform: cc.waveform,
+  };
+}
+
+/**
+ * Builds the {@link MediaSummaryCard}-compatible header config for a CC entity
+ * (album or artist), reusing the same `type: "share"` shape the commercial media
+ * card uses: empty platform fields (CC has no cross-service links) and the
+ * musiccloud short URL for the share button. No `previewUrl` — an album/artist has
+ * no single stream, so the summary card renders cover + info + share without a
+ * player. The CC track card's `ccSummaryConfig` builds on this base too (DRY).
+ *
+ * @param opts.title - Header primary line (album title or artist name).
+ * @param opts.artist - Header secondary line (album artist; empty for an artist).
+ * @param opts.artworkUrl - Cover / avatar URL.
+ * @param opts.metaLine - Optional pre-built meta line.
+ * @param opts.shortUrl - musiccloud short URL backing the share button.
+ * @returns The share-content configuration for the entity header.
+ */
+export function buildCcEntityHeaderConfig(opts: {
+  title: string;
+  artist: string;
+  artworkUrl: string;
+  metaLine?: string;
+  shortUrl: string;
+}): ShareContentConfiguration {
+  return {
+    type: MediaCardContentTypeValue.Share,
+    title: opts.title,
+    artist: opts.artist,
+    artworkUrl: opts.artworkUrl,
+    metaLine: opts.metaLine,
+    platforms: [],
+    platformsLabel: "",
+    platformsLabelKey: "",
+    shortUrl: opts.shortUrl,
   };
 }

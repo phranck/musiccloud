@@ -1,11 +1,8 @@
 import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
-import {
-  type CcTrackContentConfiguration,
-  MediaCardContentTypeValue,
-  type ShareContentConfiguration,
-} from "@/lib/types/media-card";
+import { buildCcEntityHeaderConfig } from "@/lib/resolve/parsers";
+import type { CcTrackContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
 
 interface CcMediaCardProps {
   content: CcTrackContentConfiguration;
@@ -37,18 +34,16 @@ interface CcMediaCardProps {
  */
 function ccSummaryConfig(content: CcTrackContentConfiguration): ShareContentConfiguration {
   return {
-    type: MediaCardContentTypeValue.Share,
-    title: content.title,
-    artist: content.artist,
+    ...buildCcEntityHeaderConfig({
+      title: content.title,
+      artist: content.artist,
+      artworkUrl: content.artworkUrl,
+      metaLine: content.metaLine,
+      shortUrl: content.shortUrl,
+    }),
     album: content.album,
-    artworkUrl: content.artworkUrl,
-    metaLine: content.metaLine,
     previewUrl: content.streamUrl,
     shortId: content.shortId,
-    platforms: [],
-    platformsLabel: "",
-    platformsLabelKey: "",
-    shortUrl: content.shortUrl,
   };
 }
 

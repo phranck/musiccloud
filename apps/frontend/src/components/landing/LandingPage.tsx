@@ -12,7 +12,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { CcEntityCard } from "@/components/cards/CcEntityCard";
+import { CcEntityLayout } from "@/components/cards/CcEntityLayout";
 import { CcMediaCard } from "@/components/cards/CcMediaCard";
 import { HeroInput } from "@/components/landing/HeroInput";
 import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
@@ -149,7 +149,7 @@ type CcViewTFunc = (key: string, vars?: Record<string, string>) => string;
 
 interface CcResultViewProps {
   ccActive: CcResult;
-  handleSelectCcTrack: (candidateId: string) => void;
+  handleSelectCcTrack: (candidateId: string) => Promise<void>;
   handleShareLogoClick: (event: MouseEvent<HTMLAnchorElement>) => void;
   resultsPanelRef: RefObject<HTMLDivElement | null>;
   t: CcViewTFunc;
@@ -159,8 +159,9 @@ interface CcResultViewProps {
  * Renders any resolved Creative-Commons entity (track, album or artist).
  *
  * Mirrors {@link ActiveShareResult}'s framing (home-link logo above the result)
- * and dispatches on the entity kind via {@link CcResultCard}. The card column is
- * width-capped and centred to match the commercial share view's media column.
+ * and dispatches on the entity kind via {@link CcResultCard}, which lays the
+ * album/artist views out in the same two-column grid as the commercial share
+ * view (cover/player left, track list right).
  *
  * @param ccActive - The resolved CC entity from app state.
  * @param handleSelectCcTrack - Resolves a clicked album/artist track row.
@@ -177,19 +178,18 @@ function CcResultView({ ccActive, handleSelectCcTrack, handleShareLogoClick, res
         </a>
       </div>
       <FadeInOnMount>
-        <div className="mx-auto w-full max-w-[512px]">
-          <CcResultCard ccActive={ccActive} onSelectTrack={handleSelectCcTrack} t={t} />
-        </div>
+        <CcResultCard ccActive={ccActive} onSelectTrack={handleSelectCcTrack} t={t} />
       </FadeInOnMount>
     </div>
   );
 }
 
 /**
- * Picks the card for a resolved CC entity by its kind: {@link CcMediaCard} for a
- * track, {@link CcEntityCard} for an album (header + track list) or artist
- * (header + top tracks). Labels and the album meta line are pre-translated here
- * so the shared card stays presentational.
+ * Picks the view for a resolved CC entity by its kind: the single-column
+ * {@link CcMediaCard} for a track, and the two-column {@link CcEntityLayout}
+ * (cover/player left, track list right) for an album or artist — the same grid
+ * the commercial share view uses. Labels and the album meta line are
+ * pre-translated here so the shared layout stays presentational.
  *
  * @param ccActive - The resolved CC entity.
  * @param onSelectTrack - Resolves a clicked track row to the CC track page.
@@ -201,14 +201,12 @@ function CcResultCard({
   t,
 }: {
   ccActive: CcResult;
-  onSelectTrack: (candidateId: string) => void;
+  onSelectTrack: (candidateId: string) => Promise<void>;
   t: CcViewTFunc;
 }) {
-  const trackAriaLabel = (title: string, artist: string) => t("cc.openTrack", { title, artist });
-
   if (ccActive.kind === ActiveResultKind.CcAlbum) {
     return (
-      <CcEntityCard
+      <CcEntityLayout
         artworkUrl={ccActive.artworkUrl}
         title={ccActive.title}
         subtitle={ccActive.artist}
@@ -217,7 +215,6 @@ function CcResultCard({
         tracks={ccActive.tracks}
         tracksLabel={t("genreSearch.tracks", { count: String(ccActive.tracks.length) })}
         emptyLabel={t("genreSearch.empty")}
-        trackAriaLabel={trackAriaLabel}
         onSelectTrack={onSelectTrack}
       />
     );
@@ -225,20 +222,23 @@ function CcResultCard({
 
   if (ccActive.kind === ActiveResultKind.CcArtist) {
     return (
-      <CcEntityCard
+      <CcEntityLayout
         artworkUrl={ccActive.imageUrl}
         title={ccActive.name}
         shortUrl={ccActive.shareUrl}
         tracks={ccActive.topTracks}
         tracksLabel={t("cc.topTracks", { count: String(ccActive.topTracks.length) })}
         emptyLabel={t("genreSearch.empty")}
-        trackAriaLabel={trackAriaLabel}
         onSelectTrack={onSelectTrack}
       />
     );
   }
 
-  return <CcMediaCard content={buildCcShareConfig(ccActive, t)} />;
+  return (
+    <div className="mx-auto w-full max-w-[512px]">
+      <CcMediaCard content={buildCcShareConfig(ccActive, t)} />
+    </div>
+  );
 }
 
 function LiveExampleTeaser({
