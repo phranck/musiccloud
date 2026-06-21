@@ -2,17 +2,16 @@
  * @file Serves procedurally generated Creative-Commons genre artworks.
  *
  * The CC browse grid references one of these per tile via `artworkUrl`. The
- * tile is rendered to look identical to the commercial genre tiles — a
- * representative cover with the genre name baked into the upper-left at the
- * same font, size, and margins — by reusing the shared
- * `services/genre-artwork` generator. The only difference from the commercial
- * route is the cover source: the CC path stays 100% Jamendo and pulls the
- * cover from a representative Jamendo album, never Last.fm or Deezer.
+ * tile fills the frame with a representative Jamendo album cover and bakes the
+ * genre name into the upper-left — same font, size, and margins as the
+ * commercial tiles, via the shared `services/genre-artwork` generator's
+ * `cover` style. The CC path stays 100% Jamendo: the cover comes from a
+ * representative Jamendo album, never Last.fm or Deezer.
  *
  * On a cache hit the JPEG comes straight out of Postgres (keyed `cc:<genreKey>`
  * so CC and commercial artworks never collide on the shared `genre_artworks`
- * table); on a miss the service fetches the Jamendo cover, samples its dominant
- * hue, and synthesises a deterministic atmospheric image.
+ * table); on a miss the service fetches the Jamendo cover, fills the tile with
+ * it, scrims the top for legibility, and bakes the name in.
  *
  * Marked immutable in `Cache-Control`: the same (genre, algorithm) pair always
  * produces the same bytes, so browsers and CDNs can hold the response
@@ -111,7 +110,7 @@ export default async function ccGenreArtworkRoutes(app: FastifyInstance) {
       // flat-colour tile with the name baked in, so the grid never shows a
       // broken tile (no 404). Only refuse on a genuinely nonsense key (above).
       const coverUrl = await getCcGenreCoverUrl(genreKey);
-      const { jpeg } = await ensureArtwork(cacheKey, coverUrl, displayName);
+      const { jpeg } = await ensureArtwork(cacheKey, coverUrl, displayName, "cover");
       return reply
         .code(200)
         .header("Content-Type", "image/jpeg")

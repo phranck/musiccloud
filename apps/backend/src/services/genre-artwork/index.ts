@@ -16,7 +16,7 @@
 import { fetchWithTimeout } from "../../lib/infra/fetch.js";
 import { log } from "../../lib/infra/logger.js";
 import { extractColorsFromBuffer } from "./color-extractor.js";
-import { generateArtwork } from "./generator.js";
+import { generateArtwork, generateCoverTileArtwork } from "./generator.js";
 import { getArtwork, type StoredArtwork, saveArtwork } from "./repository.js";
 
 export type { StoredArtwork } from "./repository.js";
@@ -34,6 +34,7 @@ export async function ensureArtwork(
   genreKey: string,
   coverUrl: string | null,
   displayName: string,
+  style: "composite" | "cover" = "composite",
 ): Promise<StoredArtwork> {
   const cached = await getArtwork(genreKey);
   if (cached) return cached;
@@ -61,7 +62,13 @@ export async function ensureArtwork(
       }
     }
 
-    const jpeg = await generateArtwork(displayName, coverBuffer, tileColor);
+    // `cover` style (CC) fills the tile with the Jamendo cover + a baked name;
+    // falls back to the flat-colour composite when no cover decoded. `composite`
+    // (commercial default) always uses the Spotify-style tile.
+    const jpeg =
+      style === "cover" && coverBuffer
+        ? await generateCoverTileArtwork(displayName, coverBuffer)
+        : await generateArtwork(displayName, coverBuffer, tileColor);
     await saveArtwork(genreKey, jpeg, tileColor, coverUrl);
     return { jpeg, accentColor: tileColor };
   })().finally(() => {
