@@ -165,7 +165,7 @@ export interface ApiGenreTile {
   name: string;
   /** Capitalised display name for the UI. */
   displayName: string;
-  /** URL of the procedurally generated artwork (`/api/v1/genre-artwork/<name>`). */
+  /** Procedurally generated artwork URL — the Astro frontend proxy path `/api/genre-artwork/<name>` with a `?v=<version>` cache-bust query; the proxy forwards to the backend's v1 route, which generates and caches the image on first hit. */
   artworkUrl: string;
   /**
    * Dominant accent hex derived from the genre's top album cover. Present
