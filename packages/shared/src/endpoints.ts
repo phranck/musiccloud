@@ -61,6 +61,10 @@ export const ENDPOINTS = {
     link: (id: string) => `/api/v1/link/${id}`,
     /** GET `/api/v1/genre-artwork/:genreKey`: procedurally generated genre cover. */
     genreArtwork: (genreKey: string) => `/api/v1/genre-artwork/${encodeURIComponent(genreKey)}`,
+    /** GET `/api/v1/cc/genre-artwork/:genreKey`: procedurally generated CC genre cover,
+     *  sourced from a Jamendo album cover. Mirrors {@link genreArtwork} but stays
+     *  100% Jamendo so the Creative-Commons path never touches Last.fm. */
+    ccGenreArtwork: (genreKey: string) => `/api/v1/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
     siteSettings: {
       /** GET: public site settings exposed to the frontend (currently: tracking flag). */
       tracking: "/api/v1/site-settings/tracking",
@@ -116,6 +120,8 @@ export const ENDPOINTS = {
     sharePreview: (shortId: string) => `/api/share-preview/${encodeURIComponent(shortId)}`,
     /** GET: forwarded to `ENDPOINTS.v1.genreArtwork`. */
     genreArtwork: (genreKey: string) => `/api/genre-artwork/${encodeURIComponent(genreKey)}`,
+    /** GET: forwarded to `ENDPOINTS.v1.ccGenreArtwork`. CC genre tile cover (Jamendo-sourced). */
+    ccGenreArtwork: (genreKey: string) => `/api/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
     /** GET: handled entirely by Astro (`pages/api/redirect.ts`): takes `?url=`,
      * calls `ENDPOINTS.v1.resolve`, then 302s to the resolved share page. */
     redirect: "/api/redirect",
@@ -283,6 +289,8 @@ export const ROUTE_TEMPLATES = {
     sharePreview: "/api/v1/share/:shortId/preview",
     link: "/api/v1/link/:id",
     genreArtwork: "/api/v1/genre-artwork/:genreKey",
+    /** Route template for ENDPOINTS.v1.ccGenreArtwork (CC genre tile cover, Jamendo-sourced). */
+    ccGenreArtwork: "/api/v1/cc/genre-artwork/:genreKey",
     nav: "/api/v1/nav/:navId",
     contentDetail: "/api/v1/content/:slug",
   },

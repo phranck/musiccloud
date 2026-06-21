@@ -6,9 +6,11 @@
  * the required `client_id`, and maps raw responses to CC domain objects.
  */
 
+import { decodeHtmlEntities } from "../../../lib/html.js";
 import type {
   CcAlbum,
   CcArtist,
+  CcGenre,
   CcTrack,
   JamendoAlbumRaw,
   JamendoArtistRaw,
@@ -49,9 +51,37 @@ function requireClientId(): string {
   return id;
 }
 
+// ── Jamendo request throttle ──────────────────────────────────────────────
+//
+// Jamendo rate-limits request bursts (a handful of requests per second with no
+// spacing trips it). EVERY Jamendo call in the CC path funnels through
+// `jamendoFetch`, so one shared throttle here keeps the whole path under the
+// limit: requests run serially, each starting at least `JAMENDO_MIN_GAP_MS`
+// after the previous one settled. Combined with the permanent `genre_artworks`
+// cache (a genre's cover is fetched once, ever), steady-state load is near
+// zero — the only burst is the one-time browse-grid artwork generation, which
+// this spaces out safely. The gap is env-overridable (tests set it to 0).
+const JAMENDO_MIN_GAP_MS = Number(process.env.JAMENDO_MIN_GAP_MS ?? 350);
+let jamendoGate: Promise<void> = Promise.resolve();
+
+/**
+ * Runs `task` after the previous Jamendo request, spaced by
+ * {@link JAMENDO_MIN_GAP_MS}. The shared gate is advanced regardless of the
+ * task's outcome, so one failed request never wedges the queue. The caller
+ * still receives the task's real result or error.
+ */
+function throttleJamendo<T>(task: () => Promise<T>): Promise<T> {
+  const result = jamendoGate.then(task);
+  const spacer = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, JAMENDO_MIN_GAP_MS));
+  jamendoGate = result.then(spacer, spacer);
+  return result;
+}
+
 /**
  * Low-level GET against a Jamendo endpoint. Adds `client_id`, `format=json`
- * and every provided param, then validates the response envelope.
+ * and every provided param, then validates the response envelope. Every call
+ * is funnelled through {@link throttleJamendo} so the CC path stays under
+ * Jamendo's burst rate limit.
  *
  * @typeParam T - Element type of the `results` array.
  * @param path - Endpoint path below the API base, e.g. `/tracks`.
@@ -60,23 +90,25 @@ function requireClientId(): string {
  * @throws Error on transport failure, non-OK HTTP, or `status === "failed"`.
  */
 export async function jamendoFetch<T>(path: string, params: Record<string, string | number | undefined>): Promise<T[]> {
-  const url = new URL(`${JAMENDO_BASE}${path}`);
-  url.searchParams.set("client_id", requireClientId());
-  url.searchParams.set("format", "json");
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === "") continue;
-    url.searchParams.set(key, String(value));
-  }
+  return throttleJamendo(async () => {
+    const url = new URL(`${JAMENDO_BASE}${path}`);
+    url.searchParams.set("client_id", requireClientId());
+    url.searchParams.set("format", "json");
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined || value === "") continue;
+      url.searchParams.set(key, String(value));
+    }
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Jamendo request failed: HTTP ${response.status}`);
-  }
-  const body = (await response.json()) as JamendoEnvelope<T>;
-  if (body.headers.status !== "success") {
-    throw new Error(`Jamendo API error: ${body.headers.error_message ?? body.headers.code}`);
-  }
-  return body.results;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Jamendo request failed: HTTP ${response.status}`);
+    }
+    const body = (await response.json()) as JamendoEnvelope<T>;
+    if (body.headers.status !== "success") {
+      throw new Error(`Jamendo API error: ${body.headers.error_message ?? body.headers.code}`);
+    }
+    return body.results;
+  });
 }
 
 /**
@@ -90,10 +122,10 @@ export async function jamendoFetch<T>(path: string, params: Record<string, strin
 export function mapJamendoTrack(raw: JamendoTrackRaw): CcTrack {
   return {
     jamendoId: raw.id,
-    title: raw.name,
-    artistName: raw.artist_name,
+    title: decodeHtmlEntities(raw.name),
+    artistName: decodeHtmlEntities(raw.artist_name),
     jamendoArtistId: raw.artist_id,
-    albumName: raw.album_name || undefined,
+    albumName: raw.album_name ? decodeHtmlEntities(raw.album_name) : undefined,
     jamendoAlbumId: raw.album_id || undefined,
     artworkUrl: raw.image || raw.album_image || undefined,
     durationMs: raw.duration ? raw.duration * 1000 : undefined,
@@ -165,9 +197,9 @@ export async function getSimilarCcTracks(seedJamendoId: string, limit = 12): Pro
 export function mapJamendoAlbum(raw: JamendoAlbumRaw): CcAlbum {
   return {
     jamendoId: raw.id,
-    name: raw.name,
+    name: decodeHtmlEntities(raw.name),
     jamendoArtistId: raw.artist_id,
-    artistName: raw.artist_name,
+    artistName: decodeHtmlEntities(raw.artist_name),
     artworkUrl: raw.image || undefined,
     releaseDate: raw.releasedate || undefined,
     zipUrl: raw.zip || undefined,
@@ -184,7 +216,7 @@ export function mapJamendoAlbum(raw: JamendoAlbumRaw): CcAlbum {
 export function mapJamendoArtist(raw: JamendoArtistRaw): CcArtist {
   return {
     jamendoId: raw.id,
-    name: raw.name,
+    name: decodeHtmlEntities(raw.name),
     website: raw.website || undefined,
     imageUrl: raw.image || undefined,
     shareUrl: raw.shareurl || undefined,
@@ -215,4 +247,109 @@ export async function getCcArtist(jamendoId: string): Promise<CcArtist | null> {
   const raw = await jamendoFetch<JamendoArtistRaw>("/artists", { id: jamendoId, limit: 1 });
   const first = raw[0];
   return first ? mapJamendoArtist(first) : null;
+}
+
+/**
+ * The curated Creative-Commons genre set surfaced by the `genre:?` browse grid.
+ *
+ * Jamendo exposes no "top genres" endpoint — its `/radios` list is only ~14
+ * editorial stations — so this is a hand-curated list of Jamendo genre tags,
+ * each verified to return tracks via `tags=<name>`. `name` is the exact
+ * lowercase Jamendo tag used for both the genre search and the artwork cover
+ * lookup; `displayName` is the human label rendered on the tile and baked into
+ * the generated artwork. Ordered roughly by familiarity so the grid reads
+ * top-down.
+ */
+const CC_GENRES: CcGenre[] = [
+  { name: "rock", displayName: "Rock" },
+  { name: "pop", displayName: "Pop" },
+  { name: "electro", displayName: "Electronic" },
+  { name: "hiphop", displayName: "Hip Hop" },
+  { name: "jazz", displayName: "Jazz" },
+  { name: "classical", displayName: "Classical" },
+  { name: "metal", displayName: "Metal" },
+  { name: "folk", displayName: "Folk" },
+  { name: "indie", displayName: "Indie" },
+  { name: "alternative", displayName: "Alternative" },
+  { name: "punk", displayName: "Punk" },
+  { name: "grunge", displayName: "Grunge" },
+  { name: "postrock", displayName: "Post-Rock" },
+  { name: "blues", displayName: "Blues" },
+  { name: "reggae", displayName: "Reggae" },
+  { name: "ska", displayName: "Ska" },
+  { name: "funk", displayName: "Funk" },
+  { name: "soul", displayName: "Soul" },
+  { name: "rnb", displayName: "R&B" },
+  { name: "gospel", displayName: "Gospel" },
+  { name: "disco", displayName: "Disco" },
+  { name: "house", displayName: "House" },
+  { name: "deephouse", displayName: "Deep House" },
+  { name: "techno", displayName: "Techno" },
+  { name: "trance", displayName: "Trance" },
+  { name: "dubstep", displayName: "Dubstep" },
+  { name: "drumnbass", displayName: "Drum & Bass" },
+  { name: "breakbeat", displayName: "Breakbeat" },
+  { name: "edm", displayName: "EDM" },
+  { name: "dance", displayName: "Dance" },
+  { name: "synthwave", displayName: "Synthwave" },
+  { name: "electronica", displayName: "Electronica" },
+  { name: "downtempo", displayName: "Downtempo" },
+  { name: "chillout", displayName: "Chillout" },
+  { name: "ambient", displayName: "Ambient" },
+  { name: "lounge", displayName: "Lounge" },
+  { name: "newage", displayName: "New Age" },
+  { name: "world", displayName: "World" },
+  { name: "latin", displayName: "Latin" },
+  { name: "country", displayName: "Country" },
+  { name: "swing", displayName: "Swing" },
+  { name: "experimental", displayName: "Experimental" },
+  { name: "psychedelic", displayName: "Psychedelic" },
+  { name: "instrumental", displayName: "Instrumental" },
+  { name: "acoustic", displayName: "Acoustic" },
+  { name: "soundtrack", displayName: "Soundtrack" },
+  { name: "cinematic", displayName: "Cinematic" },
+  { name: "orchestral", displayName: "Orchestral" },
+  { name: "piano", displayName: "Piano" },
+];
+
+/**
+ * Returns the curated CC genre set (see {@link CC_GENRES}).
+ *
+ * Async to keep a stable provider contract for the browse service and the
+ * artwork route's per-tile `displayName` lookups; the list is static, so no
+ * Jamendo round-trip happens.
+ *
+ * @returns The curated Jamendo genres (Jamendo tag + display label).
+ */
+export async function getCcGenres(): Promise<CcGenre[]> {
+  return CC_GENRES;
+}
+
+/**
+ * Fetches the URL of a high-resolution cover representative of a genre, used
+ * as the source image for the CC genre tile artwork.
+ *
+ * Queries `GET /tracks` for the genre's most-popular track and returns its
+ * 600px album cover. Jamendo's genre tags live on tracks, not albums: an
+ * `/albums?tags=` query ignores the tag and returns the same globally-popular
+ * album for every genre, so the cover must come from a tag-filtered track
+ * query — the same source {@link searchCcTracks} uses. This keeps the CC genre
+ * tile cover 100% Jamendo, never Last.fm or any commercial fallback. A `null`
+ * return (no track, or no image on the top track) is the expected no-cover
+ * signal — the artwork generator then renders a flat-colour tile with the
+ * genre name baked in, so the grid never shows a broken tile.
+ *
+ * @param genre - The Jamendo genre tag, e.g. `"jazz"` (the `CcGenre.name`).
+ * @returns The high-res cover URL, or `null` when Jamendo returned no usable
+ *   image for the genre.
+ * @throws Error on missing client id or API failure (see {@link jamendoFetch}).
+ */
+export async function getCcGenreCoverUrl(genre: string): Promise<string | null> {
+  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks", {
+    tags: genre,
+    order: "popularity_total",
+    imagesize: 600,
+    limit: 1,
+  });
+  return raw[0]?.image || raw[0]?.album_image || null;
 }

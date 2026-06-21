@@ -63,6 +63,24 @@ export interface JamendoArtistRaw {
 }
 
 /**
+ * A Jamendo genre in musiccloud's domain shape. Drives the CC browse grid:
+ * `name` feeds `tags=<name>` track searches and the genre-artwork cover
+ * lookup; `displayName` is the human label. The set is a hand-curated list of
+ * Jamendo genre tags (see `CC_GENRES` in `client.ts`) — Jamendo has no
+ * dedicated "top genres" endpoint.
+ *
+ * No tile-cover field: the browse tile cover is the procedurally generated
+ * CC genre artwork (genre name baked into a representative Jamendo album
+ * cover), served by the `/api/v1/cc/genre-artwork/:genreKey` route.
+ */
+export interface CcGenre {
+  /** Jamendo genre tag used in `tags=` track searches, e.g. `"jazz"`. */
+  name: string;
+  /** Human label for the UI tile, e.g. `"Jazz"`. */
+  displayName: string;
+}
+
+/**
  * A Creative-Commons track in musiccloud's domain shape.
  * `durationMs` is milliseconds (Jamendo reports seconds; the mapper multiplies).
  */

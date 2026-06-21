@@ -21,8 +21,10 @@ import { requireEnvList } from "../lib/env.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
+import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
 import { resolveCcSelectedCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
 import type { CcTrack } from "../services/cc/jamendo/types.js";
+import { GenreQueryParseError, isGenreBrowseQuery, isGenreSearchQuery } from "../services/genre-search/index.js";
 
 const ALLOWED_ORIGINS = requireEnvList("ALLOWED_ORIGINS");
 
@@ -46,13 +48,14 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
         },
         response: {
           200: {
-            description: "A CC disambiguation list or a resolved cc-track.",
+            description:
+              'A CC disambiguation list, a resolved cc-track, or a CC genre-discovery result (`status: "genre-browse"` / `status: "genre-search"`, sourced from Jamendo).',
             oneOf: [
               { $ref: "ResolveDisambiguation#" },
               {
                 type: "object",
                 additionalProperties: true,
-                description: "Resolved cc-track success payload.",
+                description: "Resolved cc-track success payload or CC genre-browse/genre-search response.",
               },
             ],
           },
@@ -80,6 +83,25 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
 
       try {
         const origin = getOrigin(request.headers.origin);
+
+        // CC genre discovery. Detected by the `genre:` prefix, handled
+        // entirely from Jamendo (browse = `/radios`, search = `/tracks?tags=`).
+        // The CC path routes ALL queries, genre included — never the
+        // commercial genre endpoint. Non-committal: nothing is persisted here,
+        // the follow-up resolve fires when the user clicks a result.
+        if (query && isGenreBrowseQuery(query)) {
+          return reply.send(await runCcGenreBrowse());
+        }
+        if (query && isGenreSearchQuery(query)) {
+          try {
+            return reply.send(await runCcGenreSearch(query));
+          } catch (err) {
+            if (err instanceof GenreQueryParseError) {
+              return reply.status(400).send(ccError("INVALID_URL", err.message));
+            }
+            throw err;
+          }
+        }
 
         if (selectedCandidate) {
           const track = await resolveCcSelectedCandidate(selectedCandidate);

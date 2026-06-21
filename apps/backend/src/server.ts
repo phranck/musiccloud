@@ -29,6 +29,7 @@ import adminSseRoutes from "./routes/admin-sse.js";
 import adminUserRoutes from "./routes/admin-users.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import authRoutes from "./routes/auth.js";
+import ccGenreArtworkRoutes from "./routes/cc-genre-artwork.js";
 import ccResolveRoutes from "./routes/cc-resolve.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
@@ -421,6 +422,11 @@ async function buildApp() {
 
   // Genre artwork endpoint (public, no auth - referenced from browse grid tiles)
   await app.register(genreArtworkRoutes);
+
+  // CC genre artwork endpoint (public, no auth - referenced from CC browse grid
+  // tiles). Same per-IP rate-limit exemption as the commercial route above: it
+  // never calls `apiRateLimiter`, only the global 300/min ceiling applies.
+  await app.register(ccGenreArtworkRoutes);
 
   // Site settings (public read for SSR)
   await app.register(siteSettingsPublicRoutes);

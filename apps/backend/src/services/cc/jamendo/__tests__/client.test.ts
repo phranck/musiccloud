@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getCcAlbum, getCcArtist, getCcTrack, getSimilarCcTracks, searchCcTracks } from "../client.js";
+import {
+  getCcAlbum,
+  getCcArtist,
+  getCcGenreCoverUrl,
+  getCcGenres,
+  getCcTrack,
+  getSimilarCcTracks,
+  searchCcTracks,
+} from "../client.js";
 import type { JamendoAlbumRaw, JamendoArtistRaw, JamendoEnvelope, JamendoTrackRaw } from "../types.js";
 
 const SAMPLE_TRACK: JamendoTrackRaw = {
@@ -61,6 +69,19 @@ describe("searchCcTracks", () => {
       downloadAllowed: true,
       waveform: '{"peaks":[0,12,40,255]}',
     });
+  });
+
+  it("decodes HTML entities in track title / artist / album (Jamendo returns them raw)", async () => {
+    mockJamendo({
+      headers: { status: "success", code: 0, results_count: 1 },
+      results: [
+        { ...SAMPLE_TRACK, name: "R&amp;B Jam", artist_name: "Bessonn&amp;sa", album_name: "Best &#39;n More" },
+      ],
+    });
+
+    const tracks = await searchCcTracks({ tags: "rnb" });
+
+    expect(tracks[0]).toMatchObject({ title: "R&B Jam", artistName: "Bessonn&sa", albumName: "Best 'n More" });
   });
 
   it("passes client_id and structured fields to the request URL", async () => {
@@ -197,5 +218,83 @@ describe("getCcArtist", () => {
     );
     const artist = await getCcArtist("338723");
     expect(artist).toMatchObject({ jamendoId: "338723", name: "Sample Artist", website: "https://example.org" });
+  });
+});
+
+describe("getCcGenres", () => {
+  it("returns the curated CC genre set with human display labels", async () => {
+    const genres = await getCcGenres();
+
+    expect(genres.length).toBeGreaterThanOrEqual(40);
+    // Sampled entries: lowercase Jamendo tag → human display label.
+    expect(genres).toContainEqual({ name: "jazz", displayName: "Jazz" });
+    expect(genres).toContainEqual({ name: "hiphop", displayName: "Hip Hop" });
+    expect(genres).toContainEqual({ name: "drumnbass", displayName: "Drum & Bass" });
+    // Editorial mixes / non-genres must never appear as a clickable tile.
+    expect(genres.some((g) => g.name === "bestof")).toBe(false);
+  });
+
+  it("exposes unique, non-empty, lowercase Jamendo tags", async () => {
+    const genres = await getCcGenres();
+    const names = genres.map((g) => g.name);
+
+    expect(new Set(names).size).toBe(names.length);
+    for (const g of genres) {
+      expect(g.name).toMatch(/^[a-z]+$/);
+      expect(g.displayName.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("getCcGenreCoverUrl", () => {
+  beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("returns the top track's album cover from /tracks (genre tags filter tracks, not albums)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const url = await getCcGenreCoverUrl("jazz");
+
+    expect(url).toBe(SAMPLE_TRACK.image);
+    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("/tracks");
+    expect(calledUrl).toContain("tags=jazz");
+    expect(calledUrl).toContain("order=popularity_total");
+    expect(calledUrl).toContain("imagesize=600");
+    expect(calledUrl).toContain("limit=1");
+  });
+
+  it("falls back to album_image when the top track has no image", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          headers: { status: "success", code: 0, results_count: 1 },
+          results: [{ ...SAMPLE_TRACK, image: "" }],
+        }),
+      } as Response),
+    );
+
+    expect(await getCcGenreCoverUrl("jazz")).toBe(SAMPLE_TRACK.album_image);
+  });
+
+  it("returns null when Jamendo returned no track", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ headers: { status: "success", code: 0, results_count: 0 }, results: [] }),
+      } as Response),
+    );
+
+    expect(await getCcGenreCoverUrl("doesnotexist")).toBeNull();
   });
 });
