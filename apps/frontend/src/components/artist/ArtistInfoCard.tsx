@@ -5,7 +5,7 @@
  */
 
 import type { ArtistInfoResponse } from "@musiccloud/shared";
-import { XIcon } from "@phosphor-icons/react";
+import { ArtistCardCloseButton } from "@/components/artist/ArtistCardCloseButton";
 import {
   type ArtistInfoStatus,
   EventsSkeleton,
@@ -13,6 +13,7 @@ import {
   TracksSkeleton,
   useSkeletonAllowed,
 } from "@/components/artist/ArtistCardParts";
+import { ArtistInfoNoticeCard } from "@/components/artist/ArtistInfoNoticeCard";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
@@ -93,16 +94,7 @@ export function ArtistInfoCard({
   return (
     <EmbossedCard className={fullWidthEmbossedCardClassName}>
       <div className="relative">
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-3 right-3 z-10 p-1.5 rounded-full text-text-secondary hover:text-text-primary hover:bg-white/[0.08] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-            aria-label={t("artist.closeInfo")}
-          >
-            <XIcon size={16} weight="duotone" />
-          </button>
-        )}
+        {onClose && <ArtistCardCloseButton onClose={onClose} />}
 
         {/* 1. Artist Profile */}
         <ArtistProfileMobileCard
@@ -176,33 +168,6 @@ export function ArtistInfoCard({
             </RecessedCard.Body>
           </RecessedCard>
         </CollapsibleSection>
-      </div>
-    </EmbossedCard>
-  );
-}
-
-function ArtistInfoNoticeCard({ onClose, message }: { onClose?: () => void; message: string }) {
-  const t = useT();
-  return (
-    <EmbossedCard className={fullWidthEmbossedCardClassName}>
-      <div className="relative">
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-3 right-3 z-10 p-1.5 rounded-full text-text-secondary hover:text-text-primary hover:bg-white/[0.08] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-            aria-label={t("artist.closeInfo")}
-          >
-            <XIcon size={16} weight="duotone" />
-          </button>
-        )}
-        <div className="p-3">
-          <RecessedCard className="p-4 min-h-[108px]">
-            <RecessedCard.Body>
-              <p className="text-sm text-text-secondary text-center">{message}</p>
-            </RecessedCard.Body>
-          </RecessedCard>
-        </div>
       </div>
     </EmbossedCard>
   );
