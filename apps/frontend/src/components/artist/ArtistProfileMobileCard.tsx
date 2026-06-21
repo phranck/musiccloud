@@ -1,6 +1,8 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistProfileCard } from "@/components/artist/ArtistProfileCard";
+import { sectionCardFooterTextClassName } from "@/components/cards/sectionCardChromeStyles";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { cn } from "@/lib/utils";
 
 type ArtistProfile = ArtistInfoResponse["profile"];
 
@@ -25,7 +27,7 @@ export function ArtistProfileMobileCard({
           bottom edge doesn't slide up against the artwork. */}
       <ArtistProfileCard profile={profile} showInitialSkeleton={showInitialSkeleton} />
       {providedByLabel && (
-        <p className="mc-txt-info mt-2 text-xs text-text-muted text-center px-2">{providedByLabel}</p>
+        <p className={cn("mc-txt-info", sectionCardFooterTextClassName, "mt-2 px-2")}>{providedByLabel}</p>
       )}
     </CollapsibleSection>
   );

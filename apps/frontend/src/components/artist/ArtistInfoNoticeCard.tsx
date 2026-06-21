@@ -1,7 +1,7 @@
 import { ArtistCardCloseButton } from "@/components/artist/ArtistCardCloseButton";
+import { ArtistNoticeWell } from "@/components/artist/ArtistNoticeWell";
 import { fullWidthEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
-import { RecessedCard } from "@/components/cards/RecessedCard";
 
 interface ArtistInfoNoticeCardProps {
   /** Optional close handler; when present a close button is shown top-right. */
@@ -23,11 +23,7 @@ export function ArtistInfoNoticeCard({ onClose, message }: ArtistInfoNoticeCardP
       <div className="relative">
         {onClose && <ArtistCardCloseButton onClose={onClose} />}
         <div className="p-3">
-          <RecessedCard className="p-4 min-h-[108px]">
-            <RecessedCard.Body>
-              <p className="text-sm text-text-secondary text-center">{message}</p>
-            </RecessedCard.Body>
-          </RecessedCard>
+          <ArtistNoticeWell message={message} />
         </div>
       </div>
     </EmbossedCard>

@@ -1,9 +1,8 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
-import { ArtistNoticeContent } from "@/components/artist/ArtistNoticeContent";
+import { ArtistNoticeWell } from "@/components/artist/ArtistNoticeWell";
 import { ArtistProfileCard } from "@/components/artist/ArtistProfileCard";
 import type { ArtistInfoStatus } from "@/components/artist/artistPanelTypes";
-import { RecessedCard } from "@/components/cards/RecessedCard";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useT } from "@/i18n/localeContext";
 
@@ -42,11 +41,7 @@ export function ArtistProfileDesktopCard({ title, data, isLoading, status }: Art
     return (
       <ArtistCardShell title={title}>
         <div className="px-3 pt-0 pb-3">
-          <RecessedCard className="p-4 min-h-[108px]">
-            <RecessedCard.Body>
-              <ArtistNoticeContent message={t("artist.error")} />
-            </RecessedCard.Body>
-          </RecessedCard>
+          <ArtistNoticeWell message={t("artist.error")} />
         </div>
       </ArtistCardShell>
     );

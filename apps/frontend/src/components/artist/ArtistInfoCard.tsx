@@ -23,9 +23,11 @@ import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
 import { fullWidthEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { sectionCardFooterTextClassName } from "@/components/cards/sectionCardChromeStyles";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useLocale, useT } from "@/i18n/localeContext";
+import { cn } from "@/lib/utils";
 
 interface ArtistInfoCardProps {
   data: ArtistInfoResponse | null;
@@ -137,7 +139,7 @@ export function ArtistInfoCard({
             <UpcomingEventsSection events={data?.events ?? []} userRegion={userRegion} locale={locale} />
           </ArtistSectionWell>
           {!showInitialSkeleton && data && data.events.length > 0 && (
-            <p className="mt-2 text-xs text-text-muted text-center px-2">{t("artist.eventsProvidedBy")}</p>
+            <p className={cn(sectionCardFooterTextClassName, "mt-2 px-2")}>{t("artist.eventsProvidedBy")}</p>
           )}
         </CollapsibleSection>
 
