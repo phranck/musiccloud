@@ -1,6 +1,9 @@
 import type {
   AlbumResolveSuccessResponse,
+  ApiCcTrack,
   ArtistResolveSuccessResponse,
+  CcAlbumResolveSuccessResponse,
+  CcArtistResolveSuccessResponse,
   CcResolveSuccessResponse,
   ResolveSuccessResponse,
   UnifiedResolveSuccessResponse,
@@ -14,6 +17,10 @@ import {
   type AppAction,
   AppStateType,
   type ArtistResult,
+  CC_TRACK_CANDIDATE_PREFIX,
+  type CcAlbumResult,
+  type CcArtistResult,
+  type CcEntityTrack,
   type CcTrackResult,
   type ReducerState,
   type ResolveUiError,
@@ -168,6 +175,67 @@ export function parseCcResolveResponse(data: CcResolveSuccessResponse): CcTrackR
     waveform: data.track.waveform,
     jamendoUrl: data.track.shareUrl,
     shareUrl: data.shortUrl,
+  };
+}
+
+/**
+ * Maps a wire CC track (carried inside an album/artist payload) to a
+ * {@link CcEntityTrack} row, prebuilding the `jamendo:<id>` click-through
+ * candidate id so a row click resolves straight to the CC track page.
+ *
+ * @param track - A CC track from an album's `tracks` / artist's `topTracks`.
+ * @returns The track row for the album/artist view.
+ */
+function toCcEntityTrack(track: ApiCcTrack): CcEntityTrack {
+  return {
+    candidateId: `${CC_TRACK_CANDIDATE_PREFIX}${track.jamendoId}`,
+    title: track.title,
+    artist: track.artistName,
+    durationMs: track.durationMs,
+    artworkUrl: track.artworkUrl ?? "",
+  };
+}
+
+/**
+ * Maps a {@link CcAlbumResolveSuccessResponse} to a {@link CcAlbumResult} for the
+ * app state. The album's tracks travel live (not persisted) and become clickable
+ * {@link CcEntityTrack} rows; `jamendoUrl` is the album's own Jamendo page and
+ * `shareUrl` is the musiccloud short URL from the response envelope.
+ *
+ * @param data - The raw CC album resolve success payload.
+ * @returns A fully mapped `CcAlbumResult`.
+ */
+export function parseCcAlbumResolveResponse(data: CcAlbumResolveSuccessResponse): CcAlbumResult {
+  return {
+    kind: ActiveResultKind.CcAlbum,
+    jamendoId: data.album.jamendoId,
+    title: data.album.name,
+    artist: data.album.artistName,
+    releaseDate: data.album.releaseDate,
+    artworkUrl: data.album.artworkUrl ?? "",
+    jamendoUrl: data.album.shareUrl,
+    shareUrl: data.shortUrl,
+    tracks: data.album.tracks.map(toCcEntityTrack),
+  };
+}
+
+/**
+ * Maps a {@link CcArtistResolveSuccessResponse} to a {@link CcArtistResult} for
+ * the app state. The artist's top tracks travel live (not persisted) and become
+ * clickable {@link CcEntityTrack} rows.
+ *
+ * @param data - The raw CC artist resolve success payload.
+ * @returns A fully mapped `CcArtistResult`.
+ */
+export function parseCcArtistResolveResponse(data: CcArtistResolveSuccessResponse): CcArtistResult {
+  return {
+    kind: ActiveResultKind.CcArtist,
+    jamendoId: data.artist.jamendoId,
+    name: data.artist.name,
+    imageUrl: data.artist.imageUrl ?? "",
+    jamendoUrl: data.artist.shareUrl,
+    shareUrl: data.shortUrl,
+    topTracks: data.artist.topTracks.map(toCcEntityTrack),
   };
 }
 

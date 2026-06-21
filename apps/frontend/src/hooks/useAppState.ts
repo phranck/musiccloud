@@ -1,4 +1,6 @@
 import {
+  type CcAlbumResolveSuccessResponse,
+  type CcArtistResolveSuccessResponse,
   type CcResolveSuccessResponse,
   ENDPOINTS,
   type ResolveDisambiguationResponse,
@@ -14,6 +16,8 @@ import { CardSignal, GenreSignal, ResolveSignal, SearchSignal, sendMusicSignal }
 import {
   appReducer,
   formatResolveErrorMessage,
+  parseCcAlbumResolveResponse,
+  parseCcArtistResolveResponse,
   parseCcResolveResponse,
   parseResolveError,
   parseResolveResponse,
@@ -22,15 +26,19 @@ import {
 } from "@/lib/resolve/parsers";
 import {
   type ActiveResult,
+  type AppAction,
   type AppState,
   AppStateType,
-  CcTrackType,
+  CcResultType,
   type GenreSearchPayload,
   type ReducerState,
   ResolveMode,
   type ResolveUiError,
 } from "@/lib/types/app";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
+
+/** The three CC resolve success shapes the endpoint can return for a candidate. */
+type CcResolveData = CcResolveSuccessResponse | CcAlbumResolveSuccessResponse | CcArtistResolveSuccessResponse;
 
 interface UseAppStateResult {
   state: AppState;
@@ -52,6 +60,7 @@ interface UseAppStateResult {
   handleSubmit: (url: string) => Promise<void>;
   handleSelectCandidate: (candidate: DisambiguationCandidate) => Promise<void>;
   handleSelectGenreResult: (webUrl: string, id: string) => Promise<void>;
+  handleSelectCcTrack: (candidateId: string) => Promise<void>;
   handleBack: () => void;
   handleClear: () => void;
 }
@@ -124,7 +133,7 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
           | ResolveDisambiguationResponse
           | ResolveGenreBrowseResponse
           | ResolveGenreSearchResponse
-          | CcResolveSuccessResponse;
+          | CcResolveData;
         if ("status" in data && data.status === "disambiguation") {
           sendMusicSignal(ResolveSignal.Completed);
           dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
@@ -149,9 +158,9 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
           });
           return;
         }
-        if ("type" in data && data.type === CcTrackType.CcTrack) {
+        if ("type" in data && isCcResolveData(data)) {
           sendMusicSignal(ResolveSignal.Completed);
-          dispatch({ type: "RESOLVE_CC_SUCCESS", ccActive: parseCcResolveResponse(data) });
+          dispatchCcResult(dispatch, data);
           return;
         }
         const resolved = data as UnifiedResolveSuccessResponse;
@@ -185,9 +194,9 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
           throw new ResolveApiError(errorData);
         }
         if (mode === ResolveMode.Cc) {
-          const data = (await response.json()) as CcResolveSuccessResponse;
+          const data = (await response.json()) as CcResolveData;
           sendMusicSignal(ResolveSignal.Completed);
-          dispatch({ type: "RESOLVE_CC_SUCCESS", ccActive: parseCcResolveResponse(data) });
+          dispatchCcResult(dispatch, data);
         } else {
           const data = (await response.json()) as ResolveSuccessResponse;
           const resolved: UnifiedResolveSuccessResponse = { ...data, type: "track" };
@@ -236,9 +245,9 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
           throw new ResolveApiError(errorData);
         }
         if (mode === ResolveMode.Cc) {
-          const data = (await response.json()) as CcResolveSuccessResponse;
+          const data = (await response.json()) as CcResolveData;
           sendMusicSignal(ResolveSignal.Completed);
-          dispatch({ type: "RESOLVE_CC_SUCCESS", ccActive: parseCcResolveResponse(data) });
+          dispatchCcResult(dispatch, data);
         } else {
           const data = (await response.json()) as UnifiedResolveSuccessResponse;
           sendMusicSignal(ResolveSignal.Completed);
@@ -251,6 +260,40 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
     },
     [mode],
   );
+
+  /**
+   * Click on a track row inside a CC album or artist view.
+   *
+   * Always resolves through the CC endpoint (album/artist tracks are always
+   * Jamendo): the row's prebuilt `jamendo:<id>` candidate id is sent as
+   * `selectedCandidate`, and the resulting `cc-track` payload swaps the view to
+   * the CC track page. No mode branch — the caller only exists in CC views.
+   *
+   * @param candidateId - The row's `jamendo:<id>` candidate id.
+   */
+  const handleSelectCcTrack = useCallback(async (candidateId: string) => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const response = await fetch(ENDPOINTS.frontend.ccResolve, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selectedCandidate: candidateId }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
+        throw new ResolveApiError(errorData);
+      }
+      const data = (await response.json()) as CcResolveData;
+      sendMusicSignal(ResolveSignal.Completed);
+      dispatchCcResult(dispatch, data);
+    } catch (err) {
+      sendResolveFailedSignal(err);
+      dispatchResolveError(dispatch, err);
+    }
+  }, []);
 
   const handleClear = useCallback(() => {
     dispatch({ type: "CLEAR_START" });
@@ -280,6 +323,7 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
     handleSubmit,
     handleSelectCandidate,
     handleSelectGenreResult,
+    handleSelectCcTrack,
     handleBack,
     handleClear,
   };
@@ -287,6 +331,34 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
 
 function dispatchResolveError(dispatch: Dispatch<{ type: "ERROR"; error: ResolveUiError }>, err: unknown): void {
   dispatch({ type: "ERROR", error: parseResolveError(err) });
+}
+
+/**
+ * Type guard: true when a resolve payload is one of the three CC success shapes.
+ * Lets the commercial submit path tell a CC result apart from a unified
+ * (`track`/`album`/`artist`) commercial result by its `cc-*` discriminant.
+ */
+function isCcResolveData(data: { type?: string }): data is CcResolveData {
+  return (
+    data.type === CcResultType.CcTrack || data.type === CcResultType.CcAlbum || data.type === CcResultType.CcArtist
+  );
+}
+
+/**
+ * Dispatches the right `RESOLVE_CC_SUCCESS` for a CC resolve payload, picking the
+ * parser by the `cc-track` / `cc-album` / `cc-artist` discriminant. Shared by
+ * every CC resolve path so the type-to-parser mapping lives in one place.
+ */
+function dispatchCcResult(dispatch: Dispatch<AppAction>, data: CcResolveData): void {
+  if (data.type === CcResultType.CcAlbum) {
+    dispatch({ type: "RESOLVE_CC_SUCCESS", ccActive: parseCcAlbumResolveResponse(data) });
+    return;
+  }
+  if (data.type === CcResultType.CcArtist) {
+    dispatch({ type: "RESOLVE_CC_SUCCESS", ccActive: parseCcArtistResolveResponse(data) });
+    return;
+  }
+  dispatch({ type: "RESOLVE_CC_SUCCESS", ccActive: parseCcResolveResponse(data) });
 }
 
 function sendResolveFailedSignal(err: unknown): void {

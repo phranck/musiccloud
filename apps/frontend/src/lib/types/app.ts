@@ -81,21 +81,34 @@ export const ActiveResultKind = {
   Album: "album",
   Artist: "artist",
   CcSong: "cc-song",
+  CcAlbum: "cc-album",
+  CcArtist: "cc-artist",
 } as const;
 
 /**
- * Discriminant namespace for CC track responses.
+ * Discriminant namespace for CC resolve responses.
  *
- * The single member `CcTrack` matches the `type` field emitted by the
- * CC resolve endpoint (`"cc-track"`). Using this namespace instead of
- * inline string literals keeps the domain-literals Doctor rule green
- * and ensures all comparisons point to a single source of truth.
+ * Members match the `type` field emitted by the CC resolve endpoint
+ * (`"cc-track"` / `"cc-album"` / `"cc-artist"`). Using this namespace instead of
+ * inline string literals keeps the domain-literals Doctor rule green and ensures
+ * all comparisons point to a single source of truth.
  */
-export const CcTrackType = {
+export const CcResultType = {
   CcTrack: "cc-track",
+  CcAlbum: "cc-album",
+  CcArtist: "cc-artist",
 } as const;
 
-export type CcTrackType = (typeof CcTrackType)[keyof typeof CcTrackType];
+export type CcResultType = (typeof CcResultType)[keyof typeof CcResultType];
+
+/**
+ * Candidate-id prefix the CC resolve endpoint expects for a single track. The
+ * backend mints genre-search track ids in this exact form (`jamendo:<id>`); the
+ * album / artist views rebuild it from each row's bare `jamendoId` so a track
+ * click resolves to the CC track page. Must stay in sync with
+ * `services/cc/cc-resolver.ts#CC_CANDIDATE_PREFIX`.
+ */
+export const CC_TRACK_CANDIDATE_PREFIX = "jamendo:";
 
 export const AppStateType = {
   Idle: "idle",
@@ -193,6 +206,64 @@ export interface CcTrackResult {
   shareUrl: string;
 }
 
+/**
+ * A track row inside a CC album or artist view. Carries the prebuilt
+ * `candidateId` (`jamendo:<id>`) so a click resolves straight to the CC track
+ * page through the same `selectedCandidate` flow the genre-search rows use.
+ */
+export interface CcEntityTrack {
+  /** `jamendo:<jamendoId>` — fed back as `selectedCandidate` on click. */
+  candidateId: string;
+  /** Track title. */
+  title: string;
+  /** Primary artist name. */
+  artist: string;
+  /** Track duration in milliseconds, if available. */
+  durationMs?: number;
+  /** Track cover-art URL (falls back to a placeholder). */
+  artworkUrl: string;
+}
+
+/**
+ * A resolved Creative Commons album from Jamendo: the album entity plus its
+ * track list. Like {@link CcTrackResult} it has no `platforms` — the tracks are
+ * the navigable content. `shareUrl` is the musiccloud short URL; `jamendoUrl` is
+ * the canonical Jamendo album page.
+ */
+export interface CcAlbumResult {
+  kind: typeof ActiveResultKind.CcAlbum;
+  jamendoId: string;
+  title: string;
+  artist: string;
+  releaseDate?: string;
+  artworkUrl: string;
+  jamendoUrl?: string;
+  shareUrl: string;
+  tracks: CcEntityTrack[];
+}
+
+/**
+ * A resolved Creative Commons artist from Jamendo: the artist entity plus its
+ * most-popular tracks. `shareUrl` is the musiccloud short URL; `jamendoUrl` is
+ * the canonical Jamendo artist page.
+ */
+export interface CcArtistResult {
+  kind: typeof ActiveResultKind.CcArtist;
+  jamendoId: string;
+  name: string;
+  imageUrl: string;
+  jamendoUrl?: string;
+  shareUrl: string;
+  topTracks: CcEntityTrack[];
+}
+
+/**
+ * Any resolved Creative Commons entity held on the CC result state (`ccActive`).
+ * Kept separate from {@link ActiveResult}: CC entities never flow through the
+ * commercial `active` path or its platform-link config builders.
+ */
+export type CcResult = CcTrackResult | CcAlbumResult | CcArtistResult;
+
 export type ActiveResult = SongResult | AlbumResult | ArtistResult | CcTrackResult;
 
 export type AppState =
@@ -206,7 +277,7 @@ export type AppState =
   | { type: typeof AppStateType.GenreBrowse; genres: ApiGenreTile[] }
   | { type: typeof AppStateType.GenreSearch; payload: GenreSearchPayload }
   | { type: typeof AppStateType.GenreSearchLoading; payload: GenreSearchPayload; selectedId: string }
-  | { type: typeof AppStateType.CcResult; ccActive: CcTrackResult };
+  | { type: typeof AppStateType.CcResult; ccActive: CcResult };
 
 export interface ReducerState {
   screen: AppState;
@@ -225,4 +296,4 @@ export type AppAction =
   | { type: "ERROR"; error: ResolveUiError }
   | { type: "CLEAR_START" }
   | { type: "CLEAR" }
-  | { type: "RESOLVE_CC_SUCCESS"; ccActive: CcTrackResult };
+  | { type: "RESOLVE_CC_SUCCESS"; ccActive: CcResult };
