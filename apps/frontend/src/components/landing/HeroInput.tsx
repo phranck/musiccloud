@@ -1,4 +1,4 @@
-import { XCircleIcon } from "@phosphor-icons/react";
+import { CopyrightIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef } from "react";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -6,7 +6,7 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { HeroSubmitSlot } from "@/components/landing/HeroSubmitSlot";
 import { useT } from "@/i18n/localeContext";
 import { isMusicUrl } from "@/lib/platform/url";
-import { InputState } from "@/lib/types/app";
+import { InputState, ResolveMode } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
 export type { InputState };
@@ -23,6 +23,13 @@ interface HeroInputProps {
   state: InputState;
   compact?: boolean;
   songName?: string;
+  /**
+   * Active resolve mode. Selects the leading mode icon inside the field:
+   * a copyright glyph for commercial streaming, the Creative Commons mark
+   * for CC. Defaults to `ResolveMode.Commercial` so callers that don't yet
+   * pass a mode keep the commercial appearance.
+   */
+  mode?: ResolveMode;
   /**
    * When true, the parent is holding the result reveal and asks the spinning
    * disc to slide out to the right. {@link HeroInputProps.onLoadingExitComplete}
@@ -44,6 +51,7 @@ export function HeroInput({
   state,
   compact = false,
   songName,
+  mode = ResolveMode.Commercial,
   requestDiscExit = false,
   onLoadingExitComplete,
 }: HeroInputProps) {
@@ -143,6 +151,18 @@ export function HeroInput({
           overflows the rounded shape. */}
       <EmbossedCard radius="9999px" className="overflow-visible">
         <RecessedCard className={cn(recessedControlInsetClassName, "hero-field", "flex items-center")}>
+          {/* Leading mode glyph: the copyright mark for commercial streaming, the
+              Creative Commons logo for CC. Both follow the active accent colour
+              via `var(--color-accent)`, which the `data-resolve-mode="cc"` scope
+              recolours to green in CC mode. Decorative only (the field already has
+              an `aria-label`), so it is hidden from assistive tech. */}
+          <span className="flex-shrink-0 pl-4 pr-1 text-[var(--color-accent)]" aria-hidden="true">
+            {mode === ResolveMode.Cc ? (
+              <img src="/icons/creative-commons.svg" alt="" aria-hidden className="size-5" />
+            ) : (
+              <CopyrightIcon weight="duotone" className="size-5" />
+            )}
+          </span>
           <input
             ref={inputRef}
             type="text"
@@ -159,7 +179,7 @@ export function HeroInput({
               // Fill the field and shrink for the trailing button (`flex-auto w-full
               // min-w-0`). `appearance-none` strips the browser's native text-field
               // chrome so the input is a plain transparent box on the recessed glass.
-              "mc-hero-input appearance-none flex-auto w-full min-w-0 bg-transparent border-0 pl-6 pr-2 text-lg font-medium text-text-primary tracking-[-0.01em]",
+              "mc-hero-input appearance-none flex-auto w-full min-w-0 bg-transparent border-0 pl-2 pr-2 text-lg font-medium text-text-primary tracking-[-0.01em]",
               "placeholder:tracking-normal outline-none",
               "h-[40px] md:h-[48px]",
               state === InputState.Loading && "opacity-50",

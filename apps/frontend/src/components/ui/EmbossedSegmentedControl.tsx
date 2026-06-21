@@ -30,6 +30,19 @@ interface EmbossedSegmentedControlProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   className?: string;
+  /**
+   * Glass surface class for the recessed track. Defaults to the neutral
+   * `mc-glass-seg-track`. Callers that need a different token-driven surface
+   * (e.g. the CC-mode green `mc-glass-cc-seg-track`) pass it here instead of
+   * relying on ad-hoc colours.
+   */
+  trackClassName?: string;
+  /**
+   * Glass surface class for the sliding embossed indicator. Defaults to the
+   * neutral `mc-glass-seg-indicator`. Pair with {@link trackClassName} to swap
+   * the whole control onto an alternate token surface (e.g. the CC green).
+   */
+  indicatorClassName?: string;
 }
 
 /**
@@ -50,6 +63,8 @@ export function EmbossedSegmentedControl<T extends string>({
   value,
   onChange,
   className,
+  trackClassName = "mc-glass-seg-track",
+  indicatorClassName = "mc-glass-seg-indicator",
 }: EmbossedSegmentedControlProps<T>) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Map<T, HTMLButtonElement> | null>(null);
@@ -85,7 +100,7 @@ export function EmbossedSegmentedControl<T extends string>({
   return (
     <RecessedCard
       ref={containerRef}
-      className={cn("mc-glass-seg-track relative flex gap-[var(--mc-gap-seg,0px)] p-1", className)}
+      className={cn(trackClassName, "relative flex gap-[var(--mc-gap-seg,0px)] p-1", className)}
       radius={recessedSurfaceRadius}
     >
       <RecessedCard.Body className="contents">
@@ -99,7 +114,7 @@ export function EmbossedSegmentedControl<T extends string>({
             }}
           >
             <div
-              className="embossed-gradient-border mc-glass-seg-indicator size-full"
+              className={cn("embossed-gradient-border size-full", indicatorClassName)}
               style={
                 {
                   "--neu-radius-base": raisedControlRadius,

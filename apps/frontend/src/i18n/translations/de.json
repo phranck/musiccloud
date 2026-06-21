@@ -40,6 +40,8 @@
   "results.notFound": "Wir konnten diesen Song auf anderen Plattformen nicht finden.",
   "results.foundArtist": "Künstler {name} gefunden",
   "results.found": "{title} von {artist} gefunden",
+  "results.modeCommercial": "Streaming",
+  "results.modeCc": "Creative Commons",
   "share.copyLink": "Link in Zwischenablage kopieren",
   "share.shareLink": "Link kopieren",
   "share.copied": "Kopiert!",

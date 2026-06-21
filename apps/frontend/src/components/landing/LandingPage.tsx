@@ -10,10 +10,12 @@ import {
   useEffectEvent,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { HeroInput } from "@/components/landing/HeroInput";
 import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
 import { AppFooter } from "@/components/layout/AppFooter";
+import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { LogoView } from "@/components/ui/LogoView";
@@ -37,8 +39,9 @@ import {
   preloadResolveResultRuntime,
 } from "@/lib/preload/resultRuntime";
 import { buildShareConfigFromActive } from "@/lib/resolve/parsers";
+import { getResolveMode, setResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
 import { buildShareViewFromResolvedResponse, type ShareArtistInfoContext } from "@/lib/share/share-view";
-import { ActiveResultKind, AppStateType, InputState } from "@/lib/types/app";
+import { ActiveResultKind, AppStateType, InputState, ResolveMode } from "@/lib/types/app";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 // Lazy-loaded panels — only pulled into the bundle when the user needs them.
@@ -212,6 +215,23 @@ function ShareResultPlaceholder() {
   );
 }
 
+/**
+ * Builds the two segments for the hero resolve-mode toggle (commercial | CC).
+ *
+ * Pure mapping helper kept at module scope (no component state). The segment
+ * keys come from the `ResolveMode` namespace — the same values the store and
+ * `data-resolve-mode` attribute use — so there are no inline domain literals.
+ *
+ * @param t - The active translation function, used for the visible labels.
+ * @returns The ordered `Segment<ResolveMode>` array: commercial first, CC second.
+ */
+function resolveModeSegments(t: (key: string) => string): Segment<ResolveMode>[] {
+  return [
+    { key: ResolveMode.Commercial, label: t("results.modeCommercial") },
+    { key: ResolveMode.Cc, label: t("results.modeCc") },
+  ];
+}
+
 function selectGenreTile(
   name: string,
   genres: import("@musiccloud/shared").ApiGenreTile[],
@@ -226,6 +246,11 @@ function selectGenreTile(
 
 function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, showFooter = true }: LandingPageProps) {
   const t = useT();
+
+  // Resolve mode (commercial | cc) from the shared persistent store. SSR and the
+  // pre-init client snapshot both fall back to the commercial default so first
+  // paint and hydration agree; the stored mode reconciles right after hydration.
+  const mode = useSyncExternalStore(subscribeResolveMode, getResolveMode, () => ResolveMode.Commercial);
 
   const resultsPanelRef = useRef<HTMLDivElement>(null);
   const disambiguationRef = useRef<HTMLDivElement>(null);
@@ -253,7 +278,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
     handleSelectGenreResult,
     handleBack,
     handleClear,
-  } = useAppState();
+  } = useAppState(mode);
 
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -386,7 +411,18 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
             <>
               <LandingLogoBlock isReturning={isReturning} showCompact={showCompact} />
 
-              <div ref={searchFieldRef} className="w-full flex flex-col items-center">
+              <div ref={searchFieldRef} data-resolve-mode={mode} className="w-full flex flex-col items-center">
+                {!showCompact && (
+                  <div className="mb-4 flex justify-center">
+                    <EmbossedSegmentedControl
+                      segments={resolveModeSegments(t)}
+                      value={mode}
+                      onChange={setResolveMode}
+                      trackClassName={mode === ResolveMode.Cc ? "mc-glass-cc-seg-track" : undefined}
+                      indicatorClassName={mode === ResolveMode.Cc ? "mc-glass-cc-seg-indicator" : undefined}
+                    />
+                  </div>
+                )}
                 <HeroInput
                   value={inputValue}
                   onChange={setInputValue}
@@ -400,6 +436,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
                   onBlur={() => setIsFocused(false)}
                   state={discExitPending ? InputState.Loading : inputState}
                   compact={showCompact}
+                  mode={mode}
                   requestDiscExit={discExitPending}
                   onLoadingExitComplete={handleLoadingExitComplete}
                 />
