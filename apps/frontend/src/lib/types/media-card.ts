@@ -11,6 +11,7 @@ export const MediaCardContentTypeValue = {
   Album: "album",
   Artist: "artist",
   Share: "share",
+  CcTrack: "cc-track",
 } as const;
 
 export type MediaCardContentType = (typeof MediaCardContentTypeValue)[keyof typeof MediaCardContentTypeValue];
@@ -93,6 +94,50 @@ export interface ShareContentConfiguration extends MediaCardContentConfiguration
   shortUrl: string;
 }
 
+/**
+ * Creative-Commons track result on the landing page.
+ *
+ * Intentionally has no `platforms` / `platformsLabel` fields — CC tracks are
+ * accessed directly via Jamendo rather than through a multi-platform link
+ * grid. The `streamUrl` is the full-length permanent Jamendo audio stream
+ * (not a 30-second preview). `attribution` is the pre-formatted credit line
+ * shown beneath the artwork (e.g. the artist name or "Artist · CC BY 4.0").
+ */
+export interface CcTrackContentConfiguration {
+  type: typeof MediaCardContentTypeValue.CcTrack;
+  title: string;
+  artist: string;
+  /** Album title, if available. */
+  album?: string;
+  /** Track cover-art URL. */
+  artworkUrl: string;
+  /** Pre-computed meta line (e.g. "3:45 · 2023"). */
+  metaLine?: string;
+  /** Pre-translated screen-reader announcement for the result. */
+  srAnnouncement?: string;
+  /** musiccloud short URL for the "Copy link" share action. */
+  shortUrl: string;
+  /** Short ID extracted from `shortUrl`, used by the audio player refresh endpoint. */
+  shortId?: string;
+  /** Full-track permanent stream URL (Jamendo `audio` field). */
+  streamUrl: string;
+  /** Canonical CC licence deed URL (e.g. `https://creativecommons.org/licenses/by/4.0/`). */
+  licenseCcurl?: string;
+  /**
+   * Pre-formatted attribution credit line (typically the artist name,
+   * optionally followed by a licence hint such as "CC BY 4.0").
+   */
+  attribution: string;
+  /** Direct download URL. Only present when `downloadAllowed` is true. */
+  downloadUrl?: string;
+  /** Whether Jamendo permits direct download of this track. */
+  downloadAllowed: boolean;
+  /** Canonical Jamendo page URL for the "Open on Jamendo" link. */
+  jamendoUrl?: string;
+  /** Waveform image URL provided by Jamendo. */
+  waveform?: string;
+}
+
 /** Type guard: true for song, album, and artist configs (all have shareUrl / srAnnouncement) */
 export function isShareableContent(
   content: MediaCardContentConfiguration,
@@ -108,3 +153,4 @@ export function isShareableContent(
 export function isSharePageContent(content: MediaCardContentConfiguration): content is ShareContentConfiguration {
   return content.type === MediaCardContentTypeValue.Share;
 }
+

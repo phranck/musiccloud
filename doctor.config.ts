@@ -54,6 +54,26 @@ const config = {
         files: ["src/lib/types/app.ts"],
         rules: ["deslop/unused-export"],
       },
+      /**
+       * parseCcResolveResponse and buildCcShareConfig are new exports added in
+       * Task 4 of the CC-path plan (2026-06-21-cc-pfad-frontend). They will be
+       * consumed by useAppState.ts (Task 5) and CcInfoCard/LandingPage (Task 7).
+       * Remove this suppression when Task 5 lands and the first import exists.
+       */
+      {
+        files: ["src/lib/resolve/parsers.ts"],
+        rules: ["deslop/unused-export"],
+      },
+      /**
+       * CcTrackContentConfiguration and MediaCardContentTypeValue.CcTrack are
+       * added in Task 4 of the CC-path plan (2026-06-21-cc-pfad-frontend). They
+       * will be consumed by CcInfoCard and LandingPage in Task 7. Remove this
+       * suppression when Task 7 lands.
+       */
+      {
+        files: ["src/lib/types/media-card.ts"],
+        rules: ["deslop/unused-export"],
+      },
     ],
   },
 } satisfies ReactDoctorConfig;

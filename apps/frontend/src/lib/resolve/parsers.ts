@@ -1,6 +1,7 @@
 import type {
   AlbumResolveSuccessResponse,
   ArtistResolveSuccessResponse,
+  CcResolveSuccessResponse,
   ResolveSuccessResponse,
   UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
@@ -11,7 +12,9 @@ import {
   ActiveResultKind,
   type AlbumResult,
   type AppAction,
+  AppStateType,
   type ArtistResult,
+  type CcTrackResult,
   type ReducerState,
   type ResolveUiError,
   type SongResult,
@@ -19,6 +22,7 @@ import {
 import type {
   AlbumContentConfiguration,
   ArtistContentConfiguration,
+  CcTrackContentConfiguration,
   ShareContentConfiguration,
   SongContentConfiguration,
 } from "@/lib/types/media-card";
@@ -73,9 +77,8 @@ export function appReducer({ screen, stack }: ReducerState, action: AppAction): 
       return { screen: { type: "idle" }, stack: [] };
     case "CLEAR":
       return { screen: { type: "idle" }, stack: [] };
-    // Placeholder: full implementation in Task 4 (parsers + CcTrackResult import).
     case "RESOLVE_CC_SUCCESS":
-      return { screen, stack };
+      return { screen: { type: AppStateType.CcResult, ccActive: action.ccActive }, stack };
   }
 }
 
@@ -134,6 +137,38 @@ export function parseUnifiedResolveResponse(data: UnifiedResolveSuccessResponse)
   if (data.type === "artist") return parseArtistResolveResponse(data);
   if (data.type === "album") return parseAlbumResolveResponse(data);
   return parseResolveResponse(data);
+}
+
+/**
+ * Maps a {@link CcResolveSuccessResponse} wire payload to a {@link CcTrackResult}
+ * for use in the app state.
+ *
+ * Does **not** call `apiLinksToPlatformLinks` — CC tracks have no cross-service
+ * links. `jamendoUrl` is sourced from the track's own `shareUrl` field (the
+ * canonical Jamendo page); `shareUrl` is the musiccloud short URL from the
+ * response envelope.
+ *
+ * @param data - The raw CC resolve success payload from the backend.
+ * @returns A fully mapped `CcTrackResult` ready to be stored in app state.
+ */
+export function parseCcResolveResponse(data: CcResolveSuccessResponse): CcTrackResult {
+  return {
+    kind: ActiveResultKind.CcSong,
+    jamendoId: data.track.jamendoId,
+    title: data.track.title,
+    artist: data.track.artistName,
+    album: data.track.albumName,
+    releaseDate: data.track.releaseDate,
+    durationMs: data.track.durationMs,
+    artworkUrl: data.track.artworkUrl ?? "",
+    streamUrl: data.track.streamUrl,
+    licenseCcurl: data.track.licenseCcurl,
+    downloadUrl: data.track.downloadUrl,
+    downloadAllowed: data.track.downloadAllowed,
+    waveform: data.track.waveform,
+    jamendoUrl: data.track.shareUrl,
+    shareUrl: data.shortUrl,
+  };
 }
 
 export class ResolveApiError extends Error {
@@ -334,5 +369,42 @@ export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): Shar
     platformsInfo,
     shortUrl: active.shareUrl,
     shortId,
+  };
+}
+
+/**
+ * Builds a {@link CcTrackContentConfiguration} from a resolved CC track result.
+ *
+ * Mirrors the song branch of {@link buildShareConfigFromActive} but omits
+ * `platforms` / `platformsLabel` (CC tracks have no cross-service links) and
+ * fills the CC-specific fields (`streamUrl`, `licenseCcurl`, `attribution`,
+ * `downloadUrl`, `downloadAllowed`, `jamendoUrl`, `waveform`).
+ *
+ * The `attribution` field is kept simple (artist name only) to stay KISS. If a
+ * license hint is needed downstream, callers can derive it from `licenseCcurl`.
+ *
+ * @param cc - The resolved CC track from app state.
+ * @param t - Translation function for pre-computed UI strings.
+ * @returns A fully populated `CcTrackContentConfiguration`.
+ */
+export function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentConfiguration {
+  const shortId = shortIdFromShortUrl(cc.shareUrl);
+  return {
+    type: "cc-track",
+    title: cc.title,
+    artist: cc.artist,
+    album: cc.album,
+    artworkUrl: cc.artworkUrl,
+    metaLine: buildMetaLine({ durationMs: cc.durationMs, releaseDate: cc.releaseDate }) || undefined,
+    srAnnouncement: t("results.found", { title: cc.title, artist: cc.artist }),
+    shortUrl: cc.shareUrl,
+    shortId,
+    streamUrl: cc.streamUrl,
+    licenseCcurl: cc.licenseCcurl,
+    attribution: cc.artist,
+    downloadUrl: cc.downloadUrl,
+    downloadAllowed: cc.downloadAllowed,
+    jamendoUrl: cc.jamendoUrl,
+    waveform: cc.waveform,
   };
 }
