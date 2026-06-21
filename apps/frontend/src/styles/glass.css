@@ -212,6 +212,46 @@
   --navIndicator-night-rm: 0.08;
   --navIndicator-night-sh: 0;
 
+  /* ccSegTrack / ccSegIndicator (CC-mode hero segmented control). Neutral track
+     mirrors segTrack; green indicator uses #30d158 (system --color-success).
+     Compiled-in fallback; SSR designTokensCss overrides with saved tokens. */
+  --ccSegTrack-day-tt: rgba(0, 54, 74, 0.32);
+  --ccSegTrack-day-tb: rgba(0, 54, 74, 0.32);
+  --ccSegTrack-day-bl: 0px;
+  --ccSegTrack-day-sa: 0;
+  --ccSegTrack-day-br: 0;
+  --ccSegTrack-day-el: 0;
+  --ccSegTrack-day-es: 0;
+  --ccSegTrack-day-rm: 0;
+  --ccSegTrack-day-sh: 0;
+  --ccSegTrack-night-tt: rgba(0, 0, 0, 0.28);
+  --ccSegTrack-night-tb: rgba(0, 0, 0, 0.28);
+  --ccSegTrack-night-bl: 0px;
+  --ccSegTrack-night-sa: 0;
+  --ccSegTrack-night-br: 0;
+  --ccSegTrack-night-el: 0;
+  --ccSegTrack-night-es: 0;
+  --ccSegTrack-night-rm: 0;
+  --ccSegTrack-night-sh: 0;
+  --ccSegIndicator-day-tt: rgba(48, 209, 88, 0.35);
+  --ccSegIndicator-day-tb: rgba(48, 209, 88, 0.35);
+  --ccSegIndicator-day-bl: 0px;
+  --ccSegIndicator-day-sa: 0;
+  --ccSegIndicator-day-br: 0;
+  --ccSegIndicator-day-el: 0;
+  --ccSegIndicator-day-es: 0;
+  --ccSegIndicator-day-rm: 0;
+  --ccSegIndicator-day-sh: 0;
+  --ccSegIndicator-night-tt: rgba(48, 209, 88, 0.2);
+  --ccSegIndicator-night-tb: rgba(48, 209, 88, 0.2);
+  --ccSegIndicator-night-bl: 2px;
+  --ccSegIndicator-night-sa: 0;
+  --ccSegIndicator-night-br: 0.42;
+  --ccSegIndicator-night-el: 0;
+  --ccSegIndicator-night-es: 0;
+  --ccSegIndicator-night-rm: 0.08;
+  --ccSegIndicator-night-sh: 0;
+
   /* Per-surface text — embossed seeds (SSR designTokensCss overrides per saved tokens,
      and emits the other surfaces' vars too). The embossed surface is the global default
      via the transitional `--color-text-*` mapping below; the recessed / button /
@@ -572,6 +612,33 @@ a.mc-skylink {
   --_sh: calc(var(--navIndicator-day-sh) * var(--g-dayness) + var(--navIndicator-night-sh) * (1 - var(--g-dayness)));
 }
 
+/* CC-mode hero segmented control — dedicated track + indicator pair, independent
+   of the commercial seg-track/seg-indicator. Same resolver recipe as nav; reading
+   the `--ccSegTrack-*` / `--ccSegIndicator-*` vars. */
+.mc-glass-cc-seg-track {
+  --_tt: color-mix(in srgb, var(--ccSegTrack-day-tt) calc(var(--g-dayness) * 100%), var(--ccSegTrack-night-tt));
+  --_tb: color-mix(in srgb, var(--ccSegTrack-day-tb) calc(var(--g-dayness) * 100%), var(--ccSegTrack-night-tb));
+  --_bl: calc(var(--ccSegTrack-day-bl) * var(--g-dayness) + var(--ccSegTrack-night-bl) * (1 - var(--g-dayness)));
+  --_sa: calc(var(--ccSegTrack-day-sa) * var(--g-dayness) + var(--ccSegTrack-night-sa) * (1 - var(--g-dayness)));
+  --_br: calc(var(--ccSegTrack-day-br) * var(--g-dayness) + var(--ccSegTrack-night-br) * (1 - var(--g-dayness)));
+  --_el: calc(var(--ccSegTrack-day-el) * var(--g-dayness) + var(--ccSegTrack-night-el) * (1 - var(--g-dayness)));
+  --_es: calc(var(--ccSegTrack-day-es) * var(--g-dayness) + var(--ccSegTrack-night-es) * (1 - var(--g-dayness)));
+  --_rm: calc(var(--ccSegTrack-day-rm) * var(--g-dayness) + var(--ccSegTrack-night-rm) * (1 - var(--g-dayness)));
+  --_sh: calc(var(--ccSegTrack-day-sh) * var(--g-dayness) + var(--ccSegTrack-night-sh) * (1 - var(--g-dayness)));
+}
+
+.mc-glass-cc-seg-indicator {
+  --_tt: color-mix(in srgb, var(--ccSegIndicator-day-tt) calc(var(--g-dayness) * 100%), var(--ccSegIndicator-night-tt));
+  --_tb: color-mix(in srgb, var(--ccSegIndicator-day-tb) calc(var(--g-dayness) * 100%), var(--ccSegIndicator-night-tb));
+  --_bl: calc(var(--ccSegIndicator-day-bl) * var(--g-dayness) + var(--ccSegIndicator-night-bl) * (1 - var(--g-dayness)));
+  --_sa: calc(var(--ccSegIndicator-day-sa) * var(--g-dayness) + var(--ccSegIndicator-night-sa) * (1 - var(--g-dayness)));
+  --_br: calc(var(--ccSegIndicator-day-br) * var(--g-dayness) + var(--ccSegIndicator-night-br) * (1 - var(--g-dayness)));
+  --_el: calc(var(--ccSegIndicator-day-el) * var(--g-dayness) + var(--ccSegIndicator-night-el) * (1 - var(--g-dayness)));
+  --_es: calc(var(--ccSegIndicator-day-es) * var(--g-dayness) + var(--ccSegIndicator-night-es) * (1 - var(--g-dayness)));
+  --_rm: calc(var(--ccSegIndicator-day-rm) * var(--g-dayness) + var(--ccSegIndicator-night-rm) * (1 - var(--g-dayness)));
+  --_sh: calc(var(--ccSegIndicator-day-sh) * var(--g-dayness) + var(--ccSegIndicator-night-sh) * (1 - var(--g-dayness)));
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    3. Shared surface recipe — tint gradient + 4-layer raised chamfer box-shadow.
    ═════════════════════════════════════════════════════════════════════════ */
@@ -601,7 +668,8 @@ a.mc-skylink {
    bottom-right (the opposite corners from the raised recipe above). */
 .recessed-gradient-border,
 .mc-glass-seg-track,
-.mc-glass-nav-track {
+.mc-glass-nav-track,
+.mc-glass-cc-seg-track {
   box-shadow:
     0 12px 40px rgba(0, 0, 0, var(--_sh)),
     inset 0 0 0 1px rgba(255, 255, 255, var(--_rm)),
@@ -716,4 +784,18 @@ a.mc-skylink {
       )
     );
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. CC-mode accent scope — overrides --color-accent and companions for any
+   subtree marked data-resolve-mode="cc". Applied by LandingPage on the hero
+   container, so HeroSubmitSlot (uses var(--color-accent)) and the hero-field
+   focus ring (.hero-field:focus-within { outline-color: var(--color-accent) })
+   automatically inherit the green. Exact tone fine-tuned in browser (Task 8).
+   ═════════════════════════════════════════════════════════════════════════ */
+[data-resolve-mode="cc"] {
+  --color-accent: #30d158;
+  --color-accent-rgb: 48 209 88;
+  --color-accent-hover: #4de271;
+  --color-accent-glow: rgba(48, 209, 88, 0.25);
 }

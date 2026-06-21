@@ -43,6 +43,10 @@ export const GlassControl = {
   NavTrack: "navTrack",
   /** Header-controls raised indicator: the hamburger icon, the active switcher cell, and the hovered nav item. */
   NavIndicator: "navIndicator",
+  /** CC-mode segmented-control recessed track (neutral, identical to segTrack). */
+  CcSegTrack: "ccSegTrack",
+  /** CC-mode segmented-control raised indicator: green tint (analogous to segIndicator's blue). */
+  CcSegIndicator: "ccSegIndicator",
 } as const;
 /** Union of the glass control wire keys (`"card" | "cardOverlay" | …`). */
 export type GlassControlKey = (typeof GlassControl)[keyof typeof GlassControl];
@@ -640,6 +644,64 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
     night: {
       tintTop: "#94e3fe",
       tintBottom: "#94e3fe",
+      opacity: 0.2,
+      blur: 2,
+      saturate: 0.0,
+      brightness: 0.42,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.08,
+      shadow: 0.0,
+    },
+  },
+  // CC-mode hero segmented-control tokens — independent of the commercial
+  // segTrack/segIndicator so CC green can be tuned without affecting the default.
+  // ccSegTrack mirrors segTrack (neutral recessed well); ccSegIndicator mirrors
+  // navIndicator shape but with a green tint (#30d158 = system --color-success)
+  // in place of the blue. Day/night pair present; exact tone is fine-tuned in
+  // the browser (Task 8).
+  ccSegTrack: {
+    day: {
+      tintTop: "#00364a",
+      tintBottom: "#00364a",
+      opacity: 0.32,
+      blur: 0,
+      saturate: 0.0,
+      brightness: 0.0,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.0,
+      shadow: 0.0,
+    },
+    night: {
+      tintTop: "#000000",
+      tintBottom: "#000000",
+      opacity: 0.28,
+      blur: 0,
+      saturate: 0.0,
+      brightness: 0.0,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.0,
+      shadow: 0.0,
+    },
+  },
+  ccSegIndicator: {
+    day: {
+      tintTop: "#30d158",
+      tintBottom: "#30d158",
+      opacity: 0.35,
+      blur: 0,
+      saturate: 0.0,
+      brightness: 0.0,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.0,
+      shadow: 0.0,
+    },
+    night: {
+      tintTop: "#30d158",
+      tintBottom: "#30d158",
       opacity: 0.2,
       blur: 2,
       saturate: 0.0,
