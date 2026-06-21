@@ -212,30 +212,45 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
    * with the item's Deezer `webUrl`), so Flow 2 on the backend does the
    * cross-service resolution.
    */
-  const handleSelectGenreResult = useCallback(async (webUrl: string, id: string) => {
-    dispatch({ type: "SELECT_GENRE_RESULT", selectedId: id });
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(ENDPOINTS.frontend.resolve, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: webUrl }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-        throw new ResolveApiError(errorData);
+  const handleSelectGenreResult = useCallback(
+    async (webUrl: string, id: string) => {
+      dispatch({ type: "SELECT_GENRE_RESULT", selectedId: id });
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        // CC genre results resolve through the CC endpoint: the candidate carries
+        // `id = "jamendo:<id>"`, fed straight back as `selectedCandidate`, so the
+        // result stays 100% Jamendo. Commercial results resolve the picked Deezer URL.
+        const response = await fetch(
+          mode === ResolveMode.Cc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(mode === ResolveMode.Cc ? { selectedCandidate: id } : { query: webUrl }),
+            signal: controller.signal,
+          },
+        );
+        clearTimeout(timeout);
+        if (!response.ok) {
+          const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
+          throw new ResolveApiError(errorData);
+        }
+        if (mode === ResolveMode.Cc) {
+          const data = (await response.json()) as CcResolveSuccessResponse;
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatch({ type: "RESOLVE_CC_SUCCESS", ccActive: parseCcResolveResponse(data) });
+        } else {
+          const data = (await response.json()) as UnifiedResolveSuccessResponse;
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
+        }
+      } catch (err) {
+        sendResolveFailedSignal(err);
+        dispatchResolveError(dispatch, err);
       }
-      const data = (await response.json()) as UnifiedResolveSuccessResponse;
-      sendMusicSignal(ResolveSignal.Completed);
-      dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
-    } catch (err) {
-      sendResolveFailedSignal(err);
-      dispatchResolveError(dispatch, err);
-    }
-  }, []);
+    },
+    [mode],
+  );
 
   const handleClear = useCallback(() => {
     dispatch({ type: "CLEAR_START" });

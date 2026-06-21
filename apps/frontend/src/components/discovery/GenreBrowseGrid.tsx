@@ -31,9 +31,10 @@ interface GenreBrowseGridProps {
 }
 
 /**
- * Grid of popular genre tiles with procedurally generated atmospheric
- * artworks. Shown when the user submits `genre:?`. Clicking a tile
- * triggers a full `genre:<name>` search via the parent's submit handler.
+ * Grid of genre tiles, shown when the user submits `genre:?`. Clicking a tile
+ * triggers a full `genre:<name>` search via the parent's submit handler. Every
+ * tile carries procedurally generated artwork with the genre name baked into
+ * the image, so no separate text label is rendered.
  *
  * The panel fades in on mount via {@link FadeInOnMount} (GSAP, one element).
  * The tile entrance deliberately stays CSS (`animate-slide-up` + per-tile

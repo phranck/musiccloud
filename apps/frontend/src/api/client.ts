@@ -210,6 +210,21 @@ export async function fetchGenreArtwork(genreKey: string): Promise<Response> {
   return fetchWithTimeout(backendUrl(ENDPOINTS.v1.genreArtwork(genreKey)), { headers: internalHeaders() }, 60000);
 }
 
+/**
+ * Fetch a procedurally generated Creative-Commons genre artwork from the
+ * backend. Clone of {@link fetchGenreArtwork} targeting the CC route
+ * (`ENDPOINTS.v1.ccGenreArtwork`), whose cover is Jamendo-sourced so the CC
+ * path never touches Last.fm. Returns the raw `Response` so the Astro proxy can
+ * stream the JPEG body straight through with the upstream headers intact
+ * (Content-Type, Cache-Control). The timeout is generous for the same reason as
+ * the commercial route: a cache purge fans out many parallel tile requests and
+ * Jimp-based rendering is CPU-bound, so a single tile can legitimately wait past
+ * 15 s for its turn on the event loop.
+ */
+export async function fetchCcGenreArtwork(genreKey: string): Promise<Response> {
+  return fetchWithTimeout(backendUrl(ENDPOINTS.v1.ccGenreArtwork(genreKey)), { headers: internalHeaders() }, 60000);
+}
+
 /** Fetch a random short ID from the backend for the landing page example teaser. */
 export async function fetchRandomExample(): Promise<{ shortId: string } | null> {
   try {
