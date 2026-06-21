@@ -250,6 +250,52 @@ export async function getCcArtist(jamendoId: string): Promise<CcArtist | null> {
 }
 
 /**
+ * Upper bound on tracks fetched for a CC album view. Albums rarely exceed this;
+ * the cap keeps the single Jamendo call bounded.
+ */
+const CC_ALBUM_TRACKS_LIMIT = 50;
+
+/**
+ * Fetches the tracks of a CC album via `GET /tracks?album_id=<id>`. Jamendo
+ * returns an album's tracks in release order, so the list is render-ready.
+ *
+ * @param jamendoAlbumId - Jamendo album id.
+ * @param limit - Maximum tracks (default {@link CC_ALBUM_TRACKS_LIMIT}).
+ * @returns Mapped CC tracks (possibly empty).
+ * @throws Error on missing client id or API failure (see {@link jamendoFetch}).
+ */
+export async function getCcAlbumTracks(jamendoAlbumId: string, limit = CC_ALBUM_TRACKS_LIMIT): Promise<CcTrack[]> {
+  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks", { album_id: jamendoAlbumId, limit });
+  return raw.map(mapJamendoTrack);
+}
+
+/**
+ * Upper bound on tracks fetched for a CC artist's top-tracks view.
+ */
+const CC_ARTIST_TOP_TRACKS_LIMIT = 20;
+
+/**
+ * Fetches an artist's most-popular CC tracks via
+ * `GET /tracks?artist_id=<id>&order=popularity_total`.
+ *
+ * @param jamendoArtistId - Jamendo artist id.
+ * @param limit - Maximum tracks (default {@link CC_ARTIST_TOP_TRACKS_LIMIT}).
+ * @returns Mapped CC tracks ordered by descending popularity (possibly empty).
+ * @throws Error on missing client id or API failure (see {@link jamendoFetch}).
+ */
+export async function getCcArtistTopTracks(
+  jamendoArtistId: string,
+  limit = CC_ARTIST_TOP_TRACKS_LIMIT,
+): Promise<CcTrack[]> {
+  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks", {
+    artist_id: jamendoArtistId,
+    order: "popularity_total",
+    limit,
+  });
+  return raw.map(mapJamendoTrack);
+}
+
+/**
  * The curated Creative-Commons genre set surfaced by the `genre:?` browse grid.
  *
  * Jamendo exposes no "top genres" endpoint — its `/radios` list is only ~14

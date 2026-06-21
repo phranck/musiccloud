@@ -864,6 +864,31 @@ export interface PersistCcTrackData {
   shareUrl?: string;
 }
 
+/**
+ * Data needed to persist a resolved CC album. The artist is upserted minimally
+ * (id + name) to satisfy the `cc_albums.cc_artist_id` FK; a later artist resolve
+ * enriches it (image/website/share) via the same `jamendo_id` upsert key.
+ */
+export interface PersistCcAlbumData {
+  jamendoId: string;
+  name: string;
+  jamendoArtistId: string;
+  artistName: string;
+  artworkUrl?: string;
+  releaseDate?: string;
+  zipUrl?: string;
+  shareUrl?: string;
+}
+
+/** Data needed to persist a resolved CC artist. */
+export interface PersistCcArtistData {
+  jamendoId: string;
+  name: string;
+  imageUrl?: string;
+  website?: string;
+  shareUrl?: string;
+}
+
 /** Read shape returned by CC short-id lookups (single row, no link fan-out). */
 export interface CcTrackRecord {
   ccTrackId: string;
@@ -886,6 +911,8 @@ export interface CcTrackRecord {
 /** CC persistence + lookups, kept separate from the commercial TrackRepository. */
 export interface CcRepository {
   persistCcTrack(data: PersistCcTrackData): Promise<{ ccTrackId: string; shortId: string }>;
+  persistCcAlbum(data: PersistCcAlbumData): Promise<{ ccAlbumId: string; shortId: string }>;
+  persistCcArtist(data: PersistCcArtistData): Promise<{ ccArtistId: string; shortId: string }>;
   findCcTrackByShortId(shortId: string): Promise<CcTrackRecord | null>;
 }
 

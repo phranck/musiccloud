@@ -230,6 +230,63 @@ export interface CcResolveSuccessResponse {
   track: ApiCcTrack;
 }
 
+/**
+ * A Creative-Commons album on the wire, with its full track list inlined.
+ * Mirrors {@link ApiCcTrack}: no cross-service links, just the Jamendo entity
+ * plus the permanent CC tracks the album view renders.
+ */
+export interface ApiCcAlbum {
+  jamendoId: string;
+  name: string;
+  artistName: string;
+  artworkUrl?: string;
+  releaseDate?: string;
+  /** Jamendo album-zip download URL, when the album allows a full download. */
+  zipUrl?: string;
+  /** Canonical Jamendo page for the album. */
+  shareUrl?: string;
+  /** The album's tracks in release order; each is independently playable. */
+  tracks: ApiCcTrack[];
+}
+
+/**
+ * Success payload of the CC resolve route after a `jamendo-album:` candidate was
+ * picked. Discriminated by `type: "cc-album"`, mirroring
+ * {@link CcResolveSuccessResponse} (`id` + `shortUrl` + entity).
+ */
+export interface CcAlbumResolveSuccessResponse {
+  type: "cc-album";
+  id: string;
+  shortUrl: string;
+  album: ApiCcAlbum;
+}
+
+/**
+ * A Creative-Commons artist on the wire, with its most-popular tracks inlined.
+ */
+export interface ApiCcArtist {
+  jamendoId: string;
+  name: string;
+  /** Artist's own website, when Jamendo has one. */
+  website?: string;
+  imageUrl?: string;
+  /** Canonical Jamendo page for the artist. */
+  shareUrl?: string;
+  /** The artist's most-popular CC tracks, descending; each independently playable. */
+  topTracks: ApiCcTrack[];
+}
+
+/**
+ * Success payload of the CC resolve route after a `jamendo-artist:` candidate was
+ * picked. Discriminated by `type: "cc-artist"`.
+ */
+export interface CcArtistResolveSuccessResponse {
+  type: "cc-artist";
+  id: string;
+  shortUrl: string;
+  artist: ApiCcArtist;
+}
+
 // ─── Album API Types ──────────────────────────────────────────────────────────
 
 export interface ApiAlbum {

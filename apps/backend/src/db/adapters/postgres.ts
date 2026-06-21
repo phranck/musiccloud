@@ -49,6 +49,8 @@ import type {
   ExternalIdRecord,
   PersistAlbumData,
   PersistArtistData,
+  PersistCcAlbumData,
+  PersistCcArtistData,
   PersistCcTrackData,
   PersistTrackData,
   PreviewObservation,
@@ -119,7 +121,12 @@ import {
   persistArtistWithLinks as artistsPersistArtistWithLinks,
   saveArtistCache as artistsSaveArtistCache,
 } from "./postgres-artists.js";
-import { findCcTrackByShortId as ccFindByShortId, persistCcTrack as ccPersistTrack } from "./postgres-cc.js";
+import {
+  findCcTrackByShortId as ccFindByShortId,
+  persistCcAlbum as ccPersistAlbum,
+  persistCcArtist as ccPersistArtist,
+  persistCcTrack as ccPersistTrack,
+} from "./postgres-cc.js";
 import {
   deleteEmailTemplate as contentEmailDeleteEmailTemplate,
   getEmailTemplateById as contentEmailGetEmailTemplateById,
@@ -691,6 +698,14 @@ export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepo
 
   persistCcTrack(data: PersistCcTrackData): Promise<{ ccTrackId: string; shortId: string }> {
     return ccPersistTrack(this.pool, data);
+  }
+
+  persistCcAlbum(data: PersistCcAlbumData): Promise<{ ccAlbumId: string; shortId: string }> {
+    return ccPersistAlbum(this.pool, data);
+  }
+
+  persistCcArtist(data: PersistCcArtistData): Promise<{ ccArtistId: string; shortId: string }> {
+    return ccPersistArtist(this.pool, data);
   }
 
   findCcTrackByShortId(shortId: string): Promise<CcTrackRecord | null> {

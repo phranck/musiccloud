@@ -26,17 +26,27 @@
 - [ ] Map auf `ApiGenreTrackCandidate` (id `jamendo:<id>`), `ApiGenreAlbumCandidate` (id **`jamendo-album:<id>`**, `webUrl` = Jamendo-Album-Shareurl, `artworkUrl`), `ApiGenreArtistCandidate` (id **`jamendo-artist:<id>`**, `imageUrl`, `webUrl`). Counts an die kommerziellen Defaults angleichen (statt fix 10).
 - [ ] `query`-Echo: `albums`/`artists` nicht mehr `null`. Test anpassen.
 
+## Scheibe-1-Entscheidung (entschieden 2026-06-21): teilbar mit Persist
+
+CC-Album/Artist-Ansichten sind **teilbar** — die Resolve-Response trägt `id` + `shortUrl` wie `cc-track`, die Entity wird persistiert. Umgesetzt nach dem **kommerziellen Muster** (separate Short-URL-Tabelle pro Typ: `short_urls`/`album_short_urls`/`artist_short_urls`):
+
+- **Schema (Migration 0044):** neue Tabellen `cc_album_short_urls` (`cc_album_id` UNIQUE → `cc_albums.id`) + `cc_artist_short_urls` (`cc_artist_id` UNIQUE → `cc_artists.id`), 1:1 zu `cc_short_urls`. `cc_albums`/`cc_artists` existieren bereits (Upserts in `persistCcTrack`).
+- **Persist-Strategie (KISS/YAGNI):** Album-Resolve persistiert **nur die Album-Entity** (+ minimaler Artist-Upsert für den FK) und mintet die Album-short-url. Die Trackliste reist **live** als `ApiCcTrack[]` mit, wird **nicht** mitpersistiert — Track-Klick feuert den bestehenden `jamendo:<id>`-Flow (lazy Track-Persist). Artist-Resolve analog (Top-Tracks live).
+- **Nicht in Scheibe 1:** Share-Page-Konsumierung (`findCcAlbum/ArtistByShortId` + Render) — wie beim cc-track-Flow, der die short-url eager mintet, aber noch keine Share-Route konsumiert.
+
 ## Task C: CC-Album-Resolve + Ansicht
 
-- [ ] Wire-Type `ApiCcAlbum` (`packages/shared/src/api.ts`): Album-Felder + `tracks: ApiCcTrack[]`. Response `CcAlbumResolveSuccessResponse` (`type: "cc-album"`).
-- [ ] Backend: `resolveCcSelectedCandidate`/Route erkennt `jamendo-album:<id>` → `getCcAlbum(id)` + Album-Tracks via `searchCcTracks`-analog `GET /tracks?album_id=<id>` → persistieren (falls nötig) + Response. (Jamendo `/tracks?album_id=` am Execute mit EINEM Call verifizieren.)
-- [ ] Frontend: `parseCcAlbumResolveResponse` + neue `CcAlbumView` (Album-Header + Trackliste, je Track abspielbar / klickbar zur CC-Track-Seite). An `CcMediaCard` orientieren.
+- [ ] Wire-Type `ApiCcAlbum` (`packages/shared/src/api.ts`): Album-Felder + `tracks: ApiCcTrack[]`. Response `CcAlbumResolveSuccessResponse` (`type: "cc-album"`, mit `id` + `shortUrl`).
+- [ ] Client: `getCcAlbumTracks(albumId)` via `GET /tracks?album_id=<id>` (live bestätigt). Repo: `persistCcAlbum` (upsert Artist + Album, mint `cc_album_short_urls`) → `{ ccAlbumId, shortId }`.
+- [ ] Backend: `resolveCcCandidate` (diskriminiertes Union) erkennt `jamendo-album:<id>` → `getCcAlbum(id)` + `getCcAlbumTracks(id)`; Route persistiert Album + shaped `cc-album`-Response.
+- [ ] Frontend (Scheibe 3): `parseCcAlbumResolveResponse` + neue `CcAlbumView` (Album-Header + Trackliste, je Track abspielbar / klickbar zur CC-Track-Seite). An `CcMediaCard` orientieren.
 
 ## Task D: CC-Artist-Resolve + Ansicht
 
-- [ ] Wire-Type `ApiCcArtist` + `CcArtistResolveSuccessResponse` (`type: "cc-artist"`): Artist-Felder + `topTracks: ApiCcTrack[]`.
-- [ ] Backend: Route erkennt `jamendo-artist:<id>` → `getCcArtist(id)` + Top-Tracks via `GET /tracks?artist_id=<id>&order=popularity_total` → Response.
-- [ ] Frontend: `CcArtistView` (Artist-Header + Top-Tracks).
+- [ ] Wire-Type `ApiCcArtist` + `CcArtistResolveSuccessResponse` (`type: "cc-artist"`, mit `id` + `shortUrl`): Artist-Felder + `topTracks: ApiCcTrack[]`.
+- [ ] Client: `getCcArtistTopTracks(artistId)` via `GET /tracks?artist_id=<id>&order=popularity_total`. Repo: `persistCcArtist` (upsert Artist, mint `cc_artist_short_urls`) → `{ ccArtistId, shortId }`.
+- [ ] Backend: `resolveCcCandidate` erkennt `jamendo-artist:<id>` → `getCcArtist(id)` + `getCcArtistTopTracks(id)`; Route persistiert Artist + shaped `cc-artist`-Response.
+- [ ] Frontend (Scheibe 3): `CcArtistView` (Artist-Header + Top-Tracks).
 
 ## Task E: Klick-Routing + Verifikation
 

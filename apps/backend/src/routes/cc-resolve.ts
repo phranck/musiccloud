@@ -2,14 +2,20 @@
  * POST `/api/v1/cc/resolve` — Creative-Commons resolve endpoint.
  *
  * Registered inside the same `authenticatePublic` scope as the commercial
- * resolve route. Two flows only:
+ * resolve route. Flows:
  *  - `query` (free text or `title:`/`artist:`/`album:`) → disambiguation list.
- *  - `selectedCandidate` (`jamendo:<id>`) → resolve + persist → `cc-track`.
- * No URL-paste, no genre, no cross-service (those are separate / out of scope).
+ *  - `query` (`genre:`) → CC genre browse / search (sourced from Jamendo).
+ *  - `selectedCandidate` → resolve + persist → `cc-track` (`jamendo:<id>`),
+ *    `cc-album` (`jamendo-album:<id>`) or `cc-artist` (`jamendo-artist:<id>`).
+ * No URL-paste, no cross-service (those are separate / out of scope).
  */
 
 import type {
+  ApiCcAlbum,
+  ApiCcArtist,
   ApiCcTrack,
+  CcAlbumResolveSuccessResponse,
+  CcArtistResolveSuccessResponse,
   CcResolveSuccessResponse,
   ResolveDisambiguationResponse,
   ResolveErrorResponse,
@@ -22,8 +28,8 @@ import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
-import { resolveCcSelectedCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
-import type { CcTrack } from "../services/cc/jamendo/types.js";
+import { resolveCcCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
+import type { CcAlbum, CcArtist, CcTrack } from "../services/cc/jamendo/types.js";
 import { GenreQueryParseError, isGenreBrowseQuery, isGenreSearchQuery } from "../services/genre-search/index.js";
 
 const ALLOWED_ORIGINS = requireEnvList("ALLOWED_ORIGINS");
@@ -49,13 +55,14 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
         response: {
           200: {
             description:
-              'A CC disambiguation list, a resolved cc-track, or a CC genre-discovery result (`status: "genre-browse"` / `status: "genre-search"`, sourced from Jamendo).',
+              'A CC disambiguation list, a resolved cc-track / cc-album / cc-artist, or a CC genre-discovery result (`status: "genre-browse"` / `status: "genre-search"`, sourced from Jamendo).',
             oneOf: [
               { $ref: "ResolveDisambiguation#" },
               {
                 type: "object",
                 additionalProperties: true,
-                description: "Resolved cc-track success payload or CC genre-browse/genre-search response.",
+                description:
+                  "Resolved cc-track / cc-album / cc-artist success payload or CC genre-browse/genre-search response.",
               },
             ],
           },
@@ -104,11 +111,18 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
         }
 
         if (selectedCandidate) {
-          const track = await resolveCcSelectedCandidate(selectedCandidate);
-          if (!track) {
+          const resolved = await resolveCcCandidate(selectedCandidate);
+          if (!resolved) {
             return reply.status(404).send(ccError("TRACK_NOT_FOUND"));
           }
-          return reply.send(await persistCcTrackAndRespond(track, origin));
+          switch (resolved.kind) {
+            case "album":
+              return reply.send(await persistCcAlbumAndRespond(resolved.album, resolved.tracks, origin));
+            case "artist":
+              return reply.send(await persistCcArtistAndRespond(resolved.artist, resolved.topTracks, origin));
+            default:
+              return reply.send(await persistCcTrackAndRespond(resolved.track, origin));
+          }
         }
 
         const { candidates } = await resolveCcTextSearch(query!);
@@ -151,6 +165,31 @@ function ccError(code: string, overrideMessage?: string): ResolveErrorResponse {
 }
 
 /**
+ * Maps a resolved CC track to its wire shape. Shared by the track, album and
+ * artist responses so the track projection stays defined in exactly one place.
+ *
+ * @param track - the resolved CC track.
+ * @returns the wire-format CC track.
+ */
+function toApiCcTrack(track: CcTrack): ApiCcTrack {
+  return {
+    jamendoId: track.jamendoId,
+    title: track.title,
+    artistName: track.artistName,
+    albumName: track.albumName,
+    artworkUrl: track.artworkUrl,
+    durationMs: track.durationMs,
+    releaseDate: track.releaseDate,
+    licenseCcurl: track.licenseCcurl,
+    streamUrl: track.streamUrl,
+    downloadUrl: track.downloadUrl,
+    downloadAllowed: track.downloadAllowed,
+    waveform: track.waveform,
+    shareUrl: track.shareUrl,
+  };
+}
+
+/**
  * Persists a resolved CC track and shapes the `cc-track` success response.
  *
  * @param track - the resolved CC track.
@@ -177,21 +216,80 @@ async function persistCcTrackAndRespond(track: CcTrack, origin: string): Promise
     shareUrl: track.shareUrl,
   });
 
-  const apiTrack: ApiCcTrack = {
-    jamendoId: track.jamendoId,
-    title: track.title,
-    artistName: track.artistName,
-    albumName: track.albumName,
-    artworkUrl: track.artworkUrl,
-    durationMs: track.durationMs,
-    releaseDate: track.releaseDate,
-    licenseCcurl: track.licenseCcurl,
-    streamUrl: track.streamUrl,
-    downloadUrl: track.downloadUrl,
-    downloadAllowed: track.downloadAllowed,
-    waveform: track.waveform,
-    shareUrl: track.shareUrl,
+  return { type: "cc-track", id: ccTrackId, shortUrl: `${origin}/${shortId}`, track: toApiCcTrack(track) };
+}
+
+/**
+ * Persists a resolved CC album (entity only — its tracks travel live and resolve
+ * lazily on click) and shapes the `cc-album` success response.
+ *
+ * @param album - the resolved CC album.
+ * @param tracks - the album's tracks in release order.
+ * @param origin - validated origin for the short URL.
+ * @returns the cc-album success payload.
+ */
+async function persistCcAlbumAndRespond(
+  album: CcAlbum,
+  tracks: CcTrack[],
+  origin: string,
+): Promise<CcAlbumResolveSuccessResponse> {
+  const repo = await getCcRepository();
+  const { ccAlbumId, shortId } = await repo.persistCcAlbum({
+    jamendoId: album.jamendoId,
+    name: album.name,
+    jamendoArtistId: album.jamendoArtistId,
+    artistName: album.artistName,
+    artworkUrl: album.artworkUrl,
+    releaseDate: album.releaseDate,
+    zipUrl: album.zipUrl,
+    shareUrl: album.shareUrl,
+  });
+
+  const apiAlbum: ApiCcAlbum = {
+    jamendoId: album.jamendoId,
+    name: album.name,
+    artistName: album.artistName,
+    artworkUrl: album.artworkUrl,
+    releaseDate: album.releaseDate,
+    zipUrl: album.zipUrl,
+    shareUrl: album.shareUrl,
+    tracks: tracks.map(toApiCcTrack),
   };
 
-  return { type: "cc-track", id: ccTrackId, shortUrl: `${origin}/${shortId}`, track: apiTrack };
+  return { type: "cc-album", id: ccAlbumId, shortUrl: `${origin}/${shortId}`, album: apiAlbum };
+}
+
+/**
+ * Persists a resolved CC artist (entity only — its top tracks travel live and
+ * resolve lazily on click) and shapes the `cc-artist` success response.
+ *
+ * @param artist - the resolved CC artist.
+ * @param topTracks - the artist's most-popular tracks, descending.
+ * @param origin - validated origin for the short URL.
+ * @returns the cc-artist success payload.
+ */
+async function persistCcArtistAndRespond(
+  artist: CcArtist,
+  topTracks: CcTrack[],
+  origin: string,
+): Promise<CcArtistResolveSuccessResponse> {
+  const repo = await getCcRepository();
+  const { ccArtistId, shortId } = await repo.persistCcArtist({
+    jamendoId: artist.jamendoId,
+    name: artist.name,
+    imageUrl: artist.imageUrl,
+    website: artist.website,
+    shareUrl: artist.shareUrl,
+  });
+
+  const apiArtist: ApiCcArtist = {
+    jamendoId: artist.jamendoId,
+    name: artist.name,
+    website: artist.website,
+    imageUrl: artist.imageUrl,
+    shareUrl: artist.shareUrl,
+    topTracks: topTracks.map(toApiCcTrack),
+  };
+
+  return { type: "cc-artist", id: ccArtistId, shortUrl: `${origin}/${shortId}`, artist: apiArtist };
 }

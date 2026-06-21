@@ -7,7 +7,38 @@
 
 import type { Pool, PoolClient } from "pg";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
-import type { CcTrackRecord, PersistCcTrackData } from "../repository.js";
+import type { CcTrackRecord, PersistCcAlbumData, PersistCcArtistData, PersistCcTrackData } from "../repository.js";
+
+/**
+ * Eagerly mints (or reuses) the canonical short code for a CC entity. Idempotent:
+ * the `INSERT … ON CONFLICT (<fkColumn>) DO NOTHING` keeps any existing code, then
+ * the code is read back so it never changes across re-resolves.
+ *
+ * `table` and `fkColumn` are trusted internal identifiers (never user input), so
+ * interpolating them into the SQL is safe.
+ *
+ * @param client - Active transaction client.
+ * @param table - Short-url table, e.g. `"cc_album_short_urls"`.
+ * @param fkColumn - Entity FK column, e.g. `"cc_album_id"`.
+ * @param entityId - Internal id of the owning entity.
+ * @param now - Shared transaction timestamp.
+ * @returns The stable short code.
+ */
+async function mintCcShortUrl(
+  client: PoolClient,
+  table: string,
+  fkColumn: string,
+  entityId: string,
+  now: Date,
+): Promise<string> {
+  await client.query(
+    `INSERT INTO ${table} (id, ${fkColumn}, created_at) VALUES ($1, $2, $3)
+     ON CONFLICT (${fkColumn}) DO NOTHING`,
+    [generateShortId(), entityId, now],
+  );
+  const result = await client.query(`SELECT id FROM ${table} WHERE ${fkColumn} = $1`, [entityId]);
+  return result.rows[0].id as string;
+}
 
 /**
  * Upserts a CC artist by its Jamendo id and returns the internal id.
@@ -188,19 +219,102 @@ export async function persistCcTrack(
     );
     const ccTrackId = trackResult.rows[0].id as string;
 
-    // Eager, idempotent short URL: always attempt insert; conflict keeps the
-    // existing canonical code, then read it back so the stable token never
-    // changes across re-resolves.
-    await client.query(
-      `INSERT INTO cc_short_urls (id, cc_track_id, created_at) VALUES ($1, $2, $3)
-       ON CONFLICT (cc_track_id) DO NOTHING`,
-      [generateShortId(), ccTrackId, now],
-    );
-    const shortResult = await client.query(`SELECT id FROM cc_short_urls WHERE cc_track_id = $1`, [ccTrackId]);
-    const shortId = shortResult.rows[0].id as string;
+    const shortId = await mintCcShortUrl(client, "cc_short_urls", "cc_track_id", ccTrackId, now);
 
     await client.query("COMMIT");
     return { ccTrackId, shortId };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Transactionally persists a resolved CC album: upserts its artist (for the FK)
+ * and the album, then eagerly mints the album's canonical short URL. Dedup is by
+ * `jamendo_id`, so re-resolving keeps the internal ids and the stable short code.
+ * The album's tracks are NOT persisted here — they travel live in the resolve
+ * response and are persisted lazily when a track is clicked.
+ *
+ * @param pool - Postgres pool.
+ * @param data - Album payload (artist inline for the FK upsert).
+ * @returns The internal `cc_albums.id` and the canonical short code.
+ * @throws Query errors propagate after rollback.
+ */
+export async function persistCcAlbum(
+  pool: Pool,
+  data: PersistCcAlbumData,
+): Promise<{ ccAlbumId: string; shortId: string }> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const now = new Date();
+
+    const ccArtistId = await upsertCcArtist(client, { jamendoId: data.jamendoArtistId, name: data.artistName }, now);
+    const ccAlbumId = await upsertCcAlbum(
+      client,
+      {
+        jamendoId: data.jamendoId,
+        name: data.name,
+        ccArtistId,
+        artworkUrl: data.artworkUrl,
+        releaseDate: data.releaseDate,
+        zipUrl: data.zipUrl,
+        shareUrl: data.shareUrl,
+      },
+      now,
+    );
+
+    const shortId = await mintCcShortUrl(client, "cc_album_short_urls", "cc_album_id", ccAlbumId, now);
+
+    await client.query("COMMIT");
+    return { ccAlbumId, shortId };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Transactionally persists a resolved CC artist and eagerly mints its canonical
+ * short URL. Dedup is by `jamendo_id`. The artist's top tracks are NOT persisted
+ * here — they travel live in the resolve response and are persisted lazily on a
+ * track click.
+ *
+ * @param pool - Postgres pool.
+ * @param data - Artist payload.
+ * @returns The internal `cc_artists.id` and the canonical short code.
+ * @throws Query errors propagate after rollback.
+ */
+export async function persistCcArtist(
+  pool: Pool,
+  data: PersistCcArtistData,
+): Promise<{ ccArtistId: string; shortId: string }> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const now = new Date();
+
+    const ccArtistId = await upsertCcArtist(
+      client,
+      {
+        jamendoId: data.jamendoId,
+        name: data.name,
+        imageUrl: data.imageUrl,
+        website: data.website,
+        shareUrl: data.shareUrl,
+      },
+      now,
+    );
+
+    const shortId = await mintCcShortUrl(client, "cc_artist_short_urls", "cc_artist_id", ccArtistId, now);
+
+    await client.query("COMMIT");
+    return { ccArtistId, shortId };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

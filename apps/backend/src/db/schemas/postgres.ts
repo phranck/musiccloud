@@ -1354,3 +1354,43 @@ export const ccShortUrls = pgTable(
     uniqueIndex("uq_cc_short_urls_cc_track_id").on(table.ccTrackId),
   ],
 );
+
+/**
+ * Public short-code mapping for CC album share pages.
+ * Mirrors {@link ccShortUrls} (one stable code per entity, eager mint), but keyed
+ * to a CC album so a resolved CC album is immediately shareable.
+ */
+export const ccAlbumShortUrls = pgTable(
+  "cc_album_short_urls",
+  {
+    id: text("id").primaryKey(),
+    ccAlbumId: text("cc_album_id")
+      .notNull()
+      .references(() => ccAlbums.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("idx_cc_album_short_urls_cc_album_id").on(table.ccAlbumId),
+    uniqueIndex("uq_cc_album_short_urls_cc_album_id").on(table.ccAlbumId),
+  ],
+);
+
+/**
+ * Public short-code mapping for CC artist share pages.
+ * Mirrors {@link ccShortUrls} (one stable code per entity, eager mint), but keyed
+ * to a CC artist so a resolved CC artist is immediately shareable.
+ */
+export const ccArtistShortUrls = pgTable(
+  "cc_artist_short_urls",
+  {
+    id: text("id").primaryKey(),
+    ccArtistId: text("cc_artist_id")
+      .notNull()
+      .references(() => ccArtists.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("idx_cc_artist_short_urls_cc_artist_id").on(table.ccArtistId),
+    uniqueIndex("uq_cc_artist_short_urls_cc_artist_id").on(table.ccArtistId),
+  ],
+);

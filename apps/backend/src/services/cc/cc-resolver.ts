@@ -7,11 +7,25 @@
 
 import type { ApiDisambiguationCandidate } from "@musiccloud/shared";
 import { isStructuredSearchQuery, parseStructuredSearchQuery } from "../structured-search/index.js";
-import { type CcTrackQuery, getCcTrack, searchCcTracks } from "./jamendo/client.js";
-import type { CcTrack } from "./jamendo/types.js";
+import {
+  type CcTrackQuery,
+  getCcAlbum,
+  getCcAlbumTracks,
+  getCcArtist,
+  getCcArtistTopTracks,
+  getCcTrack,
+  searchCcTracks,
+} from "./jamendo/client.js";
+import type { CcAlbum, CcArtist, CcTrack } from "./jamendo/types.js";
 
-/** Candidate-id prefix that marks a CC (Jamendo) candidate. */
+/**
+ * Candidate-id prefixes that mark a CC (Jamendo) candidate by entity kind. The
+ * three are disjoint (`jamendo-album:`/`jamendo-artist:` never match the bare
+ * `jamendo:` `startsWith`), so the resolver can tell them apart by prefix alone.
+ */
 const CC_CANDIDATE_PREFIX = "jamendo:";
+const CC_ALBUM_CANDIDATE_PREFIX = "jamendo-album:";
+const CC_ARTIST_CANDIDATE_PREFIX = "jamendo-artist:";
 
 /** Maximum hit-list size returned to the client. */
 const CC_CANDIDATE_LIMIT = 10;
@@ -34,6 +48,28 @@ export function ccCandidateId(jamendoId: string): string {
  */
 export function parseCcCandidateId(candidateId: string): string | null {
   return candidateId.startsWith(CC_CANDIDATE_PREFIX) ? candidateId.slice(CC_CANDIDATE_PREFIX.length) : null;
+}
+
+/**
+ * Extracts the Jamendo album id from a `jamendo-album:<id>` candidate id.
+ *
+ * @param candidateId - Candidate id from a prior genre-search round.
+ * @returns The Jamendo album id, or null when the id is not a CC album candidate.
+ */
+export function parseCcAlbumCandidateId(candidateId: string): string | null {
+  return candidateId.startsWith(CC_ALBUM_CANDIDATE_PREFIX) ? candidateId.slice(CC_ALBUM_CANDIDATE_PREFIX.length) : null;
+}
+
+/**
+ * Extracts the Jamendo artist id from a `jamendo-artist:<id>` candidate id.
+ *
+ * @param candidateId - Candidate id from a prior genre-search round.
+ * @returns The Jamendo artist id, or null when the id is not a CC artist candidate.
+ */
+export function parseCcArtistCandidateId(candidateId: string): string | null {
+  return candidateId.startsWith(CC_ARTIST_CANDIDATE_PREFIX)
+    ? candidateId.slice(CC_ARTIST_CANDIDATE_PREFIX.length)
+    : null;
 }
 
 /**
@@ -79,16 +115,52 @@ export async function resolveCcTextSearch(query: string): Promise<{ candidates: 
 }
 
 /**
- * Leg 2: resolves a picked CC candidate id to its full track.
- *
- * @param candidateId - `jamendo:<id>` candidate id from leg 1.
- * @returns The full CC track, or null when Jamendo has no such track.
- * @throws Error when the candidate id is not a CC candidate.
+ * Discriminated result of resolving a picked CC candidate. The `kind` mirrors
+ * the candidate-id prefix; album/artist carry their live track list (not yet
+ * persisted — the route persists the entity and the tracks resolve lazily on
+ * click).
  */
-export async function resolveCcSelectedCandidate(candidateId: string): Promise<CcTrack | null> {
-  const jamendoId = parseCcCandidateId(candidateId);
-  if (!jamendoId) {
-    throw new Error(`Not a CC candidate id: ${candidateId}`);
+export type CcResolvedCandidate =
+  | { kind: "track"; track: CcTrack }
+  | { kind: "album"; album: CcAlbum; tracks: CcTrack[] }
+  | { kind: "artist"; artist: CcArtist; topTracks: CcTrack[] };
+
+/**
+ * Leg 2: resolves a picked CC candidate id to its full entity. Dispatches on the
+ * candidate-id prefix (`jamendo-album:`/`jamendo-artist:`/`jamendo:`) and fetches
+ * the entity plus, for album/artist, its track list from Jamendo (two throttled
+ * calls each).
+ *
+ * @param candidateId - Candidate id from a prior disambiguation / genre-search round.
+ * @returns The resolved entity, or null when Jamendo has no such entity.
+ * @throws Error when the candidate id matches none of the CC prefixes.
+ */
+export async function resolveCcCandidate(candidateId: string): Promise<CcResolvedCandidate | null> {
+  const albumId = parseCcAlbumCandidateId(candidateId);
+  if (albumId) {
+    const album = await getCcAlbum(albumId);
+    if (!album) {
+      return null;
+    }
+    const tracks = await getCcAlbumTracks(albumId);
+    return { kind: "album", album, tracks };
   }
-  return getCcTrack(jamendoId);
+
+  const artistId = parseCcArtistCandidateId(candidateId);
+  if (artistId) {
+    const artist = await getCcArtist(artistId);
+    if (!artist) {
+      return null;
+    }
+    const topTracks = await getCcArtistTopTracks(artistId);
+    return { kind: "artist", artist, topTracks };
+  }
+
+  const trackId = parseCcCandidateId(candidateId);
+  if (trackId) {
+    const track = await getCcTrack(trackId);
+    return track ? { kind: "track", track } : null;
+  }
+
+  throw new Error(`Not a CC candidate id: ${candidateId}`);
 }
