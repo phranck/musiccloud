@@ -83,6 +83,20 @@ export const ActiveResultKind = {
   CcSong: "cc-song",
 } as const;
 
+/**
+ * Discriminant namespace for CC track responses.
+ *
+ * The single member `CcTrack` matches the `type` field emitted by the
+ * CC resolve endpoint (`"cc-track"`). Using this namespace instead of
+ * inline string literals keeps the domain-literals Doctor rule green
+ * and ensures all comparisons point to a single source of truth.
+ */
+export const CcTrackType = {
+  CcTrack: "cc-track",
+} as const;
+
+export type CcTrackType = (typeof CcTrackType)[keyof typeof CcTrackType];
+
 export const AppStateType = {
   Idle: "idle",
   Loading: "loading",

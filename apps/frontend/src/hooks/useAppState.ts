@@ -1,4 +1,5 @@
 import {
+  type CcResolveSuccessResponse,
   ENDPOINTS,
   type ResolveDisambiguationResponse,
   type ResolveErrorResponse,
@@ -13,12 +14,21 @@ import { CardSignal, GenreSignal, ResolveSignal, SearchSignal, sendMusicSignal }
 import {
   appReducer,
   formatResolveErrorMessage,
+  parseCcResolveResponse,
   parseResolveError,
   parseResolveResponse,
   parseUnifiedResolveResponse,
   ResolveApiError,
 } from "@/lib/resolve/parsers";
-import type { ActiveResult, AppState, GenreSearchPayload, ReducerState, ResolveUiError } from "@/lib/types/app";
+import {
+  type ActiveResult,
+  type AppState,
+  CcTrackType,
+  type GenreSearchPayload,
+  type ReducerState,
+  ResolveMode,
+  type ResolveUiError,
+} from "@/lib/types/app";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 
 interface UseAppStateResult {
@@ -48,8 +58,15 @@ interface UseAppStateResult {
 /**
  * Manages the full app state machine for the landing page:
  * loading, results, disambiguation, error, and clearing states.
+ *
+ * @param mode - The active resolve mode. Defaults to `ResolveMode.Commercial`
+ *   so existing callers without the argument compile without change (Task 6
+ *   will pass the real persisted mode from the resolve-mode store).
+ *   - `ResolveMode.Commercial` — submits to `/api/resolve` (commercial endpoint).
+ *   - `ResolveMode.Cc` — submits to `/api/cc/resolve` (Creative Commons endpoint)
+ *     and handles `cc-track` responses via `RESOLVE_CC_SUCCESS`.
  */
-export function useAppState(): UseAppStateResult {
+export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppStateResult {
   const t = useT();
   const initialState: ReducerState = { screen: { type: "idle" }, stack: [] };
   const [{ screen, stack }, dispatch] = useReducer(appReducer, initialState);
@@ -81,87 +98,107 @@ export function useAppState(): UseAppStateResult {
     genreSearchPayload
   );
 
-  const handleSubmit = useCallback(async (url: string) => {
-    sendMusicSignal(SearchSignal.Submitted);
-    dispatch({ type: "SUBMIT" });
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(ENDPOINTS.frontend.resolve, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: url }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-        throw new ResolveApiError(errorData);
-      }
-      const data = (await response.json()) as
-        | UnifiedResolveSuccessResponse
-        | ResolveDisambiguationResponse
-        | ResolveGenreBrowseResponse
-        | ResolveGenreSearchResponse;
-      if ("status" in data && data.status === "disambiguation") {
-        sendMusicSignal(ResolveSignal.Completed);
-        dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
-        return;
-      }
-      if ("status" in data && data.status === "genre-browse") {
-        const browseData = data as ResolveGenreBrowseResponse;
-        sendMusicSignal(GenreSignal.Overview);
-        dispatch({ type: "GENRE_BROWSE", genres: browseData.genres });
-        return;
-      }
-      if ("status" in data && data.status === "genre-search") {
-        sendMusicSignal(ResolveSignal.Completed);
-        dispatch({
-          type: "GENRE_SEARCH",
-          payload: {
-            query: url,
-            queryDetails: data.query,
-            results: data.results,
-            warnings: data.warnings,
-          },
+  const handleSubmit = useCallback(
+    async (url: string) => {
+      sendMusicSignal(SearchSignal.Submitted);
+      dispatch({ type: "SUBMIT" });
+      try {
+        const endpoint = mode === ResolveMode.Cc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: url }),
+          signal: controller.signal,
         });
-        return;
+        clearTimeout(timeout);
+        if (!response.ok) {
+          const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
+          throw new ResolveApiError(errorData);
+        }
+        const data = (await response.json()) as
+          | UnifiedResolveSuccessResponse
+          | ResolveDisambiguationResponse
+          | ResolveGenreBrowseResponse
+          | ResolveGenreSearchResponse
+          | CcResolveSuccessResponse;
+        if ("status" in data && data.status === "disambiguation") {
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
+          return;
+        }
+        if ("status" in data && data.status === "genre-browse") {
+          const browseData = data as ResolveGenreBrowseResponse;
+          sendMusicSignal(GenreSignal.Overview);
+          dispatch({ type: "GENRE_BROWSE", genres: browseData.genres });
+          return;
+        }
+        if ("status" in data && data.status === "genre-search") {
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatch({
+            type: "GENRE_SEARCH",
+            payload: {
+              query: url,
+              queryDetails: data.query,
+              results: data.results,
+              warnings: data.warnings,
+            },
+          });
+          return;
+        }
+        if ("type" in data && data.type === CcTrackType.CcTrack) {
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatch({ type: "RESOLVE_CC_SUCCESS", ccActive: parseCcResolveResponse(data) });
+          return;
+        }
+        const resolved = data as UnifiedResolveSuccessResponse;
+        sendMusicSignal(ResolveSignal.Completed);
+        dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
+      } catch (err) {
+        sendResolveFailedSignal(err);
+        dispatchResolveError(dispatch, err);
       }
-      const resolved = data as UnifiedResolveSuccessResponse;
-      sendMusicSignal(ResolveSignal.Completed);
-      dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
-    } catch (err) {
-      sendResolveFailedSignal(err);
-      dispatchResolveError(dispatch, err);
-    }
-  }, []);
+    },
+    [mode],
+  );
 
-  const handleSelectCandidate = useCallback(async (candidate: DisambiguationCandidate) => {
-    sendMusicSignal(CardSignal.DisambiguationCandidate);
-    dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(ENDPOINTS.frontend.resolve, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selectedCandidate: candidate.id }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-        throw new ResolveApiError(errorData);
+  const handleSelectCandidate = useCallback(
+    async (candidate: DisambiguationCandidate) => {
+      sendMusicSignal(CardSignal.DisambiguationCandidate);
+      dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
+      try {
+        const endpoint = mode === ResolveMode.Cc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ selectedCandidate: candidate.id }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!response.ok) {
+          const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
+          throw new ResolveApiError(errorData);
+        }
+        if (mode === ResolveMode.Cc) {
+          const data = (await response.json()) as CcResolveSuccessResponse;
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatch({ type: "RESOLVE_CC_SUCCESS", ccActive: parseCcResolveResponse(data) });
+        } else {
+          const data = (await response.json()) as ResolveSuccessResponse;
+          const resolved: UnifiedResolveSuccessResponse = { ...data, type: "track" };
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data), resolved });
+        }
+      } catch (err) {
+        sendResolveFailedSignal(err);
+        dispatchResolveError(dispatch, err);
       }
-      const data = (await response.json()) as ResolveSuccessResponse;
-      const resolved: UnifiedResolveSuccessResponse = { ...data, type: "track" };
-      sendMusicSignal(ResolveSignal.Completed);
-      dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data), resolved });
-    } catch (err) {
-      sendResolveFailedSignal(err);
-      dispatchResolveError(dispatch, err);
-    }
-  }, []);
+    },
+    [mode],
+  );
 
   /**
    * Click on a row in the genre-search results panel.

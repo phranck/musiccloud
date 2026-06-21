@@ -45,20 +45,11 @@ const config = {
         rules: ["deslop/unused-dev-dependency"],
       },
       /**
-       * ResolveMode is a new namespace added in Task 1 of the CC-path plan
-       * (2026-06-21-cc-pfad-frontend). It will be consumed by resolveMode.ts
-       * and LandingPage.tsx in Tasks 1/6. Remove this suppression when Task 6
-       * lands and the first real import exists.
-       */
-      {
-        files: ["src/lib/types/app.ts"],
-        rules: ["deslop/unused-export"],
-      },
-      /**
-       * parseCcResolveResponse and buildCcShareConfig are new exports added in
-       * Task 4 of the CC-path plan (2026-06-21-cc-pfad-frontend). They will be
-       * consumed by useAppState.ts (Task 5) and CcInfoCard/LandingPage (Task 7).
-       * Remove this suppression when Task 5 lands and the first import exists.
+       * buildCcShareConfig is added in Task 4 of the CC-path plan
+       * (2026-06-21-cc-pfad-frontend). It will be consumed by CcInfoCard /
+       * LandingPage in Task 7. parseCcResolveResponse is now consumed by
+       * useAppState.ts (Task 5) so only buildCcShareConfig needs cover.
+       * Remove this suppression when Task 7 lands.
        */
       {
         files: ["src/lib/resolve/parsers.ts"],
