@@ -26,9 +26,7 @@ export function ArtistProfileMobileCard({
           has minimal text (no genres, no similar artists, no bio), so the
           bottom edge doesn't slide up against the artwork. */}
       <ArtistProfileCard profile={profile} showInitialSkeleton={showInitialSkeleton} />
-      {providedByLabel && (
-        <p className={cn("mc-txt-info", sectionCardFooterTextClassName, "mt-2 px-2")}>{providedByLabel}</p>
-      )}
+      {providedByLabel && <p className={cn(sectionCardFooterTextClassName, "mt-2 px-2")}>{providedByLabel}</p>}
     </CollapsibleSection>
   );
 }

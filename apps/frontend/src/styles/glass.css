@@ -442,7 +442,9 @@
     var(--text-embossedTitle-normal-night)
   );
 }
-.mc-txt-info {
+/* Info / help text surface (card "provided by" credit lines). Own font + the
+   `normal` emphasis level, reading the dedicated `--text-infoText-*` vars. */
+.mc-txt-info-normal {
   font-family: var(--text-infoText-font);
   font-size: calc(
     var(--text-infoText-size-day) * var(--g-dayness) + var(--text-infoText-size-night) * (1 - var(--g-dayness))
@@ -450,7 +452,7 @@
   font-weight: calc(
     var(--text-infoText-weight-day) * var(--g-dayness) + var(--text-infoText-weight-night) * (1 - var(--g-dayness))
   );
-  color: color-mix(in srgb, var(--text-infoText-dimmed-day) calc(var(--g-dayness) * 100%), var(--text-infoText-dimmed-night));
+  color: color-mix(in srgb, var(--text-infoText-normal-day) calc(var(--g-dayness) * 100%), var(--text-infoText-normal-night));
 }
 
 /* Sky-anchored footer text — colour/opacity/stroke/size cross-faded day↔night. */
