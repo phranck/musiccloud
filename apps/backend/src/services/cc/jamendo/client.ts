@@ -10,6 +10,7 @@ import { decodeHtmlEntities } from "../../../lib/html.js";
 import type {
   CcAlbum,
   CcArtist,
+  CcArtistMusicInfo,
   CcGenre,
   CcTrack,
   JamendoAlbumRaw,
@@ -266,6 +267,44 @@ export async function getCcArtist(jamendoId: string): Promise<CcArtist | null> {
   const raw = await jamendoFetch<JamendoArtistRaw>("/artists", { id: jamendoId, limit: 1 });
   const first = raw[0];
   return first ? mapJamendoArtist(first) : null;
+}
+
+/**
+ * Upper bound on genre tags carried into the artist profile. Honours the
+ * `ArtistProfile.genres` "max 3" wire contract.
+ */
+const CC_ARTIST_GENRES_LIMIT = 3;
+
+/**
+ * Fetches the `include=musicinfo` profile enrichment for a Jamendo artist —
+ * image, genre tags, and bio — feeding the CC artist-info card's profile
+ * section. One throttled call (mirrors the `include=musicinfo` mechanic of
+ * {@link getSimilarCcTracks}); `jamendoFetch` enforces `client_id`, the JSON
+ * envelope, and the shared burst throttle.
+ *
+ * The bio is locale-resolved: the requested `locale`, then English, then
+ * `null`. Genres are capped at {@link CC_ARTIST_GENRES_LIMIT} so the profile
+ * never exceeds the wire contract's three-genre maximum.
+ *
+ * @param jamendoArtistId - Jamendo artist id.
+ * @param locale - Preferred bio language (default `"en"`); falls back to English.
+ * @returns The artist's profile enrichment, or `null` when Jamendo has no record
+ *   for the id.
+ * @throws Error on missing client id or API failure (see {@link jamendoFetch}).
+ */
+export async function getCcArtistMusicInfo(jamendoArtistId: string, locale = "en"): Promise<CcArtistMusicInfo | null> {
+  const raw = await jamendoFetch<JamendoArtistRaw>("/artists", {
+    id: jamendoArtistId,
+    include: "musicinfo",
+    limit: 1,
+  });
+  const first = raw[0];
+  if (!first) return null;
+  return {
+    imageUrl: first.image || null,
+    genres: (first.musicinfo?.tags ?? []).slice(0, CC_ARTIST_GENRES_LIMIT),
+    bioSummary: first.musicinfo?.description?.[locale] || first.musicinfo?.description?.en || null,
+  };
 }
 
 /**

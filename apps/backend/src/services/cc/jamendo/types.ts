@@ -62,6 +62,13 @@ export interface JamendoArtistRaw {
   website: string;
   image: string;
   shareurl: string;
+  /**
+   * Present only when the request adds `include=musicinfo`. Unlike
+   * {@link JamendoTrackRaw.musicinfo}, the artist payload exposes `tags` as a
+   * flat `string[]` (genre tags), and adds a locale-keyed `description` map
+   * (the artist bio per language, e.g. `{ en: "…", de: "…" }`).
+   */
+  musicinfo?: { tags?: string[]; description?: Record<string, string> };
 }
 
 /**
@@ -123,4 +130,24 @@ export interface CcArtist {
   website?: string;
   imageUrl?: string;
   shareUrl?: string;
+}
+
+/**
+ * The `include=musicinfo` enrichment for a Jamendo artist, in domain shape.
+ * Feeds the CC artist-info card's profile section (`imageUrl`, `genres`, `bio`).
+ *
+ * Distinct from {@link CcArtist}: that is the lightweight resolve entity, this
+ * is the heavier profile enrichment fetched separately so the resolve path only
+ * pays for it when building the artist column.
+ *
+ * @property imageUrl - The artist's Jamendo image, or `null` when absent.
+ * @property genres - Genre tags from `musicinfo.tags`, capped at 3 to honour the
+ *   `ArtistProfile.genres` "max 3" contract.
+ * @property bioSummary - The artist bio for the requested locale (falling back
+ *   to English, then `null`), from `musicinfo.description`.
+ */
+export interface CcArtistMusicInfo {
+  imageUrl: string | null;
+  genres: string[];
+  bioSummary: string | null;
 }

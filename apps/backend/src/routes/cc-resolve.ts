@@ -219,7 +219,11 @@ async function persistCcTrackAndRespond(track: CcTrack, origin: string): Promise
   });
 
   // Right column: the track artist's popular tracks + similar tracks.
-  const artistInfo = await buildCcArtistInfo(track.artistName, await getCcArtistTopTracks(track.jamendoArtistId));
+  const artistInfo = await buildCcArtistInfo(
+    track.artistName,
+    track.jamendoArtistId,
+    await getCcArtistTopTracks(track.jamendoArtistId),
+  );
 
   return {
     type: "cc-track",
@@ -268,7 +272,7 @@ async function persistCcAlbumAndRespond(
   };
 
   // Right column: the album's tracks as the popular column + similar tracks.
-  const artistInfo = await buildCcArtistInfo(album.artistName, tracks);
+  const artistInfo = await buildCcArtistInfo(album.artistName, album.jamendoArtistId, tracks);
 
   return { type: "cc-album", id: ccAlbumId, shortUrl: `${origin}/${shortId}`, album: apiAlbum, artistInfo };
 }
@@ -306,7 +310,7 @@ async function persistCcArtistAndRespond(
   };
 
   // Right column: the artist's top tracks as the popular column + similar tracks.
-  const artistInfo = await buildCcArtistInfo(artist.name, topTracks);
+  const artistInfo = await buildCcArtistInfo(artist.name, artist.jamendoId, topTracks);
 
   return { type: "cc-artist", id: ccArtistId, shortUrl: `${origin}/${shortId}`, artist: apiArtist, artistInfo };
 }

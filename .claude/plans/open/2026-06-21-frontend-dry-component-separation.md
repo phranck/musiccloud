@@ -187,9 +187,13 @@ Erfasst, damit nichts verloren geht (NICHT umsetzen bis freigegeben):
 
 ---
 
-## Phase 8 — CC Artist-Profile aus Jamendo (Feature)
+## Phase 8 — CC Artist-Profile aus Jamendo (Feature) — DONE (commit folgt)
 
 > User: „In Künstler-Info steht immer, keine Details verfügbar — stimmt nicht (z.B. `localhost:3001/BIQSd`, LOWTONE, Jamendo-id 595393)." Jamendo `/artists?include=musicinfo` liefert `image` + `description.{de,en}` (Bio) + `tags` (Genres).
+
+> **Erledigt:** 8.1-8.6 wie geplant umgesetzt. `getCcArtistMusicInfo` (1 throttled Call über `jamendoFetch`) liefert `imageUrl`/`genres` (cap 3)/`bioSummary` (locale→en→null); `buildCcArtistInfo` baut daraus das `ArtistProfile`, `popularity`/`followers`/`scrobbles` bleiben null und `similarArtists` leer (keine Surrogate). Drei Call-Sites in `cc-resolve.ts` threaden die Artist-id. IST-State-Kommentare in `cc-artist-info.ts` (Header + TSDoc) + `ArtistProfileDesktopCard.tsx` korrigiert.
+>
+> **Abweichung vom Plan (gefolgt dem echten Code):** Der Plan listete nur den Test in `jamendo/__tests__/client.test.ts` (8.6). Es existiert aber zusätzlich `services/cc/__tests__/cc-artist-info.test.ts`, der `buildCcArtistInfo` mit der ALTEN Signatur `(artistName, columnTracks)` aufrief — die Signatur-Erweiterung brach diese drei Tests. Migriert auf die neue 3-arg-Signatur, `getCcArtistMusicInfo` gemockt, plus neuer Test, dass das Profil aus musicinfo gebaut wird (listener counts null, similarArtists []).
 
 - **8.1 Types** (`apps/backend/src/services/cc/jamendo/types.ts`): `JamendoArtistRaw` um `musicinfo?: { tags?: string[]; description?: Record<string, string> }` erweitern; Domain-Type `CcArtistMusicInfo { imageUrl; genres; bioSummary }`.
 - **8.2 Client** (`client.ts`, neben `getCcArtist`): `getCcArtistMusicInfo(jamendoArtistId, locale="en")` via `jamendoFetch("/artists", { id, include: "musicinfo", limit: 1 })`; map `image`→`imageUrl`, `tags.slice(0,3)`→`genres`, `description[locale]||description.en||null`→`bioSummary`. Throttle kommt über `jamendoFetch`.
@@ -230,7 +234,7 @@ Erfasst, damit nichts verloren geht (NICHT umsetzen bis freigegeben):
 - [x] Phase 5: Discovery + Listen — 5.1-5.9 erledigt (5.9 nur Gate, kein Hook)
 - [x] Phase 6: PageOverlay (Logik-raus → Split) — 6.1-6.7 erledigt; Prose-Class-Maps byte-identisch verifiziert
 - [ ] Phase 7: Audio/Player — ZURÜCKGESTELLT bis Player-Divergenz (C vs CC) besprochen
-- [ ] Phase 8: CC Artist-Profile aus Jamendo
+- [x] Phase 8: CC Artist-Profile aus Jamendo — 8.1-8.6 erledigt (profile aus `/artists?include=musicinfo`: image+genres+bio; popularity/followers/scrobbles null, similarArtists []); zusätzlich `cc-artist-info.test.ts` auf neue 3-arg-Signatur migriert
 - [ ] Phase 9: Pagination 6-cap
 - [ ] Alle Code-Referenzen vor Execute re-verifiziert (Funktionen, Pfade, i18n-Keys)
 - [ ] Pro Subsystem: kleine logische Commits, kein großer WIP-Berg

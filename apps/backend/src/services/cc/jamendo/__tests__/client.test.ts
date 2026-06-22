@@ -3,6 +3,7 @@ import {
   getCcAlbum,
   getCcAlbumTracks,
   getCcArtist,
+  getCcArtistMusicInfo,
   getCcArtistsByIds,
   getCcArtistTopTracks,
   getCcGenreCoverUrl,
@@ -288,6 +289,107 @@ describe("getCcArtist", () => {
     );
     const artist = await getCcArtist("338723");
     expect(artist).toMatchObject({ jamendoId: "338723", name: "Sample Artist", website: "https://example.org" });
+  });
+});
+
+describe("getCcArtistMusicInfo", () => {
+  beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  function mockArtist(artist: JamendoArtistRaw): ReturnType<typeof vi.fn> {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [artist] }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it("requests /artists with include=musicinfo and maps image + genres + bio", async () => {
+    const fetchMock = mockArtist({
+      ...SAMPLE_ARTIST,
+      musicinfo: { tags: ["jazz", "piano"], description: { en: "An English bio." } },
+    });
+
+    const info = await getCcArtistMusicInfo("338723");
+
+    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("/artists");
+    expect(calledUrl).toContain("id=338723");
+    expect(calledUrl).toContain("include=musicinfo");
+    expect(info).toEqual({
+      imageUrl: "https://usercontent.jamendo.com/artist.jpg",
+      genres: ["jazz", "piano"],
+      bioSummary: "An English bio.",
+    });
+  });
+
+  it("caps genres at 3", async () => {
+    mockArtist({
+      ...SAMPLE_ARTIST,
+      musicinfo: { tags: ["jazz", "piano", "blues", "soul", "funk"] },
+    });
+
+    const info = await getCcArtistMusicInfo("338723");
+
+    expect(info?.genres).toEqual(["jazz", "piano", "blues"]);
+  });
+
+  it("prefers the requested locale's bio over English", async () => {
+    mockArtist({
+      ...SAMPLE_ARTIST,
+      musicinfo: { description: { en: "English bio.", de: "Deutsche Bio." } },
+    });
+
+    const info = await getCcArtistMusicInfo("338723", "de");
+
+    expect(info?.bioSummary).toBe("Deutsche Bio.");
+  });
+
+  it("falls back to the English bio when the requested locale is missing", async () => {
+    mockArtist({
+      ...SAMPLE_ARTIST,
+      musicinfo: { description: { en: "English bio." } },
+    });
+
+    const info = await getCcArtistMusicInfo("338723", "de");
+
+    expect(info?.bioSummary).toBe("English bio.");
+  });
+
+  it("yields a null bio when neither the locale nor English is present", async () => {
+    mockArtist({
+      ...SAMPLE_ARTIST,
+      musicinfo: { tags: ["jazz"], description: { fr: "Bio française." } },
+    });
+
+    const info = await getCcArtistMusicInfo("338723");
+
+    expect(info?.bioSummary).toBeNull();
+    expect(info?.genres).toEqual(["jazz"]);
+  });
+
+  it("yields null image / empty genres / null bio when musicinfo is absent", async () => {
+    mockArtist({ ...SAMPLE_ARTIST, image: "" });
+
+    const info = await getCcArtistMusicInfo("338723");
+
+    expect(info).toEqual({ imageUrl: null, genres: [], bioSummary: null });
+  });
+
+  it("returns null when Jamendo has no record for the id", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ headers: { status: "success", code: 0, results_count: 0 }, results: [] }),
+      } as Response),
+    );
+
+    expect(await getCcArtistMusicInfo("does-not-exist")).toBeNull();
   });
 });
 

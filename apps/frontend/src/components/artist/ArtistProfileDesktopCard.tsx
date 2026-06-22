@@ -34,8 +34,8 @@ export function ArtistProfileDesktopCard({ title, data, isLoading, status }: Art
 
   if (!isLoading && (!data || !data.profile)) {
     // No profile data: an error still surfaces a notice, but a clean empty
-    // profile (e.g. a CC result — Jamendo supplies no artist profile) self-hides
-    // so the column shows only its populated cards, matching the
+    // profile (e.g. a CC artist without Jamendo musicinfo) self-hides so the
+    // column shows only its populated cards, matching the
     // PopularTracks/Events/SimilarArtists self-hide behaviour.
     if (effectiveStatus !== "error") return null;
     return (
