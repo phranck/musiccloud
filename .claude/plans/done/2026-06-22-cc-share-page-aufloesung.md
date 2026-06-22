@@ -94,7 +94,22 @@ Die Live-Ansicht ([CcShareResult.tsx](apps/frontend/src/components/landing/CcSha
 - [ ] Alle Code-Referenzen verifiziert (functions, scripts, paths, env vars, package-manager commands) — beim Execute re-grep.
 
 ## Checklist
-- [ ] Scheibe A: Wire-union + extrahierte Response-Builder, Live-Resolve unverändert grün
-- [ ] Scheibe B: `findCcShortId` + `loadCcByShortId` + share.ts-Wiring + CC-OG + Loader-Test
-- [ ] Scheibe C: share-view CC-Branch + DeferredShareContent/[shortId].astro CC-Render + CC-onTrackResolve
-- [ ] Scheibe D: Gates grün + Browser-Verify (cc-track/album/artist + kommerzielle Regression)
+- [x] Scheibe A: Wire-union + extrahierte Response-Builder, Live-Resolve unverändert grün
+- [x] Scheibe B: `findCcShortId` + `loadCcByShortId` + share.ts-Wiring + CC-OG + Loader-Test
+- [x] Scheibe C: share-view CC-Branch + DeferredShareContent/[shortId].astro CC-Render + CC-onTrackResolve
+- [x] Scheibe D: Gates grün + Browser-Verify (cc-track/album/artist + kommerzielle Regression)
+
+## Completed (2026-06-22)
+
+CC-Share-URLs lösen jetzt vollständig auf. Commits:
+- `34eb4ab` Test: getCcArtistMusicInfo HTML-Bio-Erwartungen (pre-existing Fix)
+- `f2c16a1` Refactor: SharePageResponse-union + CC-Response-Builder (Scheibe A)
+- `1fa3cb0` Feat: CC-Share-Loader + share.ts-Wiring (Scheibe B)
+- `d9060cf` Feat: CC-Render durch ShareLayout (Scheibe C)
+
+**Architektur-Entscheidungen (wie geplant umgesetzt):**
+- Loader holt per `findCcShortId` nur `{kind, jamendoId}` aus der DB und baut Entity + rechte Spalte live von Jamendo (löst fehlende Album-Tracklist + nicht-persistiertes `artistInfo`). `findCcTrackByShortId`/`CcTrackRecord` (uncalled) durch `findCcShortId`/`CcShortIdLookup` ersetzt.
+- `SharePageResponse` zur discriminated union (commercial | cc-track/album/artist). `SharePageSchema` → `oneOf`, damit Fastify die CC-Felder nicht strippt.
+- Frontend: `ccResponseToResult` (Wire→CcResult) reused die bestehenden `ccResultToShareProps`-Builder; `CcSharePageShell` rendert `ShareLayout`. **CC-onTrackResolve = resolve + navigate** (nicht der kommerzielle in-place-Reducer — der ist commercial-only). Folge-Refinement möglich, falls in-place gewünscht.
+
+**Verifikation:** Backend-E2E (curl) + Browser (cc-track/album/artist volle Zwei-Spalten-Ansicht, kommerziell unverändert). Gates: backend 1051 Tests, frontend tsc + astro-check 0 errors, biome 756 clean, doctor 0 issues. Die im Browser gesichtete „Kellee Maize"-dup-key-Warnung war stale Console-Buffer (V0onz-spezifisches „JekK" feuert nicht — composite key korrekt).
