@@ -204,6 +204,7 @@ import { useT } from "@/i18n/localeContext";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
+import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
 import type { ActiveResult } from "@/lib/types/app";
 import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
@@ -325,25 +326,6 @@ function artistFetchErrorCode(err: unknown): string {
 
 function normalizeArtistName(name: string): string {
   return name.trim().toLocaleLowerCase();
-}
-
-function pathFromShortUrl(shortUrl: string): string {
-  try {
-    const base = typeof window === "undefined" ? "https://musiccloud.io" : window.location.origin;
-    return new URL(shortUrl, base).pathname;
-  } catch {
-    return "/";
-  }
-}
-
-function replaceBrowserUrlWithShortUrl(shortUrl: string): void {
-  if (typeof window === "undefined") return;
-  const nextPath = pathFromShortUrl(shortUrl);
-  const nextUrl = new URL(window.location.href);
-  nextUrl.pathname = nextPath;
-  nextUrl.search = "";
-  nextUrl.hash = "";
-  window.history.replaceState(window.history.state, "", nextUrl);
 }
 
 function artistInfoContextFromConfig(config: MediaCardContentConfiguration): ArtistInfoContext {

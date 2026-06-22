@@ -1,5 +1,6 @@
 import { buildMetaLine, type SharePageResponse, type UnifiedResolveSuccessResponse } from "@musiccloud/shared";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
+import { pathFromShortUrl } from "@/lib/share/short-url";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 type TFunc = (key: string, vars?: Record<string, string>) => string;
@@ -21,13 +22,19 @@ export interface ShareViewModel {
   isArtist: boolean;
 }
 
+/**
+ * Extracts the leading short-id segment from a musiccloud short URL.
+ *
+ * Derives the path through {@link pathFromShortUrl} (which centralizes the
+ * SSR/browser origin convention), strips leading slashes, and returns the first
+ * path segment. Returns `undefined` when the URL has no usable segment.
+ *
+ * @param shortUrl - The short URL to read the id from.
+ * @returns The short id (e.g. `abc123`), or `undefined` when none is present.
+ */
 function shortIdFromShortUrl(shortUrl: string): string | undefined {
-  try {
-    const shortId = new URL(shortUrl, "https://musiccloud.io").pathname.replace(/^\/+/, "").split("/")[0];
-    return shortId || undefined;
-  } catch {
-    return undefined;
-  }
+  const shortId = pathFromShortUrl(shortUrl).replace(/^\/+/, "").split("/")[0];
+  return shortId || undefined;
 }
 
 function resolvePlatformsLabelKey(isArtist: boolean, isAlbum: boolean): string {
