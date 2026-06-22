@@ -8,13 +8,7 @@
  *         as a bottom sheet.
  */
 
-import {
-  type ArtistInfoResponse,
-  type ArtistTopTrack,
-  ENDPOINTS,
-  type ResolveErrorResponse,
-  type UnifiedResolveSuccessResponse,
-} from "@musiccloud/shared";
+import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
 import { MicrophoneStageIcon, XIcon } from "@phosphor-icons/react";
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
 import { createPortal } from "react-dom";
@@ -158,6 +152,7 @@ import { useT } from "@/i18n/localeContext";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
+import { resolveTrackQuery } from "@/lib/resolve/resolve-client";
 import type { ArtistInfoContext } from "@/lib/share/artist-info-client";
 
 export type { ArtistInfoContext };
@@ -388,24 +383,7 @@ function ShareLayoutInner({
       const timeout = setTimeout(() => controller.abort(), 15000);
       let keepResolveLoadingForArtistFetch = false;
       try {
-        const response = await fetch(ENDPOINTS.frontend.resolve, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: track.deezerUrl }),
-          signal: controller.signal,
-        });
-        const data = (await response.json().catch(() => ({}))) as
-          | UnifiedResolveSuccessResponse
-          | Partial<ResolveErrorResponse>
-          | { status?: string };
-        if (!response.ok) {
-          throw new Error("message" in data && data.message ? data.message : "error.generic");
-        }
-        if ("status" in data && data.status) {
-          throw new Error("resolve did not return a final result");
-        }
-
-        const resolved = data as UnifiedResolveSuccessResponse;
+        const resolved = await resolveTrackQuery(track.deezerUrl, controller.signal);
         replaceBrowserUrlWithShortUrl(resolved.shortUrl);
         if (currentConfig.type === ShareConfigType.Share) {
           const next = buildShareViewFromResolvedResponse(resolved, t);
