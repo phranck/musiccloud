@@ -1,13 +1,10 @@
-import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
-import { animatedOuterEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
-import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { MediaCardHead } from "@/components/cards/MediaCardHead";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { SongInfo } from "@/components/cards/SongInfo";
 import { AnimatedPlatformGrid } from "@/components/platform/AnimatedPlatformGrid";
-import { ShareButton } from "@/components/share/ShareButton";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
+import { isShareableContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
 
 export type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 
@@ -28,58 +25,17 @@ interface MediaCardProps {
 }
 
 export function MediaCard({ content, className, animated = true, onPreviewStatusChange }: MediaCardProps) {
-  const shareable = isShareableContent(content) ? content : null;
-  const shareUrl = shareable?.shareUrl;
-  const srAnnouncement = shareable?.srAnnouncement;
-  const sharePageContent = isSharePageContent(content) ? content : null;
-  const shareActionUrl = sharePageContent?.shortUrl ?? shareUrl;
-  const audioPreviewKey = [content.shortId ?? "", content.previewUrl ?? "", content.title, content.artist].join("::");
-  const showPreview = !!(content.previewUrl || (content.previewRefreshable && content.shortId));
-  const showShareActions = !!shareActionUrl;
+  const srAnnouncement = isShareableContent(content) ? content.srAnnouncement : undefined;
   const showPlatforms = content.platforms.length > 0;
   const showPlatformsInfoOnly = content.platforms.length === 0 && !!content.platformsInfo;
   return (
-    <EmbossedCard className={animatedOuterEmbossedCardClassName(animated, className)}>
-      {srAnnouncement && (
-        <p className="sr-only" aria-live="polite">
-          {srAnnouncement}
-        </p>
-      )}
-
-      <SongInfo
-        title={content.title}
-        artist={content.artist}
-        album={content.album}
-        albumArtUrl={content.artworkUrl}
-        isExplicit={content.isExplicit}
-        metaOverride={content.metaLine}
-        statusLine={content.statusLine}
-      />
-
-      <CollapsibleSection
-        visible={showPreview}
-        sectionClass="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)]"
-      >
-        {showPreview && (
-          <AudioPreviewPlayer
-            key={audioPreviewKey}
-            previewUrl={content.previewUrl}
-            refreshShortId={content.previewRefreshable ? content.shortId : undefined}
-            trackTitle={content.title}
-            onStatusChange={onPreviewStatusChange}
-          />
-        )}
-      </CollapsibleSection>
-
-      <CollapsibleSection
-        visible={showShareActions}
-        sectionClass="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)]"
-      >
-        {shareActionUrl && (
-          <ShareButton shareUrl={shareActionUrl} songTitle={content.title} artistName={content.artist} />
-        )}
-      </CollapsibleSection>
-
+    <MediaCardHead
+      content={content}
+      animated={animated}
+      className={className}
+      onPreviewStatusChange={onPreviewStatusChange}
+      srAnnouncement={srAnnouncement}
+    >
       <CollapsibleSection visible={showPlatforms} sectionClass="p-[var(--mc-pad-card,0.75rem)]">
         {showPlatforms && (
           <>
@@ -101,6 +57,6 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
       <CollapsibleSection visible={showPlatformsInfoOnly} sectionClass="p-[var(--mc-pad-card,0.75rem)]">
         {showPlatformsInfoOnly && <p className="text-sm text-text-secondary text-center">{content.platformsInfo}</p>}
       </CollapsibleSection>
-    </EmbossedCard>
+    </MediaCardHead>
   );
 }
