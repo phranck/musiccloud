@@ -345,8 +345,12 @@ export interface OgMeta {
   url: string;
 }
 
-/** Unified share page data returned by GET /api/v1/share/:shortId */
-export interface SharePageResponse {
+/**
+ * The commercial (cross-service) share-page payload: a resolved track, album or
+ * artist with its per-service links. Exactly one of `track`/`album`/`artist` is
+ * present, selected by the `type` discriminant.
+ */
+export interface CommercialSharePageResponse {
   type: "track" | "album" | "artist";
   og: OgMeta;
   track?: ApiTrack;
@@ -355,6 +359,50 @@ export interface SharePageResponse {
   links: ApiLink[];
   shortUrl: string;
 }
+
+/**
+ * The Creative-Commons (Jamendo) share-page payload for a CC track. Carries the
+ * full CC entity ({@link ApiCcTrack}) plus the right-column
+ * {@link ArtistInfoResponse} instead of cross-service links, mirroring
+ * {@link CcResolveSuccessResponse} so the persistent share page and the live
+ * resolve render through the exact same `ShareLayout`.
+ */
+export interface CcTrackSharePageResponse {
+  type: "cc-track";
+  og: OgMeta;
+  shortUrl: string;
+  track: ApiCcTrack;
+  artistInfo: ArtistInfoResponse;
+}
+
+/** The Creative-Commons share-page payload for a CC album. See {@link CcTrackSharePageResponse}. */
+export interface CcAlbumSharePageResponse {
+  type: "cc-album";
+  og: OgMeta;
+  shortUrl: string;
+  album: ApiCcAlbum;
+  artistInfo: ArtistInfoResponse;
+}
+
+/** The Creative-Commons share-page payload for a CC artist. See {@link CcTrackSharePageResponse}. */
+export interface CcArtistSharePageResponse {
+  type: "cc-artist";
+  og: OgMeta;
+  shortUrl: string;
+  artist: ApiCcArtist;
+  artistInfo: ArtistInfoResponse;
+}
+
+/**
+ * Unified share-page payload returned by `GET /api/v1/share/:shortId`,
+ * discriminated by `type`. Commercial entities carry cross-service `links`; CC
+ * entities carry the Jamendo entity plus the right-column `artistInfo`.
+ */
+export type SharePageResponse =
+  | CommercialSharePageResponse
+  | CcTrackSharePageResponse
+  | CcAlbumSharePageResponse
+  | CcArtistSharePageResponse;
 
 // ─── Artist Info Response ──────────────────────────────────────────────────────
 

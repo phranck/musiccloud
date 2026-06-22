@@ -1,4 +1,10 @@
-import { buildMetaLine, type SharePageResponse, type UnifiedResolveSuccessResponse } from "@musiccloud/shared";
+import {
+  type ApiAlbum,
+  type ApiArtistCredit,
+  buildMetaLine,
+  type SharePageResponse,
+  type UnifiedResolveSuccessResponse,
+} from "@musiccloud/shared";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
 import { buildShareConfigFromActive } from "@/lib/resolve/parsers";
 import { pathFromShortUrl } from "@/lib/share/short-url";
@@ -45,7 +51,7 @@ function resolvePlatformsLabelKey(isArtist: boolean, isAlbum: boolean): string {
   return "results.listenOn";
 }
 
-function buildAlbumMetaLine(album: NonNullable<SharePageResponse["album"]>, t: TFunc): string | undefined {
+function buildAlbumMetaLine(album: ApiAlbum, t: TFunc): string | undefined {
   const year = album.releaseDate?.slice(0, 4);
   return (
     [album.totalTracks ? t("results.albumTracks", { count: String(album.totalTracks) }) : null, year]
@@ -56,7 +62,7 @@ function buildAlbumMetaLine(album: NonNullable<SharePageResponse["album"]>, t: T
 
 function buildArtistInfoContext(
   shortId: string | undefined,
-  credits: NonNullable<SharePageResponse["track"]>["artistCredits"],
+  credits: ApiArtistCredit[] | undefined,
 ): ShareArtistInfoContext {
   const mainArtistCredit = credits?.find((credit) => credit.role === "main") ?? credits?.[0];
   return { shortId, artistEntityId: mainArtistCredit?.artistEntityId };
@@ -67,6 +73,12 @@ export function buildShareViewFromSharePageResponse(
   routeShortId: string,
   t: TFunc,
 ): ShareViewModel {
+  // CC share pages render through a dedicated path (added in a later slice); this
+  // builder handles only the commercial track/album/artist response. The guard
+  // also narrows `data` to CommercialSharePageResponse for the rest of the body.
+  if (data.type === "cc-track" || data.type === "cc-album" || data.type === "cc-artist") {
+    throw new Error(`buildShareViewFromSharePageResponse received a CC response (${data.type})`);
+  }
   const isAlbum = data.type === "album";
   const isArtist = data.type === "artist";
   const track = data.track ?? null;

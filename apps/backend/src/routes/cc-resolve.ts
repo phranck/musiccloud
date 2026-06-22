@@ -11,9 +11,6 @@
  */
 
 import type {
-  ApiCcAlbum,
-  ApiCcArtist,
-  ApiCcTrack,
   CcAlbumResolveSuccessResponse,
   CcArtistResolveSuccessResponse,
   CcResolveSuccessResponse,
@@ -27,10 +24,9 @@ import { requireEnvList } from "../lib/env.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
-import { buildCcArtistInfo } from "../services/cc/cc-artist-info.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
 import { resolveCcCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
-import { getCcArtistTopTracks } from "../services/cc/jamendo/client.js";
+import { buildCcAlbumPayload, buildCcArtistPayload, buildCcTrackPayload } from "../services/cc/cc-share-response.js";
 import type { CcAlbum, CcArtist, CcTrack } from "../services/cc/jamendo/types.js";
 import { GenreQueryParseError, isGenreBrowseQuery, isGenreSearchQuery } from "../services/genre-search/index.js";
 
@@ -167,31 +163,6 @@ function ccError(code: string, overrideMessage?: string): ResolveErrorResponse {
 }
 
 /**
- * Maps a resolved CC track to its wire shape. Shared by the track, album and
- * artist responses so the track projection stays defined in exactly one place.
- *
- * @param track - the resolved CC track.
- * @returns the wire-format CC track.
- */
-function toApiCcTrack(track: CcTrack): ApiCcTrack {
-  return {
-    jamendoId: track.jamendoId,
-    title: track.title,
-    artistName: track.artistName,
-    albumName: track.albumName,
-    artworkUrl: track.artworkUrl,
-    durationMs: track.durationMs,
-    releaseDate: track.releaseDate,
-    licenseCcurl: track.licenseCcurl,
-    streamUrl: track.streamUrl,
-    downloadUrl: track.downloadUrl,
-    downloadAllowed: track.downloadAllowed,
-    waveform: track.waveform,
-    shareUrl: track.shareUrl,
-  };
-}
-
-/**
  * Persists a resolved CC track and shapes the `cc-track` success response.
  *
  * @param track - the resolved CC track.
@@ -218,20 +189,8 @@ async function persistCcTrackAndRespond(track: CcTrack, origin: string): Promise
     shareUrl: track.shareUrl,
   });
 
-  // Right column: the track artist's popular tracks + similar tracks.
-  const artistInfo = await buildCcArtistInfo(
-    track.artistName,
-    track.jamendoArtistId,
-    await getCcArtistTopTracks(track.jamendoArtistId),
-  );
-
-  return {
-    type: "cc-track",
-    id: ccTrackId,
-    shortUrl: `${origin}/${shortId}`,
-    track: toApiCcTrack(track),
-    artistInfo,
-  };
+  const { track: apiTrack, artistInfo } = await buildCcTrackPayload(track);
+  return { type: "cc-track", id: ccTrackId, shortUrl: `${origin}/${shortId}`, track: apiTrack, artistInfo };
 }
 
 /**
@@ -260,20 +219,7 @@ async function persistCcAlbumAndRespond(
     shareUrl: album.shareUrl,
   });
 
-  const apiAlbum: ApiCcAlbum = {
-    jamendoId: album.jamendoId,
-    name: album.name,
-    artistName: album.artistName,
-    artworkUrl: album.artworkUrl,
-    releaseDate: album.releaseDate,
-    zipUrl: album.zipUrl,
-    shareUrl: album.shareUrl,
-    tracks: tracks.map(toApiCcTrack),
-  };
-
-  // Right column: the album's tracks as the popular column + similar tracks.
-  const artistInfo = await buildCcArtistInfo(album.artistName, album.jamendoArtistId, tracks);
-
+  const { album: apiAlbum, artistInfo } = await buildCcAlbumPayload(album, tracks);
   return { type: "cc-album", id: ccAlbumId, shortUrl: `${origin}/${shortId}`, album: apiAlbum, artistInfo };
 }
 
@@ -300,17 +246,6 @@ async function persistCcArtistAndRespond(
     shareUrl: artist.shareUrl,
   });
 
-  const apiArtist: ApiCcArtist = {
-    jamendoId: artist.jamendoId,
-    name: artist.name,
-    website: artist.website,
-    imageUrl: artist.imageUrl,
-    shareUrl: artist.shareUrl,
-    topTracks: topTracks.map(toApiCcTrack),
-  };
-
-  // Right column: the artist's top tracks as the popular column + similar tracks.
-  const artistInfo = await buildCcArtistInfo(artist.name, artist.jamendoId, topTracks);
-
+  const { artist: apiArtist, artistInfo } = await buildCcArtistPayload(artist, topTracks);
   return { type: "cc-artist", id: ccArtistId, shortUrl: `${origin}/${shortId}`, artist: apiArtist, artistInfo };
 }
