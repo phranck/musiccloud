@@ -1,25 +1,17 @@
 import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
-import { outerEmbossedCardClassName } from "@/components/cards/cardGeometry";
+import { animatedOuterEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { ShareButton } from "@/components/share/ShareButton";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
-import { cn } from "@/lib/utils";
 
 interface MediaSummaryCardProps {
   content: MediaCardContentConfiguration;
   className?: string;
   animated?: boolean;
   onPreviewStatusChange?: (status: AudioPreviewStatus) => void;
-}
-
-// `animate-zoom-in` stays CSS deliberately (MC-029 Task 2.5 exception): the
-// card renders in the share page's SSR stream (bot-visible enter, no
-// hydration) — see the matching note in MediaCard.tsx.
-function mediaCardClassName(animated: boolean, className?: string) {
-  return cn(outerEmbossedCardClassName, animated && "animate-zoom-in", className);
 }
 
 export function MediaSummaryCard({
@@ -36,7 +28,7 @@ export function MediaSummaryCard({
   const showShareActions = !!shareActionUrl;
 
   return (
-    <EmbossedCard className={mediaCardClassName(animated, className)}>
+    <EmbossedCard className={animatedOuterEmbossedCardClassName(animated, className)}>
       <SongInfo
         title={content.title}
         artist={content.artist}

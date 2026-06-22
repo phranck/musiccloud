@@ -1,12 +1,11 @@
 import { ArrowSquareOutIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
-import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { animatedOuterEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/components/cards/sectionCardChromeStyles";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/localeContext";
 import type { CcTrackContentConfiguration } from "@/lib/types/media-card";
-import { cn } from "@/lib/utils";
 
 /** Human-readable label for a Creative Commons clause segment (`by`, `nc`, …). */
 const CC_CLAUSE_LABELS: Record<string, string> = {
@@ -104,7 +103,7 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
   const showJamendo = !!content.jamendoUrl;
 
   return (
-    <EmbossedCard className={cn(outerEmbossedCardClassName, animated && "animate-zoom-in", className)}>
+    <EmbossedCard className={animatedOuterEmbossedCardClassName(animated, className)}>
       <EmbossedCard.Header className={sectionCardHeaderClassName}>
         <EmbossedCard.Header.Title className={sectionCardTitleClassName}>
           {t("cc.sectionTitle")}

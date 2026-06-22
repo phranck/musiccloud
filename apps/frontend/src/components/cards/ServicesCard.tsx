@@ -1,22 +1,14 @@
-import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { animatedOuterEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/components/cards/sectionCardChromeStyles";
 import { AnimatedPlatformGrid } from "@/components/platform/AnimatedPlatformGrid";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
-import { cn } from "@/lib/utils";
 
 interface ServicesCardProps {
   content: MediaCardContentConfiguration;
   className?: string;
   animated?: boolean;
-}
-
-// `animate-zoom-in` stays CSS deliberately (MC-029 Task 2.5 exception): the
-// card renders in the share page's SSR stream (bot-visible enter, no
-// hydration) — see the matching note in MediaCard.tsx.
-function mediaCardClassName(animated: boolean, className?: string) {
-  return cn(outerEmbossedCardClassName, animated && "animate-zoom-in", className);
 }
 
 export function ServicesCard({ content, className, animated = false }: ServicesCardProps) {
@@ -26,7 +18,7 @@ export function ServicesCard({ content, className, animated = false }: ServicesC
   if (!showPlatforms && !showPlatformsInfoOnly) return null;
 
   return (
-    <EmbossedCard className={mediaCardClassName(animated, className)}>
+    <EmbossedCard className={animatedOuterEmbossedCardClassName(animated, className)}>
       <EmbossedCard.Header className={sectionCardHeaderClassName}>
         <EmbossedCard.Header.Title className={sectionCardTitleClassName}>
           {content.platformsLabel}
