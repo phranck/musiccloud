@@ -235,8 +235,9 @@ Erfasst, damit nichts verloren geht (NICHT umsetzen bis freigegeben):
 - [x] Phase 6: PageOverlay (Logik-raus → Split) — 6.1-6.7 erledigt; Prose-Class-Maps byte-identisch verifiziert
 - [ ] Phase 7: Audio/Player — ZURÜCKGESTELLT bis Player-Divergenz (C vs CC) besprochen
 - [x] Phase 8: CC Artist-Profile aus Jamendo — 8.1-8.6 erledigt (profile aus `/artists?include=musicinfo`: image+genres+bio; popularity/followers/scrobbles null, similarArtists []); zusätzlich `cc-artist-info.test.ts` auf neue 3-arg-Signatur migriert
-- [ ] Phase 9: Pagination 6-cap
-- [ ] Alle Code-Referenzen vor Execute re-verifiziert (Funktionen, Pfade, i18n-Keys)
-- [ ] Pro Subsystem: kleine logische Commits, kein großer WIP-Berg
-- [ ] Pre-push-Gates grün: Typecheck + `pnpm lint` + `pnpm doctor:diff`
-- [ ] Browser-Verify pro Phase: kommerziell unverändert, CC korrekt; kein Push ohne User-OK
+- [x] Phase 9: Pagination 6-cap — `usePagedList` + `PagedListFooter` extrahiert, Popular/Similar auf 6 gekappt, DisambiguationPanel auf den geteilten Footer migriert (`pager.*`-Keys)
+- [x] CC-Profil-Politur (nach Browser-Verify): leeres Jamendo-Profil → Card self-hidet (Backend `getCcArtistMusicInfo` null); Profil-Credit für CC = „provided by Jamendo" (`profileProvidedBy` als `ArtistCardLabels`-Feld)
+- [x] Alle Code-Referenzen vor Execute re-verifiziert (Funktionen, Pfade, i18n-Keys)
+- [x] Pro Subsystem: kleine logische Commits, kein großer WIP-Berg
+- [x] Pre-push-Gates grün: fe+be tsc, `pnpm lint` (748 Files clean), Doctor full-scan 0 issues, fe 179/179 + be 1040 Tests grün
+- [x] Browser-Verify pro Phase: kommerziell unverändert, CC korrekt; kein Push (User-OK ausstehend)
