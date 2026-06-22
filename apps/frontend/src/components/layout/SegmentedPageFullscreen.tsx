@@ -1,7 +1,7 @@
 import type { PublicContentPage } from "@musiccloud/shared";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
-import { RecessedCard } from "@/components/cards/RecessedCard";
 import { MD_EMBOSSED } from "@/components/layout/overlayContentProseClassMaps";
+import { RecessedOrPlainMarkdown } from "@/components/layout/RecessedOrPlainMarkdown";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import { useSegmented } from "@/hooks/useSegmented";
 import { cn } from "@/lib/utils";
@@ -39,17 +39,12 @@ export function SegmentedPageFullscreen({ page }: { page: PublicContentPage }) {
         />
       )}
       <EmbossedCard.Body className="p-3">
-        {page.contentCardStyle === "recessed" ? (
-          <RecessedCard
-            className={cn("py-6", segmented.isSegmented ? FULLSCREEN_SEGMENTED_CONTENT_X : FULLSCREEN_CONTENT_X)}
-          >
-            <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={segmented.resolvedHtml} className={MD_EMBOSSED} />
-          </RecessedCard>
-        ) : (
-          <div className={cn("py-6", segmented.isSegmented ? FULLSCREEN_SEGMENTED_CONTENT_X : FULLSCREEN_CONTENT_X)}>
-            <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={segmented.resolvedHtml} className={MD_EMBOSSED} />
-          </div>
-        )}
+        <RecessedOrPlainMarkdown
+          recessed={page.contentCardStyle === "recessed"}
+          contentClassName={cn("py-6", segmented.isSegmented ? FULLSCREEN_SEGMENTED_CONTENT_X : FULLSCREEN_CONTENT_X)}
+        >
+          <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={segmented.resolvedHtml} className={MD_EMBOSSED} />
+        </RecessedOrPlainMarkdown>
       </EmbossedCard.Body>
     </EmbossedCard>
   );

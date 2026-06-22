@@ -1,7 +1,7 @@
 import type { PublicContentPage } from "@musiccloud/shared";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
-import { RecessedCard } from "@/components/cards/RecessedCard";
 import { MD_EMBOSSED } from "@/components/layout/overlayContentProseClassMaps";
+import { RecessedOrPlainMarkdown } from "@/components/layout/RecessedOrPlainMarkdown";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import { EmbossedCloseButton } from "@/components/ui/EmbossedCloseButton";
 import { useSegmented } from "@/hooks/useSegmented";
@@ -10,6 +10,11 @@ import { cn } from "@/lib/utils";
 const OVERLAY_CONTENT_SCROLL = "h-full overflow-y-auto py-4";
 const OVERLAY_DEFAULT_CONTENT_X = "px-4";
 const OVERLAY_SEGMENTED_CONTENT_X = "px-3";
+
+// Overlay shape: the recessed arm wraps the scrolling content div in a
+// full-height, zero-padding RecessedCard (the card owns the geometry, the
+// inner div owns the scroll padding).
+const OVERLAY_RECESSED_SHELL = { className: "h-full", padding: "0" };
 
 interface EmbossedOverlayContentProps {
   /** The content page to render inside the embossed overlay. */
@@ -60,31 +65,16 @@ export function EmbossedOverlayContent({
         />
       )}
       <EmbossedCard.Body className="flex-1 min-h-0 overflow-hidden pt-3">
-        {page.contentCardStyle === "recessed" ? (
-          <RecessedCard className="h-full" padding="0">
-            <div
-              className={cn(
-                OVERLAY_CONTENT_SCROLL,
-                segmented.isSegmented ? OVERLAY_SEGMENTED_CONTENT_X : OVERLAY_DEFAULT_CONTENT_X,
-              )}
-            >
-              <MarkdownHtml
-                key={`seg-${segmented.activeIndex}`}
-                html={segmented.resolvedHtml}
-                className={MD_EMBOSSED}
-              />
-            </div>
-          </RecessedCard>
-        ) : (
-          <div
-            className={cn(
-              OVERLAY_CONTENT_SCROLL,
-              segmented.isSegmented ? OVERLAY_SEGMENTED_CONTENT_X : OVERLAY_DEFAULT_CONTENT_X,
-            )}
-          >
-            <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={segmented.resolvedHtml} className={MD_EMBOSSED} />
-          </div>
-        )}
+        <RecessedOrPlainMarkdown
+          recessed={page.contentCardStyle === "recessed"}
+          contentClassName={cn(
+            OVERLAY_CONTENT_SCROLL,
+            segmented.isSegmented ? OVERLAY_SEGMENTED_CONTENT_X : OVERLAY_DEFAULT_CONTENT_X,
+          )}
+          shell={OVERLAY_RECESSED_SHELL}
+        >
+          <MarkdownHtml key={`seg-${segmented.activeIndex}`} html={segmented.resolvedHtml} className={MD_EMBOSSED} />
+        </RecessedOrPlainMarkdown>
       </EmbossedCard.Body>
     </EmbossedCard>
   );
