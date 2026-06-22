@@ -5,6 +5,8 @@ import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistP
 import { buildTracksSwapKey } from "@/components/artist/artistSwapKeys";
 import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
+import { PagedListFooter } from "@/components/ui/PagedListFooter";
+import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 
 interface PopularTracksCardProps {
@@ -18,13 +20,16 @@ interface PopularTracksCardProps {
 
 /**
  * Desktop popular-tracks card: the current artist's own top tracks inside a
- * titled section card. Self-hides once loading settles with no tracks, so the
- * artist column shows only its populated cards.
+ * titled section card, capped at six per page with the pager in the card FOOTER
+ * (not the recessed content well). Self-hides once loading settles with no tracks.
  */
 export function PopularTracksCard({ title, data, isLoading, onTrackResolve, onResolveStart }: PopularTracksCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
   const showInitialSkeleton = isLoading && !data;
-  const showTracks = showInitialSkeleton || (data?.topTracks.length ?? 0) > 0;
+  const tracks = data?.topTracks ?? [];
+  const showTracks = showInitialSkeleton || tracks.length > 0;
+  const resetKey = tracks.map((track) => track.deezerUrl).join("|");
+  const { page, pageCount, canGoPrevious, canGoNext, goPrevious, goNext } = usePagedList(tracks, { resetKey });
 
   if (isLoading && !data && !skeletonAllowed) {
     return (
@@ -35,20 +40,27 @@ export function PopularTracksCard({ title, data, isLoading, onTrackResolve, onRe
   }
   if (!showTracks) return null;
 
+  const footer =
+    pageCount > 1 ? (
+      <PagedListFooter
+        pageCount={pageCount}
+        canGoPrevious={canGoPrevious}
+        canGoNext={canGoNext}
+        onPrevious={goPrevious}
+        onNext={goNext}
+      />
+    ) : undefined;
+
   return (
-    <ArtistCardShell title={title}>
+    <ArtistCardShell title={title} footer={footer}>
       <div className="px-3 pt-0 pb-3">
         <ArtistSectionWell
           showInitialSkeleton={showInitialSkeleton}
           Skeleton={TracksSkeleton}
-          hasContent={!!data && data.topTracks.length > 0}
+          hasContent={tracks.length > 0}
           swapKey={buildTracksSwapKey(data)}
         >
-          <PopularTracksSection
-            tracks={data?.topTracks ?? []}
-            onTrackResolve={onTrackResolve}
-            onResolveStart={onResolveStart}
-          />
+          <PopularTracksSection tracks={page} onTrackResolve={onTrackResolve} onResolveStart={onResolveStart} />
         </ArtistSectionWell>
       </div>
     </ArtistCardShell>

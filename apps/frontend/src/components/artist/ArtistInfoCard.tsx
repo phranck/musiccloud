@@ -19,12 +19,15 @@ import { EventsSkeleton } from "@/components/artist/EventsSkeleton";
 import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
+import { hasResolvedTrack } from "@/components/artist/similarArtistTracks";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
 import { fullWidthEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { sectionCardFooterTextClassName } from "@/components/cards/sectionCardChromeStyles";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { PagedListFooter } from "@/components/ui/PagedListFooter";
+import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useLocale, useT } from "@/i18n/localeContext";
 import { cn } from "@/lib/utils";
@@ -46,7 +49,9 @@ interface ArtistInfoCardProps {
  * tracks stacked in one card, rendered inside the bottom sheet. Each list
  * section reuses the shared {@link ArtistSectionWell} (skeleton → content
  * tri-state) with its title supplied via {@link ArtistInfoCardProps.labels}, so
- * the markup matches the desktop cards without duplicating their body.
+ * the markup matches the desktop cards without duplicating their body. Popular
+ * and similar are capped at six per page, with the pager rendered beneath the
+ * section's well (the mobile footer position).
  */
 export function ArtistInfoCard({
   data,
@@ -60,8 +65,13 @@ export function ArtistInfoCard({
 }: ArtistInfoCardProps) {
   const t = useT();
   const { locale } = useLocale();
-
   const skeletonAllowed = useSkeletonAllowed();
+
+  // Pager state must be declared before any early return (Rules of Hooks).
+  const tracks = data?.topTracks ?? [];
+  const tracksPager = usePagedList(tracks, { resetKey: tracks.map((track) => track.deezerUrl).join("|") });
+  const withTrack = (data?.similarArtistTracks ?? []).filter(hasResolvedTrack);
+  const similarPager = usePagedList(withTrack, { resetKey: withTrack.map((entry) => entry.track.deezerUrl).join("|") });
 
   const effectiveStatus: ArtistInfoStatus = status ?? (isLoading ? "loading" : data ? "ready" : "empty");
 
@@ -89,9 +99,9 @@ export function ArtistInfoCard({
 
   const showInitialSkeleton = isLoading && !data;
   const showProfile = showInitialSkeleton || !!data?.profile;
-  const showTracks = showInitialSkeleton || (data?.topTracks.length ?? 0) > 0;
+  const showTracks = showInitialSkeleton || tracks.length > 0;
   const showEvents = showInitialSkeleton || (data?.events.length ?? 0) > 0;
-  const showSimilar = showInitialSkeleton || (data?.similarArtistTracks?.length ?? 0) > 0;
+  const showSimilar = showInitialSkeleton || withTrack.length > 0;
   // All sections empty after load -> keep the card shell and explain the empty state.
   if (!isLoading && !showProfile && !showTracks && !showEvents && !showSimilar) {
     return <ArtistInfoNoticeCard onClose={onClose} message={t("artist.empty")} />;
@@ -116,15 +126,26 @@ export function ArtistInfoCard({
             innerTitle={labels.popularTracks}
             showInitialSkeleton={showInitialSkeleton}
             Skeleton={TracksSkeleton}
-            hasContent={!!data && data.topTracks.length > 0}
+            hasContent={tracks.length > 0}
             swapKey={buildTracksSwapKey(data)}
           >
             <PopularTracksSection
-              tracks={data?.topTracks ?? []}
+              tracks={tracksPager.page}
               onTrackResolve={onTrackResolve}
               onResolveStart={onResolveStart}
             />
           </ArtistSectionWell>
+          {tracksPager.pageCount > 1 && (
+            <div className="mt-3">
+              <PagedListFooter
+                pageCount={tracksPager.pageCount}
+                canGoPrevious={tracksPager.canGoPrevious}
+                canGoNext={tracksPager.canGoNext}
+                onPrevious={tracksPager.goPrevious}
+                onNext={tracksPager.goNext}
+              />
+            </div>
+          )}
         </CollapsibleSection>
 
         {/* 3. Upcoming Events */}
@@ -149,15 +170,26 @@ export function ArtistInfoCard({
             innerTitle={labels.similar}
             showInitialSkeleton={showInitialSkeleton}
             Skeleton={SimilarArtistsSkeleton}
-            hasContent={!!data?.similarArtistTracks && data.similarArtistTracks.length > 0}
+            hasContent={withTrack.length > 0}
             swapKey={buildSimilarSwapKey(data)}
           >
             <SimilarArtistsSection
-              similarArtistTracks={data?.similarArtistTracks ?? []}
+              withTrack={similarPager.page}
               onTrackResolve={onTrackResolve}
               onResolveStart={onResolveStart}
             />
           </ArtistSectionWell>
+          {similarPager.pageCount > 1 && (
+            <div className="mt-3">
+              <PagedListFooter
+                pageCount={similarPager.pageCount}
+                canGoPrevious={similarPager.canGoPrevious}
+                canGoNext={similarPager.canGoNext}
+                onPrevious={similarPager.goPrevious}
+                onNext={similarPager.goNext}
+              />
+            </div>
+          )}
         </CollapsibleSection>
       </div>
     </EmbossedCard>

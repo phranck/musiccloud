@@ -5,6 +5,9 @@ import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistP
 import { buildSimilarSwapKey } from "@/components/artist/artistSwapKeys";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
+import { hasResolvedTrack } from "@/components/artist/similarArtistTracks";
+import { PagedListFooter } from "@/components/ui/PagedListFooter";
+import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 
 interface SimilarArtistsCardProps {
@@ -17,8 +20,10 @@ interface SimilarArtistsCardProps {
 }
 
 /**
- * Desktop similar card: tracks by other artists related to the current one, in
- * a titled section card. Self-hides once loading settles with no entries.
+ * Desktop similar card: tracks by other artists related to the current one, in a
+ * titled section card, capped at six per page with the pager in the card FOOTER.
+ * Filters to entries that resolved to a playable track before paging, so the page
+ * counts match what is shown. Self-hides once loading settles with no entries.
  */
 export function SimilarArtistsCard({
   title,
@@ -29,7 +34,10 @@ export function SimilarArtistsCard({
 }: SimilarArtistsCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
   const showInitialSkeleton = isLoading && !data;
-  const showSimilar = showInitialSkeleton || (data?.similarArtistTracks?.length ?? 0) > 0;
+  const withTrack = (data?.similarArtistTracks ?? []).filter(hasResolvedTrack);
+  const showSimilar = showInitialSkeleton || withTrack.length > 0;
+  const resetKey = withTrack.map((entry) => entry.track.deezerUrl).join("|");
+  const { page, pageCount, canGoPrevious, canGoNext, goPrevious, goNext } = usePagedList(withTrack, { resetKey });
 
   if (isLoading && !data && !skeletonAllowed) {
     return (
@@ -40,20 +48,27 @@ export function SimilarArtistsCard({
   }
   if (!showSimilar) return null;
 
+  const footer =
+    pageCount > 1 ? (
+      <PagedListFooter
+        pageCount={pageCount}
+        canGoPrevious={canGoPrevious}
+        canGoNext={canGoNext}
+        onPrevious={goPrevious}
+        onNext={goNext}
+      />
+    ) : undefined;
+
   return (
-    <ArtistCardShell title={title}>
+    <ArtistCardShell title={title} footer={footer}>
       <div className="px-3 pt-0 pb-3">
         <ArtistSectionWell
           showInitialSkeleton={showInitialSkeleton}
           Skeleton={SimilarArtistsSkeleton}
-          hasContent={(data?.similarArtistTracks?.length ?? 0) > 0}
+          hasContent={withTrack.length > 0}
           swapKey={buildSimilarSwapKey(data)}
         >
-          <SimilarArtistsSection
-            similarArtistTracks={data?.similarArtistTracks ?? []}
-            onTrackResolve={onTrackResolve}
-            onResolveStart={onResolveStart}
-          />
+          <SimilarArtistsSection withTrack={page} onTrackResolve={onTrackResolve} onResolveStart={onResolveStart} />
         </ArtistSectionWell>
       </div>
     </ArtistCardShell>
