@@ -1,7 +1,7 @@
-import { MusicNoteIcon, UserIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
+import { CoverImage } from "@/components/ui/CoverImage";
 import { SlideArtworkKind, type SlideArtworkKind as SlideArtworkKindType } from "@/components/ui/SlideArtworkTypes";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +50,6 @@ export function SlideArtwork({
   const [discMounted, setDiscMounted] = useState(false);
   if (active && !discMounted) setDiscMounted(true);
 
-  const FallbackIcon = kind === SlideArtworkKind.Round ? UserIcon : MusicNoteIcon;
   const borderRadius = kind === SlideArtworkKind.Round ? "50%" : imgDim <= 40 ? "4px" : "6px";
   // Scale a tight top/left-only inner shadow proportionally. It should read
   // as the recessed rim casting onto the artwork/CD, not as a dark overlay.
@@ -107,24 +106,7 @@ export function SlideArtwork({
         {/* Cover artwork -- drops out downward on enter, slides back in from the
             top on exit (see coverSlideClass). */}
         <div className={cn("relative z-0 w-full h-full bg-surface", coverSlideClass)}>
-          {artworkUrl ? (
-            <img
-              src={artworkUrl}
-              alt=""
-              className="w-full h-full object-cover"
-              width={imgDim}
-              height={imgDim}
-              loading="lazy"
-              decoding="async"
-              onError={(e) => {
-                e.currentTarget.src = "/og/default.jpg";
-              }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
-              <FallbackIcon size={20} weight="duotone" className="text-text-muted" />
-            </div>
-          )}
+          <CoverImage artworkUrl={artworkUrl} kind={kind} imgDim={imgDim} iconSize={20} />
         </div>
 
         {/* Recessed rim shadow -- edge-localised (top/left), so the disc reads as

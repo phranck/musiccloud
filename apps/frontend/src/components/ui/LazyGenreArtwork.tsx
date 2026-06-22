@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from "react";
+import { DEFAULT_COVER_FALLBACK_URL } from "@/components/ui/coverFallback";
 import { cn } from "@/lib/utils";
 
 interface LazyGenreArtworkProps {
@@ -49,7 +50,7 @@ function releaseSlot() {
  * patiently waits its turn, which keeps the Jimp / Last.fm pipeline from
  * overloading.
  */
-export function LazyGenreArtwork({ url, fallbackUrl = "/og/default.jpg" }: LazyGenreArtworkProps) {
+export function LazyGenreArtwork({ url, fallbackUrl = DEFAULT_COVER_FALLBACK_URL }: LazyGenreArtworkProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [intersected, markIntersected] = useReducer(() => true, false);
   const [canLoad, setCanLoad] = useState(false);
