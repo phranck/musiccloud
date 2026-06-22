@@ -40,10 +40,10 @@ import {
   loadToast,
   preloadResolveResultRuntime,
 } from "@/lib/preload/resultRuntime";
-import { buildShareConfigFromActive, ccResultToShareProps } from "@/lib/resolve/parsers";
+import { ccResultToShareProps } from "@/lib/resolve/parsers";
 import { getResolveMode, setResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
-import { buildShareViewFromResolvedResponse, type ShareArtistInfoContext } from "@/lib/share/share-view";
-import { ActiveResultKind, AppStateType, type CcResult, InputState, ResolveMode } from "@/lib/types/app";
+import { buildActiveShareSelection, type ShareArtistInfoContext } from "@/lib/share/share-view";
+import { AppStateType, type CcResult, InputState, ResolveMode } from "@/lib/types/app";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 // Lazy-loaded panels — only pulled into the bundle when the user needs them.
@@ -453,11 +453,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
     return () => window.cancelAnimationFrame(frame);
   }, [state.type]);
 
-  const activeShareView = resolved ? buildShareViewFromResolvedResponse(resolved, t) : null;
-  const activeShareConfig = activeShareView?.config ?? (active ? buildShareConfigFromActive(active, t) : null);
-  const activeArtistName =
-    activeShareView?.artistName ??
-    (active ? (active.kind === ActiveResultKind.Artist ? active.name : active.artist) : "");
+  const { activeShareView, activeShareConfig, activeArtistName } = buildActiveShareSelection(resolved, active, t);
   const isSharePageView = !!(activeShareConfig && active && !discExitPending);
 
   // Creative-Commons result: a self-contained state branch (no `active`,

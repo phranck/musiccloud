@@ -1,6 +1,8 @@
 import { buildMetaLine, type SharePageResponse, type UnifiedResolveSuccessResponse } from "@musiccloud/shared";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
+import { buildShareConfigFromActive } from "@/lib/resolve/parsers";
 import { pathFromShortUrl } from "@/lib/share/short-url";
+import { type ActiveResult, ActiveResultKind } from "@/lib/types/app";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 type TFunc = (key: string, vars?: Record<string, string>) => string;
@@ -129,4 +131,48 @@ export function buildShareViewFromResolvedResponse(data: UnifiedResolveSuccessRe
     shortUrl: data.shortUrl,
   };
   return buildShareViewFromSharePageResponse(shareData, shortIdFromShortUrl(data.shortUrl) ?? "", t);
+}
+
+/**
+ * The commercial share-result selection the landing page renders for the active
+ * resolved entity.
+ *
+ * @property activeShareView - The full {@link ShareViewModel} when a `resolved`
+ *   response is present (the richest source), otherwise `null`. The caller reads
+ *   `artistInfoContext` from it.
+ * @property activeShareConfig - The media-card configuration for the result, or
+ *   `null` when neither a resolved response nor an `active` result exists.
+ * @property activeArtistName - The artist name driving the shared artist column.
+ */
+export interface ActiveShareSelection {
+  activeShareView: ShareViewModel | null;
+  activeShareConfig: ShareContentConfiguration | null;
+  activeArtistName: string;
+}
+
+/**
+ * Derives the commercial share-result selection from the two app-state sources.
+ *
+ * A fully resolved response is the richest source: it yields the share view
+ * model directly. When only the lighter `active` result is on state, the config
+ * and artist name fall back to it — applying the model rule that an artist's
+ * "artist name" is its own `name`, while a song/album uses its `artist` field.
+ * Centralizing that branch here keeps the discriminant rule out of the page.
+ *
+ * @param resolved - The resolved success response, or `null`.
+ * @param active - The lighter active result, or `null`.
+ * @param t - Translation function (forwarded to the config builders).
+ * @returns The {@link ActiveShareSelection} for the landing page.
+ */
+export function buildActiveShareSelection(
+  resolved: UnifiedResolveSuccessResponse | null,
+  active: ActiveResult | null,
+  t: TFunc,
+): ActiveShareSelection {
+  const activeShareView = resolved ? buildShareViewFromResolvedResponse(resolved, t) : null;
+  const activeShareConfig = activeShareView?.config ?? (active ? buildShareConfigFromActive(active, t) : null);
+  const activeArtistName =
+    activeShareView?.artistName ??
+    (active ? (active.kind === ActiveResultKind.Artist ? active.name : active.artist) : "");
+  return { activeShareView, activeShareConfig, activeArtistName };
 }
