@@ -13,13 +13,6 @@ interface VerticalSegmentedControlProps<T extends string> {
   /** Fired when a segment is chosen (also when the active one is re-chosen, which just closes). */
   onChange: (value: T) => void;
   className?: string;
-  /**
-   * Render every cell permanently instead of collapsing to the active one. In this
-   * mode there is no open/close, no idle timer, no outside/Escape dismissal and no
-   * menu-trigger semantics — all cells are always visible and directly selectable.
-   * Used by the resolve-mode (C/CC) switcher.
-   */
-  alwaysExpanded?: boolean;
 }
 
 /** Raised-segment radius, matching the embossed indicator of EmbossedSegmentedControl. */
@@ -53,21 +46,14 @@ const AUTO_CLOSE_MS = 5000;
  * menu-trigger semantics (`aria-haspopup`/`aria-expanded`). While collapsed the
  * hidden cells are removed from the tab order and the accessibility tree. The group
  * name (`<legend>`) belongs to the wrapping `<fieldset>` in the switcher.
- *
- * With {@link VerticalSegmentedControlProps.alwaysExpanded} the collapse behaviour
- * is disabled entirely: every cell renders permanently and the open/close
- * machinery (idle timer, dismiss listeners, trigger semantics) is skipped.
  */
 export function VerticalSegmentedControl<T extends string>({
   segments,
   value,
   onChange,
   className,
-  alwaysExpanded = false,
 }: VerticalSegmentedControlProps<T>) {
   const [open, setOpen] = useState(false);
-  // Always-expanded shows every cell; the open-state machinery below stays inert.
-  const expanded = alwaysExpanded || open;
   const containerRef = useRef<HTMLDivElement | null>(null);
   // The pending idle-auto-close timer and whether the pointer rests on the control.
   // Both are refs, not state: they drive the imperative dismiss timer, never the
@@ -86,7 +72,7 @@ export function VerticalSegmentedControl<T extends string>({
   // and keep it paused, so hovering an item never auto-collapses the list. Listeners
   // and the timer are torn down on close/unmount.
   useEffect(() => {
-    if (alwaysExpanded || !open) return;
+    if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) requestClose();
     };
@@ -104,14 +90,9 @@ export function VerticalSegmentedControl<T extends string>({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, alwaysExpanded]);
+  }, [open]);
 
   const handleSegment = (key: T) => {
-    // Always-expanded: every cell is directly selectable.
-    if (alwaysExpanded) {
-      onChange(key);
-      return;
-    }
     // Collapsed: the only reachable cell is the active one — it opens the list.
     if (!open) {
       setOpen(true);
@@ -126,13 +107,11 @@ export function VerticalSegmentedControl<T extends string>({
   // fresh countdown when it leaves — so hovering its items keeps the list open.
   // Hover lives on a ref so these toggles never re-render the control.
   const handlePointerEnter = () => {
-    if (alwaysExpanded) return;
     isHovered.current = true;
     if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current);
     autoCloseTimer.current = null;
   };
   const handlePointerLeave = () => {
-    if (alwaysExpanded) return;
     isHovered.current = false;
     if (open) autoCloseTimer.current = setTimeout(() => setOpen(false), AUTO_CLOSE_MS);
   };
@@ -147,12 +126,12 @@ export function VerticalSegmentedControl<T extends string>({
       <RecessedCard
         className="mc-glass-nav-track flex flex-col p-1 transition-[row-gap] duration-250 ease-out motion-reduce:transition-none"
         radius={recessedSurfaceRadius}
-        style={{ rowGap: expanded ? "var(--mc-gap-seg, 0px)" : "0px" }}
+        style={{ rowGap: open ? "var(--mc-gap-seg, 0px)" : "0px" }}
       >
         <RecessedCard.Body className="contents">
           {segments.map(({ key, icon, ariaLabel: segmentLabel, title: segmentTitle }, index) => {
             const isActive = key === value;
-            const shown = expanded || isActive;
+            const shown = open || isActive;
             return (
               <button
                 key={key}
@@ -163,8 +142,8 @@ export function VerticalSegmentedControl<T extends string>({
                 aria-label={segmentLabel}
                 title={segmentTitle}
                 aria-current={isActive ? "true" : undefined}
-                aria-haspopup={!alwaysExpanded && isActive ? "menu" : undefined}
-                aria-expanded={!alwaysExpanded && isActive ? open : undefined}
+                aria-haspopup={isActive ? "menu" : undefined}
+                aria-expanded={isActive ? open : undefined}
                 // Hidden cells are removed from focus, tab order and the a11y tree via
                 // `inert` (not `aria-hidden`, which would flag a focusable button).
                 inert={!shown}
