@@ -19,11 +19,6 @@ import { MicrophoneStageIcon, XIcon } from "@phosphor-icons/react";
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
 import { createPortal } from "react-dom";
 
-export interface ArtistInfoContext {
-  shortId?: string;
-  artistEntityId?: string;
-}
-
 // Value namespace for domain-literal comparisons; `satisfies` pins every
 // member to the canonical `ArtistInfoStatus` union (artistPanelTypes), so the
 // two can never drift apart silently.
@@ -204,32 +199,15 @@ import { useT } from "@/i18n/localeContext";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
+import { type ArtistInfoContext, artistFetchErrorCode, fetchArtistInfo } from "@/lib/share/artist-info-client";
+
+export type { ArtistInfoContext };
+
 import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
 import type { ActiveResult } from "@/lib/types/app";
 import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
-
-async function fetchArtistInfo(
-  artistName: string,
-  userRegion: string,
-  context: ArtistInfoContext,
-  signal: AbortSignal,
-): Promise<ArtistInfoResponse> {
-  const params = new URLSearchParams({ name: artistName });
-  if (userRegion) params.set("region", userRegion);
-  if (context.shortId) params.set("shortId", context.shortId);
-  if (context.artistEntityId) params.set("artistEntityId", context.artistEntityId);
-  const res = await fetch(`${ENDPOINTS.frontend.artistInfo}?${params.toString()}`, { signal });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as ArtistInfoResponse;
-}
-
-function artistFetchErrorCode(err: unknown): string {
-  if (err instanceof Error && err.name === "AbortError") return "TIMEOUT";
-  if (err instanceof Error && /^HTTP \d+/.test(err.message)) return err.message;
-  return "ERR";
-}
 
 function normalizeArtistName(name: string): string {
   return name.trim().toLocaleLowerCase();
