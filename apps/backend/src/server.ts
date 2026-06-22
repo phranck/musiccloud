@@ -29,6 +29,7 @@ import adminSseRoutes from "./routes/admin-sse.js";
 import adminUserRoutes from "./routes/admin-users.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import authRoutes from "./routes/auth.js";
+import ccAudioRoutes from "./routes/cc-audio.js";
 import ccGenreArtworkRoutes from "./routes/cc-genre-artwork.js";
 import ccResolveRoutes from "./routes/cc-resolve.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
@@ -415,6 +416,9 @@ async function buildApp() {
   // Share endpoint (public, no auth - used for SSR)
   await app.register(shareRoutes);
   await app.register(sharePreviewRoutes);
+
+  // CC audio proxy (public, no auth - the audio player streams CC tracks through it)
+  await app.register(ccAudioRoutes);
 
   // Artist info endpoint (public, no auth - fetched by React island)
   await app.register(artistInfoRoutes);

@@ -120,6 +120,19 @@ export async function fetchSharePreview(
   }
 }
 
+/** Stream a CC track's audio from the backend `ccAudio` proxy. Returns the raw
+ *  upstream Response (status + headers + body stream) so the Astro handler can
+ *  relay it same-origin, passing the visitor's `Range` header through for seeks.
+ *  No timeout — audio streams are long-lived. */
+export async function fetchCcAudio(jamendoId: string, range: string | null, clientIp?: string): Promise<Response> {
+  const headers: Record<string, string> = {
+    ...(INTERNAL_API_KEY ? { "X-API-Key": INTERNAL_API_KEY } : {}),
+    ...(range ? { Range: range } : {}),
+    ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
+  };
+  return fetch(backendUrl(ENDPOINTS.v1.ccAudio(jamendoId)), { headers });
+}
+
 /** Fetch share page data (track or album) by shortId from the backend. */
 export async function fetchShareData(
   shortId: string,

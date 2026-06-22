@@ -65,6 +65,10 @@ export const ENDPOINTS = {
      *  sourced from a Jamendo album cover. Mirrors {@link genreArtwork} but stays
      *  100% Jamendo so the Creative-Commons path never touches Last.fm. */
     ccGenreArtwork: (genreKey: string) => `/api/v1/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
+    /** GET `/api/v1/cc/audio/:jamendoId`: CORS-safe proxy of the full Jamendo
+     *  stream (Range-forwarded). Lets the player load + analyse CC audio that
+     *  Jamendo serves without the Range CORS preflight headers Web Audio needs. */
+    ccAudio: (jamendoId: string) => `/api/v1/cc/audio/${encodeURIComponent(jamendoId)}`,
     siteSettings: {
       /** GET: public site settings exposed to the frontend (currently: tracking flag). */
       tracking: "/api/v1/site-settings/tracking",
@@ -122,6 +126,9 @@ export const ENDPOINTS = {
     genreArtwork: (genreKey: string) => `/api/genre-artwork/${encodeURIComponent(genreKey)}`,
     /** GET: forwarded to `ENDPOINTS.v1.ccGenreArtwork`. CC genre tile cover (Jamendo-sourced). */
     ccGenreArtwork: (genreKey: string) => `/api/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
+    /** GET: forwarded to `ENDPOINTS.v1.ccAudio`. The audio player loads CC tracks
+     *  through this same-origin proxy so no cross-origin Range request is made. */
+    ccAudio: (jamendoId: string) => `/api/cc/audio/${encodeURIComponent(jamendoId)}`,
     /** GET: handled entirely by Astro (`pages/api/redirect.ts`): takes `?url=`,
      * calls `ENDPOINTS.v1.resolve`, then 302s to the resolved share page. */
     redirect: "/api/redirect",
@@ -291,6 +298,8 @@ export const ROUTE_TEMPLATES = {
     genreArtwork: "/api/v1/genre-artwork/:genreKey",
     /** Route template for ENDPOINTS.v1.ccGenreArtwork (CC genre tile cover, Jamendo-sourced). */
     ccGenreArtwork: "/api/v1/cc/genre-artwork/:genreKey",
+    /** Route template for ENDPOINTS.v1.ccAudio (CORS-safe Jamendo stream proxy). */
+    ccAudio: "/api/v1/cc/audio/:jamendoId",
     nav: "/api/v1/nav/:navId",
     contentDetail: "/api/v1/content/:slug",
   },
