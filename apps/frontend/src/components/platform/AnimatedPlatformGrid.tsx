@@ -1,10 +1,9 @@
 import { useGSAP } from "@gsap/react";
-import { compareByDisplayOrder, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { useMemo, useRef } from "react";
 import { gridCornerStyle } from "@/components/platform/gridCornerStyle";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { animateFlipEnter, animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
-import type { PlatformLink } from "@/lib/types/platform";
+import { type PlatformLink, visiblePlatformsInDisplayOrder } from "@/lib/types/platform";
 
 interface AnimatedPlatformGridProps {
   /** Platform links to render; hidden platforms are filtered out, the rest sorted by display order (importance/popularity). */
@@ -41,15 +40,7 @@ export function AnimatedPlatformGrid({ platforms, songTitle }: AnimatedPlatformG
   const gridRef = useRef<HTMLDivElement>(null);
   const previousFlipStateRef = useRef<CapturedFlipState | null>(null);
 
-  const visiblePlatforms = useMemo(
-    () =>
-      [...platforms]
-        .filter((platform) => !PLATFORM_CONFIG[platform.platform]?.hidden)
-        // Sort by curated display order (major/popular services first), not
-        // alphabetically — shared SERVICE_DISPLAY_ORDER, same as the dashboard.
-        .sort((a, b) => compareByDisplayOrder(a.platform, b.platform)),
-    [platforms],
-  );
+  const visiblePlatforms = useMemo(() => visiblePlatformsInDisplayOrder(platforms), [platforms]);
 
   useGSAP(
     () => {
