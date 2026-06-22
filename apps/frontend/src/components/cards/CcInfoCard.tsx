@@ -1,4 +1,5 @@
 import { ArrowSquareOutIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
+import { CcMetaRow } from "@/components/cards/CcMetaRow";
 import { animatedOuterEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -6,64 +7,6 @@ import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/compone
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useT } from "@/i18n/localeContext";
 import type { CcTrackContentConfiguration } from "@/lib/types/media-card";
-
-/** Human-readable label for a Creative Commons clause segment (`by`, `nc`, …). */
-const CC_CLAUSE_LABELS: Record<string, string> = {
-  by: "BY",
-  nc: "NC",
-  nd: "ND",
-  sa: "SA",
-  zero: "0",
-};
-
-/**
- * The two path roots a Creative Commons deed URL can start with.
- *
- * Stored as a domain-literal namespace (not inline string comparisons) so the
- * `kind` discriminant in {@link ccLicenseLabel} compares against a single source
- * of truth, satisfying the domain-literals Doctor rule.
- */
-const CcDeedKind = {
-  Licenses: "licenses",
-  PublicDomain: "publicdomain",
-} as const;
-
-/**
- * Derives a display label such as `CC BY-NC-ND 3.0` from a canonical Creative
- * Commons deed URL.
- *
- * The Jamendo `licenseCcurl` follows the shape
- * `https://creativecommons.org/licenses/<clauses>/<version>/`, where `<clauses>`
- * is a dash-separated list (`by`, `by-nc-nd`, …) and `<version>` is the licence
- * version (`3.0`, `4.0`). Public-domain dedications use the `publicdomain/zero`
- * path. We keep this intentionally small (KISS): unknown clause tokens are
- * upper-cased verbatim so any future CC variant still renders something useful.
- *
- * @param url - The canonical CC deed URL, or `undefined` when Jamendo omits it.
- * @returns A short licence label (e.g. `CC BY 4.0`), or `undefined` when the URL
- *   is missing or cannot be parsed into the expected `/licenses|publicdomain/…`
- *   shape.
- */
-function ccLicenseLabel(url: string | undefined): string | undefined {
-  if (!url) return undefined;
-  try {
-    const segments = new URL(url).pathname.split("/").filter(Boolean);
-    // Expected: ["licenses", "<clauses>", "<version>"] or
-    //           ["publicdomain", "zero", "<version>"].
-    const kind = segments[0];
-    if (kind !== CcDeedKind.Licenses && kind !== CcDeedKind.PublicDomain) return undefined;
-    const clauses = segments[1];
-    const version = segments[2];
-    if (!clauses) return undefined;
-    const clauseLabel = clauses
-      .split("-")
-      .map((clause) => CC_CLAUSE_LABELS[clause] ?? clause.toUpperCase())
-      .join("-");
-    return ["CC", clauseLabel, version].filter(Boolean).join(" ");
-  } catch {
-    return undefined;
-  }
-}
 
 interface CcInfoCardProps {
   content: CcTrackContentConfiguration;
@@ -80,7 +23,7 @@ interface CcInfoCardProps {
  * streaming-service links:
  *
  * 1. The exact CC licence as a labelled link to its canonical deed
- *    (`licenseCcurl`), parsed via {@link ccLicenseLabel}.
+ *    (`licenseCcurl`), labelled with the pre-parsed `licenseLabel`.
  * 2. The pre-formatted attribution credit line.
  * 3. A direct download button — only when Jamendo permits it
  *    (`downloadAllowed && downloadUrl`).
@@ -98,7 +41,7 @@ interface CcInfoCardProps {
  */
 export function CcInfoCard({ content, className, animated = false }: CcInfoCardProps) {
   const t = useT();
-  const licenseLabel = ccLicenseLabel(content.licenseCcurl);
+  const licenseLabel = content.licenseLabel;
   const showDownload = content.downloadAllowed && !!content.downloadUrl;
   const showJamendo = !!content.jamendoUrl;
 
@@ -170,24 +113,5 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
         </div>
       </EmbossedCard.Body>
     </EmbossedCard>
-  );
-}
-
-/**
- * A single label/value row inside the CC metadata well.
- *
- * Keeps the label muted and right-aligns the value so the licence and
- * attribution rows read as a compact definition list without hardcoding any
- * structural spacing outside the token cascade.
- *
- * @param label - The pre-translated row label (e.g. "License").
- * @param children - The value node (link or text).
- */
-function CcMetaRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span className="text-sm text-text-secondary">{label}</span>
-      <span className="min-w-0 truncate text-right text-sm">{children}</span>
-    </div>
   );
 }

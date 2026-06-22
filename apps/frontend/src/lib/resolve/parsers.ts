@@ -421,16 +421,76 @@ export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): Shar
   };
 }
 
+/** Human-readable label for a Creative Commons clause segment (`by`, `nc`, …). */
+const CC_CLAUSE_LABELS: Record<string, string> = {
+  by: "BY",
+  nc: "NC",
+  nd: "ND",
+  sa: "SA",
+  zero: "0",
+};
+
+/**
+ * The two path roots a Creative Commons deed URL can start with.
+ *
+ * Stored as a domain-literal namespace (not inline string comparisons) so the
+ * `kind` discriminant in {@link ccLicenseLabel} compares against a single source
+ * of truth, satisfying the domain-literals Doctor rule.
+ */
+const CcDeedKind = {
+  Licenses: "licenses",
+  PublicDomain: "publicdomain",
+} as const;
+
+/**
+ * Derives a display label such as `CC BY-NC-ND 3.0` from a canonical Creative
+ * Commons deed URL.
+ *
+ * The Jamendo `licenseCcurl` follows the shape
+ * `https://creativecommons.org/licenses/<clauses>/<version>/`, where `<clauses>`
+ * is a dash-separated list (`by`, `by-nc-nd`, …) and `<version>` is the licence
+ * version (`3.0`, `4.0`). Public-domain dedications use the `publicdomain/zero`
+ * path. We keep this intentionally small (KISS): unknown clause tokens are
+ * upper-cased verbatim so any future CC variant still renders something useful.
+ *
+ * @param url - The canonical CC deed URL, or `undefined` when Jamendo omits it.
+ * @returns A short licence label (e.g. `CC BY 4.0`), or `undefined` when the URL
+ *   is missing or cannot be parsed into the expected `/licenses|publicdomain/…`
+ *   shape.
+ */
+function ccLicenseLabel(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const segments = new URL(url).pathname.split("/").filter(Boolean);
+    // Expected: ["licenses", "<clauses>", "<version>"] or
+    //           ["publicdomain", "zero", "<version>"].
+    const kind = segments[0];
+    if (kind !== CcDeedKind.Licenses && kind !== CcDeedKind.PublicDomain) return undefined;
+    const clauses = segments[1];
+    const version = segments[2];
+    if (!clauses) return undefined;
+    const clauseLabel = clauses
+      .split("-")
+      .map((clause) => CC_CLAUSE_LABELS[clause] ?? clause.toUpperCase())
+      .join("-");
+    return ["CC", clauseLabel, version].filter(Boolean).join(" ");
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Builds a {@link CcTrackContentConfiguration} from a resolved CC track result.
  *
  * Mirrors the song branch of {@link buildShareConfigFromActive} but omits
  * `platforms` / `platformsLabel` (CC tracks have no cross-service links) and
- * fills the CC-specific fields (`streamUrl`, `licenseCcurl`, `attribution`,
- * `downloadUrl`, `downloadAllowed`, `jamendoUrl`, `waveform`).
+ * fills the CC-specific fields (`streamUrl`, `licenseCcurl`, `licenseLabel`,
+ * `attribution`, `downloadUrl`, `downloadAllowed`, `jamendoUrl`, `waveform`).
  *
- * The `attribution` field is kept simple (artist name only) to stay KISS. If a
- * license hint is needed downstream, callers can derive it from `licenseCcurl`.
+ * The `attribution` field is kept simple (artist name only) to stay KISS. The
+ * `licenseLabel` is parsed here from `licenseCcurl` via {@link ccLicenseLabel}
+ * so the presentational `CcInfoCard` consumes a ready label; `licenseCcurl`
+ * stays in the config for the deed link and as the verbatim fallback.
  *
  * @param cc - The resolved CC track from app state.
  * @param t - Translation function for pre-computed UI strings.
@@ -450,6 +510,7 @@ export function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentC
     shortId,
     streamUrl: cc.streamUrl,
     licenseCcurl: cc.licenseCcurl,
+    licenseLabel: ccLicenseLabel(cc.licenseCcurl),
     attribution: cc.artist,
     downloadUrl: cc.downloadUrl,
     downloadAllowed: cc.downloadAllowed,

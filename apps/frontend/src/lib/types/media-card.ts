@@ -124,6 +124,13 @@ export interface CcTrackContentConfiguration {
   /** Canonical CC licence deed URL (e.g. `https://creativecommons.org/licenses/by/4.0/`). */
   licenseCcurl?: string;
   /**
+   * Pre-parsed CC licence display label (e.g. `CC BY-NC-ND 3.0`), derived from
+   * `licenseCcurl` by the config builder. Absent when the deed URL is missing
+   * or cannot be parsed; the card falls back to the raw URL or an unknown-label
+   * string in that case.
+   */
+  licenseLabel?: string;
+  /**
    * Pre-formatted attribution credit line (typically the artist name,
    * optionally followed by a licence hint such as "CC BY 4.0").
    */
