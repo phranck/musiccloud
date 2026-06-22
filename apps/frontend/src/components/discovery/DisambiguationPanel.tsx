@@ -1,5 +1,6 @@
 import { useGSAP } from "@gsap/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ROW_CHROME } from "@/components/artist/artistPanelRowChrome";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -234,8 +235,8 @@ export function DisambiguationPanel({
                         onClick={() => handleClick(candidate)}
                         disabled={isAnimating || loading}
                         className={cn(
-                          "w-full flex items-center text-left",
-                          "gap-[var(--mc-gap-rowitem,0.75rem)] py-[var(--mc-pad-track,0.25rem)] pl-[var(--mc-pad-track,0.25rem)] pr-[var(--mc-pad-tracktime,0.5rem)]",
+                          ROW_CHROME,
+                          "text-left",
                           isThisSelected && "ring-1 ring-accent/20",
                           (isAnimating || loading) && "cursor-default",
                         )}

@@ -1,17 +1,7 @@
 import type { ReactNode } from "react";
+import { ROW_CHROME } from "@/components/artist/artistPanelRowChrome";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { cn } from "@/lib/utils";
-
-/**
- * Shared chrome for every artist-panel row (popular tracks, upcoming events,
- * similar artists). Token-driven so all three lists respond identically to the
- * tuned spacing: `--mc-gap-rowitem` between the leading visual and the text,
- * `--mc-pad-track` for the top/bottom/left padding, and `--mc-pad-tracktime` for
- * the right (trailing) padding around the duration/icon. The fallbacks match the
- * prototype defaults.
- */
-const ROW_CHROME =
-  "flex items-center gap-[var(--mc-gap-rowitem,0.75rem)] w-full py-[var(--mc-pad-track,0.25rem)] pl-[var(--mc-pad-track,0.25rem)] pr-[var(--mc-pad-tracktime,0.5rem)]";
 
 /**
  * Props for {@link ArtistPanelRow}. Mirrors {@link EmbossedButton}'s polymorphic

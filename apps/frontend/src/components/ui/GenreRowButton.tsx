@@ -1,5 +1,6 @@
 import { useGSAP } from "@gsap/react";
 import { useRef } from "react";
+import { ROW_CHROME } from "@/components/artist/artistPanelRowChrome";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { animateSlideUp } from "@/lib/motion/entrances";
 import { cn } from "@/lib/utils";
@@ -57,11 +58,7 @@ export function GenreRowButton({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={cn(
-          "w-full flex items-center text-left",
-          "gap-[var(--mc-gap-rowitem,0.75rem)] py-[var(--mc-pad-track,0.25rem)] pl-[var(--mc-pad-track,0.25rem)] pr-[var(--mc-pad-tracktime,0.5rem)]",
-          disabled && "cursor-default",
-        )}
+        className={cn(ROW_CHROME, "text-left", disabled && "cursor-default")}
         aria-label={ariaLabel}
       >
         {children}
