@@ -202,106 +202,13 @@ import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider } from "@/i18n/context";
 import { useT } from "@/i18n/localeContext";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
+import { detectRegion } from "@/lib/geo/detect-region";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
 import type { ActiveResult } from "@/lib/types/app";
 import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
-
-// Maps IANA timezone to ISO 3166-1 alpha-2 country code.
-const TIMEZONE_TO_COUNTRY: Record<string, string> = {
-  "Europe/Vienna": "AT",
-  "Europe/Berlin": "DE",
-  "Europe/Zurich": "CH",
-  "Europe/London": "GB",
-  "Europe/Dublin": "IE",
-  "Europe/Paris": "FR",
-  "Europe/Amsterdam": "NL",
-  "Europe/Brussels": "BE",
-  "Europe/Luxembourg": "LU",
-  "Europe/Rome": "IT",
-  "Europe/Madrid": "ES",
-  "Europe/Lisbon": "PT",
-  "Europe/Stockholm": "SE",
-  "Europe/Oslo": "NO",
-  "Europe/Copenhagen": "DK",
-  "Europe/Helsinki": "FI",
-  "Europe/Tallinn": "EE",
-  "Europe/Riga": "LV",
-  "Europe/Vilnius": "LT",
-  "Europe/Warsaw": "PL",
-  "Europe/Prague": "CZ",
-  "Europe/Bratislava": "SK",
-  "Europe/Budapest": "HU",
-  "Europe/Ljubljana": "SI",
-  "Europe/Zagreb": "HR",
-  "Europe/Bucharest": "RO",
-  "Europe/Sofia": "BG",
-  "Europe/Athens": "GR",
-  "Europe/Istanbul": "TR",
-  "Europe/Kyiv": "UA",
-  "Europe/Moscow": "RU",
-  "Europe/Belgrade": "RS",
-  "Europe/Sarajevo": "BA",
-  "America/New_York": "US",
-  "America/Chicago": "US",
-  "America/Denver": "US",
-  "America/Los_Angeles": "US",
-  "America/Phoenix": "US",
-  "America/Anchorage": "US",
-  "America/Toronto": "CA",
-  "America/Vancouver": "CA",
-  "America/Montreal": "CA",
-  "America/Mexico_City": "MX",
-  "America/Sao_Paulo": "BR",
-  "America/Buenos_Aires": "AR",
-  "Asia/Tokyo": "JP",
-  "Asia/Seoul": "KR",
-  "Asia/Shanghai": "CN",
-  "Asia/Hong_Kong": "HK",
-  "Asia/Taipei": "TW",
-  "Asia/Singapore": "SG",
-  "Asia/Bangkok": "TH",
-  "Asia/Jakarta": "ID",
-  "Asia/Manila": "PH",
-  "Asia/Ho_Chi_Minh": "VN",
-  "Asia/Kuala_Lumpur": "MY",
-  "Asia/Karachi": "PK",
-  "Asia/Dhaka": "BD",
-  "Asia/Tehran": "IR",
-  "Asia/Baghdad": "IQ",
-  "Asia/Riyadh": "SA",
-  "Asia/Jerusalem": "IL",
-  "Asia/Dubai": "AE",
-  "Asia/Kolkata": "IN",
-  "Asia/Colombo": "LK",
-  "Africa/Cairo": "EG",
-  "Africa/Johannesburg": "ZA",
-  "Africa/Lagos": "NG",
-  "Africa/Nairobi": "KE",
-  "Africa/Casablanca": "MA",
-  "Africa/Algiers": "DZ",
-  "Africa/Tunis": "TN",
-  "America/Bogota": "CO",
-  "America/Lima": "PE",
-  "America/Santiago": "CL",
-  "America/Caracas": "VE",
-  "Australia/Sydney": "AU",
-  "Australia/Melbourne": "AU",
-  "Australia/Brisbane": "AU",
-  "Australia/Perth": "AU",
-  "Pacific/Auckland": "NZ",
-};
-
-function detectRegion(): string {
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return TIMEZONE_TO_COUNTRY[tz] ?? "";
-  } catch {
-    return "";
-  }
-}
 
 async function fetchArtistInfo(
   artistName: string,
@@ -427,7 +334,9 @@ function ShareLayoutInner({
     }),
     [t, labels?.profile, labels?.popularTracks, labels?.events, labels?.similar],
   );
-  const userRegion = useMemo(detectRegion, []);
+  // `detectRegion` reads the browser timezone once; memoize so it runs a single
+  // time per mount.
+  const userRegion = useMemo(() => detectRegion(), []);
   const [artistState, dispatch] = useReducer(artistReducer, {
     status: ArtistLoadStatus.Loading,
     artistData: null,
