@@ -4,6 +4,7 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { LazyGenreArtwork } from "@/components/ui/LazyGenreArtwork";
+import { PanelHeadline } from "@/components/ui/PanelHeadline";
 import { useT } from "@/i18n/localeContext";
 
 // Whitelist for backend-provided accent colors that end up as a scoped
@@ -52,8 +53,7 @@ export function GenreBrowseGrid({ genres, onSelect }: GenreBrowseGridProps) {
     <FadeInOnMount tabIndex={-1} className="w-full max-w-full md:max-w-5xl mx-auto mt-8 mb-8 focus:outline-none">
       <EmbossedCard className="flex flex-col max-h-[calc(100vh-16rem)]">
         <EmbossedCard.Header className="text-center mb-4 flex-shrink-0">
-          <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">{t("genreBrowse.title")}</h2>
-          <p className="text-sm text-text-secondary mt-1">{t("genreBrowse.subtitle")}</p>
+          <PanelHeadline title={t("genreBrowse.title")} subtitle={t("genreBrowse.subtitle")} />
         </EmbossedCard.Header>
 
         <EmbossedCard.Body className="flex-1 min-h-0 flex flex-col">

@@ -7,6 +7,7 @@ import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
+import { PanelHeadline } from "@/components/ui/PanelHeadline";
 import { useT } from "@/i18n/localeContext";
 import { animateSlideUp, killEntranceTweens } from "@/lib/motion/entrances";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
@@ -206,18 +207,13 @@ export function DisambiguationPanel({
         <EmbossedCard.Header className="text-center mb-4">
           {isAnimating || isLoadingSelected ? (
             <FadeInOnMount>
-              <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
-                {t("disambiguation.resolving.title")}
-              </h2>
-              <p className="text-sm text-text-secondary mt-1">{t("disambiguation.resolving.subtitle")}</p>
+              <PanelHeadline
+                title={t("disambiguation.resolving.title")}
+                subtitle={t("disambiguation.resolving.subtitle")}
+              />
             </FadeInOnMount>
           ) : (
-            <>
-              <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
-                {t("disambiguation.title")}
-              </h2>
-              <p className="text-sm text-text-secondary mt-1">{t("disambiguation.subtitle")}</p>
-            </>
+            <PanelHeadline title={t("disambiguation.title")} subtitle={t("disambiguation.subtitle")} />
           )}
         </EmbossedCard.Header>
 

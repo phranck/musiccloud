@@ -5,6 +5,7 @@ import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { GenreColumn } from "@/components/ui/GenreColumn";
 import { GenreRowButton } from "@/components/ui/GenreRowButton";
+import { PanelHeadline } from "@/components/ui/PanelHeadline";
 import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
 import { useLocale, useT } from "@/i18n/localeContext";
 import type { Locale } from "@/i18n/locales";
@@ -111,8 +112,7 @@ export function GenreSearchResults({
           </EmbossedCard.AddOn>
         )}
         <EmbossedCard.Header className="text-center mb-4 flex-shrink-0">
-          <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">{headline}</h2>
-          <p className="text-sm text-text-secondary mt-1">{t("genreSearch.subtitle")}</p>
+          <PanelHeadline title={headline} subtitle={t("genreSearch.subtitle")} />
         </EmbossedCard.Header>
 
         <EmbossedCard.Body className="flex-1 min-h-0">
