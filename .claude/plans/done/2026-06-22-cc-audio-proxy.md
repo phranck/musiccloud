@@ -66,6 +66,21 @@ nötig, reiner Lookup per `jamendoId`.
   share-preview.ts (Read). CORS: `@fastify/cors` `origin: CORS_ORIGIN` — server.ts:86 (Read).
 - Astro-Proxy-Muster: `prerender = false`, `APIRoute`, `BACKEND_URL` —
   pages/api/share-preview/[shortId].ts (Read).
-- [ ] Noch zu verifizieren bei Execute: `getCcTrack`-Signatur, Pool-Zugriff in
-  `postgres-cc.ts`, exakte Wording-Keys/Zeilen im Player, `BACKEND_URL`-Forward-Helper
-  (`@/api/client`).
+- [x] Bei Execute verifiziert: `getCcTrack(jamendoId)` liefert `streamUrl`
+  (client.ts:173); Proxy nutzt In-Memory-Cache statt Pool-Lookup (kein neuer
+  DB-Code); Wording-Keys + ShareLayout-`statusPlaying` gepatcht; `fetchCcAudio`
+  in `@/api/client` neben `fetchSharePreview`.
+
+## Completed (2026-06-22)
+
+Umgesetzt in 3 Commits (`921f6b5` Proxy-Endpoint, `0eff96f` Frontend-Wiring +
+Wording, `8e88101` Plan). Verifiziert:
+
+- Backend + Astro-Proxy liefern `206 Partial Content` mit
+  `content-range`/`accept-ranges`/`audio/mpeg` (Range-Seeking ok).
+- `<audio crossorigin="anonymous">` lädt über die same-origin Proxy-URL
+  (`loadedmetadata`, 230s Volltrack) — vorher `MEDIA_ELEMENT_ERROR` code 4.
+- CC-Player spielt, Wording „Song" durchgehend; Spektrum-Visualizer aktiv.
+- Regressions-Check Commercial-Preview (tonlos): bleibt „Preview", spielbar,
+  keine Regression.
+- Gates: tsc (shared/backend/frontend) · biome · doctor:diff 0 issues.
