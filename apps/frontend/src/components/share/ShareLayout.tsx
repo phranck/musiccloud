@@ -19,22 +19,6 @@ import { MicrophoneStageIcon, XIcon } from "@phosphor-icons/react";
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
 import { createPortal } from "react-dom";
 
-// Value namespace for domain-literal comparisons; `satisfies` pins every
-// member to the canonical `ArtistInfoStatus` union (artistPanelTypes), so the
-// two can never drift apart silently.
-const ArtistLoadStatus = {
-  Loading: "loading",
-  Ready: "ready",
-  Empty: "empty",
-  Error: "error",
-} as const satisfies Record<string, ArtistInfoStatus>;
-
-const ArtistActionType = {
-  Loading: "loading",
-  Done: "done",
-  Error: "error",
-} as const;
-
 const ShareUiActionType = {
   ArtistFetchFinished: "artistFetchFinished",
   ArtistReadyHidden: "artistReadyHidden",
@@ -57,11 +41,6 @@ const ShareConfigType = {
   Share: "share",
 } as const;
 
-type ArtistState = { status: ArtistInfoStatus; artistData: ArtistInfoResponse | null; errorCode?: string };
-type ArtistAction =
-  | { type: typeof ArtistActionType.Loading }
-  | { type: typeof ArtistActionType.Done; data: ArtistInfoResponse | null }
-  | { type: typeof ArtistActionType.Error; code: string };
 interface ShareUiState {
   artistReadyVisible: boolean;
   currentArtistContext: ArtistInfoContext;
@@ -96,27 +75,6 @@ type ShareUiAction =
       artistName?: string;
       config: MediaCardContentConfiguration;
     };
-
-function hasArtistInfoContent(data: ArtistInfoResponse | null): boolean {
-  return Boolean(
-    data &&
-      (data.profile ||
-        (data.topTracks?.length ?? 0) > 0 ||
-        (data.events?.length ?? 0) > 0 ||
-        (data.similarArtistTracks?.length ?? 0) > 0),
-  );
-}
-
-function artistReducer(state: ArtistState, action: ArtistAction): ArtistState {
-  if (action.type === ArtistActionType.Loading)
-    return { status: ArtistLoadStatus.Loading, artistData: state.artistData };
-  if (action.type === ArtistActionType.Error)
-    return { status: ArtistLoadStatus.Error, artistData: null, errorCode: action.code };
-  return {
-    status: hasArtistInfoContent(action.data) ? ArtistLoadStatus.Ready : ArtistLoadStatus.Empty,
-    artistData: action.data,
-  };
-}
 
 function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiState {
   switch (action.type) {
@@ -192,6 +150,7 @@ import { BackLink } from "@/components/ui/BackLink";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
 import { ToastProvider } from "@/context/ToastContext";
+import { ArtistLoadStatus, useArtistInfo } from "@/hooks/useArtistInfo";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider } from "@/i18n/context";
@@ -199,7 +158,7 @@ import { useT } from "@/i18n/localeContext";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
-import { type ArtistInfoContext, artistFetchErrorCode, fetchArtistInfo } from "@/lib/share/artist-info-client";
+import type { ArtistInfoContext } from "@/lib/share/artist-info-client";
 
 export type { ArtistInfoContext };
 
@@ -315,12 +274,6 @@ function ShareLayoutInner({
   // `detectRegion` reads the browser timezone once; memoize so it runs a single
   // time per mount.
   const userRegion = useMemo(() => detectRegion(), []);
-  const [artistState, dispatch] = useReducer(artistReducer, {
-    status: ArtistLoadStatus.Loading,
-    artistData: null,
-  });
-  const { status: artistLoadStatus, artistData, errorCode: artistErrorCode } = artistState;
-  const isLoading = artistLoadStatus === ArtistLoadStatus.Loading;
   const [shareUiState, dispatchUi] = useReducer(
     shareUiReducer,
     { artistInfoContext, artistName, config },
@@ -336,6 +289,22 @@ function ShareLayoutInner({
     resolveTriggeredArtistLoad,
     sheetOpen,
   } = shareUiState;
+  // Clears the "resolve triggered a load" UI flag once each artist-info load
+  // settles, matching the order the inline fetch effect used.
+  const handleArtistFetchSettled = useCallback(() => dispatchUi({ type: ShareUiActionType.ArtistFetchFinished }), []);
+  const {
+    status: artistLoadStatus,
+    artistData,
+    errorCode: artistErrorCode,
+    isLoading,
+  } = useArtistInfo({
+    artistName: currentArtistName,
+    userRegion,
+    context: currentArtistContext,
+    artistDataProp,
+    skipArtistFetch,
+    onFetchSettled: handleArtistFetchSettled,
+  });
   const mounted = useIsClient();
 
   useEffect(() => {
@@ -393,39 +362,6 @@ function ShareLayoutInner({
     }),
     [currentConfig, t, vfdStatusLine],
   );
-
-  // Caller-supplied artist data (CC): seed the reducer directly, no fetch.
-  useEffect(() => {
-    if (!skipArtistFetch) return;
-    dispatch({ type: ArtistActionType.Done, data: artistDataProp ?? null });
-    dispatchUi({ type: ShareUiActionType.ArtistFetchFinished });
-  }, [skipArtistFetch, artistDataProp]);
-
-  // Fetch artist data immediately (SSR already rendered the share card).
-  // Skipped when the caller pre-supplies it (skipArtistFetch).
-  useEffect(() => {
-    if (skipArtistFetch) return;
-    let cancelled = false;
-    dispatch({ type: ArtistActionType.Loading });
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    fetchArtistInfo(currentArtistName, userRegion, currentArtistContext, controller.signal)
-      .then((data) => {
-        if (!cancelled) dispatch({ type: ArtistActionType.Done, data });
-      })
-      .catch((err) => {
-        if (!cancelled) dispatch({ type: ArtistActionType.Error, code: artistFetchErrorCode(err) });
-      })
-      .finally(() => {
-        if (!cancelled) dispatchUi({ type: ShareUiActionType.ArtistFetchFinished });
-        clearTimeout(timeout);
-      });
-    return () => {
-      cancelled = true;
-      controller.abort();
-      clearTimeout(timeout);
-    };
-  }, [currentArtistContext, currentArtistName, userRegion, skipArtistFetch]);
 
   const openSheet = useCallback(() => {
     sendMusicSignal(CardSignal.ArtistInfo);
