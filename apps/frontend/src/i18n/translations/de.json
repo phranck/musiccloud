@@ -42,6 +42,7 @@
   "results.found": "{title} von {artist} gefunden",
   "results.modeCommercial": "Streaming",
   "results.modeCc": "Creative Commons",
+  "results.modeLabel": "Suchmodus",
   "cc.sectionTitle": "Creative Commons",
   "cc.licenseLabel": "Lizenz",
   "cc.attributionLabel": "Namensnennung",

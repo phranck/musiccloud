@@ -16,9 +16,9 @@ import { HeroInput } from "@/components/landing/HeroInput";
 import { LandingLogoBlock } from "@/components/landing/LandingLogoBlock";
 import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
 import { LiveExampleTeaser } from "@/components/landing/LiveExampleTeaser";
+import { ResolveModeSwitcher } from "@/components/landing/ResolveModeSwitcher";
 import { ShareResultPlaceholder } from "@/components/landing/ShareResultPlaceholder";
 import { AppFooter } from "@/components/layout/AppFooter";
-import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { DialogProvider } from "@/context/DialogContext";
 import { useAppState } from "@/hooks/useAppState";
@@ -38,7 +38,7 @@ import {
   preloadResolveResultRuntime,
 } from "@/lib/preload/resultRuntime";
 import { buildGenreQuery, GENRE_BROWSE_QUERY } from "@/lib/resolve/genre-query";
-import { getResolveMode, setResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
+import { getResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
 import { buildActiveShareSelection } from "@/lib/share/share-view";
 import { AppStateType, type CcResult, InputState, ResolveMode } from "@/lib/types/app";
 
@@ -62,23 +62,6 @@ interface LandingPageProps {
    * shell, which has its own `DeferredFooter`) pass false to avoid a duplicate.
    */
   showFooter?: boolean;
-}
-
-/**
- * Builds the two segments for the hero resolve-mode toggle (commercial | CC).
- *
- * Pure mapping helper kept at module scope (no component state). The segment
- * keys come from the `ResolveMode` namespace — the same values the store and
- * `data-resolve-mode` attribute use — so there are no inline domain literals.
- *
- * @param t - The active translation function, used for the visible labels.
- * @returns The ordered `Segment<ResolveMode>` array: commercial first, CC second.
- */
-function resolveModeSegments(t: (key: string) => string): Segment<ResolveMode>[] {
-  return [
-    { key: ResolveMode.Commercial, label: t("results.modeCommercial") },
-    { key: ResolveMode.Cc, label: t("results.modeCc") },
-  ];
 }
 
 function selectGenreTile(
@@ -275,18 +258,12 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
             <>
               <LandingLogoBlock isReturning={isReturning} showCompact={showCompact} />
 
-              <div ref={searchFieldRef} data-resolve-mode={mode} className="w-full flex flex-col items-center">
-                {!showCompact && (
-                  <div className="mb-4 flex justify-center">
-                    <EmbossedSegmentedControl
-                      segments={resolveModeSegments(t)}
-                      value={mode}
-                      onChange={setResolveMode}
-                      trackClassName={mode === ResolveMode.Cc ? "mc-glass-cc-seg-track" : undefined}
-                      indicatorClassName={mode === ResolveMode.Cc ? "mc-glass-cc-seg-indicator" : undefined}
-                    />
-                  </div>
-                )}
+              <div
+                ref={searchFieldRef}
+                data-resolve-mode={mode}
+                className="w-full flex items-center justify-center gap-3"
+              >
+                {!showCompact && <ResolveModeSwitcher />}
                 <HeroInput
                   value={inputValue}
                   onChange={setInputValue}
@@ -300,7 +277,6 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
                   onBlur={() => setIsFocused(false)}
                   state={discExitPending ? InputState.Loading : inputState}
                   compact={showCompact}
-                  mode={mode}
                   requestDiscExit={discExitPending}
                   onLoadingExitComplete={handleLoadingExitComplete}
                 />
