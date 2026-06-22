@@ -319,10 +319,12 @@ describe("getCcArtistMusicInfo", () => {
     const calledUrl = String(fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("/artists/musicinfo");
     expect(calledUrl).toContain("id=338723");
+    // The raw Jamendo description is normalized to safe paragraph HTML via
+    // jamendoBioToHtml before it reaches the frontend's MarkdownHtml pipeline.
     expect(info).toEqual({
       imageUrl: "https://usercontent.jamendo.com/artist.jpg",
       genres: ["jazz", "piano"],
-      bioSummary: "An English bio.",
+      bioSummary: "<p>An English bio.</p>",
     });
   });
 
@@ -345,7 +347,7 @@ describe("getCcArtistMusicInfo", () => {
 
     const info = await getCcArtistMusicInfo("338723", "de");
 
-    expect(info?.bioSummary).toBe("Deutsche Bio.");
+    expect(info?.bioSummary).toBe("<p>Deutsche Bio.</p>");
   });
 
   it("falls back to the English bio when the requested locale is missing", async () => {
@@ -356,7 +358,7 @@ describe("getCcArtistMusicInfo", () => {
 
     const info = await getCcArtistMusicInfo("338723", "de");
 
-    expect(info?.bioSummary).toBe("English bio.");
+    expect(info?.bioSummary).toBe("<p>English bio.</p>");
   });
 
   it("yields a null bio when neither the locale nor English is present", async () => {
