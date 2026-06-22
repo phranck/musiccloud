@@ -172,6 +172,8 @@ Berührt `ServicesCard`/`CcInfoCard` in `components/cards/`, die in Phase 2 ohne
 - **6.6 `page-overlay-island-logic` (B):** `useMediaQuery`+`getMediaQueryMatch` → `hooks/useMediaQuery.ts`; `geomKey`/`loadGeom`/`saveGeom`/… (localStorage-Persistenz) → `overlayGeometry.ts`. `overlayVisibilityReducer` bleibt.
 - **6.7 `page-overlay-island-split` (A):** `OverlayShell.tsx`, `OverlayFrame.tsx`, `ResizeHandles.tsx`. Nach 6.6.
 
+> **Commit-Bundling (Abweichung, IST-Stand):** Der Pre-Commit-Hook macht einen Doctor-FULL-scan. `PageOverlayContent.tsx` (3 Komponenten) und `PageOverlayIsland.tsx` (4 Komponenten) triggern `no-multi-comp`, bis sie gesplittet sind — kein Zwischenstand mit Multi-Komponenten-File ist committierbar. Darum landeten 6.1/6.2/6.5 in einem Commit (`4b33bcc`) und 6.6/6.7 in einem Commit (`cd9e91c`). 6.3 (`0a1e09d`) und 6.4 (`ee1f8cb`) blieben eigene Commits. `getMediaQueryMatch` + `GEOM_KEY_PREFIX` bleiben modul-intern (kein `export`), sonst `deslop/unused-export` im Full-Scan.
+
 ---
 
 ## Phase 7 — Audio/Player (ZURÜCKGESTELLT, blockiert durch User-Diskussion)
@@ -226,7 +228,7 @@ Erfasst, damit nichts verloren geht (NICHT umsetzen bis freigegeben):
 - [x] Phase 3: ShareLayout (Logik-raus → Split → Logo/Frame) — 3.1-3.6 in Vor-Session, 3.7 mit Phase 4
 - [x] Phase 4: LandingPage (Logik-raus → Split) — inkl. 3.7 (share-logo-header + share-result-frame)
 - [x] Phase 5: Discovery + Listen — 5.1-5.9 erledigt (5.9 nur Gate, kein Hook)
-- [ ] Phase 6: PageOverlay (Logik-raus → Split)
+- [x] Phase 6: PageOverlay (Logik-raus → Split) — 6.1-6.7 erledigt; Prose-Class-Maps byte-identisch verifiziert
 - [ ] Phase 7: Audio/Player — ZURÜCKGESTELLT bis Player-Divergenz (C vs CC) besprochen
 - [ ] Phase 8: CC Artist-Profile aus Jamendo
 - [ ] Phase 9: Pagination 6-cap
