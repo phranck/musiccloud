@@ -7,7 +7,7 @@ import { GenreColumn } from "@/components/ui/GenreColumn";
 import { GenreRowButton } from "@/components/ui/GenreRowButton";
 import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
 import { useLocale, useT } from "@/i18n/localeContext";
-import type { Locale } from "@/i18n/locales";
+import { buildHeadline } from "@/lib/genre-search/headline";
 import type { GenreSearchPayload, GenreSearchResults as GenreSearchResultsData } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
@@ -226,67 +226,4 @@ export function GenreSearchResults({
       )}
     </GenrePanelShell>
   );
-}
-
-// ─── Headline builder ───────────────────────────────────────────────────────
-//
-// Turns the parsed query into a locale-aware natural-language sentence,
-// e.g.
-//   en:  "10 tracks, albums and artists in jazz"
-//        "20 tracks and 10 albums in jazz or rock — a mixed selection"
-//   de:  "10 Tracks, Alben und Künstler aus Jazz"
-//        "20 Tracks und 10 Alben aus Jazz oder Rock – bunt gemischt"
-//
-// Case conventions follow the locale:
-//   - German treats genre names as substantives (always title-case): "Jazz"
-//   - Most other languages keep genre names lowercase in running text: "jazz"
-//
-// Kept inline (small, only used here); promote to `lib/genre-search/` if a
-// second view ever needs the same wording.
-
-type QueryDetails = GenreSearchPayload["queryDetails"];
-type TFunc = (key: string, vars?: Record<string, string>) => string;
-
-function buildHeadline(q: QueryDetails, t: TFunc, locale: Locale): string {
-  const genreText = formatList(
-    q.genres.map((g) => formatGenre(g, locale)),
-    t("genreSearch.summary.or"),
-  );
-  const countsText = buildCountsText(q, t);
-  const key = q.vibe === "mixed" ? "genreSearch.summary.mixed" : "genreSearch.summary.hot";
-  return t(key, { counts: countsText, genres: genreText });
-}
-
-function buildCountsText(q: QueryDetails, t: TFunc): string {
-  const hasT = q.tracks !== null;
-  const hasA = q.albums !== null;
-  const hasAr = q.artists !== null;
-  const allEqual = hasT && hasA && hasAr && q.tracks === q.albums && q.albums === q.artists;
-
-  if (allEqual) {
-    return `${q.tracks} ${t("genreSearch.summary.allTypes")}`;
-  }
-
-  const parts: string[] = [];
-  if (hasT) parts.push(`${q.tracks} ${t(q.tracks === 1 ? "genreSearch.summary.track" : "genreSearch.summary.tracks")}`);
-  if (hasA) parts.push(`${q.albums} ${t(q.albums === 1 ? "genreSearch.summary.album" : "genreSearch.summary.albums")}`);
-  if (hasAr)
-    parts.push(`${q.artists} ${t(q.artists === 1 ? "genreSearch.summary.artist" : "genreSearch.summary.artists")}`);
-
-  return formatList(parts, t("genreSearch.summary.and"));
-}
-
-function formatGenre(raw: string, locale: Locale): string {
-  // Languages where nouns are routinely capitalised in running text.
-  const titleCaseLocales: Locale[] = ["de"];
-  if (titleCaseLocales.includes(locale)) {
-    return raw.replace(/(^|\s|&|\/)([a-z])/g, (_m, sep, ch) => sep + ch.toUpperCase());
-  }
-  return raw.toLowerCase();
-}
-
-function formatList(items: string[], conjunction: string): string {
-  if (items.length <= 1) return items[0] ?? "";
-  if (items.length === 2) return `${items[0]} ${conjunction} ${items[1]}`;
-  return `${items.slice(0, -1).join(", ")} ${conjunction} ${items[items.length - 1]}`;
 }
