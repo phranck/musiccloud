@@ -146,7 +146,11 @@ import type { ArtistInfoContext } from "@/lib/share/artist-info-client";
 import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
 import type { ActiveResult } from "@/lib/types/app";
-import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
+import {
+  type MediaCardContentConfiguration,
+  MediaKindValue,
+  type ShareContentConfiguration,
+} from "@/lib/types/media-card";
 
 export type { ArtistInfoContext };
 
@@ -318,6 +322,8 @@ function ShareLayoutInner({
     return () => clearTimeout(timeout);
   }, [resolveErrorVisible]);
 
+  const playingStatus =
+    config.mediaKind === MediaKindValue.Song ? t("audio.statusPlayingSong") : t("audio.statusPlaying");
   const vfdStatusLine = artistStatusLoading
     ? t("artist.statusLoading")
     : resolveErrorVisible
@@ -327,7 +333,7 @@ function ShareLayoutInner({
         : artistLoadStatus === ArtistLoadStatus.Empty
           ? t("artist.statusEmpty")
           : previewStatus === AudioPreviewStatus.Playing
-            ? t("audio.statusPlaying")
+            ? playingStatus
             : artistReadyVisible
               ? t("artist.statusReady")
               : "";

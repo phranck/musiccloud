@@ -10,7 +10,7 @@ import type {
   ResolveSuccessResponse,
   UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
-import { buildMetaLine, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { buildMetaLine, ENDPOINTS, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
 import { pathFromShortUrl } from "@/lib/share/short-url";
 import {
@@ -33,6 +33,7 @@ import {
   type ArtistContentConfiguration,
   type CcTrackContentConfiguration,
   MediaCardContentTypeValue,
+  MediaKindValue,
   type ShareContentConfiguration,
   type SongContentConfiguration,
 } from "@/lib/types/media-card";
@@ -586,7 +587,10 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
       shortUrl: cc.shareUrl,
     }),
     album: cc.album,
-    previewUrl: cc.streamUrl,
+    // CC audio is streamed through our same-origin proxy, not Jamendo directly:
+    // Jamendo omits the Range CORS headers the crossorigin player needs.
+    previewUrl: ENDPOINTS.frontend.ccAudio(cc.jamendoId),
+    mediaKind: MediaKindValue.Song,
     shortId: shortIdFromShortUrl(cc.shareUrl),
   };
 }

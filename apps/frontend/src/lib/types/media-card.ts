@@ -17,6 +17,17 @@ export const MediaCardContentTypeValue = {
 export type MediaCardContentType = (typeof MediaCardContentTypeValue)[keyof typeof MediaCardContentTypeValue];
 
 /**
+ * Whether the player plays a short preview clip or a full track. Drives the
+ * player's wording ("preview" vs "song"); CC / Jamendo tracks are full songs.
+ */
+export const MediaKindValue = {
+  Preview: "preview",
+  Song: "song",
+} as const;
+
+export type MediaKindType = (typeof MediaKindValue)[keyof typeof MediaKindValue];
+
+/**
  * Base configuration shared by all three content types.
  * All translatable strings must be pre-computed by the caller.
  */
@@ -40,6 +51,9 @@ export interface MediaCardContentConfiguration {
   /** Short ID of the share — used by the audio player to call the
    *  preview-refresh endpoint when `previewRefreshable` is set. */
   shortId?: string;
+  /** Whether `previewUrl` is a short preview clip (default) or a full track
+   *  (CC / Jamendo). Drives the player's wording. Defaults to a preview. */
+  mediaKind?: MediaKindType;
   platforms: PlatformLink[];
   /** Pre-translated label above the platform grid */
   platformsLabel: string;

@@ -630,7 +630,7 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
       rows={1}
       phosphorColor={phosphorColor}
       progress={progress}
-      ariaLabel={`Preview progress ${timeText}`}
+      ariaLabel={`Playback progress ${timeText}`}
       lines={lines}
     />
   );
