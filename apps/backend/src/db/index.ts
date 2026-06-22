@@ -52,7 +52,7 @@ export type { AdminRepository, AdminUser } from "./admin-repository.js";
 export type {
   CachedTrackResult,
   CcRepository,
-  CcTrackRecord,
+  CcShortIdLookup,
   PersistCcTrackData,
   PersistTrackData,
   SharePageDbResult,

@@ -411,19 +411,37 @@ export const OgMetaSchema = {
 
 export const SharePageSchema = {
   $id: "SharePage",
-  type: "object",
-  description: "Unified share-page payload: one of track/album/artist plus its cross-service links and OG meta.",
-  required: ["type", "og", "links", "shortUrl"],
-  additionalProperties: false,
-  properties: {
-    type: { type: "string", enum: ["track", "album", "artist"] },
-    og: { $ref: "OgMeta#" },
-    track: { $ref: "Track#" },
-    album: { $ref: "Album#" },
-    artist: { $ref: "Artist#" },
-    links: { type: "array", items: { $ref: "PlatformLink#" } },
-    shortUrl: { type: "string", format: "uri" },
-  },
+  description:
+    "Unified share-page payload, discriminated by `type`. Commercial entities (track/album/artist) carry cross-service links; CC entities (cc-track/cc-album/cc-artist) carry the Jamendo entity plus right-column artist info and no links.",
+  oneOf: [
+    {
+      type: "object",
+      description: "Commercial share payload: one of track/album/artist plus its cross-service links.",
+      required: ["type", "og", "links", "shortUrl"],
+      additionalProperties: false,
+      properties: {
+        type: { type: "string", enum: ["track", "album", "artist"] },
+        og: { $ref: "OgMeta#" },
+        track: { $ref: "Track#" },
+        album: { $ref: "Album#" },
+        artist: { $ref: "Artist#" },
+        links: { type: "array", items: { $ref: "PlatformLink#" } },
+        shortUrl: { type: "string", format: "uri" },
+      },
+    },
+    {
+      type: "object",
+      description:
+        "CC (Jamendo) share payload: the CC entity (`track`/`album`/`artist`) plus the right-column `artistInfo`, no cross-service links. Loosely typed so the CC-specific entity fields (stream/licence/waveform) and artist info pass through unchanged.",
+      required: ["type", "og", "shortUrl"],
+      additionalProperties: true,
+      properties: {
+        type: { type: "string", enum: ["cc-track", "cc-album", "cc-artist"] },
+        og: { $ref: "OgMeta#" },
+        shortUrl: { type: "string", format: "uri" },
+      },
+    },
+  ],
   example: {
     type: "track",
     og: {

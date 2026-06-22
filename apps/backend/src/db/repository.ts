@@ -889,23 +889,15 @@ export interface PersistCcArtistData {
   shareUrl?: string;
 }
 
-/** Read shape returned by CC short-id lookups (single row, no link fan-out). */
-export interface CcTrackRecord {
-  ccTrackId: string;
-  shortId: string;
+/**
+ * Result of resolving a public CC short id to its entity. The share-page loader
+ * only needs the entity kind and its Jamendo id — it refetches the full entity
+ * (and the live right-column artist info) from Jamendo, exactly like the live
+ * resolve, so the share page and the live view render from identical data.
+ */
+export interface CcShortIdLookup {
+  kind: "cc-track" | "cc-album" | "cc-artist";
   jamendoId: string;
-  title: string;
-  artistName: string;
-  albumName: string | null;
-  artworkUrl: string | null;
-  durationMs: number | null;
-  releaseDate: string | null;
-  licenseCcurl: string | null;
-  streamUrl: string;
-  downloadUrl: string | null;
-  downloadAllowed: boolean;
-  waveform: string | null;
-  shareUrl: string | null;
 }
 
 /** CC persistence + lookups, kept separate from the commercial TrackRepository. */
@@ -913,7 +905,8 @@ export interface CcRepository {
   persistCcTrack(data: PersistCcTrackData): Promise<{ ccTrackId: string; shortId: string }>;
   persistCcAlbum(data: PersistCcAlbumData): Promise<{ ccAlbumId: string; shortId: string }>;
   persistCcArtist(data: PersistCcArtistData): Promise<{ ccArtistId: string; shortId: string }>;
-  findCcTrackByShortId(shortId: string): Promise<CcTrackRecord | null>;
+  /** Resolves a public CC short id (track, album or artist) to its kind + Jamendo id. */
+  findCcShortId(shortId: string): Promise<CcShortIdLookup | null>;
 }
 
 /** Payload accepted by `insertAppTelemetryEvent`. Shape matches the

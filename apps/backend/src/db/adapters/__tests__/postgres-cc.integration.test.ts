@@ -6,7 +6,7 @@ import type { PersistCcAlbumData, PersistCcArtistData, PersistCcTrackData } from
 /**
  * Hits a live Postgres pointed at by `DATABASE_URL`. Exercises the slim CC
  * repository (`persistCcTrack` / `persistCcAlbum` / `persistCcArtist` /
- * `findCcTrackByShortId`) against the `cc_*` tables (migration 0043 plus the
+ * `findCcShortId`) against the `cc_*` tables (migration 0043 plus the
  * `cc_album_short_urls` / `cc_artist_short_urls` tables from migration 0044).
  *
  * Every fixture uses a random `jamendoId` per run so it never collides with
@@ -142,22 +142,20 @@ describe.skipIf(!process.env.DATABASE_URL)("CC repository (integration)", () => 
     expect(short.rows).toHaveLength(1);
   });
 
-  it("findCcTrackByShortId returns the track with boolean downloadAllowed and correct streamUrl", async () => {
+  it("findCcShortId resolves a track short id to its kind and Jamendo id", async () => {
     const repo = await getCcRepository();
     const { shortId } = await repo.persistCcTrack(fixture);
 
-    const record = await repo.findCcTrackByShortId(shortId);
-    expect(record).not.toBeNull();
-    expect(record!.jamendoId).toBe(jamendoTrackId);
-    expect(record!.streamUrl).toBe(fixture.streamUrl);
-    expect(typeof record!.downloadAllowed).toBe("boolean");
-    expect(record!.downloadAllowed).toBe(true);
+    const lookup = await repo.findCcShortId(shortId);
+    expect(lookup).not.toBeNull();
+    expect(lookup!.kind).toBe("cc-track");
+    expect(lookup!.jamendoId).toBe(jamendoTrackId);
   });
 
-  it("findCcTrackByShortId returns null for an unknown short id", async () => {
+  it("findCcShortId returns null for an unknown short id", async () => {
     const repo = await getCcRepository();
-    const record = await repo.findCcTrackByShortId(`nope-${suffix}`);
-    expect(record).toBeNull();
+    const lookup = await repo.findCcShortId(`nope-${suffix}`);
+    expect(lookup).toBeNull();
   });
 
   it("persistCcAlbum creates artist, album and an album short-url, idempotently", async () => {

@@ -38,7 +38,7 @@ import type {
   CachedArtistResult,
   CachedTrackResult,
   CcRepository,
-  CcTrackRecord,
+  CcShortIdLookup,
   CrawlRunFinalize,
   CrawlRunInsert,
   CrawlRunsPage,
@@ -122,7 +122,7 @@ import {
   saveArtistCache as artistsSaveArtistCache,
 } from "./postgres-artists.js";
 import {
-  findCcTrackByShortId as ccFindByShortId,
+  findCcShortId as ccFindShortId,
   persistCcAlbum as ccPersistAlbum,
   persistCcArtist as ccPersistArtist,
   persistCcTrack as ccPersistTrack,
@@ -708,8 +708,8 @@ export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepo
     return ccPersistArtist(this.pool, data);
   }
 
-  findCcTrackByShortId(shortId: string): Promise<CcTrackRecord | null> {
-    return ccFindByShortId(this.pool, shortId);
+  findCcShortId(shortId: string): Promise<CcShortIdLookup | null> {
+    return ccFindShortId(this.pool, shortId);
   }
 
   // ============================================================================

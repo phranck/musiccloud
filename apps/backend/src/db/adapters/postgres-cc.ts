@@ -7,7 +7,7 @@
 
 import type { Pool, PoolClient } from "pg";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
-import type { CcTrackRecord, PersistCcAlbumData, PersistCcArtistData, PersistCcTrackData } from "../repository.js";
+import type { CcShortIdLookup, PersistCcAlbumData, PersistCcArtistData, PersistCcTrackData } from "../repository.js";
 
 /**
  * Eagerly mints (or reuses) the canonical short code for a CC entity. Idempotent:
@@ -324,40 +324,34 @@ export async function persistCcArtist(
 }
 
 /**
- * Loads a CC track by its public short id (single row, no link fan-out).
+ * Resolves a public CC short id to its entity kind and Jamendo id.
+ *
+ * Short ids live in a single namespace across the three CC short-url tables
+ * (track, album, artist), so one `UNION ALL` joins each table to its entity and
+ * returns the first hit. The share-page loader takes the Jamendo id from here
+ * and refetches the full entity live, mirroring the resolve path.
  *
  * @param pool - Postgres pool.
- * @param shortId - Public short code from `cc_short_urls`.
- * @returns The CC track record, or null when no track matches.
+ * @param shortId - Public short code from one of the `cc_*_short_urls` tables.
+ * @returns The `{ kind, jamendoId }` lookup, or null when the id matches none.
  */
-export async function findCcTrackByShortId(pool: Pool, shortId: string): Promise<CcTrackRecord | null> {
+export async function findCcShortId(pool: Pool, shortId: string): Promise<CcShortIdLookup | null> {
   const result = await pool.query(
-    `SELECT
-       t.id AS cc_track_id, su.id AS short_id, t.jamendo_id, t.title, t.artist_name,
-       t.album_name, t.artwork_url, t.duration_ms, t.release_date, t.license_ccurl,
-       t.stream_url, t.download_url, t.download_allowed, t.waveform, t.share_url
-     FROM cc_tracks t
-     JOIN cc_short_urls su ON su.cc_track_id = t.id
-     WHERE su.id = $1`,
+    `SELECT 'cc-track' AS kind, t.jamendo_id
+       FROM cc_short_urls su JOIN cc_tracks t ON t.id = su.cc_track_id
+       WHERE su.id = $1
+     UNION ALL
+     SELECT 'cc-album' AS kind, a.jamendo_id
+       FROM cc_album_short_urls su JOIN cc_albums a ON a.id = su.cc_album_id
+       WHERE su.id = $1
+     UNION ALL
+     SELECT 'cc-artist' AS kind, ar.jamendo_id
+       FROM cc_artist_short_urls su JOIN cc_artists ar ON ar.id = su.cc_artist_id
+       WHERE su.id = $1
+     LIMIT 1`,
     [shortId],
   );
   if (result.rows.length === 0) return null;
   const r = result.rows[0];
-  return {
-    ccTrackId: r.cc_track_id,
-    shortId: r.short_id,
-    jamendoId: r.jamendo_id,
-    title: r.title,
-    artistName: r.artist_name,
-    albumName: r.album_name,
-    artworkUrl: r.artwork_url,
-    durationMs: r.duration_ms,
-    releaseDate: r.release_date,
-    licenseCcurl: r.license_ccurl,
-    streamUrl: r.stream_url,
-    downloadUrl: r.download_url,
-    downloadAllowed: r.download_allowed === 1,
-    waveform: r.waveform,
-    shareUrl: r.share_url,
-  };
+  return { kind: r.kind as CcShortIdLookup["kind"], jamendoId: r.jamendo_id };
 }
