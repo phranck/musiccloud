@@ -16,10 +16,11 @@ import {
 import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { HeroInput } from "@/components/landing/HeroInput";
 import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
+import { ShareResultFrame } from "@/components/landing/ShareResultFrame";
+import { ShareResultPlaceholder } from "@/components/landing/ShareResultPlaceholder";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { LogoView } from "@/components/ui/LogoView";
 import { DialogProvider } from "@/context/DialogContext";
 import { useAppState } from "@/hooks/useAppState";
@@ -31,7 +32,7 @@ import { LocaleProvider } from "@/i18n/context";
 import { useT } from "@/i18n/localeContext";
 import type { Locale } from "@/i18n/locales";
 import { CardSignal, genreSignal, sendMusicSignal } from "@/lib/analytics/umami";
-import { animateFadeIn, animateSlideOutDown } from "@/lib/motion/entrances";
+import { animateFadeIn } from "@/lib/motion/entrances";
 import {
   loadDisambiguationPanel,
   loadGenreBrowseGrid,
@@ -100,49 +101,21 @@ function ActiveShareResult({
   isClearing,
   resultsPanelRef,
 }: ActiveShareResultProps) {
-  // Clearing slide-out (GSAP port of the removed `animate-slide-out-down`
-  // class). The clear choreography continues from the timeline's
-  // `onComplete` — the `animationend` event this replaced does not exist for
-  // JS tweens (break class 719a656). Unmounting mid-flight (e.g. Escape
-  // while clearing) reverts the useGSAP context, killing the tween and
-  // suppressing the handover — the same outcome the CSS animation had when
-  // its element left the DOM before `animationend`.
-  useGSAP(
-    () => {
-      if (!isClearing) return;
-      const panel = resultsPanelRef.current;
-      if (!panel) return;
-      const tween = animateSlideOutDown(panel, { onComplete: onClearSlideOutComplete });
-      // Reduced motion: no tween exists — the clear flow must not depend on
-      // an animation playing, so hand over synchronously (pre-paint).
-      if (!tween) onClearSlideOutComplete();
-    },
-    { dependencies: [isClearing] },
-  );
-
   return (
-    <div
-      ref={resultsPanelRef}
-      tabIndex={-1}
-      className={`outline-none w-full ${isClearing ? "pointer-events-none" : ""}`}
+    <ShareResultFrame
+      resultsPanelRef={resultsPanelRef}
+      handleShareLogoClick={handleShareLogoClick}
+      isClearing={isClearing}
+      onClearSlideOutComplete={onClearSlideOutComplete}
     >
-      <div className="mb-4 text-center sm:mb-6">
-        <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleShareLogoClick}>
-          <LogoView className="w-56 sm:w-64 h-auto" />
-        </a>
-      </div>
-      <FadeInOnMount>
-        <Suspense fallback={<ShareResultPlaceholder />}>
-          <ShareLayout
-            config={activeShareConfig}
-            artistName={activeArtistName}
-            artistInfoContext={artistInfoContext}
-            onBack={canGoBack ? handleBack : undefined}
-            backLabel={canGoBack ? backLabel : undefined}
-          />
-        </Suspense>
-      </FadeInOnMount>
-    </div>
+      <ShareLayout
+        config={activeShareConfig}
+        artistName={activeArtistName}
+        artistInfoContext={artistInfoContext}
+        onBack={canGoBack ? handleBack : undefined}
+        backLabel={canGoBack ? backLabel : undefined}
+      />
+    </ShareResultFrame>
   );
 }
 
@@ -196,28 +169,19 @@ function CcShareResult({
   // shared card gets a CC-specific title; the other three keep the defaults.
   const ccArtistLabels = useMemo(() => ({ similar: t("artist.similarTracks") }), [t]);
   return (
-    <div ref={resultsPanelRef} tabIndex={-1} className="outline-none w-full">
-      <div className="mb-4 text-center sm:mb-6">
-        <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleShareLogoClick}>
-          <LogoView className="w-56 sm:w-64 h-auto" />
-        </a>
-      </div>
-      <FadeInOnMount>
-        <Suspense fallback={<ShareResultPlaceholder />}>
-          <ShareLayout
-            config={config}
-            artistName={artistName}
-            artistData={ccActive.artistInfo}
-            skipArtistFetch
-            secondaryCard={secondaryCard}
-            labels={ccArtistLabels}
-            onTrackResolve={(track) => handleSelectCcTrack(track.deezerUrl)}
-            onBack={canGoBack ? handleBack : undefined}
-            backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
-          />
-        </Suspense>
-      </FadeInOnMount>
-    </div>
+    <ShareResultFrame resultsPanelRef={resultsPanelRef} handleShareLogoClick={handleShareLogoClick}>
+      <ShareLayout
+        config={config}
+        artistName={artistName}
+        artistData={ccActive.artistInfo}
+        skipArtistFetch
+        secondaryCard={secondaryCard}
+        labels={ccArtistLabels}
+        onTrackResolve={(track) => handleSelectCcTrack(track.deezerUrl)}
+        onBack={canGoBack ? handleBack : undefined}
+        backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
+      />
+    </ShareResultFrame>
   );
 }
 
@@ -274,21 +238,6 @@ function LandingLogoBlock({ isReturning, showCompact }: { isReturning: boolean; 
   return (
     <div ref={logoRef} className="flex justify-center mb-10">
       <LogoView className="w-80 sm:w-96 md:w-[28rem] h-auto" />
-    </div>
-  );
-}
-
-function ShareResultPlaceholder() {
-  return (
-    <div
-      className="mx-auto w-full max-w-[512px] min-[1080px]:max-w-[1048px] opacity-0 pointer-events-none"
-      aria-hidden="true"
-    >
-      <div className="hidden min-[1080px]:grid grid-cols-[512px_512px] gap-6">
-        <div className="h-[560px]" />
-        <div className="h-[560px]" />
-      </div>
-      <div className="min-[1080px]:hidden h-[520px]" />
     </div>
   );
 }
