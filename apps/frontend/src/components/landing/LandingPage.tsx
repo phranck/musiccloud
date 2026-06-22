@@ -1,27 +1,25 @@
-import { useGSAP } from "@gsap/react";
 import type { NavItem } from "@musiccloud/shared";
 import {
   lazy,
   type MouseEvent,
-  type RefObject,
   Suspense,
   useCallback,
   useEffect,
   useEffectEvent,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
-import { CcInfoCard } from "@/components/cards/CcInfoCard";
+import { ActiveShareResult } from "@/components/landing/ActiveShareResult";
+import { CcShareResult } from "@/components/landing/CcShareResult";
 import { HeroInput } from "@/components/landing/HeroInput";
+import { LandingLogoBlock } from "@/components/landing/LandingLogoBlock";
 import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
-import { ShareResultFrame } from "@/components/landing/ShareResultFrame";
+import { LiveExampleTeaser } from "@/components/landing/LiveExampleTeaser";
 import { ShareResultPlaceholder } from "@/components/landing/ShareResultPlaceholder";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { LogoView } from "@/components/ui/LogoView";
 import { DialogProvider } from "@/context/DialogContext";
 import { useAppState } from "@/hooks/useAppState";
 import { useDeferredResultReveal } from "@/hooks/useDeferredResultReveal";
@@ -31,29 +29,24 @@ import { useToast } from "@/hooks/useToast";
 import { LocaleProvider } from "@/i18n/context";
 import { useT } from "@/i18n/localeContext";
 import type { Locale } from "@/i18n/locales";
-import { CardSignal, genreSignal, sendMusicSignal } from "@/lib/analytics/umami";
-import { animateFadeIn } from "@/lib/motion/entrances";
+import { genreSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import {
   loadDisambiguationPanel,
   loadGenreBrowseGrid,
   loadGenreSearchResults,
-  loadShareLayout,
   loadToast,
   preloadResolveResultRuntime,
 } from "@/lib/preload/resultRuntime";
 import { buildGenreQuery, GENRE_BROWSE_QUERY } from "@/lib/resolve/genre-query";
-import { ccResultToShareProps } from "@/lib/resolve/parsers";
 import { getResolveMode, setResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
-import { buildActiveShareSelection, type ShareArtistInfoContext } from "@/lib/share/share-view";
+import { buildActiveShareSelection } from "@/lib/share/share-view";
 import { AppStateType, type CcResult, InputState, ResolveMode } from "@/lib/types/app";
-import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 // Lazy-loaded panels — only pulled into the bundle when the user needs them.
 // Fallback is `null` because each is only rendered behind a visibility flag anyway.
 const DisambiguationPanel = lazy(loadDisambiguationPanel);
 const GenreBrowseGrid = lazy(loadGenreBrowseGrid);
 const GenreSearchResults = lazy(loadGenreSearchResults);
-const ShareLayout = lazy(loadShareLayout);
 const Toast = lazy(loadToast);
 
 const EMPTY_NAV_ITEMS: NavItem[] = [];
@@ -69,177 +62,6 @@ interface LandingPageProps {
    * shell, which has its own `DeferredFooter`) pass false to avoid a duplicate.
    */
   showFooter?: boolean;
-}
-
-interface ActiveShareResultProps {
-  activeArtistName: string;
-  activeShareConfig: ShareContentConfiguration;
-  artistInfoContext?: ShareArtistInfoContext;
-  backLabel?: string;
-  canGoBack: boolean;
-  handleBack: () => void;
-  /**
-   * Fires once when the clearing slide-out has finished (or immediately on
-   * the reduced-motion path) and hands over to the search-field return
-   * staging — see `useSearchFieldReturn`.
-   */
-  onClearSlideOutComplete: () => void;
-  handleShareLogoClick: (event: MouseEvent<HTMLAnchorElement>) => void;
-  isClearing: boolean;
-  resultsPanelRef: RefObject<HTMLDivElement | null>;
-}
-
-function ActiveShareResult({
-  activeArtistName,
-  activeShareConfig,
-  artistInfoContext,
-  backLabel,
-  canGoBack,
-  handleBack,
-  onClearSlideOutComplete,
-  handleShareLogoClick,
-  isClearing,
-  resultsPanelRef,
-}: ActiveShareResultProps) {
-  return (
-    <ShareResultFrame
-      resultsPanelRef={resultsPanelRef}
-      handleShareLogoClick={handleShareLogoClick}
-      isClearing={isClearing}
-      onClearSlideOutComplete={onClearSlideOutComplete}
-    >
-      <ShareLayout
-        config={activeShareConfig}
-        artistName={activeArtistName}
-        artistInfoContext={artistInfoContext}
-        onBack={canGoBack ? handleBack : undefined}
-        backLabel={canGoBack ? backLabel : undefined}
-      />
-    </ShareResultFrame>
-  );
-}
-
-type CcViewTFunc = (key: string, vars?: Record<string, string>) => string;
-
-interface CcShareResultProps {
-  ccActive: CcResult;
-  handleSelectCcTrack: (candidateId: string) => Promise<void>;
-  handleShareLogoClick: (event: MouseEvent<HTMLAnchorElement>) => void;
-  resultsPanelRef: RefObject<HTMLDivElement | null>;
-  canGoBack: boolean;
-  handleBack: () => void;
-  t: CcViewTFunc;
-}
-
-/**
- * Renders any resolved Creative-Commons entity (track, album or artist) through
- * the SAME {@link ShareLayout} as the commercial result — only the data source
- * differs. CC supplies a Jamendo-built `artistData` (skipping the commercial
- * artist-info fetch), a CC track-resolve handler, and (for a track) the
- * `CcInfoCard` license/attribution as the secondary card. The Back-to-discovery
- * button, popular/similar-track column and two-column layout all come for free.
- *
- * @param ccActive - The resolved CC entity from app state.
- * @param handleSelectCcTrack - Resolves a clicked popular/similar track row.
- * @param handleShareLogoClick - Home-link handler (begins the clear/return flow).
- * @param resultsPanelRef - Focus target so keyboard users land on the result.
- * @param canGoBack - Whether a genre-search screen is on the navigation stack.
- * @param handleBack - Pops the navigation stack back to the genre-search results.
- * @param t - Translation function.
- */
-function CcShareResult({
-  ccActive,
-  handleSelectCcTrack,
-  handleShareLogoClick,
-  resultsPanelRef,
-  canGoBack,
-  handleBack,
-  t,
-}: CcShareResultProps) {
-  const { config, artistName, ccInfoContent } = ccResultToShareProps(ccActive, t);
-  // The secondary card is only present for a CC track (license / attribution).
-  // Memoized so its element identity stays stable across re-renders — passing a
-  // freshly allocated element into the `secondaryCard` prop each render would
-  // otherwise defeat the downstream memoization.
-  const secondaryCard = useMemo(
-    () => (ccInfoContent ? <CcInfoCard content={ccInfoContent} /> : undefined),
-    [ccInfoContent],
-  );
-  // CC shows similar TRACKS (from other artists), not similar artists, so the
-  // shared card gets a CC-specific title; the other three keep the defaults.
-  const ccArtistLabels = useMemo(() => ({ similar: t("artist.similarTracks") }), [t]);
-  return (
-    <ShareResultFrame resultsPanelRef={resultsPanelRef} handleShareLogoClick={handleShareLogoClick}>
-      <ShareLayout
-        config={config}
-        artistName={artistName}
-        artistData={ccActive.artistInfo}
-        skipArtistFetch
-        secondaryCard={secondaryCard}
-        labels={ccArtistLabels}
-        onTrackResolve={(track) => handleSelectCcTrack(track.deezerUrl)}
-        onBack={canGoBack ? handleBack : undefined}
-        backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
-      />
-    </ShareResultFrame>
-  );
-}
-
-function LiveExampleTeaser({
-  exampleShortId,
-  label,
-  teaser,
-  visible,
-}: {
-  exampleShortId: string;
-  label: string;
-  teaser: string;
-  visible: boolean;
-}) {
-  return (
-    <p
-      className={`mt-4 min-h-5 text-sm text-text-secondary text-center transition-opacity duration-200 ${
-        visible ? "opacity-100" : "opacity-0 pointer-events-none"
-      }`}
-      aria-hidden={!visible}
-    >
-      {teaser}{" "}
-      <a href={`/${exampleShortId}`} onClick={() => sendMusicSignal(CardSignal.LiveExample)} className="mc-skylink">
-        {label}
-      </a>
-    </p>
-  );
-}
-
-function LandingLogoBlock({ isReturning, showCompact }: { isReturning: boolean; showCompact: boolean }) {
-  const logoRef = useRef<HTMLDivElement>(null);
-
-  // While the search-field return flip travels, the large logo fades back in
-  // (GSAP port of the removed conditional `animate-fade-in` class). Keyed on
-  // both flags: compact-cancel flows flip them in the same commit.
-  useGSAP(
-    () => {
-      if (!isReturning || showCompact) return;
-      const el = logoRef.current;
-      if (!el) return;
-      animateFadeIn(el);
-    },
-    { dependencies: [isReturning, showCompact] },
-  );
-
-  if (showCompact) {
-    return (
-      <div className="mb-6">
-        <LogoView className="w-56 h-auto" />
-      </div>
-    );
-  }
-
-  return (
-    <div ref={logoRef} className="flex justify-center mb-10">
-      <LogoView className="w-80 sm:w-96 md:w-[28rem] h-auto" />
-    </div>
-  );
 }
 
 /**
