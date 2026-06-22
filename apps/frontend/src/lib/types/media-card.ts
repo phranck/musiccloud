@@ -153,3 +153,35 @@ export function isShareableContent(
 export function isSharePageContent(content: MediaCardContentConfiguration): content is ShareContentConfiguration {
   return content.type === MediaCardContentTypeValue.Share;
 }
+
+/**
+ * Visibility flags for the platform well shared by `MediaCard` and
+ * `ServicesCard`.
+ *
+ * @property showGrid - True when the content carries at least one platform link.
+ * @property showInfoOnly - True when there are no links but an availability note
+ *   exists (the "not found" / "only on X" case), so the well renders just the
+ *   note without the grid.
+ */
+export interface PlatformsVisibility {
+  showGrid: boolean;
+  showInfoOnly: boolean;
+}
+
+/**
+ * Derives the platform-well visibility flags from a media content config.
+ *
+ * Encodes the single rule both platform-rendering cards rely on: render the
+ * grid when links exist, otherwise render the standalone availability note when
+ * one is present. Keeping it here (next to the content type) means the rule has
+ * one home instead of being re-typed in each card.
+ *
+ * @param content - The resolved media content configuration.
+ * @returns The {@link PlatformsVisibility} flags for the platform well.
+ */
+export function derivePlatformsVisibility(content: MediaCardContentConfiguration): PlatformsVisibility {
+  return {
+    showGrid: content.platforms.length > 0,
+    showInfoOnly: content.platforms.length === 0 && !!content.platformsInfo,
+  };
+}

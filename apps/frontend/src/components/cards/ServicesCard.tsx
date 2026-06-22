@@ -1,9 +1,8 @@
-import { animatedOuterEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { animatedOuterEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
-import { RecessedCard } from "@/components/cards/RecessedCard";
+import { PlatformsWell } from "@/components/cards/PlatformsWell";
 import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/components/cards/sectionCardChromeStyles";
-import { AnimatedPlatformGrid } from "@/components/platform/AnimatedPlatformGrid";
-import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
+import { derivePlatformsVisibility, type MediaCardContentConfiguration } from "@/lib/types/media-card";
 
 interface ServicesCardProps {
   content: MediaCardContentConfiguration;
@@ -12,10 +11,9 @@ interface ServicesCardProps {
 }
 
 export function ServicesCard({ content, className, animated = false }: ServicesCardProps) {
-  const showPlatforms = content.platforms.length > 0;
-  const showPlatformsInfoOnly = content.platforms.length === 0 && !!content.platformsInfo;
+  const { showGrid, showInfoOnly } = derivePlatformsVisibility(content);
 
-  if (!showPlatforms && !showPlatformsInfoOnly) return null;
+  if (!showGrid && !showInfoOnly) return null;
 
   return (
     <EmbossedCard className={animatedOuterEmbossedCardClassName(animated, className)}>
@@ -25,19 +23,12 @@ export function ServicesCard({ content, className, animated = false }: ServicesC
         </EmbossedCard.Header.Title>
       </EmbossedCard.Header>
       <EmbossedCard.Body>
-        {showPlatforms && (
+        {showGrid && (
           <div className="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)]">
-            <RecessedCard className={recessedControlInsetClassName}>
-              <RecessedCard.Body>
-                <AnimatedPlatformGrid platforms={content.platforms} songTitle={content.title} />
-              </RecessedCard.Body>
-            </RecessedCard>
-            {content.platformsInfo && (
-              <p className="text-sm text-text-secondary text-center mt-4">{content.platformsInfo}</p>
-            )}
+            <PlatformsWell content={content} />
           </div>
         )}
-        {showPlatformsInfoOnly && (
+        {showInfoOnly && (
           <p className="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)] text-sm text-text-secondary text-center">
             {content.platformsInfo}
           </p>

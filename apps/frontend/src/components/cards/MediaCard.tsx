@@ -1,10 +1,12 @@
 import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
-import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { MediaCardHead } from "@/components/cards/MediaCardHead";
-import { RecessedCard } from "@/components/cards/RecessedCard";
-import { AnimatedPlatformGrid } from "@/components/platform/AnimatedPlatformGrid";
+import { PlatformsWell } from "@/components/cards/PlatformsWell";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import { isShareableContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
+import {
+  derivePlatformsVisibility,
+  isShareableContent,
+  type MediaCardContentConfiguration,
+} from "@/lib/types/media-card";
 
 export type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 
@@ -26,8 +28,7 @@ interface MediaCardProps {
 
 export function MediaCard({ content, className, animated = true, onPreviewStatusChange }: MediaCardProps) {
   const srAnnouncement = isShareableContent(content) ? content.srAnnouncement : undefined;
-  const showPlatforms = content.platforms.length > 0;
-  const showPlatformsInfoOnly = content.platforms.length === 0 && !!content.platformsInfo;
+  const { showGrid, showInfoOnly } = derivePlatformsVisibility(content);
   return (
     <MediaCardHead
       content={content}
@@ -36,26 +37,12 @@ export function MediaCard({ content, className, animated = true, onPreviewStatus
       onPreviewStatusChange={onPreviewStatusChange}
       srAnnouncement={srAnnouncement}
     >
-      <CollapsibleSection visible={showPlatforms} sectionClass="p-[var(--mc-pad-card,0.75rem)]">
-        {showPlatforms && (
-          <>
-            <RecessedCard className={recessedControlInsetClassName}>
-              <RecessedCard.Header>
-                <RecessedCard.Header.Title>{content.platformsLabel}</RecessedCard.Header.Title>
-              </RecessedCard.Header>
-              <RecessedCard.Body>
-                <AnimatedPlatformGrid platforms={content.platforms} songTitle={content.title} />
-              </RecessedCard.Body>
-            </RecessedCard>
-            {content.platformsInfo && (
-              <p className="text-sm text-text-secondary text-center mt-4">{content.platformsInfo}</p>
-            )}
-          </>
-        )}
+      <CollapsibleSection visible={showGrid} sectionClass="p-[var(--mc-pad-card,0.75rem)]">
+        {showGrid && <PlatformsWell content={content} label={content.platformsLabel} />}
       </CollapsibleSection>
 
-      <CollapsibleSection visible={showPlatformsInfoOnly} sectionClass="p-[var(--mc-pad-card,0.75rem)]">
-        {showPlatformsInfoOnly && <p className="text-sm text-text-secondary text-center">{content.platformsInfo}</p>}
+      <CollapsibleSection visible={showInfoOnly} sectionClass="p-[var(--mc-pad-card,0.75rem)]">
+        {showInfoOnly && <p className="text-sm text-text-secondary text-center">{content.platformsInfo}</p>}
       </CollapsibleSection>
     </MediaCardHead>
   );
