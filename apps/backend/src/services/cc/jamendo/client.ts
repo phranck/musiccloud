@@ -289,7 +289,7 @@ const CC_ARTIST_GENRES_LIMIT = 3;
  * @param jamendoArtistId - Jamendo artist id.
  * @param locale - Preferred bio language (default `"en"`); falls back to English.
  * @returns The artist's profile enrichment, or `null` when Jamendo has no record
- *   for the id.
+ *   for the id or the record carries no image, genres, and bio.
  * @throws Error on missing client id or API failure (see {@link jamendoFetch}).
  */
 export async function getCcArtistMusicInfo(jamendoArtistId: string, locale = "en"): Promise<CcArtistMusicInfo | null> {
@@ -300,11 +300,14 @@ export async function getCcArtistMusicInfo(jamendoArtistId: string, locale = "en
   });
   const first = raw[0];
   if (!first) return null;
-  return {
-    imageUrl: first.image || null,
-    genres: (first.musicinfo?.tags ?? []).slice(0, CC_ARTIST_GENRES_LIMIT),
-    bioSummary: first.musicinfo?.description?.[locale] || first.musicinfo?.description?.en || null,
-  };
+  const imageUrl = first.image || null;
+  const genres = (first.musicinfo?.tags ?? []).slice(0, CC_ARTIST_GENRES_LIMIT);
+  const bioSummary = first.musicinfo?.description?.[locale] || first.musicinfo?.description?.en || null;
+  // No image, no genres, and no bio means there is nothing worth showing —
+  // report "no profile" so the artist card self-hides instead of rendering an
+  // empty shell with only the credit footer.
+  if (!imageUrl && genres.length === 0 && !bioSummary) return null;
+  return { imageUrl, genres, bioSummary };
 }
 
 /**

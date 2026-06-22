@@ -372,12 +372,13 @@ describe("getCcArtistMusicInfo", () => {
     expect(info?.genres).toEqual(["jazz"]);
   });
 
-  it("yields null image / empty genres / null bio when musicinfo is absent", async () => {
+  it("yields null when the artist record carries no image, genres, or bio", async () => {
     mockArtist({ ...SAMPLE_ARTIST, image: "" });
 
     const info = await getCcArtistMusicInfo("338723");
 
-    expect(info).toEqual({ imageUrl: null, genres: [], bioSummary: null });
+    // Nothing worth showing -> "no profile" so the artist card self-hides.
+    expect(info).toBeNull();
   });
 
   it("returns null when Jamendo has no record for the id", async () => {
