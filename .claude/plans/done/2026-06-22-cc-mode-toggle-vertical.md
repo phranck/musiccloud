@@ -76,3 +76,7 @@ Umgesetzt wie geplant. Commits:
 **Hinweis Plan↔Code:** Die Prop heißt `alwaysExpanded` statt `static` (`static` ist ein reserviertes Wort).
 
 **Verifikation:** Browser — vertikaler Switcher links vom Hero, beide Zellen permanent sichtbar (`inert:false`, kein Collapse), Gruppe zentriert, Wechsel beidseitig (cc↔commercial), CC-Accent `#30d158`, kein Feld-Icon mehr. Gates: frontend tsc 0, biome 757 clean, doctor 0 issues, LandingPage- + Switcher-Tests grün.
+
+## Follow-up (2026-06-22): horizontal statt vertikal
+
+Auf User-Wunsch („mach den switch horizontal, er soll sich wie ein normaler Switch verhalten"): `ResolveModeSwitcher` vom vertikalen `VerticalSegmentedControl`(alwaysExpanded) auf den horizontalen `EmbossedSegmentedControl` umgestellt. Grund: Das vertikale Control pinnt die aktive Zelle nach oben (flex `order: -1`) → die Zellen tauschten beim Wechsel die Plätze, kein normales Switch-Verhalten. Der `EmbossedSegmentedControl` hat fixe Positionen (Streaming links, CC rechts) + gleitenden Indikator. Die `alwaysExpanded`-Prop (Scheibe 1) wurde mangels Konsument zurückgebaut (`VerticalSegmentedControl` wieder im Original-Stand). Commit `4727530`. Browser-verifiziert: horizontal (beide Zellen y-gleich), Positionen fix beim Wechsel, CC-Grün greift.
