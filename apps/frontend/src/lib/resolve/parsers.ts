@@ -2,8 +2,11 @@ import type {
   AlbumResolveSuccessResponse,
   ArtistResolveSuccessResponse,
   CcAlbumResolveSuccessResponse,
+  CcAlbumSharePageResponse,
   CcArtistResolveSuccessResponse,
+  CcArtistSharePageResponse,
   CcResolveSuccessResponse,
+  CcTrackSharePageResponse,
   ResolveSuccessResponse,
   UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
@@ -649,5 +652,68 @@ export function ccResultToShareProps(ccActive: CcResult, t: TFunc): CcResultShar
     config: ccTrackToShareConfig(ccActive),
     artistName: ccActive.artist,
     ccInfoContent: buildCcShareConfig(ccActive, t),
+  };
+}
+
+/**
+ * Adapts a CC share-page wire response into the app-state {@link CcResult} shape.
+ *
+ * The persistent share page receives the same CC entity the live resolve emits,
+ * just under the wire field names (`artistName`/`albumName`/`shareUrl` vs. the
+ * app-state `artist`/`album`/`jamendoUrl`, and the top-level `shortUrl` as the
+ * musiccloud short URL). Mapping here lets the share page reuse
+ * {@link ccResultToShareProps} verbatim instead of duplicating the per-kind
+ * config builders.
+ *
+ * @param data - A `cc-track` / `cc-album` / `cc-artist` share-page response.
+ * @returns The equivalent {@link CcResult} for {@link ccResultToShareProps}.
+ */
+export function ccResponseToResult(
+  data: CcTrackSharePageResponse | CcAlbumSharePageResponse | CcArtistSharePageResponse,
+): CcResult {
+  if (data.type === "cc-track") {
+    const track = data.track;
+    return {
+      kind: ActiveResultKind.CcSong,
+      jamendoId: track.jamendoId,
+      title: track.title,
+      artist: track.artistName,
+      album: track.albumName,
+      releaseDate: track.releaseDate,
+      durationMs: track.durationMs,
+      artworkUrl: track.artworkUrl ?? "",
+      streamUrl: track.streamUrl,
+      licenseCcurl: track.licenseCcurl,
+      downloadUrl: track.downloadUrl,
+      downloadAllowed: track.downloadAllowed,
+      waveform: track.waveform,
+      jamendoUrl: track.shareUrl,
+      shareUrl: data.shortUrl,
+      artistInfo: data.artistInfo,
+    };
+  }
+  if (data.type === "cc-album") {
+    const album = data.album;
+    return {
+      kind: ActiveResultKind.CcAlbum,
+      jamendoId: album.jamendoId,
+      title: album.name,
+      artist: album.artistName,
+      releaseDate: album.releaseDate,
+      artworkUrl: album.artworkUrl ?? "",
+      jamendoUrl: album.shareUrl,
+      shareUrl: data.shortUrl,
+      artistInfo: data.artistInfo,
+    };
+  }
+  const artist = data.artist;
+  return {
+    kind: ActiveResultKind.CcArtist,
+    jamendoId: artist.jamendoId,
+    name: artist.name,
+    imageUrl: artist.imageUrl ?? "",
+    jamendoUrl: artist.shareUrl,
+    shareUrl: data.shortUrl,
+    artistInfo: data.artistInfo,
   };
 }

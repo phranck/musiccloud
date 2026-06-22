@@ -1,15 +1,67 @@
 import {
   type ApiAlbum,
   type ApiArtistCredit,
+  type ArtistInfoResponse,
   buildMetaLine,
+  type CcAlbumSharePageResponse,
+  type CcArtistSharePageResponse,
+  type CcTrackSharePageResponse,
   type SharePageResponse,
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
-import { buildShareConfigFromActive } from "@/lib/resolve/parsers";
+import { buildShareConfigFromActive, ccResponseToResult, ccResultToShareProps } from "@/lib/resolve/parsers";
 import { pathFromShortUrl } from "@/lib/share/short-url";
 import { type ActiveResult, ActiveResultKind } from "@/lib/types/app";
-import type { ShareContentConfiguration } from "@/lib/types/media-card";
+import type { CcTrackContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
+
+/** A CC variant of {@link SharePageResponse} (track / album / artist). */
+type CcSharePageResponse = CcTrackSharePageResponse | CcAlbumSharePageResponse | CcArtistSharePageResponse;
+
+/** Narrows a {@link SharePageResponse} to its CC variants (which render through a dedicated path). */
+export function isCcSharePageResponse(data: SharePageResponse): data is CcSharePageResponse {
+  return data.type === "cc-track" || data.type === "cc-album" || data.type === "cc-artist";
+}
+
+/**
+ * The server-built inputs the {@link CcSharePageShell} renders. Mirrors the CC
+ * live view: the left media card (`config`), the right artist column
+ * (`artistInfo`), the optional license card content (`ccInfoContent`, track
+ * only), the CC section-title overrides (`labels`), plus the page title and
+ * artwork for the document head.
+ */
+export interface CcSharePageProps {
+  config: ShareContentConfiguration;
+  artistName: string;
+  artistInfo: ArtistInfoResponse;
+  ccInfoContent?: CcTrackContentConfiguration;
+  labels: { similar: string; profileProvidedBy: string };
+  pageTitle: string;
+  artworkUrl?: string | null;
+}
+
+/**
+ * Builds the {@link CcSharePageProps} for a CC share-page response, reusing the
+ * CC live-view parsers ({@link ccResponseToResult} → {@link ccResultToShareProps}).
+ * Runs server-side in the share-page routes so the client shell only renders.
+ *
+ * @param data - A CC share-page response.
+ * @param t - Translation function for labels + announcements.
+ * @returns The render inputs for the CC share page.
+ */
+export function buildCcSharePageProps(data: CcSharePageResponse, t: TFunc): CcSharePageProps {
+  const result = ccResponseToResult(data);
+  const { config, artistName, ccInfoContent } = ccResultToShareProps(result, t);
+  return {
+    config,
+    artistName,
+    artistInfo: result.artistInfo,
+    ccInfoContent,
+    labels: { similar: t("artist.similarTracks"), profileProvidedBy: t("artist.profileProvidedByJamendo") },
+    pageTitle: data.og.title,
+    artworkUrl: config.artworkUrl,
+  };
+}
 
 type TFunc = (key: string, vars?: Record<string, string>) => string;
 

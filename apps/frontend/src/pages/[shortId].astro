@@ -20,6 +20,7 @@ import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import { SegmentedPageFullscreen } from "@/components/layout/SegmentedPageFullscreen";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { CcSharePageShell } from "@/components/share/CcSharePageShell";
 import DeferredShareContent from "@/components/share/DeferredShareContent.astro";
 import ShareLogoHeader from "@/components/share/ShareLogoHeader.astro";
 import ShareResultPlaceholder from "@/components/share/ShareResultPlaceholder.astro";
@@ -28,7 +29,13 @@ import { getRequestLocale } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
 import { isBot } from "@/lib/isBot";
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import { buildShareViewFromSharePageResponse, type ShareViewModel } from "@/lib/share/share-view";
+import {
+  buildCcSharePageProps,
+  type CcSharePageProps,
+  buildShareViewFromSharePageResponse,
+  isCcSharePageResponse,
+  type ShareViewModel,
+} from "@/lib/share/share-view";
 
 const { shortId } = Astro.params;
 
@@ -61,6 +68,7 @@ let artworkUrl: string | undefined | null = null;
 let displayTitle = "";
 let artistDisplay = "";
 let shareView: ShareViewModel | null = null;
+let ccPageProps: CcSharePageProps | null = null;
 let pageTitle = "musiccloud";
 
 if (treatAsBot) {
@@ -76,15 +84,27 @@ if (treatAsBot) {
     return Astro.redirect("/404", 302);
   }
 
-  shareView = data ? buildShareViewFromSharePageResponse(data, shortId, t) : null;
-  isAlbum = shareView?.isAlbum ?? false;
-  isArtist = shareView?.isArtist ?? false;
-  og = data?.og ?? null;
-  artworkUrl = shareView?.artworkUrl;
-  displayTitle = shareView?.displayTitle ?? "";
-  artistDisplay = shareView?.artistDisplay ?? "";
-
-  pageTitle = contentPage ? `${contentPage.title} - musiccloud` : (shareView?.pageTitle ?? "musiccloud");
+  if (data && isCcSharePageResponse(data)) {
+    // CC entities render through their own shell; derive the OG inputs from the
+    // CC props (the commercial share-view builder rejects CC responses).
+    ccPageProps = buildCcSharePageProps(data, t);
+    isAlbum = data.type === "cc-album";
+    isArtist = data.type === "cc-artist";
+    og = data.og;
+    artworkUrl = ccPageProps.artworkUrl;
+    displayTitle = ccPageProps.config.title;
+    artistDisplay = ccPageProps.config.artist;
+    pageTitle = ccPageProps.pageTitle;
+  } else {
+    shareView = data ? buildShareViewFromSharePageResponse(data, shortId, t) : null;
+    isAlbum = shareView?.isAlbum ?? false;
+    isArtist = shareView?.isArtist ?? false;
+    og = data?.og ?? null;
+    artworkUrl = shareView?.artworkUrl;
+    displayTitle = shareView?.displayTitle ?? "";
+    artistDisplay = shareView?.artistDisplay ?? "";
+    pageTitle = contentPage ? `${contentPage.title} - musiccloud` : (shareView?.pageTitle ?? "musiccloud");
+  }
 }
 ---
 
@@ -166,18 +186,28 @@ if (treatAsBot) {
           </main>
         )}
 
-        {!contentPage && (
+        {!contentPage && ccPageProps && (
+          <CcSharePageShell
+            client:load
+            config={ccPageProps.config}
+            artistName={ccPageProps.artistName}
+            artistInfo={ccPageProps.artistInfo}
+            ccInfoContent={ccPageProps.ccInfoContent}
+            labels={ccPageProps.labels}
+            initialLocale={locale}
+          />
+        )}
+
+        {!contentPage && !ccPageProps && shareView && (
           <main id="main-content" class="flex-1 flex flex-col items-center px-4 sm:px-6 pt-20 sm:pt-12 md:pt-14 pb-12">
             <ShareLogoHeader />
-            {shareView && (
-              <ShareLayout
-                client:load
-                config={shareView.config}
-                artistName={shareView.artistName}
-                artistInfoContext={shareView.artistInfoContext}
-                initialLocale={locale}
-              />
-            )}
+            <ShareLayout
+              client:load
+              config={shareView.config}
+              artistName={shareView.artistName}
+              artistInfoContext={shareView.artistInfoContext}
+              initialLocale={locale}
+            />
           </main>
         )}
       </>
