@@ -9,8 +9,7 @@
  */
 
 import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
-import { MicrophoneStageIcon, XIcon } from "@phosphor-icons/react";
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
 import { createPortal } from "react-dom";
 
 const ShareUiActionType = {
@@ -127,22 +126,12 @@ function initialShareUiState({
   };
 }
 
-import { ArtistInfoCard } from "@/components/artist/ArtistInfoCard";
-import type {
-  ArtistCardLabels,
-  ArtistInfoStatus,
-  ArtistPanelTrackResolveHandler,
-} from "@/components/artist/artistPanelTypes";
+import type { ArtistCardLabels, ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
-import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
-import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
-import { ServicesCard } from "@/components/cards/ServicesCard";
-import { AnimatedArtistColumn } from "@/components/share/AnimatedArtistColumn";
-import { SharePageCard } from "@/components/share/SharePageCard";
-import { ARTIST_W, MEDIA_W, TWO_COLUMN_TOTAL_W, TwoColumnResultGrid } from "@/components/share/TwoColumnResultGrid";
-import { BackLink } from "@/components/ui/BackLink";
-import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
+import { DesktopShareLayout } from "@/components/share/DesktopShareLayout";
+import { MobileArtistSheet } from "@/components/share/MobileArtistSheet";
+import { MobileShareLayout } from "@/components/share/MobileShareLayout";
+import { ShareBackLink } from "@/components/share/ShareBackLink";
 import { ToastProvider } from "@/context/ToastContext";
 import { ArtistLoadStatus, useArtistInfo } from "@/hooks/useArtistInfo";
 import { useIsClient } from "@/hooks/useIsClient";
@@ -154,14 +143,12 @@ import { detectRegion } from "@/lib/geo/detect-region";
 import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
 import { resolveTrackQuery } from "@/lib/resolve/resolve-client";
 import type { ArtistInfoContext } from "@/lib/share/artist-info-client";
-
-export type { ArtistInfoContext };
-
 import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
 import type { ActiveResult } from "@/lib/types/app";
 import type { MediaCardContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
-import { cn } from "@/lib/utils";
+
+export type { ArtistInfoContext };
 
 function normalizeArtistName(name: string): string {
   return name.trim().toLocaleLowerCase();
@@ -464,189 +451,6 @@ function ShareLayoutInner({
           />,
           document.body,
         )}
-    </div>
-  );
-}
-
-function ShareBackLink({ label, onBack }: { label?: string; onBack?: () => void }) {
-  if (!onBack || !label) return null;
-
-  return (
-    <div className="mx-auto mb-3 min-[1080px]:mb-4" style={{ maxWidth: `${TWO_COLUMN_TOTAL_W}px` }}>
-      <BackLink onClick={onBack} label={label} />
-    </div>
-  );
-}
-
-interface DesktopShareLayoutProps {
-  animated: boolean;
-  artistData: ArtistInfoResponse | null;
-  artistLoadStatus: ArtistInfoStatus;
-  config: MediaCardContentConfiguration;
-  isLoading: boolean;
-  labels: ArtistCardLabels;
-  onArtistResolveStart: () => void;
-  onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
-  onTrackResolve: ArtistPanelTrackResolveHandler;
-  secondaryCard?: ReactNode;
-  userRegion: string;
-}
-
-function DesktopShareLayout({
-  animated,
-  artistData,
-  artistLoadStatus,
-  config,
-  isLoading,
-  labels,
-  onArtistResolveStart,
-  onPreviewStatusChange,
-  onTrackResolve,
-  secondaryCard,
-  userRegion,
-}: DesktopShareLayoutProps) {
-  return (
-    <TwoColumnResultGrid
-      left={
-        <div className="flex flex-col gap-[var(--mc-gap-cards,1.5rem)]" style={{ width: `${MEDIA_W}px` }}>
-          <MediaSummaryCard content={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
-          {secondaryCard ?? <ServicesCard content={config} animated={animated} />}
-        </div>
-      }
-      right={
-        <AnimatedArtistColumn
-          artistData={artistData}
-          artistLoadStatus={artistLoadStatus}
-          isLoading={isLoading}
-          labels={labels}
-          onArtistResolveStart={onArtistResolveStart}
-          onTrackResolve={onTrackResolve}
-          userRegion={userRegion}
-          widthPx={ARTIST_W}
-        />
-      }
-    />
-  );
-}
-
-interface MobileShareLayoutProps {
-  animated: boolean;
-  config: MediaCardContentConfiguration;
-  label: string;
-  onOpenSheet: () => void;
-  onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
-  secondaryCard?: ReactNode;
-}
-
-function MobileShareLayout({
-  animated,
-  config,
-  label,
-  onOpenSheet,
-  onPreviewStatusChange,
-  secondaryCard,
-}: MobileShareLayoutProps) {
-  return (
-    <div className="block min-[1080px]:hidden">
-      <SharePageCard config={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
-      {secondaryCard && <div className="mt-[var(--mc-gap-cards,1.5rem)]">{secondaryCard}</div>}
-      <div className="mt-3 flex justify-center px-3">
-        <EmbossedButton
-          as="button"
-          type="button"
-          onClick={onOpenSheet}
-          className="flex min-h-[48px] w-[calc((100%-0.125rem)/2-var(--mc-recessed-control-inset))] items-center justify-center gap-3 px-3 text-base text-text-primary max-[389px]:min-h-[40px] max-[389px]:gap-1.5 max-[389px]:px-2 max-[389px]:text-[13px] max-[389px]:font-normal min-[390px]:font-medium"
-          style={
-            {
-              "--mc-recessed-control-inset": recessedControlInset,
-              "--neu-radius-base": raisedControlRadius,
-              "--neu-radius-sm": raisedControlRadius,
-            } as CSSProperties
-          }
-        >
-          <MicrophoneStageIcon className="size-6 flex-shrink-0 max-[389px]:size-5" weight="duotone" />
-          <span className="truncate leading-none">{label}</span>
-        </EmbossedButton>
-      </div>
-    </div>
-  );
-}
-
-interface MobileArtistSheetProps {
-  artistData: ArtistInfoResponse | null;
-  artistLoadStatus: ArtistInfoStatus;
-  closeLabel: string;
-  isLoading: boolean;
-  labels: ArtistCardLabels;
-  onArtistResolveStart: () => void;
-  onClose: () => void;
-  onTrackResolve: ArtistPanelTrackResolveHandler;
-  open: boolean;
-  userRegion: string;
-}
-
-function MobileArtistSheet({
-  artistData,
-  artistLoadStatus,
-  closeLabel,
-  isLoading,
-  labels,
-  onArtistResolveStart,
-  onClose,
-  onTrackResolve,
-  open,
-  userRegion,
-}: MobileArtistSheetProps) {
-  const handleTrackResolve = useCallback<ArtistPanelTrackResolveHandler>(
-    async (track) => {
-      onClose();
-      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "smooth" }));
-      await onTrackResolve(track);
-    },
-    [onClose, onTrackResolve],
-  );
-
-  return (
-    <div>
-      <div
-        className={cn(
-          "fixed inset-0 z-50 flex flex-col justify-end",
-          open ? "pointer-events-auto" : "pointer-events-none",
-        )}
-      >
-        <OverlayBackdrop open={open} onClick={onClose} ariaLabel={closeLabel} />
-        <div
-          className={cn(
-            "relative z-10 rounded-t-[36px] bg-surface-elevated max-h-[85dvh] flex flex-col",
-            "transition-transform duration-300 ease-out",
-            open ? "translate-y-0" : "translate-y-full",
-          )}
-        >
-          <div className="flex items-center justify-between px-5 pt-3 pb-2 flex-shrink-0">
-            <div className="w-8" />
-            <div className="h-1 w-10 rounded-full bg-[var(--border)]" />
-            <button
-              type="button"
-              onClick={onClose}
-              className="size-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:bg-white/[0.12] hover:text-text-primary transition-colors"
-              aria-label={closeLabel}
-            >
-              <XIcon size={16} weight="duotone" />
-            </button>
-          </div>
-          <div className="overflow-y-auto px-3 pb-8">
-            <ArtistInfoCard
-              data={artistData}
-              isLoading={isLoading}
-              labels={labels}
-              status={artistLoadStatus}
-              userRegion={userRegion}
-              onTrackResolve={handleTrackResolve}
-              onResolveStart={onArtistResolveStart}
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
