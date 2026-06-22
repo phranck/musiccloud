@@ -1,5 +1,5 @@
 import { XCircleIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef } from "react";
+import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -24,6 +24,12 @@ interface HeroInputProps {
   compact?: boolean;
   songName?: string;
   /**
+   * Optional control rendered as a fixed leading element inside the field, before
+   * the input. The landing page passes the resolve-mode switch here so the active
+   * search mode lives inside the field itself.
+   */
+  leadingControl?: ReactNode;
+  /**
    * When true, the parent is holding the result reveal and asks the spinning
    * disc to slide out to the right. {@link HeroInputProps.onLoadingExitComplete}
    * fires once it is fully gone (and never fires under reduced motion, where the
@@ -44,6 +50,7 @@ export function HeroInput({
   state,
   compact = false,
   songName,
+  leadingControl,
   requestDiscExit = false,
   onLoadingExitComplete,
 }: HeroInputProps) {
@@ -143,6 +150,7 @@ export function HeroInput({
           overflows the rounded shape. */}
       <EmbossedCard radius="9999px" className="overflow-visible">
         <RecessedCard className={cn(recessedControlInsetClassName, "hero-field", "flex items-center")}>
+          {leadingControl && <div className="flex-shrink-0 flex items-center pl-1.5">{leadingControl}</div>}
           <input
             ref={inputRef}
             type="text"
@@ -159,7 +167,9 @@ export function HeroInput({
               // Fill the field and shrink for the trailing button (`flex-auto w-full
               // min-w-0`). `appearance-none` strips the browser's native text-field
               // chrome so the input is a plain transparent box on the recessed glass.
-              "mc-hero-input appearance-none flex-auto w-full min-w-0 bg-transparent border-0 pl-6 pr-2 text-lg font-medium text-text-primary tracking-[-0.01em]",
+              "mc-hero-input appearance-none flex-auto w-full min-w-0 bg-transparent border-0 pr-2 text-lg font-medium text-text-primary tracking-[-0.01em]",
+              // Leading control sits left of the input; without it the text keeps its own inset.
+              leadingControl ? "pl-2" : "pl-6",
               "placeholder:tracking-normal outline-none",
               "h-[40px] md:h-[48px]",
               state === InputState.Loading && "opacity-50",

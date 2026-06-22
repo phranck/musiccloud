@@ -13,6 +13,19 @@ import { ResolveMode } from "@/lib/types/app";
 config.autoAddCss = false;
 
 /**
+ * Applies a resolve-mode selection and returns focus to the hero input, so the
+ * user can keep typing after toggling the mode. The switch is the hero field's
+ * leading control and never takes focus itself (EmbossedSegmentedControl
+ * preventDefaults its mousedown), so this restores it to the field.
+ *
+ * @param next - The chosen resolve mode.
+ */
+function selectResolveMode(next: ResolveMode): void {
+  setResolveMode(next);
+  document.querySelector<HTMLElement>(".mc-hero-input")?.focus();
+}
+
+/**
  * Horizontal, icon-only switcher for the resolve mode (Streaming vs. Creative
  * Commons), shown to the left of the hero input on the idle landing page.
  *
@@ -20,38 +33,39 @@ config.autoAddCss = false;
  * ordinary segmented switch: both cells keep fixed positions (Streaming left, CC
  * right) and the embossed indicator slides to the active one — no reordering. The
  * active mode comes from the shared persistent store (`mc:resolveMode`); the
- * CC-mode green is applied token-conform via the `mc-glass-cc-seg-*` track and
- * indicator surfaces (plus the `data-resolve-mode` scope on the fieldset).
+ * active segment is filled with the mode accent (blue Streaming / green CC) via
+ * `mc-mode-seg-indicator`, switched automatically by the `data-resolve-mode`
+ * scope on the fieldset — a clear day+night mode anchor.
  */
 export function ResolveModeSwitcher() {
   const t = useT();
   const mode = useSyncExternalStore(subscribeResolveMode, getResolveMode, () => ResolveMode.Commercial);
-  const isCc = mode === ResolveMode.Cc;
 
   const segments: Segment<ResolveMode>[] = [
     {
       key: ResolveMode.Commercial,
       label: "",
       ariaLabel: t("results.modeCommercial"),
+      title: t("results.modeCommercial"),
       icon: <FontAwesomeIcon icon={faCopyright} className="size-5" aria-hidden />,
     },
     {
       key: ResolveMode.Cc,
       label: "",
       ariaLabel: t("results.modeCc"),
+      title: t("results.modeCc"),
       icon: <FontAwesomeIcon icon={faCreativeCommons} className="size-5" aria-hidden />,
     },
   ];
 
   return (
-    <fieldset className="m-0 min-w-0 border-0 p-0" data-resolve-mode={mode}>
+    <fieldset className="mc-mode-switch m-0 min-w-0 border-0 p-0" data-resolve-mode={mode}>
       <legend className="sr-only">{t("results.modeLabel")}</legend>
       <EmbossedSegmentedControl
         segments={segments}
         value={mode}
-        onChange={setResolveMode}
-        trackClassName={isCc ? "mc-glass-cc-seg-track" : undefined}
-        indicatorClassName={isCc ? "mc-glass-cc-seg-indicator" : undefined}
+        onChange={selectResolveMode}
+        indicatorClassName="mc-glass-seg-indicator mc-mode-seg-indicator"
       />
     </fieldset>
   );

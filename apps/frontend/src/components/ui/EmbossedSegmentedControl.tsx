@@ -125,7 +125,7 @@ export function EmbossedSegmentedControl<T extends string>({
             />
           </div>
         )}
-        {segments.map(({ key, label, icon, ariaLabel }) => {
+        {segments.map(({ key, label, icon, ariaLabel, title }) => {
           const hasVisibleText = label.length > 0;
           return (
             <button
@@ -142,8 +142,9 @@ export function EmbossedSegmentedControl<T extends string>({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onChange(key)}
               aria-label={hasVisibleText ? undefined : ariaLabel}
+              title={title}
               className={cn(
-                "relative z-10 flex items-center justify-center rounded-lg whitespace-nowrap transition-colors duration-150",
+                "relative z-10 flex cursor-pointer items-center justify-center rounded-lg whitespace-nowrap transition-colors duration-150",
                 "border-none",
                 // Text cells grow to share the track width; icon-only cells get a
                 // fixed square size so a control's segment height/size stays the

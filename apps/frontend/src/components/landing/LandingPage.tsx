@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -120,6 +121,9 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
     useSearchFieldReturn(searchFieldRef, { showCompact, onClear: handleClear, onResetInput: resetInputValue });
   useHeroFieldFlip(searchFieldRef, { showCompact, isReturning });
   const toast = useToast();
+
+  // Memoized so a stable element identity reaches HeroInput's `leadingControl`.
+  const heroLeadingControl = useMemo(() => (showCompact ? undefined : <ResolveModeSwitcher />), [showCompact]);
 
   const baseInputState: InputState =
     isDisambiguating || isClearing || isGenreBrowsing || isGenreSearching
@@ -272,28 +276,26 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
                   onBlur={() => setIsFocused(false)}
                   state={discExitPending ? InputState.Loading : inputState}
                   compact={showCompact}
+                  leadingControl={heroLeadingControl}
                   requestDiscExit={discExitPending}
                   onLoadingExitComplete={handleLoadingExitComplete}
                 />
               </div>
 
-              {!showCompact && (
-                <div className="mt-4 flex items-center justify-center gap-3" data-resolve-mode={mode}>
-                  <ResolveModeSwitcher />
-                  {exampleShortId && (
-                    <LiveExampleTeaser
-                      exampleShortId={exampleShortId}
-                      label={t("landing.exampleLink")}
-                      teaser={t("landing.exampleTeaser")}
-                      visible={
-                        state.type !== AppStateType.Loading &&
-                        !discExitPending &&
-                        !candidates &&
-                        !genreBrowseGenres &&
-                        !genreSearchPayload
-                      }
-                    />
-                  )}
+              {!showCompact && exampleShortId && (
+                <div className="mt-4 flex justify-center" data-resolve-mode={mode}>
+                  <LiveExampleTeaser
+                    exampleShortId={exampleShortId}
+                    label={t("landing.exampleLink")}
+                    teaser={t("landing.exampleTeaser")}
+                    visible={
+                      state.type !== AppStateType.Loading &&
+                      !discExitPending &&
+                      !candidates &&
+                      !genreBrowseGenres &&
+                      !genreSearchPayload
+                    }
+                  />
                 </div>
               )}
 

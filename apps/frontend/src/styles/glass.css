@@ -639,6 +639,20 @@ a.mc-skylink {
   --_sh: calc(var(--ccSegIndicator-day-sh) * var(--g-dayness) + var(--ccSegIndicator-night-sh) * (1 - var(--g-dayness)));
 }
 
+/* Resolve-mode (C/CC) switch: fill the ACTIVE segment with the mode accent
+   (blue Streaming / green CC via the [data-resolve-mode] scope) by overriding
+   only the shared recipe's tint vars — a strong, day+night-legible mode anchor
+   that keeps the embossed chamfer (the other recipe vars stay from the
+   `mc-glass-seg-indicator` applied alongside this class). The active icon flips
+   to the accent contrast colour so it reads on the coloured fill. */
+.mc-mode-seg-indicator {
+  --_tt: var(--color-accent);
+  --_tb: var(--color-accent);
+}
+.mc-mode-switch .mc-txt-button-bright {
+  color: var(--color-accent-contrast);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    3. Shared surface recipe — tint gradient + 4-layer raised chamfer box-shadow.
    ═════════════════════════════════════════════════════════════════════════ */
