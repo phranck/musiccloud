@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ROW_CHROME } from "@/components/artist/artistPanelRowChrome";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { GroupedCornerList } from "@/components/cards/GroupedCornerList";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { CancelButton } from "@/components/ui/CancelButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -55,26 +55,8 @@ export function DisambiguationPanel({
   const canGoPrevious = safePageIndex > 0;
   const canGoNext = safePageIndex < pageCount - 1;
 
-  const listRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const resolveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Grouped-corner radii for the candidate rows (AGENTS.md): rows default to the
-  // ≤5px inner radius; the first row's top corners and the last row's bottom
-  // corners promote to the full control radius, and the artwork frame follows.
-  // The list has no header in its well, so `promoteTop` stays true. Merged onto
-  // the same node as `listRef` (which the FLIP choreography measures).
-  const groupedListRef = useGroupedCorners<HTMLDivElement>({
-    itemSelector: ":scope > * > button",
-    frameSelector: ".mc-row-art",
-    frameInset: 4,
-  });
-  const setListEl = useCallback(
-    (el: HTMLDivElement | null) => {
-      listRef.current = el;
-      groupedListRef.current = el;
-    },
-    [groupedListRef],
-  );
 
   const clearResolveTimer = useCallback(() => {
     if (resolveTimer.current === null) return;
@@ -222,7 +204,19 @@ export function DisambiguationPanel({
         <EmbossedCard.Body>
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Body>
-              <div ref={setListEl} className="flex flex-col gap-[var(--mc-gap-list,0.125rem)]">
+              {/* Grouped-corner radii for the candidate rows (AGENTS.md): rows
+                  default to the ≤5px inner radius; the first row's top corners
+                  and the last row's bottom corners promote to the full control
+                  radius, and the artwork frame follows. The list has no header
+                  in its well, so `promoteTop` stays at its default true. The
+                  FLIP `listRef` is merged onto the same node the grouped-corners
+                  hook owns, so the choreography measures the grouped list. */}
+              <GroupedCornerList
+                ref={listRef}
+                itemSelector=":scope > * > button"
+                frameSelector=".mc-row-art"
+                frameInset={4}
+              >
                 {visibleCandidates.map((candidate) => {
                   const isThisSelected =
                     (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
@@ -258,7 +252,7 @@ export function DisambiguationPanel({
                     </div>
                   );
                 })}
-              </div>
+              </GroupedCornerList>
             </RecessedCard.Body>
           </RecessedCard>
         </EmbossedCard.Body>
