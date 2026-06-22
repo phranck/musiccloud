@@ -3,6 +3,7 @@ import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
 import { ArtistNoticeWell } from "@/components/artist/ArtistNoticeWell";
 import { ArtistProfileCard } from "@/components/artist/ArtistProfileCard";
 import type { ArtistInfoStatus } from "@/components/artist/artistPanelTypes";
+import { SectionCardFooterText } from "@/components/cards/SectionCardFooterText";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useT } from "@/i18n/localeContext";
 
@@ -56,7 +57,8 @@ export function ArtistProfileDesktopCard({
   }
 
   const showInitialSkeleton = isLoading && !data;
-  const footer = !showInitialSkeleton && data?.profile ? providedBy : undefined;
+  const footer =
+    !showInitialSkeleton && data?.profile ? <SectionCardFooterText>{providedBy}</SectionCardFooterText> : undefined;
 
   return (
     <ArtistCardShell title={title} footer={footer}>

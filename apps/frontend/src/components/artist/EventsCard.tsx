@@ -4,6 +4,7 @@ import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
 import { buildEventsSwapKey } from "@/components/artist/artistSwapKeys";
 import { EventsSkeleton } from "@/components/artist/EventsSkeleton";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
+import { SectionCardFooterText } from "@/components/cards/SectionCardFooterText";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useLocale, useT } from "@/i18n/localeContext";
 
@@ -36,7 +37,10 @@ export function EventsCard({ title, data, isLoading, userRegion }: EventsCardPro
   }
   if (!showEvents) return null;
 
-  const footer = !showInitialSkeleton && data && data.events.length > 0 ? t("artist.eventsProvidedBy") : undefined;
+  const footer =
+    !showInitialSkeleton && data && data.events.length > 0 ? (
+      <SectionCardFooterText>{t("artist.eventsProvidedBy")}</SectionCardFooterText>
+    ) : undefined;
 
   return (
     <ArtistCardShell title={title} footer={footer}>

@@ -3,7 +3,6 @@ import { fullWidthEmbossedCardClassName } from "@/components/cards/cardGeometry"
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import {
   sectionCardFooterClassName,
-  sectionCardFooterTextClassName,
   sectionCardHeaderClassName,
   sectionCardTitleClassName,
 } from "@/components/cards/sectionCardChromeStyles";
@@ -12,7 +11,11 @@ import { cn } from "@/lib/utils";
 interface SectionCardShellProps {
   /** Card title rendered in the embossed header; omitted for a chromeless shell. */
   title?: ReactNode;
-  /** Optional footer text rendered in the card's footer slot. */
+  /**
+   * Optional footer content rendered in the card's footer slot. Any node — a
+   * credit line (wrap it in {@link import("./SectionCardFooterText").SectionCardFooterText})
+   * or a pager.
+   */
   footer?: ReactNode;
   /** When true, appends the shared `animate-zoom-in` entrance keyframe. */
   animated?: boolean;
@@ -55,11 +58,7 @@ export function SectionCardShell({ title, footer, animated = false, className, c
         </EmbossedCard.Header>
       )}
       {title || footer ? <EmbossedCard.Body>{children}</EmbossedCard.Body> : children}
-      {footer && (
-        <EmbossedCard.Footer className={sectionCardFooterClassName}>
-          <p className={sectionCardFooterTextClassName}>{footer}</p>
-        </EmbossedCard.Footer>
-      )}
+      {footer && <EmbossedCard.Footer className={sectionCardFooterClassName}>{footer}</EmbossedCard.Footer>}
     </EmbossedCard>
   );
 }
