@@ -63,6 +63,7 @@ const TEST_LABELS: ArtistCardLabels = {
   popularTracks: "Popular Tracks",
   events: "Upcoming Events",
   similar: "Similar Artists",
+  profileProvidedBy: "Artist data provided by Spotify, Deezer & Last.fm",
 };
 
 /** Builds the column element wrapped in the locale provider its cards require. */

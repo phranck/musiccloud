@@ -94,6 +94,7 @@
   "audio.previewAnalyzerToggleTooltip": "Analyzer umschalten (D) oder Klick aufs Display",
   "audio.statusPlaying": "♫ VORSCHAU LÄUFT",
   "artist.profileProvidedBy": "Künstlerdaten bereitgestellt von Spotify, Deezer & Last.fm",
+  "artist.profileProvidedByJamendo": "Künstlerdaten bereitgestellt von Jamendo",
   "artist.empty": "Keine Künstlerdetails verfügbar.",
   "artist.error": "Künstlerdaten konnten nicht geladen werden.",
   "artist.statusLoading": "KÜNSTLERDATEN WERDEN GELADEN...",

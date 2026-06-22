@@ -250,8 +250,9 @@ function ShareLayoutInner({
       popularTracks: labels?.popularTracks ?? t("artist.popularTracks"),
       events: labels?.events ?? t("artist.upcomingEvents"),
       similar: labels?.similar ?? t("artist.similarArtists"),
+      profileProvidedBy: labels?.profileProvidedBy ?? t("artist.profileProvidedBy"),
     }),
-    [t, labels?.profile, labels?.popularTracks, labels?.events, labels?.similar],
+    [t, labels?.profile, labels?.popularTracks, labels?.events, labels?.similar, labels?.profileProvidedBy],
   );
   // `detectRegion` reads the browser timezone once; memoize so it runs a single
   // time per mount.

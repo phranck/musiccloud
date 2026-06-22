@@ -115,6 +115,7 @@ export function AnimatedArtistColumn({
     <div ref={columnRef} className="flex flex-col gap-6" style={{ width: `${widthPx}px` }}>
       <ArtistProfileDesktopCard
         title={labels.profile}
+        providedBy={labels.profileProvidedBy}
         data={artistData}
         isLoading={isLoading}
         status={artistLoadStatus}

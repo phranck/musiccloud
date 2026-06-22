@@ -9,6 +9,8 @@ import { useT } from "@/i18n/localeContext";
 interface ArtistProfileDesktopCardProps {
   /** Card title, supplied by the presentation owner (never hardcoded here). */
   title: string;
+  /** Credit footer naming the profile data source (supplied from outside). */
+  providedBy: string;
   data: ArtistInfoResponse | null;
   isLoading: boolean;
   status?: ArtistInfoStatus;
@@ -19,7 +21,13 @@ interface ArtistProfileDesktopCardProps {
  * on an empty profile; shows a notice on an error. Keeps `useT` for the error
  * message and the "provided by" footer credit — both content, not the title.
  */
-export function ArtistProfileDesktopCard({ title, data, isLoading, status }: ArtistProfileDesktopCardProps) {
+export function ArtistProfileDesktopCard({
+  title,
+  providedBy,
+  data,
+  isLoading,
+  status,
+}: ArtistProfileDesktopCardProps) {
   const t = useT();
   const skeletonAllowed = useSkeletonAllowed();
   const effectiveStatus: ArtistInfoStatus = status ?? (isLoading ? "loading" : data ? "ready" : "empty");
@@ -48,7 +56,7 @@ export function ArtistProfileDesktopCard({ title, data, isLoading, status }: Art
   }
 
   const showInitialSkeleton = isLoading && !data;
-  const footer = !showInitialSkeleton && data?.profile ? t("artist.profileProvidedBy") : undefined;
+  const footer = !showInitialSkeleton && data?.profile ? providedBy : undefined;
 
   return (
     <ArtistCardShell title={title} footer={footer}>

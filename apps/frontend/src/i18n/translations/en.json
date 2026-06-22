@@ -94,6 +94,7 @@
   "audio.previewAnalyzerToggleTooltip": "Toggle analyzer (D) or click the display",
   "audio.statusPlaying": "♫ PREVIEW PLAYING",
   "artist.profileProvidedBy": "Artist data provided by Spotify, Deezer & Last.fm",
+  "artist.profileProvidedByJamendo": "Artist data provided by Jamendo",
   "artist.empty": "No artist details available.",
   "artist.error": "Artist data could not be loaded.",
   "artist.statusLoading": "ARTIST DATA LOADING...",

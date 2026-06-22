@@ -34,4 +34,9 @@ export interface ArtistCardLabels {
   events: string;
   /** Title of the similar-artists / similar-tracks card. */
   similar: string;
+  /**
+   * Credit footer shown under the artist profile, naming the data source
+   * (commercial = Spotify/Deezer/Last.fm, Creative Commons = Jamendo).
+   */
+  profileProvidedBy: string;
 }

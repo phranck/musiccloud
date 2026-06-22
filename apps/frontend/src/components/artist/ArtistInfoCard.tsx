@@ -107,7 +107,7 @@ export function ArtistInfoCard({
           visible={showProfile}
           profile={data?.profile}
           showInitialSkeleton={showInitialSkeleton}
-          providedByLabel={!showInitialSkeleton && data?.profile ? t("artist.profileProvidedBy") : undefined}
+          providedByLabel={!showInitialSkeleton && data?.profile ? labels.profileProvidedBy : undefined}
         />
 
         {/* 2. Popular Tracks */}

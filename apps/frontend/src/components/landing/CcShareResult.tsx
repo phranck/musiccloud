@@ -55,8 +55,12 @@ export function CcShareResult({
     [ccInfoContent],
   );
   // CC shows similar TRACKS (from other artists), not similar artists, so the
-  // shared card gets a CC-specific title; the other three keep the defaults.
-  const ccArtistLabels = useMemo(() => ({ similar: t("artist.similarTracks") }), [t]);
+  // shared card gets a CC-specific title; the profile credit names Jamendo (the
+  // CC data source). The other titles keep the commercial defaults.
+  const ccArtistLabels = useMemo(
+    () => ({ similar: t("artist.similarTracks"), profileProvidedBy: t("artist.profileProvidedByJamendo") }),
+    [t],
+  );
   return (
     <ShareResultFrame resultsPanelRef={resultsPanelRef} handleShareLogoClick={handleShareLogoClick}>
       <ShareLayout
