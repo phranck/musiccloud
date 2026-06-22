@@ -1,12 +1,10 @@
-import type { Ref } from "react";
-import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { type Ref, useMemo } from "react";
+import { GenrePanelShell } from "@/components/discovery/GenrePanelShell";
 import { NavigationBackButton } from "@/components/navigation/NavigationBackButton";
 import { CancelButton } from "@/components/ui/CancelButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
-import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { GenreColumn } from "@/components/ui/GenreColumn";
 import { GenreRowButton } from "@/components/ui/GenreRowButton";
-import { PanelHeadline } from "@/components/ui/PanelHeadline";
 import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
 import { useLocale, useT } from "@/i18n/localeContext";
 import type { Locale } from "@/i18n/locales";
@@ -82,163 +80,151 @@ export function GenreSearchResults({
     (results.albums && results.albums.length > 0 ? 1 : 0) +
     (results.artists && results.artists.length > 0 ? 1 : 0);
 
+  // Memoized so the shell's `leadingAddOn` / `footer` slots receive a stable
+  // node reference (the `jsx-no-jsx-as-prop` perf rule wants memoized JSX rather
+  // than a freshly allocated element on every render).
+  const leadingAddOn = useMemo(
+    () => (onBack ? <NavigationBackButton onClick={onBack} label={t("genreSearch.backToBrowse")} /> : undefined),
+    [onBack, t],
+  );
+
+  const footer = useMemo(() => {
+    const hasWarnings = !!warnings?.length;
+    if (!hasWarnings && !onCancel) return undefined;
+    return (
+      <>
+        {warnings && warnings.length > 0 && (
+          <ul className="mt-4 space-y-1 text-xs text-text-muted flex-shrink-0" aria-live="polite">
+            {warnings.map((w) => (
+              <li key={w} className="flex items-start gap-1.5">
+                <span aria-hidden="true">⚠</span>
+                <span>{w}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {onCancel && (
+          <div className="text-center mt-4 flex-shrink-0">
+            <CancelButton onClick={onCancel}>{t("genreSearch.cancel")}</CancelButton>
+          </div>
+        )}
+      </>
+    );
+  }, [warnings, onCancel, t]);
+
   return (
-    <FadeInOnMount
+    <GenrePanelShell
       ref={ref}
-      tabIndex={-1}
-      // `max-h-[calc(100vh-16rem)]` reserves vertical space for the stack that
-      // sits above and below this card when it is visible:
-      //
-      //   PageHeader       ~ 2.5rem
-      //   LogoView compact ~ 3.5rem  (w-56 + mb-6)
-      //   HeroInput compact~ 3.75rem
-      //   mt-8 gap above   ~ 2rem
-      //   mb-8 gap below   ~ 2rem
-      //                    ≈ 13.75rem — rounded up to 16rem for safety.
-      //
-      // Combined with `flex flex-col` on the card and `min-h-0 overflow-y-auto`
-      // on each Column, this keeps the card inside the viewport and lets
-      // overflow scroll *within* each column instead of scrolling the page.
-      className={cn(
-        "w-full max-w-full mx-auto mt-8 mb-8 focus:outline-none",
+      title={headline}
+      subtitle={t("genreSearch.subtitle")}
+      maxWidthClass={cn(
         columnCount === 1 && "md:max-w-sm",
         columnCount === 2 && "md:max-w-2xl",
         columnCount >= 3 && "md:max-w-5xl",
       )}
+      leadingAddOn={leadingAddOn}
+      footer={footer}
     >
-      <EmbossedCard className="flex flex-col max-h-[calc(100vh-16rem)]">
-        {onBack && (
-          <EmbossedCard.AddOn align="leading">
-            <NavigationBackButton onClick={onBack} label={t("genreSearch.backToBrowse")} />
-          </EmbossedCard.AddOn>
-        )}
-        <EmbossedCard.Header className="text-center mb-4 flex-shrink-0">
-          <PanelHeadline title={headline} subtitle={t("genreSearch.subtitle")} />
-        </EmbossedCard.Header>
-
-        <EmbossedCard.Body className="flex-1 min-h-0">
-          {!hasAny ? (
-            <p className="text-center text-sm text-text-muted py-8">{t("genreSearch.empty")}</p>
-          ) : (
-            <div
-              className={cn(
-                "grid grid-cols-1 gap-4 flex-1 min-h-0",
-                columnCount === 2 && "md:grid-cols-2",
-                columnCount >= 3 && "md:grid-cols-3",
-              )}
-            >
-              {results.tracks && (
-                <GenreColumn label={t("genreSearch.tracks", { count: String(results.tracks.length) })}>
-                  {results.tracks.map((track, i) => {
-                    const isSelected = loading && selectedId === track.id;
-                    return (
-                      <GenreRowButton
-                        key={track.id}
-                        index={i}
-                        onClick={() => onSelect(track.webUrl, track.id)}
-                        disabled={loading}
-                        ariaLabel={
-                          isSelected
-                            ? t("genreSearch.loading")
-                            : `Resolve track "${track.title}" by ${track.artists.join(", ")}`
-                        }
-                      >
-                        <CandidateRowContent
-                          compact
-                          artworkUrl={track.artworkUrl}
-                          slideArtwork
-                          slideArtworkActive={isSelected}
-                          primary={track.title}
-                          secondary={track.artists.join(", ")}
-                          tertiary={track.albumName}
-                        />
-                      </GenreRowButton>
-                    );
-                  })}
-                </GenreColumn>
-              )}
-
-              {results.albums && (
-                <GenreColumn label={t("genreSearch.albums", { count: String(results.albums.length) })}>
-                  {results.albums.map((album, i) => {
-                    const isSelected = loading && selectedId === album.id;
-                    return (
-                      <GenreRowButton
-                        key={album.id}
-                        index={i}
-                        onClick={() => onSelect(album.webUrl, album.id)}
-                        disabled={loading}
-                        ariaLabel={
-                          isSelected
-                            ? t("genreSearch.loading")
-                            : `Resolve album "${album.title}" by ${album.artists.join(", ")}`
-                        }
-                      >
-                        <CandidateRowContent
-                          compact
-                          artworkUrl={album.artworkUrl}
-                          slideArtwork
-                          slideArtworkActive={isSelected}
-                          primary={album.title}
-                          secondary={album.artists.join(", ")}
-                        />
-                      </GenreRowButton>
-                    );
-                  })}
-                </GenreColumn>
-              )}
-
-              {results.artists && (
-                <GenreColumn label={t("genreSearch.artists", { count: String(results.artists.length) })}>
-                  {results.artists.map((artist, i) => {
-                    const isSelected = loading && selectedId === artist.id;
-                    return (
-                      <GenreRowButton
-                        key={artist.id}
-                        index={i}
-                        onClick={() => onSelect(artist.webUrl, artist.id)}
-                        disabled={loading}
-                        ariaLabel={isSelected ? t("genreSearch.loading") : `Resolve artist ${artist.name}`}
-                      >
-                        <CandidateRowContent
-                          compact
-                          artworkUrl={artist.imageUrl}
-                          artworkKind={SlideArtworkKind.Round}
-                          slideArtwork
-                          slideArtworkActive={isSelected}
-                          primary={artist.name}
-                        />
-                      </GenreRowButton>
-                    );
-                  })}
-                </GenreColumn>
-              )}
-            </div>
+      {!hasAny ? (
+        <p className="text-center text-sm text-text-muted py-8">{t("genreSearch.empty")}</p>
+      ) : (
+        <div
+          className={cn(
+            "grid grid-cols-1 gap-4 flex-1 min-h-0",
+            columnCount === 2 && "md:grid-cols-2",
+            columnCount >= 3 && "md:grid-cols-3",
           )}
-        </EmbossedCard.Body>
+        >
+          {results.tracks && (
+            <GenreColumn label={t("genreSearch.tracks", { count: String(results.tracks.length) })}>
+              {results.tracks.map((track, i) => {
+                const isSelected = loading && selectedId === track.id;
+                return (
+                  <GenreRowButton
+                    key={track.id}
+                    index={i}
+                    onClick={() => onSelect(track.webUrl, track.id)}
+                    disabled={loading}
+                    ariaLabel={
+                      isSelected
+                        ? t("genreSearch.loading")
+                        : `Resolve track "${track.title}" by ${track.artists.join(", ")}`
+                    }
+                  >
+                    <CandidateRowContent
+                      compact
+                      artworkUrl={track.artworkUrl}
+                      slideArtwork
+                      slideArtworkActive={isSelected}
+                      primary={track.title}
+                      secondary={track.artists.join(", ")}
+                      tertiary={track.albumName}
+                    />
+                  </GenreRowButton>
+                );
+              })}
+            </GenreColumn>
+          )}
 
-        {(warnings?.length || onCancel) && (
-          <EmbossedCard.Footer>
-            {warnings && warnings.length > 0 && (
-              <ul className="mt-4 space-y-1 text-xs text-text-muted flex-shrink-0" aria-live="polite">
-                {warnings.map((w) => (
-                  <li key={w} className="flex items-start gap-1.5">
-                    <span aria-hidden="true">⚠</span>
-                    <span>{w}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+          {results.albums && (
+            <GenreColumn label={t("genreSearch.albums", { count: String(results.albums.length) })}>
+              {results.albums.map((album, i) => {
+                const isSelected = loading && selectedId === album.id;
+                return (
+                  <GenreRowButton
+                    key={album.id}
+                    index={i}
+                    onClick={() => onSelect(album.webUrl, album.id)}
+                    disabled={loading}
+                    ariaLabel={
+                      isSelected
+                        ? t("genreSearch.loading")
+                        : `Resolve album "${album.title}" by ${album.artists.join(", ")}`
+                    }
+                  >
+                    <CandidateRowContent
+                      compact
+                      artworkUrl={album.artworkUrl}
+                      slideArtwork
+                      slideArtworkActive={isSelected}
+                      primary={album.title}
+                      secondary={album.artists.join(", ")}
+                    />
+                  </GenreRowButton>
+                );
+              })}
+            </GenreColumn>
+          )}
 
-            {onCancel && (
-              <div className="text-center mt-4 flex-shrink-0">
-                <CancelButton onClick={onCancel}>{t("genreSearch.cancel")}</CancelButton>
-              </div>
-            )}
-          </EmbossedCard.Footer>
-        )}
-      </EmbossedCard>
-    </FadeInOnMount>
+          {results.artists && (
+            <GenreColumn label={t("genreSearch.artists", { count: String(results.artists.length) })}>
+              {results.artists.map((artist, i) => {
+                const isSelected = loading && selectedId === artist.id;
+                return (
+                  <GenreRowButton
+                    key={artist.id}
+                    index={i}
+                    onClick={() => onSelect(artist.webUrl, artist.id)}
+                    disabled={loading}
+                    ariaLabel={isSelected ? t("genreSearch.loading") : `Resolve artist ${artist.name}`}
+                  >
+                    <CandidateRowContent
+                      compact
+                      artworkUrl={artist.imageUrl}
+                      artworkKind={SlideArtworkKind.Round}
+                      slideArtwork
+                      slideArtworkActive={isSelected}
+                      primary={artist.name}
+                    />
+                  </GenreRowButton>
+                );
+              })}
+            </GenreColumn>
+          )}
+        </div>
+      )}
+    </GenrePanelShell>
   );
 }
 
