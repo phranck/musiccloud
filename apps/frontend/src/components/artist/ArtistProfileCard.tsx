@@ -20,7 +20,7 @@ export function ArtistProfileCard({ profile, showInitialSkeleton }: ArtistProfil
 
   return (
     <RecessedCard className="p-[var(--mc-pad-artist,0.375rem)] min-h-[108px]">
-      <RecessedCard.Body>
+      <RecessedCard.Body className="max-h-[22rem] overflow-y-auto">
         {showInitialSkeleton ? (
           <ProfileSkeleton />
         ) : profile ? (
