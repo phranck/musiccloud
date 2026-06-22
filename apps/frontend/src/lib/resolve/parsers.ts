@@ -19,6 +19,7 @@ import {
   type ArtistResult,
   type CcAlbumResult,
   type CcArtistResult,
+  type CcResult,
   type CcTrackResult,
   type ReducerState,
   type ResolveUiError,
@@ -503,7 +504,7 @@ function ccLicenseLabel(url: string | undefined): string | undefined {
  * @param t - Translation function for pre-computed UI strings.
  * @returns A fully populated `CcTrackContentConfiguration`.
  */
-export function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentConfiguration {
+function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentConfiguration {
   const shortId = shortIdFromShortUrl(cc.shareUrl);
   return {
     type: "cc-track",
@@ -541,7 +542,7 @@ export function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentC
  * @param opts.shortUrl - musiccloud short URL backing the share button.
  * @returns The share-content configuration for the entity header.
  */
-export function buildCcEntityHeaderConfig(opts: {
+function buildCcEntityHeaderConfig(opts: {
   title: string;
   artist: string;
   artworkUrl: string;
@@ -572,7 +573,7 @@ export function buildCcEntityHeaderConfig(opts: {
  * @param cc - The resolved CC track from app state.
  * @returns The share-content configuration for the track's left media card.
  */
-export function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
+function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
   return {
     ...buildCcEntityHeaderConfig({
       title: cc.title,
@@ -584,5 +585,69 @@ export function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfigurati
     album: cc.album,
     previewUrl: cc.streamUrl,
     shortId: shortIdFromShortUrl(cc.shareUrl),
+  };
+}
+
+/**
+ * The per-kind {@link ShareLayout} inputs for a resolved Creative-Commons entity.
+ *
+ * The left media card is always a {@link ShareContentConfiguration}; only a CC
+ * track additionally carries `ccInfoContent` (the license / attribution block
+ * rendered as the `CcInfoCard` secondary). Album/artist omit it — the default
+ * `ServicesCard` self-hides on the CC config's empty platforms.
+ *
+ * @property config - The media-card configuration for the left column.
+ * @property artistName - The artist name used to drive the shared artist column.
+ * @property ccInfoContent - The CC license/attribution content for a track, or
+ *   `undefined` for album/artist entities.
+ */
+export interface CcResultShareProps {
+  config: ShareContentConfiguration;
+  artistName: string;
+  ccInfoContent?: CcTrackContentConfiguration;
+}
+
+/**
+ * Maps a resolved CC entity (track, album or artist) to the per-kind
+ * {@link ShareLayout} inputs.
+ *
+ * Owns the `kind` branching that used to live inline in the landing page: album
+ * and artist build a {@link buildCcEntityHeaderConfig} header (no secondary
+ * card); a track builds its {@link ccTrackToShareConfig} player config plus the
+ * {@link buildCcShareConfig} content for the `CcInfoCard`. Returns plain data
+ * only — the caller renders the `CcInfoCard` JSX from `ccInfoContent`.
+ *
+ * @param ccActive - The resolved CC entity from app state.
+ * @param t - Translation function (forwarded to {@link buildCcShareConfig}).
+ * @returns The `config`, `artistName` and optional `ccInfoContent` for ShareLayout.
+ */
+export function ccResultToShareProps(ccActive: CcResult, t: TFunc): CcResultShareProps {
+  if (ccActive.kind === ActiveResultKind.CcAlbum) {
+    return {
+      config: buildCcEntityHeaderConfig({
+        title: ccActive.title,
+        artist: ccActive.artist,
+        artworkUrl: ccActive.artworkUrl,
+        metaLine: ccActive.releaseDate?.slice(0, 4),
+        shortUrl: ccActive.shareUrl,
+      }),
+      artistName: ccActive.artist,
+    };
+  }
+  if (ccActive.kind === ActiveResultKind.CcArtist) {
+    return {
+      config: buildCcEntityHeaderConfig({
+        title: ccActive.name,
+        artist: "",
+        artworkUrl: ccActive.imageUrl,
+        shortUrl: ccActive.shareUrl,
+      }),
+      artistName: ccActive.name,
+    };
+  }
+  return {
+    config: ccTrackToShareConfig(ccActive),
+    artistName: ccActive.artist,
+    ccInfoContent: buildCcShareConfig(ccActive, t),
   };
 }

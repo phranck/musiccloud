@@ -3,7 +3,6 @@ import type { NavItem } from "@musiccloud/shared";
 import {
   lazy,
   type MouseEvent,
-  type ReactNode,
   type RefObject,
   Suspense,
   useCallback,
@@ -41,12 +40,7 @@ import {
   loadToast,
   preloadResolveResultRuntime,
 } from "@/lib/preload/resultRuntime";
-import {
-  buildCcEntityHeaderConfig,
-  buildCcShareConfig,
-  buildShareConfigFromActive,
-  ccTrackToShareConfig,
-} from "@/lib/resolve/parsers";
+import { buildShareConfigFromActive, ccResultToShareProps } from "@/lib/resolve/parsers";
 import { getResolveMode, setResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
 import { buildShareViewFromResolvedResponse, type ShareArtistInfoContext } from "@/lib/share/share-view";
 import { ActiveResultKind, AppStateType, type CcResult, InputState, ResolveMode } from "@/lib/types/app";
@@ -164,51 +158,6 @@ interface CcShareResultProps {
 }
 
 /**
- * Picks the per-kind {@link ShareLayout} props for a resolved CC entity. The left
- * media card is always a `ShareContentConfiguration`; only the track carries a
- * player (`previewUrl`) and a `CcInfoCard` secondary (license / attribution).
- * Album/artist pass no secondary card — the default `ServicesCard` self-hides on
- * the CC config's empty platforms.
- *
- * @param ccActive - The resolved CC entity.
- * @param t - Translation function.
- * @returns The `config`, `artistName` and optional `secondaryCard` for ShareLayout.
- */
-function ccShareLayoutProps(
-  ccActive: CcResult,
-  t: CcViewTFunc,
-): { config: ShareContentConfiguration; artistName: string; secondaryCard?: ReactNode } {
-  if (ccActive.kind === ActiveResultKind.CcAlbum) {
-    return {
-      config: buildCcEntityHeaderConfig({
-        title: ccActive.title,
-        artist: ccActive.artist,
-        artworkUrl: ccActive.artworkUrl,
-        metaLine: ccActive.releaseDate?.slice(0, 4),
-        shortUrl: ccActive.shareUrl,
-      }),
-      artistName: ccActive.artist,
-    };
-  }
-  if (ccActive.kind === ActiveResultKind.CcArtist) {
-    return {
-      config: buildCcEntityHeaderConfig({
-        title: ccActive.name,
-        artist: "",
-        artworkUrl: ccActive.imageUrl,
-        shortUrl: ccActive.shareUrl,
-      }),
-      artistName: ccActive.name,
-    };
-  }
-  return {
-    config: ccTrackToShareConfig(ccActive),
-    artistName: ccActive.artist,
-    secondaryCard: <CcInfoCard content={buildCcShareConfig(ccActive, t)} />,
-  };
-}
-
-/**
  * Renders any resolved Creative-Commons entity (track, album or artist) through
  * the SAME {@link ShareLayout} as the commercial result — only the data source
  * differs. CC supplies a Jamendo-built `artistData` (skipping the commercial
@@ -233,7 +182,15 @@ function CcShareResult({
   handleBack,
   t,
 }: CcShareResultProps) {
-  const { config, artistName, secondaryCard } = ccShareLayoutProps(ccActive, t);
+  const { config, artistName, ccInfoContent } = ccResultToShareProps(ccActive, t);
+  // The secondary card is only present for a CC track (license / attribution).
+  // Memoized so its element identity stays stable across re-renders — passing a
+  // freshly allocated element into the `secondaryCard` prop each render would
+  // otherwise defeat the downstream memoization.
+  const secondaryCard = useMemo(
+    () => (ccInfoContent ? <CcInfoCard content={ccInfoContent} /> : undefined),
+    [ccInfoContent],
+  );
   // CC shows similar TRACKS (from other artists), not similar artists, so the
   // shared card gets a CC-specific title; the other three keep the defaults.
   const ccArtistLabels = useMemo(() => ({ similar: t("artist.similarTracks") }), [t]);
