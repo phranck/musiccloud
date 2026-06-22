@@ -308,7 +308,7 @@ describe("getCcArtistMusicInfo", () => {
     return fetchMock;
   }
 
-  it("requests /artists with include=musicinfo and maps image + genres + bio", async () => {
+  it("requests the /artists/musicinfo endpoint and maps image + genres + bio", async () => {
     const fetchMock = mockArtist({
       ...SAMPLE_ARTIST,
       musicinfo: { tags: ["jazz", "piano"], description: { en: "An English bio." } },
@@ -317,9 +317,8 @@ describe("getCcArtistMusicInfo", () => {
     const info = await getCcArtistMusicInfo("338723");
 
     const calledUrl = String(fetchMock.mock.calls[0][0]);
-    expect(calledUrl).toContain("/artists");
+    expect(calledUrl).toContain("/artists/musicinfo");
     expect(calledUrl).toContain("id=338723");
-    expect(calledUrl).toContain("include=musicinfo");
     expect(info).toEqual({
       imageUrl: "https://usercontent.jamendo.com/artist.jpg",
       genres: ["jazz", "piano"],

@@ -276,11 +276,14 @@ export async function getCcArtist(jamendoId: string): Promise<CcArtist | null> {
 const CC_ARTIST_GENRES_LIMIT = 3;
 
 /**
- * Fetches the `include=musicinfo` profile enrichment for a Jamendo artist —
- * image, genre tags, and bio — feeding the CC artist-info card's profile
- * section. One throttled call (mirrors the `include=musicinfo` mechanic of
- * {@link getSimilarCcTracks}); `jamendoFetch` enforces `client_id`, the JSON
- * envelope, and the shared burst throttle.
+ * Fetches the profile enrichment (image, genre tags, bio) for a Jamendo artist
+ * from the dedicated `/artists/musicinfo` endpoint, feeding the CC artist-info
+ * card's profile section. One throttled call; `jamendoFetch` enforces
+ * `client_id`, the JSON envelope, and the shared burst throttle.
+ *
+ * The dedicated endpoint is required: `/artists?include=musicinfo` returns only
+ * the image and an empty `musicinfo`, while `/artists/musicinfo` returns the
+ * `tags` and locale-keyed `description` (bio).
  *
  * The bio is locale-resolved: the requested `locale`, then English, then
  * `null`. Genres are capped at {@link CC_ARTIST_GENRES_LIMIT} so the profile
@@ -293,9 +296,8 @@ const CC_ARTIST_GENRES_LIMIT = 3;
  * @throws Error on missing client id or API failure (see {@link jamendoFetch}).
  */
 export async function getCcArtistMusicInfo(jamendoArtistId: string, locale = "en"): Promise<CcArtistMusicInfo | null> {
-  const raw = await jamendoFetch<JamendoArtistRaw>("/artists", {
+  const raw = await jamendoFetch<JamendoArtistRaw>("/artists/musicinfo", {
     id: jamendoArtistId,
-    include: "musicinfo",
     limit: 1,
   });
   const first = raw[0];
