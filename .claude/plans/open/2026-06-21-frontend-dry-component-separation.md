@@ -225,7 +225,7 @@ Erfasst, damit nichts verloren geht (NICHT umsetzen bis freigegeben):
 - [ ] Phase 2: Cards-Primitives + MediaCard
 - [x] Phase 3: ShareLayout (Logik-raus → Split → Logo/Frame) — 3.1-3.6 in Vor-Session, 3.7 mit Phase 4
 - [x] Phase 4: LandingPage (Logik-raus → Split) — inkl. 3.7 (share-logo-header + share-result-frame)
-- [ ] Phase 5: Discovery + Listen
+- [x] Phase 5: Discovery + Listen — 5.1-5.9 erledigt (5.9 nur Gate, kein Hook)
 - [ ] Phase 6: PageOverlay (Logik-raus → Split)
 - [ ] Phase 7: Audio/Player — ZURÜCKGESTELLT bis Player-Divergenz (C vs CC) besprochen
 - [ ] Phase 8: CC Artist-Profile aus Jamendo
