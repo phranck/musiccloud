@@ -7,6 +7,7 @@
  */
 
 import { decodeHtmlEntities } from "../../../lib/html.js";
+import { jamendoBioToHtml } from "./bio.js";
 import type {
   CcAlbum,
   CcArtist,
@@ -304,7 +305,7 @@ export async function getCcArtistMusicInfo(jamendoArtistId: string, locale = "en
   if (!first) return null;
   const imageUrl = first.image || null;
   const genres = (first.musicinfo?.tags ?? []).slice(0, CC_ARTIST_GENRES_LIMIT);
-  const bioSummary = first.musicinfo?.description?.[locale] || first.musicinfo?.description?.en || null;
+  const bioSummary = jamendoBioToHtml(first.musicinfo?.description?.[locale] || first.musicinfo?.description?.en);
   // No image, no genres, and no bio means there is nothing worth showing —
   // report "no profile" so the artist card self-hides instead of rendering an
   // empty shell with only the credit footer.

@@ -19,6 +19,13 @@ const NAMED_ENTITY_MAP: Record<string, string> = {
   quot: '"',
   apos: "'",
   nbsp: " ",
+  lsquo: "‘",
+  rsquo: "’",
+  ldquo: "“",
+  rdquo: "”",
+  hellip: "…",
+  ndash: "–",
+  mdash: "—",
 };
 
 const ENTITY_RE = /&(#x[0-9a-f]+|#[0-9]+|[a-z][a-z0-9]*);/gi;
