@@ -9,7 +9,9 @@ import { CancelButton } from "@/components/ui/CancelButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
+import { PagedListFooter } from "@/components/ui/PagedListFooter";
 import { PanelHeadline } from "@/components/ui/PanelHeadline";
+import { usePagedList } from "@/hooks/usePagedList";
 import { useT } from "@/i18n/localeContext";
 import { animateSlideUp, killEntranceTweens } from "@/lib/motion/entrances";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
@@ -44,16 +46,19 @@ export function DisambiguationPanel({
   const t = useT();
 
   const [animatingId, setAnimatingId] = useState<string | null>(null);
-  const [pageIndex, setPageIndex] = useState(0);
 
-  const pageCount = Math.max(1, Math.ceil(candidates.length / CANDIDATES_PER_PAGE));
-  const safePageIndex = Math.min(pageIndex, pageCount - 1);
-  const visibleCandidates = candidates.slice(
-    safePageIndex * CANDIDATES_PER_PAGE,
-    safePageIndex * CANDIDATES_PER_PAGE + CANDIDATES_PER_PAGE,
-  );
-  const canGoPrevious = safePageIndex > 0;
-  const canGoNext = safePageIndex < pageCount - 1;
+  // Reset to the first page when a new candidate set arrives (new search), not
+  // when the user merely pages within the same set.
+  const candidatesKey = candidates.map((candidate) => candidate.id).join("|");
+  const {
+    page: visibleCandidates,
+    pageIndex: safePageIndex,
+    pageCount,
+    canGoPrevious,
+    canGoNext,
+    goPrevious,
+    goNext,
+  } = usePagedList(candidates, { pageSize: CANDIDATES_PER_PAGE, resetKey: candidatesKey });
 
   const listRef = useRef<HTMLDivElement | null>(null);
   const resolveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -260,28 +265,13 @@ export function DisambiguationPanel({
         <EmbossedCard.Footer>
           {!isAnimating && !loading && (
             <div className="mt-4 flex flex-col gap-3">
-              {pageCount > 1 && (
-                <div className="grid grid-cols-2 gap-2">
-                  <EmbossedButton
-                    as="button"
-                    type="button"
-                    onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
-                    disabled={!canGoPrevious}
-                    className="flex min-h-10 items-center justify-center px-3 py-0 text-sm font-medium text-text-primary"
-                  >
-                    {t("disambiguation.previous")}
-                  </EmbossedButton>
-                  <EmbossedButton
-                    as="button"
-                    type="button"
-                    onClick={() => setPageIndex((current) => Math.min(pageCount - 1, current + 1))}
-                    disabled={!canGoNext}
-                    className="flex min-h-10 items-center justify-center px-3 py-0 text-sm font-medium text-text-primary"
-                  >
-                    {t("disambiguation.next")}
-                  </EmbossedButton>
-                </div>
-              )}
+              <PagedListFooter
+                pageCount={pageCount}
+                canGoPrevious={canGoPrevious}
+                canGoNext={canGoNext}
+                onPrevious={goPrevious}
+                onNext={goNext}
+              />
               <CancelButton onClick={onCancel}>{t("disambiguation.cancel")}</CancelButton>
             </div>
           )}
