@@ -40,6 +40,7 @@ import {
   loadToast,
   preloadResolveResultRuntime,
 } from "@/lib/preload/resultRuntime";
+import { buildGenreQuery, GENRE_BROWSE_QUERY } from "@/lib/resolve/genre-query";
 import { ccResultToShareProps } from "@/lib/resolve/parsers";
 import { getResolveMode, setResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
 import { buildActiveShareSelection, type ShareArtistInfoContext } from "@/lib/share/share-view";
@@ -316,7 +317,7 @@ function selectGenreTile(
   handleSubmit: (query: string) => Promise<void>,
 ): void {
   sendMusicSignal(genreSignal(name, genres.find((g) => g.name === name)?.displayName));
-  const query = `genre: ${name}`;
+  const query = buildGenreQuery(name);
   setInputValue(query);
   void handleSubmit(query);
 }
@@ -385,7 +386,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
     if (state.type === AppStateType.GenreSearch || state.type === AppStateType.GenreSearchLoading) {
       setInputValue(state.payload.query);
     } else if (state.type === AppStateType.GenreBrowse) {
-      setInputValue("genre:?");
+      setInputValue(GENRE_BROWSE_QUERY);
     }
   }, [state]);
 
