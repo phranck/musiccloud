@@ -13,7 +13,8 @@ import {
 import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { useEffect, useReducer, useRef, useState } from "react";
 
-import { EmbossedOverlayContent, TranslucentOverlayContent } from "@/components/layout/PageOverlayContent";
+import { EmbossedOverlayContent } from "@/components/layout/EmbossedOverlayContent";
+import { TranslucentOverlayContent } from "@/components/layout/TranslucentOverlayContent";
 import { OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
 import { OVERLAY_TRANSITION_MS, OverlayBackdropPlacement } from "@/components/ui/OverlayBackdropTypes";
 import { OverlayProvider } from "@/context/OverlayContext";

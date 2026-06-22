@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { MarkdownHtml } from "@/components/layout/PageOverlayContent";
+import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 
 describe("MarkdownHtml", () => {
   it("wraps <pre data-card-style='recessed'> in RecessedCard", () => {
