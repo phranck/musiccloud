@@ -118,28 +118,33 @@ Berührt `ServicesCard`/`CcInfoCard` in `components/cards/`, die in Phase 2 ohne
 - 6 Komponenten in einem File. `ShareLayout`+`ShareLayoutInner` (Provider-Wrapper-Split) bleiben zusammen.
 - **Fix:** `ShareBackLink.tsx`, `DesktopShareLayout.tsx`, `MobileShareLayout.tsx`, `MobileArtistSheet.tsx` (je mit Props-Interface). Nach Rule-B + nach 1.1.
 
-### 3.7 `share-logo-header` (medium) + `share-result-frame` (medium)
+### 3.7 `share-logo-header` (medium) + `share-result-frame` (medium) — DONE (commit 0effc44)
 - Logo-Header 5-fach (3 React + 2 Astro); CC- vs. kommerzieller Share-Result-Wrapper 2-fach.
 - **Fix:** React `ShareLogoHeader.tsx` (Prop `onLogoClick?`, `aria-label` "Go to musiccloud home" erhalten — `LandingPage.test.tsx:159`); Astro `ShareLogoHeader.astro` (statisch). Ein `ShareResultFrame` (Panel-Div + Logo-Header + FadeInOnMount + Suspense(Placeholder) + children), Clearing-Slide-out-`useGSAP` rein, `if (!isClearing) return;`.
+- **Done:** `ShareLogoHeader.tsx` ersetzt die drei React-Kopien (`ActiveShareResult`, `CcShareResult`, `SharePageShell`), `ShareLogoHeader.astro` die zwei `[shortId].astro`-Kopien. `ShareResultFrame.tsx` (eigenes File) trägt Panel + Logo + Fade + Suspense + Clearing-`useGSAP` (gated, CC-Pfad = No-op). `ShareResultPlaceholder.tsx` als Prerequisite extrahiert (Frame + Page konsumieren). aria-label-Test grün. astro check 0 errors.
 
 ---
 
-## Phase 4 — LandingPage (Logik-raus VOR File-Split)
+## Phase 4 — LandingPage (Logik-raus VOR File-Split) — DONE
 
-### 4.1 `cc-result-share-props` (B)
+### 4.1 `cc-result-share-props` (B) — DONE (commit 5857788)
 - `ccShareLayoutProps` (L176-208) = per-kind Wire-Mapping-Dispatcher.
 - **Fix:** `ccResultToShareProps(ccActive, t)` nach `lib/resolve/parsers.ts` (kind-Branching; für track `ccInfoContent = buildCcShareConfig`). `CcShareResult` baut nur noch die JSX.
+- **Done:** `ccResultToShareProps` gibt `{ config, artistName, ccInfoContent? }` (data-only, kein JSX) zurück; `CcShareResult` baut die memoisierte `<CcInfoCard>` lokal. `buildCcShareConfig`/`buildCcEntityHeaderConfig`/`ccTrackToShareConfig` sind jetzt parser-intern (kein `export` mehr — sonst unused-export im Full-Doctor-Scan).
 
-### 4.2 `landing-active-share-selector` (B, low)
+### 4.2 `landing-active-share-selector` (B, low) — DONE (commit 8a77e32)
 - `active.kind === Artist ? name : artist`-Branch (L494-498) dupliziert Model-Regel.
 - **Fix:** `buildActiveShareSelection(resolved, active, t)` nach `lib/share/share-view.ts`.
+- **Done:** gibt `{ activeShareView, activeShareConfig, activeArtistName }`; die Artist-Name-Discriminant-Regel lebt jetzt im Selektor. Kein Zirkular-Import (`parsers.ts` importiert `share-view.ts` nicht).
 
-### 4.3 `landing-genre-query-grammar` (B, low)
+### 4.3 `landing-genre-query-grammar` (B, low) — DONE (commit 7fdac1c)
 - `` `genre: ${name}` `` (L357) + `"genre:?"` (L426) = Query-Grammatik inline.
 - **Fix:** `buildGenreQuery(name)` + `GENRE_BROWSE_QUERY`-Const nach `lib/resolve`. NICHT das ganze `selectGenreTile` extrahieren (Analytics/Submit = legitime Orchestrierung).
+- **Done:** neues `lib/resolve/genre-query.ts`; beide Inline-Vorkommen ersetzt, `selectGenreTile` bleibt als Render-Layer-Orchestrierung in `LandingPage`.
 
-### 4.4 `landing-page-split` (A)
+### 4.4 `landing-page-split` (A) — DONE (commit 4fe3798)
 - 7 Komponenten. `LandingPage`+`LandingPageInner` bleiben. `ShareResultPlaceholder.tsx` ZUERST (3 Consumer), dann `ActiveShareResult.tsx`, `CcShareResult.tsx`, `LiveExampleTeaser.tsx`, `LandingLogoBlock.tsx`. Nach 4.1-4.3.
+- **Done:** `ShareResultPlaceholder.tsx` schon in 3.7 extrahiert; die vier anderen jeweils eigenes File mit Props-Interface + TSDoc. `LandingPage`+`LandingPageInner` bleiben zusammen; `resolveModeSegments`/`selectGenreTile` bleiben file-lokal (kein `export`, daher kein only-export-components-Verstoß).
 
 ---
 
@@ -218,8 +223,8 @@ Erfasst, damit nichts verloren geht (NICHT umsetzen bis freigegeben):
 
 - [ ] Phase 1: Artist-Spalte (Splits → Body+Titel → Shell → Klein-Dedups)
 - [ ] Phase 2: Cards-Primitives + MediaCard
-- [ ] Phase 3: ShareLayout (Logik-raus → Split → Logo/Frame)
-- [ ] Phase 4: LandingPage (Logik-raus → Split)
+- [x] Phase 3: ShareLayout (Logik-raus → Split → Logo/Frame) — 3.1-3.6 in Vor-Session, 3.7 mit Phase 4
+- [x] Phase 4: LandingPage (Logik-raus → Split) — inkl. 3.7 (share-logo-header + share-result-frame)
 - [ ] Phase 5: Discovery + Listen
 - [ ] Phase 6: PageOverlay (Logik-raus → Split)
 - [ ] Phase 7: Audio/Player — ZURÜCKGESTELLT bis Player-Divergenz (C vs CC) besprochen
