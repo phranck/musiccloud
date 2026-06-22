@@ -258,12 +258,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
             <>
               <LandingLogoBlock isReturning={isReturning} showCompact={showCompact} />
 
-              <div
-                ref={searchFieldRef}
-                data-resolve-mode={mode}
-                className="w-full flex items-center justify-center gap-3"
-              >
-                {!showCompact && <ResolveModeSwitcher />}
+              <div ref={searchFieldRef} data-resolve-mode={mode} className="w-full flex items-center justify-center">
                 <HeroInput
                   value={inputValue}
                   onChange={setInputValue}
@@ -282,19 +277,24 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
                 />
               </div>
 
-              {exampleShortId && (
-                <LiveExampleTeaser
-                  exampleShortId={exampleShortId}
-                  label={t("landing.exampleLink")}
-                  teaser={t("landing.exampleTeaser")}
-                  visible={
-                    state.type !== AppStateType.Loading &&
-                    !discExitPending &&
-                    !candidates &&
-                    !genreBrowseGenres &&
-                    !genreSearchPayload
-                  }
-                />
+              {!showCompact && (
+                <div className="mt-4 flex items-center justify-center gap-3" data-resolve-mode={mode}>
+                  <ResolveModeSwitcher />
+                  {exampleShortId && (
+                    <LiveExampleTeaser
+                      exampleShortId={exampleShortId}
+                      label={t("landing.exampleLink")}
+                      teaser={t("landing.exampleTeaser")}
+                      visible={
+                        state.type !== AppStateType.Loading &&
+                        !discExitPending &&
+                        !candidates &&
+                        !genreBrowseGenres &&
+                        !genreSearchPayload
+                      }
+                    />
+                  )}
+                </div>
               )}
 
               {candidates && candidates.length > 0 && (
