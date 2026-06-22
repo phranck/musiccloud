@@ -1,6 +1,7 @@
 import type { Ref } from "react";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { NavigationBackButton } from "@/components/navigation/NavigationBackButton";
+import { CancelButton } from "@/components/ui/CancelButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { GenreColumn } from "@/components/ui/GenreColumn";
@@ -231,17 +232,7 @@ export function GenreSearchResults({
 
             {onCancel && (
               <div className="text-center mt-4 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className={cn(
-                    "text-sm text-text-muted hover:text-text-secondary",
-                    "transition-colors duration-150",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
-                  )}
-                >
-                  {t("genreSearch.cancel")}
-                </button>
+                <CancelButton onClick={onCancel}>{t("genreSearch.cancel")}</CancelButton>
               </div>
             )}
           </EmbossedCard.Footer>

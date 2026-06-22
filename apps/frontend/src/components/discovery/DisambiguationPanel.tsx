@@ -4,6 +4,7 @@ import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
+import { CancelButton } from "@/components/ui/CancelButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
@@ -286,17 +287,7 @@ export function DisambiguationPanel({
                   </EmbossedButton>
                 </div>
               )}
-              <button
-                type="button"
-                onClick={onCancel}
-                className={cn(
-                  "text-sm text-text-muted hover:text-text-secondary",
-                  "transition-colors duration-150",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
-                )}
-              >
-                {t("disambiguation.cancel")}
-              </button>
+              <CancelButton onClick={onCancel}>{t("disambiguation.cancel")}</CancelButton>
             </div>
           )}
 
