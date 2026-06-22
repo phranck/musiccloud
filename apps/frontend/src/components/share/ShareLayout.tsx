@@ -401,10 +401,11 @@ interface ShareLayoutProps {
    */
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   /**
-   * Overrides the four artist-column section titles. Commercial omits this and
-   * gets the i18n defaults; the CC path can pass its own wording.
+   * Per-title overrides for the artist-column sections. Commercial omits this
+   * and gets the i18n defaults; the CC path overrides individual titles
+   * (e.g. "Similar Tracks" instead of "Similar Artists").
    */
-  labels?: ArtistCardLabels;
+  labels?: Partial<ArtistCardLabels>;
 }
 
 export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
@@ -431,17 +432,19 @@ function ShareLayoutInner({
   labels,
 }: ShareLayoutProps) {
   const t = useT();
-  // Commercial section titles; the CC caller overrides them via the `labels` prop.
-  const commercialArtistLabels = useMemo<ArtistCardLabels>(
+  // Commercial section titles are the defaults; the CC caller overrides
+  // individual ones via the `labels` prop (e.g. "Similar Tracks"). Memoized per
+  // resolved value so the object identity stays stable for the GSAP/render path
+  // even when the caller passes an inline override.
+  const artistLabels = useMemo<ArtistCardLabels>(
     () => ({
-      profile: t("artist.infoTitle"),
-      popularTracks: t("artist.popularTracks"),
-      events: t("artist.upcomingEvents"),
-      similar: t("artist.similarArtists"),
+      profile: labels?.profile ?? t("artist.infoTitle"),
+      popularTracks: labels?.popularTracks ?? t("artist.popularTracks"),
+      events: labels?.events ?? t("artist.upcomingEvents"),
+      similar: labels?.similar ?? t("artist.similarArtists"),
     }),
-    [t],
+    [t, labels?.profile, labels?.popularTracks, labels?.events, labels?.similar],
   );
-  const artistLabels = labels ?? commercialArtistLabels;
   const userRegion = useMemo(detectRegion, []);
   const [artistState, dispatch] = useReducer(artistReducer, {
     status: ArtistLoadStatus.Loading,

@@ -9,6 +9,7 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -233,6 +234,9 @@ function CcShareResult({
   t,
 }: CcShareResultProps) {
   const { config, artistName, secondaryCard } = ccShareLayoutProps(ccActive, t);
+  // CC shows similar TRACKS (from other artists), not similar artists, so the
+  // shared card gets a CC-specific title; the other three keep the defaults.
+  const ccArtistLabels = useMemo(() => ({ similar: t("artist.similarTracks") }), [t]);
   return (
     <div ref={resultsPanelRef} tabIndex={-1} className="outline-none w-full">
       <div className="mb-4 text-center sm:mb-6">
@@ -248,6 +252,7 @@ function CcShareResult({
             artistData={ccActive.artistInfo}
             skipArtistFetch
             secondaryCard={secondaryCard}
+            labels={ccArtistLabels}
             onTrackResolve={(track) => handleSelectCcTrack(track.deezerUrl)}
             onBack={canGoBack ? handleBack : undefined}
             backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
