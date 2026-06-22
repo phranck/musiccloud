@@ -61,8 +61,18 @@ Neue Komponente `apps/frontend/src/components/landing/ResolveModeSwitcher.tsx`, 
 - [ ] Alle Code-Referenzen am Execute-Time re-grep'd.
 
 ## Checklist
-- [ ] Scheibe 1: `static`-Prop am `VerticalSegmentedControl` (Collapse-Switcher unverändert)
-- [ ] Scheibe 2: `ResolveModeSwitcher` (icon-only, CC-Accent) analog LanguageSwitcher
-- [ ] Scheibe 3: LandingPage — EmbossedSegmentedControl raus, ResolveModeSwitcher links vom Hero (nur Idle), `resolveModeSegments` löschen
-- [ ] Scheibe 4: HeroInput Modus-Icon + `mode`-Prop/FontAwesome-Imports entschlacken
-- [ ] Scheibe 5: Gates + Browser-Verify (beide Icons sichtbar links, Wechsel + CC-Grün, Resolve commercial/CC unverändert, Idle-only)
+- [x] Scheibe 1: `alwaysExpanded`-Prop am `VerticalSegmentedControl` (Collapse-Switcher unverändert)
+- [x] Scheibe 2: `ResolveModeSwitcher` (icon-only, CC-Accent) analog LanguageSwitcher
+- [x] Scheibe 3: LandingPage — EmbossedSegmentedControl raus, ResolveModeSwitcher links vom Hero (nur Idle), `resolveModeSegments` gelöscht
+- [x] Scheibe 4: HeroInput Modus-Icon + `mode`-Prop/FontAwesome-Imports entschlackt
+- [x] Scheibe 5: Gates + Browser-Verify (beide Icons sichtbar links, Wechsel + CC-Grün, Idle-only)
+
+## Completed (2026-06-22)
+
+Umgesetzt wie geplant. Commits:
+- `2dff43d` Feat: `alwaysExpanded` mode am VerticalSegmentedControl (Scheibe 1; Sprach-/Day-Night-Switcher byte-gleich, Tests grün)
+- `a24ddaa` Feat: vertikaler icon-only C/CC-Switcher links vom Hero (Scheiben 2-4)
+
+**Hinweis Plan↔Code:** Die Prop heißt `alwaysExpanded` statt `static` (`static` ist ein reserviertes Wort).
+
+**Verifikation:** Browser — vertikaler Switcher links vom Hero, beide Zellen permanent sichtbar (`inert:false`, kein Collapse), Gruppe zentriert, Wechsel beidseitig (cc↔commercial), CC-Accent `#30d158`, kein Feld-Icon mehr. Gates: frontend tsc 0, biome 757 clean, doctor 0 issues, LandingPage- + Switcher-Tests grün.
