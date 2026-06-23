@@ -23,10 +23,12 @@ vi.mock("../../../services/cc/jamendo/client.js", () => ({
 const buildCcTrackPayload = vi.fn();
 const buildCcAlbumPayload = vi.fn();
 const buildCcArtistPayload = vi.fn();
+const toApiCcTrack = vi.fn((track: unknown) => track);
 vi.mock("../../../services/cc/cc-share-response.js", () => ({
   buildCcTrackPayload: (...a: unknown[]) => buildCcTrackPayload(...a),
   buildCcAlbumPayload: (...a: unknown[]) => buildCcAlbumPayload(...a),
   buildCcArtistPayload: (...a: unknown[]) => buildCcArtistPayload(...a),
+  toApiCcTrack: (...a: unknown[]) => toApiCcTrack(...a),
 }));
 
 const { loadCcByShortId } = await import("../cc-share-page.js");
@@ -47,23 +49,25 @@ describe("loadCcByShortId", () => {
     expect(getCcTrack).not.toHaveBeenCalled();
   });
 
-  it("shapes a cc-track response with og, shortUrl, track and artistInfo", async () => {
+  it("shapes a cc-track core response with og, shortUrl and track (artist column loads async)", async () => {
     findCcShortId.mockResolvedValue({ kind: "cc-track", jamendoId: "j1" });
     getCcTrack.mockResolvedValue({ jamendoId: "j1", title: "Moments", artistName: "Madpix" });
-    buildCcTrackPayload.mockResolvedValue({ track: { jamendoId: "j1", title: "Moments" }, artistInfo: ARTIST_INFO });
 
     const res = await loadCcByShortId("V0onz", "https://musiccloud.io");
 
     expect(getCcTrack).toHaveBeenCalledWith("j1");
+    expect(toApiCcTrack).toHaveBeenCalledWith({ jamendoId: "j1", title: "Moments", artistName: "Madpix" });
     expect(res).toMatchObject({
       type: "cc-track",
       shortUrl: "https://musiccloud.io/V0onz",
       track: { title: "Moments" },
-      artistInfo: ARTIST_INFO,
     });
     expect(res?.og.title).toBe("Moments - Madpix");
     expect(res?.og.url).toBe("https://musiccloud.io/V0onz");
     expect(res).not.toHaveProperty("links");
+    // Progressive render: the artist column is fetched client-side, not inlined here.
+    expect(res).not.toHaveProperty("artistInfo");
+    expect(buildCcTrackPayload).not.toHaveBeenCalled();
   });
 
   it("fetches the album's tracks live and shapes a cc-album response", async () => {
