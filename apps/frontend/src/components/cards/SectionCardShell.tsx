@@ -1,3 +1,4 @@
+import { CircleNotchIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { fullWidthEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -26,6 +27,14 @@ interface SectionCardShellProps {
    * to the full-width artist-column class when omitted.
    */
   className?: string;
+  /**
+   * When true, the card signals an in-flight content refresh while the previous
+   * content stays visible: a spinner appears in the header's trailing slot and
+   * the body is blurred + click-disabled. The artist-column cards set this during
+   * the async re-fetch after a track swap, so the column reads as "updating"
+   * instead of looking frozen with stale rows.
+   */
+  isRefreshing?: boolean;
   /** Card body content. */
   children: ReactNode;
 }
@@ -47,17 +56,47 @@ interface SectionCardShellProps {
  * @param footer - Optional footer text node.
  * @param animated - When true, plays the shared zoom-in entrance.
  * @param className - Outer card class (defaults to the full-width artist class).
+ * @param isRefreshing - When true, shows the header refresh spinner and blurs the body.
  * @param children - The card body content.
  */
-export function SectionCardShell({ title, footer, animated = false, className, children }: SectionCardShellProps) {
+export function SectionCardShell({
+  title,
+  footer,
+  animated = false,
+  className,
+  isRefreshing = false,
+  children,
+}: SectionCardShellProps) {
   return (
     <EmbossedCard className={cn(className ?? fullWidthEmbossedCardClassName, animated && "animate-zoom-in")}>
       {title && (
-        <EmbossedCard.Header className={sectionCardHeaderClassName}>
+        // Flex row (not a trailing AddOn, which absolute-positions to the
+        // padding-box edge and would ignore the header's `chrome-x` inset): the
+        // title keeps its place and the spinner sits inside the same padding,
+        // flush with the title's right inset.
+        <EmbossedCard.Header className={cn(sectionCardHeaderClassName, "flex items-center gap-2")}>
           <EmbossedCard.Header.Title className={sectionCardTitleClassName}>{title}</EmbossedCard.Header.Title>
+          {isRefreshing && (
+            <CircleNotchIcon
+              className="size-4 shrink-0 animate-spin text-text-secondary"
+              weight="bold"
+              aria-hidden="true"
+            />
+          )}
         </EmbossedCard.Header>
       )}
-      {title || footer ? <EmbossedCard.Body>{children}</EmbossedCard.Body> : children}
+      {title || footer ? (
+        <EmbossedCard.Body
+          className={cn(
+            "transition-[filter,opacity] duration-300",
+            isRefreshing && "pointer-events-none select-none blur-[1.5px] opacity-55",
+          )}
+        >
+          {children}
+        </EmbossedCard.Body>
+      ) : (
+        children
+      )}
       {footer && <EmbossedCard.Footer className={sectionCardFooterClassName}>{footer}</EmbossedCard.Footer>}
     </EmbossedCard>
   );

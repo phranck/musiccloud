@@ -57,11 +57,12 @@ export function ArtistProfileDesktopCard({
   }
 
   const showInitialSkeleton = isLoading && !data;
+  const isRefreshing = isLoading && !!data;
   const footer =
     !showInitialSkeleton && data?.profile ? <SectionCardFooterText>{providedBy}</SectionCardFooterText> : undefined;
 
   return (
-    <ArtistCardShell title={title} footer={footer}>
+    <ArtistCardShell title={title} footer={footer} isRefreshing={isRefreshing}>
       <div className={footer ? "px-3 pt-0 pb-2" : "px-3 pt-0 pb-3"}>
         <ArtistProfileCard profile={data?.profile} showInitialSkeleton={showInitialSkeleton} />
       </div>

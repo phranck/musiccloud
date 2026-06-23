@@ -26,6 +26,7 @@ interface PopularTracksCardProps {
 export function PopularTracksCard({ title, data, isLoading, onTrackResolve, onResolveStart }: PopularTracksCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
   const showInitialSkeleton = isLoading && !data;
+  const isRefreshing = isLoading && !!data;
   const tracks = data?.topTracks ?? [];
   const showTracks = showInitialSkeleton || tracks.length > 0;
   const resetKey = tracks.map((track) => track.deezerUrl).join("|");
@@ -52,7 +53,7 @@ export function PopularTracksCard({ title, data, isLoading, onTrackResolve, onRe
     ) : undefined;
 
   return (
-    <ArtistCardShell title={title} footer={footer}>
+    <ArtistCardShell title={title} footer={footer} isRefreshing={isRefreshing}>
       <div className="px-3 pt-0 pb-3">
         <ArtistSectionWell
           showInitialSkeleton={showInitialSkeleton}

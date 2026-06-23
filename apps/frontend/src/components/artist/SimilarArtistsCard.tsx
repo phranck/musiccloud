@@ -34,6 +34,7 @@ export function SimilarArtistsCard({
 }: SimilarArtistsCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
   const showInitialSkeleton = isLoading && !data;
+  const isRefreshing = isLoading && !!data;
   const withTrack = (data?.similarArtistTracks ?? []).filter(hasResolvedTrack);
   const showSimilar = showInitialSkeleton || withTrack.length > 0;
   const resetKey = withTrack.map((entry) => entry.track.deezerUrl).join("|");
@@ -60,7 +61,7 @@ export function SimilarArtistsCard({
     ) : undefined;
 
   return (
-    <ArtistCardShell title={title} footer={footer}>
+    <ArtistCardShell title={title} footer={footer} isRefreshing={isRefreshing}>
       <div className="px-3 pt-0 pb-3">
         <ArtistSectionWell
           showInitialSkeleton={showInitialSkeleton}

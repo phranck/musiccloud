@@ -5,6 +5,7 @@
  */
 
 import type { ArtistInfoResponse } from "@musiccloud/shared";
+import { CircleNotchIcon } from "@phosphor-icons/react";
 import { ArtistCardCloseButton } from "@/components/artist/ArtistCardCloseButton";
 import { ArtistInfoNoticeCard } from "@/components/artist/ArtistInfoNoticeCard";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
@@ -98,6 +99,10 @@ export function ArtistInfoCard({
   }
 
   const showInitialSkeleton = isLoading && !data;
+  // Re-fetch with the previous data still on screen (a track swap to a new
+  // artist): blur the stacked sections + show one spinner so the panel reads as
+  // "updating" instead of frozen. Mirrors the desktop cards' `isRefreshing`.
+  const isRefreshing = isLoading && !!data;
   const showProfile = showInitialSkeleton || !!data?.profile;
   const showTracks = showInitialSkeleton || tracks.length > 0;
   const showEvents = showInitialSkeleton || (data?.events.length ?? 0) > 0;
@@ -111,86 +116,97 @@ export function ArtistInfoCard({
     <EmbossedCard className={fullWidthEmbossedCardClassName}>
       <div className="relative">
         {onClose && <ArtistCardCloseButton onClose={onClose} />}
-
-        {/* 1. Artist Profile */}
-        <ArtistProfileMobileCard
-          visible={showProfile}
-          profile={data?.profile}
-          showInitialSkeleton={showInitialSkeleton}
-          providedByLabel={!showInitialSkeleton && data?.profile ? labels.profileProvidedBy : undefined}
-        />
-
-        {/* 2. Popular Tracks */}
-        <CollapsibleSection visible={showTracks} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
-          <ArtistSectionWell
-            innerTitle={labels.popularTracks}
+        {isRefreshing && (
+          <span className="absolute right-3 top-3 z-10 text-text-secondary" aria-hidden="true">
+            <CircleNotchIcon className="size-4 animate-spin" weight="bold" />
+          </span>
+        )}
+        <div
+          className={cn(
+            "transition-[filter,opacity] duration-300",
+            isRefreshing && "pointer-events-none select-none blur-[1.5px] opacity-55",
+          )}
+        >
+          {/* 1. Artist Profile */}
+          <ArtistProfileMobileCard
+            visible={showProfile}
+            profile={data?.profile}
             showInitialSkeleton={showInitialSkeleton}
-            Skeleton={TracksSkeleton}
-            hasContent={tracks.length > 0}
-            swapKey={buildTracksSwapKey(data)}
-          >
-            <PopularTracksSection
-              tracks={tracksPager.page}
-              onTrackResolve={onTrackResolve}
-              onResolveStart={onResolveStart}
-            />
-          </ArtistSectionWell>
-          {tracksPager.pageCount > 1 && (
-            <div className="mt-3">
-              <PagedListFooter
-                pageCount={tracksPager.pageCount}
-                canGoPrevious={tracksPager.canGoPrevious}
-                canGoNext={tracksPager.canGoNext}
-                onPrevious={tracksPager.goPrevious}
-                onNext={tracksPager.goNext}
+            providedByLabel={!showInitialSkeleton && data?.profile ? labels.profileProvidedBy : undefined}
+          />
+
+          {/* 2. Popular Tracks */}
+          <CollapsibleSection visible={showTracks} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
+            <ArtistSectionWell
+              innerTitle={labels.popularTracks}
+              showInitialSkeleton={showInitialSkeleton}
+              Skeleton={TracksSkeleton}
+              hasContent={tracks.length > 0}
+              swapKey={buildTracksSwapKey(data)}
+            >
+              <PopularTracksSection
+                tracks={tracksPager.page}
+                onTrackResolve={onTrackResolve}
+                onResolveStart={onResolveStart}
               />
-            </div>
-          )}
-        </CollapsibleSection>
+            </ArtistSectionWell>
+            {tracksPager.pageCount > 1 && (
+              <div className="mt-3">
+                <PagedListFooter
+                  pageCount={tracksPager.pageCount}
+                  canGoPrevious={tracksPager.canGoPrevious}
+                  canGoNext={tracksPager.canGoNext}
+                  onPrevious={tracksPager.goPrevious}
+                  onNext={tracksPager.goNext}
+                />
+              </div>
+            )}
+          </CollapsibleSection>
 
-        {/* 3. Upcoming Events */}
-        <CollapsibleSection visible={showEvents} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
-          <ArtistSectionWell
-            innerTitle={labels.events}
-            showInitialSkeleton={showInitialSkeleton}
-            Skeleton={EventsSkeleton}
-            hasContent={!!data && data.events.length > 0}
-            swapKey={buildEventsSwapKey(data)}
-          >
-            <UpcomingEventsSection events={data?.events ?? []} userRegion={userRegion} locale={locale} />
-          </ArtistSectionWell>
-          {!showInitialSkeleton && data && data.events.length > 0 && (
-            <p className={cn(sectionCardFooterTextClassName, "mt-2 px-2")}>{t("artist.eventsProvidedBy")}</p>
-          )}
-        </CollapsibleSection>
+          {/* 3. Upcoming Events */}
+          <CollapsibleSection visible={showEvents} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
+            <ArtistSectionWell
+              innerTitle={labels.events}
+              showInitialSkeleton={showInitialSkeleton}
+              Skeleton={EventsSkeleton}
+              hasContent={!!data && data.events.length > 0}
+              swapKey={buildEventsSwapKey(data)}
+            >
+              <UpcomingEventsSection events={data?.events ?? []} userRegion={userRegion} locale={locale} />
+            </ArtistSectionWell>
+            {!showInitialSkeleton && data && data.events.length > 0 && (
+              <p className={cn(sectionCardFooterTextClassName, "mt-2 px-2")}>{t("artist.eventsProvidedBy")}</p>
+            )}
+          </CollapsibleSection>
 
-        {/* 4. Similar Artists */}
-        <CollapsibleSection visible={showSimilar} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
-          <ArtistSectionWell
-            innerTitle={labels.similar}
-            showInitialSkeleton={showInitialSkeleton}
-            Skeleton={SimilarArtistsSkeleton}
-            hasContent={withTrack.length > 0}
-            swapKey={buildSimilarSwapKey(data)}
-          >
-            <SimilarArtistsSection
-              withTrack={similarPager.page}
-              onTrackResolve={onTrackResolve}
-              onResolveStart={onResolveStart}
-            />
-          </ArtistSectionWell>
-          {similarPager.pageCount > 1 && (
-            <div className="mt-3">
-              <PagedListFooter
-                pageCount={similarPager.pageCount}
-                canGoPrevious={similarPager.canGoPrevious}
-                canGoNext={similarPager.canGoNext}
-                onPrevious={similarPager.goPrevious}
-                onNext={similarPager.goNext}
+          {/* 4. Similar Artists */}
+          <CollapsibleSection visible={showSimilar} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
+            <ArtistSectionWell
+              innerTitle={labels.similar}
+              showInitialSkeleton={showInitialSkeleton}
+              Skeleton={SimilarArtistsSkeleton}
+              hasContent={withTrack.length > 0}
+              swapKey={buildSimilarSwapKey(data)}
+            >
+              <SimilarArtistsSection
+                withTrack={similarPager.page}
+                onTrackResolve={onTrackResolve}
+                onResolveStart={onResolveStart}
               />
-            </div>
-          )}
-        </CollapsibleSection>
+            </ArtistSectionWell>
+            {similarPager.pageCount > 1 && (
+              <div className="mt-3">
+                <PagedListFooter
+                  pageCount={similarPager.pageCount}
+                  canGoPrevious={similarPager.canGoPrevious}
+                  canGoNext={similarPager.canGoNext}
+                  onPrevious={similarPager.goPrevious}
+                  onNext={similarPager.goNext}
+                />
+              </div>
+            )}
+          </CollapsibleSection>
+        </div>
       </div>
     </EmbossedCard>
   );

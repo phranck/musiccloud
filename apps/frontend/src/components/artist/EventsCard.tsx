@@ -26,6 +26,7 @@ export function EventsCard({ title, data, isLoading, userRegion }: EventsCardPro
   const { locale } = useLocale();
   const skeletonAllowed = useSkeletonAllowed();
   const showInitialSkeleton = isLoading && !data;
+  const isRefreshing = isLoading && !!data;
   const showEvents = showInitialSkeleton || (data?.events.length ?? 0) > 0;
 
   if (isLoading && !data && !skeletonAllowed) {
@@ -43,7 +44,7 @@ export function EventsCard({ title, data, isLoading, userRegion }: EventsCardPro
     ) : undefined;
 
   return (
-    <ArtistCardShell title={title} footer={footer}>
+    <ArtistCardShell title={title} footer={footer} isRefreshing={isRefreshing}>
       <div className={footer ? "px-3 pt-0 pb-2" : "px-3 pt-0 pb-3"}>
         <ArtistSectionWell
           showInitialSkeleton={showInitialSkeleton}
