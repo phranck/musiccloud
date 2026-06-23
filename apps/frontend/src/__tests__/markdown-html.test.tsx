@@ -67,4 +67,18 @@ describe("MarkdownHtml", () => {
     expect((recessed as HTMLElement).style.padding).toBe("0.75rem");
     expect((recessed as HTMLElement).style.getPropertyValue("--neu-radius-base")).toBe("0.75rem");
   });
+
+  it("linkifies plain-text URLs inside prose when the linkify flag is set", () => {
+    render(<MarkdownHtml html="<p>Find me at https://example.com today</p>" linkify />);
+    const a = document.querySelector("a");
+    expect(a).not.toBeNull();
+    expect(a?.getAttribute("href")).toBe("https://example.com");
+    expect(a?.className).toContain("mc-cardlink");
+    expect(document.querySelector("p")?.textContent).toBe("Find me at https://example.com today");
+  });
+
+  it("leaves plain-text URLs untouched without the linkify flag", () => {
+    render(<MarkdownHtml html="<p>Find me at https://example.com today</p>" />);
+    expect(document.querySelectorAll("a").length).toBe(0);
+  });
 });

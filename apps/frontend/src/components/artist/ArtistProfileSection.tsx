@@ -2,6 +2,7 @@ import type { ArtistProfile } from "@musiccloud/shared";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import { TftScreen } from "@/components/ui/TftScreen";
+import { linkify } from "@/lib/linkify";
 import { cn } from "@/lib/utils";
 
 interface ArtistProfileSectionProps {
@@ -80,10 +81,10 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
 
       {profile.bioSummary &&
         (looksLikeHtml(profile.bioSummary) ? (
-          <MarkdownHtml html={profile.bioSummary} className={cn(BIO_PROSE_CLASS, "mt-3")} />
+          <MarkdownHtml html={profile.bioSummary} className={cn(BIO_PROSE_CLASS, "mt-3")} linkify />
         ) : (
           <p className="mc-txt-recessed-normal text-base text-text-secondary leading-relaxed mt-3">
-            {profile.bioSummary}
+            {linkify(profile.bioSummary)}
           </p>
         ))}
 
