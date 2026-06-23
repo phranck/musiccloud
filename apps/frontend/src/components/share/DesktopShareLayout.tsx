@@ -9,7 +9,8 @@ import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
 import { ServicesCard } from "@/components/cards/ServicesCard";
 import { AnimatedArtistColumn } from "@/components/share/AnimatedArtistColumn";
-import { ARTIST_W, MEDIA_W, TwoColumnResultGrid } from "@/components/share/TwoColumnResultGrid";
+import { TwoColumnResultGrid } from "@/components/share/TwoColumnResultGrid";
+import { ARTIST_W, MEDIA_W } from "@/components/share/twoColumnGeometry";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 
 /** Props for {@link DesktopShareLayout}. */

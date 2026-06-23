@@ -1,13 +1,8 @@
 import { navigate } from "astro:transitions/client";
-import { PageDisplayMode, type PublicContentPage } from "@musiccloud/shared";
+import type { PublicContentPage } from "@musiccloud/shared";
 import { type ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
+import { initialOverlayState, type OverlayState } from "./overlayState";
 import { OVERLAY_OPEN_EVENT, type OverlayAPI, OverlayCtx, PRESENCE_FLAG } from "./useOverlay";
-
-interface OverlayState {
-  page: PublicContentPage | null;
-  previousTitle: string | null;
-  previousUrl: string | null;
-}
 
 const OverlayActionType = {
   Open: "open",
@@ -40,24 +35,6 @@ async function fetchOverlayPage(slug: string, signal: AbortSignal): Promise<Publ
     signal,
   });
   return res.ok ? ((await res.json()) as PublicContentPage) : null;
-}
-
-export function initialOverlayState(initialPage: PublicContentPage | null | undefined): OverlayState {
-  if (!initialPage || initialPage.displayMode === PageDisplayMode.Fullscreen) {
-    return { page: null, previousTitle: null, previousUrl: null };
-  }
-  if (typeof window === "undefined") {
-    return { page: initialPage, previousTitle: null, previousUrl: null };
-  }
-  return {
-    page: initialPage,
-    previousTitle: document.title,
-    // `initialPage` is only set on a direct SSR load of an overlay page (menu
-    // opens go through `open()` with `initialPage=null`). Closing should return
-    // to the landing page rather than stay on e.g. `/info`, so the previous URL
-    // is the homepage.
-    previousUrl: "/",
-  };
 }
 
 export function OverlayProvider({

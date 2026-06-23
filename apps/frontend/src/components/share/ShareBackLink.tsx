@@ -1,4 +1,4 @@
-import { TWO_COLUMN_TOTAL_W } from "@/components/share/TwoColumnResultGrid";
+import { TWO_COLUMN_TOTAL_W } from "@/components/share/twoColumnGeometry";
 import { BackLink } from "@/components/ui/BackLink";
 
 /** Props for {@link ShareBackLink}. */
