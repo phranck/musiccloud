@@ -1,5 +1,9 @@
 import { ArrowSquareOutIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
-import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import {
+  controlRadiusInner,
+  outerEmbossedCardClassName,
+  recessedControlInsetClassName,
+} from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SectionCardShell } from "@/components/cards/SectionCardShell";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -85,8 +89,19 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
     >
       <div className="flex flex-col gap-[var(--mc-pad-card,0.75rem)] p-[var(--mc-pad-card,0.75rem)] pt-0">
         <RecessedCard className={recessedControlInsetClassName}>
-          <RecessedCard.Body className="flex items-center justify-between gap-3 px-3 py-3">
-            <span className="min-w-0 truncate font-medium text-text-primary">{content.artist}</span>
+          <RecessedCard.Body className="flex items-center justify-between gap-3 px-2 py-2">
+            {content.artistJamendoUrl ? (
+              <a
+                href={content.artistJamendoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mc-cardlink min-w-0 truncate font-medium"
+              >
+                {content.artist}
+              </a>
+            ) : (
+              <span className="min-w-0 truncate font-medium text-text-primary">{content.artist}</span>
+            )}
             {iconPath ? (
               <a
                 href={content.licenseCcurl}
@@ -95,14 +110,19 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
                 aria-label={licenseAlt}
                 className="flex-shrink-0"
               >
-                <img src={iconPath} alt={licenseAlt} className="h-7 w-auto" />
+                <img
+                  src={iconPath}
+                  alt={licenseAlt}
+                  className="block h-10 w-auto"
+                  style={{ borderRadius: controlRadiusInner }}
+                />
               </a>
             ) : content.licenseCcurl ? (
               <a
                 href={content.licenseCcurl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mc-skylink flex-shrink-0 font-medium text-text-primary"
+                className="mc-cardlink flex-shrink-0 font-medium"
               >
                 {licenseLabel ?? content.licenseCcurl}
               </a>

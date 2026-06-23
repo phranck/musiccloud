@@ -547,8 +547,21 @@ function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentConfigur
     downloadUrl: cc.downloadUrl,
     downloadAllowed: cc.downloadAllowed,
     jamendoUrl: cc.jamendoUrl,
+    artistJamendoUrl: jamendoArtistProfileUrl(cc.jamendoArtistId),
     waveform: cc.waveform,
   };
+}
+
+/**
+ * Builds the Jamendo artist-profile URL from a Jamendo artist id. The numeric-id
+ * form `https://www.jamendo.com/artist/<id>` resolves to the artist's public
+ * profile page (verified against Jamendo), so no name slug is needed.
+ *
+ * @param jamendoArtistId - The Jamendo artist id, or undefined.
+ * @returns The profile URL, or undefined when no id is present.
+ */
+function jamendoArtistProfileUrl(jamendoArtistId: string | undefined): string | undefined {
+  return jamendoArtistId ? `https://www.jamendo.com/artist/${jamendoArtistId}` : undefined;
 }
 
 /**
