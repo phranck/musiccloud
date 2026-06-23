@@ -1,8 +1,8 @@
 import { lazy, type MouseEvent, type RefObject, useMemo } from "react";
-import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { ShareResultFrame } from "@/components/landing/ShareResultFrame";
 import { loadShareLayout } from "@/lib/preload/resultRuntime";
 import { ccResultToShareProps } from "@/lib/resolve/parsers";
+import { ccTrackResolver } from "@/lib/resolve/track-resolver";
 import type { CcResult } from "@/lib/types/app";
 
 // Lazy-loaded share UI — only pulled into the bundle when a result is shown.
@@ -12,7 +12,6 @@ type CcViewTFunc = (key: string, vars?: Record<string, string>) => string;
 
 interface CcShareResultProps {
   ccActive: CcResult;
-  handleSelectCcTrack: (candidateId: string) => Promise<void>;
   handleShareLogoClick: (event: MouseEvent<HTMLAnchorElement>) => void;
   resultsPanelRef: RefObject<HTMLDivElement | null>;
   canGoBack: boolean;
@@ -23,13 +22,13 @@ interface CcShareResultProps {
 /**
  * Renders any resolved Creative-Commons entity (track, album or artist) through
  * the SAME {@link ShareLayout} as the commercial result — only the data source
- * differs. CC supplies a Jamendo-built `artistData` (skipping the commercial
- * artist-info fetch), a CC track-resolve handler, and (for a track) the
- * `CcInfoCard` license/attribution as the secondary card. The Back-to-discovery
- * button, popular/similar-track column and two-column layout all come for free.
+ * differs. CC supplies a Jamendo-built `artistData` for album/artist (a track
+ * loads its column async via `config.ccJamendoArtistId`) and resolves clicked
+ * rows in place through {@link ccTrackResolver}. The license card (carried on the
+ * config), Back button, popular/similar-track column and two-column layout all
+ * come for free.
  *
  * @param ccActive - The resolved CC entity from app state.
- * @param handleSelectCcTrack - Resolves a clicked popular/similar track row.
  * @param handleShareLogoClick - Home-link handler (begins the clear/return flow).
  * @param resultsPanelRef - Focus target so keyboard users land on the result.
  * @param canGoBack - Whether a genre-search screen is on the navigation stack.
@@ -38,22 +37,13 @@ interface CcShareResultProps {
  */
 export function CcShareResult({
   ccActive,
-  handleSelectCcTrack,
   handleShareLogoClick,
   resultsPanelRef,
   canGoBack,
   handleBack,
   t,
 }: CcShareResultProps) {
-  const { config, artistName, ccInfoContent } = ccResultToShareProps(ccActive, t);
-  // The secondary card is only present for a CC track (license / attribution).
-  // Memoized so its element identity stays stable across re-renders — passing a
-  // freshly allocated element into the `secondaryCard` prop each render would
-  // otherwise defeat the downstream memoization.
-  const secondaryCard = useMemo(
-    () => (ccInfoContent ? <CcInfoCard content={ccInfoContent} /> : undefined),
-    [ccInfoContent],
-  );
+  const { config, artistName } = ccResultToShareProps(ccActive, t);
   // CC shows similar TRACKS (from other artists), not similar artists, so the
   // shared card gets a CC-specific title; the profile credit names Jamendo (the
   // CC data source). The other titles keep the commercial defaults.
@@ -67,10 +57,9 @@ export function CcShareResult({
         config={config}
         artistName={artistName}
         artistData={ccActive.artistInfo}
-        skipArtistFetch
-        secondaryCard={secondaryCard}
+        skipArtistFetch={!config.ccJamendoArtistId}
         labels={ccArtistLabels}
-        onTrackResolve={(track) => handleSelectCcTrack(track.deezerUrl)}
+        trackResolver={ccTrackResolver}
         onBack={canGoBack ? handleBack : undefined}
         backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
       />

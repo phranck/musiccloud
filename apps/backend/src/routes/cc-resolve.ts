@@ -26,7 +26,7 @@ import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
 import { resolveCcCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
-import { buildCcAlbumPayload, buildCcArtistPayload, buildCcTrackPayload } from "../services/cc/cc-share-response.js";
+import { buildCcAlbumPayload, buildCcArtistPayload, toApiCcTrack } from "../services/cc/cc-share-response.js";
 import type { CcAlbum, CcArtist, CcTrack } from "../services/cc/jamendo/types.js";
 import { GenreQueryParseError, isGenreBrowseQuery, isGenreSearchQuery } from "../services/genre-search/index.js";
 
@@ -189,8 +189,8 @@ async function persistCcTrackAndRespond(track: CcTrack, origin: string): Promise
     shareUrl: track.shareUrl,
   });
 
-  const { track: apiTrack, artistInfo } = await buildCcTrackPayload(track);
-  return { type: "cc-track", id: ccTrackId, shortUrl: `${origin}/${shortId}`, track: apiTrack, artistInfo };
+  // Core card only — the artist column loads client-side via /api/cc/artist-info.
+  return { type: "cc-track", id: ccTrackId, shortUrl: `${origin}/${shortId}`, track: toApiCcTrack(track) };
 }
 
 /**

@@ -20,7 +20,7 @@ import type {
   OgMeta,
 } from "@musiccloud/shared";
 import { getCcRepository } from "../../db/index.js";
-import { buildCcAlbumPayload, buildCcArtistPayload, buildCcTrackPayload } from "../../services/cc/cc-share-response.js";
+import { buildCcAlbumPayload, buildCcArtistPayload, toApiCcTrack } from "../../services/cc/cc-share-response.js";
 import {
   getCcAlbum,
   getCcAlbumTracks,
@@ -69,7 +69,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
     case "cc-track": {
       const track = await getCcTrack(lookup.jamendoId);
       if (!track) return null;
-      const { track: apiTrack, artistInfo } = await buildCcTrackPayload(track);
+      // Core card only — the artist column loads client-side via /api/cc/artist-info.
       const og = toWireOg(
         generateOGMeta({
           title: track.title,
@@ -81,7 +81,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
           origin,
         }),
       );
-      return { type: "cc-track", og, shortUrl, track: apiTrack, artistInfo };
+      return { type: "cc-track", og, shortUrl, track: toApiCcTrack(track) };
     }
     case "cc-album": {
       const album = await getCcAlbum(lookup.jamendoId);

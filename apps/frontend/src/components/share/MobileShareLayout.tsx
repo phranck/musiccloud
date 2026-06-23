@@ -1,6 +1,7 @@
 import { MicrophoneStageIcon } from "@phosphor-icons/react";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
+import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { SharePageCard } from "@/components/share/SharePageCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -18,8 +19,6 @@ export interface MobileShareLayoutProps {
   onOpenSheet: () => void;
   /** Reports the share-card preview player's status to the owner. */
   onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
-  /** Optional card rendered below the share card (CC license / attribution). */
-  secondaryCard?: ReactNode;
 }
 
 /**
@@ -38,12 +37,15 @@ export function MobileShareLayout({
   label,
   onOpenSheet,
   onPreviewStatusChange,
-  secondaryCard,
 }: MobileShareLayoutProps) {
   return (
     <div className="block min-[1080px]:hidden">
       <SharePageCard config={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
-      {secondaryCard && <div className="mt-[var(--mc-gap-cards,1.5rem)]">{secondaryCard}</div>}
+      {config.ccInfoContent && (
+        <div className="mt-[var(--mc-gap-cards,1.5rem)]">
+          <CcInfoCard content={config.ccInfoContent} animated={animated} />
+        </div>
+      )}
       <div className="mt-3 flex justify-center px-3">
         <EmbossedButton
           as="button"

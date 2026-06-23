@@ -120,7 +120,6 @@ function LandingPageInner({
     handleSubmit,
     handleSelectCandidate,
     handleSelectGenreResult,
-    handleSelectCcTrack,
     handleBack,
     handleClear,
   } = useAppState(mode);
@@ -249,7 +248,6 @@ function LandingPageInner({
           {ccActive ? (
             <CcShareResult
               ccActive={ccActive}
-              handleSelectCcTrack={handleSelectCcTrack}
               handleShareLogoClick={handleShareLogoClick}
               resultsPanelRef={resultsPanelRef}
               canGoBack={canGoBack}

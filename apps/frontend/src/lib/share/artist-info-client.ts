@@ -48,6 +48,28 @@ export async function fetchArtistInfo(
 }
 
 /**
+ * Fetches the CC artist-column payload for a Jamendo artist. Same shape and error
+ * semantics as {@link fetchArtistInfo}, but hits `/api/cc/artist-info` (Jamendo
+ * top + similar tracks + profile). The CC share page / live result load this
+ * async after the core card renders; the caller owns the {@link AbortSignal}.
+ *
+ * @param jamendoArtistId - The Jamendo artist id whose column to fetch.
+ * @param artistName - The artist name (column header context).
+ * @param signal - Abort signal for cancellation / timeout.
+ * @returns The parsed artist-info response.
+ */
+export async function fetchCcArtistInfo(
+  jamendoArtistId: string,
+  artistName: string,
+  signal: AbortSignal,
+): Promise<ArtistInfoResponse> {
+  const params = new URLSearchParams({ jamendoArtistId, artistName });
+  const res = await fetch(`${ENDPOINTS.frontend.ccArtistInfo}?${params.toString()}`, { signal });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as ArtistInfoResponse;
+}
+
+/**
  * Classifies an error thrown by {@link fetchArtistInfo} into a short status code
  * for the VFD status line.
  *

@@ -23,6 +23,7 @@ import {
   type CcAlbumResult,
   type CcArtistResult,
   type CcResult,
+  CcResultType,
   type CcTrackResult,
   type ReducerState,
   type ResolveUiError,
@@ -162,10 +163,11 @@ export function parseUnifiedResolveResponse(data: UnifiedResolveSuccessResponse)
  * @param data - The raw CC resolve success payload from the backend.
  * @returns A fully mapped `CcTrackResult` ready to be stored in app state.
  */
-export function parseCcResolveResponse(data: CcResolveSuccessResponse): CcTrackResult {
+function parseCcResolveResponse(data: CcResolveSuccessResponse): CcTrackResult {
   return {
     kind: ActiveResultKind.CcSong,
     jamendoId: data.track.jamendoId,
+    jamendoArtistId: data.track.jamendoArtistId,
     title: data.track.title,
     artist: data.track.artistName,
     album: data.track.albumName,
@@ -179,7 +181,6 @@ export function parseCcResolveResponse(data: CcResolveSuccessResponse): CcTrackR
     waveform: data.track.waveform,
     jamendoUrl: data.track.shareUrl,
     shareUrl: data.shortUrl,
-    artistInfo: data.artistInfo,
   };
 }
 
@@ -192,7 +193,7 @@ export function parseCcResolveResponse(data: CcResolveSuccessResponse): CcTrackR
  * @param data - The raw CC album resolve success payload.
  * @returns A fully mapped `CcAlbumResult`.
  */
-export function parseCcAlbumResolveResponse(data: CcAlbumResolveSuccessResponse): CcAlbumResult {
+function parseCcAlbumResolveResponse(data: CcAlbumResolveSuccessResponse): CcAlbumResult {
   return {
     kind: ActiveResultKind.CcAlbum,
     jamendoId: data.album.jamendoId,
@@ -214,7 +215,7 @@ export function parseCcAlbumResolveResponse(data: CcAlbumResolveSuccessResponse)
  * @param data - The raw CC artist resolve success payload.
  * @returns A fully mapped `CcArtistResult`.
  */
-export function parseCcArtistResolveResponse(data: CcArtistResolveSuccessResponse): CcArtistResult {
+function parseCcArtistResolveResponse(data: CcArtistResolveSuccessResponse): CcArtistResult {
   return {
     kind: ActiveResultKind.CcArtist,
     jamendoId: data.artist.jamendoId,
@@ -224,6 +225,25 @@ export function parseCcArtistResolveResponse(data: CcArtistResolveSuccessRespons
     shareUrl: data.shortUrl,
     artistInfo: data.artistInfo,
   };
+}
+
+/** The three CC resolve success shapes the CC endpoint returns for a query or candidate. */
+export type CcResolveData = CcResolveSuccessResponse | CcAlbumResolveSuccessResponse | CcArtistResolveSuccessResponse;
+
+/**
+ * Maps a CC resolve success payload to its app-state {@link CcResult}, picking the
+ * parser by the `cc-track` / `cc-album` / `cc-artist` discriminant.
+ *
+ * The single home for the type-to-parser mapping, shared by every CC resolve
+ * path (the landing-state dispatch and the in-place `ccTrackResolver`).
+ *
+ * @param data - A CC resolve success payload (track, album, or artist).
+ * @returns The equivalent {@link CcResult}.
+ */
+export function ccResolveDataToResult(data: CcResolveData): CcResult {
+  if (data.type === CcResultType.CcAlbum) return parseCcAlbumResolveResponse(data);
+  if (data.type === CcResultType.CcArtist) return parseCcArtistResolveResponse(data);
+  return parseCcResolveResponse(data);
 }
 
 export class ResolveApiError extends Error {
@@ -591,6 +611,7 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
     // Jamendo omits the Range CORS headers the crossorigin player needs.
     previewUrl: ENDPOINTS.frontend.ccAudio(cc.jamendoId),
     mediaKind: MediaKindValue.Song,
+    ccJamendoArtistId: cc.jamendoArtistId,
     shortId: shortIdFromShortUrl(cc.shareUrl),
   };
 }
@@ -598,20 +619,18 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
 /**
  * The per-kind {@link ShareLayout} inputs for a resolved Creative-Commons entity.
  *
- * The left media card is always a {@link ShareContentConfiguration}; only a CC
- * track additionally carries `ccInfoContent` (the license / attribution block
- * rendered as the `CcInfoCard` secondary). Album/artist omit it — the default
- * `ServicesCard` self-hides on the CC config's empty platforms.
+ * The left media card is always a {@link ShareContentConfiguration}; for a CC
+ * track its `ccInfoContent` carries the license / attribution block rendered as
+ * the `CcInfoCard` secondary. Album/artist omit it — the default `ServicesCard`
+ * self-hides on the CC config's empty platforms.
  *
- * @property config - The media-card configuration for the left column.
+ * @property config - The media-card configuration for the left column (a CC
+ *   track's config additionally carries `ccInfoContent` / `ccJamendoArtistId`).
  * @property artistName - The artist name used to drive the shared artist column.
- * @property ccInfoContent - The CC license/attribution content for a track, or
- *   `undefined` for album/artist entities.
  */
 export interface CcResultShareProps {
   config: ShareContentConfiguration;
   artistName: string;
-  ccInfoContent?: CcTrackContentConfiguration;
 }
 
 /**
@@ -619,14 +638,14 @@ export interface CcResultShareProps {
  * {@link ShareLayout} inputs.
  *
  * Owns the `kind` branching that used to live inline in the landing page: album
- * and artist build a {@link buildCcEntityHeaderConfig} header (no secondary
- * card); a track builds its {@link ccTrackToShareConfig} player config plus the
- * {@link buildCcShareConfig} content for the `CcInfoCard`. Returns plain data
- * only — the caller renders the `CcInfoCard` JSX from `ccInfoContent`.
+ * and artist build a {@link buildCcEntityHeaderConfig} header; a track builds its
+ * {@link ccTrackToShareConfig} player config with the {@link buildCcShareConfig}
+ * license block folded into `config.ccInfoContent`, so the secondary card follows
+ * the config through an in-place resolve.
  *
  * @param ccActive - The resolved CC entity from app state.
  * @param t - Translation function (forwarded to {@link buildCcShareConfig}).
- * @returns The `config`, `artistName` and optional `ccInfoContent` for ShareLayout.
+ * @returns The `config` and `artistName` for ShareLayout.
  */
 export function ccResultToShareProps(ccActive: CcResult, t: TFunc): CcResultShareProps {
   if (ccActive.kind === ActiveResultKind.CcAlbum) {
@@ -653,9 +672,8 @@ export function ccResultToShareProps(ccActive: CcResult, t: TFunc): CcResultShar
     };
   }
   return {
-    config: ccTrackToShareConfig(ccActive),
+    config: { ...ccTrackToShareConfig(ccActive), ccInfoContent: buildCcShareConfig(ccActive, t) },
     artistName: ccActive.artist,
-    ccInfoContent: buildCcShareConfig(ccActive, t),
   };
 }
 
@@ -680,6 +698,7 @@ export function ccResponseToResult(
     return {
       kind: ActiveResultKind.CcSong,
       jamendoId: track.jamendoId,
+      jamendoArtistId: track.jamendoArtistId,
       title: track.title,
       artist: track.artistName,
       album: track.albumName,
@@ -693,7 +712,6 @@ export function ccResponseToResult(
       waveform: track.waveform,
       jamendoUrl: track.shareUrl,
       shareUrl: data.shortUrl,
-      artistInfo: data.artistInfo,
     };
   }
   if (data.type === "cc-album") {

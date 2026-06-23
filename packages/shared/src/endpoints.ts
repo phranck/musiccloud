@@ -72,6 +72,10 @@ export const ENDPOINTS = {
      *  stream (Range-forwarded). Lets the player load + analyse CC audio that
      *  Jamendo serves without the Range CORS preflight headers Web Audio needs. */
     ccAudio: (jamendoId: string) => `/api/v1/cc/audio/${encodeURIComponent(jamendoId)}`,
+    /** GET `/api/v1/cc/artist-info?jamendoArtistId&artistName`: the CC artist
+     *  column (Jamendo top + similar tracks + profile), loaded async by the share
+     *  page so the core card renders immediately. */
+    ccArtistInfo: "/api/v1/cc/artist-info",
     siteSettings: {
       /** GET: public site settings exposed to the frontend (currently: tracking flag). */
       tracking: "/api/v1/site-settings/tracking",
@@ -132,6 +136,9 @@ export const ENDPOINTS = {
     /** GET: forwarded to `ENDPOINTS.v1.ccAudio`. The audio player loads CC tracks
      *  through this same-origin proxy so no cross-origin Range request is made. */
     ccAudio: (jamendoId: string) => `/api/cc/audio/${encodeURIComponent(jamendoId)}`,
+    /** GET: forwarded to `ENDPOINTS.v1.ccArtistInfo`. The CC share page loads the
+     *  artist column through this async, after the core card has rendered. */
+    ccArtistInfo: "/api/cc/artist-info",
     /** GET: handled entirely by Astro (`pages/api/redirect.ts`): takes `?url=`,
      * calls `ENDPOINTS.v1.resolve`, then 302s to the resolved share page. */
     redirect: "/api/redirect",

@@ -54,6 +54,13 @@ export interface MediaCardContentConfiguration {
   /** Whether `previewUrl` is a short preview clip (default) or a full track
    *  (CC / Jamendo). Drives the player's wording. Defaults to a preview. */
   mediaKind?: MediaKindType;
+  /** CC only: the track's Jamendo artist id, so ShareLayout loads the CC artist
+   *  column async via `/api/cc/artist-info` instead of receiving it pre-built. */
+  ccJamendoArtistId?: string;
+  /** CC track only: the license / attribution content for the secondary card.
+   *  When set, the result's secondary slot renders a `CcInfoCard` instead of the
+   *  commercial `ServicesCard` — so an in-place CC resolve swaps it automatically. */
+  ccInfoContent?: CcTrackContentConfiguration;
   platforms: PlatformLink[];
   /** Pre-translated label above the platform grid */
   platformsLabel: string;

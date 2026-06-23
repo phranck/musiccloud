@@ -29,6 +29,7 @@ import adminSseRoutes from "./routes/admin-sse.js";
 import adminUserRoutes from "./routes/admin-users.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import authRoutes from "./routes/auth.js";
+import ccArtistInfoRoutes from "./routes/cc-artist-info.js";
 import ccAudioRoutes from "./routes/cc-audio.js";
 import ccGenreArtworkRoutes from "./routes/cc-genre-artwork.js";
 import ccRandomExampleRoutes from "./routes/cc-random-example.js";
@@ -423,6 +424,8 @@ async function buildApp() {
 
   // Artist info endpoint (public, no auth - fetched by React island)
   await app.register(artistInfoRoutes);
+  // CC artist column (public, no auth - the CC share page loads it async)
+  await app.register(ccArtistInfoRoutes);
   await app.register(randomExampleRoutes);
   await app.register(ccRandomExampleRoutes);
 

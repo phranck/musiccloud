@@ -9,7 +9,7 @@
  */
 
 import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
-import { type ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { createPortal } from "react-dom";
 
 const ShareUiActionType = {
@@ -24,14 +24,6 @@ const ShareUiActionType = {
   ResolveErrorVisible: "resolveErrorVisible",
   ResolveStarted: "resolveStarted",
   Resolved: "resolved",
-} as const;
-
-const ResolveResultKind = {
-  Artist: "artist",
-} as const;
-
-const ShareConfigType = {
-  Share: "share",
 } as const;
 
 interface ShareUiState {
@@ -126,7 +118,7 @@ function initialShareUiState({
   };
 }
 
-import type { ArtistCardLabels, ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
+import type { ArtistCardLabels } from "@/components/artist/artistPanelTypes";
 import { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { DesktopShareLayout } from "@/components/share/DesktopShareLayout";
 import { MobileArtistSheet } from "@/components/share/MobileArtistSheet";
@@ -140,12 +132,9 @@ import { LocaleProvider } from "@/i18n/context";
 import { useT } from "@/i18n/localeContext";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
-import { buildActiveConfig, parseUnifiedResolveResponse } from "@/lib/resolve/parsers";
-import { resolveTrackQuery } from "@/lib/resolve/resolve-client";
+import { commercialTrackResolver, type TrackResolver } from "@/lib/resolve/track-resolver";
 import type { ArtistInfoContext } from "@/lib/share/artist-info-client";
-import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
-import type { ActiveResult } from "@/lib/types/app";
 import {
   type MediaCardContentConfiguration,
   MediaKindValue,
@@ -172,10 +161,6 @@ function configIdentity(config: MediaCardContentConfiguration): string {
   return [config.type, config.title, config.artist, config.artworkUrl, shareUrl, shortUrl].join("::");
 }
 
-function resultArtistName(active: ActiveResult): string {
-  return active.kind === ResolveResultKind.Artist ? active.name : active.artist;
-}
-
 interface ShareLayoutProps {
   config: MediaCardContentConfiguration;
   artistName: string;
@@ -197,21 +182,15 @@ interface ShareLayoutProps {
    * passes a Jamendo-built {@link ArtistInfoResponse} here. Commercial omits it.
    */
   artistData?: ArtistInfoResponse | null;
-  /** Suppresses the internal commercial artist-info fetch (CC has no such endpoint). */
+  /** Suppresses the internal artist-info fetch — used together with `artistData`. */
   skipArtistFetch?: boolean;
   /**
-   * Card rendered below `MediaSummaryCard` in the left column. Defaults to the
-   * commercial `<ServicesCard>`. The CC path passes `<CcInfoCard>` (license /
-   * attribution). On mobile it renders below the share card only when provided
-   * (commercial keeps its platform grid inside the share card).
+   * The resolver for a clicked popular/similar-track row. Defaults to
+   * {@link commercialTrackResolver}; the CC path passes {@link ccTrackResolver}.
+   * ShareLayout always resolves in place — it swaps the resolved config (and its
+   * `ccInfoContent` / `ccJamendoArtistId`) without navigating or re-mounting.
    */
-  secondaryCard?: ReactNode;
-  /**
-   * Resolves a clicked popular/similar-track row. Defaults to the commercial
-   * in-place resolve (`POST /api/resolve`). The CC path passes a handler that
-   * resolves the row's `jamendo:<id>` candidate through the CC endpoint.
-   */
-  onTrackResolve?: ArtistPanelTrackResolveHandler;
+  trackResolver?: TrackResolver;
   /**
    * Per-title overrides for the artist-column sections. Commercial omits this
    * and gets the i18n defaults; the CC path overrides individual titles
@@ -239,8 +218,7 @@ function ShareLayoutInner({
   backLabel,
   artistData: artistDataProp,
   skipArtistFetch = false,
-  secondaryCard,
-  onTrackResolve,
+  trackResolver = commercialTrackResolver,
   labels,
 }: ShareLayoutProps) {
   const t = useT();
@@ -290,6 +268,7 @@ function ShareLayoutInner({
     context: currentArtistContext,
     artistDataProp,
     skipArtistFetch,
+    ccJamendoArtistId: currentConfig.ccJamendoArtistId,
     onFetchSettled: handleArtistFetchSettled,
   });
   const mounted = useIsClient();
@@ -371,39 +350,34 @@ function ShareLayoutInner({
     dispatchUi({ type: ShareUiActionType.ResolveStarted });
   }, []);
 
-  const handleTrackResolve = useCallback(
+  // One generic in-place resolve for both modes: the injected resolver turns the
+  // clicked row into a resolved share update, then ShareLayout swaps the
+  // config (and its `ccInfoContent` / `ccJamendoArtistId`) via `dispatchUi` and
+  // rewrites the address bar — no navigation, no re-mount. Commercial and CC
+  // differ only in the resolver, not in this mechanism.
+  const resolveTrack = useCallback(
     async (track: ArtistTopTrack) => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
       let keepResolveLoadingForArtistFetch = false;
       try {
-        const resolved = await resolveTrackQuery(track.deezerUrl, controller.signal);
-        replaceBrowserUrlWithShortUrl(resolved.shortUrl);
-        if (currentConfig.type === ShareConfigType.Share) {
-          const next = buildShareViewFromResolvedResponse(resolved, t);
-          const shouldFetchArtist =
-            normalizeArtistName(next.artistName) !== normalizeArtistName(currentArtistName) ||
-            !sameArtistInfoContext(next.artistInfoContext, currentArtistContext);
-          keepResolveLoadingForArtistFetch = shouldFetchArtist;
-          dispatchUi({
-            type: ShareUiActionType.Resolved,
-            artistContext: next.artistInfoContext,
-            artistName: shouldFetchArtist ? next.artistName : undefined,
-            config: next.config,
-          });
-          document.title = next.pageTitle;
-          return;
-        }
-
-        const active = parseUnifiedResolveResponse(resolved);
-        const nextArtistName = resultArtistName(active);
-        const shouldFetchArtist = normalizeArtistName(nextArtistName) !== normalizeArtistName(currentArtistName);
+        const update = await trackResolver(track.deezerUrl, {
+          signal: controller.signal,
+          t,
+          configType: currentConfig.type,
+        });
+        replaceBrowserUrlWithShortUrl(update.shortUrl);
+        const shouldFetchArtist =
+          normalizeArtistName(update.artistName) !== normalizeArtistName(currentArtistName) ||
+          !sameArtistInfoContext(update.artistInfoContext ?? {}, currentArtistContext);
         keepResolveLoadingForArtistFetch = shouldFetchArtist;
         dispatchUi({
           type: ShareUiActionType.Resolved,
-          artistName: shouldFetchArtist ? nextArtistName : undefined,
-          config: buildActiveConfig(active, t),
+          artistContext: update.artistInfoContext,
+          artistName: shouldFetchArtist ? update.artistName : undefined,
+          config: update.config,
         });
+        if (update.pageTitle) document.title = update.pageTitle;
       } catch (err) {
         dispatchUi({ type: ShareUiActionType.ResolveErrorVisible });
         throw err;
@@ -412,11 +386,8 @@ function ShareLayoutInner({
         clearTimeout(timeout);
       }
     },
-    [currentArtistContext, currentArtistName, currentConfig, t],
+    [currentArtistContext, currentArtistName, currentConfig, t, trackResolver],
   );
-
-  // Commercial in-place resolve by default; the CC path injects its own handler.
-  const resolveTrack = onTrackResolve ?? handleTrackResolve;
 
   return (
     <div className="w-full">
@@ -431,7 +402,6 @@ function ShareLayoutInner({
         onArtistResolveStart={handleArtistResolveStart}
         onPreviewStatusChange={handlePreviewStatusChange}
         onTrackResolve={resolveTrack}
-        secondaryCard={secondaryCard}
         userRegion={userRegion}
       />
       <MobileShareLayout
@@ -440,7 +410,6 @@ function ShareLayoutInner({
         label={t("artist.mobileButton")}
         onOpenSheet={openSheet}
         onPreviewStatusChange={handlePreviewStatusChange}
-        secondaryCard={secondaryCard}
       />
       {mounted &&
         createPortal(

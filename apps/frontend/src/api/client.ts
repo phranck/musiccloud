@@ -361,3 +361,19 @@ export async function fetchArtistInfo(
     10000,
   );
 }
+
+/** Forward a CC artist-column request to the backend `ccArtistInfo` endpoint
+ *  (Jamendo top + similar tracks + profile). The CC share page loads this async
+ *  after the core card renders, so the budget covers the ~4 throttled calls. */
+export async function fetchCcArtistInfo(
+  jamendoArtistId: string,
+  artistName: string,
+  clientIp?: string,
+): Promise<Response> {
+  const params = new URLSearchParams({ jamendoArtistId, artistName });
+  return fetchWithTimeout(
+    `${backendUrl(ENDPOINTS.v1.ccArtistInfo)}?${params.toString()}`,
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    20000,
+  );
+}

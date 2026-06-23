@@ -13,7 +13,7 @@ import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
 import { buildShareConfigFromActive, ccResponseToResult, ccResultToShareProps } from "@/lib/resolve/parsers";
 import { pathFromShortUrl } from "@/lib/share/short-url";
 import { type ActiveResult, ActiveResultKind } from "@/lib/types/app";
-import type { CcTrackContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
+import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 /** A CC variant of {@link SharePageResponse} (track / album / artist). */
 type CcSharePageResponse = CcTrackSharePageResponse | CcAlbumSharePageResponse | CcArtistSharePageResponse;
@@ -25,16 +25,17 @@ export function isCcSharePageResponse(data: SharePageResponse): data is CcShareP
 
 /**
  * The server-built inputs the {@link CcSharePageShell} renders. Mirrors the CC
- * live view: the left media card (`config`), the right artist column
- * (`artistInfo`), the optional license card content (`ccInfoContent`, track
- * only), the CC section-title overrides (`labels`), plus the page title and
- * artwork for the document head.
+ * live view: the left media card (`config`, which for a track carries its
+ * `ccInfoContent` license block), the right artist column (`artistInfo`), the CC
+ * section-title overrides (`labels`), plus the page title and artwork for the
+ * document head.
  */
 export interface CcSharePageProps {
   config: ShareContentConfiguration;
   artistName: string;
-  artistInfo: ArtistInfoResponse;
-  ccInfoContent?: CcTrackContentConfiguration;
+  /** Pre-built artist column — set for cc-album/cc-artist, **unset for cc-track**
+   *  (which loads it async via `config.ccJamendoArtistId`). */
+  artistInfo?: ArtistInfoResponse;
   labels: { similar: string; profileProvidedBy: string };
   pageTitle: string;
   artworkUrl?: string | null;
@@ -51,12 +52,11 @@ export interface CcSharePageProps {
  */
 export function buildCcSharePageProps(data: CcSharePageResponse, t: TFunc): CcSharePageProps {
   const result = ccResponseToResult(data);
-  const { config, artistName, ccInfoContent } = ccResultToShareProps(result, t);
+  const { config, artistName } = ccResultToShareProps(result, t);
   return {
     config,
     artistName,
     artistInfo: result.artistInfo,
-    ccInfoContent,
     labels: { similar: t("artist.similarTracks"), profileProvidedBy: t("artist.profileProvidedByJamendo") },
     pageTitle: data.og.title,
     artworkUrl: config.artworkUrl,

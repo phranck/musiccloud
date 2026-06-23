@@ -202,6 +202,8 @@ export interface ApiCcTrack {
   jamendoId: string;
   title: string;
   artistName: string;
+  /** Jamendo artist id — drives the client-side CC artist-info fetch. */
+  jamendoArtistId: string;
   albumName?: string;
   artworkUrl?: string;
   durationMs?: number;
@@ -233,9 +235,10 @@ export interface CcResolveSuccessResponse {
    * track artist's popular tracks (`topTracks`) plus similar tracks
    * (`similarArtistTracks`). `profile` is null and `events` empty — Jamendo has
    * neither — so those cards self-hide. Lets a CC result reuse the commercial
-   * artist column verbatim.
+   * artist column verbatim. Optional: the CC live view loads this client-side
+   * (async, via `/api/cc/artist-info`), so the resolve response omits it.
    */
-  artistInfo: ArtistInfoResponse;
+  artistInfo?: ArtistInfoResponse;
 }
 
 /**
@@ -372,7 +375,9 @@ export interface CcTrackSharePageResponse {
   og: OgMeta;
   shortUrl: string;
   track: ApiCcTrack;
-  artistInfo: ArtistInfoResponse;
+  /** Optional: loaded client-side (async) via `/api/cc/artist-info` so the share
+   *  page renders the core card immediately. */
+  artistInfo?: ArtistInfoResponse;
 }
 
 /** The Creative-Commons share-page payload for a CC album. See {@link CcTrackSharePageResponse}. */

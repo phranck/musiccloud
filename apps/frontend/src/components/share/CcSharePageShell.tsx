@@ -1,23 +1,21 @@
 import { navigate } from "astro:transitions/client";
-import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
-import { ENDPOINTS } from "@musiccloud/shared";
-import { type MouseEvent, type ReactNode, useCallback, useMemo, useRef } from "react";
-import { CcInfoCard } from "@/components/cards/CcInfoCard";
+import type { ArtistInfoResponse } from "@musiccloud/shared";
+import { type MouseEvent, useCallback, useRef } from "react";
 import { ShareLayout } from "@/components/share/ShareLayout";
 import { ShareLogoHeader } from "@/components/share/ShareLogoHeader";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
-import { pathFromShortUrl } from "@/lib/share/short-url";
-import type { CcTrackContentConfiguration, ShareContentConfiguration } from "@/lib/types/media-card";
+import { ccTrackResolver } from "@/lib/resolve/track-resolver";
+import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 interface CcSharePageShellProps {
-  /** Left media-card configuration (cover / player) for the CC entity. */
+  /** Left media-card configuration (cover / player) for the CC entity; a cc-track
+   *  config carries its `ccInfoContent` (license card) and `ccJamendoArtistId`. */
   config: ShareContentConfiguration;
   /** Artist name driving the shared right-hand artist column. */
   artistName: string;
-  /** Pre-built Jamendo artist info (popular + similar tracks); no internal fetch. */
-  artistInfo: ArtistInfoResponse;
-  /** License / attribution content for the `CcInfoCard` secondary slot — track only. */
-  ccInfoContent?: CcTrackContentConfiguration;
+  /** Pre-built Jamendo artist column — set for cc-album/cc-artist, **unset for
+   *  cc-track** (loaded async via `config.ccJamendoArtistId`). */
+  artistInfo?: ArtistInfoResponse;
   /** CC section-title overrides ("Similar Tracks", Jamendo credit). */
   labels: { similar: string; profileProvidedBy: string };
   initialLocale?: string;
@@ -26,21 +24,14 @@ interface CcSharePageShellProps {
 /**
  * Renders a persistent CC share page (`/:shortId` for a cc-track/cc-album/
  * cc-artist) through the same {@link ShareLayout} as the commercial page and the
- * CC live view — only the data source and the row-resolve behaviour differ.
+ * CC live view — only the data source differs.
  *
  * The logo returns home (with focus restored to the hero); Escape does the same.
- * A clicked popular/similar row resolves its `jamendo:<id>` candidate through the
- * CC endpoint and navigates to the freshly minted CC share page, rather than the
- * commercial in-place resolve (whose reducer is commercial-only).
+ * A clicked popular/similar row resolves in place through {@link ccTrackResolver}
+ * (the same generic mechanism the commercial page uses), so the card swaps
+ * without a navigation or re-mount.
  */
-export function CcSharePageShell({
-  config,
-  artistName,
-  artistInfo,
-  ccInfoContent,
-  labels,
-  initialLocale,
-}: CcSharePageShellProps) {
+export function CcSharePageShell({ config, artistName, artistInfo, labels, initialLocale }: CcSharePageShellProps) {
   const navigated = useRef(false);
 
   const navigateHome = useCallback(() => {
@@ -65,25 +56,6 @@ export function CcSharePageShell({
     [navigateHome],
   );
 
-  const handleCcTrackResolve = useCallback(async (track: ArtistTopTrack) => {
-    // CC rows carry a `jamendo:<id>` candidate in `deezerUrl`. Resolving it mints
-    // + persists a short URL; navigate to that new CC share page.
-    const res = await fetch(ENDPOINTS.frontend.ccResolve, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ selectedCandidate: track.deezerUrl }),
-    });
-    if (!res.ok) throw new Error(`CC resolve failed: ${res.status}`);
-    const resolved = (await res.json()) as { shortUrl?: string };
-    if (!resolved.shortUrl) throw new Error("CC resolve returned no short URL");
-    navigate(pathFromShortUrl(resolved.shortUrl));
-  }, []);
-
-  const secondaryCard = useMemo<ReactNode>(
-    () => (ccInfoContent ? <CcInfoCard content={ccInfoContent} /> : undefined),
-    [ccInfoContent],
-  );
-
   return (
     <main id="main-content" className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-20 sm:pt-12 md:pt-14 pb-12">
       <ShareLogoHeader onLogoClick={handleLogoClick} />
@@ -94,10 +66,9 @@ export function CcSharePageShell({
           config={config}
           artistName={artistName}
           artistData={artistInfo}
-          skipArtistFetch
-          secondaryCard={secondaryCard}
+          skipArtistFetch={!config.ccJamendoArtistId}
           labels={labels}
-          onTrackResolve={handleCcTrackResolve}
+          trackResolver={ccTrackResolver}
           initialLocale={initialLocale}
         />
       </div>

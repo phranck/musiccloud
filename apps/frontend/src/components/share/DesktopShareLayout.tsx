@@ -1,11 +1,11 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
-import type { ReactNode } from "react";
 import type {
   ArtistCardLabels,
   ArtistInfoStatus,
   ArtistPanelTrackResolveHandler,
 } from "@/components/artist/artistPanelTypes";
 import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
+import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
 import { ServicesCard } from "@/components/cards/ServicesCard";
 import { AnimatedArtistColumn } from "@/components/share/AnimatedArtistColumn";
@@ -32,8 +32,6 @@ export interface DesktopShareLayoutProps {
   onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
   /** Resolves a clicked artist-panel track row. */
   onTrackResolve: ArtistPanelTrackResolveHandler;
-  /** Optional card rendered below the summary card (CC license / attribution). */
-  secondaryCard?: ReactNode;
   /** Listener region used to localize artist-column data. */
   userRegion: string;
 }
@@ -58,7 +56,6 @@ export function DesktopShareLayout({
   onArtistResolveStart,
   onPreviewStatusChange,
   onTrackResolve,
-  secondaryCard,
   userRegion,
 }: DesktopShareLayoutProps) {
   return (
@@ -66,7 +63,11 @@ export function DesktopShareLayout({
       left={
         <div className="flex flex-col gap-[var(--mc-gap-cards,1.5rem)]" style={{ width: `${MEDIA_W}px` }}>
           <MediaSummaryCard content={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
-          {secondaryCard ?? <ServicesCard content={config} animated={animated} />}
+          {config.ccInfoContent ? (
+            <CcInfoCard content={config.ccInfoContent} animated={animated} />
+          ) : (
+            <ServicesCard content={config} animated={animated} />
+          )}
         </div>
       }
       right={

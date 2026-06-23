@@ -170,6 +170,8 @@ export interface CcTrackResult {
   kind: typeof ActiveResultKind.CcSong;
   /** Jamendo numeric track ID (as string). */
   jamendoId: string;
+  /** Jamendo numeric artist ID — drives the async CC artist-column fetch. */
+  jamendoArtistId: string;
   /** Track title as returned by Jamendo. */
   title: string;
   /** Primary artist name. */
@@ -196,8 +198,13 @@ export interface CcTrackResult {
   jamendoUrl?: string;
   /** musiccloud short URL for this result (e.g. `https://musi.cc/abc123`). */
   shareUrl: string;
-  /** Right-column data (track-artist popular tracks + similar tracks) for the shared artist column. */
-  artistInfo: ArtistInfoResponse;
+  /**
+   * Right-column data for the shared artist column. Optional and **unset for a CC
+   * track** — the track card renders immediately and loads this column async via
+   * the track's `jamendoArtistId` (`/api/cc/artist-info`). Album/artist still seed
+   * it server-side.
+   */
+  artistInfo?: ArtistInfoResponse;
 }
 
 /**

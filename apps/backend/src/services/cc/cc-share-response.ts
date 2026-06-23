@@ -27,6 +27,7 @@ export function toApiCcTrack(track: CcTrack): ApiCcTrack {
     jamendoId: track.jamendoId,
     title: track.title,
     artistName: track.artistName,
+    jamendoArtistId: track.jamendoArtistId,
     albumName: track.albumName,
     artworkUrl: track.artworkUrl,
     durationMs: track.durationMs,
@@ -40,27 +41,18 @@ export function toApiCcTrack(track: CcTrack): ApiCcTrack {
   };
 }
 
-/** The shared core of a CC-track share payload: the wire track + its right column. */
-export interface CcTrackPayload {
-  track: ApiCcTrack;
-  artistInfo: ArtistInfoResponse;
-}
-
 /**
- * Builds the shared CC-track payload: the wire-format track plus the right-column
- * artist info (the track artist's popular tracks + similar tracks, fetched live
- * from Jamendo). Issues one throttled Jamendo top-tracks call.
+ * Builds just the CC-track right-column artist info (the track artist's popular
+ * tracks + similar tracks + profile) from Jamendo. Split out from the core track
+ * card so the share page / live result render the card immediately and load this
+ * async (~4 throttled Jamendo calls) via `/api/v1/cc/artist-info`.
  *
- * @param track - The resolved CC track.
- * @returns The wire track and its {@link ArtistInfoResponse}.
+ * @param artistName - The track artist's name (column header context).
+ * @param jamendoArtistId - The Jamendo artist id whose column to build.
+ * @returns The {@link ArtistInfoResponse} for the shared artist column.
  */
-export async function buildCcTrackPayload(track: CcTrack): Promise<CcTrackPayload> {
-  const artistInfo = await buildCcArtistInfo(
-    track.artistName,
-    track.jamendoArtistId,
-    await getCcArtistTopTracks(track.jamendoArtistId),
-  );
-  return { track: toApiCcTrack(track), artistInfo };
+export async function buildCcTrackArtistInfo(artistName: string, jamendoArtistId: string): Promise<ArtistInfoResponse> {
+  return buildCcArtistInfo(artistName, jamendoArtistId, await getCcArtistTopTracks(jamendoArtistId));
 }
 
 /** The shared core of a CC-album share payload: the wire album (with its tracks) + its right column. */
