@@ -143,7 +143,13 @@ export async function fetchShareData(
     const res = await fetchWithTimeout(
       backendUrl(ENDPOINTS.v1.share(shortId)),
       { headers: internalHeaders(shareRequestExtra(clientIp, requestHeaders)), cache: "no-store" },
-      5000,
+      // CC shares are mirrored live from Jamendo (several throttled API calls per
+      // open), so their SSR routinely takes a few seconds — well past a 5s budget
+      // under any Jamendo latency. The caller turns a null into a /404 redirect,
+      // so a too-tight timeout shows a spurious "not found" for a valid CC track.
+      // Commercial shares resolve from the DB in ~20ms, so the wider budget never
+      // bites them.
+      20000,
     );
     if (!res.ok) return null;
     return res.json() as Promise<SharePageResponse>;
