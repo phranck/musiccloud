@@ -35,6 +35,7 @@
  * registry matching the URL exactly so a code reader can grep both ways.
  */
 
+import type { JamendoAudioFormat } from "./audio-format.js";
 import type { Locale } from "./locales.js";
 
 // -----------------------------------------------------------------------------
@@ -70,8 +71,10 @@ export const ENDPOINTS = {
     ccGenreArtwork: (genreKey: string) => `/api/v1/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
     /** GET `/api/v1/cc/audio/:jamendoId`: CORS-safe proxy of the full Jamendo
      *  stream (Range-forwarded). Lets the player load + analyse CC audio that
-     *  Jamendo serves without the Range CORS preflight headers Web Audio needs. */
-    ccAudio: (jamendoId: string) => `/api/v1/cc/audio/${encodeURIComponent(jamendoId)}`,
+     *  Jamendo serves without the Range CORS preflight headers Web Audio needs.
+     *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */
+    ccAudio: (jamendoId: string, format?: JamendoAudioFormat) =>
+      `/api/v1/cc/audio/${encodeURIComponent(jamendoId)}${format ? `?format=${format}` : ""}`,
     /** GET `/api/v1/cc/artist-info?jamendoArtistId&artistName`: the CC artist
      *  column (Jamendo top + similar tracks + profile), loaded async by the share
      *  page so the core card renders immediately. */
@@ -134,8 +137,10 @@ export const ENDPOINTS = {
     /** GET: forwarded to `ENDPOINTS.v1.ccGenreArtwork`. CC genre tile cover (Jamendo-sourced). */
     ccGenreArtwork: (genreKey: string) => `/api/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
     /** GET: forwarded to `ENDPOINTS.v1.ccAudio`. The audio player loads CC tracks
-     *  through this same-origin proxy so no cross-origin Range request is made. */
-    ccAudio: (jamendoId: string) => `/api/cc/audio/${encodeURIComponent(jamendoId)}`,
+     *  through this same-origin proxy so no cross-origin Range request is made.
+     *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */
+    ccAudio: (jamendoId: string, format?: JamendoAudioFormat) =>
+      `/api/cc/audio/${encodeURIComponent(jamendoId)}${format ? `?format=${format}` : ""}`,
     /** GET: forwarded to `ENDPOINTS.v1.ccArtistInfo`. The CC share page loads the
      *  artist column through this async, after the core card has rendered. */
     ccArtistInfo: "/api/cc/artist-info",
@@ -308,7 +313,8 @@ export const ROUTE_TEMPLATES = {
     genreArtwork: "/api/v1/genre-artwork/:genreKey",
     /** Route template for ENDPOINTS.v1.ccGenreArtwork (CC genre tile cover, Jamendo-sourced). */
     ccGenreArtwork: "/api/v1/cc/genre-artwork/:genreKey",
-    /** Route template for ENDPOINTS.v1.ccAudio (CORS-safe Jamendo stream proxy). */
+    /** Route template for ENDPOINTS.v1.ccAudio (CORS-safe Jamendo stream proxy).
+     *  The `format` is an optional `?format=` query (validated against JamendoAudioFormat), not a path segment. */
     ccAudio: "/api/v1/cc/audio/:jamendoId",
     nav: "/api/v1/nav/:navId",
     contentDetail: "/api/v1/content/:slug",

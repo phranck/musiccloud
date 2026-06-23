@@ -17,7 +17,13 @@
 
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
-import { ROUTE_TEMPLATES } from "@musiccloud/shared";
+import {
+  JAMENDO_FORMAT_META,
+  type JamendoAudioFormat,
+  parseJamendoAudioFormat,
+  ROUTE_TEMPLATES,
+  swapStreamFormat,
+} from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
@@ -33,19 +39,30 @@ const streamUrlCache = new Map<string, { url: string; expiresAt: number }>();
 const FORWARDED_HEADERS = ["content-type", "content-length", "content-range", "cache-control"] as const;
 
 /**
- * Resolves a CC track's permanent Jamendo stream URL by Jamendo id, caching the
- * result in-process so repeated Range requests do not each call Jamendo.
+ * Resolves a CC track's permanent Jamendo stream URL by Jamendo id and rewrites
+ * it to the requested format.
+ *
+ * The cache holds the format-agnostic base URL (Jamendo returns it with its own
+ * default format); the requested `format` is applied per request via
+ * {@link swapStreamFormat}, so a single cache entry serves every format and
+ * repeated Range requests never re-call Jamendo.
  *
  * @param jamendoId - The Jamendo track id.
- * @returns The stream URL, or `null` when Jamendo has no such track.
+ * @param format - The desired delivery format.
+ * @returns The format-rewritten stream URL, or `null` when Jamendo has no such track.
  */
-async function resolveStreamUrl(jamendoId: string): Promise<string | null> {
+async function resolveStreamUrl(jamendoId: string, format: JamendoAudioFormat): Promise<string | null> {
   const cached = streamUrlCache.get(jamendoId);
-  if (cached && cached.expiresAt > Date.now()) return cached.url;
-  const track = await getCcTrack(jamendoId);
-  if (!track?.streamUrl) return null;
-  streamUrlCache.set(jamendoId, { url: track.streamUrl, expiresAt: Date.now() + STREAM_URL_TTL_MS });
-  return track.streamUrl;
+  let baseUrl: string;
+  if (cached && cached.expiresAt > Date.now()) {
+    baseUrl = cached.url;
+  } else {
+    const track = await getCcTrack(jamendoId);
+    if (!track?.streamUrl) return null;
+    baseUrl = track.streamUrl;
+    streamUrlCache.set(jamendoId, { url: baseUrl, expiresAt: Date.now() + STREAM_URL_TTL_MS });
+  }
+  return swapStreamFormat(baseUrl, format);
 }
 
 /**
@@ -57,19 +74,26 @@ async function resolveStreamUrl(jamendoId: string): Promise<string | null> {
  * @param app - The Fastify instance to register on.
  */
 export default async function ccAudioRoutes(app: FastifyInstance) {
-  app.get<{ Params: { jamendoId: string } }>(
+  app.get<{ Params: { jamendoId: string }; Querystring: { format?: string } }>(
     ROUTE_TEMPLATES.v1.ccAudio,
     {
       schema: {
         tags: ["CC"],
         summary: "Proxy the full Jamendo audio stream for a CC track",
         description:
-          "Re-serves the permanent Jamendo stream for a Creative-Commons track from our own origin, forwarding Range requests, so the audio player can load and analyse it without Jamendo's missing Range CORS headers.",
+          "Re-serves the permanent Jamendo stream for a Creative-Commons track from our own origin, forwarding Range requests, so the audio player can load and analyse it without Jamendo's missing Range CORS headers. The optional `?format=` query selects the delivery format (mp31 | mp32 | ogg | flac); an invalid or absent value falls back to mp32.",
         params: {
           type: "object",
           required: ["jamendoId"],
           properties: {
             jamendoId: { type: "string", minLength: 1, maxLength: 32, pattern: "^[0-9]+$" },
+          },
+          additionalProperties: false,
+        },
+        querystring: {
+          type: "object",
+          properties: {
+            format: { type: "string", description: "Jamendo delivery format (mp31 | mp32 | ogg | flac)." },
           },
           additionalProperties: false,
         },
@@ -84,7 +108,8 @@ export default async function ccAudioRoutes(app: FastifyInstance) {
       }
 
       const { jamendoId } = request.params;
-      const streamUrl = await resolveStreamUrl(jamendoId);
+      const format = parseJamendoAudioFormat(request.query.format);
+      const streamUrl = await resolveStreamUrl(jamendoId, format);
       if (!streamUrl) {
         return reply.status(404).send({ error: "TRACK_NOT_FOUND", message: "No CC track found for this Jamendo id." });
       }
@@ -111,7 +136,7 @@ export default async function ccAudioRoutes(app: FastifyInstance) {
         const value = upstream.headers.get(name);
         if (value) reply.header(name, value);
       }
-      if (!upstream.headers.get("content-type")) reply.header("Content-Type", "audio/mpeg");
+      if (!upstream.headers.get("content-type")) reply.header("Content-Type", JAMENDO_FORMAT_META[format].mime);
 
       return reply.send(Readable.fromWeb(upstream.body as NodeWebReadableStream<Uint8Array>));
     },
