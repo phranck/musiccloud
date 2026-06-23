@@ -255,6 +255,17 @@ export async function fetchRandomExample(): Promise<{ shortId: string } | null> 
   }
 }
 
+/** Fetch a random CC track short ID for the landing page example teaser in CC mode. */
+export async function fetchCcRandomExample(): Promise<{ shortId: string } | null> {
+  try {
+    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.ccRandomExample), { headers: internalHeaders() }, 3000);
+    if (!res.ok) return null;
+    return res.json() as Promise<{ shortId: string }>;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * In-process TTL cache for the design tokens. The BFF has no cache layer and
  * `output: "server"` re-runs SSR on every request, so without this each render

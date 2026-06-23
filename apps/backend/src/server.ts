@@ -31,6 +31,7 @@ import artistInfoRoutes from "./routes/artist-info.js";
 import authRoutes from "./routes/auth.js";
 import ccAudioRoutes from "./routes/cc-audio.js";
 import ccGenreArtworkRoutes from "./routes/cc-genre-artwork.js";
+import ccRandomExampleRoutes from "./routes/cc-random-example.js";
 import ccResolveRoutes from "./routes/cc-resolve.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
@@ -423,6 +424,7 @@ async function buildApp() {
   // Artist info endpoint (public, no auth - fetched by React island)
   await app.register(artistInfoRoutes);
   await app.register(randomExampleRoutes);
+  await app.register(ccRandomExampleRoutes);
 
   // Genre artwork endpoint (public, no auth - referenced from browse grid tiles)
   await app.register(genreArtworkRoutes);

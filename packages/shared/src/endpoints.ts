@@ -57,6 +57,9 @@ export const ENDPOINTS = {
     artistInfo: "/api/v1/artist-info",
     /** GET `/api/v1/random-example`: pick a random short URL (track or album). */
     randomExample: "/api/v1/random-example",
+    /** GET `/api/v1/cc/random-example`: pick a random CC track short URL, for the
+     *  landing page's live-example link in Creative-Commons mode. */
+    ccRandomExample: "/api/v1/cc/random-example",
     /** GET `/api/v1/link/:id`: link metadata by id. */
     link: (id: string) => `/api/v1/link/${id}`,
     /** GET `/api/v1/genre-artwork/:genreKey`: procedurally generated genre cover. */

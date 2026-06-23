@@ -907,6 +907,8 @@ export interface CcRepository {
   persistCcArtist(data: PersistCcArtistData): Promise<{ ccArtistId: string; shortId: string }>;
   /** Resolves a public CC short id (track, album or artist) to its kind + Jamendo id. */
   findCcShortId(shortId: string): Promise<CcShortIdLookup | null>;
+  /** Returns a random existing CC track short id, or `null` when none exist. */
+  getRandomCcShortId(): Promise<string | null>;
 }
 
 /** Payload accepted by `insertAppTelemetryEvent`. Shape matches the

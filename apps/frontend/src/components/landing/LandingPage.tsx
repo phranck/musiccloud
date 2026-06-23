@@ -54,6 +54,8 @@ const EMPTY_NAV_ITEMS: NavItem[] = [];
 
 interface LandingPageProps {
   exampleShortId?: string | null;
+  /** CC track short id for the live-example link in Creative-Commons mode. */
+  ccExampleShortId?: string | null;
   footerNav?: NavItem[];
   /** Server-resolved locale, so SSR and client hydration agree (no mismatch). */
   initialLocale?: Locale;
@@ -77,13 +79,22 @@ function selectGenreTile(
   void handleSubmit(query);
 }
 
-function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, showFooter = true }: LandingPageProps) {
+function LandingPageInner({
+  exampleShortId = null,
+  ccExampleShortId = null,
+  footerNav = EMPTY_NAV_ITEMS,
+  showFooter = true,
+}: LandingPageProps) {
   const t = useT();
 
   // Resolve mode (commercial | cc) from the shared persistent store. SSR and the
   // pre-init client snapshot both fall back to the commercial default so first
   // paint and hydration agree; the stored mode reconciles right after hydration.
   const mode = useSyncExternalStore(subscribeResolveMode, getResolveMode, () => ResolveMode.Commercial);
+
+  // The live-example link points at a CC track in CC mode, else a commercial
+  // track; falls back to the commercial example when no CC example exists yet.
+  const activeExampleShortId = mode === ResolveMode.Cc && ccExampleShortId ? ccExampleShortId : exampleShortId;
 
   const resultsPanelRef = useRef<HTMLDivElement>(null);
   const disambiguationRef = useRef<HTMLDivElement>(null);
@@ -282,10 +293,10 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
                 />
               </div>
 
-              {!showCompact && exampleShortId && (
+              {!showCompact && activeExampleShortId && (
                 <div className="mt-4 flex justify-center" data-resolve-mode={mode}>
                   <LiveExampleTeaser
-                    exampleShortId={exampleShortId}
+                    exampleShortId={activeExampleShortId}
                     label={t("landing.exampleLink")}
                     teaser={t("landing.exampleTeaser")}
                     visible={
@@ -364,6 +375,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
 
 export function LandingPage({
   exampleShortId = null,
+  ccExampleShortId = null,
   footerNav = EMPTY_NAV_ITEMS,
   initialLocale,
   showFooter = true,
@@ -372,7 +384,12 @@ export function LandingPage({
     <ErrorBoundary>
       <LocaleProvider initialLocale={initialLocale}>
         <DialogProvider>
-          <LandingPageInner exampleShortId={exampleShortId} footerNav={footerNav} showFooter={showFooter} />
+          <LandingPageInner
+            exampleShortId={exampleShortId}
+            ccExampleShortId={ccExampleShortId}
+            footerNav={footerNav}
+            showFooter={showFooter}
+          />
         </DialogProvider>
       </LocaleProvider>
     </ErrorBoundary>

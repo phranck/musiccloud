@@ -123,6 +123,7 @@ import {
 } from "./postgres-artists.js";
 import {
   findCcShortId as ccFindShortId,
+  getRandomCcShortId as ccGetRandomShortId,
   persistCcAlbum as ccPersistAlbum,
   persistCcArtist as ccPersistArtist,
   persistCcTrack as ccPersistTrack,
@@ -710,6 +711,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepo
 
   findCcShortId(shortId: string): Promise<CcShortIdLookup | null> {
     return ccFindShortId(this.pool, shortId);
+  }
+
+  getRandomCcShortId(): Promise<string | null> {
+    return ccGetRandomShortId(this.pool);
   }
 
   // ============================================================================

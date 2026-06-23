@@ -355,3 +355,22 @@ export async function findCcShortId(pool: Pool, shortId: string): Promise<CcShor
   const r = result.rows[0];
   return { kind: r.kind as CcShortIdLookup["kind"], jamendoId: r.jamendo_id };
 }
+
+/**
+ * Returns a random existing CC track short id, or `null` when none have been
+ * shared yet. Powers the landing page's "live example" link in Creative-Commons
+ * mode — mirrors the commercial `getRandomShortId` but draws from the CC track
+ * short-url namespace so the example is a CC track (with its audio player).
+ *
+ * @param pool - The database pool.
+ * @returns A random CC short id, or `null` when no CC track exists.
+ */
+export async function getRandomCcShortId(pool: Pool): Promise<string | null> {
+  const result = await pool.query(
+    `SELECT id FROM cc_short_urls
+     OFFSET floor(random() * (SELECT COUNT(*) FROM cc_short_urls))::int
+     LIMIT 1`,
+  );
+  if (result.rows.length === 0) return null;
+  return result.rows[0].id;
+}
