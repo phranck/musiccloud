@@ -83,6 +83,11 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
         currentArtistName: action.artistName,
         currentConfig: action.config,
         lastPropsConfigKey: action.configKey,
+        // A new entity re-keys (and re-mounts) the audio player; it reports no
+        // status on mount, so a stale `playing` would otherwise stick. A stale
+        // resolve error from the previous entity is likewise no longer relevant.
+        previewStatus: null,
+        resolveErrorVisible: false,
       };
     case ShareUiActionType.ResolveErrorHidden:
       return { ...state, resolveErrorVisible: false };
@@ -96,6 +101,12 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
         currentArtistContext: action.artistContext ?? state.currentArtistContext,
         currentArtistName: action.artistName ?? state.currentArtistName,
         currentConfig: action.config,
+        // An in-place track swap re-keys (and re-mounts) the audio player; the
+        // fresh player reports no status on mount, so clear the stale one here
+        // (otherwise the VFD keeps showing "playing" after the audio stopped).
+        // A prior resolve error no longer applies to the freshly resolved track.
+        previewStatus: null,
+        resolveErrorVisible: false,
       };
   }
 }
