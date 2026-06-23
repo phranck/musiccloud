@@ -1,9 +1,5 @@
 import { ArrowSquareOutIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
-import {
-  controlRadiusInner,
-  outerEmbossedCardClassName,
-  recessedControlInsetClassName,
-} from "@/components/cards/cardGeometry";
+import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SectionCardShell } from "@/components/cards/SectionCardShell";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -110,12 +106,7 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
                 aria-label={licenseAlt}
                 className="flex-shrink-0"
               >
-                <img
-                  src={iconPath}
-                  alt={licenseAlt}
-                  className="block h-10 w-auto"
-                  style={{ borderRadius: controlRadiusInner }}
-                />
+                <img src={iconPath} alt={licenseAlt} className="block h-10 w-auto" />
               </a>
             ) : content.licenseCcurl ? (
               <a

@@ -8,11 +8,6 @@ export const embossedCardContentInset = "0.75rem";
 export const recessedSurfaceRadius = `calc(${embossedCardOuterRadius} - ${embossedCardContentInset})`;
 export const recessedControlInset = "0.1875rem";
 export const raisedControlRadius = `calc(${recessedSurfaceRadius} - ${recessedControlInset})`;
-// Interior corner radius for a single inset element in a recessed well whose
-// corners do NOT coincide with the well's rounded corners: capped at 5px — the
-// same `min(5px, control-radius)` the grouped-list rule applies via
-// `useGroupedCorners` / `gridCornerStyle`. Used by the CC licence badge.
-export const controlRadiusInner = `min(5px, ${raisedControlRadius})`;
 
 export const outerEmbossedCardClassName = "w-full max-w-full sm:max-w-lg mx-auto p-0";
 export const fullWidthEmbossedCardClassName = "w-full p-0";
