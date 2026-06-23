@@ -194,6 +194,62 @@ export type UnifiedResolveSuccessResponse =
 // ─── Creative-Commons (Jamendo) Resolve Types ─────────────────────────────────
 
 /**
+ * The `include=musicinfo` classification for a CC track, in the flattened wire /
+ * domain shape shared by every layer (Jamendo raw → domain → wire → app → config).
+ *
+ * Jamendo's raw `musicinfo` is snake_case and nests the three tag families under
+ * a `tags` object; this flattens them to the top level and camelCases the scalar
+ * classifiers. Every field is best-effort — Jamendo populates them unevenly, so
+ * the details card hides any row whose value is empty.
+ *
+ * @property genres - Genre tags, e.g. `["rock", "indie"]`.
+ * @property instruments - Instrument tags, e.g. `["guitar", "piano"]`.
+ * @property vartags - Mood / theme tags, surfaced under the UI's "Mood" label.
+ * @property vocalInstrumental - `"vocal"` or `"instrumental"`, when known.
+ * @property gender - Lead-vocal gender (`"male"` / `"female"`), when known.
+ * @property speed - Tempo bucket (`verylow` … `veryhigh`), when known.
+ * @property acousticElectric - `"acoustic"` or `"electric"`, when known.
+ * @property lang - ISO language of the lyrics, when known.
+ */
+export interface CcMusicInfo {
+  genres: string[];
+  instruments: string[];
+  vartags: string[];
+  vocalInstrumental?: string;
+  gender?: string;
+  speed?: string;
+  acousticElectric?: string;
+  lang?: string;
+}
+
+/**
+ * The `include=stats` engagement counters for a CC track, in wire / domain shape.
+ *
+ * Jamendo reports these as snake_case totals; the mapper camelCases them and
+ * coerces every counter to a number (absent counters default to 0). The details
+ * card formats them for display (compact counts, average rating).
+ *
+ * @property listens - Total play count (Jamendo `rate_listened_total`).
+ * @property downloads - Total download count (`rate_downloads_total`).
+ * @property playlisted - How many Jamendo playlists include the track.
+ * @property favorited - How many users favorited the track.
+ * @property likes - Thumbs-up count.
+ * @property dislikes - Thumbs-down count.
+ * @property avgNote - Average user rating (`avgnote`, 0–5 scale).
+ * @property notes - Number of ratings backing `avgNote`.
+ */
+export interface CcTrackStats {
+  listens: number;
+  downloads: number;
+  playlisted: number;
+  favorited: number;
+  likes: number;
+  dislikes: number;
+  avgNote: number;
+  notes: number;
+}
+
+/**
  * A Creative-Commons track on the wire. Unlike {@link ApiTrack} it carries no
  * cross-service links; instead it exposes the full permanent stream, the exact
  * CC licence, the optional download, and the waveform peaks the CC player needs.
@@ -218,6 +274,14 @@ export interface ApiCcTrack {
   waveform?: string;
   /** Canonical Jamendo page for the track. */
   shareUrl?: string;
+  /** `include=musicinfo` classification (genres, instruments, mood, vocal, …). Absent when Jamendo returns no music info. */
+  musicInfo?: CcMusicInfo;
+  /** `include=stats` engagement counters (listens, downloads, rating, …). Absent when Jamendo returns no stats. */
+  stats?: CcTrackStats;
+  /** True when the track is also licensable commercially via Jamendo Pro (`licenses.prolicensing === "true"`). */
+  proLicensing?: boolean;
+  /** Jamendo Pro licensing page for the track (`prourl`), shown when `proLicensing` is true. */
+  proUrl?: string;
 }
 
 /**

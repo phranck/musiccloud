@@ -38,6 +38,12 @@ export function toApiCcTrack(track: CcTrack): ApiCcTrack {
     downloadAllowed: track.downloadAllowed,
     waveform: track.waveform,
     shareUrl: track.shareUrl,
+    musicInfo: track.musicInfo,
+    stats: track.stats,
+    // Only the single-track resolve fetches licenses; elide the `false` so the
+    // album/artist `tracks[]` arrays (no include) stay schlank on the wire.
+    proLicensing: track.proLicensing || undefined,
+    proUrl: track.proUrl,
   };
 }
 

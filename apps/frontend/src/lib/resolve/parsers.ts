@@ -181,6 +181,10 @@ function parseCcResolveResponse(data: CcResolveSuccessResponse): CcTrackResult {
     waveform: data.track.waveform,
     jamendoUrl: data.track.shareUrl,
     shareUrl: data.shortUrl,
+    musicInfo: data.track.musicInfo,
+    stats: data.track.stats,
+    proLicensing: data.track.proLicensing,
+    proUrl: data.track.proUrl,
   };
 }
 
@@ -549,6 +553,10 @@ function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentConfigur
     jamendoUrl: cc.jamendoUrl,
     artistJamendoUrl: jamendoArtistProfileUrl(cc.jamendoArtistId),
     waveform: cc.waveform,
+    musicInfo: cc.musicInfo,
+    stats: cc.stats,
+    proLicensing: cc.proLicensing,
+    proUrl: cc.proUrl,
   };
 }
 
@@ -725,6 +733,10 @@ export function ccResponseToResult(
       waveform: track.waveform,
       jamendoUrl: track.shareUrl,
       shareUrl: data.shortUrl,
+      musicInfo: track.musicInfo,
+      stats: track.stats,
+      proLicensing: track.proLicensing,
+      proUrl: track.proUrl,
     };
   }
   if (data.type === "cc-album") {

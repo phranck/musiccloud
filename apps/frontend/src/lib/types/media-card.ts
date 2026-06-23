@@ -1,3 +1,4 @@
+import type { CcMusicInfo, CcTrackStats } from "@musiccloud/shared";
 import type { PlatformLink } from "./platform";
 
 export type { PlatformLink };
@@ -166,6 +167,14 @@ export interface CcTrackContentConfiguration {
   artistJamendoUrl?: string;
   /** Waveform image URL provided by Jamendo. */
   waveform?: string;
+  /** `include=musicinfo` classification (genres, instruments, mood, vocal, …). Drives the CC details card; absent when Jamendo returned none. */
+  musicInfo?: CcMusicInfo;
+  /** `include=stats` engagement counters (listens, downloads, rating, …). Drives the CC details card; raw numbers, the card formats them. */
+  stats?: CcTrackStats;
+  /** True when the track is also licensable commercially via Jamendo Pro. Drives the CcInfoCard Pro hint. */
+  proLicensing?: boolean;
+  /** Jamendo Pro licensing page for the track, linked from the Pro hint when `proLicensing` is true. */
+  proUrl?: string;
 }
 
 /** Type guard: true for song, album, and artist configs (all have shareUrl / srAnnouncement) */

@@ -4,6 +4,8 @@ import type {
   ApiGenreTile,
   ApiGenreTrackCandidate,
   ArtistInfoResponse,
+  CcMusicInfo,
+  CcTrackStats,
   UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import type { DisambiguationCandidate } from "./disambiguation";
@@ -198,6 +200,14 @@ export interface CcTrackResult {
   jamendoUrl?: string;
   /** musiccloud short URL for this result (e.g. `https://musi.cc/abc123`). */
   shareUrl: string;
+  /** `include=musicinfo` classification (genres, instruments, mood, vocal, …), when Jamendo returned it. */
+  musicInfo?: CcMusicInfo;
+  /** `include=stats` engagement counters (listens, downloads, rating, …), when Jamendo returned them. */
+  stats?: CcTrackStats;
+  /** True when the track is also licensable commercially via Jamendo Pro. */
+  proLicensing?: boolean;
+  /** Jamendo Pro licensing page for the track, shown when `proLicensing` is true. */
+  proUrl?: string;
   /**
    * Right-column data for the shared artist column. Optional and **unset for a CC
    * track** — the track card renders immediately and loads this column async via

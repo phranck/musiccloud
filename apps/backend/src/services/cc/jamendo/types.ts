@@ -6,6 +6,8 @@
  * backend consumes (`Cc*`, camelCase). The client maps raw → domain.
  */
 
+import type { CcMusicInfo, CcTrackStats } from "@musiccloud/shared";
+
 /**
  * Jamendo wraps every response in a `headers` + `results` envelope.
  *
@@ -39,8 +41,40 @@ export interface JamendoTrackRaw {
   shareurl: string;
   waveform: string; // escaped JSON string {"peaks":[…]}
   releasedate: string; // YYYY-MM-DD
-  /** Present only when the request adds `include=musicinfo`. Drives tag-based track similarity. */
-  musicinfo?: { tags?: { genres?: string[] } };
+  /**
+   * Present only when the request adds `include=musicinfo`. The nested `tags`
+   * drive tag-based similarity (`tags.genres`, read by `getSimilarCcTracks`) and
+   * the CC details card (instruments, mood); the scalar classifiers feed the
+   * details card's vocal / tempo / language rows. All fields best-effort —
+   * Jamendo populates them unevenly.
+   */
+  musicinfo?: {
+    vocalinstrumental?: string;
+    gender?: string;
+    speed?: string;
+    acousticelectric?: string;
+    lang?: string;
+    tags?: { genres?: string[]; instruments?: string[]; vartags?: string[] };
+  };
+  /** Present only when the request adds `include=stats`. Engagement counters for the CC details card. */
+  stats?: {
+    rate_listened_total?: number;
+    rate_downloads_total?: number;
+    playlisted?: number;
+    favorited?: number;
+    likes?: number;
+    dislikes?: number;
+    avgnote?: number;
+    notes?: number;
+  };
+  /**
+   * Present only when the request adds `include=licenses`. CC clause flags plus
+   * the Jamendo Pro licensing flags — every value is the string `"true"` or
+   * `"false"`, not a boolean.
+   */
+  licenses?: { cc?: string; ccnc?: string; ccnd?: string; ccsa?: string; prolicensing?: string; probackground?: string };
+  /** Jamendo Pro licensing page URL for the track (top-level, present with `include=licenses`). */
+  prourl?: string;
 }
 
 /** Raw album object as returned by `GET /v3.0/albums`. */
@@ -109,6 +143,14 @@ export interface CcTrack {
   downloadAllowed: boolean;
   waveform?: string;
   shareUrl?: string;
+  /** `include=musicinfo` classification, when the single-track resolve fetched it. */
+  musicInfo?: CcMusicInfo;
+  /** `include=stats` engagement counters, when the single-track resolve fetched them. */
+  stats?: CcTrackStats;
+  /** True when the track is also licensable via Jamendo Pro (`licenses.prolicensing === "true"`). */
+  proLicensing?: boolean;
+  /** Jamendo Pro licensing page for the track (`prourl`). */
+  proUrl?: string;
 }
 
 /** A Creative-Commons album in domain shape. */
