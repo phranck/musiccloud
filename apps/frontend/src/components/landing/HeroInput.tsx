@@ -175,7 +175,7 @@ export function HeroInput({
               state === InputState.Loading && "opacity-50",
             )}
             style={{ touchAction: "manipulation" }}
-            aria-label="Search for music by link or name"
+            aria-label={t("a11y.searchInput")}
             autoComplete="off"
           />
 
@@ -188,7 +188,7 @@ export function HeroInput({
                 "text-text-muted hover:text-text-primary",
                 "transition-colors duration-150",
               )}
-              aria-label="Clear search"
+              aria-label={t("a11y.clearSearch")}
             >
               <XCircleIcon size={24} weight="duotone" />
             </button>

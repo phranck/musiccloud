@@ -38,7 +38,7 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       <span className="text-left">&copy; {yearDisplay} musiccloud</span>
-      <nav aria-label="Footer navigation" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+      <nav aria-label={t("a11y.footerNav")} className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
         {navItems.map((item) => (
           <a
             key={item.id}

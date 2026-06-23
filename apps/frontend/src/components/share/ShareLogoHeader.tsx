@@ -1,5 +1,6 @@
 import type { MouseEvent } from "react";
 import { LogoView } from "@/components/ui/LogoView";
+import { useT } from "@/i18n/localeContext";
 
 interface ShareLogoHeaderProps {
   /**
@@ -24,9 +25,10 @@ interface ShareLogoHeaderProps {
  * @param onLogoClick - Optional click interceptor (see {@link ShareLogoHeaderProps}).
  */
 export function ShareLogoHeader({ onLogoClick }: ShareLogoHeaderProps) {
+  const t = useT();
   return (
     <div className="mb-4 text-center sm:mb-6">
-      <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={onLogoClick}>
+      <a href="/" aria-label={t("a11y.homeLink")} className="inline-block" onClick={onLogoClick}>
         <LogoView className="w-56 sm:w-64 h-auto" />
       </a>
     </div>

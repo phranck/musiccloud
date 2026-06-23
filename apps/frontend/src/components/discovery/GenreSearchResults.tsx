@@ -149,7 +149,7 @@ export function GenreSearchResults({
                     ariaLabel={
                       isSelected
                         ? t("genreSearch.loading")
-                        : `Resolve track "${track.title}" by ${track.artists.join(", ")}`
+                        : t("genreSearch.resolveTrack", { title: track.title, artists: track.artists.join(", ") })
                     }
                   >
                     <CandidateRowContent

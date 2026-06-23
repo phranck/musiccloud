@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { usePrefersReducedMotion } from "@/components/ui/usePrefersReducedMotion";
+import { useT } from "@/i18n/localeContext";
 import { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,7 @@ interface RestSubmitButtonProps {
  * Hidden in compact mode, matching the field's compact layout.
  */
 function RestSubmitButton({ state, submitDisabled, compact, onSubmitClick }: RestSubmitButtonProps) {
+  const t = useT();
   return (
     <EmbossedButton
       as="button"
@@ -57,7 +59,7 @@ function RestSubmitButton({ state, submitDisabled, compact, onSubmitClick }: Res
         "flex items-center justify-center px-0 py-0 ml-0.5 flex-shrink-0 size-10 md:size-12 text-white",
         compact && "hidden",
       )}
-      aria-label="Search"
+      aria-label={t("a11y.search")}
     >
       {state === InputState.Success ? (
         <CheckIcon size={28} weight="duotone" className="text-[var(--color-accent)]" />
