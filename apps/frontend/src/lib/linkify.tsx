@@ -1,4 +1,7 @@
+import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import type { ReactNode } from "react";
+import { PlatformIcon } from "@/components/platform/PlatformIcon";
+import { type BioLink, BioLinkKind, resolveBioLink } from "@/lib/bio/bioLink";
 
 /**
  * Detects bare web URLs (`http(s)://…` or `www.…`) and email addresses inside a
@@ -15,13 +18,6 @@ const LINK_PATTERN = /(https?:\/\/[^\s<]+|www\.[^\s<]+|[a-z0-9._%+-]+@[a-z0-9.-]
 const TRAILING_PUNCTUATION = /[.,;:!?)\]}'"»]+$/;
 
 /**
- * A matched run is an email (not a URL) when it carries an `@` and no path
- * separator — `foo@bar.com` qualifies, `http://x.com/u@v` does not. Tested once
- * per match instead of two substring scans (keeps the loop allocation-free).
- */
-const EMAIL_LIKE = /^[^\s/]+@[^\s/]+$/;
-
-/**
  * Anchor attributes for external web links: new tab, no referrer/opener leakage.
  * A plain config map (not an `as const` domain namespace) — `target` widens to
  * `string`, which is assignable to React's `HTMLAttributeAnchorTarget`.
@@ -32,20 +28,56 @@ const EXTERNAL_LINK_ATTRS: { target: string; rel: string } = {
 };
 
 /**
- * Splits a plain-text string into a React node list where every detected web URL
- * or email address becomes an `<a class="mc-cardlink">` and the surrounding text
- * is preserved verbatim. Used to make artist-bio links clickable while keeping
- * the bio's Card-Link styling (colours + underline decoration).
+ * Renders one classified {@link BioLink} into a node:
+ * - `Platform` → the brand logo icon only (no underline), linked + labelled.
+ * - `Email` → a `mailto:` Card-Link (no new tab).
+ * - `Social` / `Web` → a Card-Link showing the normalised `host/@handle` or `domain.tld`.
  *
- * Web links open in a new tab (`target="_blank"` + `rel="noopener noreferrer"`);
- * email addresses become `mailto:` links without a target. URLs lacking a scheme
- * (`www.…`) are prefixed with `https://` for the `href` while the visible label
- * keeps the original text. Trailing sentence punctuation is excluded from the
- * link. When the input contains no link, the original text is returned as the
- * single node.
+ * @param link - The classified link.
+ * @param key - Stable React list key.
+ * @returns The rendered anchor node.
+ */
+function renderBioLink(link: BioLink, key: string): ReactNode {
+  switch (link.kind) {
+    case BioLinkKind.Platform:
+      return (
+        <a
+          key={key}
+          href={link.href}
+          className="mx-0.5 inline-flex items-center align-middle transition-opacity hover:opacity-80"
+          aria-label={PLATFORM_CONFIG[link.service].label}
+          {...EXTERNAL_LINK_ATTRS}
+        >
+          <PlatformIcon platform={link.service} colored className="size-5" />
+        </a>
+      );
+    case BioLinkKind.Email:
+      return (
+        <a key={key} href={link.href} className="mc-cardlink">
+          {link.label}
+        </a>
+      );
+    default:
+      return (
+        <a key={key} href={link.href} className="mc-cardlink" {...EXTERNAL_LINK_ATTRS}>
+          {link.label}
+        </a>
+      );
+  }
+}
+
+/**
+ * Splits a plain-text string into a React node list where every detected link is
+ * rendered per its kind (commercial-platform logo, social `host/@handle`, bare
+ * `domain.tld`, or `mailto:`) and the surrounding text is preserved verbatim.
+ * Used to make artist-bio links clickable with the bio's Card-Link styling.
+ *
+ * Classification (scheme-less `www.…` URLs gain an `https://` href, trailing
+ * sentence punctuation is excluded) is delegated to {@link resolveBioLink}. When
+ * the input contains no link, the original text is returned as the single node.
  *
  * @param text - The plain-text run to scan for links.
- * @returns An array of strings and `<a>` elements in original document order.
+ * @returns An array of strings and anchor elements in original document order.
  */
 export function linkify(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];
@@ -58,15 +90,7 @@ export function linkify(text: string): ReactNode[] {
     if (!label) continue;
 
     if (start > cursor) nodes.push(text.slice(cursor, start));
-
-    const isEmail = EMAIL_LIKE.test(label);
-    const href = isEmail ? `mailto:${label}` : label.startsWith("http") ? label : `https://${label}`;
-    nodes.push(
-      <a key={`lnk-${key++}`} href={href} className="mc-cardlink" {...(isEmail ? {} : EXTERNAL_LINK_ATTRS)}>
-        {label}
-      </a>,
-    );
-
+    nodes.push(renderBioLink(resolveBioLink(label), `lnk-${key++}`));
     cursor = start + label.length;
   }
 

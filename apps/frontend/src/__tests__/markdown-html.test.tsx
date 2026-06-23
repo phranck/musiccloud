@@ -74,7 +74,7 @@ describe("MarkdownHtml", () => {
     expect(a).not.toBeNull();
     expect(a?.getAttribute("href")).toBe("https://example.com");
     expect(a?.className).toContain("mc-cardlink");
-    expect(document.querySelector("p")?.textContent).toBe("Find me at https://example.com today");
+    expect(document.querySelector("p")?.textContent).toBe("Find me at example.com today");
   });
 
   it("leaves plain-text URLs untouched without the linkify flag", () => {
