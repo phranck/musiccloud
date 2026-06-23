@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
 /** Default number of items shown per page. */
-const DEFAULT_PAGE_SIZE = 6;
+const DEFAULT_PAGE_SIZE = 5;
 
 interface UsePagedListOptions {
   /** Items per page. Defaults to {@link DEFAULT_PAGE_SIZE}. */

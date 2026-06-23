@@ -51,7 +51,7 @@ interface ArtistInfoCardProps {
  * section reuses the shared {@link ArtistSectionWell} (skeleton → content
  * tri-state) with its title supplied via {@link ArtistInfoCardProps.labels}, so
  * the markup matches the desktop cards without duplicating their body. Popular
- * and similar are capped at six per page, with the pager rendered beneath the
+ * and similar are capped at five per page, with the pager rendered beneath the
  * section's well (the mobile footer position).
  */
 export function ArtistInfoCard({

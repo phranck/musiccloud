@@ -20,7 +20,7 @@ interface PopularTracksCardProps {
 
 /**
  * Desktop popular-tracks card: the current artist's own top tracks inside a
- * titled section card, capped at six per page with the pager in the card FOOTER
+ * titled section card, capped at five per page with the pager in the card FOOTER
  * (not the recessed content well). Self-hides once loading settles with no tracks.
  */
 export function PopularTracksCard({ title, data, isLoading, onTrackResolve, onResolveStart }: PopularTracksCardProps) {

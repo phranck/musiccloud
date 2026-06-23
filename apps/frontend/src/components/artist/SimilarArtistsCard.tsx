@@ -21,7 +21,7 @@ interface SimilarArtistsCardProps {
 
 /**
  * Desktop similar card: tracks by other artists related to the current one, in a
- * titled section card, capped at six per page with the pager in the card FOOTER.
+ * titled section card, capped at five per page with the pager in the card FOOTER.
  * Filters to entries that resolved to a playable track before paging, so the page
  * counts match what is shown. Self-hides once loading settles with no entries.
  */
