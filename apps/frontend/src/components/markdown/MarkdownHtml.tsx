@@ -2,6 +2,7 @@ import parse, { domToReact, type Element, type HTMLReactParserOptions, type Text
 
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { BioAnchor } from "@/components/markdown/BioAnchor";
 import { linkify } from "@/lib/linkify";
 
 /**
@@ -32,6 +33,11 @@ const CardStyle = {
 const DEFAULT_CARD_PADDING = "0.75rem";
 const DEFAULT_CARD_RADIUS = "0.75rem";
 
+/** Concatenates the plain-text content of an anchor element's children. */
+function anchorTextContent(el: Element): string {
+  return el.children.map((child) => (child.type === DomNodeType.Text ? (child as Text).data : "")).join("");
+}
+
 /**
  * Builds the parser transform applied to every parsed markdown node. It rewrites
  * block-level `<pre data-card-style='recessed' | 'embossed'>` wire markers
@@ -58,6 +64,14 @@ function makeParserOptions(linkifyText: boolean): HTMLReactParserOptions {
       // instanceof Element checks to fail depending on the import path.
       if (domNode.type !== DomNodeType.Tag) return undefined;
       const el = domNode as Element;
+
+      // Bio links arrive as real <a href> (backend-sanitised); render them as
+      // Card-Links with handle-only / brand-normalised display.
+      if (linkifyText && el.name === "a" && el.attribs.href) {
+        const text = anchorTextContent(el);
+        if (text) return <BioAnchor rawHref={el.attribs.href} text={text} />;
+      }
+
       if (el.name !== "pre") return undefined;
       const cardStyle = el.attribs["data-card-style"];
       if (cardStyle !== CardStyle.Recessed && cardStyle !== CardStyle.Embossed) return undefined;

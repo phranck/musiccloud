@@ -33,4 +33,40 @@ describe("jamendoBioToHtml", () => {
   it("returns null when the markup carries no text", () => {
     expect(jamendoBioToHtml("<p></p><br />")).toBeNull();
   });
+
+  it("preserves a safe link, forcing https and dropping a leading www.", () => {
+    const html = jamendoBioToHtml(
+      '<p><a href="http://www.instagram.com/tamaralaurel">Instagram: @TamaraLaurel</a></p>',
+    );
+    expect(html).toBe('<p><a href="https://instagram.com/tamaralaurel">Instagram: @TamaraLaurel</a></p>');
+  });
+
+  it("keeps a mailto link as-is", () => {
+    expect(jamendoBioToHtml('<p><a href="mailto:hi@band.de">write me</a></p>')).toBe(
+      '<p><a href="mailto:hi@band.de">write me</a></p>',
+    );
+  });
+
+  it("drops an unsafe-scheme link but keeps its text", () => {
+    expect(jamendoBioToHtml('<p><a href="javascript:alert(1)">click</a></p>')).toBe("<p>click</p>");
+  });
+
+  it("strips every attribute except the href from a preserved link", () => {
+    expect(jamendoBioToHtml('<p><a href="https://x.com" onclick="alert(1)" target="_blank">y</a></p>')).toBe(
+      '<p><a href="https://x.com">y</a></p>',
+    );
+  });
+
+  it("escapes the href and text of a preserved link", () => {
+    const html = jamendoBioToHtml('<p><a href="https://x.com/?a=1&b=2">a & b</a></p>');
+    expect(html).toBe('<p><a href="https://x.com/?a=1&amp;b=2">a &amp; b</a></p>');
+  });
+
+  it("preserves multiple links across paragraphs (real Jamendo bio shape)", () => {
+    const raw =
+      '<p>Singer-Songwriter.</p> <p><a href="http://www.tamaralaurel.com">www.tamaralaurel.com</a></p> <p><a href="http://www.twitter.com/tamaralaurel">Twitter: @TamaraLaurel</a></p>';
+    expect(jamendoBioToHtml(raw)).toBe(
+      '<p>Singer-Songwriter.</p><p><a href="https://tamaralaurel.com">www.tamaralaurel.com</a></p><p><a href="https://twitter.com/tamaralaurel">Twitter: @TamaraLaurel</a></p>',
+    );
+  });
 });

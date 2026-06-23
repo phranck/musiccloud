@@ -81,4 +81,41 @@ describe("MarkdownHtml", () => {
     render(<MarkdownHtml html="<p>Find me at https://example.com today</p>" />);
     expect(document.querySelectorAll("a").length).toBe(0);
   });
+
+  it("links only the @handle inside a labelled bio anchor, keeping the label text", () => {
+    render(
+      <MarkdownHtml html='<p><a href="https://instagram.com/tamaralaurel">Instagram: @TamaraLaurel</a></p>' linkify />,
+    );
+    const a = document.querySelector("a");
+    expect(a?.getAttribute("href")).toBe("https://instagram.com/tamaralaurel");
+    expect(a?.textContent).toBe("@TamaraLaurel");
+    expect(a?.className).toContain("mc-cardlink");
+    expect(document.querySelector("p")?.textContent).toBe("Instagram: @TamaraLaurel");
+  });
+
+  it("normalises a bio anchor whose label is a URL to the brand display", () => {
+    render(
+      <MarkdownHtml
+        html='<p><a href="https://facebook.com/tamaralaurelmusic">www.Facebook.com/TamaraLaurelMusic</a></p>'
+        linkify
+      />,
+    );
+    const a = document.querySelector("a");
+    expect(a?.getAttribute("href")).toBe("https://facebook.com/tamaralaurelmusic");
+    expect(a?.textContent).toBe("facebook.com/@tamaralaurelmusic");
+  });
+
+  it("renders a mailto bio anchor as a mailto link keeping its label", () => {
+    render(<MarkdownHtml html='<p><a href="mailto:hi@band.de">write me</a></p>' linkify />);
+    const a = document.querySelector("a");
+    expect(a?.getAttribute("href")).toBe("mailto:hi@band.de");
+    expect(a?.textContent).toBe("write me");
+  });
+
+  it("leaves bio anchors untouched (full text linked) without the linkify flag", () => {
+    render(<MarkdownHtml html='<p><a href="https://instagram.com/x">Instagram: @x</a></p>' />);
+    const a = document.querySelector("a");
+    expect(a?.getAttribute("href")).toBe("https://instagram.com/x");
+    expect(a?.textContent).toBe("Instagram: @x");
+  });
 });

@@ -22,7 +22,7 @@ const TRAILING_PUNCTUATION = /[.,;:!?)\]}'"»]+$/;
  * A plain config map (not an `as const` domain namespace) — `target` widens to
  * `string`, which is assignable to React's `HTMLAttributeAnchorTarget`.
  */
-const EXTERNAL_LINK_ATTRS: { target: string; rel: string } = {
+export const EXTERNAL_LINK_ATTRS: { target: string; rel: string } = {
   target: "_blank",
   rel: "noopener noreferrer",
 };
