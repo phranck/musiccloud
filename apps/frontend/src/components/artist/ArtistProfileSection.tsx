@@ -2,6 +2,7 @@ import type { ArtistProfile } from "@musiccloud/shared";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import { TftScreen } from "@/components/ui/TftScreen";
+import { formatCount } from "@/lib/format/count";
 import { linkify } from "@/lib/linkify";
 import { cn } from "@/lib/utils";
 
@@ -91,10 +92,4 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
       <div className="clear-both" />
     </div>
   );
-}
-
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
 }

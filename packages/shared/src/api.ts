@@ -235,7 +235,7 @@ export interface CcMusicInfo {
  * @property favorited - How many users favorited the track.
  * @property likes - Thumbs-up count.
  * @property dislikes - Thumbs-down count.
- * @property avgNote - Average user rating (`avgnote`, 0–5 scale).
+ * @property avgNote - Average user rating (Jamendo `avgnote`; a fractional score, not a 0–5 star value).
  * @property notes - Number of ratings backing `avgNote`.
  */
 export interface CcTrackStats {
