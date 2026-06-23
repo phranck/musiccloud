@@ -343,11 +343,11 @@ function ShareLayoutInner({
   useOverlayEscape({ enabled: sheetOpen, onEscape: closeSheet });
 
   const handleArtistResolveStart = useCallback(() => {
-    // Popular/Similar rows show their spinning disc immediately on click,
-    // before the resolve request returns and before artist-info loading starts.
-    // Lift that moment into ShareLayout so the VFD flips to loading in sync
-    // with the visible spinning-disc affordance.
-    dispatchUi({ type: ShareUiActionType.ResolveStarted });
+    // A row click only clears a stale resolve error here. The VFD's "loading"
+    // status is flipped on by `resolveTrack` itself, and only when the artist
+    // actually changes — so a same-artist popular-track swap (which re-fetches
+    // nothing) never shows a loading status that would then never clear.
+    dispatchUi({ type: ShareUiActionType.ResolveErrorHidden });
   }, []);
 
   // One generic in-place resolve for both modes: the injected resolver turns the
@@ -367,10 +367,18 @@ function ShareLayoutInner({
           configType: currentConfig.type,
         });
         replaceBrowserUrlWithShortUrl(update.shortUrl);
-        const shouldFetchArtist =
-          normalizeArtistName(update.artistName) !== normalizeArtistName(currentArtistName) ||
-          !sameArtistInfoContext(update.artistInfoContext ?? {}, currentArtistContext);
+        // Will the artist column actually re-fetch? CC keys the column off
+        // `ccJamendoArtistId` (a same-artist popular-track swap fetches nothing);
+        // commercial keys off the artist name + narrowing context. Only then do
+        // we flip the VFD to loading — otherwise a same-artist swap would show a
+        // "loading" status that never clears (no fetch ever settles it).
+        const nextCcArtistId = update.config.ccJamendoArtistId ?? "";
+        const shouldFetchArtist = nextCcArtistId
+          ? nextCcArtistId !== (currentConfig.ccJamendoArtistId ?? "")
+          : normalizeArtistName(update.artistName) !== normalizeArtistName(currentArtistName) ||
+            !sameArtistInfoContext(update.artistInfoContext ?? {}, currentArtistContext);
         keepResolveLoadingForArtistFetch = shouldFetchArtist;
+        if (shouldFetchArtist) dispatchUi({ type: ShareUiActionType.ResolveStarted });
         dispatchUi({
           type: ShareUiActionType.Resolved,
           artistContext: update.artistInfoContext,
