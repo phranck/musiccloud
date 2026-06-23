@@ -494,6 +494,18 @@ a.mc-skylink {
      sky instead of snapping at the end of the day/night blend. */
 }
 
+/* Card-/glass-context link — same recipe as `a.mc-skylink`, but driven by the
+   separate `--cardlink-*` tokens so a link inside a card (e.g. the CC artist
+   name) can be tuned independently of links on the sky. Starts from the same
+   day/night colours. */
+a.mc-cardlink {
+  color: color-mix(in srgb, var(--cardlink-day-color, #06324a) calc(var(--g-dayness) * 100%), var(--cardlink-night-color, #caf0fe));
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, var(--cardlink-day-deco, #28a8d8) calc(var(--g-dayness) * 100%), var(--cardlink-night-deco, #28a8d8));
+  text-decoration-thickness: var(--cardlink-thickness, 1.5px);
+  text-underline-offset: var(--cardlink-offset, 2.5px);
+}
+
 /* Static sky backdrop behind the WebGL canvas: the shader's vertical day↔night
    sky gradient (top = --sky-top, horizon = --sky-bottom). The canvas reveals
    over a matching gradient, so the only thing that fades in is the stars/clouds

@@ -300,6 +300,17 @@ a.mc-skylink {
   text-decoration-thickness: var(--skylink-thickness, 1.5px);
   text-underline-offset: var(--skylink-offset, 2.5px);
 }
+/* Card-anchored link (parity with `a.mc-cardlink`): same recipe as the sky link,
+   but tuned independently for links inside cards (glass context, e.g. the CC artist
+   name). All values come from the --cardlink-* vars set by applyCardLink (fallbacks
+   = the day/night defaults). */
+a.mc-cardlink {
+  color: color-mix(in srgb, var(--cardlink-day-color, #06324a) calc(var(--g-dayness) * 100%), var(--cardlink-night-color, #caf0fe));
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, var(--cardlink-day-deco, #28a8d8) calc(var(--g-dayness) * 100%), var(--cardlink-night-deco, #28a8d8));
+  text-decoration-thickness: var(--cardlink-thickness, 1.5px);
+  text-underline-offset: var(--cardlink-offset, 2.5px);
+}
 
 /* ════════ shared neumorphic surface base ════════ */
 .embossed-card, .section-card, .recessed-card, .emb-btn, .seg-track, .seg-indicator, .seg-hover {
@@ -472,6 +483,7 @@ a.mc-skylink {
   background-image:linear-gradient(rgba(255,255,255,.10) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.10) 1px, transparent 1px);
   background-size:8px 8px; }
 .artist-meta { min-width:0; flex:1 1 0; }
+.artist-name { margin:0 0 .375rem; font-size:1rem; font-weight:600; }
 .artist-genres { display:flex; flex-wrap:wrap; gap:.375rem; margin-bottom:.5rem; }
 .genre-pill { font-size:.75rem; padding:.125rem .5rem; border-radius:9999px;
   background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); text-transform:capitalize; }
@@ -1002,6 +1014,7 @@ body.glass .emb-btn.hero-submit {
             <div class="artist-row">
               <div class="artist-cover" aria-hidden="true"></div>
               <div class="artist-meta">
+                <p class="artist-name"><a class="mc-cardlink" href="#" onclick="return false">The The</a></p>
                 <div class="artist-genres"><span class="genre-pill">New Wave</span></div>
                 <p class="artist-stat">24.5K Fans &middot; 11.2M Last.fm Plays</p>
                 <p class="artist-stat">Similar artists: Japan &middot; Lloyd Cole and The Commotions &middot; Simple Minds</p>
@@ -1350,6 +1363,13 @@ body.glass .emb-btn.hero-submit {
       <div id="skylink-controls"></div>
     </div>
   </div>
+  <div class="sec" id="sec-cardlink">
+    <h2 class="sec-head" data-sec="cardlink"><span id="h-cardlink">Card link</span></h2>
+    <div class="sec-body">
+      <div class="hint" id="hint-cardlink"></div>
+      <div id="cardlink-controls"></div>
+    </div>
+  </div>
 
   <!-- ── Cover screen — the song card's TftScreen artwork area, Day + Night ── -->
   <div class="sec" id="sec-cover">
@@ -1623,7 +1643,7 @@ const UI = {
     gpuTip: "GPU render time per frame; busy % = time × FPS — the closest browser proxy for energy use (real wattage is not exposed to websites). Live via EXT_disjoint_timer_query where available; Safari and Chrome on macOS block that extension, so the Measure button runs a 30-frame gl.finish() benchmark instead — treat its result as a slight upper bound.",
     groups: { Sky: "Sky", Stars: "Stars", Clouds: "Clouds", Performance: "Performance" },
     badgeDay: "Day", badgeNight: "Night",
-    secGlass: "Glass material", secHeaderControls: "Header Controls", secText: "Typography", secPaddings: "Paddings", secVfd: "VFD Display", secSkyText: "Footer", secSkyLink: "Sky link", secCover: "Cover Screen", secBackdrop: "Overlay Backdrop",
+    secGlass: "Glass material", secHeaderControls: "Header Controls", secText: "Typography", secPaddings: "Paddings", secVfd: "VFD Display", secSkyText: "Footer", secSkyLink: "Sky link", secCardLink: "Card link", secCover: "Cover Screen", secBackdrop: "Overlay Backdrop",
     hintGlass: "Glass is always on. Tune each control's Day & Night settings; toggle ☀︎ Day to preview.",
     hintHeaderControls: "Navigation, Day/Night & language switchers. Tune their Track, Active/Icon and label-text colours per Day/Night; toggle ☀︎ Day to preview.",
     hintText: "Per-surface typography. Font, size, weight & capitalization are shared (same day & night); only the bright/normal/dimmed colours are tuned per Day/Night.",
@@ -1631,6 +1651,7 @@ const UI = {
     hintVfd: "The phosphor screen (background, three phosphor steps, glow), per Day/Night.",
     hintSkyText: "The app footer on the sky (copyright + made-by, in the lower corners): size, colour, opacity, glyph outline, drop shadow — per Day/Night.",
     hintSkyLink: "Links sitting directly on the sky (the live-example teaser + footer links): text + underline colour per Day/Night, underline width (0 = none) + offset.",
+    hintCardLink: "Links inside cards (e.g. the CC artist name): text + underline colour per Day/Night, underline width (0 = none) + offset.",
     hintCover: "The song card's cover screen (background, LCD matrix, sheen, inner shadow, art tint), per Day/Night.",
     hintBackdrop: "The dim layer behind the Info overlay: colour, opacity and blur, per Day/Night.",
     resetUi: "Reset UI",
@@ -1650,7 +1671,7 @@ const UI = {
     gpuTip: "GPU-Renderzeit pro Frame; Busy-% = Zeit × FPS — der beste Browser-Näherungswert für den Energieverbrauch (echte Watt geben Browser nicht preis). Live via EXT_disjoint_timer_query, wo verfügbar; Safari und Chrome auf macOS blockieren die Extension, daher misst der Messen-Button stattdessen 30 Frames mit gl.finish() — das Ergebnis ist eine leichte Obergrenze.",
     groups: { Sky: "Himmel", Stars: "Sterne", Clouds: "Wolken", Performance: "Performance" },
     badgeDay: "Tag", badgeNight: "Nacht",
-    secGlass: "Glas-Material", secHeaderControls: "Header-Controls", secText: "Typografie", secPaddings: "Paddings", secVfd: "VFD-Display", secSkyText: "Footer", secSkyLink: "Sky-Link", secCover: "Cover-Screen", secBackdrop: "Overlay-Hintergrund",
+    secGlass: "Glas-Material", secHeaderControls: "Header-Controls", secText: "Typografie", secPaddings: "Paddings", secVfd: "VFD-Display", secSkyText: "Footer", secSkyLink: "Sky-Link", secCardLink: "Card-Link", secCover: "Cover-Screen", secBackdrop: "Overlay-Hintergrund",
     hintGlass: "Glas ist immer aktiv. Stelle pro Control die Tag- & Nacht-Werte ein; mit ☀︎ Tag umschalten zur Vorschau.",
     hintHeaderControls: "Navigation, Day/Night- & Sprachumschalter. Stelle Track, Aktiv/Icon und Label-Text je Tag/Nacht ein; mit ☀︎ Tag umschalten zur Vorschau.",
     hintText: "Typografie je Fläche. Font, Größe, Gewicht & Großschreibung sind geteilt (gleich Tag & Nacht); nur die hell/normal/gedämpft-Farben werden je Tag/Nacht getunt.",
@@ -1658,6 +1679,7 @@ const UI = {
     hintVfd: "Das Phosphor-Display (Hintergrund, drei Phosphor-Stufen, Leuchten), je Tag/Nacht.",
     hintSkyText: "Der App-Footer auf dem Himmel (Copyright + Made-by, in den unteren Ecken): Größe, Farbe, Deckkraft, Glyphen-Kontur, Schlagschatten — je Tag/Nacht.",
     hintSkyLink: "Links direkt auf dem Himmel (Live-Beispiel-Teaser + Footer-Links): Text- + Unterstrich-Farbe je Tag/Nacht, Unterstrich-Breite (0 = keine) + Abstand.",
+    hintCardLink: "Links innerhalb von Cards (z.B. der CC-Artist-Name): Text- + Unterstrich-Farbe je Tag/Nacht, Unterstrich-Breite (0 = keine) + Abstand.",
     hintCover: "Der Cover-Screen der Song-Karte (Hintergrund, LCD-Matrix, Glanz, Innen-Schatten, Cover-Tönung), je Tag/Nacht.",
     hintBackdrop: "Die Abdunklung hinter dem Info-Overlay: Farbe, Deckkraft und Unschärfe, je Tag/Nacht.",
     resetUi: "UI zurücksetzen",
@@ -1994,6 +2016,8 @@ function applyStaticTexts() {
   document.getElementById("hint-skytext").textContent = t.hintSkyText;
   document.getElementById("h-skylink").textContent = t.secSkyLink;
   document.getElementById("hint-skylink").textContent = t.hintSkyLink;
+  document.getElementById("h-cardlink").textContent = t.secCardLink;
+  document.getElementById("hint-cardlink").textContent = t.hintCardLink;
   document.getElementById("h-cover").textContent = t.secCover;
   document.getElementById("hint-cover").textContent = t.hintCover;
   document.getElementById("h-backdrop").textContent = t.secBackdrop;
@@ -2063,7 +2087,7 @@ function applySettings(obj) {
 document.getElementById("copy").addEventListener("click", async () => {
   // Everything in one dump: background shader (flat keys) + UI glass + text + VFD +
   // footer (size/weight stripped — they're on-screen preview only).
-  const json = JSON.stringify({ ...state, cardRadius, paddings: paddingsCfg, glass, text: typoCfg, vfd: vfdCfg, footer: stripUiOnly(skyTextCfg, SKYTEXT_GROUPS, SKYTEXT_FIELDS), cover: coverCfg, backdrop: backdropCfg, skylink: skyLinkCfg }, null, 2);
+  const json = JSON.stringify({ ...state, cardRadius, paddings: paddingsCfg, glass, text: typoCfg, vfd: vfdCfg, footer: stripUiOnly(skyTextCfg, SKYTEXT_GROUPS, SKYTEXT_FIELDS), cover: coverCfg, backdrop: backdropCfg, skylink: skyLinkCfg, cardlink: cardLinkCfg }, null, 2);
   try { await navigator.clipboard.writeText(json); } catch { /* clipboard may need user gesture context */ }
   console.log("settings:", json);
   flashFeedback(UI[lang].copied);
@@ -2129,6 +2153,13 @@ document.getElementById("paste").addEventListener("click", async () => {
     buildSkyLinkControls();
     applySkyLink();
     saveSkyLink();
+    accepted++;
+  }
+  if (parsed && parsed.cardlink && typeof parsed.cardlink === "object") {
+    cardLinkCfg = buildContentState(parsed.cardlink, CARDLINK_DEFAULTS, CARDLINK_GROUPS, CARDLINK_FIELDS);
+    buildCardLinkControls();
+    applyCardLink();
+    saveCardLink();
     accepted++;
   }
   if (parsed && Number.isFinite(parsed.cardRadius)) {
@@ -3031,7 +3062,7 @@ function mk(top, bottom, opacity, blur, saturate, brightness, edgeLight, edgeSha
   return { tintTop: top, tintBottom: bottom, opacity, blur, saturate, brightness, edgeLight, edgeShadow, rim, shadow };
 }
 const G_DEFAULTS = {
-  card:         { day: mk("#000000", "#000000", 0.42, 6, 0.0, 0.10, 0, 0, 0.00, 0.30), night: mk("#232323", "#232323", 0.42, 6, 0.25, 0.50, 0, 0, 0.03, 0.20) },
+  card:         { day: mk("#000000", "#000000", 0.42, 6, 0.0, 0.10, 0, 0, 0.00, 0.30), night: mk("#354046", "#293137", 0.42, 6, 0.25, 0.50, 0, 0, 0.03, 0.20) },
   // Overlay card: same recipe as the card, its own day/night values — an overlay sits
   // over a dimmed backdrop, so it wants much heavier frost (high blur) than the inline
   // cards. Tune it apart in the "Embossed Overlay Card" group.
@@ -3041,7 +3072,7 @@ const G_DEFAULTS = {
   segTrack:     { day: mk("#00364a", "#00364a", 0.32, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00) },
   segIndicator: { day: mk("#94e3fe", "#94e3fe", 0.35, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#94e3fe", "#94e3fe", 0.20, 2, 0.0, 0.42, 0, 0, 0.08, 0.00) },
   // Header controls — dedicated tokens, defaults mirror seg-track / seg-indicator.
-  navTrack:     { day: mk("#00364a", "#00364a", 0.32, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00) },
+  navTrack:     { day: mk("#00364a", "#00364a", 0.32, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#004f6f", "#004f6f", 0.32, 0, 0.0, 0.00, 0, 0, 0.00, 0.00) },
   navIndicator: { day: mk("#94e3fe", "#94e3fe", 0.35, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#94e3fe", "#94e3fe", 0.20, 2, 0.0, 0.42, 0, 0, 0.08, 0.00) },
 };
 
@@ -3258,7 +3289,7 @@ const TYPO_DEFAULTS = {
   embossed:      mkTypo(TYPO_BARLOW, 14, 500, "none"),
   recessed:      mkTypo(TYPO_BARLOW, 14, 200, "none", { normalOpacity: 0.7, dimmedOpacity: 0.45 }),
   button:        mkTypo(TYPO_BARLOW, 15, 200, "none", { normalOpacity: 0.7 }),
-  embossedTitle: mkTypo(TYPO_ROBOCOND, 14, 200, "uppercase"),
+  embossedTitle: mkTypo(TYPO_ROBOCOND, 14, 400, "uppercase"),
   infoText:      mkTypo(TYPO_BARLOW, 12, 200, "none"),
   placeholder:   mkTypo(TYPO_BARLOW, 16, 500, "none"),
   // Header-controls label/item text — mirrors the button text defaults.
@@ -3340,8 +3371,31 @@ function mkSkyLink(color, decoColor, thickness, offset) {
 }
 const SKYLINK_DEFAULTS = {
   skylink: {
-    day:   mkSkyLink("#fff800", "#fff800", 0.75, 3.5),
-    night: mkSkyLink("#00ffff", "#28a8d8", 0.75, 3.5),
+    day:   mkSkyLink("#fff800", "#fff800", 0.25, 2.5),
+    night: mkSkyLink("#caf0fe", "#28a8d8", 0.25, 2.5),
+  },
+};
+
+/* ── Card link — a link sitting inside a card (the glass-surface context, e.g. the
+   CC artist name), where the static accent blue can clash with the frosted card.
+   Structurally identical to the sky link but tuned apart: text colour + underline
+   colour per Day/Night; underline width (0 = no underline) and offset are shared
+   across modes. Applied via CSS vars (applyCardLink), cross-faded in the
+   `a.mc-cardlink` rule by color-mix(--g-dayness). ── */
+const CARDLINK_GROUPS = [{ key: "cardlink", label: { en: "Card link", de: "Card-Link" } }];
+const CARDLINK_FIELDS = [
+  { key: "thickness", type: "range", shared: true, min: 0, max: 4, step: 0.25, unit: "px", label: { en: "Underline width", de: "Unterstrich-Breite" }, tip: { en: "Underline thickness (0 = no underline; same for day & night).", de: "Unterstrich-Stärke (0 = keine Unterstreichung; gleich für Tag & Nacht)." } },
+  { key: "offset",    type: "range", shared: true, min: 0, max: 8, step: 0.5, unit: "px", label: { en: "Underline offset", de: "Unterstrich-Abstand" }, tip: { en: "Gap between text and underline (same for day & night).", de: "Abstand zwischen Text und Unterstrich (gleich für Tag & Nacht)." } },
+  { key: "color",     type: "color", label: { en: "Text color", de: "Textfarbe" }, tip: { en: "Card-link text colour.", de: "Textfarbe des Card-Links." } },
+  { key: "decoColor", type: "color", label: { en: "Underline color", de: "Unterstrich-Farbe" }, tip: { en: "Underline (text-decoration) colour.", de: "Farbe des Unterstrichs (text-decoration)." } },
+];
+function mkCardLink(color, decoColor, thickness, offset) {
+  return { color, decoColor, thickness, offset };
+}
+const CARDLINK_DEFAULTS = {
+  cardlink: {
+    day:   mkCardLink("#fefcdd", "#fff800", 0.25, 3.5),
+    night: mkCardLink("#caf0fe", "#28a8d8", 0.25, 3.5),
   },
 };
 
@@ -3451,6 +3505,10 @@ function saveBackdrop() { saveJsonStore("b", BACKDROP_KEY, backdropCfg); }
 const SKYLINK_KEY = "mc-card-prototype-skylink-v1";
 let skyLinkCfg = buildContentState(loadJsonStore("l", SKYLINK_KEY), SKYLINK_DEFAULTS, SKYLINK_GROUPS, SKYLINK_FIELDS);
 function saveSkyLink() { saveJsonStore("l", SKYLINK_KEY, skyLinkCfg); }
+
+const CARDLINK_KEY = "mc-card-prototype-cardlink-v1";
+let cardLinkCfg = buildContentState(loadJsonStore("m", CARDLINK_KEY), CARDLINK_DEFAULTS, CARDLINK_GROUPS, CARDLINK_FIELDS);
+function saveCardLink() { saveJsonStore("m", CARDLINK_KEY, cardLinkCfg); }
 
 /** Writes the per-surface typography into CSS vars: one font (size + weight per mode,
  *  cross-faded in CSS; family + transform discrete = night value) plus the three
@@ -3589,6 +3647,21 @@ function applySkyLink() {
   root.setProperty("--skylink-night-deco", c.night.decoColor);
   root.setProperty("--skylink-thickness", `${c.day.thickness}px`);
   root.setProperty("--skylink-offset", `${c.day.offset}px`);
+}
+
+/** Writes the card-link colours + underline geometry into CSS vars. The
+ *  `a.mc-cardlink` rule cross-fades day↔night via color-mix(--g-dayness), so this
+ *  runs only on slider edits / init — no per-frame dayness recompute (unlike
+ *  applySkyText). Underline width + offset are shared, so day carries both. */
+function applyCardLink() {
+  const root = document.documentElement.style;
+  const c = cardLinkCfg.cardlink;
+  root.setProperty("--cardlink-day-color", c.day.color);
+  root.setProperty("--cardlink-night-color", c.night.color);
+  root.setProperty("--cardlink-day-deco", c.day.decoColor);
+  root.setProperty("--cardlink-night-deco", c.night.decoColor);
+  root.setProperty("--cardlink-thickness", `${c.day.thickness}px`);
+  root.setProperty("--cardlink-offset", `${c.day.offset}px`);
 }
 
 /**
@@ -3740,6 +3813,7 @@ function syncGlassMode() {
     buildCoverControls();
     buildBackdropControls();
     buildSkyLinkControls();
+    buildCardLinkControls();
   }
   // The canvas can't read CSS color-mix; repaint its phosphor colours whenever
   // the sky's day amount actually changes (so it cross-fades like the glass).
@@ -4129,11 +4203,17 @@ function buildSkyLinkControls() {
     () => { applySkyLink(); saveSkyLink(); });
 }
 
+/** (Re)builds the card-link controls for the active mode. */
+function buildCardLinkControls() {
+  buildTuneSection("cardlink-controls", CARDLINK_GROUPS, CARDLINK_FIELDS, cardLinkCfg, glassCollapsed, currentGlassMode(),
+    () => { applyCardLink(); saveCardLink(); });
+}
+
 /** Wires the static top-level sections (Glass/Text/VFD) for collapse: prepends a
  *  chevron, restores the saved collapsed state, and attaches the toggle handler.
  *  The sky groups self-wire in groupEl; this runs once at init. */
 function wireStaticSections() {
-  for (const id of ["sec-glass", "sec-headercontrols", "sec-paddings", "sec-text", "sec-vfd", "sec-skytext", "sec-skylink", "sec-cover", "sec-backdrop"]) {
+  for (const id of ["sec-glass", "sec-headercontrols", "sec-paddings", "sec-text", "sec-vfd", "sec-skytext", "sec-skylink", "sec-cardlink", "sec-cover", "sec-backdrop"]) {
     const sec = document.getElementById(id);
     if (!sec) continue;
     const head = sec.querySelector(".sec-head");
@@ -4152,6 +4232,7 @@ document.getElementById("reset-glass").addEventListener("click", () => {
   coverCfg = structuredClone(COVER_DEFAULTS);
   backdropCfg = structuredClone(BACKDROP_DEFAULTS);
   skyLinkCfg = structuredClone(SKYLINK_DEFAULTS);
+  cardLinkCfg = structuredClone(CARDLINK_DEFAULTS);
   cardRadius = CARD_RADIUS_DEFAULT;
   applyCardRadius(cardRadius);
   paddingsCfg = buildPaddingsState(null);
@@ -4162,6 +4243,7 @@ document.getElementById("reset-glass").addEventListener("click", () => {
   buildCoverControls();
   buildBackdropControls();
   buildSkyLinkControls();
+  buildCardLinkControls();
   buildPaddingControls();
   applyGlass();
   applyTypography();
@@ -4170,6 +4252,7 @@ document.getElementById("reset-glass").addEventListener("click", () => {
   applyCover();
   applyBackdrop();
   applySkyLink();
+  applyCardLink();
   applyPaddings();
   saveGlass();
   saveTypo();
@@ -4178,6 +4261,7 @@ document.getElementById("reset-glass").addEventListener("click", () => {
   saveCover();
   saveBackdrop();
   saveSkyLink();
+  saveCardLink();
   saveCardRadius();
   savePaddings();
 });
@@ -4522,6 +4606,7 @@ buildSkyTextControls();
 buildCoverControls();
 buildBackdropControls();
 buildSkyLinkControls();
+buildCardLinkControls();
 wireStaticSections();
 wireSegmentedControls();
 wireInfoTabs();
@@ -4533,6 +4618,7 @@ applySkyText();
 applyCover();
 applyBackdrop();
 applySkyLink();
+applyCardLink();
 syncStagePanel();
 applyAllGroupedCorners();
 // Reflow (e.g. the grid re-wrapping at a new width) changes which corners are outer.
