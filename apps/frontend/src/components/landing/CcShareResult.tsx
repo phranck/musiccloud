@@ -1,8 +1,9 @@
-import { lazy, type MouseEvent, type RefObject, useMemo } from "react";
+import { lazy, type MouseEvent, type RefObject } from "react";
 import { ShareResultFrame } from "@/components/landing/ShareResultFrame";
 import { loadShareLayout } from "@/lib/preload/resultRuntime";
 import { ccResultToShareProps } from "@/lib/resolve/parsers";
 import { ccTrackResolver } from "@/lib/resolve/track-resolver";
+import { CC_ARTIST_LABEL_KEYS } from "@/lib/share/share-view";
 import type { CcResult } from "@/lib/types/app";
 
 // Lazy-loaded share UI — only pulled into the bundle when a result is shown.
@@ -44,13 +45,6 @@ export function CcShareResult({
   t,
 }: CcShareResultProps) {
   const { config, artistName } = ccResultToShareProps(ccActive, t);
-  // CC shows similar TRACKS (from other artists), not similar artists, so the
-  // shared card gets a CC-specific title; the profile credit names Jamendo (the
-  // CC data source). The other titles keep the commercial defaults.
-  const ccArtistLabels = useMemo(
-    () => ({ similar: t("artist.similarTracks"), profileProvidedBy: t("artist.profileProvidedByJamendo") }),
-    [t],
-  );
   return (
     <ShareResultFrame resultsPanelRef={resultsPanelRef} handleShareLogoClick={handleShareLogoClick}>
       <ShareLayout
@@ -58,7 +52,7 @@ export function CcShareResult({
         artistName={artistName}
         artistData={ccActive.artistInfo}
         skipArtistFetch={!config.ccJamendoArtistId}
-        labels={ccArtistLabels}
+        labels={CC_ARTIST_LABEL_KEYS}
         trackResolver={ccTrackResolver}
         onBack={canGoBack ? handleBack : undefined}
         backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}

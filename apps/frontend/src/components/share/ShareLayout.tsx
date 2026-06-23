@@ -203,9 +203,11 @@ interface ShareLayoutProps {
    */
   trackResolver?: TrackResolver;
   /**
-   * Per-title overrides for the artist-column sections. Commercial omits this
-   * and gets the i18n defaults; the CC path overrides individual titles
-   * (e.g. "Similar Tracks" instead of "Similar Artists").
+   * Per-title overrides for the artist-column sections, given as **i18n keys**
+   * (not translated text). Commercial omits this and gets the default keys; the
+   * CC path overrides individual titles (e.g. `artist.similarTracks`).
+   * ShareLayout translates them via `t()`, so titles re-localize when the user
+   * switches language.
    */
   labels?: Partial<ArtistCardLabels>;
 }
@@ -233,17 +235,18 @@ function ShareLayoutInner({
   labels,
 }: ShareLayoutProps) {
   const t = useT();
-  // Commercial section titles are the defaults; the CC caller overrides
-  // individual ones via the `labels` prop (e.g. "Similar Tracks"). Memoized per
-  // resolved value so the object identity stays stable for the GSAP/render path
-  // even when the caller passes an inline override.
+  // Section titles. The `labels` prop carries i18n KEY overrides (the CC caller
+  // overrides `similar`/`profileProvidedBy`); translation happens here, reactive
+  // to `t`, so titles re-localize on a language switch instead of staying frozen
+  // at the value baked when the page was built. Memoized per resolved value so
+  // the object identity stays stable for the GSAP/render path.
   const artistLabels = useMemo<ArtistCardLabels>(
     () => ({
-      profile: labels?.profile ?? t("artist.infoTitle"),
-      popularTracks: labels?.popularTracks ?? t("artist.popularTracks"),
-      events: labels?.events ?? t("artist.upcomingEvents"),
-      similar: labels?.similar ?? t("artist.similarArtists"),
-      profileProvidedBy: labels?.profileProvidedBy ?? t("artist.profileProvidedBy"),
+      profile: t(labels?.profile ?? "artist.infoTitle"),
+      popularTracks: t(labels?.popularTracks ?? "artist.popularTracks"),
+      events: t(labels?.events ?? "artist.upcomingEvents"),
+      similar: t(labels?.similar ?? "artist.similarArtists"),
+      profileProvidedBy: t(labels?.profileProvidedBy ?? "artist.profileProvidedBy"),
     }),
     [t, labels?.profile, labels?.popularTracks, labels?.events, labels?.similar, labels?.profileProvidedBy],
   );

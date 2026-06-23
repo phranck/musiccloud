@@ -16,7 +16,7 @@ interface CcSharePageShellProps {
   /** Pre-built Jamendo artist column — set for cc-album/cc-artist, **unset for
    *  cc-track** (loaded async via `config.ccJamendoArtistId`). */
   artistInfo?: ArtistInfoResponse;
-  /** CC section-title overrides ("Similar Tracks", Jamendo credit). */
+  /** CC section-title overrides as i18n keys (see `CC_ARTIST_LABEL_KEYS`). */
   labels: { similar: string; profileProvidedBy: string };
   initialLocale?: string;
 }

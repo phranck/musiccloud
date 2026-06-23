@@ -36,10 +36,22 @@ export interface CcSharePageProps {
   /** Pre-built artist column — set for cc-album/cc-artist, **unset for cc-track**
    *  (which loads it async via `config.ccJamendoArtistId`). */
   artistInfo?: ArtistInfoResponse;
+  /** Artist-column title overrides as i18n keys (see {@link CC_ARTIST_LABEL_KEYS}). */
   labels: { similar: string; profileProvidedBy: string };
   pageTitle: string;
   artworkUrl?: string | null;
 }
+
+/**
+ * The artist-column title overrides for CC entities, given as i18n KEYS (not
+ * translated text) so {@link ShareLayout} can translate them reactively and the
+ * titles re-localize on a language switch. CC shows "Similar Tracks" (not
+ * "Similar Artists") and credits Jamendo as the data source.
+ */
+export const CC_ARTIST_LABEL_KEYS: { similar: string; profileProvidedBy: string } = {
+  similar: "artist.similarTracks",
+  profileProvidedBy: "artist.profileProvidedByJamendo",
+};
 
 /**
  * Builds the {@link CcSharePageProps} for a CC share-page response, reusing the
@@ -57,7 +69,7 @@ export function buildCcSharePageProps(data: CcSharePageResponse, t: TFunc): CcSh
     config,
     artistName,
     artistInfo: result.artistInfo,
-    labels: { similar: t("artist.similarTracks"), profileProvidedBy: t("artist.profileProvidedByJamendo") },
+    labels: CC_ARTIST_LABEL_KEYS,
     pageTitle: data.og.title,
     artworkUrl: config.artworkUrl,
   };
