@@ -95,7 +95,6 @@ export function MediaCardHead({
             previewUrl={content.previewUrl}
             refreshShortId={content.previewRefreshable ? content.shortId : undefined}
             mediaKind={content.mediaKind}
-            ccFormatSelect={content.ccAudioFormatSelect}
             trackTitle={content.title}
             onStatusChange={onPreviewStatusChange}
           />

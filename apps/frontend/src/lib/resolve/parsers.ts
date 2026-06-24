@@ -630,12 +630,10 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
     }),
     album: cc.album,
     // CC audio is streamed through our same-origin proxy, not Jamendo directly:
-    // Jamendo omits the Range CORS headers the crossorigin player needs.
+    // Jamendo omits the Range CORS headers the crossorigin player needs. The
+    // proxy defaults to mp32 (256k) when no format query is present.
     previewUrl: ENDPOINTS.frontend.ccAudio(cc.jamendoId),
     mediaKind: MediaKindValue.Song,
-    // The proxy URL is format-agnostic; the player appends ?format= and shows the
-    // streaming-format selector beneath the analyzer.
-    ccAudioFormatSelect: true,
     ccJamendoArtistId: cc.jamendoArtistId,
     shortId: shortIdFromShortUrl(cc.shareUrl),
   };

@@ -55,10 +55,6 @@ export interface MediaCardContentConfiguration {
   /** Whether `previewUrl` is a short preview clip (default) or a full track
    *  (CC / Jamendo). Drives the player's wording. Defaults to a preview. */
   mediaKind?: MediaKindType;
-  /** CC track only: when true, `previewUrl` is the format-agnostic CC-audio proxy
-   *  URL and the player renders a streaming-format selector (mp31/mp32/ogg/flac)
-   *  beneath the analyzer. */
-  ccAudioFormatSelect?: boolean;
   /** CC only: the track's Jamendo artist id, so ShareLayout loads the CC artist
    *  column async via `/api/cc/artist-info` instead of receiving it pre-built. */
   ccJamendoArtistId?: string;
