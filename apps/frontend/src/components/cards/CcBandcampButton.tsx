@@ -29,6 +29,10 @@ export function CcBandcampButton({ jamendoId }: CcBandcampButtonProps) {
   const [bandcampUrl, setBandcampUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    // Reset first so a previous track's URL never lingers: a no-match lookup
+    // leaves the state untouched (the `if (url)` below), which would otherwise
+    // keep the prior track's button pointing at the song viewed before.
+    setBandcampUrl(null);
     const controller = new AbortController();
     void lookupCcBandcampUrl(jamendoId, controller.signal)
       .then((url) => {
